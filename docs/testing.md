@@ -115,7 +115,7 @@ No suite reaches the screen. The render tools are in [client.md](client.md#looki
 
 ## Timing a frame
 
-No suite measures a browser's frame either. A threadless web export is the case that matters, and `cl_perf` is how it reports: export the shell, serve a pack, open `embed.html?server=ws://127.0.0.1:6074&cl_perf=10` in a browser, and read the `arena.perf` lines in its console. What they hold and what they showed is in [netcode.md](netcode.md#a-frames-cost). A machine busy with other work moves the frame times by a factor of three between runs, so compare the work counts (`snapshot`, `replay_n`) or runs taken back to back.
+No suite measures a browser's frame either. A threadless web export is the case that matters, and `cl_perf` is how it reports: export the shell, serve a pack, open `embed.html?server=ws://127.0.0.1:6074&cl_perf=10` in a browser, and read the `arena.perf` lines in its console. What they hold and what they showed is in [netcode.md](netcode.md#a-frames-cost). A machine busy with other work moves the frame times by a factor of three between runs, so compare the work counts (`snapshot`, `replay_n`) or runs taken back to back. Add `&cl_perf_split=1` (or `cl_perf_split 1` in the console) to split `p_controller` into the controller's phases (`ctl_*`, ms per frame) and the native motor's engine queries and whole ticks (`mt_cast`, `mt_rest`, `mt_overlap`, `mt_ray`, `mt_tick`; ms and calls per frame); it costs clock reads per player tick, so it is off by default.
 
 ## Performance measurement
 

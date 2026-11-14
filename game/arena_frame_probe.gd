@@ -49,6 +49,15 @@ static var fine: bool = false
 static var fine_on_record: bool = true
 
 
+## `cl_perf_split 1` (`--cl_perf_split 1`, `?cl_perf_split=1`): the report also splits `p_controller` into the
+## controller's phases (`ctl_<phase>`, DotFpsController.phase_us) and, with dot-sim's native motor, into its engine
+## queries and whole native ticks (`mt_<slot>`, DotSimFpsBody.profile_counters). No profiler recording reaches those
+## in a browser, and p_controller is most of a web tick. Off by default: each costs clock reads per player tick.
+static var split: bool = false
+const CTL_PHASES := ["pre", "consume", "motor", "publish", "report", "signals", "post", "setpos"]
+const MT_SLOTS := ["cast", "rest", "overlap", "ray", "tick"]
+
+
 static func on() -> bool:
 	return interval > 0.0
 
@@ -58,6 +67,35 @@ static func from_launch() -> void:
 	var text := launch_value("cl_perf")
 	if text.is_valid_float():
 		set_interval(text.to_float())
+	var split_text := launch_value("cl_perf_split")
+	if split_text.is_valid_int():
+		set_split(split_text.to_int() != 0)
+
+
+static func set_split(enabled: bool) -> void:
+	split = enabled
+	DotFpsController.phase_timers = enabled
+	DotFpsController.phase_us.fill(0)
+	if ClassDB.class_exists(&"DotSimFpsBody"):
+		ClassDB.class_call_static(&"DotSimFpsBody", &"reset_profile")
+		ClassDB.class_call_static(&"DotSimFpsBody", &"set_profile", enabled)
+
+
+## Adds the split rows for a report over [param n] frames to [param report], then restarts their counters.
+static func _split_rows(report: Dictionary, n: int) -> void:
+	var ctl_row: PackedInt64Array = _sections.get(&"p_controller", PackedInt64Array([0, 0, 0]))
+	var calls := float(ctl_row[1]) / n
+	var us := DotFpsController.phase_us
+	for i in mini(CTL_PHASES.size(), us.size()):
+		report["ctl_" + CTL_PHASES[i]] = "%.2f ms/frame max 0.0 x%.1f" % [float(us[i]) / n / 1000.0, calls]
+	us.fill(0)
+	if not ClassDB.class_exists(&"DotSimFpsBody"):
+		return
+	var c: PackedInt64Array = ClassDB.class_call_static(&"DotSimFpsBody", &"profile_counters")
+	for i in mini(MT_SLOTS.size(), c.size() / 2):
+		report["mt_" + MT_SLOTS[i]] = "%.2f ms/frame max 0.0 x%.1f" % [
+			float(c[i * 2 + 1]) / n / 1000.0, float(c[i * 2]) / n]
+	ClassDB.class_call_static(&"DotSimFpsBody", &"reset_profile")
 
 
 ## A launch option for a measurement, from `--name value` or the page's `?name=value`; ""
@@ -221,6 +259,8 @@ static func frame(delta: float, extra: Callable) -> Dictionary:
 		else:
 			report[key] = "%.2f ms/frame max %.1f x%.1f" % [
 				float(row[0]) / n / 1000.0, row[2] / 1000.0, float(row[1]) / n]
+	if split:
+		_split_rows(report, n)
 	if extra.is_valid():
 		report.merge(extra.call(), true)
 	DotLog.info(CHANNEL, "frame", report)

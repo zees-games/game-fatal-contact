@@ -93,6 +93,15 @@ func _add_perf_vars(local: DotConsoleLocal) -> void:
 			ArenaFrameProbe.set_interval(text.to_float())
 			return DotResult.success(ArenaFrameProbe.interval)
 	)
+	local.add_var(&"cl_perf_split", "1 splits p_controller in the cl_perf report into the controller's phases (ctl_*) and the native motor's engine queries (mt_*); 0 is off.",
+		func() -> Variant: return 1 if ArenaFrameProbe.split else 0,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_int():
+				return DotResult.fail(DotError.CODE_INVALID, "cl_perf_split takes 0 or 1")
+			ArenaFrameProbe.set_split(text.to_int() != 0)
+			return DotResult.success(1 if ArenaFrameProbe.split else 0)
+	)
 	local.add_var(&"cl_held_equips", "Most remote bodies that build a newly held gun in one frame; the rest wait a frame (0: no limit; 2 is the default).",
 		func() -> Variant: return ArenaPlayer.held_equips_per_frame,
 		func(v: Variant) -> Variant:
