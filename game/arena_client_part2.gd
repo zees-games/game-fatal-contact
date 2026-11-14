@@ -7,9 +7,38 @@ const GATE_WARM_BUDGET_MSEC := 100.0
 ## A drawing client's share of a frame for the server's events; the join backlog spreads over frames.
 const EVENT_BUDGET_USEC := 8000
 
+## Microseconds of events the networked client handles in a frame (the join backlog, then the arming, wait their turn
+## across frames). The setting `event_budget_usec` or the launch option `--cl_event_budget_usec` sets it; 0 is no
+## budget (everything on arrival, the arming in the adopting frame). Unset: 8000 in a client that draws, 0 headless.
+func _event_budget_usec() -> int:
+	var launched := ArenaFrameProbe.launch_value("cl_event_budget_usec")
+	if launched.is_valid_int():
+		return maxi(0, launched.to_int())
+	var fallback := EVENT_BUDGET_USEC if _builds_in_frames() else 0
+	if presentation != null and presentation.settings != null:
+		return maxi(0, presentation.settings.get_int(&"event_budget_usec", fallback))
+	return fallback
+
 ## Set by an offline start that builds in frames: [method _adopt] leaves the arming (and the loadout
 ## restore, which equips into the armed rig) to it, so the arming gets frames of its own.
 var _arm_after_adopt := false
+
+## [method _arm] for a client that joined a match, a frame between its parts and the loadout restore (which equips
+## into the armed rig) after them. No [method _setup_frame]: this runs in play, where polling must not stop.
+func _arm_adopted_in_frames(body: ArenaPlayer) -> void:
+	if not _arm_begin(body):
+		return
+	await get_tree().process_frame
+	if not is_instance_valid(body) or view_model == null:
+		return
+	_arm_mount(body)
+	await get_tree().process_frame
+	if not is_instance_valid(body):
+		return
+	_arm_rig(body)
+	_arm_end(body)
+	await get_tree().process_frame
+	await _restore_loadout()
 
 func _adopt(candidate: ArenaPlayer) -> void:
 	if candidate == null or player != null:
@@ -24,7 +53,11 @@ func _adopt(candidate: ArenaPlayer) -> void:
 	_guard_camera(player)
 	if presentation != null:
 		presentation.bind_camera_motion(player)
-	if not _arm_after_adopt:
+	var spread := not _arm_after_adopt and _builds_in_frames() and bridge != null and bridge.event_budget_usec > 0
+	if spread:
+		# A joined client's arming (view model, arms, rig) was ~100 ms of the frame that delivered the join backlog.
+		_arm_adopted_in_frames(player)
+	elif not _arm_after_adopt:
 		_arm(player)
 
 	if hud != null:
@@ -47,7 +80,7 @@ func _adopt(candidate: ArenaPlayer) -> void:
 		)
 
 	_hear_the_local_player()
-	if not _arm_after_adopt:
+	if not _arm_after_adopt and not spread:
 		_restore_loadout.call_deferred()
 	gate.freeze(player)
 
@@ -219,8 +252,7 @@ func _build_netcode() -> DotResult:
 
 	bridge = ArenaNetBridge.new()
 	bridge.name = "Bridge"
-	if _builds_in_frames():
-		bridge.event_budget_usec = EVENT_BUDGET_USEC
+	bridge.event_budget_usec = _event_budget_usec()
 	add_child(bridge)
 
 	var attached := bridge.attach(game, net)
