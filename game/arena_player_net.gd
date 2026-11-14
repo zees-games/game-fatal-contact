@@ -45,7 +45,7 @@ var net_modifiers: int = 0
 var net_timers2: int = 0
 
 ## The owner's own movement exactly: position, velocity and crouch as float32, to the
-## owning client alone ([method _write_exact]).
+## owning client alone (a [code]PACKED_FLOAT32[/code] of [constant EXACT_FLOATS]).
 ##
 ## [b]Why the quantised copy above is not enough to rewind from[/b] (2026-10-18). A predicting
 ## client rewinds to the snapshot and replays its unacknowledged commands, and the replay only
@@ -199,7 +199,9 @@ func _register_net_vars() -> void:
 			declaration.server_driven()
 
 	# The owner's exact movement, to rewind from (see [member net_exact]).
-	replicate(&"net_exact", DotNetVar.Type.CUSTOM).codec(_write_exact, _read_exact).to_owner_only()
+	# PACKED_FLOAT32 (dot_net 20): the same bits as the custom codec it replaced, a whole-array
+	# flag then the floats, and dot-sim's snapshot codec reads them natively.
+	replicate(&"net_exact", DotNetVar.Type.PACKED_FLOAT32).of_length(EXACT_FLOATS).to_owner_only()
 
 	# [b]Per-player state rather than an event, and that is what makes both of these
 	# survive what an event does not.[/b] A client that joins after the admin typed
@@ -433,23 +435,6 @@ func _push_exact(state: DotFpsState) -> void:
 	state.stamina = net_exact[11]
 	state.stamina_exhausted = net_exact[12] > 0.5
 	state.stamina_delay_left = net_exact[13]
-
-
-static func _write_exact(writer: DotNetWriter, value: Variant) -> void:
-	var exact: PackedFloat32Array = value if value is PackedFloat32Array else PackedFloat32Array()
-	writer.write_bool(exact.size() == EXACT_FLOATS)
-	if exact.size() == EXACT_FLOATS:
-		for f in exact:
-			writer.write_float32(f)
-
-
-static func _read_exact(reader: DotNetReader) -> Variant:
-	var exact := PackedFloat32Array()
-	if reader.read_bool():
-		exact.resize(EXACT_FLOATS)
-		for i in EXACT_FLOATS:
-			exact[i] = reader.read_float32()
-	return exact
 
 
 ## Copies received state back into the simulation. Receiving side.
