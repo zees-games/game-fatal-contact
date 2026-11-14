@@ -190,6 +190,8 @@ func _brain() -> void:
 	var shots := {false: 0, true: 0}
 	# Whole control, so what is measured is the correction itself; bot_recoil_control scales it per difficulty.
 	ArenaBots.recoil_control = 1.0
+	# The generic bot: a weapon style (a rifle's strafe) would move the shooter under the aim this measures.
+	var _st := DotBotSettings.of(_game).set_value("styles", "0")
 	for comp in [false, true]:
 		ArenaBots.recoil_compensation = comp
 		var mind := ArenaBots.Mind.new()
@@ -249,6 +251,7 @@ func _brain() -> void:
 						_check(dirs[dirs.size() / 2] < 1.0, "%s: the bullets leave within a degree of the chest" % label, "median %.2f" % dirs[dirs.size() / 2])
 	ArenaBots.recoil_compensation = true
 	ArenaBots.recoil_control = -1.0
+	var _st1 := DotBotSettings.of(_game).set_value("styles", "1")
 	print("    hit rate without compensation %d of %d, with it %d of %d" % [landed[false], shots[false], landed[true], shots[true]])
 	_check(float(landed[true]) / maxf(float(shots[true]), 1.0) > 1.3 * float(landed[false]) / maxf(float(shots[false]), 1.0),
 		"compensating the recoil lifts the hit rate by a third or more")

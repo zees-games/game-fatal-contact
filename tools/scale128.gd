@@ -23,6 +23,8 @@ var _settle := 4.0
 var _port := 27230
 var _map := "dm_box"
 var _mode := "ffa"
+## --botstyles: the bot_styles value (dot-bot weapon styles); empty leaves the default.
+var _botstyles := ""
 
 var _t_start := 0
 var _script_us := PackedFloat64Array()
@@ -78,6 +80,7 @@ func _ready() -> void:
 			"--tierabove": ArenaBots.tiers.above = int(args[i + 1])
 			"--motorprof": _motorprof = args[i + 1] != "0"
 			"--spawn": _spawn = args[i + 1] != "0"
+			"--botstyles": _botstyles = args[i + 1]
 			"--wphases":
 				AwWeaponRig.phase_timers = args[i + 1] != "0"
 				DotWeaponArsenal.phase_timers = AwWeaponRig.phase_timers
@@ -263,6 +266,8 @@ func _serve() -> void:
 	game.mode_id = StringName(_mode)
 	game.register_service = true
 	add_child(game)
+	if _botstyles != "":
+		var _st := DotBotSettings.of(game).set_value("styles", _botstyles)
 	var map := ArenaMap.by_id(StringName(_map))
 	var _set := game.setup(map if map != null else ArenaMap.dm_box())
 	var config := LoopbackServer.config("scale128", _port, data, "error", 256)

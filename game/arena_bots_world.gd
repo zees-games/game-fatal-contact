@@ -21,6 +21,17 @@ const HILL := &"hill"
 
 ## A bot looks at which gun to hold one tick in this many (see `ArenaBots._choose_gun`).
 const GUN_CHECK_EVERY := 8
+## The play style class (dot-bot's [DotBotStyle] table) of each FC weapon id; a pack's other weapons go by their tags
+## in [method World._class_of]. Kept to dot-bot's class names, so the shipped table and `bot_style_weights` apply.
+const STYLE_CLASS := {
+	&"knife": &"melee",
+	&"pistol": &"pistol", &"revolver": &"pistol", &"derringer": &"pistol", &"machine_pistol": &"smg",
+	&"smg": &"smg", &"carbine": &"rifle", &"rifle": &"rifle", &"bullpup": &"rifle", &"battle_rifle": &"rifle", &"burst_rifle": &"rifle",
+	&"shotgun": &"shotgun", &"drum_shotgun": &"shotgun", &"marksman": &"marksman", &"lmg": &"heavy",
+	&"sniper": &"sniper", &"minigun": &"heavy", &"launcher": &"launcher", &"quad_launcher": &"launcher",
+	&"grenade_launcher": &"launcher", &"beamer": &"heavy", &"charge_rifle": &"sniper",
+	&"frag": &"throw", &"sticky": &"throw", &"flash": &"throw", &"smoke": &"throw", &"incendiary": &"throw",
+}
 ## Metres inside which a scoped gun gives way to the sidearm.
 const GUN_CLOSE := 10.0
 
@@ -155,6 +166,8 @@ class World:
 
 	var tick_rate: float = float(ArenaContent.TICK_RATE)
 	var _loadouts: Dictionary = {}
+	## [constant STYLE_CLASS] by weapon definition, so a contact's class is one lookup a tick.
+	var _classes: Dictionary = {}
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
 	var _contacts: Array = []
@@ -288,6 +301,7 @@ class World:
 				c.air_jump_ready = false
 			c.health = p.health.health / p.health.max_health if p.health != null and p.health.max_health > 0.0 else 1.0
 			c.loadout = _loadout_of(p, tick)
+			_weapon_of(c, p)
 			_contacts.append(c)
 			_players[c.id] = p
 		if _by_id.size() != _contacts.size():
@@ -386,6 +400,35 @@ class World:
 		var made := DotBotArms.loadout_of(p.arsenal, _rater)
 		_loadouts[p.player_id] = [tick, made]
 		return made
+
+	## The class of the weapon in hand and how full its magazine is, for the bot's play style.
+	func _weapon_of(c: DotBotContact, p: ArenaPlayer) -> void:
+		var slot: DotWeaponSlot = p.arsenal.current() if p.arsenal != null else null
+		if slot == null or slot.def == null:
+			c.weapon_class = &""
+			c.magazine = -1.0
+			return
+		var def := slot.def
+		var klass: Variant = _classes.get(def)
+		if klass == null:
+			klass = _class_of(def)
+			_classes[def] = klass
+		c.weapon_class = klass
+		c.magazine = float(slot.magazine) / float(def.magazine) if def.magazine > 0 else -1.0
+
+	## A weapon's style class: its id (with or without a pack's `aw_` prefix) in [constant STYLE_CLASS], else its tags.
+	static func _class_of(def: DotWeaponDef) -> StringName:
+		var id := String(def.id)
+		var known: Variant = STYLE_CLASS.get(StringName(id.trim_prefix("aw_")))
+		if known != null:
+			return known
+		if def.tags.has(&"melee"):
+			return &"melee"
+		if def.tags.has(&"scoped"):
+			return &"sniper"
+		if def.tags.has(&"thrown") or def.tags.has(&"grenade"):
+			return &"throw"
+		return &"rifle" if def.tags.has(&"automatic") else &""
 
 	## Arsenal of any player: its catalogue knows every weapon lying about.
 	static func _any_arsenal(g: Object) -> Object:
