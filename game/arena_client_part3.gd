@@ -440,15 +440,22 @@ func right_mouse_aims() -> bool:
 static func _held(action: StringName) -> bool:
 	return InputMap.has_action(action) and Input.is_action_pressed(action)
 
+const BOT_MOVE := &"bot_move"
+const BOT_FIRE := &"bot_fire"
+
 func _local_commands(move: DotFpsCommand) -> Dictionary:
 	var out: Dictionary = {}
 
 	if player != null:
 		out[player.player_id] = [move, _fire]
 
+	# The fresh commands are made only for a bot that has none yet: as `get_meta` defaults they were built for every
+	# bot every tick and thrown away (two objects a bot, ~150 us a tick at 31 bots on the web build).
 	for id in _bots:
 		var bot: ArenaPlayer = _bots[id]
-		out[int(id)] = [bot.get_meta("bot_move", DotFpsCommand.new()), bot.get_meta("bot_fire", DotWeaponCommand.new())]
+		var bot_move: Variant = bot.get_meta(BOT_MOVE) if bot.has_meta(BOT_MOVE) else DotFpsCommand.new()
+		var bot_fire: Variant = bot.get_meta(BOT_FIRE) if bot.has_meta(BOT_FIRE) else DotWeaponCommand.new()
+		out[int(id)] = [bot_move, bot_fire]
 
 	return out
 
