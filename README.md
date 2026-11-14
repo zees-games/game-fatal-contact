@@ -134,7 +134,7 @@ Dead bodies fall as ragdolls from [dot-player-char](https://github.com/modcommun
 | `sv_ragdoll` | 1 | 1 a physical body, 0 a quick fall with no physics |
 | `sv_ragdoll_style` | `ragdoll` | `ragdoll`, `stiff` (one piece), `topple` (no physics), `hide` (vanishes) |
 | `sv_ragdoll_time` | 10 | Seconds a body lies there before it fades |
-| `sv_ragdoll_max` | 8 | Most bodies at once; the oldest fades to make room |
+| `sv_ragdoll_max` | 8 | Most bodies at once (default 8, 0 = unlimited); the oldest fades to make room |
 | `sv_ragdoll_force` | 1 | How hard kills throw bodies; 0 drops them where they stood |
 | `sv_ragdoll_reactions` | empty | Weights such as `headshot_launch=6,face_plant=1.5`; 0 turns one off |
 
