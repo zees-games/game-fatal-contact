@@ -1,70 +1,80 @@
-This is a game to demonstrate the capabilities of the [**Dot collection**](https://moddingcommunity.com/co/4-dot-assets) built on-top of [Godot 4](https://godotengine.org/) and [TMC's gaming platform](https://moddingcommunity.com/play). In this 3D game, players engage in an arena with different objectives, such as deathmatch, free-for-all, gungame, and more.
+# Zee's Fatal Contact
+
+A fast first-person shooter for [Godot 4](https://godotengine.org/), built on the [Dot collection](https://moddingcommunity.com/co/4-dot-assets) and [TMC's gaming platform](https://moddingcommunity.com/play). It is also the reference game for Dot: new games are started from a copy of it.
 
 ![Preview](https://github.com/zees-games/game-fatal-contact/blob/main/images/preview.gif?raw=true)
 
-*Play on my test server [here](https://moddingcommunity.com/arena/s/arena01/play)!*
+*Play on the test server [here](https://moddingcommunity.com/arena/s/arena01/play).*
 
-**This project and the assets under it are COMPLETELY OPEN SOURCE**. You are free to use, modify, and distribute them under the terms of the MIT license. The only thing not open source is the back-end web infrastructure. So if you opt into using your own authentication backend instead of integrating with TMC, you will need to build and integrate your own back-end infrastructure.
+The project and its assets are open source under the MIT license. Only the back-end web infrastructure is not; if you use your own authentication back end instead of TMC, you build that part yourself.
 
-## From Maintainer & WARNING
-This project, along with every asset it is built on, was built initially with **Claude Code** and will continue to be maintained and extended using it. This is because I (`gamemann`) cannot build the entire TMC platform alone (I wish I could lol).
-
-**Please treat this as partially tested.** It has its own headless test suite and that suite passes, but very little of this has been in front of real players yet. Expect rough edges, and please report anything you run into.
-
-I intend on reviewing code, testing, and editing documentation regularly. If you're interested in helping out, please let me know!
+**Please treat this as partially tested.** It was built with Claude Code and has a headless test suite that passes, but little of it has been in front of real players. Please report anything you run into.
 
 ## How it plays
-Zee's Fatal Contact (formerly Arena) is a fast first-person shooter on three dev-textured maps (`dm_atrium`, `dm_pit` and `dm_box`) and the combat surf maps: small surf maps built for fighting rather than for a timer, imported by [game-g2gfast](https://github.com/zees-games/game-airdrift) and kept in [arena-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps). The game does not come with them: a server names them in its content configuration and each is fetched as its own pack. Two of them are in the rotation by default (`surf_10x_reloaded_fixed` and `surf_110b_austinpowers`); the rest are installed and can be played with `arena_map <id>`. On a surf map the air control is the surf genre's, so you can ride the ramps; on the arena's own maps it goes back to the arena's. It is also the reference game for the Dot collection: when a new game is started, this is the one it is copied from.
 
-There are seven modes:
+You fight on three built-in dev-textured maps (`dm_atrium`, `dm_pit`, `dm_box`), plus optional map packs:
 
-| Mode | |
-| --- | --- |
-| Free-For-All | Everybody for themselves. First to 25 kills. |
-| Team Deathmatch | Red against Blue. First side to 75. |
-| Siege | Everybody for themselves, with a horde of monsters in the arena and props to throw. |
-| King of the Hill | One point in the middle. Hold it for ninety seconds. |
-| Capture the Flag | Take theirs to yours. First side to 3. |
-| Gun Game | Every kill gives you a different gun. First through the list wins. |
-| Only Snipers | A random sniper on every spawn. First to 25. |
+- **Combat surf maps** from [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps), imported through [game-g2gfast](https://github.com/zees-games/game-g2gfast)'s map format.
+- **Deathmatch and gun game maps** from [fc-dm-maps](https://github.com/zees-games/fc-dm-maps).
 
-The weapons are [fc-weapons](https://github.com/zees-games/fc-weapons), the set and the runtime that draws it: melee weapons, sidearms, rifles, heavies and grenades, each with a view model, a world model, sounds and recoil. A loadout is a melee weapon, a sidearm, a primary, a grenade and armour, all free: a server can price a weapon (`params.loadout_cost` in its weapon profile) and cap the total with `mp_loadout_budget`. A "Every spawn" toggle next to Random rolls a new random loadout at each spawn (`mp_loadout_random_on_spawn`). A headshot kill drops points and a health pack, and kill streaks earn rewards. Every hit and kill is confirmed by the server and felt on screen: a hit marker, damage numbers, medals (First Blood, Headshot, Double, Triple and Multi Kill, Revenge, Shutdown, Point Blank, No Scope, Long Shot, Nemesis) with a sound each, a killstreak meter, and the points for each kill beside the victim's name. A hit also splatters a little blood on the surface behind the body (Video, "Blood splatters", on by default).
+The game does not ship these maps. A server names them in its content configuration and each one is fetched as its own pack. On a surf map you get surf air control, so you can ride the ramps; on the built-in maps the normal air control applies.
 
-**Stomp.** Landing on another player's head kills them instantly and bounces you up; it counts as its own stat (Stomps). The server decides it, so it works under prediction. Tune it in the server cfg's Stomp group or with the cvars `sv_stomp`, `sv_stomp_damage` (0 is a kill), `sv_stomp_min_speed`, `sv_stomp_head_tolerance`, `sv_stomp_same_team` (off), `sv_stomp_bounce` and `sv_stomp_cooldown` (`arena_stomp_*` and `ARENA_STOMP_*` set the same fields).
+### Modes
 
-A match starts in warmup, then counts down, then goes live. Nobody spawns until it is live (about thirteen seconds on the default rules), so an empty room at the start is normal.
+The goals below are defaults. Set `arena_scorelimit` and `arena_timelimit` to change them (0 means the mode's own value).
+
+| Mode | What you do | Default goal |
+| --- | --- | --- |
+| Free-For-All | Everybody for themselves | 25 kills |
+| Team Deathmatch | Red against Blue | 75 kills for a side |
+| Siege | Everybody for themselves, against a horde of monsters, with props to throw | mode default |
+| King of the Hill | Hold the one point in the middle | 90 seconds of holding |
+| Capture the Flag | Take their flag to yours | 3 captures |
+| Gun Game | Every kill gives you a different gun | first through the list |
+| Only Snipers | A random sniper on every spawn | 25 kills |
+
+A match starts in warmup, counts down, then goes live. Nobody spawns until it is live (about 13 seconds on the default rules), so an empty room at the start is normal.
+
+### Weapons and feedback
+
+The weapons come from [fc-weapons](https://github.com/zees-games/fc-weapons): melee, sidearms, rifles, heavies and grenades, each with a view model, world model, sounds and recoil. A loadout is a melee weapon, a sidearm, a primary, a grenade and armour. All are free by default; a server can price weapons (`params.loadout_cost` in the weapon profile) and set a total with `mp_loadout_budget`. "Every spawn" next to Random rolls a new loadout at each spawn (`mp_loadout_random_on_spawn`).
+
+The server confirms every hit and kill. You see a hit marker, damage numbers, medals (First Blood, Headshot, Double, Triple and Multi Kill, Revenge, Shutdown, Point Blank, No Scope, Long Shot, Nemesis), a killstreak meter and the points for each kill. A headshot drops points and a health pack. Kill streaks earn rewards.
+
+**Stomp.** Landing on another player's head kills them and bounces you up. The server decides it, so it works under prediction. Cvars: `sv_stomp`, `sv_stomp_damage` (0 is a kill), `sv_stomp_min_speed`, `sv_stomp_head_tolerance`, `sv_stomp_same_team` (off by default), `sv_stomp_bounce`, `sv_stomp_cooldown`.
 
 ## Controls
+
+Every key except Esc can be rebound under Menu, Controls. Changes apply at once and are saved.
 
 | Key | Action |
 | --- | --- |
 | **WASD** | Move |
-| **Space** | Jump. Hold it to keep hopping |
+| **Space** | Jump (hold to keep hopping) |
 | **Ctrl** | Crouch |
 | **Alt** | Walk |
 | **C** | Slide (Ctrl at a run does too) |
 | **Shift** | Dash |
 | **E** | Launch yourself forward |
-| **Mouse 1** | Fire. Hold to cook a grenade, let go to throw it |
+| **Mouse 1** | Fire (hold to cook a grenade, release to throw) |
 | **Mouse 2** | Aim down the sights |
-| **F** | Flashlight. The server decides it, so everyone sees your beam (range, brightness and battery are in the dot profile) |
+| **F** | Flashlight (everyone sees your beam) |
 | **X** | Bash with whatever is in your hand |
 | **R** | Reload |
-| **N** | Fire mode: cycles semi, burst and auto on a gun that has more than one, with a click; the ammo line shows the mode |
+| **N** | Fire mode: semi, burst, auto (on guns that have more than one) |
 | **1**-**5** / wheel | Weapon slot: melee, sidearm, primary, heavy, grenade |
 | **Q** | Last weapon |
 | **V** | Push to talk |
 | **Y** / **U** | Chat / team chat |
 | **Tab** (hold) | Scoreboard |
-| **H** | Help: the modes and every key as you have it bound |
-| **Esc** | Menu, and release the mouse. Leave is at the bottom |
+| **H** | Help: modes and your key bindings |
+| **Esc** | Menu and release the mouse; Leave is at the bottom |
 
 In Siege, **E** picks up and drops a prop, **X** freezes it, **G** punts it, and launch moves to **P**.
 
-Every key except Esc can be moved under Menu → Controls; the change applies at once and is saved.
-
 ## Getting started
-You need [Godot 4.7](https://godotengine.org/download). The game is built from twenty-six Dot addons, each in its own repository, so the easiest way to get everything is [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap). It clones every project and links the addons into each one:
+
+You need [Godot 4.7](https://godotengine.org/download). The game is built from Dot addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap), which clones every project and links the addons in:
 
 ```bash
 git clone https://github.com/modcommunity/dot-bootstrap.git
@@ -74,115 +84,113 @@ cd projects/game-arena
 ./game.sh
 ```
 
-On Windows, run `bootstrap.ps1` instead and open the project in Godot.
-
-`game.sh` does everything else:
+On Windows, run `bootstrap.ps1` and open the project in Godot.
 
 | Command | What it does |
 | --- | --- |
 | `./game.sh` | Play offline against bots, in a window |
-| `./game.sh online` | Start a local server and the browser client, and print the link to open |
+| `./game.sh online` | Start a local server and the browser client, and print the link |
 | `./game.sh online down` | Stop them |
 | `./game.sh server` | Start a local dedicated server only |
 | `./game.sh test` | Check every script and run every test suite |
 | `./game.sh shot` | Save a screenshot to `screenshots/` |
-| `./game.sh help` | All of the options |
+| `./game.sh help` | All options |
 
-The combat surf maps come from fc-surf-dm-maps, which bootstrap links in at `maps/imported`. The deathmatch and gun game maps come from fc-dm-maps (`maps/imported_dm`), credited to their authors on a map change; `./game.sh -- --offline --map gg-woods` plays one. Without it the game plays its three own maps. `./game.sh -- --offline --map surf_10x_reloaded_fixed` plays one offline.
+Without the map packs the game plays its three own maps. With bootstrap, fc-surf-dm-maps is linked at `maps/imported` and fc-dm-maps at `maps/imported_dm`. To play one map offline: `./game.sh -- --offline --map surf_10x_reloaded_fixed` or `--map gg-woods`.
 
-`online` and `server` use [dot-server-deploy](https://github.com/modcommunity/dot-server-deploy), which bootstrap clones next to this one. Run its `./setup.sh` once first.
+`online` and `server` use [dot-server-deploy](https://github.com/modcommunity/dot-server-deploy), which bootstrap clones next to this project. Run its `./setup.sh` once first.
 
 ## Running a server
-Settings are cvars. Set them in the server's config, on the command line, or live from the console. `cvarlist arena_` lists every one with its description.
 
-```
-arena_mode free_for_all        // free_for_all, team_deathmatch, siege, king_of_the_hill, capture_the_flag, gun_game, only_snipers
-arena_scorelimit 25            // kills to win (a side's in a team mode); 0 for the mode's own; gun game ends at its last gun
-arena_timelimit 600            // seconds a match lasts; 0 for the mode's own
-arena_warmup -1                // seconds of warmup before a match; -1 for the mode's own
-arena_minplayers 1             // players needed before a round starts
-arena_wall_run 1               // run along a wall in the air (0 off); arena_wall_jump, arena_wall_slide likewise
-arena_wall_run_min_speed 5.9   // m/s along the wall to start a run (arena_wall_run_end_speed 3 ends it)
-arena_wall_run_time 1          // longest a run lasts, seconds (at most 1.9)
-arena_wall_run_gravity 0.25    // share of gravity felt on the wall; arena_wall_run_damping 8, arena_wall_run_max_fall 6
-arena_wall_run_angle 60        // widest angle off the wall to start a run; head-on is no run
-arena_wall_jump_push 7         // space leaves the wall: push m/s, arena_wall_jump_up, arena_wall_jump_look, arena_wall_jumps, arena_wall_jumps_per_wall
-arena_wall_run_body_roll 25    // degrees a drawn body rolls on the wall; arena_wall_run_body_yaw 12 turns it toward it
-arena_streak_rewards ""        // kill streak rewards as streak:reward pairs (heal, armour, haste, empowered)
-arena_spawn_mode avoid         // avoid, weighted, furthest or random
-arena_team_spawn_split 1       // a team mode on a map with no team spawns: cut its spawns into two halves, one per team (0: one shared pool)
-arena_loadout_roll_text 0      // print "Random loadout: ..." when a loadout rolls at spawn (default off)
-cl_respawn_jump_gate 1         // client: Space that skipped the kill view does not jump on the respawn until released
-arena_imported_rotation "all"   // combat surf maps in the rotation: all, none, or ids
-arena_surf 1                   // a combat surf map plays with the surf air control (1) or the arena's own (0)
-arena_surf_airaccelerate 150   // the air acceleration on a combat surf map
-mp_teammate_passthrough 1      // team modes: 0 a team-mate is hit and blocks, 1 shots pass one at the muzzle, 2 every team-mate in the line
-```
+Settings are cvars. Set them in the server config, on the command line, or live from the console. `cvarlist arena_` lists every one with its description. (The `arena_` prefix is only the cvar naming.)
 
-`mp_teammate_passthrough` is the family's shared one from dot-combat, live from the next shot, and covers rockets and grenades in flight too. At 2 a team-mate never stops a shot; a blast still reaches them.
+| Cvar | Default | What it does |
+| --- | --- | --- |
+| `arena_mode` | `free_for_all` | `free_for_all`, `team_deathmatch`, `siege`, `king_of_the_hill`, `capture_the_flag`, `gun_game`, `only_snipers` |
+| `arena_scorelimit` | mode's own | Kills to win (a side's, in team modes); 0 is the mode's own; gun game ends at its last gun |
+| `arena_timelimit` | mode's own | Seconds a match lasts; 0 is the mode's own |
+| `arena_warmup` | mode's own | Seconds of warmup; -1 is the mode's own |
+| `arena_minplayers` | 1 | Players needed before a round starts |
+| `arena_spawn_mode` | `avoid` | `avoid`, `weighted`, `furthest` or `random` |
+| `arena_team_spawn_split` | 1 | Team mode on a map with no team spawns: cut the spawns into two halves, one per team (0 is one shared pool) |
+| `arena_streak_rewards` | empty | Kill streak rewards as `streak:reward` pairs (heal, armour, haste, empowered) |
+| `arena_loadout_roll_text` | 0 | Print "Random loadout: ..." when a loadout rolls at spawn |
+| `cl_respawn_jump_gate` | 1 | Client: a Space that skipped the kill view does not jump on respawn until released |
+| `arena_imported_rotation` | `all` | Combat surf maps in the rotation: `all`, `none`, or ids |
+| `arena_surf` | 1 | Surf air control on surf maps (0 uses the normal one) |
+| `arena_surf_airaccelerate` | 150 | Air acceleration on a surf map |
+| `mp_teammate_passthrough` | 1 | Team modes: 0 team-mates are hit and block, 1 shots pass one at the muzzle, 2 every team-mate in the line |
 
-Dead bodies fall as ragdolls, from [dot-player-char](https://github.com/modcommunity/dot-player-char). The server picks how each one goes down and every player sees the same fall:
+Wall movement: `arena_wall_run` (1 on, 0 off); `arena_wall_jump` and `arena_wall_slide` work the same way. Fine tuning is in the `arena_wall_run_*` and `arena_wall_jump_*` cvars (minimum speed, duration, gravity, angle, push, body roll). `cvarlist arena_wall` lists them with their defaults and ranges.
 
-```
-sv_ragdoll 1                   // 1 a physical body, 0 a quick fall with no physics
-sv_ragdoll_style ragdoll       // ragdoll, stiff (one piece), topple (no physics) or hide (vanishes)
-sv_ragdoll_time 10             // seconds a body lies there before it fades
-sv_ragdoll_max 8               // most bodies at once; the oldest fades to make room
-sv_ragdoll_force 1             // how hard kills throw bodies; 0 drops them where they stood
-sv_ragdoll_reactions ""        // weights, e.g. "headshot_launch=6,power_launch=8,face_plant=1.5,crumple=2.5,limp=4"; 0 turns one off
-```
+`mp_teammate_passthrough` is shared with dot-combat, takes effect from the next shot and also covers rockets and grenades in flight. At 2 a team-mate never stops a shot, but a blast still reaches them.
 
-A headshot can throw the body up and back, the sniper rifle and the rocket launcher always throw it, the shotguns and the heavy melee can, and anybody may go down on their face with a smack or crumple where they stood.
+### Ragdolls
 
-Bots come from [dot-bot](https://github.com/modcommunity/dot-bot), and they play the same way solo and on a server:
+Dead bodies fall as ragdolls from [dot-player-char](https://github.com/modcommunity/dot-player-char). The server picks how each one falls and every player sees the same fall.
 
-```
-bot_quota 4                    // players to fill the server to; people take a bot's place
-bot_quota_mode fill            // fill, fixed, per_player or off
-bot_difficulty medium          // easy, medium, hard or nightmare
-bot_reaction 0.3               // any single setting of the preset, e.g. seconds before a bot fires on somebody new
-bot_personas ""                // each bot dealt a character by weight; "warden:2,raider:1" only those; "off" one shared preset
-```
+| Cvar | Default | What it does |
+| --- | --- | --- |
+| `sv_ragdoll` | 1 | 1 a physical body, 0 a quick fall with no physics |
+| `sv_ragdoll_style` | `ragdoll` | `ragdoll`, `stiff` (one piece), `topple` (no physics), `hide` (vanishes) |
+| `sv_ragdoll_time` | 10 | Seconds a body lies there before it fades |
+| `sv_ragdoll_max` | 8 | Most bodies at once; the oldest fades to make room |
+| `sv_ragdoll_force` | 1 | How hard kills throw bodies; 0 drops them where they stood |
+| `sv_ragdoll_reactions` | empty | Weights such as `headshot_launch=6,face_plant=1.5`; 0 turns one off |
 
-Each bot gets its own character from `cfg/game/game-arena/bot/*.yml` (warden, raider, escort, marksman, runner, balanced): a lean to defend, attack or support that steers its CTF job, `scale` multipliers on the server's `bot_*` values (so it still follows `bot_difficulty`), and a seeded per-bot `spread` so no two bots of one character aim alike. A persona never turns faster than `bot_turn_rate`.
+### Bots
 
-`bot_difficulty` sets about thirty `bot_*` settings at once (reaction time, aim error and how fast it settles, turn speed, view cone, hearing, strafing, peeking, preferred range, bursts and more). Change any one of them after choosing a preset and it stays changed; `bot_settings` lists them all and `bot_settings_reset` goes back to the preset. dot-bot's README has the full table. Solo, the same names work in the console (the key under Escape), `bot_quota` counts you as one of the players, and `./game.sh -- --bot_difficulty hard --bots 5` sets both at launch.
+Bots come from [dot-bot](https://github.com/modcommunity/dot-bot) and play the same solo and on a server.
 
-Console commands:
+| Cvar | Default | What it does |
+| --- | --- | --- |
+| `bot_quota` | 4 | Players to fill the server to; people take a bot's place |
+| `bot_quota_mode` | `fill` | `fill`, `fixed`, `per_player` or `off` |
+| `bot_difficulty` | `medium` | `easy`, `medium`, `hard` or `nightmare` |
+| `bot_reaction` | 0.3 | Any single preset value, e.g. seconds before a bot fires on somebody new |
+| `bot_personas` | empty | Deal each bot a character by weight (`warden:2,raider:1`); `off` uses one shared preset |
 
-| Command | |
+Each bot gets a character from `cfg/game/game-arena/bot/*.yml` (warden, raider, escort, marksman, runner, balanced). A character leans a bot toward defending, attacking or supporting in CTF, scales the server's `bot_*` values, and gives each bot its own aim spread.
+
+`bot_difficulty` sets about thirty `bot_*` values at once. Change one after choosing a preset and it stays changed; `bot_settings` lists them and `bot_settings_reset` goes back to the preset. dot-bot's README has the full table. Solo, the same names work in the console (the key under Escape), and `./game.sh -- --bot_difficulty hard --bots 5` sets both at launch.
+
+### Console commands
+
+| Command | What it does |
 | --- | --- |
-| `arena_status`, `arena_score` | The match state and the scoreboard |
-| `arena_map <id>`, `arena_maps`, `arena_nextmap` | Change the map, list the maps, see what is next |
+| `arena_status`, `arena_score` | Match state and scoreboard |
+| `arena_map <id>`, `arena_maps`, `arena_nextmap` | Change the map, list maps, see what is next |
 | `arena_modes` | List the modes |
 | `arena_vote` | Open a map vote now |
 | `arena_restart` | Restart the match |
 | `arena_horde [clear]` | Show or clear the monsters |
 
 ### Admin commands
+
 These come from [dot-moderation](https://github.com/modcommunity/dot-moderation). Type them in the console, or in chat with a `!` in front.
 
-| Command | Needs | |
+| Command | Needs | Notes |
 | --- | --- | --- |
 | `noclip`, `god`, `buddha` `[player] [on\|off]` | `cheats` | With no player, they act on you |
 | `hp <player> <n>`, `speed <player> <x>`, `gravity <player> <x>` | `cheats` | Speed and gravity go from 0.25x to 3x |
 | `give <player> <weapon>`, `strip <player>` | `cheats` | |
 | `freeze <player> [seconds]`, `unfreeze`, `slay`, `slap <player> [damage]`, `respawn`, `rename`, `burn` | `slay` | |
 | `blind <player> [on\|off\|seconds]` | `slay` | Blacks out that player's screen |
-| `beacon <player> [on\|off]` | `slay` | A ring and a ping on that player, for everybody to see |
+| `beacon <player> [on\|off]` | `slay` | A ring and a ping on that player |
 | `bring`, `goto`, `send <player> <to>`, `return` | `teleport` | |
 | `modtools [player]` | `generic` | What is on a player, or what this game supports |
 
 A player can be a name, `@me`, `@all`, `@others`, `@alive`, `@dead` or `@team:<n>`.
 
 ### The map vote
-The vote for the next map is [dot-vote](https://github.com/modcommunity/dot-vote). The defaults are in `game/arena_vote.gd`. To change them, put a file at `user://cfg/arena_vote.json` (or use `DOT_VOTE_*` environment variables, or `--vote-*` arguments):
+
+The next-map vote is [dot-vote](https://github.com/modcommunity/dot-vote). The defaults (shown below) are in `game/arena_vote.gd`. To change them, create `user://cfg/arena_vote.json`, or use `DOT_VOTE_*` environment variables or `--vote-*` arguments:
 
 ```json
 { "end_vote": true, "vote_lead_sec": 120, "include_extend": true, "extend_seconds": 600, "max_extends": 3 }
 ```
 
-`end_vote: false` turns the end-of-map vote off, and `include_extend: false` takes "extend" off the ballot. dot-vote's README lists every setting.
+`end_vote: false` turns the end-of-map vote off and `include_extend: false` removes "extend" from the ballot. dot-vote's README lists every setting.
 
 ## Testing
 
@@ -193,34 +201,51 @@ The vote for the next map is [dot-vote](https://github.com/modcommunity/dot-vote
 
 | Suite | What it covers |
 | --- | --- |
-| `headless_match` | A whole match with four bots, then the HUD, the menus and the weapons |
-| `headless_bots` | A bot at each difficulty against the same reference player: kills and deaths, reaction time, aim, no shots through walls |
-| `headless_net` | A server and a client in one process, over a connection that drops packets |
+| `headless_match` | A whole match with four bots, then the HUD, menus and weapons |
+| `headless_bots` | A bot at each difficulty against a reference player |
+| `headless_net` | A server and a client over a connection that drops packets |
 | `headless_presentation` | What a client draws and plays |
-| `headless_stack` | The whole stack of addons together |
+| `headless_stack` | The whole addon stack together |
 | `headless_admin` | The admin commands on a real server |
-| `headless_imported` | A deathmatch on a combat surf map: spawns, floors, ramps, pits and the surf air control (skipped without fc-surf-dm-maps) |
+| `headless_imported` | A deathmatch on a combat surf map (skipped without fc-surf-dm-maps) |
 | `dedicated` | A real server: boots, loads the game, runs its commands, unloads it |
 
-## How the code is laid out
-- `maps/arena_map.gd` builds every map from a list of boxes: the meshes, the collision, and what a headless server checks shots against.
-- `maps/arena_bsp_map.gd` and `maps/arena_imported_maps.gd` find the combat surf maps and build them from game-airdrift's map format.
-- `game/arena_player.gd` puts movement, weapons, health and hitboxes on one body.
-- `game/arena_game.gd` joins the addons together, for example turning a kill into a point.
-- `game/arena_module.gd` is the dedicated-server side: cvars and console commands.
+## Code layout
+
+| Path | What it does |
+| --- | --- |
+| `maps/arena_map.gd` | Builds each built-in map from a list of boxes: meshes, collision, and what a headless server checks shots against |
+| `maps/arena_bsp_map.gd`, `maps/arena_imported_maps.gd` | Find the combat surf maps and build them |
+| `game/arena_player.gd` | Movement, weapons, health and hitboxes on one body |
+| `game/arena_game.gd` | Joins the addons together, e.g. turns a kill into a point |
+| `game/arena_module.gd` | The dedicated-server side: cvars and console commands |
 
 [`CLAUDE.md`](CLAUDE.md) has the reasoning behind each of these.
 
 ## Credits
-The stomp sound is synthesized at run time by dot-audio's `DotAudioSynth` (no recording, so no licence applies); the stomp puff reuses the impact spark scene.
 
-The players and bots are dot-player-char's people, from Quaternius' [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) (CC0 1.0, credited in [dot-player-char](https://github.com/modcommunity/dot-player-char)); the avatar parts and the horde's monsters are people coloured from Kenney's character kit skins, the built-in maps' grid is Kenney's [Prototype Textures](https://kenney.nl/assets/prototype-textures) (`assets/prototype/`), the medal icons are from Kenney's [Board Game Icons](https://kenney.nl/assets/board-game-icons) and [Game Icons](https://kenney.nl/assets/game-icons) (`assets/medals/`), the HUD's ability icons from Kenney's [Game Icons](https://kenney.nl/assets/game-icons) and [Mobile Controls](https://kenney.nl/assets/mobile-controls) (`assets/hud_icons/`), the weapon icons are Jestan's [The Ultimate Weapons Pack](https://jestan.itch.io/weapons-pack) (CC0 1.0 per the itch.io page, where the author says the licence file in the zip is outdated; vendored in dot-ui, `addons/dot_ui/icons/jestan/CREDITS.md`), and the older weapon silhouettes are rendered from the weapons' Kenney models by `tools/build_weapon_icons.sh` (`assets/weapon_icons/`), and the weapons are from [fc-weapons](https://github.com/zees-games/fc-weapons), which credits its own art. Kenney's assets are CC0. The built-in maps' surfaces are photographic PBR materials from [ambientCG](https://ambientcg.com) by Lennart Demes and contributors (CC0 1.0): Bricks097 (walls), Concrete047A (ground), PaintedPlaster017 (structures), Concrete034 (walkways), Metal063 (stairs) and Planks039 (cover), vendored from dot-map's surface library into `assets/surfaces/` (4.4 MB source, about 2.1 MB imported; client-only), asset pages and licence in `assets/surfaces/CREDITS.md`. Footsteps are Kenney's Impact Sounds and the ambience beds are generated by dot-audio, both CC0 and shipped in dot-audio (`addons/dot_audio/stock/CREDITS.md`). The maps' toys are dot-props', drawn from meshes made in code; their sounds are Kenney's (CC0), credited in `addons/dot_props/toys/sounds/CREDITS.md`.
+| Asset | Author / source | License | Where |
+| --- | --- | --- | --- |
+| Players and bots | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) | CC0 1.0 | [dot-player-char](https://github.com/modcommunity/dot-player-char) |
+| Avatar parts and horde monsters | Kenney, character kit skins | CC0 | generated from dot-player-char |
+| Built-in map grid | Kenney, [Prototype Textures](https://kenney.nl/assets/prototype-textures) | CC0 | `assets/prototype/` |
+| Medal icons | Kenney, [Board Game Icons](https://kenney.nl/assets/board-game-icons), [Game Icons](https://kenney.nl/assets/game-icons) | CC0 | `assets/medals/` |
+| HUD ability icons | Kenney, [Game Icons](https://kenney.nl/assets/game-icons), [Mobile Controls](https://kenney.nl/assets/mobile-controls) | CC0 | `assets/hud_icons/` |
+| Weapon icons | Jestan, [The Ultimate Weapons Pack](https://jestan.itch.io/weapons-pack) | CC0 1.0 (per the itch.io page; the licence file in the zip is outdated) | dot-ui, `addons/dot_ui/icons/jestan/CREDITS.md` |
+| Older weapon silhouettes | Rendered from Kenney weapon models by `tools/build_weapon_icons.sh` | CC0 | `assets/weapon_icons/` |
+| Weapons (models, sounds, art) | [fc-weapons](https://github.com/zees-games/fc-weapons), which credits its own sources | see fc-weapons | fc-weapons |
+| Built-in map surfaces (Bricks097, Concrete047A, PaintedPlaster017, Concrete034, Metal063, Planks039) | [ambientCG](https://ambientcg.com), Lennart Demes and contributors | CC0 1.0 | `assets/surfaces/`, details in `assets/surfaces/CREDITS.md` |
+| Footsteps | Kenney, Impact Sounds | CC0 | dot-audio, `addons/dot_audio/stock/CREDITS.md` |
+| Ambience beds | Generated by dot-audio | none (synthesized) | dot-audio |
+| Mood ambience under each map | OpenGameArt recordings, each author listed in [dot-audio's moods credits](https://github.com/modcommunity/dot-audio/blob/main/addons/dot_audio/stock/moods/CREDITS.md) | CC0 | dot-audio |
+| Map toys | Meshes made in code by dot-props; sounds by Kenney | CC0 | `addons/dot_props/toys/sounds/CREDITS.md` |
+| Stomp sound | Synthesized at run time by dot-audio's `DotAudioSynth` | none (no recording) | dot-audio |
+| Combat surf and deathmatch maps | Other people's work, shared with credit. Each map's author, original page and licence as stated there (often none) are in `maps.json` / `licence.json` | as stated by each author | [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps), [fc-dm-maps](https://github.com/zees-games/fc-dm-maps) |
 
-The quiet ambience under each map is dot-audio's stock mood set (CC0 recordings from OpenGameArt, each file's author and source in [dot-audio's `stock/moods/CREDITS.md`](https://github.com/modcommunity/dot-audio/blob/main/addons/dot_audio/stock/moods/CREDITS.md)); the footsteps are Kenney's Impact Sounds (CC0).
+The maps are published under the CDN's credited-community-map exception, not as our own work. This repository carries none of them; each map is its own pack. `arena_maps` names the author beside each map.
 
-The combat surf maps are other people's work, imported by game-airdrift. [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps) credits each one's author and where it came from (`maps.json`), and `arena_maps` names the author beside each one.
-
-The combat surf maps and the deathmatch maps are other people's work, shared with credit. Each map's author, its original page and its licence as stated there (often none) are in the `licence.json` and `maps.json` of [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps) and [fc-dm-maps](https://github.com/zees-games/fc-dm-maps), which link back to the original download. They are published under the CDN's credited-community-map exception, not as our own work. This pack carries none of them; each map is its own pack. **If you made one of these maps and want it removed, open an issue on the repository that holds it and it is taken down.**
+**If you made one of these maps and want it removed, open an issue on the repository that holds it and it is taken down.**
 
 ## License
+
 MIT. See [LICENSE](LICENSE).
