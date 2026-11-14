@@ -1,6 +1,7 @@
 extends DotNetBehaviour
 
 const ArenaContent := preload("arena_content.gd")
+const ArenaFrameProbe := preload("arena_frame_probe.gd")
 const ArenaNetBridge := preload("arena_net_bridge.gd")
 const ArenaNetCommand := preload("arena_net_command.gd")
 const ArenaPlayer := preload("arena_player.gd")
@@ -290,7 +291,9 @@ func _net_simulate(tick: int, delta: float) -> void:
 	# puts his simulation itself back through float32 every tick, as his client's replay does.
 	if skip_idle_pull and bridge != null and _server_owned() and not bridge.snapshot_due():
 		return
+	var t_pull := Time.get_ticks_usec()
 	pull()
+	ArenaFrameProbe.add(&"srv_netpull", t_pull)
 
 
 ## One predicted tick, which may be a replay.
@@ -348,21 +351,27 @@ func pull() -> void:
 	if player == null:
 		return
 
+	var lap := ArenaFrameProbe.lap_start()
 	DotFpsNetSync.pull(player.controller.state, self)
+	lap = ArenaFrameProbe.lap(&"np_fps", lap)
 	_pull_exact(player.controller.state)
+	lap = ArenaFrameProbe.lap(&"np_exact", lap)
 	DotCombatNetSync.pull(player.health, self)
+	lap = ArenaFrameProbe.lap(&"np_combat", lap)
 
 	# The rig's pull is dot-weapon's three and the pack's four.
 	if player.weapons != null:
 		AwWeaponNet.pull(player.weapons, self)
 	else:
 		DotWeaponNetSync.pull(player.arsenal, self)
+	lap = ArenaFrameProbe.lap(&"np_weapons", lap)
 
 	var def := player.arsenal.current_def() if player.arsenal != null else null
 	net_weapon = ArenaContent.weapon_index(def.id if def != null else &"")
 	# Owner-only, and a bot has no owner: 33 shelf scans a bot a tick for a mask nobody receives.
 	if not _server_owned():
 		net_carry = ArenaContent.carry_mask(player.arsenal)
+	lap = ArenaFrameProbe.lap(&"np_content", lap)
 
 	net_blind = player.blinded
 	net_challenge = clampi(player.challenge + 1, 0, 127)
@@ -378,6 +387,7 @@ func pull() -> void:
 	# relevance is the server's decision, and a client's copy of the flag decides nothing.
 	if identity != null and identity.is_authoritative:
 		identity.always_relevant = player.beacon
+	lap = ArenaFrameProbe.lap(&"np_rest", lap)
 
 
 ## Whether this player belongs to the server itself (a bot): there is no client to send owner-only state to.
