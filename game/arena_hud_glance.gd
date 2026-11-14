@@ -749,6 +749,8 @@ class PortraitCache extends Node:
 		view.add_child(person)
 		person.build(ArenaAvatars.look_of(avatar, StringName("arena-player-%08d" % id)), 1.8)
 		person.animate(0.0, 0.0)
+		# Posed once and never animated (`auto_animate` is off): its per-frame `_process` has nothing to do.
+		person.set_process(false)
 		var face := FACE
 		var bones := person.skeleton()
 		if bones != null and bones.find_bone("Head") >= 0:
