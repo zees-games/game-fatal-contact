@@ -68,6 +68,8 @@ var _tick_asks: Array = []
 
 ## Server: records every view and cuts the victims' clips (null until the first tick).
 var killview: DotKillViewServer = null
+## When the kill view last recorded the eyes; the ring keeps one row per 1/record_hz, so the eyes are only gathered when one is due.
+var _killview_recorded_at := -1.0e9
 
 
 ## This tick's confirmed hits, summed: attacker -> victim -> [amount, point, headshot,
@@ -723,7 +725,10 @@ func _tick_killview() -> void:
 	var tick := game.current_tick()
 	var now := float(tick) / float(game.tick_rate)
 	var t_kv := ArenaFrameProbe.lap_start()
-	killview.record(now)
+	# The ring drops a row younger than its record gap, so skip building every eye (and its aux) on the ticks in between.
+	if now - _killview_recorded_at >= 1.0 / game.killview_rules.record_hz - 0.0001:
+		_killview_recorded_at = now
+		killview.record(now)
 	t_kv = ArenaFrameProbe.lap(&"kv_record", t_kv)
 	for ready: Dictionary in killview.collect(now, tick):
 		var peer := peer_for_session(int(ready["victim"]))
