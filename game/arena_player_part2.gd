@@ -614,7 +614,7 @@ func tick_post(tick: int, delta: float, combat_command: DotWeaponCommand) -> Dot
 	# [method _idle_posture] for the same fields the context below gets, so a moving player takes this path too.
 	_posture_tick = tick
 	if weapons.would_idle(_command):
-		out = weapons.simulate_tick(_command, tick, null)
+		out = weapons.simulate_idle(_command, tick)
 		# The rig's idle tick asks the shared player bridge for the sprint, and this player has none of
 		# its controller nodes: without this the hands never go to the sprint carry on a plain run.
 		var hands := weapons.view_model()
