@@ -410,6 +410,16 @@ func _build_killcam() -> void:
 	_pov_spares.append(KillPovView.mount(self, game, killcam, "KillcamScreen", not _builds_in_frames()))
 	killcam.over.connect(func(_skipped: bool) -> void: _reveal_winner())
 	add_child(killcam)
+	_scale_killcam_events()
+
+## The kills the killcam buffer keeps, grown with the players: dot-replay's default 64 is a few
+## seconds of kills at 128 bots, and a kill evicted before its view starts plays no bodies at all.
+## A player dies at most a few times in the window, so this bounds what the window can hold.
+func _scale_killcam_events() -> void:
+	if killcam == null or game == null:
+		return
+	var wanted := game.players().size() * killcam_events_per_player
+	killcam.buffer.max_events = maxi(killcam.buffer.max_events, wanted)
 
 ## A player exists. Ours is one of them; the rest need something to be seen as. [b]`player_added`,
 ## not `player_spawned`.[/b] `player_spawned` comes out of dot-match's respawn queue, which runs on
@@ -417,6 +427,7 @@ func _build_killcam() -> void:
 func _on_player_added(added: ArenaPlayer) -> void:
 	if added == null:
 		return
+	_scale_killcam_events()
 
 	_hear_beacon(added)
 
@@ -486,6 +497,8 @@ func _build_due_bodies() -> void:
 const BODY_BUDGET_MS := 12
 ## Milliseconds of offline bots added a frame at a solo start (each is ~4 ms with its body).
 const OFFLINE_BOT_BUDGET_MS := 8
+## Kill events the killcam keeps per player (see [method _scale_killcam_events]); a tool may raise it.
+static var killcam_events_per_player := 4
 
 ## A stock avatar until the server says otherwise.
 func _attach_stock_body(added: ArenaPlayer) -> void:
