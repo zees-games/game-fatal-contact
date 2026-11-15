@@ -183,6 +183,9 @@ func validate() -> DotResult:
 ## Ticks a second for solo and a listen host (project.godot's physics rate is the same default); a dedicated server runs the host's sv_tickrate instead. Above 66 costs CPU in proportion; not yet measured with 32 bots.
 @export_range(20, 128, 1) var tick_rate: int = ArenaContent.TICK_RATE
 
+## Solo on its own server process (ArenaSimHost): the tick rate by player count (bots and you) in dot-server's `sv_tickrate_tiers` grammar (DotTickTiers), read once as the solo server starts; it overrides [member tick_rate]. A tick dearer than its length cannot keep real time, and then the whole game, gravity included, runs slower than the clock: on PH 64 players cost about 32 ms a tick and held 20-30 ticks a second of 66. Empty keeps [member tick_rate] at every count.
+@export var solo_tick_tiers: String = "players<=32:66,<=64:33,else:22"
+
 ## The surf fields as [method DotAudioSurfRules.apply_values] takes them.
 func surf_values() -> Dictionary:
 	return {

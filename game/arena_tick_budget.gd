@@ -1,14 +1,16 @@
 extends RefCounted
 
 ## How many physics ticks a solo frame may run to keep the game on wall-clock time. [b]Why it exists.[/b] Solo capped `Engine.max_physics_steps_per_frame` at 2 and the engine drops whatever the cap leaves: a 59 ms frame at 66 Hz is owed 4 ticks, got 2, and the simulation ran at half speed (16v16 bots, 17 fps).
-## The engine's default (8) catches up, but a catch-up that costs more than the frame makes the next frame slower still. So the cap follows the measured cost of a tick: as many steps as fit in [constant PHYSICS_BUDGET_SEC], never under [constant MIN_STEPS] and never over [constant MAX_STEPS].
-## When a tick costs more than the tick is long nothing can keep real time and the simulation slows by exactly the shortfall; only a cheaper tick fixes that.
+## The engine's default (8) catches up, but a catch-up that costs more than the frame makes the next frame slower still. So the cap follows the measured cost of a tick: as many steps as fit in [constant PHYSICS_BUDGET_SEC], never under [constant MIN_STEPS] and never over [member max_steps].
+## When a tick costs more than the tick is long nothing can keep real time and the simulation slows by exactly the shortfall; only a cheaper tick fixes that. [method note_frame] says so in the log once frames keep dropping owed ticks.
 
 const MIN_STEPS := 2
+## The default of [member max_steps].
 const MAX_STEPS := 8
 ## Cvar `arena_tick_max_steps`: below [constant MIN_STEPS] trades simulation speed for frame rate
-## when a tick is too dear to run twice a frame (1 = one tick per frame).
+## when a tick is too dear to run twice a frame (1 = one tick per frame). 0 = no limit: the budget alone decides.
 static var max_steps := MAX_STEPS
+const CHANNEL := "arena.tick_budget"
 ## Wall time a frame may spend ticking while it catches up.
 const PHYSICS_BUDGET_SEC := 0.045
 ## Weight of the newest tick in the cost average.
@@ -43,6 +45,7 @@ const SLOW_FRAME_TICKS := 4.0
 var _cost_sec := 0.0
 var _ticks := 0
 var _shed := 0.0
+var _said_behind := false
 
 
 ## The cap for the next frame given what a tick just cost; [param tick_cost_sec] is one
@@ -50,8 +53,11 @@ var _shed := 0.0
 func steps_for(tick_cost_sec: float) -> int:
 	_cost_sec = tick_cost_sec if _cost_sec <= 0.0 else lerpf(_cost_sec, minf(tick_cost_sec, _cost_sec * OUTLIER), SMOOTHING)
 	if _cost_sec <= 0.0:
-		return max_steps
-	return clampi(int(floorf(PHYSICS_BUDGET_SEC / _cost_sec)), mini(MIN_STEPS, max_steps), max_steps)
+		return max_steps if max_steps > 0 else MAX_STEPS
+	var fit := int(floorf(PHYSICS_BUDGET_SEC / _cost_sec))
+	if max_steps <= 0:
+		return maxi(fit, MIN_STEPS)
+	return clampi(fit, mini(MIN_STEPS, max_steps), max_steps)
 
 
 func cost() -> float:
@@ -79,6 +85,14 @@ func note_frame(frame_sec: float, period_sec: float, cap: int) -> float:
 	var behind := period_sec > 0.0 and _ticks >= cap and frame_sec / period_sec > float(_ticks) + 0.5
 	_ticks = 0
 	_shed = minf(_shed + SHED_RISE, 1.0) if behind else maxf(_shed - SHED_FALL, 0.0)
+	# Loud once per spell: the game is running slower than the clock, and only a cheaper tick or a higher cap ends it.
+	if _shed >= SHED_ON and not _said_behind:
+		_said_behind = true
+		DotLog.warn(CHANNEL, "solo game behind real time: frames drop owed ticks, so it runs slower than the clock",
+			{"tick_ms": snappedf(_cost_sec * 1000.0, 0.01), "period_ms": snappedf(period_sec * 1000.0, 0.01),
+				"cap": cap, "arena_tick_max_steps": max_steps})
+	elif _shed <= 0.0:
+		_said_behind = false
 	return _shed
 
 

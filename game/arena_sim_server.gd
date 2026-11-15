@@ -71,7 +71,7 @@ func _ready() -> void:
 	var binder := ArenaConfig.make_binder(game.config, "user://cfg/arena.json")
 	DotLog.result(CHANNEL, "config", binder.load_layers())
 	game.config_binder = binder
-	game.tick_rate = game.config.tick_rate
+	game.tick_rate = solo_tick_rate(game.config.solo_tick_tiers, bots + 1, game.config.tick_rate)
 	var mode := _arg("--mode", "")
 	if mode != "":
 		game.mode_id = StringName(mode)
@@ -124,6 +124,23 @@ func _ready() -> void:
 		ArenaBotThreads.threads, "native" if ArenaPlayerStack.brain_native() else "script",
 		"native" if ArenaBots.tiers.native and ClassDB.class_exists(&"DotSimThinkTier") else "script"])
 	_report(module.net)
+
+
+## The tick rate for [param players] from [member ArenaConfig.solo_tick_tiers] ([param spec]), else [param default_rate].
+## A table that does not parse, or names a rate the game cannot run, is said loudly and leaves [param default_rate].
+static func solo_tick_rate(spec: String, players: int, default_rate: int) -> int:
+	var tiers := DotTickTiers.parse(spec)
+	if tiers.error != "":
+		push_warning("arena sim server: solo_tick_tiers ignored (%s); ticking at %d" % [tiers.error, default_rate])
+		return default_rate
+	var rate := tiers.rate_for(players, default_rate)
+	if rate < ArenaGame.MIN_TICK_RATE or rate > ArenaGame.MAX_TICK_RATE:
+		push_warning("arena sim server: solo_tick_tiers gives %d Hz for %d players, outside %d-%d; ticking at %d" % [
+			rate, players, ArenaGame.MIN_TICK_RATE, ArenaGame.MAX_TICK_RATE, default_rate])
+		return default_rate
+	if rate != default_rate:
+		print("SIM_HOST tick rate %d for %d players (solo_tick_tiers %s)" % [rate, players, spec])
+	return rate
 
 
 ## The loopback server config for the solo host: [param data] holds its admin, ban and audit files.
@@ -188,10 +205,14 @@ func _report(net: DotNetManager) -> void:
 		var now: Dictionary = net.perf_counters()
 		var secs := (Time.get_ticks_usec() - t0) / 1.0e6
 		var ticks := maxi(1, int(now[&"server_ticks"]) - int(last[&"server_ticks"]))
+		var held := ticks / secs
+		var sim_ms := (int(now[&"server_sim_usec"]) - int(last[&"server_sim_usec"])) / 1000.0 / ticks
 		print("SIM_HOST %.1f ticks/s of %d | sim %.3f ms/tick send %.3f ms/tick" % [
-			ticks / secs, Engine.physics_ticks_per_second,
-			(int(now[&"server_sim_usec"]) - int(last[&"server_sim_usec"])) / 1000.0 / ticks,
+			held, Engine.physics_ticks_per_second, sim_ms,
 			(int(now[&"server_send_usec"]) - int(last[&"server_send_usec"])) / 1000.0 / ticks])
+		var behind := behind_line(held, Engine.physics_ticks_per_second, sim_ms)
+		if behind != "":
+			push_warning(behind)
 		# server_tick's own sections (a dot-net without them reports 0): input before sim, the
 		# still-registered check inside sim, the rewind history record inside send.
 		print("SIM_HOST_NET ms/tick | input %.3f, check %.3f, hist %.3f" % [
@@ -202,6 +223,19 @@ func _report(net: DotNetManager) -> void:
 			ArenaFrameProbe._reset()
 		last = now
 		t0 = Time.get_ticks_usec()
+
+
+## Under this share of its rate a report window says the game ran slower than the clock.
+const BEHIND_SHARE := 0.95
+
+
+## The loud line for a window that held [param held] ticks a second of [param rate], or "" while it kept real time.
+## The solo client follows this server's pace, so a short window is a game (gravity included) slowed by that share.
+static func behind_line(held: float, rate: int, sim_ms: float) -> String:
+	if rate <= 0 or held >= rate * BEHIND_SHARE:
+		return ""
+	return "SIM_HOST BEHIND real time: %.1f of %d ticks/s, the game runs at %d%% speed (a tick costs %.1f ms of %.1f); lower solo_tick_tiers or the bots" % [
+		held, rate, roundi(held * 100.0 / rate), sim_ms, 1000.0 / rate]
 
 
 static func _per_tick(now: Dictionary, last: Dictionary, key: StringName, ticks: int) -> float:

@@ -3,6 +3,7 @@ extends Node
 const ArenaPresentation := preload("../game/arena_presentation.gd")
 const ArenaSimHost := preload("../game/arena_sim_host.gd")
 const ArenaMaps := preload("../game/arena_maps.gd")
+const ArenaSimServer := preload("../game/arena_sim_server.gd")
 
 ## `--sim_host 1`: the solo game runs as a loopback server process and this client joins it, so
 ## the simulation is off the render thread. Off unless asked for; the client sees the bots, lives,
@@ -49,6 +50,7 @@ func _run() -> void:
 	_errors = RouteErrors.new()
 	OS.add_logger(_errors)
 	_check_wanted_rules()
+	_check_tick_tiers()
 
 	ArenaSimHost.forced = 1
 	ArenaSimHost.ask_map = "dm_box"
@@ -127,6 +129,18 @@ func _check_wanted_rules() -> void:
 	_check(not ArenaSimHost.wanted_for(PackedStringArray(["--offline", "--sim_host", "0"]), true), "--sim_host 0 opts out under --offline")
 	ArenaSimHost.forced = 0
 	_check(not ArenaSimHost.wanted(true), "and can be told not to be")
+
+
+## The solo server's rate by player count (ArenaConfig.solo_tick_tiers), and its loud line when it falls behind the clock.
+func _check_tick_tiers() -> void:
+	var spec := "players<=32:66,<=64:33,else:22"
+	_check(ArenaSimServer.solo_tick_rate(spec, 32, 66) == 66, "16v16 solo keeps 66 Hz")
+	_check(ArenaSimServer.solo_tick_rate(spec, 64, 66) == 33, "33-64 players tick at 33 Hz")
+	_check(ArenaSimServer.solo_tick_rate(spec, 65, 66) == 22, "64 bots and you tick at 22 Hz")
+	_check(ArenaSimServer.solo_tick_rate("", 65, 66) == 66, "an empty table keeps the configured rate")
+	_check(ArenaSimServer.behind_line(65.0, 66, 12.0) == "", "a window that held its rate is quiet")
+	var line := ArenaSimServer.behind_line(25.5, 66, 32.3)
+	_check(line.contains("BEHIND") and line.contains("39%"), "a window at 25.5 of 66 says the game runs at 39% speed", line)
 
 
 ## The client is built on the server's map, so its announcement keeps that world instead of rebuilding it.

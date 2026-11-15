@@ -8,7 +8,7 @@ const ArenaAudioManager := preload("../game/arena_audio_manager.gd")
 ## a tick, and checks the simulated ticks per wall second at 17 fps with cheap ticks.
 
 const SECTIONS := 6
-const CHECKS := 33
+const CHECKS := 35
 
 var _entered := 0
 var _completed := 0
@@ -62,6 +62,17 @@ func _run() -> void:
 		dear = b.steps_for(0.030)
 	_check(dear == ArenaTickBudget.MIN_STEPS, "a tick dearer than the budget falls back to the floor", "%d" % dear)
 	_check(ArenaTickBudget.new().steps_for(0.0) == ArenaTickBudget.MAX_STEPS, "no measurement yet allows the most")
+	ArenaTickBudget.max_steps = 0
+	var open_cap := ArenaTickBudget.new()
+	var unlimited := 0
+	for _i in 30:
+		unlimited = open_cap.steps_for(0.002)
+	_check(unlimited > ArenaTickBudget.MAX_STEPS, "arena_tick_max_steps 0: the budget alone sets the cap", "%d" % unlimited)
+	var dear_free := 0
+	for _i in 60:
+		dear_free = open_cap.steps_for(0.030)
+	_check(dear_free == ArenaTickBudget.MIN_STEPS, "and a dear tick still falls back to the floor", "%d" % dear_free)
+	ArenaTickBudget.max_steps = ArenaTickBudget.MAX_STEPS
 	var spiky := ArenaTickBudget.new()
 	for _i in 30:
 		spiky.steps_for(0.0118)

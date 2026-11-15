@@ -22,3 +22,5 @@
 # --- Simulation
 # Ticks a second for solo and a listen host (project.godot's physics rate is the same default); a dedicated s... [20..128]
 # tick_rate: 66
+# Solo on its own server process (ArenaSimHost): the tick rate by player count (bots and you) in dot-server's...
+# solo_tick_tiers: "players<=32:66,<=64:33,else:22"
