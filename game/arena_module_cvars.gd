@@ -444,7 +444,7 @@ func _add_team_spawn_split_cvar() -> void:
 func _add_snapshot_rate_cvar() -> void:
 	_cv_snapshot_rate = add_cvar("sv_snapshot_rate", "0",
 		"Snapshots a second to aim at; 0 is the default (32). Applies when the game is built; clients learn it at join.",
-		DotConVar.FLAG_ARCHIVE).with_range(0.0, 128.0)
+		DotConVar.FLAG_ARCHIVE).with_min(0.0)
 
 
 ## `sv_snapshot_workers`: [member DotNetConfig.snapshot_workers], live. The same bytes on the wire either way (dot-net builds each peer's snapshot from one frozen instant);
@@ -452,10 +452,10 @@ func _add_snapshot_rate_cvar() -> void:
 func _add_snapshot_workers_cvar() -> void:
 	add_cvar("sv_snapshot_workers", str(net.config.snapshot_workers if net != null and net.config != null else 0),
 		"Worker threads that build the per-peer snapshots; 0 builds them on the tick thread, -1 is the processor count less one. Same bytes either way",
-		DotConVar.FLAG_ARCHIVE).with_range(-1.0, 64.0).changed.connect(
+		DotConVar.FLAG_ARCHIVE).with_min(-1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			if net != null and net.config != null:
-				net.config.snapshot_workers = clampi(int(new_value.to_float()), -1, 64))
+				net.config.snapshot_workers = int(new_value.to_float()))
 
 
 ## The snapshot workers a server starts with: env ARENA_SNAPSHOT_WORKERS when set, else a quarter of the machine's threads, at most
@@ -463,7 +463,11 @@ func _add_snapshot_workers_cvar() -> void:
 static func default_snapshot_workers() -> int:
 	var env := OS.get_environment("ARENA_SNAPSHOT_WORKERS")
 	if env.is_valid_int():
-		return clampi(env.to_int(), -1, 64)
+		if env.to_int() >= -1:
+			return env.to_int()
+		push_error("ARENA_SNAPSHOT_WORKERS=%s is below -1; using the default" % env)
+	elif not env.is_empty():
+		push_error("ARENA_SNAPSHOT_WORKERS=%s is not a whole number; using the default" % env)
 	var n := mini(floori(OS.get_processor_count() / 4.0), SNAPSHOT_WORKERS_MAX)
 	return n if n >= 2 else 0
 
@@ -477,7 +481,7 @@ func _add_tick_rate_cvars() -> void:
 		var _ranged := tickrate.with_range(float(ArenaGame.MIN_TICK_RATE), float(ArenaGame.MAX_TICK_RATE))
 	add_cvar("bot_think_hz", "0",
 		"Bot brain runs this many times a second whatever the tick rate (a far bot's cadence for bot_think_every); 0 uses bot_think_every ticks",
-		DotConVar.FLAG_ARCHIVE).with_range(0.0, 128.0).changed.connect(
+		DotConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			var hz := new_value.to_float()
 			if hz > 0.0:
