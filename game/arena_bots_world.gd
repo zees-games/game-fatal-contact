@@ -32,6 +32,9 @@ const STYLE_CLASS := {
 	&"grenade_launcher": &"launcher", &"beamer": &"heavy", &"charge_rifle": &"sniper",
 	&"frag": &"throw", &"sticky": &"throw", &"flash": &"throw", &"smoke": &"throw", &"incendiary": &"throw",
 }
+## dot-bot API level of [code]DotBotContact.weapon_class[/code] and [code]magazine[/code] (weapon play styles). Below it the
+## contact has neither and the bot plays the generic style, so [code]requires.floor.json[/code] keeps dot_bot at 26.
+const STYLE_LEVEL := 32
 ## Metres inside which a scoped gun gives way to the sidearm.
 const GUN_CLOSE := 10.0
 
@@ -168,6 +171,8 @@ class World:
 	var _loadouts: Dictionary = {}
 	## [constant STYLE_CLASS] by weapon definition, so a contact's class is one lookup a tick.
 	var _classes: Dictionary = {}
+	## Whether this build's dot-bot has play styles ([constant STYLE_LEVEL]); asked once per world, not per contact.
+	var _styled: bool = DotAddonApi.build_level("dot_bot") >= STYLE_LEVEL
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
 	var _contacts: Array = []
@@ -402,19 +407,22 @@ class World:
 		return made
 
 	## The class of the weapon in hand and how full its magazine is, for the bot's play style.
+	## Set by name: the fields exist from dot-bot [constant STYLE_LEVEL], and a host below it still parses this file.
 	func _weapon_of(c: DotBotContact, p: ArenaPlayer) -> void:
+		if not _styled:
+			return
 		var slot: DotWeaponSlot = p.arsenal.current() if p.arsenal != null else null
 		if slot == null or slot.def == null:
-			c.weapon_class = &""
-			c.magazine = -1.0
+			c.set(&"weapon_class", &"")
+			c.set(&"magazine", -1.0)
 			return
 		var def := slot.def
 		var klass: Variant = _classes.get(def)
 		if klass == null:
 			klass = _class_of(def)
 			_classes[def] = klass
-		c.weapon_class = klass
-		c.magazine = float(slot.magazine) / float(def.magazine) if def.magazine > 0 else -1.0
+		c.set(&"weapon_class", klass)
+		c.set(&"magazine", float(slot.magazine) / float(def.magazine) if def.magazine > 0 else -1.0)
 
 	## A weapon's style class: its id (with or without a pack's `aw_` prefix) in [constant STYLE_CLASS], else its tags.
 	static func _class_of(def: DotWeaponDef) -> StringName:

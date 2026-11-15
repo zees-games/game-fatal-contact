@@ -2,6 +2,7 @@
   "format": 1,
   "addons": {
     "dot_audio": 18,
+    "dot_bot": 26,
     "dot_map": 23
   }
 }
