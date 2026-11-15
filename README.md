@@ -1,6 +1,6 @@
 # Zee's Fatal Contact
 
-A fast first-person shooter for [Godot 4](https://godotengine.org/), built on the [Dot collection](https://moddingcommunity.com/co/4-dot-assets) and [TMC's gaming platform](https://moddingcommunity.com/play). It is also the reference game for Dot: new games are started from a copy of it.
+A fast first-person shooter for [Godot 4](https://godotengine.org/), built on the [Gamespice](https://gamespice.net) platform and addon collection. It is also the reference game for Gamespice: new games are started from a copy of it.
 
 ![Preview](https://github.com/zees-games/game-fatal-contact/blob/main/images/preview.gif?raw=true)
 
@@ -74,7 +74,7 @@ In Siege, **E** picks up and drops a prop, **X** freezes it, **G** punts it, and
 
 ## Getting started
 
-You need [Godot 4.7](https://godotengine.org/download). The game is built from Dot addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
+You need [Godot 4.7](https://godotengine.org/download). The game is built from Gamespice addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
 
 ```bash
 git clone https://github.com/gamespice-platform/bootstrap.git
