@@ -10,6 +10,8 @@ const ArenaSimServer := preload("../game/arena_sim_server.gd")
 ## and the server process ends with the client.
 
 const BOTS := 4
+## Seconds the client may take to build once its host answered (or failed, and it plays in-process).
+const BUILD_SEC := 30.0
 
 var _checks := 0
 var _failed := 0
@@ -64,8 +66,13 @@ func _run() -> void:
 	_client.set("offline_bots", BOTS)
 	_client.set("mouse_capture_override", true)
 	add_child(_client)
-	var built := await _until(func() -> bool: return _client.get("game") != null, 90.0)
-	_check(built, "the client builds once the server answered")
+	# As long as the host itself may take (boot, join, the hold) and a build after it: a flat 90 s was shorter than
+	# the host's own 60 + 30 + 3, so a loaded laptop failed here while the host was still within its limits.
+	var limit := ArenaSimHost.BOOT_LIMIT_SEC + ArenaSimHost.JOIN_LIMIT_SEC + ArenaSimHost.hold_joined_sec + BUILD_SEC
+	var added_msec := Time.get_ticks_msec()
+	var built := await _until(func() -> bool: return _client.get("game") != null, limit)
+	print("  the client built %.1f s after it was added (limit %.0f s)" % [(Time.get_ticks_msec() - added_msec) / 1000.0, limit])
+	_check(built, "the client builds once the server answered", "" if built else _host_state())
 	if not built:
 		_end()
 		return
@@ -82,7 +89,8 @@ func _run() -> void:
 	_check(platform != null and bool(platform.get("local_link")) and platform.get("link") == host.link,
 		"the platform holds the host's link as local, so --offline keeps it")
 	var seen := await _until(func() -> bool: return _players() >= BOTS + 1, 40.0)
-	_check(seen, "the client sees itself and the bots", "%d of %d" % [_players(), BOTS + 1])
+	# On a swapping laptop (server boot ~110 s) the client joined, built, then saw nobody: where the host and its server were then.
+	_check(seen, "the client sees itself and the bots", "%d of %d" % [_players(), BOTS + 1] + ("" if seen else "; " + _host_state()))
 	# The server sent snapshots from the join, while the client still built the scene its `Server/Arena` sits in:
 	# the owner's console had a screenful of these for the first 30 s of every solo start.
 	var lost := _errors.seen()
@@ -351,6 +359,24 @@ func _owner_checks(game: Object) -> void:
 	_check(alive and _players() == 3, "the player and the bots are on the new map", str(_players()))
 	var bad: DotResult = await _client.call("change_from_menu", &"map:no_such_map_at_all")
 	_check(not bad.ok and bad.error.message != "The server changes the map.", "a map that does not exist is refused with the reason", "" if bad.ok else bad.error.message)
+
+
+## Where the host got to, and the end of the server child's log: a failure to build, or to see anyone after it, says why.
+func _host_state() -> String:
+	var host: Node = _client.get_node_or_null("SimHost")
+	var parts := PackedStringArray()
+	if host == null:
+		parts.append("no SimHost node (started and failed, or never started)")
+	else:
+		var link: Object = host.get("link")
+		parts.append("up %s, pid %d, ready file %s, link %s" % [
+			str(host.get("up")), int(host.get("_pid")), str(FileAccess.file_exists(str(host.get("_ready_path")))),
+			"none" if link == null else ("playing" if bool(link.call("is_playing")) else "not playing")])
+	var text := FileAccess.get_file_as_string(ArenaSimHost.SERVER_LOG)
+	var lines := text.strip_edges().split("\n", false)
+	parts.append("server log %s, %d lines, last: %s" % [ProjectSettings.globalize_path(ArenaSimHost.SERVER_LOG), lines.size(),
+		" | ".join(lines.slice(maxi(lines.size() - 8, 0)))])
+	return "; ".join(parts)
 
 
 func _end() -> void:
