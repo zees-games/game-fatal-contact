@@ -48,6 +48,8 @@ static func prewarm_step(game, ids: Array, from: int, until_msec: int) -> int:
 
 ## Set on a layer whose bodies [method prewarm_step] has parked. A map change builds a new layer, without it.
 const POOLED := &"arena_drops_pooled"
+## Game meta: the ids whose drop key let go of a flag, until that key is up again.
+const SWALLOWED := &"drop_swallowed"
 
 
 ## Whether [param game]'s drop layer still has to be given its parked bodies (true after every game or map rebuild).
@@ -99,6 +101,8 @@ static func teardown(game) -> void:
 		game.weapon_drops = null
 	game.drop_held.clear()
 	game.use_held.clear()
+	if game.has_meta(SWALLOWED):
+		game.remove_meta(SWALLOWED)
 
 
 ## The drop key's rising edge throws the weapon in hand along the aim; the use key's takes the
@@ -106,21 +110,22 @@ static func teardown(game) -> void:
 static func input(game, id: int, player, pair: Array) -> void:
 	if not game.is_authority or pair.size() < 2 or pair[1] == null:
 		return
-	hook_shots(game)
+	# The shot hooks are put on once a tick by the game's tick ([method hook_shots]), not here once per player.
 	var held: bool = (pair[1] as DotWeaponCommand).is_pressed(DotWeaponCommand.BUTTON_DROP)
 	var was: bool = game.drop_held.get(id, false)
 	game.drop_held[id] = held
 	var use_now: bool = (pair[1] as DotWeaponCommand).is_pressed(DotWeaponCommand.BUTTON_USE)
 	var used: bool = game.use_held.get(id, false)
 	game.use_held[id] = use_now
-	# A flag carrier's drop key lets go of the flag, not the gun.
-	var swallowed: Dictionary = game.get_meta(&"drop_swallowed", {})
-	game.set_meta(&"drop_swallowed", swallowed)
+	# A flag carrier's drop key lets go of the flag, not the gun. An id is only swallowed while its key is held (set on a
+	# held tick, cleared on the first tick up; teardown clears it with `drop_held`), so a key up last tick and this one has
+	# nothing to clear: the per-player per-tick meta lookup and its throwaway default dictionary are skipped then.
 	if not held:
-		swallowed.erase(id)
-	if held and not was and ArenaFlagCarry.try_drop(game, id, player):
+		if was and game.has_meta(SWALLOWED):
+			(game.get_meta(SWALLOWED) as Dictionary).erase(id)
+	elif not was and ArenaFlagCarry.try_drop(game, id, player):
 		# The press let go of the flag: the weapon key waits for a release, or it would read the next tick as a new press.
-		swallowed[id] = true
+		_swallowed(game)[id] = true
 		return
 	# One key, one target: a map button or door looked at in reach wins; else the weapon on the floor.
 	if use_now and not used and game.map_io != null and game.map_io.press_for(player, id):
@@ -136,7 +141,8 @@ static func input(game, id: int, player, pair: Array) -> void:
 	var def := class_def_of(game, id)
 	var velocity: Vector3 = player.controller.state.velocity
 	var _thrown: int = _drop_key(game, id).step(game.weapon_drops, player.arsenal, player.muzzle_position(),
-		player.aim_direction(), id, held and not swallowed.has(id), game.get_physics_process_delta_time(), def, velocity)
+		player.aim_direction(), id, held and not (game.has_meta(SWALLOWED) and (game.get_meta(SWALLOWED) as Dictionary).has(id)),
+		game.get_physics_process_delta_time(), def, velocity)
 	if held and not was:
 		return
 	if _use_hold(game, id, player, def, use_now):
@@ -178,7 +184,8 @@ static func update_panel(client, pressed: bool, delta: float) -> void:
 		client.hud.crosshair.hold_progress = fill
 
 
-## Lets every traced shot and splash push a dropped weapon (a splash not through a wall); idempotent, as the trace is built later than the layer.
+## Lets every traced shot and splash push a dropped weapon (a splash not through a wall); idempotent, as the trace is built
+## later than the layer. The server's tick calls it once a tick, before any player's input.
 static func hook_shots(game) -> void:
 	if game.weapon_drops == null or game.combat == null or not game.combat.trace is DotTrace:
 		return
@@ -214,8 +221,15 @@ static func reset_drop_key(game, id: int) -> void:
 	var keys: Dictionary = game.get_meta(&"drop_keys", {})
 	if keys.has(id):
 		(keys[id] as DotWeaponDropKey).reset()
-	var swallowed: Dictionary = game.get_meta(&"drop_swallowed", {})
-	swallowed.erase(id)
+	if game.has_meta(SWALLOWED):
+		(game.get_meta(SWALLOWED) as Dictionary).erase(id)
+
+
+## The ids whose drop key let go of a flag and waits for a release.
+static func _swallowed(game) -> Dictionary:
+	if not game.has_meta(SWALLOWED):
+		game.set_meta(SWALLOWED, {})
+	return game.get_meta(SWALLOWED)
 
 
 ## The use key on a dropped weapon: the shared rules in [DotWeaponUseKey].

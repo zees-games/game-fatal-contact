@@ -248,7 +248,8 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		match_node.note_activity(str(id), _tick)
 		if surf_rides != null:
 			surf_rides.call(&"before", id, player)
-		_batch_pairs[i] = [move, fire]
+		# The command pair as it came (move, fire): no new two-item array per player per tick.
+		_batch_pairs[i] = pair if pair.size() == 2 else [move, fire]
 		if fine:
 			ArenaFrameProbe.add(&"pl_pre", t_fine)
 			t_fine = Time.get_ticks_usec()
@@ -340,6 +341,9 @@ func tick(commands: Dictionary = {}) -> void:
 	if use_grid:
 		_hull_grid.begin(_roster, _roster_ids)
 		hull_world = _begin_hull_world()
+	if is_authority:
+		# Once a tick, not once per player in the drop wiring's input: the trace is built later than the drop layer.
+		ArenaWeaponDropWiring.hook_shots(self)
 	if hull_world != null and ArenaHullGrid.batch and not DotFpsMotor.profile and _start_motor_batch(delta):
 		_tick_players_batched(commands, delta, hull_world, shots)
 	else:
