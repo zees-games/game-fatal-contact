@@ -162,6 +162,21 @@ var aiming: bool = false
 var _health_tag: DotHealthTag = null
 var _last_health: float = -1.0
 var _hurt_age: float = 999.0
+## What the tag was last given ([method _present_health_tag]); an unchanged, settled tag is not told again.
+var _tag_told: bool = false
+var _tag_frac: float = -1.0
+var _tag_bar: bool = false
+var _tag_named: bool = false
+var _tag_name: String = ""
+var _tag_friend: bool = false
+var _tag_tone: Color = Color(0, 0, 0, 0)
+var _tag_scale: float = 1.0
+## What a remote body's held gun was last told ([method _present_held]); re-told when it changes and every HELD_RETELL frames.
+var _held_told: int = 0
+var _held_told_id: StringName = &""
+var _held_told_state: int = -1
+var _held_told_charge: float = 0.0
+const HELD_RETELL := 8
 const HEALTH_TAG_SEC := 3.0
 
 ## The meshes a body break hid, so a respawn can draw them again. Client side.

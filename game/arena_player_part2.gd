@@ -186,18 +186,33 @@ func _present_held(remote: bool = false) -> void:
 	_present_fitting(id)
 
 	var t_hooks := Time.get_ticks_usec()
-	held.on_switching(switching)
-	# on_switching sets the model's own visible (hide_while_switching): it may hide the gun, never show one this hides.
-	if not shown:
-		held.visible = false
-	if held.has_method(&"on_reloading"):
-		held.call(&"on_reloading", reloading and is_alive())
-	# Aiming is not replicated: only a body this client drives shoulders its gun for it (a shot does for all).
-	if held.has_method(&"on_aiming"):
-		held.call(&"on_aiming", aim_held and not mirrored and is_alive())
-
-	if held.has_method(&"on_charge"):
-		held.call(&"on_charge", mirror_charge if mirrored else 0.0)
+	# The hooks are told what the snapshot said; a remote gun whose switching/reloading/aim/charge/shown are what it was last told
+	# (and whose model is the same) is not told again except every HELD_RETELL frames (a person's carry can appear late).
+	var charge := mirror_charge if mirrored else 0.0
+	var alive := is_alive()
+	var state := (int(switching) | (int(reloading and alive) << 1) | (int(aim_held and not mirrored and alive) << 2)
+		| (int(shown) << 3))
+	_held_told += 1
+	if remote and _held_told < HELD_RETELL and state == _held_told_state and charge == _held_told_charge \
+			and id == _held_told_id and held.equipped() == id:
+		if (switching and held.hide_while_switching) or not shown:
+			held.visible = false
+	else:
+		_held_told = 0
+		_held_told_state = state
+		_held_told_charge = charge
+		_held_told_id = id
+		held.on_switching(switching)
+		# on_switching sets the model's own visible (hide_while_switching): it may hide the gun, never show one this hides.
+		if not shown:
+			held.visible = false
+		if held.has_method(&"on_reloading"):
+			held.call(&"on_reloading", reloading and alive)
+		# Aiming is not replicated: only a body this client drives shoulders its gun for it (a shot does for all).
+		if held.has_method(&"on_aiming"):
+			held.call(&"on_aiming", aim_held and not mirrored and alive)
+		if held.has_method(&"on_charge"):
+			held.call(&"on_charge", charge)
 	ArenaFrameProbe.add(&"r_held_hooks", t_hooks)
 
 	var fired := AwWeaponNet.uses_between(_seen_fire_seq, seq)

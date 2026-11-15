@@ -744,6 +744,7 @@ func _present_health_tag(delta: float) -> void:
 	if not (bar or named):
 		if _health_tag != null:
 			_health_tag.visible = false
+		_tag_told = false
 		return
 
 	if _health_tag == null:
@@ -755,7 +756,27 @@ func _present_health_tag(delta: float) -> void:
 	_health_tag.global_position = over + Vector3(0.0, TagRules.tag_height, 0.0)
 	_health_tag.face(camera_now)
 	var tone := TagRules.bar_tone(friend, team) if TagRules.bar_colour_mode == &"team" else Color(0, 0, 0, 0)
-	_health_tag.update(now / health.max_health, bar, named, display_name, friend, delta, tone, TagRules.tag_scale)
+	var frac := now / health.max_health
+	# Told again only when something it draws changed or its bar is still easing: the update writes four shader
+	# parameters and the label every call, which is the same picture frame after frame for a settled tag.
+	var tag_scale := TagRules.tag_scale
+	var settled := (
+		_tag_told and frac == _tag_frac and bar == _tag_bar and named == _tag_named and friend == _tag_friend
+		and tag_scale == _tag_scale and tone == _tag_tone and display_name == _tag_name
+		and _health_tag.shown_fraction == clampf(frac, 0.0, 1.0) and _health_tag.trail_fraction == _health_tag.shown_fraction
+		and _health_tag.visible
+	)
+	if settled:
+		return
+	_health_tag.update(frac, bar, named, display_name, friend, delta, tone, tag_scale)
+	_tag_told = true
+	_tag_frac = frac
+	_tag_bar = bar
+	_tag_named = named
+	_tag_friend = friend
+	_tag_tone = tone
+	_tag_scale = tag_scale
+	_tag_name = display_name
 
 
 ## Whether the camera's crosshair is on this body and nothing solid is in between.
