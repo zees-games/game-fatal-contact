@@ -227,7 +227,7 @@ func _test_effects() -> void:
 	var _e := game.effects.apply(ArenaEffects.EMPOWERED, 700, 700)
 	var boosted := _hit(game, 700, 701, 40.0)
 	_check(
-		boosted > plain * 2.0,
+		boosted > plain * 1.25,
 		"an empowered attacker hits harder", "%.1f against %.1f" % [boosted, plain]
 	)
 

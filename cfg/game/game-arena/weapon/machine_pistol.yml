@@ -1,4 +1,4 @@
-# Arena: machine_pistol recoil. Only the keys changed from the fc-weapons pack; delete a key to fall back to it.
+# Fatal Contact: machine_pistol recoil and damage. Only the keys changed from the fc-weapons pack; delete a key to fall back to it.
 # pitch/yaw: degrees per shot (yaw alternates and drifts); build: extra kick per shot of a burst, capped at build_max;
 # recovery: how fast the kick settles per second; aim: multiplier while aiming down sights (-1 = sv_recoil_mult_aim).
 extra:
@@ -8,3 +8,5 @@ extra:
     recoil_build: 0.04
     recoil_build_max: 0.6
     recoil_recovery: 4.0
+    # Damage per round (pack 13): 8 body rounds; 15 is 7 (375 ms at 900 rpm). fc-weapon-damage-audit-1.
+    damage: 15.0

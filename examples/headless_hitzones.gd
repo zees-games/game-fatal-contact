@@ -26,9 +26,24 @@ const BOT_RANGE := 12.0
 ## Bots aim at the chest, so a head hit only comes of recoil and spread: more than this share of a bot's hits in the
 ## head (measured 0 to 21%) would be the one-shot headshots owners report.
 const BOT_MAX_HEAD_SHARE := 0.30
+## Shots to kill a fresh player (100 health, no armour) at 10 m, per weapon: [head min, head max, chest min, chest max].
+## Every round of a shotgun counts as all its pellets on the zone. The bands are what an FPS player expects:
+## automatics need three or more head rounds (so one head and one body round never kill) and four to six to the
+## body (the minigun trades damage for rate), heavy single shots two to the head, and only the sniper, the
+## marksman, the derringer and a point-blank shotgun kill with one round to the head.
+const STK_BOUNDS := {
+	"pistol": [3, 4, 4, 6], "revolver": [2, 2, 3, 3], "derringer": [1, 1, 2, 2],
+	"machine_pistol": [3, 5, 6, 8], "smg": [3, 4, 5, 7], "carbine": [3, 4, 4, 6], "rifle": [3, 3, 4, 6],
+	"bullpup": [3, 4, 4, 6], "burst_rifle": [3, 3, 4, 6], "battle_rifle": [2, 2, 3, 4], "lmg": [3, 4, 4, 6],
+	"minigun": [4, 6, 8, 11], "marksman": [1, 1, 2, 2], "sniper": [1, 1, 1, 1], "shotgun": [1, 1, 1, 2],
+	"drum_shotgun": [1, 2, 2, 3],
+}
+## How far each weapon's chest shots-to-kill may grow from 10 m to 70 m (falloff) and with full armour.
+const STK_FAR_GROWTH := 2.0
+const STK_ARMOUR_GROWTH := 2.0
 
-const CHECKS := 5
-const SECTIONS := 3
+const CHECKS := 10
+const SECTIONS := 4
 
 var _entered := 0
 var _completed := 0
@@ -47,6 +62,7 @@ func _run() -> void:
 	ArenaBots.think_near = 0.0
 	await _boot()
 	await _table()
+	_shots_to_kill()
 	await _bots()
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
@@ -189,6 +205,81 @@ func _table() -> void:
 			print(line)
 		_check(dead_in_one.is_empty(), "no automatic or the pistol kills with one round (armour %.0f)" % armour, ",".join(dead_in_one))
 		_completed += 1
+
+
+## Shots to kill per weapon and body part, deterministic: every round lands where it is meant to, so the numbers are
+## the damage data's (catalogue tuning with FC's overrides, the hit-group multipliers from cfg, falloff, armour and the
+## game's adjust hook), not the trace's spread. TTK is the time from the first to the killing round at the weapon's
+## refire interval.
+func _shots_to_kill() -> void:
+	var catalogue := ArenaPlayer.weapon_catalogue()
+	_section("shots to kill (TTK ms) per body part at 10 m, chest at 40 / 70 m and with armour 100; head x%.2f leg x%.2f" % [
+		_head_mult(), _game.combat.resolver.hit_groups.multiplier(DotHitGroup.LEG)])
+	print("    %-15s %-7s %-12s %-12s %-12s %-6s %-6s %-6s" % ["weapon", "damage", "head", "chest", "leg", "40 m", "70 m", "armour"])
+	var head_bad := PackedStringArray()
+	var chest_bad := PackedStringArray()
+	var order_bad := PackedStringArray()
+	var far_bad := PackedStringArray()
+	var armour_bad := PackedStringArray()
+	for id: String in STK_BOUNDS:
+		var def := catalogue.get_def(StringName(id))
+		var b: DotWeaponBallistics = def.tuning as DotWeaponBallistics if def != null else null
+		if b == null:
+			head_bad.append("%s: no hitscan ballistics" % id)
+			continue
+		var interval := def.ticks_at(def.use_interval_ticks, TICK_RATE)
+		var head := _rounds_to_kill(b, DotHitGroup.HEAD, 10.0, 0.0)
+		var chest := _rounds_to_kill(b, DotHitGroup.CHEST, 10.0, 0.0)
+		var leg := _rounds_to_kill(b, DotHitGroup.LEG, 10.0, 0.0)
+		var mid := _rounds_to_kill(b, DotHitGroup.CHEST, 40.0, 0.0)
+		var far := _rounds_to_kill(b, DotHitGroup.CHEST, 70.0, 0.0)
+		var armoured := _rounds_to_kill(b, DotHitGroup.CHEST, 10.0, 100.0)
+		var ttk := func(n: int) -> String: return "%d (%.0f)" % [n, 1000.0 * (n - 1) * interval / TICK_RATE]
+		var dmg := "%.0f" % b.damage if b.pellets == 1 else "%.0fx%d" % [b.damage, b.pellets]
+		print("    %-15s %-7s %-12s %-12s %-12s %-6d %-6d %-6d" % [id, dmg, ttk.call(head), ttk.call(chest), ttk.call(leg), mid, far, armoured])
+		var band: Array = STK_BOUNDS[id]
+		if head < int(band[0]) or head > int(band[1]):
+			head_bad.append("%s %d not %d-%d" % [id, head, band[0], band[1]])
+		if chest < int(band[2]) or chest > int(band[3]):
+			chest_bad.append("%s %d not %d-%d" % [id, chest, band[2], band[3]])
+		if not (head <= chest and chest <= leg):
+			order_bad.append("%s %d/%d/%d" % [id, head, chest, leg])
+		if far == 0 or float(far) > STK_FAR_GROWTH * chest:
+			far_bad.append("%s %d at 70 m vs %d" % [id, far, chest])
+		if armoured == 0 or float(armoured) > STK_ARMOUR_GROWTH * chest:
+			armour_bad.append("%s %d armoured vs %d" % [id, armoured, chest])
+	_check(head_bad.is_empty(), "every firearm's head shots-to-kill is in its band (automatics need 3 or more)", ", ".join(head_bad))
+	_check(chest_bad.is_empty(), "every firearm's chest shots-to-kill is in its band", ", ".join(chest_bad))
+	_check(order_bad.is_empty(), "the head kills in no more rounds than the chest, the chest in no more than the leg", ", ".join(order_bad))
+	_check(far_bad.is_empty(), "falloff at 70 m at most %.0fx the chest rounds at 10 m" % STK_FAR_GROWTH, ", ".join(far_bad))
+	_check(armour_bad.is_empty(), "full armour at most %.0fx the chest rounds" % STK_ARMOUR_GROWTH, ", ".join(armour_bad))
+	_completed += 1
+
+
+## Rounds of [param b] at [param group], [param dist] metres away, that kill a fresh player wearing [param armour],
+## through the live resolver and a fresh [DotHealth] built like the target's; 0 when a hundred rounds do not.
+func _rounds_to_kill(b: DotWeaponBallistics, group: StringName, dist: float, armour: float) -> int:
+	var combat: DotCombatManager = _game.combat
+	var type: DotDamageType = b.damage_type if b.damage_type != null else combat.damage_type(&"")
+	var live: DotHealth = combat.health_of(TARGET)
+	var health := DotHealth.new()
+	health.max_health = live.max_health
+	health.max_armour = maxf(live.max_armour, armour)
+	health.reset(0)
+	var _worn := health.add_armour(armour)
+	var tick: int = _game.current_tick()
+	var rounds := 0
+	while health.alive and rounds < 100:
+		rounds += 1
+		for _p in b.pellets:
+			var d := DotDamage.make(ATTACKER, TARGET, b.damage_at(1.0) * combat.config.damage_scale, type)
+			d.hit_group = group
+			d.distance = dist
+			d.tick = tick + rounds
+			var _applied := health.apply(combat.resolver.resolve(d))
+	var dead := not health.alive
+	health.free()
+	return rounds if dead else 0
 
 
 func _head_mult() -> float:

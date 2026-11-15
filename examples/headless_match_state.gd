@@ -38,9 +38,10 @@ var _stats_errors: PackedStringArray = []
 
 const SCORE_LIMIT := 6
 
-## Enough ticks for six kills at arena pace. Bounded rather than "until it ends", so a
-## match that never ends fails the test instead of hanging the run.
-const MAX_TICKS := 64 * 90
+## Enough ticks for six kills at FC pace. Bounded rather than "until it ends", so a
+## match that never ends fails the test instead of hanging the run. 150 s since head x2
+## (fc-weapon-damage-audit-1): a rifle needs 3 head rounds, not 2, and 90 s left the leader at 5.
+const MAX_TICKS := 64 * 150
 
 const CHECKS := 691
 

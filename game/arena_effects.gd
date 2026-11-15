@@ -140,7 +140,7 @@ static func table(rate: int, protection_ticks: int = 0) -> Array[DotEffectDef]:
 	burning.display_name = "Burning"
 	burning.label = "FIRE"
 
-	var empowered := DotEffectDef.damage_buff(EMPOWERED, 2.5, 20 * rate)
+	var empowered := DotEffectDef.damage_buff(EMPOWERED, 1.5, 20 * rate)
 	empowered.display_name = "Empowered"
 	empowered.label = "DMG"
 
