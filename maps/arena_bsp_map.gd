@@ -235,7 +235,8 @@ static func _mark_sky(body: StaticBody3D, id: String, dir: String, info: Diction
 		for copy: Node in (split.get_children() if split != null else []):
 			sky.append(by_shape[(copy as CollisionShape3D).shape])
 		scratch.free()
-	if sky.is_empty():
+	var faces := sky_face_shapes(info)
+	if sky.is_empty() and faces.is_empty():
 		return
 	var area := Area3D.new()
 	area.name = "ImportedSky"
@@ -250,8 +251,44 @@ static func _mark_sky(body: StaticBody3D, id: String, dir: String, info: Diction
 		mark.shape = shape.shape
 		mark.transform = shape.transform
 		area.add_child(mark)
+	for face in faces:
+		var mark := CollisionShape3D.new()
+		mark.name = "SkyFace"
+		mark.shape = face
+		area.add_child(mark)
 	body.add_child(area)
-	DotLog.debug("arena.maps", "sky hulls marked for the effects", {"map": id, "hulls": sky.size(), "by_index": kinds is Dictionary})
+	DotLog.debug("arena.maps", "sky hulls marked for the effects", {"map": id, "hulls": sky.size(), "faces": faces.size(), "by_index": kinds is Dictionary})
+
+
+## How far behind a sky face its mark reaches, in metres: more than the 5 cm [method on_sky] looks past a hit, little enough that a hit on the
+## real wall beside the face (further than this from it) is not read as sky.
+const SKY_FACE_DEPTH := 0.08
+
+
+## One thin convex slab per entry of the manifest's collision.sky_faces (the sky side of a wall brush with one TOOLSSKYBOX side, which
+## hull_kinds cannot name without silencing the wall): the face's corners and the same corners pushed [constant SKY_FACE_DEPTH] into the brush.
+static func sky_face_shapes(info: Dictionary) -> Array[ConvexPolygonShape3D]:
+	var shapes: Array[ConvexPolygonShape3D] = []
+	var faces: Variant = info.get("sky_faces")
+	if not faces is Array:
+		return shapes
+	for face: Variant in faces as Array:
+		if not face is Dictionary:
+			continue
+		var n: Array = (face as Dictionary).get("normal", [])
+		var corners: Array = (face as Dictionary).get("points", [])
+		if n.size() != 3 or corners.size() < 3:
+			continue
+		var inward := -Vector3(float(n[0]), float(n[1]), float(n[2])).normalized() * SKY_FACE_DEPTH
+		var points := PackedVector3Array()
+		for c: Variant in corners:
+			var p := Vector3(float((c as Array)[0]), float((c as Array)[1]), float((c as Array)[2])) * METRES_PER_UNIT
+			points.append(p)
+			points.append(p + inward)
+		var shape := ConvexPolygonShape3D.new()
+		shape.points = points
+		shapes.append(shape)
+	return shapes
 
 
 ## Whether a shot along [param direction] that ended at [param at] ended on a sky brush: no hole, spark or mark belongs there.
