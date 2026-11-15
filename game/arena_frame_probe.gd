@@ -139,7 +139,7 @@ static func lap_start() -> int:
 
 
 ## Charges the time since [param since_usec] to the sub-span [param section] and returns the clock for the next
-## lap. Only while [member fine] is on (a recording), so a tick outside one pays a call and a test.
+## lap, read after its own bookkeeping. Only while [member fine] is on (a recording), so a tick outside one pays a call and a test.
 static func lap(section: StringName, since_usec: int) -> int:
 	if not fine:
 		return 0
@@ -155,7 +155,8 @@ static func lap(section: StringName, since_usec: int) -> int:
 		row[1] += 1
 		row[2] = maxi(row[2], now - since_usec)
 		_sections[section] = row
-	return now
+	# The next lap starts after this bookkeeping, or each lap carried the one before's (bt_coast its bt_gate's).
+	return Time.get_ticks_usec()
 
 
 ## The rig's and the arsenal's phase clocks as read at the last [method charge_weapon_phases].

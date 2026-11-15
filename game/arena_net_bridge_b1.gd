@@ -298,6 +298,7 @@ func _commands() -> Dictionary:
 
 	# A bot's commands are made here, in the slot a client's input lands in, so the game
 	# ticks it exactly as it ticks a person. It sees the present, so no view lag.
+	var t_lap := ArenaFrameProbe.lap_start()
 	var driven: Array = []
 	var players: Array = []
 	var minds: Array = []
@@ -318,12 +319,14 @@ func _commands() -> Dictionary:
 		behaviour.last_view_lag = -1.0
 		behaviour.last_view_back = -1
 		behaviour.last_view_tick = -1
+	t_lap = ArenaFrameProbe.lap(&"bc_bots", t_lap)
 
 	for session_id in _behaviours:
 		var behaviour: ArenaPlayerNet = _behaviours[session_id]
 		# The lag as it was sent, on a repeated command too: the client's view runs that far behind
 		# its tick on every tick, so the lost command carried the same (headless_net measures it).
 		out[int(session_id)] = [behaviour.last_move, behaviour.last_fire, behaviour.last_view_lag]
+	ArenaFrameProbe.lap(&"bc_table", t_lap)
 
 	return out
 
