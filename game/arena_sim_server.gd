@@ -114,7 +114,7 @@ func _ready() -> void:
 	_server = server
 	print("SIM_HOST ready map=%s mode=%s bots=%d bot_threads=%d brain=%s loop=%s" % [String(game.map.id), String(game.mode.id), bots,  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		ArenaBotThreads.threads, "native" if ArenaPlayerStack.brain_native() else "script",
-		"native" if ArenaBots.tiers.native and ClassDB.class_exists(&"DotSimThinkTier") else "script"])
+		"native" if ArenaBots.tier_schedule and bool(ArenaBots.tiers.get(&"native")) and ClassDB.class_exists(&"DotSimThinkTier") else "script"])
 	_report(module.net)
 
 
@@ -160,8 +160,9 @@ func _apply_bench_flags() -> void:
 		ArenaPlayerStack.set_brain_native(brain_native.to_int() != 0)
 	# dot-sim's native bot loop (think tiers so far; on when the library is loaded) off for a bench's A/B.
 	var native_loop := _arg("--bot_native_loop", "")
-	if native_loop != "":
-		ArenaBots.tiers.native = native_loop.to_int() != 0
+	if native_loop != "" and ArenaBots.tier_schedule:
+		# By name: dot-bot 26 (the live shell's) has no native tier to switch.
+		ArenaBots.tiers.set(&"native", native_loop.to_int() != 0)
 	_load_us = maxi(0, int(_arg("--sim_load_us", "0")))
 	set_physics_process(_load_us > 0)
 	# Where a tick goes: the [ArenaFrameProbe] sections the server's tick records (srv_*, tick_*, p_*, bot_*, w_*),
@@ -172,7 +173,9 @@ func _apply_bench_flags() -> void:
 		ArenaFrameProbe.set_interval(1.0e9)
 		# The addons' own phases, in a SIM_HOST_PHASES line: the controller's always, the brain's on one thread only.
 		DotFpsController.phase_timers = true
-		DotBotBrain.phase_timers = ArenaBotThreads.threads == 0
+		if ArenaBots.brain_phases:
+			# By name: dot-bot 26 (the live shell's) has no brain phase timers.
+			(DotBotBrain as GDScript).set(&"phase_timers", ArenaBotThreads.threads == 0)
 		ArenaFrameProbe.fine = sections == "2"
 
 
@@ -325,10 +328,16 @@ static func phases_line(ticks: int) -> String:
 	var names := ["pc_pre", "pc_consume", "pc_motor", "pc_publish", "pc_report", "pc_signals", "pc_post", "pc_body"]
 	for i in names.size():
 		parts.append("%s %.3f" % [names[i], DotFpsController.phase_us[i] / 1000.0 / ticks])
-	for i in DotBotBrain.PHASES.size():
-		parts.append("%s %.3f" % [DotBotBrain.PHASES[i], DotBotBrain.phase_us[i] / 1000.0 / ticks])
 	DotFpsController.phase_us.fill(0)
-	DotBotBrain.phase_us.fill(0)
+	if not ArenaBots.brain_phases:
+		return "SIM_HOST_PHASES ms/tick | " + ", ".join(parts)
+	var brain: GDScript = DotBotBrain
+	var brain_names: Array = brain.get(&"PHASES")
+	var brain_us: PackedInt64Array = brain.get(&"phase_us")
+	for i in brain_names.size():
+		parts.append("%s %.3f" % [brain_names[i], brain_us[i] / 1000.0 / ticks])
+	brain_us.fill(0)
+	brain.set(&"phase_us", brain_us)
 	return "SIM_HOST_PHASES ms/tick | " + ", ".join(parts)
 
 

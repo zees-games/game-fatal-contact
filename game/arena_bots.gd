@@ -175,12 +175,7 @@ static func think_finish(_game: Object, bot: ArenaPlayer, mind: Mind, tick: int,
 		# Idle: no target, or dead (a bot fighting a bot is neither); a seen idle bot thins to tiers.idle_view_every.
 		var idle := intent.target_id < 0
 		# Body tiers (on above tiers.body_above players, bot_tier_body_every_near/far; 1 is off): a coasting bot nobody sees, nears or fights moves every few ticks.
-		# One classification for the period, the beat and the body (dot-bot API 27; native in dot-sim when loaded).
-		var coastable := _tier_coastable(mind, intent)
-		var plan := tiers.schedule(bot.player_id, me.position, engaged, idle, tick, mind.seed, think_floor_engaged if engaged else think_floor, coastable)
-		mind.every = plan.x
-		mind.coasting = plan.x > 1 and coastable
-		bot.body_every = plan.y
+		_schedule_tiers(bot, mind, me.position, engaged, idle, tick, _tier_coastable(mind, intent))
 	else:
 		bot.body_every = 1
 		mind.far = _every > 1 and _nobody_near(me, world)
@@ -257,6 +252,12 @@ static func _write(intent: DotBotIntent, move: DotFpsCommand, fire: DotWeaponCom
 
 ## Off only for tests that measure the bots without the correction (headless_bot_hitreg).
 static var recoil_compensation := true
+
+## Whether the think tiers come from [code]DotBotThinkTier.schedule[/code] (dot-bot API 27) or, on a host's dot-bot 26
+## (the live shell's pin), from period, until_beat and body_period, which answer the same. headless_botthreads plays both.
+static var tier_schedule := DotAddonApi.build_level("dot_bot") >= 27
+## Whether [code]DotBotBrain[/code] has phase timers (dot-bot API 29) for the sim host's SIM_HOST_PHASES line.
+static var brain_phases := DotAddonApi.build_level("dot_bot") >= 29
 
 ## bot_recoil_control: the share of the recoil a bot pulls its aim back against, 0..1; below 0 (the default, -1)
 ## by difficulty from [constant RECOIL_CONTROL]. A whole share made every bot's burst a laser no person matches.
@@ -343,6 +344,22 @@ static func _coastable(mind: Mind, intent: DotBotIntent, move: DotFpsCommand, fi
 ## repeated (see [method think_finish]), so a fight or a jump may coast; a dead bot coasts with nothing pressed.
 static func _tier_coastable(mind: Mind, _intent: DotBotIntent) -> bool:
 	return mind.ride == null and mind.throw_stage == 0
+
+
+## A thought bot's think and body tiers: one [code]DotBotThinkTier.schedule[/code] (dot-bot API 27; native in dot-sim when
+## loaded), or on a host's dot-bot 26 the three calls it replaced, which answer the same (headless_botthreads plays both).
+static func _schedule_tiers(bot: ArenaPlayer, mind: Mind, at: Vector3, engaged: bool, idle: bool, tick: int, coastable: bool) -> void:
+	var floor_every := think_floor_engaged if engaged else think_floor
+	if tier_schedule:
+		# Untyped: dot-bot 26 has no schedule, and a typed call would not parse there.
+		var plan: Vector2i = tiers.call(&"schedule", bot.player_id, at, engaged, idle, tick, mind.seed, floor_every, coastable)
+		mind.every = plan.x
+		mind.coasting = plan.x > 1 and coastable
+		bot.body_every = plan.y
+	else:
+		mind.every = DotBotThinkTier.until_beat(tick, mind.seed, maxi(tiers.period(bot.player_id, at, engaged, idle), floor_every))
+		mind.coasting = mind.every > 1 and coastable
+		bot.body_every = tiers.body_period(bot.player_id, at, engaged, idle) if mind.coasting else 1
 
 
 ## Whether this tick repeats the last commands rather than think. See [member think_every] and [member tiers].

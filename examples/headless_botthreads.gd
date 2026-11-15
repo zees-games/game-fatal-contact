@@ -4,6 +4,7 @@ const ArenaBots := preload("../game/arena_bots.gd")
 const ArenaBotThreads := preload("../game/arena_bot_threads.gd")
 const ArenaGame := preload("../game/arena_game.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
+const ArenaSimServer := preload("../game/arena_sim_server.gd")
 
 ## `bot_threads`: the bots' brains on worker threads play exactly what they play on one. The same
 ## 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8; every bot's position,
@@ -14,8 +15,8 @@ const BOTS := 24
 const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
-const SECTIONS := 3
-const CHECKS := 13
+const SECTIONS := 4
+const CHECKS := 18
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -90,6 +91,10 @@ func _run() -> void:
 	_check(ArenaBotThreads.active(ArenaBotThreads.MIN_BOTS), "the minimum goes parallel")
 	ArenaBotThreads.threads = 0
 	_check(not ArenaBotThreads.active(64), "bot_threads 0 is off at any count")
+	_done()
+
+	_section("the live shell's dot-bot 26 path plays the same match")
+	await _older_api()
 	_done()
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
@@ -183,3 +188,44 @@ func _play(count: int, map_id: StringName = &"") -> Array:
 	await get_tree().process_frame
 	ArenaBotThreads.threads = 0
 	return [digests, kills[0], parallel]
+
+
+## Think and body tiers on (every bot coasts when nobody sees it), played on the current addons' calls, then on the
+## calls a dot-bot 26 host has (the floor in requires.floor.json): the same digests.
+func _older_api() -> void:
+	var tiers := ArenaBots.tiers
+	var was := [tiers.above, tiers.body_above, ArenaBots.tier_schedule]
+	tiers.above = 0
+	tiers.body_above = 0
+	var current_bot := DotAddonApi.build_level("dot_bot") >= 27
+	var body_before := _sum(tiers.body_counts)
+	ArenaBots.tier_schedule = current_bot
+	var now := await _play(0)
+	var body_now := _sum(tiers.body_counts) - body_before
+	ArenaBots.tier_schedule = false
+	var old := await _play(0)
+	var body_old := _sum(tiers.body_counts) - body_before - body_now
+	tiers.above = was[0]
+	tiers.body_above = was[1]
+	ArenaBots.tier_schedule = was[2]
+	print("dot-bot %d: body tier answers above 1 %d current, %d older path" % [DotAddonApi.build_level("dot_bot"), body_now, body_old])
+	_check(body_now > 0 and body_old > 0, "bots coasted on body tiers both ways (%d, %d)" % [body_now, body_old])
+	_check(now[0].size() > 10 and now[0] == old[0], "dot-bot 26's period/until_beat/body_period play the match schedule plays (%d kills, %d)" % [now[1], old[1]])
+	_check(current_bot == ArenaBots.tier_schedule, "the guard follows the build's dot-bot level (%d)" % DotAddonApi.build_level("dot_bot"))
+	var phases := ArenaBots.brain_phases
+	ArenaBots.brain_phases = false
+	var line_old := ArenaSimServer.phases_line(1)
+	ArenaBots.brain_phases = phases
+	var line_now := ArenaSimServer.phases_line(1)
+	_check(line_old.begins_with("SIM_HOST_PHASES") and not line_old.contains("bb_"), "the sim host's phase line leaves out the brain on dot-bot 26: " + line_old)
+	_check(line_now.contains("bb_setup") == (DotAddonApi.build_level("dot_bot") >= 29), "and has the brain's phases from dot-bot 29: " + line_now)
+
+
+## The tier's answers above 1 so far, the native tier's included (flushed by name: not every dot-bot level has it).
+static func _sum(counts: Dictionary) -> int:
+	if ArenaBots.tiers.has_method(&"_flush"):
+		ArenaBots.tiers.call(&"_flush")
+	var total := 0
+	for k: Variant in counts:
+		total += int(counts[k])
+	return total
