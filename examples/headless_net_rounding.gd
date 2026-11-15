@@ -2,7 +2,7 @@ extends "headless_net_base.gd"
 
 ## 5002df3 / 10daeef: both ends of a predicted player go on from the float32 copy of the state, a bot does not.
 ## EXPECTED_CHECKS is this suite's own total (the base class's CHECKS belongs to headless_net).
-const EXPECTED_CHECKS := 55
+const EXPECTED_CHECKS := 54
 const EXPECTED_SECTIONS := 3
 
 
@@ -60,12 +60,11 @@ func _test_bot_stays_unrounded(bot_session: int) -> void:
 	var state := behaviour.player.controller.state
 	_load_state(state)
 	behaviour.pull()
-	_check(behaviour.net_exact.size() == ArenaPlayerNet.EXACT_FLOATS, "the pull still fills the exact copy")
+	_check(behaviour.net_exact.is_empty(), "the pull leaves a bot without an exact copy (nobody predicts it)")
 	_check(state.position.x == _awkward().x and state.position.y == _awkward().y and state.position.z == _awkward().z,
 		"position is untouched by the pull", str(state.position))
 	_check(state.stamina == 77.7 + 1e-9 and state.time_since_grounded == 0.123456789,
 		"and so are stamina and the jump timer")
-	_check(behaviour.net_exact[0] == _f32(_awkward().x), "while the exact copy is the float32 one")
 	_done()
 
 
