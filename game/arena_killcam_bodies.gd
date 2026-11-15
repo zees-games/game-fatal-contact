@@ -9,6 +9,13 @@ const ArenaPlayer := preload("arena_player.gd")
 ## interpolates between rows, so 30 a second (the kill view's pose rate) draws the same replay as 240; the recording was 0.03 ms a body a frame, 0.94 ms
 ## a frame at 32 bodies when taken every frame.
 static var record_hz: float = 30.0
+## `cl_killcam_pose_lod`: 1 keeps a body's last recorded pose (no read of its ~43 bones, one engine call each) while its
+## figure's animation LOD step (dot-player-char `anim_step`, 2+ for a far, offscreen or unseen body) has not run out since
+## that read; 0 reads every body at every pose. A near body on screen is step 1, so always read.
+static var pose_lod: bool = true
+# Player instance id -> the process frame of its body's last pose read, for [member pose_lod].
+static var _pose_read_at: Dictionary = {}
+static var _pose_read_pruned: int = 16
 
 const SKIP_ACTIONS: PackedStringArray = ["dot_fps_jump", "arena_fire", "ui_cancel"]
 const SEQ_RANGE := 4096
@@ -34,6 +41,9 @@ static func configure(host: DotKillcamHost, yard_fn: Callable = Callable(), shot
 	if DotAddonApi.build_level("dot_replay") >= 7:  # older hosts replay bodies by speed only
 		host.set(&"pose_fn", pose_of)
 		host.set(&"apply_pose_fn", apply_pose)
+		if DotAddonApi.build_level("dot_replay") >= 10:
+			host.set(&"pose_fn", read_pose)
+			host.set(&"pose_unchanged_fn", pose_unchanged)
 	if DotAddonApi.build_level("dot_replay") >= 8:
 		host.set(&"event_fn", func(p: Node, ra: Array, rb: Array, alpha: float, is_victim: bool) -> void:
 			var again: Array = host.get(&"_again")
@@ -98,6 +108,34 @@ static func _forget(p: Node) -> void:
 	for key: StringName in [SEQ_META, ALIVE_META, FALL_META, HIDDEN_META]:
 		if p.has_meta(key):
 			p.remove_meta(key)
+
+
+## [method pose_of], noting when, for [method pose_unchanged].
+static func read_pose(p: Node) -> PackedFloat32Array:
+	var now := Engine.get_process_frames()
+	_pose_read_at[p.get_instance_id()] = now
+	# Players who left are dropped once the table has doubled since the last sweep.
+	if _pose_read_at.size() > _pose_read_pruned * 2:
+		for id: int in _pose_read_at.keys():
+			if now - int(_pose_read_at[id]) > 600:
+				_pose_read_at.erase(id)
+		_pose_read_pruned = maxi(16, _pose_read_at.size())
+	return pose_of(p)
+
+
+## Whether the pose [method read_pose] last took is kept again ([member pose_lod]): the body is still shown and its
+## figure's animation step has not run out since. False sends the host to read it.
+static func pose_unchanged(p: Node) -> bool:
+	if not pose_lod:
+		return false
+	var at: int = _pose_read_at.get(p.get_instance_id(), -1)
+	if at < 0:
+		return false
+	var figure: Object = p.get(&"figure")
+	var body: Node3D = p.get(&"body_mesh")
+	if figure == null or body == null or not body.visible:
+		return false
+	return Engine.get_process_frames() - at < int(figure.get(&"anim_step"))
 
 
 ## The body's skeleton pose as drawn; none for a body nobody sees (a first-person player's own).

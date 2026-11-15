@@ -41,15 +41,7 @@ func _local_commands() -> DotConsoleLocal:
 			return DotResult.success(1 if _addon_static(AwViewArms, &"albedo_cache", false, str(v).strip_edges() != "0") else 0)
 	)
 	_add_remote_vars(local)
-	local.add_var(&"cl_killcam_hz", "Most times a second the kill-cam records every body while no replay plays (0: every frame; 60 is the default).",
-		func() -> Variant: return ArenaKillcamBodies.record_hz,
-		func(v: Variant) -> Variant:
-			var text := str(v).strip_edges()
-			if not text.is_valid_float():
-				return DotResult.fail(DotError.CODE_INVALID, "cl_killcam_hz takes a number")
-			ArenaKillcamBodies.record_hz = maxf(text.to_float(), 0.0)
-			return DotResult.success(ArenaKillcamBodies.record_hz)
-	)
+	_add_killcam_vars(local)
 	local.add_var(&"cl_pose_debug", "1 draws the held weapon's grip sockets, the hand targets and the arm bones over the view.",
 		func() -> Variant: return 1 if ArenaViewArms.debug_pose else 0,
 		func(v: Variant) -> Variant:
@@ -80,6 +72,28 @@ func _local_commands() -> DotConsoleLocal:
 	)
 
 	return local
+
+
+## Kill-cam recording rate and pose LOD.
+func _add_killcam_vars(local: DotConsoleLocal) -> void:
+	local.add_var(&"cl_killcam_hz", "Most times a second the kill-cam records every body while no replay plays (0: every frame; 60 is the default).",
+		func() -> Variant: return ArenaKillcamBodies.record_hz,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_float():
+				return DotResult.fail(DotError.CODE_INVALID, "cl_killcam_hz takes a number")
+			ArenaKillcamBodies.record_hz = maxf(text.to_float(), 0.0)
+			return DotResult.success(ArenaKillcamBodies.record_hz)
+	)
+	local.add_var(&"cl_killcam_pose_lod", "1 keeps a far or unseen body's last kill-cam pose while its animation LOD has not moved it, instead of reading every bone again; 0 reads every body each pose (1 is the default).",
+		func() -> Variant: return 1 if ArenaKillcamBodies.pose_lod else 0,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if text != "0" and text != "1":
+				return DotResult.fail(DotError.CODE_INVALID, "cl_killcam_pose_lod takes 0 or 1")
+			ArenaKillcamBodies.pose_lod = text == "1"
+			return DotResult.success(1 if ArenaKillcamBodies.pose_lod else 0)
+	)
 
 
 ## Frame-report and per-frame build limits.

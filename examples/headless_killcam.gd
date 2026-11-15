@@ -6,7 +6,7 @@ const Bodies := preload("../game/arena_killcam_bodies.gd")
 const KillcamShots := preload("../game/arena_killcam_shots.gd")
 const KillPovView := preload("../game/arena_kill_pov_view.gd")
 
-const EXPECTED_CHECKS := 62
+const EXPECTED_CHECKS := 64
 
 ## The standalone game, as a player lives it: a bot kills the local player (the kill view of the
 ## killer plays), then a bot's kill ends the match (the final killcam plays its time, a skip key
@@ -140,6 +140,14 @@ func _test_final_killcam(gm: Object, me: Object, killer: Object, bots: Dictionar
 	var shown := Time.get_ticks_msec()
 	await _wait(1.5)
 	_check(_tags_visible(bots, me) == 0, "no health bar shows over anybody during the final killcam")
+	var read: int = host.get(&"poses_read")
+	var kept: int = host.get(&"poses_kept")
+	_check((host.get(&"pose_unchanged_fn") as Callable).is_valid() and read > 0,
+		"poses are recorded through the cl_killcam_pose_lod hook (%d read, %d kept from the last read)" % [read, kept])
+	Bodies.pose_lod = false
+	var off := not Bodies.pose_unchanged(killer)
+	Bodies.pose_lod = true
+	_check(off, "cl_killcam_pose_lod 0 reads every body at every pose")
 	await _check_poses(host, killer, me)
 	await _check_events(killer, me)
 	var reveal: Node = _client.get("winner_reveal")
