@@ -49,10 +49,9 @@ static var fine: bool = false
 static var fine_on_record: bool = true
 
 
-## `cl_perf_split 1` (`--cl_perf_split 1`, `?cl_perf_split=1`): the report also splits `p_controller` into the
-## controller's phases (`ctl_<phase>`, DotFpsController.phase_us) and, with dot-sim's native motor, into its engine
-## queries and whole native ticks (`mt_<slot>`, DotSimFpsBody.profile_counters). No profiler recording reaches those
-## in a browser, and p_controller is most of a web tick. Off by default: each costs clock reads per player tick.
+## `cl_perf_split 1` (`--cl_perf_split 1`, `?cl_perf_split=1`): the report also splits `p_controller` into its phases
+## (`ctl_<phase>`, DotFpsController.phase_us) and dot-sim's native motor queries and ticks (`mt_<slot>`,
+## DotSimFpsBody.profile_counters), which no browser profiler reaches. Off by default: clock reads per player tick.
 static var split: bool = false
 const CTL_PHASES := ["pre", "consume", "motor", "publish", "report", "signals", "post", "setpos"]
 const MT_SLOTS := ["cast", "rest", "overlap", "ray", "tick"]

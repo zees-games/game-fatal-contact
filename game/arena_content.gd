@@ -214,10 +214,9 @@ static func carry_mask(arsenal: DotWeaponArsenal) -> int:
 	if arsenal == null:
 		return 0
 
-	# One pass over what is carried (a handful), not one `carries` per pack weapon: that was a
-	# slot-dictionary copy and a shelf scan for each of ~30 ids, 123 us of a 201 us pull on PH,
-	# every frame on a client and every tick for each person on the server. `weapons_in` is the
-	# arsenal's own carried set (the one `carried_weight` sums); a bit set twice is set once.
+	# One pass over what is carried, not one `carries` per pack weapon (a dictionary copy and shelf scan
+	# per ~30 ids: 123 us of a 201 us pull on PH, every client frame and every server tick per person).
+	# `weapons_in` is the arsenal's carried set (the one `carried_weight` sums); a bit set twice is set once.
 	var mask := 0
 	var bits := carry_bits()
 
