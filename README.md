@@ -74,10 +74,10 @@ In Siege, **E** picks up and drops a prop, **X** freezes it, **G** punts it, and
 
 ## Getting started
 
-You need [Godot 4.7](https://godotengine.org/download). The game is built from Dot addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/modcommunity/dot-bootstrap), which clones every project and links the addons in:
+You need [Godot 4.7](https://godotengine.org/download). The game is built from Dot addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
 
 ```bash
-git clone https://github.com/modcommunity/dot-bootstrap.git
+git clone https://github.com/gamespice-platform/bootstrap.git
 cd dot-bootstrap
 ./bootstrap.sh
 cd projects/game-arena
@@ -98,7 +98,7 @@ On Windows, run `bootstrap.ps1` and open the project in Godot.
 
 Without the map packs the game plays its three own maps. With bootstrap, fc-surf-dm-maps is linked at `maps/imported` and fc-dm-maps at `maps/imported_dm`. To play one map offline: `./game.sh -- --offline --map surf_10x_reloaded_fixed` or `--map gg-woods`.
 
-`online` and `server` use [dot-server-deploy](https://github.com/modcommunity/dot-server-deploy), which bootstrap clones next to this project. Run its `./setup.sh` once first.
+`online` and `server` use [dot-server-deploy](https://github.com/gamespice-platform/server-deploy), which bootstrap clones next to this project. Run its `./setup.sh` once first.
 
 ## Running a server
 
@@ -127,7 +127,7 @@ Wall movement: `arena_wall_run` (1 on, 0 off); `arena_wall_jump` and `arena_wall
 
 ### Ragdolls
 
-Dead bodies fall as ragdolls from [dot-player-char](https://github.com/modcommunity/dot-player-char). The server picks how each one falls and every player sees the same fall.
+Dead bodies fall as ragdolls from [dot-player-char](https://github.com/gamespice-platform/player-char). The server picks how each one falls and every player sees the same fall.
 
 | Cvar | Default | What it does |
 | --- | --- | --- |
@@ -140,7 +140,7 @@ Dead bodies fall as ragdolls from [dot-player-char](https://github.com/modcommun
 
 ### Bots
 
-Bots come from [dot-bot](https://github.com/modcommunity/dot-bot) and play the same solo and on a server.
+Bots come from [dot-bot](https://github.com/gamespice-platform/bot) and play the same solo and on a server.
 
 | Cvar | Default | What it does |
 | --- | --- | --- |
@@ -167,7 +167,7 @@ Each bot gets a character from `cfg/game/game-arena/bot/*.yml` (warden, raider, 
 
 ### Admin commands
 
-These come from [dot-moderation](https://github.com/modcommunity/dot-moderation). Type them in the console, or in chat with a `!` in front.
+These come from [dot-moderation](https://github.com/gamespice-platform/moderation). Type them in the console, or in chat with a `!` in front.
 
 | Command | Needs | Notes |
 | --- | --- | --- |
@@ -184,7 +184,7 @@ A player can be a name, `@me`, `@all`, `@others`, `@alive`, `@dead` or `@team:<n
 
 ### The map vote
 
-The next-map vote is [dot-vote](https://github.com/modcommunity/dot-vote). The defaults (shown below) are in `game/arena_vote.gd`. To change them, create `user://cfg/arena_vote.json`, or use `DOT_VOTE_*` environment variables or `--vote-*` arguments:
+The next-map vote is [dot-vote](https://github.com/gamespice-platform/vote). The defaults (shown below) are in `game/arena_vote.gd`. To change them, create `user://cfg/arena_vote.json`, or use `DOT_VOTE_*` environment variables or `--vote-*` arguments:
 
 ```json
 { "end_vote": true, "vote_lead_sec": 120, "include_extend": true, "extend_seconds": 600, "max_extends": 3 }
@@ -226,7 +226,7 @@ The next-map vote is [dot-vote](https://github.com/modcommunity/dot-vote). The d
 
 | Asset | Author / source | License | Where |
 | --- | --- | --- | --- |
-| Players and bots | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) | CC0 1.0 | [dot-player-char](https://github.com/modcommunity/dot-player-char) |
+| Players and bots | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) | CC0 1.0 | [dot-player-char](https://github.com/gamespice-platform/player-char) |
 | Avatar parts and horde monsters | Kenney, character kit skins | CC0 | generated from dot-player-char |
 | Built-in map grid | Kenney, [Prototype Textures](https://kenney.nl/assets/prototype-textures) | CC0 | `assets/prototype/` |
 | Medal icons | Kenney, [Board Game Icons](https://kenney.nl/assets/board-game-icons), [Game Icons](https://kenney.nl/assets/game-icons) | CC0 | `assets/medals/` |
@@ -237,7 +237,7 @@ The next-map vote is [dot-vote](https://github.com/modcommunity/dot-vote). The d
 | Built-in map surfaces (Bricks097, Concrete047A, PaintedPlaster017, Concrete034, Metal063, Planks039) | [ambientCG](https://ambientcg.com), Lennart Demes and contributors | CC0 1.0 | `assets/surfaces/`, details in `assets/surfaces/CREDITS.md` |
 | Footsteps | Kenney, Impact Sounds | CC0 | dot-audio, `addons/dot_audio/stock/CREDITS.md` |
 | Ambience beds | Generated by dot-audio | none (synthesized) | dot-audio |
-| Mood ambience under each map | OpenGameArt recordings, each author listed in [dot-audio's moods credits](https://github.com/modcommunity/dot-audio/blob/main/addons/dot_audio/stock/moods/CREDITS.md) | CC0 | dot-audio |
+| Mood ambience under each map | OpenGameArt recordings, each author listed in [dot-audio's moods credits](https://github.com/gamespice-platform/audio/blob/main/addons/dot_audio/stock/moods/CREDITS.md) | CC0 | dot-audio |
 | Map toys | Meshes made in code by dot-props; sounds by Kenney | CC0 | `addons/dot_props/toys/sounds/CREDITS.md` |
 | Stomp sound | Synthesized at run time by dot-audio's `DotAudioSynth` | none (no recording) | dot-audio |
 | Combat surf and deathmatch maps | Other people's work, shared with credit. Each map's author, original page and licence as stated there (often none) are in `maps.json` / `licence.json` | as stated by each author | [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps), [fc-dm-maps](https://github.com/zees-games/fc-dm-maps) |
