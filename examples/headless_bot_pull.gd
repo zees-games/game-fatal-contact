@@ -42,7 +42,7 @@ func _run() -> void:
 	ArenaPlayerNet.skip_idle_pull = was
 	ArenaKillViewServer.Due.ask_due_only = was_due
 	_check(every[0].size() > 100 and every[1].size() > 100, "the match was played (%d ticks, %d snapshots)" % [every[0].size(), every[1].size()])
-	_check(every[0] == skipped[0], "the simulation is identical, tick for tick", "first differing tick %d" % _first_diff(every[0], skipped[0]))
+	_check(every[0] == skipped[0], "the simulation is identical, tick for tick", "first differing tick %d%s" % [_first_diff(every[0], skipped[0]), _entry_diff(every[5], skipped[5], _first_diff(every[0], skipped[0]))])
 	_check(every[1] == skipped[1], "every bot's replicated properties are identical on every snapshot tick", "first differing snapshot %d" % _first_diff(every[1], skipped[1]))
 	_check(int(every[4]) > 50 and every[3] == skipped[3], "every bot's kill view clip is identical, asked every tick or only when due (%d clips)" % int(every[4]), "first differing read %d" % _first_diff(every[3], skipped[3]))
 	_check(int(every[2]) == 0, "pulling every tick leaves no copy behind between snapshots", "%d stale" % int(every[2]))
@@ -68,9 +68,26 @@ func _first_diff(a: PackedStringArray, b: PackedStringArray) -> int:
 	return -1 if a.size() == b.size() else mini(a.size(), b.size())
 
 
+## The bots whose entries differ at a tick: "id:x,y,z,yaw,pitch,health" for the every-tick run and the skipping run.
+func _entry_diff(a: PackedStringArray, b: PackedStringArray, tick: int) -> String:
+	if tick < 0 or tick >= a.size() or tick >= b.size():
+		return ""
+	var ea := a[tick].split(" ")
+	var eb := b[tick].split(" ")
+	var out := ""
+	for i in mini(ea.size(), eb.size()):
+		if ea[i] != eb[i]:
+			out += " | every %s vs skip %s" % [ea[i], eb[i]]
+	return out
+
+
 ## One match through a server bridge: [sim digests per tick, property digests per snapshot, stale copies seen between
-## snapshots, kill view clip digests per second, clips read].
+## snapshots, kill view clip digests per second, clips read, each tick's entries before digesting].
 func _play() -> Array:
+	# dot-weapon's drops roll and spin on the global random stream (DotWeaponDrops: randf_range when a drop is made):
+	# unseeded, a dropped weapon comes to rest somewhere else every run, and a bot fetching it looks somewhere else.
+	# Both matches start from the same seed, so the only difference left between them is the pull mode.
+	seed(0x5eed)
 	var game := _make_game()
 
 	var net := DotNetManager.new()
@@ -97,6 +114,7 @@ func _play() -> Array:
 	await get_tree().process_frame
 
 	var sims := PackedStringArray()
+	var raws := PackedStringArray()
 	var snaps := PackedStringArray()
 	var stale := 0
 	var clips := PackedStringArray()
@@ -122,6 +140,7 @@ func _play() -> Array:
 			elif b.net_position != state.position:
 				stale += 1
 		sims.append(" ".join(sim).md5_text())
+		raws.append(" ".join(sim))
 		if tick_index % TICK_RATE == TICK_RATE - 1 and bridge.killview != null:
 			var now := float(game.current_tick()) / float(game.tick_rate)
 			var clip := PackedStringArray()
@@ -139,7 +158,7 @@ func _play() -> Array:
 		remove_child(node)
 		node.queue_free()
 	await get_tree().process_frame
-	return [sims, snaps, stale, clips, clip_count]
+	return [sims, snaps, stale, clips, clip_count, raws]
 
 
 ## A headless authority game on dm_box with no warm-up, named after the pull mode.
