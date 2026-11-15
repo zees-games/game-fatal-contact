@@ -197,6 +197,7 @@ static func mount_delivered(
 
 	if ArenaImportedMaps.is_mounted(map.id) \
 			and ArenaImportedMaps.manifest_path(map.id) == manifest_in_mount(map):
+		refresh_delivered_meta(map)
 		return DotResult.success(null)
 
 	var first_key := key
@@ -264,8 +265,23 @@ static func mount_delivered(
 
 		return added.wrap("%s is not a map this game can build" % key)
 
+	refresh_delivered_meta(map)
 	DotLog.info(CHANNEL, "a delivered map is mounted", {"map": String(map.id), "pack": key, "dir": dir})
 	return DotResult.success(null)
+
+
+## Fills a mounted delivered map's listing from its manifest, as `_imported_def_for` does for a linked one: the key alone
+## cannot say which modes the map lists or whether its spawns have sides, so until then only the free-for-all modes are offered.
+static func refresh_delivered_meta(def: DotMapDef) -> void:
+	var map := ArenaMap.imported(def.id, true) if def != null else null
+
+	if map == null:
+		return
+
+	def.meta["spawns"] = map.spawns.size()
+	def.meta["teams"] = _has_team_spawns(map)
+	def.meta["modes"] = Array(map.modes)
+	def.meta["movement"] = String(map.movement_profile)
 
 
 ## Marks a pack key unusable for the rest of the session.

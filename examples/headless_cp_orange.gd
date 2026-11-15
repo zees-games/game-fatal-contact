@@ -152,6 +152,14 @@ func _run_part2(map: ArenaMap, red: int, blue: int) -> void:
 	await _run_part3(red, blue)
 
 
+func _offered(def: DotMapDef) -> Array:
+	var out := []
+	for mode in ArenaModes.all():
+		if def != null and ArenaMaps.supports_mode(def, mode):
+			out.append(String(mode.id))
+	return out
+
+
 func _run_part3(red: int, blue: int) -> void:
 	print("-- the modes it hosts are the listed ones")
 	var def := ArenaMaps.catalogue().get_map(MAP)
@@ -159,6 +167,13 @@ func _run_part3(red: int, blue: int) -> void:
 		and ArenaMaps.supports_mode(def, ArenaModes.by_id(&"ffa")), "tdm, ctf and ffa are supported")
 	_check(def != null and not ArenaMaps.supports_mode(def, ArenaModes.by_id(&"siege")) and not ArenaMaps.supports_mode(def, ArenaModes.by_id(&"koth")),
 		"siege and koth are not")
+	# The web build gets the map as a delivered pack, whose def knows only its key until it is mounted.
+	var listed := ["ffa", "tdm", "ctf", "gungame", "snipers"]
+	var delivered := ArenaMaps.delivered_def("gamemann/cp-orange-x3@1.0.7")
+	_check(_offered(delivered) == ["ffa", "gungame", "snipers"], "a delivered def not yet mounted offers only the free-for-all modes")
+	ArenaMaps.refresh_delivered_meta(delivered)
+	_check(_offered(def) == listed, "the linked map offers its five listed modes (%s)" % [_offered(def)])
+	_check(_offered(delivered) == listed, "the delivered def, once its manifest is mounted, offers the same five (%s)" % [_offered(delivered)])
 
 	print("-- team deathmatch spawns each side at its own end")
 	_game.match_node.rules.warmup_sec = 0.0
