@@ -4,10 +4,9 @@ const ArenaPresentation := preload("../game/arena_presentation.gd")
 const ArenaPlayer := preload("../game/arena_player.gd")
 const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
 
-## Offline bots' drawn-body sink into the floor in absolute metres: lowest sole and root vs a floor ray.
+## Offline bots' drawn-body sink into the floor in metres: lowest sole and root vs a floor ray.
 ## `hv . scene res://tools/floor_probe.tscn -- [--bots 12] [--seconds 20] [--unit 0.025] [--pre-draw] [--worst 25, 0 = all]`
-## Samples run after every `_process` (the `Late` node); `--pre-draw` samples at `frame_pre_draw` instead.
-## Rows: stand and crouch (sole), root (body mesh), figure (figure node), body (figure plus floor lift).
+## Runs after every `_process`; `--pre-draw` samples at `frame_pre_draw`. Rows: stand, crouch, root, figure, body.
 
 var _bots := 12
 var _worst_rows := 25  ## worst samples printed per list; 0 = all
