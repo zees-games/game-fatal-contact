@@ -111,9 +111,7 @@ func _run() -> void:
 		var match_node: Object = game.get("match_node")
 		return match_node != null and int(match_node.get("state")) != DotMatch.State.IDLE, 15.0)
 	_check(running, "the boot map's match runs before any map change")
-	var net: Object = _client.get("net")
-	var synced := await _until(func() -> bool: return net != null and net.get("clock") != null and bool(net.get("clock").call("is_synced")), 20.0)
-	_check(synced, "the clock is synced to the server")
+	await _synced_checks()
 	await _first_map_checks(game)
 	_check(OS.is_process_running(pid), "the server process is running")
 	await _menu_checks(host)
@@ -128,6 +126,12 @@ func _run() -> void:
 	var gone := await _until(func() -> bool: return not OS.is_process_running(pid), 20.0)
 	_check(gone, "the server process ends with the client")
 	_end()
+
+
+func _synced_checks() -> void:
+	var net: Object = _client.get("net")
+	var synced := await _until(func() -> bool: return net != null and net.get("clock") != null and bool(net.get("clock").call("is_synced")), 20.0)
+	_check(synced, "the clock is synced to the server")
 
 
 func _check_wanted_rules() -> void:

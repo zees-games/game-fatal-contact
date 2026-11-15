@@ -172,7 +172,6 @@ game/arena_player_part2.gd::long_block	7
 game/arena_player_stack.gd::banner	3
 game/arena_player_stack.gd::history	4
 game/arena_player_stack.gd::long_block	18
-game/arena_player_state.gd::long_block	1
 game/arena_player_tunables.gd::long_block	2
 game/arena_presentation.gd::banner	2
 game/arena_progress.gd::banner	3

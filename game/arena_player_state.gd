@@ -320,11 +320,9 @@ var solid_hulls_fn: Callable = Callable()
 ## jail's gate is asked on ([method game_tick]).
 var _hull_tick: int = -1
 
-## The game tick this player was last simulated on, -1 before the first: the server's tick on the
-## server, the same tick's number on a predicting client, a replay included. Unlike
-## [code]DotFpsState.tick[/code] (one per motor step on this machine, not replicated, and pushed on
-## by every replay) it is the same number on both ends, so anything the server times against a tick
-## (the jail's gate) is asked on this one. See `arena_ladder_mode.gd` for the same choice.
+## The game tick this player was last simulated on, -1 before the first: the server's tick, and on a
+## predicting client the same number, replays included. Unlike [code]DotFpsState.tick[/code] (per
+## machine, not replicated) it is equal on both ends, so the jail's gate is asked on it.
 func game_tick() -> int:
 	return _hull_tick
 
@@ -492,11 +490,8 @@ var _figure_hold_id: StringName = &""
 var _figure_hold_kind: int = -1
 
 ## How a stair tread's rise reaches the eye: the time constant of an exponential, seconds.
-## The step is the simulation's at once; only the view eases.
-##
-## Without it the eye rose a whole tread (0.36 m) in one tick, as `DotFpsView.smooth_step_up` eases in
-## dot-player-controller's camera; this game writes its camera itself (`present`).
-## `headless_feel` measures a run up the stair.
+## The step is the simulation's at once; only the view eases (as `DotFpsView.smooth_step_up` does in
+## dot-player-controller's camera; this game writes its own in `present`). `headless_feel` measures it.
 var step_smooth_time: float = 0.05
 
 ## The part of recent stair steps not yet shown, metres: subtracted from the eye, easing to 0.

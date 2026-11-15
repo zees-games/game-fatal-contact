@@ -5,20 +5,9 @@ const ArenaMap := preload("../maps/arena_map.gd")
 const ArenaMode := preload("../game/arena_mode.gd")
 const ArenaEvents := preload("../game/arena_events.gd")
 
-## The jail's gate on one clock (jail-sim-tick-1): when it opens and who it lets out, on the
-## server and in a client's prediction after replays.
-##
-## The gate is a pure function of a tick and of [code]opened_at[/code]. Until 2026-11-15 both were
-## [code]DotFpsState.tick[/code], a per-machine count of motor steps: the presser's on the server,
-## each jailed player's own when asked, and the client's own (pushed on by every replay) in its
-## prediction. Now both are the game tick (`ArenaPlayer.game_tick`), as `arena_ladder_mode` already was.
-##
-## Only outcomes are checked (where a player ends up), never the jail's internals, so the same
-## script runs on the code before and after and its SERVER line can be compared between the two.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_jail_clock.tscn
-## [/codeblock]
+## The jail's gate on one clock (jail-sim-tick-1): when it opens and who it lets out, on the server and in
+## a client's prediction after replays; only outcomes are checked, so the script runs before and after.
+## Run: godot --headless --path . res://examples/headless_jail_clock.tscn
 
 const TICK_RATE := 64
 const EXPECTED_CHECKS := 6
