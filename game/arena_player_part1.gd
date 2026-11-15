@@ -65,6 +65,8 @@ func _build_controller() -> void:
 	controller.tunables = tunables
 	controller.register_service = false
 	controller.register_default_actions = false
+	# No run HUD reads the movement stats (jumps, strafe sync) in FC: not folded every tick per player.
+	controller.observe_stats = false
 	# On for every player on every machine, because a registration order is part of the
 	# wire: an admin's noclip or freeze is a modifier the owning client has to predict,
 	# and a client that had not registered it would read that index as something else.
