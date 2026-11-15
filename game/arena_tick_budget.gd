@@ -40,6 +40,24 @@ static var shed_now := 0.0
 static var shed_slow_frames := DotPlatform.is_web()
 const SLOW_FRAME_TICKS := 4.0
 
+## Cvar `sv_max_physics_steps`: the most ticks a server-only process's frame runs to catch up (the engine's 8 by
+## default); 0 = no limit. Set only where [member server_process] is true, so a client in the same process keeps its cap.
+const SERVER_STEPS := 8
+## The engine refuses 0, so "no limit" is a count no frame reaches.
+const UNLIMITED_STEPS := 1 << 30
+## True in a process that only serves (ArenaServer, the sim host): set before the module loads.
+static var server_process := false
+
+
+## Applies `sv_max_physics_steps` [param steps] (0 = no limit) when this process is only a server.
+static func apply_server_steps(steps: int) -> void:
+	if not server_process:
+		return
+	if steps < 0:
+		push_error("sv_max_physics_steps must be 0 (no limit) or more, got %d" % steps)
+		return
+	Engine.max_physics_steps_per_frame = steps if steps > 0 else UNLIMITED_STEPS
+
 var _cost_sec := 0.0
 var _ticks := 0
 var _shed := 0.0

@@ -7,12 +7,13 @@ const ArenaModule := preload("arena_module.gd")
 const ArenaSimOwner := preload("arena_sim_owner.gd")
 const ArenaBots := preload("arena_bots.gd")
 const ArenaBotThreads := preload("arena_bot_threads.gd")
+const ArenaTickBudget := preload("arena_tick_budget.gd")
 const ArenaPlayerStack := preload("arena_player_stack.gd")
 const ArenaMaps := preload("arena_maps.gd")
 const ArenaPaths := preload("arena_paths.gd")
 
 ## The authoritative game of a solo session in its own process (`--sim_host 1`, [ArenaSimHost]): a loopback dedicated server the solo client spawns and joins, so the 66 Hz simulation never runs on the render thread. The same [ArenaModule] a public server runs.
-## Launch flags (after `--`): `--port N --bots N --map ID --mode ID --ready PATH --bot_threads N --sim_load_us N --sim_sections 1 --bot_native_brain 0|1 --bot_native_loop 0|1`. It writes PATH once it accepts players, and quits a few seconds after its player left.
+## Launch flags (after `--`): `--port N --bots N --map ID --mode ID --ready PATH --bot_threads N --sim_load_us N --sim_sections 1 --bot_native_brain 0|1 --bot_native_loop 0|1 --cvar name=value`. It writes PATH once it accepts players, and quits a few seconds after its player left.
 
 const ArenaFrameProbe := preload("arena_frame_probe.gd")
 
@@ -78,6 +79,7 @@ func _ready() -> void:
 	if not booted.ok:
 		_die("boot: %s" % booted.error.message)
 		return
+	ArenaTickBudget.server_process = true
 	var loaded: DotResult = await server.modules.load_module(ArenaPaths.rebase("res://game/arena_module.gd"))
 	if not loaded.ok:
 		_die("module: %s" % loaded.error.message)
@@ -88,6 +90,8 @@ func _ready() -> void:
 		quota.mode_cvar.force_set("fixed")
 		quota.quota_cvar.force_set(str(bots))
 		quota.empty_cvar.force_set("1")
+	if not _apply_cvars(server):
+		return
 	for i in bots:
 		var _id: int = module.bridge.add_bot("Bot %d" % (i + 1))
 	var owner_node := ArenaSimOwner.new()
@@ -126,6 +130,21 @@ static func solo_tick_rate(spec: String, players: int, default_rate: int) -> int
 
 
 ## The bench switches a perf run passes through: bot threads, native brain and loop, a synthetic load and tick sections.
+# `--cvar name=value` (repeatable), a bench knob for an A/B of one setting; an unknown name stops the host.
+func _apply_cvars(server: DotServer) -> bool:
+	var args := OS.get_cmdline_user_args()
+	for k in args.size() - 1:
+		if args[k] != "--cvar":
+			continue
+		var pair := args[k + 1].split("=", true, 1)
+		var cv: DotConVar = server.console.find_cvar(pair[0]) if pair.size() == 2 else null
+		if cv == null:
+			_die("--cvar %s: no such cvar (name=value)" % args[k + 1])
+			return false
+		cv.force_set(pair[1])
+	return true
+
+
 func _apply_bench_flags() -> void:
 	# The brains on worker threads: the same match as one thread (headless_botthreads), less of each tick.
 	ArenaBotThreads.threads = maxi(0, int(_arg("--bot_threads", str(default_bot_threads()))))
@@ -145,6 +164,9 @@ func _apply_bench_flags() -> void:
 	var sections := _arg("--sim_sections", "0")
 	if sections == "1" or sections == "2":
 		ArenaFrameProbe.set_interval(1.0e9)
+		# The addons' own phases, in a SIM_HOST_PHASES line: the controller's always, the brain's on one thread only.
+		DotFpsController.phase_timers = true
+		DotBotBrain.phase_timers = ArenaBotThreads.threads == 0
 		ArenaFrameProbe.fine = sections == "2"
 
 
@@ -226,6 +248,7 @@ func _report(net: DotNetManager) -> void:
 		if ArenaFrameProbe.on():
 			print(sections_line(ArenaFrameProbe._sections, ticks))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			ArenaFrameProbe._reset()
+			print(phases_line(ticks))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		last = now
 		t0 = Time.get_ticks_usec()
 
@@ -259,6 +282,19 @@ static func sections_line(sections: Dictionary, ticks: int) -> String:
 	for r: Array in rows:
 		parts.append("%s %.3f x%.1f" % [r[1], r[0], r[2]])
 	return "SIM_HOST_SECTIONS ms/tick | " + ", ".join(parts)
+
+
+## `SIM_HOST_PHASES name ms/tick, ...`: DotFpsController's phases (pc_*, outside the motor) and DotBotBrain's (bb_*).
+static func phases_line(ticks: int) -> String:
+	var parts := PackedStringArray()
+	var names := ["pc_pre", "pc_consume", "pc_motor", "pc_publish", "pc_report", "pc_signals", "pc_post", "pc_body"]
+	for i in names.size():
+		parts.append("%s %.3f" % [names[i], DotFpsController.phase_us[i] / 1000.0 / ticks])
+	for i in DotBotBrain.PHASES.size():
+		parts.append("%s %.3f" % [DotBotBrain.PHASES[i], DotBotBrain.phase_us[i] / 1000.0 / ticks])
+	DotFpsController.phase_us.fill(0)
+	DotBotBrain.phase_us.fill(0)
+	return "SIM_HOST_PHASES ms/tick | " + ", ".join(parts)
 
 
 func _die(why: String) -> void:

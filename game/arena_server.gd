@@ -3,6 +3,7 @@ extends Node
 const ArenaConfig := preload("arena_config.gd")
 const ArenaGame := preload("arena_game.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
+const ArenaTickBudget := preload("arena_tick_budget.gd")
 
 ## What a [DotServer] loads as its game scene. Never a client.
 ##
@@ -31,6 +32,8 @@ var game: ArenaGame = null
 
 
 func _ready() -> void:
+	# Only a server here: sv_max_physics_steps may set the engine's step cap (ArenaTickBudget).
+	ArenaTickBudget.server_process = true
 	game = ArenaGame.new()
 	game.name = "Game"
 	game.is_authority = true

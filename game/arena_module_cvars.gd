@@ -379,6 +379,12 @@ func _add_bot_engine_cvars() -> void:
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			ArenaTickBudget.max_steps = maxi(int(new_value.to_float()), 0))
+	var server_steps := add_cvar("sv_max_physics_steps", str(ArenaTickBudget.SERVER_STEPS),
+		"Server: the most ticks one frame may run to catch up with wall-clock time (8, the engine default); 0 = no limit",
+		DotConVar.FLAG_ARCHIVE).with_min(0.0)
+	server_steps.changed.connect(func(_old: String, new_value: String) -> void:
+		ArenaTickBudget.apply_server_steps(int(new_value.to_float())))
+	ArenaTickBudget.apply_server_steps(server_steps.get_int())
 
 
 ## `sv_grenade_*` (arena_weapons' [AwGrenadeRules]) and `sv_grenade_utility`: 0 keeps flash, smoke and incendiary out of
