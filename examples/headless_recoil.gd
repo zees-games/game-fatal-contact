@@ -7,7 +7,7 @@ const ArenaRecoilView := preload("../game/arena_recoil_view.gd")
 const KillPov := preload("../game/arena_kill_pov.gd")
 const KillPovRecoil := preload("../game/arena_kill_pov_recoil.gd")
 
-## Per-weapon recoil: the game tier of the Dot profile gives every firearm a kick, the camera
+## Per-weapon recoil: the game tier of the Gamespice profile gives every firearm a kick, the camera
 ## climbs with a held trigger and settles after it, the same shots kick the same way twice,
 ## cl_recoil_view only scales the drawn view, and a killcam replays the killer's kick.
 

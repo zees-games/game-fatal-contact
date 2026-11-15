@@ -61,7 +61,7 @@ fc-weapons' ten attachments (API 19: optics, muzzle devices, grips, the laser, t
 
 ## Recoil
 
-Every firearm kicks, and the numbers live in the Dot profile, not in code.
+Every firearm kicks, and the numbers live in the Gamespice profile, not in code.
 
 - **Where.** `cfg/game/game-arena/weapon/<id>.yml` (the game tier; `ArenaContent.weapons()` sets `AwWeaponPack.game`). Only the changed keys are listed, under `extra: tuning:`: `recoil_pitch` and `recoil_yaw` (degrees per shot; yaw alternates and drifts by a per-weapon seed, `recoil_seed`), `recoil_build` / `recoil_build_max` (the extra kick along a burst), `recoil_recovery` (how fast it settles, per second), `recoil_aim` (ADS multiplier, -1 uses `sv_recoil_mult_aim`), `recoil_crouch`, `recoil_move`, `recoil_camera`. Grenades, the knife and the beamer do not kick. An operator overrides a weapon in `cfg/server/...`.
 - **Server cvars** (replicated, `sv_recoil_*`): `enabled`, `scale` (0 disables), `vertical`, `horizontal`, `recovery`, `build`, `punch`, `follow`, `reset`, `mult_aim`, `mult_crouch`, `mult_move`, `mult_air`.
