@@ -38,6 +38,10 @@ var _tick: int = 0
 ## Binds dot-audio's sv_surf_* cvars with the `surf_*` profile values as their defaults, which every client follows.
 func _bind_surf_cvars(flags: int) -> void:
 	var values := game.config.surf_values()
+	# Before dot-audio 21 the surf cvars have a finite upper bound that clamps; from 21 they are unbounded and a bad value is refused.
+	var level := DotAddonApi.build_level("dot_audio")
+	if level < 21:
+		DotLog.debug(CHANNEL, "dot-audio API %d: sv_surf_* upper bounds are finite (unbounded from 21)" % level)
 	for spec: Dictionary in preload("res://addons/dot_game/runtime/dot_game_slide_sounds.gd").surf_cvar_specs():
 		var key := String(spec["name"]).trim_prefix("sv_surf_")
 		var v: Variant = values.get(key, spec["value"])

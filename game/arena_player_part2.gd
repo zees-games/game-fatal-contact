@@ -488,6 +488,10 @@ static func wall_shot_strafe(state: DotFpsState) -> float:
 ## Set by the objectives each tick while this player carries a flag under the one-handed rule.
 var flag_one_hand := false
 
+## Whether the rig has simulate_idle (fc-weapons API 24); the live shell pins 21, whose idle tick is simulate_tick with no context.
+static var idle_tick := DotAddonApi.build_level("arena_weapons") >= 24
+
+
 func simulate_tick(
 	tick: int,
 	delta: float,
@@ -614,7 +618,7 @@ func tick_post(tick: int, delta: float, combat_command: DotWeaponCommand) -> Dot
 	# [method _idle_posture] for the same fields the context below gets, so a moving player takes this path too.
 	_posture_tick = tick
 	if weapons.would_idle(_command):
-		out = weapons.simulate_idle(_command, tick)
+		out = weapons.simulate_idle(_command, tick) if idle_tick else weapons.simulate_tick(_command, tick, null)
 		# The rig's idle tick asks the shared player bridge for the sprint, and this player has none of
 		# its controller nodes: without this the hands never go to the sprint carry on a plain run.
 		var hands := weapons.view_model()
