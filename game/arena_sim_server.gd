@@ -31,6 +31,10 @@ var _since_check := 0.0
 ## `--sim_load_us N`, a bench knob: N microseconds of busy wait on every physics tick, to stand in for a
 ## slower machine's tick (the owner's 12-14 ms) on a fast bench box. 0, the default, adds nothing.
 var _load_us := 0
+var _game: ArenaGame = null
+var _module: ArenaModule = null
+## When the in-game behind line was last said (msec), or -1 while the server keeps its rate.
+var _behind_said_ms := -1
 
 
 func _ready() -> void:
@@ -59,6 +63,7 @@ func _ready() -> void:
 	if mode != "":
 		game.mode_id = StringName(mode)
 	add_child(game)
+	_game = game
 	var map := ArenaMap.by_id(StringName(_arg("--map", "")))
 	var built := game.setup(map if map != null else ArenaMap.dm_box())
 	if not built.ok:
@@ -85,6 +90,7 @@ func _ready() -> void:
 		_die("module: %s" % loaded.error.message)
 		return
 	var module := server.modules.get_module("arena") as ArenaModule
+	_module = module
 	var quota: DotBotQuota = module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("fixed")
@@ -240,6 +246,7 @@ func _report(net: DotNetManager) -> void:
 		var behind := behind_line(held, Engine.physics_ticks_per_second, sim_ms)
 		if behind != "":
 			DotLog.warn(CHANNEL, behind)
+		_tell_player(held, Engine.physics_ticks_per_second)
 		# server_tick's own sections (a dot-net without them reports 0): input before sim, the
 		# still-registered check inside sim, the rewind history record inside send.
 		print("SIM_HOST_NET ms/tick | input %.3f, check %.3f, hist %.3f" % [  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
@@ -264,6 +271,34 @@ static func behind_line(held: float, rate: int, sim_ms: float) -> String:
 		return ""
 	return "SIM_HOST BEHIND real time: %.1f of %d ticks/s, the game runs at %d%% speed (a tick costs %.1f ms of %.1f); lower solo_tick_tiers or the bots" % [
 		held, rate, roundi(held * 100.0 / rate), sim_ms, 1000.0 / rate]
+
+
+## Says in the game, as a server line, that it runs slower than the clock: once as it falls behind, then every
+## [member ArenaConfig.behind_notice_sec] while it stays behind, and again after it caught up and fell behind again.
+func _tell_player(held: float, rate: int) -> void:
+	var now := Time.get_ticks_msec()
+	var every := _game.config.behind_notice_sec if _game != null else 0.0
+	var text := behind_notice(held, rate)
+	if text == "":
+		_behind_said_ms = -1
+		return
+	if not notice_due(now, _behind_said_ms, every):
+		return
+	_behind_said_ms = now
+	if _module != null and _module.services != null:
+		_module.services.announce(text)
+
+
+## The player's line for a window that held [param held] ticks a second of [param rate], or "" while it kept real time.
+static func behind_notice(held: float, rate: int) -> String:
+	if rate <= 0 or held >= rate * BEHIND_SHARE:
+		return ""
+	return "The server cannot keep up: the game runs at %d%% speed. Fewer bots or a lower arena_solo_tick_tiers helps." % roundi(held * 100.0 / rate)
+
+
+## Whether a behind line is due at [param now_ms] when the last was said at [param last_ms] (-1: not while behind).
+static func notice_due(now_ms: int, last_ms: int, every_sec: float) -> bool:
+	return last_ms < 0 or every_sec <= 0.0 or now_ms - last_ms >= int(every_sec * 1000.0)
 
 
 static func _per_tick(now: Dictionary, last: Dictionary, key: StringName, ticks: int) -> float:

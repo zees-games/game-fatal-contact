@@ -186,6 +186,9 @@ func validate() -> DotResult:
 ## Solo on its own server process (ArenaSimHost): the tick rate by player count (bots and you) in dot-server's `sv_tickrate_tiers` grammar (DotTickTiers), read once as the solo server starts; it overrides [member tick_rate]. A tick dearer than its length cannot keep real time, and then the whole game, gravity included, runs slower than the clock: on PH 64 players cost about 32 ms a tick and held 20-30 ticks a second of 66. Empty keeps [member tick_rate] at every count.
 @export var solo_tick_tiers: String = "players<=32:66,<=64:33,else:22"
 
+## Solo on its own server process: seconds between repeats of the in-game "server behind" line while the server stays under its tick rate. It is said as the server falls behind and again after it caught up; 0 says it on every 5 s report that is behind.
+@export_range(0.0, 3600.0, 1.0, "or_greater") var behind_notice_sec: float = 60.0
+
 ## The surf fields as [method DotAudioSurfRules.apply_values] takes them.
 func surf_values() -> Dictionary:
 	return {

@@ -149,6 +149,11 @@ func _check_tick_tiers() -> void:
 	_check(ArenaSimServer.behind_line(65.0, 66, 12.0) == "", "a window that held its rate is quiet")
 	var line := ArenaSimServer.behind_line(25.5, 66, 32.3)
 	_check(line.contains("BEHIND") and line.contains("39%"), "a window at 25.5 of 66 says the game runs at 39% speed", line)
+	var told := ArenaSimServer.behind_notice(25.5, 66)
+	_check(told.contains("39%") and ArenaSimServer.behind_notice(65.0, 66) == "", "the player is told the same share, and nothing while it keeps up", told)
+	_check(ArenaSimServer.notice_due(1000, -1, 60.0) and not ArenaSimServer.notice_due(30000, 1000, 60.0)
+		and ArenaSimServer.notice_due(61000, 1000, 60.0), "the player's line is said as it falls behind, then once a minute")
+	_check(ArenaSimServer.notice_due(6000, 1000, 0.0), "behind_notice_sec 0 says it on every behind report")
 
 
 ## The client is built on the server's map, so its announcement keeps that world instead of rebuilding it.
