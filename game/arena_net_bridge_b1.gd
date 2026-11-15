@@ -1,9 +1,6 @@
-extends "arena_net_knives.gd"
-
-const ArenaEvent := preload("arena_event.gd")
+extends "arena_net_bridge_events.gd"
 
 
-const ArenaNetLink := preload("arena_net_link.gd")
 const ArenaPlayer := preload("arena_player.gd")
 const ArenaPlayerNet := preload("arena_player_net.gd")
 const ArenaNpcNet := preload("arena_npc_net.gd")
@@ -41,16 +38,10 @@ var _game_ticked_for: int = -1
 var _tick: int = 0
 
 
-## The RPC surface, on both ends. Created by [method attach].
-var link: ArenaNetLink = null
-
 
 ## [code]func(peer: int) -> void[/code]. A peer said READY, server side.
 var peer_ready_fn: Callable = Callable()
 
-
-## Peers that have said they can receive. Server side.
-var _ready_peers: Dictionary = {}
 
 
 ## Peers whose READY came before their seat ([method add_player]). Server side.
@@ -370,39 +361,6 @@ func _jail_body() -> PackedByteArray:
 	return ArenaEvents.write_jail(jail.enabled, jail.open_ticks, jail.cooldown_ticks, jail.opened_at)
 
 
-func send_event(peer_id: int, kind: int, body: PackedByteArray) -> void:
-	if net == null or not net.is_server or link == null:
-		return
-
-	var payload := encode_event(kind, body)
-
-	if payload.is_empty():
-		return
-
-	if peer_id != 0:
-		if _ready_peers.has(peer_id):
-			link.send_event(peer_id, payload)
-		return
-
-	for ready_peer in _ready_peers:
-		link.send_event(int(ready_peer), payload)
-
-
-## An event as the bytes [method receive_event] reads, or empty if it would not encode.
-## Public so a harness without a link delivers exactly what the link would carry.
-func encode_event(kind: int, body: PackedByteArray) -> PackedByteArray:
-	var writer := DotNetWriter.new()
-	var wrote := net.messages.encode(ArenaEvent.new(kind, body), writer)
-
-	if not wrote.ok:
-		DotLog.warn(CHANNEL, "could not encode an event", {
-			"kind": ArenaEvents.kind_name(kind), "error": str(wrote.error)
-		})
-		return PackedByteArray()
-
-	return writer.to_bytes()
-
-
 ## Everything a joining peer has to be told, in the order it has to be told it. HELLO first, because it carries the tick rate and the client's own id and nothing else can be interpreted without them;
 ## then one JOIN per player already in the match, including the joining peer's own; then the match state.
 func send_signon(peer_id: int) -> void:
@@ -473,8 +431,6 @@ func send_signon(peer_id: int) -> void:
 			))
 
 
-var _watched_projectiles: RefCounted = null
-
 
 ## The bullet bridge this bridge last connected to. See [method _watch_bullets].
 var _watched_bullets: DotWeaponBulletBridge = null
@@ -527,35 +483,6 @@ func _watch_bullets() -> void:
 		send_event(0, ArenaEvents.Kind.BULLET_END, ArenaEvents.write_bullet_end(id)))
 	bridge.bullets.expired.connect(func(id: int) -> void:
 		send_event(0, ArenaEvents.Kind.BULLET_END, ArenaEvents.write_bullet_end(id)))
-
-
-func _watch_projectiles() -> void:
-	if net == null or not net.is_server or game == null:
-		return
-
-	if not game.grenade_effect.is_connected(_on_grenade_effect):
-		game.grenade_effect.connect(_on_grenade_effect)
-
-	var layer: RefCounted = game.projectiles
-
-	if layer == _watched_projectiles:
-		return
-
-	_watched_projectiles = layer
-
-	if layer != null and not layer.launched.is_connected(_on_launched):
-		layer.launched.connect(_on_launched)
-
-
-func _on_grenade_effect(info: Dictionary) -> void:
-	send_event(0, ArenaEvents.Kind.GRENADE_FX, ArenaEvents.write_grenade_fx(
-		int(info["fx"]), info["position"], float(info["radius"]), float(info["seconds"]), int(info["victim"]), float(info.get("strength", 1.0))))
-
-
-func _on_launched(spawn: DotWeaponSpawn) -> void:
-	send_event(0, ArenaEvents.Kind.LAUNCH, ArenaEvents.write_launch(
-		spawn, ArenaContent.weapon_index(spawn.id)
-	))
 
 
 ## Follows whichever horde the game has. Server side. [b]Every tick, not once.[/b] The horde is built by a mode that has one and torn down by a mode change to one that does not (`ArenaGame._reconcile_world_layers`),

@@ -1,8 +1,6 @@
 extends Node
-## The solo server process obeying its owner: the one loopback player it was started for runs its
-## console (bot_quota, bot_difficulty, sv_cheats, arena_mode and the rest) and two verbs of its own:
-## `host_change <map|-> [mode]`, awaited so the answer is the real result, `host_pause 0|1`, and `host_local <id>`
-## for a map dropped onto the client's window (its M menu lists this process's catalogue).
+## The solo server process obeying its owner: the one loopback player it was started for runs its console (bot_quota, bot_difficulty, sv_cheats, arena_mode and the rest) and two verbs of its own:
+## `host_change <map|-> [mode]`, awaited so the answer is the real result, `host_pause 0|1`, and `host_local <id>` for a map dropped onto the client's window (its M menu lists this process's catalogue).
 
 const ArenaModule := preload("arena_module.gd")
 const ArenaMaps := preload("arena_maps.gd")

@@ -73,10 +73,8 @@ static func aux_of(p: Object, size: int = DotKillViewRing.AUX) -> PackedFloat32A
 	return full
 
 
-## [method aux_of], read at most once per physics tick per player: the kill view's eye list reads it fresh
-## ([param fresh], every game tick, however many a physics frame runs) and keeps it; the killcam's body recording
-## (every drawn frame) reuses that reading, as the aux only changes inside a tick.
-## The returned array is shared until the next tick: copy it before writing to it.
+## [method aux_of], read at most once per physics tick per player: the kill view's eye list reads it fresh ([param fresh], every game tick, however many a physics frame runs) and keeps it; the killcam's body recording
+## (every drawn frame) reuses that reading, as the aux only changes inside a tick. The returned array is shared until the next tick: copy it before writing to it.
 static func aux_of_tick(p: Object, size: int = DotKillViewRing.AUX, fresh := false) -> PackedFloat32Array:
 	if p == null or size != SIZE:
 		return aux_of(p, size)

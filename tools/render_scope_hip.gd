@@ -1,10 +1,7 @@
 extends SceneTree
 
-## What a player sees of a scoped weapon when NOT aiming: every frame (at the render rate) of the raise, the steady hip,
-## the aim-in, the release, and a sprint, for each scoped rifle, saved to screenshots/scope_hip/<role>_<phase>_NNN.png and
-## the aim fraction, scope fraction and flags in <role>.csv. tools/render_scope_hip.sh joins them into sheets.
-##
-##   SCOPE_ROLES=sniper,marksman,charge_rifle tools/render_scope_hip.sh
+## What a player sees of a scoped weapon when NOT aiming: every frame (at the render rate) of the raise, the steady hip, the aim-in, the release, and a sprint, for each scoped rifle, saved to screenshots/scope_hip/<role>_<phase>_NNN.png and
+## the aim fraction, scope fraction and flags in <role>.csv. tools/render_scope_hip.sh joins them into sheets. SCOPE_ROLES=sniper,marksman,charge_rifle tools/render_scope_hip.sh
 
 const ArenaPresentation := preload("../game/arena_presentation.gd")
 const OUT_DIR := "screenshots/scope_hip"

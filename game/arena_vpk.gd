@@ -1,17 +1,8 @@
 extends RefCounted
 
-## One Valve VPK archive set (v1 or v2: a `<base>_dir.vpk` and its `<base>_NNN.vpk` parts) on the player's own disk.
-##
-## [b]LOCAL ONLY.[/b] It reads the stock textures of a Source game the player installed (`ArenaSourceInstall`), to draw
-## a dropped `<map>_orig` pack on that machine. Nothing it reads is ever written into the repository or a pack that
-## leaves the machine: Valve's files are not ours to ship. dot-map-convert's `dotbsp/vpk.py` is the same reader for
-## the converter (internal, offline); this one runs in the game.
-##
-## [codeblock]
-## var vpk := ArenaVpk.new()
-## if vpk.open("C:/…/tf/tf2_textures_dir.vpk", PackedStringArray(["vmt", "vtf"])):
-##     var bytes := vpk.read("materials/brick/brickwall003.vtf")  # empty and [member error] set when absent or broken
-## [/codeblock]
+## One Valve VPK archive set (v1 or v2: a `<base>_dir.vpk` and its `<base>_NNN.vpk` parts) on the player's own disk. [b]LOCAL ONLY.[/b] It reads the stock textures of a Source game the player installed (`ArenaSourceInstall`), to draw a dropped `<map>_orig` pack on that machine. Nothing it reads is ever written into the repository or a pack that leaves the machine: Valve's files are not ours to ship. dot-map-convert's `dotbsp/vpk.py` is the same reader for
+## the converter (internal, offline); this one runs in the game. [codeblock] var vpk := ArenaVpk.new() if vpk.open("C:/…/tf/tf2_textures_dir.vpk", PackedStringArray(["vmt", "vtf"])):
+## var bytes := vpk.read("materials/brick/brickwall003.vtf")  # empty and [member error] set when absent or broken [/codeblock]
 
 const SIG := 0x55AA1234
 ## The archive index of a file stored after the tree in the `_dir.vpk` itself.

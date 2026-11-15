@@ -30,10 +30,8 @@ var move: DotFpsCommand = DotFpsCommand.new()
 ## Weapons: the selected slot, attack, reload, and the rest of the buttons.
 var fire: DotWeaponCommand = DotWeaponCommand.new()
 
-## How far behind this command's tick the client was drawing everybody else, in quarter
-## ticks: the tick a shot fired on this command was aimed at, as the server rewinds to it
-## for lag compensation (`ArenaGame._rewind_to`). Sent only when a button is down -- a
-## command that cannot fire costs one bit for it -- and capped by the server, never
+## How far behind this command's tick the client was drawing everybody else, in quarter ticks: the tick a shot fired on this command was aimed at, as the server rewinds to it
+## for lag compensation (`ArenaGame._rewind_to`). Sent only when a button is down -- a command that cannot fire costs one bit for it -- and capped by the server, never
 ## trusted: [constant MAX_VIEW_LAG_Q] here, and the combat config's rewind limit there.
 var view_lag_q: int = -1
 
@@ -55,7 +53,7 @@ const VIEW_LAG_BITS := 10
 ## players are solid, and on a firing command), so the server rewinds between the same two samples,
 ## a lost one included.
 ##
-## [b]Why a shot needs it[/b] (2026-11-13). The client draws the others as a blend of two snapshots
+## [b]Why a shot needs it[/b]. The client draws the others as a blend of two snapshots
 ## two ticks apart; the server's ring has every tick. At a strafe reversal the blend cuts the
 ## corner the ring keeps, by up to 12 cm in headless_hitreg_chaos, and torso-edge shots aimed at
 ## the drawn body missed (pistol at 60 ms, minigun at 30 ms, with a two-snapshot buffer).

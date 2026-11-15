@@ -50,10 +50,8 @@ var _mode := "ffa"
 const WALL_DRIVER := preload("res://examples/wall_route_driver.gd")
 
 var _play := false
-## `--wallrun` (needs a map with wall routes, dm_atrium): the server puts the client's player at
-## the start of the first wall route every few seconds and the client's pilot drives the route
-## (the run, the slide, the jump onto the wall) instead of wandering, so the mismatch check
-## covers a predicted wall run. The 2026-11-10 "0 mismatches" ran on dm_box, which has none.
+## `--wallrun` (needs a map with wall routes, dm_atrium): the server puts the client's player at the start of the first wall route every few seconds and the client's pilot drives the route
+## (the run, the slide, the jump onto the wall) instead of wandering, so the mismatch check covers a predicted wall run. An earlier "0 mismatches" ran on dm_box, which has none.
 var _wallrun := false
 ## The server game's tick rate. 60 is dot-server's default `sv_tickrate`; 64 is ArenaGame's.
 var _tick := ArenaContent.TICK_RATE

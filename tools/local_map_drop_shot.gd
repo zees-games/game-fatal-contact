@@ -1,9 +1,7 @@
 extends SceneTree
 
-## The real solo client, Esc menu open, a map folder named `convert` dropped onto it: frames of the "Importing" toast,
-## the "Added" toast over the menu, and every page of M after, so a person can see the drop said what it did and the
-## map is listed "(local)". `tools/screenshot.sh --map-drop [dir] [convert folder] [map id]` (default: the suite's fixture); with a map id it then
-## plays that map and saves four views of it.
+## The real solo client, Esc menu open, a map folder named `convert` dropped onto it: frames of the "Importing" toast, the "Added" toast over the menu, and every page of M after, so a person can see the drop said what it did and the
+## map is listed "(local)". `tools/screenshot.sh --map-drop [dir] [convert folder] [map id]` (default: the suite's fixture); with a map id it then plays that map and saves four views of it.
 
 func _initialize() -> void:
 	_run.call_deferred()

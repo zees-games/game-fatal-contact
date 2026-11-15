@@ -100,20 +100,7 @@ func _test_every_key_is_an_action() -> void:
 			wrong.append("%s=%s" % [action, DotInputBinding.describe_action(action)])
 	_check(wrong.is_empty(), "each is a row and on its default key in the InputMap", str(wrong))
 
-	var two := DotWeaponDef.new()
-	two.display_name = "Rifle"
-	two.fire_modes = DotWeaponDef.selector_modes(DotWeaponDef.Fire.AUTO, true)
-	var one := DotWeaponDef.new()
-	one.display_name = "Pistol"
-	var two_slot := DotWeaponSlot.new()
-	two_slot.def = two
-	var one_slot := DotWeaponSlot.new()
-	one_slot.def = one
-	_check(
-		ArenaHud.mode_label(two_slot, "N") == "Rifle  AUTO [N]" and ArenaHud.mode_label(one_slot, "N") == "Pistol",
-		"the ammo line names the fire mode and its key on a gun with a selector, and only then",
-		"%s / %s" % [ArenaHud.mode_label(two_slot, "N"), ArenaHud.mode_label(one_slot, "N")]
-	)
+	_check_mode_label()
 
 	# The wheel rows by name: a pack asks for dot-ui 4, which names the wheel (level 2).
 	var named := ArenaBindings.make().row_for_action(&"arena_weapon_previous")
@@ -122,21 +109,7 @@ func _test_every_key_is_an_action() -> void:
 		"the wheel rows say Wheel up / Wheel down", str(named)
 	)
 
-	# A branch only matters if an older shell gets to run it.
-	var floors := DotAddonApi.parse(FileAccess.get_file_as_string("res://" + DotAddonApi.FLOOR_FILE), DotAddonApi.FLOOR_FILE)
-	var derived := DotAddonApi.derive()
-	var unsound := DotAddonApi.floor_audit(floors.value if floors.ok else {}, derived, DotAddonApi.guarded(), {}, _pinned_levels()) \
-		if floors.ok else PackedStringArray([str(floors.error)])
-	_check(unsound.is_empty(), "requires.floor.json is sound: every floor has a guard behind it", str(unsound))
-	var pins := _pinned_levels()
-	var behind := _lock_covers(pins)
-	_check(not pins.is_empty() and behind == "", "requires.pins.json is read and addons.lock pins nothing lower", behind)
-	var asked := DotAddonApi.apply_floors(derived, floors.value if floors.ok else {})
-	_check(
-		asked.get("dot_ui") == 23 and asked.get("dot_lighting") == derived.get("dot_lighting") \
-			and int(asked.get("dot_lighting", 0)) >= 3,
-		"so a pack asks a shell for dot-ui 23 (the health tag) and the dot-lighting it was built on (3+, painted())", str(asked)
-	)
+	_check_floors()
 
 	# One key, one meaning: V is push to talk and nothing else; the sampler reads no noclip.
 	var sampler := ArenaClient.make_sampler()
@@ -236,6 +209,43 @@ func _test_every_key_is_an_action() -> void:
 		"E %d, T %d" % [e_after, client.last_prop_asked])
 	client.game = null
 	_test_every_key_rest(p, client, stand_in, g)
+
+
+## requires.floor.json and requires.pins.json are sound, and what a pack asks a shell for.
+func _check_floors() -> void:
+	# A branch only matters if an older shell gets to run it.
+	var floors := DotAddonApi.parse(FileAccess.get_file_as_string("res://" + DotAddonApi.FLOOR_FILE), DotAddonApi.FLOOR_FILE)
+	var derived := DotAddonApi.derive()
+	var unsound := DotAddonApi.floor_audit(floors.value if floors.ok else {}, derived, DotAddonApi.guarded(), {}, _pinned_levels()) \
+		if floors.ok else PackedStringArray([str(floors.error)])
+	_check(unsound.is_empty(), "requires.floor.json is sound: every floor has a guard behind it", str(unsound))
+	var pins := _pinned_levels()
+	var behind := _lock_covers(pins)
+	_check(not pins.is_empty() and behind == "", "requires.pins.json is read and addons.lock pins nothing lower", behind)
+	var asked := DotAddonApi.apply_floors(derived, floors.value if floors.ok else {})
+	_check(
+		asked.get("dot_ui") == 23 and asked.get("dot_lighting") == derived.get("dot_lighting") \
+			and int(asked.get("dot_lighting", 0)) >= 3,
+		"so a pack asks a shell for dot-ui 23 (the health tag) and the dot-lighting it was built on (3+, painted())", str(asked)
+	)
+
+
+## The ammo line names the fire mode and its key only on a gun with a selector.
+func _check_mode_label() -> void:
+	var two := DotWeaponDef.new()
+	two.display_name = "Rifle"
+	two.fire_modes = DotWeaponDef.selector_modes(DotWeaponDef.Fire.AUTO, true)
+	var one := DotWeaponDef.new()
+	one.display_name = "Pistol"
+	var two_slot := DotWeaponSlot.new()
+	two_slot.def = two
+	var one_slot := DotWeaponSlot.new()
+	one_slot.def = one
+	_check(
+		ArenaHud.mode_label(two_slot, "N") == "Rifle  AUTO [N]" and ArenaHud.mode_label(one_slot, "N") == "Pistol",
+		"the ammo line names the fire mode and its key on a gun with a selector, and only then",
+		"%s / %s" % [ArenaHud.mode_label(two_slot, "N"), ArenaHud.mode_label(one_slot, "N")]
+	)
 
 
 func _test_every_key_rest(p: ArenaPresentation, client: ArenaClient, stand_in: ArenaPlayer, g: ArenaGame) -> void:

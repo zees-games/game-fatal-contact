@@ -99,33 +99,7 @@ func _run() -> void:
 		"and a sniper's own report (each fc-weapons gun's layers are registered)")
 	_check(float(shared.mean) < float(own.mean), "and the shared first shot is cheaper", "%.2f vs %.2f ms" % [shared.mean, own.mean])
 
-	# Hands that take their effects from a pool filled under the cover: the first shot builds nothing at all.
-	var pool := AwFxPool.new()
-	add_child(pool)
-	while not pool.fill(SHOOTERS, 2, 2.0):
-		await get_tree().process_frame
-	await get_tree().process_frame
-	var pooled_nodes := 0
-	var pooled_worst := 0.0
-	for i in SHOOTERS:
-		var hand := Node3D.new()
-		world.add_child(hand)
-		hand.position = Vector3(float(i % 8) * 3.0 - 10.0, 1.2, -6.0 - float(i / 8) * 4.0)
-		var held := AwWorldModel.new()
-		hand.add_child(held)
-		p.share_shots(held)
-		var n0 := _nodes()
-		var t0 := Time.get_ticks_usec()
-		var fx: AwShotFx = held.call(&"_shot_fx")
-		fx.play_remote(AwWeaponNet.KIND_SHOT, Transform3D(Basis.IDENTITY, hand.position), Vector3.FORWARD, [&"rifle", &"pistol", &"smg", &"shotgun"][i % 4])
-		pooled_worst = maxf(pooled_worst, (Time.get_ticks_usec() - t0) / 1000.0)
-		pooled_nodes += _nodes() - n0
-		await get_tree().process_frame
-	print("  pooled first shots: worst %.2f ms, +%d nodes, %d handed, %d missed" % [pooled_worst, pooled_nodes, pool.handed, pool.missed])
-	_check(pooled_nodes == 0, "a pooled first shot creates no node", str(pooled_nodes))
-	_check(pool.handed == SHOOTERS and pool.missed == 0, "every hand took its effects from the pool", "%d handed, %d missed" % [pool.handed, pool.missed])
-	_check(pooled_worst < float(shared.worst) or pooled_worst < 1.0, "and it is cheaper than building them", "%.2f vs %.2f ms" % [pooled_worst, shared.worst])
-	pool.queue_free()
+	await _test_pool(world, p, float(shared.worst))
 
 	# The real client: its bots' hands are wired, and their first shot builds no audio stack.
 	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
@@ -156,3 +130,33 @@ func _run() -> void:
 	_check(layered == bots.size() and layered > 0, "and its effects, made on the first shot, report through it", "%d of %d" % [layered, bots.size()])
 	print("headless_shotfx_hitch: %d checks, %d failed" % [_checks, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
+
+
+## Hands that take their effects from a pool filled under the cover: the first shot builds nothing at all.
+func _test_pool(world: Node3D, p: ArenaPresentation, shared_worst: float) -> void:
+	var pool := AwFxPool.new()
+	add_child(pool)
+	while not pool.fill(SHOOTERS, 2, 2.0):
+		await get_tree().process_frame
+	await get_tree().process_frame
+	var pooled_nodes := 0
+	var pooled_worst := 0.0
+	for i in SHOOTERS:
+		var hand := Node3D.new()
+		world.add_child(hand)
+		hand.position = Vector3(float(i % 8) * 3.0 - 10.0, 1.2, -6.0 - float(i / 8) * 4.0)
+		var held := AwWorldModel.new()
+		hand.add_child(held)
+		p.share_shots(held)
+		var n0 := _nodes()
+		var t0 := Time.get_ticks_usec()
+		var fx: AwShotFx = held.call(&"_shot_fx")
+		fx.play_remote(AwWeaponNet.KIND_SHOT, Transform3D(Basis.IDENTITY, hand.position), Vector3.FORWARD, [&"rifle", &"pistol", &"smg", &"shotgun"][i % 4])
+		pooled_worst = maxf(pooled_worst, (Time.get_ticks_usec() - t0) / 1000.0)
+		pooled_nodes += _nodes() - n0
+		await get_tree().process_frame
+	print("  pooled first shots: worst %.2f ms, +%d nodes, %d handed, %d missed" % [pooled_worst, pooled_nodes, pool.handed, pool.missed])
+	_check(pooled_nodes == 0, "a pooled first shot creates no node", str(pooled_nodes))
+	_check(pool.handed == SHOOTERS and pool.missed == 0, "every hand took its effects from the pool", "%d handed, %d missed" % [pool.handed, pool.missed])
+	_check(pooled_worst < shared_worst or pooled_worst < 1.0, "and it is cheaper than building them", "%.2f vs %.2f ms" % [pooled_worst, shared_worst])
+	pool.queue_free()

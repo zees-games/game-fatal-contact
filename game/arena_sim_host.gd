@@ -98,33 +98,7 @@ func start(bots: int) -> DotResult:
 		args.append_array(["--path", project])
 	args.append_array(["--", SERVER_FLAG, "1", "--port", str(port), "--bots", str(bots),
 		"--ready", _ready_path])
-	var map := asked_map_id()
-	var mode := ask_mode if ask_mode != "" else _arg("--mode")
-	if map != "":
-		args.append_array(["--map", map])
-	if mode != "":
-		args.append_array(["--mode", mode])
-	var bot_threads := _arg("--bot_threads")
-	if bot_threads != "":
-		args.append_array(["--bot_threads", bot_threads])
-	var load_us := _arg("--sim_load_us")
-	if load_us != "":
-		args.append_array(["--sim_load_us", load_us])
-	var sim_sections := _arg("--sim_sections")
-	if sim_sections != "":
-		args.append_array(["--sim_sections", sim_sections])
-	# dot-bot's native mind on the server (perf_bench's `--brain-native` names the same switch).
-	var brain_native := _arg("--bot_native_brain")
-	if brain_native == "":
-		brain_native = _arg("--brain-native")
-	if brain_native != "":
-		args.append_array(["--bot_native_brain", brain_native])
-	# dot-sim's native bot loop on the server (perf_bench's `--native-loop` names the same switch).
-	var native_loop := _arg("--bot_native_loop")
-	if native_loop == "":
-		native_loop = _arg("--native-loop")
-	if native_loop != "":
-		args.append_array(["--bot_native_loop", native_loop])
+	args = _forward_flags(args)
 	args.append_array(shell_child_args())
 	_pid = OS.create_process(OS.get_executable_path(), args)
 	if _pid <= 0:
@@ -166,6 +140,38 @@ func start(bots: int) -> DotResult:
 	up = true
 	live = self
 	return DotResult.success({"port": port, "pid": _pid, "boot_sec": t})
+
+
+## The launch flags this process was given that the server child takes too, appended to [param args].
+func _forward_flags(args: PackedStringArray) -> PackedStringArray:
+	var map := asked_map_id()
+	var mode := ask_mode if ask_mode != "" else _arg("--mode")
+	if map != "":
+		args.append_array(["--map", map])
+	if mode != "":
+		args.append_array(["--mode", mode])
+	var bot_threads := _arg("--bot_threads")
+	if bot_threads != "":
+		args.append_array(["--bot_threads", bot_threads])
+	var load_us := _arg("--sim_load_us")
+	if load_us != "":
+		args.append_array(["--sim_load_us", load_us])
+	var sim_sections := _arg("--sim_sections")
+	if sim_sections != "":
+		args.append_array(["--sim_sections", sim_sections])
+	# dot-bot's native mind on the server (perf_bench's `--brain-native` names the same switch).
+	var brain_native := _arg("--bot_native_brain")
+	if brain_native == "":
+		brain_native = _arg("--brain-native")
+	if brain_native != "":
+		args.append_array(["--bot_native_brain", brain_native])
+	# dot-sim's native bot loop on the server (perf_bench's `--native-loop` names the same switch).
+	var native_loop := _arg("--bot_native_loop")
+	if native_loop == "":
+		native_loop = _arg("--native-loop")
+	if native_loop != "":
+		args.append_array(["--bot_native_loop", native_loop])
+	return args
 
 
 ## Ends the server process and drops the link; safe to call twice.

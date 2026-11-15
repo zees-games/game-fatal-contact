@@ -83,8 +83,4 @@ Measured by `examples/headless_hitzones.tscn` (one round of every firearm on eac
 
 ## Bullets and bodies (pass-through decision)
 
-Arena ships no `ammo` profiles, so every round has penetration power 0: a bullet stops at the first player it
-hits and never passes through to one behind. The velocity-based pass lives in dot-combat (`DotPenetration.speed` /
-`reference_speed`) and dot-weapon (ammo profile `speed`, `reference_speed`); it stays off here until a mode wants
-it, and then it is switched on by adding an ammo profile, with no game code. `headless_hitzones` bounds the
-bot head share (at most 30% of a bot's hits, chest-aimed) so bots cannot out-headshot people.
+FC ships no `ammo` profiles, so every round has penetration power 0: a bullet stops at the first player it hits and never passes through to one behind. The velocity-based pass lives in dot-combat (`DotPenetration.speed` / `reference_speed`) and dot-weapon (ammo profile `speed`, `reference_speed`); it stays off here until a mode wants it, and then it is switched on by adding an ammo profile, with no game code. `headless_hitzones` bounds the bot head share (at most 30% of a bot's hits, chest-aimed) so bots cannot out-headshot people.

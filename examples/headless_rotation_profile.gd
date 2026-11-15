@@ -7,11 +7,8 @@ const ArenaModes := preload("../game/arena_modes.gd")
 const ArenaMapDirector := preload("../game/arena_map_director.gd")
 const ArenaMapConfig := preload("../game/arena_map_config.gd")
 
-## A maps.yml entry's profile (`DotMapDef.profile`, dot-map's `mode:`/`cfg:`): its mode on the map change when the
-## map can host it, the server's mode back on the next map, its cvars for that map only, and the rotation filter.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_rotation_profile.tscn
+## A maps.yml entry's profile (`DotMapDef.profile`, dot-map's `mode:`/`cfg:`): its mode on the map change when the map can host it, the server's mode back on the next map, its cvars for that map only, and the rotation filter.
+## [codeblock] godot --headless --path . res://examples/headless_rotation_profile.tscn
 ## [/codeblock]
 
 const CHECKS := 15

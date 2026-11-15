@@ -3,10 +3,8 @@ extends "lossy_base.gd"
 const EXPECTED_CHECKS := 14
 const MAP := &"crackhouse"
 
-## A pane the server's shot breaks breaks on a real client too: a real `DotServer` running `ArenaModule` and a real ENet
-## client in one process (as headless_lossy), no loss. The server's game changes to a converted dm world, the client follows
-## it, a DotShot goes through the server game's `_resolve_shot`, and the client's copy of that pane (the same `model`) breaks
-## from the PANE_BROKEN event alone: its own pane is not `authoritative`.
+## A pane the server's shot breaks breaks on a real client too: a real `DotServer` running `ArenaModule` and a real ENet client in one process (as headless_lossy), no loss. The server's game changes to a converted dm world, the client follows
+## it, a DotShot goes through the server game's `_resolve_shot`, and the client's copy of that pane (the same `model`) breaks from the PANE_BROKEN event alone: its own pane is not `authoritative`.
 
 
 func _ready() -> void:

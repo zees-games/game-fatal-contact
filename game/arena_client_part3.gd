@@ -1,9 +1,7 @@
 extends "arena_client_part2.gd"
 
-## A browser draws the sun's shadow in one orthogonal map, not in dot-game's web default of 2 splits: each split is
-## another depth pass over every body and gun, the largest single cost of a 16v16 browser frame after the bodies themselves.
-## Built-in maps already use one (see arena_map_lighting.gd); this covers imported ones. `r_sun_shadow_splits=2`, as a
-## launch argument or URL query, still wins. Native is unchanged.
+## A browser draws the sun's shadow in one orthogonal map, not in dot-game's web default of 2 splits: each split is another depth pass over every body and gun, the largest single cost of a 16v16 browser frame after the bodies themselves.
+## Built-in maps already use one (see arena_map_lighting.gd); this covers imported ones. `r_sun_shadow_splits=2`, as a launch argument or URL query, still wins. Native is unchanged.
 const WEB_SUN_SHADOW_SPLITS := 1.0
 const _RenderQuality := preload("res://addons/dot_game/runtime/dot_game_render_quality.gd")
 const _UserDir := preload("arena_user_dir.gd")
@@ -48,21 +46,7 @@ func _ready() -> void:
 	ArenaLoadTimeline.mark("setup: map read")
 	await _setup_frame()
 
-	game = ArenaGame.new()
-	game.name = "Game"
-	game.is_authority = _offline
-	game.stats_file = "user://arena_stats.json"
-
-	# HEADLESS collision on a client with a screen: a predicting client must use the
-	# server's analytic backend, or replays land differently and reconciliation corrects
-	# a client that did nothing wrong. The visible level below is only what the player sees.
-	game.headless = true
-	game.register_service = _offline
-	if _offline:
-		_load_solo_config()
-	add_child(game)
-
-	_connect_game_signals()
+	_make_game()
 
 	# Offline, `-- --map <id>` picks the map, as it does for a dedicated server; a
 	# connected client is told the server's map and rebuilds on it, unless it was built on that map
@@ -95,6 +79,25 @@ func _ready() -> void:
 
 	await _setup_finish(timeline)
 	await _start_on_solo_map()
+
+
+## Makes the game node, with headless collision, and connects its signals.
+func _make_game() -> void:
+	game = ArenaGame.new()
+	game.name = "Game"
+	game.is_authority = _offline
+	game.stats_file = "user://arena_stats.json"
+
+	# HEADLESS collision on a client with a screen: a predicting client must use the
+	# server's analytic backend, or replays land differently and reconciliation corrects
+	# a client that did nothing wrong. The visible level below is only what the player sees.
+	game.headless = true
+	game.register_service = _offline
+	if _offline:
+		_load_solo_config()
+	add_child(game)
+
+	_connect_game_signals()
 
 ## Part of [method _ready].
 func _apply_launch_art() -> void:

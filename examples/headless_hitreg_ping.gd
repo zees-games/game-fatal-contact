@@ -1,22 +1,8 @@
 extends DotGameCheckSuite
 
-## "Shouldn't my bullets have hit that enemy?" — end to end, over a simulated link.
-##
-## A real server and two real clients (bridges, bit-packed commands, snapshots, the
-## interpolator), with every packet held for half the round trip each way: 30, 50 and 80 ms
-## at the shipped 66 Hz tick and snapshot rate. Peer 3 strafes. Peer 2 stands, and on each tap
-## aims from its own muzzle at peer 3's torso exactly where its screen drew it on the frame
-## before the click, and fires: at its middle, and at either edge [constant EDGE_MARGIN_M]
-## inside the silhouette, where a rewind a few centimetres off turns a hit into a miss. The
-## server must register every one. The gun's spread, bloom and recoil are zeroed for the
-## round (they are the gun's, not the netcode's), and the trace reaching the server is
-## checked to be the one aimed. Also measured, per shot: how far the server's rewound body
-## stood from the one drawn, which must stay under [constant REWIND_TOLERANCE_M].
-##
-## The clocks are placed by hand, as the net suites do: [code]DotNetClock[/code] follows the
-## wall clock, which would make the run a different one on every box. The client's frame is
-## drawn at a fraction through the tick ([constant ALPHAS]), as a monitor faster than the
-## tick rate draws it, and the click is read by the next tick's command, as the game does.
+## "Shouldn't my bullets have hit that enemy?" — end to end, over a simulated link. A real server and two real clients (bridges, bit-packed commands, snapshots, the interpolator), with every packet held for half the round trip each way: 30, 50 and 80 ms at the shipped 66 Hz tick and snapshot rate. Peer 3 strafes. Peer 2 stands, and on each tap aims from its own muzzle at peer 3's torso exactly where its screen drew it on the frame
+## before the click, and fires: at its middle, and at either edge [constant EDGE_MARGIN_M] inside the silhouette, where a rewind a few centimetres off turns a hit into a miss. The server must register every one. The gun's spread, bloom and recoil are zeroed for the round (they are the gun's, not the netcode's), and the trace reaching the server is checked to be the one aimed. Also measured, per shot: how far the server's rewound body
+## stood from the one drawn, which must stay under [constant REWIND_TOLERANCE_M]. The clocks are placed by hand, as the net suites do: [code]DotNetClock[/code] follows the wall clock, which would make the run a different one on every box. The client's frame is drawn at a fraction through the tick ([constant ALPHAS]), as a monitor faster than the tick rate draws it, and the click is read by the next tick's command, as the game does.
 
 const ArenaContent := preload("../game/arena_content.gd")
 const ArenaGame := preload("../game/arena_game.gd")
@@ -85,10 +71,8 @@ var _step := 0
 var _drawn_for: Dictionary = {}
 ## The frame drawn last: {"point": chest, "time": render tick}.
 var _last_frame: Dictionary = {}
-## The resume ease ([method DotNetInterpolator._ease_resume]) on the shooter's screen since
-## [method _ease_reset]: frames drawn off the blend and the largest offset; and the drawn body's
-## worst pop, the largest change of its per-frame step (a second difference: a strafe reversal is
-## about a centimetre, a snap out of an extrapolation the whole jump).
+## The resume ease ([method DotNetInterpolator._ease_resume]) on the shooter's screen since [method _ease_reset]: frames drawn off the blend and the largest offset; and the drawn body's
+## worst pop, the largest change of its per-frame step (a second difference: a strafe reversal is about a centimetre, a snap out of an extrapolation the whole jump).
 var _eased_frames := 0
 var _ease_most := 0.0
 var _pop := 0.0
@@ -104,10 +88,8 @@ var _stood_view := -1.0
 var _stood_blended := false
 ## Ticks between taps this round: the gun's refire, at least [constant TAP_TICKS].
 var _tap_ticks := TAP_TICKS
-## A round as it is played rather than with the gun's noise zeroed: the tuning kept, the aim
-## button held all round (scoped), the range [member _range] when above 0, the target walking at
-## the shooter while it strafes, every shot at the middle of the drawn torso, a second and a half
-## apart as the owner shot ([constant PLAYED_TAP_TICKS]). Off here; headless_hitreg_scope turns it on.
+## A round as it is played rather than with the gun's noise zeroed: the tuning kept, the aim button held all round (scoped), the range [member _range] when above 0, the target walking at
+## the shooter while it strafes, every shot at the middle of the drawn torso, a second and a half apart as the owner shot ([constant PLAYED_TAP_TICKS]). Off here; headless_hitreg_scope turns it on.
 ## The trace may leave a recoil's residue off the aim then, so only the hit is held.
 var _as_played := false
 var _range := 0.0
@@ -157,7 +139,7 @@ func _hitscan_weapons() -> Array[StringName]:
 	return out
 
 
-# --- The three ends --------------------------------------------------------
+# The three ends.
 
 func _lane() -> ArenaMap:
 	var map := ArenaMap.new()
@@ -264,7 +246,7 @@ func _build() -> void:
 	_done()
 
 
-# --- One round -------------------------------------------------------------
+# One round.
 
 func _players(id: int) -> Array[ArenaPlayer]:
 	var out: Array[ArenaPlayer] = [_server_game.player_for(id)]
@@ -294,35 +276,9 @@ func _round(weapon_id: StringName, ping: int) -> void:
 	var per_tap := maxi(1, def.burst_count) if def.fire_mode == DotWeaponDef.Fire.BURST else 1
 	var taps := mini(TAPS, def.magazine / per_tap) if def.magazine > 0 else TAPS
 
-	# Both stand whole, the shooter holding only this gun, everywhere it exists.
-	var tick := _server_game.current_tick()
-	for p in _players(SHOOTER):
-		p.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 0.0)), tick)
-		p.arsenal.clear()
-		var _g := p.arsenal.give(weapon_id)
-		p.hold(def.slot)
-	for p in _players(_target):
-		p.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, -distance)), tick)
-	# Peer 3 keeps walking when the target is someone else: well clear of the line of fire.
-	if _target != TARGET:
-		for p in _players(TARGET):
-			p.spawn(Transform3D(Basis(), Vector3(40.0, 0.05, 0.0)), tick)
+	_place(weapon_id, def, distance)
 
-	_drawn_for.clear()
-	_resolved.clear()
-	_last_frame.clear()
-	var shots_sent := 0
-	for i in SETTLE_TICKS + taps * _tap_ticks:
-		var tap := (i - SETTLE_TICKS) / _tap_ticks
-		var firing := i >= SETTLE_TICKS and (i - SETTLE_TICKS) % _tap_ticks == 0
-		_ease_counting = i >= SETTLE_TICKS
-		if _step_once(def.slot, firing, i, 0 if _as_played else [-1, 1, 0][tap % 3]) >= 0:
-			shots_sent += 1
-	_ease_counting = false
-	_drawn_prev.clear()
-	# The last shots' packets.
-	for i in _up_ticks + _down_ticks + 8:
-		var _t := _step_once(def.slot, false, i, 0)
+	var shots_sent := _fire_taps(def, taps)
 	for field: StringName in kept:
 		tuning.set(field, kept[field])
 
@@ -377,6 +333,43 @@ func _round(weapon_id: StringName, ping: int) -> void:
 		"mean_err": mean_err, "worst_err": worst_err, "first_miss": first_miss})
 
 
+## Fires the taps after the settle, then runs out the last shots' packets; returns how many shots went out.
+func _fire_taps(def: DotWeaponDef, taps: int) -> int:
+	_drawn_for.clear()
+	_resolved.clear()
+	_last_frame.clear()
+	var shots_sent := 0
+	for i in SETTLE_TICKS + taps * _tap_ticks:
+		var tap := (i - SETTLE_TICKS) / _tap_ticks
+		var firing := i >= SETTLE_TICKS and (i - SETTLE_TICKS) % _tap_ticks == 0
+		_ease_counting = i >= SETTLE_TICKS
+		if _step_once(def.slot, firing, i, 0 if _as_played else [-1, 1, 0][tap % 3]) >= 0:
+			shots_sent += 1
+	_ease_counting = false
+	_drawn_prev.clear()
+	# The last shots' packets.
+	for i in _up_ticks + _down_ticks + 8:
+		var _t := _step_once(def.slot, false, i, 0)
+	return shots_sent
+
+
+## Both stand whole, the shooter holding only this gun, everywhere it exists.
+func _place(weapon_id: StringName, def: DotWeaponDef, distance: float) -> void:
+	# Both stand whole, the shooter holding only this gun, everywhere it exists.
+	var tick := _server_game.current_tick()
+	for p in _players(SHOOTER):
+		p.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 0.0)), tick)
+		p.arsenal.clear()
+		var _g := p.arsenal.give(weapon_id)
+		p.hold(def.slot)
+	for p in _players(_target):
+		p.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, -distance)), tick)
+	# Peer 3 keeps walking when the target is someone else: well clear of the line of fire.
+	if _target != TARGET:
+		for p in _players(TARGET):
+			p.spawn(Transform3D(Basis(), Vector3(40.0, 0.05, 0.0)), tick)
+
+
 ## The round's checks, from its counts: every shot resolved, aimed and hit, the rewind within tolerance.
 func _judge(weapon_id: StringName, ping: int, c: Dictionary) -> void:
 	var matched: int = c["matched"]
@@ -413,17 +406,7 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 	var k := _step
 	var fired := -1
 
-	# What reached each client by now.
-	var later: Array[Dictionary] = []
-	for packet in _down:
-		if int(packet["at"]) > k:
-			later.append(packet)
-			continue
-		var targets: Array = _clients.keys() if int(packet["peer"]) == 0 else [int(packet["peer"])]
-		for target in targets:
-			if _clients.has(target):
-				_clients[target]["bridge"].receive_snapshot(packet["bytes"])
-	_down = later
+	_deliver_down(k)
 
 	# The clocks where a client would have them: the input runs ahead by the flight up and a
 	# tick of margin, the receive timeline is the newest snapshot that can have arrived.
@@ -489,6 +472,12 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 	_server_game.combat.health_of(SHOOTER).health = 1.0e7
 	_server_bridge.server_tick(k)
 
+	_read_frame(k)
+	return fired
+
+
+## The frame on the shooter's screen until the next tick reads the mouse.
+func _read_frame(k: int) -> void:
 	# The frame on the shooter's screen until the next tick reads the mouse.
 	var net: DotNetManager = _clients[SHOOTER_PEER]["net"]
 	if net.clock.is_synced():
@@ -511,10 +500,24 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 			"eased": _ease_offset(net, _clients[SHOOTER_PEER]["bridge"], drawn_at),
 		}
 		_note_ease(_ease_vector(net, _clients[SHOOTER_PEER]["bridge"], drawn_at), drawn.global_position)
-	return fired
 
 
-# --- The link, overridden by headless_hitreg_chaos ----------------------------
+## Hands each client the snapshots that have reached it by step [param k].
+func _deliver_down(k: int) -> void:
+	# What reached each client by now.
+	var later: Array[Dictionary] = []
+	for packet in _down:
+		if int(packet["at"]) > k:
+			later.append(packet)
+			continue
+		var targets: Array = _clients.keys() if int(packet["peer"]) == 0 else [int(packet["peer"])]
+		for target in targets:
+			if _clients.has(target):
+				_clients[target]["bridge"].receive_snapshot(packet["bytes"])
+	_down = later
+
+
+# The link, overridden by headless_hitreg_chaos.
 
 ## The step a snapshot sent now lands on the clients, or -1 when it is lost.
 func _down_at() -> int:
@@ -549,10 +552,8 @@ func _ease_vector(net: DotNetManager, bridge: ArenaNetBridge, render_tick: float
 	if track == null:
 		return Vector3.ZERO
 	if net.interpolator.is_native():
-		# dot-sim's DotSimInterpolator draws the whole frame, ease included, and keeps its offsets to
-		# itself: the GDScript track's offsets stay empty. The ease is how far the drawn position is
-		# off the blend of the same snapshots at the same tick; none while extrapolating, as
-		# DotNetInterpolator._ease_resume eases only once the draw is back inside a bracket.
+		# dot-sim's DotSimInterpolator draws the whole frame, ease included, and keeps its offsets to itself: the GDScript track's offsets stay empty. The ease is how far the drawn position is
+		# off the blend of the same snapshots at the same tick; none while extrapolating, as DotNetInterpolator._ease_resume eases only once the draw is back inside a bracket.
 		if track.samples.size() < 2 or render_tick >= float(track.newest_tick()):
 			return Vector3.ZERO
 		var blend: Variant = net.interpolator.value_at(net_id, &"net_position", render_tick)

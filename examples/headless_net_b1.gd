@@ -392,10 +392,8 @@ func _test_toys_reach_a_client() -> void:
 		_pump(1)
 		await get_tree().physics_frame
 		furthest = maxf(furthest, client_ball.body.global_position.distance_to(start))
-	# The ball is still rolling after 70 ticks (about 4.5 m/s), and a client's toy is the server's pose a
-	# snapshot and an interpolation behind (more after a lost packet), so the two are not compared at the
-	# same tick: the client's ball must sit on the path the server's took over that window. At 66 ticks the
-	# snapshot rate is 11 Hz, and the same-tick distance swings between 0.03 and 0.8 m with snapshot arrival.
+	# The ball is still rolling after 70 ticks (about 4.5 m/s), and a client's toy is the server's pose a snapshot and an interpolation behind (more after a lost packet), so the two are not compared at the
+	# same tick: the client's ball must sit on the path the server's took over that window. At 66 ticks the snapshot rate is 11 Hz, and the same-tick distance swings between 0.03 and 0.8 m with snapshot arrival.
 	var window := maxi(roundi(TICK_RATE * 0.5), 4 * ceili(float(TICK_RATE) / SNAPSHOT_RATE))
 	var path: Array[Vector3] = []
 	for _i in range(40):

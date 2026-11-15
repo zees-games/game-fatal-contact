@@ -172,10 +172,8 @@ func _view_step(w: Dictionary) -> void:
 			w.next = int(w.next) + 1
 	_step_mark(step_of, step_began)
 
-## True: a web client builds under the cover only the views of the weapons the local player carries (and the default
-## loadout's), and every other weapon's after the cover drops, a stage at a time in quick frames ([method _late_views_tick]).
-## All 27 under the cover were 14-20 s of a 36-62 s web load on staging02, each frame a stage of 60-400 ms plus the match's
-## ticks. A desktop client builds them all under the cover as before. False: the web builds them all there too.
+## True: a web client builds under the cover only the views of the weapons the local player carries (and the default loadout's), and every other weapon's after the cover drops, a stage at a time in quick frames ([method _late_views_tick]).
+## All 27 under the cover were 14-20 s of a 36-62 s web load on staging02, each frame a stage of 60-400 ms plus the match's ticks. A desktop client builds them all under the cover as before. False: the web builds them all there too.
 static var defer_views_on_web := true
 ## A late view stage runs only while the player is away (dead, or spectating), after a frame this quick (msec), and at
 ## most one every [constant LATE_VIEW_GAP] frames: a stage is one 70-400 ms frame, which in play is a hitch.
@@ -210,10 +208,8 @@ func _cover_arts(body: ArenaPlayer) -> Array:
 		_late_views = {"arts": late, "next": 0, "drawn": {}, "gap": 0, "began": 0}
 	return now
 
-## After the cover drops, the views [method _cover_arts] set aside, built while the player is dead or spectating: one
-## stage in a quick frame, the kill view's hold of each, then their new materials drawn once on tiny quads before the
-## camera in use, a few ms a frame. Waits while a cover is up (a map change), there is no camera or the player plays;
-## a weapon picked up before is built when it is equipped, as before the prewarm.
+## After the cover drops, the views [method _cover_arts] set aside, built while the player is dead or spectating: one stage in a quick frame, the kill view's hold of each, then their new materials drawn once on tiny quads before the
+## camera in use, a few ms a frame. Waits while a cover is up (a map change), there is no camera or the player plays; a weapon picked up before is built when it is equipped, as before the prewarm.
 func _late_views_tick() -> void:
 	if _late_views.is_empty():
 		_late_views_end()
@@ -526,12 +522,8 @@ func _prewarm_models() -> void:
 		if art is AwWeaponVisual and (art as AwWeaponVisual).has_model():
 			_model_paths.append((art as AwWeaponVisual).model_path)
 	_model_paths_next = 0
-	# The reads run on the loader's own threads: a big model read inline held one frame for seconds
-	# (7455 ms on a slow disk), and the tick below only takes a file once it has landed.
-	# Not headless: the dummy renderer's mesh storage is not safe against a loader thread creating
-	# meshes beside the main thread (RID errors, a mesh leaked at exit, an odd viewarms failure), and
-	# there the tick below simply loads each file itself, a few ms a frame.
-	# No loader threads either on the web build: a request reads the file inline, so the 27 requests
+	# The reads run on the loader's own threads: a big model read inline held one frame for seconds (7455 ms on a slow disk), and the tick below only takes a file once it has landed. Not headless: the dummy renderer's mesh storage is not safe against a loader thread creating
+	# meshes beside the main thread (RID errors, a mesh leaked at exit, an odd viewarms failure), and there the tick below simply loads each file itself, a few ms a frame. No loader threads either on the web build: a request reads the file inline, so the 27 requests
 	# were one 2074-2426 ms frame on staging02. There the tick reads them itself, one or two a frame.
 	if DisplayServer.get_name() != "headless" and DotPlatform.has_threads():
 		for path: Variant in _model_paths:

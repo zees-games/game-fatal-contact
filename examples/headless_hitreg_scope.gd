@@ -1,14 +1,8 @@
 extends "headless_hitreg_ping.gd"
 
-## "Some of those shots DEFINITELY hit the player": a scoped rifle at range, as it is played.
-##
-## headless_hitreg_ping zeroes the gun's noise to prove the netcode; these rounds keep the
-## tuning. The shooter holds the aim all round (scoped, still) and shoots the middle of the
-## drawn torso every second and a half, at [constant RANGES], over the owner's 20 ms and 50 ms.
-## The target is peer 3 walking at the shooter while it strafes and toggles crouch (also with
-## the relevance rings on, so 40-80 m arrives every second snapshot), then a server bot playing
-## with its own brain (the owner's video, 2026-11-12, shot bots at 60 m). A scoped sniper
-## shot from a still shooter has no cone to miss with: the server must register every one.
+## "Some of those shots DEFINITELY hit the player": a scoped rifle at range, as it is played. headless_hitreg_ping zeroes the gun's noise to prove the netcode; these rounds keep the tuning. The shooter holds the aim all round (scoped, still) and shoots the middle of the
+## drawn torso every second and a half, at [constant RANGES], over the owner's 20 ms and 50 ms. The target is peer 3 walking at the shooter while it strafes and toggles crouch (also with the relevance rings on, so 40-80 m arrives every second snapshot), then a server bot playing
+## with its own brain (the owner's video shot bots at 60 m). A scoped sniper shot from a still shooter has no cone to miss with: the server must register every one.
 
 const ArenaNetAoi := preload("../game/arena_net_aoi.gd")
 

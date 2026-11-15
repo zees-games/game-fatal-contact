@@ -48,10 +48,8 @@ var _settle_until := 0
 var _settle_from := 0
 var _settle_worst := 0
 var _settle_slow := 0
-## `?cl_load_trace=1` on the page (`--cl_load_trace 1` on a desktop): every frame under the cover and through the
-## settle window traced as by [method trace_frames], so a slow frame splits into its setup step, the nodes' pass and
-## the draw. `cl_load_trace=items` also makes every [DotRenderWarmup] draw one item a round (far slower, but each
-## slow draw names its one material).
+## `?cl_load_trace=1` on the page (`--cl_load_trace 1` on a desktop): every frame under the cover and through the settle window traced as by [method trace_frames], so a slow frame splits into its setup step, the nodes' pass and
+## the draw. `cl_load_trace=items` also makes every [DotRenderWarmup] draw one item a round (far slower, but each slow draw names its one material).
 var _trace_load := false
 var _trace_items := false
 ## Under that trace, what each [DotRenderWarmup] round put up, stamped with a slow draw.
@@ -289,7 +287,13 @@ func _settle() -> void:
 	set_process(false)
 	if _trace_load:
 		_trace_left = mini(_trace_left, 1)
-	var rows := _rows(_marks.slice(_settle_from))
+	# Worded after the frame, like [method _report]: the last settle frame stays free of the string work.
+	_report_settle.call_deferred(now, _marks.size())
+
+
+## The settle's marks up to [param end], stamped by the frame that closed it at [param now].
+func _report_settle(now: int, end: int) -> void:
+	var rows := _rows(_marks.slice(_settle_from, end))
 	DotLog.info(CHANNEL, "after open, engine ms (+gap, frame): " + "; ".join(rows[0]), {"worst_frame_ms": _settle_worst, "slow_frames": _settle_slow})
 	if DotWeb.available():
 		DotWeb.publish("arena_after_open", JSON.stringify({"marks": rows[1], "worst_frame_ms": _settle_worst, "slow_frames": _settle_slow, "now_ms": now}))

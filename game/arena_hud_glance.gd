@@ -493,7 +493,7 @@ class WeaponSlots extends Control:
 
 	func show_slots(p_rows: Array[Dictionary], p_current: int) -> void:
 		if p_current != current or p_rows.size() != rows.size() or str(p_rows) != str(rows):
-			rows = p_rows
+			rows.assign(p_rows)
 			current = p_current
 			queue_redraw()
 

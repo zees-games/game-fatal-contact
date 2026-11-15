@@ -1,5 +1,5 @@
 @tool
-extends "arena_hud_base.gd"
+extends "arena_hud_objective.gd"
 
 const ArenaFlagView := preload("arena_flag_view.gd")
 
@@ -429,7 +429,6 @@ func present_portraits() -> void:
 		portrait_cache.keep_only(ids)
 
 
-
 ## Health, ammunition, the carried weapons and the key hints, from the followed player.
 func present_gear() -> void:
 	var live := _live() and player.is_alive()
@@ -488,9 +487,14 @@ func present_gear() -> void:
 var _rows_sig := -1
 var _hints_sig := -1
 
+## The rows [method _present_slots] and [method _present_hints] refill on a change; both widgets keep a copy.
+var _slot_rows: Array[Dictionary] = []
+var _hint_rows: Array = []
+
 
 func _present_slots(live: bool) -> void:
-	var rows: Array[Dictionary] = []
+	var rows := _slot_rows
+	rows.clear()
 	if live and player.arsenal != null:
 		for index in player.arsenal.slots():
 			var held := player.arsenal.slot_at(index)
@@ -501,10 +505,10 @@ func _present_slots(live: bool) -> void:
 
 
 func _present_hints(loadout_menu: bool) -> void:
-	var shown: Array = [
-		["Scoreboard", keys[&"scoreboard"]], ["Menu", keys[&"menu"]], ["Help", keys[&"help"]],
-		["Maps", keys[&"maps"]],
-	]
+	var shown := _hint_rows
+	shown.clear()
+	shown.append_array([["Scoreboard", keys[&"scoreboard"]], ["Menu", keys[&"menu"]], ["Help", keys[&"help"]],
+		["Maps", keys[&"maps"]]])
 	# The loadout's key only where there is a loadout menu: an older shell, or a mode that
 	# hands out the weapons, has none to open.
 	if String(keys.get(&"loadout", "")) != "" and loadout_menu:
@@ -752,56 +756,3 @@ func carrying_flag_text() -> String:
 	return ""
 
 
-## One line about the objectives, or nothing at all.
-##
-## Reads the mirroring manager on a client and the real one on a listen server, which
-## is the same object either way: `ArenaObjectives` holds a `DotObjectiveManager` whose
-## `authoritative` decides whether it simulates, and a HUD asking it for a fraction does
-## not care which.
-func _objective_line() -> String:
-	if game.objectives == null or game.objectives.manager == null:
-		return ""
-
-	var manager := game.objectives.manager
-
-	if not manager.has_objectives():
-		return ""
-
-	# Capture the flag says it all in the strip: the captures on each side's plate, its flag's state in the tag.
-	if game.objectives.ctf != null:
-		return ""
-
-	var parts := PackedStringArray()
-
-	for objective in manager.objectives.objectives:
-		var label := objective.def.label if objective.def.label != "" \
-			else String(objective.id())
-
-		if objective is DotObjectiveHoldout:
-			var holdout := objective as DotObjectiveHoldout
-			var lead := holdout.leader()
-			if lead <= 0:
-				parts.append("%s --" % label)
-			else:
-				var left := holdout.remaining_for(lead)
-				parts.append(
-					"%s %d:%02d" % [
-						label,
-						left / (60 * game.tick_rate),
-						(left / game.tick_rate) % 60,
-					]
-				)
-		elif objective is DotObjectiveFlag:
-			var flag := objective as DotObjectiveFlag
-			parts.append(
-				"%s %s" % [
-					label,
-					DotObjectiveFlag.State.keys()[flag.state].substr(0, 4),
-				]
-			)
-		elif objective.owner_team > 0:
-			parts.append("%s:%d" % [label, objective.owner_team])
-		else:
-			parts.append("%s %d%%" % [label, int(objective.progress() * 100.0)])
-
-	return "  ".join(parts)

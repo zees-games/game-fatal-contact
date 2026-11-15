@@ -3,13 +3,8 @@ extends DotGameCheckSuite
 const ArenaNetLink := preload("../game/arena_net_link.gd")
 const WebsnapBridge := preload("websnap_bridge.gd")
 
-## `cl_snapshot_coalesce`, the browser client's snapshot skipping (ArenaNetLink): the snapshots one
-## network poll brings are held, and at the end of the poll only the newest tick's parts are applied,
-## in arrival order; older ticks count as lost (`snapshots_coalesced`), which the server's resend
-## already repairs. A reliable event or a map message applies the held newest tick first, so state
-## and events keep their order. Native clients decode every snapshot as it comes.
-##
-## The link is driven exactly as the RPC poll drives it (`_net_snapshot` / `_net_event` / `_net_map`
+## `cl_snapshot_coalesce`, the browser client's snapshot skipping (ArenaNetLink): the snapshots one network poll brings are held, and at the end of the poll only the newest tick's parts are applied, in arrival order; older ticks count as lost (`snapshots_coalesced`), which the server's resend
+## already repairs. A reliable event or a map message applies the held newest tick first, so state and events keep their order. Native clients decode every snapshot as it comes. The link is driven exactly as the RPC poll drives it (`_net_snapshot` / `_net_event` / `_net_map`
 ## called back to back within one frame); the frame's end is the deferred flush.
 
 const SECTIONS := 5

@@ -27,10 +27,8 @@ func _map_now() -> ArenaMap:
 func _build_level() -> Node3D:
 	var level := _map_now().to_scene()
 
-	# An imported map's to_scene() is the drawn world only (its solid is the game's, see
-	# ArenaMap.movement_body), so the cameras flew through every wall and the check read
-	# "unprotected camera in or behind the level on 0 frames" as an unarmed FAIL. Give the level
-	# the convex-hull solid the game collides with.
+	# An imported map's to_scene() is the drawn world only (its solid is the game's, see ArenaMap.movement_body), so the cameras flew through every wall and the check read
+	# "unprotected camera in or behind the level on 0 frames" as an unarmed FAIL. Give the level the convex-hull solid the game collides with.
 	if _map_now().is_imported():
 		var manifest := ArenaImportedMaps.manifest(_map_now().id)
 		var solid := ArenaBspMap.build_collision(manifest, _map_now().manifest_path.get_base_dir())

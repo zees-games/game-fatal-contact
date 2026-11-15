@@ -1,12 +1,8 @@
 extends RefCounted
 
-## Maps copied in by hand: a raw convert folder under `res://addons/maps/<map>/` or `user://maps/<map>/`, found by dot-map's
-## [code]DotMapLocalMaps[/code] as `<name>_local`. Solo only: the catalogue lists them when [code]ArenaMaps.list_local[/code] is on
-## (a solo client and its sim host), and no server rotation, vote or pack ever names one.
-##
-## The folder is dot-map's own mesh format, not the legacy manifest [code]ArenaImportedMaps[/code] reads, so the map's
-## spawns, bounds and solid come from the mesh here and its drawing from [code]ArenaBspMap.world_prefix[/code], which
-## answers a local id with its folder.
+## Maps copied in by hand: a raw convert folder under `res://addons/maps/<map>/` or `user://maps/<map>/`, listed by dot-map's [code]DotMapLocalMaps[/code] as `<name>_local`. Solo only: the catalogue lists them when [code]ArenaMaps.list_local[/code] is on
+## (a solo client and its sim host), and no server rotation, vote or pack ever names one. The folder is dot-map's own mesh format, not the legacy manifest [code]ArenaImportedMaps[/code] reads, so the map's
+## spawns, bounds and solid come from the mesh here and its drawing from [code]ArenaBspMap.world_prefix[/code], which answers a local id with its folder.
 
 const CHANNEL := "arena.maps"
 ## The dot-map API level with `watch_drops`, `accept_dropped`, zips and `is_original`.

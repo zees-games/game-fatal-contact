@@ -2,22 +2,9 @@ extends Node
 
 const ArenaFrameProbe := preload("arena_frame_probe.gd")
 
-## Splits a recorded frame's process phase into spans the dot profiler's tree can place, so
-## "process scripts (no span)" names where it went. While [member DotFrameCost.trace] is on:
-##
-## - `arena.pf_head`: from SceneTree.process_frame to the first node's `_process` (message queue, transforms).
-## - `arena.pf_nodes`: from the first node's `_process` to the last one's. Every timed section (`arena.present`,
-##   `arena.audio`, ...) nests inside it, so its self time is the nodes nobody times: other `_process` scripts and
-##   the engine's internal process (AnimationMixer/AnimationTree, particles, ...).
-## - `arena.pf_tail`: from the last node's `_process` to RenderingServer.frame_pre_draw: deferred calls (skeleton
-##   updates), transform notifications, timers, tweens and the engine work before the draw.
-##
-## This node runs first by process_priority and its child last; outside a trace each pays a call and a test a frame.
-##
-## `--pf_split N` (a bench's `-- --pf_split 3`) splits `arena.pf_nodes` further for one recording: a marker node goes
-## before each node down to depth N from the root, and each marker opens a span `arena.pn.<parent kind>/<kind>` that
-## the next marker closes. Kinds are script file or class names, so 31 players' nodes sum into one row. Diagnostic only:
-## the markers stay until the scene changes.
+## Splits a recorded frame's process phase into spans the dot profiler's tree can place, so "process scripts (no span)" names where it went. While [member DotFrameCost.trace] is on: - `arena.pf_head`: from SceneTree.process_frame to the first node's `_process` (message queue, transforms). - `arena.pf_nodes`: from the first node's `_process` to the last one's. Every timed section (`arena.present`, `arena.audio`, ...) nests inside it, so its self time is the nodes nobody times: other `_process` scripts and
+## the engine's internal process (AnimationMixer/AnimationTree, particles, ...). - `arena.pf_tail`: from the last node's `_process` to RenderingServer.frame_pre_draw: deferred calls (skeleton updates), transform notifications, timers, tweens and the engine work before the draw. This node runs first by process_priority and its child last; outside a trace each pays a call and a test a frame. `--pf_split N` (a bench's `-- --pf_split 3`) splits `arena.pf_nodes` further for one recording: a marker node goes
+## before each node down to depth N from the root, and each marker opens a span `arena.pn.<parent kind>/<kind>` that the next marker closes. Kinds are script file or class names, so 31 players' nodes sum into one row. Diagnostic only: the markers stay until the scene changes.
 
 ## This node's process_priority; its last child runs at the negative of it.
 const EDGE := -1000000

@@ -88,10 +88,8 @@ const RIDE_START_BUDGET := 8
 ## The seed of the perturbed starts; `-- --rotation --rotation-seed=N` draws others.
 const ROTATION_RIDE_SEED := 41
 var _rotation_seed := ROTATION_RIDE_SEED
-## Per planned edge in file order (10x: file edges 0, 1 and 2, about 300 m each). Ridden here at 66 Hz
-## from 5 seeds (`-- --rotation --rotation-seed=N`) they landed 8 of 35, 10 of 76 and 10 of 28 starts
-## (23%, 13%, 36%; the cache's own records say 52%, 22%, 20% simulated); most misses fall into the
-## teleport under the ramp. With 48 starts, 1, 1 and 2 landings fail by chance about once in 700
+## Per planned edge in file order (10x: file edges 0, 1 and 2, about 300 m each). Ridden here at 66 Hz from 5 seeds (`-- --rotation --rotation-seed=N`) they landed 8 of 35, 10 of 76 and 10 of 28 starts
+## (23%, 13%, 36%; the cache's own records say 52%, 22%, 20% simulated); most misses fall into the teleport under the ramp. With 48 starts, 1, 1 and 2 landings fail by chance about once in 700
 ## runs (2 of 24 on edge 1 failed about one run in six), and a ride that has stopped working lands none.
 const ROTATION_RIDE_LANDING: Array = [1, 1, 2]
 ## surf_snipers_island's three edges go from the pads its teleports put a player on down to the

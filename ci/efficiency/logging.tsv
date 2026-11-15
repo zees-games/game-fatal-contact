@@ -7,4 +7,3 @@ game/arena_net_bridge_b1.gd::print	1
 game/arena_player_stack.gd::print	1
 game/arena_sim_host.gd::channel_silent	1
 game/arena_sim_owner.gd::channel_silent	1
-game/arena_sim_server.gd::print	3

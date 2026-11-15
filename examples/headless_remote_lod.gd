@@ -103,25 +103,7 @@ func _run() -> void:
 	_check((carried.get("_lod_delta") as float) > 0.04, "the skipped time is carried to the frame that presents")
 	_done()
 
-	_section("the cvars")
-	ArenaPlayer.lod_off_every = 8
-	var slow := _body(Vector3(0, 0, 20))
-	_check(_passes(slow, 16) == 2, "cl_remote_lod_every 8: 2 of 16 frames", "%d" % _passes(slow, 16))
-	ArenaPlayer.lod_off_every = 1
-	var every := _body(Vector3(0, 0, 20))
-	_check(_passes(every, 8) == 8, "cl_remote_lod_every 1 presents everything")
-	ArenaPlayer.lod_off_every = 4
-	ArenaPlayer.present_lod_enabled = false
-	var off := _body(Vector3(0, 0, 20))
-	_check(_passes(off, 8) == 8, "cl_remote_lod 0 presents everything")
-	ArenaPlayer.present_lod_enabled = true
-	ArenaPlayer.lod_frustum = false
-	var cone := _body(Vector3(40, 0, -20))
-	_check(_passes(cone, 8) == 8, "cl_remote_lod_frustum 0: the cone keeps that body in view (all 8)", "%d" % _passes(cone, 8))
-	var cone_back := _body(Vector3(0, 0, 20))
-	_check(_passes(cone_back, 8) == 2, "cl_remote_lod_frustum 0: behind is still thinned")
-	ArenaPlayer.lod_frustum = true
-	_done()
+	_test_cvars()
 
 	_section("past the figure's draw range its gun and crest go with it (arena-vm-regress-1)")
 	# The figure's mesh stops drawing at DRAW_RANGE; a gun left on would float alone in the sky.
@@ -157,6 +139,20 @@ func _run() -> void:
 		_check(false, "skin drawn again: the gun is back", "no skin")
 	_done()
 
+	_test_dead_joiner()
+
+	_section("the kill-cam recording cap")
+	_check(ArenaKillcamBodies.record_hz == 30.0, "default 30 recordings a second")
+	_check(ArenaKillcamBodies.record_hz > 0.0 and 1.0e6 / ArenaKillcamBodies.record_hz < 40000.0, "a gap under 40 ms: the replay interpolates between rows")
+	_done()
+
+	_test_anim_gate()
+	_root.queue_free()
+	_report_sections(_entered, _completed, SECTIONS, CHECKS)
+
+
+## A body built while its player is dead draws no gun until it is alive and out of the death pose.
+func _test_dead_joiner() -> void:
 	_section("a body built while its player is dead draws no gun (floatgun-ak-1)")
 	# A joiner builds every body at once; one whose player was dead hung its gun at the hand's rest until a present reached it.
 	var joined := _body(Vector3(0, 0, -10))
@@ -176,14 +172,28 @@ func _run() -> void:
 	_check(joined.held != null and not joined.held.visible, "alive but still in the death pose: the gun is hidden")
 	_done()
 
-	_section("the kill-cam recording cap")
-	_check(ArenaKillcamBodies.record_hz == 30.0, "default 30 recordings a second")
-	_check(ArenaKillcamBodies.record_hz > 0.0 and 1.0e6 / ArenaKillcamBodies.record_hz < 40000.0, "a gap under 40 ms: the replay interpolates between rows")
-	_done()
 
-	_test_anim_gate()
-	_root.queue_free()
-	_report_sections(_entered, _completed, SECTIONS, CHECKS)
+## The cl_remote_lod cvars: the rate, off, and the cone instead of the frustum.
+func _test_cvars() -> void:
+	_section("the cvars")
+	ArenaPlayer.lod_off_every = 8
+	var slow := _body(Vector3(0, 0, 20))
+	_check(_passes(slow, 16) == 2, "cl_remote_lod_every 8: 2 of 16 frames", "%d" % _passes(slow, 16))
+	ArenaPlayer.lod_off_every = 1
+	var every := _body(Vector3(0, 0, 20))
+	_check(_passes(every, 8) == 8, "cl_remote_lod_every 1 presents everything")
+	ArenaPlayer.lod_off_every = 4
+	ArenaPlayer.present_lod_enabled = false
+	var off := _body(Vector3(0, 0, 20))
+	_check(_passes(off, 8) == 8, "cl_remote_lod 0 presents everything")
+	ArenaPlayer.present_lod_enabled = true
+	ArenaPlayer.lod_frustum = false
+	var cone := _body(Vector3(40, 0, -20))
+	_check(_passes(cone, 8) == 8, "cl_remote_lod_frustum 0: the cone keeps that body in view (all 8)", "%d" % _passes(cone, 8))
+	var cone_back := _body(Vector3(0, 0, 20))
+	_check(_passes(cone_back, 8) == 2, "cl_remote_lod_frustum 0: behind is still thinned")
+	ArenaPlayer.lod_frustum = true
+	_done()
 
 
 func _test_anim_gate() -> void:

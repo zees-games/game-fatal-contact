@@ -1,17 +1,15 @@
 extends RefCounted
 
-## Fatal Contact's user folder. It was Godot's default, named after `config/name` (`godot/app_userdata/game-arena`);
-## project.godot now names it itself (`use_custom_user_dir`, `game-fatal-contact`), so it is one predictable folder
-## on every platform: `~/.local/share/game-fatal-contact` on Linux, `%APPDATA%\game-fatal-contact` on Windows,
-## `~/Library/Application Support/game-fatal-contact` on macOS.
-##
-## `migrate()` copies the old folder into the new one once (settings, `maps/`, stats, loadouts, profiles), never
-## over a file the new folder already has, and leaves the old folder as it was. Engine caches are not copied.
-## Nothing happens on the web (`/userfs`) or when another project runs the game (a pack in the shell): the
-## setting it checks is this project's alone.
+## Fatal Contact's user folder. It was Godot's default, named after `config/name` (`godot/app_userdata/game-arena`); project.godot now names it itself (`use_custom_user_dir`, `game-fatal-contact`), so it is one predictable folder on every platform: `~/.local/share/game-fatal-contact` on Linux, `%APPDATA%\game-fatal-contact` on Windows,
+## `~/Library/Application Support/game-fatal-contact` on macOS. `migrate()` copies the old folder into the new one once (settings, `maps/`, stats, loadouts, profiles), never over a file the new folder already has, and leaves the old folder as it was. Engine caches are not copied.
+## Nothing happens on the web (`/userfs`) or when another project runs the game (a pack in the shell): the setting it checks is this project's alone.
 
 const DIR_NAME := "game-fatal-contact"
 const OLD_NAME := "game-arena"
+
+## The log channel for the one-time copy.
+const CHANNEL := "arena.user_dir"
+
 ## Written into the new folder once the copy ran (or found nothing to copy), so it runs once per machine.
 const MARKER := "user://.migrated_from_game_arena"
 ## Rebuilt by the engine; the shader cache alone was 80 MB of an 84 MB folder.
@@ -41,7 +39,7 @@ static func migrate() -> int:
 	var copied := -1
 	if DirAccess.dir_exists_absolute(from) and from.simplify_path() != to.simplify_path():
 		copied = copy_tree(from, to)
-		print("Fatal Contact: copied %d files from %s into %s (the old folder is kept)" % [copied, from, to])
+		DotLog.info(CHANNEL, "copied the old user folder into the new one (the old folder is kept)", {"files": copied, "from": from, "to": to})
 	var f := FileAccess.open(MARKER, FileAccess.WRITE)
 	if f != null:
 		f.store_string("%s\n%d\n" % [from, copied])
@@ -64,7 +62,7 @@ static func copy_tree(from: String, to: String, top: bool = true) -> int:
 		if DirAccess.copy_absolute(src, dst) == OK:
 			count += 1
 		else:
-			push_warning("Fatal Contact: could not copy %s into the new user folder" % src)
+			DotLog.warn(CHANNEL, "could not copy a file into the new user folder", {"file": src})
 	for d in dir.get_directories():
 		if (top and SKIP.has(d)) or dir.is_link(d):
 			continue

@@ -18,10 +18,8 @@ static func _tick_rate_arg() -> int:
 	return clampi(int(OS.get_environment("ARENA_TICK_RATE")), 10, 240) if OS.has_environment("ARENA_TICK_RATE") else 64
 
 
-## Runs one measured section, and runs it again (five times at most) when it failed AND this process
-## was stalled for longer than the clock's own tolerance during it. A runner descheduled for
-## 3 ticks makes a +-4 tick clock error by itself, which says nothing about the code. No limit
-## moves: the rerun is judged by the same checks, and a failure with no stall is final.
+## Runs one measured section, and runs it again (five times at most) when it failed AND this process was stalled for longer than the clock's own tolerance during it. A runner descheduled for
+## 3 ticks makes a +-4 tick clock error by itself, which says nothing about the code. No limit moves: the rerun is judged by the same checks, and a failure with no stall is final.
 func _measured(section: Callable) -> void:
 	for attempt in range(MEASURE_ATTEMPTS):
 		var passed := _passed

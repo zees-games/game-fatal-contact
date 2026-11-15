@@ -406,8 +406,8 @@ func _test_server_cvars_reach_the_client() -> void:
 		str(link.replicated_cvars))
 
 	# Each change is one reliable CVARS message through the link, at 5% loss each way after
-	# the windows (20% until 2026-11-13), so each wait is RELIABLE_SECONDS. These were 5 s and failed one run
-	# in 30 (2026-10-11): 60 changes measured 48 ms to 4.2 s (one resend 270 ms, three or
+	# the windows, so each wait is RELIABLE_SECONDS. These were 5 s and failed one run
+	# in 30: 60 changes measured 48 ms to 4.2 s (one resend 270 ms, three or
 	# four 1.1-2.1 s), and one 2 took past 5 s with the 0 queued behind it, in order on the
 	# channel, landing 9 s after the 2 was sent. At 35 s, six runs: one 2 at 12.3 s, one
 	# change at 4.7 s; the late 2's 0 landed 100 ms after it, so it was arriving all along. What is checked is that the change arrives
@@ -586,7 +586,7 @@ func _connect_everyone() -> bool:
 	_section("two clients connect, A through the relay at %s" % WINDOWS[0][0])
 
 	# [b]The first seconds of a connection, which is where the clock had nothing to go on.[/b]
-	# A plays from here, before B has even connected. Its round trip used to come from the
+	# A plays from here, before B has even connected. Its round trip once came from the
 	# link's heartbeat, which is -1 until the first one comes back -- two seconds at best,
 	# eight in one run -- and until then the clock left the flight time out of its lead
 	# and the commands arrived after their ticks. Half a second for the first ones to cross.

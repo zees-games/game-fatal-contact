@@ -1,9 +1,7 @@
 extends "weapon_lab.gd"
 
-## The animation review: the weapon lab's first-person clips, plus a third-person view of your own body and numeric
-## glitch metrics per frame, judged per clip. See docs/anim-review.md; run through tools/anim_review.sh.
-## Per clip it prints an `ANIMREVIEW {json}` verdict line and an `ANIMFRAMES {json}` line with every frame's numbers (both
-## travel on stdout, since a GPU box only sends PNGs back).
+## The animation review: the weapon lab's first-person clips, plus a third-person view of your own body and numeric glitch metrics per frame, judged per clip. See docs/anim-review.md; run through tools/anim_review.sh.
+## Per clip it prints an `ANIMREVIEW {json}` verdict line and an `ANIMFRAMES {json}` line with every frame's numbers (both travel on stdout, since a GPU box only sends PNGs back).
 
 ## Your own body draws only in the third-person view; the arms only in the first-person one.
 const BODY_LAYER := 1 << 18

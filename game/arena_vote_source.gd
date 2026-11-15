@@ -164,7 +164,6 @@ func supports_apply() -> bool:
 
 
 ## Makes the winning choice happen.
-##
 ## A coroutine: a map change waits for every peer to have the content before the world
 ## swaps, and a mode change is a map change to the same map.
 func apply(id: StringName) -> DotResult:

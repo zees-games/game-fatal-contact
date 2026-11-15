@@ -35,10 +35,8 @@ const SHED_ON := 0.5
 ## the simulation or what goes on the wire may look at it.
 static var shed_now := 0.0
 
-## Cvar `cl_shed_slow_frames`: a client of a server sheds the same distant one-shots while its frames run
-## longer than [constant SLOW_FRAME_TICKS] ticks. Its simulation is the server's and keeps wall-clock time, so it
-## is never "behind" the way a solo game is, yet a long frame then gathers every far shot and footstep of
-## the ticks it spans. On by default only in a browser, where joined frames run that long.
+## Cvar `cl_shed_slow_frames`: a client of a server sheds the same distant one-shots while its frames run longer than [constant SLOW_FRAME_TICKS] ticks. Its simulation is the server's and keeps wall-clock time, so it
+## is never "behind" the way a solo game is, yet a long frame then gathers every far shot and footstep of the ticks it spans. On by default only in a browser, where joined frames run that long.
 static var shed_slow_frames := DotPlatform.is_web()
 const SLOW_FRAME_TICKS := 4.0
 

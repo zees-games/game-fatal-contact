@@ -40,25 +40,7 @@ func _ready() -> void:
 	if port <= 0:
 		_die("no --port")
 		return
-	# The brains on worker threads: the same match as one thread (headless_botthreads), less of each tick.
-	ArenaBotThreads.threads = maxi(0, int(_arg("--bot_threads", str(default_bot_threads()))))
-	# dot-bot's native mind (the `bot_native_brain` cvar, off by default) for a bench's A/B; brains on workers leave it.
-	var brain_native := _arg("--bot_native_brain", "")
-	if brain_native != "":
-		ArenaPlayerStack.set_brain_native(brain_native.to_int() != 0)
-	# dot-sim's native bot loop (think tiers so far; on when the library is loaded) off for a bench's A/B.
-	var native_loop := _arg("--bot_native_loop", "")
-	if native_loop != "":
-		ArenaBots.tiers.native = native_loop.to_int() != 0
-	_load_us = maxi(0, int(_arg("--sim_load_us", "0")))
-	set_physics_process(_load_us > 0)
-	# Where a tick goes: the [ArenaFrameProbe] sections the server's tick records (srv_*, tick_*, p_*, bot_*, w_*),
-	# printed per tick beside each SIM_HOST line. Off by default: each section costs two clock reads.
-	# `2` adds the sub-spans inside them (`pl_pre`, `p_hitbox`, `p_wctx`, `br_*`; [member ArenaFrameProbe.fine]): a clock read each, so read shares.
-	var sections := _arg("--sim_sections", "0")
-	if sections == "1" or sections == "2":
-		ArenaFrameProbe.set_interval(1.0e9)
-		ArenaFrameProbe.fine = sections == "2"
+	_apply_bench_flags()
 	var data := "user://sim_host"
 	var _made := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(data))
 
@@ -120,7 +102,7 @@ func _ready() -> void:
 			var _stored := f.store_string(str(config.effective_enet_port()))
 			f.close()
 	_server = server
-	print("SIM_HOST ready map=%s mode=%s bots=%d bot_threads=%d brain=%s loop=%s" % [String(game.map.id), String(game.mode.id), bots,
+	print("SIM_HOST ready map=%s mode=%s bots=%d bot_threads=%d brain=%s loop=%s" % [String(game.map.id), String(game.mode.id), bots,  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		ArenaBotThreads.threads, "native" if ArenaPlayerStack.brain_native() else "script",
 		"native" if ArenaBots.tiers.native and ClassDB.class_exists(&"DotSimThinkTier") else "script"])
 	_report(module.net)
@@ -131,16 +113,39 @@ func _ready() -> void:
 static func solo_tick_rate(spec: String, players: int, default_rate: int) -> int:
 	var tiers := DotTickTiers.parse(spec)
 	if tiers.error != "":
-		push_warning("arena sim server: solo_tick_tiers ignored (%s); ticking at %d" % [tiers.error, default_rate])
+		DotLog.warn(CHANNEL, "solo_tick_tiers ignored (%s); ticking at %d" % [tiers.error, default_rate])
 		return default_rate
 	var rate := tiers.rate_for(players, default_rate)
 	if rate < ArenaGame.MIN_TICK_RATE or rate > ArenaGame.MAX_TICK_RATE:
-		push_warning("arena sim server: solo_tick_tiers gives %d Hz for %d players, outside %d-%d; ticking at %d" % [
+		DotLog.warn(CHANNEL, "solo_tick_tiers gives %d Hz for %d players, outside %d-%d; ticking at %d" % [
 			rate, players, ArenaGame.MIN_TICK_RATE, ArenaGame.MAX_TICK_RATE, default_rate])
 		return default_rate
 	if rate != default_rate:
-		print("SIM_HOST tick rate %d for %d players (solo_tick_tiers %s)" % [rate, players, spec])
+		print("SIM_HOST tick rate %d for %d players (solo_tick_tiers %s)" % [rate, players, spec])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 	return rate
+
+
+## The bench switches a perf run passes through: bot threads, native brain and loop, a synthetic load and tick sections.
+func _apply_bench_flags() -> void:
+	# The brains on worker threads: the same match as one thread (headless_botthreads), less of each tick.
+	ArenaBotThreads.threads = maxi(0, int(_arg("--bot_threads", str(default_bot_threads()))))
+	# dot-bot's native mind (the `bot_native_brain` cvar, off by default) for a bench's A/B; brains on workers leave it.
+	var brain_native := _arg("--bot_native_brain", "")
+	if brain_native != "":
+		ArenaPlayerStack.set_brain_native(brain_native.to_int() != 0)
+	# dot-sim's native bot loop (think tiers so far; on when the library is loaded) off for a bench's A/B.
+	var native_loop := _arg("--bot_native_loop", "")
+	if native_loop != "":
+		ArenaBots.tiers.native = native_loop.to_int() != 0
+	_load_us = maxi(0, int(_arg("--sim_load_us", "0")))
+	set_physics_process(_load_us > 0)
+	# Where a tick goes: the [ArenaFrameProbe] sections the server's tick records (srv_*, tick_*, p_*, bot_*, w_*),
+	# printed per tick beside each SIM_HOST line. Off by default: each section costs two clock reads.
+	# `2` adds the sub-spans inside them (`pl_pre`, `p_hitbox`, `p_wctx`, `br_*`; [member ArenaFrameProbe.fine]): a clock read each, so read shares.
+	var sections := _arg("--sim_sections", "0")
+	if sections == "1" or sections == "2":
+		ArenaFrameProbe.set_interval(1.0e9)
+		ArenaFrameProbe.fine = sections == "2"
 
 
 ## The loopback server config for the solo host: [param data] holds its admin, ban and audit files.
@@ -207,19 +212,19 @@ func _report(net: DotNetManager) -> void:
 		var ticks := maxi(1, int(now[&"server_ticks"]) - int(last[&"server_ticks"]))
 		var held := ticks / secs
 		var sim_ms := (int(now[&"server_sim_usec"]) - int(last[&"server_sim_usec"])) / 1000.0 / ticks
-		print("SIM_HOST %.1f ticks/s of %d | sim %.3f ms/tick send %.3f ms/tick" % [
+		print("SIM_HOST %.1f ticks/s of %d | sim %.3f ms/tick send %.3f ms/tick" % [  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			held, Engine.physics_ticks_per_second, sim_ms,
 			(int(now[&"server_send_usec"]) - int(last[&"server_send_usec"])) / 1000.0 / ticks])
 		var behind := behind_line(held, Engine.physics_ticks_per_second, sim_ms)
 		if behind != "":
-			push_warning(behind)
+			DotLog.warn(CHANNEL, behind)
 		# server_tick's own sections (a dot-net without them reports 0): input before sim, the
 		# still-registered check inside sim, the rewind history record inside send.
-		print("SIM_HOST_NET ms/tick | input %.3f, check %.3f, hist %.3f" % [
+		print("SIM_HOST_NET ms/tick | input %.3f, check %.3f, hist %.3f" % [  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			_per_tick(now, last, &"server_input_usec", ticks), _per_tick(now, last, &"server_check_usec", ticks),
 			_per_tick(now, last, &"server_history_usec", ticks)])
 		if ArenaFrameProbe.on():
-			print(sections_line(ArenaFrameProbe._sections, ticks))
+			print(sections_line(ArenaFrameProbe._sections, ticks))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			ArenaFrameProbe._reset()
 		last = now
 		t0 = Time.get_ticks_usec()

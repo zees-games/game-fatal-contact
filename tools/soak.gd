@@ -133,27 +133,7 @@ func _run() -> void:
 		if lethal:
 			_deaths += 1)
 
-	if not map.spawns.is_empty():
-		_goal = map.spawns[0].origin
-	var watch := DotSpawnWatch.new()
-	watch.rules.enabled = true
-	watch.rules.kill_y = map.bounds.position.y - 20.0
-	for player in _game.players():
-		var mind := ArenaBots.Mind.new()
-		mind.seed = cfg.seed_value * 1000 + player.player_id
-		_minds[player.player_id] = mind
-
-	var soak := DotBotSoak.new(cfg)
-	soak.watch = watch
-	soak.movers_fn = _movers
-	soak.stats_fn = func() -> Dictionary: return {"kills": _kills, "deaths": _deaths, "damage": _damage}
-	soak.object_count_fn = func() -> int: return int(Performance.get_monitor(Performance.OBJECT_COUNT))
-	soak.step_fn = _step
-	var nav := world.nav_for_rides()
-	if nav != null and nav.is_ready():
-		watch.nav_distance_fn = func(at: Vector3) -> float: return 0.0 if _riding.has(at) else at.distance_to(nav.closest(at))
-		watch.reachable_fn = func(at: Vector3) -> bool: return not nav.route(at, _goal).get("points", PackedVector3Array()).is_empty()
-		soak.players_fn = func() -> PackedVector3Array: return PackedVector3Array([_goal])
+	var soak := _make_soak(cfg, map, world)
 
 	var delta := 1.0 / float(TICK_RATE)
 	while not soak.is_done():
@@ -179,6 +159,32 @@ func _run() -> void:
 	if soak.write_report(report, path) != OK:
 		push_error("could not write %s" % path)
 	get_tree().quit(0 if report["ok"] else 1)
+
+
+## The soak over the started game: its spawn watch, one mind per bot, and the route checks when the map has navigation.
+func _make_soak(cfg: DotBotSoakConfig, map: ArenaMap, world: ArenaBots.World) -> DotBotSoak:
+	if not map.spawns.is_empty():
+		_goal = map.spawns[0].origin
+	var watch := DotSpawnWatch.new()
+	watch.rules.enabled = true
+	watch.rules.kill_y = map.bounds.position.y - 20.0
+	for player in _game.players():
+		var mind := ArenaBots.Mind.new()
+		mind.seed = cfg.seed_value * 1000 + player.player_id
+		_minds[player.player_id] = mind
+
+	var soak := DotBotSoak.new(cfg)
+	soak.watch = watch
+	soak.movers_fn = _movers
+	soak.stats_fn = func() -> Dictionary: return {"kills": _kills, "deaths": _deaths, "damage": _damage}
+	soak.object_count_fn = func() -> int: return int(Performance.get_monitor(Performance.OBJECT_COUNT))
+	soak.step_fn = _step
+	var nav := world.nav_for_rides()
+	if nav != null and nav.is_ready():
+		watch.nav_distance_fn = func(at: Vector3) -> float: return 0.0 if _riding.has(at) else at.distance_to(nav.closest(at))
+		watch.reachable_fn = func(at: Vector3) -> bool: return not nav.route(at, _goal).get("points", PackedVector3Array()).is_empty()
+		soak.players_fn = func() -> PackedVector3Array: return PackedVector3Array([_goal])
+	return soak
 
 
 func _step(_delta: float) -> void:

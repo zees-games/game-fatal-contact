@@ -25,8 +25,7 @@ examples/headless_jailrelease.gd::long_block	1
 examples/headless_ladders.gd::long_block	1
 examples/headless_latency.gd::long_block	1
 examples/headless_loadout_persist.gd::long_block	1
-examples/headless_lossy.gd::banner	1
-examples/headless_lossy.gd::long_block	5
+examples/headless_lossy.gd::long_block	3
 examples/headless_mapcfg.gd::long_block	1
 examples/headless_mapuse.gd::long_block	1
 examples/headless_match_part1.gd::banner	5
@@ -66,8 +65,7 @@ examples/headless_workbench.gd::long_block	1
 examples/headless_workshop.gd::long_block	1
 examples/imported_base.gd::banner	1
 examples/lossy_base.gd::banner	1
-examples/lossy_base.gd::history	2
-examples/lossy_base.gd::long_block	8
+examples/lossy_base.gd::long_block	7
 examples/lossy_windows.gd::history	2
 examples/lossy_windows.gd::long_block	4
 examples/wall_route_driver.gd::long_block	1
@@ -86,10 +84,10 @@ game/arena_client_bots.gd::long_block	1
 game/arena_client_extras.gd::banner	3
 game/arena_client_extras.gd::history	2
 game/arena_client_extras.gd::long_block	15
-game/arena_client_part1.gd::history	2
+game/arena_client_part1.gd::history	1
 game/arena_client_part1.gd::long_block	5
 game/arena_client_part2.gd::banner	4
-game/arena_client_part2.gd::long_block	4
+game/arena_client_part2.gd::long_block	3
 game/arena_client_part3.gd::banner	1
 game/arena_client_part3.gd::long_block	2
 game/arena_client_state.gd::history	1
@@ -107,7 +105,7 @@ game/arena_effects.gd::long_block	10
 game/arena_event.gd::history	1
 game/arena_event.gd::long_block	2
 game/arena_events.gd::banner	13
-game/arena_events.gd::long_block	17
+game/arena_events.gd::long_block	16
 game/arena_frame_probe.gd::long_block	1
 game/arena_game.gd::banner	2
 game/arena_game.gd::long_block	5
@@ -124,8 +122,8 @@ game/arena_horde.gd::banner	4
 game/arena_horde.gd::history	2
 game/arena_horde.gd::long_block	22
 game/arena_hud.gd::history	1
-game/arena_hud.gd::long_block	8
-game/arena_hud_glance.gd::long_block	5
+game/arena_hud.gd::long_block	7
+game/arena_hud_glance.gd::long_block	4
 game/arena_identity.gd::long_block	1
 game/arena_jail_view.gd::long_block	1
 game/arena_link_rtt.gd::long_block	1
@@ -170,10 +168,10 @@ game/arena_player_part1.gd::banner	3
 game/arena_player_part1.gd::long_block	1
 game/arena_player_part2.gd::banner	1
 game/arena_player_part2.gd::history	1
-game/arena_player_part2.gd::long_block	10
-game/arena_player_stack.gd::banner	4
+game/arena_player_part2.gd::long_block	7
+game/arena_player_stack.gd::banner	3
 game/arena_player_stack.gd::history	4
-game/arena_player_stack.gd::long_block	19
+game/arena_player_stack.gd::long_block	18
 game/arena_player_state.gd::long_block	1
 game/arena_player_tunables.gd::long_block	2
 game/arena_presentation.gd::banner	2
@@ -204,8 +202,7 @@ game/arena_vote.gd::long_block	12
 game/arena_vote_source.gd::long_block	5
 game/arena_weapon_roles.gd::long_block	1
 game/arena_weapon_skins.gd::long_block	1
-maps/arena_bsp_map.gd::history	1
-maps/arena_bsp_map.gd::long_block	10
+maps/arena_bsp_map.gd::long_block	5
 maps/arena_imported_maps.gd::long_block	4
 maps/arena_jail.gd::history	1
 maps/arena_jail.gd::long_block	1

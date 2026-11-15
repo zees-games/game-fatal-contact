@@ -1,11 +1,7 @@
 extends SceneTree
 
-## Other players' guns as the carry draws them: the offline client with its bots, a few bots each followed from the side
-## and from the front for a while (running, shooting, and a reload forced part way), every frame logged with what the
-## carry was doing. Written to screenshots/carry/<bot>_{side,front}_NN.png (tools/render_carry.sh joins them into strips).
-##
-##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_carry.gd [-- --bots 3 --frames 24 --carry 0]
-##
+## Other players' guns as the carry draws them: the offline client with its bots, a few bots each followed from the side and from the front for a while (running, shooting, and a reload forced part way), every frame logged with what the
+## carry was doing. Written to screenshots/carry/<bot>_{side,front}_NN.png (tools/render_carry.sh joins them into strips). xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_carry.gd [-- --bots 3 --frames 24 --carry 0]
 ## `--carry 0` turns AwWorldModel.person_carry off: the held gun's own kick and reload dip, for the comparison.
 
 const ArenaPresentation := preload("../game/arena_presentation.gd")

@@ -1,20 +1,8 @@
 extends "headless_hitreg_ping.gd"
 
-## Hit registration over a bad link: headless_hitreg_ping's server and two clients, with every
-## packet given a seeded random jitter on top of half the round trip, and lost at a seeded 2%
-## each way. Round trips of 30, 60 and 120 ms; peer 3 strafes as a bot does (ADAD, turns at
-## random intervals, now and then a stop). Every tap is aimed at peer 3's torso where the
-## shooter's screen drew it, middle and edges, with the gun's noise zeroed as in the ping suite,
-## so the expected hit rate is 100% and every miss is the netcode's. Each miss is put down to
-## one cause: the command never resolved, the frame was extrapolated past the newest snapshot,
-## the frame was blended across a lost one, or the server's rewind stood the body elsewhere.
-##
-## Three links per round trip: clean; jitter and loss with the buffer the adaptive
-## interpolator settles on for it (one snapshot period, the 95th percentile lateness and one
-## period more for a loss); and jitter and loss with the shipped starting buffer of two
-## snapshots, before it has grown. The input lead covers the jitter as DotNetClock's does.
-## Deterministic: the clocks are placed by hand, the buffer is set rather than adapted (its
-## arrival-gap estimate reads the wall clock), and every random draw is seeded.
+## Hit registration over a bad link: headless_hitreg_ping's server and two clients, with every packet given a seeded random jitter on top of half the round trip, and lost at a seeded 2% each way. Round trips of 30, 60 and 120 ms; peer 3 strafes as a bot does (ADAD, turns at random intervals, now and then a stop). Every tap is aimed at peer 3's torso where the shooter's screen drew it, middle and edges, with the gun's noise zeroed as in the ping suite,
+## so the expected hit rate is 100% and every miss is the netcode's. Each miss is put down to one cause: the command never resolved, the frame was extrapolated past the newest snapshot, the frame was blended across a lost one, or the server's rewind stood the body elsewhere. Three links per round trip: clean; jitter and loss with the buffer the adaptive interpolator settles on for it (one snapshot period, the 95th percentile lateness and one
+## period more for a loss); and jitter and loss with the shipped starting buffer of two snapshots, before it has grown. The input lead covers the jitter as DotNetClock's does. Deterministic: the clocks are placed by hand, the buffer is set rather than adapted (its arrival-gap estimate reads the wall clock), and every random draw is seeded.
 
 const CHAOS_RTTS: Array[int] = [30, 60, 120]
 const JITTER_MS := 30.0
@@ -104,10 +92,8 @@ func _run() -> void:
 	_report_sections(_entered, _completed, CHAOS_SECTIONS, CHAOS_CHECKS if CHAOS_CHECKS > 0 else -1)
 
 
-## Taps whose every early copy is lost and whose one surviving copy lands after the server has
-## simulated the tick, as at tick 26660 of the 60 ms jitter+loss link: the copies sent with the tap
-## and the two steps after are lost, the fourth lands two ticks after the tap's tick, the fifth is
-## lost. The shooter drew each and the server must fire it, with the rewind of the shooter's view.
+## Taps whose every early copy is lost and whose one surviving copy lands after the server has simulated the tick, as at tick 26660 of the 60 ms jitter+loss link: the copies sent with the tap
+## and the two steps after are lost, the fourth lands two ticks after the tap's tick, the fifth is lost. The shooter drew each and the server must fire it, with the rewind of the shooter's view.
 func _late_tap_section(weapons: Array[StringName]) -> void:
 	var id: StringName = &"pistol" if &"pistol" in weapons else weapons[0]
 	_section("a tap whose only surviving copy lands late (%s, 60 ms, clean link otherwise)" % id)
@@ -217,10 +203,8 @@ func _judge(weapon_id: StringName, ping: int, c: Dictionary) -> void:
 	var causes := {"unresolved": int(c["sent"]) - int(c["matched"])}
 	var period := float((_clients[SHOOTER_PEER]["net"] as DotNetManager).config.ticks_per_snapshot())
 	var errs: Array = _rewinds.get_or_add(_link, {}).get_or_add(ping, [])
-	# The worst rewind of a frame the client drew between two snapshots it held, within the span a
-	# shot is blended across: the server must stand the body where that frame drew it. Not a frame
-	# still easing out of an extrapolation (DotNetInterpolator._ease_resume): that offset is the
-	# client's alone, up to resume_ease_max (6 m), and a server that took it from the command
+	# The worst rewind of a frame the client drew between two snapshots it held, within the span a shot is blended across: the server must stand the body where that frame drew it. Not a frame
+	# still easing out of an extrapolation (DotNetInterpolator._ease_resume): that offset is the client's alone, up to resume_ease_max (6 m), and a server that took it from the command
 	# would let a client move hitboxes.
 	var worst_blend := 0.0
 	var blend_at := -1

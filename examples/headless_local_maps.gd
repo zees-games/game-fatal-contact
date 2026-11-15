@@ -11,15 +11,9 @@ const ArenaVpk := preload("../game/arena_vpk.gd")
 const ArenaVtf := preload("../game/arena_vtf.gd")
 const ArenaSourceInstall := preload("../game/arena_source_install.gd")
 
-## Maps copied in by hand (`ArenaLocalMaps`): a raw convert folder under `res://addons/maps/` or `user://maps/` is listed
-## as `<name>_local` only while `ArenaMaps.list_local` is on (solo), and loads with spawns, a solid, movers and a drawn world.
-## The fixture section runs everywhere; `-- --source=<a map's convert folder>` repeats it on a real conversion.
-##
-## [codeblock]
-## ./game.sh test headless_local_maps
-## ./game.sh test headless_local_maps -- --source=/path/to/gm_fork/convert
-## godot --headless --path . res://examples/headless_local_maps.tscn -- --source=/path/to/cp_x_orig --source-game=/path/to/tf2
-## [/codeblock]
+## Maps copied in by hand (`ArenaLocalMaps`): a raw convert folder under `res://addons/maps/` or `user://maps/` is listed as `<name>_local` only while `ArenaMaps.list_local` is on (solo), and loads with spawns, a solid, movers and a drawn world. The fixture section runs everywhere; `-- --source=<a map's convert folder>` repeats it on a real conversion.
+## [codeblock] ./game.sh test headless_local_maps ./game.sh test headless_local_maps -- --source=/path/to/gm_fork/convert
+## godot --headless --path . res://examples/headless_local_maps.tscn -- --source=/path/to/cp_x_orig --source-game=/path/to/tf2 [/codeblock]
 
 const FIXTURE_DIR := "res://examples/local_maps"
 ## Folder names no player would choose, so a run only ever removes what it copied.
@@ -329,6 +323,18 @@ func _test_drop_layouts() -> void:
 	said = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(empty.get_base_dir())]))
 	_check(said.begins_with("Could not import empty: "), "a folder with no map in it is said with its reason", said)
 
+	await _test_drop_shipped_name(client)
+
+	ArenaMaps.list_local = false
+	said = await client.import_dropped(PackedStringArray(["C:\\Users\\x\\Downloads\\%s\\convert" % LAYOUT_MAP]))
+	_check(said.begins_with("convert: dropped maps play in solo only"), "a server's client says drops are solo only", said)
+	ArenaMaps.list_local = true
+	local_maps.set(&"zip_cache", player_cache)
+	client.free()
+
+
+## A map named like a shipped one is listed beside it, as (local).
+func _test_drop_shipped_name(client: ArenaClient) -> void:
 	var shipped := StringName()
 	for def: DotMapDef in client._menu_catalogue.maps:
 		if not bool(def.meta.get("local", false)) and def.enabled \
@@ -337,7 +343,7 @@ func _test_drop_layouts() -> void:
 			break
 	if _check(shipped != &"", "the catalogue has a shipped map"):
 		_pack_as(DROP_SOURCE.path_join("same/convert"), String(shipped))
-		said = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(DROP_SOURCE.path_join("same/convert"))]))
+		var said: String = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(DROP_SOURCE.path_join("same/convert"))]))
 		var local_id := StringName(String(shipped) + DotMapLocalMaps.ID_SUFFIX)
 		_check(client._menu_catalogue.has(shipped) and client._menu_catalogue.has(local_id),
 			"a map named like a shipped one is listed beside it", said)
@@ -354,13 +360,6 @@ func _test_drop_layouts() -> void:
 		_check(listed.has("map:%s" % local_id), "the solo server's M lists the local map in any mode", str(listed.size()))
 		_check(not listed.has("map:%s" % shipped), "and not a map the mode cannot host")
 		_wipe("user://maps".path_join(String(shipped)))
-
-	ArenaMaps.list_local = false
-	said = await client.import_dropped(PackedStringArray(["C:\\Users\\x\\Downloads\\%s\\convert" % LAYOUT_MAP]))
-	_check(said.begins_with("convert: dropped maps play in solo only"), "a server's client says drops are solo only", said)
-	ArenaMaps.list_local = true
-	local_maps.set(&"zip_cache", player_cache)
-	client.free()
 
 
 ## The fixture as map [param map_name] in [param dir]: `<name>.json` naming `<name>.bin`.
@@ -470,27 +469,8 @@ func _test_source_install() -> void:
 	_check(ArenaSourceInstall.archives(install.get_base_dir()) == ArenaSourceInstall.archives(install),
 		"and from the folder above it (a server's tf2/ + hl2/)", str(ArenaSourceInstall.archives(install.get_base_dir())))
 	_check(ArenaSourceInstall.find_install(install + "/") == install, "a set path wins, its trailing / dropped")
-	var vpk := ArenaVpk.new()
-	if not _check(vpk.open(install.path_join("tf/tf2_textures_dir.vpk")), "the fixture VPK opens", vpk.error):
+	if not _test_fixture_vpk(install, green, red):
 		return
-	_check(vpk.entries.size() == 5 and vpk.has("Materials/Metal/MetalWall001.vmt"), "and lists its 5 files", str(vpk.entries.keys()))
-	_check(vpk.read("materials/metal/metalwall_red.vtf") == red, "a preloaded file reads whole from its part")
-	var img := ArenaVtf.image(vpk.read("materials/concrete/concretefloor001.vtf"))
-	_check(img != null and img.get_size() == Vector2i(4, 4) and img.get_pixel(3, 3).to_rgba32() == Color8(20, 200, 30).to_rgba32(),
-		"an RGBA8888 VTF decodes its largest mip", ArenaVtf.error if img == null else str(img.get_pixel(3, 3)))
-	img = ArenaVtf.image(green, 2)
-	_check(img != null and img.get_size() == Vector2i(2, 2) and img.get_pixel(0, 0).to_rgba32() == Color8(0, 0, 255).to_rgba32(),
-		"and a smaller mip when it is too big", ArenaVtf.error if img == null else str(img.get_size()))
-	img = ArenaVtf.image(red)
-	_check(img != null and img.get_size() == Vector2i(8, 8) and img.get_pixel(5, 6).r > 0.95 and img.get_pixel(5, 6).g < 0.05,
-		"a DXT1 VTF decodes", ArenaVtf.error if img == null else str(img.get_pixel(5, 6)))
-	var bad := ArenaVpk.new()
-	_write_vpk(SOURCE_GAME.path_join("broken/bad"), {"materials/x.vtf": [red, 0, 0]}, true)
-	_check(bad.open(SOURCE_GAME.path_join("broken/bad_dir.vpk")) and bad.read("materials/x.vtf").is_empty()
-		and bad.error.begins_with("crc mismatch"), "a file that fails its CRC is not read", bad.error)
-	DirAccess.remove_absolute(SOURCE_GAME.path_join("broken/bad_dir.vpk"))
-	DirAccess.remove_absolute(SOURCE_GAME.path_join("broken/bad_000.vpk"))
-	DirAccess.remove_absolute(SOURCE_GAME.path_join("broken"))
 
 	# Dropped with the install set: two of three filled, the third still a stand-in, and the drop says so.
 	ArenaMaps.list_local = true
@@ -528,6 +508,43 @@ func _test_source_install() -> void:
 	_check(cache.begins_with("user://") and FileAccess.file_exists(cache.path_join("concrete_concretefloor001.png")),
 		"decoded textures are cached in the user folder", cache)
 
+	_test_nothing_valve_in_project(install)
+
+	_wipe("user://maps".path_join(orig_name))
+	_wipe(cache)
+	ArenaMaps.list_local = false
+	local_maps.set(&"zip_cache", player_cache)
+	client.free()
+
+
+## The fixture VPK lists, reads and decodes its files, and refuses one that fails its CRC. False when it does not open.
+func _test_fixture_vpk(install: String, green: PackedByteArray, red: PackedByteArray) -> bool:
+	var vpk := ArenaVpk.new()
+	if not _check(vpk.open(install.path_join("tf/tf2_textures_dir.vpk")), "the fixture VPK opens", vpk.error):
+		return false
+	_check(vpk.entries.size() == 5 and vpk.has("Materials/Metal/MetalWall001.vmt"), "and lists its 5 files", str(vpk.entries.keys()))
+	_check(vpk.read("materials/metal/metalwall_red.vtf") == red, "a preloaded file reads whole from its part")
+	var img := ArenaVtf.image(vpk.read("materials/concrete/concretefloor001.vtf"))
+	_check(img != null and img.get_size() == Vector2i(4, 4) and img.get_pixel(3, 3).to_rgba32() == Color8(20, 200, 30).to_rgba32(),
+		"an RGBA8888 VTF decodes its largest mip", ArenaVtf.error if img == null else str(img.get_pixel(3, 3)))
+	img = ArenaVtf.image(green, 2)
+	_check(img != null and img.get_size() == Vector2i(2, 2) and img.get_pixel(0, 0).to_rgba32() == Color8(0, 0, 255).to_rgba32(),
+		"and a smaller mip when it is too big", ArenaVtf.error if img == null else str(img.get_size()))
+	img = ArenaVtf.image(red)
+	_check(img != null and img.get_size() == Vector2i(8, 8) and img.get_pixel(5, 6).r > 0.95 and img.get_pixel(5, 6).g < 0.05,
+		"a DXT1 VTF decodes", ArenaVtf.error if img == null else str(img.get_pixel(5, 6)))
+	var bad := ArenaVpk.new()
+	_write_vpk(SOURCE_GAME.path_join("broken/bad"), {"materials/x.vtf": [red, 0, 0]}, true)
+	_check(bad.open(SOURCE_GAME.path_join("broken/bad_dir.vpk")) and bad.read("materials/x.vtf").is_empty()
+		and bad.error.begins_with("crc mismatch"), "a file that fails its CRC is not read", bad.error)
+	DirAccess.remove_absolute(SOURCE_GAME.path_join("broken/bad_dir.vpk"))
+	DirAccess.remove_absolute(SOURCE_GAME.path_join("broken/bad_000.vpk"))
+	DirAccess.remove_absolute(SOURCE_GAME.path_join("broken"))
+	return true
+
+
+## Never into the project: a res:// pack is refused, and the project holds no Valve file and no textures/orig.
+func _test_nothing_valve_in_project(install: String) -> void:
 	# Never into the project: a res:// pack is refused, and the project holds no Valve file and no textures/orig.
 	var refused := ArenaSourceInstall.fill("res://addons/maps/x/x_orig", install)
 	_check(not refused["ok"] and str(refused["error"]).begins_with("refused"), "a pack outside the user folder is refused",
@@ -541,12 +558,6 @@ func _test_source_install() -> void:
 		if not ignored.has(line):
 			unlisted.append(line)
 	_check(unlisted.is_empty(), "and .gitignore keeps them out", ", ".join(unlisted))
-
-	_wipe("user://maps".path_join(orig_name))
-	_wipe(cache)
-	ArenaMaps.list_local = false
-	local_maps.set(&"zip_cache", player_cache)
-	client.free()
 
 
 ## Valve's file kinds and `textures/orig` folders under [param dir], into [param found]. Skips what is not this

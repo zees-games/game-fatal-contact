@@ -1,16 +1,8 @@
 extends RefCounted
 
-## The stock textures a dropped `<map>_orig` pack lacks, read from the player's OWN Source game install. LOCAL ONLY.
-##
-## A BSP carries only its author's custom textures; the game's own (most of a TF2 map) live in the game's VPK archives,
-## which we may not redistribute, so a converted pack lists them in `original_textures.missing` and draws free stand-ins.
-## When the player has the game installed, [method fill] reads each missing material from their archives (`ArenaVpk`,
-## `ArenaVtf`), caches it as a PNG under `user://source_cache` (the game-fatal-contact folder: `%APPDATA%` on Windows,
-## `~/.local/share` on Linux), copies it into the pack's `textures/orig/` in `user://maps` and points the pack's surfaces
-## at it. It refuses any pack outside `user://`: nothing read here may reach the repository or a published pack.
-##
-## Where the game is: the `source_game_path` setting (General > Local maps, or the console command of that name), else the
-## usual Steam folders on Windows, Linux (also Flatpak and Snap) and macOS, and each Steam library they list.
+## The stock textures a dropped `<map>_orig` pack lacks, read from the player's OWN Source game install. LOCAL ONLY. A BSP carries only its author's custom textures; the game's own (most of a TF2 map) live in the game's VPK archives, which we may not redistribute, so a converted pack lists them in `original_textures.missing` and draws free stand-ins.
+## When the player has the game installed, [method fill] reads each missing material from their archives (`ArenaVpk`, `ArenaVtf`), caches it as a PNG under `user://source_cache` (the game-fatal-contact folder: `%APPDATA%` on Windows, `~/.local/share` on Linux), copies it into the pack's `textures/orig/` in `user://maps` and points the pack's surfaces
+## at it. It refuses any pack outside `user://`: nothing read here may reach the repository or a published pack. Where the game is: the `source_game_path` setting (General > Local maps, or the console command of that name), else the usual Steam folders on Windows, Linux (also Flatpak and Snap) and macOS, and each Steam library they list.
 
 const Vpk := preload("arena_vpk.gd")
 const Vtf := preload("arena_vtf.gd")

@@ -6,7 +6,7 @@ const ArenaMap := preload("../maps/arena_map.gd")
 ## The COUNTDOWN-start bulk spawn: the director's cost per player, and what ArenaGame.respawn_player costs, on the largest map.
 const PLAYERS := 11
 const BUDGET_MS := 4.0
-## The very first respawn pays lazy loadout/resource setup once (5-9 ms on PH 2026-11-11, 12-20 ms on 2026-11-07); budget is one 60 fps frame.
+## The very first respawn pays lazy loadout/resource setup once (5-9 ms on PH, 12-20 ms before); budget is one 60 fps frame.
 const FIRST_BUDGET_MS := 16.0
 
 

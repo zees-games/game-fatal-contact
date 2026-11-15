@@ -1,22 +1,8 @@
 extends "perf_bench.gd"
 
-## The floor experiment: what each layer of a 16v16 frame costs, bottom up, in one process on one frozen view.
-## Boots the real client as tools/perf_bench.gd does (map, mode, bots, pilot, warm-up), then freezes the whole client
-## (PROCESS_MODE_DISABLED: no _process, no _physics_process, no input) so the camera and every body stay where they are,
-## and measures the frame time of each step by showing more of the scene:
-##   S0  no 3D (viewport disable_3d): the canvas and the present alone
-##   S1  the map: its mesh, lights, environment and baked GI; players, HUD and SubViewports hidden
-##   S1 toggles (each alone on S1, then restored): noshadow, nogi, nofx, nossr, notransp, msaa off/2x/4x, fxaa, taa,
-##       fsr2 at 0.67, 640x360, 1920x1080, everything cheap at once, vsync on
-##   S2  + each remote player's figure mesh, static (no skeleton update)
-##   S3  + the figures' AnimationPlayers at full rate (callback IDLE, every frame, a looping clip)
-##   S4  + every node of every player (held gun, tags, the own view model), still frozen
-##   S5a + the HUD and the remaining SubViewports
-##   S5b + the client's _process set (unfrozen, the engine's physics at 1 Hz, so a median frame has no tick)
-##   S5c + _physics_process at the game's rate: the in-process game
-## One `FLOOR_ROW {json}` per step (frame-time p50/p95/avg, render cpu/gpu, draws, objects, nodes) and `FLOOR_DONE`.
-## Run windowed on a GPU box: tools/floor_bench.sh -n 3 (gpu.sh run, GPU_XORG=1, as tools/perf_bench.sh).
-## `--frames N` frames a row (default 360), `--settle S` seconds before each row (default 1.5).
+## The floor experiment: what each layer of a 16v16 frame costs, bottom up, in one process on one frozen view. Boots the real client as tools/perf_bench.gd does (map, mode, bots, pilot, warm-up), then freezes the whole client (PROCESS_MODE_DISABLED: no _process, no _physics_process, no input) so the camera and every body stay where they are, and measures the frame time of each step by showing more of the scene: S0  no 3D (viewport disable_3d): the canvas and the present alone S1  the map: its mesh, lights, environment and baked GI; players, HUD and SubViewports hidden
+## S1 toggles (each alone on S1, then restored): noshadow, nogi, nofx, nossr, notransp, msaa off/2x/4x, fxaa, taa, fsr2 at 0.67, 640x360, 1920x1080, everything cheap at once, vsync on S2  + each remote player's figure mesh, static (no skeleton update) S3  + the figures' AnimationPlayers at full rate (callback IDLE, every frame, a looping clip) S4  + every node of every player (held gun, tags, the own view model), still frozen S5a + the HUD and the remaining SubViewports
+## S5b + the client's _process set (unfrozen, the engine's physics at 1 Hz, so a median frame has no tick) S5c + _physics_process at the game's rate: the in-process game One `FLOOR_ROW {json}` per step (frame-time p50/p95/avg, render cpu/gpu, draws, objects, nodes) and `FLOOR_DONE`. Run windowed on a GPU box: tools/floor_bench.sh -n 3 (gpu.sh run, GPU_XORG=1, as tools/perf_bench.sh). `--frames N` frames a row (default 360), `--settle S` seconds before each row (default 1.5).
 
 var _frames_n := 360
 var _settle := 1.5
@@ -63,25 +49,7 @@ func _run() -> void:
 	await _row("S1", "map only")
 	await _toggles(vp)
 
-	var figures: Array[Node3D] = []
-	for p: Node in players:
-		var fig: Variant = p.get("figure")
-		if p.get("camera") == null and fig is Node3D:
-			figures.append(fig)
-	for p: Node in players:
-		if p.get("camera") == null:
-			p.visible = true
-			for g in p.find_children("*", "GeometryInstance3D", true, false):
-				if not _under(g, figures) and (g as GeometryInstance3D).visible:
-					_hide(g)
-	await _row("S2", "+ %d figure meshes, static" % figures.size())
-
-	for fig in figures:
-		var ap: Variant = fig.get("_anim")
-		if ap is AnimationPlayer:
-			_anims.append(ap)
-			_loop(ap)
-	await _row("S3", "+ %d AnimationPlayers at full rate" % _anims.size())
+	await _figure_rows(players)
 
 	for n in _hidden.duplicate():
 		if is_instance_valid(n) and not (hud != null and hud.is_ancestor_of(n)):
@@ -110,6 +78,29 @@ func _run() -> void:
 	await _row("S5c_again", "the game, 5 s later")
 	say("FLOOR_DONE")
 	get_tree().quit(0)
+
+
+## Rows S2 and S3: the other players figures shown static, then their AnimationPlayers run at full rate.
+func _figure_rows(players: Array) -> void:
+	var figures: Array[Node3D] = []
+	for p: Node in players:
+		var fig: Variant = p.get("figure")
+		if p.get("camera") == null and fig is Node3D:
+			figures.append(fig)
+	for p: Node in players:
+		if p.get("camera") == null:
+			p.visible = true
+			for g in p.find_children("*", "GeometryInstance3D", true, false):
+				if not _under(g, figures) and (g as GeometryInstance3D).visible:
+					_hide(g)
+	await _row("S2", "+ %d figure meshes, static" % figures.size())
+
+	for fig in figures:
+		var ap: Variant = fig.get("_anim")
+		if ap is AnimationPlayer:
+			_anims.append(ap)
+			_loop(ap)
+	await _row("S3", "+ %d AnimationPlayers at full rate" % _anims.size())
 
 
 ## The S1 toggles, each alone and then undone; finally all the cheap ones together and vsync on.
@@ -165,29 +156,7 @@ func _toggles(vp: Viewport) -> void:
 	for g in transp:
 		g.visible = true
 
-	var msaa := vp.msaa_3d
-	var ssaa := vp.screen_space_aa
-	var taa := vp.use_taa
-	var mode := vp.scaling_3d_mode
-	var scale := vp.scaling_3d_scale
-	for m in [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X]:
-		vp.msaa_3d = m
-		await _row("S1_msaa%d" % [0, 2, 4][m], "msaa_3d %dx (was enum %d)" % [[0, 2, 4][m], msaa])
-	vp.msaa_3d = Viewport.MSAA_DISABLED
-	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
-	await _row("S1_fxaa", "fxaa, msaa off")
-	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
-	vp.use_taa = true
-	await _row("S1_taa", "taa, msaa off")
-	vp.use_taa = false
-	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
-	vp.scaling_3d_scale = 0.67
-	await _row("S1_fsr2", "fsr2 at 0.67, msaa off")
-	vp.scaling_3d_mode = mode
-	vp.scaling_3d_scale = scale
-	vp.msaa_3d = msaa
-	vp.screen_space_aa = ssaa
-	vp.use_taa = taa
+	await _aa_rows(vp)
 
 	var size := get_window().size
 	for wh in [Vector2i(640, 360), Vector2i(1920, 1080)]:
@@ -195,7 +164,19 @@ func _toggles(vp: Viewport) -> void:
 		await _row("S1_%dx%d" % [wh.x, wh.y], "window %s (was %s)" % [wh, size])
 	get_window().size = size
 
-	# Everything cheap at once: the floor of this map at this resolution.
+	await _all_cheap_row(vp, lights, envs, gi_nodes, transp, fx, sdfgi, was)
+
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
+	await _row("S1_vsync", "vsync on (headless Xorg, no compositor)")
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	await _row("S1_again", "map only, all restored (drift check)")
+
+
+## Everything cheap at once: the floor of this map at this resolution. Everything is restored after.
+func _all_cheap_row(vp: Viewport, lights: Array[Light3D], envs: Array[Environment], gi_nodes: Array[Node3D], transp: Array[GeometryInstance3D], fx: Array, sdfgi: Array, was: Array) -> void:
+	var msaa := vp.msaa_3d
+	var ssaa := vp.screen_space_aa
+	var taa := vp.use_taa
 	for l in lights:
 		l.shadow_enabled = false
 	for e in envs:
@@ -224,10 +205,32 @@ func _toggles(vp: Viewport) -> void:
 	vp.screen_space_aa = ssaa
 	vp.use_taa = taa
 
-	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
-	await _row("S1_vsync", "vsync on (headless Xorg, no compositor)")
-	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
-	await _row("S1_again", "map only, all restored (drift check)")
+
+## One row per anti-aliasing and upscaling setting, each from MSAA off; the viewport is restored after.
+func _aa_rows(vp: Viewport) -> void:
+	var msaa := vp.msaa_3d
+	var ssaa := vp.screen_space_aa
+	var taa := vp.use_taa
+	var mode := vp.scaling_3d_mode
+	var scale := vp.scaling_3d_scale
+	for m in [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X]:
+		vp.msaa_3d = m
+		await _row("S1_msaa%d" % [0, 2, 4][m], "msaa_3d %dx (was enum %d)" % [[0, 2, 4][m], msaa])
+	vp.msaa_3d = Viewport.MSAA_DISABLED
+	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+	await _row("S1_fxaa", "fxaa, msaa off")
+	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	vp.use_taa = true
+	await _row("S1_taa", "taa, msaa off")
+	vp.use_taa = false
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
+	vp.scaling_3d_scale = 0.67
+	await _row("S1_fsr2", "fsr2 at 0.67, msaa off")
+	vp.scaling_3d_mode = mode
+	vp.scaling_3d_scale = scale
+	vp.msaa_3d = msaa
+	vp.screen_space_aa = ssaa
+	vp.use_taa = taa
 
 
 func _row(id: String, what: String) -> void:

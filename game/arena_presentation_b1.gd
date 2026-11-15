@@ -562,10 +562,8 @@ func use_shot_rules(rules: DotShotRules) -> void:
 		shot_enclosure.rules = rules
 
 
-## The report of somebody else's gun (`AwShotFx.shot_sound`) through this presentation's one layered player.
-## Without it each shooter's `AwShotFx` made its own audio manager, enclosure and shot player on its first shot:
-## 40 ms a shooter, thirty-one times a match at 16 v 16. A gun's own report when fc-weapons ships one, else its class's
-## stock; false for a class with neither (the single sound plays).
+## The report of somebody else's gun (`AwShotFx.shot_sound`) through this presentation's one layered player. Without it each shooter's `AwShotFx` made its own audio manager, enclosure and shot player on its first shot:
+## 40 ms a shooter, thirty-one times a match at 16 v 16. A gun's own report when fc-weapons ships one, else its class's stock; false for a class with neither (the single sound plays).
 func remote_shot(id: StringName, kind: StringName, at: Vector3, _indoors: bool) -> bool:
 	var t_shot := Time.get_ticks_usec()
 	var done := _remote_shot(id, kind, at)

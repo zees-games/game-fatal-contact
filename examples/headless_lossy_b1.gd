@@ -173,10 +173,8 @@ func _test_teleport_under_loss() -> void:
 		await _wait_game(3.0)
 		snaps = int(net.predictor.get("_snaps")) - snaps
 		var settled := input0 + _ticks(64)
-		# Ticks the server ran without A's command (or in a stalled burst) while A's view and strafe were
-		# changing are not the prediction's: the server repeated an older command (see _edge_holes). A
-		# stretch of them used to fail this check at 22 Hz by up to 1.8 m for 8 ticks; the convergence
-		# check below (same place tick for tick at the end) and the 0.5 m bound on the rest stay.
+		# Ticks the server ran without A's command (or in a stalled burst) while A's view and strafe were changing are not the prediction's: the server repeated an older command (see _edge_holes). A
+		# stretch of them failed this check at 22 Hz by up to 1.8 m for 8 ticks; the convergence check below (same place tick for tick at the end) and the 0.5 m bound on the rest stay.
 		var gap_to := net.clock.input_tick() - _ticks(8)
 		var gap: Array = _prediction_gap(session, settled, gap_to, _excused(_edge_holes(settled, gap_to, _command_a), net))
 		var track: Dictionary = _server_track.get(session, {})
@@ -189,10 +187,8 @@ func _test_teleport_under_loss() -> void:
 		_check(snaps <= (1 if moved > snap_distance else 0),
 			"a %.1f m teleport %s" % [moved, "snaps at most once" if moved > snap_distance else "is eased, never snapped"],
 			"%d snaps" % snaps)
-		# 95% of the ticks, plus one lost input's worth: under 20% loss the server's input for a tick can be a
-		# hole, its A then runs on the last command and the prediction is off (up to ~9 cm at a run) until the
-		# snapshot that corrects it makes the round trip -- under _ticks(16) (rtt <= 160 ms plus the lead). Over
-		# the ~120 ticks sampled, 5% is only 6 ticks, so that single physical event alone failed a p95 check.
+		# 95% of the ticks, plus one lost input's worth: under 20% loss the server's input for a tick can be a hole, its A then runs on the last command and the prediction is off (up to ~9 cm at a run) until the
+		# snapshot that corrects it makes the round trip -- under _ticks(16) (rtt <= 160 ms plus the lead). Over the ~120 ticks sampled, 5% is only 6 ticks, so that single physical event alone failed a p95 check.
 		var allowed: int = int(gap[0]) / 20 + _ticks(16)
 		_check(gap[0] > _ticks(40) and int(gap[3]) <= allowed and gap[2] <= 0.5,
 			"and A's prediction is back within 5 cm of the server's A for the ticks after (a lost input's round trip allowed)",
@@ -202,12 +198,10 @@ func _test_teleport_under_loss() -> void:
 	_done()
 
 
-# --- The end ----------------------------------------------------------------
+# The end.
 
-## [b]A seat whose client has not lifted its cover cannot be harmed, and can once it does.[/b]
-## C joins and says nothing (a client still loading its level); the server's own damage path
-## is then asked to hurt it, by a hazard (the world, attacker 0) and by A's weapon-style hit,
-## and must refuse both. C then sends the cover report on the real wire and the same hit lands.
+## [b]A seat whose client has not lifted its cover cannot be harmed, and can once it does.[/b] C joins and says nothing (a client still loading its level); the server's own damage path
+## is then asked to hurt it, by a hazard (the world, attacker 0) and by A's weapon-style hit, and must refuse both. C then sends the cover report on the real wire and the same hit lands.
 func _test_loading_cover() -> void:
 	_section("a client behind its loading cover is not harmed, and is once it lifts")
 	var c := await _connect_client("C", _server.config.effective_enet_port(), false)
@@ -277,7 +271,7 @@ func _test_leave() -> void:
 	var b_net: DotNetManager = b["net"]
 	b_net.stop()
 
-	# RELIABLE_SECONDS: the link is at 5% loss after the windows (20% until 2026-11-13). Ten failed a CI
+	# RELIABLE_SECONDS: the link is at 5% loss after the windows. Ten failed a CI
 	# release run (v0.1.6) on exactly that tail; the wait ends when A is told.
 	var gone := await _until(func() -> bool: return a_game.player_for(b_session) == null, RELIABLE_SECONDS)
 	_check(gone, "A's B is gone once the server has seen the disconnect",

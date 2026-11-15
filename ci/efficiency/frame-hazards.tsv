@@ -7,7 +7,6 @@ examples/headless_lossy.gd::_sample_render::string_build	2
 game/arena_client_part3.gd::_local_commands::alloc_dict	1
 game/arena_hud.gd::_button::string_build	2
 game/arena_hud.gd::present_abilities::alloc_array	1
-game/arena_hud.gd::present_gear::alloc_array	2
 game/arena_projectile_view.gd::present::alloc_dict	1
 tools/audio_probe.gd::_build::string_build	3
 tools/audio_probe.gd::_sound::string_build	2

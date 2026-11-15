@@ -269,10 +269,8 @@ func send_map(peer_id: int, payload: Dictionary) -> void:
 
 	map_sent += 1
 
-	# [b]`loopback_map`, not `loopback` — and tested separately.[/b] A harness that set
-	# the byte loopback and not this one would otherwise call an invalid Callable, which
-	# is a crash in a test that was only trying not to open a socket. Falling through to
-	# the RPC is wrong too when there is no multiplayer peer, so the send is simply
+	# [b]`loopback_map`, not `loopback` — and tested separately.[/b] A harness that set the byte loopback and not this one would otherwise call an invalid Callable, which
+	# is a crash in a test that was only trying not to open a socket. Falling through to the RPC is wrong too when there is no multiplayer peer, so the send is simply
 	# dropped and counted, which is what a lost packet looks like anyway.
 	if loopback.is_valid():
 		if loopback_map.is_valid():

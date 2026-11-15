@@ -26,10 +26,8 @@ var player: ArenaPlayer = null
 ## The bridge, so the authority can drive the whole game exactly once per tick.
 var bridge: ArenaNetBridge = null
 
-## Whether a bot's replicated copy is filled only on the ticks a snapshot is written. Its
-## properties are read by nothing but the snapshot (and the history recorded with it): nobody
-## predicts a bot, so nothing pushes them back into its simulation. Off is the old every-tick
-## copy, for headless_bot_pull, which holds the two to the same sim and the same snapshots.
+## Whether a bot's replicated copy is filled only on the ticks a snapshot is written. Its properties are read by nothing but the snapshot (and the history recorded with it): nobody
+## predicts a bot, so nothing pushes them back into its simulation. Off is the old every-tick copy, for headless_bot_pull, which holds the two to the same sim and the same snapshots.
 static var skip_idle_pull := true
 
 # --- Movement, from DotFpsNetSync.state_specs() ---

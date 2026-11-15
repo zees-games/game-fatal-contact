@@ -358,10 +358,8 @@ func _note_late_fires(peer_id: int, buffer: DotNetInput.Buffer, batch: Array) ->
 				seen.erase(tick)
 
 
-## Puts the oldest late shot of [param peer_id] on [param command] (for [param tick]) when that command
-## is not firing itself, with the view lag the shooter drew it at moved to this tick. Returns
-## [fire, lag, back, span] for the player to use, or an empty array. A late shot that waits too
-## long behind firing commands is dropped and counted.
+## Puts the oldest late shot of [param peer_id] on [param command] (for [param tick]) when that command is not firing itself, with the view lag the shooter drew it at moved to this tick. Returns
+## [fire, lag, back, span] for the player to use, or an empty array. A late shot that waits too long behind firing commands is dropped and counted.
 func take_late_fire(peer_id: int, tick: int, command: ArenaNetCommand) -> Array:
 	var queue: Array = late_fires.get(peer_id, [])
 	while not queue.is_empty() and tick - int((queue[0] as Array)[0]) >= LATE_FIRE_MAX_TICKS:
@@ -482,7 +480,6 @@ func receive_request(peer_id: int, payload: PackedByteArray) -> DotResult:
 
 
 ## A relayed voice frame arrived. Client side.
-##
 ## Not through [DotNetManager]: a voice frame is an opaque codec blob, and the replication
 ## schema must not change with the codec. Handled by [member voice_in_fn].
 func receive_voice(payload: PackedByteArray) -> DotResult:

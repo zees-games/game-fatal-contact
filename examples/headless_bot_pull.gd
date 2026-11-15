@@ -7,12 +7,9 @@ const ArenaNetBridge := preload("../game/arena_net_bridge.gd")
 const ArenaPlayerNet := preload("../game/arena_player_net.gd")
 const ArenaKillViewServer := preload("../game/arena_killview_server.gd")
 
-## A bot's replicated copy is pulled only on the ticks a snapshot is written (`ArenaPlayerNet.skip_idle_pull`).
-## The same bots on dm_box play the same match through the server's bridge with it off and on: every bot's
-## position, view, health and commands every tick, and every replicated property of every bot on every
-## snapshot tick, are identical. Only what is sent is read from those properties, so that is the whole claim.
-## The kill view asks for an eye only on the ticks its ring keeps one (`ArenaKillViewServer.Due.ask_due_only`):
-## with it off and on, every bot's kill view clip, read every second, is identical too.
+## A bot's replicated copy is pulled only on the ticks a snapshot is written (`ArenaPlayerNet.skip_idle_pull`). The same bots on dm_box play the same match through the server's bridge with it off and on: every bot's
+## position, view, health and commands every tick, and every replicated property of every bot on every snapshot tick, are identical. Only what is sent is read from those properties, so that is the whole claim.
+## The kill view asks for an eye only on the ticks its ring keeps one (`ArenaKillViewServer.Due.ask_due_only`): with it off and on, every bot's kill view clip, read every second, is identical too.
 
 const TICK_RATE := 66
 const SNAPSHOT_RATE := 33
@@ -74,20 +71,7 @@ func _first_diff(a: PackedStringArray, b: PackedStringArray) -> int:
 ## One match through a server bridge: [sim digests per tick, property digests per snapshot, stale copies seen between
 ## snapshots, kill view clip digests per second, clips read].
 func _play() -> Array:
-	var game := ArenaGame.new()
-	game.name = "Arena_%s" % ("skip" if ArenaPlayerNet.skip_idle_pull else "every")
-	game.tick_rate = TICK_RATE
-	game.score_limit = 100000
-	game.time_limit_sec = 0.0
-	game.headless = true
-	game.is_authority = true
-	game.register_service = false
-	add_child(game)
-	var _setup := game.setup(ArenaMap.dm_box())
-	game.match_node.rules.warmup_sec = 0.0
-	game.match_node.rules.countdown_sec = 0.0
-	game.match_node.rules.respawn_delay_sec = 1.0
-	game.start(0)
+	var game := _make_game()
 
 	var net := DotNetManager.new()
 	net.name = "Net_%s" % game.name
@@ -156,3 +140,22 @@ func _play() -> Array:
 		node.queue_free()
 	await get_tree().process_frame
 	return [sims, snaps, stale, clips, clip_count]
+
+
+## A headless authority game on dm_box with no warm-up, named after the pull mode.
+func _make_game() -> ArenaGame:
+	var game := ArenaGame.new()
+	game.name = "Arena_%s" % ("skip" if ArenaPlayerNet.skip_idle_pull else "every")
+	game.tick_rate = TICK_RATE
+	game.score_limit = 100000
+	game.time_limit_sec = 0.0
+	game.headless = true
+	game.is_authority = true
+	game.register_service = false
+	add_child(game)
+	var _setup := game.setup(ArenaMap.dm_box())
+	game.match_node.rules.warmup_sec = 0.0
+	game.match_node.rules.countdown_sec = 0.0
+	game.match_node.rules.respawn_delay_sec = 1.0
+	game.start(0)
+	return game

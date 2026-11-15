@@ -401,10 +401,8 @@ func _check_lens(gm: Object, me: Object, killer: Object) -> void:
 	view.queue_free()
 
 
-## Owner video: small dark copies of the player's gun floated in the map, switching and reloading with it, up to one
-## per kill-view rig. A rig parked hidden at a wall kept its wall pass (a CanvasLayer, which no hidden or stopped
-## parent hides) on, drawing the view layer (the player's own gun) from the rig's stale camera.
-## Kill views at a wall, with a different weapon each time, then ended: no parked rig may keep that pass on.
+## Owner video: small dark copies of the player's gun floated in the map, switching and reloading with it, up to one per kill-view rig. A rig parked hidden at a wall kept its wall pass (a CanvasLayer, which no hidden or stopped
+## parent hides) on, drawing the view layer (the player's own gun) from the rig's stale camera. Kill views at a wall, with a different weapon each time, then ended: no parked rig may keep that pass on.
 func _check_ghost_guns(view: Node, cam: Camera3D, aux: PackedFloat32Array, wall_eye: Vector3, wall_dir: Vector3) -> void:
 	var was := get_viewport().get_camera_3d()
 	# The live client makes the player's camera current each frame; in a real kill view the replay camera is.

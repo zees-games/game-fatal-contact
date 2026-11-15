@@ -55,19 +55,7 @@ func _run() -> void:
 func _play(map_id: StringName, preset: String, launch: bool, seeds: Vector2i = SEEDS[0]) -> Dictionary:
 	if launch:
 		_section("%s on %s (seeds %d/%d)" % [preset, map_id, seeds.x, seeds.y])
-	var game := ArenaGame.new()
-	game.name = "Arena_%s_%s_%d" % [preset, map_id, seeds.x]
-	game.tick_rate = TICK_RATE
-	game.score_limit = 100000
-	game.time_limit_sec = 0.0
-	game.headless = true
-	game.is_authority = true
-	game.register_service = false
-	add_child(game)
-	_check(game.setup(ArenaMap.by_id(map_id)).ok, "the game sets up")
-	game.match_node.rules.warmup_sec = 0.0
-	game.match_node.rules.countdown_sec = 0.0
-	game.match_node.rules.respawn_delay_sec = 1.0
+	var game := _make_game(map_id, preset, seeds)
 	var settings := DotBotSettings.of(game)
 	var _d := settings.set_difficulty(preset)
 	var _a := game.add_player(BOT, "Wren")
@@ -136,6 +124,24 @@ func _play(map_id: StringName, preset: String, launch: bool, seeds: Vector2i = S
 	game.queue_free()
 	await get_tree().process_frame
 	return result
+
+
+## A headless authority game on the map with no warm-up, named after the run.
+func _make_game(map_id: StringName, preset: String, seeds: Vector2i) -> ArenaGame:
+	var game := ArenaGame.new()
+	game.name = "Arena_%s_%s_%d" % [preset, map_id, seeds.x]
+	game.tick_rate = TICK_RATE
+	game.score_limit = 100000
+	game.time_limit_sec = 0.0
+	game.headless = true
+	game.is_authority = true
+	game.register_service = false
+	add_child(game)
+	_check(game.setup(ArenaMap.by_id(map_id)).ok, "the game sets up")
+	game.match_node.rules.warmup_sec = 0.0
+	game.match_node.rules.countdown_sec = 0.0
+	game.match_node.rules.respawn_delay_sec = 1.0
+	return game
 
 
 func _compare() -> void:

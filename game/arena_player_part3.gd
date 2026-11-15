@@ -1,13 +1,8 @@
 @tool
 extends "arena_player_part2.gd"
 
-## The controller's state as drawn at [param alpha] through its last tick, from -1 to 2.
-##
-## `DotFpsController.render_state` blends the last two ticks, 0 to 1. A connected client's
-## alpha leaves that range for a fifth of a second after a physics frame that ran no tick or
-## two (`DotNetClock.render_alpha` keeps the drawing where it was and takes the slip up
-## slowly), and clamped there the eye stood still or jumped a tick, which is what the slip
-## handling is for. Past 1 it goes on along the last tick's step; below 0 it is between the
+## The controller's state as drawn at [param alpha] through its last tick, from -1 to 2. `DotFpsController.render_state` blends the last two ticks, 0 to 1. A connected client's alpha leaves that range for a fifth of a second after a physics frame that ran no tick or
+## two (`DotNetClock.render_alpha` keeps the drawing where it was and takes the slip up slowly), and clamped there the eye stood still or jumped a tick, which is what the slip handling is for. Past 1 it goes on along the last tick's step; below 0 it is between the
 ## two ticks before, from [member _position_two_back].
 func _render_state(alpha: float) -> DotFpsState:
 	if is_nan(alpha):
@@ -24,10 +19,8 @@ func _render_state(alpha: float) -> DotFpsState:
 		drawn.position = _position_two_back.lerp(drawn.position, maxf(alpha + 1.0, 0.0))
 	return drawn
 
-## What to take off the drawn eye this frame for stair steps: the step's share of the
-## interpolated rise is moved into [member _step_offset], which eases out. A tick is a step
-## when it is grounded and rose more than the steepest walkable floor allows for the ground it
-## crossed, and no more than a step: a ramp's rise is steady and is drawn as it is.
+## What to take off the drawn eye this frame for stair steps: the step's share of the interpolated rise is moved into [member _step_offset], which eases out. A tick is a step
+## when it is grounded and rose more than the steepest walkable floor allows for the ground it crossed, and no more than a step: a ramp's rise is steady and is drawn as it is.
 func _absorb_step(alpha: float, delta: float) -> float:
 	if step_smooth_time <= 0.0 or controller.tunables == null:
 		return 0.0
@@ -68,13 +61,9 @@ func _kick_landing(drawn: DotFpsState) -> void:
 	camera_motion.note_landing(_landing_impact)
 	_landing_impact = 0.0
 
-## Sway, bob and the recoil's camera half, for the hands under the camera. Returns the
-## punch in degrees (x pitch up, y yaw), which [method present] adds to the camera.
-##
-## [b]Added where the camera is written, never to the command.[/b] The shot already went
-## where the command pointed; this is the view jolting as it does. And through
-## `has_method`, because `view_punch` is newer than the client shell a pack may be running
-## on, and a call by name to a method the shell's copy lacks fails to compile the script.
+## Sway, bob and the recoil's camera half, for the hands under the camera. Returns the punch in degrees (x pitch up, y yaw), which [method present] adds to the camera.
+## [b]Added where the camera is written, never to the command.[/b] The shot already went where the command pointed; this is the view jolting as it does. And through
+## `has_method`, because `view_punch` is newer than the client shell a pack may be running on, and a call by name to a method the shell's copy lacks fails to compile the script.
 func _present_view_model(drawn: DotFpsState) -> Vector2:
 	_aim_fov_scale = 1.0
 	_view_fov_scale = 1.0
@@ -134,14 +123,9 @@ func _present_bubble(at: Vector3) -> void:
 	protection_bubble.sync(true)
 
 
-## Draws [member beacon], and says when it pings.
-##
-## [b]Only while alive.[/b] The flag outlives a death — dot-moderation re-applies it on the
-## respawn — but a ring round a corpse that is about to vanish marks nothing, and a column
-## over a spectating player's last position points everybody at an empty floor.
-##
-## Placed at the DRAWN position, which is the render state on the local player and the
-## interpolated one on a remote player, for the reason [DotFxBeacon] is top level.
+## Draws [member beacon], and says when it pings. [b]Only while alive.[/b] The flag outlives a death — dot-moderation re-applies it on the
+## respawn — but a ring round a corpse that is about to vanish marks nothing, and a column over a spectating player's last position points everybody at an empty floor.
+## Placed at the DRAWN position, which is the render state on the local player and the interpolated one on a remote player, for the reason [DotFxBeacon] is top level.
 func _present_beacon(delta: float, at: Vector3) -> void:
 	if not beacon or not is_alive():
 		if beacon_marker != null:

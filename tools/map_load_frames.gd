@@ -1,13 +1,8 @@
 extends Node
 
-## The frames a client spends drawing an imported map: [method ArenaMap.to_scene_async] behind a [DotFrameSlice],
-## then [method ArenaMap.to_collision], each frame's length recorded. Headless, so the CPU side only (no culling node,
-## no GPU upload); the windowed numbers come from `tools/perf_bench.sh` on staging02.
-## [codeblock]
-## godot --headless --path . res://tools/map_load_frames.tscn -- --map cp-orange-x3 [--budget 8] [--limit 0]
-## [/codeblock]
-## Prints one `map_load_frames:` line per phase with the frame count and the worst frame. Exits 1 when `--limit` (ms,
-## 0 = off) is set and a scene-build frame is longer.
+## The frames a client spends drawing an imported map: [method ArenaMap.to_scene_async] behind a [DotFrameSlice], then [method ArenaMap.to_collision], each frame's length recorded. Headless, so the CPU side only (no culling node, no GPU upload); the windowed numbers come from `tools/perf_bench.sh` on staging02.
+## [codeblock] godot --headless --path . res://tools/map_load_frames.tscn -- --map cp-orange-x3 [--budget 8] [--limit 0] [/codeblock]
+## Prints one `map_load_frames:` line per phase with the frame count and the worst frame. Exits 1 when `--limit` (ms, 0 = off) is set and a scene-build frame is longer.
 
 const ArenaMap := preload("../maps/arena_map.gd")
 

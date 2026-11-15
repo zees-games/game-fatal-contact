@@ -1,15 +1,8 @@
 extends DotGameCheckSuite
 
-## "Crosshair on his chest at 65 m and nothing": does the body the client draws stand inside
-## the hit zones the server traces? For every stock avatar and each way a player moves (idle,
-## walking away, strafing, walking at you, aiming up and down, crouched still, crouch walking), a shot from
-## 65 m at the drawn skeleton's head, neck, torso, belly and hips (and arms when standing)
-## must land in a zone, on every tick of the walk cycle. Only the hit zones' own fit is
-## measured here; the netcode and the gun are headless_hitreg_ping's and headless_hitreg_scope's.
-##
-## The crouch walk once drew the head higher than standing while the zones squeezed to crouch
-## height (head shots missed 43-64 of 64); dot-player-char's made CROUCH_WALK now holds the hips
-## at the crouch's height (dpc-crouch-walk-pose-fit-1), so it is asserted like the rest.
+## "Crosshair on his chest at 65 m and nothing": does the body the client draws stand inside the hit zones the server traces? For every stock avatar and each way a player moves (idle, walking away, strafing, walking at you, aiming up and down, crouched still, crouch walking), a shot from
+## 65 m at the drawn skeleton's head, neck, torso, belly and hips (and arms when standing) must land in a zone, on every tick of the walk cycle. Only the hit zones' own fit is measured here; the netcode and the gun are headless_hitreg_ping's and headless_hitreg_scope's.
+## The crouch walk once drew the head higher than standing while the zones squeezed to crouch height (head shots missed 43-64 of 64); dot-player-char's made CROUCH_WALK now holds the hips at the crouch's height (dpc-crouch-walk-pose-fit-1), so it is asserted like the rest.
 
 const ArenaGame := preload("../game/arena_game.gd")
 const ArenaMap := preload("../maps/arena_map.gd")

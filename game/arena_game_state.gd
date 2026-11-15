@@ -113,7 +113,6 @@ signal match_state_changed(from: DotMatch.State, to: DotMatch.State)
 signal non_player_killed(entity_id: int, damage: DotDamage)
 
 ## The world was replaced. After everything is rebuilt and every player is back in it.
-##
 ## A client hangs its renderer off this: the meshes it was drawing belonged to the old
 ## map and the nodes they came from are gone by the time this fires.
 signal map_changed(map: ArenaMap)
@@ -162,7 +161,6 @@ signal mode_shown(shown: ArenaMode)
 @export_group("Mode")
 
 ## What is being played. Null means [member mode_id] decides.
-##
 ## [b]Assign before [method setup].[/b] It builds the match rules, the teams and the
 ## damage rules, and none of them is re-read afterwards.
 @export var mode: ArenaMode = null

@@ -1,12 +1,8 @@
 extends "net_probe.gd"
 
-## Looks for weapon drops resting in the air: a real server with hunting bots (FFA) and a real client over loopback
-## ENet, both in this process. Every 0.25 s each resting drop on the server and on the client is swept down; one
-## that can fall more than [constant EPS] is reported once, with its age, pose and what rested it.
-##
-## [codeblock]
-## godot --headless --path . res://tools/floatgun_probe.tscn -- --bots 10 --seconds 120 [--map atrium]
-## [/codeblock]
+## Looks for weapon drops resting in the air: a real server with hunting bots (FFA) and a real client over loopback ENet, both in this process. Every 0.25 s each resting drop on the server and on the client is swept down; one
+## that can fall more than [constant EPS] is reported once, with its age, pose and what rested it. [codeblock]
+## godot --headless --path . res://tools/floatgun_probe.tscn -- --bots 10 --seconds 120 [--map atrium] [/codeblock]
 
 const EPS := 0.05
 

@@ -1,10 +1,7 @@
 extends RefCounted
 
-## The pack's per-map download groups (`groups.json`): a map's baked light and bot rides.
-##
-## A client joins with the group of the map being played (the server reports it with the map) and tops
-## up the next map's group on a change, so a player never downloads the other maps' files. A server and
-## a solo host ask for every group. Built in, or on a dot-cloud before API 22, there is nothing to fetch.
+## The pack's per-map download groups (`groups.json`): a map's baked light and bot rides. A client joins with the group of the map being played (the server reports it with the map) and tops
+## up the next map's group on a change, so a player never downloads the other maps' files. A server and a solo host ask for every group. Built in, or on a dot-cloud before API 22, there is nothing to fetch.
 
 const CHANNEL := "arena.content"
 

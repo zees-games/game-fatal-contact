@@ -265,9 +265,9 @@ func _grounded(at: Vector3) -> Vector3:
 
 func _build(team: int) -> Node3D:
 	var root := _add_root(team)
+	_parts[team] = [null, null, null]
 	for part in _BUILD_PARTS:
 		call(part, root, team)
-	_parts[team] = [root.get_node(^"Plate"), root.get_node(^"Icon"), root.get_node(^"Dist")]
 	return root
 
 
@@ -320,6 +320,7 @@ func _add_cloth(root: Node3D, team: int) -> void:
 	plate.position = Vector3(0.0, 0.03, 0.0)
 	plate.name = "Plate"
 	root.add_child(plate)
+	_keep_part(team, 0, plate)
 
 
 ## The marker over the pole and (by default) through walls: a small see-through flag icon in the team's colour.
@@ -339,6 +340,7 @@ func _add_icon(root: Node3D, team: int) -> void:
 	icon.render_priority = 10
 	icon.position = Vector3(0.0, POLE_HEIGHT + 0.7, 0.0)
 	root.add_child(icon)
+	_keep_part(team, 1, icon)
 
 
 ## The marker's distance, beside the icon in small text.
@@ -360,6 +362,15 @@ func _add_label(root: Node3D, team: int) -> void:
 	dist.render_priority = 10
 	dist.position = Vector3(0.0, POLE_HEIGHT + 0.7, 0.0)
 	root.add_child(dist)
+	_keep_part(team, 2, dist)
+
+
+## Holds a built part (0 the plate, 1 the icon, 2 the distance) for [method refresh], so it is never looked up by name.
+## The warm-up builds the parts with no slot to fill, and keeps nothing.
+func _keep_part(team: int, index: int, part: Node) -> void:
+	var parts: Variant = _parts.get(team)
+	if parts is Array:
+		parts[index] = part
 
 
 func _add_light(root: Node3D, team: int) -> void:

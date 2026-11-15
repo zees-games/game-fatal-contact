@@ -1,10 +1,7 @@
 extends DotKillViewServer
 
-## The kill view's server over FC: [member eyes_fn] is asked only for the eyes the ring would keep.
-##
-## The ring keeps a sample per [member DotKillViewRules.record_hz] (30) and the tick is 66, so two in three of
-## the eyes built every tick (a dictionary, a basis, a transform, the fov and the aux floats, per living
-## player) were refused by [method DotKillViewRing.record] on its rate check. [member due] is that same
+## The kill view's server over FC: [member eyes_fn] is asked only for the eyes the ring would keep. The ring keeps a sample per [member DotKillViewRules.record_hz] (30) and the tick is 66, so two in three of
+## the eyes built every tick (a dictionary, a basis, a transform, the fov and the aux floats, per living player) were refused by [method DotKillViewRing.record] on its rate check. [member due] is that same
 ## check, asked before the eye is built: what the ring holds is unchanged, sample for sample.
 
 ## The rate check the eyes ask. Its own object so the [member eyes_fn] closure holding it holds no

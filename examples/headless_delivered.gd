@@ -130,10 +130,8 @@ func _test_solo_start_map() -> void:
 	_done()
 
 
-## The game's own pack carries no maps: they are their own packs (docs/imported-maps.md), and
-## the links to them were 547 of its 583 MiB until tools/publish.sh named them. Every
-## `# bootstrap-link:` path in .gitignore must be in publish.sh's MAP_LINKS, and the publisher,
-## given those as `--exclude-dir`, must drop a stand-in map tree and keep the game beside it.
+## The game's own pack carries no maps: they are their own packs (docs/imported-maps.md), and the links to them were 547 of its 583 MiB until tools/publish.sh named them. Every
+## `# bootstrap-link:` path in .gitignore must be in publish.sh's MAP_LINKS, and the publisher, given those as `--exclude-dir`, must drop a stand-in map tree and keep the game beside it.
 func _test_game_pack_leaves_maps_out() -> void:
 	_section("the game pack leaves every map link out (tools/publish.sh MAP_LINKS)")
 	var links := _gitignore_links(FileAccess.get_file_as_string("res://.gitignore"))

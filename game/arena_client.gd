@@ -47,21 +47,7 @@ func _present_frame(delta: float) -> void:
 		ArenaFrameProbe.add(&"c_walkers", t_walk)
 		_present_roof(delta, eye)
 
-	# A position report once a second: the only way to see where a browser client thinks it is.
-	_report_timer += delta
-
-	if _report_timer >= 1.0 and player != null:
-		_report_timer = 0.0
-		var st := player.controller.state
-		DotLog.debug(CHANNEL, "where the local player is", {
-			"position": st.position,
-			"node": player.global_position,
-			"camera": camera_position(),
-			"yaw": st.yaw,
-			"pitch": st.pitch,
-			"grounded": st.is_grounded(),
-			"predicted": _is_predicted(),
-		})
+	_report_position(delta)
 
 	if game == null:
 		return
@@ -84,6 +70,24 @@ func _present_frame(delta: float) -> void:
 	var t_rest := Time.get_ticks_usec()
 	_present_frame_rest()
 	ArenaFrameProbe.add(&"c_rest", t_rest)
+
+
+## A position report once a second: the only way to see where a browser client thinks it is.
+func _report_position(delta: float) -> void:
+	_report_timer += delta
+
+	if _report_timer >= 1.0 and player != null:
+		_report_timer = 0.0
+		var st := player.controller.state
+		DotLog.debug(CHANNEL, "where the local player is", {
+			"position": st.position,
+			"node": player.global_position,
+			"camera": camera_position(),
+			"yaw": st.yaw,
+			"pitch": st.pitch,
+			"grounded": st.is_grounded(),
+			"predicted": _is_predicted(),
+		})
 
 ## The roof the world's physics layout names, for the name tags, the roof sounds and the shot effects.
 func _present_roof(delta: float, eye: Vector3) -> void:

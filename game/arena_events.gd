@@ -1,4 +1,4 @@
-extends "arena_events_tail.gd"
+extends "arena_events_scores.gd"
 
 ## The wire format for everything that is not a snapshot or an input.
 ##
@@ -179,10 +179,7 @@ static func prop_acts_fit() -> bool:
 	return int(PropAct.values().max()) < (1 << PROP_ACT_BITS)
 
 const NAME_BYTES := 64
-const MAP_BYTES := 64
 const TEXT_BYTES := 256
-## Rows (players, or teams) one SCORE event may carry: the scoreboard's own record limit.
-const MAX_SCORE_ROWS := 512
 ## Bits a weapon name occupies in a KILL. Short because it is a label, not an id.
 const WEAPON_BYTES := 32
 
@@ -193,8 +190,6 @@ static func kind_name(kind: int) -> String:
 static func ask_name(ask: int) -> String:
 	var names := Ask.keys()
 	return String(names[ask]) if ask >= 0 and ask < names.size() else "?"
-
-
 
 
 # --- HELLO -----------------------------------------------------------------
@@ -427,31 +422,6 @@ static func write_scores(rows: Array[Dictionary], team_scores: Dictionary) -> Pa
 		writer.write_varint(maxi(int(team), 0))
 		writer.write_svarint(int(team_scores[team]))
 	return writer.to_bytes()
-
-
-static func read_scores(reader: DotNetReader) -> Dictionary:
-	var rows: Array[Dictionary] = []
-	var teams := {}
-	var count := reader.read_varint()
-	# A count above any real server is a corrupt body: refuse it rather than loop on it.
-	var sane := count <= MAX_SCORE_ROWS
-	if reader.ok() and sane:
-		for i in count:
-			rows.append({
-				"session_id": reader.read_varint(),
-				"kills": reader.read_varint(),
-				"deaths": reader.read_varint(),
-				"assists": reader.read_varint(),
-				"score": reader.read_svarint(),
-				"objectives": reader.read_varint(),
-			})
-		var team_count := reader.read_varint()
-		sane = team_count <= MAX_SCORE_ROWS
-		if reader.ok() and sane:
-			for i in team_count:
-				var team := reader.read_varint()
-				teams[team] = reader.read_svarint()
-	return {"rows": rows, "teams": teams, "ok": reader.ok() and sane}
 
 
 # --- NOTICE ----------------------------------------------------------------

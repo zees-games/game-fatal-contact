@@ -129,23 +129,7 @@ static func add_pages(menu: DotMenu, browser: ArenaBrowser = null) -> void:
 			"How well the bots play when you play alone. Easy misses and reacts late; nightmare does neither. A server sets its own.",
 			[[&"easy", "Easy"], [&"medium", "Medium"], [&"hard", "Hard"], [&"nightmare", "Nightmare"]]))
 
-	# Local maps: where the player's own TF2 is, for the stock textures a dropped `<map>_orig` pack lacks (ArenaSourceInstall,
-	# LOCAL ONLY). Enter saves the setting, which fills the local packs at once (ArenaClient._on_source_game_path).
-	if general != null and menu.settings != null and menu.settings.schema.find(&"source_game_path") != null:
-		var settings := menu.settings
-		general.section("Local maps").add(DotMenuRow.custom("Source game install path",
-			"Your own TF2 folder (Steam > Team Fortress 2 > Manage > Browse local files). A dropped _orig map takes the game's textures it lacks from there; they stay on this computer. Empty: Steam's usual folders.",
-			func(_kit: Variant) -> Control:
-				var field := LineEdit.new()
-				field.text = settings.get_string(&"source_game_path")
-				field.placeholder_text = "C:/Program Files (x86)/Steam/steamapps/common/Team Fortress 2"
-				field.custom_minimum_size = Vector2(360, 0)
-				field.text_submitted.connect(func(text: String) -> void:
-					var _set := settings.set_value(&"source_game_path", text.strip_edges()))
-				field.focus_exited.connect(func() -> void:
-					if field.text.strip_edges() != settings.get_string(&"source_game_path"):
-						var _set := settings.set_value(&"source_game_path", field.text.strip_edges()))
-				return field))
+	_add_local_maps_row(menu, general)
 
 	var video := menu.page(&"video")
 	if video != null:
@@ -175,6 +159,27 @@ static func add_pages(menu: DotMenu, browser: ArenaBrowser = null) -> void:
 
 	if browser != null:
 		menu.add_page(_servers_page(menu, browser), &"advanced")
+
+
+## Local maps: the Source game install path a dropped _orig map takes its stock textures from.
+static func _add_local_maps_row(menu: DotMenu, general: DotMenuPage) -> void:
+	# Local maps: where the player's own TF2 is, for the stock textures a dropped `<map>_orig` pack lacks (ArenaSourceInstall,
+	# LOCAL ONLY). Enter saves the setting, which fills the local packs at once (ArenaClient._on_source_game_path).
+	if general != null and menu.settings != null and menu.settings.schema.find(&"source_game_path") != null:
+		var settings := menu.settings
+		general.section("Local maps").add(DotMenuRow.custom("Source game install path",
+			"Your own TF2 folder (Steam > Team Fortress 2 > Manage > Browse local files). A dropped _orig map takes the game's textures it lacks from there; they stay on this computer. Empty: Steam's usual folders.",
+			func(_kit: Variant) -> Control:
+				var field := LineEdit.new()
+				field.text = settings.get_string(&"source_game_path")
+				field.placeholder_text = "C:/Program Files (x86)/Steam/steamapps/common/Team Fortress 2"
+				field.custom_minimum_size = Vector2(360, 0)
+				field.text_submitted.connect(func(text: String) -> void:
+					var _set := settings.set_value(&"source_game_path", text.strip_edges()))
+				field.focus_exited.connect(func() -> void:
+					if field.text.strip_edges() != settings.get_string(&"source_game_path"):
+						var _set := settings.set_value(&"source_game_path", field.text.strip_edges()))
+				return field))
 
 
 ## The help screen's goal and modes; the keys come from [ArenaBindings]. The modes are read

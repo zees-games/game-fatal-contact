@@ -322,7 +322,6 @@ func _apply_hit_wobble(now: float) -> void:
 		_sampler.look_at_angles(_sampler.yaw + step.x, _sampler.pitch + step.y)
 
 ## Adds the frame's camera shake. dot-fx computes it; this is the only thing that applies it.
-##
 ## Same rule as dot-spectate's camera: one implementation then serves the play rig, a
 ## spectator's and a headless suite, with no second code path to keep in step.
 func _apply_shake() -> void:
@@ -337,11 +336,8 @@ func _apply_shake() -> void:
 	player.camera_roll = presentation.camera_roll() + deg_to_rad(hit.x)
 	_apply_hit_wobble(now)
 
-## Whether the local player is dot-net's idea of a predicted entity.
-##
-## Not the same question as "is it ours". `DotNetIdentity.is_predicted` also requires
-## the authority to be SHARED and the owner peer id to match this manager's local one —
-## and a client whose local peer id does not match what the server addressed it as gets
+## Whether the local player is dot-net's idea of a predicted entity. Not the same question as "is it ours". `DotNetIdentity.is_predicted` also requires
+## the authority to be SHARED and the owner peer id to match this manager's local one — and a client whose local peer id does not match what the server addressed it as gets
 ## an entity that is neither predicted nor interpolated, which nothing then moves.
 func _is_predicted() -> bool:
 	if bridge == null or player == null:

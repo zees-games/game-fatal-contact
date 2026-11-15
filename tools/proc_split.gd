@@ -85,53 +85,7 @@ static func census(root: Node) -> Dictionary:
 			if pp == "":
 				pp = "inner %s" % String(n.name).rstrip("0123456789@")
 			scripted_phys[pp] = int(scripted_phys.get(pp, 0)) + 1
-		if n is CollisionObject3D:
-			var co := n as CollisionObject3D
-			for owner_id: int in co.get_shape_owners():
-				bodies.shapes += co.shape_owner_get_shape_count(owner_id)
-			if n is Area3D:
-				bodies.area += 1
-				if (n as Area3D).monitoring:
-					bodies.areas_monitoring += 1
-			elif n is CharacterBody3D:
-				bodies.character += 1
-			elif n is RigidBody3D:
-				bodies.rigid += 1
-			elif n is StaticBody3D:
-				bodies.static += 1
-			else:
-				bodies.other += 1
-		elif n is MeshInstance3D:
-			var mi := n as MeshInstance3D
-			meshes.total += 1
-			if mi.is_visible_in_tree():
-				meshes.visible += 1
-				if mi.skin != null or (not mi.skeleton.is_empty() and mi.get_node_or_null(mi.skeleton) is Skeleton3D):
-					meshes.skinned += 1
-				if mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
-					meshes.shadow_casting += 1
-		elif n is MultiMeshInstance3D:
-			meshes.multimesh += 1
-		elif n is Light3D:
-			var li := n as Light3D
-			if li.is_visible_in_tree():
-				lights.total += 1
-				if li.shadow_enabled:
-					lights.shadowed += 1
-				if li is OmniLight3D:
-					lights.omni += 1
-				elif li is SpotLight3D:
-					lights.spot += 1
-				else:
-					lights.directional += 1
-		elif n is GPUParticles3D:
-			misc.gpu_particles += 1
-		elif n is CPUParticles3D:
-			misc.cpu_particles += 1
-		elif n is AudioStreamPlayer3D or n is AudioStreamPlayer:
-			misc.audio_players += 1
-			if bool(n.get("playing")):
-				misc.audio_playing += 1
+		_count_kind(n, bodies, meshes, lights, misc)
 		if n.is_processing_internal():
 			internal[cls] = int(internal.get(cls, 0)) + 1
 		if n.is_physics_processing_internal():
@@ -163,3 +117,54 @@ static func census(root: Node) -> Dictionary:
 	return {"internal_process": internal, "internal_physics": internal_phys, "scripted_process": scripted,
 		"scripted_physics": scripted_phys, "skeleton": skel, "nodes": total, "top_classes": top_classes,
 		"bodies": bodies, "meshes": meshes, "lights": lights, "misc": misc}
+
+
+## Counts one node into the body, mesh, light and particle/audio tallies of [method census].
+static func _count_kind(n: Node, bodies: Dictionary, meshes: Dictionary, lights: Dictionary, misc: Dictionary) -> void:
+	if n is CollisionObject3D:
+		var co := n as CollisionObject3D
+		for owner_id: int in co.get_shape_owners():
+			bodies.shapes += co.shape_owner_get_shape_count(owner_id)
+		if n is Area3D:
+			bodies.area += 1
+			if (n as Area3D).monitoring:
+				bodies.areas_monitoring += 1
+		elif n is CharacterBody3D:
+			bodies.character += 1
+		elif n is RigidBody3D:
+			bodies.rigid += 1
+		elif n is StaticBody3D:
+			bodies.static += 1
+		else:
+			bodies.other += 1
+	elif n is MeshInstance3D:
+		var mi := n as MeshInstance3D
+		meshes.total += 1
+		if mi.is_visible_in_tree():
+			meshes.visible += 1
+			if mi.skin != null or (not mi.skeleton.is_empty() and mi.get_node_or_null(mi.skeleton) is Skeleton3D):
+				meshes.skinned += 1
+			if mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+				meshes.shadow_casting += 1
+	elif n is MultiMeshInstance3D:
+		meshes.multimesh += 1
+	elif n is Light3D:
+		var li := n as Light3D
+		if li.is_visible_in_tree():
+			lights.total += 1
+			if li.shadow_enabled:
+				lights.shadowed += 1
+			if li is OmniLight3D:
+				lights.omni += 1
+			elif li is SpotLight3D:
+				lights.spot += 1
+			else:
+				lights.directional += 1
+	elif n is GPUParticles3D:
+		misc.gpu_particles += 1
+	elif n is CPUParticles3D:
+		misc.cpu_particles += 1
+	elif n is AudioStreamPlayer3D or n is AudioStreamPlayer:
+		misc.audio_players += 1
+		if bool(n.get("playing")):
+			misc.audio_playing += 1

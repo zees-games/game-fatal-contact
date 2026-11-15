@@ -426,10 +426,8 @@ const LOD_RADIUS := 1.6
 const LOD_FAR := 45.0
 const LOD_FARTHEST := 90.0
 
-## `cl_remote_anim_gate`: thin remote bodies by game time as well as by frame count. A body in view past
-## [constant ANIM_GATE_NEAR] steps its clip at most every [constant ANIM_GATE_DT], past [constant ANIM_GATE_FAR] (and in the
-## LOD_FAR tiers) every [constant ANIM_GATE_FAR_DT]; a thinned one waits its minimum time. Only the skeleton's clip is
-## stepped less often: the body is still moved and turned every frame, and hitboxes follow the stance, not the bones.
+## `cl_remote_anim_gate`: thin remote bodies by game time as well as by frame count. A body in view past [constant ANIM_GATE_NEAR] steps its clip at most every [constant ANIM_GATE_DT], past [constant ANIM_GATE_FAR] (and in the
+## LOD_FAR tiers) every [constant ANIM_GATE_FAR_DT]; a thinned one waits its minimum time. Only the skeleton's clip is stepped less often: the body is still moved and turned every frame, and hitboxes follow the stance, not the bones.
 static var anim_gate_enabled: bool = true
 const ANIM_GATE_NEAR := 8.0
 const ANIM_GATE_DT := 1.0 / 30.0

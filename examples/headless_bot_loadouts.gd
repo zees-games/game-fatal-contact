@@ -6,13 +6,9 @@ const ArenaGame := preload("../game/arena_game.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
 const ArenaPlayer := preload("../game/arena_player.gd")
 
-## Bot loadouts: the profiles load and fit the owner's rules, draws follow the weights,
-## `sv_bot_loadouts` and the difficulty narrow them, a seed repeats them, and the kit a bot
-## draws is the gun it spawns holding and fires.
-##
-## [codeblock]
-## ./game.sh test headless_bot_loadouts
-## [/codeblock]
+## Bot loadouts: the profiles load and fit the owner's rules, draws follow the weights, `sv_bot_loadouts` and the difficulty narrow them, a seed repeats them, and the kit a bot
+## draws is the gun it spawns holding and fires. [codeblock]
+## ./game.sh test headless_bot_loadouts [/codeblock]
 
 const TICK_RATE := 64
 const MAP := &"dm_atrium"
