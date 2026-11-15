@@ -177,6 +177,9 @@ func _apply_bench_flags() -> void:
 			# By name: dot-bot 26 (the live shell's) has no brain phase timers.
 			(DotBotBrain as GDScript).set(&"phase_timers", ArenaBotThreads.threads == 0)
 		ArenaFrameProbe.fine = sections == "2"
+		# p_weapons split by the rig's and the arsenal's own clocks (pw_*, pa_*), on the fine level only: a clock read a part.
+		for w in _weapon_phase_clocks():
+			(w[1] as GDScript).set(&"phase_timers", ArenaFrameProbe.fine)
 
 
 ## The loopback server config for the solo host: [param data] holds its admin, ban and audit files.
@@ -322,12 +325,34 @@ static func sections_line(sections: Dictionary, ticks: int) -> String:
 	return "SIM_HOST_SECTIONS ms/tick | " + ", ".join(parts)
 
 
+## [prefix, script] of the weapon sub-phase clocks this build's addons have: AwWeaponRig's from arena-weapons API 10,
+## DotWeaponArsenal's from dot-weapon API 32. Read and set by name, so an older shell's addons still parse.
+static func _weapon_phase_clocks() -> Array:
+	var clocks := []
+	if DotAddonApi.build_level("arena_weapons") >= 10:
+		clocks.append(["pw_", AwWeaponRig])
+	if DotAddonApi.build_level("dot_weapon") >= 32:
+		clocks.append(["pa_", DotWeaponArsenal])
+	return clocks
+
+
 ## `SIM_HOST_PHASES name ms/tick, ...`: DotFpsController's phases (pc_*, outside the motor) and DotBotBrain's (bb_*).
 static func phases_line(ticks: int) -> String:
 	var parts := PackedStringArray()
 	var names := ["pc_pre", "pc_consume", "pc_motor", "pc_publish", "pc_report", "pc_signals", "pc_post", "pc_body"]
 	for i in names.size():
 		parts.append("%s %.3f" % [names[i], DotFpsController.phase_us[i] / 1000.0 / ticks])
+	# The rig's and the arsenal's sub-phases (pw_*, pa_*), by name: an older shell's addons have no such timers.
+	for w in _weapon_phase_clocks():
+		var script: GDScript = w[1]
+		if not script.get(&"phase_timers"):
+			continue
+		var w_names: Array = script.get(&"PHASES")
+		var w_us: PackedInt64Array = script.get(&"phase_us")
+		for i in w_names.size():
+			parts.append("%s%s %.3f" % [w[0], w_names[i], w_us[i] / 1000.0 / ticks])
+		w_us.fill(0)
+		script.set(&"phase_us", w_us)
 	DotFpsController.phase_us.fill(0)
 	if not ArenaBots.brain_phases:
 		return "SIM_HOST_PHASES ms/tick | " + ", ".join(parts)

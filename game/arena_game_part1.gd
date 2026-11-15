@@ -652,9 +652,8 @@ func _resolve_stomps() -> void:
 	_sync_stomp_config()
 	if not stomp.rules.enabled or combat == null:
 		return
-	# The hull list is gathered only once someone falls fast enough to stomp: DotStomp.find
-	# returns 0 below min_speed without reading it, and most ticks nobody does.
-	var hulls: Array = []
+	# The hulls are gathered only once someone falls fast enough to stomp: DotStomp.find
+	# returns 0 below min_speed without reading them, and most ticks nobody does.
 	var gathered := false
 	for id in player_ids():
 		var player: ArenaPlayer = _players[id]
@@ -663,11 +662,16 @@ func _resolve_stomps() -> void:
 		if -float(_pre_vy[id]) < stomp.rules.min_speed:
 			continue
 		if not gathered:
-			hulls = _stomp_hulls()
+			_gather_stomp_hulls()
 			gathered = true
 		var state: DotFpsState = player.controller.state
+		var radius: float = player.controller.tunables.radius
+		# Only the hulls under these feet: DotStomp.find refuses the rest on these same two tests, so its answer is unchanged.
+		var hulls := _stomp_hulls_under(id, state.position, radius)
+		if hulls.is_empty():
+			continue
 		var victim := stomp.find(
-			id, state.position, player.controller.tunables.radius, -float(_pre_vy[id]),
+			id, state.position, radius, -float(_pre_vy[id]),
 			team_of(id) if not teams().is_empty() else -1, hulls, _tick, tick_rate
 		)
 		if victim == 0:
@@ -686,17 +690,44 @@ func _resolve_stomps() -> void:
 		if progress != null:
 			progress.record(id, ArenaStats.STOMPS)
 
-## Every live player's hull for DotStomp.find.
-func _stomp_hulls() -> Array:
-	var hulls: Array = []
+## Every live player's hull this tick, in roster order, as plain columns: a falling player's
+## [method _stomp_hulls_under] reads these instead of a dictionary per player per faller.
+var _st_ids := PackedInt64Array()
+var _st_feet := PackedVector3Array()
+var _st_team := PackedInt64Array()
+var _st_height := PackedFloat64Array()
+var _st_radius := PackedFloat64Array()
+
+func _gather_stomp_hulls() -> void:
+	_st_ids.clear()
+	_st_feet.clear()
+	_st_team.clear()
+	_st_height.clear()
+	_st_radius.clear()
+	var teamed := not teams().is_empty()
 	for id in player_ids():
 		var other: ArenaPlayer = _players[id]
 		if not other.is_alive() or other.controller == null:
 			continue
-		hulls.append({
-			"id": id, "feet": other.controller.state.position, "team": team_of(id) if not teams().is_empty() else -1,
-			"height": other.controller.tunables.stand_height, "radius": other.controller.tunables.radius,
-		})
+		_st_ids.append(id)
+		_st_feet.append(other.controller.state.position)
+		_st_team.append(team_of(id) if teamed else -1)
+		_st_height.append(other.controller.tunables.stand_height)
+		_st_radius.append(other.controller.tunables.radius)
+
+## The hulls DotStomp.find would weigh for feet at [param feet]: its head-gap and reach tests, same arithmetic, same order.
+func _stomp_hulls_under(attacker: int, feet: Vector3, radius: float) -> Array:
+	var hulls: Array = []
+	var tolerance: float = stomp.rules.head_tolerance
+	for i in _st_ids.size():
+		if _st_ids[i] == attacker:
+			continue
+		var other := _st_feet[i]
+		if absf(feet.y - (other.y + _st_height[i])) > tolerance:
+			continue
+		if Vector2(feet.x - other.x, feet.z - other.z).length() > radius + _st_radius[i]:
+			continue
+		hulls.append({"id": _st_ids[i], "feet": other, "team": _st_team[i], "height": _st_height[i], "radius": _st_radius[i]})
 	return hulls
 
 
