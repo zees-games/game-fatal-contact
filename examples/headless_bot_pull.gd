@@ -84,11 +84,11 @@ func _entry_diff(a: PackedStringArray, b: PackedStringArray, tick: int) -> Strin
 ## One match through a server bridge: [sim digests per tick, property digests per snapshot, stale copies seen between
 ## snapshots, kill view clip digests per second, clips read, each tick's entries before digesting].
 func _play() -> Array:
-	# dot-weapon's drops roll and spin on the global random stream (DotWeaponDrops: randf_range when a drop is made):
-	# unseeded, a dropped weapon comes to rest somewhere else every run, and a bot fetching it looks somewhere else.
-	# Both matches start from the same seed, so the only difference left between them is the pull mode.
-	seed(0x5eed)
 	var game := _make_game()
+	# A drop's roll and spin (and the random cap) come from the drop layer's own stream, randomised per layer:
+	# unseeded, a dropped weapon rests somewhere else each match and a bot fetching it looks somewhere else.
+	# Both matches seed it alike, so the only difference left between them is the pull mode.
+	game.weapon_drops.seed_rng(0x5eed)
 
 	var net := DotNetManager.new()
 	net.name = "Net_%s" % game.name

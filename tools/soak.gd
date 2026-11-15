@@ -112,6 +112,9 @@ func _run() -> void:
 	if not res.ok:
 		_fail("setup: %s" % res.error.message)
 		return
+	# --seed covers the dropped weapons too: their roll, spin and random eviction come from the drop layer's stream.
+	if not _arg("seed", "").is_empty() and _game.weapon_drops != null:
+		_game.weapon_drops.seed_rng(cfg.seed_value)
 	_game.match_node.rules.warmup_sec = 0.0
 	_game.match_node.rules.countdown_sec = 0.0
 	for i in range(cfg.bots):
