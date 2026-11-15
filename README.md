@@ -6,7 +6,7 @@ A fast first-person shooter for [Godot 4](https://godotengine.org/), built on th
 
 *Play on the test server [here](https://moddingcommunity.com/arena/s/arena01/play).*
 
-The project and its assets are open source under the MIT license. Only the back-end web infrastructure is not; if you use your own authentication back end instead of TMC, you build that part yourself.
+The project and its assets are open source under the MIT license. Only the back-end web infrastructure is not; if you use your own authentication back end instead of Gamespice, you build that part yourself.
 
 **Please treat this as partially tested.** It was built with Claude Code and has a headless test suite that passes, but little of it has been in front of real players. Please report anything you run into.
 
