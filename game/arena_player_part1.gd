@@ -433,7 +433,8 @@ func _follow_map_volumes() -> void:
 
 	var feet := controller.state.position
 
-	var pit := _map.pit_at(feet, controller.state.tick)
+	# On the game tick, never controller.state.tick: the jail's gate opened on it (jail-sim-tick-1).
+	var pit := _map.pit_at(feet, _hull_tick)
 	if not pit.is_empty():
 		controller.teleport(pit["to"], float(pit["yaw"]), 0.0)
 		_forget_drawn()

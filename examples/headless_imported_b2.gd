@@ -624,7 +624,7 @@ func _test_jail() -> void:
 	player.controller.teleport(button.get_center(), 0.0, 0.0)
 	var told_before: int = told[0]
 	_game.tick({})
-	_check(jail.opened_at >= 0 and jail.is_open(player.controller.state.tick) and told[0] > told_before,
+	_check(jail.opened_at >= 0 and jail.is_open(_game.current_tick()) and told[0] > told_before,
 		"standing on the button opens the gate, and says so")
 	_check((player.controller.state.position - button.get_center()).length() < 1.0,
 		"and the button itself no longer sends anybody anywhere")
@@ -636,7 +636,7 @@ func _test_jail() -> void:
 		"open, the way out is a way out")
 
 	var ticks_open := 0
-	while jail.is_open(player.controller.state.tick) and ticks_open < 4 * TICK_RATE:
+	while jail.is_open(_game.current_tick()) and ticks_open < 4 * TICK_RATE:
 		_game.tick({})
 		ticks_open += 1
 	_check(absi(ticks_open - TICK_RATE) <= 3, "it shuts after its open time (%d ticks of %d)" % [ticks_open, TICK_RATE])
@@ -652,7 +652,7 @@ func _test_jail() -> void:
 	_check(jail.opened_at == first_opened, "the button does nothing while it cools down")
 
 	var waited := 0
-	while not jail.can_press(player.controller.state.tick) and waited < 6 * TICK_RATE:
+	while not jail.can_press(_game.current_tick()) and waited < 6 * TICK_RATE:
 		_game.tick({})
 		waited += 1
 	player.controller.teleport(button.get_center(), 0.0, 0.0)
@@ -660,7 +660,7 @@ func _test_jail() -> void:
 	_check(jail.opened_at > first_opened, "and works again once it has (%d ticks later)" % waited)
 
 	jail.enabled = false
-	var fall_pit: Dictionary = _game.map.pit_at(fall_box.get_center(), player.controller.state.tick)
+	var fall_pit: Dictionary = _game.map.pit_at(fall_box.get_center(), _game.current_tick())
 	_check(fall_pit == _game.map.pits[falls[0]] and _game.map.pit_at(button.get_center(), 0) == _game.map.pits[jail.button_index],
 		"with arena_jail off every volume does what the map shipped")
 	jail.enabled = true

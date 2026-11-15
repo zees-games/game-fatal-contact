@@ -35,13 +35,15 @@ static func client_interp_buffer(snapshot_rate: int) -> float:
 	var ratio := ArenaFrameProbe.launch_value("cl_interp_ratio")
 	return interp_buffer_for(snapshot_rate, sec.to_float() if sec != "" else 0.0, ratio.to_float() if ratio != "" else 2.0)
 
-## The simulation tick the players are on, for what is drawn from it: a player's own state, since
-## that is the tick the pits are asked about, and the game's own count before there is one.
+## The game tick the pits are asked about, for what is drawn from it (the jail's gate): the game's
+## own count where it ticks, and on a predicting client the tick its player was last simulated on.
 func sim_tick() -> int:
+	if is_authority:
+		return _tick
 	for id in _players:
 		var p: ArenaPlayer = _players[id]
-		if p != null and is_instance_valid(p) and p.controller != null:
-			return p.controller.state.tick
+		if p != null and is_instance_valid(p) and p.game_tick() >= 0:
+			return p.game_tick()
 	return _tick
 
 func _exit_tree() -> void:
@@ -571,7 +573,8 @@ func _sweep_jail_button() -> void:
 	for id in player_ids():
 		var p: ArenaPlayer = _players[id]
 		if p.is_alive() and box.has_point(p.controller.state.position):
-			var at: int = p.controller.state.tick
+			# The game tick, which every player's pits are asked on and a client predicts on too.
+			var at: int = _tick
 			if jail.press(at):
 				DotLog.info(CHANNEL, "the jail's gate opened", {"by": id, "tick": at})
 				jail_changed.emit()

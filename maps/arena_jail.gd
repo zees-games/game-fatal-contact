@@ -15,9 +15,13 @@ extends RefCounted
 ## - the way out is the two exit volumes, and they work only while the gate is open. Shut, a
 ##   player who walks into one is put back in the cell.
 ##
-## [b]Pure functions of the tick and of one number, [member opened_at].[/b] The player's tick
-## asks [method resolve] on the server and on the owning client's prediction alike, and the one
-## fact that is not in the map (when the gate was last opened) is sent to clients (JAIL).
+## [b]Pure functions of the tick and of one number, [member opened_at].[/b] The game's tick
+## (`ArenaPlayer.game_tick`) asks [method resolve] on the server and on the owning client's
+## prediction alike, and the one fact that is not in the map (when the gate was last opened, on
+## that same tick) is sent to clients (JAIL). Never `DotFpsState.tick`: that counts one machine's
+## motor steps, is not replicated, stops while a player is dead and grows with every replay, so
+## the server compared players on different clocks and a client predicted the gate on its own
+## (jail-sim-tick-1).
 ## Nothing here is physics: a door that collided would have to be toggled in the middle of a
 ## tick on both ends, and a closed door that is a volume putting you back needs no such thing.
 ##

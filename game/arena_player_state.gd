@@ -301,8 +301,17 @@ class HeadlessController extends DotFpsController:
 var solid_hulls_fn: Callable = Callable()
 
 ## The tick [method simulate_tick] is running, replays included: where a predicting client
-## places the remotes it collides with ([method ArenaGame.solid_hulls_for]).
+## places the remotes it collides with ([method ArenaGame.solid_hulls_for]), and the clock the
+## jail's gate is asked on ([method game_tick]).
 var _hull_tick: int = -1
+
+## The game tick this player was last simulated on, -1 before the first: the server's tick on the
+## server, the same tick's number on a predicting client, a replay included. Unlike
+## [code]DotFpsState.tick[/code] (one per motor step on this machine, not replicated, and pushed on
+## by every replay) it is the same number on both ends, so anything the server times against a tick
+## (the jail's gate) is asked on this one. See `arena_ladder_mode.gd` for the same choice.
+func game_tick() -> int:
+	return _hull_tick
 
 ## dot-sim's hull world ([method ArenaGame._begin_hull_world]) this player is filed in as [member hull_slot] while the players' loop runs; a death or a spawn is written to it.
 var hull_world: Object = null
