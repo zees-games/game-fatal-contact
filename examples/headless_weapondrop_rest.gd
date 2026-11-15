@@ -9,7 +9,15 @@ extends Node
 
 const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
 const TOLERANCE := 0.02
-const SETTLE_TICKS := 360
+## The drops spawn with a random yaw and spin (DotWeaponDrops), so the global RNG is seeded per course: a run replays
+## the same tumble, whatever box or load it runs on (physics is stepped by ticks, never by wall time).
+const SEED := 20261115
+## Longest a course may take to settle, in ticks (47 s). A drop on a stair edge can rest, lose its support, fall again
+## up to REFALL_MAX times and be put on the floor; the course waits for that instead of judging at a fixed tick.
+const SETTLE_MAX_TICKS := 3000
+## Ticks every drop must lie unchanged (resting, no ground sweep pending, not moved) before it counts as settled: more
+## than one support check (0.5 s).
+const QUIET_TICKS := 80
 
 var _checks := 0
 var _failed := 0
@@ -94,6 +102,7 @@ func _run() -> void:
 	_check(ids.size() > 10, "the art table has weapons", str(ids.size()))
 	# Courses: flat floor (top y=0); a 20 degree ramp (surface through y=0 at z=0).
 	for course in ["flat", "ramp", "stairs"]:
+		seed(SEED)
 		var world := Node3D.new()
 		add_child(world)
 		match course:
@@ -129,8 +138,21 @@ func _run() -> void:
 			spots[id] = [w, y_at]
 			i += 1
 		var last := {}
-		for _t in SETTLE_TICKS:
+		var quiet := 0
+		var waited := 0
+		var prev := {}
+		while quiet < QUIET_TICKS and waited < SETTLE_MAX_TICKS:
 			await get_tree().physics_frame
+			waited += 1
+			var still := true
+			for id: int in spots:
+				var e: Dictionary = drops._entries[id]
+				var at: Vector3 = (e["body"] as RigidBody3D).global_position
+				if not bool(e["rest"]) or e.has("ground_in") or at.distance_to(prev.get(id, Vector3.INF)) > 0.0005:
+					still = false
+				prev[id] = at
+			quiet = quiet + 1 if still else 0
+		_check(quiet >= QUIET_TICKS, "%s: every drop settled" % course, "waited %d ticks" % waited)
 		for id: int in spots:
 			var e: Dictionary = drops._entries[id]
 			var body: RigidBody3D = e["body"]
