@@ -6,13 +6,8 @@ const ArenaBotsWorld := preload("../game/arena_bots_world.gd")
 const ArenaGame := preload("../game/arena_game.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
 
-## Bot play styles by weapon: every FC weapon has a style class in dot-bot's table, a bot's
-## class is the gun in its hand, snipers take cover, peek and move between angles, and bots
-## with one gun do not all play it one way.
-##
-## [codeblock]
-## ./game.sh test headless_bot_styles
-## [/codeblock]
+## Bot play styles by weapon: the gun in a bot's hand sets its style class (dot-bot's table), so
+## snipers take cover and peek. Run: [code]./game.sh test headless_bot_styles[/code].
 
 const TICK_RATE := 64
 const MAP := &"dm_atrium"

@@ -1,12 +1,8 @@
 extends Node
 
-## Every weapon model dropped onto a stair run under many RNG seeds: how long until the drop comes to rest for good. A drop
-## on a tread edge used to lose its support and fall again over and over; now it settles within [constant MAX_SETTLE_SEC].
-## SEEDS=n sets the seed count; VERBOSE=1 prints every check.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_weapondrop_settle.tscn
-## [/codeblock]
+## Every weapon model dropped onto a stair run under many RNG seeds: time until it rests, within
+## [constant MAX_SETTLE_SEC]. SEEDS=n sets the seed count; VERBOSE=1 prints every check.
+## Run: [code]godot --headless --path . res://examples/headless_weapondrop_settle.tscn[/code].
 
 const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
 ## The slowest drop a seed may have, in seconds from spawn to its last rest (the forced rest at SETTLE_MAX_SEC plus the grounding ticks). 0 unlimited (the distribution is only printed).
