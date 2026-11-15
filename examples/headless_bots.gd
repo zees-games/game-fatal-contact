@@ -53,9 +53,9 @@ const REFERENCE := 2
 ## With hidden respawns, 600 s each: easy 0.62, medium 1.42, hard 1.67, nightmare 2.91.
 ## Three seed pairs at 66 Hz (two runs): easy 0.53-0.60, medium 1.59-1.62, hard 1.48-1.49, nightmare 2.72-3.05; 0 blind shots.
 ## Medium and hard sit within a few deaths of each other since the tick-perf/stagger changes, hence the loose ordering and the 1.8 cap.
-## Bisect (single runs, medium/hard): 0d6a96a 1.17/1.44, 42eeca1 1.27/1.62, 85c643c 1.15/1.49, cb60933 1.53/1.60.
-## Neither the stagger clamp (0d6a96a) nor tick-perf (42eeca1) weakened hard; medium rose from ~1.2 to ~1.55 once the built-in DM maps
-## dropped their physics props (99b4f95..cb60933: more open lines of sight, fewer medium deaths). Bot code is not the cause.
+## Bisect (single runs, medium/hard): 89e97d0 1.17/1.44, ee3c396 1.27/1.62, 28e881e 1.15/1.49, 027a9a3 1.53/1.60.
+## Neither the stagger clamp (89e97d0) nor tick-perf (ee3c396) weakened hard; medium rose from ~1.2 to ~1.55 once the built-in DM maps
+## dropped their physics props (06f64d3..027a9a3: more open lines of sight, fewer medium deaths). Bot code is not the cause.
 const KD_BANDS := {
 	"easy": [0.0, 0.7],
 	"medium": [0.5, 1.8],

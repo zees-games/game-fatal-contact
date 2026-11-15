@@ -44,7 +44,7 @@ static func server_map_keys(server: Object) -> PackedStringArray:
 # a CDN lacks is retried at its latest.json in solo (dev has 1.0.4 and no 1.0.3).
 const STANDALONE_KEYS: PackedStringArray = [
 	"gamemann/aim-forts@1.0.5",
-	# cp-orange-x3: stripped pack (every texture/model mapped to CC0, check_packs clean) from fc-dm-maps v1.0.8: grey/orange floors on CC0 concrete/brick instead of the Kenney grid (dot-map-convert 1a8be74); member of asset 116.
+	# cp-orange-x3: stripped pack (every texture/model mapped to CC0, check_packs clean) from fc-dm-maps v1.0.8: grey/orange floors on CC0 concrete/brick instead of the Kenney grid (dot-map-convert afc4aea); member of asset 116.
 	"gamemann/cp-orange-x3@1.0.8",
 	"gamemann/crackhouse@1.0.5",
 	"gamemann/dm-hot-cn-v1@1.0.5",

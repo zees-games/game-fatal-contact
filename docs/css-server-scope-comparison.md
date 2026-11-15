@@ -80,7 +80,7 @@ A/B results (n=3 interleaved, staging02, sim host up): see the "A/B" section bel
 
 ## A/B
 
-Interleaved A/B, n=3 a side, windowed on staging02 with the sim host up (`SIM_HOST ready ... bots=31` in every leg). A is the base (`15906d1`) and B is this change. Values are means over each leg's sim-host lines after the first.
+Interleaved A/B, n=3 a side, windowed on staging02 with the sim host up (`SIM_HOST ready ... bots=31` in every leg). A is the base (`251b18a`) and B is this change. Values are means over each leg's sim-host lines after the first.
 
 **Default threads** (`--sim-host 1`, `bot_threads=3`):
 
