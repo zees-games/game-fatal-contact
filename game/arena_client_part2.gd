@@ -268,11 +268,11 @@ func _build_netcode() -> DotResult:
 	ArenaLoadTimeline.mark("netcode: messages sealed")
 
 	# The client halves, built here because each needs the bridge.
-	extras = ArenaClientExtras.new()
+	extras = (load(ARENA_CLIENT_EXTRAS) as GDScript).new()
 	extras.name = "Extras"
 	add_child(extras)
 
-	var extra := extras.attach(bridge, game)
+	var extra: DotResult = extras.attach(bridge, game)
 	DotLog.result(CHANNEL, "the client's chat, voice and map layers", extra)
 	ArenaLoadTimeline.mark("netcode: extras attached")
 	_install_profiler_context()

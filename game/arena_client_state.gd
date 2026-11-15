@@ -8,7 +8,10 @@ const ArenaViewArms := preload("arena_view_arms.gd")
 const ArenaBindings := preload("arena_bindings.gd")
 const ArenaBots := preload("arena_bots.gd")
 const ArenaBrowser := preload("arena_browser.gd")
-const ArenaClientExtras := preload("arena_client_extras.gd")
+## Loaded when a link is built ([method _build_netcode]), never preloaded: the extras pull dot-chat,
+## dot-voice and the map sync client (about 50 scripts, ~9 MB of MEMORY_STATIC), and an offline
+## game never builds them.
+const ARENA_CLIENT_EXTRAS := "res://game/arena_client_extras.gd"
 const ArenaEvents := preload("arena_events.gd")
 const ArenaWeaponSkins := preload("arena_weapon_skins.gd")
 const ArenaFrameProbe := preload("arena_frame_probe.gd")
@@ -121,7 +124,9 @@ var link: Node = null
 ## [b]Null offline, deliberately.[/b] All three are about a server that is telling this
 ## client something, and an offline game has nobody to be told by. Building them anyway
 ## would open a microphone in a single-player match.
-var extras: ArenaClientExtras = null
+## An `arena_client_extras.gd`, typed as Node so the client does not compile it (see
+## [constant ARENA_CLIENT_EXTRAS]).
+var extras: Node = null
 
 ## Play alone even when a link is available. `--offline`.
 @export var force_offline: bool = false

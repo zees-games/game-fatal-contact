@@ -1,6 +1,8 @@
 extends "arena_presentation_b1.gd"
 
-const ArenaVote := preload("arena_vote.gd")
+# The cue ids only (ArenaVote.CUE_* are these): `arena_vote.gd` is server-side, and preloading it
+# here compiled the vote and dot-vote into every client.
+const ArenaVote := preload("arena_vote_cues.gd")
 ## Ids that play recorded files from the addons: id -> [folder, file stem, how many, gain dB, pitch
 ## low, pitch high]. Folder: &"weapons", &"stock" (dot-audio `stock/`) or &"toys" (dot-props). The
 ## recipes in [method sound_recipes] stay for a build that lacks the files.

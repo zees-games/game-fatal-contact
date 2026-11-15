@@ -32,11 +32,12 @@ const ArenaVoteSource := preload("arena_vote_source.gd")
 const CHANNEL := "arena.vote"
 
 ## The vote's sound cues, as ids in [code]ArenaPresentation.sound_catalogue()[/code]. One
-## copy: the rules name them and the catalogue defines them, both from here.
-const CUE_START := &"vote_start"
-const CUE_END := &"vote_end"
-const CUE_WARNING := &"vote_warning"
-const CUE_COUNT := &"vote_count"
+## copy, in [code]arena_vote_cues.gd[/code]: the rules name them and the catalogue defines them.
+const ArenaVoteCues := preload("arena_vote_cues.gd")
+const CUE_START := ArenaVoteCues.CUE_START
+const CUE_END := ArenaVoteCues.CUE_END
+const CUE_WARNING := ArenaVoteCues.CUE_WARNING
+const CUE_COUNT := ArenaVoteCues.CUE_COUNT
 
 ## The key in the running game's descriptor metadata an operator's overrides are read
 ## from — [code]metadata: map_vote:[/code] in a delivered game's [code]game.yml[/code].
