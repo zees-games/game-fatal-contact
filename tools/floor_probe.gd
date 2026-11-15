@@ -6,14 +6,20 @@ const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
 
 ## How far offline bots' drawn bodies sink into the floor, in absolute metres (DotClipMetrics'
 ## floor_contact is relative to the first frame): lowest sole and root against a floor ray, per frame.
-## `hv . scene res://tools/floor_probe.tscn -- [--bots 12] [--seconds 20] [--unit 0.025]`
+## `hv . scene res://tools/floor_probe.tscn -- [--bots 12] [--seconds 20] [--unit 0.025] [--pre-draw] [--worst 25, 0 = all]`
+## Samples run after every other node's `_process` (the `Late` node); `--pre-draw` samples at the renderer's
+## `frame_pre_draw` instead, to see what is actually drawn. Rows: stand and crouch (sole), root (body mesh),
+## figure (figure node), body (figure plus its stored floor lift).
 
 var _bots := 12
+var _worst_rows := 25  ## worst samples printed per list; 0 = all
 var _seconds := 20.0
 var _unit := 0.0
+var _pre_draw := false
 var _client: Node = null
 var _clear := {}
 var _worst: PackedStringArray = []
+var _root_worst: PackedStringArray = []
 var _floor_normal := Vector3.UP
 
 
@@ -25,6 +31,8 @@ func _ready() -> void:
 			"--bots": _bots = int(args[i + 1])
 			"--seconds": _seconds = float(args[i + 1])
 			"--unit": _unit = float(args[i + 1])
+			"--worst": _worst_rows = int(args[i + 1])
+	_pre_draw = args.has("--pre-draw")
 	var _scratch := ArenaPresentation.use_scratch_settings("floor_probe")
 	if _unit > 0.0:
 		get_tree().node_added.connect(_override_unit)
@@ -38,18 +46,33 @@ func _override_unit(node: Node) -> void:
 		config.avatar_unit_metres = _unit
 
 
+class Late extends Node:
+	signal tick
+	func _process(_d: float) -> void:
+		tick.emit()
+
+
+var _late: Late
+
+
 func _run() -> void:
+	_late = Late.new()
+	_late.process_priority = 1 << 30
+	add_child(_late)
 	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	_client.set("offline_bots", _bots)
 	add_child(_client)
 	await _frames_for(30.0)
-	var rows := {"stand": PackedFloat64Array(), "crouch": PackedFloat64Array(), "root": PackedFloat64Array()}
+	var rows := {"stand": PackedFloat64Array(), "crouch": PackedFloat64Array(), "root": PackedFloat64Array(), "figure": PackedFloat64Array(), "body": PackedFloat64Array()}
 	var t0 := Time.get_ticks_usec()
 	var heights := {}
 	while (Time.get_ticks_usec() - t0) / 1.0e6 < _seconds:
-		await get_tree().process_frame
+		if _pre_draw:
+			await RenderingServer.frame_pre_draw
+		else:
+			await _late.tick
 		for p: ArenaPlayer in _client.game.players():
 			if p.camera != null or p.figure == null or p.body_mesh == null or not p.body_mesh.visible or not p.is_alive():
 				continue
@@ -60,18 +83,42 @@ func _run() -> void:
 			if is_nan(floor_y):
 				continue
 			heights["%.3f" % p.figure.height] = true
-			rows.root.append(p.body_mesh.global_position.y - floor_y)
+			var root_gap := p.body_mesh.global_position.y - floor_y
+			rows.root.append(root_gap)
+			var fig_gap := p.figure.global_position.y - floor_y
+			rows.figure.append(fig_gap)
+			rows.body.append(fig_gap + float(p.figure.get("floor_lift") if p.figure.get("floor_lift") != null else 0.0))
+			if root_gap < -0.05 and (_worst_rows == 0 or _root_worst.size() < _worst_rows):
+				_root_worst.append(_root_row(p, root_gap, fig_gap, floor_y))
 			var sole := _sole_y(p.figure)
 			if not is_nan(sole):
 				(rows.crouch if state.is_crouched() else rows.stand).append(sole - floor_y)
-				if sole - floor_y < -0.06 and _worst.size() < 12:
+				if sole - floor_y < -0.06 and (_worst_rows == 0 or _worst.size() < _worst_rows):
 					_worst.append("gap %.3f clip %s speed %.2f crouch %.2f step %d normal_y %.2f" % [sole - floor_y, p.figure.clip, state.horizontal_speed(), state.crouch_fraction, p.figure.anim_step, _floor_normal.y])
 	print("FLOOR_PROBE figure heights %s stand_height %.3f" % [str(heights.keys()), ArenaPlayerTunables.stand_height_m()])
 	for w: String in _worst:
 		print("FLOOR_PROBE worst ", w)
+	for w: String in _root_worst:
+		print("FLOOR_PROBE rootworst ", w)
 	for key: String in rows:
 		print("FLOOR_PROBE %s" % _line(key, rows[key]))
 	get_tree().quit(0)
+
+
+func _root_row(p: ArenaPlayer, root_gap: float, fig_gap: float, floor_y: float) -> String:
+	var f = p.figure
+	var state: DotFpsState = p.controller.state
+	var lift_now: float = f.legs.floor_lift(f, f.floor_mask, 0.45)
+	var lift_game: float = f.legs.floor_lift(f, p.controller.tunables.collision_mask, 0.45)
+	var parts := PackedStringArray([
+		"root %.3f fig %.3f" % [root_gap, fig_gap],
+		"state_y-floor %.3f prev_y-floor %.3f" % [state.position.y - floor_y, p.controller.previous_position().y - floor_y],
+		"normal_y %.2f speed %.2f clip %s" % [_floor_normal.y, state.horizontal_speed(), f.clip],
+		"lift now %.3f game_mask %.3f stored %.3f" % [lift_now, lift_game, f.floor_lift],
+		"state %s masks fig %d game %d" % [f.state, f.floor_mask, p.controller.tunables.collision_mask],
+		"processing %s seated %s driving %s" % [f.is_processing(), f.seated, f.driving],
+	])
+	return " | ".join(parts)
 
 
 func _line(key: String, v: PackedFloat64Array) -> String:
@@ -81,11 +128,14 @@ func _line(key: String, v: PackedFloat64Array) -> String:
 	s.sort()
 	var sum := 0.0
 	var sunk := 0
+	var deep := 0
 	for x in s:
 		sum += x
 		if x < -0.03:
 			sunk += 1
-	return "%-6s n %d min %.3f p05 %.3f p50 %.3f mean %.3f max %.3f below_3cm %.1f%%" % [key, s.size(), s[0], s[s.size() / 20], s[s.size() / 2], sum / s.size(), s[s.size() - 1], 100.0 * sunk / s.size()]
+		if x < -0.04:
+			deep += 1
+	return "%-6s n %d min %.3f p05 %.3f p50 %.3f mean %.3f max %.3f below_3cm %.1f%% n_below_4cm %d" % [key, s.size(), s[0], s[s.size() / 20], s[s.size() / 2], sum / s.size(), s[s.size() - 1], 100.0 * sunk / s.size(), deep]
 
 
 func _floor_under(p: ArenaPlayer) -> float:
