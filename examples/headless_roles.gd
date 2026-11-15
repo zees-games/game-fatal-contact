@@ -33,6 +33,7 @@ func _ready() -> void:
 	_check(Roles.wire_ids().slice(0, AwWeaponIds.all().size()) == AwWeaponIds.all(), "wire ids start with the append-only list")
 	_check(own_count > 0 and ArenaContent.weapons().size() == own_count, "catalogue is the own pack's alone: %d" % own_count)
 	_check_groups(false)
+	_check_carry_mask()
 
 	for dir in ["zz_modern_weapons", "arena_weapons"]:
 		if not ResourceLoader.exists("res://addons/%s/spawn_provider.gd" % dir):
@@ -65,6 +66,36 @@ func _ready() -> void:
 	Roles.clear()
 	print("RESULT: ", "PASS" if _failed == 0 and _checks >= 5 else "FAIL", " ", _checks, " checks, ", _failed, " failed")
 	get_tree().quit(1 if _failed > 0 else 0)
+
+
+## `ArenaContent.carry_mask` (one pass over the carried weapons) against the one `carries` per wire id it replaced, empty, held
+## and with a weapon stowed behind another in its slot.
+func _check_carry_mask() -> void:
+	var arsenal := DotWeaponArsenal.new()
+	arsenal.max_slots = ArenaPlayer.MAX_SLOTS
+	arsenal.catalogue = ArenaPlayer.weapon_catalogue()
+	arsenal.carry = DotWeaponCarry.new()
+	arsenal.carry.slot_capacity = 3
+	add_child(arsenal)
+	var _set := arsenal.setup()
+	var ids := Roles.wire_ids()
+	var by_slot: Dictionary = {}
+	for i in range(ArenaContent.carry_bits()):
+		var def := arsenal.catalogue.get_def(ids[i])
+		if def != null:
+			var row: Array = by_slot.get(def.slot, [])
+			row.append(ids[i])
+			by_slot[def.slot] = row
+	var same := ArenaContent.carry_mask(arsenal) == ArenaContent.carry_mask_by_id(arsenal) and ArenaContent.carry_mask(arsenal) == 0
+	var stowed := false
+	for slot: int in by_slot:
+		for id: StringName in by_slot[slot].slice(0, 2):
+			var _given := arsenal.give(id)
+		stowed = stowed or arsenal.weapons_in(slot).size() > 1
+		same = same and ArenaContent.carry_mask(arsenal) == ArenaContent.carry_mask_by_id(arsenal)
+	_check(same and stowed and ArenaContent.carry_mask(arsenal) != 0,
+		"carry_mask matches one carries() per wire id, a weapon stowed: %d" % ArenaContent.carry_mask(arsenal))
+	arsenal.free()
 
 
 ## The download groups the server announces for fc-weapons (`ArenaModule.addon_groups`): exactly the catalogue's, or everything
