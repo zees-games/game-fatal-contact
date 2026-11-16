@@ -72,6 +72,11 @@ class NavWorld:
 		_par_space = null
 		_par_trace = null
 
+	## No native sight scan while brains think in parallel: dot-bot gives it only to the main thread, so the
+	## brains that happened to run there scanned natively and the rest in script, a mix that changed run to run.
+	func senses(all: Array) -> Object:
+		return null if par else super(all)
+
 	func _glass_of_trace() -> DotMapGlassSight:
 		var g: Variant = _par_trace.get("glass")
 		return g as DotMapGlassSight if g is DotMapGlassSight and (g as DotMapGlassSight).glass_mask != 0 else null
