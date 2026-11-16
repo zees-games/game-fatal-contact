@@ -1,5 +1,5 @@
 @tool
-extends "arena_player_part2.gd"
+extends "arena_player_body.gd"
 
 ## The controller's state as drawn at [param alpha] through its last tick, from -1 to 2. `DotFpsController.render_state` blends the last two ticks, 0 to 1. A connected client's alpha leaves that range for a fifth of a second after a physics frame that ran no tick or
 ## two (`DotNetClock.render_alpha` keeps the drawing where it was and takes the slip up slowly), and clamped there the eye stood still or jumped a tick, which is what the slip handling is for. Past 1 it goes on along the last tick's step; below 0 it is between the

@@ -1,4 +1,4 @@
-extends "headless_match_part6.gd"
+extends "headless_match_climb_routes.gd"
 
 ## Every position and velocity of the north gallery's two wall routes, driven the
 ## intended way, as one hash.

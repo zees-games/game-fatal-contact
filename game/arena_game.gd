@@ -1,5 +1,5 @@
 @tool
-extends "arena_game_part3.gd"
+extends "arena_game_setup.gd"
 
 ## Work heard between ticks that touches the physics space (a respawn, a restart, a map change),
 ## held for the next server tick; armed only by [code]ArenaModule[/code]. See dot_tick_gate.gd.

@@ -1,4 +1,4 @@
-extends "arena_map_part3.gd"
+extends "arena_map_imported.gd"
 
 const ArenaLoadTimeline := preload("../game/arena_load_timeline.gd")
 

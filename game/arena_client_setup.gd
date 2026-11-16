@@ -1,4 +1,4 @@
-extends "arena_client_part2.gd"
+extends "arena_client_session_events.gd"
 
 ## A browser draws the sun's shadow in one orthogonal map, not in dot-game's web default of 2 splits: each split is another depth pass over every body and gun, the largest single cost of a 16v16 browser frame after the bodies themselves.
 ## Built-in maps already use one (see arena_map_lighting.gd); this covers imported ones. `r_sun_shadow_splits=2`, as a launch argument or URL query, still wins. Native is unchanged.

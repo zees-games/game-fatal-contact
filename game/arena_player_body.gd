@@ -1,5 +1,5 @@
 @tool
-extends "arena_player_part1.gd"
+extends "arena_player_build.gd"
 
 const ArenaFlagCarry := preload("arena_flag_carry.gd")
 const ArenaScopePrefs := preload("arena_scope_prefs.gd")

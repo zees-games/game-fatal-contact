@@ -1,4 +1,4 @@
-extends "headless_match_part2.gd"
+extends "headless_match_streaks_and_lag.gd"
 
 # --- Spectating ------------------------------------------------------------
 

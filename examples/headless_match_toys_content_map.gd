@@ -1,4 +1,4 @@
-extends "headless_match_part3.gd"
+extends "headless_match_spectating_and_objectives.gd"
 
 const ArenaTestToys := preload("arena_test_toys.gd")
 

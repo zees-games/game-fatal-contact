@@ -1,4 +1,4 @@
-extends "headless_match_part7.gd"
+extends "headless_match_wall_rules_and_interface.gd"
 
 ## dot-stats, dot-achievements and dot-leaderboard, over the match that just ran. Every check is against a number the match
 ## PRODUCED, not one this test filed: reading back one's own readings tests dot-stats, and what is untested elsewhere is

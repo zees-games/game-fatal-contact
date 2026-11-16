@@ -1,5 +1,5 @@
 @tool
-extends "arena_game_part2.gd"
+extends "arena_game_tick.gd"
 
 ## The monsters and the props the mode asks for.
 func _reconcile_world_layers() -> void:

@@ -1,4 +1,4 @@
-extends "headless_match_part5.gd"
+extends "headless_match_pits_and_reach.gd"
 
 ## `dm_box`'s upper level, climbed and walked by a bot rather than believed: from the floor up the
 ## west crates onto the ledge, one across each gantry, one up the north nest.

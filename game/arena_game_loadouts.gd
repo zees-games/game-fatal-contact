@@ -1,5 +1,5 @@
 @tool
-extends "arena_game_part1.gd"
+extends "arena_game_combat.gd"
 
 func _loadout_key(id: int) -> String:
 	return loadout_identity.key_of(id)

@@ -1,4 +1,4 @@
-extends "arena_client_part3.gd"
+extends "arena_client_setup.gd"
 
 ## What the renderer drew last frame, and the lights that cast shadows: the web's budget is draw calls.
 func _render_cost() -> Dictionary:

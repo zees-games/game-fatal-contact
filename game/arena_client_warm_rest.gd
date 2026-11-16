@@ -1,4 +1,4 @@
-extends "arena_client_part1.gd"
+extends "arena_client_hud_and_camera.gd"
 
 ## The cover's render warm-up: milliseconds a round's frame may cost, the bare load frame included; see setup's use.
 const GATE_WARM_BUDGET_MSEC := 100.0
@@ -8,7 +8,7 @@ const SPAWN_ARTS: Array[StringName] = [&"pistol", &"knife"]
 const WEB_GATE_TIMEOUT_SEC := 60.0
 var _rest_paths: Array[String] = []
 
-## The client's platform build and the warm-up of what the gate does not cover (spawn models, weapons) after it lifts. Split out of arena_client_part2.gd for file size.
+## The client's platform build and the warm-up of what the gate does not cover (spawn models, weapons) after it lifts. Split out of arena_client_session_events.gd for file size.
 
 
 func _spawn_model_paths() -> Array[String]:

@@ -1,4 +1,4 @@
-extends "arena_map_part1.gd"
+extends "arena_map_routes_and_dm_box.gd"
 
 ## The second arena: an open-roofed building in a yard, and three ways onto its roof.
 ##

@@ -1,4 +1,4 @@
-extends "headless_match_part8.gd"
+extends "headless_match_progression.gd"
 
 # --- Changing the map ------------------------------------------------------
 

@@ -1,4 +1,4 @@
-extends "headless_match_part11.gd"
+extends "headless_match_atrium_and_loadout.gd"
 
 func _run() -> void:
 	print("game-fatal-contact headless match")

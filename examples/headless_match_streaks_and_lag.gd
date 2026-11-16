@@ -1,4 +1,4 @@
-extends "headless_match_part1.gd"
+extends "headless_match_modes_and_drops.gd"
 
 # --- Weapon modes ------------------------------------------------------------
 

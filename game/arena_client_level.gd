@@ -11,7 +11,7 @@ const LEVEL_WARM_BATCH := 4
 ## frame is about 18 ms on staging02, so a round leaves room for a compile or two and stays near 33 ms.
 const LEVEL_WARM_BUDGET_MSEC := 30.0
 
-## The level half of the client's boot: entering a map, classifying it and warming its shaders in frame-sized slices. Split out of arena_client_part1.gd for file size.
+## The level half of the client's boot: entering a map, classifying it and warming its shaders in frame-sized slices. Split out of arena_client_hud_and_camera.gd for file size.
 
 
 ## Puts the drawn level on the layout's `world` layer.

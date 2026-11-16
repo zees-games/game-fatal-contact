@@ -1,4 +1,4 @@
-extends "headless_match_part2.gd"
+extends "headless_match_streaks_and_lag.gd"
 
 ## Capture the flag end to end: scripted bots carry flags on a real game, two and three teams, drop and return, both limits, the fallback bases, authored flag stands and the replicated state.
 

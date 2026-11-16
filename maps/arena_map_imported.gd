@@ -1,4 +1,4 @@
-extends "arena_map_part2.gd"
+extends "arena_map_atrium.gd"
 
 ## An imported map by id, built from its manifest, or null.
 ##

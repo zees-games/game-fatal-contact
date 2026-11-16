@@ -1,4 +1,4 @@
-extends "headless_match_part10.gd"
+extends "headless_match_horde_and_siege.gd"
 
 ## [b]The second map, walked rather than asserted.[/b]  A map is a rendered, playable thing and this
 ## family has shipped a 0 x 0 Control twice and a black screen once.

@@ -1,4 +1,4 @@
-extends "headless_match_part4.gd"
+extends "headless_match_toys_content_map.gd"
 
 ## `dm_pit`: the geometry, the bot that has to get out of the pit, and the mode gate.
 func _test_pit() -> void:

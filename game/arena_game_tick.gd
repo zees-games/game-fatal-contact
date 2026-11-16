@@ -1,5 +1,5 @@
 @tool
-extends "arena_game_part2a.gd"
+extends "arena_game_loadouts.gd"
 
 ## Deals an imported map's hurt volumes (`trigger_hurt`) to everybody standing in one, as
 ## world damage through dot-combat.
@@ -381,10 +381,10 @@ func tick(commands: Dictionary = {}) -> void:
 			ArenaFrameProbe.lap(&"s_bullets", t_lap)
 	ArenaFrameProbe.add(&"tick_shots", t_shots)
 
-	tick_part2(shots, delta, t_lap)
+	_tick_world_systems(shots, delta, t_lap)
 
 
-func tick_part2(shots: Array[DotShot], delta, t_lap) -> void:
+func _tick_world_systems(shots: Array[DotShot], delta, t_lap) -> void:
 	var t_world := Time.get_ticks_usec()
 	t_lap = ArenaFrameProbe.lap_start()
 	if map_io != null:
@@ -415,10 +415,10 @@ func tick_part2(shots: Array[DotShot], delta, t_lap) -> void:
 		knives.tick(_tick, delta)
 		t_lap = ArenaFrameProbe.lap(&"w_knives", t_lap)
 
-	tick_part3(delta, t_lap, t_world)
+	_tick_scene_systems(delta, t_lap, t_world)
 
 
-func tick_part3(delta, t_lap, t_world) -> void:
+func _tick_scene_systems(delta, t_lap, t_world) -> void:
 	if props != null:
 		props.tick(delta)
 		t_lap = ArenaFrameProbe.lap(&"w_props", t_lap)
