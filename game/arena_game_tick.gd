@@ -163,6 +163,8 @@ func _start_motor_batch(delta: float) -> bool:
 
 ## The players' loop, one whole tick after another.
 func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_world: Object, shots: Array[DotShot]) -> void:
+	# Once a tick, not per player: the level check stats the addon's folder on disk (~90 us a player a tick at 64 players).
+	var knife_charge := knives != null and DotAddonApi.build_level("dot_weapon") >= 41
 	# `ArenaFrameProbe.fine` (bench `--fine 1`) splits this loop's own work from the player's tick.
 	var fine := ArenaFrameProbe.fine
 	var t_fine := 0
@@ -181,7 +183,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 		var fire: DotWeaponCommand = pair[1] if pair.size() > 1 else DotWeaponCommand.new()
 		if knives != null:
 			knives.input(id, player, fire)
-			player.windup = knives.call(&"charge_of", id) if DotAddonApi.build_level("dot_weapon") >= 41 else -1.0
+			player.windup = knives.call(&"charge_of", id) if knife_charge else -1.0
 
 		if move != null and fire != null:
 			match_node.note_activity(str(id), _tick)
@@ -222,6 +224,8 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 ## of that player's tick. A player whose tick ends elsewhere than its motor left it (a pit, a death) has the later rows
 ## run again, so the states are the one-by-one loop's as long as no turn changes another player ([member ArenaHullGrid.batch_faults]).
 func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Object, shots: Array[DotShot]) -> void:
+	# Once a tick, not per player: the level check stats the addon's folder on disk (~90 us a player a tick at 64 players).
+	var knife_charge := knives != null and DotAddonApi.build_level("dot_weapon") >= 41
 	var fine := ArenaFrameProbe.fine
 	var t_fine := 0
 	var ids := player_ids()
@@ -244,7 +248,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		var fire: DotWeaponCommand = pair[1] if pair.size() > 1 else DotWeaponCommand.new()
 		if knives != null:
 			knives.input(id, player, fire)
-			player.windup = knives.call(&"charge_of", id) if DotAddonApi.build_level("dot_weapon") >= 41 else -1.0
+			player.windup = knives.call(&"charge_of", id) if knife_charge else -1.0
 		if move == null or fire == null:
 			continue
 		match_node.note_activity(str(id), _tick)

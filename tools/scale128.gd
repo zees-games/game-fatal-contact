@@ -86,6 +86,8 @@ func _ready() -> void:
 				DotWeaponArsenal.phase_timers = AwWeaponRig.phase_timers
 			"--native": DotBotWorld.native_enabled = args[i + 1] != "0"
 			"--motornative": DotFpsPhysicsBody.native_enabled = args[i + 1] != "0"
+			# --fine 1: ArenaFrameProbe.fine for the recording, so the sections split tick_players, bots and the world (laps).
+			"--fine": _fine = args[i + 1] != "0"
 	DotLog.set_level(DotLog.Level.ERROR)
 	var _scratch := ArenaPresentation.use_scratch_settings("scale128_" + _role)
 	for is_start in [true, false]:
@@ -189,6 +191,7 @@ func _report(extra: Dictionary) -> void:
 
 
 var _motorprof := false
+var _fine := false
 var _spawn := false
 
 
@@ -238,6 +241,7 @@ func _begin_record() -> void:
 		DotFpsMotor.phase_us.fill(0)
 		DotFpsController.phase_us.fill(0)
 	ArenaFrameProbe.set_interval(1.0e9)
+	ArenaFrameProbe.fine = _fine
 	ArenaFrameProbe._sections.clear()
 	AwWeaponRig.phase_us.fill(0)
 	AwWeaponRig.phase_calls.fill(0)
