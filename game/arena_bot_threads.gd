@@ -21,16 +21,31 @@ static var threads: int = launch_default()
 const WEB_THREADS := 4
 
 
+## Most brain threads [method native_default] gives; the cvar sets any count. On staging02 at 64 players
+## (2026-11-16) 3 threads took the sim from 24.7 to 22.3 ms/tick and 6 gave nothing more.
+const NATIVE_THREADS_MAX := 4
+
+
 ## [member threads] before the cvar says otherwise: [constant WEB_THREADS] (at most the browser's
-## cores) on a threaded web engine, else 0. The page's `?bot_threads=N` overrides it, so a browser
-## measurement can compare counts from a URL. The single-threaded engine always thinks on the main thread.
+## cores) on a threaded web engine, [method native_default] on a desktop or dedicated server, 0 on the
+## single-threaded web engine, which always thinks on the main thread. The page's `?bot_threads=N`
+## overrides the web count, so a browser measurement can compare counts from a URL.
 static func launch_default() -> int:
-	if not (DotPlatform.is_web() and DotPlatform.has_threads()):
+	if not DotPlatform.is_web():
+		return native_default() if DotPlatform.has_threads() else 0
+	if not DotPlatform.has_threads():
 		return 0
 	var asked := ArenaFrameProbe.launch_value("bot_threads")
 	if asked.is_valid_int():
 		return clampi(int(asked), 0, 64)
 	return mini(WEB_THREADS, OS.get_processor_count())
+
+
+## A quarter of the machine's threads, at most [constant NATIVE_THREADS_MAX]; 0 (one bot after another)
+## below 8, where the game's own threads already fill the cores.
+static func native_default() -> int:
+	var n := mini(floori(OS.get_processor_count() / 4.0), NATIVE_THREADS_MAX)
+	return n if n >= 2 else 0
 
 ## Ticks whose brains went through the worker path (for the suite).
 static var par_ticks: int = 0

@@ -21,8 +21,6 @@ const CHANNEL := "arena.sim_server"
 const REPORT_SEC := 5.0
 const GONE_SEC := 5.0
 const NEVER_SEC := 120.0
-## Most brain threads this process takes by default; the client renders on the same machine.
-const BOT_THREADS_MAX := 4
 
 var _server: DotServer = null
 var _joined := false
@@ -153,7 +151,7 @@ func _apply_cvars(server: DotServer) -> bool:
 
 func _apply_bench_flags() -> void:
 	# The brains on worker threads: the same match as one thread (headless_botthreads), less of each tick.
-	ArenaBotThreads.threads = maxi(0, int(_arg("--bot_threads", str(default_bot_threads()))))
+	ArenaBotThreads.threads = maxi(0, int(_arg("--bot_threads", str(ArenaBotThreads.native_default()))))
 	# dot-bot's native mind (the `bot_native_brain` cvar, off by default) for a bench's A/B; brains on workers leave it.
 	var brain_native := _arg("--bot_native_brain", "")
 	if brain_native != "":
@@ -369,12 +367,6 @@ static func phases_line(ticks: int) -> String:
 func _die(why: String) -> void:
 	printerr("arena sim server: ", why)
 	get_tree().quit(1)
-
-
-## A quarter of the machine's threads, at most [constant BOT_THREADS_MAX]; 0 (one after another) below 8.
-static func default_bot_threads() -> int:
-	var n := mini(floori(OS.get_processor_count() / 4.0), BOT_THREADS_MAX)
-	return n if n >= 2 else 0
 
 
 static func _arg(flag: String, fallback: String) -> String:
