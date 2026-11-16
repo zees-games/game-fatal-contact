@@ -501,6 +501,21 @@ func _pull_exact(state: DotFpsState) -> void:
 		_push_exact(state)
 
 
+## [method DotFpsNetSync.push] for this behaviour, which declares net_timers2 and neither net_timers nor
+## net_stamina: the same writes in the same order, read as properties rather than through `get`, and the
+## modifier list left alone when it is empty and the mask is zero (the usual case).
+func _push_fps(state: DotFpsState) -> void:
+	state.position = net_position
+	state.velocity = net_velocity
+	state.yaw = net_yaw
+	state.pitch = net_pitch
+	state.crouch_fraction = net_crouch
+	DotFpsNetSync.unpack_flags(state, net_flags)
+	if net_modifiers != 0 or not state.modifiers.is_empty():
+		DotFpsNetSync.unpack_modifiers(state, net_modifiers)
+	DotFpsNetSync.unpack_timers2(state, net_timers2)
+
+
 ## Puts the exact copy over what [method DotFpsNetSync.push] restored from the quantised one.
 ## Empty on everybody but the owner (and before the first snapshot), which keeps the push.
 func _push_exact(state: DotFpsState) -> void:
@@ -531,7 +546,7 @@ func _net_state_applied(tick: int) -> void:
 
 	last_state_tick = tick
 
-	DotFpsNetSync.push(self, player.controller.state)
+	_push_fps(player.controller.state)
 	_push_exact(player.controller.state)
 	DotCombatNetSync.push(self, player.health)
 	_push_weapons()
@@ -591,12 +606,16 @@ func _push_weapons() -> void:
 
 	# The owner's own selector is predicted; only a remote copy adopts and clicks.
 	# A remote copy whose inputs match the last push skips it: the push copies a fitting per call.
-	var unchanged := not owned and not _pushed_key.is_empty() and _remote_push_key() == _pushed_key
-	var clicks := not owned and not unchanged and DotWeaponNetSync.fire_mode_will_change(self, player.arsenal)
+	var arsenal := player.arsenal
+	# A remote copy that holds nothing and is not told to hold a slot it has: the push is a no-op and no
+	# mode can change, which is every remote player on a client that gives them no guns.
+	var idle := not owned and arsenal.current() == null and (net_slot <= 0 or not arsenal.has_slot(net_slot))
+	var unchanged := idle or (not owned and _remote_push_unchanged())
+	var clicks := not owned and not unchanged and DotWeaponNetSync.fire_mode_will_change(self, arsenal)
 	if not unchanged:
-		DotWeaponNetSync.push(self, player.arsenal, not owned)
+		DotWeaponNetSync.push(self, arsenal, not owned)
 		if not owned:
-			_pushed_key = _remote_push_key()
+			_remote_push_note()
 
 	if owned:
 		DotWeaponNetSync.correct_ammo(self, player.arsenal)
@@ -618,17 +637,42 @@ func _push_weapons() -> void:
 
 
 ## What [method DotWeaponNetSync.push] reads and writes on a remote arsenal, as of the last push: the snapshot's
-## slot, mode and fitting code, and the held slot, its mode and its fitting by identity. Empty when the push
-## could not land (a slot the arsenal lacks), so that case is always pushed again.
-var _pushed_key := PackedInt64Array()
+## slot, mode and fitting code, and the held slot, its mode and its fitting by identity. [member _pushed_held]
+## is 0 when the push could not land (a slot the arsenal lacks), so that case is always pushed again.
+var _pushed_held := 0
+var _pushed_slot := 0
+var _pushed_mode := 0
+var _pushed_fitted := 0
+var _pushed_index := 0
+var _pushed_fitting := 0
 
 
-func _remote_push_key() -> PackedInt64Array:
-	var held := player.arsenal.current()
-	if held == null or (net_slot > 0 and net_slot != player.arsenal.current_slot()):
-		return PackedInt64Array()
-	var fitting_id := held.fitting.get_instance_id() if held.fitting != null else 0
-	return PackedInt64Array([net_slot, net_fire_mode, net_fitted, held.get_instance_id(), held.fire_mode_index, fitting_id])
+func _remote_push_unchanged() -> bool:
+	if _pushed_held == 0:
+		return false
+	var arsenal := player.arsenal
+	var held := arsenal.current()
+	if held == null or net_slot != _pushed_slot or net_fire_mode != _pushed_mode or net_fitted != _pushed_fitted:
+		return false
+	if net_slot > 0 and net_slot != arsenal.current_slot():
+		return false
+	var fitting := held.fitting
+	return (held.get_instance_id() == _pushed_held and held.fire_mode_index == _pushed_index
+		and (fitting.get_instance_id() if fitting != null else 0) == _pushed_fitting)
+
+
+func _remote_push_note() -> void:
+	var arsenal := player.arsenal
+	var held := arsenal.current()
+	if held == null or (net_slot > 0 and net_slot != arsenal.current_slot()):
+		_pushed_held = 0
+		return
+	_pushed_held = held.get_instance_id()
+	_pushed_slot = net_slot
+	_pushed_mode = net_fire_mode
+	_pushed_fitted = net_fitted
+	_pushed_index = held.fire_mode_index
+	_pushed_fitting = held.fitting.get_instance_id() if held.fitting != null else 0
 
 
 ## Copies the interpolated state onto the player, every frame, on a remote one.
