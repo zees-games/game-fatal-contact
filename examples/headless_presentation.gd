@@ -41,6 +41,7 @@ func _run() -> void:
 	_test_the_final_killcam()
 	await _test_the_kill_view()
 	_test_the_view_turns_every_frame()
+	_test_remote_beams_follow_the_light()
 	_test_own_body()
 	_test_criticals_and_the_body()
 	await _test_bodies_fall()

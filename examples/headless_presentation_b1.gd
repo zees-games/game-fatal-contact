@@ -781,3 +781,74 @@ func _test_the_view_turns_every_frame() -> void:
 	client.free()
 	g.queue_free()
 	_done()
+
+
+## The other players' beams: a lit body's beam sits on its muzzle and follows it, an unlit one has none, and a
+## switch either way is kept up with, though unlit bodies are no longer read every frame.
+func _test_remote_beams_follow_the_light() -> void:
+	_section("Another player's flashlight beam follows their switch and their muzzle")
+
+	var g := ArenaGame.new()
+	g.is_authority = true
+	add_child(g)
+	var _set := g.setup(ArenaMap.dm_box())
+	var players: Array[ArenaPlayer] = []
+	for id: int in [7, 8, 9]:
+		var added: DotResult = g.add_player(id, "P%d" % id)
+		players.append(added.value if added.ok else null)
+	if players.has(null):
+		_check(false, "three players to draw")
+		g.queue_free()
+		_done()
+		return
+	var me := players[0]
+	var lit := players[1]
+	var dark := players[2]
+	var _camera := me.attach_camera()
+
+	var client := ArenaClient.new()
+	client.game = g
+	client.player = me
+	var crowd := DotFlashlightCrowd.new()
+	crowd.config = g.flashlight_conf()
+	add_child(crowd)
+	client.flash_crowd = crowd
+
+	me.flashlight = true
+	lit.flashlight = true
+	dark.flashlight = false
+	client._present_flashlights()
+	var beam: SpotLight3D = crowd._beams.get(lit.player_id, null)
+	_check(crowd._beams.size() == 1 and beam != null, "one beam, the lit other player's (not my own, not the dark one's)",
+		str(crowd._beams.keys()))
+	_check(beam != null and beam.global_position.distance_to(lit.muzzle_position()) < 0.001,
+		"and it sits on their muzzle")
+
+	lit.controller.state.position += Vector3(2.0, 0.0, 0.0)
+	lit.global_position = lit.controller.state.position
+	client._present_flashlights()
+	_check(beam != null and beam.global_position.distance_to(lit.muzzle_position()) < 0.001,
+		"a lit player who moves takes the beam along")
+
+	lit.flashlight = false
+	dark.flashlight = true
+	client._present_flashlights()
+	var now_lit: SpotLight3D = crowd._beams.get(dark.player_id, null)
+	_check(not bool(crowd._lit.get(lit.player_id, true)) and bool(crowd._lit.get(dark.player_id, false)),
+		"switching one off and the other on is seen the same frame", str(crowd._lit))
+	_check(now_lit != null and now_lit.global_position.distance_to(dark.muzzle_position()) < 0.001,
+		"and the newly lit beam starts on its muzzle")
+	_check((crowd._origins.get(lit.player_id, Vector3.INF) as Vector3).distance_to(lit.muzzle_position()) < 0.001,
+		"the one switched off was placed where it switched, for its click")
+
+	g.remove_player(dark.player_id)
+	client._present_flashlights()
+	_check(not crowd._beams.has(dark.player_id) and not client._flash_lit_was.has(dark.player_id),
+		"a player who left is forgotten", str(client._flash_lit_was))
+
+	client.player = null
+	client.game = null
+	client.free()
+	crowd.queue_free()
+	g.queue_free()
+	_done()

@@ -296,12 +296,25 @@ func _present_flashlights() -> void:
 		add_child(flash_crowd)
 	flash_crowd.set_viewer(camera_position())
 	_flash_seen.clear()
+	# Only lit beams (and a beam switching) need the muzzle and aim: an unlit body that was unlit
+	# skips both reads and the place, which most of 32 bodies are every frame.
 	for other: ArenaPlayer in game.players():
 		var key: Variant = other.player_id
 		_flash_seen.append(key)
-		flash_crowd.set_lit(key, other != player and other.flashlight and other.is_alive())
-		flash_crowd.place(key, other.muzzle_position(), other.aim_direction())
+		var lit: bool = other != player and other.flashlight and other.is_alive()
+		var was: bool = _flash_lit_was.get(key, false)
+		if lit or lit != was:
+			# Placed before set_lit, so a switch click sounds where the beam is now.
+			flash_crowd.place(key, other.muzzle_position(), other.aim_direction())
+		flash_crowd.set_lit(key, lit)
+		if lit and not was:
+			flash_crowd.place(key, other.muzzle_position(), other.aim_direction())
+		_flash_lit_was[key] = lit
 	flash_crowd.retain(_flash_seen)
+	if _flash_lit_was.size() != _flash_seen.size():
+		for key: Variant in _flash_lit_was.keys():
+			if not _flash_seen.has(key):
+				_flash_lit_was.erase(key)
 
 ## Settles the view along the wall over about a tenth of a second instead of snapping it.
 func _ease_view_turn(delta: float) -> void:

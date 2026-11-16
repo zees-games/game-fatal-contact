@@ -171,6 +171,8 @@ var flash_crowd: DotFlashlightCrowd = null
 var _flash_ticks := 0
 var _flash_msec := -100000
 var _flash_seen: Array = []
+## Each player's beam as last drawn (player_id -> lit), so unlit bodies skip the muzzle and aim reads.
+var _flash_lit_was: Dictionary = {}
 
 ## What the server last said was left on the clock, in seconds. Negative for "no
 ## limit", which is what `DotMatch.seconds_remaining` returns and what the HUD reads as
