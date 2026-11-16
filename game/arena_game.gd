@@ -245,6 +245,8 @@ func respawn_player(id: int) -> DotResult:
 	_on_respawn_due(key, match_node.choose_spawn(key, _tick), _tick)
 	return DotResult.success(player)
 
+## dot-bot-record, loaded by path in [method start_ride_recording] only: a game that never records does not compile it.
+const BOT_RECORD_DIR := "res://addons/dot_bot_record/"
 ## FC's kill view server: asks for an eye only when the ring would keep it.
 const ArenaKillViewServer := preload("arena_killview_server.gd")
 
@@ -333,18 +335,19 @@ func start_ride_recording(add_cvar: Callable = Callable(), config_file: String =
 	if DotAddonApi.build_level("dot_bot") < 5 or DotAddonApi.build_level("dot_player_controller") < 3 \
 			or not ResourceLoader.exists("res://addons/dot_bot/runtime/surf/dot_bot_ride_harvest.gd"):
 		return DotResult.fail(DotError.CODE_UNSUPPORTED, "This shell has no ride recorder.")
-	var config := DotBotDemoConfig.new()
-	config.record = false
-	var layered := config.load_layered(config_file if FileAccess.file_exists(config_file) else "")
+	# dot-bot-record's classes are loaded here, by path, so a game that never records does not compile them.
+	var config: RefCounted = (load(BOT_RECORD_DIR + "core/dot_bot_demo_config.gd") as GDScript).new()
+	config.set(&"record", false)
+	var layered: DotResult = config.call(&"load_layered", config_file if FileAccess.file_exists(config_file) else "")
 	if not layered.ok:
 		return layered
 	if add_cvar.is_valid():
-		var _cvars := config.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
-	var made := DotBotDemoStore.from_config(config, null)
+		var _cvars: Variant = config.call(&"bind_cvars", add_cvar, DotConVar.FLAG_NOTIFY)
+	var made: DotResult = (load(BOT_RECORD_DIR + "store/dot_bot_demo_store.gd") as GDScript).call(&"from_config", config, null)
 	if not made.ok or made.value == null:
 		return made if not made.ok else DotResult.fail(DotError.CODE_STATE, "bot_record_store is off.")
-	var store: DotBotDemoStore = made.value
-	var opened := store.open()
+	var store: RefCounted = made.value
+	var opened: DotResult = store.call(&"open")
 	if not opened.ok:
 		return opened
 	var rides: RefCounted = (load(ArenaPaths.rebase("res://game/arena_surf_rides.gd")) as GDScript).new()
@@ -356,7 +359,7 @@ func start_ride_recording(add_cvar: Callable = Callable(), config_file: String =
 	return DotResult.success(rides)
 
 ## Records `place` and `engage` episodes into [param store] and lets the bots roam where people stand; a no-op on a shell without dot-bot's heatmap and aim statistics.
-func start_demo_stats(config: DotBotDemoConfig, store: DotBotDemoStore) -> DotResult:
+func start_demo_stats(config: RefCounted, store: RefCounted) -> DotResult:
 	if demo_stats != null:
 		return DotResult.success(demo_stats)
 	if not ResourceLoader.exists("res://addons/dot_bot/runtime/dot_bot_demo_heatmap.gd") or not ResourceLoader.exists("res://addons/dot_bot/runtime/dot_bot_aim_stats.gd"):
