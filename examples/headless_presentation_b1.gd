@@ -177,9 +177,17 @@ func _test_the_escape_menu() -> void:
 	for page in menu.pages:
 		ids.append(page.id)
 	_check(
-		ids == ([&"general", &"interface", &"video", &"audio", &"controls", &"servers", &"advanced"] as Array[StringName]),
-		"the stock pages, Interface and Servers", str(ids)
+		ids == ([&"general", &"interface", &"video", &"audio", &"controls", &"servers", &"advanced", &"credits"] as Array[StringName]),
+		"the stock pages, Interface, Servers and Credits", str(ids)
 	)
+	# Credits: CC BY asks for every author of the team bodies, the SWAT model's part makers included.
+	menu.open(&"credits")
+	var shown := ""
+	for label in menu.screen.find_children("*", "Label", true, false):
+		shown += (label as Label).text + "\n"
+	for author in ["jayb3e", "SpatialNeglect", "bobeer", "VassKacsoHunor", "Simon Coenen", "Bzovius", "Albin", "Shedmon", "h1ggs"]:
+		_check(shown.contains(author), "the Credits page names " + author)
+	menu.close()
 	_check(p.console != null and p.console_panel != null, "the console is built with the menu")
 	p.console.open()
 	_check(menu.any_open(), "and is one of its overlays: open, the menu counts it")

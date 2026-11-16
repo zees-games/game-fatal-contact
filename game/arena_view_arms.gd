@@ -11,6 +11,8 @@ const HANDS_MIN_DISTANCE := 0.3
 ## DotPlayerViewArms' own hand size, for a weapon whose profile does not say.
 const DEFAULT_HAND_SCALE := 0.5
 const ArenaTeamBodies := preload("arena_team_bodies.gd")
+## The kit bones a team body's first-person arms keep (by prefix, both sides): [method not_arm].
+const ARM_BONES: Array[String] = ["Shoulder.", "UpperArm.", "LowerArm.", "Hand", "Thumb", "Index", "Middle", "Ring", "Pinky"]
 
 ## cl_pose_debug: draws the grip sockets, hand targets and arm bones over the view.
 static var debug_pose := false
@@ -154,7 +156,11 @@ func _process(delta: float) -> void:
 		arms.max_lean = max_lean_override if max_lean_override >= 0.0 else (lean if lean >= 0.0 else _own_lean)
 	if _look_override:
 		var over := arm_set_look(rules, _arm_set)
-		arms.set_look_override(over if over != null else team_look(body, _team_set))
+		var team := team_look(body, _team_set) if over == null else null
+		# A team body is a whole prepared figure: its vest and collar reach into the bottom of the view as the
+		# clip breathes, so only its arms are drawn. Set before the override, which rebuilds the mesh with it.
+		arms.hide_vertex_fn = not_arm if team != null else Callable()
+		arms.set_look_override(over if over != null else team)
 	if &"debug_pose" in arms and arms.debug_pose != debug_pose:
 		arms.debug_pose = debug_pose
 	var v: Vector3 = body.controller.state.velocity
@@ -163,6 +169,16 @@ func _process(delta: float) -> void:
 		arms.run = model.run_amount()
 		arms.run_phase = model.run_phase()
 	arms.tick(Vector2(v.x, v.z).length(), delta)
+
+
+## [member DotPlayerViewArms.hide_vertex_fn] for a team body: true for a vertex mostly on any bone but the
+## shoulders, arms, hands and fingers.
+static func not_arm(bone: StringName, _rest: Vector3) -> bool:
+	var name := String(bone)
+	for arm in ARM_BONES:
+		if name.begins_with(arm):
+			return false
+	return true
 
 
 ## Which of art_hand_scale, art_forearm_scale and art_max_lean [param model] has, asked once per view model

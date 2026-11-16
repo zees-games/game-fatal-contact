@@ -15,6 +15,19 @@ const ArenaAvatars := preload("arena_avatars.gd")
 
 const CHANNEL := &"arena.team_bodies"
 
+## Who made each team body, for the Credits page ([method ArenaMenus.add_pages]): body id -> lines.
+## Both are CC BY 4.0 from Sketchfab, which requires the credit wherever the art is shown. The
+## SWAT model is built from other people's CC BY parts, and each of those is credited too.
+const CREDITS := {
+	&"fc_military": [
+		"\"Game Ready Military Character\" by jayb3e (sketchfab.com/jayb3e), CC BY 4.0, via Sketchfab.",
+	],
+	&"fc_swat": [
+		"\"S.W.A.T. Operator - 4k Followers Special Remaster\" by SpatialNeglect (sketchfab.com/jeandiz), CC BY 4.0, via Sketchfab.",
+		"Built from CC BY 4.0 parts by bobeer (gloves), VassKacsoHunor (night-vision goggles), Simon Coenen (helmet), Bzovius (uniform), Albin (boots), Shedmon (balaclava) and h1ggs (KRSV Vector).",
+	],
+}
+
 ## Whether the server forces the team bodies (its `team_avatars` rule, `arena_team_avatars`).
 static var forced := true
 ## Team id -> [body id, side colour] for the sides that have a registered body; empty off a team mode.

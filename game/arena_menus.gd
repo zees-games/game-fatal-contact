@@ -4,6 +4,7 @@ const ArenaBindings := preload("arena_bindings.gd")
 const ArenaBrowser := preload("arena_browser.gd")
 const ArenaEvents := preload("arena_events.gd")
 const ArenaModes := preload("arena_modes.gd")
+const ArenaTeamBodies := preload("arena_team_bodies.gd")
 
 ## The Escape menu and the Tab board: dot-menu's, with this game's pages on it.
 ##
@@ -18,6 +19,8 @@ const ArenaModes := preload("arena_modes.gd")
 ## - **Controls**: the stock mouse card, this game's look switches and every key from
 ##   [ArenaBindings], each a key button (rebindable, swapping on a conflict).
 ## - **Servers**: dot-browser's list, drawn as a page ([method _servers_page]).
+## - **Credits**: who made the team bodies ([method credits_page]); the rest of the art is
+##   credited in the README and licence.json.
 ##
 ## **Leave** is dot-menu's stock one ([member DotMenu.leave_on_its_own]): off the server when
 ## connected, which hands the player back to whatever loaded the client, and a quit when solo
@@ -159,6 +162,21 @@ static func add_pages(menu: DotMenu, browser: ArenaBrowser = null) -> void:
 
 	if browser != null:
 		menu.add_page(_servers_page(menu, browser), &"advanced")
+	menu.add_page(credits_page())
+
+
+## The Credits page: the team bodies' authors from [constant ArenaTeamBodies.CREDITS], one section
+## per body, so a body added there is credited with nothing else edited.
+static func credits_page() -> DotMenuPage:
+	var page := DotMenuPage.make(&"credits", "Credits", "The people whose art this game uses.")
+	var names := {&"fc_military": "Military team body", &"fc_swat": "SWAT team body"}
+	for id: StringName in ArenaTeamBodies.CREDITS:
+		var section := page.section(String(names.get(id, String(id))))
+		for line: String in ArenaTeamBodies.CREDITS[id]:
+			section.add(DotMenuRow.note(line))
+	page.section("Everything else").add(DotMenuRow.note(
+		"Maps, weapons, sounds and textures: each author and licence is in this game's README and licence.json."))
+	return page
 
 
 ## Local maps: the Source game install path a dropped _orig map takes its stock textures from.

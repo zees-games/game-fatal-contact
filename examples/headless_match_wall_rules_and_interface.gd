@@ -652,8 +652,8 @@ func _test_interface() -> void:
 	for page in menu.pages:
 		page_ids.append(page.id)
 	_check(
-		page_ids == ([&"general", &"interface", &"video", &"audio", &"controls", &"advanced"] as Array[StringName]),
-		"the stock pages and this game's Interface page, in order", str(page_ids)
+		page_ids == ([&"general", &"interface", &"video", &"audio", &"controls", &"advanced", &"credits"] as Array[StringName]),
+		"the stock pages, this game's Interface page and Credits, in order", str(page_ids)
 	)
 	# The Servers page is there only with a browser behind it; a page that opened nothing
 	# would be the dot-ui menu's greyed button again.
