@@ -40,6 +40,9 @@ func _run() -> void:
 		var vm := int(parts[1]) if parts.size() > 1 else DotMenuStock.VIEWMODEL_FOV
 		var _r1 = settings.set_value(&"field_of_view", fov)
 		var _r2 = settings.set_value(&"viewmodel_fov", vm)
+		# The carry weight would refuse a heavy gun on top of the spawn loadout and leave the last one in hand.
+		if me.arsenal.carry != null:
+			me.arsenal.carry.enabled = false
 		for id in _weapons():
 			var _g = me.arsenal.give(id)
 			var _s = me.arsenal.select(me.arsenal.catalogue.get_def(id).slot, 0)

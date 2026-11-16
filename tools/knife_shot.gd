@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## A knife thrown into a bot, then one thrown at the floor: frames of it in flight, stuck in the falling body, the body at rest, and the miss lying where it bounced to.
-## `tools/knife_shot.sh [map]` writes screenshots/knife_throw/.
+## `tools/knife_shot.sh [map]` writes screenshots/knife_throw/; `--boomerang` first throws a Boomerang knife into the open and
+## frames its flight from above the thrower (spin and streak), as `<map>_5_boomerang_<n>`.
 
 const ArenaPresentation := preload("../game/arena_presentation.gd")
 const OUT_DIR := "res://screenshots/knife_throw"
@@ -64,7 +65,7 @@ func _knife_out(me) -> void:
 		if def != null and def.id == &"knife":
 			break
 		me.arsenal.bring_to_hand(slot)
-	var _out: Dictionary = me.arsenal.drop_from_slot(me.arsenal.current_slot(), [])
+	var _out: Dictionary = me.arsenal.drop_from_slot(me.arsenal.current_slot(), [] as Array[int])
 
 
 func _run() -> void:
@@ -72,10 +73,17 @@ func _run() -> void:
 	var game = client.get("game")
 	for i in range(80):
 		await _wait(0.25)
+		game = client.get("game")
 		if game != null and game.map != null and client.get("player") != null:
 			break
 	var _changed = game.change_map(load("res://maps/arena_map.gd").by_id(StringName(_map)))
 	await _wait(3.0)
+	# The weapons warm up under the loading cover after the map opens; frames before it lifts film the cover.
+	var gate: Object = client.get("gate")
+	for i in range(240):
+		if gate == null or gate.call(&"is_open"):
+			break
+		await _wait(0.25)
 	var me = client.get("player")
 	var bots: Dictionary = client.get("_bots")
 	var bot_id := int(bots.keys()[0])
@@ -95,6 +103,8 @@ func _run() -> void:
 		me.controller.teleport(spot["me"], yaw, 0.0)
 		bot.controller.teleport(spot["bot"], yaw + PI, 0.0)
 		await _wait(0.4)
+	if OS.get_cmdline_user_args().has("--boomerang"):
+		await _boomerang(game, me, spot, yaw)
 	bot.health.invulnerable = false
 	bot.health.invulnerable_until_tick = -1
 
@@ -139,3 +149,20 @@ func _run() -> void:
 	_look(miss.at if miss != null else floor_at, side, 1.2)
 	await _grab("%s_4_rest" % _map)
 	quit(1 if failures > 0 else 0)
+
+
+## A Boomerang throw along the clear direction, framed from over the thrower's shoulder while it flies out and back.
+func _boomerang(game, me, spot: Dictionary, yaw: float) -> void:
+	var dir: Vector3 = spot["dir"]
+	me.controller.teleport(spot["me"], yaw, 0.0)
+	await _wait(0.3)
+	if me.arsenal.carries(&"knife"):
+		_knife_out(me)
+	var eye: Vector3 = me.muzzle_position()
+	var _id: int = game.knives.throw(me.player_id, eye, dir, Vector3.ZERO, 1.0, true)
+	_cam.global_position = eye - dir * 2.5 + Vector3.UP * 2.5
+	_cam.look_at(eye + dir * 8.0, Vector3.UP)
+	_cam.current = true
+	for n in 10:
+		await _wait(0.1)
+		await _grab("%s_5_boomerang_%d" % [_map, n])

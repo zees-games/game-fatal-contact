@@ -42,13 +42,37 @@ func _run() -> void:
 		if def == null:
 			print("no def %s" % role)
 			continue
-		var me = client.get("player")
-		me.health.invulnerable = true
-		var _g = me.arsenal.give(id)
-		me.arsenal.equip(1 if def.slot != 1 else 2)
-		await _wait(0.6)
-		me.arsenal.equip(def.slot)
-		await _wait(1.0)
+		# A warmup ending respawns the player with the default loadout (the knife in hand), so hand the weapon over again
+		# until it is held.
+		var held: StringName = &""
+		for attempt in 4:
+			var me = client.get("player")
+			me.health.invulnerable = true
+			# The carry weight would refuse a heavy gun on top of the spawn loadout and leave the knife in hand.
+			if me.arsenal.carry != null:
+				me.arsenal.carry.enabled = false
+			var given: DotResult = me.arsenal.give(id)
+			if not given.ok:
+				print("scope_align ERROR: cannot give %s: %s" % [role, given.error.message if given.error != null else "?"])
+				break
+			# The game pins a slot by kind, so take the one it gave.
+			var slot: int = (given.value as DotWeaponSlot).def.slot
+			if me.arsenal.current_slot() == slot:
+				for other in range(1, me.arsenal.max_slots + 1):
+					if other != slot and me.arsenal.equip(other):
+						break
+				await _wait(0.6)
+			var _up: bool = me.arsenal.equip(slot)
+			await _wait(1.0)
+			me = client.get("player")
+			var in_hand: DotWeaponDef = me.arsenal.current_def()
+			held = in_hand.id if in_hand != null else &""
+			if held == id:
+				break
+			print("scope_align retry %d: %s asked, %s in hand (slot %d, current %d)" % [attempt, role, held, slot, me.arsenal.current_slot()])
+		if held != id:
+			print("scope_align ERROR: %s asked, %s in hand" % [role, held])
+			continue
 		Input.action_press(&"arena_aim")
 		await _wait(2.0)
 		await process_frame

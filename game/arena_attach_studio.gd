@@ -83,6 +83,10 @@ var _yaw_to := -0.45
 var _pitch := -0.16
 var _pitch_to := -0.16
 var _zoom := 1.0
+## Framing that keeps the chip rows clear of the gun: a distance factor (1 = the plain framing, more = further) and a
+## vertical camera shift (world units), both eased toward what the last layout measured.
+var _fit := 1.0
+var _lift := 0.0
 var _zoom_to := 1.0
 var _user_zoom := 1.0
 var _focus := Vector3.ZERO
@@ -138,6 +142,17 @@ func _ready() -> void:
 	env.environment.ambient_light_color = Color(0.55, 0.58, 0.66)
 	env.environment.ambient_light_energy = 1.4
 	env.environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	# Metal reflects its surroundings, and a flat ambient colour gives it nothing to reflect, so the steel guns (the
+	# marksman, the rifle's receiver) read dark. A soft studio sky, never drawn (the background stays clear), is what they mirror.
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color(0.78, 0.82, 0.9)
+	sky_material.sky_horizon_color = Color(0.62, 0.64, 0.68)
+	sky_material.ground_horizon_color = Color(0.34, 0.35, 0.38)
+	sky_material.ground_bottom_color = Color(0.16, 0.17, 0.19)
+	sky_material.sun_angle_max = 0.0
+	env.environment.sky = Sky.new()
+	env.environment.sky.sky_material = sky_material
+	env.environment.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	_port.add_child(env)
 	_pivot = Node3D.new()
 	_port.add_child(_pivot)
@@ -189,6 +204,8 @@ func open(catalogue: DotWeaponAttachments, base: DotWeaponDef, fitting: DotWeapo
 		_pitch_to = -0.16
 		_pitch = _pitch_to
 		_user_zoom = 1.0
+		_fit = 1.0
+		_lift = 0.0
 	_open_t = 0.0
 	show_fitting(fitting)
 	_pick_slot(_slot, true)
@@ -470,18 +487,38 @@ func _place_camera() -> void:
 	var length := maxf(0.05, maxf(_box.size.x, _box.size.y * 1.6))
 	var aspect := size.x / maxf(1.0, size.y)
 	var half_h := tan(deg_to_rad(_camera.fov) * 0.5) * aspect
-	var dist := length * 0.5 / (half_h * 0.4) * _zoom
+	var dist := length * 0.5 / (half_h * 0.4) * _zoom * _fit
 	var basis := Basis.from_euler(Vector3(_pitch, _yaw, 0.0))
 	var bob := Vector3(0.0, sin(_time * 0.9) * length * 0.004, 0.0)
 	_camera.transform = Transform3D(basis, _focus + bob + basis * Vector3(0, 0, dist))
 	_camera.h_offset = dist * half_h * 0.26
-	_camera.v_offset = -dist * tan(deg_to_rad(_camera.fov) * 0.5) * 0.06
+	_camera.v_offset = -dist * tan(deg_to_rad(_camera.fov) * 0.5) * 0.06 + _lift
 
 
 func _project(p: Vector3) -> Vector2:
 	if _camera == null or not _camera.is_inside_tree() or _camera.is_position_behind(p):
 		return Vector2(-1000, -1000)
 	return _camera.unproject_position(p) * (size / Vector2(maxf(1, _port.size.x), maxf(1, _port.size.y)))
+
+
+## Eases the framing so the gun's projected box ([param top] to [param bottom], screen pixels) sits between the chip
+## rows in use: a tall gun (a bipod, a long magazine) is drawn smaller and moved, not covered by a row of chips.
+func _fit_rows(k: float, top: float, bottom: float, chip: Vector2, has_top: bool, has_bottom: bool) -> void:
+	var u := _ui()
+	var low := 128.0 * u + chip.y + 64.0 * u if has_top else 96.0 * u
+	var high := size.y * 0.62 - chip.y - 56.0 * u if has_bottom else size.y * 0.62
+	var span := bottom - top
+	if span <= 1.0 or high - low <= 1.0 or _camera == null:
+		return
+	# Further away by the share the box overflows the room; back toward the plain framing when it has room to spare.
+	var fit_to := maxf(1.0, _fit * span / (high - low)) if span > high - low or _fit > 1.0 else 1.0
+	_fit = lerpf(_fit, fit_to, k)
+	# The box's middle into the room's band; v_offset up moves the picture down, one pixel being this many world units.
+	var middle := (top + bottom) * 0.5
+	var want := clampf(middle, low + span * 0.5, high - span * 0.5) if span < high - low else (low + high) * 0.5
+	var dist := _camera.position.distance_to(_focus)
+	var per_px := 2.0 * dist * tan(deg_to_rad(_camera.fov) * 0.5) / maxf(1.0, size.y)
+	_lift += (want - middle) * per_px * k
 
 
 ## Where the chips and sockets are this frame.
@@ -503,6 +540,7 @@ func _layout(k: float) -> void:
 			continue
 		_sockets[m] = _project(socket.global_position)
 		lanes[TOP_LANE.has(m)].append(m)
+	_fit_rows(k, top, bottom, chip, not (lanes[true] as Array).is_empty(), not (lanes[false] as Array).is_empty())
 	for up: bool in [true, false]:
 		var lane: Array = lanes[up]
 		lane.sort_custom(func(a: StringName, b: StringName) -> bool: return _sockets[a].x < _sockets[b].x)

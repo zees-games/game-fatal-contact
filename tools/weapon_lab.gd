@@ -184,6 +184,7 @@ func _first_person(id: StringName, def: DotWeaponDef, wdir: String, anims: Packe
 		await process_frame
 	if me.arsenal.carry != null:
 		me.arsenal.carry.enabled = false
+	_apply_view_args(me)
 	var given: DotResult = me.arsenal.give(id)
 	if not given.ok:
 		print("WEAPON_LAB %s: give failed: %s" % [id, given.message])
@@ -204,6 +205,19 @@ func _first_person(id: StringName, def: DotWeaponDef, wdir: String, anims: Packe
 		(_manifest["fp"] as Dictionary)[a] = res
 		await _wait(0.3)
 	await _equip_slot(me, other_slot)
+
+
+## --fov N (horizontal at 4:3, as the settings page) and --pitch D (degrees, negative looks down): the same clips at a wide or
+## narrow field of view or looking at the floor, where a view model shows parts that sit off screen at the default.
+func _apply_view_args(me) -> void:
+	var args := OS.get_cmdline_user_args()
+	var fov := _arg(args, "--fov", "")
+	if fov != "":
+		me.set_field_of_view(float(fov))
+	var pitch := _arg(args, "--pitch", "")
+	var sampler: Object = client.get("_sampler")
+	if pitch != "" and sampler != null:
+		sampler.call(&"look_at_angles", float(sampler.get(&"yaw")), float(pitch))
 
 
 func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: String, other_slot: int) -> Dictionary:

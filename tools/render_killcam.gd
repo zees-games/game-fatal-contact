@@ -43,11 +43,17 @@ func _wait(sec: float) -> void:
 
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
+	# The client builds its game after a frame or two, so it is read on every poll, not once before them.
 	var game = client.get("game")
 	for i in range(80):
 		await _wait(0.25)
+		game = client.get("game")
 		if game != null and game.map != null and client.get("player") != null:
 			break
+	if game == null:
+		print("FAIL the client built no game in 20 s")
+		quit(1)
+		return
 	var changed = game.change_map(load("res://maps/arena_map.gd").by_id(StringName(_map)))
 	print("map %s: %s" % [_map, "ok" if changed.ok else "failed"])
 	var presentation: Object = client.get("presentation")
@@ -60,6 +66,13 @@ func _run() -> void:
 			break
 		await _wait(0.25)
 	print("match state %d" % int(game.match_node.state))
+	# The weapons warm up under the loading cover after the round opens; a kill before it lifts is filmed under it.
+	var gate: Object = client.get("gate")
+	for i in range(240):
+		if gate == null or gate.call(&"is_open"):
+			break
+		await _wait(0.25)
+	print("load gate %s" % ("open" if gate == null or gate.call(&"is_open") else "still held: %s" % str(gate.call(&"reasons"))))
 	await _wait(1.0)
 	var ids: Array = (client.get("_bots") as Dictionary).keys()
 	if ids.size() < 2:

@@ -567,8 +567,19 @@ func _build_knives() -> void:
 	knives.combat = combat
 	knives.player_for = player_for
 	knives.player_ids = player_ids
-	knives.look_of = func(weapon: StringName) -> Node3D: return ArenaWeaponDropWiring.look(weapon)
+	knives.look_of = _thrown_knife_look
 	add_child(knives)
+
+
+## A thrown knife's model: the weapon's world model with a streak behind it while it flies (game/arena_knife_trail.gd).
+func _thrown_knife_look(weapon: StringName) -> Node3D:
+	var model := ArenaWeaponDropWiring.look(weapon)
+	if model != null:
+		var trail := Node3D.new()
+		trail.name = "KnifeTrail"
+		trail.set_script(load("res://game/arena_knife_trail.gd"))
+		model.add_child(trail)
+	return model
 
 
 ## A presentation rule's current value: the server's, or the default.
