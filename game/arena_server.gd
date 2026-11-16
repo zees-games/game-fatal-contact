@@ -83,7 +83,7 @@ static func host_tick_rate() -> int:
 	var rate := maxi(1, Engine.physics_ticks_per_second)
 	var clamped := clampi(rate, ArenaGame.MIN_TICK_RATE, ArenaGame.MAX_TICK_RATE)
 	if clamped != rate:
-		DotLog.warn(CHANNEL, "sv_tickrate is outside the range the arena is tuned for, clamped", {
+		DotLog.error(CHANNEL, "sv_tickrate is outside the structural range the sim is tuned for; running at the nearest bound", {
 			"rate": rate, "used": clamped, "min": ArenaGame.MIN_TICK_RATE, "max": ArenaGame.MAX_TICK_RATE})
 		Engine.physics_ticks_per_second = clamped
 	return clamped

@@ -182,10 +182,10 @@ const CTF_CVARS := {
 	"arena_ctf_timelimit": ["time_limit_sec", "Seconds a capture-the-flag match lasts, most captures wins (0, the default, for no time limit)"],
 	"arena_ctf_return": ["return_sec", "Seconds a dropped flag waits before it goes home"],
 	"arena_ctf_drop": ["drop_sec", "Seconds after a drop before the dropper may take the flag again"],
-	"arena_ctf_carrier_speed": ["carrier_speed", "A flag carrier's speed as a fraction of normal"],
+	"arena_ctf_carrier_speed": ["carrier_speed", "A flag carrier's speed as a fraction of normal, at least 0.1 (no ceiling)"],
 	"arena_ctf_friendly_return": ["friendly_return", "The flag's own team returns a dropped flag by touching it (1) or only the timer does (0)"],
 	"arena_ctf_require_home": ["require_home", "A carrier scores only while their own flag is at home (1) or at any time (0)"],
-	"arena_ctf_teams": ["team_count", "Teams in capture the flag, 2 to 8 (from the next map)"],
+	"arena_ctf_teams": ["team_count", "Teams in capture the flag, 2 to 8 (from the next map); 8 is structural (team menu palette, ArenaMode sides), out of range is refused"],
 }
 
 ## cvar -> the [code]arena_flag_carry.gd[/code] setting it sets, and what it means.
@@ -274,9 +274,9 @@ func _add_bot_think_cvars() -> void:
 			ArenaBots.sight_far = maxf(0.0, new_value.to_float()))
 	add_cvar("bot_sight_far_reuse", str(ArenaBots.sight_far_reuse),
 		"Seconds a far, unseen body stays unseen before a bot traces it again (see bot_sight_far)",
-		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		DotConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
-			ArenaBots.sight_far_reuse = clampf(new_value.to_float(), 0.0, 1.0))
+			ArenaBots.sight_far_reuse = new_value.to_float())
 	_add_bot_tier_cvar("bot_tier_above", "tiers.above", "Players above which bot think-rate tiers apply (-1: never); see bot_tier_*", -1.0)
 	_add_bot_tier_cvar("bot_tier_every_near", "tiers.near_every", "Ticks between thinks of a bot no person fights, sees or is near, within bot_tier_range of one", 1.0)
 	_add_bot_tier_cvar("bot_tier_every_far", "tiers.far_every", "Ticks between thinks of such a bot beyond bot_tier_range of every person", 1.0)
@@ -301,10 +301,10 @@ func _add_bot_think_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			ArenaBots.think_floor_engaged = maxi(1, int(new_value.to_float())))
 	add_cvar("bot_recoil_control", str(ArenaBots.recoil_control),
-		"Share of the recoil bots pull their aim back against, 0..1; -1 (default) by difficulty: easy .3, medium .55, hard .75, nightmare .9",
+		"Share of the recoil bots pull their aim back against, 0..1 (a share cannot pass 1; out of range is refused); -1 (default) by difficulty: easy .3, medium .55, hard .75, nightmare .9",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).with_min(-1.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
-			ArenaBots.recoil_control = clampf(new_value.to_float(), -1.0, 1.0))
+			ArenaBots.recoil_control = new_value.to_float())
 	_add_bot_engine_cvars()
 
 
@@ -478,7 +478,7 @@ static func default_snapshot_workers() -> int:
 func _add_tick_rate_cvars() -> void:
 	var tickrate := console.find_cvar("sv_tickrate")
 	if tickrate != null:
-		var _ranged := tickrate.with_range(float(ArenaGame.MIN_TICK_RATE), float(ArenaGame.MAX_TICK_RATE))
+		var _ranged := tickrate.with_range(float(ArenaGame.MIN_TICK_RATE), float(ArenaGame.MAX_TICK_RATE))  # structural: the rates the sim and netcode are tuned and tested for; refused outside, never clamped
 	add_cvar("bot_think_hz", "0",
 		"Bot brain runs this many times a second whatever the tick rate (a far bot's cadence for bot_think_every); 0 uses bot_think_every ticks",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
@@ -538,17 +538,22 @@ func _add_ctf_cvars() -> void:
 		var key: String = CTF_CVARS[cvar][0]
 		var value: Variant = game.ctf_rules[key]
 		var text := ("1" if value else "0") if value is bool else str(value)
-		add_cvar(
+		var ctf_cvar := add_cvar(
 			cvar, text, CTF_CVARS[cvar][1], DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
-		).with_min(0.0).changed.connect(
+		).with_min(0.0)
+		if key == "team_count":
+			# Structural: ArenaMode builds at most 8 sides (the team menu palette). Out of range is refused, not clamped.
+			var _teams := ctf_cvar.with_range(2.0, 8.0)
+		elif key == "carrier_speed":
+			# A carrier that cannot move is a stuck match; no ceiling, a faster carrier is the server's call.
+			var _speed := ctf_cvar.with_min(0.1)
+		ctf_cvar.changed.connect(
 			func(_old: String, new_value: String) -> void:
 				var was: Variant = game.ctf_rules[key]
 				game.ctf_rules[key] = (
 					new_value.to_float() != 0.0 if was is bool
 					else (new_value.to_int() if was is int else new_value.to_float())
 				)
-				game.ctf_rules.team_count = clampi(game.ctf_rules.team_count, 2, 8)
-				game.ctf_rules.carrier_speed = clampf(game.ctf_rules.carrier_speed, 0.1, 2.0)
 				game.apply_match_limits()
 				log_info("ctf rule changed", {"rule": key, "value": new_value})
 		)
