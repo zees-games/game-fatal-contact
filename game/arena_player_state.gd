@@ -436,6 +436,11 @@ static var figure_draw_range: float = DotHumanoidFigure.DRAW_RANGE
 const FIGURE_LIFT_RANGE := 22.0
 ## `cl_figure_lift_range`, handed to the figure when the console's variables are made (a bench sets it before that).
 static var figure_lift_range: float = FIGURE_LIFT_RANGE
+## `cl_figure_bone_lod_range`'s default: past it a remote body is posed cheaper (dot-player-char 32
+## [member DotHumanoidFigure.bone_lod_range]: no finger joints, no foot plants, wall feet or limb turn limit).
+const FIGURE_BONE_LOD_RANGE := 22.0
+## `cl_figure_bone_lod_range`, handed to the figure when the console's variables are made (a bench sets it before that).
+static var figure_bone_lod_range: float = FIGURE_BONE_LOD_RANGE
 
 ## `cl_remote_lod_frustum`: judge "out of sight" by the camera's real frustum instead of the cone below.
 static var lod_frustum: bool = true

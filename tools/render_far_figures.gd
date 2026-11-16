@@ -1,7 +1,8 @@
 extends "render_base.gd"
 
 ## Remote figures near and far through the real offline client: its three bots, frozen along one clear line of sight at
-## 8, 28 and 36 m (both far ones past the 22 m lift range), photographed with cl_figure_lift_range at 22 m (the FC default) and at 0 (every frame), with a
+## 8, 28 and 36 m (both far ones past the 22 m lift range), photographed with cl_figure_lift_range at 22 m (the FC default) and at 0 (every frame), and with
+## cl_figure_bone_lod_range at 22 m (the far ones posed without finger joints, foot plants or limb turn limit) beside 0, with a
 ## close crop of each bot beside the whole frame, so a person can see the lifted far figures still read as players.
 ## Frames in screenshots/far_figures/; exit 1 on a failed check. Run:
 ##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_far_figures.gd
@@ -64,11 +65,15 @@ func _run() -> void:
 	_put(from, ahead + Vector3.UP * 1.2, -2.0)
 	await _wait(1.5)
 	var camera := root.get_viewport().get_camera_3d()
-	for pass_lift: float in [22.0, 0.0]:
+	# [lift range, bone LOD range, name]: the bone LOD pass beside the full pose at the same lift.
+	for pass_row: Array in [[22.0, 0.0, "lift22"], [0.0, 0.0, "lift0"], [22.0, 22.0, "bonelod22"]]:
+		var pass_lift: float = pass_row[0]
 		ArenaPlayer.figure_lift_range = pass_lift
 		(DotHumanoidFigure as Script).set(&"lift_range", pass_lift)
+		ArenaPlayer.figure_bone_lod_range = pass_row[1]
+		(DotHumanoidFigure as Script).set(&"bone_lod_range", pass_row[1])
 		await _wait(0.8)
-		var name := "lift%d" % int(pass_lift)
+		var name: String = pass_row[2]
 		await _shot(name)
 		var image := root.get_viewport().get_texture().get_image()
 		for i in DISTANCES.size():

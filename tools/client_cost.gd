@@ -7,7 +7,7 @@ const ClientBench := preload("client_bench.gd")
 const ArenaKillcamBodies := preload("../game/arena_killcam_bodies.gd")
 
 ## What the CLIENT costs per remote player in one offline process: the frame, engine process time, each client section in ms per frame and per remote player, and a node census.
-## `godot --headless --path . res://tools/client_cost.tscn -- --bots 16 --seconds 15 [--map dm_atrium] [--variants default,full]`; variants `before`, `default`, `nogate` (default without the game-time animation gate), `off8`, `full`, `no_anim`/`no_held`/`no_held_proc`/`no_rest`/`bare` (`full` less that part, `ArenaPlayer.present_ablate`), `still` (remotes not presented).
+## `godot --headless --path . res://tools/client_cost.tscn -- --bots 16 --seconds 15 [--map dm_atrium] [--variants default,full]`; variants `before`, `default`, `nogate` (default without the game-time animation gate), `nobonelod` (default with every remote body posed in full: cl_figure_bone_lod_range 0), `off8`, `full`, `no_anim`/`no_held`/`no_held_proc`/`no_rest`/`bare` (`full` less that part, `ArenaPlayer.present_ablate`), `still` (remotes not presented).
 ## Headless draws nothing: this is script and scene-tree cost; render cost needs a windowed GPU profile.
 
 var _bots := 16
@@ -78,11 +78,13 @@ func _apply(variant: String) -> void:
 	ArenaPlayer.lod_off_every = 8 if variant == "off8" else 4
 	ArenaKillcamBodies.record_hz = 0.0 if variant == "before" else 60.0
 	ArenaPlayer.anim_gate_enabled = variant not in ["nogate", "before"]
-	ArenaPlayer.present_lod_enabled = variant in ["default", "before", "off8", "nogate"]
+	ArenaPlayer.present_lod_enabled = variant in ["default", "before", "off8", "nogate", "nobonelod"]
+	# By name: a dot-player-char older than 32 has no bone_lod_range (the set is then a no-op).
+	(DotHumanoidFigure as Script).set(&"bone_lod_range", 0.0 if variant in ["nobonelod", "before"] else ArenaPlayer.figure_bone_lod_range)
 	ArenaPlayer.present_remote_paused = variant == "still"
 	# "full" with one part of the remote presentation left out: the cost of that part alone.
 	ArenaPlayer.present_ablate = {"no_anim": 1, "no_held": 2, "no_held_proc": 6, "no_rest": 8, "bare": 15}.get(variant, 0)
-	if variant in ["default", "before", "off8", "full", "nogate"]:
+	if variant in ["default", "before", "off8", "full", "nogate", "nobonelod"]:
 		for p: ArenaPlayer in _client.game.players():
 			if p.held != null:
 				p.held.set_process(true)
