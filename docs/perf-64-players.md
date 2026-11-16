@@ -89,14 +89,19 @@ fakes, 30 s, PH (timings there are noise; bytes are not):
 | cp-orange-x3 | rings off | 309 | 547 | 5230 |
 | cp-orange-x3 | 1 / - / - | 309 | 547 | 5193 |
 | cp-orange-x3 | 2 / 2 / 40 (old default) | 307-308 | 547-556 | 4818-5690 |
+| dm_atrium | 1 / - / - (thinned-ack sync) | 635 | 635 | - |
+| dm_atrium | 2 / 2 / 40 (thinned-ack sync, default) | 560 | 635 | - |
+| cp-orange-x3 | 1 / - / - (thinned-ack sync) | 307 | 555 | - |
+| cp-orange-x3 | 2 / 2 / 40 (thinned-ack sync, default) | 283 | 523 | - |
 
-Far-ring thinning costs bytes: at far_every 2 a peer gets about 30% more than with no thinning, and the
-divisor's effect is not monotonic (3 saves, 4 loses). The cause is in dot-net: a per-peer view is synced to the
-peer's acks only while its entity is in the snapshot, so with wired (strict) acks a thinned entity's pending
-fields are older than `last_ack` when it comes back, count as lost (`relost`) and go out again. `sv_net_far_every`
-now defaults to 1 (no rings; radius 120 m and the PVS stay). On cp-orange-x3, the map 64 players are for, the PVS
-alone brings a peer to 307-309 B against 547 unfiltered, under the 350 B goal; small DM maps stay near 620 B
-because everyone there is within 40 m and in view. Rings come back once dot-net syncs thinned views (board).
+Before dotnet-thin-ack-sync, far-ring thinning cost bytes: at far_every 2 a peer got about 30% more than with no
+thinning. The cause was in dot-net: a per-peer view was synced to the peer's acks only while its entity was in the
+snapshot, so with wired (strict) acks a thinned entity's pending fields were older than `last_ack` when it came back,
+counted as lost (`relost`) and went out again. dot-net now keeps a per-peer ring of acked ticks and promotes any send
+whose own snapshot was acked (no wire change). With that, the rings save bytes (rows marked "thinned-ack sync", same
+probe, 2026-11-16): dm_atrium 560 B against 635 unthinned, cp-orange-x3 283 against 307. `sv_net_far_every` defaults
+to 2 again (tiers 2, 40 m). On cp-orange-x3, the map 64 players are for, a peer is at 283 B against 523 unfiltered,
+under the 350 B goal; small DM maps stay near 560 B because most players there are within 40 m and in view.
 
 ## Ranking (64 players)
 
