@@ -151,19 +151,122 @@ stays at half rate, so the quarter band no longer reaches a scoped shot: the def
 (`sv_net_far_distance` 15, `sv_net_far_tiers` 2), and `headless_hitreg_scope` passes with the rings on at 30 m and
 60 m. dm_atrium is at 326 B against 406-411 (the cone itself costs about 3 B), cp-orange-x3 at 217 against 260.
 
+## Release, 1080p, ablations and combat (fc-64p-8)
+
+Remeasured 2026-11-16 afternoon on main (4866422) on the GPU test box (RTX 2070, i7-8700K), windowed,
+`tools/perf_bench.sh [--release] -- --bots 63 --sim-host 1` on cp-orange-x3 (64 players, 33 Hz), 20 s warm-up and
+30 s recorded. Server ms/tick is the server process's main-thread run time per tick (`sched.server`). Logs:
+`~/perf-bench/20261116-1[456]*-fc64p-478-meas-*.log`.
+
+### Release against editor, 1152x648 against 1920x1080 (n=3, alternating)
+
+| Build | Size | p50 ms | p95 | p99 | render_gpu ms | draws | Server ms/tick |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| release | 1152x648 | 7.32 / 8.81 / 8.49 | 11.9-15.4 | 14.7-18.8 | 1.42 / 1.79 / 1.72 | 340-628 | 22.1-23.3 |
+| release | 1920x1080 | 7.14 / 8.68 / 9.17 | 12.2-15.5 | 15.2-18.6 | 1.77 / 2.03 / 2.24 | 335-686 | 22.0-23.7 |
+| editor | 1152x648 | 10.51 / 9.08 / 8.34 | 14.5-16.6 | 18.4-20.3 | 2.29 / 1.99 / 1.70 | 309-667 | 23.9-25.4 |
+| editor | 1920x1080 | 8.46 / 8.44 / 8.26 | 14.0-14.7 | 17.5-18.2 | 2.06 / 2.04 / 2.03 | 306-318 | 23.9-24.0 |
+
+- The client is at the 9 ms goal in a release build (p50 7.1-9.2 ms) and close in the editor (8.3-10.5).
+  The 14.2 ms editor row above was measured on an earlier main the same morning.
+- 1080p costs about 0.4-0.5 ms of GPU and nothing measurable in p50: the frame is not GPU bound.
+- Release against editor on similar views (first release run against first editor run, both about 340-670 draws):
+  present 2.43 against 3.55 ms, bodies 1.27 against 2.04, phase.physics 0.73 against 1.43.
+  engine.physics_outside_game is 0.35 ms in release and 0.45-0.81 in the editor, so the fc-64p-4 physics goal
+  (1.0 ms) is met.
+- **Run-to-run spread is bigger than most effects.** With the same seed, a run sees either about 300 draws and
+  30-60k primitives or 600-700 draws and 300-500k primitives, depending on where the spectated player spawns and
+  looks. present, bodies and render move together with that (present 2.4 against 3.3 ms). An A/B under 1 ms
+  needs n>=3 per side alternating, or a pinned camera.
+
+### Ablations (release, 1152x648, applied after the warm-up)
+
+Runs from nohud on shared the box with another agent's eight suites. They are compared with a release baseline
+taken under the same load (`base-loaded`, p50 9.16, server 24.2 ms/tick).
+
+| Ablation | What it removes | p50 ms | render_cpu | render_gpu | draws | Read |
+| --- | --- | --- | --- | --- | --- | --- |
+| none (idle box) | - | 7.32-8.81 | 0.96-1.17 | 1.42-1.79 | 340-628 | baseline |
+| none (loaded box) | - | 9.16 | 1.19 | 1.84 | 620 | baseline |
+| noshadow | all Light3D shadows | 8.16 | 0.94 | 1.52 | 287 | within the spread; shadows are not a cost here |
+| nofx | SSAO, SSIL, glow, fog | 9.00 / 8.79 | 1.13-1.16 | 1.99-2.12 | 523-552 | no gain |
+| nohud | HUD children hidden | 6.99 / 7.65 | 0.85 | 1.39-1.48 | 143-149 | arena.hud script is 0.15 ms; most of the drop is view spread (present -26% too) |
+| nobots | 63 remote players hidden | 6.43 / 6.56 | 0.77 | 1.28-1.31 | 330-358 | about 2 ms: remote present + draw |
+| no3d | 3D scene not drawn | 6.27 / 6.20 | 0.42 | 0.30 | 258 | 3D drawing is about 2-3 ms of a frame |
+| norender | RenderingServer.draw off | 6.96 / 6.90 | - | - | - | about 2 ms; monitors keep their last values |
+
+The remaining main-thread cost with nothing drawn is scripts (present, bodies, interpolate, snapshot apply)
+at about 6 ms. Render settings (shadows, environment effects, resolution) are not where 64 players spend
+their time on desktop. The levers are the per-remote-player script cost and the server tick.
+
+### Combat (dm_atrium DM, 64 players, release, n=2)
+
+| Run | p50 ms | p95 | p99 | worst | Server ms/tick | draws | primitives | render_gpu |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 9.40 | 18.55 | 22.93 | 56.8 | 28.3 | 467 | 315k | 2.41 |
+| 2 | 10.47 | 20.67 | 29.39 | 59.0 | 28.3 | 548 | 475k | 2.66 |
+
+On a small map where everyone is in a fight, the client is 1-2 ms over the goal, and p99 doubles against
+cp-orange-x3. The server uses 28.3 of its 30.3 ms tick at 33 Hz (93%), so 64-player DM on small maps has
+no server headroom. An 11 ms tick (66 Hz) is about 2.6x away.
+
+### Node census and growth ("GC")
+
+Godot has no tracing collector: objects are refcounted or freed explicitly, so there are no GC pauses to
+measure. What can drift is node, object and video memory growth over a match.
+
+`tools/perf_bench.gd` now prints `proc census remote player tree` and `proc census root tree`. At 64 players
+there are 6500-6950 nodes:
+
+- **ArenaClient (6483):**
+  - Game: 4778
+  - FxPool: 510 (`cl_fx_pool_idle` 8)
+  - Level: 492
+  - Hud: 214
+  - Ragdolls: 151
+  - Presentation: 79
+  - KillViewScreen: 76
+  - GameMenu: 73
+  - KillcamScreen: 30
+- **Each remote player (60):**
+  - Body/Person: 37
+    - Skeleton3D: 34. The held weapon is 26 of these: the weapon holder is 10 and the fc-weapons AwShotFx pools are 15. The crown is 3, and PhysicalBoneSimulator3D is created by the engine.
+  - Hitboxes: 9 (hit reg, not touched)
+  - SpawnBubble: 2 (lazy, kept for its 26 ms shader compile)
+  - Eight one-node components.
+
+FC-side cuts left are under 3 nodes per player. The nodes goal (5000) needs fc-weapons to share remote ShotFx
+and trim pool idle (about 1450 nodes, nightly `fcw-remote-shotfx-nodes`). Parked and hidden nodes cost
+almost nothing per frame, so node count is a proxy, not a frame cost.
+
+Growth per minute in the recorded 30 s:
+
+- **cp-orange-x3:** nodes +900 to +2300 and objects +1600 to +3800 while figures, ragdolls and fx pools are
+  still filling (first 6025, max 6707 in one run). Orphan nodes stay at 0. Video memory grows 30-50 MB/min.
+- **dm_atrium:** with everyone already fighting, nodes are flat (+2 and -210 per minute). Objects grow
+  +540 to +640 per minute, with a net of about 300.
+
+Static memory reads 0 in release exports (not tracked), so use the editor build for it. A soak longer than
+one minute is needed to tell pool warm-up from a slow leak (`./game.sh soak`).
+
 ## Ranking (64 players)
 
-1. Server tick (23 ms of 30 ms): bot scheduling and bot threads, snapshot begin/join, tick tiers.
-2. Remote player present + bodies + interpolate (about 9.4 ms of 14.3): per-player node count, anim and body LOD, instancing.
-3. Engine physics outside game (1.9 ms) and phase.physics (2.7): per-player collision nodes.
-4. Snapshot apply on the client (1.15 ms): native apply hooks.
-5. Rendering: GPU 2.75 ms and primitives (443k) grow with avatar triangle count; compat render_cpu doubles.
+1. Server tick (22-24 ms of 30.3 at 33 Hz on cp-orange-x3, 28.3 in dm_atrium combat): bot scheduling and bot threads, snapshot begin/join, tick tiers.
+2. Remote player present + bodies + interpolate (about 4 ms of a 7-9 ms release frame): anim and body LOD, instancing.
+3. Engine physics outside game is down to 0.35-0.45 ms (goal met); phase.physics 0.7-1.1 ms.
+4. Snapshot apply on the client (1.15 ms in the first editor pass, 0.20 ms release and 0.51 editor now): native apply hooks.
+5. Rendering: GPU 1.4-2.7 ms and primitives (30k-500k depending on view) grow with avatar triangle count; shadows and environment effects measured at no gain; compat render_cpu doubles.
 6. Killcam recorder 0.54 ms, held weapons 0.5+0.25 ms, tags 0.2 ms.
 
-Not measured as separate rows: audio (0.03 ms, negligible), decals/gibs (no 64-player combat load in the bench), GC.
+Not measured as separate rows: audio (0.03 ms, negligible) and decals/gibs. Combat load and growth are in the fc-64p-8 section above.
 
 ## Status
 
-This pass measured only. No code change landed: the one safe candidate found (scaling `cl_killcam_hz` by player
-count, 0.54 to about 0.27 ms) is under the 0.6 ms gate and was left for the board. Follow-ups are nightly items
-`fc-64p-1` to `fc-64p-8`.
+The first pass measured only. Since then, fc-64p-8 added the release, 1080p, ablation and combat rows above, and
+the node census in `tools/perf_bench.gd`. The client meets the 9 ms goal in release on cp-orange-x3, but not in
+dm_atrium combat (9.4-10.5).
+
+The server tick (22-28 ms against the 11 ms goal) is now the main gap.
+
+Nodes (fc-64p-4) wait on fc-weapons (`fcw-remote-shotfx-nodes`). The browser measurement (fc-64p-7) waits on a
+threaded web export with native dot-sim and a 64-player browser bench (`web-threads-native-dlink`).

@@ -301,6 +301,13 @@ func _record_begin() -> void:
 		profiler.config.script_top = int(args["script-top"])
 	if int(args.get("proc-split", 0)) != 0:
 		say("proc census %s" % JSON.stringify(ProcSplit.census(get_tree().root)))
+		# One remote player's own subtree (the first without a camera): the per-player share of the node count.
+		for p: Object in client.get("game").call("players"):
+			if p.get("camera") == null and p is Node:
+				say("proc census remote player %s" % JSON.stringify(ProcSplit.census(p as Node)))
+				say("proc census remote player tree %s" % JSON.stringify(_subtree_sizes(p as Node, 9)))
+				break
+		say("proc census root tree %s" % JSON.stringify(_subtree_sizes(get_tree().root, 3, 20)))
 		_proc_split = ProcSplit.new()
 		add_child(_proc_split)
 	DotFpsPhysicsBody.profile = _queries
@@ -478,3 +485,23 @@ func _apply_ablate() -> void:
 				RenderingServer.render_loop_enabled = false
 	if not _ablate.is_empty():
 		say("ablate %s" % ",".join(_ablate))
+
+
+## Node counts under each child of [param node], [param depth] levels down, larger than [param least]: where a census's
+## nodes live.
+static func _subtree_sizes(node: Node, depth: int, least: int = 0) -> Dictionary:
+	var out := {}
+	for c: Node in node.get_children(true):
+		var n := _count_nodes(c)
+		if n <= least:
+			continue
+		var key := "%s(%s)=%d" % [c.name, c.get_class(), n]
+		out[key] = _subtree_sizes(c, depth - 1, least) if depth > 1 and c.get_child_count(true) > 0 else n
+	return out
+
+
+static func _count_nodes(node: Node) -> int:
+	var n := 1
+	for c: Node in node.get_children(true):
+		n += _count_nodes(c)
+	return n
