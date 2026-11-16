@@ -2,7 +2,8 @@
 # The animation review loop's capture step (docs/anim-review.md): plays every first-person clip of the named weapons, writes
 # labelled contact sheets per weapon and clip (first person, behind-right, opponent), one side-by-side clip per animation
 # (<weapon>/<clip>.mp4 at --fps, default 60) and a PASS/FAIL report from the glitch metrics.
-#   tools/anim_review.sh <game-dir> <weapon[,weapon]|all> [--anim reload_empty[,draw]] [--avatar] [--fps 60] [--frames] [--soft]
+#   tools/anim_review.sh <game-dir> <weapon[,weapon]|all> [--anim reload_empty[,draw]] [--avatar] [--fps 60] [--frames] [--soft] [--team red|blue]
+# --team plays team deathmatch on that side, so the views show its team body (docs/client.md, Avatars).
 # --avatar adds the locomotion clips (avatar_walk, _strafe, _run, _crouch, _jump) with the weapon held.
 # Every clip's per-frame numbers go to <weapon>/<clip>_frames.tsv; a FAIL clip's (every clip's with --frames) are printed too.
 # The capture runs through dot-game's visual QA driver (dot-game docs/visual-qa.md): on a GPU box through gpu.sh shot,
@@ -17,6 +18,7 @@ soft=0
 frames=0
 fps=60
 avatar=0
+team=()
 while (($#)); do
   case $1 in
     --anim | --anims) anims=$2; shift 2 ;;
@@ -24,6 +26,7 @@ while (($#)); do
     --avatar) avatar=1; shift ;;
     --fps) fps=$2; shift 2 ;;
     --frames) frames=1; shift ;;
+    --team) team=(--team "$2"); shift 2 ;;
     *) echo "anim_review.sh: unknown argument $1 (weapons and clips are one comma list each: launcher,knife)" >&2; exit 2 ;;
   esac
 done
@@ -40,7 +43,7 @@ drive=(--shot tools/anim_review_shot.sh --out "$out" --fps "$fps" --fresh "$weap
 [[ $soft == 1 ]] && drive+=(--soft)
 # dot-game's driver routes the shot to a GPU box (heavy here when none takes it), files the clips as <weapon>/<clip>.mp4
 # and leaves report.md to the report below.
-bash addons/dot_game/tools/dot_game_visual_qa.sh "${drive[@]}" -- --anims "$anims" "${pick[@]}" || rc=$?
+bash addons/dot_game/tools/dot_game_visual_qa.sh "${drive[@]}" -- --anims "$anims" "${pick[@]}" "${team[@]}" || rc=$?
 python3 - "$out" "$log" "$frames" "$fps" <<'PY'
 import json, math, os, sys
 out, log, all_frames = sys.argv[1], sys.argv[2], sys.argv[3] == "1"

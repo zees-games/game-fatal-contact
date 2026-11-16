@@ -46,6 +46,7 @@ func _run() -> void:
 		if gate == null or (gate as Object).call(&"is_open"):
 			break
 		await _wait(0.5)
+	await _before_lab(args)
 	_build_lab()
 	await _wait(1.0)
 
@@ -557,6 +558,11 @@ func _clear_dir(d: String) -> void:
 func _arg(args: PackedStringArray, key: String, fallback: String) -> String:
 	var i := args.find(key)
 	return args[i + 1] if i >= 0 and i + 1 < args.size() else fallback
+
+
+## Runs once the client is up and before the lab is built; a subclass stages the match here (anim_review's --team).
+func _before_lab(_args: PackedStringArray) -> void:
+	await _wait(0.0)
 
 
 func _wait(sec: float) -> void:

@@ -232,6 +232,8 @@ The next-map vote is [dot-vote](https://github.com/gamespice-platform/vote). The
 | --- | --- | --- | --- |
 | Players and bots | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) | CC0 1.0 | [dot-player-char](https://github.com/gamespice-platform/player-char) |
 | Avatar parts and horde monsters | Kenney, character kit skins | CC0 | generated from dot-player-char |
+| Team body "fc_swat" (team avatars, not in this repository) | SpatialNeglect, after bobeer, VassKacsoHunor, Simon Coenen, Bzovius, Albin, Shedmon and h1ggs | CC BY 4.0 | a private `fc_swat.glb` in `arena_team_body_dirs`, [docs/client.md](docs/client.md#avatars) |
+| Team body "fc_military" (team avatars, not in this repository) | jayb3e, "Game Ready Military Character" | CC BY 4.0 | a private `fc_military.glb` in `arena_team_body_dirs` |
 | Built-in map grid | Kenney, [Prototype Textures](https://kenney.nl/assets/prototype-textures) | CC0 | `assets/prototype/` |
 | Medal icons | Kenney, [Board Game Icons](https://kenney.nl/assets/board-game-icons), [Game Icons](https://kenney.nl/assets/game-icons) | CC0 | `assets/medals/` |
 | HUD ability icons | Kenney, [Game Icons](https://kenney.nl/assets/game-icons), [Mobile Controls](https://kenney.nl/assets/mobile-controls) | CC0 | `assets/hud_icons/` |

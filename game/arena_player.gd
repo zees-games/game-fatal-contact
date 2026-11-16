@@ -387,15 +387,7 @@ func rewear(next: DotAvatar) -> void:
 	if next == null or body_mesh == null or before == next.digest():
 		return
 
-	remove_child(body_mesh)
-	body_mesh.queue_free()
-	body_mesh = null
-	# The hand and the gun in it hung off the old body and went with it.
-	_hand = null
-	held = null
-	_held_sprite = null
-	figure = null
-	attach_body_mesh(Color.WHITE, next)
+	rebuild_body()
 
 func aim_direction() -> Vector3:
 	return _command.aim_direction()

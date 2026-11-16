@@ -283,6 +283,39 @@ func _hold_weapon() -> void:
 	# drew its gun at the hand's rest, in mid-air, until the first present reached it.
 	held.visible = false
 
+## What the drawn body wears for its side ([method ArenaTeamBodies.wear_key]; "" its own look), and the
+## team and [member ArenaTeamBodies.version] it was last judged for.
+var _team_worn := ""
+var _team_judged := Vector2i(-1, -1)
+
+
+## Rebuilds the body when its side's body changed: a team switch, the server's `team_avatars` or `team_tint`,
+## a team mode starting or ending. Client side, once a frame; a dead player keeps the body it fell as
+## (the ragdoll and the gib are made of it) and changes on the next life.
+func follow_team_body() -> void:
+	var judged := Vector2i(team, ArenaTeamBodies.version)
+	if judged == _team_judged or body_mesh == null or not is_alive():
+		return
+	_team_judged = judged
+	if ArenaTeamBodies.wear_key(team) != _team_worn:
+		rebuild_body()
+
+
+## Throws away the drawn body and builds it again from [member avatar]. Client side.
+func rebuild_body() -> void:
+	if body_mesh == null:
+		return
+	remove_child(body_mesh)
+	body_mesh.queue_free()
+	body_mesh = null
+	# The hand and the gun in it hung off the old body and went with it.
+	_hand = null
+	held = null
+	_held_sprite = null
+	figure = null
+	attach_body_mesh(Color.WHITE, avatar)
+
+
 ## Builds the avatar's rig under [member body_mesh]. Returns whether anything drew.
 ##
 ## [b]A failure here falls back to the capsule rather than leaving nothing.[/b] A
@@ -294,7 +327,9 @@ func _wear(avatar: DotAvatar) -> bool:
 	figure.name = "Person"
 	body_mesh.add_child(figure)
 	var height := controller.tunables.stand_height if controller != null and controller.tunables != null else ArenaPlayerTunables.stand_height_m()
-	figure.build(ArenaAvatars.look_of(avatar, StringName("arena-player-%08d" % player_id)), height)
+	# In a team mode the side's own body, when it has one (arena_team_bodies.gd); else the player's look.
+	_team_worn = ArenaTeamBodies.wear_key(team)
+	figure.build(ArenaTeamBodies.look_of(avatar, StringName("arena-player-%08d" % player_id), team), height)
 	# own_body_back already trails the body as the view tips down; the figure own trail would double it.
 	figure.own_look_down_back = 0.0
 	# A drawn origin can sit about 0.5 m under the tread it stands on (a slow browser frame between two

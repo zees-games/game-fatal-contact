@@ -79,6 +79,8 @@ const _OTHER_MOVEMENT_CVARS := {
 	"arena_break_criticals": ["break_criticals_only", "Only a critical (a headshot) breaks a body (1), or any kill (0)"],
 	"arena_fp_body": ["fp_body", "Players see their own body when they look down (1)"],
 	"arena_fp_arms": ["fp_arms", "First-person arms everybody sees, own and the killer's in a kill view: 0 each player's own look, N one stock arm set"],
+	"arena_team_avatars": ["team_avatars", "Team modes draw every player on a side as the side's body (arena_team_bodies), tinted its colour (1), or each player's own look (0)"],
+	"arena_team_tint": ["team_tint", "How far a team body's clothes turn toward the side's colour, 0 (its own texture) to 1"],
 	"arena_surf": ["surf", "A combat surf map plays with the genre's air control (1) or the arena's own (0)"],
 	"arena_surf_airaccelerate": ["surf_air_accelerate", "Air acceleration on a combat surf map (the genre's sv_airaccelerate)"],
 	"mp_killcam_time": ["killcam", "Seconds the final killcam plays at a match's end, added to the end's wait (0 for none)"],

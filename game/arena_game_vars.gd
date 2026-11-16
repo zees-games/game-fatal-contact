@@ -55,10 +55,13 @@ const BOT_SESSION_BASE := 900_000_000
 ##
 ## `fp_arms` is the arm set every first-person view draws (`arena_fp_arms`): 0 each player's own look, N one stock set.
 ##
+## `team_avatars` forces each side's body in a team mode (`arena_team_avatars`, 1) and `team_tint` is how far it
+## turns toward the side's colour (`arena_team_tint`); see arena_team_bodies.gd.
+##
 ## `killcam` is the final killcam's seconds (`mp_killcam_time`, 0 off): clients play it, and the
 ## authority adds it to the match's end ([method _override_rules]).
-const SHOW_RULES: PackedStringArray = ["break_mode", "break_limbs", "break_criticals_only", "fp_body", "mode_index", "surf", "surf_air_accelerate", "killcam", "max_unlag_ms", "fire_buffer", "nametags", "hpbars", "fp_arms"]
-const SHOW_DEFAULTS := {"break_mode": 1.0, "break_limbs": 1.0, "break_criticals_only": 1.0, "fp_body": 0.0, "surf": 1.0, "surf_air_accelerate": 150.0, "killcam": 7.0, "nametags": 1.0, "hpbars": 1.0, "fp_arms": 0.0}
+const SHOW_RULES: PackedStringArray = ["break_mode", "break_limbs", "break_criticals_only", "fp_body", "mode_index", "surf", "surf_air_accelerate", "killcam", "max_unlag_ms", "fire_buffer", "nametags", "hpbars", "fp_arms", "team_avatars", "team_tint"]
+const SHOW_DEFAULTS := {"break_mode": 1.0, "break_limbs": 1.0, "break_criticals_only": 1.0, "fp_body": 0.0, "surf": 1.0, "surf_air_accelerate": 150.0, "killcam": 7.0, "nametags": 1.0, "hpbars": 1.0, "fp_arms": 0.0, "team_avatars": 1.0, "team_tint": 0.65}
 
 ## The mode a client is told is being played, for its banner and its keys. A client's own
 ## [member mode] is whatever it was built with and is never replaced — logic reads it —

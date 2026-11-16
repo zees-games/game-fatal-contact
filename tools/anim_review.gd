@@ -27,6 +27,25 @@ var _body_metrics := DotClipMetrics.new()
 var _clip_key := ""
 
 
+## --team red|blue (or a team id) plays team deathmatch on that side, so the body and the arms are the side's team
+## body (game/arena_team_bodies.gd); without it the lab is the free-for-all and the player's own look.
+func _before_lab(args: PackedStringArray) -> void:
+	var asked := _arg(args, "--team", "")
+	if asked == "":
+		return
+	var team := 1 if asked == "red" else (2 if asked == "blue" else int(asked))
+	var changed: DotResult = await client.call(&"change_from_menu", &"mode:tdm")
+	if not changed.ok:
+		push_error("anim_review: no team deathmatch: %s" % changed.error)
+		return
+	await _wait(2.0)
+	var game: Object = client.get("game")
+	var me = client.get("player")
+	var moved: DotResult = game.get(&"match_node").switch_team(str(me.player_id), team, int(game.get(&"_tick")))
+	me.team = int(game.call(&"team_of", me.player_id))
+	print("ANIMREVIEW team %s: on team %d (%s)" % [asked, me.team, "ok" if moved.ok else moved.error])
+
+
 func _build_lab() -> void:
 	super._build_lab()
 	_views = DotGameVisualQaViews.new()

@@ -8,7 +8,7 @@ const ArenaViewArms := preload("arena_view_arms.gd")
 const ArenaKillPovRecoil := preload("arena_kill_pov_recoil.gd")
 const ArenaRecoilView := preload("arena_recoil_view.gd")
 const ArenaFrameProbe := preload("arena_frame_probe.gd")
-const ArenaAvatars := preload("arena_avatars.gd")
+const ArenaTeamBodies := preload("arena_team_bodies.gd")
 const AMMO_FONT := 22
 ## Metres per second the lens may slide out of a wall.
 const EASE_SPEED := 6.0
@@ -270,7 +270,10 @@ static func look_for(game: Object, id: int) -> Array:
 	var key := StringName("arena-player-%08d" % id)
 	var player: Variant = game.call(&"player_for", id) if id != 0 and game != null and game.has_method(&"player_for") else null
 	var avatar: DotAvatar = (player as Object).get(&"avatar") as DotAvatar if player is Object else null
-	return [String(key), ArenaAvatars.look_of(avatar, key)]
+	# A team body is part of the key, so a killer who changed sides is a rebuild of the parked rig.
+	var team := int((player as Object).get(&"team")) if player is Object else -1
+	var wear := ArenaTeamBodies.wear_key(team)
+	return [String(key) if wear == "" else String(key) + "|" + wear, ArenaTeamBodies.look_of(avatar, key, team)]
 
 
 ## Builds the spare view model, arms, effects, crosshair and ammo line a kill would otherwise make on its first frame.

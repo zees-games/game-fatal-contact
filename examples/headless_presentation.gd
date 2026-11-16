@@ -1,6 +1,7 @@
 extends "headless_presentation_b3.gd"
 
 const ArenaFlashlight := preload("../game/arena_flashlight.gd")
+const ArenaTeamBodies := preload("../game/arena_team_bodies.gd")
 
 
 func _ready() -> void:
@@ -47,6 +48,7 @@ func _run() -> void:
 	await _test_bodies_fall()
 	_test_feedback_from_the_wire()
 	_test_stock_avatars_differ()
+	_test_team_bodies_fall_back()
 	await _test_hud_fits_the_frame()
 	_test_hud_makes_room_for_a_ballot()
 	await _test_the_map_menu()
@@ -409,4 +411,19 @@ func _test_party_over_http() -> void:
 	ada.leave()
 	for node: Node in [ada, bob, carol, stub]:
 		node.queue_free()
+	_done()
+
+
+## A team body that is not on this machine leaves that side its own looks, and off a team mode nobody wears one.
+func _test_team_bodies_fall_back() -> void:
+	_section("Team avatars fall back to the player's own look")
+	var key := StringName(ArenaGame.storage_key(140))
+	var own := ArenaAvatars.look_of(null, key)
+	var got := ArenaTeamBodies.register("fc_no_such_body,", "user://no_such_dir")
+	_check(got.size() == 2 and got[0] == &"" and got[1] == &"", "a missing body registers nothing", str(got))
+	_check(ArenaTeamBodies.wear_key(1) == "" and ArenaTeamBodies.wear_key(2) == "", "no side wears a body off a team mode")
+	var worn := ArenaTeamBodies.look_of(null, key, 1)
+	_check(worn.body == own.body and worn.top == own.top, "a side without a body keeps the player's look",
+		"%s/%s vs %s/%s" % [worn.body, worn.top, own.body, own.top])
+	var _reset := ArenaTeamBodies.register("", "")
 	_done()

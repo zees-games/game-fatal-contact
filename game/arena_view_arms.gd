@@ -10,6 +10,7 @@ const ONE_HAND: Array[StringName] = [&"melee", &"thrown", &"fists"]
 const HANDS_MIN_DISTANCE := 0.3
 ## DotPlayerViewArms' own hand size, for a weapon whose profile does not say.
 const DEFAULT_HAND_SCALE := 0.5
+const ArenaTeamBodies := preload("arena_team_bodies.gd")
 
 ## cl_pose_debug: draws the grip sockets, hand targets and arm bones over the view.
 static var debug_pose := false
@@ -32,6 +33,8 @@ var _own_lean := 0.4
 ## The game whose `fp_arms` rule (arena_fp_arms) may put one arm set on everybody; null keeps the player's own.
 var rules: Object = null
 var _arm_set: Array = []
+## [wear key, look] of the side's body the arms last wore ([method team_look]).
+var _team_set: Array = []
 var _boxes: Dictionary = {}
 var _art_model := 0
 var _art: Array = []
@@ -111,6 +114,21 @@ static func arm_set_look(p_rules: Object, memo: Array) -> DotHumanoidLook:
 	return memo[1] as DotHumanoidLook
 
 
+## The side's body [param p_body] wears in a team mode (arena_team_bodies.gd), so the arms in view are the
+## body's sleeves in its colour; null off a team mode or without a body. [param memo] keeps it one object.
+static func team_look(p_body: Object, memo: Array) -> DotHumanoidLook:
+	if p_body == null:
+		return null
+	var team := int(p_body.get(&"team"))
+	var wear := ArenaTeamBodies.wear_key(team)
+	if wear == "":
+		return null
+	if memo.size() != 2 or String(memo[0]) != wear:
+		var key := StringName("arena-player-%08d" % int(p_body.get(&"player_id")))
+		memo.assign([wear, ArenaTeamBodies.look_of(p_body.get(&"avatar") as DotAvatar, key, team)])
+	return memo[1] as DotHumanoidLook
+
+
 ## Holding, follows the whole look like the drawn weapon, so pitch never takes the grip out of reach; empty-handed
 ## (a downed crawl), by yaw only. Hidden with the view model or a scope.
 func _process(delta: float) -> void:
@@ -135,7 +153,8 @@ func _process(delta: float) -> void:
 		var lean: float = model.call(&"art_max_lean") if art[2] else -1.0
 		arms.max_lean = max_lean_override if max_lean_override >= 0.0 else (lean if lean >= 0.0 else _own_lean)
 	if _look_override:
-		arms.set_look_override(arm_set_look(rules, _arm_set))
+		var over := arm_set_look(rules, _arm_set)
+		arms.set_look_override(over if over != null else team_look(body, _team_set))
 	if &"debug_pose" in arms and arms.debug_pose != debug_pose:
 		arms.debug_pose = debug_pose
 	var v: Vector3 = body.controller.state.velocity
