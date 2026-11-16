@@ -637,10 +637,10 @@ func tick_post(tick: int, delta: float, combat_command: DotWeaponCommand) -> Dot
 
 	var state := controller.state
 
-	# The aim comes from the movement command, not from a second sample. Sampling the
-	# mouse twice gives a shot that leaves at a different angle than the one the
-	# player was looking along.
-	_command = combat_command.duplicate_command()
+	# The aim comes from the movement command, not from a second sample (a shot would leave at another angle than the
+	# view's). Copied into this player's own command, which nothing keeps past the tick: no new object per player a tick.
+	_command.slot = combat_command.slot
+	_command.buttons = combat_command.buttons
 	_command.yaw = state.yaw
 	_command.pitch = state.pitch
 	if not is_nan(late_fire_aim.x):
