@@ -35,6 +35,9 @@ func _run() -> void:
 	var _off := rings.refresh(_server_net.interest, 3)
 
 	_section("a server bot joins")
+	# The generic bot: a weapon style crouches it, and the rewind restores feet, not stance
+	# (nightly bot-crouch-rewind-60m-1). Drop this pin once the rewind carries the crouch.
+	var _st := DotBotSettings.of(_server_game).set_value("styles", "0")
 	var bot: int = _server_bridge.add_bot("Bolt")
 	_check(bot != 0, "the server adds a bot")
 	for peer_id: int in _clients:
