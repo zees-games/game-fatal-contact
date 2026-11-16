@@ -48,6 +48,16 @@ var _fake_sent := [0, 0]
 ## --control N: N more fake peers without an eye, sent everything: the same run's bytes with no relevance, so a before/after of the rings is one run, not two runs of different fights.
 var _control := 0
 var _control_sent := [0, 0]
+## --fields: per snapshot, which observer-visible properties changed since the last snapshot (what an in-step watcher is
+## owed, before interest), summed per property and per behaviour script with its declared size, printed as FIELDS lines.
+var _fields := false
+var _field_last := {}
+var _field_bits := {}
+var _field_count := {}
+var _field_entities := {}
+var _wire_bits: Dictionary = {}
+var _distance_bands: Dictionary = {}
+var _field_snaps := 0
 var _server: DotServer = null
 var _game: ArenaGame = null
 var _module = null
@@ -74,6 +84,7 @@ func _ready() -> void:
 			"--map": _map_id = args[i + 1]
 			"--port": _port = int(args[i + 1])
 			"--control": _control = int(args[i + 1])
+	_fields = args.has("--fields")
 	if _port != PORT:
 		_data = "%s_%d" % [DATA, _port]
 	DotLog.set_level(DotLog.Level.ERROR)
@@ -303,6 +314,81 @@ func _install_fakes() -> void:
 	await get_tree().create_timer(2.0).timeout
 
 
+## Counts the observer-visible properties that changed since the previous snapshot (--fields), with dot-net's own
+## [method DotNetVar.differs] and [method DotNetVar.estimated_bits] plus the 6-bit property index; an entity with any
+## change adds its 36-bit header (id, behaviour count, property count) under "<script>.header".
+func _count_fields(_tick: int, _peers: int) -> void:
+	_field_snaps += 1
+	if _field_snaps % 8 == 0:
+		var spots: Array[Vector3] = []
+		for identity in _net.registry.all():
+			for b in identity.behaviours:
+				if &"net_position" in b:
+					spots.append(b.get(&"net_position"))
+		for i in spots.size():
+			for j in spots.size():
+				if i != j:
+					var band := mini(int(spots[i].distance_to(spots[j]) / 10.0), 15)
+					_distance_bands[band] = int(_distance_bands.get(band, 0)) + 1
+	for identity in _net.registry.all():
+		for b in identity.behaviours:
+			var script_name: String = b.get_script().resource_path.get_file().get_basename() if b.get_script() != null else "?"
+			var key := b.get_instance_id()
+			var last: Dictionary = _field_last.get(key, {})
+			var changed := false
+			var wire_changed := false
+			for v: DotNetVar in b.net_vars:
+				if v.audience == DotNetVar.Audience.OWNER:
+					continue
+				var value: Variant = b.get(v.property)
+				if not last.has(v.property) or v.differs(last[v.property], value):
+					changed = true
+					var field := "%s.%s" % [script_name, v.property]
+					_field_bits[field] = int(_field_bits.get(field, 0)) + 6 + v.estimated_bits()
+					_field_count[field] = int(_field_count.get(field, 0)) + 1
+				if not last.has(v.property) or v.wire_value(last[v.property]) != v.wire_value(value):
+					wire_changed = true
+					var wfield := "%s.%s" % [script_name, v.property]
+					_wire_bits[wfield] = int(_wire_bits.get(wfield, 0)) + 6 + v.estimated_bits()
+				last[v.property] = value
+			_field_last[key] = last
+			if wire_changed:
+				var wh := "%s.header" % script_name
+				_wire_bits[wh] = int(_wire_bits.get(wh, 0)) + 36
+			_field_entities[script_name] = int(_field_entities.get(script_name, 0)) + 1
+			if changed:
+				var h := "%s.header" % script_name
+				_field_bits[h] = int(_field_bits.get(h, 0)) + 36
+				_field_count[h] = int(_field_count.get(h, 0)) + 1
+
+
+func _report_fields() -> void:
+	var snaps := maxf(float(_field_snaps), 1.0)
+	var fields: Array = _field_bits.keys()
+	fields.sort_custom(func(a, b) -> bool: return int(_field_bits[a]) > int(_field_bits[b]))
+	var total := 0
+	for f in fields:
+		total += int(_field_bits[f])
+	print("FIELDS snapshots=%d changed_bytes_per_snapshot=%.0f (no interest, all entities)" % [_field_snaps, total / 8.0 / snaps])
+	for s in _field_entities:
+		print("FIELDS entities %s=%.1f" % [s, _field_entities[s] / snaps])
+	for f in fields:
+		print("FIELDS %-40s bytes=%6.1f changes=%5.1f" % [f, int(_field_bits[f]) / 8.0 / snaps, int(_field_count[f]) / snaps])
+	var pairs := 0
+	for k in _distance_bands:
+		pairs += int(_distance_bands[k])
+	var line := "FIELDS pair distances (10 m bands, share):"
+	for k in 16:
+		line += " %d=%.2f" % [k * 10, int(_distance_bands.get(k, 0)) / maxf(float(pairs), 1.0)]
+	print(line)
+	var wire_total := 0
+	for f in _wire_bits:
+		wire_total += int(_wire_bits[f])
+	print("FIELDS wire_changed_bytes_per_snapshot=%.0f (only changes that survive quantisation)" % (wire_total / 8.0 / snaps))
+	for f in fields:
+		print("FIELDS wire %-40s bytes=%6.1f" % [f, int(_wire_bits.get(f, 0)) / 8.0 / snaps])
+
+
 ## Each eye onto its player, a centimetre up per lap so two eyes on one player are never at zero distance.
 func _move_eyes() -> void:
 	for i in _eyes.size():
@@ -315,6 +401,8 @@ func _measure_and_report() -> void:
 	var net := _net
 	var cnet := _cnet
 	var perf0: Dictionary = net.perf_counters()
+	if _fields:
+		net.snapshot_sent.connect(_count_fields)
 	# The client's own sections (arena.net_snapshot is its whole snapshot apply), with a report interval no run reaches.
 	ArenaFrameProbe.set_interval(1.0e9)
 	var sum_down := 0.0
@@ -368,6 +456,8 @@ func _measure_and_report() -> void:
 	if _control > 0:
 		print("CONTROL eyed_bytes_per_snapshot=%d control_bytes_per_snapshot=%d" % [
 			int(_fake_sent[1] / maxf(float(_fake_sent[0]), 1.0)), int(_control_sent[1] / maxf(float(_control_sent[0]), 1.0))])
+	if _fields:
+		_report_fields()
 	print("PHASES clients=%d native=%s workers=%d ms/snapshot:%s fake_bytes_per_snapshot=%d" % [
 		1 + _fake, net._native_note, net.config.snapshot_workers, ph,
 		int(_fake_sent[1] / maxf(float(snaps) * maxf(_fake, 1), 1.0))])

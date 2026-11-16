@@ -30,6 +30,15 @@ var bridge: ArenaNetBridge = null
 ## predicts a bot, so nothing pushes them back into its simulation. Off is the old every-tick copy, for headless_bot_pull, which holds the two to the same sim and the same snapshots.
 static var skip_idle_pull := true
 
+## Whether [method pull] keeps the last view and velocity when the new ones would go out on the wire as the same
+## codes (`sv_net_hold_subquantum`, default on). dot-net marks a property dirty on any change of its raw value, so a
+## yaw that moved a twentieth of a 12-bit step was written again, bits identical to what every receiver already
+## had: on dm_atrium at 64 players, 61% of pitch writes, 8% of yaw and 7% of velocity (tools/net_probe.gd
+## --fields, 2026-11-16). Holding the old value keeps what each receiver decodes exactly as it was, just without
+## the repeat. Only the observer's copy is held: the owner rewinds from [member net_exact], and the lag-comp
+## history records the node, not these properties. Position is never held: the server reads it back.
+static var hold_subquantum := true
+
 # --- Movement, from DotFpsNetSync.state_specs() ---
 var net_position: Vector3 = Vector3.ZERO
 var net_velocity: Vector3 = Vector3.ZERO
@@ -151,6 +160,11 @@ var last_state_tick: int = -1
 ## The newest tick this client has simulated, so a replayed one can be told from it.
 var _newest_simulated: int = -1
 
+## The declarations [member hold_subquantum] compares through, kept by [method _register_net_vars].
+var _velocity_var: DotNetVar = null
+var _yaw_var: DotNetVar = null
+var _pitch_var: DotNetVar = null
+
 
 func _register_net_vars() -> void:
 	for spec in DotFpsNetSync.state_specs():
@@ -167,6 +181,14 @@ func _register_net_vars() -> void:
 			# would encode a value the property cannot hold. Six bits over the real range is the ~1.5% the spec's
 			# comment claims; over the default range it would be 3%.
 			declaration.range_of(0.0, 1.0)
+
+		match spec["property"]:
+			&"net_velocity":
+				_velocity_var = declaration
+			&"net_yaw":
+				_yaw_var = declaration
+			&"net_pitch":
+				_pitch_var = declaration
 
 	# Owner-only exact slide / wall-run timers: DotFpsNetSync.pull writes and push prefers it when declared.
 	for spec in DotFpsNetSync.rewind_specs2():
@@ -339,6 +361,25 @@ func _net_predicts() -> bool:
 	return player != null and player.health != null and player.health.alive
 
 
+## Puts back each of velocity, yaw and pitch whose new value would be written as the same codes as the one it
+## replaced (see [member hold_subquantum]), so dot-net does not see a change no receiver could.
+func _hold_subquantum(velocity: Vector3, yaw: float, pitch: float) -> void:
+	if _velocity_var != null and net_velocity != velocity and _velocity_var.wire_value(net_velocity) == _velocity_var.wire_value(velocity):
+		net_velocity = velocity
+	if _yaw_var != null and net_yaw != yaw and _angle_code(net_yaw, _yaw_var.bit_width) == _angle_code(yaw, _yaw_var.bit_width):
+		net_yaw = yaw
+	if _pitch_var != null and net_pitch != pitch and _angle_code(net_pitch, _pitch_var.bit_width) == _angle_code(pitch, _pitch_var.bit_width):
+		net_pitch = pitch
+
+
+## The code [method DotNetWriter.write_angle] puts on the wire for [param degrees], with its arithmetic.
+## [method DotNetVar.wire_value] gives the same answer for an ANGLE through a writer and a reader built per call,
+## which is two allocations per property per player per snapshot for a comparison of two integers.
+static func _angle_code(degrees: float, bits: int) -> int:
+	var mask := (1 << bits) - 1
+	return int(roundf(fposmod(degrees, 360.0) / 360.0 * float(mask))) & mask
+
+
 ## Whether a tick would be simulated as a replay. For a suite.
 func is_replay(tick: int) -> bool:
 	return tick <= _newest_simulated
@@ -350,7 +391,12 @@ func pull() -> void:
 		return
 
 	var lap := ArenaFrameProbe.lap_start()
+	var held_velocity := net_velocity
+	var held_yaw := net_yaw
+	var held_pitch := net_pitch
 	DotFpsNetSync.pull(player.controller.state, self)
+	if hold_subquantum:
+		_hold_subquantum(held_velocity, held_yaw, held_pitch)
 	lap = ArenaFrameProbe.lap(&"np_fps", lap)
 	_pull_exact(player.controller.state)
 	lap = ArenaFrameProbe.lap(&"np_exact", lap)

@@ -86,7 +86,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
   - It cuts bytes and client work, not server sim time.
 - **FC now.**
   - dot-net's `DotNetInterestDistance` / `DotNetInterestGrid`, with a flat radius.
-  - FC's `ArenaNetAoi` distance tiers apply from 33 players: full rate inside 40 m, every 2nd snapshot to 80 m, every 4th to 120 m.
+  - FC's `ArenaNetAoi` distance tiers apply from 33 players: full rate inside 20 m, every 2nd snapshot to 120 m (`sv_net_far_distance`, `sv_net_far_tiers`; 40 m with a quarter-rate band past 80 m before fc-dmatrium-bytes-1).
   - A beaconed player is `always_relevant`.
   - No PVS yet: a branch exists on `net-visibility-interest-1`, not merged.
 - **Saves.** About 0 server ms at one client; it trims client decode and bandwidth.

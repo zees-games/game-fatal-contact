@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## Relevance tiers for a big server (arena-128-scale-1 / net-aoi-1): distance rings around each player that decide how often, and whether, another player is sent, built on dot-net's own DotNetInterestDistance (no new wire format).
-## Defaults: every snapshot out to radius (120 m), nothing past it; on imported maps the PVS (net_visibility) cuts further. Past far_distance (40 m) a player is sent every far_every-th snapshot (2), each further band half as often (far_tiers 2). Measured with net_probe --control at 64 (docs/perf-64-players.md): with dot-net syncing a thinned entity's acks the rings save bytes, 560 B against 635 per client per snapshot on dm_atrium and 283 against 307 on cp-orange-x3; before that sync they cost more than they saved (801-831 B on dm_atrium). The observer's own entity and a beaconed player (always_relevant) are never culled; scoreboard, kill feed and match state are not entity snapshots.
+## Defaults: every snapshot out to radius (120 m), nothing past it; on imported maps the PVS (net_visibility) cuts further. Past far_distance (20 m) a player is sent every far_every-th snapshot (2); each further band (far_tiers, default 1: none) would be twice as far and half as often, but a scoped shot at 60 m drawn from every fourth snapshot misses the rewind tolerance (headless_hitreg_scope). Measured with net_probe --control at 64 (docs/perf-64-players.md): with dot-net syncing a thinned entity's acks the rings save bytes, 560 B against 635 per client per snapshot on dm_atrium and 283 against 307 on cp-orange-x3 at the old 40 m / 2 tiers, 411 B on dm_atrium at 20 m / 1 tier with ArenaPlayerNet.hold_subquantum (fc-dmatrium-bytes-1); before that sync they cost more than they saved (801-831 B on dm_atrium). The observer's own entity and a beaconed player (always_relevant) are never culled; scoreboard, kill feed and match state are not entity snapshots.
 ## Off until the room is big (min_players, 32: the tiers start at the 33rd player, with OFF_MARGIN hysteresis); an entity leaving the radius keeps its last drawn pose on the client (no pop). Pinned by headless_netaoi.
 
 const OFF_MARGIN := 2
@@ -9,9 +9,9 @@ const BASE_UNSET := -1.0
 
 var min_players: int = 32
 var radius: float = 120.0
-var far_distance: float = 40.0
+var far_distance: float = 20.0
 var far_every: int = 2
-var far_tiers: int = 2
+var far_tiers: int = 1
 var far_coherent: bool = true
 
 var active: bool = false

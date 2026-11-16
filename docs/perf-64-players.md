@@ -90,9 +90,22 @@ fakes, 30 s, PH (timings there are noise; bytes are not):
 | cp-orange-x3 | 1 / - / - | 309 | 547 | 5193 |
 | cp-orange-x3 | 2 / 2 / 40 (old default) | 307-308 | 547-556 | 4818-5690 |
 | dm_atrium | 1 / - / - (thinned-ack sync) | 635 | 635 | - |
-| dm_atrium | 2 / 2 / 40 (thinned-ack sync, default) | 560 | 635 | - |
+| dm_atrium | 2 / 2 / 40 (thinned-ack sync) | 560 | 635 | - |
 | cp-orange-x3 | 1 / - / - (thinned-ack sync) | 307 | 555 | - |
-| cp-orange-x3 | 2 / 2 / 40 (thinned-ack sync, default) | 283 | 523 | - |
+| cp-orange-x3 | 2 / 2 / 40 (thinned-ack sync) | 283 | 523 | - |
+| dm_atrium | 2 / 2 / 40, before fc-dmatrium-bytes-1 (rerun) | 541-549 | 616 | - |
+| dm_atrium | 2 / 2 / 20 | 404 | - | - |
+| dm_atrium | 2 / 3 / 15 | 343 | - | - |
+| dm_atrium | 3 / 2 / 25 | 389 | - | - |
+| dm_atrium | 2 / 2 / 40 + sub-quantum hold | 498 | 563 | - |
+| dm_atrium | 2 / 1 / 20 + sub-quantum hold (default) | 406-411 | 559-562 | - |
+| dm_atrium | 2 / 1 / 15 + sub-quantum hold | 382 | - | - |
+| dm_atrium | 2 / 1 / 10 + sub-quantum hold | 371 | 540 | - |
+| dm_atrium | 2 / 2 / 20 + sub-quantum hold (fails headless_hitreg_scope) | 341-347 | 528-547 | - |
+| dm_atrium | 2 / 2 / 15 + sub-quantum hold (fails headless_hitreg_scope) | 302 | 562 | - |
+| cp-orange-x3 | 2 / 2 / 40 + sub-quantum hold | 271 | 485 | - |
+| cp-orange-x3 | 2 / 1 / 20 + sub-quantum hold (default) | 260 | 483 | - |
+| cp-orange-x3 | 2 / 2 / 20 + sub-quantum hold | 258 | 518 | - |
 
 Before dotnet-thin-ack-sync, far-ring thinning cost bytes: at far_every 2 a peer got about 30% more than with no
 thinning. The cause was in dot-net: a per-peer view was synced to the peer's acks only while its entity was in the
@@ -102,6 +115,25 @@ whose own snapshot was acked (no wire change). With that, the rings save bytes (
 probe, 2026-11-16): dm_atrium 560 B against 635 unthinned, cp-orange-x3 283 against 307. `sv_net_far_every` defaults
 to 2 again (tiers 2, 40 m). On cp-orange-x3, the map 64 players are for, a peer is at 283 B against 523 unfiltered,
 under the 350 B goal; small DM maps stay near 560 B because most players there are within 40 m and in view.
+
+**dm_atrium bytes (fc-dmatrium-bytes-1, 2026-11-16).** `net_probe --fields` counts what each changed field costs
+before interest, and how much of it a receiver could tell apart (`FIELDS wire ...`, only changes whose quantised code
+moved). On dm_atrium every peer is a player (65 entities, about 33 changed a snapshot): position 153 B, the 36-bit entity
+headers 158, velocity 108, yaw 78, pitch 64, flags 40. 61% of pitch writes, 8% of yaw and 7% of velocity carried the
+same codes as the last send: dot-net marks a field dirty on any raw change. `ArenaPlayerNet.hold_subquantum`
+(`sv_net_hold_subquantum`, default 1) keeps the previous value when the new one quantises the same, so receivers decode
+exactly what they did and the repeat is not sent; position is not held (the server reads it back), and neither lag-comp
+history nor the owner's rewind (`net_exact`) reads these fields. That alone took the unfiltered control from 616 B to
+528-563, and dm_atrium at the old rings from 541-549 to 498.
+
+The rest is distance: 70% of player pairs on dm_atrium are 10-50 m apart (`FIELDS pair distances`), so a 40 m band
+thinned almost nobody. A quarter-rate band is what reaches 350 B (20 m with two tiers: 341-347), but a scoped shot at
+60 m drawn from every fourth snapshot misses the rewind tolerance (`headless_hitreg_scope`: marksman and sniper worst
+0.10-0.20 m against 0.025). The default is therefore one band, `sv_net_far_distance` 20 and `sv_net_far_tiers` 1: full
+rate to 20 m, every second snapshot to 120 m (the half rate the scope suite already held at 40-80 m). dm_atrium is at
+406-411 B against 541-549, cp-orange-x3 at 260 against 283. The last ~60 B to 350 on small DM maps needs either a
+quarter rate that leaves scoped targets alone (an observer-aware tier in dot-net interest) or cheaper observer velocity;
+both are on the nightly board.
 
 ## Ranking (64 players)
 

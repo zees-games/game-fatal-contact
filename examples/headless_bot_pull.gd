@@ -8,7 +8,7 @@ const ArenaPlayerNet := preload("../game/arena_player_net.gd")
 const ArenaKillViewServer := preload("../game/arena_killview_server.gd")
 
 ## A bot's replicated copy is pulled only on the ticks a snapshot is written (`ArenaPlayerNet.skip_idle_pull`). The same bots on dm_box play the same match through the server's bridge with it off and on: every bot's
-## position, view, health and commands every tick, and every replicated property of every bot on every snapshot tick, are identical. Only what is sent is read from those properties, so that is the whole claim.
+## position, view, health and commands every tick, and every replicated property of every bot on every snapshot tick as it goes out on the wire, are identical. Only what is sent is read from those properties, so that is the whole claim.
 ## The kill view asks for an eye only on the ticks its ring keeps one (`ArenaKillViewServer.Due.ask_due_only`): with it off and on, every bot's kill view clip, read every second, is identical too.
 
 const TICK_RATE := 66
@@ -135,7 +135,8 @@ func _play() -> Array:
 			sim.append("%d:%.5f,%.5f,%.5f,%.5f,%.5f,%.3f" % [id, state.position.x, state.position.y, state.position.z, state.yaw, state.pitch, b.player.health.health])
 			if snapshot:
 				for declaration: DotNetVar in b.net_vars:
-					props.append(var_to_str(b.get(declaration.property)))
+					# As a receiver decodes it: ArenaPlayerNet.hold_subquantum keeps a raw value that quantises the same.
+					props.append(var_to_str(declaration.wire_value(b.get(declaration.property))))
 				props.append(str(b.identity.always_relevant))
 			elif b.net_position != state.position:
 				stale += 1

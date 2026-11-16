@@ -3,6 +3,7 @@ extends DotModule
 const ArenaGame := preload("arena_game.gd")
 const ArenaPlayer := preload("arena_player.gd")
 const ArenaNetAoi := preload("arena_net_aoi.gd")
+const ArenaPlayerNet := preload("arena_player_net.gd")
 const ArenaBots := preload("arena_bots.gd")
 const ArenaBotLoadouts := preload("arena_bot_loadouts.gd")
 const ArenaBotBrain := preload("arena_bot_brain.gd")
@@ -658,6 +659,12 @@ func _add_critical_cvar(cvar: String, help: String) -> void:
 func _add_aoi_cvars() -> void:
 	net_aoi = ArenaNetAoi.new()
 	net_aoi.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
+	add_cvar("sv_net_hold_subquantum", "1" if ArenaPlayerNet.hold_subquantum else "0",
+		"1 skips re-sending a player's view or velocity when the change is smaller than one wire step (receivers decode the same values either way)",
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			ArenaPlayerNet.hold_subquantum = new_value.to_float() != 0.0
+			log_info("sub-quantum hold changed", {"on": ArenaPlayerNet.hold_subquantum}))
 
 
 ## Once a second from the module: turns the rings on or off for the current player count.
