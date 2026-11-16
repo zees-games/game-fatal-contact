@@ -17,15 +17,11 @@ const LIMITS := {"detach_m": 0.06, "intersect_m": 0.03, "near_cut_m": 0.005, "po
 ## Per-frame steps (a velocity) shrink at a higher fps; a frame count (a duration) grows. A kick is one impulse at any fps.
 const PER_STEP: PackedStringArray = ["pop_m", "pop_deg"]
 const PER_COUNT: PackedStringArray = ["wrong_hand_frames", "hidden_frames"]
-## The opponent's view: standing this far in front of you, eyes at this height, looking at your chest.
-const OPPONENT_AT := Vector3(0.4, 1.6, -4.0)
 const AVATAR_ANIMS := {"avatar_walk": [&"dot_fps_forward"], "avatar_strafe": [&"dot_fps_left"],
 	"avatar_run": [&"dot_fps_forward", &"dot_fps_sprint"], "avatar_crouch": [&"dot_fps_crouch"], "avatar_jump": [&"dot_fps_jump"]}
 
-var _tp_view: SubViewport = null
-var _tp_cam: Camera3D = null
-var _op_view: SubViewport = null
-var _op_cam: Camera3D = null
+## The behind-right and opponent cameras, shared with every game (dot-game docs/visual-qa.md).
+var _views: DotGameVisualQaViews = null
 var _frames: Array[Dictionary] = []
 var _body_metrics := DotClipMetrics.new()
 var _clip_key := ""
@@ -33,29 +29,13 @@ var _clip_key := ""
 
 func _build_lab() -> void:
 	super._build_lab()
-	_tp_view = _outside_view()
-	_tp_cam = _tp_view.get_child(0) as Camera3D
-	_op_view = _outside_view()
-	_op_cam = _op_view.get_child(0) as Camera3D
+	_views = DotGameVisualQaViews.new()
+	_views.cull_mask = 0xFFFFF & ~VIEW_LAYER & ~ARMS_LAYER
+	_views.setup(root, root.world_3d, (client.get("player").camera as Camera3D).environment)
 	# With your own body off the client draws the figure whole and only hides it, which the staging undoes before the draw.
 	var presentation = client.get("presentation")
 	if presentation != null and presentation.settings != null:
 		var _off: Variant = presentation.settings.set_value(DotOwnBodySetting.KEY, false)
-
-
-## A 480x540 view of the shared world that sees your body and the world gun but not the first-person arms or weapon.
-func _outside_view() -> SubViewport:
-	var view := SubViewport.new()
-	view.size = Vector2i(480, 540)
-	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	view.world_3d = root.world_3d
-	root.add_child(view)
-	var cam := Camera3D.new()
-	cam.fov = 50.0
-	cam.cull_mask = 0xFFFFF & ~VIEW_LAYER & ~ARMS_LAYER
-	cam.environment = (client.get("player").camera as Camera3D).environment
-	view.add_child(cam)
-	return view
 
 
 ## A limit at the run's fps (see PER_STEP and PER_COUNT).
@@ -69,7 +49,7 @@ func _limit(key: String) -> float:
 
 
 func _save_frame(d: String, i: int, vp: Viewport = null) -> void:
-	if vp != null or _tp_view == null:
+	if vp != null or _views == null:
 		await super._save_frame(d, i, vp)
 		return
 	if i == 0:
@@ -85,9 +65,9 @@ func _save_frame(d: String, i: int, vp: Viewport = null) -> void:
 	_stage_views()
 	_frames.append(_sample(float(i) / float(fps)))
 	await RenderingServer.frame_post_draw
-	var _e := root.get_viewport().get_texture().get_image().save_jpg("%s/f_%03d.jpg" % [d, i], 0.9)
-	var _t := _tp_view.get_texture().get_image().save_jpg("%s/t_%03d.jpg" % [d, i], 0.9)
-	var _o := _op_view.get_texture().get_image().save_jpg("%s/o_%03d.jpg" % [d, i], 0.9)
+	var saved := _views.save(d, i, root.get_viewport())
+	if not saved.ok:
+		printerr("anim_review: %s" % str(saved.error))
 	_frames_saved += 1
 
 
@@ -98,7 +78,7 @@ func _stage_views() -> void:
 	cam.cull_mask = 0xFFFFF & ~BODY_LAYER
 	var arms_node := client.get("view_arms") as Node
 	if arms_node != null:
-		_tag(arms_node, ARMS_LAYER, null)
+		var _arms := DotGameVisualQaViews.tag_layers(arms_node, ARMS_LAYER)
 	var body: Node3D = me.body_mesh
 	if body != null:
 		body.visible = true
@@ -106,22 +86,8 @@ func _stage_views() -> void:
 		body.global_rotation = Vector3(0.0, deg_to_rad(float(me.controller.state.yaw)), 0.0)
 		# The gun in the body's hands, as everyone else sees it; the first-person present hides it.
 		me._present_held()
-		_tag(body, BODY_LAYER, cam)
-	var feet: Vector3 = me.controller.state.position
-	var yaw := deg_to_rad(float(me.controller.state.yaw))
-	_tp_cam.global_position = feet + Basis(Vector3.UP, yaw) * Vector3(1.4, 1.5, 2.0)
-	_tp_cam.look_at(feet + Vector3(0.0, 1.1, 0.0))
-	_op_cam.global_position = feet + Basis(Vector3.UP, yaw) * OPPONENT_AT
-	_op_cam.look_at(feet + Vector3(0.0, 1.3, 0.0))
-
-
-func _tag(node: Node, layer: int, skip: Node) -> void:
-	if node == skip:
-		return
-	if node is VisualInstance3D:
-		(node as VisualInstance3D).layers = layer
-	for child in node.get_children():
-		_tag(child, layer, skip)
+		var _body := DotGameVisualQaViews.tag_layers(body, BODY_LAYER, cam)
+	_views.place(me.controller.state.position, deg_to_rad(float(me.controller.state.yaw)))
 
 
 ## One frame's raw numbers: where the hands and weapon are in camera space, and how the arms sit against the grip, the weapon and the near plane.

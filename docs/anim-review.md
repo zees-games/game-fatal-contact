@@ -2,7 +2,7 @@
 
 How to find and fix glitches in fc-weapons' first-person and third-person animations (reload, draw, holster, fire, arms) and the avatar's locomotion by looking at them. A check can only flag a problem; the sheets and clips are what you judge. The question for every clip is: **does this look like a real game?**
 
-This is the pilot of the family's visual QA loop: one test scene per weapon, avatar and NPC, a first-person and an outside camera, 60 fps capture to sheets and clips, findings as nightly notes, re-capture until clean. The capture is per game (it knows how the game builds its player and weapons); the rest is the same everywhere: the three views, 60 fps, the sheet and clip layout, the report format, posting with an `fps` metric, the checklist below and the notes. Another game adopts it by writing its own `tools/anim_review*` against this doc, not by copying these scripts.
+This was the pilot of the family's visual QA loop and now runs on it: dot-game's visual QA harness (dot-game `docs/visual-qa.md`) holds the views (`DotGameVisualQaViews`), the shot tool that makes the sheets and clips, the driver that routes the capture to a GPU box and the post tool. FC keeps only what knows FC: `tools/anim_review.gd` (the offline client, the weapon lab, the grip and muzzle numbers) and the report in `tools/anim_review.sh`. `tools/anim_review_shot.sh` and `tools/anim_review_post.sh` are one-line wrappers. Another game adopts the loop from the dot-game doc, never by copying these scripts.
 
 ## The loop
 
@@ -25,15 +25,15 @@ The loop is recursive: a fix is done when the re-captured sheets show the defect
 - third person: a fixed camera 2 m behind and to the right of the player, looking at the waist, showing the whole figure with the gun in its hands as other players see it;
 - opponent: a fixed camera 4 m in front and slightly to the side at eye height, looking back at the player, as the enemy sees the muzzle flash and the hands.
 
-`tools/anim_review_shot.sh` turns the frames into contact sheets with ffmpeg (`<clip>_fp_sheet.png`, `_tp_sheet.png`, `_op_sheet.png`): 15 cells a second (every fourth frame at 60 fps), eight to a row, each cell labelled `#<frame> <seconds>s`. It also writes one clip per animation, `<weapon>/<clip>.mp4`: the three views side by side (1920x540), every frame, at the capture rate, with the frame index burnt in. The frames themselves are deleted.
+`tools/anim_review_shot.sh` (dot-game's `dot_game_visual_qa_shot.sh`) turns the frames into contact sheets with ffmpeg (`<clip>_fp_sheet.png`, `_tp_sheet.png`, `_op_sheet.png`): 15 cells a second (every fourth frame at 60 fps), eight to a row, each cell labelled `#<frame> <seconds>s`. It also writes one clip per animation, `<weapon>/<clip>.mp4`: the three views side by side (1920x540), every frame, at the capture rate, with the frame index burnt in. The frames themselves are deleted.
 
-The nightly review viewer plays a posted clip at its own rate and steps one frame per 1/fps (read from the `fps` metric `anim_review_post.sh` posts). A browser shows at most the display's refresh rate, so a 60 fps clip plays at full rate on a 60 Hz or faster screen; step frame by frame for anything finer. Sheets show 15 frames a second: a one-frame pop at 60 fps can fall between cells, which is what the clip and the per-frame table are for.
+The nightly review viewer plays a posted clip at its own rate and steps one frame per 1/fps (read from the file; `anim_review_post.sh` also posts it as the `fps` metric). A browser shows at most the display's refresh rate, so a 60 fps clip plays at full rate on a 60 Hz or faster screen; step frame by frame for anything finer. Sheets show 15 frames a second: a one-frame pop at 60 fps can fall between cells, which is what the clip and the per-frame table are for.
 
 A draw or holster is a real switch (`DotWeaponArsenal.select`, the holster then the deploy, as a slot key does), never `equip`, which is the spawn hand-out and swaps instantly. The draw starts from another slot (often a grenade), so its first frames show that weapon going down.
 
 ## Where it runs
 
-- `anim_review.sh` hands `tools/anim_review_shot.sh` to a GPU box (staging or staging02) with `gpu.sh shot --route --pull <clips dir>`, which needs gamedev's box key and brings the sheets and the clips back; when no box takes it (exit 75) it runs through `heavy` here. gpu.sh may print "could not copy the frames back" because the frames are already deleted; the sheets still arrive.
+- `anim_review.sh` calls dot-game's `dot_game_visual_qa.sh`, which hands `tools/anim_review_shot.sh` to a GPU box (staging or staging02) with `gpu.sh shot --route --pull <clips dir>`, which needs gamedev's box key and brings the sheets and the clips back; when no box takes it (exit 75) it runs through `heavy` here. gpu.sh may print "could not copy the frames back" because the frames are already deleted; the sheets still arrive.
 - If rsync cannot write into `screenshots/`, make the folder writable for gamedev first (`chmod -R a+rwX screenshots`).
 - `--soft` keeps it on the local machine with software rendering. On dev02 that build crashes (signal 11 in llvmpipe), as `weapon_lab.gd` does too, so use the GPU route.
 - One weapon with one clip takes 1 to 3 minutes; every weapon with every clip takes much longer. Run it in the background and poll.

@@ -5,8 +5,8 @@
 #   tools/anim_review.sh <game-dir> <weapon[,weapon]|all> [--anim reload_empty[,draw]] [--avatar] [--fps 60] [--frames] [--soft]
 # --avatar adds the locomotion clips (avatar_walk, _strafe, _run, _crouch, _jump) with the weapon held.
 # Every clip's per-frame numbers go to <weapon>/<clip>_frames.tsv; a FAIL clip's (every clip's with --frames) are printed too.
-# The capture goes to a GPU box through gpu.sh shot (which copies the clips back with --pull) and, when no box takes it,
-# through heavy here; run it as gamedev (who holds the box key) from the checkout or a ~/wt worktree. --soft keeps it
+# The capture runs through dot-game's visual QA driver (dot-game docs/visual-qa.md): on a GPU box through gpu.sh shot,
+# through heavy here when no box takes it; run it as gamedev (who holds the box key) from the checkout or a ~/wt worktree. --soft keeps it
 # here on software rendering (slower, same frames apart from lighting).
 set -euo pipefail
 game=${1:?usage: anim_review.sh <game-dir> <weapon|all> [--anim X] [--soft]}
@@ -30,47 +30,17 @@ done
 # --avatar adds to whatever --anim names, in either order, and a clip named twice runs once.
 ((avatar == 0)) || anims="$anims,avatar_walk,avatar_strafe,avatar_run,avatar_crouch,avatar_jump"
 anims=$(tr , '\n' <<< "$anims" | awk 'NF && !seen[$0]++' | paste -sd,)
-# heavy and the godot it hands on live in gamedev's own bin dirs, which sudo -u gamedev leaves off PATH.
-command -v heavy > /dev/null || PATH=$HOME/bin:$HOME/.local/bin:/home/gamedev/bin:/home/gamedev/.local/bin:$PATH
-command -v heavy > /dev/null || { echo "anim_review.sh: no heavy on PATH (run as gamedev)" >&2; exit 2; }
 cd "$game"
 out=screenshots/anim_review
 log=$out/capture.log
-mkdir -p "$out"
-# Only the picked weapons' old sheets go: a run for one weapon keeps every other weapon's review.
-if [[ $weapons == all ]]; then
-  rm -f "$out"/*/*_sheet.png "$out"/*/*_metrics.json "$out"/*/*.mp4
-else
-  IFS=, read -ra picked <<< "$weapons"
-  for w in "${picked[@]}"; do
-    [[ -n $w && $w != */* && $w != .* ]] && rm -f "$out/$w"/*_sheet.png "$out/$w"/*_metrics.json "$out/$w"/*.mp4
-  done
-fi
+rc=0
 pick=()
 [[ $weapons == all ]] || pick=(--only "$weapons")
-[[ $soft == 1 ]] && export GPU_OFFLOAD=0
-# The clips come back through a scratch directory at the same absolute path on the box and here.
-clips=$(mktemp -d /tmp/anim-review-clips.XXXXXX)
-chmod 755 "$clips"
-trap 'rm -rf "$clips"' EXIT
-shot=(tools/anim_review_shot.sh --out "$out" --clips "$clips" --fps "$fps" --anims "$anims" "${pick[@]}")
-gpu=$(dirname "$PWD")/gpu.sh
-rc=75
-# --route: exit 75 when no box takes it (then heavy queues it here), else the tool's own exit code.
-if [[ $soft == 0 && -x $gpu ]]; then
-  rc=0
-  SHOT_DIR=$PWD GPU_SHOT_WAIT=${GPU_SHOT_WAIT:-1500} "$gpu" shot --route --timeout 3500 --pull "$clips" "$(basename "$PWD")" "${shot[@]}" > "$log" 2>&1 || rc=$?
-fi
-if [[ $rc == 75 ]]; then
-  rc=0
-  heavy -- timeout 3500 "${shot[@]}" > "$log" 2>&1 || rc=$?
-fi
-for c in "$clips"/*__*.mp4; do
-  [[ -e $c ]] || continue
-  n=$(basename "$c" .mp4)
-  mkdir -p "$out/${n%%__*}" && mv "$c" "$out/${n%%__*}/${n#*__}.mp4"
-done
-grep -E 'SCRIPT ERROR|WARN|ERROR' "$log" | head -5 >&2 || true
+drive=(--shot tools/anim_review_shot.sh --out "$out" --fps "$fps" --fresh "$weapons" --no-report)
+[[ $soft == 1 ]] && drive+=(--soft)
+# dot-game's driver routes the shot to a GPU box (heavy here when none takes it), files the clips as <weapon>/<clip>.mp4
+# and leaves report.md to the report below.
+bash addons/dot_game/tools/dot_game_visual_qa.sh "${drive[@]}" -- --anims "$anims" "${pick[@]}" || rc=$?
 python3 - "$out" "$log" "$frames" "$fps" <<'PY'
 import json, math, os, sys
 out, log, all_frames = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
