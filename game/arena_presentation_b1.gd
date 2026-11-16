@@ -215,6 +215,21 @@ func _add_remote_vars(local: DotConsoleLocal) -> void:
 			ArenaPlayer.anim_gate_enabled = str(v).strip_edges() != "0"
 			return DotResult.success(1 if ArenaPlayer.anim_gate_enabled else 0)
 	)
+	local.add_var(&"cl_remote_still_anim_hz", "Most clip steps a second for a remote body standing still past 8 m (its idle; 0: off, 10 is the default). Any move, turn or shot wakes it at once.",
+		func() -> Variant: return ArenaPlayer.still_anim_hz,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_float() or text.to_float() < 0.0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_still_anim_hz takes a number of steps a second, 0 (off) or more")
+			ArenaPlayer.still_anim_hz = text.to_float()
+			return DotResult.success(ArenaPlayer.still_anim_hz)
+	)
+	local.add_var(&"cl_remote_pose_skip", "1 leaves a remote body's placement alone while its drawn turn and lean are unchanged, 0 writes it every frame.",
+		func() -> Variant: return 1 if ArenaPlayer.pose_skip_enabled else 0,
+		func(v: Variant) -> Variant:
+			ArenaPlayer.pose_skip_enabled = str(v).strip_edges() != "0"
+			return DotResult.success(1 if ArenaPlayer.pose_skip_enabled else 0)
+	)
 	local.add_var(&"cl_snapshot_coalesce", "1 decodes only the newest snapshot a network poll brings and drops older ones as lost (on in a browser), 0 decodes every one.",
 		func() -> Variant: return 1 if ArenaNetLink.coalesce else 0,
 		func(v: Variant) -> Variant:

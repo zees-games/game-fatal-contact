@@ -104,16 +104,19 @@ func present(delta: float) -> void:
 
 func _present_rest(delta: float, drawn) -> void:
 	var t := ArenaFrameProbe.lap_start()
-	if camera == null and anim_gate_enabled and _anim_min_dt > 0.0:
+	var gate := _anim_min_dt
+	if camera == null and gate > 0.0 and still_anim_hz > 0.0 and _still(drawn, delta):
+		gate = maxf(gate, 1.0 / still_anim_hz)
+	if camera == null and anim_gate_enabled and gate > 0.0:
 		# A remote body in plain view past ANIM_GATE_NEAR: the clip advances at most every _anim_min_dt of game time,
 		# the skipped time carried. Nobody sees a 30 Hz walk cycle at 8 m or a 20 Hz one at 20 m.
 		if _anim_phase < 0.0:
-			_anim_phase = fmod(float(get_instance_id() % 1000) * 0.618034, 1.0) * _anim_min_dt
+			_anim_phase = fmod(float(get_instance_id() % 1000) * 0.618034, 1.0) * gate
 		if _anim_frames < 0:
 			_anim_frames = get_instance_id() % anim_gate_every
 		_anim_owed += delta
 		_anim_frames += 1
-		if _anim_owed + _anim_phase >= _anim_min_dt and _anim_frames >= anim_gate_every:
+		if _anim_owed + _anim_phase >= gate and _anim_frames >= anim_gate_every:
 			_animate_figure(drawn, _anim_owed)
 			_anim_owed = 0.0
 			_anim_phase = 0.0
@@ -130,6 +133,19 @@ func _present_rest(delta: float, drawn) -> void:
 	t = ArenaFrameProbe.lap(&"r_bubble", t)
 	_mend_body()
 	ArenaFrameProbe.lap(&"r_mend", t)
+
+## Whether this remote body has stood still for [constant STILL_AFTER_SEC]: no speed, alive, and the same yaw, pitch,
+## crouch, mode and shot count as at its last present. Any change restarts the count, so the very present it moves is full rate.
+func _still(drawn: DotFpsState, delta: float) -> bool:
+	var seq := mirror_fire_seq if mirrored else (weapons.fire_seq if weapons != null else 0)
+	var key := Vector4(drawn.yaw, drawn.pitch, drawn.crouch_fraction, float(drawn.mode))
+	if key != _still_key or seq != _still_seq or windup >= 0.0 or drawn.velocity.length_squared() > STILL_SPEED2 or not is_alive():
+		_still_key = key
+		_still_seq = seq
+		_still_for = 0.0
+		return false
+	_still_for += delta
+	return _still_for >= STILL_AFTER_SEC
 
 ## Probe only: the remote half of [method present] with the parts [member present_ablate] names left out.
 func _ablated_present(drawn: DotFpsState, delta: float) -> void:

@@ -483,6 +483,21 @@ static var anim_gate_every: int = WEB_ANIM_GATE_EVERY if DotPlatform.is_web() el
 const LOD_FAR_DT := 1.0 / 45.0
 const LOD_FARTHEST_DT := 1.0 / 30.0
 
+## `cl_remote_still_anim_hz`: a remote body standing still (no speed, the same yaw, pitch, crouch and shots as last
+## present, for [constant STILL_AFTER_SEC]) past [constant ANIM_GATE_NEAR] steps its clip at most this many times a
+## second: Source's cached SetupBones, where unchanged inputs reuse last frame's bones. Only an idle loop is thinned;
+## any change wakes it the same present, with the skipped time carried. 0 turns it off.
+static var still_anim_hz: float = 10.0
+## Seconds a body must stay still before it is thinned, so the blend into the idle (a stop, a landing) plays at full rate.
+const STILL_AFTER_SEC := 0.4
+## Below this speed squared (m/s) a body counts as standing.
+const STILL_SPEED2 := 0.0025
+## `cl_remote_pose_skip`: a remote body whose drawn yaw and lean did not change keeps its placement instead of being
+## written again (1, the default); 0 writes it every present.
+static var pose_skip_enabled: bool = true
+## Degrees of wall-run lean or turn below which the lean counts as eased out.
+const POSE_SETTLED_DEG := 1e-3
+
 ## `cl_remote_lod_scale`: every LOD and animation-gate distance above (all but [constant LOD_NEAR]) times this; under 1 thins
 ## nearer bodies. Must be above 0.
 static var lod_scale: float = 1.0
@@ -522,6 +537,10 @@ var _anim_phase: float = -1.0
 ## Presents since the clip last stepped under the gate (-1: not gated yet; the first count is per body, see [member _anim_phase]).
 var _anim_frames: int = -1
 var _held_thin: bool = false
+## What the still test compared last present (yaw, pitch, crouch, mode as x/y/z/w), the shot count, and how long it has held.
+var _still_key: Vector4 = Vector4(NAN, NAN, NAN, NAN)
+var _still_seq: int = -1
+var _still_for: float = 0.0
 ## A remote body past [constant DotHumanoidFigure.DRAW_RANGE] from the eye: its figure is culled there, so
 ## what hangs off it (gun, held sprite, crest, spawn bubble) is hidden too rather than floating alone.
 var beyond_figure: bool = false

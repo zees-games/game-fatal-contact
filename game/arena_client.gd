@@ -61,10 +61,13 @@ func _present_frame(delta: float) -> void:
 	ArenaTeamBodies.follow(game)
 	var bodies := game.players()
 	ArenaPlayer.set_lod_crowd(bodies.size())
+	# Read once, with the frustum above, not per body: every body is judged from the same eye this frame.
+	var view_eye := view_cam.global_position if view_cam != null else Vector3.ZERO
+	var view_forward := -view_cam.global_transform.basis.z if view_cam != null else Vector3.FORWARD
 	for body in bodies:
 		body.follow_team_body()
 		if view_cam != null:
-			body.present_lod(delta, view_cam.global_position, -view_cam.global_transform.basis.z, frustum)
+			body.present_lod(delta, view_eye, view_forward, frustum)
 		else:
 			body.present(delta)
 	ArenaFrameProbe.add(&"bodies", t)

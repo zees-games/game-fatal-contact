@@ -7,8 +7,8 @@ const ArenaKillcamBodies := preload("../game/arena_killcam_bodies.gd")
 ## A bare ArenaPlayer has no controller, so `present` returns at once and the counters in `present_lod` are the whole
 ## story. Run: [code]godot --headless --path . res://examples/headless_remote_lod.tscn[/code]
 
-const SECTIONS := 10
-const CHECKS := 42
+const SECTIONS := 11
+const CHECKS := 46
 
 var _entered := 0
 var _completed := 0
@@ -263,6 +263,8 @@ func _test_anim_gate() -> void:
 
 	_section("in a browser a gated body steps its clip every second present (web-frame-1)")
 	var drawn := DotFpsState.new()
+	var still_hz := ArenaPlayer.still_anim_hz
+	ArenaPlayer.still_anim_hz = 0.0
 	for every: int in [2, 1]:
 		ArenaPlayer.anim_gate_every = every
 		var gated := _armed_body(Vector3(0, 0, -12))
@@ -274,4 +276,41 @@ func _test_anim_gate() -> void:
 				stepped += 1
 		_check(stepped == 8 / every, "anim_gate_every %d at 14 fps: the clip steps %d of 8 presents" % [every, 8 / every], "%d" % stepped)
 	ArenaPlayer.anim_gate_every = 1
+	ArenaPlayer.still_anim_hz = still_hz
+	_done()
+
+	_test_still_gate()
+
+
+## A body standing still past 8 m steps its idle at cl_remote_still_anim_hz; a move wakes it the same present.
+func _test_still_gate() -> void:
+	_section("a body standing still steps its idle less often (figure-still-pose-skip-1)")
+	var still_hz := ArenaPlayer.still_anim_hz
+	ArenaPlayer.still_anim_hz = 10.0
+	var drawn := DotFpsState.new()
+	var idle := _armed_body(Vector3(0, 0, -12))
+	idle.set("_anim_min_dt", ArenaPlayer.ANIM_GATE_DT)
+	var steps := func(p: ArenaPlayer, frames: int, state: DotFpsState) -> int:
+		var n := 0
+		for _i in frames:
+			p._present_rest(0.01, state)
+			if (p.get("_anim_owed") as float) == 0.0:
+				n += 1
+		return n
+	var _settle: int = steps.call(idle, 50, drawn)  # past STILL_AFTER_SEC
+	var idle_n: int = steps.call(idle, 100, drawn)  # one second at 100 fps
+	_check(idle_n >= 9 and idle_n <= 11, "still for a second at 100 fps: about 10 steps, not 25", "%d" % idle_n)
+	var moving := DotFpsState.new()
+	moving.velocity = Vector3(3.0, 0.0, 0.0)
+	var woke: int = steps.call(idle, 4, moving)
+	_check(woke >= 1, "a move steps the clip within one 30 Hz period (the owed time carried)", "%d" % woke)
+	var moving_n: int = steps.call(idle, 100, moving)
+	_check(moving_n >= 24 and moving_n <= 34, "moving: back to the 30 Hz gate (every 4th frame at 100 fps)", "%d" % moving_n)
+	ArenaPlayer.still_anim_hz = 0.0
+	var off := _armed_body(Vector3(0, 0, -12))
+	off.set("_anim_min_dt", ArenaPlayer.ANIM_GATE_DT)
+	var _s: int = steps.call(off, 50, drawn)
+	var off_n: int = steps.call(off, 100, drawn)
+	_check(off_n >= 24 and off_n <= 34, "cl_remote_still_anim_hz 0: a still body keeps the 30 Hz gate", "%d" % off_n)
+	ArenaPlayer.still_anim_hz = still_hz
 	_done()

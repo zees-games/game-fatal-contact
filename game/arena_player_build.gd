@@ -528,11 +528,18 @@ func _pose_body(drawn: DotFpsState, yaw: float, delta: float) -> void:
 		drawn.wall_normal = DotFpsWallProbe.find(
 			body_mesh.get_world_3d().direct_space_state, drawn.position, drawn.velocity,
 			controller.tunables.collision_mask if controller != null else 1)
-	body_motion.advance(drawn, delta)
-	body_mesh.global_basis = (
+	# Off a wall with the lean eased out, the advance only moves cues a body never reads (its roll and turn stay put).
+	if drawn.is_wall_running() or absf(body_motion.body_yaw()) > POSE_SETTLED_DEG or absf(body_motion.body_roll()) > POSE_SETTLED_DEG:
+		body_motion.advance(drawn, delta)
+	var posed := (
 		Basis(Vector3.UP, deg_to_rad(yaw + body_motion.body_yaw()))
 		* Basis(Vector3.BACK, deg_to_rad(body_motion.body_roll()))
 	)
+	# A body that did not turn keeps its placement: a write re-propagates the transform through the whole figure
+	# (skeleton, gun, tag) even when it is the same. Compared against the node itself, so whatever else turned it is undone.
+	if pose_skip_enabled and body_mesh.global_basis.is_equal_approx(posed):
+		return
+	body_mesh.global_basis = posed
 
 ## Makes this the player at this keyboard: the hands under [param view_model] and a rig that draws
 ## them, its tracers and its reports. Client side, once, on adoption.
