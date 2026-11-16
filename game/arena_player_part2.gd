@@ -3,6 +3,7 @@ extends "arena_player_part1.gd"
 
 const ArenaFlagCarry := preload("arena_flag_carry.gd")
 const ArenaScopePrefs := preload("arena_scope_prefs.gd")
+const ArenaScopeBody := preload("arena_scope_body.gd")
 ## How far above its origin a drawn body looks for the floor to stand on, metres ([member DotHumanoidFigure.floor_reach]).
 const FIGURE_FLOOR_REACH := 0.6  # under the 0.69 m crouched hull: nothing it stands under is in reach
 

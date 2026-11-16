@@ -89,6 +89,7 @@ func _present_view_model(drawn: DotFpsState) -> Vector2:
 	if hands != null:
 		hands.aim(aim_held and is_alive() and camera.current)
 		ArenaScopePrefs.apply(hands)
+		ArenaScopeBody.apply(hands)
 		_aim_fov_scale = hands.aim_fov_scale()
 		_view_fov_scale = hands.view_fov_scale()
 

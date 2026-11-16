@@ -1,6 +1,7 @@
 extends "arena_presentation_b0.gd"
 
 const ArenaScopePrefs := preload("arena_scope_prefs.gd")
+const ArenaScopeBody := preload("arena_scope_body.gd")
 const ArenaNetLink := preload("arena_net_link.gd")
 const ArenaTickBudget := preload("arena_tick_budget.gd")
 
@@ -246,6 +247,7 @@ func _add_arm_vars(local: DotConsoleLocal):
 			return DotResult.success(ArenaViewArms.scope_arms_hide_override)
 	)
 	ArenaScopePrefs.bind_cvars(local)
+	ArenaScopeBody.bind_cvars(local)
 	local.add_var(&"cl_fp_max_lean", "Most the first-person arms lean toward a hand out of reach (-1: each weapon's own, 0.4 by default; 0 is no lean).",
 		func() -> Variant: return ArenaViewArms.max_lean_override,
 		func(v: Variant) -> Variant:
