@@ -344,6 +344,10 @@ func _client_net_config() -> DotNetConfig:
 	# And no replay when the snapshot matches the prediction; `cl_replay_always 1` replays every one.
 	if &"skip_matching_replays" in config:
 		config.set(&"skip_matching_replays", ArenaFrameProbe.launch_value("cl_replay_always") != "1")
+	# And no rewrite of a remote whose drawn values match last frame's (a player standing still):
+	# every FC `_net_interpolated` only copies net_* onto the node. `cl_interp_always 1` writes every frame.
+	if &"skip_settled_interp" in config:
+		config.set(&"skip_settled_interp", ArenaFrameProbe.launch_value("cl_interp_always") != "1")
 	return config
 
 
