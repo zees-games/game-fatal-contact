@@ -16,16 +16,20 @@ anims="idle,draw,holster,fire,ads,reload_empty,reload_tactical,sprint,inspect"
 soft=0
 frames=0
 fps=60
+avatar=0
 while (($#)); do
   case $1 in
     --anim | --anims) anims=$2; shift 2 ;;
     --soft) soft=1; shift ;;
-    --avatar) anims="$anims,avatar_walk,avatar_strafe,avatar_run,avatar_crouch,avatar_jump"; shift ;;
+    --avatar) avatar=1; shift ;;
     --fps) fps=$2; shift 2 ;;
     --frames) frames=1; shift ;;
     *) echo "anim_review.sh: unknown argument $1 (weapons and clips are one comma list each: launcher,knife)" >&2; exit 2 ;;
   esac
 done
+# --avatar adds to whatever --anim names, in either order, and a clip named twice runs once.
+((avatar == 0)) || anims="$anims,avatar_walk,avatar_strafe,avatar_run,avatar_crouch,avatar_jump"
+anims=$(tr , '\n' <<< "$anims" | awk 'NF && !seen[$0]++' | paste -sd,)
 # heavy and the godot it hands on live in gamedev's own bin dirs, which sudo -u gamedev leaves off PATH.
 command -v heavy > /dev/null || PATH=$HOME/bin:$HOME/.local/bin:/home/gamedev/bin:/home/gamedev/.local/bin:$PATH
 command -v heavy > /dev/null || { echo "anim_review.sh: no heavy on PATH (run as gamedev)" >&2; exit 2; }

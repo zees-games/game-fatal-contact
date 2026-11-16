@@ -75,6 +75,11 @@ func _save_frame(d: String, i: int, vp: Viewport = null) -> void:
 	if i == 0:
 		_frames.clear()
 		_body_metrics = DotClipMetrics.new()
+		# The outside views draw one frame behind a clip's first staging (the last clip's gun, or the camera inside a wall):
+		# one staged draw before frame 0 is saved.
+		await RenderingServer.frame_pre_draw
+		_stage_views()
+		await RenderingServer.frame_post_draw
 	# Staged after every _process (the client re-hides your body each frame) and just before this frame draws.
 	await RenderingServer.frame_pre_draw
 	_stage_views()
