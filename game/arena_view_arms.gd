@@ -17,6 +17,11 @@ const HANDS_MIN_DISTANCE := 0.3
 ## Added to it with real hands (dot-player-char 28), whose wrist sits this far behind the grip the fingers close on:
 ## at 0.3 alone an aimed revolver's wrist came 0.041 m from the eye, inside the camera's near plane (0.04 still 0.048).
 static var real_hand_setback := 0.06
+## Nearest a hand's wrist comes to the eye along the view (metres, dot-player-char 30's DotPlayerViewArms.hand_min_depth):
+## a reload that pulls the launcher to the chest, or a wall that pushes the gun back, slides the hand out along the gun
+## instead of into the camera's near plane (0.05); at 0 a launcher reload's support fingers came 0.012 m from the eye.
+## 0 is off.
+static var hand_min_depth := 0.1
 ## DotPlayerViewArms' own hand size, for a weapon whose profile does not say.
 const DEFAULT_HAND_SCALE := 0.5
 const ArenaTeamBodies := preload("arena_team_bodies.gd")
@@ -71,6 +76,8 @@ static func mount(parent: Node, model: AwViewModel, body: Node3D, look: DotHuman
 	mounted.add_child(mounted.arms)
 	mounted.arms.build(look, 1.8)
 	mounted._own_lean = mounted.arms.max_lean
+	if &"hand_min_depth" in mounted.arms:
+		mounted.arms.hand_min_depth = hand_min_depth
 	mounted._look_override = mounted.arms.has_method(&"set_look_override")
 	if &"hands_scale" in model:
 		model.hands_scale = mounted.arms.held_scale

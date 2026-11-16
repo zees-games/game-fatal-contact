@@ -19,6 +19,8 @@ const PER_STEP: PackedStringArray = ["pop_m", "pop_deg"]
 const PER_COUNT: PackedStringArray = ["wrong_hand_frames", "hidden_frames"]
 const AVATAR_ANIMS := {"avatar_walk": [&"dot_fps_forward"], "avatar_strafe": [&"dot_fps_left"],
 	"avatar_run": [&"dot_fps_forward", &"dot_fps_sprint"], "avatar_crouch": [&"dot_fps_crouch"], "avatar_jump": [&"dot_fps_jump"]}
+## Hand pose kinds with no barrel: a knife, fists or a grenade has no muzzle to judge in its fire clip.
+const NO_MUZZLE: Array[StringName] = [&"knife", &"fists", &"grenade"]
 
 ## The behind-right and opponent cameras, shared with every game (dot-game docs/visual-qa.md).
 var _views: DotGameVisualQaViews = null
@@ -143,6 +145,10 @@ func _sample(time: float) -> Dictionary:
 	var grip: DotViewGrip = mounted.get("_grip")
 	out["arms_visible"] = mounted.is_visible_in_tree() and arms.shown
 	out["holding"] = bool(mounted.call(&"holding"))
+	if grip != null and "kind" in grip:
+		out["kind"] = str(grip.kind)
+	if "run" in arms:
+		out["run"] = snappedf(float(arms.get(&"run")), 0.001)
 	if not out["holding"] or not (arms.arms() is DotHumanoidFigure):
 		return out
 	out["hand_error"] = snappedf(arms.hand_error(grip), 0.0001)
@@ -163,6 +169,11 @@ func _sample(time: float) -> Dictionary:
 	out["tpose"] = (_straight_out(to_cam, at, ".R") and out["seen.R"]) or (_straight_out(to_cam, at, ".L") and out["seen.L"])
 	out["near"] = snappedf(_near_depth(cam, at, arms.arm_radius), 0.0001)
 	out["intersect"] = snappedf(_inside_weapon(weapon, at), 0.0001) if weapon != null else 0.0
+	if float(out["intersect"]) > 0.0:
+		out["intersect_side"] = "R" if _inside_weapon(weapon, at, [".R"]) >= float(out["intersect"]) else "L"
+	var wall = view.get(&"_wall")
+	if wall != null and "amount" in wall:
+		out["wall"] = snappedf(float(wall.get(&"amount")), 0.001)
 	return out
 
 
@@ -237,7 +248,7 @@ func _arm_seen(cam: Camera3D, at: Dictionary, side: String) -> bool:
 
 ## How deep the arm bones (elbow to just short of the wrist) sink into any one part of the weapon (receiver, scope,
 ## magazine): the union of the parts' boxes takes in the air under a scope, where a forearm belongs.
-func _inside_weapon(weapon: Node3D, at: Dictionary) -> float:
+func _inside_weapon(weapon: Node3D, at: Dictionary, sides: Array = [".R", ".L"]) -> float:
 	var worst := 0.0
 	for part in weapon.find_children("*", "MeshInstance3D", true, false):
 		var mesh := part as MeshInstance3D
@@ -248,7 +259,7 @@ func _inside_weapon(weapon: Node3D, at: Dictionary) -> float:
 			continue
 		var to_part := mesh.global_transform.affine_inverse()
 		var scale := mesh.global_transform.basis.get_scale()
-		for side in [".R", ".L"]:
+		for side in sides:
 			for k in 7:
 				var p: Vector3 = to_part * (at["LowerArm" + side] as Vector3).lerp(at["Middle1" + side], float(k) / 10.0)
 				if box.has_point(p):
@@ -263,6 +274,8 @@ func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: Strin
 	var res: Dictionary
 	if AVATAR_ANIMS.has(a):
 		res = await _avatar_clip(a, me, id, def, wdir)
+	elif a == "sprint":
+		res = await _sprint_clip(me, id, def, wdir)
 	else:
 		res = await super._fp_animation(a, me, id, def, wdir, other_slot)
 	if res.get("status", "") != "ok":
@@ -290,6 +303,31 @@ func _avatar_clip(a: String, me, id: StringName, def: DotWeaponDef, wdir: String
 	res["moved_m"] = snappedf((me.controller.state.position as Vector3).distance_to(start), 0.01)
 	if a != "avatar_crouch" and a != "avatar_jump" and float(res["moved_m"]) < 0.5:
 		res = {"status": "missing", "why": "the movement keys moved the player %.2f m" % float(res["moved_m"])}
+	me.controller.state.position = start
+	await _wait(0.6)
+	return res
+
+
+## The sprint clip run for real: forward and sprint held from 0.13 s to 1.33 s of a 1.6 s clip. The lab's own sprint clip
+## only flags the view model, so the player stands still, the run blend stays 0 and the arms never take their running
+## pose (a knife at the side, the arms swinging). The player is put back where it stood afterwards.
+func _sprint_clip(me, id: StringName, def: DotWeaponDef, wdir: String) -> Dictionary:
+	var res := {"status": "ok"}
+	await _ensure_in_hand(me, id, def)
+	var start: Vector3 = me.controller.state.position
+	var keys: Array[StringName] = [&"dot_fps_forward", &"dot_fps_sprint"]
+	await _clip(wdir, "fp_sprint", _f(48), func(i: int) -> void:
+		if i == _f(4):
+			for k: StringName in keys:
+				Input.action_press(k)
+		elif i == _f(40):
+			for k: StringName in keys:
+				Input.action_release(k), res)
+	for k: StringName in keys:
+		Input.action_release(k)
+	res["moved_m"] = snappedf((me.controller.state.position as Vector3).distance_to(start), 0.01)
+	if float(res["moved_m"]) < 0.5:
+		res = {"status": "missing", "why": "forward and sprint moved the player %.2f m" % float(res["moved_m"])}
 	me.controller.state.position = start
 	await _wait(0.6)
 	return res
@@ -365,7 +403,7 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 		fail.append("weapon drawn without arms in %d frames from #%d" % [counts["hidden"], first["hidden"]])
 	for p: String in pops["at"]:
 		fail.append(p)
-	if _clip_key.ends_with("fire"):
+	if _clip_key.ends_with("fire") and not _no_muzzle(frames):
 		_judge_muzzle(frames, worst, fail)
 	# A draw or holster whose deploy never leaves 1 is an instant swap: the gun appears or vanishes with no motion.
 	if _clip_key.ends_with("draw") or _clip_key.ends_with("holster"):
@@ -378,6 +416,14 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 	for k in worst:
 		worst[k] = snappedf(float(worst[k]), 0.001)
 	return {"worst": worst, "counts": counts, "fail": fail}
+
+
+## Whether the clip's weapon is held in a barrel-less hand pose (NO_MUZZLE): its "muzzle" is only where a swing starts.
+func _no_muzzle(frames: Array[Dictionary]) -> bool:
+	for f in frames:
+		if f.has("kind"):
+			return StringName(f["kind"]) in NO_MUZZLE
+	return false
 
 
 ## The muzzle against the gun in settled frames (deploy done, no swap): the flash must leave the barrel's end, not the
