@@ -45,7 +45,10 @@ func _run() -> void:
 	_check(is_equal_approx(interest.radius, 50.0) and interest.far_every == 4 and interest.far_tiers == 3 and not interest.far_coherent and is_equal_approx(interest.far_distance, 10.0), "cvars are read live")
 	console.set_cvar("sv_net_far_every", "99")
 	var _r := aoi.refresh(interest, 2)
-	_check(interest.far_every == 16, "a divisor past dot-net's 16 is clamped")
+	_check(interest.far_every == 99, "sv_net_far_every has no ceiling")
+	console.set_cvar("sv_net_far_tiers", "9")
+	var _t := aoi.refresh(interest, 2)
+	_check(interest.far_tiers == 3, "sv_net_far_tiers past 4 is refused, the value stays")
 	console.set_cvar("sv_net_aoi_players", "9999")
 	_check(aoi.refresh(interest, 128) == true and not aoi.active, "9999 turns them off whatever the count")
 

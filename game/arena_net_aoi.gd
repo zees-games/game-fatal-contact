@@ -31,9 +31,19 @@ func bind_cvars(add_cvar: Callable, flags: int) -> void:
 	_cvars["far_every"] = add_cvar.call("sv_net_far_every", str(far_every),
 		"With the tiers on: the mid ring's snapshot divisor (2 is half rate); the ring after it is twice that", flags)
 	_cvars["far_tiers"] = add_cvar.call("sv_net_far_tiers", str(far_tiers),
-		"With the tiers on: rings past sv_net_far_distance, each twice as far and half as often (1 to 4)", flags)
+		"With the tiers on: rings past sv_net_far_distance, each twice as far and half as often (1 to 4; more is refused)", flags)
+	# Refused with the reason when out of range (DotConVar), never clamped; 4 rings is the shift width of every_for().
+	_with_limits(_cvars["far_every"], 1.0, NAN)
+	_with_limits(_cvars["far_tiers"], 1.0, 4.0)
 	_cvars["far_coherent"] = add_cvar.call("sv_net_far_coherent", "1" if far_coherent else "0",
 		"With the tiers on: every client gets the same turns, so peers in step share work (1) or each is staggered (0)", flags)
+
+
+static func _with_limits(cv: Variant, low: float, high: float) -> void:
+	if cv is DotConVar:
+		var _c := (cv as DotConVar).with_min(low)
+		if not is_nan(high):
+			var _d := (cv as DotConVar).with_max(high)
 
 
 ## Reads the cvars (when bound) into the fields.
@@ -43,8 +53,8 @@ func pull_cvars() -> void:
 	min_players = (_cvars["min_players"] as DotConVar).get_int()
 	radius = (_cvars["radius"] as DotConVar).get_float()
 	far_distance = (_cvars["far_distance"] as DotConVar).get_float()
-	far_every = clampi((_cvars["far_every"] as DotConVar).get_int(), 1, 16)
-	far_tiers = clampi((_cvars["far_tiers"] as DotConVar).get_int(), 1, 4)
+	far_every = (_cvars["far_every"] as DotConVar).get_int()
+	far_tiers = (_cvars["far_tiers"] as DotConVar).get_int()
 	far_coherent = (_cvars["far_coherent"] as DotConVar).get_bool()
 
 
