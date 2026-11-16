@@ -202,6 +202,7 @@ func _bind_commands_and_cvars() -> void:
 	_add_stats_report_cvar()
 	_add_rank_cvar()
 	_add_fire_buffer_cvar()
+	_add_avatar_library_cvars()
 	_add_bot_think_cvars()
 	_add_grenade_cvars()
 	var _glass_cvars := game.glass_rules.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)

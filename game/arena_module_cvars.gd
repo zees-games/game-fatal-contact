@@ -13,6 +13,7 @@ const ArenaHullGrid := preload("arena_hull_grid.gd")
 const ArenaTickBudget := preload("arena_tick_budget.gd")
 const TagRules := preload("arena_name_tag_rules.gd")
 const ArenaFlagCarry := preload("arena_flag_carry.gd")
+const ArenaAvatarLibrary := preload("arena_avatar_library.gd")
 
 ## Base of [ArenaModule]: the operator-facing cvars that map onto a rule table, so the module itself
 ## holds the lifecycle. Split out for the size gate; the state they read lives here too.
@@ -245,6 +246,27 @@ func _add_fire_buffer_cvar() -> void:
 		func(_old: String, new_value: String) -> void:
 			game.fire_buffer_seconds = new_value.to_float()
 			log_info("fire buffer changed", {"seconds": game.fire_buffer_seconds}))
+
+
+## `sv_avatar_app_id`: this game's app id on Gamespice, sent on every avatar library call (0 = not set, calls refused).
+## `sv_avatar_loadout_max_entries` / `sv_avatar_loadout_max_per_kind`: how many entries one loadout message carries and
+## how many equipped actions of a kind the server accepts; 0 = unlimited, over it is refused, never trimmed.
+func _add_avatar_library_cvars() -> void:
+	add_cvar("sv_avatar_app_id", str(ArenaAvatarLibrary.app_id),
+		"Fatal Contact's app id on Gamespice, sent on every avatar library call (0 = not set)",
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			ArenaAvatarLibrary.app_id = int(new_value.to_float()))
+	add_cvar("sv_avatar_loadout_max_entries", "0",
+		"Most entries one avatar loadout message carries (0 = unlimited); over it the loadout is refused, never trimmed",
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			var _r := ArenaAvatarLibrary.apply_loadout_limits(int(new_value.to_float()), DotGameAvatarLoadouts.max_per_kind))
+	add_cvar("sv_avatar_loadout_max_per_kind", "0",
+		"Most equipped emotes, poses or gestures of one kind the server accepts (0 = unlimited); over it the read is refused",
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			var _r := ArenaAvatarLibrary.apply_loadout_limits(DotGameAvatarLoadoutMessage.max_entries, int(new_value.to_float())))
 
 
 ## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member ArenaBots.think_every]); `bot_native`: dot-sim's sight scan; `bot_native_brain`: dot-bot's native mind (on); `motor_native`: dot-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in dot-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: dot-sim's ragdoll bone pose.
