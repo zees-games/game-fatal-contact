@@ -10,8 +10,8 @@ const ArenaFrameProbe := preload("arena_frame_probe.gd")
 ## Fewer bots than this think on the main thread: the hand-off costs more than it saves.
 const MIN_BOTS := 8
 
-## Brains per grab from the shared queue.
-const CHUNK := 4
+## Brains per grab from the shared queue: one, so the main thread's wait for the last worker is one brain, not four (the lock is cheap beside a brain).
+const CHUNK := 1
 
 ## Threads that decide (the main thread is one); 0 and 1 think on the main thread.
 static var threads: int = launch_default()
