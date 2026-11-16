@@ -1,10 +1,10 @@
 {
   "format": 1,
   "addons": {
-    "arena_weapons": 29,
+    "arena_weapons": 31,
     "dot_combat": 6,
     "dot_game": 55,
-    "dot_weapon": 41,
+    "dot_weapon": 42,
     "dot_bot": 26,
     "dot_audio": 18,
     "dot_loadout": 1,

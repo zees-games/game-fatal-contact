@@ -102,6 +102,9 @@ func _ready() -> void:
 	if args.has("brain-native"):
 		ArenaPlayerStack.set_brain_native(int(args["brain-native"]) != 0)
 	say("brain: %s" % ("native" if ArenaPlayerStack.brain_native() else "script"))
+	if args.has("weapon-native"):
+		AwWeaponRig.native_spread = int(args["weapon-native"]) != 0
+	say("weapon spread: %s" % ("native" if AwWeaponRig.native_spread_active() else "script"))
 	if args.has("ragdoll-native"):
 		# By name: the bench also runs against a dot-player-char older than the switch.
 		(DotPlayerRagdoll as Script).set(&"native_pose", int(args["ragdoll-native"]) != 0)
