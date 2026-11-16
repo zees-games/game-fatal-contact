@@ -764,8 +764,7 @@ func _present_health_tag(delta: float) -> void:
 
 	# Over the body as drawn, which an offline bot's is between ticks (`interpolate_body`).
 	var over := body_mesh.global_position if body_mesh != null else global_position
-	_health_tag.global_position = over + Vector3(0.0, TagRules.tag_height, 0.0)
-	_health_tag.face(camera_now)
+	_place_health_tag(over + Vector3(0.0, TagRules.tag_height, 0.0), camera_now)
 	var tone := TagRules.bar_tone(friend, team) if TagRules.bar_colour_mode == &"team" else Color(0, 0, 0, 0)
 	var frac := now / health.max_health
 	# Told again only when something it draws changed or its bar is still easing: the update writes four shader
@@ -788,6 +787,30 @@ func _present_health_tag(delta: float) -> void:
 	_tag_tone = tone
 	_tag_scale = tag_scale
 	_tag_name = display_name
+
+
+## The tag at [param at], turned to [param camera_now] as [method DotHealthTag.face] turns it, in one transform write: a position
+## then a look_at was three (position, transform, scale), each carried down to the bar and the label. Nothing is written when
+## the tag is where it was left and the camera has not moved, which is the same picture.
+func _place_health_tag(at: Vector3, camera_now: Camera3D) -> void:
+	if camera_now == null or not _health_tag.is_inside_tree():
+		_health_tag.global_position = at
+		_tag_placed = false
+		return
+	var eye := camera_now.global_position
+	if _tag_placed and eye == _tag_eye and at == _tag_xf.origin and _health_tag.global_transform == _tag_xf:
+		return
+	var to_eye := eye - at
+	if to_eye.is_zero_approx():
+		_health_tag.global_position = at
+		_tag_placed = false
+		return
+	var up := Vector3.UP if Vector2(to_eye.x, to_eye.z).length_squared() > 1e-4 else Vector3.FORWARD
+	var xf := Transform3D(Basis.looking_at(to_eye, up, true).scaled_local(Vector3.ONE * _tag_scale), at)
+	_health_tag.global_transform = xf
+	_tag_xf = _health_tag.global_transform
+	_tag_eye = eye
+	_tag_placed = true
 
 
 ## Whether the camera's crosshair is on this body and nothing solid is in between.
