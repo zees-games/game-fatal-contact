@@ -2,7 +2,10 @@ extends SceneTree
 
 ## Other players' guns as the carry draws them: the offline client with its bots, a few bots each followed from the side and from the front for a while (running, shooting, and a reload forced part way), every frame logged with what the
 ## carry was doing. Written to screenshots/carry/<bot>_{side,front}_NN.png (tools/render_carry.sh joins them into strips). xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_carry.gd [-- --bots 3 --frames 24 --carry 0]
+## `--weapon smg[,pistol]` hands each followed bot one of those weapons (one bot per id, re-selected each frame if its brain switches), for an outside view of each gun.
 ## `--carry 0` turns AwWorldModel.person_carry off: the held gun's own kick and reload dip, for the comparison.
+
+const _Weapons := preload("render_weapons.gd")
 
 const ArenaPresentation := preload("../game/arena_presentation.gd")
 const OUT_DIR := "screenshots/carry"
@@ -12,6 +15,7 @@ const SIZE := Vector2i(480, 480)
 var client: Node = null
 var _bots := 3
 var _frames := 24
+var _weapons: PackedStringArray = []
 
 
 func _initialize() -> void:
@@ -22,6 +26,9 @@ func _initialize() -> void:
 				_bots = int(args[i + 1])
 			"--frames":
 				_frames = int(args[i + 1])
+			"--weapon":
+				_weapons = args[i + 1].split(",", false)
+				_bots = _weapons.size()
 			"--carry":
 				(AwWorldModel as Script).set(&"person_carry", int(args[i + 1]) != 0)
 	preload("../game/arena_weapon_roles.gd").ensure()
@@ -69,6 +76,7 @@ func _run() -> void:
 			break
 		if bot == me or bot.held == null or bot.held.equipped() == &"" or bot.get(&"figure") == null:
 			continue
+		var want := StringName(_weapons[done]) if done < _weapons.size() else &""
 		done += 1
 		for n in _frames:
 			if not is_instance_valid(bot) or not bot.is_alive() or bot.figure == null:
@@ -76,6 +84,9 @@ func _run() -> void:
 				break
 			await _wait(EVERY)
 			if not is_instance_valid(bot) or bot.figure == null:
+				break
+			if want != &"" and bot.held.equipped() != want and not _hand(bot, want):
+				push_error("render_carry: %s cannot hold %s" % [bot.name, want])
 				break
 			if n == _frames / 2:
 				print("CARRY ", bot.name, " reload forced: ", bot.arsenal.begin_reload(Engine.get_physics_frames()))
@@ -100,3 +111,14 @@ func _run() -> void:
 				bot.controller.state.horizontal_speed(), bot.arsenal.is_reloading(), carry.describe() if carry != null else {}])
 	print("CARRY bots=", done, " person_carry=", (AwWorldModel as Script).get(&"person_carry"))
 	quit()
+
+
+## Gives (full) and equips `id` on `bot`. False if the catalogue has no such weapon.
+func _hand(bot: Object, id: StringName) -> bool:
+	var def: DotWeaponDef = bot.arsenal.catalogue.get_def(id)
+	if def == null:
+		return false
+	var _given = bot.arsenal.give(id)
+	# Instant, so a bot switching back between frames does not leave the views on a holster.
+	_Weapons._bring_up(bot.arsenal, def.slot)
+	return true

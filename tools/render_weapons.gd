@@ -65,8 +65,15 @@ func _run() -> void:
 		for attempt in 4:
 			me = client.get("player")
 			me.health.invulnerable = true
-			var _g = me.arsenal.give(id)
-			me.arsenal.equip(def.slot)
+			var given: DotResult = me.arsenal.give(id)
+			if not given.ok:
+				print("ERROR give %s: %s" % [role, given])
+				continue
+			# The game pins a slot by kind (flash, smoke and incendiary go to the special slot), so take the one it gave.
+			var slot: int = (given.value as DotWeaponSlot).def.slot
+			_bring_up(me.arsenal, slot)
+			if me.arsenal.current() == null or me.arsenal.current().id() != id:
+				print("ERROR %s not in hand: slot %d holds %s" % [role, slot, me.arsenal.current().id() if me.arsenal.current() != null else &""])
 			await _wait(1.4)
 			var vms := client.find_children("*", "AwViewModel", true, false)
 			if not vms.is_empty():
@@ -188,3 +195,13 @@ func _shot(file: String) -> void:
 
 func _wait(sec: float) -> void:
 	await create_timer(sec, true, false, true).timeout
+
+
+## Puts [param slot] in the hand at once. A weapon given into the slot already in hand (one grenade after another) takes
+## the slot without a switch, so the view would keep drawing the one before: step through another slot first.
+static func _bring_up(arsenal: DotWeaponArsenal, slot: int) -> void:
+	if arsenal.current_slot() == slot:
+		for other in range(1, arsenal.max_slots + 1):
+			if other != slot and arsenal.equip(other):
+				break
+	var _equipped := arsenal.equip(slot)
