@@ -130,7 +130,7 @@ func _bind_bot_console() -> void:
 func _run_launch_commands() -> void:
 	# Said once per solo start: an exported build that lost its library runs the script
 	# twins without a word, and that is a different thing to measure.
-	DotLog.info(CHANNEL, "dot-sim native modules: %s" % [DotSim.loaded()])
+	DotLog.info(CHANNEL, "GS sim native modules: %s" % [DotSim.loaded()])
 	if presentation == null or presentation.local_console == null:
 		return
 	var lines := ArenaLaunchCommands.parse(OS.get_cmdline_user_args())
