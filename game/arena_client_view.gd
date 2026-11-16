@@ -6,6 +6,7 @@ const KillPovView := preload("arena_kill_pov_view.gd")
 const ArenaAttach := preload("arena_attach.gd")
 const ArenaAttachPanel := preload("arena_attach_panel.gd")
 const ArenaSourceInstall := preload("arena_source_install.gd")
+const ArenaMapDrop := preload("arena_map_drop.gd")
 
 ## The attachments menu, built on the first press of its key (see [method open_attachments]).
 var attach_panel: ArenaAttachPanel = null
@@ -120,6 +121,52 @@ func watch_map_drops() -> void:
 	if not is_inside_tree() or get_window().files_dropped.is_connected(_on_files_dropped):
 		return
 	get_window().files_dropped.connect(_on_files_dropped)
+	# A map dropped on the executable, or named by --map-path: imported like a window drop, then played.
+	_take_cmdline_drops.call_deferred(ArenaMapDrop.cmdline())
+
+
+## The shared drop intake (dot-map's DotMapDropIntake, API 26, ArenaMapDrop) every drop goes through, made on first use;
+## null on an older dot-map, where a window drop goes to [method accept_drop] directly and the command line is not read.
+var map_drop: Node = null
+
+
+func drop_intake() -> Node:
+	if map_drop == null:
+		map_drop = ArenaMapDrop.make(_claim_drop)
+		if map_drop != null:
+			add_child(map_drop)
+	return map_drop
+
+
+## The paths in [param args] (a drop on the executable, `--map-path=<path>`), imported and said like a window drop; the
+## first map added is then played. Returns what was said, empty when the command line names no path.
+func _take_cmdline_drops(args: PackedStringArray) -> String:
+	var intake := drop_intake()
+	if intake == null:
+		return ""
+	var paths := ArenaMapDrop.paths_in(intake, args)
+	if paths.is_empty():
+		return ""
+	var said := await import_dropped(paths, "command line")
+	var added: Array = (intake.get(&"last_result") as Dictionary).get("added", [])
+	if not added.is_empty() and ArenaMaps.list_local and is_inside_tree():
+		var played: DotResult = await call(&"change_from_menu", StringName(str((added[0] as Dictionary)["id"])))
+		if not played.ok:
+			said = _drop_say("%s\nCould not start it: %s" % [said, played.error.message])
+	return said
+
+
+## The intake's acceptor: [method accept_drop] for a folder holding a converted map ([member DotMapDropIntake.search_depth]
+## folders down, 0 = no limit), a `.zip`, or a `.json`/`.bin`; `{}` for anything else, which the intake refuses out loud.
+func _claim_drop(path: String, into: String) -> Dictionary:
+	var depth := int(map_drop.get(&"search_depth")) if map_drop != null else 3
+	var ext := path.get_extension().to_lower()
+	if DirAccess.dir_exists_absolute(path):
+		if _pack_dir_under(DotMapLocalMaps, path.replace("\\", "/").rstrip("/"), depth if depth > 0 else -1) == "":
+			return {}
+	elif ext != "zip" and ext != "json" and ext != "bin":
+		return {}
+	return accept_drop(path, into, depth)
 
 
 ## The player's own Source game install a dropped `_orig` pack's missing stock textures are read from, LOCAL ONLY
@@ -159,8 +206,9 @@ func _on_files_dropped(files: PackedStringArray) -> void:
 	var _said := await import_dropped(files)
 
 
-## Imports [param files] dropped onto the window and says each step on screen. Returns the last line said.
-func import_dropped(files: PackedStringArray) -> String:
+## Imports [param files] dropped onto the window (or the executable: [param source] "command line") and says each step on
+## screen. Returns the last line said. Each path goes through [method drop_intake] when dot-map has it.
+func import_dropped(files: PackedStringArray, source: String = "window") -> String:
 	var shown := PackedStringArray()
 	for f in files:
 		shown.append(f.replace("\\", "/").rstrip("/").get_file())
@@ -178,10 +226,16 @@ func import_dropped(files: PackedStringArray) -> String:
 		await get_tree().process_frame
 	var added: Array = []
 	var errors := PackedStringArray()
-	for f in files:
-		var one := accept_drop(f)
-		added.append_array(one.get("added", []))
-		errors.append_array(one.get("errors", PackedStringArray()))
+	var intake := drop_intake()
+	if intake != null:
+		var result: Dictionary = intake.call(&"handle", files, source)
+		added.append_array(result.get("added", []))
+		errors.append_array(result.get("errors", PackedStringArray()))
+	else:
+		for f in files:
+			var one := accept_drop(f)
+			added.append_array(one.get("added", []))
+			errors.append_array(one.get("errors", PackedStringArray()))
 	var text := on_maps_dropped({"added": added, "errors": errors})
 	for entry: Dictionary in added:
 		if str(entry.get("name", "")).to_lower().ends_with(ORIG_MARK) and not entry.has("zip"):
@@ -206,15 +260,14 @@ func import_dropped(files: PackedStringArray) -> String:
 	return _drop_say(text)
 
 
-## dot-map's `accept_dropped` for one dropped [param path], plus what it does not look for: a pack up to three folders down
-## (a whole download), the `<map>_orig` pack with the map's own textures before the free one beside it, and a folder named
-## `convert`, copied as `<map>/convert` so another map's `convert` does not replace it.
-func accept_drop(path: String) -> Dictionary:
+## dot-map's `accept_dropped` for one dropped [param path] into [param into], plus what it does not look for: a pack up to
+## [param depth] folders down (a whole download; 0 = no limit), the `<map>_orig` pack with the map's own textures before the
+## free one beside it, and a folder named `convert`, copied as `<map>/convert` so another map's `convert` does not replace it.
+func accept_drop(path: String, into: String = "user://maps", depth: int = 3) -> Dictionary:
 	var local_maps: Object = DotMapLocalMaps  # API 24 by name: a call on the class itself does not parse on older hosts
 	path = path.replace("\\", "/").simplify_path().rstrip("/")
-	var into := "user://maps"
 	if DirAccess.dir_exists_absolute(path):
-		var pack := _pack_dir_under(local_maps, path, 3)
+		var pack := _pack_dir_under(local_maps, path, depth if depth > 0 else -1)
 		if pack.get_file().to_lower().ends_with(ORIG_MARK):
 			path = pack  # copied as user://maps/<map>_orig: drawn with its own textures (DotMapLocalMaps.is_original)
 		elif pack != "" and pack.get_file() == "convert":
@@ -228,7 +281,7 @@ func accept_drop(path: String) -> Dictionary:
 
 
 ## The first folder at or under [param dir], at most [param depth] folders down, holding a converted map (`<name>.json`
-## beside `<name>.bin`), `convert` first then by name; empty when there is none. A `<map>_orig` pack in a pack's folder
+## beside `<name>.bin`; a negative depth is no limit), `convert` first then by name; empty when there is none. A `<map>_orig` pack in a pack's folder
 ## (`dot-map-convert regen --orig-textures` writes it there) is taken instead of that free one.
 static func _pack_dir_under(local_maps: Object, dir: String, depth: int) -> String:
 	if str(local_maps.call(&"prefix_in", dir)) != "":
@@ -236,7 +289,7 @@ static func _pack_dir_under(local_maps: Object, dir: String, depth: int) -> Stri
 			if sub.to_lower().ends_with(ORIG_MARK) and str(local_maps.call(&"prefix_in", dir.path_join(sub))) != "":
 				return dir.path_join(sub)
 		return dir
-	if depth <= 0:
+	if depth == 0:
 		return ""
 	var subs := DirAccess.get_directories_at(dir)
 	subs.sort()
@@ -246,7 +299,7 @@ static func _pack_dir_under(local_maps: Object, dir: String, depth: int) -> Stri
 	for sub in subs:
 		if sub.begins_with(".") or sub == "__MACOSX":
 			continue
-		var found := _pack_dir_under(local_maps, dir.path_join(sub), depth - 1)
+		var found := _pack_dir_under(local_maps, dir.path_join(sub), depth - 1 if depth > 0 else depth)
 		if found != "":
 			return found
 	return ""
