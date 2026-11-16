@@ -2,14 +2,14 @@ extends RefCounted
 ## The arena's movement tunables, held apart from the player so that file stays readable.
 
 ## [b]The body is the classic shooter's, in the map's own units.[/b] A player is 72 units tall
-## (crouched 36) and 32 wide, the eye 64 units up; a unit is `avatar_unit_metres` (0.01905, the scale
+## (crouched 54) and 32 wide, the eye 64 units up (46 crouched); a unit is `avatar_unit_metres` (0.01905, the scale
 ## every imported map is drawn at), so a person is 1.37 m beside a 2.13 m door, as in the original.
 ## At 1.83 m (what 0.0254 m a unit would make) the same person stood 96 map units tall. The controller
 ## puts the eye at the height less half the radius, which is 64 units for a 72 unit, 16 unit radius body.
 ## [member DotHumanoidFigure] scales whatever body it is given to the standing height, so every avatar
 ## follows. `ArenaGame` writes these from `ArenaConfig` through [method configure_body] (cvars `arena_avatar_*`).
 static var avatar_height_units: float = 72.0
-static var avatar_crouch_units: float = 36.0
+static var avatar_crouch_units: float = 54.0
 static var avatar_radius_units: float = 16.0
 static var avatar_unit_metres: float = 0.01905
 ## The height arena's hit zones, view and fallbacks were drawn for, metres.

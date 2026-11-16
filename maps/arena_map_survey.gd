@@ -33,9 +33,15 @@ const ArenaMap := preload("arena_map.gd")
 ## survey calls those slots too, which is the conservative side to be wrong on.
 const PLAYER_WIDTH := 0.8
 
-## Metres. `DotFpsTunables.crouch_height`. The lowest a player can be, so the lowest
-## headroom a surface needs before somebody can be ON it at all.
-const CROUCH_HEIGHT := 0.9
+const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
+
+## Metres. The crouched hull the motor is given (`ArenaPlayerTunables.crouch_height_m()`,
+## `avatar_crouch_units` 54 by 0.01905, 1.03 m). The lowest a player can be, so the lowest
+## headroom a surface needs before somebody can be ON it at all. It was a fixed 0.9, above
+## the old 36-unit hull (0.69 m) and so on the safe side; under the 54-unit one it would
+## call slots passable that the crouched hull cannot enter.
+static func crouch_height() -> float:
+	return ArenaPlayerTunables.crouch_height_m()
 
 ## Metres. Grid spacing for the flood fill. A corridor is found passable whenever it
 ## is at least [constant PLAYER_WIDTH] plus one cell wide, so this is also the width
@@ -99,7 +105,7 @@ static func slots(map: ArenaMap) -> Array[Dictionary]:
 				if a.end.y - floor_y <= ArenaMap.STEP_HEIGHT or b.end.y - floor_y <= ArenaMap.STEP_HEIGHT:
 					continue
 
-				if a.position.y >= floor_y + CROUCH_HEIGHT or b.position.y >= floor_y + CROUCH_HEIGHT:
+				if a.position.y >= floor_y + crouch_height() or b.position.y >= floor_y + crouch_height():
 					continue
 
 				if _filled(map, axis, near_a, near_b, lo, hi, floor_y):
@@ -213,12 +219,12 @@ static func _filled(
 	if axis == 0:
 		probe = AABB(
 			Vector3(a_min + _EPS, floor_y + ArenaMap.STEP_HEIGHT, lo + _EPS),
-			Vector3(a_max - a_min - 2.0 * _EPS, CROUCH_HEIGHT - ArenaMap.STEP_HEIGHT, hi - lo - 2.0 * _EPS)
+			Vector3(a_max - a_min - 2.0 * _EPS, crouch_height() - ArenaMap.STEP_HEIGHT, hi - lo - 2.0 * _EPS)
 		)
 	else:
 		probe = AABB(
 			Vector3(lo + _EPS, floor_y + ArenaMap.STEP_HEIGHT, a_min + _EPS),
-			Vector3(hi - lo - 2.0 * _EPS, CROUCH_HEIGHT - ArenaMap.STEP_HEIGHT, a_max - a_min - 2.0 * _EPS)
+			Vector3(hi - lo - 2.0 * _EPS, crouch_height() - ArenaMap.STEP_HEIGHT, a_max - a_min - 2.0 * _EPS)
 		)
 
 	for box in map.boxes:
@@ -398,7 +404,7 @@ class _Fill:
 		for index: int in near[cell]:
 			var box: AABB = map.boxes[index]
 
-			if box.position.y < h + CROUCH_HEIGHT - _EPS and box.end.y > h + ArenaMap.STEP_HEIGHT + _EPS:
+			if box.position.y < h + ArenaPlayerTunables.crouch_height_m() - _EPS and box.end.y > h + ArenaMap.STEP_HEIGHT + _EPS:
 				return false
 
 		return true
@@ -606,7 +612,7 @@ class _Fill:
 				if p.x <= box.position.x or p.x >= box.end.x or p.y <= box.position.z or p.y >= box.end.z:
 					continue
 
-				if box.position.y < y + CROUCH_HEIGHT and box.end.y > y + _EPS:
+				if box.position.y < y + ArenaPlayerTunables.crouch_height_m() and box.end.y > y + _EPS:
 					return false
 
 		return true

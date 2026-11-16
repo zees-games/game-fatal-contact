@@ -76,8 +76,8 @@ func validate() -> DotResult:
 ## Standing height of every avatar and its collision hull, in map units (the classic shooter's player is 72). The visible figure is scaled to it, so all avatars stand the same; the eye is 8 units (half the radius) under the top, 64.
 @export_range(16.0, 400.0, 1.0) var avatar_height_units: float = 72.0
 
-## Crouched height in map units (36 in the classic shooter).
-@export_range(8.0, 400.0, 1.0) var avatar_crouch_units: float = 36.0
+## Crouched height in map units: the crouched hull, the crouched eye (8 under it) and the height the hit zones squeeze to, so all three agree. 54, three quarters of standing as in the later classic shooters, is where the drawn figure crouches with its knees near square; the original's 36 squeezed the zones under the drawn head.
+@export_range(8.0, 400.0, 1.0) var avatar_crouch_units: float = 54.0
 
 ## Half the hull's width in map units (16, a 32 wide hull).
 @export_range(2.0, 100.0, 0.5) var avatar_radius_units: float = 16.0

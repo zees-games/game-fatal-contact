@@ -18,7 +18,8 @@ const LIMITS := {"detach_m": 0.06, "intersect_m": 0.03, "near_cut_m": 0.005, "po
 const PER_STEP: PackedStringArray = ["pop_m", "pop_deg"]
 const PER_COUNT: PackedStringArray = ["wrong_hand_frames", "hidden_frames"]
 const AVATAR_ANIMS := {"avatar_walk": [&"dot_fps_forward"], "avatar_strafe": [&"dot_fps_left"],
-	"avatar_run": [&"dot_fps_forward", &"dot_fps_sprint"], "avatar_crouch": [&"dot_fps_crouch"], "avatar_jump": [&"dot_fps_jump"]}
+	"avatar_run": [&"dot_fps_forward", &"dot_fps_sprint"], "avatar_crouch": [&"dot_fps_crouch"],
+	"avatar_crouch_walk": [&"dot_fps_forward", &"dot_fps_crouch"], "avatar_jump": [&"dot_fps_jump"]}
 ## Hand pose kinds with no barrel: a knife, fists or a grenade has no muzzle to judge in its fire clip.
 const NO_MUZZLE: Array[StringName] = [&"knife", &"fists", &"grenade"]
 

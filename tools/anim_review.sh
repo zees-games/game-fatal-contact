@@ -4,7 +4,7 @@
 # (<weapon>/<clip>.mp4 at --fps, default 60) and a PASS/FAIL report from the glitch metrics.
 #   tools/anim_review.sh <game-dir> <weapon[,weapon]|all> [--anim reload_empty[,draw]] [--avatar] [--fps 60] [--frames] [--soft] [--team red|blue]
 # --team plays team deathmatch on that side, so the views show its team body (docs/client.md, Avatars).
-# --avatar adds the locomotion clips (avatar_walk, _strafe, _run, _crouch, _jump) with the weapon held.
+# --avatar adds the locomotion clips (avatar_walk, _strafe, _run, _crouch, _crouch_walk, _jump) with the weapon held.
 # Every clip's per-frame numbers go to <weapon>/<clip>_frames.tsv; a FAIL clip's (every clip's with --frames) are printed too.
 # The capture runs through dot-game's visual QA driver (dot-game docs/visual-qa.md): on a GPU box through gpu.sh shot,
 # through heavy here when no box takes it; run it as gamedev (who holds the box key) from the checkout or a ~/wt worktree. --soft keeps it
@@ -31,7 +31,7 @@ while (($#)); do
   esac
 done
 # --avatar adds to whatever --anim names, in either order, and a clip named twice runs once.
-((avatar == 0)) || anims="$anims,avatar_walk,avatar_strafe,avatar_run,avatar_crouch,avatar_jump"
+((avatar == 0)) || anims="$anims,avatar_walk,avatar_strafe,avatar_run,avatar_crouch,avatar_crouch_walk,avatar_jump"
 anims=$(tr , '\n' <<< "$anims" | awk 'NF && !seen[$0]++' | paste -sd,)
 cd "$game"
 out=screenshots/anim_review
