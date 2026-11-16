@@ -289,7 +289,10 @@ func _apply_carrier_speed() -> void:
 		var tunables = player.controller.tunables
 		if not tunables.has_meta("arena_base_speed"):
 			tunables.set_meta("arena_base_speed", tunables.max_speed)
-		tunables.max_speed = float(tunables.get_meta("arena_base_speed")) * speed_scale(id)
+		# Only on a change: a write bumps the tunables' revision and drops the motor's cached native settings.
+		var speed := float(tunables.get_meta("arena_base_speed")) * speed_scale(id)
+		if tunables.max_speed != speed:
+			tunables.max_speed = speed
 
 
 ## Movement multiplier for a player: the carrier slowdown, else 1.

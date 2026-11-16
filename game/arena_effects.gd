@@ -293,7 +293,11 @@ func _apply_movement() -> void:
 		if base == null:
 			base = tunables.max_speed
 			tunables.set_meta("arena_base_speed", base)
-		tunables.max_speed = float(base) * scale
+		# Written only when it moves: every write bumps the tunables' revision, which drops the motor's cached native
+		# settings (two arrays rebuilt per player per tick when this assigned the same value every tick).
+		var speed := float(base) * scale
+		if tunables.max_speed != speed:
+			tunables.max_speed = speed
 
 
 func _on_damaged(entity: int, amount: float, type: StringName, source: int) -> void:
