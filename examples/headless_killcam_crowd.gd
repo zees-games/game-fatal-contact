@@ -1,6 +1,7 @@
 extends DotGameCheckSuite
 
 const ArenaContent := preload("../game/arena_content.gd")
+const ArenaKillcamBodies := preload("../game/arena_killcam_bodies.gd")
 
 ## Three crowds, grown in one solo match: each round kills the local player twice.
 const CROWDS := [32, 64, 128]
@@ -160,7 +161,10 @@ func _test_crowd(crowd: int) -> void:
 	await _wait(1.0)
 	_check(thinned > 0, "%d bots: the remote LOD skipped bodies while a replay was posed (the case this covers)" % crowd, str(thinned))
 	var swept := _sweep(buffer, since)
-	_check(swept[0] > crowd * 10 and swept[1] == 0,
+	# Above cl_killcam_crowd the killcam records at cl_killcam_crowd_hz, so the row floor scales with it.
+	var hz := ArenaKillcamBodies.hz_for(crowd + 1)
+	var rate := 1.0 if hz <= 0.0 or ArenaKillcamBodies.record_hz <= 0.0 else minf(1.0, hz / ArenaKillcamBodies.record_hz)
+	_check(swept[0] > int(crowd * 10 * rate) and swept[1] == 0,
 		"%d bots: every recorded row, during and after the kill views, matches the authoritative position" % crowd,
 		"%d rows, %d off by more than %.1f m, worst %.2f m %s" % [swept[0], swept[1], RECORD_TOLERANCE_M, swept[2], swept[3]])
 
