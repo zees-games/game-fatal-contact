@@ -8,7 +8,7 @@ const ArenaKillcamBodies := preload("../game/arena_killcam_bodies.gd")
 ## story. Run: [code]godot --headless --path . res://examples/headless_remote_lod.tscn[/code]
 
 const SECTIONS := 10
-const CHECKS := 41
+const CHECKS := 42
 
 var _entered := 0
 var _completed := 0
@@ -106,7 +106,7 @@ func _run() -> void:
 	_test_cvars()
 
 	_section("past the figure's draw range its gun and crest go with it (arena-vm-regress-1)")
-	# The figure's mesh stops drawing at DRAW_RANGE; a gun left on would float alone in the sky.
+	# The figure's mesh stops drawing at its draw range (cl_figure_draw_range); a gun left on would float alone in the sky.
 	var armed := _armed_body(Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE - 20.0)))
 	var _n := _passes(armed, 1)
 	_check(armed.held.visible and _shown(armed.get("_crest")), "20 m inside the range: gun and crest drawn")
@@ -120,6 +120,11 @@ func _run() -> void:
 	armed.global_position = Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE - 20.0))
 	_n = _passes(armed, 1)
 	_check(armed.held.visible and _shown(armed.get("_crest")), "back in range: both drawn again")
+	ArenaPlayer.figure_draw_range = 0.0
+	armed.global_position = Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE + 20.0))
+	_n = _passes(armed, 1)
+	_check(armed.held.visible and _shown(armed.get("_crest")), "cl_figure_draw_range 0: drawn at every distance, gun and crest too")
+	ArenaPlayer.figure_draw_range = DotHumanoidFigure.DRAW_RANGE
 	_done()
 
 	_section("a figure whose skin is hidden draws no gun either (floatgun-ak-1)")

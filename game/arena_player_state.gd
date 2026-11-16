@@ -424,6 +424,15 @@ static var held_draw_range: float = WEB_HELD_DRAW_RANGE if DotPlatform.is_web() 
 ## and the body holding it still casts its own.
 static var held_shadows: bool = not DotPlatform.is_web()
 
+## `cl_figure_draw_range`: the figure's draw range (dot-player-char 27 reads it live), mirrored here for the per-frame
+## test that hides a gun and crest past it. 0: drawn at every distance.
+static var figure_draw_range: float = DotHumanoidFigure.DRAW_RANGE
+## `cl_figure_lift_range`'s default: past it, or out of view, a remote body stands on the floor only on the frames its
+## clip steps (a 64-player crowd cast a floor ray per body per frame).
+const FIGURE_LIFT_RANGE := 22.0
+## `cl_figure_lift_range`, handed to the figure when the console's variables are made (a bench sets it before that).
+static var figure_lift_range: float = FIGURE_LIFT_RANGE
+
 ## `cl_remote_lod_frustum`: judge "out of sight" by the camera's real frustum instead of the cone below.
 static var lod_frustum: bool = true
 

@@ -151,7 +151,7 @@ func present_lod(delta: float, eye: Vector3, forward: Vector3, frustum: Array = 
 	var to := global_position - eye
 	var d2 := to.length_squared()
 	if camera == null:
-		_set_beyond_figure(figure != null and d2 > DotHumanoidFigure.DRAW_RANGE * DotHumanoidFigure.DRAW_RANGE)
+		_set_beyond_figure(figure != null and figure_draw_range > 0.0 and d2 > figure_draw_range * figure_draw_range)
 	if camera == null and present_lod_enabled:
 		var every := 1
 		var min_dt := 0.0
@@ -216,7 +216,7 @@ func _behind_world(eye: Vector3) -> bool:
 	_occluded = true
 	return true
 
-## Hides what a culled figure carries the frame it passes [constant DotHumanoidFigure.DRAW_RANGE] (a thinned body
+## Hides what a culled figure carries the frame it passes [member figure_draw_range] (a thinned body
 ## is presented only every few frames, which would leave its gun in the sky until then).
 func _set_beyond_figure(far: bool) -> void:
 	if far == beyond_figure:
