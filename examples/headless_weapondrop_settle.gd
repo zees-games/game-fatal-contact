@@ -1,12 +1,15 @@
 extends Node
 
-## Every weapon model dropped onto a stair run under many RNG seeds: time until it rests, within
-## [constant MAX_SETTLE_SEC]. SEEDS=n sets the seed count; VERBOSE=1 prints every check.
+## Every weapon model dropped onto a stair run under many RNG seeds: time until it rests, within the bound the drop rules give
+## (sv_weapon_drop_settle_max per fall, sv_weapon_drop_refall_max falls again). SEEDS=n sets the seed count; VERBOSE=1 prints every check.
+## Deterministic: each seed seeds the drops' own stream (randomized otherwise); time is physics ticks, not the wall clock.
 ## Run: [code]godot --headless --path . res://examples/headless_weapondrop_settle.tscn[/code].
 
 const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
-## The slowest drop a seed may have, in seconds from spawn to its last rest (the forced rest at SETTLE_MAX_SEC plus the grounding ticks). 0 unlimited (the distribution is only printed).
-const MAX_SETTLE_SEC := 4.5
+## Support-check period (a rest may be woken by it) and the ticks a forced rest is grounded for.
+const WAKE_EVERY_SEC := DotWeaponDrops.SUPPORT_EVERY
+const GROUND_TICKS := 2
+const TICKS := 64
 ## Seconds each seed is watched: a drop still moving after this counts as never settling.
 const WATCH_SEC := 40.0
 const LANES := 3
@@ -45,6 +48,13 @@ func _pct(sorted: Array, p: float) -> float:
 	return float(sorted[mini(sorted.size() - 1, int(floor(p * sorted.size())))])
 
 
+## Latest rest time the drop rules allow; 0 when a limit is 0 (no bound).
+func _bound(rules: DotWeaponDropRules) -> float:
+	if rules.settle_max_sec <= 0.0 or rules.refall_max <= 0:
+		return 0.0
+	return float(rules.refall_max + 1) * rules.settle_max_sec + float(rules.refall_max) * WAKE_EVERY_SEC + float(GROUND_TICKS + 1) / float(TICKS)
+
+
 func _run() -> void:
 	ArenaWeaponRoles.ensure()
 	var ids: Array = AwWeaponArtTable.table().keys()
@@ -54,6 +64,7 @@ func _run() -> void:
 	var refalls: Array = []
 	var worst := ["", 0.0]
 	var never := 0
+	var rules: DotWeaponDropRules = null
 	for sd in seeds:
 		seed(1000 + sd)
 		var world := Node3D.new()
@@ -72,6 +83,10 @@ func _run() -> void:
 		drops.rules.lifetime = 0.0
 		drops.rules.max_count = 0
 		drops.rules.max_active = 0
+		drops.seed_rng(1000 + sd)
+		rules = drops.rules
+		var bad: Array = drops.rules.problems()
+		_check(bad.is_empty(), "the drop rules are valid", "; ".join(bad))
 		world.add_child(drops)
 		var info := {}
 		var i := 0
@@ -113,6 +128,10 @@ func _run() -> void:
 	refalls.sort()
 	print("settle: %d drops over %d seeds: p50 %.2fs p95 %.2fs p99 %.2fs max %.2fs (%s); refalls p95 %d max %d; never rested %d" % [times.size(), seeds, _pct(times, 0.5), _pct(times, 0.95), _pct(times, 0.99), times.back(), worst[0], _pct(refalls, 0.95), refalls.back(), never])
 	_check(never == 0, "every drop came to rest", str(never))
-	_check(MAX_SETTLE_SEC <= 0.0 or float(times.back()) <= MAX_SETTLE_SEC, "the slowest drop settled within %.1fs" % MAX_SETTLE_SEC, "max %.2f (%s)" % [times.back(), worst[0]])
+	var bound := _bound(rules)
+	if bound <= 0.0:
+		print("settle: settle_max_sec %.2f / refall_max %d leave no bound; the distribution is only printed" % [rules.settle_max_sec, rules.refall_max])
+	_check(bound <= 0.0 or float(times.back()) <= bound, "the slowest drop settled within the rules' bound %.2fs" % bound, "max %.2f (%s)" % [times.back(), worst[0]])
+	_check(rules.refall_max <= 0 or int(refalls.back()) <= rules.refall_max + 1, "no drop fell again more than refall_max times", "max %d" % int(refalls.back()))
 	print("weapondrop_settle: %d checks, %d failed" % [_checks, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
