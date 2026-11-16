@@ -211,29 +211,29 @@ func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: Strin
 	match a:
 		"idle":
 			await _ensure_in_hand(me, id, def)
-			await _clip(wdir, key, 36, func(_i: int) -> void: pass, res)
+			await _clip(wdir, key, _f(36), func(_i: int) -> void: pass, res)
 		"draw":
 			await _equip_slot(me, other_slot)
 			await _wait(0.8)
-			await _clip(wdir, key, 36, func(i: int) -> void:
-				if i == 2:
+			await _clip(wdir, key, _f(36), func(i: int) -> void:
+				if i == _f(2):
 					_switch_to(me, def.slot), res)
 		"holster":
 			await _ensure_in_hand(me, id, def)
-			await _clip(wdir, key, 30, func(i: int) -> void:
-				if i == 3:
+			await _clip(wdir, key, _f(30), func(i: int) -> void:
+				if i == _f(3):
 					_equip_slot_now(me, other_slot), res)
 		"fire":
 			await _ensure_in_hand(me, id, def)
 			_refill(me, def)
-			await _clip(wdir, key, 66, func(i: int) -> void:
-				if i == 2:
+			await _clip(wdir, key, _f(66), func(i: int) -> void:
+				if i == _f(2):
 					Input.action_press(&"arena_fire")
-				elif i == 22:
+				elif i == _f(22):
 					Input.action_release(&"arena_fire")
-				elif i >= 32 and i < 56 and (i - 32) % 8 == 0:
+				elif i >= _f(32) and i < _f(56) and (i - _f(32)) % _f(8) == 0:
 					Input.action_press(&"arena_fire")
-				elif i >= 32 and i < 56 and (i - 32) % 8 == 3:
+				elif i >= _f(32) and i < _f(56) and (i - _f(32)) % _f(8) == _f(3):
 					Input.action_release(&"arena_fire"), res)
 			Input.action_release(&"arena_fire")
 		"ads":
@@ -241,20 +241,20 @@ func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: Strin
 			if not _art_can_aim(id):
 				res = {"status": "n/a", "why": "weapon has no aim-down-sights"}
 			else:
-				await _clip(wdir, key, 70, func(i: int) -> void:
-					if i == 3:
+				await _clip(wdir, key, _f(70), func(i: int) -> void:
+					if i == _f(3):
 						Input.action_press(&"arena_aim")
-					elif i == 36:
+					elif i == _f(36):
 						Input.action_release(&"arena_aim"), res)
 				Input.action_release(&"arena_aim")
 		"reload_empty", "reload_tactical":
 			res = await _fp_reload(a, me, id, def, wdir, key)
 		"melee":
 			await _ensure_in_hand(me, id, def)
-			await _clip(wdir, key, 40, func(i: int) -> void:
-				if i == 3:
+			await _clip(wdir, key, _f(40), func(i: int) -> void:
+				if i == _f(3):
 					Input.action_press(&"arena_bash")
-				elif i == 6:
+				elif i == _f(6):
 					Input.action_release(&"arena_bash"), res)
 			Input.action_release(&"arena_bash")
 		"sprint":
@@ -263,10 +263,10 @@ func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: Strin
 			if view == null:
 				res = {"status": "n/a", "why": "no view model"}
 			else:
-				await _clip(wdir, key, 48, func(i: int) -> void:
-					if i == 4:
+				await _clip(wdir, key, _f(48), func(i: int) -> void:
+					if i == _f(4):
 						view.set_sprinting(true)
-					elif i == 40:
+					elif i == _f(40):
 						view.set_sprinting(false), res)
 				view.set_sprinting(false)
 		"inspect":
@@ -310,12 +310,12 @@ func _fp_inspect(me, id: StringName, def: DotWeaponDef, wdir: String, key: Strin
 		if key_event == null:
 			res = {"status": "missing", "why": "no key bound to arena_inspect"}
 			return res
-		await _clip(wdir, key, 96, func(i: int) -> void:
-			if i == 3 or i == 5:
+		await _clip(wdir, key, _f(96), func(i: int) -> void:
+			if i == _f(3) or i == _f(5):
 				var press := key_event.duplicate() as InputEventKey
-				press.pressed = i == 3
+				press.pressed = i == _f(3)
 				Input.parse_input_event(press)
-			elif i == 10:
+			elif i == _f(10):
 				res["inspect_started"] = looked.inspect_fraction() < 1.0, res)
 		if not bool(res.get("inspect_started", false)):
 			res = {"status": "missing", "why": "the inspect key started nothing"}
@@ -369,22 +369,27 @@ func _reload_clip(me: Node, wdir: String, key: String) -> Dictionary:
 	DirAccess.make_dir_recursive_absolute(d)
 	var i := 0
 	while i < fps * 12:
-		if i == 6:
+		if i == _f(6):
 			Input.action_press(&"arena_reload")
-		elif i == 12:
+		elif i == _f(12):
 			Input.action_release(&"arena_reload")
-		if i > 12 and me.arsenal.is_reloading():
+		if i > _f(12) and me.arsenal.is_reloading():
 			started = true
 		await _save_frame(d, count)
 		count += 1
 		if started and not me.arsenal.is_reloading():
 			frames_after_end += 1
-			if frames_after_end > 20:
+			if frames_after_end > _f(20):
 				break
 		i += 1
 	Input.action_release(&"arena_reload")
 	_finish_clip(wdir, key, count)
 	return {"status": "ok" if started else "reload-did-not-start", "frames": count, "fps": fps}
+
+
+## A frame index or count written for 30 fps, at the run's fps: a clip covers the same seconds at any rate.
+func _f(at_30: int) -> int:
+	return roundi(float(at_30) * float(fps) / 30.0)
 
 
 func _clip(wdir: String, key: String, frames: int, on_frame: Callable, res: Dictionary) -> void:

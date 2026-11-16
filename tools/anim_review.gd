@@ -1,6 +1,8 @@
 extends "weapon_lab.gd"
 
-## The animation review: the weapon lab's first-person clips, plus a third-person view of your own body and numeric glitch metrics per frame, judged per clip. See docs/anim-review.md; run through tools/anim_review.sh.
+## The animation review: the weapon lab's first-person clips, plus two outside views of your own body (behind-right, and an
+## opponent's view from in front) and numeric glitch metrics per frame, judged per clip. See docs/anim-review.md; run through tools/anim_review.sh.
+## The avatar_* clips (walk, strafe, run, crouch, jump) move the player with the weapon held, for the body's locomotion.
 ## Per clip it prints an `ANIMREVIEW {json}` verdict line and an `ANIMFRAMES {json}` line with every frame's numbers (both travel on stdout, since a GPU box only sends PNGs back).
 
 ## Your own body draws only in the third-person view; the arms only in the first-person one.
@@ -8,12 +10,22 @@ const BODY_LAYER := 1 << 18
 const ARMS_LAYER := 1 << 17
 const VIEW_LAYER := 1 << 19
 const ARM_BONES: PackedStringArray = ["UpperArm.R", "LowerArm.R", "Middle1.R", "UpperArm.L", "LowerArm.L", "Middle1.L"]
-## Failure limits. Distances in metres, angles in degrees, per frame at the run's fps.
+## Failure limits. Distances in metres, angles in degrees; steps and frame counts are per frame at 30 fps and _limit scales them.
 const LIMITS := {"detach_m": 0.06, "intersect_m": 0.03, "near_cut_m": 0.005, "pop_m": 0.04, "pop_deg": 25.0,
-	"pop_ratio": 3.0, "kick_m": 0.09, "wrong_hand_frames": 2, "hidden_frames": 3, "tpose_frames": 1}
+	"pop_ratio": 3.0, "kick_m": 0.09, "wrong_hand_frames": 2, "hidden_frames": 3, "tpose_frames": 1,
+	"muzzle_behind_m": 0.10, "muzzle_ahead_m": 0.10, "muzzle_off_m": 0.03}
+## Per-frame steps (a velocity) shrink at a higher fps; a frame count (a duration) grows. A kick is one impulse at any fps.
+const PER_STEP: PackedStringArray = ["pop_m", "pop_deg"]
+const PER_COUNT: PackedStringArray = ["wrong_hand_frames", "hidden_frames"]
+## The opponent's view: standing this far in front of you, eyes at this height, looking at your chest.
+const OPPONENT_AT := Vector3(0.4, 1.6, -4.0)
+const AVATAR_ANIMS := {"avatar_walk": [&"dot_fps_forward"], "avatar_strafe": [&"dot_fps_left"],
+	"avatar_run": [&"dot_fps_forward", &"dot_fps_sprint"], "avatar_crouch": [&"dot_fps_crouch"], "avatar_jump": [&"dot_fps_jump"]}
 
 var _tp_view: SubViewport = null
 var _tp_cam: Camera3D = null
+var _op_view: SubViewport = null
+var _op_cam: Camera3D = null
 var _frames: Array[Dictionary] = []
 var _body_metrics := DotClipMetrics.new()
 var _clip_key := ""
@@ -21,21 +33,39 @@ var _clip_key := ""
 
 func _build_lab() -> void:
 	super._build_lab()
-	_tp_view = SubViewport.new()
-	_tp_view.size = Vector2i(480, 540)
-	_tp_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	_tp_view.world_3d = root.world_3d
-	root.add_child(_tp_view)
-	_tp_cam = Camera3D.new()
-	_tp_cam.fov = 50.0
-	_tp_cam.cull_mask = 0xFFFFF & ~VIEW_LAYER & ~ARMS_LAYER
-	var me = client.get("player")
-	_tp_cam.environment = (me.camera as Camera3D).environment
-	_tp_view.add_child(_tp_cam)
+	_tp_view = _outside_view()
+	_tp_cam = _tp_view.get_child(0) as Camera3D
+	_op_view = _outside_view()
+	_op_cam = _op_view.get_child(0) as Camera3D
 	# With your own body off the client draws the figure whole and only hides it, which the staging undoes before the draw.
 	var presentation = client.get("presentation")
 	if presentation != null and presentation.settings != null:
 		var _off: Variant = presentation.settings.set_value(DotOwnBodySetting.KEY, false)
+
+
+## A 480x540 view of the shared world that sees your body and the world gun but not the first-person arms or weapon.
+func _outside_view() -> SubViewport:
+	var view := SubViewport.new()
+	view.size = Vector2i(480, 540)
+	view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	view.world_3d = root.world_3d
+	root.add_child(view)
+	var cam := Camera3D.new()
+	cam.fov = 50.0
+	cam.cull_mask = 0xFFFFF & ~VIEW_LAYER & ~ARMS_LAYER
+	cam.environment = (client.get("player").camera as Camera3D).environment
+	view.add_child(cam)
+	return view
+
+
+## A limit at the run's fps (see PER_STEP and PER_COUNT).
+func _limit(key: String) -> float:
+	var v := float(LIMITS[key])
+	if key in PER_STEP:
+		return v * 30.0 / float(fps)
+	if key in PER_COUNT:
+		return v * float(fps) / 30.0
+	return v
 
 
 func _save_frame(d: String, i: int, vp: Viewport = null) -> void:
@@ -52,10 +82,11 @@ func _save_frame(d: String, i: int, vp: Viewport = null) -> void:
 	await RenderingServer.frame_post_draw
 	var _e := root.get_viewport().get_texture().get_image().save_jpg("%s/f_%03d.jpg" % [d, i], 0.9)
 	var _t := _tp_view.get_texture().get_image().save_jpg("%s/t_%03d.jpg" % [d, i], 0.9)
+	var _o := _op_view.get_texture().get_image().save_jpg("%s/o_%03d.jpg" % [d, i], 0.9)
 	_frames_saved += 1
 
 
-## Shows your own body to the third-person camera only, and places that camera at a fixed front-right three-quarter view.
+## Shows your own body to the outside cameras only, and places them: a fixed three-quarter view and an opponent in front.
 func _stage_views() -> void:
 	var me = client.get("player")
 	var cam := me.camera as Camera3D
@@ -73,8 +104,10 @@ func _stage_views() -> void:
 		_tag(body, BODY_LAYER, cam)
 	var feet: Vector3 = me.controller.state.position
 	var yaw := deg_to_rad(float(me.controller.state.yaw))
-	_tp_cam.global_position = feet + Basis(Vector3.UP, yaw) * Vector3(1.4, 1.5, -2.0)
+	_tp_cam.global_position = feet + Basis(Vector3.UP, yaw) * Vector3(1.4, 1.5, 2.0)
 	_tp_cam.look_at(feet + Vector3(0.0, 1.1, 0.0))
+	_op_cam.global_position = feet + Basis(Vector3.UP, yaw) * OPPONENT_AT
+	_op_cam.look_at(feet + Vector3(0.0, 1.3, 0.0))
 
 
 func _tag(node: Node, layer: int, skip: Node) -> void:
@@ -111,6 +144,8 @@ func _sample(time: float) -> Dictionary:
 		var q := local.basis.get_rotation_quaternion()
 		out["weapon_q"] = [snappedf(q.x, 0.00001), snappedf(q.y, 0.00001), snappedf(q.z, 0.00001), snappedf(q.w, 0.00001)]
 		out["weapon_id"] = weapon.get_instance_id()
+		if view.has_method(&"muzzle_transform"):
+			_muzzle_fit(to_cam, weapon, (view.call(&"muzzle_transform") as Transform3D).origin, out)
 	var mounted := client.get("view_arms") as Node3D
 	if mounted == null or not (mounted.get("arms") is DotPlayerViewArms):
 		return out
@@ -139,6 +174,30 @@ func _sample(time: float) -> Dictionary:
 	out["near"] = snappedf(_near_depth(cam, at, arms.arm_radius), 0.0001)
 	out["intersect"] = snappedf(_inside_weapon(weapon, at), 0.0001) if weapon != null else 0.0
 	return out
+
+
+## Where the muzzle (the flash and tracer origin) sits against the weapon's drawn meshes, in camera space (forward is -z):
+## muzzle_ahead is its distance past the front-most mesh point (negative = inside the gun), muzzle_off how far it is
+## outside the meshes' outline across the view.
+func _muzzle_fit(to_cam: Transform3D, weapon: Node3D, muzzle_world: Vector3, out: Dictionary) -> void:
+	var lo := Vector3.INF
+	var hi := -Vector3.INF
+	for part in weapon.find_children("*", "MeshInstance3D", true, false):
+		var mesh := part as MeshInstance3D
+		if not mesh.is_visible_in_tree() or mesh.mesh == null:
+			continue
+		var box := mesh.mesh.get_aabb()
+		var into := to_cam * mesh.global_transform
+		for c in 8:
+			var p := into * box.get_endpoint(c)
+			lo = lo.min(p)
+			hi = hi.max(p)
+	if lo == Vector3.INF:
+		return
+	var m := to_cam * muzzle_world
+	out["muzzle"] = _v(m)
+	out["muzzle_ahead"] = snappedf(lo.z - m.z, 0.0001)
+	out["muzzle_off"] = snappedf(Vector2(maxf(maxf(lo.x - m.x, m.x - hi.x), 0.0), maxf(maxf(lo.y - m.y, m.y - hi.y), 0.0)).length(), 0.0001)
 
 
 func _v(p: Vector3) -> Array:
@@ -207,9 +266,38 @@ func _inside_weapon(weapon: Node3D, at: Dictionary) -> float:
 
 ## A clip the lab cannot play (no magazine, no sights, no inspect animation) is still a line of the report.
 func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: String, other_slot: int) -> Dictionary:
-	var res: Dictionary = await super._fp_animation(a, me, id, def, wdir, other_slot)
+	var res: Dictionary
+	if AVATAR_ANIMS.has(a):
+		res = await _avatar_clip(a, me, id, def, wdir)
+	else:
+		res = await super._fp_animation(a, me, id, def, wdir, other_slot)
 	if res.get("status", "") != "ok":
 		print("ANIMREVIEW " + JSON.stringify({"weapon": str(id), "anim": a, "status": res.get("status", ""), "why": res.get("why", "")}))
+	return res
+
+
+## A locomotion clip: the keys held from 0.2 s to 1.6 s of a 2.4 s clip (jump: one press), the yaw turned back each time so
+## every run walks the same way. The player is put back where it stood afterwards.
+func _avatar_clip(a: String, me, id: StringName, def: DotWeaponDef, wdir: String) -> Dictionary:
+	var res := {"status": "ok"}
+	await _ensure_in_hand(me, id, def)
+	var start: Vector3 = me.controller.state.position
+	var keys: Array = AVATAR_ANIMS[a]
+	var tap := a == "avatar_jump"
+	await _clip(wdir, "fp_" + a, _f(72), func(i: int) -> void:
+		if i == _f(6):
+			for k: StringName in keys:
+				Input.action_press(k)
+		elif i == (_f(9) if tap else _f(48)):
+			for k: StringName in keys:
+				Input.action_release(k), res)
+	for k: StringName in keys:
+		Input.action_release(k)
+	res["moved_m"] = snappedf((me.controller.state.position as Vector3).distance_to(start), 0.01)
+	if a != "avatar_crouch" and a != "avatar_jump" and float(res["moved_m"]) < 0.5:
+		res = {"status": "missing", "why": "the movement keys moved the player %.2f m" % float(res["moved_m"])}
+	me.controller.state.position = start
+	await _wait(0.6)
 	return res
 
 
@@ -269,14 +357,16 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 		fail.append("arm through near plane %.3f m at #%d" % [worst["near"], first["near"]])
 	if worst["cut"] > LIMITS["near_cut_m"]:
 		fail.append("weapon through near plane %.3f m at #%d" % [worst["cut"], first["cut"]])
-	if counts["wrong_hand"] > LIMITS["wrong_hand_frames"]:
+	if counts["wrong_hand"] > _limit("wrong_hand_frames"):
 		fail.append("left hand nearer the grip in %d frames from #%d" % [counts["wrong_hand"], first["wrong_hand"]])
 	if counts["tpose"] >= LIMITS["tpose_frames"]:
 		fail.append("arms in T-pose in %d frames from #%d" % [counts["tpose"], first["tpose"]])
-	if counts["hidden"] > LIMITS["hidden_frames"]:
+	if counts["hidden"] > _limit("hidden_frames"):
 		fail.append("weapon drawn without arms in %d frames from #%d" % [counts["hidden"], first["hidden"]])
 	for p: String in pops["at"]:
 		fail.append(p)
+	if _clip_key.ends_with("fire"):
+		_judge_muzzle(frames, worst, fail)
 	# A draw or holster whose deploy never leaves 1 is an instant swap: the gun appears or vanishes with no motion.
 	if _clip_key.ends_with("draw") or _clip_key.ends_with("holster"):
 		var low := 1.0
@@ -288,6 +378,40 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 	for k in worst:
 		worst[k] = snappedf(float(worst[k]), 0.001)
 	return {"worst": worst, "counts": counts, "fail": fail}
+
+
+## The muzzle against the gun in settled frames (deploy done, no swap): the flash must leave the barrel's end, not the
+## receiver, the air in front or a point beside the gun.
+func _judge_muzzle(frames: Array[Dictionary], worst: Dictionary, fail: Array) -> void:
+	var ahead := -INF
+	var behind := -INF
+	var off := 0.0
+	var at := {}
+	for i in frames.size():
+		var f := frames[i]
+		if not f.has("muzzle_ahead") or f.get("switching", false) or float(f.get("deploy", 1.0)) < 0.99:
+			continue
+		var a := float(f["muzzle_ahead"])
+		if a > ahead:
+			ahead = a
+			at["ahead"] = i
+		if -a > behind:
+			behind = -a
+			at["behind"] = i
+		if float(f["muzzle_off"]) > off:
+			off = float(f["muzzle_off"])
+			at["off"] = i
+	if at.is_empty():
+		return
+	worst["muzzle_ahead"] = ahead
+	worst["muzzle_behind"] = behind
+	worst["muzzle_off"] = off
+	if ahead > LIMITS["muzzle_ahead_m"]:
+		fail.append("muzzle %.3f m in front of the barrel at #%d" % [ahead, at["ahead"]])
+	if behind > LIMITS["muzzle_behind_m"]:
+		fail.append("muzzle %.3f m inside the gun at #%d" % [behind, at["behind"]])
+	if off > LIMITS["muzzle_off_m"]:
+		fail.append("muzzle %.3f m beside the gun at #%d" % [off, at["off"]])
 
 
 ## Single-frame jumps of a hand, an elbow or the weapon, in camera space: far above both neighbours, so steady motion is not one.
@@ -305,7 +429,7 @@ func _pops(frames: Array[Dictionary], firing := false) -> Dictionary:
 			var unseen: bool = key != "weapon" and not (frames[i - 1].get("seen" + side, true) or frames[i].get("seen" + side, true))
 			steps.append(-1.0 if regrip or unseen else _step(frames[i - 1], frames[i], key))
 		# Every shot kicks the gun and the hands on it back in one frame by design; the fire clip allows a kick, not a snap.
-		_spikes(steps, LIMITS["kick_m"] if firing else LIMITS["pop_m"], "%s jumps %.3f m at #%d", key, out, "m")
+		_spikes(steps, _limit("kick_m") if firing else _limit("pop_m"), "%s jumps %.3f m at #%d", key, out, "m")
 	var turns: Array[float] = []
 	for i in range(1, frames.size()):
 		var a: Dictionary = frames[i - 1]
@@ -316,7 +440,7 @@ func _pops(frames: Array[Dictionary], firing := false) -> Dictionary:
 		var qa := Quaternion(a["weapon_q"][0], a["weapon_q"][1], a["weapon_q"][2], a["weapon_q"][3])
 		var qb := Quaternion(b["weapon_q"][0], b["weapon_q"][1], b["weapon_q"][2], b["weapon_q"][3])
 		turns.append(rad_to_deg(qa.angle_to(qb)))
-	_spikes(turns, LIMITS["pop_deg"], "%s turns %.1f deg at #%d", "weapon", out, "deg")
+	_spikes(turns, _limit("pop_deg"), "%s turns %.1f deg at #%d", "weapon", out, "deg")
 	return out
 
 

@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # The animation review loop's capture step (docs/anim-review.md): plays every first-person clip of the named weapons, writes
-# labelled contact sheets per weapon and clip (first person and third person) and a PASS/FAIL report from the glitch metrics.
-#   tools/anim_review.sh <game-dir> <weapon[,weapon]|all> [--anim reload_empty[,draw]] [--frames] [--soft]
+# labelled contact sheets per weapon and clip (first person, behind-right, opponent), one side-by-side clip per animation
+# (<weapon>/<clip>.mp4 at --fps, default 60) and a PASS/FAIL report from the glitch metrics.
+#   tools/anim_review.sh <game-dir> <weapon[,weapon]|all> [--anim reload_empty[,draw]] [--avatar] [--fps 60] [--frames] [--soft]
+# --avatar adds the locomotion clips (avatar_walk, _strafe, _run, _crouch, _jump) with the weapon held.
 # Every clip's per-frame numbers go to <weapon>/<clip>_frames.tsv; a FAIL clip's (every clip's with --frames) are printed too.
-# The capture goes through heavy, which hands tools/*_shot.sh to a GPU box; run it as gamedev (who holds the box key) from the
-# checkout or a ~/wt worktree. --soft keeps it here on software rendering (slower, same frames apart from lighting).
+# The capture goes to a GPU box through gpu.sh shot (which copies the clips back with --pull) and, when no box takes it,
+# through heavy here; run it as gamedev (who holds the box key) from the checkout or a ~/wt worktree. --soft keeps it
+# here on software rendering (slower, same frames apart from lighting).
 set -euo pipefail
 game=${1:?usage: anim_review.sh <game-dir> <weapon|all> [--anim X] [--soft]}
 weapons=${2:?usage: anim_review.sh <game-dir> <weapon|all> [--anim X] [--soft]}
@@ -12,10 +15,13 @@ shift 2
 anims="idle,draw,holster,fire,ads,reload_empty,reload_tactical,sprint,inspect"
 soft=0
 frames=0
+fps=60
 while (($#)); do
   case $1 in
     --anim | --anims) anims=$2; shift 2 ;;
     --soft) soft=1; shift ;;
+    --avatar) anims="$anims,avatar_walk,avatar_strafe,avatar_run,avatar_crouch,avatar_jump"; shift ;;
+    --fps) fps=$2; shift 2 ;;
     --frames) frames=1; shift ;;
     *) echo "anim_review.sh: unknown argument $1 (weapons and clips are one comma list each: launcher,knife)" >&2; exit 2 ;;
   esac
@@ -29,22 +35,42 @@ log=$out/capture.log
 mkdir -p "$out"
 # Only the picked weapons' old sheets go: a run for one weapon keeps every other weapon's review.
 if [[ $weapons == all ]]; then
-  rm -f "$out"/*/*_sheet.png "$out"/*/*_metrics.json
+  rm -f "$out"/*/*_sheet.png "$out"/*/*_metrics.json "$out"/*/*.mp4
 else
   IFS=, read -ra picked <<< "$weapons"
   for w in "${picked[@]}"; do
-    [[ -n $w && $w != */* && $w != .* ]] && rm -f "$out/$w"/*_sheet.png "$out/$w"/*_metrics.json
+    [[ -n $w && $w != */* && $w != .* ]] && rm -f "$out/$w"/*_sheet.png "$out/$w"/*_metrics.json "$out/$w"/*.mp4
   done
 fi
 pick=()
 [[ $weapons == all ]] || pick=(--only "$weapons")
 [[ $soft == 1 ]] && export GPU_OFFLOAD=0
-rc=0
-heavy -- timeout 3500 tools/anim_review_shot.sh --out "$out" --anims "$anims" "${pick[@]}" > "$log" 2>&1 || rc=$?
+# The clips come back through a scratch directory at the same absolute path on the box and here.
+clips=$(mktemp -d /tmp/anim-review-clips.XXXXXX)
+chmod 755 "$clips"
+trap 'rm -rf "$clips"' EXIT
+shot=(tools/anim_review_shot.sh --out "$out" --clips "$clips" --fps "$fps" --anims "$anims" "${pick[@]}")
+gpu=$(dirname "$PWD")/gpu.sh
+rc=75
+# --route: exit 75 when no box takes it (then heavy queues it here), else the tool's own exit code.
+if [[ $soft == 0 && -x $gpu ]]; then
+  rc=0
+  SHOT_DIR=$PWD GPU_SHOT_WAIT=${GPU_SHOT_WAIT:-1500} "$gpu" shot --route --timeout 3500 --pull "$clips" "$(basename "$PWD")" "${shot[@]}" > "$log" 2>&1 || rc=$?
+fi
+if [[ $rc == 75 ]]; then
+  rc=0
+  heavy -- timeout 3500 "${shot[@]}" > "$log" 2>&1 || rc=$?
+fi
+for c in "$clips"/*__*.mp4; do
+  [[ -e $c ]] || continue
+  n=$(basename "$c" .mp4)
+  mkdir -p "$out/${n%%__*}" && mv "$c" "$out/${n%%__*}/${n#*__}.mp4"
+done
 grep -E 'SCRIPT ERROR|WARN|ERROR' "$log" | head -5 >&2 || true
-python3 - "$out" "$log" "$frames" <<'PY'
+python3 - "$out" "$log" "$frames" "$fps" <<'PY'
 import json, math, os, sys
 out, log, all_frames = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+fps = sys.argv[4]
 rows, per_clip = [], {}
 for line in open(log, errors="replace"):
     if line.startswith("ANIMREVIEW {"):
@@ -78,20 +104,20 @@ def table(frames):
             turn(p, f) if i else ""] + [step(p, f, k) if i else "" for k, _ in PARTS]
             + [g("hand_error"), g("intersect"), g("near"), g("cut"), ",".join("%.3f" % x for x in f.get("weapon", []))])
     return out_rows
-lines = ["# Animation review", "", "| weapon | clip | verdict | why | first person | third person |", "|---|---|---|---|---|---|"]
+lines = ["# Animation review", "", "fps: %s (sheets every %d frames; clips play every frame)" % (fps, max(1, int(fps) // 15)), "", "| weapon | clip | verdict | why | first person | behind-right | opponent | clip |", "|---|---|---|---|---|---|---|---|"]
 fails = 0
 skipped = [r for r in rows if "pass" not in r]
 rows = [r for r in rows if "pass" in r]
 for r in sorted(rows, key=lambda r: (r["weapon"], r["anim"])):
     base = os.path.join(out, r["weapon"], r["anim"])
-    fp, tp = base + "_fp_sheet.png", base + "_tp_sheet.png"
+    files = [base + "_fp_sheet.png", base + "_tp_sheet.png", base + "_op_sheet.png", base + ".mp4"]
     verdict = "PASS" if r["pass"] else "FAIL"
     fails += 0 if r["pass"] else 1
     why = "; ".join(r["fail"]) if r["fail"] else "worst " + ", ".join("%s %s" % kv for kv in r["worst"].items())
-    lines.append("| %s | %s | %s | %s | %s | %s |" % (r["weapon"], r["anim"], verdict, why,
-        os.path.abspath(fp) if os.path.exists(fp) else "missing", os.path.abspath(tp) if os.path.exists(tp) else "missing"))
+    lines.append("| %s | %s | %s | %s | %s |" % (r["weapon"], r["anim"], verdict, why,
+        " | ".join(os.path.abspath(f) if os.path.exists(f) else "missing" for f in files)))
 for r in sorted(skipped, key=lambda r: (r["weapon"], r["anim"])):
-    lines.append("| %s | %s | %s | %s | | |" % (r["weapon"], r["anim"], "MISSING" if r["anim"] == "inspect" else "N/A", r.get("why") or r.get("status")))
+    lines.append("| %s | %s | %s | %s | | | | |" % (r["weapon"], r["anim"], "MISSING" if r["anim"] == "inspect" else "N/A", r.get("why") or r.get("status")))
 lines += ["", "%d clips, %d FAIL, %d not playable" % (len(rows), fails, len(skipped))]
 open(os.path.join(out, "report.md"), "w").write("\n".join(lines) + "\n")
 for r in sorted(rows, key=lambda r: (r["weapon"], r["anim"])):

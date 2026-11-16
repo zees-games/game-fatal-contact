@@ -1,31 +1,39 @@
 # Animation review
 
-How to find and fix glitches in fc-weapons' first-person and third-person animations (reload, draw, holster, arms) by looking at them. A check can only flag a problem; the sheets are what you judge.
+How to find and fix glitches in fc-weapons' first-person and third-person animations (reload, draw, holster, fire, arms) and the avatar's locomotion by looking at them. A check can only flag a problem; the sheets and clips are what you judge. The question for every clip is: **does this look like a real game?**
+
+This is the pilot of the family's visual QA loop: one test scene per weapon, avatar and NPC, a first-person and an outside camera, 60 fps capture to sheets and clips, findings as nightly notes, re-capture until clean. The capture is per game (it knows how the game builds its player and weapons); the rest is the same everywhere: the three views, 60 fps, the sheet and clip layout, the report format, posting with an `fps` metric, the checklist below and the notes. Another game adopts it by writing its own `tools/anim_review*` against this doc, not by copying these scripts.
 
 ## The loop
 
-1. Capture: `tools/anim_review.sh . <weapon[,weapon]|all> [--anim reload_empty,draw] [--frames]`, run as gamedev from the checkout or a `~/wt` worktree (`sudo -u gamedev env WT_ROOT=$HOME/wt tools/anim_review.sh . rifle`; the script puts gamedev's `bin` dirs on PATH itself). A run replaces only the named weapons' sheets; the others' stay. The default clips are idle, draw, holster, fire, ads, reload_empty, reload_tactical, sprint and inspect.
-2. Read `screenshots/anim_review/report.md`: one row per weapon and clip with PASS, FAIL, N/A (the weapon has no such clip: no magazine, no sights) or MISSING (fc-weapons below API 21, which has no inspect), the failing metrics with their frame numbers, and the paths of both sheets.
-3. Open **every** sheet with the Read tool, FAIL rows first, then every reload and draw sheet even when it passes. Judge each by the [checklist](#reading-a-sheet).
+1. Capture: `tools/anim_review.sh . <weapon[,weapon]|all> [--anim reload_empty,draw] [--avatar] [--fps 60] [--frames]`, run as gamedev from the checkout or a `~/wt` worktree (`sudo -u gamedev env WT_ROOT=$HOME/wt tools/anim_review.sh . rifle`; the script puts gamedev's `bin` dirs on PATH itself). A run replaces only the named weapons' sheets; the others' stay. The default clips are idle, draw, holster, fire, ads, reload_empty, reload_tactical, sprint and inspect; `--avatar` adds avatar_walk, avatar_strafe, avatar_run, avatar_crouch and avatar_jump (the player moving with the weapon held, driven through the real input actions).
+2. Read `screenshots/anim_review/report.md`: one row per weapon and clip with PASS, FAIL, N/A (the weapon has no such clip: no magazine, no sights) or MISSING (fc-weapons below API 21, which has no inspect), the failing metrics with their frame numbers, and the paths of the three sheets and the clip.
+3. Open **every** sheet with the Read tool, FAIL rows first, then every reload, draw and fire sheet even when it passes. Judge each by the [checklist](#the-defect-checklist). Save tokens: read the report before any image, read a sheet rather than a clip, crop to the cells that matter (`ffmpeg -i sheet.png -vf crop=w:h:x:y crop.png`), and after a fix read only the clips you re-captured.
 4. Fix what is wrong where it lives: the weapon pose and rig in arena-weapons (`view/aw_weapon_pose.gd`, `view/aw_view_model.gd`, `runtime/aw_weapon_rig*.gd`), the arms and grip in dot-player-char (`DotPlayerViewArms`, `DotViewGrip`), or one weapon's numbers in its def. Work in a `~/wt` worktree of that addon with a board claim, and link the worktree's addon into your game worktree for the run.
 5. Capture again with `--anim` limited to the clips you touched, read the sheets again, and repeat until the report is clean and the sheets look right.
 6. Run the game's suites (`./game.sh test`) once before committing an addon change.
-7. File a nightly item per weapon for anything left, naming the clip, the frame numbers and the sheet.
+7. Record what you saw as nightly notes on the item you work (`nightly note <key> "rifle reload_empty #34-40: left hand floats 5 cm off the mag"`), and post the clips you judged to a review item: `tools/anim_review_post.sh <review-key> --variant before [--fails]` before the fix and `--variant after --only <weapon> --anims <clip>` after it, so the owner sees the pair. Create the item once per pass (`nightly review new "FC animation review <date>" --key fc-anim-<date>`).
+8. File a nightly item per weapon for anything left, naming the clip, the frame numbers and the sheet. Never leave a finding only in a doc or a commit message.
+
+The loop is recursive: a fix is done when the re-captured sheets show the defect gone and nothing new, not when the metric passes.
 
 ## What it captures
 
-`tools/anim_review.gd` extends `tools/weapon_lab.gd`. For each weapon the offline client is built, the weapon is put in hand on a flat floor, and each clip is played at a fixed 30 frames a second (`--fixed-fps 30`). Every frame saves two images:
+`tools/anim_review.gd` extends `tools/weapon_lab.gd`. For each weapon the offline client is built, the weapon is put in hand on a flat floor, and each clip is played at a fixed rate, 60 frames a second by default (`--fps`, at least 15; the clips' timings are written for 30 and scale, so a clip covers the same seconds at any rate). Every frame saves three images:
 
 - first person: the client's own camera, the arms and the view model, with your own body left out;
-- third person: a fixed camera 2 m behind and to the right of the player, looking at the waist, showing the whole figure with the gun in its hands as other players see it.
+- third person: a fixed camera 2 m behind and to the right of the player, looking at the waist, showing the whole figure with the gun in its hands as other players see it;
+- opponent: a fixed camera 4 m in front and slightly to the side at eye height, looking back at the player, as the enemy sees the muzzle flash and the hands.
 
-`tools/anim_review_shot.sh` turns the frames into contact sheets with ffmpeg: every second frame (15 a second), eight to a row, each cell labelled `#<frame> <seconds>s`. The frames themselves are deleted, so read the sheets.
+`tools/anim_review_shot.sh` turns the frames into contact sheets with ffmpeg (`<clip>_fp_sheet.png`, `_tp_sheet.png`, `_op_sheet.png`): 15 cells a second (every fourth frame at 60 fps), eight to a row, each cell labelled `#<frame> <seconds>s`. It also writes one clip per animation, `<weapon>/<clip>.mp4`: the three views side by side (1920x540), every frame, at the capture rate, with the frame index burnt in. The frames themselves are deleted.
+
+The nightly review viewer plays a posted clip at its own rate and steps one frame per 1/fps (read from the `fps` metric `anim_review_post.sh` posts). A browser shows at most the display's refresh rate, so a 60 fps clip plays at full rate on a 60 Hz or faster screen; step frame by frame for anything finer. Sheets show 15 frames a second: a one-frame pop at 60 fps can fall between cells, which is what the clip and the per-frame table are for.
 
 A draw or holster is a real switch (`DotWeaponArsenal.select`, the holster then the deploy, as a slot key does), never `equip`, which is the spawn hand-out and swaps instantly. The draw starts from another slot (often a grenade), so its first frames show that weapon going down.
 
 ## Where it runs
 
-- `heavy` hands `tools/*_shot.sh` to a GPU box (staging or staging02) through gpu.sh, which needs gamedev's box key, and brings the sheets back. gpu.sh may print "could not copy the frames back" because the frames are already deleted; the sheets still arrive.
+- `anim_review.sh` hands `tools/anim_review_shot.sh` to a GPU box (staging or staging02) with `gpu.sh shot --route --pull <clips dir>`, which needs gamedev's box key and brings the sheets and the clips back; when no box takes it (exit 75) it runs through `heavy` here. gpu.sh may print "could not copy the frames back" because the frames are already deleted; the sheets still arrive.
 - If rsync cannot write into `screenshots/`, make the folder writable for gamedev first (`chmod -R a+rwX screenshots`).
 - `--soft` keeps it on the local machine with software rendering. On dev02 that build crashes (signal 11 in llvmpipe), as `weapon_lab.gd` does too, so use the GPU route.
 - One weapon with one clip takes 1 to 3 minutes; every weapon with every clip takes much longer. Run it in the background and poll.
@@ -46,13 +54,17 @@ Every frame is sampled just before it is drawn. Each clip's verdict, with every 
 | T-pose | the upper arm straight out sideways and level in a frame, for an arm with some of its forearm on screen (the free arm of a one-handed weapon hangs out of view) | IK not applied, a missing skeleton pose |
 | weapon drawn without arms | the model shown, not scoped, with no arms holding it, for more than 3 frames | the arms losing the weapon after a swap |
 | no draw / holster motion | the deploy fraction never goes below 0.9 in a draw or holster | an instant swap with no animation |
+| muzzle in front / inside / beside the gun | in a settled fire frame, the muzzle point (where the flash and tracer start) more than 0.10 m in front of the barrel's end, 0.10 m back inside the gun, or 0.03 m beside its outline, measured against the view model's mesh bounds in camera space | a muzzle offset in the def or the art table that does not match the model, a model swapped without its muzzle |
+| avatar did not move | a walk, strafe or run clip moved the player less than 0.5 m | input not reaching the controller, the player stuck in the floor |
 | tp body pop | dot-core's `DotClipMetrics` bone pop on the third-person figure | the body snapping between animations |
+
+Thresholds are written per frame at 30 fps: a pop or turn limit halves at 60 fps (half the time between frames), and a frame count (wrong hand, hidden) doubles.
 
 The pop checks skip the frame where the weapon node changes and the hands' regrip in the frame after it, so a swap is not a pop, and a hand jump off screen in both frames (the free hand of a one-handed weapon going to rest). A loop discontinuity shows as a pop where the clip wraps (idle, sprint).
 
-## Reading a sheet
+## The defect checklist
 
-Read the first-person sheet left to right as a flip book, then the third-person sheet. Look for:
+Read the first-person sheet left to right as a flip book, then the behind-right and opponent sheets. Ask whether it looks like a real game, and look for:
 
 - a cell that does not follow from its neighbours (a pop the threshold missed);
 - the gun or a hand cut off at the edge of the screen;
@@ -61,6 +73,13 @@ Read the first-person sheet left to right as a flip book, then the third-person 
 - arms straight out (a T-pose), or arms with no gun;
 - a reload that never takes the magazine out, or puts it back in the wrong place;
 - a draw or holster with no motion, or a gun that ends somewhere other than where idle holds it;
-- in third person, the gun out of the hands, held at the knee, or pointing away from where the player looks.
+- in third person, the gun out of the hands, held at the knee, or pointing away from where the player looks;
+- clipping arms: a forearm or hand through the gun, the body or the camera;
+- floating hands: a hand a few centimetres off the grip or the magazine it is meant to hold;
+- finger grip: fingers through the grip, open in the air, or the trigger finger not near the trigger;
+- wrong muzzle flash origin: the flash or tracer starting behind the barrel's end, inside the gun, beside it, or (opponent view) from the body instead of the gun;
+- texture stretching: a texture smeared along one axis, a seam, a face with no texture, a material that is plain white or magenta;
+- animation pops: one cell that jumps out of the motion, a loop that snaps where it wraps (idle, sprint, walk);
+- in the avatar clips, feet sliding over the floor, legs not moving while the body moves, the gun dropping out of the hands while running or jumping, or the camera passing through the body.
 
 Frame 0 of a third-person sheet can show the scene before the camera is placed; ignore it.
