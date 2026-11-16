@@ -37,6 +37,29 @@ Voice has its own channel on the link. A talk spurt is fifty frames a second per
 
 Relayed commands are off by default and audited either way: a line typed on a web page by somebody not in the game is a privilege path, classified `Source.CHAT`, the least trusted. `DotChatRelayConfig.command_source` is the operator's switch.
 
+## App points and customisation (Gamespice)
+
+`game/arena_app_wiring.gd`, built by the module after the services (`_build_app`), on the dedicated server only. Each part is off until its operator configures it; off is one log line, never a crash, and nothing is sent or granted.
+
+| Part | Addon class | Turned on by |
+|---|---|---|
+| Earn events | dot-achievements `DotPointsReporter` | `user://app_points.json`, `DOT_POINTS_*` env or `--points-*` argv: `app_id`, `server_id`, `private_key_path` (the key by path; never commit one) |
+| Avatars settings | dot-loadout `DotLoadoutSiteSettings` | the identity layer's backbone client |
+| Points on the HUD, store items | dot-loadout `DotLoadoutSiteSource` | `user://app_loadout.json`, `DOT_LOADOUT_*` or `--loadout-*`: `site_public_key_path`, `site_audience` |
+
+Earn events are reported by the server only, one per player per moment (count 1), with `meta` `{humans, vsBot}`. The game sends no amounts: the app's points rules price each key, cap it and decide whether play against bots counts. The keys (append, never rename):
+
+| Key | When |
+|---|---|
+| `kill` | a player killed an opponent (not themself, not a team mate); `vsBot` when the victim is a bot |
+| `headshot` | that kill was a headshot (sent beside `kill`) |
+| `round_win` | the player was on the winning side (the leader, in a free-for-all) when a round ended |
+| `match_win` | the same when the match ended |
+
+Bots and bare seats (no platform key) earn nothing. The avatars section's `appOnly` forces `team_avatars` on (put back when it goes off); its `team:<name>:a` / `team:<name>:b` slots bind an avatar from `team_bodies` to the first and second side through the `team_body_a` / `team_body_b` rules. The balance is replicated to its owner only (`net_app_points_on`, `net_app_points`) and the HUD shows it top left only while the app has points on and the grant verified. FC has no per-player store slots yet, so equipped store items are logged once and ignored.
+
+The new classes are reached through `arena_newer_api.gd`, because the addon tags dot-server-deploy's `addons.lock` pins do not have them yet; a build on those pins leaves every part off.
+
 ## An administrator's live tools
 
 `ArenaModTools` is what dot-moderation's handler table means here, and every verb is somebody else's seam: noclip, freeze, speed and gravity are `DotFpsAdminModifiers`; god and buddha are `DotHealth.invulnerable` and `cannot_die`; slay and slap are ordinary `DotDamage` through the combat manager, so the kill feed, scoreboard and stats hear them; respawn is `ArenaGame.respawn_player`; burn is `ArenaEffects.BURNING`. The commands are `DotModToolCommands`, installed on the module so they go when it does. Ids are the session userid as a string ([architecture](architecture.md#one-id-space-for-players)).

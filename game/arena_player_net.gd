@@ -130,6 +130,12 @@ var net_blind: bool = false
 var net_challenge: int = 0
 var net_challenge_value: int = 0
 
+## The app's points for this player (`ArenaPlayer.app_points_on`, `app_points`), read by the server
+## from the site's signed grant (arena_app_wiring.gd). The owner's alone, and server-driven: a client
+## never has a balance of its own to predict, so the HUD shows only what the server read.
+var net_app_points_on: bool = false
+var net_app_points: int = 0
+
 ## `ArenaPlayer.beacon`. Everybody's.
 var net_beacon: bool = false
 ## Spawn-protection bubble on this player (see ArenaPlayer.protected_view). Everybody.
@@ -252,6 +258,9 @@ func _register_net_vars() -> void:
 
 	replicate(&"net_weapon", DotNetVar.Type.UINT).bits(ArenaContent.WEAPON_INDEX_BITS)
 	replicate(&"net_carry", DotNetVar.Type.UINT).bits(ArenaContent.carry_bits()).to_owner_only()
+	# Appended last, so every var above keeps its place. VARINT: a balance has no ceiling here.
+	replicate(&"net_app_points_on", DotNetVar.Type.BOOL).to_owner_only().server_driven()
+	replicate(&"net_app_points", DotNetVar.Type.VARINT).to_owner_only().server_driven()
 
 
 # --- Input -----------------------------------------------------------------
@@ -432,6 +441,8 @@ func pull() -> void:
 	net_blind = player.blinded
 	net_challenge = clampi(player.challenge + 1, 0, 127)
 	net_challenge_value = clampi(player.challenge_value, 0, 65535)
+	net_app_points_on = player.app_points_on
+	net_app_points = player.app_points
 	net_beacon = player.beacon
 	net_flashlight = player.flashlight
 	net_protected = player.protected_view
@@ -528,6 +539,8 @@ func _net_state_applied(tick: int) -> void:
 	player.blinded = net_blind
 	player.challenge = net_challenge - 1
 	player.challenge_value = net_challenge_value
+	player.app_points_on = net_app_points_on
+	player.app_points = net_app_points
 	player.beacon = net_beacon
 	player.flashlight = net_flashlight
 	player.protected_view = net_protected

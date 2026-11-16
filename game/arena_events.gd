@@ -551,10 +551,17 @@ static func write_rules(rules: Dictionary) -> PackedByteArray:
 
 static func read_rules(reader: DotNetReader) -> Dictionary:
 	var rules := {}
-	var count := mini(reader.read_varint(), 64)
+	# No key cap: the count is whatever the server sent, and a short or
+	# corrupt packet stops at the first failed read instead of a fixed limit.
+	var count := reader.read_varint()
+	if count < 0:
+		return {"rules": rules, "ok": false}
 	for _i in range(count):
 		var key := reader.read_string(RULE_KEY_BYTES)
-		rules[key] = reader.read_float32()
+		var value := reader.read_float32()
+		if not reader.ok():
+			break
+		rules[key] = value
 	return {"rules": rules, "ok": reader.ok()}
 
 

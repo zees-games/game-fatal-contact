@@ -250,6 +250,16 @@ func _build_services() -> DotResult:
 	return DotResult.success(services)
 
 
+## The app's avatars settings, earn events, points and store items (arena_app_wiring.gd). Each part
+## stays off, logged once, until its operator configures it; a failure here never stops the server.
+func _build_app() -> DotResult:
+	app_wiring = ArenaAppWiring.new()
+	app_wiring.name = "AppWiring"
+	add_child(app_wiring)
+	var client: Object = identity.backbone if identity != null else null
+	return app_wiring.call(&"setup", game, client)
+
+
 ## noclip, god, slay, bring and the rest, on this server's console and in chat. Through this module as the host, so every one is removed on unload like the module's own commands.
 ## The handlers are `ArenaModTools`; the flags, the targets and the immunity rule are dot-moderation's `DotModToolCommands`, and neither names the other.
 func _build_mod_commands() -> void:

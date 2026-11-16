@@ -148,6 +148,8 @@ var slide_label: DotKeyPrompt = null
 
 ## The points this player has collected this match, from the drops layer.
 var points_label: Label = null
+## The app's points balance (Gamespice), hidden unless the server says the app has points on.
+var app_points_label: Label = null
 
 
 ## Kills since each player last died, counted from the KILL events every client gets, so

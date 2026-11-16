@@ -3,6 +3,7 @@ extends "arena_hud_objective.gd"
 
 const ArenaFlagView := preload("arena_flag_view.gd")
 const ArenaThrowMeter := preload("arena_throw_meter.gd")
+const ArenaHudAppPoints := preload("arena_hud_app_points.gd")
 
 ## The knife throw's power bar under the crosshair: shown only while the aim key winds a throw up.
 var throw_bar: DotStatBar = null
@@ -153,7 +154,7 @@ func footprints() -> Dictionary:
 		var local: Rect2 = piece.call(&"footprint")
 		if local.has_area():
 			out[key] = piece.get_global_transform() * local
-	for label: Label in [notice_label, objective_label, death_label, points_label]:
+	for label: Label in [notice_label, objective_label, death_label, points_label, app_points_label]:
 		if label != null and label.is_visible_in_tree() and label.text != "":
 			out[String(label.name)] = label.get_global_rect()
 	return out
@@ -682,6 +683,17 @@ func _present_points(live: bool) -> void:
 		count = int(game.drops.points.get(player.player_id, 0))
 	points_label.visible = count > 0
 	points_label.text = points_text(count)
+
+	if app_points_label == null:
+		app_points_label = _make_label("AppPoints", Control.PRESET_TOP_LEFT, ArenaHudAppPoints.OFFSET)
+		app_points_label.grow_horizontal = Control.GROW_DIRECTION_END
+		app_points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		app_points_label.offset_left = 8.0
+		app_points_label.add_theme_color_override(&"font_color", ArenaHudAppPoints.INK)
+	var holder: Object = null
+	if live:
+		holder = player
+	ArenaHudAppPoints.present(app_points_label, holder)
 
 	if _points_seen >= 0 and count > _points_seen:
 		popup("".join(["+", points_text(count - _points_seen)]), Color(1.0, 0.82, 0.25))

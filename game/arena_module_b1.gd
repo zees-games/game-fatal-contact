@@ -46,6 +46,11 @@ var profile_link: DotNetProfileLink = null
 ## Chat, voice and moderation. See [ArenaServices] for why it is not this file.
 var services: ArenaServices = null
 
+## Per-app customisation from Gamespice: avatars settings, earn events, the HUD balance, store
+## items. Every part off until configured (arena_app_wiring.gd); null when it could not be built.
+const ArenaAppWiring := preload("arena_app_wiring.gd")
+var app_wiring: Node = null
+
 
 ## Content, profiles, avatars and admission.
 var identity: ArenaIdentity = null
@@ -388,6 +393,9 @@ func _add(session: DotClientSession) -> void:
 	if services != null:
 		services.add_peer(session.peer_id)
 
+	if app_wiring != null:
+		app_wiring.call(&"player_joined", session.userid)
+
 	# Not the map sync: that admits the peer when it says READY (`bridge.peer_ready_fn`),
 	# because admitting tells it the current map and nothing reaches a client before then.
 
@@ -404,6 +412,9 @@ func _on_client_disconnected(session: DotClientSession, _reason: String) -> void
 	# its acknowledgement record as well as taking the player out of the match.
 	bridge.remove_peer(session.peer_id)
 	_joined.erase(session.userid)
+	# Before the identity lets go: the app wiring finds the player's platform key through it.
+	if app_wiring != null:
+		app_wiring.call(&"player_left", session.userid)
 	game.loadout_identity.release(session.userid)
 
 	var loadouts := DotGameAvatarActionRelay.loadouts_of(net)

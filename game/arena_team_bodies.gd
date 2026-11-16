@@ -20,6 +20,10 @@ const BODIES_LEVEL := 26
 
 const CHANNEL := &"arena.team_bodies"
 
+## The server rules that bind a registered body to the first and second playing side (the app's
+## `team:<body>:a` / `team:<body>:b` avatar slots); -1 keeps the config order.
+const SIDE_RULES: PackedStringArray = ["team_body_a", "team_body_b"]
+
 ## Who made each team body, for the Credits page ([method ArenaMenus.add_pages]): body id -> lines.
 ## Both are CC BY 4.0 from Sketchfab, which requires the credit wherever the art is shown. The
 ## SWAT model is built from other people's CC BY parts, and each of those is credited too.
@@ -103,8 +107,9 @@ static func follow(game: Object) -> void:
 		for t in game.call(&"teams"):
 			if t.is_spectator:
 				continue
-			if at < _bodies.size() and _bodies[at] != &"":
-				sides[t.id] = [_bodies[at], t.colour]
+			var pick := _pick(game, at)
+			if pick < _bodies.size() and _bodies[pick] != &"":
+				sides[t.id] = [_bodies[pick], t.colour]
 			at += 1
 	if on != forced or not is_equal_approx(tint, _tint) or sides != _sides:
 		forced = on
@@ -113,6 +118,18 @@ static func follow(game: Object) -> void:
 			ArenaNewerApi.script_of(&"DotHumanoidAssets").set(&"team_tint", tint)
 		_sides = sides
 		version += 1
+
+
+## Which registered body (index into the config's `team_bodies`) the [param at]th playing side wears:
+## the server's `team_body_a` / `team_body_b` rule when the app's avatars settings bound one
+## (`ArenaAppWiring`), else the side's own place in the list. A rule past the list is logged by the
+## server when it is set and draws the side's own looks here.
+static func _pick(game: Object, at: int) -> int:
+	if at < SIDE_RULES.size():
+		var bound := int(float(game.call(&"rule", SIDE_RULES[at])))
+		if bound >= 0:
+			return bound
+	return at
 
 
 ## The registered body [param team] wears, or &"" for its own looks.

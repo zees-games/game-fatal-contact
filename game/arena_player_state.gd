@@ -261,6 +261,12 @@ var blinded: bool = false
 var challenge: int = -1
 var challenge_value: int = 0
 
+## The app's points (the site's per-app currency) for the HUD: whether the app has them on for this
+## player and the balance. Set on the server from the site's signed grant (arena_app_wiring.gd) and
+## replicated to the owner alone (`ArenaPlayerNet.net_app_points`); never earned or spent here.
+var app_points_on: bool = false
+var app_points: int = 0
+
 ## An administrator's `beacon`: a pulsing ring and a column over this player that every client
 ## draws, and a ping every client hears, until it is turned off. Set on the server and replicated to
 ## everybody (`ArenaPlayerNet.net_beacon`), who each draw it in [method present].

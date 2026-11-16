@@ -133,6 +133,8 @@ func _module_load() -> DotResult:
 	if serviced.ok:
 		_build_mod_commands()
 
+	DotLog.result(CHANNEL, "the app customisation", _build_app())
+
 	var mapped := _build_maps()
 	DotLog.result(CHANNEL, "the map director", mapped)
 
