@@ -195,8 +195,12 @@ func _v(p: Vector3) -> Array:
 
 
 ## The upper arm held straight out sideways and level: a T-pose (no IK applied).
+## An arm folded to its shoulder (a one-hand grip's hidden arm, dot-player-char 28) is not drawn: its rest direction is no pose.
 func _straight_out(to_cam: Transform3D, at: Dictionary, side: String) -> bool:
-	var dir: Vector3 = (to_cam.basis * ((at["LowerArm" + side] as Vector3) - (at["UpperArm" + side] as Vector3))).normalized()
+	var upper: Vector3 = (at["LowerArm" + side] as Vector3) - (at["UpperArm" + side] as Vector3)
+	if upper.length() < 0.01:
+		return false
+	var dir: Vector3 = (to_cam.basis * upper).normalized()
 	return absf(dir.x) > 0.95 and absf(dir.y) < 0.2
 
 

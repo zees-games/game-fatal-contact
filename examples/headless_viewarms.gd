@@ -224,12 +224,17 @@ func _sample(worst: Dictionary, seconds: float) -> void:
 		if grip.is_two_hand():
 			var p: Vector3 = held.palm_offset
 			pairs.append(["Middle1.L", grip.support_world(), grip.support, Vector3(-p.x, p.y, p.z)])
+		# Real hands (dot-player-char 28) seat each wrist where its closed fingers land on the grip, not at palm_offset.
+		var wrists: Array = held.call(&"wrist_targets", grip) if held.has_method(&"wrist_targets") else []
 		for pair: Array in pairs:
 			if -(camera.global_transform.affine_inverse() * (pair[1] as Vector3)).z < _near():
 				worst.behind += 1
 				continue
 			var hand := skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone(pair[0])).origin
 			var target: Vector3 = pair[1] + held.global_transform.basis * (pair[3] as Vector3)
+			var w := pairs.find(pair)
+			if w < wrists.size() and (wrists[w] as Vector3).is_finite():
+				target = wrists[w]
 			if hand.distance_to(target) > worst.reach:
 				worst.reach = hand.distance_to(target)
 				worst.hand = pair[0]

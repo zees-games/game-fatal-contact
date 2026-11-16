@@ -6,8 +6,17 @@ extends Node3D
 const NEEDS_LEVEL := 8
 ## Poses held with the firing hand alone.
 const ONE_HAND: Array[StringName] = [&"melee", &"thrown", &"fists"]
+## The hand pose (DotViewGrip.kind, dot-player-char's DotViewHandPoses) each weapon art pose closes into.
+const POSE_KINDS := {&"rifle": &"rifle", &"pistol": &"pistol", &"heavy": &"launcher", &"melee": &"knife",
+	&"thrown": &"grenade", &"fists": &"fists"}
+## Weapons whose hands differ from their art pose's (a pump's fore-end, a scoped stock); edit or add ids.
+static var hand_kinds := {&"shotgun": &"shotgun", &"drum_shotgun": &"shotgun", &"sniper": &"sniper",
+	&"marksman": &"sniper", &"fists": &"fists"}
 ## Nearest a held grip comes to the eye (metres), so a pistol's hand does not fill the view.
 const HANDS_MIN_DISTANCE := 0.3
+## Added to it with real hands (dot-player-char 28), whose wrist sits this far behind the grip the fingers close on:
+## at 0.3 alone an aimed revolver's wrist came 0.041 m from the eye, inside the camera's near plane (0.04 still 0.048).
+static var real_hand_setback := 0.06
 ## DotPlayerViewArms' own hand size, for a weapon whose profile does not say.
 const DEFAULT_HAND_SCALE := 0.5
 const ArenaTeamBodies := preload("arena_team_bodies.gd")
@@ -65,7 +74,7 @@ static func mount(parent: Node, model: AwViewModel, body: Node3D, look: DotHuman
 	mounted._look_override = mounted.arms.has_method(&"set_look_override")
 	if &"hands_scale" in model:
 		model.hands_scale = mounted.arms.held_scale
-		model.hands_min_distance = HANDS_MIN_DISTANCE
+		model.hands_min_distance = HANDS_MIN_DISTANCE + (real_hand_setback if mounted.arms.get(&"real_hands") == true else 0.0)
 	model.hands_reached.connect(mounted._on_hands)
 	return mounted
 
@@ -79,7 +88,29 @@ func _on_hands(anchor: Node3D, grip: Vector3, fore: Vector3, pose: StringName) -
 	if not one:
 		_grip.support = fore
 	var model: AwViewModel = body.weapons.view_model() if body != null and body.weapons != null else null
-	_grip.bounds = weapon_bounds(model, _boxes)
+	# A knife's handle is inside the fist and against the wrist, so keeping the arm out of its box swung the elbow
+	# out flat beside the eye (anim_review's T-pose); a blade held in one hand has no forend to clear.
+	_grip.bounds = AABB() if pose == &"melee" else weapon_bounds(model, _boxes)
+	# Real fingers (dot-player-char 27): which grip they close into and the gun's axes they close round.
+	if "kind" in _grip:
+		_grip.kind = hand_kind(pose, body.weapons.current_art() if body != null and body.weapons != null else null)
+		var held: Dictionary = model.art_hand_grip() if model != null and model.has_method(&"art_hand_grip") else {}
+		var to_anchor := anchor.global_transform.basis.orthonormalized().inverse()
+		var f: Vector3 = (to_anchor * (held.get("forward", Vector3.ZERO) as Vector3)).normalized()
+		var u: Vector3 = (to_anchor * (held.get("up", Vector3.ZERO) as Vector3)).normalized()
+		# A grenade's art forward is its own up (the fuse): no gun axis to close round, so the view's own.
+		var axes := f.is_normalized() and u.is_normalized() and absf(f.dot(u)) < 0.9
+		_grip.forward = f if axes else Vector3.FORWARD
+		_grip.up = u if axes else Vector3.UP
+
+
+## The hand pose [param art] is held in: its id's in [member hand_kinds], else its art pose's ([constant POSE_KINDS]),
+## else a rifle's.
+static func hand_kind(pose: StringName, art: Resource) -> StringName:
+	var id: StringName = art.get(&"id") if art != null else &""
+	if hand_kinds.has(id):
+		return hand_kinds[id]
+	return POSE_KINDS.get(pose, &"rifle")
 
 
 ## The drawn weapon's box in the frame [signal AwViewModel.hands_reached] gives its points in, which the arms keep
@@ -168,6 +199,10 @@ func _process(delta: float) -> void:
 	if model != null:
 		arms.run = model.run_amount()
 		arms.run_phase = model.run_phase()
+	# The knife throw's wind-back turns the knife fist into the throw's pinch.
+	if &"throw_grip" in arms:
+		var windup: float = body.get(&"windup") if &"windup" in body else -1.0
+		arms.throw_grip = clampf(windup, 0.0, 1.0) if windup >= 0.0 else 0.0
 	arms.tick(Vector2(v.x, v.z).length(), delta)
 
 
