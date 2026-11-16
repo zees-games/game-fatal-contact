@@ -1,9 +1,11 @@
 extends CanvasLayer
-## The attachments menu over the game (docs/client.md, the Attachments key): it lists what fits the gun in hand.
+## The attachments screen over the game (docs/client.md, the Attachments key): the gun in hand in a studio of its own,
+## what fits each mount and what it does to the stats (arena_attach_studio.gd).
 ## A pick goes to the server as Ask.ATTACH through [member send_fn]; offline, with no server, it is served here
 ## by the same `ArenaAttach.serve`. The rows follow the arsenal, which takes the server's fitting from the snapshot.
 
 const ArenaAttach := preload("arena_attach.gd")
+const ArenaAttachStudio := preload("arena_attach_studio.gd")
 
 signal open_changed(open: bool)
 
@@ -12,16 +14,15 @@ var arsenal_fn: Callable = Callable()
 ## Sends a request body to the server; left empty offline, where the pick is served at once.
 var send_fn: Callable = Callable()
 
-var menu: DotWeaponAttachMenu = null
+var menu: ArenaAttachStudio = null
 var _slot := -1
 var _code := -1
 
 
 func _ready() -> void:
 	layer = 20
-	menu = DotWeaponAttachMenu.new()
-	menu.name = "AttachMenu"
-	menu.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT, Control.PRESET_MODE_MINSIZE, 24)
+	menu = ArenaAttachStudio.new()
+	menu.name = "AttachStudio"
 	menu.hide()
 	add_child(menu)
 	menu.requested.connect(_on_requested)
@@ -43,7 +44,10 @@ func open() -> bool:
 		return false
 	_slot = arsenal.current_slot()
 	_code = ArenaAttach.held_code(arsenal)
-	menu.open(arsenal.attachments, base, arsenal.fitting_at(_slot))
+	var peers: Array[DotWeaponDef] = []
+	for id: StringName in arsenal.catalogue.ids():
+		peers.append(arsenal.catalogue.get_def(id))
+	menu.open(arsenal.attachments, base, arsenal.fitting_at(_slot), peers)
 	set_process(true)
 	open_changed.emit(true)
 	return true
@@ -52,7 +56,7 @@ func open() -> bool:
 func close() -> void:
 	if not is_open():
 		return
-	menu.hide()
+	menu.close()
 	set_process(false)
 	open_changed.emit(false)
 
