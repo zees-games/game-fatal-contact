@@ -12,8 +12,8 @@ const KillPovRecoil := preload("../game/arena_kill_pov_recoil.gd")
 ## cl_recoil_view only scales the drawn view, and a killcam replays the killer's kick.
 
 const TICK_RATE := 64
-const EXPECTED_SECTIONS := 6
-const EXPECTED_CHECKS := 39
+const EXPECTED_SECTIONS := 7
+const EXPECTED_CHECKS := 43
 
 ## Weapons that must kick at all (everything with a barrel), and those that must not.
 const KICKERS: PackedStringArray = [
@@ -43,6 +43,7 @@ func _run() -> void:
 	_test_profiles()
 	_test_view()
 	await _test_burst()
+	await _test_crosshair()
 	_test_cvar()
 	_test_spray()
 	_test_killcam()
@@ -198,6 +199,62 @@ func _test_burst() -> void:
 	_finished += 1
 
 
+## Pitch and yaw of [param dir] in degrees, the way the camera is turned (yaw about +Y, pitch up).
+func _angles(dir: Vector3) -> Vector2:
+	return Vector2(rad_to_deg(asin(clampf(dir.y, -1.0, 1.0))), rad_to_deg(atan2(-dir.x, -dir.z)))
+
+
+## The owner's footage (fc-hitreg-vertical-1): in a held rifle burst the bullets landed on the chest with the crosshair on
+## the legs. The crosshair is the camera's centre, so the camera's recoil must be the server's bullet offset at every
+## shot. The view drew only 70% of the climb and left the rest to the weapon pose's spring, which is a transient and
+## not the pattern, so a long burst put the bullets about a degree above and beside where the player was looking.
+func _test_crosshair() -> void:
+	_entered += 1
+	print("== the crosshair is where a held burst's bullets go")
+	ArenaRecoilView.scale = 1.0
+	var p := _player(23)
+	# The rate the player's sim (and so the server's recoil decay) runs at, which a client's frames add up to.
+	var dt := 1.0 / float(ArenaContent.TICK_RATE)
+	var camera := Camera3D.new()
+	p.camera = camera
+	p.add_child(camera)
+	await get_tree().physics_frame
+	for _i in 40:
+		p.simulate_tick(_tick, dt, DotFpsCommand.new(), DotWeaponCommand.new())
+		_tick += 1
+		await get_tree().physics_frame
+	p.recoil_view.clear()
+	var base := Vector2(NAN, NAN)
+	var shots := 0
+	var worst := Vector2.ZERO
+	var climb := 0.0
+	for _i in 90:
+		# The frame drawn just before this tick's shot: what the player aims with.
+		var shown := p.recoil_view.step(dt)
+		var w := DotWeaponCommand.new()
+		w.buttons = DotWeaponCommand.BUTTON_ATTACK
+		var c := DotFpsCommand.new()
+		c.yaw = -90.0
+		var out := p.simulate_tick(_tick, dt, c, w)
+		_tick += 1
+		if out != null and not out.shots.is_empty():
+			var at := _angles(out.shots[0].direction)
+			if is_nan(base.x):
+				base = at
+			var bullet := Vector2(at.x - base.x, wrapf(at.y - base.y, -180.0, 180.0))
+			worst = Vector2(maxf(worst.x, absf(bullet.x - shown.x)), maxf(worst.y, absf(bullet.y - shown.y)))
+			climb = maxf(climb, bullet.x)
+			shots += 1
+		await get_tree().physics_frame
+	_check(shots >= 8, "the held trigger fires a burst", str(shots))
+	_check(climb > 1.0, "whose bullets climb", "%.2f" % climb)
+	_check(worst.x < 0.05, "the crosshair climbs with them, shot for shot", "worst %.3f deg" % worst.x)
+	_check(worst.y < 0.05, "and drifts sideways with them", "worst %.3f deg" % worst.y)
+	p.recoil_view.clear()
+	p.queue_free()
+	_finished += 1
+
+
 func _test_cvar() -> void:
 	_entered += 1
 	print("== cl_recoil_view scales or disables the drawn kick")
@@ -209,10 +266,10 @@ func _test_cvar() -> void:
 	var half := v.step(0.0).x
 	ArenaRecoilView.scale = 1.0
 	var full := v.step(0.0).x
-	_check(is_equal_approx(half * 2.0, full) and full > 1.9 * (1.0 - ArenaRecoilView.POSE_SHARE), "0.5 halves it", "%.2f %.2f" % [half, full])
+	_check(is_equal_approx(half * 2.0, full) and full > 1.9, "0.5 halves it", "%.2f %.2f" % [half, full])
 	ArenaRecoilView.scale = 99.0
 	_check(v.step(0.0).x <= full * 5.01, "and it is capped at 5")
-	_check(is_equal_approx(v.offset().x * (1.0 - ArenaRecoilView.POSE_SHARE), full), "the underlying kick (what the bullet follows) is not scaled")
+	_check(is_equal_approx(v.offset().x, full), "the underlying kick (what the bullet follows) is not scaled")
 	ArenaRecoilView.scale = 1.0
 	var rules := DotWeaponRecoilRules.new()
 	_check(rules.get_script().resource_path.ends_with("dot_weapon_recoil_rules.gd") and _feel.recoil != null and _feel.recoil.enabled, "the server's sv_recoil_* rules are on for the arena")
@@ -301,13 +358,13 @@ func _test_killcam() -> void:
 			r.kick(o)
 	_check(pitches[0] > 0.0 and pitches[pitches.size() - 1] > pitches[0] and burst[0].recoil_signed, "a mirrored killer (no recorded kick) climbs by the weapon's own pattern", str(pitches))
 	KillPovRecoil.scale = 1.0
-	var shown := r.step(0.0, ArenaRecoilView.POSE_SHARE)
+	var shown := r.step(0.0)
 	_check(shown.x > 1.0, "the replay camera turns with it", str(shown))
 	KillPovRecoil.scale = 0.0
-	_check(r.step(0.0, ArenaRecoilView.POSE_SHARE) == Vector2.ZERO and r.offset().x > 1.0, "cl_killcam_recoil 0 holds the camera still")
+	_check(r.step(0.0) == Vector2.ZERO and r.offset().x > 1.0, "cl_killcam_recoil 0 holds the camera still")
 	KillPovRecoil.scale = 1.0
 	for _i in 120:
-		var _s := r.step(1.0 / 60.0, ArenaRecoilView.POSE_SHARE)
+		var _s := r.step(1.0 / 60.0)
 	_check(r.offset().length() < 0.05, "and it settles once the trigger is let go", str(r.offset()))
 	r.clear()
 	var _first := r.shots(_aux(&"rifle", 4095), 0.016)

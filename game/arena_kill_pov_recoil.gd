@@ -80,10 +80,10 @@ func kick(outcome: DotWeaponOutcome) -> void:
 
 
 ## Settles by [param delta] and returns the offset to add to the replay camera (x pitch up, y yaw, degrees),
-## less [param pose_share], the part the view model's own spring already turns the camera by.
-func step(delta: float, pose_share: float) -> Vector2:
+## all of the kick, as ArenaRecoilView draws it on a live camera, so the replayed crosshair is where the killer's bullets went.
+func step(delta: float) -> Vector2:
 	_recoil.advance(delta)
-	var shown := _recoil.offset() * clampf(scale, 0.0, 5.0) * (1.0 - pose_share)
+	var shown := _recoil.offset() * clampf(scale, 0.0, 5.0)
 	return shown if shown.is_finite() else Vector2.ZERO
 
 

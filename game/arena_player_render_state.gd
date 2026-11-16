@@ -61,14 +61,13 @@ func _kick_landing(drawn: DotFpsState) -> void:
 	camera_motion.note_landing(_landing_impact)
 	_landing_impact = 0.0
 
-## Sway, bob and the recoil's camera half, for the hands under the camera. Returns the punch in degrees (x pitch up, y yaw), which [method present] adds to the camera.
-## [b]Added where the camera is written, never to the command.[/b] The shot already went where the command pointed; this is the view jolting as it does. And through
-## `has_method`, because `view_punch` is newer than the client shell a pack may be running on, and a call by name to a method the shell's copy lacks fails to compile the script.
-func _present_view_model(drawn: DotFpsState) -> Vector2:
+## Sway, bob and the aim, for the hands under the camera. The pose's own camera punch (`view_punch`) is not added to the camera: the camera's recoil is
+## ArenaRecoilView's, exactly the bullet's offset, so the crosshair is where the shots go (fc-hitreg-vertical-1).
+func _present_view_model(drawn: DotFpsState) -> void:
 	_aim_fov_scale = 1.0
 	_view_fov_scale = 1.0
 	if weapons == null or weapons.view_model() == null:
-		return Vector2.ZERO
+		return
 
 	var view_model := weapons.view_model()
 	# Nothing in the hands of somebody who is dead, watching someone else, or seen from behind.
@@ -93,11 +92,6 @@ func _present_view_model(drawn: DotFpsState) -> Vector2:
 		_aim_fov_scale = hands.aim_fov_scale()
 		_view_fov_scale = hands.view_fov_scale()
 
-	if not weapons.has_method(&"view_punch"):
-		return Vector2.ZERO
-
-	var punch: Vector2 = weapons.call(&"view_punch")
-	return punch if punch.is_finite() else Vector2.ZERO
 
 ## The process frame the last [DotSpawnBubble3D] was made on: [method _present_bubble] makes one a frame.
 static var _bubble_made_frame := -1

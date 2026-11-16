@@ -101,7 +101,7 @@ func _clear_lens(cam: Camera3D) -> void:
 ## The killer's recoil and aim on the replay camera, as [code]ArenaPlayer.present[/code] puts them on a live one;
 ## the host or client places the camera afresh each frame, so nothing accumulates.
 func _kick(cam: Camera3D) -> void:
-	var punch := hands.view_punch() + recoil.step(get_process_delta_time(), ArenaRecoilView.POSE_SHARE)
+	var punch := recoil.step(get_process_delta_time())
 	if punch.is_finite():
 		cam.rotate_object_local(Vector3.RIGHT, deg_to_rad(punch.x))
 		cam.global_rotate(Vector3.UP, deg_to_rad(punch.y))

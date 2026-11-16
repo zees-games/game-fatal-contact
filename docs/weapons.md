@@ -12,7 +12,7 @@
 - Simulation goes through `weapons.simulate_tick`, which runs the arsenal and then the bash.
 - `used` is the rig's signal, so it carries the bash and is silent in a replay ([netcode](netcode.md#weapons-over-the-wire)).
 - Somebody else's gun is a `AwWorldModel` on the hand `ArenaPlayer.attachment()` answers for (the person's own gun hand, `DotHumanoidFigure.attachment`; a capsule gets a fixed point), driven from the snapshot on a mirror and from the rig on anything this machine simulates, on one code path.
-- The camera's half of the recoil is added in `present`, through `has_method`: `view_punch` and `shot_fx` are newer than some client shells' copy of fc-weapons, and a call by name to a method the shell's copy lacks would not compile. On such a shell the game runs with no punch and with arena's own flash and report.
+- The camera's recoil is `ArenaRecoilView` alone, all of the bullet's offset, so the crosshair is where the next bullet goes; the pose's own `view_punch` only kicks the hands and is not added to the camera (it is a transient spring, not the pattern, and held fire put the bullets a degree off the crosshair). `shot_fx` is called through `has_method`: it is newer than some client shells' copy of fc-weapons, and a call by name to a method the shell's copy lacks would not compile. On such a shell the game runs with arena's own flash and report.
 
 ## Projectiles
 
