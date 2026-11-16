@@ -11,6 +11,9 @@ static var fast_sense: bool = true
 ## The cheap reject's margin (m, degrees): it keeps every body within this of the range or the cone for the stock test, as it works in doubles.
 const REJECT_SLACK := 0.01
 
+## The dot-bot level whose brain has `_target_down` (the style hears of a kill seen).
+const TARGET_DOWN_LEVEL := 32
+
 
 func _candidates(me: DotBotContact, all: Array, p: DotBotProfile, eye: Vector3, forward: Vector3, half: float, scores: PackedFloat32Array) -> Array[DotBotContact]:
 	if not fast_sense or half <= 0.0 or half + REJECT_SLACK >= 180.0:
@@ -35,8 +38,11 @@ func _candidates(me: DotBotContact, all: Array, p: DotBotProfile, eye: Vector3, 
 			continue
 		if not c.alive:
 			if c.id == target_id and _visible:
-				# As the stock scan: forgotten, and the style hears of the kill.
-				_target_down()
+				# As the stock scan: forgotten, and the style hears of the kill (dot-bot 32; older dot-bot only forgets).
+				if DotAddonApi.build_level("dot_bot") >= TARGET_DOWN_LEVEL:
+					call(&"_target_down")
+				else:
+					_forget_target()
 			continue
 		# DotBotContact.is_enemy
 		if c.id == me_id or (me_team != 0 and c.team != 0 and me_team == c.team):

@@ -181,7 +181,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 		var fire: DotWeaponCommand = pair[1] if pair.size() > 1 else DotWeaponCommand.new()
 		if knives != null:
 			knives.input(id, player, fire)
-			player.windup = knives.charge_of(id)
+			player.windup = knives.call(&"charge_of", id) if DotAddonApi.build_level("dot_weapon") >= 41 else -1.0
 
 		if move != null and fire != null:
 			match_node.note_activity(str(id), _tick)
@@ -244,7 +244,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		var fire: DotWeaponCommand = pair[1] if pair.size() > 1 else DotWeaponCommand.new()
 		if knives != null:
 			knives.input(id, player, fire)
-			player.windup = knives.charge_of(id)
+			player.windup = knives.call(&"charge_of", id) if DotAddonApi.build_level("dot_weapon") >= 41 else -1.0
 		if move == null or fire == null:
 			continue
 		match_node.note_activity(str(id), _tick)

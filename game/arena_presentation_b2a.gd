@@ -3,6 +3,7 @@ extends "arena_presentation_b1.gd"
 # The cue ids only (ArenaVote.CUE_* are these): `arena_vote.gd` is server-side, and preloading it
 # here compiled the vote and dot-vote into every client.
 const ArenaVote := preload("arena_vote_cues.gd")
+const ArenaNewerApi := preload("arena_newer_api.gd")
 ## Ids that play recorded files from the addons: id -> [folder, file stem, how many, gain dB, pitch
 ## low, pitch high]. Folder: &"weapons", &"stock" (dot-audio `stock/`) or &"toys" (dot-props). The
 ## recipes in [method sound_recipes] stay for a build that lacks the files.
@@ -97,7 +98,7 @@ const GRENADE_BLASTS: Array[StringName] = [&"frag", &"sticky", &"flash", &"smoke
 static func blast_sound_id(grenade: StringName) -> StringName:
 	if not GRENADE_BLASTS.has(grenade) or DotAddonApi.build_level("arena_weapons") < GRENADE_BLAST_LEVEL:
 		return EXPLOSION
-	if AwGrenadeSound.count(grenade) == 0:
+	if int(ArenaNewerApi.call_static(&"AwGrenadeSound", &"count", [grenade])) == 0:
 		return EXPLOSION
 	return StringName("%s_%s" % [EXPLOSION, grenade])
 
@@ -121,8 +122,8 @@ static func grenade_blast(grenade: StringName) -> DotAudioDef:
 	blast.priority = 85
 	blast.tags = [&"weapon"]
 	var takes := PackedStringArray()
-	for i in range(AwGrenadeSound.count(grenade)):
-		takes.append(AwGrenadeSound.stream(grenade, i).resource_path)
+	for i in range(int(ArenaNewerApi.call_static(&"AwGrenadeSound", &"count", [grenade]))):
+		takes.append((ArenaNewerApi.call_static(&"AwGrenadeSound", &"stream", [grenade, i]) as AudioStream).resource_path)
 	blast.path = takes[0]
 	blast.variants = takes if takes.size() > 1 else PackedStringArray()
 	return blast

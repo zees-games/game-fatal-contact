@@ -31,6 +31,8 @@ func _send_knives_signon(peer_id: int) -> void:
 ## One knife event with the boomerang curve (glide and turn) the layer holds for it.
 func _knife_body(id: int, owner: int, phase: int, victim: int, at: Vector3, motion: Vector3) -> PackedByteArray:
 	var layer: Node = game.knives
+	if DotAddonApi.build_level("dot_weapon") < ArenaKnifeEvents.GLIDE_LEVEL:
+		return ArenaKnifeEvents.write_knife(id, owner, phase, victim, at, motion)
 	return ArenaKnifeEvents.write_knife(id, owner, phase, victim, at, motion, layer.glides(id), layer.turn_of(id))
 
 
@@ -44,9 +46,12 @@ func _apply_more_event(reader: DotNetReader) -> void:
 		ArenaKnifeEvents.More.KNIFE:
 			var k := ArenaKnifeEvents.read_knife(reader)
 			if bool(k["ok"]) and game != null and game.knives != null:
-				game.knives.mirror(
-					int(k["id"]), int(k["owner"]), int(k["phase"]), int(k["victim"]), k["at"], k["motion"],
-					bool(k["glide"]), k["turn"]
-				)
+				if DotAddonApi.build_level("dot_weapon") >= ArenaKnifeEvents.GLIDE_LEVEL:
+					game.knives.call(
+						&"mirror", int(k["id"]), int(k["owner"]), int(k["phase"]), int(k["victim"]), k["at"], k["motion"],
+						bool(k.get("glide", false)), k.get("turn", Vector3.ZERO)
+					)
+				else:
+					game.knives.mirror(int(k["id"]), int(k["owner"]), int(k["phase"]), int(k["victim"]), k["at"], k["motion"])
 		ArenaKnifeEvents.More.HOST:
 			_apply_host_reply(reader)

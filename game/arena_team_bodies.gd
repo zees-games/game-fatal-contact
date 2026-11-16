@@ -12,6 +12,11 @@ extends RefCounted
 ## ([method follow]) and every look built after asks here, the own view's arms and the portraits included.
 
 const ArenaAvatars := preload("arena_avatars.gd")
+const ArenaNewerApi := preload("arena_newer_api.gd")
+
+## The dot-player-char level with registered bodies and the team tint. Below it (the shell's older dot-player-char)
+## nobody wears a team body and every side keeps its own looks.
+const BODIES_LEVEL := 26
 
 const CHANNEL := &"arena.team_bodies"
 
@@ -37,6 +42,8 @@ static var _registered_for := ""
 static var _bodies: Array[StringName] = []
 ## Changes whenever what a team look depends on changed, so a drawn body knows to be rebuilt.
 static var version := 0
+## The tint followed from the server's `team_tint` rule; dot-player-char's `DotHumanoidAssets.team_tint` follows it.
+static var _tint := 0.35
 
 
 ## Registers the bodies [param ids] names (comma list, one per side in team order; an empty entry
@@ -58,9 +65,14 @@ static func register(ids: String, dirs: String) -> Array[StringName]:
 			DotLog.warn(CHANNEL, "team body not found; that side wears its own looks", {"id": String(id), "dirs": dirs})
 			_bodies.append(&"")
 			continue
-		_bodies.append(id if DotHumanoidAssets.register_body(id, path) else &"")
+		_bodies.append(id if has_bodies() and bool(ArenaNewerApi.call_static(&"DotHumanoidAssets", &"register_body", [id, path])) else &"")
 	version += 1
 	return _bodies
+
+
+## Whether this build's dot-player-char draws registered bodies ([constant BODIES_LEVEL]).
+static func has_bodies() -> bool:
+	return DotAddonApi.build_level("dot_player_char") >= BODIES_LEVEL
 
 
 ## The first `<dir>/<id>.glb` that exists, else "".
@@ -94,9 +106,11 @@ static func follow(game: Object) -> void:
 			if at < _bodies.size() and _bodies[at] != &"":
 				sides[t.id] = [_bodies[at], t.colour]
 			at += 1
-	if on != forced or not is_equal_approx(tint, DotHumanoidAssets.team_tint) or sides != _sides:
+	if on != forced or not is_equal_approx(tint, _tint) or sides != _sides:
 		forced = on
-		DotHumanoidAssets.team_tint = tint
+		_tint = tint
+		if has_bodies():
+			ArenaNewerApi.script_of(&"DotHumanoidAssets").set(&"team_tint", tint)
 		_sides = sides
 		version += 1
 
@@ -112,7 +126,7 @@ static func wear_key(team: int) -> String:
 	var body := body_of(team)
 	if body == &"":
 		return ""
-	return "%s|%s|%.3f" % [body, (_sides[team][1] as Color).to_html(), DotHumanoidAssets.team_tint]
+	return "%s|%s|%.3f" % [body, (_sides[team][1] as Color).to_html(), _tint]
 
 
 ## [param avatar]'s look ([method ArenaAvatars.look_of]), worn as [param team]'s body in its colour when
@@ -120,7 +134,7 @@ static func wear_key(team: int) -> String:
 static func look_of(avatar: DotAvatar, player_key: StringName, team: int) -> DotHumanoidLook:
 	var look := ArenaAvatars.look_of(avatar, player_key)
 	var body := body_of(team)
-	if body == &"" or not DotHumanoidLook.registered.has(body):
+	if body == &"" or not has_bodies() or not (ArenaNewerApi.script_of(&"DotHumanoidLook").get(&"registered") as Dictionary).has(body):
 		return look
 	look.body = body
 	look.top = _sides[team][1]

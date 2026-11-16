@@ -2,6 +2,7 @@ extends "headless_presentation_b3.gd"
 
 const ArenaFlashlight := preload("../game/arena_flashlight.gd")
 const ArenaTeamBodies := preload("../game/arena_team_bodies.gd")
+const ArenaNewerApi := preload("../game/arena_newer_api.gd")
 
 
 func _ready() -> void:
@@ -225,6 +226,13 @@ func _check_floors() -> void:
 	var pins := _pinned_levels()
 	var behind := _lock_covers(pins)
 	_check(not pins.is_empty() and behind == "", "requires.pins.json is read and addons.lock pins nothing lower", behind)
+	# A floor with no pin is judged against the linked head, not the shell: dot-weapon 42 and fc-weapons 31 went in that way
+	# (2026-11-16), the pack asked for levels no shell had, and on Gamespice the bot brain and the HUD did not compile.
+	var unpinned: Array[String] = []
+	for addon in (floors.value as Dictionary if floors.ok else {}):
+		if not pins.has(addon):
+			unpinned.append(str(addon))
+	_check(unpinned.is_empty(), "every floored addon has the shell's level in requires.pins.json", str(unpinned))
 	var asked := DotAddonApi.apply_floors(derived, floors.value if floors.ok else {})
 	_check(
 		asked.get("dot_ui") == 23 and asked.get("dot_lighting") == derived.get("dot_lighting") \
@@ -426,4 +434,10 @@ func _test_team_bodies_fall_back() -> void:
 	_check(worn.body == own.body and worn.top == own.top, "a side without a body keeps the player's look",
 		"%s/%s vs %s/%s" % [worn.body, worn.top, own.body, own.top])
 	var _reset := ArenaTeamBodies.register("", "")
+	if ArenaTeamBodies.has_bodies():
+		var assets := ArenaNewerApi.script_of(&"DotHumanoidAssets")
+		var was: Variant = assets.get(&"team_tint")
+		assets.set(&"team_tint", 0.5)
+		_check(is_equal_approx(float(assets.get(&"team_tint")), 0.5), "dot-player-char's team tint is set through its class found by name", str(assets.get(&"team_tint")))
+		assets.set(&"team_tint", was)
 	_done()

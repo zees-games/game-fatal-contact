@@ -4,6 +4,7 @@ extends RefCounted
 ## The fitting reaches every machine as `net_fitted`; nothing here touches hit registration.
 
 const ArenaContent := preload("arena_content.gd")
+const ArenaThrowMeter := preload("arena_throw_meter.gd")
 
 const SLOT_BITS := 5
 const NAME_BYTES := 32
@@ -14,6 +15,8 @@ const SUPPRESSED_META := &"arena_suppressed"
 ## STAND-IN: fc-weapons has no knife socket or Boomerang model yet, so the entry carries no model and the knife
 ## looks the same fitted or not; the board item fc-knife-throw-1 holds the art request.
 const BOOMERANG := &"boomerang"
+## The fitted def's param that makes the knife a boomerang (`DotWeaponKnives.PARAM_BOOMERANG`).
+const BOOMERANG_PARAM := "boomerang"
 
 static var _catalogue: DotWeaponAttachments = null
 
@@ -22,7 +25,8 @@ static var _catalogue: DotWeaponAttachments = null
 static func catalogue() -> DotWeaponAttachments:
 	if _catalogue == null:
 		_catalogue = AwSpawnProvider.attachment_defs()
-		if _catalogue.get_attachment(BOOMERANG) == null:
+		# The shell's older dot-weapon has no Boomerang throw: offering it there would fit an attachment that does nothing.
+		if _catalogue.get_attachment(BOOMERANG) == null and DotAddonApi.build_level("dot_weapon") >= ArenaThrowMeter.CHARGE_LEVEL:
 			var _added := _catalogue.add(boomerang())
 	return _catalogue
 
@@ -35,7 +39,8 @@ static func boomerang() -> DotWeaponAttachment:
 	att.description = "A thrown knife flies a loop and comes back to where it was thrown from."
 	att.mount = ArenaContent.KNIFE_MOUNT
 	att.fits_weapons = [ArenaContent.melee_id()] as Array[StringName]
-	att.params_set = {DotWeaponKnives.PARAM_BOOMERANG: true}
+	# DotWeaponKnives.PARAM_BOOMERANG (dot-weapon 41), written out so this parses on an older dot-weapon.
+	att.params_set = {BOOMERANG_PARAM: true}
 	return att
 
 

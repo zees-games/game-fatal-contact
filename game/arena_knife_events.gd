@@ -4,6 +4,9 @@ extends RefCounted
 
 enum More { KNIFE, HOST }
 
+## The dot-weapon level whose knife wire carries the Boomerang's glide and turn.
+const GLIDE_LEVEL := 41
+
 
 static func _w() -> DotNetWriter:
 	return DotNetWriter.new()
@@ -15,7 +18,11 @@ static func write_knife(
 ) -> PackedByteArray:
 	var w := _w()
 	w.write_varint(More.KNIFE)
-	DotWeaponKnifeWire.write_knife(w, id, owner, phase, victim, at, motion, glide, turn)
+	var wire: Script = DotWeaponKnifeWire
+	if DotAddonApi.build_level("dot_weapon") >= GLIDE_LEVEL:
+		wire.call(&"write_knife", w, id, owner, phase, victim, at, motion, glide, turn)
+	else:
+		DotWeaponKnifeWire.write_knife(w, id, owner, phase, victim, at, motion)
 	return w.to_bytes()
 
 

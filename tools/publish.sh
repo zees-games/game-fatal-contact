@@ -10,4 +10,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAP_LINKS=(maps/imported maps/imported_dm worlds worlds_dm .stores)
 X=(); for d in examples tests tools docs images screenshots shots_boot ci .github addons "${MAP_LINKS[@]}"; do X+=(--exclude-dir "$d"); done
+# The client shell carries its own pinned addons: a shipped script naming newer addon API does not compile there.
+# SHELL_PARSE=0 skips this (only for a pack no shell loads).
+[ "${SHELL_PARSE:-1}" = 0 ] || "$HERE/tools/check_shell_parse.sh" || { echo "publish: shipped scripts do not compile on the client shell (tools/check_shell_parse.sh)" >&2; exit 1; }
 exec "$HERE/../dot-cloud/tools/publish_pack.sh" publish --source "$HERE" --id game-fatal-contact "${X[@]}" --lock "$HERE/content.lock.json" "$@"
