@@ -362,6 +362,9 @@ func pull() -> void:
 		AwWeaponNet.pull(player.weapons, self)
 	else:
 		DotWeaponNetSync.pull(player.arsenal, self)
+	# The knife throw's wind-up rides the charge draw: at least 1 while winding, so 0 still means not winding.
+	if player.windup >= 0.0:
+		net_charge = maxi(1, roundi(clampf(player.windup, 0.0, 1.0) * AwWeaponNet.CHARGE_MAX))
 	lap = ArenaFrameProbe.lap(&"np_weapons", lap)
 
 	var def := player.arsenal.current_def() if player.arsenal != null else null
@@ -535,6 +538,7 @@ func _push_weapons() -> void:
 	player.mirror_fire_kind = net_fire_kind
 	player.mirror_switching = net_switching
 	player.mirror_charge = float(net_charge) / AwWeaponNet.CHARGE_MAX
+	player.windup = player.mirror_charge if net_charge > 0 and player.mirror_weapon == &"knife" else -1.0
 	player.mirror_reloading = net_reloading
 	player.mirror_fitted = net_fitted
 	if clicks:

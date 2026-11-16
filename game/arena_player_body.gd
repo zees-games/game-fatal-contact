@@ -717,13 +717,31 @@ func _animate_figure(drawn: DotFpsState, delta: float) -> void:
 		_figure_hold_kind = picked
 	var kind: int = _figure_hold_kind
 	figure.set_hold(kind)
+	# A blade or empty hands pump the free arm in a sprint: the figure reads the flag only when it is given.
+	if kind != DotHumanoidFigure.Hold.GUN:
+		motion["sprinting"] = drawn.sprinting
+	else:
+		motion.erase("sprinting")
 
 	var seq := mirror_fire_seq if mirrored else (weapons.fire_seq % AwWeaponNet.FIRE_SEQ_WRAP if weapons != null else 0)
 	if AwWeaponNet.uses_between(_figure_fire_seq, seq) > 0 and kind == DotHumanoidFigure.Hold.MELEE:
 		figure.swing()
 	_figure_fire_seq = seq
 
+	_animate_windup()
 	figure.animate(Vector2(v.x, v.z).length(), delta)
+
+## The knife throw's wind-up on the figure and the view model, and the release when it ends with the knife away
+## from the hand (a throw), not on a cancel (a death or a switch leaves it in hand or the figure's own reset).
+func _animate_windup() -> void:
+	figure.set_throw_charge(windup)
+	var hands := weapons.view_model() as AwViewModel if weapons != null else null
+	if hands != null:
+		hands.on_windup(windup)
+	if _windup_was >= 0.0 and windup < 0.0 and is_alive():
+		figure.throw_release()
+	_windup_was = windup
+
 
 ## Moves the camera from the eye to behind it, and draws the body where the eye is.
 ##

@@ -1,6 +1,8 @@
 @tool
 extends "arena_game_tick.gd"
 
+const ArenaKnifeFollow := preload("arena_knife_follow.gd")
+
 ## The monsters and the props the mode asks for.
 func _reconcile_world_layers() -> void:
 	if not is_authority and mode != null:
@@ -349,6 +351,7 @@ func follow_server_cvars(source: Object) -> bool:
 		apply_rocket_rules()
 	var _ambient := ambient_rules.follow_cvars(source)
 	var _spectate := spectate_rules.follow_cvars(source)
+	var _knives := ArenaKnifeFollow.follow(knife_rules, source)
 	var _solid := body_rules.follow_cvars(source)
 	if noblock != null:
 		noblock.follow(source)

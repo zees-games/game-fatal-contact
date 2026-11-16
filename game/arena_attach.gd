@@ -3,10 +3,17 @@ extends RefCounted
 ## request a client sends, the server's answer to it, and the suppressed report of a gun with a suppressor on.
 ## The fitting reaches every machine as `net_fitted`; nothing here touches hit registration.
 
+const ArenaContent := preload("arena_content.gd")
+
 const SLOT_BITS := 5
 const NAME_BYTES := 32
 ## On the holder of an `AwShotFx` (a world model, or the local rig): its gun has a suppressor on.
 const SUPPRESSED_META := &"arena_suppressed"
+
+## The Boomerang attachment (dot-weapon API 41: a thrown knife flies a loop back).
+## STAND-IN: fc-weapons has no knife socket or Boomerang model yet, so the entry carries no model and the knife
+## looks the same fitted or not; the board item fc-knife-throw-1 holds the art request.
+const BOOMERANG := &"boomerang"
 
 static var _catalogue: DotWeaponAttachments = null
 
@@ -15,7 +22,21 @@ static var _catalogue: DotWeaponAttachments = null
 static func catalogue() -> DotWeaponAttachments:
 	if _catalogue == null:
 		_catalogue = AwSpawnProvider.attachment_defs()
+		if _catalogue.get_attachment(BOOMERANG) == null:
+			var _added := _catalogue.add(boomerang())
 	return _catalogue
+
+
+## The Boomerang attachment: any melee weapon with the knife mount, thrown as a boomerang. No model (see [constant BOOMERANG]).
+static func boomerang() -> DotWeaponAttachment:
+	var att := DotWeaponAttachment.new()
+	att.id = BOOMERANG
+	att.display_name = "Boomerang"
+	att.description = "A thrown knife flies a loop and comes back to where it was thrown from."
+	att.mount = ArenaContent.KNIFE_MOUNT
+	att.fits_weapons = [ArenaContent.melee_id()] as Array[StringName]
+	att.params_set = {DotWeaponKnives.PARAM_BOOMERANG: true}
+	return att
 
 
 static func write_request(slot: int, mount: StringName, id: StringName) -> PackedByteArray:

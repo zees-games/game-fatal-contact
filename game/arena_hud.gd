@@ -2,6 +2,12 @@
 extends "arena_hud_objective.gd"
 
 const ArenaFlagView := preload("arena_flag_view.gd")
+const ArenaThrowMeter := preload("arena_throw_meter.gd")
+
+## The knife throw's power bar under the crosshair: shown only while the aim key winds a throw up.
+var throw_bar: DotStatBar = null
+var throw_meter := ArenaThrowMeter.new()
+var _throw_fill: float = 0.0
 
 
 func build(p_game: ArenaGame) -> void:
@@ -50,6 +56,18 @@ func build(p_game: ArenaGame) -> void:
 	slide_label.name = "Prompt"
 	_place(slide_label, Control.PRESET_CENTER, Rect2(-330.0, 120.0, 300.0, 36.0))
 	slide_label.visible = false
+
+	throw_bar = DotStatBar.new()
+	throw_bar.name = "ThrowMeter"
+	throw_bar.max_value = 1.0
+	throw_bar.show_text = false
+	throw_bar.bar_height = 8.0
+	throw_bar.ease_sec = 0.0
+	throw_bar.low_fraction = 0.0
+	throw_bar.fill_colour = Color(0.95, 0.78, 0.25, 1.0)
+	_place(throw_bar, Control.PRESET_CENTER, Rect2(-60.0, 52.0, 120.0, 10.0))
+	var _bound := throw_bar.bind(func() -> float: return _throw_fill)
+	throw_bar.visible = false
 
 	feed = ArenaHudGlance.KillFeed.new()
 	feed.name = "KillFeed"
@@ -554,6 +572,25 @@ static func weapon_line(who: ArenaPlayer) -> String:
 	return "%s   %d" % [slot.def.display_name, who.arsenal.ammo().count(slot.def.ammo_type)]
 
 
+## The throw bar: filled by the time the followed player has held the aim key with the knife in hand
+## (the server's `arena_knife_throw_charge` and `_charge_sec`, followed on the client). Public so a suite
+## can drive it with a chosen [param delta]. Returns the fill shown, or -1 when hidden.
+func present_throw_meter(delta: float, live: bool) -> float:
+	var winding := false
+	if live and game != null and game.knives != null and player.arsenal != null and player.aim_held:
+		var def: DotWeaponDef = player.arsenal.current_def()
+		winding = def != null and def.id == game.knives.weapon_id and player.is_alive()
+	var fill := throw_meter.advance(delta, winding, game.knife_rules if game != null else {})
+	# The authority's game writes the windup itself; a client's followed player takes the meter.
+	if game != null and not game.is_authority and player != null:
+		player.windup = fill
+	if throw_bar != null:
+		throw_bar.visible = fill >= 0.0
+		_throw_fill = maxf(fill, 0.0)
+		throw_bar.refresh()
+	return fill
+
+
 ## The scope, the hurt edge, the launch's readiness and the slide prompt, from the
 ## followed player. Public so a suite can drive it without a frame.
 func present_body() -> void:
@@ -585,6 +622,7 @@ func present_body() -> void:
 			crosshair.call(&"set_aim", hands.aim_fraction() if hands != null and not scope_up else 0.0)
 
 	_present_hurt(live)
+	present_throw_meter(get_process_delta_time(), live)
 
 	var state: DotFpsState = player.controller.state if live else null
 	var tunables: DotFpsTunables = player.controller.tunables if live else null

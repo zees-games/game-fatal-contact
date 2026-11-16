@@ -273,7 +273,8 @@ var weapon_drops: DotWeaponDrops = null
 var weapon_drop_rules: DotWeaponDropRules = DotWeaponDropRules.new()
 ## Thrown knives (DotWeaponKnives, dot-weapon), and their server rules: one dictionary for the game's life, so cvars outlive a map.
 var knives: DotWeaponKnives = null
-var knife_rules: Dictionary = DotWeaponKnives.DEFAULT_RULES.duplicate()
+## The throw winds up while the aim key is held (`arena_knife_throw_charge`, on by default; dot-weapon's own default is off).
+var knife_rules: Dictionary = DotWeaponKnives.DEFAULT_RULES.merged({"charge": true, "charge_sec": 1.0}, true)
 
 
 ## The converted map's doors, lifts and buttons, or null for a map without any (it then costs nothing per tick).

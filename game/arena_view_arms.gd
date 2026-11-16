@@ -134,6 +134,10 @@ func _process(delta: float) -> void:
 	if &"debug_pose" in arms and arms.debug_pose != debug_pose:
 		arms.debug_pose = debug_pose
 	var v: Vector3 = body.controller.state.velocity
+	# The knife's and empty hands' sprint stride: the view model works out how much shows and where in it.
+	if model != null:
+		arms.run = model.run_amount()
+		arms.run_phase = model.run_phase()
 	arms.tick(Vector2(v.x, v.z).length(), delta)
 
 

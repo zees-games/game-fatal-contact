@@ -9,10 +9,13 @@ static func _w() -> DotNetWriter:
 	return DotNetWriter.new()
 
 
-static func write_knife(id: int, owner: int, phase: int, victim: int, at: Vector3, motion: Vector3) -> PackedByteArray:
+static func write_knife(
+	id: int, owner: int, phase: int, victim: int, at: Vector3, motion: Vector3,
+	glide: bool = false, turn: Vector3 = Vector3.ZERO
+) -> PackedByteArray:
 	var w := _w()
 	w.write_varint(More.KNIFE)
-	DotWeaponKnifeWire.write_knife(w, id, owner, phase, victim, at, motion)
+	DotWeaponKnifeWire.write_knife(w, id, owner, phase, victim, at, motion, glide, turn)
 	return w.to_bytes()
 
 

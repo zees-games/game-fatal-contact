@@ -25,11 +25,17 @@ func _send_knives_signon(peer_id: int) -> void:
 		return
 	for k in game.knives.entries():
 		var motion: Vector3 = k.velocity if k.phase == 0 else k.facing
-		_send_event(peer_id, ArenaEvents.Kind.MORE, ArenaKnifeEvents.write_knife(k.id, k.owner, k.phase, k.victim, k.at, motion))
+		_send_event(peer_id, ArenaEvents.Kind.MORE, _knife_body(k.id, k.owner, k.phase, k.victim, k.at, motion))
+
+
+## One knife event with the boomerang curve (glide and turn) the layer holds for it.
+func _knife_body(id: int, owner: int, phase: int, victim: int, at: Vector3, motion: Vector3) -> PackedByteArray:
+	var layer: Node = game.knives
+	return ArenaKnifeEvents.write_knife(id, owner, phase, victim, at, motion, layer.glides(id), layer.turn_of(id))
 
 
 func _on_knife_changed(id: int, owner: int, phase: int, victim: int, at: Vector3, motion: Vector3) -> void:
-	_send_event(0, ArenaEvents.Kind.MORE, ArenaKnifeEvents.write_knife(id, owner, phase, victim, at, motion))
+	_send_event(0, ArenaEvents.Kind.MORE, _knife_body(id, owner, phase, victim, at, motion))
 
 
 ## Client side: one MORE event; a sub-kind this build does not know is skipped.
@@ -38,6 +44,9 @@ func _apply_more_event(reader: DotNetReader) -> void:
 		ArenaKnifeEvents.More.KNIFE:
 			var k := ArenaKnifeEvents.read_knife(reader)
 			if bool(k["ok"]) and game != null and game.knives != null:
-				game.knives.mirror(int(k["id"]), int(k["owner"]), int(k["phase"]), int(k["victim"]), k["at"], k["motion"])
+				game.knives.mirror(
+					int(k["id"]), int(k["owner"]), int(k["phase"]), int(k["victim"]), k["at"], k["motion"],
+					bool(k["glide"]), k["turn"]
+				)
 		ArenaKnifeEvents.More.HOST:
 			_apply_host_reply(reader)

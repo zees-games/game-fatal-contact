@@ -6,6 +6,9 @@ const Grenades := preload("arena_grenades.gd")
 ## The game tier of the profile set: cfg/game/<this>/weapon/<id>.yml.
 const GAME_ID := "game-arena"
 
+## The mount the melee weapon carries for a thrown-knife attachment (ArenaAttach.BOOMERANG).
+const KNIFE_MOUNT := &"grip"
+
 ## Every weapon, item, damage type and ruleset the game ships, built in code.
 ##
 ## [b]In code rather than as `.tres` files, deliberately, and only for this
@@ -134,6 +137,8 @@ static func weapons() -> Array[DotWeaponDef]:
 	var out := AwWeaponCatalogue.weapons(damage_table())
 	for def in out:
 		normalise_slot(def)
+		if def.id == melee_id() and not def.mounts.has(KNIFE_MOUNT):
+			def.mounts.append(KNIFE_MOUNT)
 	return out
 
 

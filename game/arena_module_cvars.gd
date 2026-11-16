@@ -592,7 +592,8 @@ func _add_flag_carry_cvars() -> void:
 ## The knife rules as cvars (`arena_knife_throw`, `_speed`, `_pickup`, `_damage`): dot-weapon's table.
 func _add_knife_cvars() -> void:
 	var _made := DotWeaponKnives.bind_cvars(
-		game.knife_rules, add_cvar, "arena_knife", DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		game.knife_rules, add_cvar, "arena_knife",
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
 	)
 
 

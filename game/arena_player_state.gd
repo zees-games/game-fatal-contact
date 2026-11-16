@@ -86,6 +86,11 @@ var mirror_fire_seq: int = 0
 var mirror_fire_kind: int = 0
 var mirror_switching: bool = false
 var mirror_charge: float = 0.0
+## The knife throw's wind-up as the figure and the view model show it: 0 to 1 while winding, below 0 when not. Written
+## by whoever knows it: the server's game for a player it simulates (dot-weapon's `charge_of`), the snapshot for a
+## mirror (`net_charge`), the HUD's meter for the followed player on a client.
+var windup: float = -1.0
+var _windup_was: float = -1.0
 var mirror_reloading: bool = false
 ## The held gun's fitting as `net_fitted` carries it (`DotWeaponAttachments.encode`), 0 for none.
 var mirror_fitted: int = 0
