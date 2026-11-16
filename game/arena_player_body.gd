@@ -171,9 +171,10 @@ func _present_held(remote: bool = false) -> void:
 
 	var shown := held_may_show()
 	held.visible = shown
-	var t_sprite := Time.get_ticks_usec()
+	# Sub-spans only in a recording (ArenaFrameProbe.fine): this runs per drawn body per frame.
+	var t_sprite := ArenaFrameProbe.lap_start()
 	_present_held_sprite(id)
-	ArenaFrameProbe.add(&"r_held_sprite", t_sprite)
+	ArenaFrameProbe.lap(&"r_held_sprite", t_sprite)
 
 	# A remote body over this frame's budget keeps its old gun and tries again next frame.
 	if id != held.equipped() and (not remote or id == &"" or held_equip_allowed()):
@@ -188,7 +189,7 @@ func _present_held(remote: bool = false) -> void:
 
 	_present_fitting(id)
 
-	var t_hooks := Time.get_ticks_usec()
+	var t_hooks := ArenaFrameProbe.lap_start()
 	# The hooks are told what the snapshot said; a remote gun whose switching/reloading/aim/charge/shown are what it was last told
 	# (and whose model is the same) is not told again except every HELD_RETELL frames (a person's carry can appear late).
 	var charge := mirror_charge if mirrored else 0.0
@@ -216,7 +217,7 @@ func _present_held(remote: bool = false) -> void:
 			held.call(&"on_aiming", aim_held and not mirrored and alive)
 		if held.has_method(&"on_charge"):
 			held.call(&"on_charge", charge)
-	ArenaFrameProbe.add(&"r_held_hooks", t_hooks)
+	ArenaFrameProbe.lap(&"r_held_hooks", t_hooks)
 
 	var fired := AwWeaponNet.uses_between(_seen_fire_seq, seq)
 	_seen_fire_seq = seq

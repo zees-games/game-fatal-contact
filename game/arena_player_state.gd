@@ -473,6 +473,36 @@ static var anim_gate_every: int = WEB_ANIM_GATE_EVERY if DotPlatform.is_web() el
 const LOD_FAR_DT := 1.0 / 45.0
 const LOD_FARTHEST_DT := 1.0 / 30.0
 
+## `cl_remote_lod_scale`: every LOD and animation-gate distance above (all but [constant LOD_NEAR]) times this; under 1 thins
+## nearer bodies. Must be above 0.
+static var lod_scale: float = 1.0
+## `cl_remote_lod_crowd`: above this many players the distances are also times [member lod_crowd_scale] (0: never). At 64 a
+## frame presents a few dozen bodies in view, and a body 30 m off is a few dozen pixels whose clip at 20 Hz nobody tells apart.
+static var lod_crowd_players: int = 32
+## `cl_remote_lod_crowd_scale`: the distance factor above [member lod_crowd_players] players (1: as few). Must be above 0.
+static var lod_crowd_scale: float = 0.67
+## The squared tier distances this frame, from [method set_lod_crowd] (the constants times the scales).
+static var _lod_far2: float = LOD_FAR * LOD_FAR
+static var _lod_farthest2: float = LOD_FARTHEST * LOD_FARTHEST
+static var _anim_far2: float = ANIM_GATE_FAR * ANIM_GATE_FAR
+static var _anim_near2: float = ANIM_GATE_NEAR * ANIM_GATE_NEAR
+
+## The distance factor for [param players] in the game: [member lod_scale], times [member lod_crowd_scale] in a crowd.
+static func lod_distance_scale(players: int) -> float:
+	var s := lod_scale
+	if lod_crowd_players > 0 and players > lod_crowd_players:
+		s *= lod_crowd_scale
+	return s
+
+## Sets this frame's tier distances for a game of [param players]; the client calls it once a frame before the presents.
+static func set_lod_crowd(players: int) -> void:
+	var s := lod_distance_scale(players)
+	var s2 := s * s
+	_lod_far2 = LOD_FAR * LOD_FAR * s2
+	_lod_farthest2 = LOD_FARTHEST * LOD_FARTHEST * s2
+	_anim_far2 = ANIM_GATE_FAR * ANIM_GATE_FAR * s2
+	_anim_near2 = ANIM_GATE_NEAR * ANIM_GATE_NEAR * s2
+
 var _figure_motion: Dictionary = {}
 var _anim_min_dt: float = 0.0
 var _anim_owed: float = 0.0

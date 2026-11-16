@@ -9,6 +9,20 @@ const ArenaPlayer := preload("arena_player.gd")
 ## interpolates between rows, so 30 a second (the kill view's pose rate) draws the same replay as 240; the recording was 0.03 ms a body a frame, 0.94 ms
 ## a frame at 32 bodies when taken every frame.
 static var record_hz: float = 30.0
+## `cl_killcam_crowd`: above this many players the recording rate is [member crowd_hz] instead (0: never). Each
+## recording reads every body, so its cost grows with the crowd (0.54 ms a frame at 64 players and 30 a second).
+static var crowd_players: int = 32
+## `cl_killcam_crowd_hz`: recordings a second above [member crowd_players] (0: every frame). 15 still puts a row under
+## every 67 ms, and the replay interpolates between rows.
+static var crowd_hz: float = 15.0
+
+
+## The recording rate for a match of [param players] bodies: [member crowd_hz] above [member crowd_players], else
+## [member record_hz]. 0 is every frame.
+static func hz_for(players: int) -> float:
+	if crowd_players > 0 and players > crowd_players:
+		return crowd_hz
+	return record_hz
 ## `cl_killcam_pose_lod`: 1 keeps a body's last recorded pose (no read of its ~43 bones, one engine call each) while its
 ## figure's animation LOD step (dot-player-char `anim_step`, 2+ for a far, offscreen or unseen body) has not run out since
 ## that read; 0 reads every body at every pose. A near body on screen is step 1, so always read.

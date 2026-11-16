@@ -7,8 +7,8 @@ const ArenaKillcamBodies := preload("../game/arena_killcam_bodies.gd")
 ## A bare ArenaPlayer has no controller, so `present` returns at once and the counters in `present_lod` are the whole
 ## story. Run: [code]godot --headless --path . res://examples/headless_remote_lod.tscn[/code]
 
-const SECTIONS := 9
-const CHECKS := 34
+const SECTIONS := 10
+const CHECKS := 41
 
 var _entered := 0
 var _completed := 0
@@ -144,7 +144,15 @@ func _run() -> void:
 	_section("the kill-cam recording cap")
 	_check(ArenaKillcamBodies.record_hz == 30.0, "default 30 recordings a second")
 	_check(ArenaKillcamBodies.record_hz > 0.0 and 1.0e6 / ArenaKillcamBodies.record_hz < 40000.0, "a gap under 40 ms: the replay interpolates between rows")
+	_check(ArenaKillcamBodies.hz_for(32) == ArenaKillcamBodies.record_hz, "32 players: cl_killcam_hz")
+	_check(ArenaKillcamBodies.hz_for(64) == ArenaKillcamBodies.crowd_hz and ArenaKillcamBodies.crowd_hz == 15.0, "64 players: cl_killcam_crowd_hz, 15")
+	var crowd := ArenaKillcamBodies.crowd_players
+	ArenaKillcamBodies.crowd_players = 0
+	_check(ArenaKillcamBodies.hz_for(64) == ArenaKillcamBodies.record_hz, "cl_killcam_crowd 0: never the crowd rate")
+	ArenaKillcamBodies.crowd_players = crowd
 	_done()
+
+	_test_lod_crowd()
 
 	_test_anim_gate()
 	_root.queue_free()
@@ -196,6 +204,22 @@ func _test_cvars() -> void:
 	_done()
 
 
+## Above cl_remote_lod_crowd players the anim-gate and far-tier distances shrink by cl_remote_lod_crowd_scale.
+func _test_lod_crowd() -> void:
+	_section("a crowd thins nearer bodies (fc-64p-2)")
+	_check(ArenaPlayer.lod_distance_scale(32) == ArenaPlayer.lod_scale, "32 players: the distances as set")
+	_check(is_equal_approx(ArenaPlayer.lod_distance_scale(64), ArenaPlayer.lod_scale * ArenaPlayer.lod_crowd_scale), "64 players: times the crowd scale")
+	ArenaPlayer.anim_gate_enabled = true
+	ArenaPlayer.set_lod_crowd(64)
+	var mid := _body(Vector3(0, 0, -16))
+	var _m := _passes(mid, 1)
+	_check(is_equal_approx(mid.get("_anim_min_dt") as float, ArenaPlayer.ANIM_GATE_FAR_DT), "64 players, 16 m in view: 20 Hz (past 20 x 0.67 m)")
+	ArenaPlayer.set_lod_crowd(8)
+	var _n := _passes(mid, 1)
+	_check(is_equal_approx(mid.get("_anim_min_dt") as float, ArenaPlayer.ANIM_GATE_DT), "8 players, the same body: 30 Hz")
+	_done()
+
+
 func _test_anim_gate() -> void:
 	_section("thinning is a rate, not only a frame count")
 	ArenaPlayer.anim_gate_enabled = true
@@ -240,7 +264,7 @@ func _test_anim_gate() -> void:
 		gated.set("_anim_min_dt", ArenaPlayer.ANIM_GATE_DT)
 		var stepped := 0
 		for _i in 8:  # 8 frames of 70 ms (a 14 fps browser): the time gate alone lets every one through
-			gated.present_part2(0.07, drawn)
+			gated._present_rest(0.07, drawn)
 			if (gated.get("_anim_owed") as float) == 0.0:
 				stepped += 1
 		_check(stepped == 8 / every, "anim_gate_every %d at 14 fps: the clip steps %d of 8 presents" % [every, 8 / every], "%d" % stepped)

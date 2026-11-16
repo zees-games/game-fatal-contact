@@ -391,12 +391,14 @@ func _killcam_frame() -> void:
 	killcam.hide_while_playing = [hud, view_model]
 	killcam.world_mask = _level_mask()
 	var t_cam := Time.get_ticks_usec()
-	# Recording is capped at cl_killcam_hz; a replay playing (or about to re-pose) is stepped every frame.
-	var record_gap := int(1.0e6 / ArenaKillcamBodies.record_hz) if ArenaKillcamBodies.record_hz > 0.0 else 0
+	# Recording is capped at cl_killcam_hz (cl_killcam_crowd_hz in a crowd); a replay playing (or about to re-pose) is stepped every frame.
+	var bodies := game.players()
+	var hz := ArenaKillcamBodies.hz_for(bodies.size())
+	var record_gap := int(1.0e6 / hz) if hz > 0.0 else 0
 	if record_gap == 0 or killcam.is_playing() or not (killcam.get(&"_again") as Array).is_empty() or t_cam - _killcam_recorded >= record_gap:
 		_killcam_recorded = t_cam
 		if killcam_shots != null and not killcam.is_playing():
-			killcam_shots.record(float(killcam.now_fn.call()), game.players())
+			killcam_shots.record(float(killcam.now_fn.call()), bodies)
 		killcam.frame()
 	_fade_for_replay(get_process_delta_time())
 	ArenaFrameProbe.add(&"c_killcam", t_cam)

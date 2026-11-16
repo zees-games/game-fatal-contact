@@ -77,7 +77,25 @@ func _local_commands() -> DotConsoleLocal:
 
 ## Kill-cam recording rate and pose LOD.
 func _add_killcam_vars(local: DotConsoleLocal) -> void:
-	local.add_var(&"cl_killcam_hz", "Most times a second the kill-cam records every body while no replay plays (0: every frame; 60 is the default).",
+	local.add_var(&"cl_killcam_crowd", "Above this many players the kill-cam records at cl_killcam_crowd_hz instead of cl_killcam_hz (0: never; 32 is the default).",
+		func() -> Variant: return ArenaKillcamBodies.crowd_players,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_int() or text.to_int() < 0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_killcam_crowd takes a whole number of players, 0 or more")
+			ArenaKillcamBodies.crowd_players = text.to_int()
+			return DotResult.success(ArenaKillcamBodies.crowd_players)
+	)
+	local.add_var(&"cl_killcam_crowd_hz", "Most times a second the kill-cam records every body above cl_killcam_crowd players (0: every frame; 15 is the default).",
+		func() -> Variant: return ArenaKillcamBodies.crowd_hz,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_float() or text.to_float() < 0.0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_killcam_crowd_hz takes a number, 0 or more")
+			ArenaKillcamBodies.crowd_hz = text.to_float()
+			return DotResult.success(ArenaKillcamBodies.crowd_hz)
+	)
+	local.add_var(&"cl_killcam_hz", "Most times a second the kill-cam records every body while no replay plays (0: every frame; 30 is the default).",
 		func() -> Variant: return ArenaKillcamBodies.record_hz,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
@@ -191,7 +209,7 @@ func _add_remote_vars(local: DotConsoleLocal) -> void:
 			ArenaPlayer.lod_frustum = str(v).strip_edges() != "0"
 			return DotResult.success(1 if ArenaPlayer.lod_frustum else 0)
 	)
-	local.add_var(&"cl_remote_anim_gate", "1 also thins remote bodies by game time (clip at most 60 Hz past 15 m, off-sight at most 30 Hz); matters above ~100 fps.",
+	local.add_var(&"cl_remote_anim_gate", "1 also thins remote bodies by game time (clip at most 30 Hz past 8 m, 20 Hz past 20 m, off-sight at most 10 Hz); matters above ~100 fps.",
 		func() -> Variant: return 1 if ArenaPlayer.anim_gate_enabled else 0,
 		func(v: Variant) -> Variant:
 			ArenaPlayer.anim_gate_enabled = str(v).strip_edges() != "0"
@@ -215,14 +233,41 @@ func _add_remote_vars(local: DotConsoleLocal) -> void:
 			ArenaPlayer.occlusion_enabled = str(v).strip_edges() != "0"
 			return DotResult.success(1 if ArenaPlayer.occlusion_enabled else 0)
 	)
-	local.add_var(&"cl_remote_lod_every", "Frames between updates of a remote player out of sight (1 to 16; 4 is the default, 8 in a browser).",
+	local.add_var(&"cl_remote_lod_every", "Frames between updates of a remote player out of sight (1 or more; 1 turns it off; 4 is the default, 8 in a browser).",
 		func() -> Variant: return ArenaPlayer.lod_off_every,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
-			if not text.is_valid_int():
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_every takes a whole number of frames")
-			ArenaPlayer.lod_off_every = clampi(text.to_int(), 1, 16)
+			if not text.is_valid_int() or text.to_int() < 1:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_every takes a whole number of frames, 1 or more")
+			ArenaPlayer.lod_off_every = text.to_int()
 			return DotResult.success(ArenaPlayer.lod_off_every)
+	)
+	local.add_var(&"cl_remote_lod_scale", "Factor on the remote-body LOD distances (anim gate 8/20 m, every 2nd/4th frame 45/90 m); under 1 thins nearer bodies (1 is the default).",
+		func() -> Variant: return ArenaPlayer.lod_scale,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_float() or text.to_float() <= 0.0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_scale takes a number above 0")
+			ArenaPlayer.lod_scale = text.to_float()
+			return DotResult.success(ArenaPlayer.lod_scale)
+	)
+	local.add_var(&"cl_remote_lod_crowd", "Above this many players the remote-body LOD distances are also times cl_remote_lod_crowd_scale (0: never; 32 is the default).",
+		func() -> Variant: return ArenaPlayer.lod_crowd_players,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_int() or text.to_int() < 0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_crowd takes a whole number of players, 0 or more")
+			ArenaPlayer.lod_crowd_players = text.to_int()
+			return DotResult.success(ArenaPlayer.lod_crowd_players)
+	)
+	local.add_var(&"cl_remote_lod_crowd_scale", "Factor on the remote-body LOD distances above cl_remote_lod_crowd players (1: as in a small game; 0.67 is the default).",
+		func() -> Variant: return ArenaPlayer.lod_crowd_scale,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_float() or text.to_float() <= 0.0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_crowd_scale takes a number above 0")
+			ArenaPlayer.lod_crowd_scale = text.to_float()
+			return DotResult.success(ArenaPlayer.lod_crowd_scale)
 	)
 
 

@@ -57,7 +57,9 @@ func _present_frame(delta: float) -> void:
 	# body is thinned out in front of it. None: everything is drawn in full.
 	var view_cam := get_viewport().get_camera_3d()
 	var frustum: Array = view_cam.get_frustum() if view_cam != null and ArenaPlayer.present_lod_enabled and ArenaPlayer.lod_frustum else []
-	for body in game.players():
+	var bodies := game.players()
+	ArenaPlayer.set_lod_crowd(bodies.size())
+	for body in bodies:
 		if view_cam != null:
 			body.present_lod(delta, view_cam.global_position, -view_cam.global_transform.basis.z, frustum)
 		else:

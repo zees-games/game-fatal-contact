@@ -89,21 +89,21 @@ func present(delta: float) -> void:
 		if present_ablate != 0:
 			_ablated_present(drawn, delta)
 			return
-		var t_pose := Time.get_ticks_usec()
+		# Per-body sub-spans, only in a recording ([member ArenaFrameProbe.fine]): outside one, a few dozen bodies times
+		# seven clock reads and probe calls a frame bought nothing.
+		var t := ArenaFrameProbe.lap_start()
 		_pose_body(drawn, yaw, delta)
-		ArenaFrameProbe.add(&"r_pose", t_pose)
-		var t_held := Time.get_ticks_usec()
+		t = ArenaFrameProbe.lap(&"r_pose", t)
 		_present_held(true)
-		ArenaFrameProbe.add(&"r_held", t_held)
-		var t_tag := Time.get_ticks_usec()
+		t = ArenaFrameProbe.lap(&"r_held", t)
 		_present_health_tag(delta)
-		ArenaFrameProbe.add(&"r_tag", t_tag)
+		ArenaFrameProbe.lap(&"r_tag", t)
 
-	present_part2(delta, drawn)
+	_present_rest(delta, drawn)
 
 
-func present_part2(delta: float, drawn) -> void:
-	var t_anim := Time.get_ticks_usec()
+func _present_rest(delta: float, drawn) -> void:
+	var t := ArenaFrameProbe.lap_start()
 	if camera == null and anim_gate_enabled and _anim_min_dt > 0.0:
 		# A remote body in plain view past ANIM_GATE_NEAR: the clip advances at most every _anim_min_dt of game time,
 		# the skipped time carried. Nobody sees a 30 Hz walk cycle at 8 m or a 20 Hz one at 20 m.
@@ -123,16 +123,13 @@ func present_part2(delta: float, drawn) -> void:
 		_anim_owed = 0.0
 		_anim_phase = -1.0
 		_anim_frames = -1
-	ArenaFrameProbe.add(&"r_anim", t_anim)
-	var t_beacon := Time.get_ticks_usec()
+	t = ArenaFrameProbe.lap(&"r_anim", t)
 	_present_beacon(delta, drawn.position)
-	ArenaFrameProbe.add(&"r_beacon", t_beacon)
-	var t_bubble := Time.get_ticks_usec()
+	t = ArenaFrameProbe.lap(&"r_beacon", t)
 	_present_bubble(drawn.position)
-	ArenaFrameProbe.add(&"r_bubble", t_bubble)
-	var t_mend := Time.get_ticks_usec()
+	t = ArenaFrameProbe.lap(&"r_bubble", t)
 	_mend_body()
-	ArenaFrameProbe.add(&"r_mend", t_mend)
+	ArenaFrameProbe.lap(&"r_mend", t)
 
 ## Probe only: the remote half of [method present] with the parts [member present_ablate] names left out.
 func _ablated_present(drawn: DotFpsState, delta: float) -> void:
@@ -163,17 +160,17 @@ func present_lod(delta: float, eye: Vector3, forward: Vector3, frustum: Array = 
 			every = lod_off_every
 			min_dt = LOD_OFF_DT
 			_anim_min_dt = ANIM_GATE_OFF_DT
-		elif d2 > LOD_FARTHEST * LOD_FARTHEST:
+		elif d2 > _lod_farthest2:
 			every = 4
 			min_dt = LOD_FARTHEST_DT
 			_anim_min_dt = ANIM_GATE_FAR_DT
-		elif d2 > LOD_FAR * LOD_FAR:
+		elif d2 > _lod_far2:
 			every = 2
 			min_dt = LOD_FAR_DT
 			_anim_min_dt = ANIM_GATE_FAR_DT
-		elif d2 > ANIM_GATE_FAR * ANIM_GATE_FAR:
+		elif d2 > _anim_far2:
 			_anim_min_dt = ANIM_GATE_FAR_DT
-		elif d2 > ANIM_GATE_NEAR * ANIM_GATE_NEAR:
+		elif d2 > _anim_near2:
 			_anim_min_dt = ANIM_GATE_DT
 		_set_held_lod(every > 1)
 		if every > 1:
