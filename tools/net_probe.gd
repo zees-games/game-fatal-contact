@@ -3,6 +3,7 @@ extends Node
 const ArenaGame := preload("../game/arena_game.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
 const ArenaPresentation := preload("../game/arena_presentation.gd")
+const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
 
 ## Bytes per second, snapshot size, rtt and rate-limiter starvation for one real client
 ## against a dual-stack server with N hunting bots, over real loopback ENet (no relay, so
@@ -19,20 +20,34 @@ const ArenaPresentation := preload("../game/arena_presentation.gd")
 const PORT := 27196
 const DATA := "user://arena_net_probe"
 
+## --port N: the server port (the ENet one follows it), so probes can run side by side; its data folder is per port too.
+var _port := PORT
+var _data := DATA
+
 var _bots := 8
 var _seconds := 20.0
 var _budget := -1
 var _pps := -1
-## --aoi players,radius,far_distance,far_every,far_tiers: the relevance rings (arena_net_aoi.gd); unset is the shipped defaults.
+## --aoi players,radius,far_distance,far_every,far_tiers[,coherent]: the relevance rings (arena_net_aoi.gd); unset is the shipped defaults.
 var _aoi: PackedStringArray = PackedStringArray()
 
-## --fake N: N extra synthetic peers (no observer entity, unreliable sends dropped, acks 2 snapshots late) on the server, to measure per-peer snapshot cost without N full clients.
+## --fake N: N extra synthetic peers (unreliable sends dropped, acks 2 snapshots late) on the server, to measure per-peer snapshot cost without N full clients.
+## Each sees from an "eye" riding on a player (see [method _install_fakes]), so relevance applies to it as to a player there.
 var _fake := 0
+## --map <id>: the map the server plays (ArenaMap.by_id: dm_box, dm_atrium, dm_pit or an imported one). Relevance needs room to matter.
+var _map_id := "dm_box"
+## The fake peers' eyes and the player each rides on.
+var _eyes: Array[Node3D] = []
+var _eye_on: Array[Node3D] = []
+var _eye_laps := 1
 ## --workers N: DotNetConfig.snapshot_workers; unset keeps the server's own (sv_snapshot_workers' default).
 var _workers := -2
 var _native := 1
 var _noshort := false
 var _fake_sent := [0, 0]
+## --control N: N more fake peers without an eye, sent everything: the same run's bytes with no relevance, so a before/after of the rings is one run, not two runs of different fights.
+var _control := 0
+var _control_sent := [0, 0]
 var _server: DotServer = null
 var _game: ArenaGame = null
 var _module = null
@@ -56,6 +71,11 @@ func _ready() -> void:
 			"--noshort": _noshort = true
 			"--fake": _fake = int(args[i + 1])
 			"--aoi": _aoi = String(args[i + 1]).split(",")
+			"--map": _map_id = args[i + 1]
+			"--port": _port = int(args[i + 1])
+			"--control": _control = int(args[i + 1])
+	if _port != PORT:
+		_data = "%s_%d" % [DATA, _port]
 	DotLog.set_level(DotLog.Level.ERROR)
 	var _scratch := ArenaPresentation.use_scratch_settings("net_probe")
 	_run.call_deferred()
@@ -70,7 +90,7 @@ func _run() -> void:
 	await _measure_and_report()
 	_link.disconnect_from_server("done")
 	await get_tree().create_timer(0.3).timeout
-	DotPaths.remove_tree(DATA)
+	DotPaths.remove_tree(_data)
 	get_tree().quit()
 
 
@@ -93,14 +113,14 @@ func _boot_server() -> void:
 
 	_config = DotServerConfig.new()
 	_config.hostname = "net probe"
-	_config.port = PORT
+	_config.port = _port
 	_config.max_players = 256
 	_config.bind_address = "127.0.0.1"
 	_config.transport_mode = "dual"
 	_config.rcon_password = ""
-	_config.admins_path = "%s/admins.json" % DATA
-	_config.bans_path = "%s/bans.json" % DATA
-	_config.audit_log_path = "%s/audit.jsonl" % DATA
+	_config.admins_path = "%s/admins.json" % _data
+	_config.bans_path = "%s/bans.json" % _data
+	_config.audit_log_path = "%s/audit.jsonl" % _data
 	_config.hibernate_when_empty = false
 	_config.startup_config = ""
 	_config.autoexec_config = ""
@@ -120,7 +140,12 @@ func _boot_server() -> void:
 
 ## The map (and mode) the server plays; a probe built on this one overrides it.
 func _setup_game() -> void:
-	_game.setup(ArenaMap.dm_box())
+	var m: ArenaMap = ArenaMap.by_id(StringName(_map_id))
+	if m == null:
+		push_error("net_probe: no map '%s'" % _map_id)
+		get_tree().quit(2)
+		return
+	_game.setup(m)
 
 
 func _tune_server() -> void:
@@ -142,10 +167,15 @@ func _tune_server() -> void:
 		_net.config.per_client_budget = _budget
 	if _pps >= 0:
 		_net.config.per_client_packet_rate = _pps
-	if _aoi.size() == 5 and _module.get("net_aoi") != null:
+	if _aoi.size() >= 5 and _module.get("net_aoi") != null:
 		var cv: Dictionary = _module.net_aoi._cvars
-		for k in ["min_players", "radius", "far_distance", "far_every", "far_tiers"]:
-			(cv[k] as DotConVar).force_set(_aoi[["min_players", "radius", "far_distance", "far_every", "far_tiers"].find(k)])
+		var keys := ["min_players", "radius", "far_distance", "far_every", "far_tiers", "far_coherent"]
+		for k in mini(_aoi.size(), keys.size()):
+			(cv[keys[k]] as DotConVar).force_set(_aoi[k])
+	elif not _aoi.is_empty():
+		push_error("net_probe: --aoi wants 5 or 6 fields, got %d" % _aoi.size())
+		get_tree().quit(2)
+		return
 	for i in range(_bots):
 		_module.bridge.add_bot("Probe%d" % i)
 
@@ -161,7 +191,7 @@ func _connect_client() -> void:
 	_link.transport_preference = "udp"
 	_link.udp_address = "127.0.0.1:%d" % _config.effective_enet_port()
 	client_side.add_child(_link)
-	_link.connect_to_server("127.0.0.1:%d" % PORT)
+	_link.connect_to_server("127.0.0.1:%d" % _port)
 	var spawned := [false]
 	_link.spawned.connect(func() -> void: spawned[0] = true)
 	var joined := 0.0
@@ -218,15 +248,47 @@ func _install_fakes() -> void:
 	var schema := net.messages.schema_payload()
 	var orig_send: Callable = net.send_fn
 	var fakes := {}
+	var riders: Array = _game.players()
+	_eye_laps = maxi(1, riders.size())
+	# An eye per fake peer: an identity the fake owns, with no state and a tag no peer is
+	# sent (radius 0), so the fake has an observer where its player stands and nothing else changes.
+	if net.interest is DotNetInterestDistance:
+		(net.interest as DotNetInterestDistance).radius_by_tag["probe_eye"] = 0.0
+	else:
+		push_warning("net_probe: the interest is not a distance interest; fakes see everything")
 	for i in _fake:
 		var fid := 5000 + i
 		net.add_peer(fid)
 		var _r := net.receive(schema, fid)
 		fakes[fid] = true
+		var eye := Node3D.new()
+		eye.name = "ProbeEye%d" % i
+		var identity := DotNetIdentity.new()
+		identity.owner_peer_id = fid
+		identity.interest_tags = PackedStringArray(["probe_eye"])
+		eye.add_child(identity)
+		get_node("ServerSide").add_child(eye)
+		var reg := net.registry.register(identity, 0, 0, net.config)
+		if not reg.ok:
+			push_error("net_probe: eye %d not registered: %s" % [i, str(reg.error)])
+		_eyes.append(eye)
+		_eye_on.append(riders[i % riders.size()] if not riders.is_empty() else null)
+	var controls := {}
+	for i in _control:
+		var cid := 6000 + i
+		net.add_peer(cid)
+		var _c := net.receive(schema, cid)
+		controls[cid] = true
+	_move_eyes()
+	get_tree().physics_frame.connect(_move_eyes)
 	net.send_fn = func(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
 		if fakes.has(peer_id):
 			_fake_sent[0] += 1
 			_fake_sent[1] += payload.size()
+			return
+		if controls.has(peer_id):
+			_control_sent[0] += 1
+			_control_sent[1] += payload.size()
 			return
 		orig_send.call(peer_id, payload, delivery)
 	var acks: Array = []
@@ -235,14 +297,26 @@ func _install_fakes() -> void:
 		if acks.size() > 2:
 			var acked: int = acks.pop_front()
 			for fid: int in fakes:
-				var _a := net.receive_ack(fid, acked))
+				var _a := net.receive_ack(fid, acked)
+			for cid: int in controls:
+				var _b := net.receive_ack(cid, acked))
 	await get_tree().create_timer(2.0).timeout
+
+
+## Each eye onto its player, a centimetre up per lap so two eyes on one player are never at zero distance.
+func _move_eyes() -> void:
+	for i in _eyes.size():
+		var on := _eye_on[i]
+		if on != null and is_instance_valid(on):
+			_eyes[i].global_position = on.global_position + Vector3.UP * 0.01 * (floorf(float(i) / _eye_laps) + 1.0)
 
 
 func _measure_and_report() -> void:
 	var net := _net
 	var cnet := _cnet
 	var perf0: Dictionary = net.perf_counters()
+	# The client's own sections (arena.net_snapshot is its whole snapshot apply), with a report interval no run reaches.
+	ArenaFrameProbe.set_interval(1.0e9)
 	var sum_down := 0.0
 	var n_down := 0
 	var t := 0.0
@@ -283,10 +357,17 @@ func _measure_and_report() -> void:
 		(int(perf1[&"server_send_usec"]) - int(perf0[&"server_send_usec"])) / 1000.0 / nticks,
 		(int(perf1[&"server_sim_usec"]) - int(perf0[&"server_sim_usec"])) / 1000.0 / nticks,
 		nticks, net.registry.all().size()])
+	var applied: PackedInt64Array = ArenaFrameProbe._sections.get(&"net_snapshot", PackedInt64Array([0, 0, 0]))
+	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d" % [
+		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1]])
+	ArenaFrameProbe.set_interval(0.0)
 	var snaps := maxi(1, int(perf1[&"snap_snapshots"]) - int(perf0[&"snap_snapshots"]))
 	var ph := ""
 	for k in ["prepare", "reads", "interest", "build", "thaw", "begin", "nint", "submit", "join", "apply"]:
 		ph += " %s=%.3f" % [k, (int(perf1[StringName("snap_%s_usec" % k)]) - int(perf0[StringName("snap_%s_usec" % k)])) / 1000.0 / snaps]
+	if _control > 0:
+		print("CONTROL eyed_bytes_per_snapshot=%d control_bytes_per_snapshot=%d" % [
+			int(_fake_sent[1] / maxf(float(_fake_sent[0]), 1.0)), int(_control_sent[1] / maxf(float(_control_sent[0]), 1.0))])
 	print("PHASES clients=%d native=%s workers=%d ms/snapshot:%s fake_bytes_per_snapshot=%d" % [
 		1 + _fake, net._native_note, net.config.snapshot_workers, ph,
 		int(_fake_sent[1] / maxf(float(snaps) * maxf(_fake, 1), 1.0))])

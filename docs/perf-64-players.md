@@ -68,6 +68,36 @@ Per-client bytes roughly triple from 16 to 64 clients, and begin/join grow super
 management (`sv_net_aoi_players`, currently above 32) pays. At 64 players 623 B x 33 Hz is about 20 KB/s per
 client down.
 
+### Interest at 64 (fc-64p-3)
+
+The rows above use fakes with no entity of their own, so interest never applied to them: 623 B is the cost with
+no relevance at all. `net_probe` now gives each fake an eye riding a player (`--fake`), adds blind fakes in the
+same run as a control (`--control N`, printed as `CONTROL eyed_bytes_per_snapshot=... control_bytes_per_snapshot=...`),
+and takes `--map <id>`, `--port N` (parallel runs) and a sixth `--aoi` field (coherent). Same-run eyed/control
+pairs cancel the fight-to-fight noise that made two separate runs differ by 50%. 64 bots, 56 eyed + 8 control
+fakes, 30 s, PH (timings there are noise; bytes are not):
+
+| Map | sv_net_far_every / tiers / far m | eyed B | control B | real client B/s |
+| --- | --- | --- | --- | --- |
+| dm_atrium | rings off (aoi_players 9999) | 637 | 637 | 8152 |
+| dm_atrium | 1 / - / - | 616-620 | 616-619 | 8317-8634 |
+| dm_atrium | 2 / 2 / 40 (old default) | 801-812 | 617-636 | 12772-13893 |
+| dm_atrium | 2 / 1 / 40 | 831 | 619 | 12526 |
+| dm_atrium | 2 / 2 / 40, staggered | 829 | 620 | 12305 |
+| dm_atrium | 3 / 1 / 40 | 509 | 620 | 6799 |
+| dm_atrium | 4 / 1 / 40 | 664 | 620 | 8670 |
+| cp-orange-x3 | rings off | 309 | 547 | 5230 |
+| cp-orange-x3 | 1 / - / - | 309 | 547 | 5193 |
+| cp-orange-x3 | 2 / 2 / 40 (old default) | 307-308 | 547-556 | 4818-5690 |
+
+Far-ring thinning costs bytes: at far_every 2 a peer gets about 30% more than with no thinning, and the
+divisor's effect is not monotonic (3 saves, 4 loses). The cause is in dot-net: a per-peer view is synced to the
+peer's acks only while its entity is in the snapshot, so with wired (strict) acks a thinned entity's pending
+fields are older than `last_ack` when it comes back, count as lost (`relost`) and go out again. `sv_net_far_every`
+now defaults to 1 (no rings; radius 120 m and the PVS stay). On cp-orange-x3, the map 64 players are for, the PVS
+alone brings a peer to 307-309 B against 547 unfiltered, under the 350 B goal; small DM maps stay near 620 B
+because everyone there is within 40 m and in view. Rings come back once dot-net syncs thinned views (board).
+
 ## Ranking (64 players)
 
 1. Server tick (23 ms of 30 ms): bot scheduling and bot threads, snapshot begin/join, tick tiers.

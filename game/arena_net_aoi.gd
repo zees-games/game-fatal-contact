@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## Relevance tiers for a big server (arena-128-scale-1 / net-aoi-1): distance rings around each player that decide how often, and whether, another player is sent, built on dot-net's own DotNetInterestDistance (no new wire format).
-## Defaults: inside far_distance (40 m) every snapshot; 40-80 m every far_every-th (2); 80 m to radius (120 m) every 4th; past radius nothing. The observer's own entity and a beaconed player (always_relevant) are never culled; scoreboard, kill feed and match state are not entity snapshots.
+## Defaults: every snapshot out to radius (120 m), nothing past it; on imported maps the PVS (net_visibility) cuts further. The far rings (far_every > 1: past far_distance every far_every-th snapshot, each further band half as often) are off by default: measured with net_probe --control (fc-64p-3, docs/perf-64-players.md) they cost more bytes than they save, 801-831 B against 616-636 per client per snapshot at 64 on dm_atrium with far_every 2, because dot-net resends a skipped entity's unconfirmed fields under wired acks. Turn them back on once dot-net syncs a thinned entity's acks. The observer's own entity and a beaconed player (always_relevant) are never culled; scoreboard, kill feed and match state are not entity snapshots.
 ## Off until the room is big (min_players, 32: the tiers start at the 33rd player, with OFF_MARGIN hysteresis); an entity leaving the radius keeps its last drawn pose on the client (no pop). Pinned by headless_netaoi.
 
 const OFF_MARGIN := 2
@@ -10,7 +10,7 @@ const BASE_UNSET := -1.0
 var min_players: int = 32
 var radius: float = 120.0
 var far_distance: float = 40.0
-var far_every: int = 2
+var far_every: int = 1
 var far_tiers: int = 2
 var far_coherent: bool = true
 
@@ -29,7 +29,7 @@ func bind_cvars(add_cvar: Callable, flags: int) -> void:
 	_cvars["far_distance"] = add_cvar.call("sv_net_far_distance", str(far_distance),
 		"With the tiers on: past this many metres a player is sent every sv_net_far_every-th snapshot", flags)
 	_cvars["far_every"] = add_cvar.call("sv_net_far_every", str(far_every),
-		"With the tiers on: the mid ring's snapshot divisor (2 is half rate); the ring after it is twice that", flags)
+		"With the tiers on: the mid ring's snapshot divisor (1 is no rings, 2 is half rate); the ring after it is twice that", flags)
 	_cvars["far_tiers"] = add_cvar.call("sv_net_far_tiers", str(far_tiers),
 		"With the tiers on: rings past sv_net_far_distance, each twice as far and half as often (1 to 4; more is refused)", flags)
 	# Refused with the reason when out of range (DotConVar), never clamped; 4 rings is the shift width of every_for().
