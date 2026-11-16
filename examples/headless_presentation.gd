@@ -73,7 +73,7 @@ func _pinned_levels() -> Dictionary:
 
 
 func _lock_covers(pins: Dictionary) -> String:
-	for root in [OS.get_environment("DOT_REPOS_ROOT"), "/home/gamedev/godot", "/home/gamedev/projects/godot"]:
+	for root in [(OS.get_environment("GS_REPOS_ROOT") if OS.has_environment("GS_REPOS_ROOT") else OS.get_environment("DOT_REPOS_ROOT")), "/home/gamedev/godot", "/home/gamedev/projects/godot"]:
 		var lock := str(root).path_join("dot-server-deploy/addons.lock")
 		if str(root) != "" and FileAccess.file_exists(lock):
 			var locked := DotAddonApi.pinned_levels(lock, str(root))

@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Frame sequence after the still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after the still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 
 ## Renders the solo client with the lazy workbench opened (the toggle_action key): screenshots/workbench/open.png. Use the compatibility renderer (Forward+ on llvmpipe segfaults in Mesa):

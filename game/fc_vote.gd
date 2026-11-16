@@ -92,7 +92,7 @@ signal change_due(id: StringName, choice: DotVoteChoice)
 ## }
 ## [/codeblock]
 ##
-## [code]DOT_VOTE_EXTEND_SECONDS=900[/code] or [code]--vote-include-extend=false[/code]
+## [code]GS_VOTE_EXTEND_SECONDS=900[/code] or [code]--vote-include-extend=false[/code]
 ## do the same for one run. A result that does not validate is refused whole and the
 ## defaults below stand, with the reason in the log.
 @export var config_path: String = "user://cfg/arena_vote.json"

@@ -10,6 +10,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # A short frame sequence beside each still (DotShotSeq), so Nightly -> Review can play it.
-export DOT_SHOT_FRAMES=${DOT_SHOT_FRAMES:-8} DOT_SHOT_SECS=${DOT_SHOT_SECS:-1}
+export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-${DOT_SHOT_FRAMES:-8}} GS_SHOT_SECS=${GS_SHOT_SECS:-${DOT_SHOT_SECS:-1}}
 exec timeout 300 xvfb-run -a godot --path . --resolution 1280x720 \
   --script res://tools/render_fallout.gd -- --map "${1:?a map id}" --rank "${2:-0}"

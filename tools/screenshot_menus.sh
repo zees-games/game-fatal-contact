@@ -8,6 +8,6 @@
 # frame it saves is empty — which is worse than no screenshot because it looks like one.
 set -euo pipefail
 # A short frame sequence beside each still (DotShotSeq), so Nightly -> Review can play and scrub it.
-export DOT_SHOT_FRAMES=${DOT_SHOT_FRAMES:-16} DOT_SHOT_SECS=${DOT_SHOT_SECS:-2}
+export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-${DOT_SHOT_FRAMES:-16}} GS_SHOT_SECS=${GS_SHOT_SECS:-${DOT_SHOT_SECS:-2}}
 cd "$(dirname "$0")/.."
 exec xvfb-run -a godot --path . --resolution "${RESOLUTION:-1280x800}" --script tools/screenshot_menus.gd

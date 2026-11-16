@@ -23,7 +23,7 @@ var _frames := 0
 var _move := Vector2.ZERO
 var _buttons := 0
 var _attack := false
-var _clip := DotShotSeq.new()  # DOT_SHOT_FRAMES: a clip of each posture, held while the scene keeps running
+var _clip := DotShotSeq.new()  # GS_SHOT_FRAMES: a clip of each posture, held while the scene keeps running
 var _after_clip := false
 
 

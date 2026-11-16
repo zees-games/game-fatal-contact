@@ -4,7 +4,7 @@ extends SceneTree
 ## xvfb-run -a godot --path . --resolution 1280x720 --script res://tools/spawn_bubble_shot.gd -- [out.png]
 
 var _ticks := 0
-## Frame sequence after the still (DOT_SHOT_FRAMES): the bubble animates. See DotShotSeq.
+## Frame sequence after the still (GS_SHOT_FRAMES): the bubble animates. See DotShotSeq.
 var _clip := DotShotSeq.new()
 var _out := "screenshots/spawn_bubble.png"
 

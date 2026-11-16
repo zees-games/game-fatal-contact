@@ -493,7 +493,7 @@ func _arg(args: PackedStringArray, key: String, fallback: String) -> String:
 	return args[i + 1] if i >= 0 and i + 1 < args.size() else fallback
 
 
-## Frame sequence after each still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 
 

@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Frame sequence after the still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after the still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 
 ## Renders the loadout screen over three saved loadouts, saved through Fatal Contact's own store.

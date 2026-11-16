@@ -75,7 +75,7 @@ var _armed := false
 ## synchronously; making it a coroutine returns a signal object instead, which is truthy.
 
 
-## Frame sequence after each still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 var _seq_active := false
 

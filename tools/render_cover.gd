@@ -22,7 +22,7 @@ func _ready() -> void:
 	_run.call_deferred()
 
 
-## Frame sequence after each still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 
 

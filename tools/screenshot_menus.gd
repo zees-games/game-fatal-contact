@@ -161,7 +161,7 @@ func _build_hud() -> void:
 	_chat.open(&"team")
 
 
-## Frame sequence after each still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 var _seq_active := false
 

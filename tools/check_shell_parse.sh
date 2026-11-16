@@ -5,18 +5,18 @@
 # calls; on the shell (dot-bot 26, dot-weapon 40) the bot brain and the HUD did not compile, bots stood still and
 # the throw meter's empty track sat under the crosshair. tools/publish.sh runs this first.
 #   tools/check_shell_parse.sh [--lock FILE]   default lock: <repos>/dot-server-deploy/addons.lock
-# The addon repositories are the siblings of dot-server-deploy (DOT_REPOS_ROOT, else this checkout's parent).
+# The addon repositories are the siblings of dot-server-deploy (GS_REPOS_ROOT, else this checkout's parent).
 # GODOT names the binary (default godot). Exit 0 = every shipped script parses; 1 = some do not; 2 = cannot check.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GODOT="${GODOT:-godot}"
-ROOTS=("${DOT_REPOS_ROOT:-}" "$(dirname "$HERE")" /home/gamedev/godot /home/gamedev/projects/godot)
+ROOTS=("${GS_REPOS_ROOT:-${DOT_REPOS_ROOT:-}}" "$(dirname "$HERE")" /home/gamedev/godot /home/gamedev/projects/godot)
 LOCK=""
 [ "${1:-}" = --lock ] && LOCK="${2:-}"
 if [ -z "$LOCK" ]; then
     for r in "${ROOTS[@]}"; do [ -n "$r" ] && [ -f "$r/dot-server-deploy/addons.lock" ] && { LOCK="$r/dot-server-deploy/addons.lock"; break; }; done
 fi
-[ -f "$LOCK" ] || { echo "check_shell_parse: no dot-server-deploy/addons.lock found (set DOT_REPOS_ROOT or --lock)" >&2; exit 2; }
+[ -f "$LOCK" ] || { echo "check_shell_parse: no dot-server-deploy/addons.lock found (set GS_REPOS_ROOT or --lock)" >&2; exit 2; }
 SIB="$(cd "$(dirname "$LOCK")/.." && pwd)"
 W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT
 mkdir -p "$W/addons"

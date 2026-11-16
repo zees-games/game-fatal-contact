@@ -25,7 +25,7 @@
 # one.
 set -euo pipefail
 # A short frame sequence beside each still (DotShotSeq), so Nightly -> Review can play and scrub it.
-export DOT_SHOT_FRAMES=${DOT_SHOT_FRAMES:-16} DOT_SHOT_SECS=${DOT_SHOT_SECS:-2}
+export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-${DOT_SHOT_FRAMES:-16}} GS_SHOT_SECS=${GS_SHOT_SECS:-${DOT_SHOT_SECS:-2}}
 cd "$(dirname "$0")/.."
 # RENDERER picks the rendering method. The client shell runs gl_compatibility everywhere,
 # and a look tuned under the editor's default (Forward+) can come out clipped to white

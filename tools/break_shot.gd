@@ -8,7 +8,7 @@ const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 const FcPresentation := preload("../game/fc_presentation.gd")
 
 var _cam: Camera3D
-## Frame sequence after the "after" still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after the "after" still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 var _combat := DotCombatManager.new()
 var _trace := DotTracePhysics.new()

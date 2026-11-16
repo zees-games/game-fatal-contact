@@ -19,7 +19,7 @@ var _menu: DotMenu = null
 var _presentation: FcPresentation = null
 var _wait := SETTLE
 var _opened := false
-## Frame sequence after the still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after the still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 var _seq_active := false
 

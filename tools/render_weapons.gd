@@ -181,7 +181,7 @@ func _differ(a: Image, b: Image, mid: Vector2, radius: float, inner: float, tole
 	return out
 
 
-## Frame sequence after each still (DOT_SHOT_FRAMES, set by render_weapons.sh); see DotShotSeq.
+## Frame sequence after each still (GS_SHOT_FRAMES, set by render_weapons.sh); see DotShotSeq.
 var _seq := DotShotSeq.new()
 
 

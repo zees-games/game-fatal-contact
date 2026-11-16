@@ -184,7 +184,7 @@ func _build_relay() -> DotResult:
 
 		# LAYERED, and it was not. A `DotConfig` is exported defaults, then a JSON file,
 		# then the environment, then the command line -- and a config that is merely `new()`d
-		# has only the first of those, so `DOT_CHAT_RELAY_ENABLED=1` and
+		# has only the first of those, so `GS_CHAT_RELAY_ENABLED=1` and
 		# `--chat-relay-enabled` both did nothing. The relay could be turned on only by a
 		# host that assigned a config object, and no host in this family assigns one: the
 		# whole addon was unreachable from every documented route, in all five games, with
@@ -215,7 +215,7 @@ func _build_relay() -> DotResult:
 	if backbone == null:
 		# Info and success, not a failure, and the difference matters now that the relay
 		# can be turned on by an environment variable. A deployment that exports
-		# `DOT_CHAT_RELAY_ENABLED=1` for a whole fleet and holds a credential for only some
+		# `GS_CHAT_RELAY_ENABLED=1` for a whole fleet and holds a credential for only some
 		# of them is the ordinary case -- and a red line on every boot of the others is this
 		# family's own "a warning that reads like a setting nobody filled in", which is how
 		# a real one stops being read. The line names what to do, which is the only part an

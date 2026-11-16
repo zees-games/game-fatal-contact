@@ -10,7 +10,7 @@ const OUT_DIR := "res://screenshots/wallbang"
 
 var client: Node = null
 var _map := "dm_atrium"
-## Frame sequence after each close-up still (DOT_SHOT_FRAMES); see DotShotSeq.
+## Frame sequence after each close-up still (GS_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 
 
