@@ -3,6 +3,8 @@ extends "arena_player_part1.gd"
 
 const ArenaFlagCarry := preload("arena_flag_carry.gd")
 const ArenaScopePrefs := preload("arena_scope_prefs.gd")
+## How far above its origin a drawn body looks for the floor to stand on, metres ([member DotHumanoidFigure.floor_reach]).
+const FIGURE_FLOOR_REACH := 0.6  # under the 0.69 m crouched hull: nothing it stands under is in reach
 
 ## Breaks this player's body apart on a death: [param rules] decides how much. Client
 ## side, drawing only. [param direction] is the way the killing hit travelled; the seed
@@ -293,6 +295,10 @@ func _wear(avatar: DotAvatar) -> bool:
 	figure.build(ArenaAvatars.look_of(avatar, StringName("arena-player-%08d" % player_id)), height)
 	# own_body_back already trails the body as the view tips down; the figure own trail would double it.
 	figure.own_look_down_back = 0.0
+	# A drawn origin can sit about 0.5 m under the tread it stands on (a slow browser frame between two
+	# ticks across a step, crouched): past the stock 0.45 m the lift ray starts under that floor, misses it,
+	# and the body is drawn sunk to the waist. Drawing only; no hull fits under a floor this close above it.
+	figure.floor_reach = FIGURE_FLOOR_REACH
 	if controller != null and controller.tunables != null:
 		# This game walks at about the stock run threshold: switch halfway between its walk and run.
 		var t := controller.tunables

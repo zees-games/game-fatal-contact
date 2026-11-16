@@ -3,9 +3,10 @@ extends Node
 const ArenaPresentation := preload("../game/arena_presentation.gd")
 const ArenaPlayer := preload("../game/arena_player.gd")
 const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
+const ArenaBotThreads := preload("../game/arena_bot_threads.gd")
 
 ## Offline bots' drawn-body sink into the floor in metres: lowest sole and root vs a floor ray.
-## `hv . scene res://tools/floor_probe.tscn -- [--bots 12] [--seconds 20] [--unit 0.025] [--pre-draw] [--worst 25, 0 = all]`
+## `hv . scene res://tools/floor_probe.tscn -- [--bots 12] [--seconds 20] [--unit 0.025] [--pre-draw] [--worst 25, 0 = all] [--web] [--fps N]`
 ## Runs after every `_process`; `--pre-draw` samples at `frame_pre_draw`. Rows: stand, crouch, root, figure, body.
 
 var _bots := 12
@@ -13,6 +14,7 @@ var _worst_rows := 25  ## worst samples printed per list; 0 = all
 var _seconds := 20.0
 var _unit := 0.0
 var _pre_draw := false
+var _web := false  ## the browser's drawing settings (LOD every 8, clip gate every 2, held range 30 m, 4 bot threads)
 var _client: Node = null
 var _clear := {}
 var _worst: PackedStringArray = []
@@ -29,7 +31,15 @@ func _ready() -> void:
 			"--seconds": _seconds = float(args[i + 1])
 			"--unit": _unit = float(args[i + 1])
 			"--worst": _worst_rows = int(args[i + 1])
+			"--fps": Engine.max_fps = int(args[i + 1])
 	_pre_draw = args.has("--pre-draw")
+	_web = args.has("--web")
+	if _web:
+		ArenaPlayer.lod_off_every = ArenaPlayer.WEB_LOD_OFF_EVERY
+		ArenaPlayer.anim_gate_every = ArenaPlayer.WEB_ANIM_GATE_EVERY
+		ArenaPlayer.held_draw_range = ArenaPlayer.WEB_HELD_DRAW_RANGE
+		ArenaPlayer.held_shadows = false
+		ArenaBotThreads.threads = ArenaBotThreads.WEB_THREADS
 	var _scratch := ArenaPresentation.use_scratch_settings("floor_probe")
 	if _unit > 0.0:
 		get_tree().node_added.connect(_override_unit)
