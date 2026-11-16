@@ -80,6 +80,16 @@ func _test_console() -> void:
 		"cl_fp_scope_arms_hide and cl_fp_max_lean reach the arms and clamp")
 	ArenaViewArms.scope_arms_hide_override = -1.0
 
+	var default_depth := ArenaViewArms.hold_depth_comp
+	p.console.submit("cl_fp_hold_depth 0.5")
+	var depth_ok := is_equal_approx(ArenaViewArms.hold_depth_comp, 0.5)
+	p.console.submit("cl_fp_hold_depth 2")
+	p.console.submit("cl_fp_hold_depth -1")
+	_check(default_depth == 0.0 and depth_ok and is_equal_approx(ArenaViewArms.hold_depth_comp, 0.5),
+		"cl_fp_hold_depth defaults to 0 (gun drawn near), takes 0.5 and refuses a value outside 0 to 1",
+		"default %s, after 0.5 then 2 and -1: %s" % [default_depth, ArenaViewArms.hold_depth_comp])
+	ArenaViewArms.hold_depth_comp = default_depth
+
 	p.console.submit("rcon_password hunter2")
 	_check(
 		not p.console.buffer.to_text().contains("hunter2"),

@@ -283,6 +283,7 @@ func _spare_view(cam: Camera3D) -> AwViewModel:
 	spare.ads_rules = view_model.ads_rules
 	spare.feel = view_model.feel
 	spare.view_layer = view_model.view_layer
+	spare.hands_depth_comp = view_model.hands_depth_comp
 	spare.finish_materials = view_model.finish_materials
 	spare.finish_metal = view_model.finish_metal
 	spare.finish_metal_roughness = view_model.finish_metal_roughness

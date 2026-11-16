@@ -351,6 +351,7 @@ func _arm_begin(body: ArenaPlayer) -> bool:
 	view_model = AwViewModel.new()
 	view_model.name = "Hands"
 	view_model.feel_rules = game.feel_rules
+	view_model.hands_depth_comp = ArenaViewArms.hold_depth_comp
 	body.ads_rules = game.ads_rules
 	view_model.ads_rules = game.ads_rules
 	body.camera.add_child(view_model)

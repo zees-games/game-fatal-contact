@@ -49,6 +49,7 @@ Every frame is sampled just before it is drawn. Each clip's verdict, with every 
 | hand off grip | a hand more than 0.06 m from its grip point | IK not reaching, a grip point wrong for this weapon |
 | forearm inside weapon | the forearm (elbow to just short of the wrist) more than 0.03 m inside one part of the weapon (receiver, scope, magazine); the air under a scope does not count | the hands placed too far forward or the weapon too close |
 | arm through near plane | any visible arm point closer than the near plane plus the arm's radius | the arms clipped open at the screen edge |
+| gun held far out | the settled weapon (no swap, deploy done) more than 1.0 m in front of the eye in camera space | the view model's `hands_depth_comp` giving a narrow `viewmodel_fov`'s size back as distance (`cl_fp_hold_depth`), so the gun draws small behind arms a quarter metre away |
 | weapon through near plane | the weapon cut more than 0.005 m by the near plane | a muzzle or stock poking through the camera |
 | wrong hand | the left hand nearer the main grip than the right for more than 2 frames | mirrored arms, a swapped grip |
 | T-pose | the upper arm straight out sideways and level in a frame, for an arm with some of its forearm on screen (the free arm of a one-handed weapon hangs out of view) | IK not applied, a missing skeleton pose |

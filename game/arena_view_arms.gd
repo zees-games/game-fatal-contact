@@ -19,6 +19,9 @@ static var hand_scale_mult := 1.0
 static var forearm_scale_mult := 1.0
 ## cl_fp_scope_arms_hide: aim fraction the scoped arms hide at, for every weapon (-1: each weapon's own).
 static var scope_arms_hide_override := -1.0
+## cl_fp_hold_depth: share of the viewmodel_fov magnification given back as distance (AwViewModel.hands_depth_comp).
+## At 1 the gun sat 1.5 m out at its 90-degree size, small behind arms drawn a quarter metre from the eye; 0 keeps it at the authored 0.55 m.
+static var hold_depth_comp := 0.0
 ## cl_fp_max_lean: cap on how far the arms lean to a hand target, for every weapon (-1: each weapon's own).
 static var max_lean_override := -1.0
 
@@ -117,6 +120,8 @@ func _process(delta: float) -> void:
 	var model: AwViewModel = body.weapons.view_model() if body.weapons != null else null
 	global_position = camera.global_position
 	global_rotation = Vector3(camera.global_rotation.x if holding() else 0.0, camera.global_rotation.y, 0.0)
+	if model != null:
+		model.hands_depth_comp = hold_depth_comp
 	visible = model != null and model.visible and not model.arms_hidden_by_scope() and body.is_alive()
 	if model != null:
 		var art := _art_of(model)

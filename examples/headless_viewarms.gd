@@ -7,6 +7,7 @@ extends DotGameCheckSuite
 ## every shard's log is there and that together they entered one section per weapon.
 
 const ArenaPresentation := preload("../game/arena_presentation.gd")
+const ArenaViewArms := preload("../game/arena_view_arms.gd")
 
 const SHARDS := 4
 ## The catalogue size (the merge has no booted client to count it from): add a weapon and the merge says so.
@@ -16,6 +17,8 @@ const WEAPONS := 27
 const REACH_M := 0.03
 ## Pixels the hand target may sit from the drawn grip on screen.
 const PIXEL_PX := 2.0
+## Farthest the hip hold sits from the eye (metres); the far, small gun of a full depth comp was 1.2 to 1.6.
+const HOLD_FAR_M := 1.0
 ## Seconds the reload key is held for the arsenal to begin a reload (the reload itself then runs to its end).
 const RELOAD_BEGIN_S := 5.0
 const PHASES := ["hip", "aim", "look down", "look up", "run into the wall", "reload"]
@@ -113,6 +116,7 @@ func _weapon(me: Node, id: StringName) -> void:
 		_finished += 1
 		return
 	await _seconds(1.0)
+	_check_hold_depth(id)
 	var sampler: DotFpsSampler = _client.get("_sampler")
 	var yaw: float = sampler.yaw
 	var hip_x := 0.0
@@ -169,6 +173,16 @@ func _holder_x() -> float:
 	var vm: AwViewModel = _client.get("view_model")
 	var camera: Camera3D = _client.get("player").camera
 	return absf((camera.global_transform.affine_inverse() * (vm.get(&"_holder") as Node3D).global_position).x)
+
+
+## The gun is drawn near and large: under viewmodel_fov a full depth comp pushed it 1.2 to 1.6 m out (fc-fp-gun-scale-1).
+func _check_hold_depth(id: StringName) -> void:
+	var vm: AwViewModel = _client.get("view_model")
+	var camera: Camera3D = _client.get("player").camera
+	var depth := -(camera.global_transform.affine_inverse() * (vm.get(&"_holder") as Node3D).global_position).z
+	_check(depth <= HOLD_FAR_M and is_equal_approx(vm.hands_depth_comp, ArenaViewArms.hold_depth_comp),
+		"%s is held near (%.2f m out, at most %.1f)" % [id, depth, HOLD_FAR_M],
+		"depth comp %.2f, cvar %.2f" % [vm.hands_depth_comp, ArenaViewArms.hold_depth_comp])
 
 
 ## Held aim must bring a weapon that can aim fully up, and its gun nearer the centre than at the hip.

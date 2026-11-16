@@ -248,6 +248,15 @@ func _add_arm_vars(local: DotConsoleLocal):
 	)
 	ArenaScopePrefs.bind_cvars(local)
 	ArenaScopeBody.bind_cvars(local)
+	local.add_var(&"cl_fp_hold_depth", "Share of the viewmodel_fov size the first-person gun gives back by sitting farther out (0 to 1; 0 by default, 1 is the old far, small gun).",
+		func() -> Variant: return ArenaViewArms.hold_depth_comp,
+		func(v: Variant) -> Variant:
+			var depth := str(v).to_float()
+			if not str(v).is_valid_float() or depth < 0.0 or depth > 1.0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_fp_hold_depth takes 0 to 1, not %s." % str(v))
+			ArenaViewArms.hold_depth_comp = depth
+			return DotResult.success(depth)
+	)
 	local.add_var(&"cl_fp_max_lean", "Most the first-person arms lean toward a hand out of reach (-1: each weapon's own, 0.4 by default; 0 is no lean).",
 		func() -> Variant: return ArenaViewArms.max_lean_override,
 		func(v: Variant) -> Variant:

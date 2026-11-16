@@ -13,7 +13,7 @@ const ARM_BONES: PackedStringArray = ["UpperArm.R", "LowerArm.R", "Middle1.R", "
 ## Failure limits. Distances in metres, angles in degrees; steps and frame counts are per frame at 30 fps and _limit scales them.
 const LIMITS := {"detach_m": 0.06, "intersect_m": 0.03, "near_cut_m": 0.005, "pop_m": 0.04, "pop_deg": 25.0,
 	"pop_ratio": 3.0, "kick_m": 0.09, "wrong_hand_frames": 2, "hidden_frames": 3, "tpose_frames": 1,
-	"muzzle_behind_m": 0.10, "muzzle_ahead_m": 0.10, "muzzle_off_m": 0.03}
+	"muzzle_behind_m": 0.10, "muzzle_ahead_m": 0.10, "muzzle_off_m": 0.03, "hold_far_m": 1.0}
 ## Per-frame steps (a velocity) shrink at a higher fps; a frame count (a duration) grows. A kick is one impulse at any fps.
 const PER_STEP: PackedStringArray = ["pop_m", "pop_deg"]
 const PER_COUNT: PackedStringArray = ["wrong_hand_frames", "hidden_frames"]
@@ -330,7 +330,7 @@ func _finish_clip(wdir: String, key: String, count: int) -> void:
 ## The clip's worst numbers and the reasons it fails, frame indexes included so a sheet can be read at the right cell.
 func _judge(frames: Array[Dictionary]) -> Dictionary:
 	var fail: Array = []
-	var worst := {"hand_error": 0.0, "intersect": 0.0, "near": -1.0, "cut": 0.0, "pop_m": 0.0, "pop_deg": 0.0}
+	var worst := {"hand_error": 0.0, "intersect": 0.0, "near": -1.0, "cut": 0.0, "pop_m": 0.0, "pop_deg": 0.0, "hold_m": 0.0}
 	var counts := {"wrong_hand": 0, "hidden": 0, "tpose": 0, "detached": 0}
 	var first := {}
 	for i in frames.size():
@@ -340,6 +340,10 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 			if f.has(k) and float(f[k]) > float(worst[k]):
 				worst[k] = float(f[k])
 				first[k] = i
+		# The settled gun's depth: a viewmodel_fov lens that gave its size back as distance drew it 1.5 m out, small behind the arms.
+		if steady and f.has("weapon") and float(f.get("deploy", 1.0)) >= 0.99 and -float(f["weapon"][2]) > float(worst["hold_m"]):
+			worst["hold_m"] = -float(f["weapon"][2])
+			first["hold_m"] = i
 		if float(f.get("hand_error", 0.0)) > LIMITS["detach_m"]:
 			counts["detached"] += 1
 		if float(f.get("hand_swap", 0.0)) > 0.02:
@@ -360,6 +364,8 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 		fail.append("forearm inside weapon %.3f m at #%d" % [worst["intersect"], first["intersect"]])
 	if worst["near"] > 0.0:
 		fail.append("arm through near plane %.3f m at #%d" % [worst["near"], first["near"]])
+	if worst["hold_m"] > LIMITS["hold_far_m"]:
+		fail.append("gun held %.2f m out at #%d (small on screen)" % [worst["hold_m"], first["hold_m"]])
 	if worst["cut"] > LIMITS["near_cut_m"]:
 		fail.append("weapon through near plane %.3f m at #%d" % [worst["cut"], first["cut"]])
 	if counts["wrong_hand"] > _limit("wrong_hand_frames"):

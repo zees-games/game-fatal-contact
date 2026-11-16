@@ -217,6 +217,7 @@ func _new_label() -> Label:
 func _new_hands() -> AwViewModel:
 	var model := AwViewModel.new()
 	model.show_arms = not _shares_arms(model)
+	model.hands_depth_comp = ArenaViewArms.hold_depth_comp
 	return model
 
 
