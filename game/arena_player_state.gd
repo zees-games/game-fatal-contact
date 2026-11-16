@@ -432,6 +432,11 @@ static var figure_draw_range: float = DotHumanoidFigure.DRAW_RANGE
 const FIGURE_LIFT_RANGE := 22.0
 ## `cl_figure_lift_range`, handed to the figure when the console's variables are made (a bench sets it before that).
 static var figure_lift_range: float = FIGURE_LIFT_RANGE
+## `cl_figure_stand_in_range`'s default: past it a remote body is drawn as a shared baked pose of its clip (no clip, no
+## bones, no skinning; dot-player-char 32). At the figure's own far step, where it already draws no carry.
+const FIGURE_STAND_IN_RANGE := 45.0
+## `cl_figure_stand_in_range`, handed to the figure like [member figure_lift_range]. 0: never.
+static var figure_stand_in_range: float = FIGURE_STAND_IN_RANGE
 
 ## `cl_remote_lod_frustum`: judge "out of sight" by the camera's real frustum instead of the cone below.
 static var lod_frustum: bool = true

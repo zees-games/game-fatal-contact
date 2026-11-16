@@ -287,13 +287,15 @@ func _add_remote_vars(local: DotConsoleLocal) -> void:
 	_add_figure_vars(local)
 
 
-## The remote figures' own ranges (dot-player-char 27 reads them live; an older addon keeps its constants and refuses).
+## The remote figures' own ranges (dot-player-char 27 reads them live, 32 the stand-in; an older addon keeps its constants and refuses).
 func _add_figure_vars(local: DotConsoleLocal) -> void:
 	var _lift: Variant = _addon_static(DotHumanoidFigure, &"lift_range", 0.0, ArenaPlayer.figure_lift_range)
+	var _stand_in: Variant = _addon_static(DotHumanoidFigure, &"stand_in_range", 0.0, ArenaPlayer.figure_stand_in_range)
 	for row: Array in [
 		[&"cl_figure_shadow_range", &"shadow_range", DotHumanoidFigure.SHADOW_RANGE, "Metres past which a remote body casts no shadow (0: at every distance; 28 is the default)."],
 		[&"cl_figure_draw_range", &"draw_range", DotHumanoidFigure.DRAW_RANGE, "Metres past which a remote body and its gun are not drawn (0: at every distance; 140 is the default)."],
 		[&"cl_figure_lift_range", &"lift_range", 0.0, "Metres past which (or out of view) a remote body stands on the floor only on the frames its clip steps (0: every frame; 22 is the default)."],
+		[&"cl_figure_stand_in_range", &"stand_in_range", 0.0, "Metres past which a remote body is drawn as a shared baked pose of its clip, with no bones or skinning (0: never; 45 is the default; dot-player-char 32)."],
 		[&"cl_figure_lod_bias", &"lod_bias", DotHumanoidFigure.LOD_BIAS, "The body mesh's LOD bias: under 1 its simpler levels come nearer (above 0; 0.4 is the default)."],
 	]:
 		var cvar: StringName = row[0]
@@ -308,11 +310,13 @@ func _add_figure_vars(local: DotConsoleLocal) -> void:
 					return DotResult.fail(DotError.CODE_INVALID, "%s takes a number, %s" % [cvar, "above 0" if least > 0.0 else "0 or more"])
 				var have: Variant = _addon_static(DotHumanoidFigure, field, null, text.to_float())
 				if have == null:
-					return DotResult.fail(DotError.CODE_UNSUPPORTED, "%s needs dot-player-char 27" % cvar)
+					return DotResult.fail(DotError.CODE_UNSUPPORTED, "%s needs dot-player-char %d" % [cvar, 32 if field == &"stand_in_range" else 27])
 				if field == &"draw_range":
 					ArenaPlayer.figure_draw_range = have
 				elif field == &"lift_range":
 					ArenaPlayer.figure_lift_range = have
+				elif field == &"stand_in_range":
+					ArenaPlayer.figure_stand_in_range = have
 				return DotResult.success(have)
 		)
 
