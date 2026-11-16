@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## Relevance tiers for a big server (arena-128-scale-1 / net-aoi-1): distance rings around each player that decide how often, and whether, another player is sent, built on dot-net's own DotNetInterestDistance (no new wire format).
-## Defaults: every snapshot out to radius (120 m), nothing past it; on imported maps the PVS (net_visibility) cuts further. Past far_distance (20 m) a player is sent every far_every-th snapshot (2); each further band (far_tiers, default 1: none) would be twice as far and half as often, but a scoped shot at 60 m drawn from every fourth snapshot misses the rewind tolerance (headless_hitreg_scope). Measured with net_probe --control at 64 (docs/perf-64-players.md): with dot-net syncing a thinned entity's acks the rings save bytes, 560 B against 635 per client per snapshot on dm_atrium and 283 against 307 on cp-orange-x3 at the old 40 m / 2 tiers, 411 B on dm_atrium at 20 m / 1 tier with ArenaPlayerNet.hold_subquantum (fc-dmatrium-bytes-1); before that sync they cost more than they saved (801-831 B on dm_atrium). The observer's own entity and a beaconed player (always_relevant) are never culled; scoreboard, kill feed and match state are not entity snapshots.
+## Defaults: every snapshot out to radius (120 m), nothing past it; on imported maps the PVS (net_visibility) cuts further. Past far_distance (15 m) a player is sent every far_every-th snapshot (2); each further band (far_tiers, 2: past 30 m every fourth) is twice as far and half as often, except inside aim_cone_deg (8) of the observer's aim, where it stays every far_every-th: a scoped shot at 60 m drawn from every fourth snapshot misses the rewind tolerance (headless_hitreg_scope), one drawn from every second does not. Measured with net_probe --control at 64 (docs/perf-64-players.md): with dot-net syncing a thinned entity's acks the rings save bytes, 560 B against 635 per client per snapshot on dm_atrium and 283 against 307 on cp-orange-x3 at the old 40 m / 2 tiers, 411 B on dm_atrium at 20 m / 1 tier with ArenaPlayerNet.hold_subquantum (fc-dmatrium-bytes-1), 326 B at 15 m / 2 tiers with the 8 degree aim cone (fc-dmatrium-bytes-2); before that sync they cost more than they saved (801-831 B on dm_atrium). The observer's own entity and a beaconed player (always_relevant) are never culled; scoreboard, kill feed and match state are not entity snapshots.
 ## Off until the room is big (min_players, 32: the tiers start at the 33rd player, with OFF_MARGIN hysteresis); an entity leaving the radius keeps its last drawn pose on the client (no pop). Pinned by headless_netaoi.
 
 const OFF_MARGIN := 2
@@ -9,10 +9,14 @@ const BASE_UNSET := -1.0
 
 var min_players: int = 32
 var radius: float = 120.0
-var far_distance: float = 20.0
+var far_distance: float = 15.0
 var far_every: int = 2
-var far_tiers: int = 1
+var far_tiers: int = 2
 var far_coherent: bool = true
+## Degrees either side of a player's aim inside which a far player keeps the first ring's rate
+## (dot-net DotNetInterest.aim_cone_deg, set from ArenaPlayerNet.pull): what a scope looks at
+## past the second ring still has every far_every-th snapshot to rewind against. 0 is off.
+var aim_cone_deg: float = 8.0
 
 var active: bool = false
 ## What the interest object held before the first refresh: restored when the tiers go off.
@@ -37,6 +41,9 @@ func bind_cvars(add_cvar: Callable, flags: int) -> void:
 	_with_limits(_cvars["far_tiers"], 1.0, 4.0)
 	_cvars["far_coherent"] = add_cvar.call("sv_net_far_coherent", "1" if far_coherent else "0",
 		"With the tiers on: every client gets the same turns, so peers in step share work (1) or each is staggered (0)", flags)
+	_cvars["aim_cone_deg"] = add_cvar.call("sv_net_aim_cone", str(aim_cone_deg),
+		"With the tiers on: degrees either side of a player's aim inside which far players keep the first ring's rate (0 is off)", flags)
+	_with_limits(_cvars["aim_cone_deg"], 0.0, 180.0)
 
 
 static func _with_limits(cv: Variant, low: float, high: float) -> void:
@@ -56,6 +63,7 @@ func pull_cvars() -> void:
 	far_every = (_cvars["far_every"] as DotConVar).get_int()
 	far_tiers = (_cvars["far_tiers"] as DotConVar).get_int()
 	far_coherent = (_cvars["far_coherent"] as DotConVar).get_bool()
+	aim_cone_deg = (_cvars["aim_cone_deg"] as DotConVar).get_float()
 
 
 ## Whether the tiers should be on for [param players] given the current state (with hysteresis).
@@ -75,6 +83,7 @@ func refresh(interest: DotNetInterest, players: int) -> bool:
 		_base = {
 			"far_every": interest.far_every, "far_distance": interest.far_distance,
 			"far_tiers": interest.far_tiers, "far_coherent": interest.far_coherent,
+			"aim_cone_deg": interest.get(&"aim_cone_deg") if &"aim_cone_deg" in interest else 0.0,
 			"radius": (interest as DotNetInterestDistance).radius if interest is DotNetInterestDistance else BASE_UNSET,
 		}
 	var on := wants_on(players)
@@ -85,6 +94,7 @@ func refresh(interest: DotNetInterest, players: int) -> bool:
 		interest.far_distance = far_distance
 		interest.far_tiers = far_tiers
 		interest.far_coherent = far_coherent
+		_set_cone(interest, aim_cone_deg)
 		if interest is DotNetInterestDistance:
 			(interest as DotNetInterestDistance).radius = radius
 	else:
@@ -92,9 +102,16 @@ func refresh(interest: DotNetInterest, players: int) -> bool:
 		interest.far_distance = float(_base["far_distance"])
 		interest.far_tiers = int(_base["far_tiers"])
 		interest.far_coherent = bool(_base["far_coherent"])
+		_set_cone(interest, float(_base["aim_cone_deg"]))
 		if interest is DotNetInterestDistance and float(_base["radius"]) != BASE_UNSET:
 			(interest as DotNetInterestDistance).radius = float(_base["radius"])
 	return changed
+
+
+## dot-net before API 22 has no aim cone: the rings then go without it.
+static func _set_cone(interest: DotNetInterest, degrees: float) -> void:
+	if &"aim_cone_deg" in interest:
+		interest.set(&"aim_cone_deg", degrees)
 
 
 ## The ring [param distance] metres out falls in: 0 inside far_distance, 1..far_tiers beyond it,
@@ -117,3 +134,11 @@ func every_for(ring: int) -> int:
 	if ring <= 0:
 		return 1
 	return far_every << (ring - 1)
+
+
+## [method every_for] for a player [param off_aim_deg] degrees off the observer's aim: inside
+## [member aim_cone_deg] no ring past the first.
+func every_for_aimed(ring: int, off_aim_deg: float) -> int:
+	if ring > 1 and aim_cone_deg > 0.0 and off_aim_deg <= aim_cone_deg:
+		return every_for(1)
+	return every_for(ring)

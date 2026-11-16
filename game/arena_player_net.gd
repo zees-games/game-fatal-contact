@@ -38,6 +38,15 @@ static var skip_idle_pull := true
 ## the repeat. Only the observer's copy is held: the owner rewinds from [member net_exact], and the lag-comp
 ## history records the node, not these properties. Position is never held: the server reads it back.
 static var hold_subquantum := true
+## dot-net API 22's DotNetIdentity.interest_aim, looked up once (older dot-net has no aim cone).
+static var _has_interest_aim: bool = _script_has(DotNetIdentity, &"interest_aim")
+
+
+static func _script_has(script: Script, property: StringName) -> bool:
+	for entry: Dictionary in script.get_script_property_list():
+		if StringName(entry["name"]) == property:
+			return true
+	return false
 
 # --- Movement, from DotFpsNetSync.state_specs() ---
 var net_position: Vector3 = Vector3.ZERO
@@ -434,6 +443,10 @@ func pull() -> void:
 	# relevance is the server's decision, and a client's copy of the flag decides nothing.
 	if identity != null and identity.is_authoritative:
 		identity.always_relevant = player.beacon
+		# Where this player looks, for dot-net's aim cone (ArenaNetAoi.aim_cone_deg): far players
+		# in it keep the first ring's rate, so a scoped shot has samples to rewind against.
+		if _has_interest_aim:
+			identity.set(&"interest_aim", player.aim_direction())
 	lap = ArenaFrameProbe.lap(&"np_rest", lap)
 
 

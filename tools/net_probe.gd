@@ -28,7 +28,7 @@ var _bots := 8
 var _seconds := 20.0
 var _budget := -1
 var _pps := -1
-## --aoi players,radius,far_distance,far_every,far_tiers[,coherent]: the relevance rings (arena_net_aoi.gd); unset is the shipped defaults.
+## --aoi players,radius,far_distance,far_every,far_tiers[,coherent[,aim_cone]]: the relevance rings (arena_net_aoi.gd); unset is the shipped defaults.
 var _aoi: PackedStringArray = PackedStringArray()
 
 ## --fake N: N extra synthetic peers (unreliable sends dropped, acks 2 snapshots late) on the server, to measure per-peer snapshot cost without N full clients.
@@ -180,11 +180,15 @@ func _tune_server() -> void:
 		_net.config.per_client_packet_rate = _pps
 	if _aoi.size() >= 5 and _module.get("net_aoi") != null:
 		var cv: Dictionary = _module.net_aoi._cvars
-		var keys := ["min_players", "radius", "far_distance", "far_every", "far_tiers", "far_coherent"]
-		for k in mini(_aoi.size(), keys.size()):
+		var keys := ["min_players", "radius", "far_distance", "far_every", "far_tiers", "far_coherent", "aim_cone_deg"]
+		if _aoi.size() > keys.size():
+			push_error("net_probe: --aoi wants 5 to 7 fields, got %d" % _aoi.size())
+			get_tree().quit(2)
+			return
+		for k in _aoi.size():
 			(cv[keys[k]] as DotConVar).force_set(_aoi[k])
 	elif not _aoi.is_empty():
-		push_error("net_probe: --aoi wants 5 or 6 fields, got %d" % _aoi.size())
+		push_error("net_probe: --aoi wants 5 to 7 fields, got %d" % _aoi.size())
 		get_tree().quit(2)
 		return
 	for i in range(_bots):
@@ -389,12 +393,17 @@ func _report_fields() -> void:
 		print("FIELDS wire %-40s bytes=%6.1f" % [f, int(_wire_bits.get(f, 0)) / 8.0 / snaps])
 
 
-## Each eye onto its player, a centimetre up per lap so two eyes on one player are never at zero distance.
+## Each eye onto its player, a centimetre up per lap so two eyes on one player are never at zero distance,
+## aimed where the player aims.
 func _move_eyes() -> void:
 	for i in _eyes.size():
 		var on := _eye_on[i]
 		if on != null and is_instance_valid(on):
 			_eyes[i].global_position = on.global_position + Vector3.UP * 0.01 * (floorf(float(i) / _eye_laps) + 1.0)
+			# And looks where its player looks, for dot-net's aim cone (ArenaNetAoi.aim_cone_deg).
+			var identity := _eyes[i].get_child(0)
+			if &"interest_aim" in identity and on.has_method(&"aim_direction"):
+				identity.set(&"interest_aim", on.call(&"aim_direction"))
 
 
 func _measure_and_report() -> void:

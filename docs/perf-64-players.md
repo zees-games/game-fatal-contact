@@ -98,13 +98,20 @@ fakes, 30 s, PH (timings there are noise; bytes are not):
 | dm_atrium | 2 / 3 / 15 | 343 | - | - |
 | dm_atrium | 3 / 2 / 25 | 389 | - | - |
 | dm_atrium | 2 / 2 / 40 + sub-quantum hold | 498 | 563 | - |
-| dm_atrium | 2 / 1 / 20 + sub-quantum hold (default) | 406-411 | 559-562 | - |
+| dm_atrium | 2 / 1 / 20 + sub-quantum hold (old default) | 406-411 | 559-562 | - |
 | dm_atrium | 2 / 1 / 15 + sub-quantum hold | 382 | - | - |
 | dm_atrium | 2 / 1 / 10 + sub-quantum hold | 371 | 540 | - |
 | dm_atrium | 2 / 2 / 20 + sub-quantum hold (fails headless_hitreg_scope) | 341-347 | 528-547 | - |
 | dm_atrium | 2 / 2 / 15 + sub-quantum hold (fails headless_hitreg_scope) | 302 | 562 | - |
+| dm_atrium | 2 / 2 / 20 + hold, aim cone 0 (rerun, fc-dmatrium-bytes-2) | 354 | - | - |
+| dm_atrium | 2 / 2 / 20 + hold, aim cone 8 | 356 | - | - |
+| dm_atrium | 2 / 2 / 15 + hold, aim cone 0 | 323 | 546 | - |
+| dm_atrium | 2 / 2 / 15 + hold, aim cone 8 (default) | 326 | 545 | - |
+| dm_atrium | 2 / 2 / 12 + hold, aim cone 8 | 298 | 644 | - |
+| dm_atrium | 2 / 2 / 10 + hold, aim cone 10 | 278 | 544 | - |
 | cp-orange-x3 | 2 / 2 / 40 + sub-quantum hold | 271 | 485 | - |
-| cp-orange-x3 | 2 / 1 / 20 + sub-quantum hold (default) | 260 | 483 | - |
+| cp-orange-x3 | 2 / 1 / 20 + sub-quantum hold (old default) | 260 | 483 | - |
+| cp-orange-x3 | 2 / 2 / 15 + hold, aim cone 8 (default) | 217 | 463 | - |
 | cp-orange-x3 | 2 / 2 / 20 + sub-quantum hold | 258 | 518 | - |
 
 Before dotnet-thin-ack-sync, far-ring thinning cost bytes: at far_every 2 a peer got about 30% more than with no
@@ -134,6 +141,15 @@ rate to 20 m, every second snapshot to 120 m (the half rate the scope suite alre
 406-411 B against 541-549, cp-orange-x3 at 260 against 283. The last ~60 B to 350 on small DM maps needs either a
 quarter rate that leaves scoped targets alone (an observer-aware tier in dot-net interest) or cheaper observer velocity;
 both are on the nightly board.
+
+**Aim cone (fc-dmatrium-bytes-2, 2026-11-16).** dot-net interest (API 22) takes an observer aim,
+`DotNetIdentity.interest_aim`, and `DotNetInterest.aim_cone_deg`: a far entity inside that cone of the observer's aim
+is sent at most every `far_every`-th snapshot (the first band's rate), never the quarter rate; native core and GDScript
+agree (netcode_demo parity). FC's authority sets `interest_aim` from `ArenaPlayer.aim_direction()` each pull, and
+`sv_net_aim_cone` (default 8 degrees, 0 = off, outside 0-180 refused) sets the cone. What you aim at, scoped or not,
+stays at half rate, so the quarter band no longer reaches a scoped shot: the default is now two bands from 15 m
+(`sv_net_far_distance` 15, `sv_net_far_tiers` 2), and `headless_hitreg_scope` passes with the rings on at 30 m and
+60 m. dm_atrium is at 326 B against 406-411 (the cone itself costs about 3 B), cp-orange-x3 at 217 against 260.
 
 ## Ranking (64 players)
 
