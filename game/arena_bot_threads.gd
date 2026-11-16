@@ -85,15 +85,23 @@ static func _decide(pending: Array[int], minds: Array) -> void:
 		jobs.append(minds[i])
 	var world: ArenaBots.World = (jobs[0] as ArenaBots.Mind).t_world
 	var started := Time.get_ticks_usec()
-	if jobs.size() < MIN_BOTS or not world.par_begin():
+	if jobs.size() < MIN_BOTS:
+		for mind: ArenaBots.Mind in jobs:
+			mind.t_intent = mind.brain.think(mind.t_me, mind.t_world, mind.t_world.now())
+		ArenaFrameProbe.add(&"bot_brain", started)
+		return
+	# Before par_begin (the world hands out no native scan once it is on): a native brain takes a
+	# handle on this tick's packed scan and stays native on its worker (dot-bot API 34 with a
+	# worker-safe dot_sim); without that it moves into script (a no-op once it is).
+	for mind: ArenaBots.Mind in jobs:
+		if mind.brain.has_method(&"par_ready"):
+			mind.brain.par_ready(mind.t_world)
+		elif mind.brain.has_method(&"leave_native"):
+			mind.brain.leave_native()
+	if not world.par_begin():
 		for mind: ArenaBots.Mind in jobs:
 			mind.t_intent = mind.brain.think(mind.t_me, mind.t_world, mind.t_world.now())
 	else:
-		# Native (godot-rust) brain state may only be touched on the main thread: brains that think
-		# on workers move into script first (a no-op once they are).
-		for mind: ArenaBots.Mind in jobs:
-			if mind.brain.has_method(&"leave_native"):
-				mind.brain.leave_native()
 		var run := new()
 		par_ticks += 1
 		run._jobs = jobs

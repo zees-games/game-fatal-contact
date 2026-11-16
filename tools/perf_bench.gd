@@ -7,7 +7,7 @@ const ArenaHullGrid := preload("../game/arena_hull_grid.gd")
 const ArenaSimHost := preload("../game/arena_sim_host.gd")
 const ArenaNetContext := preload("../game/arena_net_context.gd")
 const ProcSplit := preload("proc_split.gd")
-# Loaded with this script, so its _static_init (native brain off) runs before --brain-native.
+# Loaded with this script, so its _static_init (native brain on) runs before --brain-native.
 const ArenaPlayerStack := preload("../game/arena_player_stack.gd")
 
 ## The 16v16 benchmark: dot-game's DotGamePerfBench (flags, recording, sidecar; see it) on arena's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Arena's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--max-steps N`, `--native-us 1`, `--batch 0` (`arena_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (DotSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (DotSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).

@@ -152,7 +152,7 @@ func _apply_cvars(server: DotServer) -> bool:
 func _apply_bench_flags() -> void:
 	# The brains on worker threads: the same match as one thread (headless_botthreads), less of each tick.
 	ArenaBotThreads.threads = maxi(0, int(_arg("--bot_threads", str(ArenaBotThreads.native_default()))))
-	# dot-bot's native mind (the `bot_native_brain` cvar, off by default) for a bench's A/B; brains on workers leave it.
+	# dot-bot's native mind (the `bot_native_brain` cvar, on by default) for a bench's A/B; brains on workers keep it with a worker-safe dot-sim.
 	var brain_native := _arg("--bot_native_brain", "")
 	if brain_native != "":
 		ArenaPlayerStack.set_brain_native(brain_native.to_int() != 0)

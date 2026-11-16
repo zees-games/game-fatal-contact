@@ -87,10 +87,10 @@ static var _dot_sim_status_printed: bool = false
 
 # The addon's default is off. On at script load, so a solo client and a listen host run it too
 # (motor_native_tick exists only where ArenaModule loads), and that cvar can still turn it off.
-# dot-bot's native mind (DotSimBotMind) the other way: off, as bot_native_brain's default says.
+# dot-bot's native mind (DotSimBotMind) on too, as bot_native_brain's default says.
 static func _static_init() -> void:
 	DotFpsMotor.native_tick = true
-	set_brain_native(false)
+	set_brain_native(true)
 
 
 ## dot-bot's native mind (DotSimBotMind: aim, fight step, perception) on or off for brains made

@@ -248,7 +248,7 @@ func _add_fire_buffer_cvar() -> void:
 			log_info("fire buffer changed", {"seconds": game.fire_buffer_seconds}))
 
 
-## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member ArenaBots.think_every]); `bot_native`: dot-sim's sight scan; `bot_native_brain`: dot-bot's native mind (off); `motor_native`: dot-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in dot-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: dot-sim's ragdoll bone pose.
+## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member ArenaBots.think_every]); `bot_native`: dot-sim's sight scan; `bot_native_brain`: dot-bot's native mind (on); `motor_native`: dot-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in dot-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: dot-sim's ragdoll bone pose.
 func _add_bot_think_cvars() -> void:
 	add_cvar("bot_think_every", str(ArenaBots.think_every),
 		"A bot far from every enemy runs its brain one tick in this many (1 = every tick, 0 = 2 above 16 players)",
@@ -328,10 +328,11 @@ func _add_bot_engine_cvars() -> void:
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			DotBotWorld.native_enabled = new_value.to_float() >= 0.5)
-	# Off by default (ArenaPlayerStack._static_init): a windowed 31-bot A/B on staging02 showed no
-	# frame gain (nightly arena-perf-leftovers-1), and a native brain thinks only on the main thread.
-	add_cvar("bot_native_brain", "0",
-		"1: the bots' aim, fight step and perception run in dot-sim when its library has the bot mind (no frame gain measured, and those bots leave bot_threads); 0: in script. Takes effect for bots added after the change",
+	# On by default (ArenaPlayerStack._static_init): with a dot-sim whose mind is worker_safe, native brains
+	# stay native on bot_threads workers (dot-bot API 34 par_ready), and a 64-player sim host on staging02 spends
+	# ~0.25 ms/tick less on bot_brain (nightly simhost-bot-native-glue-1). An older library thinks in script there.
+	add_cvar("bot_native_brain", "1",
+		"1: the bots' aim, fight step and perception run in dot-sim when its library has the bot mind (the same decisions to the bit, cheaper; on bot_threads workers too with a worker-safe library); 0: in script. Takes effect for bots added after the change",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			ArenaPlayerStack.set_brain_native(new_value.to_float() >= 0.5))
