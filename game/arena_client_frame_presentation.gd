@@ -64,9 +64,9 @@ func _probe_extra() -> Dictionary:
 	})
 	return out
 
-func _on_detonated(at: Vector3, _spawn: DotWeaponSpawn) -> void:
+func _on_detonated(at: Vector3, spawn: DotWeaponSpawn) -> void:
 	if presentation != null:
-		presentation.on_explosion(at, camera_position())
+		presentation.on_explosion(at, camera_position(), spawn.id)
 
 ## Points the drawing and the explosions at whichever projectile layer the game has now. Every frame
 ## and cheap, because a map change builds a new layer on the authority and a layer connected once at

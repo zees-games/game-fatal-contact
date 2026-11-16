@@ -88,6 +88,46 @@ const MEDAL_VOICES := {
 }
 
 
+## The thrown grenades that have a detonation recording of their own (arena_weapons level 26, `AwGrenadeSound`).
+const GRENADE_BLAST_LEVEL := 26
+const GRENADE_BLASTS: Array[StringName] = [&"frag", &"sticky", &"flash", &"smoke", &"incendiary"]
+
+
+## The sound id of [param grenade]'s own detonation, or [constant EXPLOSION] when this build has no recording for it.
+static func blast_sound_id(grenade: StringName) -> StringName:
+	if not GRENADE_BLASTS.has(grenade) or DotAddonApi.build_level("arena_weapons") < GRENADE_BLAST_LEVEL:
+		return EXPLOSION
+	if AwGrenadeSound.count(grenade) == 0:
+		return EXPLOSION
+	return StringName("%s_%s" % [EXPLOSION, grenade])
+
+
+func _blast_sound(weapon_id: StringName) -> StringName:
+	return blast_sound_id(weapon_id)
+
+
+## A blast def for [param grenade] playing its takes from `AwGrenadeSound`, set like the stock [constant EXPLOSION]; null without recordings.
+static func grenade_blast(grenade: StringName) -> DotAudioDef:
+	var id := blast_sound_id(grenade)
+	if id == EXPLOSION:
+		return null
+	var blast := DotAudioDef.new()
+	blast.id = id
+	blast.kind = DotAudioDef.Kind.POSITIONAL_3D
+	blast.bus = &"SFX"
+	blast.unit_size = 22.0
+	blast.max_distance = 140.0
+	blast.max_concurrent = 3
+	blast.priority = 85
+	blast.tags = [&"weapon"]
+	var takes := PackedStringArray()
+	for i in range(AwGrenadeSound.count(grenade)):
+		takes.append(AwGrenadeSound.stream(grenade, i).resource_path)
+	blast.path = takes[0]
+	blast.variants = takes if takes.size() > 1 else PackedStringArray()
+	return blast
+
+
 ## What a deathmatch makes a noise about.
 static func sound_catalogue() -> DotAudioCatalogue:
 	var c := DotAudioCatalogue.new()
@@ -118,6 +158,11 @@ static func sound_catalogue() -> DotAudioCatalogue:
 	blast.priority = 85
 	blast.tags = [&"weapon"]
 	c.add(recorded(blast))
+
+	for grenade in GRENADE_BLASTS:
+		var own := grenade_blast(grenade)
+		if own != null:
+			c.add(own)
 
 	var impact := DotAudioDef.new()
 	impact.id = &"impact"
@@ -319,6 +364,9 @@ static func recorded_directory(folder: StringName) -> String:
 ## to which id is this game's decision, not an addon's guess from an id like `fire_rail`.
 static func sound_recipes() -> Dictionary:
 	var out := _base_recipes()
+	for grenade in GRENADE_BLASTS:
+		if blast_sound_id(grenade) != EXPLOSION:
+			out[blast_sound_id(grenade)] = DotAudioSynth.Voice.BOOM
 	out[KILL_CONFIRMED] = DotAudioSynth.Voice.BLIP
 	out[STOMP_SOUND] = DotAudioSynth.Voice.IMPACT
 	for id in MEDAL_VOICES:

@@ -37,6 +37,7 @@ func _test_schema() -> void:
 	for sound: StringName in DotAudioWeaponStock.COUNTS:
 		stock_ok = stock_ok and ArenaPresentation.sound_catalogue().find(DotAudioWeaponStock.id_of(sound)) != null
 	_check(stock_ok, "the game's sound catalogue carries every stock weapon sound")
+	_check_grenade_blasts()
 	var stock_streams := true
 	for sound in [AwWeaponSound.LIGHT, AwWeaponSound.SHOTGUN, AwWeaponSound.DRY, AwWeaponSound.EQUIP,
 			AwWeaponSound.RELOAD_OUT, AwWeaponSound.RELOAD_SHELL, AwWeaponSound.SUPPRESSED]:
@@ -447,3 +448,22 @@ func _test_blood() -> void:
 	p.queue_free()
 	wall.queue_free()
 	_done()
+
+
+## Each of the five thrown grenades is heard as its own recording on detonation, a launcher as the stock blast.
+func _check_grenade_blasts() -> void:
+	var catalogue := ArenaPresentation.sound_catalogue()
+	if DotAddonApi.build_level("arena_weapons") < ArenaPresentation.GRENADE_BLAST_LEVEL:
+		_check(ArenaPresentation.blast_sound_id(&"frag") == ArenaPresentation.EXPLOSION, "without arena_weapons level 26 a grenade keeps the stock blast")
+		return
+	var heard: Dictionary = {}
+	for grenade: StringName in ArenaPresentation.GRENADE_BLASTS:
+		var id := ArenaPresentation.blast_sound_id(grenade)
+		var def := catalogue.find(id)
+		var stream := AwGrenadeSound.stream(grenade, randi())
+		_check(id != ArenaPresentation.EXPLOSION and def != null and stream != null, "%s has its own detonation sound (%s)" % [grenade, id])
+		if def != null:
+			_check(def.pick_path(0.0) == AwGrenadeSound.stream(grenade, 0).resource_path and ResourceLoader.exists(def.pick_path(0.99)), "%s's sound plays the pack's recordings" % grenade)
+		heard[id] = true
+	_check(heard.size() == ArenaPresentation.GRENADE_BLASTS.size(), "the five grenades have five different detonation sounds")
+	_check(ArenaPresentation.blast_sound_id(&"rocket") == ArenaPresentation.EXPLOSION and ArenaPresentation.blast_sound_id(&"") == ArenaPresentation.EXPLOSION, "a rocket or an unnamed blast stays the stock explosion")

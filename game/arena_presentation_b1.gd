@@ -374,10 +374,17 @@ func on_fired(weapon_id: StringName, muzzle: Transform3D, mine: bool) -> void:
 		fx.shake.add(0.08)
 
 
+## The sound id of [param weapon_id]'s detonation; the stock blast here, a grenade's own recording in the sound layer below.
+func _blast_sound(_weapon_id: StringName) -> StringName:
+	return EXPLOSION
+
+
 ## A rocket or a grenade went off at [param at]; [param eye] is where this client's
-## camera is, for how hard it shakes. Everybody's, the local player's own included.
-func on_explosion(at: Vector3, eye: Vector3) -> void:
-	audio.play_at(EXPLOSION, at)
+## camera is, for how hard it shakes. Everybody's, the local player's own included. [param weapon_id] is the
+## grenade or launcher that went off; a grenade with a recording of its own is heard as that.
+func on_explosion(at: Vector3, eye: Vector3, weapon_id: StringName = &"") -> void:
+	var sound := _blast_sound(weapon_id)
+	audio.play_at(sound if audio.catalogue.find(sound) != null else EXPLOSION, at)
 	fx.spawn(EXPLOSION, Transform3D(Basis.IDENTITY, at))
 
 	var near := 1.0 - clampf(eye.distance_to(at) / EXPLOSION_SHAKE_RANGE, 0.0, 1.0)
