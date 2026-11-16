@@ -19,6 +19,24 @@ func _render_state(alpha: float) -> DotFpsState:
 		drawn.position = _position_two_back.lerp(drawn.position, maxf(alpha + 1.0, 0.0))
 	return drawn
 
+## [code]_render_state(alpha).position[/code] without copying the controller's state, for a reader that only wants where the body is drawn (the kill view
+## records every body each frame it samples). A controller older than [code]render_position[/code] (API 32) takes the copy.
+func _render_position(alpha: float) -> Vector3:
+	if not controller.has_method(&"render_position"):
+		return _render_state(alpha).position
+	if is_nan(alpha):
+		return controller.render_position()
+	if alpha >= 0.0 and alpha <= 1.0:
+		return controller.render_position(alpha)
+	var pos: Vector3 = controller.render_position(1.0 if alpha > 1.0 else 0.0)
+	if controller.drive == DotFpsController.Drive.REMOTE or controller.tick_rate <= 0:
+		return pos
+	if alpha > 1.0:
+		return pos + (pos - controller.previous_position()) * minf(alpha - 1.0, 1.0)
+	if _position_two_back.is_finite():
+		return _position_two_back.lerp(pos, maxf(alpha + 1.0, 0.0))
+	return pos
+
 ## What to take off the drawn eye this frame for stair steps: the step's share of the interpolated rise is moved into [member _step_offset], which eases out. A tick is a step
 ## when it is grounded and rose more than the steepest walkable floor allows for the ground it crossed, and no more than a step: a ramp's rise is steady and is drawn as it is.
 func _absorb_step(alpha: float, delta: float) -> float:
