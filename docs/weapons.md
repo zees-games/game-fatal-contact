@@ -42,6 +42,11 @@ Anybody alive without a knife who walks within reach of one lying or stuck takes
 | `fc_knife_throw_charge` | 1 | Holding the aim key winds the throw up and letting go throws it; 0 throws on the press. Replicated. |
 | `fc_knife_throw_charge_sec` | 1 | Seconds of holding to full power (0 is full at once). Replicated. |
 | `fc_knife_throw_charge_min` | 0.35 | Fraction of the speed a tap throws at. Replicated. |
+| `fc_knife_boomerang_distance` | 18 | Metres a Boomerang knife flies straight out before it turns back; 0 flies straight on with no return. dot-weapon API 43. |
+| `fc_knife_boomerang_radius` | 5 | Radius in metres of the turn it circles back through; 0 turns on the spot. dot-weapon API 43. |
+| `fc_knife_boomerang_speed` | 0 | Metres per second a Boomerang knife flies at; 0 uses the throw speed. dot-weapon API 43. |
+
+The `arena_knife_*` names are the hidden rename shims: each logs an ERR naming its `fc_knife_*` name, then runs it.
 
 **The charge is on by default in FC** (`ArenaGame.knife_rules`; dot-weapon's own default is off, API 41). The knife layer clears the aim button while winding up, so the player does not also aim. The knife cvars are replicated and the client follows them (`game/arena_knife_follow.gd`, from `follow_server_cvars`), because the server's meter (`charge_of`) is not sent: the HUD fills a gold bar under the crosshair from the aim-held time (`game/arena_throw_meter.gd`, `ArenaHud.present_throw_meter`) with the same `DotWeaponKnives.fill_fraction`. A knife thrown with the **Boomerang** attachment (`ArenaAttach.BOOMERANG`, mount `grip` on the knife) glides and turns back; the KNIFE record carries `glide` and `turn` (`ArenaKnifeEvents.write_knife`) so a client mirrors the curve. The Boomerang is a stand-in with no model: fc-weapons has no knife grip socket or Boomerang art (board item `fc-knife-throw-1`).
 
