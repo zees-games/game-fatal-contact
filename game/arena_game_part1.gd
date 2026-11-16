@@ -147,7 +147,24 @@ func unlag_position_at(id: int, at: float) -> Variant:
 		return positions[a]
 	return positions[a].lerp(positions[b], at - float(lo))
 
-## dot-combat's rewind: every other living player, put where they were at [param view_tick].
+## Player [param id]'s crouch fraction at [param at], lerped as [method unlag_position_at] is; -1 when not recorded.
+func unlag_crouch_at(id: int, at: float) -> float:
+	var ring: Array = _unlag.get(id, [])
+	if ring.size() < 3 or at < 0.0:
+		return -1.0
+	var crouches: PackedFloat32Array = ring[2]
+	var ticks: PackedInt32Array = ring[1]
+	var lo := floori(at)
+	var a := lo % ticks.size()
+	var b := (lo + 1) % ticks.size()
+	if ticks[a] != lo:
+		return -1.0
+	if ticks[b] != lo + 1:
+		return crouches[a]
+	return lerpf(crouches[a], crouches[b], at - float(lo))
+
+## dot-combat's rewind: every other living player, put where they were at [param view_tick], in the stance they had then:
+## the zones fit the present crouch, and a target that crouched since was traced a standing head too short (footage 2026-11-15).
 func _unlag_rewind(view_tick: float) -> void:
 	for id in _players:
 		if id == _unlag_shooter:
@@ -157,12 +174,20 @@ func _unlag_rewind(view_tick: float) -> void:
 			continue
 		# A hitscan shot: where the shooter's screen blended them, when the command named its two snapshots.
 		var then: Variant = shot_feet_fn.call(id, _unlag_shooter, view_tick) if _unlag_shot and shot_feet_fn.is_valid() else null
+		var crouch := -1.0
+		if then != null and shot_crouch_fn.is_valid():
+			crouch = shot_crouch_fn.call(id, _unlag_shooter, view_tick)
 		if then == null:
 			then = unlag_position_at(id, view_tick)
 		if then == null:
 			continue
 		_unlag_moved[id] = player.global_position
 		player.global_position = then
+		if crouch < 0.0:
+			crouch = unlag_crouch_at(id, view_tick)
+		if crouch >= 0.0 and player.controller != null and crouch != player.controller.state.crouch_fraction:
+			player.fit_hitboxes_to_crouch(crouch)
+			_unlag_refit[id] = true
 
 ## And back, after the trace.
 func _unlag_restore() -> void:
@@ -171,6 +196,11 @@ func _unlag_restore() -> void:
 		if player != null:
 			player.global_position = _unlag_moved[id]
 	_unlag_moved.clear()
+	for id in _unlag_refit:
+		var player: ArenaPlayer = _players.get(id)
+		if player != null:
+			player.fit_hitboxes_to_stance()
+	_unlag_refit.clear()
 
 ## Gives [param player_id] what [param reward] names. Authority side.
 func _reward_streak(player_id: int, streak: int, reward: String) -> void:
@@ -760,6 +790,10 @@ func _unlag_record() -> void:
 			ticks.fill(-1)
 			ring = [positions, ticks]
 			_unlag[id] = ring
+		if ring.size() < 3:
+			var fresh := PackedFloat32Array()
+			fresh.resize((ring[1] as PackedInt32Array).size())
+			ring.append(fresh)
 		# Packed arrays are values: taken out, written, and put back, or the write lands
 		# on a copy and the history stays empty (it did, the first time).
 		var positions: PackedVector3Array = ring[0]
@@ -769,10 +803,13 @@ func _unlag_record() -> void:
 		# A respawn or a teleport: rewinding across it would stand hitboxes where they died.
 		if ticks[before] == _tick - 1 and positions[before].distance_to(player.global_position) > TELEPORT_CUT:
 			ticks.fill(-1)
+		var crouches: PackedFloat32Array = ring[2]
 		positions[slot] = player.global_position
 		ticks[slot] = _tick
+		crouches[slot] = player.controller.state.crouch_fraction if player.controller != null else 0.0
 		ring[0] = positions
 		ring[1] = ticks
+		ring[2] = crouches
 		_unlag[id] = ring
 
 func _tick_rest(delta: float) -> void:

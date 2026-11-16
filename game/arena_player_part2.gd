@@ -460,10 +460,15 @@ func _flashlight_hands(pressed: bool, delta: float) -> void:
 ## about a quarter lower, so without this the head zone floated above the crouched head and a shot at the drawn head
 ## landed on the chest. Heights (and capsule lengths) scale, widths do not, and the feet stay on the ground.
 func fit_hitboxes_to_stance() -> void:
+	if controller != null:
+		fit_hitboxes_to_crouch(controller.state.crouch_fraction)
+
+## The zones fitted to [param crouch] (0 standing, 1 crouched): the present stance, or the one a rewound shot was drawn at.
+func fit_hitboxes_to_crouch(crouch: float) -> void:
 	if hitboxes == null or controller == null or controller.tunables == null:
 		return
 	var t := controller.tunables
-	var k := lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(controller.state.crouch_fraction, 0.0, 1.0))
+	var k := lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(crouch, 0.0, 1.0))
 	if ArenaHullGrid.enabled and k == _fit_k:
 		return
 	_fit_k = k

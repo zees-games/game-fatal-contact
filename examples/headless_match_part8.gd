@@ -327,3 +327,80 @@ func _players_inside_boxes(map: ArenaMap) -> Array[int]:
 				break
 
 	return out
+
+# --- Lag compensation and stance ---------------------------------------------
+
+## A rewound shot meets the stance the shooter drew, not the server's present one: B crouched (or stood up) after the
+## tick A saw, and the rewind used to move B's feet back but leave the hit zones at today's height, so a shot at the drawn
+## standing head flew over the crouched zones, and one at the drawn crouched head met a standing chest (nightly
+## bot-crouch-rewind-60m-1; footage 2026-11-15).
+func _test_lag_compensation_stance() -> void:
+	_section("lag compensation carries the crouch")
+	var game := _weapon_mode_game(ArenaMode.free_for_all(25), [942, 943])
+	if not _check(game != null, "a two-player game sets up"):
+		return
+	for _i in range(6):
+		await get_tree().process_frame
+	for id in [942, 943]:
+		game.combat.health_of(id).invulnerable_until_tick = -1
+	# Settled on the floor first, so the held spots do not fall: a fall would move the head by more than the crouch.
+	_stand(game, 942, Vector3(0.0, game.player_for(942).controller.state.position.y, 0.0))
+	_stand(game, 943, Vector3(0.0, game.player_for(942).controller.state.position.y, -8.0))
+	for _k in range(30):
+		game.tick({})
+	var standing := _stance_hold(game, false, 20)
+	var crouched := _stance_hold(game, true, 40)
+	_check(game.player_for(943).controller.state.crouch_fraction > 0.99, "B crouches in place")
+	var group: StringName = _stance_shot(game, standing)
+	_check(group == DotHitGroup.HEAD, "a shot at B's drawn standing head, rewound to then, is a headshot",
+		"met %s" % [group if group != &"" else &"nothing"])
+	_check(absf(_stance_head(game).y - (crouched[1] as Vector3).y) < 0.01, "and B's zones are put back at the crouch",
+		"head %.3f, crouched %.3f" % [_stance_head(game).y, (crouched[1] as Vector3).y])
+	var _up := _stance_hold(game, false, 40)
+	group = _stance_shot(game, crouched)
+	_check(group == DotHitGroup.HEAD, "a shot at B's drawn crouched head, B standing since, is a headshot",
+		"met %s" % [group if group != &"" else &"nothing"])
+	_check(absf(_stance_head(game).y - (standing[1] as Vector3).y) < 0.01, "and B's zones are put back standing",
+		"head %.3f, standing %.3f" % [_stance_head(game).y, (standing[1] as Vector3).y])
+	var b := game.player_for(943)
+	_check(b.global_position.distance_to(b.controller.state.position) < 0.01, "and B's feet where the server has them",
+		"%s against %s" % [b.global_position, b.controller.state.position])
+	remove_child(game)
+	game.queue_free()
+	_done()
+
+## B held crouched (or not) eight metres in front of A for [param ticks]: `[the tick, B's head zone centre]` at the end.
+func _stance_hold(game: ArenaGame, crouch: bool, ticks: int) -> Array:
+	var a_at := game.player_for(942).controller.state.position
+	var b_at := game.player_for(943).controller.state.position
+	for _k in range(ticks):
+		for id: int in [942, 943]:
+			_stand(game, id, a_at if id == 942 else b_at)
+			game.player_for(id).controller.state.velocity = Vector3.ZERO
+		var move := DotFpsCommand.new()
+		move.buttons = DotFpsCommand.BUTTON_CROUCH if crouch else 0
+		game.tick({943: [move, DotWeaponCommand.new()]})
+	return [game.current_tick(), _stance_head(game)]
+
+func _stance_head(game: ArenaGame) -> Vector3:
+	for box: DotHitbox in game.player_for(943).hitboxes.hitboxes():
+		if box.group == DotHitGroup.HEAD:
+			return box.global_position
+	return Vector3.INF
+
+## A's rifle at where [param seen] drew B's head, rewound to that tick: the zone group it met on B, or empty.
+func _stance_shot(game: ArenaGame, seen: Array) -> StringName:
+	var shot := DotShot.make(&"rifle", 942, game.current_tick(), 0)
+	shot.origin = game.player_for(942).global_position + Vector3.UP * 1.5
+	var aim: Vector3 = (seen[1] as Vector3) - shot.origin
+	shot.pellets = [aim.normalized()] as Array[Vector3]
+	shot.direction = aim.normalized()
+	shot.damage = 1.0
+	shot.damage_type = game.combat.damage_type(&"bullet")
+	shot.max_range = 100.0
+	game._unlag_shooter = 942
+	var _r := game.combat.resolve_shot(shot, float(seen[0]))
+	for d: DotDamage in shot.damages:
+		if d.victim == 943:
+			return d.hit_group
+	return &""

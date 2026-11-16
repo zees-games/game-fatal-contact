@@ -318,6 +318,17 @@ func unlag_position_between(id: int, older: int, newer: int, at: float, snap := 
 		return a
 	return (a as Vector3).lerp(b, clampf((at - float(older)) / float(newer - older), 0.0, 1.0))
 
+## Player [param id]'s crouch blended between the recorded ticks [param older] and [param newer], as
+## [method unlag_position_between] blends the feet; -1 when either is not recorded.
+func unlag_crouch_between(id: int, older: int, newer: int, at: float) -> float:
+	var a := unlag_crouch_at(id, float(older))
+	var b := unlag_crouch_at(id, float(newer))
+	if a < 0.0 or b < 0.0:
+		return -1.0
+	if newer <= older:
+		return a
+	return lerpf(a, b, clampf((at - float(older)) / float(newer - older), 0.0, 1.0))
+
 ## A mover's view lag in ticks as both ends collide with it: -1 (the present) when none was sent
 ## or compensation is off, else at most `max_unlag_ms` and [constant COLLISION_LAG_MAX_SEC].
 func collision_lag(view_lag: float) -> float:

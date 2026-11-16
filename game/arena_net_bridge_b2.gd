@@ -151,6 +151,7 @@ func attach(p_game: ArenaGame, p_net: DotNetManager) -> DotResult:
 	game.remote_lags_fn = remote_lags
 	if net.is_server:
 		game.shot_feet_fn = shot_feet
+		game.shot_crouch_fn = shot_crouch
 	# Server toys leave the registry before their nodes go; a client's mirrors stay registered.
 	if net.is_server:
 		game.toys_clearing.connect(_release_toys)
@@ -291,17 +292,33 @@ func remote_feet(other_id: int, mover_id: int, tick: int) -> Variant:
 ## not the ring's own tick there, which a strafe reversal between two snapshots puts up to 12 cm off the drawn body (headless_hitreg_chaos). Null, for the ring, when no bracket came, when it does
 ## not hold the view tick (a held or repeated command), or when it spans more than [constant SHOT_BRACKET_MAX_SPAN] ticks: a client may pick its two samples, never far-apart ones.
 func shot_feet(other_id: int, shooter_id: int, view_tick: float) -> Variant:
+	var bracket := _shot_bracket(shooter_id, view_tick)
+	if bracket.is_empty():
+		return null
+	return game.unlag_position_between(other_id, bracket[0], bracket[1],
+		clampf(view_tick, float(bracket[0]), float(bracket[1])), _position_wire(other_id))
+
+## [param other_id]'s crouch over the bracket [method shot_feet] blends the feet across (the client draws the crouch
+## between the same two snapshots); -1, for the ring, when [method shot_feet] would give null.
+func shot_crouch(other_id: int, shooter_id: int, view_tick: float) -> float:
+	var bracket := _shot_bracket(shooter_id, view_tick)
+	if bracket.is_empty():
+		return -1.0
+	return game.unlag_crouch_between(other_id, bracket[0], bracket[1],
+		clampf(view_tick, float(bracket[0]), float(bracket[1])))
+
+## `[older, newer]`, the snapshot ticks [param shooter_id]'s firing command named, when they hold [param view_tick]; else empty.
+func _shot_bracket(shooter_id: int, view_tick: float) -> Array:
 	var shooter: ArenaPlayerNet = _behaviours.get(shooter_id)
 	if shooter == null or game == null or shooter.last_view_back < 0 or shooter.last_view_tick < 0:
-		return null
+		return []
 	var span := shooter.last_view_span
 	var older := shooter.last_view_tick - shooter.last_view_back
 	# The view lag goes up in quarter ticks: a drawn tick on a bracket's end rounds up to an eighth past it.
 	if span < 0 or span > SHOT_BRACKET_MAX_SPAN or view_tick < float(older) - SHOT_BRACKET_SLACK \
 			or view_tick > float(older + span) + SHOT_BRACKET_SLACK:
-		return null
-	return game.unlag_position_between(other_id, older, older + span,
-		clampf(view_tick, float(older), float(older + span)), _position_wire(other_id))
+		return []
+	return [older, older + span]
 
 ## The widest snapshot bracket a shot is blended across: four snapshot periods, three lost in a row.
 const SHOT_BRACKET_MAX_SPAN := 8

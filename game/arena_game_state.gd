@@ -501,10 +501,12 @@ const COLLISION_LAG_MAX_SEC := 0.485
 ## A jump this far in one tick (metres) is a teleport or respawn: nothing rewinds across it.
 const TELEPORT_CUT := 10.0
 
-## id -> [PackedVector3Array positions, PackedInt32Array ticks], a ring per player.
+## id -> [PackedVector3Array positions, PackedInt32Array ticks, PackedFloat32Array crouch fractions], a ring per player.
 var _unlag: Dictionary = {}
 ## id -> the position a rewind moved a player from, until it is restored.
 var _unlag_moved: Dictionary = {}
+## id -> true for a player whose hit zones a rewind fitted to the crouch it had then, until it is restored.
+var _unlag_refit: Dictionary = {}
 ## The shooter, whom a rewind leaves where they are.
 var _unlag_shooter: int = 0
 ## Flies simulated bullets when `sv_ballistics` is on; null without dot-weapon's ballistics rules.
@@ -609,6 +611,9 @@ var remote_lags_fn: Callable = Callable()
 ## snapshots the shooter's command named (`ArenaNetBridge.shot_feet`). Null, or unset: the
 ## server's own ring at that tick ([method ArenaGame.unlag_position_at]).
 var shot_feet_fn: Callable = Callable()
+## `(other_id, shooter_id, view_tick) -> float`: [param other_id]'s crouch over the same bracket as [member shot_feet_fn]
+## (`ArenaNetBridge.shot_crouch`); below 0, or unset: the server's own ring ([method ArenaGame.unlag_crouch_at]).
+var shot_crouch_fn: Callable = Callable()
 ## Set while a hitscan shot of this tick is traced, so [member shot_feet_fn] is asked; a bullet's
 ## or a projectile's rewind is not the click's.
 var _unlag_shot := false
