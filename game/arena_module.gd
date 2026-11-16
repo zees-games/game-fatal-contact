@@ -220,8 +220,8 @@ func _bind_commands_and_cvars() -> void:
 ## The streak reward cvar and the loadout and streak notices.
 func _bind_streak_and_loadout_signals() -> void:
 	add_cvar(
-		"arena_streak_rewards", "3:heal,5:haste,7:empowered",
-		"Kill streak rewards, as streak:reward pairs (heal, armour, haste, empowered); empty for none",
+		"arena_streak_rewards", "",
+		"Kill streak rewards, as streak:reward pairs (heal, armour, haste, empowered, e.g. 3:heal,5:haste,7:empowered); empty (the default) for none",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
 	).changed.connect(
 		func(_old: String, new_value: String) -> void:

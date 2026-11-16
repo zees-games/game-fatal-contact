@@ -21,7 +21,7 @@ func _weapon_mode_game(mode: ArenaMode, ids: Array) -> ArenaGame:
 	return game
 
 ## Kill somebody the way the game does it, through dot-combat.
-func _kill_through_combat(game: ArenaGame, killer: int, victim: int, weapon: StringName = &"") -> void:
+func _kill_through_combat(game: ArenaGame, killer: int, victim: int, weapon: StringName = &"", headshot := false) -> void:
 	var health := game.combat.health_of(victim)
 	if health == null:
 		return
@@ -35,6 +35,8 @@ func _kill_through_combat(game: ArenaGame, killer: int, victim: int, weapon: Str
 	var damage := DotDamage.make(killer, victim, health.health + health.armour + 50.0, type)
 	damage.tick = game.current_tick()
 	damage.weapon_id = weapon
+	if headshot:
+		damage.hit_group = DotHitGroup.HEAD
 	var applied := health.apply(damage)
 	if applied != null and applied.lethal:
 		game.combat.entity_killed.emit(victim, applied)
@@ -54,6 +56,8 @@ func _test_streaks() -> void:
 	if game == null:
 		_check(false, "a streak game sets up")
 		return
+	_check(game.streak_rewards.is_empty(), "no streak reward is on by default")
+	game.streak_rewards = ArenaGame.parse_streak_rewards("3:heal,5:haste,7:empowered")
 	var rewards: Array[String] = []
 	game.streak_reward.connect(func(_p: int, s: int, r: String) -> void: rewards.append("%d:%s" % [s, r]))
 
@@ -73,6 +77,81 @@ func _test_streaks() -> void:
 	game.player_for(941).hitboxes.enabled = true
 	_kill_through_combat(game, 941, 940)
 	_check(int(game.streaks.get(940, -1)) == 0, "and dying ends it")
+
+	remove_child(game)
+	game.queue_free()
+	await get_tree().process_frame
+	_done()
+
+# --- Kill rewards ------------------------------------------------------------
+
+## Reads the victim's replacement state: a fresh victim for every kill.
+func _revive_victim(game: ArenaGame, victim: int) -> void:
+	var player := game.player_for(victim)
+	player.health.alive = true
+	player.hitboxes.enabled = true
+	game.combat.health_of(victim).health = 100.0
+
+func _test_kill_rewards() -> void:
+	_section("kill rewards: +5 health per headshot, capped, the rest off by default")
+
+	var game := _weapon_mode_game(ArenaMode.free_for_all(50), [950, 951, 952])
+	if game == null:
+		_check(false, "a kill rewards game sets up")
+		return
+	var killer := game.player_for(950)
+	var c := game.config
+	_check(c.headshot_heal == 5.0 and c.max_health_cap == 110.0 and c.player_health == 100.0,
+		"defaults: headshot +5, cap 110, start 100")
+	_check(not c.kill_reward_haste and not c.kill_reward_empowered and c.kill_reward_heal == 0.0
+		and c.kill_reward_armour == 0.0 and game.streak_rewards.is_empty() and float(game.drop_rules["health"]) == 0.0,
+		"every other kill reward is off by default")
+	_check(killer.health.health == 100.0 and killer.health.max_health == 100.0, "a player starts on 100")
+
+	_revive_victim(game, 951)
+	_kill_through_combat(game, 950, 951)
+	_check(killer.health.health == 100.0, "a body shot kill gives no health (%.0f)" % killer.health.health)
+
+	_revive_victim(game, 951)
+	_kill_through_combat(game, 950, 951, &"", true)
+	_check(killer.health.health == 105.0, "a headshot kill gives +5 (%.0f)" % killer.health.health)
+	_check(killer.health.max_health == 100.0 and killer.health.overheal_cap == 0.0,
+		"and leaves max health and the ordinary heal ceiling alone")
+	_check(game.effects == null or not game.effects.has(ArenaEffects.HASTE, 950), "and gives no haste")
+
+	_revive_victim(game, 952)
+	_kill_through_combat(game, 950, 952, &"", true)
+	_revive_victim(game, 951)
+	_kill_through_combat(game, 950, 951, &"", true)
+	_check(killer.health.health == 110.0, "headshots stop at the cap of 110 (%.0f)" % killer.health.health)
+
+	var healed := killer.health.heal(10.0)
+	_check(healed == 0.0 and killer.health.health == 110.0, "a pack heals nothing above max health")
+
+	c.max_health_cap = 0.0
+	_revive_victim(game, 951)
+	_kill_through_combat(game, 950, 951, &"", true)
+	_check(killer.health.health == 115.0, "a cap of 0 is unlimited (%.0f)" % killer.health.health)
+
+	c.max_health_cap = 110.0
+	c.headshot_heal = 0.0
+	killer.health.health = 100.0
+	_revive_victim(game, 951)
+	_kill_through_combat(game, 950, 951, &"", true)
+	_check(killer.health.health == 100.0, "headshot_heal 0 gives nothing")
+
+	c.kill_reward_heal = 20.0
+	c.kill_reward_armour = 30.0
+	c.kill_reward_haste = true
+	killer.health.health = 50.0
+	killer.health.max_armour = 100.0
+	killer.health.armour = 0.0
+	_revive_victim(game, 951)
+	_kill_through_combat(game, 950, 951)
+	_check(killer.health.health == 70.0 and killer.health.armour == 30.0, "kill_reward_heal and _armour give per kill (%.0f, %.0f)" % [killer.health.health, killer.health.armour])
+	if game.effects != null:
+		_check(game.effects.has(ArenaEffects.HASTE, 950), "kill_reward_haste gives haste")
+		_check(not game.effects.has(ArenaEffects.EMPOWERED, 950), "and empowered stays off")
 
 	remove_child(game)
 	game.queue_free()

@@ -296,7 +296,7 @@ var streaks: Dictionary = {}
 ## Streak -> what reaching it gives: `heal` (full health), `armour`, `haste`,
 ## `empowered` (more damage, a while). Set by `arena_streak_rewards` as "3:heal,5:haste";
 ## empty gives nothing. Applied on the kill that reaches the streak, server side.
-var streak_rewards: Dictionary = {3: "heal", 5: "haste", 7: "empowered"}
+var streak_rewards: Dictionary = {}
 
 ## A random-every-spawn loadout was handed to [param player_id]; [param text] names it. Authority side.
 signal loadout_rolled(player_id: int, text: String)
@@ -332,7 +332,7 @@ var medals := ArenaAwards.MedalBook.new()
 
 ## The server owner's drop rules (`arena_drop_*`), applied to every drops layer built.
 var drop_rules := {
-	"points": 5, "point_value": 1, "health": 25.0, "any_kill": false, "life": 10.0,
+	"points": 5, "point_value": 1, "health": 0.0, "any_kill": false, "life": 10.0,
 	"packs": true, "pack_health": 50.0, "pack_ammo": 50.0, "pack_respawn": 20.0,
 }
 

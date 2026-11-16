@@ -89,7 +89,7 @@ A critical is dot-combat's judgement (`DotDamage.critical`, a headshot by defaul
 
 ## Points out of a body
 
-A lethal critical drops points and a health pack. `ArenaDrops` is one `Node3D` on both ends. On the authority it holds one-shot `DotPickup`s in a `DotPickupField`, swept each tick after the player stack and before the match; only a hurt player takes a pack (`wants_fn`). On a client it holds drawn copies: DROP bursts one out of the body, TAKEN flies it to its taker. A client never takes its own pickups, and its point tally is counted from TAKEN. The rules live on `ArenaGame.drop_rules` so a map change keeps them (`arena_drop_*`); the scatter is seeded from the victim and the tick.
+A lethal critical drops points, and a health pack only when `arena_drop_health` is above 0 (default 0; the headshot health reward below replaced it). `ArenaDrops` is one `Node3D` on both ends. On the authority it holds one-shot `DotPickup`s in a `DotPickupField`, swept each tick after the player stack and before the match; only a hurt player takes a pack (`wants_fn`). On a client it holds drawn copies: DROP bursts one out of the body, TAKEN flies it to its taker. A client never takes its own pickups, and its point tally is counted from TAKEN. The rules live on `ArenaGame.drop_rules` so a map change keeps them (`arena_drop_*`); the scatter is seeded from the victim and the tick.
 
 The maps dm_box, dm_atrium and dm_pit also carry health and ammo packs (`ArenaMap.packs`), placed as `DotPickup`s in the same field and respawning after `arena_pack_respawn` seconds (20). `arena_packs 0` removes them, `arena_pack_health` is the heal (50) and `arena_pack_ammo` the percent of each weapon's reserve cap an ammo pack refills (50); a pack is taken only by someone who needs it. A joiner is told the packs that are out at signon, and a respawn is announced with a DROP.
 
@@ -99,7 +99,9 @@ An imported surf map with a jail (found by shape: a volume whose destination is 
 
 ## Kill streaks
 
-Counted on the server for rewards (`ArenaGame.streaks`). The meter reads the killer's streak from the server's AWARD and ends a victim's on their KILL (`ArenaHud.streaks`); a shutdown is judged on the streak the victim died with, before it is reset ([client](client.md#kill-feedback)). `arena_streak_rewards` is `streak:reward` pairs (`heal`, `armour`, `haste`, `empowered`), default `3:heal,5:haste,7:empowered`.
+Counted on the server for rewards (`ArenaGame.streaks`). The meter reads the killer's streak from the server's AWARD and ends a victim's on their KILL (`ArenaHud.streaks`); a shutdown is judged on the streak the victim died with, before it is reset ([client](client.md#kill-feedback)). `arena_streak_rewards` is `streak:reward` pairs (`heal`, `armour`, `haste`, `empowered`), default empty (off); `3:heal,5:haste,7:empowered` was the old default.
+
+**Kill rewards** (`ArenaGame._reward_kill`, server side, `ArenaConfig` group "Kill rewards", cfg `config_players`): the one default reward is `arena_headshot_heal` (5) health on a headshot kill. Players start on `arena_player_health` (100); only this reward may lift health above it, up to `arena_max_health_cap` (110; 0 is unlimited, a cap under start health is refused). Packs and the heal reward stop at the start health as before (the cap is set on `DotHealth.overheal_cap` for the one heal call). Per-kill extras, all off: `arena_kill_reward_heal`, `_armour`, `_haste`, `_empowered`. The HUD number shows health above 100 (the bar stays full); the wire carries health as an integer. `headless_match` checks the defaults, the cap, unlimited, and each extra.
 
 ## The end of a match
 

@@ -39,7 +39,7 @@ A match starts in warmup, counts down, then goes live. Nobody spawns until it is
 
 The weapons come from [fc-weapons](https://github.com/zees-games/fc-weapons): melee, sidearms, rifles, heavies and grenades, each with a view model, world model, sounds and recoil. A loadout is a melee weapon, a sidearm, a primary, a grenade and armour. All are free by default; a server can price weapons (`params.loadout_cost` in the weapon profile) and set a total with `mp_loadout_budget`. "Every spawn" next to Random rolls a new loadout at each spawn (`mp_loadout_random_on_spawn`).
 
-The server confirms every hit and kill. You see a hit marker, damage numbers, medals (First Blood, Headshot, Double, Triple and Multi Kill, Revenge, Shutdown, Point Blank, No Scope, Long Shot, Nemesis), a killstreak meter and the points for each kill. A headshot drops points and a health pack. Kill streaks earn rewards.
+The server confirms every hit and kill. You see a hit marker, damage numbers, medals (First Blood, Headshot, Double, Triple and Multi Kill, Revenge, Shutdown, Point Blank, No Scope, Long Shot, Nemesis), a killstreak meter and the points for each kill. A headshot kill gives its killer +5 health, up to 110. A critical kill drops points. Kill streaks and per-kill rewards (haste, empowered, health, armour) are available to server owners and off by default.
 
 **Stomp.** Landing on another player's head kills them and bounces you up. The server decides it, so it works under prediction. Cvars: `sv_stomp`, `sv_stomp_damage` (0 is a kill), `sv_stomp_min_speed`, `sv_stomp_head_tolerance`, `sv_stomp_same_team` (off by default), `sv_stomp_bounce`, `sv_stomp_cooldown`.
 
@@ -113,7 +113,11 @@ Settings are cvars. Set them in the server config, on the command line, or live 
 | `arena_minplayers` | 1 | Players needed before a round starts |
 | `arena_spawn_mode` | `avoid` | `avoid`, `weighted`, `furthest` or `random` |
 | `arena_team_spawn_split` | 1 | Team mode on a map with no team spawns: cut the spawns into two halves, one per team (0 is one shared pool) |
-| `arena_streak_rewards` | empty | Kill streak rewards as `streak:reward` pairs (heal, armour, haste, empowered) |
+| `arena_streak_rewards` | empty | Kill streak rewards as `streak:reward` pairs (heal, armour, haste, empowered), e.g. `3:heal,5:haste,7:empowered` |
+| `arena_headshot_heal` | 5 | Health a headshot kill gives its killer; 0 for none |
+| `arena_max_health_cap` | 110 | Most health a headshot reward lifts a player to (start health stays `arena_player_health`, 100); 0 is unlimited |
+| `arena_kill_reward_heal`, `arena_kill_reward_armour` | 0 | Health or armour every kill gives |
+| `arena_kill_reward_haste`, `arena_kill_reward_empowered` | 0 | Every kill gives haste (speed) or empowered (damage) for a while |
 | `arena_loadout_roll_text` | 0 | Print "Random loadout: ..." when a loadout rolls at spawn |
 | `cl_respawn_jump_gate` | 1 | Client: a Space that skipped the kill view does not jump on respawn until released |
 | `arena_imported_rotation` | `all` | Combat surf maps in the rotation: `all`, `none`, or ids |

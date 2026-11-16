@@ -47,6 +47,7 @@ func _run() -> void:
 	await _test_lag_compensation_stance()
 	await _test_launch_inside_team_mate()
 	await _test_streaks()
+	await _test_kill_rewards()
 	_test_medal_rules()
 	await _test_medals_from_a_game()
 	await _test_toys()

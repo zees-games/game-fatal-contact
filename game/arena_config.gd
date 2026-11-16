@@ -6,7 +6,7 @@ extends DotConfig
 ## `@export_group` -> the cfg file it lives in: `cfg/game/game-arena/config_<file>/game.yml`.
 const ArenaContent := preload("arena_content.gd")
 const CFG_FILES := {
-	"Horde": "horde", "Players": "players", "Stomp": "players", "Match": "match", "Bots": "match", "Awards": "awards", "Surf": "surf", "Simulation": "match",
+	"Horde": "horde", "Players": "players", "Kill rewards": "players", "Stomp": "players", "Match": "match", "Bots": "match", "Awards": "awards", "Surf": "surf", "Simulation": "match",
 }
 
 
@@ -55,6 +55,8 @@ func cli_prefix() -> String:
 func validate() -> DotResult:
 	if horde_spawn_max_distance <= horde_spawn_min_distance:
 		return DotResult.fail(DotError.CODE_INVALID, "horde_spawn_max_distance must exceed horde_spawn_min_distance")
+	if max_health_cap > 0.0 and max_health_cap < player_health:
+		return DotResult.fail(DotError.CODE_INVALID, "max_health_cap must be 0 (unlimited) or at least player_health")
 	return DotResult.success(null)
 
 
@@ -82,6 +84,25 @@ func validate() -> DotResult:
 
 ## Metres in a map unit. 0.01905 is the scale imported maps are drawn at, so a 72 unit player is 1.37 m beside a 2.13 m door; 0.0254 makes the player 1.83 m but 96 map units tall.
 @export_range(0.005, 0.1, 0.00005) var avatar_unit_metres: float = 0.01905
+
+@export_group("Kill rewards")
+## Health a headshot kill gives its killer (default 5). 0 gives none.
+@export_range(0.0, 1000.0, 1.0) var headshot_heal: float = 5.0
+
+## Most health a headshot's reward may lift a player to; a player spawns on [member player_health]. 0 is unlimited. Other healing still stops at [member player_health].
+@export_range(0.0, 10000.0, 1.0) var max_health_cap: float = 110.0
+
+## Health every kill gives its killer, on top of a headshot's (default off).
+@export_range(0.0, 1000.0, 1.0) var kill_reward_heal: float = 0.0
+
+## Armour every kill gives its killer (default off).
+@export_range(0.0, 1000.0, 1.0) var kill_reward_armour: float = 0.0
+
+## Every kill gives its killer haste (a speed boost for a while; default off).
+@export var kill_reward_haste: bool = false
+
+## Every kill gives its killer empowered (more damage for a while; default off).
+@export var kill_reward_empowered: bool = false
 
 @export_group("Stomp")
 ## Landing on a player's head hurts them.

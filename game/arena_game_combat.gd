@@ -233,6 +233,29 @@ func _reward_streak(player_id: int, streak: int, reward: String) -> void:
 
 	streak_reward.emit(player_id, streak, reward)
 
+## What a kill gives [param killer_id] by the `config` rules: [member ArenaConfig.headshot_heal] on a
+## headshot (up to [member ArenaConfig.max_health_cap], 0 for no cap), then the per-kill rewards
+## (`kill_reward_*`), all off but the headshot's by default. Authority side.
+func _reward_kill(killer_id: int, headshot: bool) -> void:
+	var killer := player_for(killer_id)
+	if killer == null or not killer.is_alive() or killer.health == null:
+		return
+	if headshot and config.headshot_heal > 0.0:
+		var health: DotHealth = killer.health
+		var cap := config.max_health_cap if config.max_health_cap > 0.0 else 1.0e9
+		var was := health.overheal_cap
+		health.overheal_cap = maxf(cap, health.max_health)
+		var _landed := health.heal(config.headshot_heal, killer_id)
+		health.overheal_cap = was
+	if config.kill_reward_heal > 0.0:
+		var _h := killer.health.heal(config.kill_reward_heal, killer_id)
+	if config.kill_reward_armour > 0.0:
+		killer.health.add_armour(config.kill_reward_armour)
+	if effects != null and config.kill_reward_haste:
+		var _r := effects.apply(ArenaEffects.HASTE, killer_id)
+	if effects != null and config.kill_reward_empowered:
+		var _r2 := effects.apply(ArenaEffects.EMPOWERED, killer_id)
+
 ## The medal thresholds from [member config], before each judgement so a workbench edit counts.
 func _sync_award_config() -> void:
 	medals.multi_window_sec = config.award_multi_window_sec
@@ -395,6 +418,10 @@ func _on_entity_killed(entity_id: int, damage: DotDamage) -> void:
 		streaks[damage.attacker] = streak
 		if streak_rewards.has(streak):
 			_reward_streak(damage.attacker, streak, String(streak_rewards[streak]))
+
+	# The kill rewards: a headshot's health and whatever per-kill rewards the server turned on.
+	if is_authority and damage.attacker != 0 and damage.attacker != entity_id:
+		_reward_kill(damage.attacker, damage.is_headshot())
 
 	# Gun game: the killer's score just went up, so their weapon moves along the list.
 	if is_authority and mode != null and not mode.gun_game.is_empty() and damage.attacker != 0:

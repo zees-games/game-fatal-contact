@@ -592,6 +592,7 @@ func _test_drops() -> void:
 	game.register_service = false
 	add_child(game)
 
+	game.drop_rules["health"] = 25.0  # the pack is off by default; this check is about it
 	var ready := game.setup(ArenaMap.dm_box())
 	if not _check(ready.ok, "a drops game sets up", str(ready.error)):
 		remove_child(game)
