@@ -392,13 +392,29 @@ func _add_bot_engine_cvars() -> void:
 func _add_grenade_cvars() -> void:
 	if not game.ArenaGrenades.supported():
 		return
-	var _made := game.grenades_rules.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
+	# Replicated: a client flies its own copy of every grenade and has to bounce it the server's way.
+	var replicated := DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	var _made := game.grenades_rules.bind_cvars(add_cvar, replicated)
+	_add_rocket_cvars(replicated)
 	add_cvar("sv_grenade_utility", "1" if game.utility_grenades else "0",
 		"1 lets players pick flash, smoke and incendiary grenades in the loadout menu",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			game.utility_grenades = new_value.to_float() != 0.0
 			log_info("utility grenades changed", {"on": game.utility_grenades}))
+
+
+## `sv_rocket_*` (fc-weapons' `AwRocketRules`, level 27): the single-missile launcher's tube and blast and the
+## Rocketjump warhead. Replicated, so a client's launcher and warhead carry the same numbers; every change is put
+## back on the shared catalogues.
+func _add_rocket_cvars(flags: int) -> void:
+	var rules: Object = game.rocket_rules
+	if rules == null:
+		return
+	var _made: Array = rules.call(&"bind_cvars", add_cvar, flags)
+	if not rules.is_connected(&"changed", game.apply_rocket_rules):
+		rules.connect(&"changed", game.apply_rocket_rules)
+	game.apply_rocket_rules()
 
 
 ## `sv_maxrate`: bytes a second each client may be sent, 0 for no cap (the default).

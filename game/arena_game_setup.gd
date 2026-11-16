@@ -341,6 +341,12 @@ func follow_server_cvars(source: Object) -> bool:
 	var _killview := killview_rules.follow_cvars(source)
 	var _mobile := mobile_rules.follow_cvars(source)
 	var _shots := shot_rules.follow_cvars(source)
+	var _grenades := grenades_rules.follow_cvars(source)
+	if rocket_rules != null:
+		var _rockets: bool = rocket_rules.call(&"follow_cvars", source)
+		if not rocket_rules.is_connected(&"changed", apply_rocket_rules):
+			rocket_rules.connect(&"changed", apply_rocket_rules)
+		apply_rocket_rules()
 	var _ambient := ambient_rules.follow_cvars(source)
 	var _spectate := spectate_rules.follow_cvars(source)
 	var _solid := body_rules.follow_cvars(source)

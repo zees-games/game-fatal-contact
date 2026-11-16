@@ -1,5 +1,7 @@
 extends RefCounted
 
+const ArenaRocketJump := preload("arena_rocket_jump.gd")
+
 ## Rockets and grenades in flight, and what happens where they land.
 ##
 ## [b]This is new, and the reason it is new is a bug.[/b] The rocket launcher used to be
@@ -50,9 +52,14 @@ class Flying extends RefCounted:
 	## Every team-mate's body is left out for the whole flight, not only the ones it was
 	## launched inside: the server's `mp_teammate_passthrough 2`. See [method ArenaProjectiles._passes_every_team_mate].
 	var pass_all: bool = false
+	## The fitted def that fired it, on the authority ([member ArenaProjectiles.def_of]); null elsewhere.
+	## What says a missile carries the Rocketjump warhead.
+	var def: DotWeaponDef = null
 
 
-## How much speed a fused grenade keeps off a bounce, into the surface and along it.
+## How much speed a fused grenade keeps off a bounce, into the surface and along it, when there are no
+## [member grenade_rules] or fc-weapons is below level 27: the fallback. With them, `sv_grenade_bounce` and
+## `sv_grenade_friction` decide.
 ##
 ## Low into it, because a grenade that comes back off a wall at the speed it went in reads
 ## as rubber; higher along it, so it still rolls into a room rather than dropping dead at
@@ -60,10 +67,11 @@ class Flying extends RefCounted:
 const RESTITUTION := 0.35
 const SURFACE_KEEP := 0.7
 
-## Below this it stops on a floor rather than hopping on the spot. Metres per second.
+## Below this it stops on a floor rather than hopping on the spot. Metres per second. FC's default for
+## `sv_grenade_rest_speed`.
 const REST_SPEED := 1.2
 
-## Bounces before it simply stops. A grenade wedged in a corner otherwise bounces between
+## Bounces before it simply stops; FC's default for `sv_grenade_max_bounces` (0 there = unlimited). A grenade wedged in a corner otherwise bounces between
 ## two walls for its whole fuse, and a sweep per bounce is a sweep per tick.
 const MAX_BOUNCES := 12
 
@@ -72,6 +80,10 @@ const MAX_BOUNCES := 12
 ## Longer, because a grenade lobbed while running forward is overtaken by its thrower's
 ## own hull on the second or third tick, and then bounces off their face.
 const THROWER_GRACE_SEC := 0.12
+
+## How far off the surface it struck an impact goes off, in metres: enough that the splash's line-of-sight rays
+## start in the air (see [method _off_surface]).
+const IMPACT_LIFT := 0.05
 
 
 var _live: Array[Flying] = []
@@ -87,6 +99,21 @@ var catalogue: DotWeaponCatalogue = null
 ## Where an entity's shots really start, or null: the game's answer, for
 ## [method _detonate]. See there for why a projectile layer has to ask.
 var origin_of: Callable = Callable()
+
+## `sv_grenade_*`: how a fused grenade bounces, rolls and stops (fc-weapons' `AwGrenade` bounce helpers, level 27).
+## Null, or an older fc-weapons, keeps the constants above.
+var grenade_rules: AwGrenadeRules = null
+
+## `sv_rocket_*` (`AwRocketRules`, level 27), or null: the Rocketjump's self-damage and launch.
+var rocket_rules: RefCounted = null
+
+## The fitted def an entity is firing, `func(spawn) -> DotWeaponDef`, or invalid: read once at launch on the
+## authority, so a missile knows it carries the Rocketjump warhead.
+var def_of: Callable = Callable()
+
+## Throws a shooter off their own blast, `func(entity_id, def, at) -> void`, or invalid. Called on the authority
+## after a launcher's missile has resolved its splash.
+var launch_owner: Callable = Callable()
 
 ## Emitted where a projectile went off, for an effect and a sound.
 signal detonated(at: Vector3, spawn: DotWeaponSpawn)
@@ -115,6 +142,8 @@ func launch(spawn: DotWeaponSpawn) -> void:
 	f.explodes = _explodes(spawn)
 	f.passes = _passes_at_launch(spawn)
 	f.pass_all = _passes_every_team_mate()
+	if def_of.is_valid() and _combat != null and _combat.is_authority:
+		f.def = def_of.call(spawn)
 	_live.append(f)
 	launched.emit(spawn)
 
@@ -227,13 +256,16 @@ func tick(delta: float) -> void:
 			if f.spawn.gravity_scale > 0.0:
 				f.velocity.y -= _gravity * f.spawn.gravity_scale * delta
 
+			if f.spawn.fuse_ticks > 0 and _bounce_helpers() and grenade_rules.damping > 0.0:
+				f.velocity *= float(_grenade_script.call(&"damp_factor", grenade_rules, delta))
+
 			var step := f.velocity * delta
 			var hit := _sweep(f, step)
 
 			if hit == null:
 				f.position += step
 			elif f.spawn.fuse_ticks <= 0 or f.explodes:
-				_detonate(f, hit.point)
+				_detonate(f, _off_surface(hit))
 				_live.remove_at(i)
 				continue
 			else:
@@ -242,6 +274,17 @@ func tick(delta: float) -> void:
 		if f.age_ticks >= f.spawn.life_ticks:
 			_detonate(f, f.position)
 			_live.remove_at(i)
+
+
+## Where an impact goes off: [param hit]'s point, lifted [constant IMPACT_LIFT] off the surface it struck.
+##
+## [b]A rocket into the floor hurt nobody.[/b] Splash needs a line of sight from the blast to each body, and a ray
+## that starts exactly on the floor is blocked by that floor: a missile at somebody's feet did no splash at all,
+## the shooter's included. Found by the first check that fired one at the floor and asked the health.
+func _off_surface(hit: DotHitbox.Hit) -> Vector3:
+	if hit.normal == Vector3.ZERO:
+		return hit.point
+	return hit.point + hit.normal.normalized() * IMPACT_LIFT
 
 
 ## Whether [param f] goes off this tick without touching anything.
@@ -277,15 +320,39 @@ func _touch(f: Flying, hit: DotHitbox.Hit) -> void:
 			f.stuck_offset = f.position - body.global_position
 		return
 
-	var into := f.velocity.dot(normal)
-	var along := f.velocity - normal * into
-	f.velocity = along * SURFACE_KEEP - normal * into * RESTITUTION
 	f.bounces += 1
+	var on_floor := normal.y > 0.7
+	var stops := false
+
+	if _bounce_helpers():
+		f.velocity = _grenade_script.call(&"bounce_velocity", f.velocity, normal, grenade_rules)
+		# Slow stops it on a floor only: a grenade crawling down a wall still falls.
+		var cap := int(grenade_rules.max_bounces)
+		stops = bool(_grenade_script.call(&"settles", f.velocity, f.bounces, grenade_rules)) if on_floor \
+			else (cap >= 1 and f.bounces >= cap)
+	else:
+		var into := f.velocity.dot(normal)
+		var along := f.velocity - normal * into
+		f.velocity = along * SURFACE_KEEP - normal * into * RESTITUTION
+		stops = (on_floor and f.velocity.length() < REST_SPEED) or f.bounces >= MAX_BOUNCES
 
 	# Stops on a floor once it is slow, or anywhere once it has bounced enough.
-	if (normal.y > 0.7 and f.velocity.length() < REST_SPEED) or f.bounces >= MAX_BOUNCES:
+	if stops:
 		f.velocity = Vector3.ZERO
 		f.resting = true
+
+
+## fc-weapons' `AwGrenade` with its bounce helpers, loaded once; static so every map's layer shares it.
+static var _grenade_script: Script = null
+
+
+## Whether the bounce comes from [member grenade_rules] through `AwGrenade`'s helpers (level 27).
+func _bounce_helpers() -> bool:
+	if grenade_rules == null or DotAddonApi.build_level("arena_weapons") < ArenaRocketJump.MIN_LEVEL:
+		return false
+	if _grenade_script == null:
+		_grenade_script = load("res://addons/arena_weapons/aw_grenade.gd") as Script
+	return _grenade_script != null
 
 
 ## Keeps a stuck projectile on the body it stuck to.
@@ -363,6 +430,14 @@ func _detonate(f: Flying, at: Vector3) -> void:
 		shot.damage = 0.0
 		shot.damage_type = f.spawn.damage_type
 		shot.splash_type = f.spawn.damage_type
+		var rocketjump := f.spawn.fuse_ticks <= 0 and ArenaRocketJump.is_rocketjump(f.def) and rocket_rules != null
+
+		# The Rocketjump's own blast hurts its shooter by `sv_rocket_jump_self_damage_scale` of the usual.
+		if rocketjump:
+			var base: DotDamageType = shot.splash_type if shot.splash_type != null else _combat.damage_type(&"")
+			shot.splash_type = ArenaRocketJump.self_scaled_type(
+				base, ArenaRocketJump.self_damage_scale(f.def, rocket_rules)
+			)
 		shot.splash_radius = f.spawn.splash_radius
 		shot.splash_damage = f.spawn.splash_damage
 		shot.splash_hurts_owner = true
@@ -391,6 +466,11 @@ func _detonate(f: Flying, at: Vector3) -> void:
 
 		if eye is Vector3:
 			_combat.set_authoritative_origin(f.spawn.owner_entity, eye)
+
+		# A launcher's missile throws its own shooter: the Rocketjump always, a plain one by
+		# `sv_rocket_plain_jump_scale` (0 = never, which `AwRocketJump` answers by leaving them be).
+		if f.spawn.fuse_ticks <= 0 and f.def != null and rocket_rules != null and launch_owner.is_valid():
+			launch_owner.call(f.spawn.owner_entity, f.def, at)
 
 	detonated.emit(at, f.spawn)
 

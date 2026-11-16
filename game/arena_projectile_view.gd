@@ -11,14 +11,18 @@ const ArenaProjectiles := preload("arena_projectiles.gd")
 ## entry; it writes nothing back, so dropping it changes no outcome.
 ##
 ## A grenade is its own model from fc-weapons' art table, turned and scaled the way
-## the pack draws it in a hand. The launcher's round has no model in the kit worth the
-## name at this size, so it is a small hot sphere with a light, which is also what reads
-## at forty metres. On a networked client the list is the copies the server's LAUNCH
+## the pack draws it in a hand. A launcher's round is the launcher's own missile
+## (`AwMissileArt`, fc-weapons level 27) with a glow at its tail; anything without one, or
+## an older pack, is a small hot sphere with a light, which is also what reads at forty metres. On a networked client the list is the copies the server's LAUNCH
 ## events started, flown by `ArenaNetBridge.client_tick`.
 
 ## The round's radius in metres, and its glow.
 const ROUND_RADIUS := 0.11
 const ROUND_COLOUR := Color(1.0, 0.62, 0.22)
+
+## fc-weapons' per-launcher missile art and the level that has it.
+const MISSILE_ART := "res://addons/arena_weapons/art/aw_missile_art.gd"
+const MISSILE_LEVEL := 27
 
 ## A grenade's fuse light.
 const FUSE_COLOUR := Color(1.0, 0.18, 0.12)
@@ -32,6 +36,18 @@ var _drawn: Dictionary = {}
 
 var _round_mesh: SphereMesh = null
 var _round_material: StandardMaterial3D = null
+var _missile_art: Script = null
+## Weapon id -> a built missile kept off the tree to copy, or null for one that could not be built.
+var _missiles: Dictionary = {}
+
+
+func _notification(what: int) -> void:
+	# The kept missiles are off the tree, so nothing else frees them.
+	if what == NOTIFICATION_PREDELETE:
+		for template: Variant in _missiles.values():
+			if template != null:
+				(template as Node).free()
+		_missiles.clear()
 
 
 func _ready() -> void:
@@ -89,6 +105,13 @@ func _make(f: ArenaProjectiles.Flying) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Projectile"
 
+	# A launcher's own missile (fc-weapons level 27), nose along the flight: the shot reads as the weapon fired it.
+	var missile := _missile(f.spawn.id)
+	if missile != null:
+		root.add_child(missile)
+		root.add_child(_fuse_light() if f.spawn.fuse_ticks > 0 else _exhaust_light())
+		return root
+
 	var art: Variant = AwWeaponArtTable.table().get(f.spawn.id)
 
 	if f.spawn.fuse_ticks > 0 and art is AwWeaponVisual and (art as AwWeaponVisual).has_model():
@@ -106,6 +129,35 @@ func _make(f: ArenaProjectiles.Flying) -> Node3D:
 
 	root.add_child(_round())
 	return root
+
+
+## fc-weapons' `AwMissileArt` model for [param weapon_id], or null: below level 27, for a weapon without a
+## missile of its own, or when its model is not loaded. Reached by path; FC's floor is below 27.
+func _missile(weapon_id: StringName) -> Node3D:
+	if DotAddonApi.build_level("arena_weapons") < MISSILE_LEVEL:
+		return null
+	if _missile_art == null:
+		_missile_art = load(MISSILE_ART) as Script
+	if _missile_art == null or not bool(_missile_art.call(&"has_missile", weapon_id)):
+		return null
+	# Built once per weapon and copied: building one instances the whole launcher model to take its missile.
+	if not _missiles.has(weapon_id):
+		var built: Variant = _missile_art.call(&"build", weapon_id)
+		_missiles[weapon_id] = built if built is Node3D else null
+	var template: Node3D = _missiles[weapon_id]
+	return template.duplicate() as Node3D if template != null else null
+
+
+## The motor's glow behind a flying missile: the hot round's light, moved to its tail.
+func _exhaust_light() -> OmniLight3D:
+	var light := OmniLight3D.new()
+	light.name = "Exhaust"
+	light.light_color = ROUND_COLOUR
+	light.light_energy = 1.6
+	light.omni_range = 4.0
+	light.position = Vector3(0.0, 0.0, 0.45)
+	light.shadow_enabled = false
+	return light
 
 
 ## A lit fuse: a small red light on a grenade.

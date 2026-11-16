@@ -25,6 +25,8 @@ const ArenaProgress := preload("arena_progress.gd")
 const ArenaStats := preload("arena_stats.gd")
 const ArenaProjectiles := preload("arena_projectiles.gd")
 const ArenaGrenades := preload("arena_grenades.gd")
+const ArenaRocketJump := preload("arena_rocket_jump.gd")
+const ArenaAttach := preload("arena_attach.gd")
 const ArenaDrops := preload("arena_drops.gd")
 const ArenaJailView := preload("arena_jail_view.gd")
 const ArenaProps := preload("arena_props.gd")
@@ -249,8 +251,12 @@ var projectiles: ArenaProjectiles = null
 signal grenade_effect(info: Dictionary)
 
 var grenades: ArenaGrenades = null
-## `sv_grenade_*`, kept across maps so a cvar bound once survives a rebuild.
-var grenades_rules := AwGrenadeRules.new()
+## `sv_grenade_*`, kept across maps so a cvar bound once survives a rebuild. Also how the projectile layer bounces
+## a fused grenade (fc-weapons level 27), on the server and on a client flying its copy.
+var grenades_rules := _fc_grenade_rules()
+## `sv_rocket_*` (fc-weapons' `AwRocketRules`, level 27; null below): the single-missile launcher's tube and blast
+## and the Rocketjump warhead. Kept across maps, like the grenade rules.
+var rocket_rules: RefCounted = ArenaRocketJump.make_rules()
 ## The jail glass rule (`sv_glass_block_*`), kept across maps; takes the cell of each map as it loads and is inert on one without.
 var glass_rules := DotMapGlassSight.new()
 ## `sv_grenade_utility`: whether the utility grenades can be picked in a loadout.
@@ -651,3 +657,17 @@ static func parse_streak_rewards(text: String) -> Dictionary:
 		if bits.size() == 2 and bits[0].is_valid_int() and int(bits[0]) > 0:
 			out[int(bits[0])] = bits[1].strip_edges()
 	return out
+
+
+## `AwGrenadeRules` with FC's own stop rules as the defaults of `sv_grenade_rest_speed` (1.2 m/s) and
+## `sv_grenade_max_bounces` (12): what `ArenaProjectiles` always did. Set by name, since both fields are level 27.
+static func _fc_grenade_rules() -> AwGrenadeRules:
+	var rules := AwGrenadeRules.new()
+	rules.set(&"rest_speed", ArenaProjectiles.REST_SPEED)
+	rules.set(&"max_bounces", float(ArenaProjectiles.MAX_BOUNCES))
+	return rules
+
+
+## Re-applies `sv_rocket_*` to the shared weapon and attachment catalogues: on bind and on every change.
+func apply_rocket_rules() -> void:
+	ArenaRocketJump.apply_rules(rocket_rules, ArenaPlayer.weapon_catalogue(), ArenaAttach.catalogue())

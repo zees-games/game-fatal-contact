@@ -83,6 +83,15 @@ func _build_bullets() -> void:
 		add_child(tracers)
 	tracers.follow(bullet_bridge.bullets)
 
+## The fitted def that fired [param spawn]: its owner's weapon in hand, when that is the one it came from.
+## What tells the projectile layer a missile carries the Rocketjump warhead.
+func _fired_def(spawn: DotWeaponSpawn) -> DotWeaponDef:
+	var shooter := player_for(spawn.owner_entity)
+	if shooter == null or shooter.arsenal == null:
+		return null
+	var def := shooter.arsenal.current_def()
+	return def if def != null and def.id == spawn.id else null
+
 ## Flash, smoke and incendiary effects: server only, and only on an arena_weapons that has them.
 func _build_grenades() -> void:
 	grenades = null
@@ -491,6 +500,12 @@ func _build_combat() -> DotResult:
 	projectiles.origin_of = func(entity_id: int) -> Variant:
 		var thrower := player_for(entity_id)
 		return thrower.muzzle_position() if thrower != null else null
+	projectiles.grenade_rules = grenades_rules
+	projectiles.rocket_rules = rocket_rules
+	if rocket_rules != null:
+		projectiles.def_of = _fired_def
+		projectiles.launch_owner = func(entity_id: int, def: DotWeaponDef, at: Vector3) -> void:
+			var _pushed := ArenaRocketJump.launch(player_for(entity_id), def, rocket_rules, at)
 
 	_build_grenades()
 
