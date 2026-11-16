@@ -747,11 +747,15 @@ func _present_health_tag(delta: float) -> void:
 	var friend := TagRules.is_teammate(player_id, team)
 	if show:
 		var hurt := _hurt_age < HEALTH_TAG_SEC
-		var hovered := TagRules.needs_hover(TagRules.client_bars, TagRules.server_bars) \
-			or TagRules.needs_hover(TagRules.client_names, TagRules.server_names)
-		hovered = hovered and _under_cursor(camera_now)
-		bar = TagRules.shows(TagRules.client_bars, TagRules.server_bars, friend, hovered, hurt)
-		named = TagRules.shows(TagRules.client_names, TagRules.server_names, friend, hovered, false)
+		bar = TagRules.shows(TagRules.client_bars, TagRules.server_bars, friend, false, hurt)
+		named = TagRules.shows(TagRules.client_names, TagRules.server_names, friend, false, false)
+		# The cursor test (a ray, and the sums before it) only where being under the cursor could still add a bar or a
+		# name: a team-mate's tag or a hurt body's bar is shown already, and hovering never hides anything.
+		if ((not bar and TagRules.needs_hover(TagRules.client_bars, TagRules.server_bars))
+				or (not named and TagRules.needs_hover(TagRules.client_names, TagRules.server_names))) \
+				and _under_cursor(camera_now):
+			bar = TagRules.shows(TagRules.client_bars, TagRules.server_bars, friend, true, hurt)
+			named = TagRules.shows(TagRules.client_names, TagRules.server_names, friend, true, false)
 	if not (bar or named):
 		if _health_tag != null:
 			_health_tag.visible = false
