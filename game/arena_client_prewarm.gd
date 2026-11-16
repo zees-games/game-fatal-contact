@@ -6,7 +6,7 @@ extends "arena_client_vars.gd"
 const ArenaLoadTimeline := preload("arena_load_timeline.gd")
 
 ## Whether the local weapon draws its own shot. True on a client shell carrying a
-## arena-weapons with `AwShotFx`; through `has_method`, because an older shell's copy
+## fc-weapons with `AwShotFx`; through `has_method`, because an older shell's copy
 ## of the rig has no `shot_fx` and a call by name would not compile there.
 func weapon_draws_shots() -> bool:
 	if player == null or player.weapons == null or not player.weapons.has_method(&"shot_fx"):

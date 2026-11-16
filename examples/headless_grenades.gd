@@ -78,7 +78,7 @@ func _gather(game: ArenaGame, ids: Array, together: Array, here: Vector3) -> voi
 
 
 func _run() -> void:
-	_check(ArenaGrenades.supported(), "arena_weapons is at the level the glue needs", str(DotAddonApi.build_level("arena_weapons")))
+	_check(ArenaGrenades.supported(), "fc_weapons is at the level the glue needs", str(DotAddonApi.build_level("fc_weapons")))
 	_test_wire()
 
 	var game := ArenaGame.new()

@@ -2,7 +2,7 @@
 
 The reference game: a 3D deathmatch in six kinds of mode on three built-in maps and fc-surf-dm-maps' combat surf maps (delivered, not shipped), with bots and fc-weapons, over dot-net, as a signed dot-cloud pack: the only test of the joins between the addons.
 
-The game is **Zee's Fatal Contact** (it was Arena; the repository was game-arena). **Wire and storage ids keep the old name on purpose**: the pack id `gamemann/game-arena` and publish id `game-arena`, the cfg game id `game-arena` (`cfg/game/game-arena/`), the site app slug `arena` until the owner runs website-city's slug migration, the dot-server-deploy former id `arena` (the pack is `fatalcontact` there now; `arena` still answers `--game` and `sv_game`), the `Arena` node names, the `Arena*` class and `arena_*` file names, `arena_*` cvars and commands, `arena-player-%08d` keys and suite names. Change one only together with dot-server-deploy, website-city and dot-cloud. `config/name` is "Fatal Contact" and the user folder is `game-fatal-contact` (`~/.local/share/game-fatal-contact`, `%APPDATA%\game-fatal-contact`); the first run copies the old `app_userdata/game-arena` folder in (`game/arena_user_dir.gd`).
+The game is **Zee's Fatal Contact** (it was Arena; the repository was game-arena). **Wire and storage ids keep the old name on purpose**: the pack id `gamemann/game-arena` and publish id `game-arena`, the cfg game id `game-arena` (`cfg/game/game-arena/`), the site app slug `arena` until the owner runs website-city's slug migration, the dot-server-deploy former id `arena` (the pack is `fatalcontact` there now; `arena` still answers `--game` and `sv_game`), the `Arena` node names, the `Arena*` class and `arena_*` file names, `arena-player-%08d` keys and suite names. Change one only together with dot-server-deploy, website-city and dot-cloud. **Console names are `fc_*`** (cvars, commands, config profile keys); the map change is dot-map's `map` and `maps`. A new console name never starts with `arena_`: the old names are only hidden shims that log an ERR naming the new one (`game/arena_renamed_names.gd`, removed after one release; `headless_console_names` checks it). `config/name` is "Fatal Contact" and the user folder is `game-fatal-contact` (`~/.local/share/game-fatal-contact`, `%APPDATA%\game-fatal-contact`); the first run copies the old `app_userdata/game-arena` folder in (`game/arena_user_dir.gd`).
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to this game. **The detail is in [docs/](docs/README.md)**.
 
@@ -100,7 +100,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 **Modes and the round**
 
-- Wall run, jump and slide are on (`arena_wall_*`, in RULES); `wall_run_auto` starts a run on touching a wall in the air and a press wall-jumps; `wall_run_min_speed` (the no-press run) stays above `max_speed`. [modes](docs/modes.md#movement-is-a-games-choice)
+- Wall run, jump and slide are on (`fc_wall_*`, in RULES); `wall_run_auto` starts a run on touching a wall in the air and a press wall-jumps; `wall_run_min_speed` (the no-press run) stays above `max_speed`. [modes](docs/modes.md#movement-is-a-games-choice)
 - Modes are `ArenaMode` resources; `team_count` and `team_based` must agree; the rules are duplicated before use. [modes](docs/modes.md#modes-are-data)
 - Build the team manager before `add_child(match_node)`; assign `resolver.team_of` after `add_child(combat)`. [modes](docs/modes.md#modes-are-data)
 - Whether there are sides is the mode's answer (`is_team_mode()`), not the team manager's. [modes](docs/modes.md#modes-are-data)
@@ -126,7 +126,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - A built-in map's light is its `lighting` document; render a look change under `gl_compatibility` too. [maps](docs/maps.md#colour-and-light)
 - An imported map is lit from its manifest (`imported_profile`), a built-in map with `painted()` (dot-lighting 3). [imported](docs/imported-maps.md#lit-from-the-manifest)
 - A guard on a host addon's level needs that addon in `requires.floor.json` at the older path's level. [client](docs/client.md#keys)
-- `arena_weapons` is the whole weapon runtime (its `Aw*` classes are named directly), so `requires.floor.json` carries it at level 8, the level that brought the runtime into the pack; no other weapon addon is linked.
+- `fc_weapons` is the whole weapon runtime (its `Aw*` classes are named directly), so `requires.floor.json` carries it at level 8, the level that brought the runtime into the pack; no other weapon addon is linked.
 - An imported map's solid is in the tree on every machine before any player is bodied; spawns are settled. [imported](docs/imported-maps.md#the-solid-is-the-games-on-every-machine)
 - Bots route on an imported map over a `DotBotNav` baked in the background, never in the tick. [imported](docs/imported-maps.md#bots-route-over-a-mesh-baked-from-the-brushes)
 - Ride edges are planned by `tools/surf_rides.tscn`, never at load; `arena_surf.gd` loads by path only with dot-bot 4, dot-player-controller 3. [imported](docs/imported-maps.md#bots-ride-the-ramps)

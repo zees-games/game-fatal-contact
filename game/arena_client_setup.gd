@@ -112,7 +112,7 @@ func _apply_launch_art() -> void:
 	# in that one frame (~66 ms of the 117 ms worst frame with 15 bots). Past ~4 ms a
 	# frame the rest wait for the next frames; presentation only, the shot never reads it.
 	# Set through the script so an fc-weapons before level 22 still parses.
-	if DotAddonApi.build_level("arena_weapons") >= 22:
+	if DotAddonApi.build_level("fc_weapons") >= 22:
 		(AwWorldModel as Script).set(&"equip_budget_usec", 4000)
 
 ## Part of [method _ready].
@@ -186,7 +186,7 @@ func _setup_interface_and_net() -> void:
 			_bind_host_console()
 	ArenaLoadTimeline.mark("setup: netcode built")
 
-	# The server's arena_ambient* (a link tells them) drive the quiet layer; the player's sliders multiply on top.
+	# The server's fc_ambient* (a link tells them) drive the quiet layer; the player's sliders multiply on top.
 	if presentation != null and presentation.ambient != null:
 		presentation.ambient.follow_settings(presentation.settings, game.ambient_rules)
 	if presentation != null:

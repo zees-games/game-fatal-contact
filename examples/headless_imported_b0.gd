@@ -38,12 +38,12 @@ func _test_surf_movement() -> void:
 
 	_game.set_movement_rules({"surf_air_accelerate": 400.0})
 	_check(is_equal_approx(player.controller.tunables.air_accelerate, 400.0),
-		"arena_surf_airaccelerate reaches a player on the map (%.0f)" % player.controller.tunables.air_accelerate)
+		"fc_surf_airaccelerate reaches a player on the map (%.0f)" % player.controller.tunables.air_accelerate)
 
 	_game.set_movement_rules({"surf": 0.0})
 	_check(is_equal_approx(player.controller.tunables.air_accelerate, arena.air_accelerate)
 		and is_equal_approx(player.controller.tunables.gravity, arena.gravity),
-		"and arena_surf 0 plays it with the arena's own")
+		"and fc_surf 0 plays it with the arena's own")
 
 	_game.set_movement_rules({"surf": 1.0, "surf_air_accelerate": 150.0})
 	_check(_matches(player, surf, 150.0), "and 1 puts the genre's back")

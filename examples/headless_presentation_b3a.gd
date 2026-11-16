@@ -453,8 +453,8 @@ func _test_blood() -> void:
 ## Each of the five thrown grenades is heard as its own recording on detonation, a launcher as the stock blast.
 func _check_grenade_blasts() -> void:
 	var catalogue := ArenaPresentation.sound_catalogue()
-	if DotAddonApi.build_level("arena_weapons") < ArenaPresentation.GRENADE_BLAST_LEVEL:
-		_check(ArenaPresentation.blast_sound_id(&"frag") == ArenaPresentation.EXPLOSION, "without arena_weapons level 26 a grenade keeps the stock blast")
+	if DotAddonApi.build_level("fc_weapons") < ArenaPresentation.GRENADE_BLAST_LEVEL:
+		_check(ArenaPresentation.blast_sound_id(&"frag") == ArenaPresentation.EXPLOSION, "without fc_weapons level 26 a grenade keeps the stock blast")
 		return
 	var heard: Dictionary = {}
 	for grenade: StringName in ArenaPresentation.GRENADE_BLASTS:

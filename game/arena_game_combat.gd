@@ -92,7 +92,7 @@ func _fired_def(spawn: DotWeaponSpawn) -> DotWeaponDef:
 	var def := shooter.arsenal.current_def()
 	return def if def != null and def.id == spawn.id else null
 
-## Flash, smoke and incendiary effects: server only, and only on an arena_weapons that has them.
+## Flash, smoke and incendiary effects: server only, and only on an fc_weapons that has them.
 func _build_grenades() -> void:
 	grenades = null
 	if is_authority and ArenaGrenades.supported():
@@ -603,7 +603,7 @@ func _override_rules(rules: DotMatchRules) -> void:
 
 	_override_ctf_rules(rules)
 
-## After the generic limits, on the first build of the match and on every change: capture the flag is limited by captures (`arena_ctf_capturelimit`) and by seconds only when `arena_ctf_timelimit` says so (0, the default, is no clock; the generic `arena_timelimit` and its 600 s do not apply). Its score is captures only: a kill is still a kill on the scoreboard, worth no points.
+## After the generic limits, on the first build of the match and on every change: capture the flag is limited by captures (`fc_ctf_capturelimit`) and by seconds only when `fc_ctf_timelimit` says so (0, the default, is no clock; the generic `fc_timelimit` and its 600 s do not apply). Its score is captures only: a kill is still a kill on the scoreboard, worth no points.
 func _override_ctf_rules(rules: DotMatchRules) -> void:
 	if mode == null or mode.objective_layout != &"ctf":
 		return

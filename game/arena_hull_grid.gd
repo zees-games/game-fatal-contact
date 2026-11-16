@@ -1,5 +1,5 @@
 extends RefCounted
-## A spatial index of the players for [method ArenaGame.solid_hulls_for] (cvar `arena_hull_grid`): each bot asked for "every living player within a few metres", which scanned the whole roster, 127 reads per bot per tick at 128.
+## A spatial index of the players for [method ArenaGame.solid_hulls_for] (cvar `fc_hull_grid`): each bot asked for "every living player within a few metres", which scanned the whole roster, 127 reads per bot per tick at 128.
 ## Built once at the start of the players' loop and moved by one player's cell after that player ticked, so a player moved earlier in the tick is found where it moved to. The caller applies the same filters in roster order, so the answer is the full scan's.
 
 const ArenaPlayer := preload("arena_player.gd")
@@ -7,16 +7,16 @@ const ArenaPlayer := preload("arena_player.gd")
 const CELL := 6.0
 const BIAS := 4096
 
-## Cvar `arena_hull_grid`: 0 scans the whole roster.
+## Cvar `fc_hull_grid`: 0 scans the whole roster.
 static var enabled := true
 
 ## Test hook (scale128 --hullverify): every grid answer is also computed by the full scan and compared.
-## Cvar `arena_hull_fast`: 0 runs the per-candidate [method ArenaGame._add_hull] for the grid's candidates.
+## Cvar `fc_hull_fast`: 0 runs the per-candidate [method ArenaGame._add_hull] for the grid's candidates.
 static var fast := true
-## Cvar `arena_hull_native`: with [member fast], a mover that is not lag-compensated gathers its hulls in dot-sim's
+## Cvar `fc_hull_native`: with [member fast], a mover that is not lag-compensated gathers its hulls in dot-sim's
 ## `DotSimHullWorld` (same hulls, no script call per player); 0 or without the library, by script.
 static var native := true
-## Cvar `arena_motor_batch`: with the hull world, the players' loop prepares every player's tick first and dot-sim ticks
+## Cvar `fc_motor_batch`: with the hull world, the players' loop prepares every player's tick first and dot-sim ticks
 ## their motors in runs of one call (`DotSimMotorBatch`, same states to the bit); 0 or without it, one call per player.
 static var batch := true
 ## Players the batched loop found changed by another player's turn (dead, moved or pushed after its own preparation):

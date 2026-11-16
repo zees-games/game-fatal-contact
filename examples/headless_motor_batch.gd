@@ -7,7 +7,7 @@ const ArenaMap := preload("../maps/arena_map.gd")
 const ArenaPlayer := preload("../game/arena_player.gd")
 const ArenaModTools := preload("../game/arena_mod_tools.gd")
 
-## `arena_motor_batch`: the players' motors ticked in runs of one dot-sim call play exactly the
+## `fc_motor_batch`: the players' motors ticked in runs of one dot-sim call play exactly the
 ## match the loop one player after another plays. A recorded bot match is replayed through both
 ## loops and every player's state, hashed every few ticks, is identical, on box, pit, imported and surf maps.
 
@@ -83,7 +83,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("game-fatal-contact: arena_motor_batch plays the same match")
+	print("game-fatal-contact: fc_motor_batch plays the same match")
 	ArenaBots.tiers.above = -1
 	var was := ArenaHullGrid.batch
 	if not DotFpsMotorBatch.available() or not ClassDB.class_exists(&"DotSimHullWorld"):

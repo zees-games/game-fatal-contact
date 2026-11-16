@@ -6,7 +6,7 @@ const ArenaNewerApi := preload("arena_newer_api.gd")
 const CHARGE_LEVEL := 41
 ## The knife throw's power meter on the client: how long the local player has held the aim key with the
 ## knife in hand, and the fill that is under the followed rules (dot-weapon's `DotWeaponKnives.fill_fraction`).
-## The server owns the throw; this only mirrors its wind-up (`arena_knife_throw_charge`, `_charge_sec`) so the
+## The server owns the throw; this only mirrors its wind-up (`fc_knife_throw_charge`, `_charge_sec`) so the
 ## bar needs no network traffic. Plain values in and out, so a suite can drive it without a frame.
 
 var held: float = 0.0

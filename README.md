@@ -21,7 +21,7 @@ The game does not ship these maps. A server names them in its content configurat
 
 ### Modes
 
-The goals below are defaults. Set `arena_scorelimit` and `arena_timelimit` to change them (0 means the mode's own value).
+The goals below are defaults. Set `fc_scorelimit` and `fc_timelimit` to change them (0 means the mode's own value).
 
 | Mode | What you do | Default goal |
 | --- | --- | --- |
@@ -106,26 +106,26 @@ Settings are cvars. Set them in the server config, on the command line, or live 
 
 | Cvar | Default | What it does |
 | --- | --- | --- |
-| `arena_mode` | `free_for_all` | `free_for_all`, `team_deathmatch`, `siege`, `king_of_the_hill`, `capture_the_flag`, `gun_game`, `only_snipers` |
-| `arena_scorelimit` | mode's own | Kills to win (a side's, in team modes); 0 is the mode's own; gun game ends at its last gun |
-| `arena_timelimit` | mode's own | Seconds a match lasts; 0 is the mode's own |
-| `arena_warmup` | mode's own | Seconds of warmup; -1 is the mode's own |
-| `arena_minplayers` | 1 | Players needed before a round starts |
-| `arena_spawn_mode` | `avoid` | `avoid`, `weighted`, `furthest` or `random` |
-| `arena_team_spawn_split` | 1 | Team mode on a map with no team spawns: cut the spawns into two halves, one per team (0 is one shared pool) |
-| `arena_streak_rewards` | empty | Kill streak rewards as `streak:reward` pairs (heal, armour, haste, empowered), e.g. `3:heal,5:haste,7:empowered` |
-| `arena_headshot_heal` | 5 | Health a headshot kill gives its killer; 0 for none |
-| `arena_max_health_cap` | 110 | Most health a headshot reward lifts a player to (start health stays `arena_player_health`, 100); 0 is unlimited |
-| `arena_kill_reward_heal`, `arena_kill_reward_armour` | 0 | Health or armour every kill gives |
-| `arena_kill_reward_haste`, `arena_kill_reward_empowered` | 0 | Every kill gives haste (speed) or empowered (damage) for a while |
-| `arena_loadout_roll_text` | 0 | Print "Random loadout: ..." when a loadout rolls at spawn |
+| `fc_mode` | `free_for_all` | `free_for_all`, `team_deathmatch`, `siege`, `king_of_the_hill`, `capture_the_flag`, `gun_game`, `only_snipers` |
+| `fc_scorelimit` | mode's own | Kills to win (a side's, in team modes); 0 is the mode's own; gun game ends at its last gun |
+| `fc_timelimit` | mode's own | Seconds a match lasts; 0 is the mode's own |
+| `fc_warmup` | mode's own | Seconds of warmup; -1 is the mode's own |
+| `fc_minplayers` | 1 | Players needed before a round starts |
+| `fc_spawn_mode` | `avoid` | `avoid`, `weighted`, `furthest` or `random` |
+| `fc_team_spawn_split` | 1 | Team mode on a map with no team spawns: cut the spawns into two halves, one per team (0 is one shared pool) |
+| `fc_streak_rewards` | empty | Kill streak rewards as `streak:reward` pairs (heal, armour, haste, empowered), e.g. `3:heal,5:haste,7:empowered` |
+| `fc_headshot_heal` | 5 | Health a headshot kill gives its killer; 0 for none |
+| `fc_max_health_cap` | 110 | Most health a headshot reward lifts a player to (start health stays `fc_player_health`, 100); 0 is unlimited |
+| `fc_kill_reward_heal`, `fc_kill_reward_armour` | 0 | Health or armour every kill gives |
+| `fc_kill_reward_haste`, `fc_kill_reward_empowered` | 0 | Every kill gives haste (speed) or empowered (damage) for a while |
+| `fc_loadout_roll_text` | 0 | Print "Random loadout: ..." when a loadout rolls at spawn |
 | `cl_respawn_jump_gate` | 1 | Client: a Space that skipped the kill view does not jump on respawn until released |
-| `arena_imported_rotation` | `all` | Combat surf maps in the rotation: `all`, `none`, or ids |
-| `arena_surf` | 1 | Surf air control on surf maps (0 uses the normal one) |
-| `arena_surf_airaccelerate` | 150 | Air acceleration on a surf map |
+| `fc_imported_rotation` | `all` | Combat surf maps in the rotation: `all`, `none`, or ids |
+| `fc_surf` | 1 | Surf air control on surf maps (0 uses the normal one) |
+| `fc_surf_airaccelerate` | 150 | Air acceleration on a surf map |
 | `mp_teammate_passthrough` | 1 | Team modes: 0 team-mates are hit and block, 1 shots pass one at the muzzle, 2 every team-mate in the line |
 
-Wall movement: `arena_wall_run` (1 on, 0 off); `arena_wall_jump` and `arena_wall_slide` work the same way. Fine tuning is in the `arena_wall_run_*` and `arena_wall_jump_*` cvars (minimum speed, duration, gravity, angle, push, body roll). `cvarlist arena_wall` lists them with their defaults and ranges.
+Wall movement: `fc_wall_run` (1 on, 0 off); `fc_wall_jump` and `fc_wall_slide` work the same way. Fine tuning is in the `fc_wall_run_*` and `fc_wall_jump_*` cvars (minimum speed, duration, gravity, angle, push, body roll). `cvarlist fc_wall` lists them with their defaults and ranges.
 
 `mp_teammate_passthrough` is shared with dot-combat, takes effect from the next shot and also covers rockets and grenades in flight. At 2 a team-mate never stops a shot, but a blast still reaches them.
 
@@ -162,12 +162,12 @@ Each bot gets a character from `cfg/game/game-arena/bot/*.yml` (warden, raider, 
 
 | Command | What it does |
 | --- | --- |
-| `arena_status`, `arena_score` | Match state and scoreboard |
-| `arena_map <id>`, `arena_maps`, `arena_nextmap` | Change the map, list maps, see what is next |
-| `arena_modes` | List the modes |
-| `arena_vote` | Open a map vote now |
-| `arena_restart` | Restart the match |
-| `arena_horde [clear]` | Show or clear the monsters |
+| `fc_status`, `fc_score` | Match state and scoreboard |
+| `map <id>`, `fc_maps`, `fc_nextmap` | Change the map, list maps, see what is next |
+| `fc_modes` | List the modes |
+| `fc_vote` | Open a map vote now |
+| `fc_restart` | Restart the match |
+| `fc_horde [clear]` | Show or clear the monsters |
 
 ### Admin commands
 
@@ -232,8 +232,8 @@ The next-map vote is [dot-vote](https://github.com/gamespice-platform/vote). The
 | --- | --- | --- | --- |
 | Players and bots | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) | CC0 1.0 | [dot-player-char](https://github.com/gamespice-platform/player-char) |
 | Avatar parts and horde monsters | Kenney, character kit skins | CC0 | generated from dot-player-char |
-| Team body "fc_swat" (team avatars, not in this repository) | SpatialNeglect, after bobeer, VassKacsoHunor, Simon Coenen, Bzovius, Albin, Shedmon and h1ggs | CC BY 4.0 | a private `fc_swat.glb` in `arena_team_body_dirs`, [docs/client.md](docs/client.md#avatars) |
-| Team body "fc_military" (team avatars, not in this repository) | jayb3e, "Game Ready Military Character" | CC BY 4.0 | a private `fc_military.glb` in `arena_team_body_dirs` |
+| Team body "fc_swat" (team avatars, not in this repository) | SpatialNeglect, after bobeer, VassKacsoHunor, Simon Coenen, Bzovius, Albin, Shedmon and h1ggs | CC BY 4.0 | a private `fc_swat.glb` in `fc_team_body_dirs`, [docs/client.md](docs/client.md#avatars) |
+| Team body "fc_military" (team avatars, not in this repository) | jayb3e, "Game Ready Military Character" | CC BY 4.0 | a private `fc_military.glb` in `fc_team_body_dirs` |
 | Built-in map grid | Kenney, [Prototype Textures](https://kenney.nl/assets/prototype-textures) | CC0 | `assets/prototype/` |
 | Medal icons | Kenney, [Board Game Icons](https://kenney.nl/assets/board-game-icons), [Game Icons](https://kenney.nl/assets/game-icons) | CC0 | `assets/medals/` |
 | HUD ability icons | Kenney, [Game Icons](https://kenney.nl/assets/game-icons), [Mobile Controls](https://kenney.nl/assets/mobile-controls) | CC0 | `assets/hud_icons/` |
@@ -248,7 +248,7 @@ The next-map vote is [dot-vote](https://github.com/gamespice-platform/vote). The
 | Stomp sound | Synthesized at run time by dot-audio's `DotAudioSynth` | none (no recording) | dot-audio |
 | Combat surf and deathmatch maps | Other people's work, shared with credit. Each map's author, original page and licence as stated there (often none) are in `maps.json` / `licence.json` | as stated by each author | [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps), [fc-dm-maps](https://github.com/zees-games/fc-dm-maps) |
 
-The maps are published under the CDN's credited-community-map exception, not as our own work. This repository carries none of them; each map is its own pack. `arena_maps` names the author beside each map.
+The maps are published under the CDN's credited-community-map exception, not as our own work. This repository carries none of them; each map is its own pack. `fc_maps` names the author beside each map.
 
 **If you made one of these maps and want it removed, open an issue on the repository that holds it and it is taken down.**
 

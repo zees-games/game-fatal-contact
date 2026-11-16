@@ -67,7 +67,7 @@ const NET_WORLD_EXTENT := 512.0
 ## (0.109 to 0.112 m) with the ease frames halved (docs/netcode.md, "Lag compensation").
 const CLIENT_RESUME_EASE_SEC := 0.06
 
-## The range of tick rates the arena is tuned and tested for (`sv_tickrate`, `arena_tick_rate`).
+## The range of tick rates the arena is tuned and tested for (`sv_tickrate`, `fc_tick_rate`).
 ## Tick counts in the code (THROWER_GRACE_TICKS, flashlight HOLD_TICKS, COLLISION_LAG_MAX_SEC) are seconds; see docs/netcode.md "Tick rate".
 const MIN_TICK_RATE := 20
 const MAX_TICK_RATE := 128
@@ -119,7 +119,7 @@ signal non_player_killed(entity_id: int, damage: DotDamage)
 ## map and the nodes they came from are gone by the time this fires.
 signal map_changed(map: ArenaMap)
 
-## The server owner changed how the arena moves (`arena_slide*`, `arena_launch*`). The
+## The server owner changed how the arena moves (`fc_slide*`, `fc_launch*`). The
 ## bridge sends it to every client; see [member movement_rules].
 signal movement_rules_changed(rules: Dictionary)
 
@@ -141,9 +141,9 @@ signal mode_shown(shown: ArenaMode)
 ## [b]These four are the server's say over the mode's numbers[/b], and they are read in two
 ## places: [method _build_match], for every match this game builds (each map change builds
 ## one), and [method apply_match_limits], for the match being played. The module's
-## `arena_scorelimit`, `arena_timelimit`, `arena_warmup` and `arena_minplayers` cvars write
+## `fc_scorelimit`, `fc_timelimit`, `fc_warmup` and `fc_minplayers` cvars write
 ## them through the latter. Writing only the live match lost the value at the next map
-## change; writing only these exports changed nothing until then, and `arena_scorelimit` did
+## change; writing only these exports changed nothing until then, and `fc_scorelimit` did
 ## neither for as long as it existed.
 @export_range(0, 200, 1) var score_limit: int = 25
 
@@ -246,7 +246,7 @@ var bot_loadouts: ArenaBotLoadouts = null
 ## the same world and resolves through the same rules.
 var projectiles: ArenaProjectiles = null
 
-## Flash, smoke and incendiary effects; null off the authority or below arena_weapons level 3.
+## Flash, smoke and incendiary effects; null off the authority or below fc_weapons level 3.
 ## A utility grenade's smoke, fire or blind, across map changes (the grenades object is rebuilt per map).
 signal grenade_effect(info: Dictionary)
 
@@ -273,7 +273,7 @@ var weapon_drops: DotWeaponDrops = null
 var weapon_drop_rules: DotWeaponDropRules = DotWeaponDropRules.new()
 ## Thrown knives (DotWeaponKnives, dot-weapon), and their server rules: one dictionary for the game's life, so cvars outlive a map.
 var knives: DotWeaponKnives = null
-## The throw winds up while the aim key is held (`arena_knife_throw_charge`, on by default; dot-weapon's own default is off).
+## The throw winds up while the aim key is held (`fc_knife_throw_charge`, on by default; dot-weapon's own default is off).
 var knife_rules: Dictionary = DotWeaponKnives.DEFAULT_RULES.merged({"charge": true, "charge_sec": 1.0}, true)
 
 
@@ -294,14 +294,14 @@ func weapon_drop_class_of(id: int) -> DotPlayerClassDef:
 var streaks: Dictionary = {}
 
 ## Streak -> what reaching it gives: `heal` (full health), `armour`, `haste`,
-## `empowered` (more damage, a while). Set by `arena_streak_rewards` as "3:heal,5:haste";
+## `empowered` (more damage, a while). Set by `fc_streak_rewards` as "3:heal,5:haste";
 ## empty gives nothing. Applied on the kill that reaches the streak, server side.
 var streak_rewards: Dictionary = {}
 
 ## A random-every-spawn loadout was handed to [param player_id]; [param text] names it. Authority side.
 signal loadout_rolled(player_id: int, text: String)
 
-## Whether a spawn roll of a random loadout prints "Random loadout: ..." on screen (`arena_loadout_roll_text`, off).
+## Whether a spawn roll of a random loadout prints "Random loadout: ..." on screen (`fc_loadout_roll_text`, off).
 ## The roll is still made and given; only the text is left out.
 var loadout_roll_text: bool = false
 
@@ -330,16 +330,16 @@ signal medals_awarded(killer: int, victim: int, medals: Array, points: int, stre
 ## The medal rules' memory. Authority side; reset at each round's start.
 var medals := ArenaAwards.MedalBook.new()
 
-## The server owner's drop rules (`arena_drop_*`), applied to every drops layer built.
+## The server owner's drop rules (`fc_drop_*`), applied to every drops layer built.
 var drop_rules := {
 	"points": 5, "point_value": 1, "health": 0.0, "any_kill": false, "life": 10.0,
 	"packs": true, "pack_health": 50.0, "pack_ammo": 50.0, "pack_respawn": 20.0,
 }
 
-## The server owner's capture-the-flag rules (`arena_ctf_*`), read by the flag layer when it is built and each round.
+## The server owner's capture-the-flag rules (`fc_ctf_*`), read by the flag layer when it is built and each round.
 var ctf_rules := DotObjectiveCtfRules.new()
 
-## The flag indicator, server cvars sent to clients with the flag state: `arena_ctf_indicator` (a small team-coloured flag icon and distance over each flag, default on) and `arena_ctf_indicator_seethrough` (the icon shows through walls, default on).
+## The flag indicator, server cvars sent to clients with the flag state: `fc_ctf_indicator` (a small team-coloured flag icon and distance over each flag, default on) and `fc_ctf_indicator_seethrough` (the icon shows through walls, default on).
 var ctf_view := {"indicator": true, "see_through": true}
 
 ## A line the server announces about the flag (taken, dropped, returned, captured).
@@ -351,7 +351,7 @@ signal ctf_seen(what: StringName, team: int, by: int)
 ## The jail's gate and button, drawn. Null on a headless end and on a map without a jail.
 var jail_view: Node3D = null
 
-## The server owner's jail rules (`arena_jail*`), applied to the map's jail when a map loads and
+## The server owner's jail rules (`fc_jail*`), applied to the map's jail when a map loads and
 ## when one changes: whether it is on, seconds the gate stays open and seconds it then stays shut.
 var jail_rules := {"enabled": true, "open": 10.0, "cooldown": 20.0}
 
@@ -458,11 +458,11 @@ var _freeze_overridden := false
 
 ## A team mode on a map that tags no spawn for both sides cuts the map's spawns into two halves by
 ## position (`ArenaMap.split_spawns_for_teams`), so each team spawns in its own half. False keeps
-## the old fallback: both teams share one pool. `arena_team_spawn_split`; read when a map loads.
+## the old fallback: both teams share one pool. `fc_team_spawn_split`; read when a map loads.
 var team_spawn_split: bool = true
 
 ## Lag compensation: how far back the server will rewind the other players for a shot,
-## in milliseconds (`arena_max_unlag_ms`; 0 judges every shot against the present).
+## in milliseconds (`fc_max_unlag_ms`; 0 judges every shot against the present).
 ##
 ## [b]It never rewound at all before 2026-10-09.[/b] `resolve_shot` was called with no
 ## view tick, so a player on a 120 ms round trip had to lead every target by the lead,
@@ -584,7 +584,7 @@ static func _make_mobile_rules() -> DotMobileRules:
 	return rules
 
 
-## The ambience cvars (`arena_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
+## The ambience cvars (`fc_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
 var ambient_rules: DotAmbienceRules = ArenaAmbience.make_rules()
 
 ## `snd_shot_*`: dot-audio's layered shots and room-aware tails (all on). Bound by the module, followed by the client.

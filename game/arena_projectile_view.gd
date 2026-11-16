@@ -21,7 +21,7 @@ const ROUND_RADIUS := 0.11
 const ROUND_COLOUR := Color(1.0, 0.62, 0.22)
 
 ## fc-weapons' per-launcher missile art and the level that has it.
-const MISSILE_ART := "res://addons/arena_weapons/art/aw_missile_art.gd"
+const MISSILE_ART := "res://addons/fc_weapons/art/aw_missile_art.gd"
 const MISSILE_LEVEL := 27
 
 ## A grenade's fuse light.
@@ -134,7 +134,7 @@ func _make(f: ArenaProjectiles.Flying) -> Node3D:
 ## fc-weapons' `AwMissileArt` model for [param weapon_id], or null: below level 27, for a weapon without a
 ## missile of its own, or when its model is not loaded. Reached by path; FC's floor is below 27.
 func _missile(weapon_id: StringName) -> Node3D:
-	if DotAddonApi.build_level("arena_weapons") < MISSILE_LEVEL:
+	if DotAddonApi.build_level("fc_weapons") < MISSILE_LEVEL:
 		return null
 	if _missile_art == null:
 		_missile_art = load(MISSILE_ART) as Script

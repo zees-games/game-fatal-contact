@@ -15,7 +15,7 @@ const ArenaVoteSource := preload("arena_vote_source.gd")
 ## [b]`begin_on_apply` is off, and getting that wrong halves every cooldown.[/b] The
 ## director can announce a change it just made, and so can the host through its own
 ## "the map changed" signal — which is the one that has to be connected, because it
-## also fires for an operator typing `arena_map` by hand. Both firing means two entries
+## also fires for an operator typing `map` by hand. Both firing means two entries
 ## in the play history for one play, and a "not in the last five maps" cooldown that is
 ## quietly a cooldown of two or three. dot-vote's own notes found this by running the
 ## addon inside a real host, which is the only place it is visible.
@@ -357,7 +357,7 @@ func advance(delta: float) -> void:
 		return
 
 	# Every tick, because a mode change builds a new match without `maps.map_changed` —
-	# `arena_mode` calls `game.change_map` directly — and a vote left holding the freed one
+	# `fc_mode` calls `game.change_map` directly — and a vote left holding the freed one
 	# reports no score and hears no round end, so "apply at the end of the round" becomes
 	# "when the clock runs out". One comparison when nothing changed.
 	_bind_match()

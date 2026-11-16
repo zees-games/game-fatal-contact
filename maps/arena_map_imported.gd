@@ -92,7 +92,7 @@ static func local(map_id: StringName, light: bool = false) -> ArenaMap:
 ##
 ## [b]A function rather than a constant array, because a map is 40-odd boxes and an
 ## array of them is 40-odd boxes built at load time for the one the server is not
-## running.[/b] `ids()` is the cheap half — a menu, a `arena_maps` listing and a
+## running.[/b] `ids()` is the cheap half — a menu, a `fc_maps` listing and a
 ## validity check all want the names and none of them want the geometry.
 static func by_id(id: StringName) -> ArenaMap:
 	var found: ArenaMap = _by_id_bare(id)

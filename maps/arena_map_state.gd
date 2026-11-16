@@ -199,7 +199,7 @@ var baked: LightmapGI = null
 
 ## Where the map's health and ammo packs lie: `{kind, at}` with `kind` an `ArenaDrops.Kind`
 ## ([constant PACK_HEALTH] or [constant PACK_AMMO]) and `at` the floor point under it. Always append through
-## [method add_pack]. The packs are the game's (`arena_packs`, `ArenaDrops.set_packs`); this
+## [method add_pack]. The packs are the game's (`fc_packs`, `ArenaDrops.set_packs`); this
 ## is only where. An imported map has none.
 var packs: Array[Dictionary] = []
 

@@ -48,15 +48,15 @@ func _run() -> void:
 	var console := DotConsole.new()
 	add_child(console)
 	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
-	_check(console.get_int("arena_horde_cap") == 36, "cvar starts at the default")
-	console.set_cvar("arena_horde_cap", "12")
+	_check(console.get_int("fc_horde_cap") == 36, "cvar starts at the default")
+	console.set_cvar("fc_horde_cap", "12")
 	_check(game.config.horde_cap == 12 and binder.source_of("horde_cap") == "cvar", "cvar writes the field")
 	var horde := ArenaHorde.new()
 	horde.game = game
 	var rules: DotNpcDirectorRules = horde._rules()
 	_check(rules.absolute_cap == 12 and rules.spawn_burst == 3, "the horde's rules read the config")
 	_check(binder.diff_yaml().contains("horde_cap: 12"), "the diff names the edit")
-	console.set_cvar("arena_surf_volume", "1.5")
+	console.set_cvar("fc_surf_volume", "1.5")
 	var surf := DotAudioSurfRules.new()
 	_check(surf.apply_values(game.config.surf_values()) == 7 and is_equal_approx(surf.volume, 1.5), "the surf profile keys reach the rules")
 	_check(ArenaConfig.new().surf_values()["volume"] == 0.6 and surf.mute_steps, "surf defaults match dot-audio's")
@@ -66,10 +66,10 @@ func _run() -> void:
 	_check(binder.schema()[0]["description"].begins_with("Horde monsters per player"), "doc comments reach the schema")
 	# The rest of the audit's tunables reach the game they tune.
 	game.config.horde_spawn_max_distance = 34.0
-	console.set_cvar("arena_player_health", "150")
-	console.set_cvar("arena_respawn_delay_sec", "7")
-	console.set_cvar("arena_award_nemesis_at", "5")
-	console.set_cvar("arena_bot_quota", "2")
+	console.set_cvar("fc_player_health", "150")
+	console.set_cvar("fc_respawn_delay_sec", "7")
+	console.set_cvar("fc_award_nemesis_at", "5")
+	console.set_cvar("fc_bot_quota", "2")
 	_check(game.config.player_health == 150.0 and game.config.bot_quota == 2, "player and bot cvars write the fields")
 	game.headless = true
 	game.is_authority = true
@@ -161,7 +161,7 @@ func _probe() -> void:
 	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
 	print("PROBE ok=%s cap=%s cap_src=%s health=%s health_src=%s cvar=%s nem=%s nem_src=%s resp=%s resp_src=%s" % [
 		loaded.ok, config.horde_cap, binder.source_of("horde_cap"), config.player_health, binder.source_of("player_health"),
-		console.find_cvar("arena_player_health").get_string(), config.award_nemesis_at, binder.source_of("award_nemesis_at"),
+		console.find_cvar("fc_player_health").get_string(), config.award_nemesis_at, binder.source_of("award_nemesis_at"),
 		config.respawn_delay_sec, binder.source_of("respawn_delay_sec")])
 	get_tree().quit(0)
 
@@ -248,11 +248,11 @@ func _workbench(binder: DotGameConfigBinder, game: Node) -> void:
 	add_child(console)
 	var _bound: Variant = game.ambient_rules.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, DotConVar.FLAG_ARCHIVE)
 	var ambient := DotGameWorkbench.cvar_set(console, ArenaAmbience.cvar_types(), "ambience")
-	_check(ambient != null and ambient.schema.size() >= 4, "the arena_ambient* cvars make a workbench set")
+	_check(ambient != null and ambient.schema.size() >= 4, "the fc_ambient* cvars make a workbench set")
 	wb.api.add_set(ambient)
 	DotGameWorkbench.bind_cvar_set(ambient, wb.api.runtime, console)
-	var amb: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": DotGameWorkbench.CVAR_SET_ID, "key": "arena_ambient_volume", "value": 0.2})
-	_check(amb.ok and is_equal_approx(console.get_float("arena_ambient_volume"), 0.2), "an edit of the ambience set moves the cvar")
+	var amb: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": DotGameWorkbench.CVAR_SET_ID, "key": "fc_ambient_volume", "value": 0.2})
+	_check(amb.ok and is_equal_approx(console.get_float("fc_ambient_volume"), 0.2), "an edit of the ambience set moves the cvar")
 	wb.free()
 	console.free()
 	_check(int(ProjectSettings.get_setting("physics/common/physics_ticks_per_second")) == ArenaGame.DEFAULT_TICK_RATE, "project.godot's physics rate is ArenaGame.DEFAULT_TICK_RATE")

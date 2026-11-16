@@ -78,7 +78,7 @@ var stats_keys := DotGameStatsFeed.new()
 var _kill_feed: DotStatsEventFeed = null
 ## The one points score; amounts live in dot-stats' source table, the game only reports events.
 var points: DotStatsPoints = null
-## The skill rank (dot-stats' DotStatsRank): weighted stats or Elo, chosen by the arena_rank cvar.
+## The skill rank (dot-stats' DotStatsRank): weighted stats or Elo, chosen by the fc_rank cvar.
 var rank: DotStatsRank = null
 ## player id -> key, asked of [member key_fn] once per stay; key -> player id, its inverse.
 var _keys: Dictionary = {}
@@ -176,7 +176,7 @@ func rebind_world() -> void:
 	bind_world()
 
 
-## Switches the stats report to the backbone on or off at run time (cvar arena_stats_report, off by default).
+## Switches the stats report to the backbone on or off at run time (cvar fc_stats_report, off by default).
 ##
 ## Needs a backbone client holding STATS_WRITE; the token stays in that client and is never read or logged here.
 func set_reporting(on: bool) -> DotResult:

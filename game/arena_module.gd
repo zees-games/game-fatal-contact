@@ -3,8 +3,9 @@ extends "arena_module_b2.gd"
 
 const ArenaTeamMenu := preload("arena_team_menu.gd")
 const _Content := preload("arena_content.gd")
-## arena-weapons' `AwWeaponGroups` (API 14), loaded by path: a build on an older arena-weapons has no such class, and naming it would not parse.
-const WEAPON_GROUPS_SCRIPT := "res://addons/arena_weapons/aw_weapon_groups.gd"
+const ArenaRenamedNames := preload("arena_renamed_names.gd")
+## fc-weapons' `AwWeaponGroups` (API 14), loaded by path: a build on an older fc-weapons has no such class, and naming it would not parse.
+const WEAPON_GROUPS_SCRIPT := "res://addons/fc_weapons/aw_weapon_groups.gd"
 
 
 func _module_name() -> String:
@@ -29,13 +30,13 @@ func addon_groups() -> Dictionary:
 	for def: DotWeaponDef in _Content.weapons():
 		ids.append(def.id)
 
-	return {"arena_weapons": weapon_groups(ids)}
+	return {"fc_weapons": weapon_groups(ids)}
 
 
-## The arena-weapons groups that hold [param ids]' art, or `["*"]` (everything) when that cannot be known for sure:
-## an arena-weapons older than API 14, or a weapon that is not arena-weapons' own (another pack's, whose art this list cannot name).
+## The fc-weapons groups that hold [param ids]' art, or `["*"]` (everything) when that cannot be known for sure:
+## an fc-weapons older than API 14, or a weapon that is not fc-weapons' own (another pack's, whose art this list cannot name).
 static func weapon_groups(ids: Array) -> Array:
-	if DotAddonApi.build_level("arena_weapons") < 14 or not ResourceLoader.exists(WEAPON_GROUPS_SCRIPT):
+	if DotAddonApi.build_level("fc_weapons") < 14 or not ResourceLoader.exists(WEAPON_GROUPS_SCRIPT):
 		return ["*"]
 
 	var groups: Script = load(WEAPON_GROUPS_SCRIPT)
@@ -147,6 +148,8 @@ func _module_load() -> DotResult:
 	_add_extra_commands()
 	_build_query_provider()
 	_register_game()
+	# Last, so every fc_* name exists: the old arena_* names become loud, hidden shims.
+	var _renamed := ArenaRenamedNames.install(self)
 
 	if game.map != null:
 		_report_map(String(game.map.id))
@@ -162,16 +165,16 @@ func _bind_commands_and_cvars() -> void:
 	hook_post("client_spawn", _on_client_spawn)
 
 	add_command(
-		"arena_status", _cmd_status, "Show the match state", DotAdminFlags.GENERIC
+		"fc_status", _cmd_status, "Show the match state", DotAdminFlags.GENERIC
 	)
 	add_command(
-		"arena_score", _cmd_score, "Show the scoreboard", ""
+		"fc_score", _cmd_score, "Show the scoreboard", ""
 	)
 	add_command(
-		"arena_restart", _cmd_restart, "Restart the match", DotAdminFlags.CHANGEMAP
+		"fc_restart", _cmd_restart, "Restart the match", DotAdminFlags.CHANGEMAP
 	)
 	add_command(
-		"arena_maps", _cmd_maps, "List the maps this server can boot", ""
+		"fc_maps", _cmd_maps, "List the maps this server can boot", ""
 	)
 
 	_add_match_cvars()
@@ -222,7 +225,7 @@ func _bind_commands_and_cvars() -> void:
 ## The streak reward cvar and the loadout and streak notices.
 func _bind_streak_and_loadout_signals() -> void:
 	add_cvar(
-		"arena_streak_rewards", "",
+		"fc_streak_rewards", "",
 		"Kill streak rewards, as streak:reward pairs (heal, armour, haste, empowered, e.g. 3:heal,5:haste,7:empowered); empty (the default) for none",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
 	).changed.connect(
@@ -277,7 +280,7 @@ func _bind_npc_and_rule_cvars() -> void:
 ## The minimum-players and mode cvars and their commands.
 func _bind_mode_cvars() -> void:
 	add_cvar(
-		"arena_minplayers",
+		"fc_minplayers",
 		str(game.match_node.rules.min_players),
 		"Players needed before a round starts",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
@@ -294,7 +297,7 @@ func _bind_mode_cvars() -> void:
 	# killing people are unreachable from a deployment: `ArenaGame.mode_id` is an export read once
 	# at setup, and a vote can offer a mode only where somebody has configured one.
 	add_cvar(
-		"arena_mode",
+		"fc_mode",
 		String(game.mode.id),
 		"What is being played: %s" % ", ".join(_mode_ids()),
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
@@ -304,11 +307,11 @@ func _bind_mode_cvars() -> void:
 	)
 
 	add_command(
-		"arena_modes", _cmd_modes, "What can be played here", ""
+		"fc_modes", _cmd_modes, "What can be played here", ""
 	)
 
 	add_command(
-		"arena_net", _cmd_net, "Show the netcode's state", ""
+		"fc_net", _cmd_net, "Show the netcode's state", ""
 	)
 
 

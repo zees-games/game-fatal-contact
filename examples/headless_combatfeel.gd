@@ -220,7 +220,7 @@ func _test_wiring() -> void:
 	_check(fresh.sprint_can_shoot and fresh.sprint_shot_follows_barrel, "both default on: sprint-and-shoot allowed, along the barrel")
 	var launch_default := ArenaPlayer.arena_tunables().launch_velocity
 	_check(launch_default >= 12.0 * 1.25 and launch_default <= 12.0 * 1.35, "the launch defaults 25 to 35 percent above the old 12 m/s", str(launch_default))
-	_check(ArenaModuleCvars.MOVEMENT_CVARS.get("arena_launch_velocity", [""])[0] == "launch_velocity" and ArenaPlayer.MOVEMENT_RULES.has("launch_velocity"), "arena_launch_velocity sets the launch and is a replicated movement rule")
+	_check(ArenaModuleCvars.MOVEMENT_CVARS.get("fc_launch_velocity", [""])[0] == "launch_velocity" and ArenaPlayer.MOVEMENT_RULES.has("launch_velocity"), "fc_launch_velocity sets the launch and is a replicated movement rule")
 	var speeds := ArenaPlayer.arena_tunables()
 	_check(speeds.max_speed < 6.0 and speeds.max_speed > 5.5, "the arena runs at 75 percent of the old 7.65 m/s", str(speeds.max_speed))
 	var run_before := speeds.speed_for(0)
@@ -232,7 +232,7 @@ func _test_wiring() -> void:
 	var sprint_speed := _ground_speed(fresh_speeds, DotFpsCommand.BUTTON_SPRINT)
 	_check(sprint_speed > run_speed * (1.0 + (fresh_speeds.sprint_speed_scale - 1.0) * 0.9) and run_speed > 5.0, "the motor moves a sprinting player faster than a running one (the client predicts the same motor)", "%.2f vs %.2f" % [sprint_speed, run_speed])
 	var speed_ok := true
-	for cvar in ["arena_speed_scale", "arena_run_speed", "arena_walk_scale", "arena_sprint_scale", "arena_crouch_scale"]:
+	for cvar in ["fc_speed_scale", "fc_run_speed", "fc_walk_scale", "fc_sprint_scale", "fc_crouch_scale"]:
 		speed_ok = speed_ok and ArenaModuleCvars.MOVEMENT_CVARS.has(cvar) and ArenaPlayer.MOVEMENT_RULES.has(ArenaModuleCvars.MOVEMENT_CVARS[cvar][0])
 	_check(speed_ok, "every speed cvar is a replicated movement rule, so prediction agrees")
 	_finished += 1

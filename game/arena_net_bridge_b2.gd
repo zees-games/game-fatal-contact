@@ -17,7 +17,7 @@ const ArenaRequest := preload("arena_request.gd")
 const INPUT_COPIES := 5
 
 
-## Input packets taken, per peer. Server side; what `arena_net` reads to tell one client's
+## Input packets taken, per peer. Server side; what `fc_net` reads to tell one client's
 ## lossy uplink from another's.
 var inputs_from: Dictionary = {}
 

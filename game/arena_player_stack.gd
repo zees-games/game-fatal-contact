@@ -291,7 +291,7 @@ func _build_classes() -> void:
 		DotLog.error(CHANNEL, "class manager", {"why": res.error.message})
 
 
-## How a respawn picks its site, as the server owner set it (`arena_spawn_*` cvars):
+## How a respawn picks its site, as the server owner set it (`fc_spawn_*` cvars):
 ##
 ## - `mode`: "avoid" (the default: safest-first, and never closer to an enemy than `min_enemy`
 ##   metres when anywhere else will do), "weighted" (safest-first, no hard floor), "furthest"

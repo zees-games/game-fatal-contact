@@ -338,7 +338,7 @@ func _note_profile_mode(map: DotMapDef, before: ArenaMode, applied: ArenaMode) -
 	_base_mode = null
 
 
-## An operator set the mode (`arena_mode`): it is the server's mode now, not a profile's to undo.
+## An operator set the mode (`fc_mode`): it is the server's mode now, not a profile's to undo.
 func forget_profile_mode() -> void:
 	_profile_moded = false
 	_base_mode = null

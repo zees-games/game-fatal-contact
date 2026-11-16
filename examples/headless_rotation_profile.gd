@@ -105,14 +105,14 @@ func _check_profile_cvars() -> void:
 	var console := DotConsole.new()
 	add_child(console)
 	console.cvar("arena_profile_a", "1", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("arena_mode", "ffa", "", DotConVar.FLAG_ARCHIVE)
+	console.cvar("fc_mode", "ffa", "", DotConVar.FLAG_ARCHIVE)
 	var applier := ArenaMapConfig.build_profile(console)
 	var with := DotMapDef.new()
 	with.id = &"p_with"
-	with.profile = {"value": "x", "mode": "", "cfg_path": "/x.yml", "values": {"arena_profile_a": 5, "arena_mode": "ctf", "no_such_cvar": 2}}
+	with.profile = {"value": "x", "mode": "", "cfg_path": "/x.yml", "values": {"arena_profile_a": 5, "fc_mode": "ctf", "no_such_cvar": 2}}
 	var got := ArenaMapConfig.apply_profile(applier, console, with)
 	_check(console.find_cvar("arena_profile_a").get_int() == 5 and got.size() == 1, "a profile's cvar is set for its map", str(got))
-	_check(console.find_cvar("arena_mode").get_string() == "ffa", "a profile cannot set arena_mode through its cvars")
+	_check(console.find_cvar("fc_mode").get_string() == "ffa", "a profile cannot set fc_mode through its cvars")
 	var plain := DotMapDef.new()
 	plain.id = &"p_plain"
 	ArenaMapConfig.apply_profile(applier, console, plain)

@@ -246,7 +246,7 @@ func _tp_frames(me: Variant, id: StringName, tag: String, frames: int, seconds: 
 ## `--probe`: each magazine weapon's model from the side and from behind with the box the magazine is carved from drawn red
 ## (in the model's own space, where the view model measured it): <id>_probe_side.png and <id>_probe_back.png.
 func _probe(ids: Array) -> void:
-	var carve: Script = load("res://addons/arena_weapons/view/aw_mag_carve.gd")
+	var carve: Script = load("res://addons/fc_weapons/view/aw_mag_carve.gd")
 	var rig := _probe_rig()
 	var sv: SubViewport = rig[0]
 	var stage: Node3D = rig[1]
@@ -350,7 +350,7 @@ func _probe_split(rig: Array, id: StringName, path: String, seat: Transform3D, b
 	var sv: SubViewport = rig[0]
 	var stage: Node3D = rig[1]
 	var cam: Camera3D = rig[2]
-	var carve: Script = load("res://addons/arena_weapons/view/aw_mag_carve.gd")
+	var carve: Script = load("res://addons/fc_weapons/view/aw_mag_carve.gd")
 	# The split itself: a fresh copy carved by the real code, the magazine drawn lower so the cut edges show.
 	var split := AwModelCache.instantiate(path)
 	split.transform = seat

@@ -48,7 +48,7 @@ func _test_streaks() -> void:
 
 	_check(
 		ArenaGame.parse_streak_rewards("3:heal, 5:haste,x:y,0:armour") == {3: "heal", 5: "haste"},
-		"arena_streak_rewards parses streak:reward pairs and skips the rest"
+		"fc_streak_rewards parses streak:reward pairs and skips the rest"
 	)
 	_check(ArenaGame.parse_streak_rewards("").is_empty(), "and empty gives nothing")
 
@@ -417,7 +417,7 @@ func _test_freeze_countdown() -> void:
 	_done()
 
 ## Lag compensation: a shot is traced against the other players where the shooter saw
-## them, as far back as `arena_max_unlag_ms` allows (2026-10-09; before, never).
+## them, as far back as `fc_max_unlag_ms` allows (2026-10-09; before, never).
 func _test_lag_compensation() -> void:
 	_section("lag compensation")
 	var game := _weapon_mode_game(ArenaMode.free_for_all(25), [940, 941])
@@ -468,7 +468,7 @@ func _test_lag_compensation() -> void:
 		"and B is put back where the server has him (%s)" % target.global_position)
 	_check(not fire_at.call(-1.0), "the same shot judged against the present misses")
 	game.max_unlag_ms = 0.0
-	_check(not fire_at.call(float(now - back)), "and with arena_max_unlag_ms 0 nothing is rewound")
+	_check(not fire_at.call(float(now - back)), "and with fc_max_unlag_ms 0 nothing is rewound")
 	game.max_unlag_ms = 50.0
 	_check(not fire_at.call(float(now - back)),
 		"nor past the limit: 50 ms is 3 ticks, and %d were asked for" % back)
@@ -679,7 +679,7 @@ func _test_weapon_modes() -> void:
 	var game := _weapon_mode_game(gun, [920, 921])
 	if not _check(game != null, "a gun game sets up"):
 		return
-	# The server's limit (`arena_scorelimit`, 25 here) is kills; gun game's is levels. It
+	# The server's limit (`fc_scorelimit`, 25 here) is kills; gun game's is levels. It
 	# used to win, so a gun game needed ten knife kills after the last gun to end.
 	_check(game.score_limit == 25 and game.match_node.rules.score_limit == gun.gun_game.size(),
 		"and its match ends at the last gun, not at the server's score limit (%d)" % game.match_node.rules.score_limit)

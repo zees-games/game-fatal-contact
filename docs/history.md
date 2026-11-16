@@ -37,11 +37,11 @@ One line each; the detail is in [bugs-found.md](../../../docs/bugs-found.md) or 
 
 **A map change kept everybody where they stood**, so a player whose spot was a box on the next map was pushed down through the floor. Found building `dm_atrium`'s keep.
 
-**The client rebuilt the map it was already showing**, reading `game.map` (server-only) instead of the def it was handed. On a live server it read as the client freezing; `headless_net` has no renderer and could not see it. The same live change showed `arena_maps` printing "No hot changelevel yet." four lines from the command that does one.
+**The client rebuilt the map it was already showing**, reading `game.map` (server-only) instead of the def it was handed. On a live server it read as the client freezing; `headless_net` has no renderer and could not see it. The same live change showed `fc_maps` printing "No hot changelevel yet." four lines from the command that does one.
 
 **A map change silently unhooked the effects layer**: the `adjust` hook stayed on the freed resolver, and every hit after the first changelevel went unscaled.
 
-**`_build_world_layers` ran once at setup**, so `koth` on a running server had a null objectives layer and `siege` no monsters. `arena_mode` was the first thing to change a mode at runtime.
+**`_build_world_layers` ran once at setup**, so `koth` on a running server had a null objectives layer and `siege` no monsters. `fc_mode` was the first thing to change a mode at runtime.
 
 **The director did not know about sides**: sites lost their team tag and the roster kept the previous mode's sides, so a team mode spawned both sides from one pool.
 

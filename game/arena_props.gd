@@ -63,7 +63,7 @@ var prop_damage: DotPropDamage = null
 ## Props the map itself places, spawned at boot and owned by nobody.
 ##
 ## Distinct from what players spawn: these are level furniture and do not count against
-## anybody's budget, so `arena_props_clear` taking them away is a decision rather than
+## anybody's budget, so `fc_props_clear` taking them away is a decision rather than
 ## an accident. [method clear_players] is what an admin actually wants.
 @export var scatter_count: int = 0
 

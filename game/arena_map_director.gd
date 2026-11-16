@@ -9,7 +9,7 @@ const ArenaMode := preload("arena_mode.gd")
 ##
 ## [b]This is what "there is no hot changelevel" used to mean.[/b] `ArenaGame.setup`
 ## built the combat trace, the match node and every spawn point in one pass and was not
-## re-entrant, so the map was chosen at boot with `-- --map <id>` and `arena_maps`
+## re-entrant, so the map was chosen at boot with `-- --map <id>` and `fc_maps`
 ## listed what could be typed. [method ArenaGame.change_map] is the half that makes a
 ## change possible at all; this is the half that makes it reach the players.
 ##
@@ -192,7 +192,7 @@ func setup() -> DotResult:
 ## Reads maps.yml and applies it: which installed maps the rotation, the next map, the vote's
 ## ballot and nominations may choose. Called at boot, by `sv_map_rotation_file` and by
 ## [method adopt_server_maps]. A map outside the active rotation stays installed and
-## loadable by `arena_map <id>`; it is only never chosen.
+## loadable by `map <id>`; it is only never chosen.
 ##
 ## The merge, the wildcards and the rules are dot-map's [DotMapRotationFile]; this game
 ## supplies the paths. A file that is present and unreadable is an ERROR and changes nothing:
@@ -243,7 +243,7 @@ var _rotation_attached: bool = false
 
 ## Marks every catalogue map in or out of rotation ([DotMapDef.in_rotation]) from the file.
 ## With no file, or a file with no rotations, every map is in, which is what this game did
-## before maps.yml. The imported maps' own `arena_imported_rotation` is [member DotMapDef.enabled]
+## before maps.yml. The imported maps' own `fc_imported_rotation` is [member DotMapDef.enabled]
 ## and is a separate gate: a map must pass both.
 func apply_rotation() -> void:
 	if session == null or session.catalogue == null or session.rotation == null:

@@ -1,5 +1,5 @@
 # Fatal Contact: damage multiplier per hit group, over dot-combat's DotHitGroup.defaults() (head 4, neck 2, stomach 1.25,
-# arm/leg/knee 0.75, hand/foot 0.5). Only the keys changed; delete one to fall back. arena_head_mult and friends still
+# arm/leg/knee 0.75, hand/foot 0.5). Only the keys changed; delete one to fall back. fc_head_mult and friends still
 # override at run time.
 #
 # Head x4 made the Assault Rifle (23) take 92 per head hit: one head plus one body round, 94 ms apart at 600 rpm,

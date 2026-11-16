@@ -115,7 +115,7 @@ func _ffa_is_random() -> void:
 
 
 ## The fallback itself: a map with no sides is cut in two halves by position, both the same size, the
-## red half holding one anchor; a map that tags both sides is left alone; `arena_team_spawn_split` 0 keeps one pool.
+## red half holding one anchor; a map that tags both sides is left alone; `fc_team_spawn_split` 0 keeps one pool.
 func _split_is_documented() -> void:
 	var map := ArenaMap.dm_box()
 	for index in range(map.spawns.size()):

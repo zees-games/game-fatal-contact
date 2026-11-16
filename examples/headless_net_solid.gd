@@ -101,7 +101,7 @@ func _solid_lag_checks(c: Dictionary) -> void:
 	_server_game.max_unlag_ms = 0.0
 	_check(
 		_server_game.collision_lag(4.0) < 0.0 and client_game.collision_lag(4.0) < 0.0,
-		"with arena_max_unlag_ms 0 both ends collide with the present (the limit travels in RULES)",
+		"with fc_max_unlag_ms 0 both ends collide with the present (the limit travels in RULES)",
 		"client limit %.0f" % client_game.max_unlag_ms
 	)
 	_server_game.max_unlag_ms = saved_unlag

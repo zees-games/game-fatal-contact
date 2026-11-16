@@ -40,8 +40,8 @@ func _test_stamina_under_loss() -> void:
 		t.stamina_recover = 0.5
 		t.stamina_resume_at = 0.3
 		t.stamina_exhaust_delay = 0.5
-	var _dash_on := _server.console.set_cvar("arena_dash", "1")
-	var _auto_off := _server.console.set_cvar("arena_wall_run_auto", "0")
+	var _dash_on := _server.console.set_cvar("fc_dash", "1")
+	var _auto_off := _server.console.set_cvar("fc_wall_run_auto", "0")
 	await _moves_told(own)
 
 	var lows := {"min": 1.0, "exhausted": 0, "client_min": 1.0}
@@ -90,8 +90,8 @@ func _test_stamina_under_loss() -> void:
 	_wall_from = -1
 	for t: DotFpsTunables in [server_a.controller.tunables, own.controller.tunables]:
 		t.stamina_enabled = false
-	var _dash_off := _server.console.set_cvar("arena_dash", "0")
-	var _auto_on := _server.console.set_cvar("arena_wall_run_auto", "1")
+	var _dash_off := _server.console.set_cvar("fc_dash", "0")
+	var _auto_on := _server.console.set_cvar("fc_wall_run_auto", "1")
 	_done()
 
 

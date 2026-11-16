@@ -5,9 +5,9 @@ const ArenaContent := preload("../game/arena_content.gd")
 const ArenaPlayer := preload("../game/arena_player.gd")
 const ArenaModule := preload("../game/arena_module.gd")
 
-## Weapons by role: with no extra pack the own pack (arena_weapons) fills every role on the append-only wire numbers; with a pack
+## Weapons by role: with no extra pack the own pack (fc_weapons) fills every role on the append-only wire numbers; with a pack
 ## enabled its weapons join, carry a wire number and survive the round trip, and clearing puts everything back. Skips the pack half unless a
-## pack is linked (zz_modern_weapons, or arena_weapons).
+## pack is linked (zz_modern_weapons, or fc_weapons).
 ##
 ## [codeblock]
 ## ./game.sh --no-parse test headless_roles
@@ -20,14 +20,14 @@ var _failed := 0
 func _ready() -> void:
 	Roles.clear()
 	Roles.scan()
-	var has_default := ResourceLoader.exists("res://addons/arena_weapons/spawn_provider.gd")
-	_check(Roles.packs.has("arena_weapons") == has_default, "arena_weapons is the default provider exactly when linked")
+	var has_default := ResourceLoader.exists("res://addons/fc_weapons/spawn_provider.gd")
+	_check(Roles.packs.has("fc_weapons") == has_default, "fc_weapons is the default provider exactly when linked")
 
 	# A pack that is not there: the own pack alone fills every role.
 	Roles.force_packs = ["not_installed"]
 	Roles.scan()
 	var own_count := Roles.pack_ids.size()
-	_check(Roles.packs == PackedStringArray(["arena_weapons"]), "a missing pack is skipped, the own pack stays: %s" % str(Roles.packs))
+	_check(Roles.packs == PackedStringArray(["fc_weapons"]), "a missing pack is skipped, the own pack stays: %s" % str(Roles.packs))
 	_check(Roles.resolve(&"primary") == AwWeaponIds.RIFLE and Roles.resolve(&"melee") == AwWeaponIds.KNIFE, "the own pack fills the roles")
 	_check(ArenaContent.default_loadout() == ArenaContent.DEFAULT_LOADOUT, "default loadout is the shipped one")
 	_check(Roles.wire_ids().slice(0, AwWeaponIds.all().size()) == AwWeaponIds.all(), "wire ids start with the append-only list")
@@ -35,7 +35,7 @@ func _ready() -> void:
 	_check_groups(false)
 	_check_carry_mask()
 
-	for dir in ["zz_modern_weapons", "arena_weapons"]:
+	for dir in ["zz_modern_weapons", "fc_weapons"]:
 		if not ResourceLoader.exists("res://addons/%s/spawn_provider.gd" % dir):
 			print("  skip  %s is not linked" % dir)
 			continue
@@ -56,7 +56,7 @@ func _ready() -> void:
 		_check(AwWeaponArtTable.table().has(first), "%s has art" % first)
 		_check(ArenaPlayer.weapon_catalogue().ids() == ArenaContent.weapon_catalogue().ids(), "the shared rig catalogue follows the scan of %s" % dir)
 		_check(ArenaContent.loadout_schema().default_loadout().item_in(&"primary") == Roles.resolve(&"primary"), "the default loadout names the role's weapon")
-		_check_groups(dir != "arena_weapons")
+		_check_groups(dir != "fc_weapons")
 
 		Roles.force_packs = ["not_installed"]
 		Roles.scan()
@@ -99,14 +99,14 @@ func _check_carry_mask() -> void:
 
 
 ## The download groups the server announces for fc-weapons (`ArenaModule.addon_groups`): exactly the catalogue's, or everything
-## when a weapon is another pack's ([param foreign]) or arena-weapons predates its groups (API 14).
+## when a weapon is another pack's ([param foreign]) or fc-weapons predates its groups (API 14).
 func _check_groups(foreign: bool) -> void:
 	var module := ArenaModule.new()
-	var announced: Array = module.addon_groups().get("arena_weapons", [])
+	var announced: Array = module.addon_groups().get("fc_weapons", [])
 	module.free()
-	_check(ArenaModule.weapon_groups([&"not_a_weapon"]) == ["*"], "an id arena-weapons does not know is announced as every group")
+	_check(ArenaModule.weapon_groups([&"not_a_weapon"]) == ["*"], "an id fc-weapons does not know is announced as every group")
 
-	if foreign or DotAddonApi.build_level("arena_weapons") < 14:
+	if foreign or DotAddonApi.build_level("fc_weapons") < 14:
 		_check(announced == ["*"], "every group is announced when the catalogue cannot be narrowed: %s" % str(announced))
 		return
 

@@ -1,6 +1,6 @@
 extends RefCounted
 
-## What the in-game profiler (dot-profiler) reports about this game beside its own numbers: the game, map and bot count, the sound driver, the dot-sim natives (tag, which run, the `arena_hull_native` cvar) in every report's `context`,
+## What the in-game profiler (dot-profiler) reports about this game beside its own numbers: the game, map and bot count, the sound driver, the dot-sim natives (tag, which run, the `fc_hull_native` cvar) in every report's `context`,
 ## and dot-sim's native timers in `extras.native` of any recording (F10, `profiler_capture`, `record`). Without the library every part degrades (the natives line says so, the timer hook reports nothing, no error);
 ## costs nothing while no recording runs: providers are read at a recording's start and end, and the native timers are on only inside one.
 
@@ -116,7 +116,7 @@ static func natives() -> Dictionary:
 	out["stamp"] = FileAccess.get_file_as_string(STAMP).strip_edges() if FileAccess.file_exists(STAMP) else "unknown"
 	out["status"] = ArenaPlayerStack.dot_sim_status()
 	out["hull_native"] = ArenaHullGrid.native
-	out["arena_hull_native"] = "1" if ArenaHullGrid.native else "0"
+	out["fc_hull_native"] = "1" if ArenaHullGrid.native else "0"
 	return out
 
 

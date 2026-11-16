@@ -85,7 +85,7 @@ var loopback: Callable = Callable()
 ## says so, and the map messages are the only thing on this link that is not bytes.
 var loopback_map: Callable = Callable()
 
-## Counters, for `arena_net` and for the self-test.
+## Counters, for `fc_net` and for the self-test.
 var snapshots_sent: int = 0
 var snapshots_received: int = 0
 var events_sent: int = 0

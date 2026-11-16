@@ -117,7 +117,7 @@ func _shoot_toys(shots: Array[DotShot]) -> void:
 		for raw: Variant in directions:
 			var _pushed := toys.shot_along(shot.origin, raw as Vector3, maxf(shot.max_range, 1.0), shot.damage, level)
 
-## Starts dot-sim's hull world for this players' loop (cvar `arena_hull_native`): where everybody stands, their hull
+## Starts dot-sim's hull world for this players' loop (cvar `fc_hull_native`): where everybody stands, their hull
 ## sizes, who is alive, and which movers may gather natively (not lag-compensated: [method _solid_hulls_for]'s
 ## `remote` false). Their movement bodies then gather in the motor tick with no script call, the answer
 ## [method _add_hulls_local]'s. With [member ArenaHullGrid.verify] the world is filed but the bodies gather by script,

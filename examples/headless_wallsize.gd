@@ -45,8 +45,8 @@ func _run() -> void:
 	var cvars := {}
 	for cvar: String in ArenaModule.MOVEMENT_CVARS:
 		cvars[ArenaModule.MOVEMENT_CVARS[cvar][0]] = cvar
-	_check(cvars.get("wall_run_min_height") == "arena_wall_run_min_height"
-		and cvars.get("wall_run_min_length") == "arena_wall_run_min_length", "each has its arena_wall_run_* cvar")
+	_check(cvars.get("wall_run_min_height") == "fc_wall_run_min_height"
+		and cvars.get("wall_run_min_length") == "fc_wall_run_min_length", "each has its fc_wall_run_* cvar")
 
 	var served := ArenaPlayer.arena_tunables()
 	ArenaPlayer._set_rule(served, "wall_run_min_height", 0.0)

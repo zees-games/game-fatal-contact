@@ -83,7 +83,7 @@ Thumbs.db
 /addons/dot_lighting
 /addons/dot_flashlight
 # fc-weapons: the game's whole weapon set (definitions and models), required.
-/addons/arena_weapons
+/addons/fc_weapons
 /addons/dot_game
 # dot-sim: optional native library (movement motor, bot senses, snapshot codec); without its built library the GDScript twins run.
 # bootstrap fetches this release's library for the machine (dot-bootstrap: bootstrap-natives); the log says "dot-sim: native ...".

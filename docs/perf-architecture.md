@@ -89,7 +89,7 @@ Saved ms are at 32 players, sim host, client frame of 12.9 ms p50. Effort: S sma
 | --- | --- | --- | --- | --- | --- |
 | 1 | Native per-body client path: snapshot decode, interpolation, pose and animation of every remote player in one native loop | 4-5 ms (of the 5.5 ms the per-player GDScript costs) | L | dot-net, dot-player-char | `perf-client-native-body-1` |
 | 2 | `DotHumanoidFigure.animate`: no per-call dictionary duplicate, no unchanged leg writes, batched bone poses | up to 1.5 ms (measured ablation 1.52) | M | dot-player-char | `perf-figure-animate-1` |
-| 3 | Unattributed process (about 1.0 ms of singletons and effects' `_process`) and engine physics (1.7 ms: ragdolls, 135 particle nodes) | 1-2 ms (estimate, profile first) | M | game-arena, arena_weapons, dot-fx | `perf-unattributed-process-1` |
+| 3 | Unattributed process (about 1.0 ms of singletons and effects' `_process`) and engine physics (1.7 ms: ragdolls, 135 particle nodes) | 1-2 ms (estimate, profile first) | M | game-fatal-contact, fc-weapons, dot-fx | `perf-unattributed-process-1` |
 | 4 | Separate render thread, once safe: needs the engine fixes above and dot-fx's muzzle flash to stop calling `particles_is_inactive` | 1.0-1.5 ms (render CPU on main) | M, blocked | dot-fx, engine | `perf-render-thread-1` |
 | 5 | Server: native player row and bots (10.7 of 15.15 ms a tick at 32) | server headroom, not client fps | L | dot-player-controller, dot-bot | existing `simhost-sim-cost-1`, `simhost-native-player-row-1`, `perf-native-motor-2` |
 | 6 | Bench default `--sim-host 1`, and report the server's ms per tick | none; measures what ships | S | game-arena tools | `perf-bench-simhost-default-1` |

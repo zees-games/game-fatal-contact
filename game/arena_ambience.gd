@@ -1,8 +1,8 @@
 extends RefCounted
 
-## What the arena's ambience is: the cvar defaults shared by the simulation (binds `arena_ambient*`) and the presentation (plays them).
+## What the arena's ambience is: the cvar defaults shared by the simulation (binds `fc_ambient*`) and the presentation (plays them).
 
-const PREFIX := "arena"
+const PREFIX := "fc"
 ## A deathmatch wants the ambience felt, not heard: under the layer's own level, and fewer one-shots.
 const LEVEL := 0.15
 const RATE := 0.4

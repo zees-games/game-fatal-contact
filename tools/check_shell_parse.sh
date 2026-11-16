@@ -26,7 +26,7 @@ while IFS=$'\t' read -r repo tag; do
     case "$repo" in ''|\#*) continue ;; esac
     src="$SIB/$repo"
     [ "$repo" = fc-weapons ] && [ ! -e "$src/.git" ] && src="$SIB/arena-weapons"
-    d="$(echo "$repo" | tr - _ | sed 's/_dot//; s/^fc_weapons$/arena_weapons/')"
+    d="$(echo "$repo" | tr - _ | sed 's/_dot//')"
     [ -L "$HERE/addons/$d" ] || [ -d "$HERE/addons/$d" ] || continue
     if [ -e "$src/.git" ] && git -C "$src" archive "$tag" "addons/$d" 2>/dev/null | tar -x -C "$W"; then
         :

@@ -20,9 +20,9 @@ static func make_config() -> DotFlashlightConfig:
 	return cfg
 
 
-## `arena_flashlight_<field>` cvars, `cfg/game/game-arena/flashlight/game.yml`, and a workbench set.
+## `fc_flashlight_<field>` cvars, `cfg/game/game-arena/flashlight/game.yml`, and a workbench set.
 static func make_binder(cfg: DotFlashlightConfig) -> DotGameConfigBinder:
-	var b := DotGameConfigBinder.create(cfg, GAME_ID, "arena_flashlight")
+	var b := DotGameConfigBinder.create(cfg, GAME_ID, "fc_flashlight")
 	b.profile_kind = "flashlight"
 	return b
 

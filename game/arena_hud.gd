@@ -574,7 +574,7 @@ static func weapon_line(who: ArenaPlayer) -> String:
 
 
 ## The throw bar: filled by the time the followed player has held the aim key with the knife in hand
-## (the server's `arena_knife_throw_charge` and `_charge_sec`, followed on the client). Public so a suite
+## (the server's `fc_knife_throw_charge` and `_charge_sec`, followed on the client). Public so a suite
 ## can drive it with a chosen [param delta]. Returns the fill shown, or -1 when hidden.
 func present_throw_meter(delta: float, live: bool) -> float:
 	var winding := false

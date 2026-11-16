@@ -35,62 +35,62 @@ var team_menu: RefCounted = null
 ## exactly as before; a change reaches every player now and later and, through RULES,
 ## every client, so a client never predicts a slide the server does not make.
 const _OTHER_MOVEMENT_CVARS := {
-	"arena_speed_scale": ["speed_scale", "Multiplier on every ground speed, 1 as set (a server-wide slowdown or speed-up)"],
-	"arena_run_speed": ["max_speed", "Running speed, m/s"],
-	"arena_walk_scale": ["walk_speed_scale", "Walk speed as a fraction of run"],
-	"arena_sprint_scale": ["sprint_speed_scale", "Sprint speed as a fraction of run"],
-	"arena_crouch_scale": ["crouch_speed_scale", "Crouch speed as a fraction of run"],
+	"fc_speed_scale": ["speed_scale", "Multiplier on every ground speed, 1 as set (a server-wide slowdown or speed-up)"],
+	"fc_run_speed": ["max_speed", "Running speed, m/s"],
+	"fc_walk_scale": ["walk_speed_scale", "Walk speed as a fraction of run"],
+	"fc_sprint_scale": ["sprint_speed_scale", "Sprint speed as a fraction of run"],
+	"fc_crouch_scale": ["crouch_speed_scale", "Crouch speed as a fraction of run"],
 	"sv_ads_speed_mult": ["aim_speed_scale", "Ground speed while aiming down the sights, as a fraction (1 for no slowdown)"],
-	"arena_launch": ["launch_enabled", "E throws the player into the air (1) or does nothing (0, the default)"],
-	"arena_launch_velocity": ["launch_velocity", "Upward speed of a launch, m/s"],
-	"arena_launch_forward": ["launch_forward", "Forward speed a launch adds, m/s"],
-	"arena_launch_cooldown": ["launch_cooldown", "Seconds between launches"],
-	"arena_dash": ["dash_enabled", "Shift dashes along the way you steer (1) or does nothing (0, the default)"],
-	"arena_dash_speed": ["dash_speed", "Speed of a dash, m/s"],
-	"arena_dash_lift": ["dash_lift", "Upward speed a dash adds, m/s"],
-	"arena_dash_cooldown": ["dash_cooldown", "Seconds between dashes"],
-	"arena_wall_run": ["wall_run_enabled", "A fast jump along a wall runs on it (1) or falls past it (0)"],
-	"arena_wall_run_min_speed": ["wall_run_min_speed", "Speed along a wall needed to run on it, m/s"],
-	"arena_wall_run_time": ["wall_run_max_time", "Longest a wall run lasts, seconds (at most 1.9)"],
-	"arena_wall_run_gravity": ["wall_run_gravity_scale", "Share of gravity felt while wall running, 0 to 1"],
-	"arena_wall_jump": ["wall_jump_enabled", "Jump in the air beside a wall jumps off it (1) or does nothing (0)"],
-	"arena_wall_jump_push": ["wall_jump_push_speed", "Speed a wall jump pushes away from the wall, m/s"],
-	"arena_wall_jump_up": ["wall_jump_up_speed", "Upward speed a wall jump sets, m/s"],
-	"arena_wall_jumps": ["wall_jump_max_per_air", "Wall jumps before landing again, off any walls (0 for no limit)"],
-	"arena_wall_slide": ["wall_slide_speed", "Fastest fall while pressed against a wall, m/s (0 for no wall slide)"],
-	"arena_wall_run_end_speed": ["wall_run_end_speed", "A run ends when the speed along the wall falls under this, m/s"],
-	"arena_wall_run_damping": ["wall_run_vertical_damping", "How fast a run eases the vertical speed away, per second (higher holds you up harder)"],
-	"arena_wall_run_max_fall": ["wall_run_max_fall_speed", "Fastest fall a run can still catch, m/s"],
-	"arena_wall_run_angle": ["wall_run_max_approach_angle", "Widest angle off the wall's plane a run can start at, degrees (running head-on is no run)"],
-	"arena_wall_jump_look": ["wall_jump_look_blend", "How far a wall jump leans from the wall's normal toward the view, 0 to 1"],
-	"arena_wall_jumps_per_wall": ["wall_jump_max_per_wall", "Wall jumps off the same wall before landing again"],
-	"arena_wall_run_body_roll": ["wall_run_body_roll", "Degrees a drawn body rolls (feet to the wall) while wall running"],
-	"arena_wall_run_body_yaw": ["wall_run_body_yaw", "Degrees a drawn body turns toward the wall while wall running"],
-	"arena_wall_run_auto": ["wall_run_auto", "Touching a wall in the air starts a run with no press, and a press wall-jumps (1) or the press starts it (0, with arena_wall_run_on_jump)"],
-	"arena_wall_run_on_jump": ["wall_run_on_jump", "A jump press beside a wall starts a run and turns the heading along it (1) or only jumps off (0)"],
-	"arena_wall_run_turn_view": ["wall_run_turn_view", "The view turns along the wall when a jump starts a run (1) or only the heading does (0)"],
-	"arena_wall_run_jump_speed": ["wall_run_jump_min_speed", "Horizontal speed a jump-started wall run needs, m/s"],
-	"arena_wall_run_jump_angle": ["wall_run_jump_max_angle", "Widest angle off the wall's plane a jump-started run accepts, degrees"],
-	"arena_wall_run_cooldown": ["wall_run_cooldown", "Seconds after a wall run ends before another may start"],
-	"arena_wall_run_min_height": ["wall_run_min_height", "Height a wall face must have around the contact for a run to start, m (0 for any face)"],
-	"arena_wall_run_min_length": ["wall_run_min_length", "Length a wall must continue ahead for a run to start, m (0 for any face)"],
-	"arena_wall_angle": ["wall_max_angle_from_vertical", "Steepest lean from vertical a wall may have and still be run on, degrees"],
-	"arena_break": ["break_mode", "On a death the body: 0 stays whole, 1 loses limbs, 2 explodes"],
-	"arena_break_limbs": ["break_limbs", "How many limbs come off when arena_break is 1"],
-	"arena_break_criticals": ["break_criticals_only", "Only a critical (a headshot) breaks a body (1), or any kill (0)"],
-	"arena_fp_body": ["fp_body", "Players see their own body when they look down (1)"],
-	"arena_fp_arms": ["fp_arms", "First-person arms everybody sees, own and the killer's in a kill view: 0 each player's own look, N one stock arm set"],
-	"arena_team_avatars": ["team_avatars", "Team modes draw every player on a side as the side's body (arena_team_bodies), tinted its colour (1), or each player's own look (0)"],
-	"arena_team_tint": ["team_tint", "How far a team body's clothes turn toward the side's colour, 0 (its own texture) to 1"],
-	"arena_surf": ["surf", "A combat surf map plays with the genre's air control (1) or the arena's own (0)"],
-	"arena_surf_airaccelerate": ["surf_air_accelerate", "Air acceleration on a combat surf map (the genre's sv_airaccelerate)"],
+	"fc_launch": ["launch_enabled", "E throws the player into the air (1) or does nothing (0, the default)"],
+	"fc_launch_velocity": ["launch_velocity", "Upward speed of a launch, m/s"],
+	"fc_launch_forward": ["launch_forward", "Forward speed a launch adds, m/s"],
+	"fc_launch_cooldown": ["launch_cooldown", "Seconds between launches"],
+	"fc_dash": ["dash_enabled", "Shift dashes along the way you steer (1) or does nothing (0, the default)"],
+	"fc_dash_speed": ["dash_speed", "Speed of a dash, m/s"],
+	"fc_dash_lift": ["dash_lift", "Upward speed a dash adds, m/s"],
+	"fc_dash_cooldown": ["dash_cooldown", "Seconds between dashes"],
+	"fc_wall_run": ["wall_run_enabled", "A fast jump along a wall runs on it (1) or falls past it (0)"],
+	"fc_wall_run_min_speed": ["wall_run_min_speed", "Speed along a wall needed to run on it, m/s"],
+	"fc_wall_run_time": ["wall_run_max_time", "Longest a wall run lasts, seconds (at most 1.9)"],
+	"fc_wall_run_gravity": ["wall_run_gravity_scale", "Share of gravity felt while wall running, 0 to 1"],
+	"fc_wall_jump": ["wall_jump_enabled", "Jump in the air beside a wall jumps off it (1) or does nothing (0)"],
+	"fc_wall_jump_push": ["wall_jump_push_speed", "Speed a wall jump pushes away from the wall, m/s"],
+	"fc_wall_jump_up": ["wall_jump_up_speed", "Upward speed a wall jump sets, m/s"],
+	"fc_wall_jumps": ["wall_jump_max_per_air", "Wall jumps before landing again, off any walls (0 for no limit)"],
+	"fc_wall_slide": ["wall_slide_speed", "Fastest fall while pressed against a wall, m/s (0 for no wall slide)"],
+	"fc_wall_run_end_speed": ["wall_run_end_speed", "A run ends when the speed along the wall falls under this, m/s"],
+	"fc_wall_run_damping": ["wall_run_vertical_damping", "How fast a run eases the vertical speed away, per second (higher holds you up harder)"],
+	"fc_wall_run_max_fall": ["wall_run_max_fall_speed", "Fastest fall a run can still catch, m/s"],
+	"fc_wall_run_angle": ["wall_run_max_approach_angle", "Widest angle off the wall's plane a run can start at, degrees (running head-on is no run)"],
+	"fc_wall_jump_look": ["wall_jump_look_blend", "How far a wall jump leans from the wall's normal toward the view, 0 to 1"],
+	"fc_wall_jumps_per_wall": ["wall_jump_max_per_wall", "Wall jumps off the same wall before landing again"],
+	"fc_wall_run_body_roll": ["wall_run_body_roll", "Degrees a drawn body rolls (feet to the wall) while wall running"],
+	"fc_wall_run_body_yaw": ["wall_run_body_yaw", "Degrees a drawn body turns toward the wall while wall running"],
+	"fc_wall_run_auto": ["wall_run_auto", "Touching a wall in the air starts a run with no press, and a press wall-jumps (1) or the press starts it (0, with fc_wall_run_on_jump)"],
+	"fc_wall_run_on_jump": ["wall_run_on_jump", "A jump press beside a wall starts a run and turns the heading along it (1) or only jumps off (0)"],
+	"fc_wall_run_turn_view": ["wall_run_turn_view", "The view turns along the wall when a jump starts a run (1) or only the heading does (0)"],
+	"fc_wall_run_jump_speed": ["wall_run_jump_min_speed", "Horizontal speed a jump-started wall run needs, m/s"],
+	"fc_wall_run_jump_angle": ["wall_run_jump_max_angle", "Widest angle off the wall's plane a jump-started run accepts, degrees"],
+	"fc_wall_run_cooldown": ["wall_run_cooldown", "Seconds after a wall run ends before another may start"],
+	"fc_wall_run_min_height": ["wall_run_min_height", "Height a wall face must have around the contact for a run to start, m (0 for any face)"],
+	"fc_wall_run_min_length": ["wall_run_min_length", "Length a wall must continue ahead for a run to start, m (0 for any face)"],
+	"fc_wall_angle": ["wall_max_angle_from_vertical", "Steepest lean from vertical a wall may have and still be run on, degrees"],
+	"fc_break": ["break_mode", "On a death the body: 0 stays whole, 1 loses limbs, 2 explodes"],
+	"fc_break_limbs": ["break_limbs", "How many limbs come off when fc_break is 1"],
+	"fc_break_criticals": ["break_criticals_only", "Only a critical (a headshot) breaks a body (1), or any kill (0)"],
+	"fc_fp_body": ["fp_body", "Players see their own body when they look down (1)"],
+	"fc_fp_arms": ["fp_arms", "First-person arms everybody sees, own and the killer's in a kill view: 0 each player's own look, N one stock arm set"],
+	"fc_team_avatars": ["team_avatars", "Team modes draw every player on a side as the side's body (fc_team_bodies), tinted its colour (1), or each player's own look (0)"],
+	"fc_team_tint": ["team_tint", "How far a team body's clothes turn toward the side's colour, 0 (its own texture) to 1"],
+	"fc_surf": ["surf", "A combat surf map plays with the genre's air control (1) or the arena's own (0)"],
+	"fc_surf_airaccelerate": ["surf_air_accelerate", "Air acceleration on a combat surf map (the genre's sv_airaccelerate)"],
 	"mp_killcam_time": ["killcam", "Seconds the final killcam plays at a match's end, added to the end's wait (0 for none)"],
-	"arena_crit_scale": ["", "Extra damage multiplier on a critical hit (1 for none)"],
-	"arena_crit_chance": ["", "Chance any hit is a critical, 0 to 1 (headshots always are)"],
+	"fc_crit_scale": ["", "Extra damage multiplier on a critical hit (1 for none)"],
+	"fc_crit_chance": ["", "Chance any hit is a critical, 0 to 1 (headshots always are)"],
 }
 
 ## [constant _OTHER_MOVEMENT_CVARS] plus the slide's, whose names and words dot-player-controller writes once.
-static var MOVEMENT_CVARS: Dictionary = _OTHER_MOVEMENT_CVARS.merged(DotFpsSlidePreset.cvar_table("arena_slide"))
+static var MOVEMENT_CVARS: Dictionary = _OTHER_MOVEMENT_CVARS.merged(DotFpsSlidePreset.cvar_table("fc_slide"))
 
 
 func _add_movement_cvars() -> void:
@@ -124,12 +124,12 @@ func _add_movement_cvars() -> void:
 	_add_hit_group_cvars()
 
 
-## arena_head_mult, _neck_mult, _stomach_mult and _leg_mult: dot-combat's `DotHitGroup.bind_cvars` on the resolver's table (defaults are dot-combat's).
+## fc_head_mult, _neck_mult, _stomach_mult and _leg_mult: dot-combat's `DotHitGroup.bind_cvars` on the resolver's table (defaults are dot-combat's).
 func _add_hit_group_cvars() -> void:
 	var groups: DotHitGroup = game.combat.resolver.hit_groups if game.combat != null and game.combat.resolver != null else null
 	if groups == null:
 		return
-	groups.bind_cvars(add_cvar, "arena", DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
+	groups.bind_cvars(add_cvar, "fc", DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
 
 
 ## cvar -> the rule key whose value is a TagRules mask, and what it means.
@@ -159,58 +159,58 @@ func _add_tag_cvars() -> void:
 
 ## cvar -> the key in `ArenaGame.jail_rules` it sets, and what it means.
 const JAIL_CVARS := {
-	"arena_jail": ["enabled", "A fall on a map with a jail lands in it, and its gate works (1), or the map's volumes run as shipped (0)"],
-	"arena_jail_open": ["open", "Seconds the jail's gate stays open after its button is pressed"],
-	"arena_jail_cooldown": ["cooldown", "Seconds the gate then stays shut before the button works again"],
+	"fc_jail": ["enabled", "A fall on a map with a jail lands in it, and its gate works (1), or the map's volumes run as shipped (0)"],
+	"fc_jail_open": ["open", "Seconds the jail's gate stays open after its button is pressed"],
+	"fc_jail_cooldown": ["cooldown", "Seconds the gate then stays shut before the button works again"],
 }
 
 
 ## cvar -> the key in `ArenaGame.drop_rules` it sets, and what it means.
 const DROP_CVARS := {
-	"arena_drop_points": ["points", "Points a critical kill drops (0 for none)"],
-	"arena_drop_point_value": ["point_value", "What one point adds to its taker's count"],
-	"arena_drop_health": ["health", "Health in the pack a critical kill drops (0 for none)"],
-	"arena_drop_any_kill": ["any_kill", "Every kill drops (1), or only a critical one (0)"],
-	"arena_drop_life": ["life", "Seconds a drop lies there before it goes"],
-	"arena_packs": ["packs", "The map's health and ammo packs are out (1) or not (0)"],
-	"arena_pack_health": ["pack_health", "Health in a map's health pack"],
-	"arena_pack_ammo": ["pack_ammo", "Percent of each weapon's reserve an ammo pack refills"],
-	"arena_pack_respawn": ["pack_respawn", "Seconds a taken pack takes to come back"],
+	"fc_drop_points": ["points", "Points a critical kill drops (0 for none)"],
+	"fc_drop_point_value": ["point_value", "What one point adds to its taker's count"],
+	"fc_drop_health": ["health", "Health in the pack a critical kill drops (0 for none)"],
+	"fc_drop_any_kill": ["any_kill", "Every kill drops (1), or only a critical one (0)"],
+	"fc_drop_life": ["life", "Seconds a drop lies there before it goes"],
+	"fc_packs": ["packs", "The map's health and ammo packs are out (1) or not (0)"],
+	"fc_pack_health": ["pack_health", "Health in a map's health pack"],
+	"fc_pack_ammo": ["pack_ammo", "Percent of each weapon's reserve an ammo pack refills"],
+	"fc_pack_respawn": ["pack_respawn", "Seconds a taken pack takes to come back"],
 }
 
 
 ## cvar -> the key in `ArenaPlayerStack.spawn_settings` it sets, and what it means.
 const CTF_CVARS := {
-	"arena_ctf_capturelimit": ["capture_limit", "Captures that win a capture-the-flag match (0 for none)"],
-	"arena_ctf_timelimit": ["time_limit_sec", "Seconds a capture-the-flag match lasts, most captures wins (0, the default, for no time limit)"],
-	"arena_ctf_return": ["return_sec", "Seconds a dropped flag waits before it goes home"],
-	"arena_ctf_drop": ["drop_sec", "Seconds after a drop before the dropper may take the flag again"],
-	"arena_ctf_carrier_speed": ["carrier_speed", "A flag carrier's speed as a fraction of normal, at least 0.1 (no ceiling)"],
-	"arena_ctf_friendly_return": ["friendly_return", "The flag's own team returns a dropped flag by touching it (1) or only the timer does (0)"],
-	"arena_ctf_require_home": ["require_home", "A carrier scores only while their own flag is at home (1) or at any time (0)"],
-	"arena_ctf_teams": ["team_count", "Teams in capture the flag, 2 to 8 (from the next map); 8 is structural (team menu palette, ArenaMode sides), out of range is refused"],
+	"fc_ctf_capturelimit": ["capture_limit", "Captures that win a capture-the-flag match (0 for none)"],
+	"fc_ctf_timelimit": ["time_limit_sec", "Seconds a capture-the-flag match lasts, most captures wins (0, the default, for no time limit)"],
+	"fc_ctf_return": ["return_sec", "Seconds a dropped flag waits before it goes home"],
+	"fc_ctf_drop": ["drop_sec", "Seconds after a drop before the dropper may take the flag again"],
+	"fc_ctf_carrier_speed": ["carrier_speed", "A flag carrier's speed as a fraction of normal, at least 0.1 (no ceiling)"],
+	"fc_ctf_friendly_return": ["friendly_return", "The flag's own team returns a dropped flag by touching it (1) or only the timer does (0)"],
+	"fc_ctf_require_home": ["require_home", "A carrier scores only while their own flag is at home (1) or at any time (0)"],
+	"fc_ctf_teams": ["team_count", "Teams in capture the flag, 2 to 8 (from the next map); 8 is structural (team menu palette, ArenaMode sides), out of range is refused"],
 }
 
 ## cvar -> the [code]arena_flag_carry.gd[/code] setting it sets, and what it means.
 const FLAG_CARRY_CVARS := {
-	"arena_ctf_one_hand": ["one_hand", "A flag carrier holds only one-handed items: melee, sidearm, thrown (1, the default) or anything (0)"],
-	"arena_ctf_drop_key": ["drop_key", "The drop key drops a carried flag ahead of the aim (1, the default) or the weapon as usual (0)"],
-	"arena_ctf_drop_speed": ["drop_speed", "Metres a second a dropped flag leaves the hand at, on top of the carrier's speed (4 is the default)"],
-	"arena_ctf_flag_physics": ["physics", "A dropped flag falls, slides and bounces upright (1, the default) or lies on the floor at once (0)"],
+	"fc_ctf_one_hand": ["one_hand", "A flag carrier holds only one-handed items: melee, sidearm, thrown (1, the default) or anything (0)"],
+	"fc_ctf_drop_key": ["drop_key", "The drop key drops a carried flag ahead of the aim (1, the default) or the weapon as usual (0)"],
+	"fc_ctf_drop_speed": ["drop_speed", "Metres a second a dropped flag leaves the hand at, on top of the carrier's speed (4 is the default)"],
+	"fc_ctf_flag_physics": ["physics", "A dropped flag falls, slides and bounces upright (1, the default) or lies on the floor at once (0)"],
 }
 
 const SPAWN_CVARS := {
-	"arena_spawn_mode": ["mode", "How a respawn picks its site: scatter (default: random across the whole map), avoid, weighted, furthest or random"],
-	"arena_spawn_min_enemy": ["min_enemy", "In avoid mode, the nearest an enemy may be to a site, in metres"],
-	"arena_spawn_sight_penalty": ["sight_penalty", "What an enemy being able to see a site costs it"],
-	"arena_spawn_enemy_weight": ["enemy_weight", "What each metre from the nearest enemy is worth"],
+	"fc_spawn_mode": ["mode", "How a respawn picks its site: scatter (default: random across the whole map), avoid, weighted, furthest or random"],
+	"fc_spawn_min_enemy": ["min_enemy", "In avoid mode, the nearest an enemy may be to a site, in metres"],
+	"fc_spawn_sight_penalty": ["sight_penalty", "What an enemy being able to see a site costs it"],
+	"fc_spawn_enemy_weight": ["enemy_weight", "What each metre from the nearest enemy is worth"],
 }
 
 
-## `arena_max_unlag_ms`: how far back a shot is judged, for a shooter's latency. See
+## `fc_max_unlag_ms`: how far back a shot is judged, for a shooter's latency. See
 ## [member ArenaGame.max_unlag_ms]; 0 turns lag compensation off.
 func _add_unlag_cvar() -> void:
-	add_cvar("arena_max_unlag_ms", str(game.max_unlag_ms),
+	add_cvar("fc_max_unlag_ms", str(game.max_unlag_ms),
 		"How far back lag compensation rewinds the other players for a shot, in ms (0 off)",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
@@ -218,24 +218,23 @@ func _add_unlag_cvar() -> void:
 			log_info("lag compensation limit changed", {"ms": game.max_unlag_ms}))
 
 
-## `stats_report` (dot-game's family cvar): 1 files the players' stats with the backbone. Off by default; `arena_stats_report` is its alias.
+## `stats_report` (dot-game's family cvar): 1 files the players' stats with the backbone. Off by default. The old `arena_stats_report` is a loud renamed shim (arena_renamed_names.gd).
 func _add_stats_report_cvar() -> void:
 	var _cv := DotGameStatsReport.bind(self,
 		func(on: bool) -> DotResult:
 			if game.progress == null:
 				return DotResult.fail(DotError.CODE_STATE, "No progress yet.")
-			return game.progress.set_reporting(on),
-		PackedStringArray(["arena_stats_report"]))
+			return game.progress.set_reporting(on))
 
 
-## `arena_rank`: "weighted", "elo", or "weighted:arena.kills=1,arena.deaths=-0.5" (dot-stats' DotStatsRank.apply_cvar).
+## `fc_rank`: "weighted", "elo", or "weighted:arena.kills=1,arena.deaths=-0.5" (dot-stats' DotStatsRank.apply_cvar).
 func _add_rank_cvar() -> void:
-	add_cvar("arena_rank", "weighted",
+	add_cvar("fc_rank", "weighted",
 		"Skill rank formula: weighted, elo, or weighted:<stat>=<weight>,...",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			if game.progress == null or not game.progress.rank.apply_cvar(new_value):
-				log_info("arena_rank refused", {"value": new_value}))
+				log_info("fc_rank refused", {"value": new_value}))
 
 
 ## `sv_fire_buffer`: seconds a semi-auto press during the cooldown stays queued. See [member ArenaGame.fire_buffer_seconds].
@@ -358,27 +357,27 @@ func _add_bot_engine_cvars() -> void:
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			DotFpsMotor.native_full = new_value.to_float() >= 0.5)
-	add_cvar("arena_hull_grid", "1" if ArenaHullGrid.enabled else "0",
+	add_cvar("fc_hull_grid", "1" if ArenaHullGrid.enabled else "0",
 		"1: players' standing hulls are found through a grid filed once per tick (same hulls, cheaper above 12 players); 0: scan the whole roster per bot",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			ArenaHullGrid.enabled = new_value.to_float() >= 0.5)
-	add_cvar("arena_hull_fast", "1" if ArenaHullGrid.fast else "0",
+	add_cvar("fc_hull_fast", "1" if ArenaHullGrid.fast else "0",
 		"1: the hull gather tests the grid's candidates in one hoisted loop (same hulls); 0: one call per candidate",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			ArenaHullGrid.fast = new_value.to_float() >= 0.5)
-	add_cvar("arena_hull_native", "1" if ArenaHullGrid.native else "0",
-		"1: with arena_hull_fast, a mover that is not lag-compensated gathers its hulls in dot-sim (same hulls, no script call per player); 0: by script",
+	add_cvar("fc_hull_native", "1" if ArenaHullGrid.native else "0",
+		"1: with fc_hull_fast, a mover that is not lag-compensated gathers its hulls in dot-sim (same hulls, no script call per player); 0: by script",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			ArenaHullGrid.native = new_value.to_float() >= 0.5)
-	add_cvar("arena_motor_batch", "1" if ArenaHullGrid.batch else "0",
-		"1: with arena_hull_native, dot-sim ticks the players' motors in runs of one call a game tick (same states); 0: one call per player",
+	add_cvar("fc_motor_batch", "1" if ArenaHullGrid.batch else "0",
+		"1: with fc_hull_native, dot-sim ticks the players' motors in runs of one call a game tick (same states); 0: one call per player",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			ArenaHullGrid.batch = new_value.to_float() >= 0.5)
-	add_cvar("arena_tick_max_steps", str(ArenaTickBudget.max_steps),
+	add_cvar("fc_tick_max_steps", str(ArenaTickBudget.max_steps),
 		"Solo: the most ticks a frame may run to catch up with wall-clock time. 8 (default) keeps real time while ticks are cheap; 1 draws more frames while the simulation runs slower; 0 = no limit (the 45 ms budget alone)",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
@@ -391,7 +390,7 @@ func _add_bot_engine_cvars() -> void:
 	ArenaTickBudget.apply_server_steps(server_steps.get_int())
 
 
-## `sv_grenade_*` (arena_weapons' [AwGrenadeRules]) and `sv_grenade_utility`: 0 keeps flash, smoke and incendiary out of
+## `sv_grenade_*` (fc_weapons' [AwGrenadeRules]) and `sv_grenade_utility`: 0 keeps flash, smoke and incendiary out of
 ## the loadout menu (the default), 1 entitles everyone to them.
 func _add_grenade_cvars() -> void:
 	if not game.ArenaGrenades.supported():
@@ -439,18 +438,18 @@ func _add_rate_cvar() -> void:
 			log_info("rate cap changed", {"bytes_per_sec": new_value.to_int()}))
 
 
-## `arena_loadout_roll_text`: see [member ArenaGame.loadout_roll_text]. Off by default.
+## `fc_loadout_roll_text`: see [member ArenaGame.loadout_roll_text]. Off by default.
 func _add_loadout_roll_text_cvar() -> void:
-	add_cvar("arena_loadout_roll_text", "1" if game.loadout_roll_text else "0",
+	add_cvar("fc_loadout_roll_text", "1" if game.loadout_roll_text else "0",
 		"Print \"Random loadout: ...\" on screen when a random loadout is rolled at spawn (1), or roll silently (0, default)",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			game.loadout_roll_text = new_value.to_float() != 0.0)
 
 
-## `arena_team_spawn_split`: see [member ArenaGame.team_spawn_split]. Read when a map loads.
+## `fc_team_spawn_split`: see [member ArenaGame.team_spawn_split]. Read when a map loads.
 func _add_team_spawn_split_cvar() -> void:
-	add_cvar("arena_team_spawn_split", "1" if game.team_spawn_split else "0",
+	add_cvar("fc_team_spawn_split", "1" if game.team_spawn_split else "0",
 		"A team mode on a map with no team spawns splits its spawns into two halves, one per team (1), or both teams share one pool (0); read when a map loads",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
@@ -539,8 +538,8 @@ func _add_spawn_cvars() -> void:
 
 ## How the flags are shown, not how they are played: kept out of [constant CTF_CVARS], whose every key names a [DotObjectiveCtfRules] rule. Sent to clients with the flag state.
 const CTF_VIEW_CVARS := {
-	"arena_ctf_indicator": ["indicator", "A small team-coloured flag icon with its distance (\"19.4m\") over each flag (1, default) or none (0)"],
-	"arena_ctf_indicator_seethrough": ["see_through", "The flag indicator shows through walls (1, default) or only in plain sight (0)"],
+	"fc_ctf_indicator": ["indicator", "A small team-coloured flag icon with its distance (\"19.4m\") over each flag (1, default) or none (0)"],
+	"fc_ctf_indicator_seethrough": ["see_through", "The flag indicator shows through walls (1, default) or only in plain sight (0)"],
 }
 
 
@@ -593,10 +592,10 @@ func _add_flag_carry_cvars() -> void:
 		)
 
 
-## The knife rules as cvars (`arena_knife_throw`, `_speed`, `_pickup`, `_damage`): dot-weapon's table.
+## The knife rules as cvars (`fc_knife_throw`, `_speed`, `_pickup`, `_damage`): dot-weapon's table.
 func _add_knife_cvars() -> void:
 	var _made := DotWeaponKnives.bind_cvars(
-		game.knife_rules, add_cvar, "arena_knife",
+		game.knife_rules, add_cvar, "fc_knife",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
 	)
 
@@ -642,7 +641,7 @@ func _add_critical_cvar(cvar: String, help: String) -> void:
 	if rules == null:
 		return
 
-	var scale := cvar == "arena_crit_scale"
+	var scale := cvar == "fc_crit_scale"
 	add_cvar(
 		cvar, str(rules.critical_scale if scale else rules.critical_chance), help,
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY

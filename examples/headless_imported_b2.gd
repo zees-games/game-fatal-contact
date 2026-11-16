@@ -662,7 +662,7 @@ func _test_jail() -> void:
 	jail.enabled = false
 	var fall_pit: Dictionary = _game.map.pit_at(fall_box.get_center(), _game.current_tick())
 	_check(fall_pit == _game.map.pits[falls[0]] and _game.map.pit_at(button.get_center(), 0) == _game.map.pits[jail.button_index],
-		"with arena_jail off every volume does what the map shipped")
+		"with fc_jail off every volume does what the map shipped")
 	jail.enabled = true
 
 	var wire := ArenaEvents.read_jail(DotNetReader.new(ArenaEvents.write_jail(true, 640, 1280, 4321)))
@@ -695,7 +695,7 @@ func _test_packs() -> void:
 	game.respawn_player(1)
 
 	_check(not player.controller.tunables.dash_enabled and not ArenaPlayer.arena_tunables().dash_enabled,
-		"the dash is off by default (arena_dash turns it on)")
+		"the dash is off by default (fc_dash turns it on)")
 	_check(game.drops.pack_count() == game.map.packs.size() and game.map.packs.size() >= 4
 		and game.drops.packs_available() == game.map.packs.size(),
 		"every pack the map places is out (%d)" % game.map.packs.size())
@@ -743,7 +743,7 @@ func _test_packs() -> void:
 
 	game.drop_rules["packs"] = false
 	game.apply_drop_rules()
-	_check(game.drops.pack_count() == 0, "arena_packs 0 takes them all away")
+	_check(game.drops.pack_count() == 0, "fc_packs 0 takes them all away")
 	remove_child(game)
 	game.free()
 	_done()

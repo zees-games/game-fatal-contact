@@ -67,7 +67,7 @@ func _run() -> void:
 	var unlimited := 0
 	for _i in 30:
 		unlimited = open_cap.steps_for(0.002)
-	_check(unlimited > ArenaTickBudget.MAX_STEPS, "arena_tick_max_steps 0: the budget alone sets the cap", "%d" % unlimited)
+	_check(unlimited > ArenaTickBudget.MAX_STEPS, "fc_tick_max_steps 0: the budget alone sets the cap", "%d" % unlimited)
 	var dear_free := 0
 	for _i in 60:
 		dear_free = open_cap.steps_for(0.030)

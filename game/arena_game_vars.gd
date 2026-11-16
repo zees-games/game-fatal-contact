@@ -26,7 +26,7 @@ var loadout_identity := ArenaLoadoutIdentity.new()
 ## Movement-dependent spread, recoil patterns and the spread crosshair (dot-game's opt-in; sv_spread_*, sv_recoil_*, on here).
 var combat_feel: DotGameCombatFeel = _make_combat_feel()
 
-## Shots fired against damage applied, per shooter (bots and players): the counter behind `arena_shot_stats`.
+## Shots fired against damage applied, per shooter (bots and players): the counter behind `fc_shot_stats`.
 var shot_stats := ArenaShotStats.new()
 
 ## Ammo profiles (`cfg/game/game-arena/ammo`): what each gun's round can penetrate, read by the hitscan behaviour.
@@ -47,16 +47,16 @@ const BOT_SESSION_BASE := 900_000_000
 ##
 ## `surf` and `surf_air_accelerate` ride the same set because a client PREDICTS with them:
 ## `surf` 1 plays a combat surf map with the genre's air control and 0 with the arena's own
-## (`arena_surf`), `surf_air_accelerate` is that air control's `sv_airaccelerate`
-## (`arena_surf_airaccelerate`). See [method map_movement].
+## (`fc_surf`), `surf_air_accelerate` is that air control's `sv_airaccelerate`
+## (`fc_surf_airaccelerate`). See [method map_movement].
 ##
 ## `nametags` and `hpbars` are the server's ceilings on when those tags draw (`mp_nametags`, `mp_hpbars`;
 ## masks of `arena_name_tag_rules.gd`, 1 = no limit).
 ##
-## `fp_arms` is the arm set every first-person view draws (`arena_fp_arms`): 0 each player's own look, N one stock set.
+## `fp_arms` is the arm set every first-person view draws (`fc_fp_arms`): 0 each player's own look, N one stock set.
 ##
-## `team_avatars` forces each side's body in a team mode (`arena_team_avatars`, 1) and `team_tint` is how far it
-## turns toward the side's colour (`arena_team_tint`); see arena_team_bodies.gd.
+## `team_avatars` forces each side's body in a team mode (`fc_team_avatars`, 1) and `team_tint` is how far it
+## turns toward the side's colour (`fc_team_tint`); see arena_team_bodies.gd.
 ## `team_body_a` / `team_body_b` bind a registered body (index into `team_bodies`) to the first and second
 ## side, -1 the config order; the app's avatars settings set them (arena_app_wiring.gd).
 ##

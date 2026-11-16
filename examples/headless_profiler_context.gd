@@ -45,10 +45,10 @@ func _done() -> void:
 func _test_natives() -> void:
 	_section("the natives line says what runs")
 	var n := ArenaProfilerContext.natives()
-	for key: String in ["loaded", "stamp", "status", "hull_native", "arena_hull_native"]:
+	for key: String in ["loaded", "stamp", "status", "hull_native", "fc_hull_native"]:
 		_check(n.has(key), "natives has %s" % key)
 	_check(str(n.status).begins_with("dot-sim:"), "the status is dot_sim_status()", str(n.status))
-	_check(n.arena_hull_native == ("1" if n.hull_native else "0"), "the hull cvar matches the flag")
+	_check(n.fc_hull_native == ("1" if n.hull_native else "0"), "the hull cvar matches the flag")
 	_check(n.loaded == ClassDB.class_exists(&"DotSimFpsBody"), "loaded follows the class")
 	_done()
 

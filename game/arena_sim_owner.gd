@@ -1,5 +1,5 @@
 extends Node
-## The solo server process obeying its owner: the one loopback player it was started for runs its console (bot_quota, bot_difficulty, sv_cheats, arena_mode and the rest) and two verbs of its own:
+## The solo server process obeying its owner: the one loopback player it was started for runs its console (bot_quota, bot_difficulty, sv_cheats, fc_mode and the rest) and two verbs of its own:
 ## `host_change <map|-> [mode]`, awaited so the answer is the real result, `host_pause 0|1`, and `host_local <id>` for a map dropped onto the client's window (its M menu lists this process's catalogue).
 
 const ArenaModule := preload("arena_module.gd")
@@ -86,7 +86,7 @@ func _change(map_id: String, mode_id: String) -> DotResult:
 		if not changed.ok:
 			return changed
 	if mode_id != "-" and mode_id != "" and String(game.mode.id) != mode_id:
-		var _set: DotResult = server.console.execute("arena_mode %s" % mode_id)
+		var _set: DotResult = server.console.execute("fc_mode %s" % mode_id)
 		# The mode's map change runs at the top of the next tick (dot_tick_gate.gd); judge it after.
 		await game.tick_gate.reached()
 		if String(game.mode.id) != mode_id:

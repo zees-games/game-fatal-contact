@@ -6,10 +6,10 @@ const ArenaBoards := preload("arena_boards.gd")
 const ArenaAmbience := preload("arena_ambience.gd")
 ## The workbench kind of the ambience cvar set (saved to cfg/.../ambience/server.yml).
 const AMBIENT_KIND := "ambience"
-## The workbench kind of the wall-move cvar set (arena_wall*).
+## The workbench kind of the wall-move cvar set (fc_wall*).
 const WALL_KIND := "wallmoves"
 const SPEED_KIND := "speeds"
-const SPEED_CVARS: PackedStringArray = ["arena_speed_scale", "arena_run_speed", "arena_walk_scale", "arena_sprint_scale", "arena_crouch_scale"]
+const SPEED_CVARS: PackedStringArray = ["fc_speed_scale", "fc_run_speed", "fc_walk_scale", "fc_sprint_scale", "fc_crouch_scale"]
 const ArenaMapConfig := preload("arena_map_config.gd")
 const ArenaIdentity := preload("arena_identity.gd")
 
@@ -91,12 +91,12 @@ func _rotation_commands() -> Dictionary:
 	return maps.rotation_file.commands() if maps != null and maps.rotation_file != null else {}
 
 
-## `arena_scorelimit`, `arena_timelimit` and `arena_warmup`: the server's numbers over the mode's, live and kept across map changes ([member ArenaGame.score_limit]). A cvar writes the game's export, which every match built after it reads,
+## `fc_scorelimit`, `fc_timelimit` and `fc_warmup`: the server's numbers over the mode's, live and kept across map changes ([member ArenaGame.score_limit]). A cvar writes the game's export, which every match built after it reads,
 ## and the live match through `_apply_match_limits`, because a server's config is applied after this module loads, when the first match is already running.
 ## Zero, for the two limits, is "the mode's own"; a negative warmup is too.
 func _add_match_cvars() -> void:
 	add_cvar(
-		"arena_scorelimit", str(game.score_limit),
+		"fc_scorelimit", str(game.score_limit),
 		"Kills to win the match (a side's in a team mode); 0 for the mode's own. Gun game ends at its last gun",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
 	).with_min(0.0).changed.connect(
@@ -106,7 +106,7 @@ func _add_match_cvars() -> void:
 			log_info("score limit changed", {"score_limit": game.match_node.rules.score_limit})
 	)
 	add_cvar(
-		"arena_timelimit", str(int(game.time_limit_sec)),
+		"fc_timelimit", str(int(game.time_limit_sec)),
 		"Seconds a match lasts; 0 for the mode's own",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
 	).with_min(0.0).changed.connect(
@@ -116,7 +116,7 @@ func _add_match_cvars() -> void:
 			log_info("time limit changed", {"time_limit_sec": game.match_node.rules.time_limit_sec})
 	)
 	add_cvar(
-		"arena_warmup", str(game.warmup_sec),
+		"fc_warmup", str(game.warmup_sec),
 		"Seconds of warmup before a match; -1 for the mode's own",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
 	).with_min(-1.0).changed.connect(
@@ -182,7 +182,7 @@ func _on_cover_report(peer_id: int, payload: Dictionary) -> void:
 		loading.report_cover(peer_id, covered)
 
 
-## Starts the workbench the server scene built: the config files, noblock and the arena_ambient* cvars as sets.
+## Starts the workbench the server scene built: the config files, noblock and the fc_ambient* cvars as sets.
 func _start_workbench() -> void:
 	var wb := game.workbench
 	if wb == null:
@@ -191,20 +191,20 @@ func _start_workbench() -> void:
 		wb.add_set(game.player_stack.spawn_overrides, "Spawn points (per map)")
 	var ambient_set := DotGameWorkbench.cvar_set(console, ArenaAmbience.cvar_types(), AMBIENT_KIND)
 	if ambient_set != null:
-		wb.add_set(ambient_set, "Ambience (arena_ambient*)")
+		wb.add_set(ambient_set, "Ambience (fc_ambient*)")
 	var wall_types := {}
 	for cvar: String in MOVEMENT_CVARS:
-		if cvar.begins_with("arena_wall"):
+		if cvar.begins_with("fc_wall"):
 			wall_types[cvar] = "float"
 	var wall_set := DotGameWorkbench.cvar_set(console, wall_types, WALL_KIND)
 	if wall_set != null:
-		wb.add_set(wall_set, "Wall moves (arena_wall*)")
+		wb.add_set(wall_set, "Wall moves (fc_wall*)")
 	var speed_types := {}
 	for cvar in SPEED_CVARS:
 		speed_types[cvar] = "float"
 	var speed_set := DotGameWorkbench.cvar_set(console, speed_types, SPEED_KIND)
 	if speed_set != null:
-		wb.add_set(speed_set, "Speeds (arena_speed_scale, arena_run_speed, ...)")
+		wb.add_set(speed_set, "Speeds (fc_speed_scale, fc_run_speed, ...)")
 	var started := wb.start()
 	if not started.ok:
 		DotLog.result(CHANNEL, "the workbench", started)
@@ -530,7 +530,7 @@ func _reply_chat(peer: int, text: String) -> void:
 
 
 ## The map changed, whatever caused it: a vote, a rotation, or an admin typing it. [b]This is the one call site that tells the vote what is running, and having two is the bug.[/b]
-## `DotVoteDirector.begin_on_apply` is off so this signal is the only source: it fires for an operator's `arena_map` as well as a voted change,
+## `DotVoteDirector.begin_on_apply` is off so this signal is the only source: it fires for an operator's `map` as well as a voted change,
 ## and both firing means two play-history entries for one play, a "not in the last five" cooldown that is quietly two or three.
 func _on_map_changed(map: DotMapDef) -> void:
 	# The profile's cvars went on last, so they come off first: a key both set gets the file's value back right.
@@ -568,7 +568,7 @@ func _on_map_changed(map: DotMapDef) -> void:
 	log_info("map changed", {"map": String(map.id)})
 
 
-## The `arena_mode` cvar shows what is played after a rotation profile changed the mode; overridden where the cvar lives.
+## The `fc_mode` cvar shows what is played after a rotation profile changed the mode; overridden where the cvar lives.
 func _follow_mode() -> void:
 	pass
 
@@ -622,18 +622,13 @@ func _on_map_over(_map: DotMapDef, reason: StringName) -> void:
 ## because a command that reports on a subsystem that failed to load can only answer "that is not running", and an operator reading the command list should see what this server has.
 func _add_extra_commands() -> void:
 	if maps != null:
-		# CHANGEMAP and nothing else, like g2gfast's. A map change ends every round in progress, which is about who may do it, not where they typed it, and the flag settles that on every source alike.
-		# `sv_chat_commands 0` makes it console-only for a deployment that wants it.
 		add_command(
-			"arena_map", _cmd_map,
-			"Change the map: arena_map <id>", DotAdminFlags.CHANGEMAP
-		)
-		add_command(
-			"arena_nextmap", _cmd_nextmap, "What plays next", ""
+			"fc_nextmap", _cmd_nextmap, "What plays next", ""
 		)
 
 		# `map`, `maps` and `mapinfo` come from dot-map itself (dot-server's `map` changed the GAME, which is not what an operator typing `map` means); dot-server's game change is `changelevel`, `game` and `gamechange`.
-		# `allow_chat_change` stays at its default, ON, matching `arena_map`: CHANGEMAP decides who may end a round in progress, wherever typed. A relayed website command arrives as `Source.CHAT`;
+		# The map change is dot-map's `map` (CHANGEMAP, like g2gfast's): a map change ends every round in progress, which is about who may do it, not where they typed it. `sv_chat_commands 0` makes it console-only.
+		# `allow_chat_change` stays at its default, ON: CHANGEMAP decides who may end a round in progress, wherever typed. A relayed website command arrives as `Source.CHAT`;
 		# `DotChatRelayConfig.command_source` can promote a relay to RCON. The SYNC HOST is the changer, not the session: `ArenaMapDirector.session` alone swaps the world in this process and tells nobody.
 		var map_commands := DotMapCommands.new()
 		map_commands.session = maps.session
@@ -647,7 +642,7 @@ func _add_extra_commands() -> void:
 
 	if vote != null:
 		add_command(
-			"arena_vote", _cmd_vote, "Open a vote now", DotAdminFlags.VOTE
+			"fc_vote", _cmd_vote, "Open a vote now", DotAdminFlags.VOTE
 		)
 
 		var commanded := vote.install_commands(self)
@@ -655,35 +650,26 @@ func _add_extra_commands() -> void:
 
 	if services != null:
 		add_command(
-			"arena_services", _cmd_services,
+			"fc_services", _cmd_services,
 			"Show chat, voice and moderation", DotAdminFlags.GENERIC
 		)
 
 	if identity != null:
 		add_command(
-			"arena_identity", _cmd_identity,
+			"fc_identity", _cmd_identity,
 			"Show the platform layer", DotAdminFlags.GENERIC
 		)
 
 	if game.progress != null:
 		add_command(
-			"arena_boards", _cmd_boards, "Show a leaderboard: arena_boards [id]", ""
+			"fc_boards", _cmd_boards, "Show a leaderboard: fc_boards [id]", ""
 		)
 
 	if game.horde != null:
 		add_command(
-			"arena_horde", _cmd_horde,
-			"Show or clear the monsters: arena_horde [clear]", DotAdminFlags.GENERIC
+			"fc_horde", _cmd_horde,
+			"Show or clear the monsters: fc_horde [clear]", DotAdminFlags.GENERIC
 		)
-
-
-func _cmd_map(ctx: DotCmdContext) -> void:
-	if ctx.args.is_empty():
-		ctx.reply("Usage: arena_map <id>")
-		return
-
-	var changed: DotResult = await maps.change_to(StringName(ctx.args[0]))
-	ctx.reply("Changed." if changed.ok else changed.error.message)
 
 
 func _cmd_nextmap(ctx: DotCmdContext) -> void:

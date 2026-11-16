@@ -306,7 +306,7 @@ func _test_score_is_captures() -> void:
 	if game == null:
 		return
 	var rules := game.match_node.rules
-	_check(rules.time_limit_sec == 0.0, "no time limit by default, whatever arena_timelimit says", "%s (game %s)" % [rules.time_limit_sec, game.time_limit_sec])
+	_check(rules.time_limit_sec == 0.0, "no time limit by default, whatever fc_timelimit says", "%s (game %s)" % [rules.time_limit_sec, game.time_limit_sec])
 	_check(rules.kill_points == 0 and rules.friendly_points == 0 and rules.suicide_points == 0, "a kill is worth no points")
 	_check(rules.score_limit == game.ctf_rules.capture_limit, "the score limit is the capture limit")
 	var one := _team_ids(game, 1)
@@ -330,7 +330,7 @@ func _test_score_is_captures() -> void:
 	_check(game.match_node.is_live(), "still live after a capture under the limit")
 	game.ctf_rules.time_limit_sec = 90
 	game.apply_match_limits()
-	_check(game.match_node.rules.time_limit_sec == 90.0, "arena_ctf_timelimit turns a clock on")
+	_check(game.match_node.rules.time_limit_sec == 90.0, "fc_ctf_timelimit turns a clock on")
 	game.ctf_rules.time_limit_sec = 0
 	game.time_limit_sec = 300.0
 	game.apply_match_limits()
@@ -359,10 +359,10 @@ func _test_indicator() -> void:
 	_check(ArenaFlagView.distance_text(19.43) == "19.4m", "the distance reads like Halo's 19.4m", ArenaFlagView.distance_text(19.43))
 	game.ctf_view.see_through = false
 	view.refresh()
-	_check(not icon.no_depth_test and not dist.no_depth_test, "arena_ctf_indicator_seethrough 0 hides it behind walls")
+	_check(not icon.no_depth_test and not dist.no_depth_test, "fc_ctf_indicator_seethrough 0 hides it behind walls")
 	game.ctf_view.indicator = false
 	view.refresh()
-	_check(not icon.visible and not dist.visible, "arena_ctf_indicator 0 hides it")
+	_check(not icon.visible and not dist.visible, "fc_ctf_indicator 0 hides it")
 	var wire: String = game.objectives.ctf_wire_text(game.current_tick(), true)
 	var client := ArenaGame.new()
 	client.name = "CtfViewClient"
@@ -376,7 +376,7 @@ func _test_indicator() -> void:
 	_check(client.ctf_view.indicator and client.ctf_view.see_through, "a client starts with both on")
 	client.objectives.apply_ctf_text(wire)
 	_check(not client.ctf_view.indicator and not client.ctf_view.see_through, "and takes the server's settings with the flag state")
-	_check(ArenaModule.CTF_VIEW_CVARS.size() == 2 and ArenaModule.CTF_VIEW_CVARS.has("arena_ctf_indicator_seethrough"), "both are server cvars")
+	_check(ArenaModule.CTF_VIEW_CVARS.size() == 2 and ArenaModule.CTF_VIEW_CVARS.has("fc_ctf_indicator_seethrough"), "both are server cvars")
 	await _free(client)
 	await _free(game)
 	_done()

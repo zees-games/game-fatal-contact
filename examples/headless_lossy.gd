@@ -318,10 +318,10 @@ func _test_wall_moves() -> void:
 	# client be told where it is before anything is measured.
 	# The wall script dashes in the air to get past the wall run's speed, and the dash is off by
 	# default now: turn it on for the server and let RULES carry it to A's prediction.
-	var _dash_on := _server.console.set_cvar("arena_dash", "1")
+	var _dash_on := _server.console.set_cvar("fc_dash", "1")
 	# The script is the classic run (jump, dash, run, jump off); the auto-start run would start a
 	# second one on the first touch.
-	var _auto_off := _server.console.set_cvar("arena_wall_run_auto", "0")
+	var _auto_off := _server.console.set_cvar("fc_wall_run_auto", "0")
 	await _moves_told(own)
 	_wall_idle = true
 	_wall_from = -1
@@ -399,8 +399,8 @@ func _test_wall_moves_part2(a: Dictionary, session, heard, runs, jumps, replays,
 
 	_wall_idle = false
 	_wall_from = -1
-	var _dash_off := _server.console.set_cvar("arena_dash", "0")
-	var _auto_on := _server.console.set_cvar("arena_wall_run_auto", "1")
+	var _dash_off := _server.console.set_cvar("fc_dash", "0")
+	var _auto_on := _server.console.set_cvar("fc_wall_run_auto", "1")
 	_done()
 
 

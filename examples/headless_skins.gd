@@ -27,8 +27,8 @@ func _ready() -> void:
 	_check(undressed.size() == ROLES.size(), "no pack: every role still has art")
 
 	var linked := ArenaWeaponSkins.apply()
-	var has_pack := DirAccess.dir_exists_absolute("res://addons/arena_weapons")
-	_check(linked.has("arena_weapons") == has_pack, "linked pack is applied exactly when present: %s" % str(linked))
+	var has_pack := DirAccess.dir_exists_absolute("res://addons/fc_weapons")
+	_check(linked.has("fc_weapons") == has_pack, "linked pack is applied exactly when present: %s" % str(linked))
 
 	if has_pack:
 		# The role scan registers pack sources, which drops the art cache: it must not undo the dressing.
@@ -38,7 +38,7 @@ func _ready() -> void:
 		var skinned := _models()
 
 		for role in ROLES:
-			_check(skinned[role].begins_with("res://addons/arena_weapons/"), "%s wears the pack's model: %s" % [role, skinned[role]])
+			_check(skinned[role].begins_with("res://addons/fc_weapons/"), "%s wears the pack's model: %s" % [role, skinned[role]])
 
 		# Anything that rebuilds the table after apply() must keep it.
 		AwWeaponArtTable.drop_cache()

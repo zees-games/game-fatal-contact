@@ -340,7 +340,7 @@ static func _def_for(id: StringName, map: ArenaMap) -> DotMapDef:
 
 
 ## The imported combat surf maps in the rotation when nothing says otherwise: every one. g2gfast marks them `"kind": "arena"` and keeps them out of its own rotation, so arena is where they are played.
-## `arena_imported_rotation` narrows it (`all`, `none`, or ids separated by commas), read into [member imported_rotation].
+## `fc_imported_rotation` narrows it (`all`, `none`, or ids separated by commas), read into [member imported_rotation].
 const IMPORTED_ROTATION_DEFAULT := "all"
 
 

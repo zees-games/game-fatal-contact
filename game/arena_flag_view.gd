@@ -1,6 +1,6 @@
 extends Node3D
 
-## Draws capture the flag's flags: a pole with a banner and a faint light in the team's colour, on its stand, on the floor where it was dropped, or in the carrier's hand ([code]arena_flag_carry.gd[/code]). Over each one a small see-through flag icon in the team's colour with its distance ("19.4m"), like Halo's CTF marker (`arena_ctf_indicator`, `arena_ctf_indicator_seethrough`, both on by default; no beam, no "RED FLAG" text). Built by [ArenaObjectives] when the game draws anything (not headless); it reads [DotObjectiveCtf] every frame, so a rebuilt layout (new map, new match) needs no wiring.
+## Draws capture the flag's flags: a pole with a banner and a faint light in the team's colour, on its stand, on the floor where it was dropped, or in the carrier's hand ([code]arena_flag_carry.gd[/code]). Over each one a small see-through flag icon in the team's colour with its distance ("19.4m"), like Halo's CTF marker (`fc_ctf_indicator`, `fc_ctf_indicator_seethrough`, both on by default; no beam, no "RED FLAG" text). Built by [ArenaObjectives] when the game draws anything (not headless); it reads [DotObjectiveCtf] every frame, so a rebuilt layout (new map, new match) needs no wiring.
 
 const ArenaGame := preload("arena_game.gd")
 const ArenaFlagCarry := preload("arena_flag_carry.gd")

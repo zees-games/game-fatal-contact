@@ -37,7 +37,7 @@ const CREDITS := {
 	],
 }
 
-## Whether the server forces the team bodies (its `team_avatars` rule, `arena_team_avatars`).
+## Whether the server forces the team bodies (its `team_avatars` rule, `fc_team_avatars`).
 static var forced := true
 ## Team id -> [body id, side colour] for the sides that have a registered body; empty off a team mode.
 static var _sides: Dictionary = {}

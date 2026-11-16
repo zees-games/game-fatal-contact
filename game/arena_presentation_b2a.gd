@@ -89,14 +89,14 @@ const MEDAL_VOICES := {
 }
 
 
-## The thrown grenades that have a detonation recording of their own (arena_weapons level 26, `AwGrenadeSound`).
+## The thrown grenades that have a detonation recording of their own (fc_weapons level 26, `AwGrenadeSound`).
 const GRENADE_BLAST_LEVEL := 26
 const GRENADE_BLASTS: Array[StringName] = [&"frag", &"sticky", &"flash", &"smoke", &"incendiary"]
 
 
 ## The sound id of [param grenade]'s own detonation, or [constant EXPLOSION] when this build has no recording for it.
 static func blast_sound_id(grenade: StringName) -> StringName:
-	if not GRENADE_BLASTS.has(grenade) or DotAddonApi.build_level("arena_weapons") < GRENADE_BLAST_LEVEL:
+	if not GRENADE_BLASTS.has(grenade) or DotAddonApi.build_level("fc_weapons") < GRENADE_BLAST_LEVEL:
 		return EXPLOSION
 	if int(ArenaNewerApi.call_static(&"AwGrenadeSound", &"count", [grenade])) == 0:
 		return EXPLOSION

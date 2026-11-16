@@ -34,14 +34,14 @@ func _test_wall_rules() -> void:
 	var unbacked := PackedStringArray()
 	var walls_cvars := 0
 	for cvar: String in ArenaModule.MOVEMENT_CVARS:
-		if not cvar.begins_with("arena_wall"):
+		if not cvar.begins_with("fc_wall"):
 			continue
 		walls_cvars += 1
 		var key: String = ArenaModule.MOVEMENT_CVARS[cvar][0]
 		if not ArenaPlayer.MOVEMENT_RULES.has(key) or (t.get(key) == null and not ArenaPlayer.BODY_RULES.has(key)):
 			unbacked.append(cvar)
 	_check(walls_cvars >= 3 and unbacked.is_empty(),
-		"every arena_wall_* cvar sets a tunable RULES carries (%d)" % walls_cvars, ", ".join(unbacked))
+		"every fc_wall_* cvar sets a tunable RULES carries (%d)" % walls_cvars, ", ".join(unbacked))
 
 	var off := {"wall_run_enabled": 0.0, "wall_jump_enabled": 0.0, "wall_slide_speed": 0.0,
 		"wall_jump_max_per_air": 2.0}
@@ -272,7 +272,7 @@ func _test_score_vote() -> void:
 		"ArenaVote.note_round_end existed and was called by nothing"
 	)
 
-	# A new match is followed without a map change: `arena_mode` calls `game.change_map` directly, which never fires
+	# A new match is followed without a map change: `fc_mode` calls `game.change_map` directly, which never fires
 	# `maps.map_changed`, so a vote bound only there held the freed match. A stand-in match node, not a real mode change.
 	var real_match: DotMatch = _game.match_node
 	var stand_in := DotMatch.new()

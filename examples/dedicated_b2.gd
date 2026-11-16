@@ -135,14 +135,14 @@ func _test_module_loaded() -> void:
 
 	# Registration helpers make unloading safe: a direct registration would leave a console
 	# command pointing at a freed object.
-	for command in ["arena_status", "arena_score", "arena_restart"]:
+	for command in ["fc_status", "fc_score", "fc_restart"]:
 		_check(
 			_server.console.find_command(command) != null,
 			"registered %s" % command
 		)
 
 	_check(
-		_server.console.find_cvar("arena_scorelimit") != null, "and its cvar"
+		_server.console.find_cvar("fc_scorelimit") != null, "and its cvar"
 	)
 
 	# The NPC skill cvars, on a real console. A fake in dot-npc-ai's suite proves the
@@ -689,11 +689,11 @@ func _test_unload() -> void:
 	# The point of the helpers: everything the module registered is gone. A stale
 	# command is a handler pointing at a freed object.
 	_check(
-		_server.console.find_command("arena_status") == null,
+		_server.console.find_command("fc_status") == null,
 		"and takes its commands with it"
 	)
 	_check(
-		_server.console.find_cvar("arena_scorelimit") == null,
+		_server.console.find_cvar("fc_scorelimit") == null,
 		"and its cvar"
 	)
 	_check(
@@ -708,7 +708,7 @@ func _test_unload() -> void:
 	)
 	_check(again.ok, "and it loads again cleanly", str(again.error))
 	_check(
-		_server.console.find_command("arena_status") != null,
+		_server.console.find_command("fc_status") != null,
 		"with its commands back"
 	)
 	_end()

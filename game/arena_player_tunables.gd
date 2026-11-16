@@ -7,7 +7,7 @@ extends RefCounted
 ## At 1.83 m (what 0.0254 m a unit would make) the same person stood 96 map units tall. The controller
 ## puts the eye at the height less half the radius, which is 64 units for a 72 unit, 16 unit radius body.
 ## [member DotHumanoidFigure] scales whatever body it is given to the standing height, so every avatar
-## follows. `ArenaGame` writes these from `ArenaConfig` through [method configure_body] (cvars `arena_avatar_*`).
+## follows. `ArenaGame` writes these from `ArenaConfig` through [method configure_body] (cvars `fc_avatar_*`).
 static var avatar_height_units: float = 72.0
 static var avatar_crouch_units: float = 54.0
 static var avatar_radius_units: float = 16.0
@@ -15,7 +15,7 @@ static var avatar_unit_metres: float = 0.01905
 ## The height arena's hit zones, view and fallbacks were drawn for, metres.
 const LEGACY_HEIGHT := 1.8
 
-## Sprint speed as a fraction of the run (`arena_sprint_scale`).
+## Sprint speed as a fraction of the run (`fc_sprint_scale`).
 const SPRINT_SCALE := 1.25
 
 ## The movement command's aim bit and the share of ground speed an aimed player keeps (sv_ads_speed_mult).
@@ -80,13 +80,13 @@ static func make() -> DotFpsTunables:
 	tunables.coyote_time = 0.08
 	tunables.jump_buffer_time = 0.12
 	# Shift sprints: a quarter over the run, unlimited (no stamina) and fireable. It was 1.0, so Shift did nothing
-	# and the owner reported sprint as broken. With arena_dash 1 the same bit also dashes.
+	# and the owner reported sprint as broken. With fc_dash 1 the same bit also dashes.
 	tunables.sprint_speed_scale = SPRINT_SCALE
 	tunables.crouch_speed_scale = 0.45
 	# Crouch at a run slides (DotFpsSlidePreset.apply_run: a burst and a long, low-friction carry).
 	DotFpsSlidePreset.apply_run(tunables)
 	# E throws you upward on a cooldown, on the command's first user bit (the weapon buttons
-	# ride in their own). Off by default: a stray E must not fire the player; arena_launch 1 enables it.
+	# ride in their own). Off by default: a stray E must not fire the player; fc_launch 1 enables it.
 	tunables.launch_enabled = false
 	tunables.launch_button = DotFpsCommand.BUTTON_USER_0
 	tunables.launch_velocity = 15.5
@@ -95,7 +95,7 @@ static func make() -> DotFpsTunables:
 	tunables.aim_button = AIM_BUTTON
 	tunables.aim_speed_scale = AIM_SPEED_SCALE
 	# Shift dashes when this is on (it shares the sprint bit). A press throws you along the way you steer.
-	# Off by default: arena_dash 1 turns it on (a mode or an operator's choice).
+	# Off by default: fc_dash 1 turns it on (a mode or an operator's choice).
 	tunables.dash_enabled = false
 	tunables.dash_button = DotFpsCommand.BUTTON_SPRINT
 	tunables.dash_speed = 15.0
@@ -117,8 +117,8 @@ static func make() -> DotFpsTunables:
 	return tunables
 
 
-## The movement keys a server owner may change on a running server (`arena_slide*`,
-## `arena_launch*`), and that RULES carries to every client so prediction agrees.
+## The movement keys a server owner may change on a running server (`fc_slide*`,
+## `fc_launch*`), and that RULES carries to every client so prediction agrees.
 const MOVEMENT_RULES: PackedStringArray = [
 	"speed_scale", "max_speed", "walk_speed_scale", "sprint_speed_scale", "crouch_speed_scale", "aim_speed_scale",
 	"slide_enabled", "slide_min_speed", "slide_boost", "slide_max_speed",
@@ -165,7 +165,7 @@ static func apply_class_attributes(def: Object, tunables: Object) -> int:
 ## against a wish speed capped at `max_air_wish_speed`: the arena's own pair (140 against
 ## a 1.2 m/s cap) is a floaty deathmatch, and on a ramp it is a player who cannot hold the
 ## line the mapper drew. The numbers are the genre's, converted at 0.01905 m a unit:
-## `sv_airaccelerate 150` (what game-airdrift runs these maps at, and `arena_surf_airaccelerate`
+## `sv_airaccelerate 150` (what game-airdrift runs these maps at, and `fc_surf_airaccelerate`
 ## changes it), a 30 u/s wish cap, 800 u/s² of gravity, a 57-unit jump and the 3500 u/s
 ## speed limit. Gravity and the jump travel together because the gaps between ramps were
 ## sized for that arc — at the arena's 22 m/s² a jump off a ramp lands 30% short.

@@ -8,7 +8,7 @@ extends RefCounted
 ## the map came from, the button opens a door in front of those two. The door is not solid in
 ## the import, so the way out was always open and the button was only a hop into the cell.
 ##
-## [b]What this does with them[/b], while [member enabled] (`arena_jail`):
+## [b]What this does with them[/b], while [member enabled] (`fc_jail`):
 ## - a fall (a pit that aims at the button) puts the player [i]in the cell[/i];
 ## - the button volume teleports nobody. Standing in it presses the button, which opens the gate
 ##   for [member open_ticks] and then keeps it shut for [member cooldown_ticks];

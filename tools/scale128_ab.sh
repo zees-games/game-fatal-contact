@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Same-box A/B, A interleaved with B per cell, REPS reps. ARM=hullgrid (default): A = arena_hull_grid 0, B = 1.
-# ARM=hullfast: A = arena_hull_fast 0, B = 1. ARM=worldcoarse: flat-body per-tick candidate list off/on. ARM=all: both.
+# Same-box A/B, A interleaved with B per cell, REPS reps. ARM=hullgrid (default): A = fc_hull_grid 0, B = 1.
+# ARM=hullfast: A = fc_hull_fast 0, B = 1. ARM=worldcoarse: flat-body per-tick candidate list off/on. ARM=all: both.
 # ARM=fast: A = bot_fast_sense 0, B = 1.
 #   tools/scale128_ab.sh "32 64 128" 33 30 2   -> $OUT.A / $OUT.B (jsonl)
 cd "$(dirname "$0")/.."

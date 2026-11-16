@@ -11,7 +11,7 @@ extends Node3D
 ## [b]The points are the genre's reward for a critical[/b]: they burst out of the body and
 ## whoever walks through them collects them. They count per player ([member points]); a
 ## server owner sets how many, what one is worth, whether a health pack comes too, whether
-## any kill drops them, and how long they lie there (all `arena_drop_*` cvars). See
+## any kill drops them, and how long they lie there (all `fc_drop_*` cvars). See
 ## game-fatal-contact's docs/modes.md.
 
 const ArenaContent := preload("arena_content.gd")

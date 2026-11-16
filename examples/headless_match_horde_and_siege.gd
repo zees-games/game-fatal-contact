@@ -688,10 +688,10 @@ func _check_space_query_audit() -> void:
 ## The server's ways in from the idle frame that respawn somebody or swap the map, each through `game.tick_gate`
 ## (dot_tick_gate.gd; docs/sim-thread.md "Physics space queries"). A file that stops using it fails here.
 const TICK_GATED_FILES := {
-	"game/arena_module.gd": "arena_restart",
-	"game/arena_module_b2.gd": "arena_mode",
+	"game/arena_module.gd": "fc_restart",
+	"game/arena_module_b2.gd": "fc_mode",
 	"game/arena_net_bridge_b1.gd": "the gate opened at the top of server_tick",
-	"game/arena_map_session.gd": "every map change: arena_map, the vote, the rotation, host_change",
+	"game/arena_map_session.gd": "every map change: map, the vote, the rotation, host_change",
 	"game/arena_mod_tools.gd": "an admin respawn",
 	"game/arena_team_menu.gd": "a team menu choice that brings a player back",
 }

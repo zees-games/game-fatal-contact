@@ -1,8 +1,8 @@
 extends RefCounted
-## Keeps the client's copy of the knife rules on the server's `arena_knife_*` cvars, which are replicated
+## Keeps the client's copy of the knife rules on the server's `fc_knife_*` cvars, which are replicated
 ## (the throw meter's length and the boomerang's curve have to match what the server simulates).
 
-const PREFIX := "arena_knife"
+const PREFIX := "fc_knife"
 
 
 ## [param source] is a client link with `replicated_cvar(name, fallback)` and a `replicated_cvar_changed(name, value)`

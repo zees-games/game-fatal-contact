@@ -348,10 +348,10 @@ static var _grenade_script: Script = null
 
 ## Whether the bounce comes from [member grenade_rules] through `AwGrenade`'s helpers (level 27).
 func _bounce_helpers() -> bool:
-	if grenade_rules == null or DotAddonApi.build_level("arena_weapons") < ArenaRocketJump.MIN_LEVEL:
+	if grenade_rules == null or DotAddonApi.build_level("fc_weapons") < ArenaRocketJump.MIN_LEVEL:
 		return false
 	if _grenade_script == null:
-		_grenade_script = load("res://addons/arena_weapons/aw_grenade.gd") as Script
+		_grenade_script = load("res://addons/fc_weapons/aw_grenade.gd") as Script
 	return _grenade_script != null
 
 

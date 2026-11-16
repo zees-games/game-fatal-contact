@@ -347,7 +347,7 @@ func _switch_to(game: ArenaGame, id: int, slot: int) -> void:
 ## The weapons pack in a real game: the rig drives the arsenal, a spawn holds the right thing, a
 ## shot leaves the eye, the bash works, and projectiles behave as defined.
 func _test_pack_weapons() -> void:
-	_section("arena-weapons in the arena")
+	_section("fc-weapons in Fatal Contact")
 
 	var game := ArenaGame.new()
 	game.name = "AwGame"

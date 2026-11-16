@@ -1,5 +1,5 @@
 extends RefCounted
-## Utility grenades (flash, smoke, incendiary) on the server: arena_weapons' [AwUtilityZones] does the zones and
+## Utility grenades (flash, smoke, incendiary) on the server: fc_weapons' [AwUtilityZones] does the zones and
 ## blinds; this plugs arena's players, world trace and combat into it. Flight, bounce and frag damage stay in
 ## [ArenaProjectiles], which already does them with the thrower grace and hitbox sweeps.
 
@@ -8,7 +8,7 @@ const ArenaBots := preload("arena_bots.gd")
 
 const CHANNEL := "arena.grenades"
 
-## arena_weapons API level that has AwUtilityZones (requires.floor.json).
+## fc_weapons API level that has AwUtilityZones (requires.floor.json).
 const MIN_LEVEL := 4
 
 ## dot-bot API level that has DotBotBrain.blind_for and the world's sight blockers.
@@ -32,9 +32,9 @@ var _reach_at := Vector3.ZERO
 var _reach := 0.0
 
 
-## Whether this build of arena_weapons can do it; the glue stays off below that.
+## Whether this build of fc_weapons can do it; the glue stays off below that.
 static func supported() -> bool:
-	return DotAddonApi.build_level("arena_weapons") >= MIN_LEVEL
+	return DotAddonApi.build_level("fc_weapons") >= MIN_LEVEL
 
 
 static func utility_ids(defs: Array) -> Array[StringName]:

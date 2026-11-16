@@ -649,15 +649,15 @@ func _test_commands() -> void:
 
 	# Run through the console rather than calling the handlers, so the permission
 	# checks and the argument plumbing are exercised too.
-	var status := _server.console.execute("arena_status")
-	_check(status.ok, "arena_status runs", str(status.error))
+	var status := _server.console.execute("fc_status")
+	_check(status.ok, "fc_status runs", str(status.error))
 
-	var score := _server.console.execute("arena_score")
-	_check(score.ok, "arena_score runs", str(score.error))
+	var score := _server.console.execute("fc_score")
+	_check(score.ok, "fc_score runs", str(score.error))
 
 	var before := _game.match_node.round_number
-	var restart := _server.console.execute("arena_restart")
-	_check(restart.ok, "arena_restart runs", str(restart.error))
+	var restart := _server.console.execute("fc_restart")
+	_check(restart.ok, "fc_restart runs", str(restart.error))
 	# A console line arrives in the idle frame, and a restart respawns everybody (a physics space
 	# query on a threaded server): it is held for the next server tick (dot_tick_gate.gd).
 	_check(
@@ -673,15 +673,15 @@ func _test_commands() -> void:
 		"round %d -> %d" % [before, _game.match_node.round_number]
 	)
 
-	var modes := _server.console.execute("arena_modes")
-	_check(modes.ok, "arena_modes runs", str(modes.error))
+	var modes := _server.console.execute("fc_modes")
+	_check(modes.ok, "fc_modes runs", str(modes.error))
 
 	# **The cvar that makes the two modes which are not about killing people reachable
 	# from a deployment.** `ArenaGame.mode_id` is an export read once at setup, so
 	# without this an operator has a game with five modes and one of them.
 	var was := String(_game.mode.id)
-	var switched := _server.console.execute("arena_mode koth")
-	_check(switched.ok, "arena_mode koth runs", str(switched.error))
+	var switched := _server.console.execute("fc_mode koth")
+	_check(switched.ok, "fc_mode koth runs", str(switched.error))
 	_check(_game.mode.id == StringName(was), "and waits for the next server tick", String(_game.mode.id))
 	await _next_tick()
 	_check(
@@ -697,7 +697,7 @@ func _test_commands() -> void:
 
 	# A mode that does not exist is refused AND the cvar is put back, without recursing through
 	# its own `changed` signal: a cvar reading `koth` on a free-for-all server is believed.
-	var bad := _server.console.execute("arena_mode not_a_mode")
+	var bad := _server.console.execute("fc_mode not_a_mode")
 	_check(bad.ok, "a bad mode does not error the console", str(bad.error))
 	_check(_game.tick_gate.pending() == 0, "and is refused at once, nothing held for the tick")
 	_check(
@@ -706,13 +706,13 @@ func _test_commands() -> void:
 		String(_game.mode.id)
 	)
 	_check(
-		_server.console.get_string("arena_mode", "") == "koth",
+		_server.console.get_string("fc_mode", "") == "koth",
 		"with the cvar put back to what is actually running",
-		_server.console.get_string("arena_mode", "")
+		_server.console.get_string("fc_mode", "")
 	)
 
 	# And back, so the rest of the suite sees the game it expects.
-	var restored := _server.console.execute("arena_mode %s" % was)
+	var restored := _server.console.execute("fc_mode %s" % was)
 	_check(restored.ok, "and it changes back", str(restored.error))
 	await _next_tick()
 	_check(_game.mode.id == StringName(was), "to the mode it started on")
@@ -729,26 +729,26 @@ func _test_match_cvars() -> void:
 	var rules := _game.match_node.rules
 	var was_min := rules.min_players
 
-	var score := _server.console.set_cvar("arena_scorelimit", "7")
+	var score := _server.console.set_cvar("fc_scorelimit", "7")
 	_check(
 		score.ok and _game.match_node.rules.score_limit == 7,
-		"arena_scorelimit 7 from a config is the running match's score limit",
+		"fc_scorelimit 7 from a config is the running match's score limit",
 		"%s, limit %d" % [str(score.error), _game.match_node.rules.score_limit]
 	)
 
-	var timed := _server.console.execute("arena_timelimit 90")
+	var timed := _server.console.execute("fc_timelimit 90")
 	_check(
 		timed.ok and is_equal_approx(_game.match_node.rules.time_limit_sec, 90.0),
-		"arena_timelimit 90 at the console is its time limit",
+		"fc_timelimit 90 at the console is its time limit",
 		"%s, %.1f" % [str(timed.error), _game.match_node.rules.time_limit_sec]
 	)
 
-	var warm := _server.console.execute("arena_warmup 3")
-	var fewer := _server.console.execute("arena_minplayers 1")
+	var warm := _server.console.execute("fc_warmup 3")
+	var fewer := _server.console.execute("fc_minplayers 1")
 	_check(
 		warm.ok and fewer.ok and is_equal_approx(_game.match_node.rules.warmup_sec, 3.0)
 			and _game.match_node.rules.min_players == 1,
-		"arena_warmup 3 and arena_minplayers 1 are its warmup and its minimum",
+		"fc_warmup 3 and fc_minplayers 1 are its warmup and its minimum",
 		str(_game.match_node.rules.describe())
 	)
 
@@ -766,18 +766,18 @@ func _test_match_cvars() -> void:
 	)
 
 	# Zero is the mode's own, not "no limit": a server can hand the number back.
-	var back := _server.console.execute("arena_timelimit 0")
+	var back := _server.console.execute("fc_timelimit 0")
 	_check(
 		back.ok and is_equal_approx(_game.match_node.rules.time_limit_sec, _game.mode.rules.time_limit_sec),
-		"arena_timelimit 0 gives the match the mode's own time limit back",
+		"fc_timelimit 0 gives the match the mode's own time limit back",
 		"%.1f, the mode's %.1f" % [_game.match_node.rules.time_limit_sec, _game.mode.rules.time_limit_sec]
 	)
 
 	# Put back what the rest of the suite expects.
-	var _a := _server.console.set_cvar("arena_scorelimit", "25")
-	var _b := _server.console.set_cvar("arena_timelimit", "600")
-	var _c := _server.console.set_cvar("arena_warmup", "-1")
-	var _d := _server.console.set_cvar("arena_minplayers", str(was_min))
+	var _a := _server.console.set_cvar("fc_scorelimit", "25")
+	var _b := _server.console.set_cvar("fc_timelimit", "600")
+	var _c := _server.console.set_cvar("fc_warmup", "-1")
+	var _d := _server.console.set_cvar("fc_minplayers", str(was_min))
 	_end()
 
 

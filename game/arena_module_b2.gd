@@ -78,7 +78,7 @@ func _bind_rule_cvars() -> void:
 	# snd_shot_*: dot-audio's DotShotRules (layered shots, room tails).
 	var _shot_cvars := game.shot_rules.bind_cvars(add_cvar, replicated)
 
-	# arena_ambient*: dot-audio's DotAmbienceRules; the directory cvar stays local.
+	# fc_ambient*: dot-audio's DotAmbienceRules; the directory cvar stays local.
 	var _ambient_cvars := game.ambient_rules.bind_cvars(add_cvar, replicated, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
 
 	# mp_forcecamera, mp_freeroam, mp_freeroam_speed: dot-spectate's rules (ArenaClient.toggle_roam).
@@ -327,7 +327,7 @@ func _build_maps() -> DotResult:
 	# rather than a per-player one, written onto the running catalogue in place because
 	# the rotation holds it by reference. See `ArenaMaps.imported_rotation`.
 	add_cvar(
-		"arena_imported_rotation", ArenaMaps.imported_rotation,
+		"fc_imported_rotation", ArenaMaps.imported_rotation,
 		"Imported combat surf maps in the rotation: all, none, or ids separated by commas",
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
 	).changed.connect(
@@ -598,7 +598,7 @@ static func _mode_ids() -> PackedStringArray:
 	return out
 
 
-## `arena_mode <id>` — switch what is being played, under the players standing in it.
+## `fc_mode <id>` — switch what is being played, under the players standing in it.
 func _change_mode(old_value: String, new_value: String) -> void:
 	if _reverting_mode or new_value == old_value:
 		return
@@ -645,7 +645,7 @@ func _change_mode(old_value: String, new_value: String) -> void:
 ## a cvar that reads `koth` on a server running free-for-all is worse than one that refused, because an operator believes it.
 func _revert_mode(value: String) -> void:
 	_reverting_mode = true
-	var _res := server.console.set_cvar("arena_mode", value)
+	var _res := server.console.set_cvar("fc_mode", value)
 	_reverting_mode = false
 
 
@@ -653,7 +653,7 @@ func _revert_mode(value: String) -> void:
 func _follow_mode() -> void:
 	if game == null or game.mode == null or server == null or server.console == null:
 		return
-	var cv := server.console.find_cvar("arena_mode")
+	var cv := server.console.find_cvar("fc_mode")
 	if cv != null and cv.get_string() != String(game.mode.id):
 		_revert_mode(String(game.mode.id))
 
@@ -680,7 +680,7 @@ func _cmd_status(ctx: DotCmdContext) -> void:
 		ctx.reply(line)
 
 
-## What `arena_maps` prints. [b]It lists and does not change.[/b] `ArenaGame.setup` is not re-entrant (it builds the combat trace, the match node and every spawn point as children in one pass),
+## What `fc_maps` prints. [b]It lists and does not change.[/b] `ArenaGame.setup` is not re-entrant (it builds the combat trace, the match node and every spawn point as children in one pass),
 ## so a `changelevel` that called it twice would leave two matches and two sets of spawns in one tree; doing it properly means tearing that down and telling every client.
 ## Until then an operator restarts with `-- --map <id>`, and this is how they find out what to type.
 func _cmd_maps(ctx: DotCmdContext) -> void:
@@ -715,7 +715,7 @@ func _cmd_maps(ctx: DotCmdContext) -> void:
 				"" if def.enabled and def.in_rotation else ", not in rotation",
 			])
 
-	ctx.reply("`arena_map <id>` changes it under the players. `arena_maps` lists them.")
+	ctx.reply("`map <id>` changes it under the players. `maps` is dot-map's list; this one also credits the imported maps' authors.")
 
 
 ## Whether maps.yml's active rotation plays [param id]. A map the catalogue lacks is not.

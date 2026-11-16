@@ -43,7 +43,7 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 
 
 func _run() -> void:
-	_check(ArenaRocketJump.supported(), "fc-weapons is at the level the rockets need", str(DotAddonApi.build_level("arena_weapons")))
+	_check(ArenaRocketJump.supported(), "fc-weapons is at the level the rockets need", str(DotAddonApi.build_level("fc_weapons")))
 
 	var game := ArenaGame.new()
 	game.name = "G"

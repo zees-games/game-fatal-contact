@@ -297,7 +297,7 @@ func _tell_player(held: float, rate: int) -> void:
 static func behind_notice(held: float, rate: int) -> String:
 	if rate <= 0 or held >= rate * BEHIND_SHARE:
 		return ""
-	return "The server cannot keep up: the game runs at %d%% speed. Fewer bots or a lower arena_solo_tick_tiers helps." % roundi(held * 100.0 / rate)
+	return "The server cannot keep up: the game runs at %d%% speed. Fewer bots or a lower fc_solo_tick_tiers helps." % roundi(held * 100.0 / rate)
 
 
 ## Whether a behind line is due at [param now_ms] when the last was said at [param last_ms] (-1: not while behind).
@@ -323,11 +323,11 @@ static func sections_line(sections: Dictionary, ticks: int) -> String:
 	return "SIM_HOST_SECTIONS ms/tick | " + ", ".join(parts)
 
 
-## [prefix, script] of the weapon sub-phase clocks this build's addons have: AwWeaponRig's from arena-weapons API 10,
+## [prefix, script] of the weapon sub-phase clocks this build's addons have: AwWeaponRig's from fc-weapons API 10,
 ## DotWeaponArsenal's from dot-weapon API 32. Read and set by name, so an older shell's addons still parse.
 static func _weapon_phase_clocks() -> Array:
 	var clocks := []
-	if DotAddonApi.build_level("arena_weapons") >= 10:
+	if DotAddonApi.build_level("fc_weapons") >= 10:
 		clocks.append(["pw_", AwWeaponRig])
 	if DotAddonApi.build_level("dot_weapon") >= 32:
 		clocks.append(["pa_", DotWeaponArsenal])

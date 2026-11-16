@@ -51,7 +51,7 @@ func _solid_hulls_for(id: int, tick: int = -1) -> Array:
 	return out
 
 
-## [method _add_hull] over [param cand] for a mover whose neighbours are where they stand now (no lag compensation): the same tests, with the loop invariants (ids, roster, the pair callable) hoisted out of the per-candidate call. Cvar `arena_hull_fast`.
+## [method _add_hull] over [param cand] for a mover whose neighbours are where they stand now (no lag compensation): the same tests, with the loop invariants (ids, roster, the pair callable) hoisted out of the per-candidate call. Cvar `fc_hull_fast`.
 ## The pair test is asked once per pair and tick ([method _pair_index]), and only of living players: about 10 us a call through dot-team's block rules, the largest part of a gather.
 ## One answer serves both players of a pair: dot-team's `blocks(a, b)` is symmetric (one relation, both players' overrides).
 func _add_hulls_local(out: Array, cand: Array, id: int, me_at: Vector3, coarse: float, tick: int = -1) -> void:

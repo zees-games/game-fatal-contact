@@ -2,13 +2,13 @@ extends RefCounted
 ## Carrying a flag: the drop key, a thrown flag's flight, the one-handed rule, and where the flag is held.
 ## The server runs the rules; a client learns them from the ctf wire ("fc") and only draws.
 
-## A carrier holds only one-handed items: the melee weapon, the sidearm and the thrown slot (arena_ctf_one_hand).
+## A carrier holds only one-handed items: the melee weapon, the sidearm and the thrown slot (fc_ctf_one_hand).
 static var one_hand := true
-## The drop key drops a carried flag ahead of the aim (arena_ctf_drop_key).
+## The drop key drops a carried flag ahead of the aim (fc_ctf_drop_key).
 static var drop_key := true
-## Metres a second a dropped flag leaves the hand at, along the aim, on top of the carrier's own speed (arena_ctf_drop_speed).
+## Metres a second a dropped flag leaves the hand at, along the aim, on top of the carrier's own speed (fc_ctf_drop_speed).
 static var drop_speed := 4.0
-## A dropped flag falls, slides and bounces (arena_ctf_flag_physics); off, it is put on the floor at once.
+## A dropped flag falls, slides and bounces (fc_ctf_flag_physics); off, it is put on the floor at once.
 static var physics := true
 ## This client holds its own flag in the right hand (cl_lefthand); in first person only, as others are not told.
 static var left_handed := false

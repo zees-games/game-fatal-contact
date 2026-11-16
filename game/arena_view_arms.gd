@@ -46,7 +46,7 @@ var arms: DotPlayerViewArms = null
 var body: Node3D = null
 var _grip: DotViewGrip = null
 var _own_lean := 0.4
-## The game whose `fp_arms` rule (arena_fp_arms) may put one arm set on everybody; null keeps the player's own.
+## The game whose `fp_arms` rule (fc_fp_arms) may put one arm set on everybody; null keeps the player's own.
 var rules: Object = null
 var _arm_set: Array = []
 ## [wear key, look] of the side's body the arms last wore ([method team_look]).

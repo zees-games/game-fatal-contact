@@ -7,7 +7,7 @@ extends RefCounted
 const MIN_STEPS := 2
 ## The default of [member max_steps].
 const MAX_STEPS := 8
-## Cvar `arena_tick_max_steps`: below [constant MIN_STEPS] trades simulation speed for frame rate
+## Cvar `fc_tick_max_steps`: below [constant MIN_STEPS] trades simulation speed for frame rate
 ## when a tick is too dear to run twice a frame (1 = one tick per frame). 0 = no limit: the budget alone decides.
 static var max_steps := MAX_STEPS
 const CHANNEL := "arena.tick_budget"
@@ -106,7 +106,7 @@ func note_frame(frame_sec: float, period_sec: float, cap: int) -> float:
 		_said_behind = true
 		DotLog.warn(CHANNEL, "solo game behind real time: frames drop owed ticks, so it runs slower than the clock",
 			{"tick_ms": snappedf(_cost_sec * 1000.0, 0.01), "period_ms": snappedf(period_sec * 1000.0, 0.01),
-				"cap": cap, "arena_tick_max_steps": max_steps})
+				"cap": cap, "fc_tick_max_steps": max_steps})
 	elif _shed <= 0.0:
 		_said_behind = false
 	return _shed

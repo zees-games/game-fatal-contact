@@ -122,7 +122,7 @@ const ArenaMode := preload("arena_mode.gd")
 @export var objective_layout: StringName = &""
 
 ## How this mode picks a respawn site: "avoid", "weighted", "furthest" or "random"
-## (`ArenaPlayerStack.spawn_settings`). Empty takes the server's `arena_spawn_mode`.
+## (`ArenaPlayerStack.spawn_settings`). Empty takes the server's `fc_spawn_mode`.
 @export var spawn_mode: String = ""
 
 @export_group("Map")
@@ -353,7 +353,7 @@ static func capture_the_flag(limit: int = 3) -> ArenaMode:
 	rules.kill_points = 0
 	rules.friendly_points = 0
 	rules.assist_points = 0
-	# No clock unless `arena_ctf_timelimit` asks for one: the 600 s deathmatch default
+	# No clock unless `fc_ctf_timelimit` asks for one: the 600 s deathmatch default
 	# ended flag games mid-push.
 	rules.time_limit_sec = 0.0
 	mode.rules = rules

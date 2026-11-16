@@ -553,7 +553,7 @@ func _test_forced_noclip_is_predicted() -> void:
 	_done()
 
 
-## A server owner's movement rules (`arena_slide*`, `arena_launch*`) reach every client. [b]A client
+## A server owner's movement rules (`fc_slide*`, `fc_launch*`) reach every client. [b]A client
 ## predicting with different numbers mispredicts every slide and every launch[/b], and the symptom
 ## is rubber-banding that looks like lag.
 func _test_movement_rules_reach_clients() -> void:
@@ -569,7 +569,7 @@ func _test_movement_rules_reach_clients() -> void:
 	_check(
 		client_player.controller.tunables.slide_enabled and not client_player.controller.tunables.launch_enabled
 		and not server_player.controller.tunables.launch_enabled,
-		"the arena slides by default and does not launch (E is off until arena_launch 1), on the client as on the server"
+		"the arena slides by default and does not launch (E is off until fc_launch 1), on the client as on the server"
 	)
 
 	# This harness has no event link, so RULES is handed to each client as the link would

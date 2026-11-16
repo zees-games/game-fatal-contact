@@ -16,8 +16,8 @@ extends RefCounted
 
 const MIN_LEVEL := 27
 
-const RULES_PATH := "res://addons/arena_weapons/aw_rocket_rules.gd"
-const JUMP_PATH := "res://addons/arena_weapons/aw_rocket_jump.gd"
+const RULES_PATH := "res://addons/fc_weapons/aw_rocket_rules.gd"
+const JUMP_PATH := "res://addons/fc_weapons/aw_rocket_jump.gd"
 
 ## The def param the warhead fits (`AwRocketJump.PARAM`), and the attachment's id.
 const PARAM := &"rocketjump"
@@ -33,7 +33,7 @@ static var _types: Dictionary = {}
 
 
 static func supported() -> bool:
-	return DotAddonApi.build_level("arena_weapons") >= MIN_LEVEL and ResourceLoader.exists(RULES_PATH)
+	return DotAddonApi.build_level("fc_weapons") >= MIN_LEVEL and ResourceLoader.exists(RULES_PATH)
 
 
 ## A fresh `AwRocketRules` at its defaults, or null below level 27.

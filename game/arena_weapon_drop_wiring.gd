@@ -57,7 +57,7 @@ static func needs_pool(game) -> bool:
 	return game != null and game.weapon_drops != null and game.weapon_drops.draws and not game.weapon_drops.has_meta(POOLED)
 
 
-const CHARGE_FX := preload("res://addons/arena_weapons/view/aw_charge_fx.gd")
+const CHARGE_FX := preload("res://addons/fc_weapons/view/aw_charge_fx.gd")
 
 ## The meshes and materials of the world model of each weapon of [param ids] from index [param from] until
 ## [param until_msec], appended to [param into]; returns the next index. A drop body waits outside the tree and

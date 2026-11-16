@@ -208,7 +208,7 @@ func _check_throw_disabled(game: ArenaGame, ids: Array, thrower: int, here: Vect
 	_place(game, ids, {thrower: here})
 	var _again := _knife_in_hand(game, thrower)
 	_press_aim(game, thrower, 0.0, -35.0)
-	_check(game.knives.count() == 0 and game.player_for(thrower).arsenal.carries(&"knife"), "arena_knife_throw 0 keeps the knife in hand")
+	_check(game.knives.count() == 0 and game.player_for(thrower).arsenal.carries(&"knife"), "fc_knife_throw 0 keeps the knife in hand")
 	game.knife_rules["enabled"] = true
 
 
@@ -217,7 +217,7 @@ func _check_pickup_rule(game: ArenaGame, ids: Array, thrower: int, stuck: DotWea
 	game.knife_rules["pickup"] = 0.0
 	var body: Vector3 = stuck.at if stuck != null else target
 	_place(game, ids, {thrower: Vector3(body.x, floor_y, body.z)})
-	_check(game.knives.count() == 1 and not game.player_for(thrower).arsenal.carries(&"knife"), "arena_knife_throw_pickup 0 leaves it in the body")
+	_check(game.knives.count() == 1 and not game.player_for(thrower).arsenal.carries(&"knife"), "fc_knife_throw_pickup 0 leaves it in the body")
 	game.knife_rules["pickup"] = 1.0
 	_place(game, ids, {thrower: Vector3(body.x, floor_y, body.z)})
 	_check(game.knives.count() == 0 and game.player_for(thrower).arsenal.carries(&"knife"), "walking over the body takes the knife out of it")
@@ -244,7 +244,7 @@ func _throw_at_mate_and_slow(game: ArenaGame, ids: Array, thrower: int, mate: in
 	var _held3 := _knife_in_hand(game, thrower)
 	_press_aim(game, thrower, 0.0, 0.0)
 	var slow: DotWeaponKnives.Knife = game.knives.entries()[0] if game.knives.count() == 1 else null
-	_check(slow != null and absf(slow.velocity.length() - 10.0) < 1.0, "arena_knife_throw_speed sets the throw speed", str(slow.velocity.length() if slow != null else -1.0))
+	_check(slow != null and absf(slow.velocity.length() - 10.0) < 1.0, "fc_knife_throw_speed sets the throw speed", str(slow.velocity.length() if slow != null else -1.0))
 	game.knife_rules["speed"] = 40.0
 
 
@@ -298,7 +298,7 @@ func _charge_and_boomerang(game: ArenaGame, ids: Array, thrower: int, here: Vect
 	_hold_aim(game, thrower, 0.0, 60.0, HOLD_FULL)
 	_check(absf(float(_last_throw()["speed"]) - 40.0) < 1.0, "held a second it throws at full speed", str(_last_throw()["speed"]))
 
-	# Charge off (arena_knife_throw_charge 0): the press throws at once, at full speed.
+	# Charge off (fc_knife_throw_charge 0): the press throws at once, at full speed.
 	game.knife_rules["charge"] = false
 	_reset_throw(game, ids, thrower, here)
 	game.tick({thrower: [DotFpsCommand.new(), DotWeaponCommand.new()]})
@@ -351,8 +351,8 @@ func _test_pieces() -> void:
 	_check(absf(meter.advance(1.0, true, rules) - 0.5) < 0.001, "charge_sec 2 takes two seconds to fill")
 
 	var followed := DotWeaponKnives.DEFAULT_RULES.duplicate()
-	_check(ArenaKnifeFollow.apply(followed, "arena_knife_throw_charge", "1") and bool(followed["charge"]), "a replicated arena_knife_throw_charge lands in the rules")
-	_check(ArenaKnifeFollow.apply(followed, "arena_knife_throw_charge_sec", "2.5") and is_equal_approx(float(followed["charge_sec"]), 2.5), "and a number")
+	_check(ArenaKnifeFollow.apply(followed, "fc_knife_throw_charge", "1") and bool(followed["charge"]), "a replicated fc_knife_throw_charge lands in the rules")
+	_check(ArenaKnifeFollow.apply(followed, "fc_knife_throw_charge_sec", "2.5") and is_equal_approx(float(followed["charge_sec"]), 2.5), "and a number")
 	_check(not ArenaKnifeFollow.apply(followed, "mp_something", "1"), "another cvar is ignored")
 	_check(not ArenaKnifeFollow.follow(followed, null), "no source, no follow")
 

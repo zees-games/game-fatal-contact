@@ -537,7 +537,7 @@ static func wall_shot_strafe(state: DotFpsState) -> float:
 var flag_one_hand := false
 
 ## Whether the rig has simulate_idle (fc-weapons API 24); the live shell pins 21, whose idle tick is simulate_tick with no context.
-static var idle_tick := DotAddonApi.build_level("arena_weapons") >= 24
+static var idle_tick := DotAddonApi.build_level("fc_weapons") >= 24
 
 
 func simulate_tick(

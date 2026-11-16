@@ -44,7 +44,7 @@ var lag_always: bool = false
 ## It was 255 in 8 bits, commented as "just under four seconds" -- which is 255 TICKS.
 ## In quarter ticks it is 64 ticks, one second at 64 and half a second at 128, so on a
 ## 128-tick server the wire clamped a 300-400 ms player below the rewind limit that was
-## meant to compensate them, whatever `arena_max_unlag_ms` said.
+## meant to compensate them, whatever `fc_max_unlag_ms` said.
 const MAX_VIEW_LAG_Q := 1023
 const VIEW_LAG_BITS := 10
 

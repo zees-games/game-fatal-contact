@@ -54,9 +54,9 @@ const RETIRED := {
 const DEFAULTS := {
 	"weapons": {
 		# Pack folders under res://addons whose weapons join the own pack's ([] = none); a missing one is skipped.
-		"packs": ["arena_weapons"],
+		"packs": ["fc_weapons"],
 		# The pack that owns the plain ids (`rifle`, not `aw_rifle`): the game's own set, registered first.
-		"own": "arena_weapons",
+		"own": "fc_weapons",
 		# Weapon ids kept out of the catalogue.
 		"exclude": [],
 		# role -> weapon id, over the automatic choice (the first enabled pack's weapon for that slot).

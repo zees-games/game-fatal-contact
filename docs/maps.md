@@ -23,7 +23,7 @@ What survives a change:
 
 ## The rotation file
 
-`cfg/maps.yml` (or the `--config` directory's, or `sv_map_rotation_file`) says which installed maps the rotation, the next map, the vote's ballot and nominations may choose: dot-map's `DotMapRotationFile`, the `defaults:` / `games: game-arena:` shape with named rotations, plain `maps:` lists, `owner/collection/*` and name globs. `ArenaMapDirector.load_rotation` reads it and `apply_rotation` sets `DotMapDef.in_rotation`; a map outside the active rotation stays installed (`arena_map <id>`, listed "not in rotation") but is never chosen. `arena_imported_rotation` is a separate gate (`enabled`); a map must pass both. `sv_map_rotation <name>` switches the rotation, `maps_rotations` lists them, and the file's `commands:` block renames the map and vote commands. No file: every map rotates, as before. The mode filter (`restrict_rotation`) narrows the file's own list and never widens it.
+`cfg/maps.yml` (or the `--config` directory's, or `sv_map_rotation_file`) says which installed maps the rotation, the next map, the vote's ballot and nominations may choose: dot-map's `DotMapRotationFile`, the `defaults:` / `games: game-arena:` shape with named rotations, plain `maps:` lists, `owner/collection/*` and name globs. `ArenaMapDirector.load_rotation` reads it and `apply_rotation` sets `DotMapDef.in_rotation`; a map outside the active rotation stays installed (`map <id>`, listed "not in rotation") but is never chosen. `fc_imported_rotation` is a separate gate (`enabled`); a map must pass both. `sv_map_rotation <name>` switches the rotation, `maps_rotations` lists them, and the file's `commands:` block renames the map and vote commands. No file: every map rotates, as before. The mode filter (`restrict_rotation`) narrows the file's own list and never widens it.
 
 ### Per-map profiles: any map in any mode it can host
 
@@ -49,8 +49,8 @@ A value with no `/` and no `.yml` is a mode id; a relative path is under `cfg/se
 
 What the game does with it, on the authority only:
 
-- **The mode.** `ArenaMapSession._mode_for` plays the profile's mode when `ArenaMaps.supports_mode` says the map can host it; otherwise it WARNs once per map and mode and the current mode stays. The next map that names no mode gets the server's mode back (the one running before the first profile map); an operator's `arena_mode` in between is the server's mode from then on (`forget_profile_mode`). The `arena_mode` cvar follows what is played (`_follow_mode`), so with `FLAG_ARCHIVE` a server saved while a profile mode runs boots in that mode.
-- **The cvars.** The profile file's `cvars:` (or its top-level scalars) are set for that map through dot-map's `DotMapConfig.apply_values` and put back on the next map (`ArenaMapConfig.build_profile` / `apply_profile`), after the per-map `map/<name>.yml` files. Any existing cvar except `arena_mode` and protected ones; a cheat or startup-only cvar is refused by the console as usual.
+- **The mode.** `ArenaMapSession._mode_for` plays the profile's mode when `ArenaMaps.supports_mode` says the map can host it; otherwise it WARNs once per map and mode and the current mode stays. The next map that names no mode gets the server's mode back (the one running before the first profile map); an operator's `fc_mode` in between is the server's mode from then on (`forget_profile_mode`). The `fc_mode` cvar follows what is played (`_follow_mode`), so with `FLAG_ARCHIVE` a server saved while a profile mode runs boots in that mode.
+- **The cvars.** The profile file's `cvars:` (or its top-level scalars) are set for that map through dot-map's `DotMapConfig.apply_values` and put back on the next map (`ArenaMapConfig.build_profile` / `apply_profile`), after the per-map `map/<name>.yml` files. Any existing cvar except `fc_mode` and protected ones; a cheat or startup-only cvar is refused by the console as usual.
 - **The filter.** `restrict_rotation` keeps an entry whose profile names a mode the map can host, even when the running mode would drop it (`ArenaMapSession.mode_after`).
 
 `headless_rotation_profile` covers all three.
@@ -65,7 +65,7 @@ On the client:
 - `DotMapSyncClient.changed` carries one argument where `DotMapSession.changed` carries two.
 - **`ArenaClient._on_map_changed` builds the `DotMapDef` it is handed, never `game.map`**, which is assigned only on the server. Rebuilding the old map leaves the player in geometry the server no longer has, which reads as the client freezing.
 
-`arena_map <id>` changes the map under the players; `arena_maps` lists what can be loaded. The map commands are console-only, never chat: a map change ends every round in progress.
+`map <id>` changes the map under the players; `fc_maps` lists what can be loaded. The map commands are console-only, never chat: a map change ends every round in progress.
 
 ## Modes a map can host
 

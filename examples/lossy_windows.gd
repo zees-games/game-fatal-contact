@@ -475,13 +475,13 @@ func _excused(holes: Array[int], net: DotNetManager) -> Dictionary:
 	return out
 
 
-## Waits for arena_dash 1 and arena_wall_run_auto 0 to reach A's own tunables. Checked, not only
+## Waits for fc_dash 1 and fc_wall_run_auto 0 to reach A's own tunables. Checked, not only
 ## waited for: a section that went on without them compared two different sets of moves and
 ## failed its prediction checks by metres, which named the wrong thing.
 func _moves_told(own: ArenaPlayer) -> void:
 	var from := Time.get_ticks_msec()
 	var told := await _until(func() -> bool:
 		return own.controller.tunables.dash_enabled and not own.controller.tunables.wall_run_auto, RELIABLE_SECONDS)
-	_check(told, "arena_dash 1 and arena_wall_run_auto 0 reached A's tunables",
+	_check(told, "fc_dash 1 and fc_wall_run_auto 0 reached A's tunables",
 		"after %d ms: dash %s, auto run %s" % [Time.get_ticks_msec() - from,
 			own.controller.tunables.dash_enabled, own.controller.tunables.wall_run_auto])
