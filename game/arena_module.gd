@@ -302,7 +302,7 @@ func _bind_mode_cvars() -> void:
 		String(game.mode.id),
 		"What is being played: %s" % ", ".join(_mode_ids()),
 		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
-	).changed.connect(
+	).with_validator(_validate_mode).changed.connect(
 		func(old_value: String, new_value: String) -> void:
 			_change_mode(old_value, new_value)
 	)

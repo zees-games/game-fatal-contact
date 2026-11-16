@@ -43,6 +43,8 @@ One line each; the detail is in [bugs-found.md](../../../docs/bugs-found.md) or 
 
 **`_build_world_layers` ran once at setup**, so `koth` on a running server had a null objectives layer and `siege` no monsters. `fc_mode` was the first thing to change a mode at runtime.
 
+**server.yml's `map:` never reached FC** (found 2026-11-16, the owner's `map: cp_orange_x3`). The host looks for a map changer under `server.games`; FC's director is a module's child, so the host warned "this game has no maps" and the server stayed on its default. A `--map` naming a delivered pack failed the boot outright. Both now go through `ArenaServer`, which forwards to the director.
+
 **The director did not know about sides**: sites lost their team tag and the roster kept the previous mode's sides, so a team mode spawned both sides from one pool.
 
 **The first map that said no** (`dm_pit`, untagged) found that the refusal read the map's own mode (never set) instead of the mode being played, and that the rotation could hand a team game a map that would then refuse to load.

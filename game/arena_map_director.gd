@@ -296,6 +296,21 @@ func change_to(id: StringName) -> DotResult:
 	return await sync.change_to(id)
 
 
+## [method change_to] for a def already in hand. With both, a host looking for "the node that changes maps" (dot-server-deploy's
+## `sv_map` / `--map` at boot searches for `change_to` + `change_to_map`) finds this director before its MapSession child, so a
+## startup map goes through the sync host and [signal map_changed] like `map` and the rotation do, and FC's map state is reset.
+func change_to_map(map: DotMapDef) -> DotResult:
+	if not _ready_for_changes:
+		return DotResult.fail(DotError.CODE_STATE, "The map director is not set up.")
+
+	return await sync.change_to_map(map)
+
+
+## True while a map change is underway: the sync host is announcing or waiting, or the session is swapping.
+func is_changing() -> bool:
+	return sync != null and (sync.phase != DotMapSyncHost.Phase.IDLE or (session != null and session.changing_now))
+
+
 ## Changes to whatever the rotation offers next.
 func change_to_next(players: int = 0) -> DotResult:
 	if not _ready_for_changes:
@@ -345,6 +360,16 @@ func restrict_rotation() -> void:
 		var plays: ArenaMode = session.mode_after(def) if session.has_method(&"mode_after") else mode
 		if def != null and def.in_rotation and ArenaMaps.supports_mode(def, plays):
 			allowed.append(def.id)
+
+	# A mode `fc_mode` chose and could not play yet: the next map is one that hosts it, when any in the rotation does.
+	var pending: ArenaMode = session.get(&"pending_mode")
+	if pending != null:
+		var hosting: Array[StringName] = []
+		for id in allowed:
+			if ArenaMaps.supports_mode(session.catalogue.get_map(id), pending):
+				hosting.append(id)
+		if not hosting.is_empty():
+			allowed = hosting
 
 	# Never leave it empty. A mode no map can host is a configuration mistake, and the
 	# honest failure for it is "the map did not change", which says so — not "the

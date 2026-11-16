@@ -227,6 +227,9 @@ func _start_workbench() -> void:
 func _module_unload() -> void:
 	if game != null:
 		game.tick_gate.disarm()
+		var scene := game.get_parent() if is_instance_valid(game) else null
+		if scene != null and scene.has_method(&"attach_maps"):
+			scene.call(&"attach_maps", null)
 	if team_menu != null:
 		team_menu.release()
 		team_menu = null
@@ -640,6 +643,12 @@ func _add_extra_commands() -> void:
 		map_commands.spec_fn = _rotation_commands
 		map_commands.bind(self)
 
+		# FC's own name for the same change: `fc_map <id>` runs `map <id>` with the caller's context, so it is the same
+		# sync-host change (map_changed: map config, profile, vote, report) under the same changemap flag, not a second path.
+		add_command(
+			"fc_map", _cmd_fc_map, "Change the map (the same as map): fc_map <id>", DotAdminFlags.CHANGEMAP
+		)
+
 	if vote != null:
 		add_command(
 			"fc_vote", _cmd_vote, "Open a vote now", DotAdminFlags.VOTE
@@ -670,6 +679,13 @@ func _add_extra_commands() -> void:
 			"fc_horde", _cmd_horde,
 			"Show or clear the monsters: fc_horde [clear]", DotAdminFlags.GENERIC
 		)
+
+
+func _cmd_fc_map(ctx: DotCmdContext) -> void:
+	var line := "map"
+	for arg: String in ctx.args:
+		line += " " + (arg if not (arg.contains(" ") or arg.contains(";") or arg.is_empty()) else "\"%s\"" % arg)
+	var _ran := server.console.execute(line, ctx)
 
 
 func _cmd_nextmap(ctx: DotCmdContext) -> void:

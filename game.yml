@@ -26,12 +26,12 @@ client_scene: game/arena.tscn
 module: game/arena_module.gd
 
 cvars:
-  arena_scorelimit: "25"
-  arena_minplayers: "1"
+  fc_scorelimit: "25"
+  fc_minplayers: "1"
   # E throws the player into the air only when a server turns this on; off by default.
-  arena_launch: "0"
+  fc_launch: "0"
   # 1 files the players' stats with the backbone using the server's own ticket; 0 keeps them here.
-  # The family cvar; arena_stats_report is its old name and still works.
+  # The family cvar; arena_stats_report is its old name (an ERROR shim for one release).
   stats_report: "0"
   # Loadouts on B: players choose by default. An owner restricts them in their cfg/content.yml
   # (docs/modes.md "Loadouts and the owner's rules"), for example snipers only:
@@ -50,13 +50,13 @@ metadata:
   admin_menu:
     title: "Fatal Contact"
     items:
-      arena_restart:
+      fc_restart:
         label: "Restart the match"
-        command: "arena_restart"
+        command: "fc_restart"
         confirm: true
-      arena_vote:
+      fc_vote:
         label: "Start a map vote now"
-        command: "arena_vote"
+        command: "fc_vote"
 
 # Map packs the game suggests, not requires: the Workshop mounts them unless the player opts out
 # (--no-suggested, --suggested=none, --no-suggested-dm; docs/maps.md).

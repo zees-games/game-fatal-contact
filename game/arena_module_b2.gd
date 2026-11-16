@@ -7,6 +7,7 @@ const ArenaEvents := preload("arena_events.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
 const DotGameRelevance := preload("res://addons/dot_game/net/dot_game_relevance.gd")
 const ArenaMaps := preload("arena_maps.gd")
+const ArenaMode := preload("arena_mode.gd")
 const ArenaModTools := preload("arena_mod_tools.gd")
 const ArenaModes := preload("arena_modes.gd")
 const ArenaModule := preload("arena_module.gd")
@@ -348,6 +349,12 @@ func _build_maps() -> DotResult:
 			var _read := maps.load_rotation()
 	)
 
+	# The game scene (ArenaServer, under `server.games`) forwards `change_to` to this director: a host that changes
+	# "the game's map" looks there (dot-server-deploy's `map:` in server.yml / `--map`), and the module is not under it.
+	var scene := game.get_parent()
+	if scene != null and scene.has_method(&"attach_maps"):
+		scene.call(&"attach_maps", maps)
+
 	return DotResult.success(maps)
 
 
@@ -598,7 +605,10 @@ static func _mode_ids() -> PackedStringArray:
 	return out
 
 
-## `fc_mode <id>` — switch what is being played, under the players standing in it.
+## `fc_mode <id>` — what is played. Live, in place on the current map, only when that is safe: no map change underway and the map hosts
+## the mode. Otherwise it is held by the map session and the next map change plays it (`map`, `fc_map`, the rotation, a vote, or the
+## server.yml startup map), on a map that can host it; the rotation then prefers such maps. The cvar shows the chosen mode meanwhile.
+## An unknown id never gets here: the cvar's validator refuses it and names the valid ids (`_validate_mode`).
 func _change_mode(old_value: String, new_value: String) -> void:
 	if _reverting_mode or new_value == old_value:
 		return
@@ -606,13 +616,58 @@ func _change_mode(old_value: String, new_value: String) -> void:
 	var wanted := ArenaModes.by_id(StringName(new_value))
 
 	if wanted == null:
-		# Refused and put back, rather than left showing a mode the game is not
-		# playing. A cvar that reads as `koth` on a server running free-for-all is
-		# worse than one that refused: an operator believes it.
-		log_warn("no such mode", {"wanted": new_value, "known": str(_mode_ids())})
+		# Only a `force_set` skips the validator. Put back rather than left showing a mode the game is not playing.
+		DotLog.error("mod." + _module_name(), "no such mode", {"wanted": new_value, "known": ", ".join(_mode_ids())})
 		_revert_mode(old_value)
 		return
 
+	if maps == null or maps.session == null:
+		_change_mode_in_place(old_value, wanted)
+		return
+
+	var session := maps.session
+
+	if wanted == game.mode:
+		# Back to what is playing: nothing is waiting any more.
+		session.pending_mode = null
+		return
+
+	session.want_mode(wanted)
+
+	var here: DotMapDef = maps.current if maps.current != null else session.current
+
+	if maps.is_changing() or here == null or not ArenaMaps.supports_mode(here, wanted):
+		log_info("the mode applies at the next map that can host it", {
+			"mode": new_value,
+			"map": String(here.id) if here != null else "",
+			"changing": maps.is_changing(),
+		})
+		return
+
+	# The change respawns everybody, so on a server it waits for the next tick (dot_tick_gate.gd).
+	game.tick_gate.run(func() -> void:
+		if session.pending_mode != wanted or maps.is_changing():
+			# Superseded by a later fc_mode, or a map change started and plays it.
+			return
+
+		var changed := game.change_map(game.map, wanted)
+
+		if not changed.ok:
+			log_warn("the mode did not change here; it applies at the next map", {"why": changed.error.message})
+			return
+
+		session.pending_mode = null
+		session.forget_profile_mode()
+
+		log_info("the mode changed", {
+			"mode": new_value,
+			"map": String(game.map.id),
+			"objectives": String(game.mode.objective_layout),
+		}))
+
+
+## A game with no map director (a bare test game): the mode changes at once, on the mode's preferred map when it names one.
+func _change_mode_in_place(old_value: String, wanted: ArenaMode) -> void:
 	var map := game.map
 
 	if wanted.preferred_map != &"" and wanted.preferred_map != map.id:
@@ -621,7 +676,6 @@ func _change_mode(old_value: String, new_value: String) -> void:
 		if preferred != null:
 			map = preferred
 
-	# The change respawns everybody, so on a server it waits for the next tick (dot_tick_gate.gd).
 	var target := map
 	game.tick_gate.run(func() -> void:
 		var changed := game.change_map(target, wanted)
@@ -631,14 +685,17 @@ func _change_mode(old_value: String, new_value: String) -> void:
 			_revert_mode(old_value)
 			return
 
-		if maps != null and maps.session != null and maps.session.has_method(&"forget_profile_mode"):
-			maps.session.forget_profile_mode()
+		log_info("the mode changed", {"mode": String(wanted.id), "map": String(game.map.id)}))
 
-		log_info("the mode changed", {
-			"mode": new_value,
-			"map": String(game.map.id),
-			"objectives": String(game.mode.objective_layout),
-		}))
+
+## The `fc_mode` validator: an unknown id is refused before anything changes, naming every valid one.
+func _validate_mode(value: String) -> DotResult:
+	if ArenaModes.by_id(StringName(value)) != null:
+		return DotResult.success(value)
+
+	var known := ", ".join(_mode_ids())
+	DotLog.error("mod." + _module_name(), "fc_mode refused an unknown mode", {"wanted": value, "known": known})
+	return DotResult.fail(DotError.CODE_INVALID, "fc_mode: no mode '%s'. Valid: %s" % [value, known])
 
 
 ## Put the cvar back to what the game is actually playing. Refused and put back rather than left showing a mode the game is not playing:
@@ -653,9 +710,13 @@ func _revert_mode(value: String) -> void:
 func _follow_mode() -> void:
 	if game == null or game.mode == null or server == null or server.console == null:
 		return
+	# A mode fc_mode chose that is still waiting for a map that can host it stays shown: it is what comes next.
+	var showing := game.mode
+	if maps != null and maps.session != null and maps.session.pending_mode != null:
+		showing = maps.session.pending_mode
 	var cv := server.console.find_cvar("fc_mode")
-	if cv != null and cv.get_string() != String(game.mode.id):
-		_revert_mode(String(game.mode.id))
+	if cv != null and cv.get_string() != String(showing.id):
+		_revert_mode(String(showing.id))
 
 
 func _cmd_modes(ctx: DotCmdContext) -> void:

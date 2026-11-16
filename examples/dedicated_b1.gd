@@ -695,10 +695,14 @@ func _test_commands() -> void:
 		String(_game.objectives.layout) if _game.objectives != null else "<none>"
 	)
 
-	# A mode that does not exist is refused AND the cvar is put back, without recursing through
-	# its own `changed` signal: a cvar reading `koth` on a free-for-all server is believed.
+	# A mode that does not exist is refused loudly by the cvar's validator, which names the valid ids, and the
+	# cvar keeps what is actually running: a cvar reading `not_a_mode` on a koth server is believed.
 	var bad := _server.console.execute("fc_mode not_a_mode")
-	_check(bad.ok, "a bad mode does not error the console", str(bad.error))
+	_check(not bad.ok, "a bad mode fails the console line")
+	_check(
+		bad.error != null and bad.error.message.contains("koth") and bad.error.message.contains("ffa"),
+		"and the error lists the valid mode ids", str(bad.error)
+	)
 	_check(_game.tick_gate.pending() == 0, "and is refused at once, nothing held for the tick")
 	_check(
 		_game.mode.id == &"koth",
@@ -707,7 +711,7 @@ func _test_commands() -> void:
 	)
 	_check(
 		_server.console.get_string("fc_mode", "") == "koth",
-		"with the cvar put back to what is actually running",
+		"with the cvar left on what is actually running",
 		_server.console.get_string("fc_mode", "")
 	)
 

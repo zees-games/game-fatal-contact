@@ -50,8 +50,8 @@ Console lines, chat commands, admin actions and the map sync's peer reports also
 | Way in | What it reaches | Where it runs |
 | --- | --- | --- |
 | `fc_restart` | `game.start`: everybody respawns | `tick_gate.run`, at the top of the next tick; the reply goes at once |
-| `fc_mode` | `game.change_map` with the new mode | a bad mode is refused and the cvar put back at once; the change, its log and a failed change's revert at the next tick |
-| every map change: `map`, the vote (map and mode choices), the rotation at a map's end, `host_change` | `ArenaMapSession.change_to_map` | `await tick_gate.reached()` before the swap, so it resumes inside the tick |
+| `fc_mode` | `game.change_map` with the new mode, only when idle and the map can host it (else pending for the next map) | a bad mode is refused by the cvar's validator before it is stored; the change, its log and a failed change's revert at the next tick |
+| every map change: `map`, `fc_map`, a host's startup map (`ArenaServer.change_to`), the vote (map and mode choices), the rotation at a map's end, `host_change` | `ArenaMapSession.change_to_map` | `await tick_gate.reached()` before the swap, so it resumes inside the tick |
 | an admin respawn (`DotModTools.ACTION_RESPAWN`, `!respawn`) | `game.respawn_player` | an absent player fails at once; the respawn at the next tick |
 | the team menu bringing a player back (a side chosen from spectating, `play`) | `game.respawn_player` | the same |
 

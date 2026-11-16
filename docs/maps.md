@@ -65,7 +65,9 @@ On the client:
 - `DotMapSyncClient.changed` carries one argument where `DotMapSession.changed` carries two.
 - **`ArenaClient._on_map_changed` builds the `DotMapDef` it is handed, never `game.map`**, which is assigned only on the server. Rebuilding the old map leaves the player in geometry the server no longer has, which reads as the client freezing.
 
-`map <id>` changes the map under the players; `fc_maps` lists what can be loaded. The map commands are console-only, never chat: a map change ends every round in progress.
+`map <id>` changes the map under the players (`fc_map <id>` is the same command); `fc_maps` lists what can be loaded and `fc_nextmap` says what plays next. The map commands are console-only, never chat: a map change ends every round in progress.
+
+**Every map change takes this one path**: `map`, `fc_map`, the vote, the rotation, and a host's startup map. dot-server-deploy's `map:` in server.yml (or `--map`) reaches the game through `tmc_host._apply_initial_map`, which searches `server.games` for a node with `change_to` + `change_to_map` and one with `ensure_map_content`. The director lives under the module host, not there, so until 2026-11-16 the host found nothing and only warned "this game has no maps". `ArenaServer` (the game scene, under `server.games`) now answers both and forwards to the director, which `ArenaModule` hands it (`attach_maps`) once built. A `--map` naming a delivered pack no longer fails `check_map` at boot: the scene boots on `dm_box`, changes to the pack as soon as the director is attached, and the host's own `change_to` for the same id is that change, not a second one. The map list's `mode:` / `cfg:` and a pending `fc_mode` apply on every one of these, since they are all `map_changed`. `headless_map_path` covers each way in.
 
 ## Modes a map can host
 

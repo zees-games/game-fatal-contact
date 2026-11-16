@@ -57,6 +57,10 @@ var mode_from_meta: bool = true
 ## next map that names none. Null when no profile map is playing or an operator chose the mode since.
 var _base_mode: ArenaMode = null
 var _profile_moded: bool = false
+
+## The mode an operator set with `fc_mode` that is not playing yet: the next map change plays it (on a map that
+## can host it) ahead of any profile, then it is the server's mode and this goes back to null.
+var pending_mode: ArenaMode = null
 var _warned: Dictionary = {}
 
 
@@ -202,7 +206,7 @@ func _swap_to(map: DotMapDef, built: ArenaMap, wanted: ArenaMode) -> DotResult:
 func _built_on_already(map: DotMapDef) -> bool:
 	return (
 		current == null and not game.is_authority and map.is_local()
-		and game.map != null and game.map.id == map.id and _mode_for(map) == null
+		and game.map != null and game.map.id == map.id and pending_mode == null and _mode_for(map) == null
 	)
 
 
@@ -287,6 +291,13 @@ func mode_after(map: DotMapDef) -> ArenaMode:
 
 
 func _mode_for(map: DotMapDef) -> ArenaMode:
+	if pending_mode != null:
+		if ArenaMaps.supports_mode(map, pending_mode):
+			return pending_mode
+		_warn_once("pending/%s/%s" % [String(map.id), String(pending_mode.id)],
+			"fc_mode names a mode this map cannot host; it waits for a map that can",
+			{"map": String(map.id), "mode": String(pending_mode.id)})
+
 	if not mode_from_meta:
 		return null
 
@@ -329,6 +340,10 @@ static func _profile_mode(map: DotMapDef) -> String:
 
 
 func _note_profile_mode(map: DotMapDef, before: ArenaMode, applied: ArenaMode) -> void:
+	if pending_mode != null and applied == pending_mode:
+		pending_mode = null
+		forget_profile_mode()
+		return
 	if applied != null and _profile_mode(map) != "" and applied.id == StringName(_profile_mode(map)):
 		if not _profile_moded:
 			_base_mode = before
@@ -336,6 +351,11 @@ func _note_profile_mode(map: DotMapDef, before: ArenaMode, applied: ArenaMode) -
 		return
 	_profile_moded = false
 	_base_mode = null
+
+
+## `fc_mode` chose [param mode] while it could not be played at once: the next map change plays it.
+func want_mode(mode: ArenaMode) -> void:
+	pending_mode = mode
 
 
 ## An operator set the mode (`fc_mode`): it is the server's mode now, not a profile's to undo.

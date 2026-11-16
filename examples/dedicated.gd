@@ -2,7 +2,7 @@ extends "dedicated_b2.gd"
 
 
 const SECTIONS := 15
-const CHECKS := 194
+const CHECKS := 195
 
 
 func _ready() -> void:
