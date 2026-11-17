@@ -5,8 +5,9 @@ const ArenaMap := preload("../maps/arena_map.gd")
 const ArenaMode := preload("../game/arena_mode.gd")
 const ArenaMapDirector := preload("../game/arena_map_director.gd")
 
-## A combat surf map as a real client gets it: fetched over HTTPS from the site's CDN, verified
-## against the shipped production key, mounted and built, with no `maps/imported` link.
+## A combat surf map as a real client gets it: fetched over HTTPS from the CDN a standalone client
+## uses (`DotGameStandaloneContent.settings()`: content.json's `content_urls`, else content.gamespice.net), verified
+## against the shipped trust list, mounted and built, with no `maps/imported` link.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/published_check.tscn
@@ -19,10 +20,9 @@ const ArenaMapDirector := preload("../game/arena_map_director.gd")
 const MAP := &"surf_10x_reloaded_fixed"
 const PACK := "arena-surf-dm-maps-surf_10x_reloaded_fixed"
 const OWNER := "gamemann"
-const VERSION := "1.2.0"
-const ORIGIN := "https://dotgames.org/content"
-const KEYS := "res://addons/dot_game/data/content.json"
-const ROOT := "user://arena_published_check"
+## The stripped 1.2.3 (2026-11-07): 1.2.0 and 1.2.1 carried source textures and are to be pulled.
+const VERSION := "1.2.3"
+var ROOT := "user://fc_published_check_%d" % OS.get_process_id()
 const SECTIONS := 1
 const CHECKS := 10
 
@@ -45,10 +45,12 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("arena: a combat surf map from the published CDN")
+	print("FC: a combat surf map from the published CDN")
+	var settings := DotGameStandaloneContent.settings()
+	var origin := String((settings["urls"] as PackedStringArray)[0])
 	var probe := HTTPRequest.new()
 	add_child(probe)
-	probe.request("%s/%s/%s/%s/manifest.json" % [ORIGIN, OWNER, PACK, VERSION])
+	probe.request("%s/%s/%s/%s/manifest.json" % [origin, OWNER, PACK, VERSION])
 	var answer: Array = await probe.request_completed
 	probe.queue_free()
 
@@ -59,7 +61,7 @@ func _run() -> void:
 
 	DotPaths.remove_tree(ROOT)
 	print("\n-- a client fetches the published pack under the production key, and the game builds it")
-	var shipped: Variant = JSON.parse_string(FileAccess.get_file_as_string(KEYS))
+	var shipped: Variant = JSON.parse_string(FileAccess.get_file_as_string(String(settings["config_file"])))
 	_check(shipped is Dictionary and (shipped as Dictionary).has("trusted_keys"), "the shipped trust list is read")
 
 	var config := DotCloudConfig.new()
@@ -72,7 +74,7 @@ func _run() -> void:
 	cloud.config = config
 	cloud.config_file = ""
 	cloud.register_service = false
-	cloud.http_base_urls = PackedStringArray([ORIGIN])
+	cloud.http_base_urls = settings["urls"]
 	add_child(cloud)
 	DotRegistry.register(&"dot_cloud_client", cloud)
 	await get_tree().process_frame
