@@ -87,7 +87,7 @@ static func think_begin(game: Object, bot: ArenaPlayer, mind: Mind, tick: int, t
 
 	var t_refresh := Time.get_ticks_usec()
 	world.near_reach = think_near
-	world.sight_far = sight_far
+	world.sight_far = sight_far_now()
 	world.sight_far_reuse = sight_far_reuse
 	world.tiers = tiers
 	world.refresh(tick, tick_rate)

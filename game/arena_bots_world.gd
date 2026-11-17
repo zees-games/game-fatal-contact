@@ -124,6 +124,20 @@ static var think_near: float = 30.0
 ## bot did not see stays unseen for `sight_far_reuse` s before the next ray; never its target, never a "seen". 0 is off; 20 m (A/B on staging02, 31 bots: bot_los -45%, bot_brain -26%).
 static var sight_far: float = 20.0
 static var sight_far_reuse: float = 0.15
+## 1 when a native bot mind (dot_sim's DotSimBotMind) holds sight without the sight LOD (no `sight_cached_far`), 0 when not; -1 unknown.
+static var _sight_lod_split := -1
+
+
+## The sight LOD distance the brains get this tick: [member sight_far], or 0 (off) on a dot_sim whose bot mind has no
+## sight LOD. A brain with a native mind perceives and caches sight there without the LOD, while a brain in script
+## (every brain on a worker thread when dot_sim cannot think there, cvar `bot_threads`) holds far bodies unseen: the
+## two would see different bots and play a different match (dm-morpheus at 16 bots, threads 0 vs 4, 2026-11-17).
+static func sight_far_now() -> float:
+	if _sight_lod_split < 0:
+		_sight_lod_split = 1 if ClassDB.class_exists(&"DotSimBotMind") and not ClassDB.class_has_method(&"DotSimBotMind", &"sight_cached_far") else 0
+	if _sight_lod_split == 1 and DotBotAim.native_enabled:
+		return 0.0
+	return sight_far
 
 
 ## Think-rate tiers (cvars `bot_tier_*`): above [member DotBotThinkTier.above] players a bot that fights a person,
