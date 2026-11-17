@@ -1,9 +1,9 @@
-extends "arena_server_suite.gd"
+extends "fc_server_suite.gd"
 
-const ArenaTestPorts := preload("test_ports.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaModes := preload("../game/arena_modes.gd")
-const ArenaServer := preload("../game/arena_server.gd")
+const FcTestPorts := preload("test_ports.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcModes := preload("../game/fc_modes.gd")
+const FcServer := preload("../game/fc_server.gd")
 
 ## Every way Fatal Contact's map changes takes ONE path, the module's map director (sync host, FC's state reset,
 ## `map_changed`, which applies the map config, the map list's `mode:`/`cfg:` and a pending `fc_mode`):
@@ -12,19 +12,19 @@ const ArenaServer := preload("../game/arena_server.gd")
 ## And `fc_mode` is a cvar that refuses an unknown id, listing the valid ones, and waits for a map that can host it.
 ## Run `./game.sh test headless_map_path`.
 
-var PORT := ArenaTestPorts.free_port()
+var PORT := FcTestPorts.free_port()
 const SERVER_DIR := "user://fc_map_path"
 const TICK_RATE := 64
 
 const SECTIONS := 5
 const CHECKS := 33
 
-## What the module handed this suite, the game's parent here as ArenaServer is on a real server.
+## What the module handed this suite, the game's parent here as FcServer is on a real server.
 var attached: Node = null
 var _changed: Array[StringName] = []
 
 
-## The module's hook (see ArenaServer.attach_maps): this suite stands where the game scene does.
+## The module's hook (see FcServer.attach_maps): this suite stands where the game scene does.
 func attach_maps(director: Node) -> void:
 	attached = director
 
@@ -79,10 +79,10 @@ func _console_change(line: String) -> DotResult:
 
 
 func _hosts(mode_id: StringName, other_than: StringName = &"") -> StringName:
-	var mode := ArenaModes.by_id(mode_id)
-	for id in ArenaMap.ids():
+	var mode := FcModes.by_id(mode_id)
+	for id in FcMap.ids():
 		var def := _module.maps.session.catalogue.get_map(id)
-		if id != other_than and def != null and ArenaMaps.supports_mode(def, mode):
+		if id != other_than and def != null and FcMaps.supports_mode(def, mode):
 			return id
 	return &""
 
@@ -95,7 +95,7 @@ func _test_names() -> void:
 	_check(console.find_cvar("fc_mode") != null, "fc_mode is a cvar")
 	var shim := console.find_command("arena_mode")
 	_check(shim != null and shim.hidden and shim.description.contains("fc_mode"), "arena_mode is only a hidden shim naming fc_mode")
-	_check(attached == _module.maps, "the module hands its director to the game scene (ArenaServer.attach_maps)")
+	_check(attached == _module.maps, "the module hands its director to the game scene (FcServer.attach_maps)")
 	_done()
 
 
@@ -134,7 +134,7 @@ func _test_host_startup() -> void:
 	_section("a host's startup map (server.yml map:) goes through the director")
 	# Not in the tree, so its _ready (which builds a second game) never runs: only its map forwarding is under test.
 	var games := Node.new()
-	var scene: Node = ArenaServer.new()
+	var scene: Node = FcServer.new()
 	scene.name = "ArenaServer"
 	games.add_child(scene)
 	var nothing: DotResult = await scene.change_to(&"dm_atrium")
@@ -176,7 +176,7 @@ func _test_fc_mode() -> void:
 	_check(not bad.ok, "an unknown mode is refused")
 	var msg := bad.error.message if bad.error != null else ""
 	var all_ids := true
-	for id in ArenaModes.ids():
+	for id in FcModes.ids():
 		all_ids = all_ids and msg.contains(String(id))
 	_check(all_ids, "and the refusal lists every valid id", msg)
 	_check(console.get_string("fc_mode", "") == was, "and the cvar keeps its value", console.get_string("fc_mode", ""))
@@ -184,7 +184,7 @@ func _test_fc_mode() -> void:
 	_check(not typed.ok and console.get_string("fc_mode", "") == was, "typed at the console too")
 
 	var ctf_map := _hosts(&"ctf")
-	var no_ctf := &"dm_pit" if not ArenaMaps.supports_mode(_module.maps.session.catalogue.get_map(&"dm_pit"), ArenaModes.by_id(&"ctf")) else &""
+	var no_ctf := &"dm_pit" if not FcMaps.supports_mode(_module.maps.session.catalogue.get_map(&"dm_pit"), FcModes.by_id(&"ctf")) else &""
 	if not _check(ctf_map != &"" and no_ctf != &"", "a built-in map hosts ctf and dm_pit does not", "%s %s" % [ctf_map, no_ctf]):
 		_done()
 		return

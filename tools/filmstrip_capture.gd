@@ -1,9 +1,9 @@
 extends SceneTree
 
-const ArenaAvatars := preload("../game/arena_avatars.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcAvatars := preload("../game/fc_avatars.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## Plays one scripted clip (a DotScenario from tools/filmstrip_scenarios.json) and draws a
 ## first-person view on the left and a third-person view on the right of one window, for
@@ -19,7 +19,7 @@ const WEAPON_BUTTONS := {"attack": DotWeaponCommand.BUTTON_ATTACK, "alt": DotWea
 	"reload": DotWeaponCommand.BUTTON_RELOAD, "aim": DotWeaponCommand.BUTTON_AIM}
 
 var _clip: DotScenario = null
-var _player: ArenaPlayer = null
+var _player: FcPlayer = null
 ## The own body is on its own layer so the first-person view leaves it out while the
 ## third-person view, sharing the world, still draws it.
 const BODY_LAYER := 1 << 18
@@ -50,17 +50,17 @@ func _initialize() -> void:
 		return
 	_clip = clips[args[0]]
 	Engine.physics_ticks_per_second = TICK_RATE
-	var map: ArenaMap = ArenaMap.dm_box()
+	var map: FcMap = FcMap.dm_box()
 	root.add_child(map.to_scene())
-	root.add_child(ArenaMapLighting.build(map))
+	root.add_child(FcMapLighting.build(map))
 
-	_player = ArenaPlayer.new()
+	_player = FcPlayer.new()
 	_player.name = "You"
-	_player.setup(ArenaPlayer.Mode.HEADLESS, map, 7, "You")
+	_player.setup(FcPlayer.Mode.HEADLESS, map, 7, "You")
 	root.add_child(_player)
 	_player.spawn(Transform3D(Basis(), Vector3.ZERO), 0)
 	_player.attach_camera(100.0)
-	_player.attach_body_mesh(Color(0.3, 0.5, 0.85), ArenaAvatars.stock_avatar(&"arena-player-00000007"))
+	_player.attach_body_mesh(Color(0.3, 0.5, 0.85), FcAvatars.stock_avatar(&"arena-player-00000007"))
 	var hands := AwViewModel.new()
 	hands.name = "Hands"
 	# The rig finds the hands by path, so they hang under the drawn camera before it is armed.

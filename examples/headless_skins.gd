@@ -1,9 +1,9 @@
 extends Node
 
-const ArenaWeaponSkins := preload("../game/arena_weapon_skins.gd")
-const Roles := preload("../game/arena_weapon_roles.gd")
+const FcWeaponSkins := preload("../game/fc_weapon_skins.gd")
+const Roles := preload("../game/fc_weapon_roles.gd")
 
-## Weapon skin packs: arena works with a pack linked, with none, and with one that carries no role art.
+## Weapon skin packs: Fatal Contact works with a pack linked, with none, and with one that carries no role art.
 ## Every role keeps a model either way, and the rifle still fires.
 ##
 ## [codeblock]
@@ -21,19 +21,19 @@ func _ready() -> void:
 	var own_models := _models()
 	_check(own_models.values().all(func(m: String) -> bool: return m != ""), "the own pack has a model for every role: %s" % str(own_models))
 
-	var none := ArenaWeaponSkins.apply("res://nonexistent")
+	var none := FcWeaponSkins.apply("res://nonexistent")
 	_check(none.is_empty(), "no pack root: nothing applied")
 	var undressed := _models()
 	_check(undressed.size() == ROLES.size(), "no pack: every role still has art")
 
-	var linked := ArenaWeaponSkins.apply()
+	var linked := FcWeaponSkins.apply()
 	var has_pack := DirAccess.dir_exists_absolute("res://addons/fc_weapons")
 	_check(linked.has("fc_weapons") == has_pack, "linked pack is applied exactly when present: %s" % str(linked))
 
 	if has_pack:
 		# The role scan registers pack sources, which drops the art cache: it must not undo the dressing.
 		Roles.clear()
-		ArenaWeaponSkins.apply()
+		FcWeaponSkins.apply()
 		Roles.ensure()
 		var skinned := _models()
 
@@ -51,11 +51,11 @@ func _ready() -> void:
 		Roles.ensure()
 		_check(_models() == skinned, "a role rescan after apply keeps the dressing")
 
-	var other := ArenaWeaponSkins.apply("res://addons", PackedStringArray(["zz_modern_weapons"]))
+	var other := FcWeaponSkins.apply("res://addons", PackedStringArray(["zz_modern_weapons"]))
 	_check(other.is_empty(), "a pack without role art is skipped")
 	_check(_models() == undressed, "swapped pack: the undressed art stays")
 
-	ArenaWeaponSkins.clear()
+	FcWeaponSkins.clear()
 	_check(_models() == undressed, "clear restores the undressed art")
 
 	var art := AwWeaponArtTable.table().get(&"rifle") as AwWeaponVisual

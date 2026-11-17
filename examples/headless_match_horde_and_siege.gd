@@ -6,7 +6,7 @@ extends "headless_match_map_change.gd"
 func _test_horde() -> void:
 	_section("monsters")
 
-	var catalogue := ArenaNpcs.catalogue()
+	var catalogue := FcNpcs.catalogue()
 	_check(catalogue.size() == 4, "four monsters are catalogued: three that close and one that shoots")
 
 	var bad := PackedStringArray()
@@ -25,7 +25,7 @@ func _test_horde() -> void:
 
 	# --- Navigation -------------------------------------------------------
 
-	var nav := ArenaNpcs.nav_for(_game.map)
+	var nav := FcNpcs.nav_for(_game.map)
 	var nav_ok := nav.validate()
 	_check(nav_ok.ok, "navigation generates from the map's boxes", str(nav_ok.error))
 	_check(nav.point_count() > 32, "with a usable number of points", "%d" % nav.point_count())
@@ -35,13 +35,13 @@ func _test_horde() -> void:
 	# same name". A graph that matched a map whose geometry moved is a graph whose
 	# monsters walk through the walls somebody added since.
 	_check(
-		nav.matches(ArenaNpcs.digest_of(_game.map)),
+		nav.matches(FcNpcs.digest_of(_game.map)),
 		"and it matches the geometry it was built from"
 	)
 
-	var other: ArenaMap = ArenaMap.by_id(&"dm_atrium" if _game.map.id == &"dm_box" else &"dm_box")
+	var other: FcMap = FcMap.by_id(&"dm_atrium" if _game.map.id == &"dm_box" else &"dm_box")
 	_check(
-		not nav.matches(ArenaNpcs.digest_of(other)),
+		not nav.matches(FcNpcs.digest_of(other)),
 		"and does not match a different map's"
 	)
 
@@ -62,7 +62,7 @@ func _test_horde() -> void:
 
 	# --- The horde itself -------------------------------------------------
 
-	var horde := ArenaHorde.new()
+	var horde := FcHorde.new()
 	horde.name = "Horde"
 	horde.game = _game
 	# Not to disk: a suite's players must not train the next run's monsters.
@@ -85,7 +85,7 @@ func _test_horde() -> void:
 	# --- Spawning by hand -------------------------------------------------
 
 	var somewhere := nav.points[nav.point_count() / 2]
-	var monster := horde.spawn_one(ArenaNpcs.GRUNT, somewhere)
+	var monster := horde.spawn_one(FcNpcs.GRUNT, somewhere)
 
 	if not _check(monster != null, "a monster can be placed"):
 		horde.queue_free()
@@ -119,7 +119,7 @@ func _test_horde() -> void:
 
 	# A shot is heard. Every player's fire becomes a COMBAT sound on the horde's board,
 	# owned by the shooter, and a monster in earshot notices it on its next think.
-	var shooter: ArenaPlayer = null
+	var shooter: FcPlayer = null
 	for candidate in _game.players():
 		if candidate.is_alive():
 			shooter = candidate
@@ -140,7 +140,7 @@ func _test_horde() -> void:
 	# limits space spawns a quarter of a second apart, and the grunt is standing on the first one.
 	for step in range(TICK_RATE / 2):
 		horde.tick(1.0 / float(TICK_RATE))
-	var gunner := horde.spawn_one(ArenaNpcs.GUNNER, nav.points[nav.point_count() / 3])
+	var gunner := horde.spawn_one(FcNpcs.GUNNER, nav.points[nav.point_count() / 3])
 	var gunner_brain := gunner.brain as DotNpcAiBrain if gunner != null else null
 	# Per spawn, not per preset: the second monster gets a seed of its own.
 	_check(
@@ -157,7 +157,7 @@ func _test_horde() -> void:
 	# most likely respawned a moment ago, and a shot at a protected player is refused "invulnerable"
 	# whatever it hit — which made this check pass or fail on where the deathmatch happened to end.
 	if shooter != null and _game.effects != null:
-		_game.effects.remove(ArenaEffects.PROTECTED, shooter.player_id)
+		_game.effects.remove(FcEffects.PROTECTED, shooter.player_id)
 		shooter.health.invulnerable_until_tick = -1
 		# And the third record of it, dot-spawn's ledger.
 		if _game.player_stack != null and _game.player_stack.spawns != null \
@@ -200,7 +200,7 @@ func _test_horde() -> void:
 	# is what stopped two monsters a million instance ids apart from sharing one.
 	var entity := horde.entity_id_for(monster)
 	_check(
-		ArenaHorde.is_npc_entity(entity),
+		FcHorde.is_npc_entity(entity),
 		"a monster's combat entity id says it names a monster",
 		DotEntity.describe_id(entity)
 	)
@@ -212,7 +212,7 @@ func _test_horde() -> void:
 	var clashes := PackedStringArray()
 
 	for player in _game.players():
-		if ArenaHorde.is_npc_entity(player.player_id):
+		if FcHorde.is_npc_entity(player.player_id):
 			clashes.append(str(player.player_id))
 
 	_check(
@@ -258,14 +258,14 @@ func _test_horde() -> void:
 
 	var shooter_id := _game.players()[0].player_id if not _game.players().is_empty() else 0
 	var before_npc_kills := (
-		_game.progress.session_values(shooter_id).get_value(ArenaStats.NPC_KILLS, 0.0)
+		_game.progress.session_values(shooter_id).get_value(FcStats.NPC_KILLS, 0.0)
 		if shooter_id > 0 else 0.0
 	)
 
 	# Twice the grunt's health, so one blow is fatal whatever the falloff does.
 	_game.combat.apply_damage(DotDamage.make(
 		shooter_id, entity, 500.0,
-		_game.combat.damage_type(ArenaContent.DAMAGE_BULLET)
+		_game.combat.damage_type(FcContent.DAMAGE_BULLET)
 	))
 
 	_check(killed.size() == 1, "shooting a monster kills it", "%d deaths" % killed.size())
@@ -283,7 +283,7 @@ func _test_horde() -> void:
 
 	if shooter_id > 0:
 		var after_npc_kills := _game.progress.session_values(shooter_id).get_value(
-			ArenaStats.NPC_KILLS, 0.0
+			FcStats.NPC_KILLS, 0.0
 		)
 		_check(
 			after_npc_kills == before_npc_kills + 1.0,
@@ -326,9 +326,9 @@ func _test_horde() -> void:
 	)
 
 	_check(
-		horde.count() <= ArenaNpcs.limits().world_budget,
+		horde.count() <= FcNpcs.limits().world_budget,
 		"and never past the world budget",
-		"%d of %d" % [horde.count(), ArenaNpcs.limits().world_budget]
+		"%d of %d" % [horde.count(), FcNpcs.limits().world_budget]
 	)
 
 	# Every monster must be somewhere a monster can be.
@@ -351,7 +351,7 @@ func _test_horde() -> void:
 
 ## Bot commands for an arbitrary game. The same aim-and-hold as `_commands_for_tick`,
 ## which is bound to `_game`.
-func _commands_for(game: ArenaGame, tick: int) -> Dictionary:
+func _commands_for(game: FcGame, tick: int) -> Dictionary:
 	var commands := {}
 
 	for player in game.players():
@@ -383,7 +383,7 @@ func _commands_for(game: ArenaGame, tick: int) -> Dictionary:
 func _test_siege() -> void:
 	_section("siege")
 
-	var mode := ArenaModes.by_id(&"siege")
+	var mode := FcModes.by_id(&"siege")
 
 	if not _check(mode != null, "there is a siege mode"):
 		return
@@ -394,7 +394,7 @@ func _test_siege() -> void:
 
 	var game := _new_siege_game()
 
-	var ready := game.setup(ArenaMap.dm_box())
+	var ready := game.setup(FcMap.dm_box())
 
 	if not _check(ready.ok, "a siege game sets up", str(ready.error)):
 		game.queue_free()
@@ -447,13 +447,13 @@ func _test_siege() -> void:
 	remove_child(game)
 	_done()
 
-func _siege_tools(game: ArenaGame) -> void:
+func _siege_tools(game: FcGame) -> void:
 	# --- The tools, which is what makes dot-props reachable ---------------  [b]A physics gun
 	# nothing can call is a physics gun that does not exist.[/b] `phys_gun()` and `grav_gun()` were
 	# built, documented and called by nobody until the family's own detector.
 	var eye := game.map.floor_y + 2.5
 
-	var target := game.props.spawn_for(1, ArenaProps.CRATE, Vector3(0.0, eye, -3.0))
+	var target := game.props.spawn_for(1, FcProps.CRATE, Vector3(0.0, eye, -3.0))
 
 	if target != null:
 		# A frame, so the body is in the physics space and can be raycast at.
@@ -492,7 +492,7 @@ func _siege_tools(game: ArenaGame) -> void:
 
 			# Off the wire it is queued (`queue_act`, what the bridge calls): a request handler runs in
 			# the idle frame, and a grab there would query the physics space outside the physics step.
-			game.props.queue_act(1, ArenaEvents.PropAct.RELEASE, Vector3.FORWARD)
+			game.props.queue_act(1, FcEvents.PropAct.RELEASE, Vector3.FORWARD)
 			_check(game.props.phys_gun(1).held != null, "a let-go off the wire waits for the tick")
 			game.props.tick(1.0 / float(TICK_RATE))
 			_check(game.props.phys_gun(1).held == null, "and the tick lets it go, leaving nothing held")
@@ -503,18 +503,18 @@ func _siege_tools(game: ArenaGame) -> void:
 	# returned — so `act` refuses rather than guessing.
 	_check(
 		not game.props.act(
-			99, ArenaEvents.PropAct.GRAB, Vector3.ZERO, Vector3.FORWARD
+			99, FcEvents.PropAct.GRAB, Vector3.ZERO, Vector3.FORWARD
 		),
 		"and a player with nothing in front of them grabs nothing"
 	)
 
 
-func _siege_props(game: ArenaGame) -> void:
+func _siege_props(game: FcGame) -> void:
 	# --- Props a player spawns -------------------------------------------
 
 	var before := game.props.count()
 	var made := game.props.spawn_for(
-		1, ArenaProps.CRATE, Vector3(0.0, game.map.floor_y + 2.0, 4.0)
+		1, FcProps.CRATE, Vector3(0.0, game.map.floor_y + 2.0, 4.0)
 	)
 
 	_check(made != null, "a player can spawn a prop in this mode")
@@ -524,8 +524,8 @@ func _siege_props(game: ArenaGame) -> void:
 		# The catalogue's mass, on the body.
 		var body := made.body()
 		_check(
-			body != null and absf(body.mass - ArenaProps.catalogue().get_prop(
-				ArenaProps.CRATE
+			body != null and absf(body.mass - FcProps.catalogue().get_prop(
+				FcProps.CRATE
 			).mass) < 0.01,
 			"with the catalogue's mass rather than the scene's",
 			"%.1f kg" % (body.mass if body != null else -1.0)
@@ -536,7 +536,7 @@ func _siege_props(game: ArenaGame) -> void:
 	# enforces is the shape this family's own sweep for "settings nothing reads" was built to find.
 	for attempt in range(40):
 		game.props.tick(1.0)
-		game.props.spawn_for(1, ArenaProps.CRATE, Vector3(2.0, 3.0, 2.0))
+		game.props.spawn_for(1, FcProps.CRATE, Vector3(2.0, 3.0, 2.0))
 
 	var mine := game.props.spawner.player_count(&"1")
 	_check(
@@ -548,7 +548,7 @@ func _siege_props(game: ArenaGame) -> void:
 	_check(game.props.undo(1), "undo takes one back")
 
 
-func _siege_play(game: ArenaGame, mode: ArenaMode) -> void:
+func _siege_play(game: FcGame, mode: FcMode) -> void:
 	# --- Playing it ------------------------------------------------------
 
 	var monsters_seen := 0
@@ -577,8 +577,8 @@ func _siege_play(game: ArenaGame, mode: ArenaMode) -> void:
 	)
 
 
-func _new_siege_game() -> ArenaGame:
-	var game := ArenaGame.new()
+func _new_siege_game() -> FcGame:
+	var game := FcGame.new()
 	game.name = "Siege"
 	game.tick_rate = TICK_RATE
 	game.score_limit = 3
@@ -641,18 +641,18 @@ func _test_geometry_held() -> void:
 ## "Physics space queries". [b]A server query outside the physics step races the step[/b] once physics runs on its own
 ## thread (`physics/3d/run_on_separate_thread`, Jolt's); a new file here is placed in that table first.
 const SPACE_QUERY_FILES := {
-	"game/arena_bots_world.gd": "tick",
-	"game/arena_bots_world_nav.gd": "tick",
-	"game/arena_map_io.gd": "tick",
-	"game/arena_props.gd": "tick",
-	"game/arena_surf.gd": "tick",
-	"game/arena_client.gd": "client",
-	"game/arena_kill_pov_view.gd": "client",
-	"game/arena_player.gd": "client",
-	"game/arena_player_build.gd": "client",
-	"game/arena_presentation_b1.gd": "client",
-	"game/arena_touch.gd": "client",
-	"maps/arena_bsp_map.gd": "client",
+	"game/fc_bots_world.gd": "tick",
+	"game/fc_bots_world_nav.gd": "tick",
+	"game/fc_map_io.gd": "tick",
+	"game/fc_props.gd": "tick",
+	"game/fc_surf.gd": "tick",
+	"game/fc_client.gd": "client",
+	"game/fc_kill_pov_view.gd": "client",
+	"game/fc_player.gd": "client",
+	"game/fc_player_build.gd": "client",
+	"game/fc_presentation_b1.gd": "client",
+	"game/fc_touch.gd": "client",
+	"maps/fc_bsp_map.gd": "client",
 }
 const SPACE_QUERY_CALLS := ["direct_space_state", "intersect_ray", "intersect_shape", "intersect_point", "cast_motion", "collide_shape", "get_rest_info", "body_test_motion"]
 
@@ -688,12 +688,12 @@ func _check_space_query_audit() -> void:
 ## The server's ways in from the idle frame that respawn somebody or swap the map, each through `game.tick_gate`
 ## (dot_tick_gate.gd; docs/sim-thread.md "Physics space queries"). A file that stops using it fails here.
 const TICK_GATED_FILES := {
-	"game/arena_module.gd": "fc_restart",
-	"game/arena_module_b2.gd": "fc_mode",
-	"game/arena_net_bridge_b1.gd": "the gate opened at the top of server_tick",
-	"game/arena_map_session.gd": "every map change: map, the vote, the rotation, host_change",
-	"game/arena_mod_tools.gd": "an admin respawn",
-	"game/arena_team_menu.gd": "a team menu choice that brings a player back",
+	"game/fc_module.gd": "fc_restart",
+	"game/fc_module_b2.gd": "fc_mode",
+	"game/fc_net_bridge_b1.gd": "the gate opened at the top of server_tick",
+	"game/fc_map_session.gd": "every map change: map, the vote, the rotation, host_change",
+	"game/fc_mod_tools.gd": "an admin respawn",
+	"game/fc_team_menu.gd": "a team menu choice that brings a player back",
 }
 
 

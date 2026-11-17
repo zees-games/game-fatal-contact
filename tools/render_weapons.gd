@@ -6,8 +6,8 @@ extends SceneTree
 ##
 ##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_weapons.gd [-- --arena-no-weapon-skins]
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaWeaponSkins := preload("../game/arena_weapon_skins.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcWeaponSkins := preload("../game/fc_weapon_skins.gd")
 
 const OUT_DIR := "screenshots/weapons"
 
@@ -17,9 +17,9 @@ var failed: Array[String] = []
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
-	var _scratch := ArenaPresentation.use_scratch_settings("render_weapons")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	preload("../game/fc_weapon_roles.gd").ensure()
+	var _scratch := FcPresentation.use_scratch_settings("render_weapons")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
@@ -38,7 +38,7 @@ func _run() -> void:
 		await _wait(0.5)
 	var me = client.get("player")
 	me.health.invulnerable = true
-	print("skin packs: %s" % [ArenaWeaponSkins.applied])
+	print("skin packs: %s" % [FcWeaponSkins.applied])
 	var roles: Array = []
 
 	for pack in DirAccess.get_directories_at("res://addons"):

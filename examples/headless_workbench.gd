@@ -1,14 +1,14 @@
 extends DotGameCheckSuite
 
-## The arena's config through the workbench: DotGameWorkbench over the binder's set, an edit, and the
+## Fatal Contact's config through the workbench: DotGameWorkbench over the binder's set, an edit, and the
 ## "Export changes as defaults" diff in the cfg/ layout.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_workbench.tscn
 ## [/codeblock]
 
-const ArenaConfig := preload("../game/arena_config.gd")
-const ArenaGame := preload("../game/arena_game.gd")
+const FcConfig := preload("../game/fc_config.gd")
+const FcGame := preload("../game/fc_game.gd")
 const CHECKS := 12
 
 
@@ -20,8 +20,8 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("arena: workbench")
-	var game := ArenaGame.new()
-	var binder := ArenaConfig.make_binder(game.config)
+	var game := FcGame.new()
+	var binder := FcConfig.make_binder(game.config)
 	_check(binder.load_layers().ok, "defaults load")
 	var wb := DotGameWorkbench.new()
 	wb.panel_mode = 2
@@ -41,14 +41,14 @@ func _run() -> void:
 	var files: Dictionary = wb.exporter.call("collect")
 	var text: String = files.get("cfg/game/game-arena/config_horde/game.yml", "")
 	_check(text == "horde_cap: 12\n", "the export holds just the changed field in the cfg layout")
-	var root := "user://cfgtest_arena_export_%d" % OS.get_process_id()
+	var root := "user://cfgtest_fc_export_%d" % OS.get_process_id()
 	var dir := root.path_join("game/game-arena/config_horde")
 	DirAccess.make_dir_recursive_absolute(dir)
 	var out := FileAccess.open(dir.path_join("game.yml"), FileAccess.WRITE)
 	out.store_string(text)
 	out.close()
-	var again := ArenaGame.new()
-	var reload := ArenaConfig.make_binder(again.config)
+	var again := FcGame.new()
+	var reload := FcConfig.make_binder(again.config)
 	reload.strict = true
 	reload.roots = PackedStringArray([root])
 	_check(reload.load_layers().ok and again.config.horde_cap == 12, "the export loads back as the defaults")

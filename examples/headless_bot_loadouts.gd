@@ -1,10 +1,10 @@
 extends DotGameCheckSuite
 
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaBotLoadouts := preload("../game/arena_bot_loadouts.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcBotLoadouts := preload("../game/fc_bot_loadouts.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## Bot loadouts: the profiles load and fit the owner's rules, draws follow the weights, `sv_bot_loadouts` and the difficulty narrow them, a seed repeats them, and the kit a bot
 ## draws is the gun it spawns holding and fires. [codeblock]
@@ -31,10 +31,10 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact headless bot loadouts")
-	ArenaBotLoadouts.mode = ArenaBotLoadouts.ALL
-	ArenaBotLoadouts.seed = 0
+	FcBotLoadouts.mode = FcBotLoadouts.ALL
+	FcBotLoadouts.seed = 0
 	var game := _boot()
-	var pool := ArenaBotLoadouts.new()
+	var pool := FcBotLoadouts.new()
 	_profiles(game, pool)
 	_distribution(pool)
 	_restricted(pool)
@@ -43,18 +43,18 @@ func _run() -> void:
 	await _spawned(game)
 	_free(game)
 	await _fight()
-	ArenaBotLoadouts.mode = ArenaBotLoadouts.ALL
+	FcBotLoadouts.mode = FcBotLoadouts.ALL
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
-func _profiles(game: ArenaGame, pool: ArenaBotLoadouts) -> void:
+func _profiles(game: FcGame, pool: FcBotLoadouts) -> void:
 	_section("the profiles load and every item fits the owner's rules")
 	var n := pool.load_from()
 	_check(n >= 8, "at least eight kits load", "%d" % n)
 	var unfit: Array[String] = []
 	var primaries := {}
 	for kit in pool.kits:
-		var loadout := ArenaBotLoadouts.build(kit, game.loadouts, game._loadout_key(ArenaGame.BOT_SESSION_BASE))
+		var loadout := FcBotLoadouts.build(kit, game.loadouts, game._loadout_key(FcGame.BOT_SESSION_BASE))
 		for slot: StringName in kit.items:
 			if loadout.item_in(slot) != kit.items[slot]:
 				unfit.append("%s.%s=%s" % [kit.id, slot, kit.items[slot]])
@@ -64,7 +64,7 @@ func _profiles(game: ArenaGame, pool: ArenaBotLoadouts) -> void:
 	_done()
 
 
-func _distribution(pool: ArenaBotLoadouts) -> void:
+func _distribution(pool: FcBotLoadouts) -> void:
 	_section("draws follow the profile weights")
 	var counts := _count(pool, "")
 	var total := 0.0
@@ -80,24 +80,24 @@ func _distribution(pool: ArenaBotLoadouts) -> void:
 	_done()
 
 
-func _restricted(pool: ArenaBotLoadouts) -> void:
+func _restricted(pool: FcBotLoadouts) -> void:
 	_section("sv_bot_loadouts narrows and reweighs the draw")
-	ArenaBotLoadouts.mode = "sniper"
+	FcBotLoadouts.mode = "sniper"
 	var only := _count(pool, "")
 	_check(only.size() == 1 and int(only.get(&"sniper", 0)) == DRAWS, "'sniper' deals only the sniper kit", str(only))
-	ArenaBotLoadouts.mode = " smg, shotgun:3 "
+	FcBotLoadouts.mode = " smg, shotgun:3 "
 	var two := _count(pool, "")
 	var shotgun := float(two.get(&"shotgun", 0)) / DRAWS
 	_check(two.size() == 2 and two.has(&"smg"), "'smg, shotgun:3' deals only those two", str(two))
 	_check(absf(shotgun - 0.75) < SHARE_SLACK, "the cvar's weight replaces the profile's", "%.3f" % shotgun)
-	ArenaBotLoadouts.mode = "no_such_kit"
+	FcBotLoadouts.mode = "no_such_kit"
 	_check(pool.draw_kit(1) == null, "a list naming no kit draws nothing, so the bot keeps the default loadout")
-	ArenaBotLoadouts.mode = "ALL"
+	FcBotLoadouts.mode = "ALL"
 	_check(_count(pool, "").size() == pool.kits.size(), "'ALL' is every kit again")
 	_done()
 
 
-func _difficulty(pool: ArenaBotLoadouts) -> void:
+func _difficulty(pool: FcBotLoadouts) -> void:
 	_section("a kit tagged with difficulties is dealt only at those")
 	var easy := _count(pool, "easy")
 	var hard := _count(pool, "nightmare")
@@ -106,23 +106,23 @@ func _difficulty(pool: ArenaBotLoadouts) -> void:
 	_done()
 
 
-func _determinism(pool: ArenaBotLoadouts) -> void:
+func _determinism(pool: FcBotLoadouts) -> void:
 	_section("the same seed deals the same kits")
 	var a := _sequence(pool)
 	var b := _sequence(pool)
-	ArenaBotLoadouts.seed = 41
+	FcBotLoadouts.seed = 41
 	var c := _sequence(pool)
-	ArenaBotLoadouts.seed = 0
+	FcBotLoadouts.seed = 0
 	_check(a == b, "two runs at one seed match")
 	_check(a != c, "another seed deals another sequence")
 	_done()
 
 
-func _spawned(game: ArenaGame) -> void:
+func _spawned(game: FcGame) -> void:
 	_section("a spawning bot holds its kit's primary, a human the usual loadout")
 	game.match_node.rules.respawn_delay_sec = 1.0
 	for i in SPAWNED:
-		var _a := game.add_player(ArenaGame.BOT_SESSION_BASE + 1 + i, "Bot%d" % i)
+		var _a := game.add_player(FcGame.BOT_SESSION_BASE + 1 + i, "Bot%d" % i)
 	var _h := game.add_player(7, "Human")
 	game.start(0)
 	game.tick({})
@@ -130,7 +130,7 @@ func _spawned(game: ArenaGame) -> void:
 	var kinds := {}
 	var wrong: Array[String] = []
 	for i in SPAWNED:
-		var bot := game.player_for(ArenaGame.BOT_SESSION_BASE + 1 + i)
+		var bot := game.player_for(FcGame.BOT_SESSION_BASE + 1 + i)
 		var kit := _kit_of(game, bot)
 		if kit == null:
 			wrong.append("bot %d drew nothing" % i)
@@ -154,14 +154,14 @@ func _spawned(game: ArenaGame) -> void:
 
 func _fight() -> void:
 	_section("bots fire the guns their kit gave them")
-	ArenaBotLoadouts.mode = "smg"
+	FcBotLoadouts.mode = "smg"
 	var game := _boot()
 	game.match_node.rules.respawn_delay_sec = 1.0
-	var ids: Array[int] = [ArenaGame.BOT_SESSION_BASE + 1, ArenaGame.BOT_SESSION_BASE + 2]
+	var ids: Array[int] = [FcGame.BOT_SESSION_BASE + 1, FcGame.BOT_SESSION_BASE + 2]
 	var minds := {}
 	for id in ids:
 		var _a := game.add_player(id, "Bot%d" % id)
-		minds[id] = ArenaBots.Mind.new()
+		minds[id] = FcBots.Mind.new()
 		minds[id].seed = 7 + id % 13
 	game.start(0)
 	game.tick({})
@@ -173,7 +173,7 @@ func _fight() -> void:
 		var tick := game.current_tick()
 		var commands := {}
 		for id in ids:
-			commands[id] = ArenaBots.think(game, game.player_for(id), minds[id], tick, float(TICK_RATE))
+			commands[id] = FcBots.think(game, game.player_for(id), minds[id], tick, float(TICK_RATE))
 		game.tick(commands)
 		for id in ids:
 			var bot := game.player_for(id)
@@ -201,8 +201,8 @@ func _fight() -> void:
 	_done()
 
 
-## What [method ArenaBots.gun_for] gets wrong for an smg bot, or "".
-func _gun_choices(bot: ArenaPlayer) -> String:
+## What [method FcBots.gun_for] gets wrong for an smg bot, or "".
+func _gun_choices(bot: FcPlayer) -> String:
 	if bot == null or not bot.is_alive():
 		return "the bot is dead"
 	var arsenal := bot.arsenal
@@ -214,16 +214,16 @@ func _gun_choices(bot: ArenaPlayer) -> String:
 	var _e := arsenal.equip(smg)
 	if arsenal.current_slot() != smg:
 		return "the smg is not held"
-	if ArenaBots.gun_for(arsenal, 8.0) != 0:
+	if FcBots.gun_for(arsenal, 8.0) != 0:
 		return "it drops the smg at 8 m"
-	var far := ArenaBots.gun_for(arsenal, 100000.0)
+	var far := FcBots.gun_for(arsenal, 100000.0)
 	if far == smg:
 		return "it keeps the smg out of reach"
 	return ""
 
 
-func _boot() -> ArenaGame:
-	var game := ArenaGame.new()
+func _boot() -> FcGame:
+	var game := FcGame.new()
 	game.tick_rate = TICK_RATE
 	game.score_limit = 100000
 	game.time_limit_sec = 0.0
@@ -231,18 +231,18 @@ func _boot() -> ArenaGame:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	_check(game.setup(ArenaMap.by_id(MAP)).ok, "the game sets up on %s" % MAP)
+	_check(game.setup(FcMap.by_id(MAP)).ok, "the game sets up on %s" % MAP)
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	return game
 
 
-func _free(game: ArenaGame) -> void:
+func _free(game: FcGame) -> void:
 	remove_child(game)
 	game.queue_free()
 
 
-func _count(pool: ArenaBotLoadouts, difficulty: String) -> Dictionary:
+func _count(pool: FcBotLoadouts, difficulty: String) -> Dictionary:
 	pool.reset()
 	var out := {}
 	for i in DRAWS:
@@ -252,15 +252,15 @@ func _count(pool: ArenaBotLoadouts, difficulty: String) -> Dictionary:
 	return out
 
 
-func _sequence(pool: ArenaBotLoadouts) -> Array[StringName]:
+func _sequence(pool: FcBotLoadouts) -> Array[StringName]:
 	pool.reset()
 	var out: Array[StringName] = []
 	for i in 64:
-		out.append(pool.draw_kit(ArenaGame.BOT_SESSION_BASE + i % 4).id)
+		out.append(pool.draw_kit(FcGame.BOT_SESSION_BASE + i % 4).id)
 	return out
 
 
-func _kit_of(game: ArenaGame, bot: ArenaPlayer) -> ArenaBotLoadouts.Kit:
+func _kit_of(game: FcGame, bot: FcPlayer) -> FcBotLoadouts.Kit:
 	if bot == null or game.bot_loadouts == null or not bot.has_meta(&"bot_loadout"):
 		return null
 	for kit in game.bot_loadouts.kits:
@@ -270,10 +270,10 @@ func _kit_of(game: ArenaGame, bot: ArenaPlayer) -> ArenaBotLoadouts.Kit:
 
 
 ## The kit attachments missing from the guns of the spawned bots, or "" (also when no bot drew a kit with any).
-func _bare_fittings(game: ArenaGame) -> String:
+func _bare_fittings(game: FcGame) -> String:
 	var missing: Array[String] = []
 	for i in SPAWNED:
-		var bot := game.player_for(ArenaGame.BOT_SESSION_BASE + 1 + i)
+		var bot := game.player_for(FcGame.BOT_SESSION_BASE + 1 + i)
 		var kit := _kit_of(game, bot)
 		if kit == null:
 			continue

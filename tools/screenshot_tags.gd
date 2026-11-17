@@ -3,7 +3,7 @@ extends SceneTree
 ## Photographs health bars and name tags: three bots in a row at full, half and nearly no health
 ## with both tags "always", then the cursor-only setting. tools/screenshot_tags.sh -> screenshots/tags_*.png
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 const OUT_DIR := "res://screenshots"
 const DISTANCE := 5.0
@@ -16,8 +16,8 @@ var _seq := DotShotSeq.new()
 
 
 func _initialize() -> void:
-	var _scratch := ArenaPresentation.use_scratch_settings("screenshot_tags")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("screenshot_tags")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)

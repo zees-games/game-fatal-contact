@@ -19,7 +19,7 @@ func _prediction_gap(session: int, from: int, to: int, skip: Dictionary = {}) ->
 	return [diffs.size(), diffs[int(diffs.size() * 0.95)], diffs[diffs.size() - 1], over]
 
 
-## [b]Stamina on, sprinting and wall-running through loss.[/b] The arena has no stamina cvar (its
+## [b]Stamina on, sprinting and wall-running through loss.[/b] Fatal Contact has no stamina cvar (its
 ## sprint bit is the dash), so both ends' tunables are set the way a game that turned it on would.
 ## A drains to empty, waits out the refill delay and drains again, then runs the wall with sprint held.
 func _test_stamina_under_loss() -> void:
@@ -29,7 +29,7 @@ func _test_stamina_under_loss() -> void:
 	var net: DotNetManager = a["net"]
 	var session := int(a["session"])
 	var server_a := _game.player_for(session)
-	var own: ArenaPlayer = (a["game"] as ArenaGame).player_for(session)
+	var own: FcPlayer = (a["game"] as FcGame).player_for(session)
 	if not _check(server_a != null and own != null, "A is on both ends to sprint with"):
 		_done()
 		return
@@ -96,7 +96,7 @@ func _test_stamina_under_loss() -> void:
 
 
 ## The wall script with sprint held through the run, so stamina and the wall-run cooldown both move.
-func _stamina_wall_run(server_a: ArenaPlayer, session: int, net: DotNetManager) -> void:
+func _stamina_wall_run(server_a: FcPlayer, session: int, net: DotNetManager) -> void:
 	var replays := 0
 	var corrections := 0
 	var from := 0
@@ -145,7 +145,7 @@ func _test_teleport_under_loss() -> void:
 	var net: DotNetManager = a["net"]
 	var session := int(a["session"])
 	var server_a := _game.player_for(session)
-	var own: ArenaPlayer = (a["game"] as ArenaGame).player_for(session)
+	var own: FcPlayer = (a["game"] as FcGame).player_for(session)
 	if not _check(server_a != null and own != null, "A is on both ends to teleport"):
 		_done()
 		return
@@ -213,11 +213,11 @@ func _test_loading_cover() -> void:
 
 	var id := int(c["session"])
 	var roster: DotGameRoster = _module().loading
-	var victim: ArenaPlayer = _game.player_for(id)
+	var victim: FcPlayer = _game.player_for(id)
 	_check(victim != null and roster != null and roster.is_loading(id) and not _game.can_be_harmed(id),
 		"the server holds C as loading from its spawn", str(roster.describe()) if roster != null else "no roster")
 
-	var type: DotDamageType = _game.combat.damage_type(ArenaContent.DAMAGE_WORLD)
+	var type: DotDamageType = _game.combat.damage_type(FcContent.DAMAGE_WORLD)
 	var before := victim.health.health if victim != null else 0.0
 	var world_hit := DotDamage.make(0, id, 10.0, type)
 	world_hit.tick = _game.current_tick()
@@ -266,7 +266,7 @@ func _test_leave() -> void:
 
 	var b: Dictionary = _clients["B"]
 	var b_session := int(b["session"])
-	var a_game: ArenaGame = _clients["A"]["game"]
+	var a_game: FcGame = _clients["A"]["game"]
 	(b["link"] as DotClientLink).disconnect_from_server("done")
 	var b_net: DotNetManager = b["net"]
 	b_net.stop()

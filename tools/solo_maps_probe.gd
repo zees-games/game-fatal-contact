@@ -2,9 +2,9 @@ extends SceneTree
 ## Solo's delivered path for every suggested pack, as a client with no map links takes it: fetch from the content origin, mount, build, count spawns and meshes.
 ## godot --headless --path . --script tools/solo_maps_probe.gd -- [<substring of a pack key>]
 
-const ArenaMap := preload("res://maps/arena_map.gd")
-const ArenaImportedMaps := preload("res://maps/arena_imported_maps.gd")
-const ArenaMaps := preload("res://game/arena_maps.gd")
+const FcMap := preload("res://maps/fc_map.gd")
+const FcImportedMaps := preload("res://maps/fc_imported_maps.gd")
+const FcMaps := preload("res://game/fc_maps.gd")
 
 
 func _init() -> void:
@@ -23,20 +23,20 @@ func _run() -> void:
 	var failed := 0
 	var total := 0
 
-	for key in ArenaMaps.STANDALONE_KEYS:
+	for key in FcMaps.STANDALONE_KEYS:
 		if filter != "" and not key.contains(filter):
 			continue
 
 		total += 1
-		var def := ArenaMaps.delivered_def(key)
-		var res: DotResult = await ArenaMaps.mount_delivered(def, DotMapLoader.new(), null, true)
+		var def := FcMaps.delivered_def(key)
+		var res: DotResult = await FcMaps.mount_delivered(def, DotMapLoader.new(), null, true)
 
 		if not res.ok:
 			failed += 1
 			print("FAIL %s: fetch/mount: %s" % [key, res.error.message if res.error != null else "?"])
 			continue
 
-		var map: ArenaMap = ArenaMap.by_id(def.id)
+		var map: FcMap = FcMap.by_id(def.id)
 		var spawns := map.spawns.size() if map != null else -1
 		var meshes := 0
 
@@ -46,7 +46,7 @@ func _run() -> void:
 			meshes = scene.find_children("*", "MeshInstance3D", true, false).size()
 			scene.queue_free()
 
-		var from := ArenaImportedMaps.manifest_path(def.id)
+		var from := FcImportedMaps.manifest_path(def.id)
 		var ok := map != null and spawns > 0 and meshes > 0
 		failed += 0 if ok else 1
 		print("%s %s: spawns %d meshes %d from %s" % ["ok  " if ok else "FAIL", key, spawns, meshes, from])

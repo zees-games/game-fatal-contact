@@ -4,7 +4,7 @@ extends SceneTree
 ## with --write-movie. Prints "REVIEW_CLIP <id> <kind> <first frame> <frames>" per clip; the run script cuts the movie there.
 ##   xvfb-run -a godot --path . --fixed-fps 30 --write-movie x.avi --script tools/review_clips.gd -- [--only a,b] [--left 1]
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const LEAD := 0.25
 const TAIL := 0.7
 const MAX_RELOAD := 7.0
@@ -15,9 +15,9 @@ var _frame := 0
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
-	var _scratch := ArenaPresentation.use_scratch_settings("review_clips")
-	client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	preload("../game/fc_weapon_roles.gd").ensure()
+	var _scratch := FcPresentation.use_scratch_settings("review_clips")
+	client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	root.add_child(client)

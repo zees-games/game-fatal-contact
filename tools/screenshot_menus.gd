@@ -1,9 +1,9 @@
 extends SceneTree
 
-const ArenaBrowser := preload("../game/arena_browser.gd")
-const ArenaHud := preload("../game/arena_hud.gd")
-const ArenaMenus := preload("../game/arena_menus.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcBrowser := preload("../game/fc_browser.gd")
+const FcHud := preload("../game/fc_hud.gd")
+const FcMenus := preload("../game/fc_menus.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 ## Renders this game's own screens to `screenshots/` so a person can look at them.
 ##
@@ -27,11 +27,11 @@ class _StoreFake extends RefCounted:
 
 
 var _menu: DotMenu = null
-var _board: ArenaMenus.Board = null
-var _browser: ArenaBrowser = null
-var _hud: ArenaHud = null
+var _board: FcMenus.Board = null
+var _browser: FcBrowser = null
+var _hud: FcHud = null
 var _chat: DotChatWindow = null
-var _presentation: ArenaPresentation = null
+var _presentation: FcPresentation = null
 var _shots: Array[Dictionary] = []
 var _at := 0
 var _wait := SETTLE
@@ -41,9 +41,9 @@ var _done := false
 func _initialize() -> void:
 	DotLog.set_level(DotLog.Level.ERROR)
 	# A scratch settings document, never this machine's real one (see
-	# `ArenaPresentation.use_scratch_settings`): a render must not save into a player's file,
+	# `FcPresentation.use_scratch_settings`): a render must not save into a player's file,
 	# and must draw from the defaults rather than whatever the last run left there.
-	var _scratch := ArenaPresentation.use_scratch_settings("screenshot_menus")
+	var _scratch := FcPresentation.use_scratch_settings("screenshot_menus")
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	_shots = [
 		{"id": &"menu", "page": &"general", "file": "menu_general.png"},
@@ -64,7 +64,7 @@ func _initialize() -> void:
 		# about where they are relative to EACH OTHER: the box sits in the same corner as
 		# health and armour, and at the default inset it draws its log through both.
 		{"id": &"", "file": "hud_chat.png"},
-		# The console, open over the HUD: the real `ArenaPresentation`, so the panel is the
+		# The console, open over the HUD: the real `FcPresentation`, so the panel is the
 		# one `DotConsoleKit` builds, registered with the menu as the client registers it.
 		{"id": &"console", "file": "hud_console.png"},
 	]
@@ -75,15 +75,15 @@ func _initialize() -> void:
 func _build() -> void:
 	_build_hud()
 
-	_presentation = ArenaPresentation.new()
+	_presentation = FcPresentation.new()
 	_presentation.name = "Presentation"
 	root.add_child(_presentation)
 	DotLog.result("screenshot", "the presentation", _presentation.setup())
 
-	# The menu the client builds (dot-menu's, through ArenaMenus), over this game's own
+	# The menu the client builds (dot-menu's, through FcMenus), over this game's own
 	# settings document and key table, with a browser holding two servers as a list
 	# would after a refresh.
-	_browser = ArenaBrowser.new()
+	_browser = FcBrowser.new()
 	_browser.name = "Browser"
 	root.add_child(_browser)
 	var _listed := _browser.setup()
@@ -104,7 +104,7 @@ func _build() -> void:
 			entry.players = int(f[3])
 			entry.max_players = int(f[4])
 			entry.ping_ms = int(f[5])
-	_menu = ArenaMenus.build(root, _presentation, _browser)
+	_menu = FcMenus.build(root, _presentation, _browser)
 	# The site-store page the client adds through dot-game, over a canned entitlements read.
 	DotGameStorePanel.add_to_menu(_menu, func() -> String: return "p1", func() -> Object: return _StoreFake.new())
 
@@ -121,17 +121,17 @@ func _build() -> void:
 		for _k in range((names.size() - i) * 2):
 			records.note_kill(key, "p%d" % (i + 2), 0)
 		records.note_assist(key, 0, 0)
-	_board = ArenaMenus.Board.new(_menu.scoreboard, records)
+	_board = FcMenus.Board.new(_menu.scoreboard, records)
 	_board.follow("p1")
 
 
 ## This game's own HUD, with the chat box over it, both at the real offsets.
 func _build_hud() -> void:
-	_hud = ArenaHud.new()
+	_hud = FcHud.new()
 	_hud.name = "Hud"
 	# Assigned rather than left to `DotHud._ready` to fill in: nothing added during
 	# `SceneTree._initialize` is inside the tree yet, so no `_ready` has run and
-	# `ArenaHud.build` would read `config.feed_lines` off a null.
+	# `FcHud.build` would read `config.feed_lines` off a null.
 	_hud.config = DotUiConfig.new()
 	root.add_child(_hud)
 	_hud.build(null)

@@ -1,7 +1,7 @@
 extends "headless_presentation_base.gd"
 
 func _test_shake_is_computed_not_applied() -> void:
-	_section("Shake is a value, and an ArenaPlayer is the only thing that writes a camera")
+	_section("Shake is a value, and an FcPlayer is the only thing that writes a camera")
 
 	var p := _make()
 	_check(p.camera_shake() == Vector3.ZERO, "nothing is shaking to start with")
@@ -27,12 +27,12 @@ func _test_shake_is_computed_not_applied() -> void:
 		"and respawning clears whatever the last life was still shaking about"
 	)
 
-	# The camera itself is written in exactly one place, which is ArenaPlayer.present --
+	# The camera itself is written in exactly one place, which is FcPlayer.present --
 	# a second writer would fight it every frame for the same value.
-	var player := ArenaPlayer.new()
+	var player := FcPlayer.new()
 	_check(
 		player.get("camera_offset") != null or true,
-		"an ArenaPlayer carries the offset rather than the shake writing a camera"
+		"an FcPlayer carries the offset rather than the shake writing a camera"
 	)
 	_check(
 		player.camera_offset == Vector3.ZERO,
@@ -51,7 +51,7 @@ func _test_console() -> void:
 	_check(p.console != null and p.console_panel != null, "there is a console and a panel")
 
 	var missing := PackedStringArray()
-	for key in ArenaPresentation.schema().keys():
+	for key in FcPresentation.schema().keys():
 		if not p.console.all_names().has(String(key)):
 			missing.append(String(key))
 	_check(
@@ -73,22 +73,22 @@ func _test_console() -> void:
 
 	p.console.submit("cl_fp_scope_arms_hide 0.3")
 	p.console.submit("cl_fp_max_lean 0.1")
-	var arm_ok := is_equal_approx(ArenaViewArms.scope_arms_hide_override, 0.3) and is_equal_approx(ArenaViewArms.max_lean_override, 0.1)
+	var arm_ok := is_equal_approx(FcViewArms.scope_arms_hide_override, 0.3) and is_equal_approx(FcViewArms.max_lean_override, 0.1)
 	p.console.submit("cl_fp_scope_arms_hide 9")
 	p.console.submit("cl_fp_max_lean -1")
-	_check(arm_ok and is_equal_approx(ArenaViewArms.scope_arms_hide_override, 1.0) and is_equal_approx(ArenaViewArms.max_lean_override, -1.0),
+	_check(arm_ok and is_equal_approx(FcViewArms.scope_arms_hide_override, 1.0) and is_equal_approx(FcViewArms.max_lean_override, -1.0),
 		"cl_fp_scope_arms_hide and cl_fp_max_lean reach the arms and clamp")
-	ArenaViewArms.scope_arms_hide_override = -1.0
+	FcViewArms.scope_arms_hide_override = -1.0
 
-	var default_depth := ArenaViewArms.hold_depth_comp
+	var default_depth := FcViewArms.hold_depth_comp
 	p.console.submit("cl_fp_hold_depth 0.5")
-	var depth_ok := is_equal_approx(ArenaViewArms.hold_depth_comp, 0.5)
+	var depth_ok := is_equal_approx(FcViewArms.hold_depth_comp, 0.5)
 	p.console.submit("cl_fp_hold_depth 2")
 	p.console.submit("cl_fp_hold_depth -1")
-	_check(default_depth == 0.0 and depth_ok and is_equal_approx(ArenaViewArms.hold_depth_comp, 0.5),
+	_check(default_depth == 0.0 and depth_ok and is_equal_approx(FcViewArms.hold_depth_comp, 0.5),
 		"cl_fp_hold_depth defaults to 0 (gun drawn near), takes 0.5 and refuses a value outside 0 to 1",
-		"default %s, after 0.5 then 2 and -1: %s" % [default_depth, ArenaViewArms.hold_depth_comp])
-	ArenaViewArms.hold_depth_comp = default_depth
+		"default %s, after 0.5 then 2 and -1: %s" % [default_depth, FcViewArms.hold_depth_comp])
+	FcViewArms.hold_depth_comp = default_depth
 
 	p.console.submit("rcon_password hunter2")
 	_check(
@@ -113,12 +113,12 @@ func _test_console_stops_movement() -> void:
 	_section("A held movement key does not move the player while the console is open")
 
 	var p := _make(false)
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.presentation = p
-	# The client's own sampler: its actions, and no noclip key (see `ArenaClient.make_sampler`).
-	client._sampler = ArenaClient.make_sampler()
+	# The client's own sampler: its actions, and no noclip key (see `FcClient.make_sampler`).
+	client._sampler = FcClient.make_sampler()
 	client._wire_chat_window()
-	client.game_menu = ArenaMenus.build(self, p)
+	client.game_menu = FcMenus.build(self, p)
 	var platform := DotGameClient.new()
 	platform.use_gate = false
 	platform.busy_fn = client._input_busy
@@ -167,11 +167,11 @@ func _test_the_escape_menu() -> void:
 	_section("The Escape menu is dot-menu's, and its rows reach what they are about")
 
 	var p := _make(false)
-	var browser := ArenaBrowser.new()
+	var browser := FcBrowser.new()
 	browser.name = "Browser"
 	add_child(browser)
 	var _listed := browser.setup()
-	var menu := ArenaMenus.build(self, p, browser)
+	var menu := FcMenus.build(self, p, browser)
 
 	var ids: Array[StringName] = []
 	for page in menu.pages:
@@ -218,13 +218,13 @@ func _test_the_escape_menu() -> void:
 	menu.open(&"general")
 	_check(menu.screen.find_child("Row_solo_bot_difficulty", true, false) != null, "General has the solo bots' difficulty")
 	var _saved := p.settings.set_value(&"solo_bot_difficulty", &"easy")
-	var solo := ArenaGame.new()
+	var solo := FcGame.new()
 	solo.headless = true
 	solo.is_authority = true
 	solo.register_service = false
 	add_child(solo)
-	var _built := solo.setup(ArenaMap.dm_box())
-	var bot_client := ArenaClient.new()
+	var _built := solo.setup(FcMap.dm_box())
+	var bot_client := FcClient.new()
 	bot_client.game = solo
 	bot_client.presentation = p
 	bot_client._bind_bot_console()
@@ -266,7 +266,7 @@ func _test_the_escape_menu() -> void:
 	_done()
 
 
-func _check_controls_page(p: ArenaPresentation, menu: DotMenu) -> void:
+func _check_controls_page(p: FcPresentation, menu: DotMenu) -> void:
 	menu.open(&"controls")
 	var dash := menu.screen.find_child("Row_bind_dash", true, false)
 	_check(dash != null and menu.screen.find_child("Row_invert_pitch", true, false) != null,
@@ -316,7 +316,7 @@ func _test_look_and_crosshair() -> void:
 
 	p.bind_look(look)
 	_check(
-		is_equal_approx(look.mouse_sensitivity, ArenaPresentation.look_degrees_per_count(
+		is_equal_approx(look.mouse_sensitivity, FcPresentation.look_degrees_per_count(
 			p.settings.get_float(&"sensitivity")
 		)),
 		"binding pushes the current sensitivity, without waiting for it to change",
@@ -330,7 +330,7 @@ func _test_look_and_crosshair() -> void:
 
 	p.settings.set_value(&"sensitivity", 5.0)
 	_check(
-		is_equal_approx(look.mouse_sensitivity, 5.0 * ArenaPresentation.DEGREES_PER_COUNT),
+		is_equal_approx(look.mouse_sensitivity, 5.0 * FcPresentation.DEGREES_PER_COUNT),
 		"moving the slider moves the view's turning speed",
 		"%.4f" % look.mouse_sensitivity
 	)
@@ -377,11 +377,11 @@ func _test_look_and_crosshair() -> void:
 
 func _test_look_and_crosshair_part2(p, crosshair: DotCrosshair) -> void:
 	# The camera motion: binding pushes the saved scales, each slider moves its own cue, 0 is off.
-	var player := ArenaPlayer.new()
-	player.setup(ArenaPlayer.Mode.HEADLESS, ArenaMap.dm_box(), 31, "Mover")
+	var player := FcPlayer.new()
+	player.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), 31, "Mover")
 	add_child(player)
 	var _camera := player.attach_camera(100.0)
-	var picks := ArenaPlayer.camera_motion_picks()
+	var picks := FcPlayer.camera_motion_picks()
 	p.settings.set_value(&"camera_landing_dip", 0.5)
 	p.bind_camera_motion(player)
 	var motion: DotFpsViewMotion = player.camera_motion
@@ -392,7 +392,7 @@ func _test_look_and_crosshair_part2(p, crosshair: DotCrosshair) -> void:
 		str(motion.describe() if motion != null else {})
 	)
 	# Wall on the right has normal LEFT; positive wall_roll() leans left (away from it).
-	var lean := ArenaPlayer.camera_motion_picks()
+	var lean := FcPlayer.camera_motion_picks()
 	var ws := DotFpsState.new()
 	ws.mode = DotFpsState.Mode.AIR
 	ws.velocity = Vector3(0.0, 0.0, -9.0)
@@ -427,12 +427,12 @@ func _test_look_and_crosshair_part2(p, crosshair: DotCrosshair) -> void:
 	_done()
 
 
-## `ArenaClient`'s look guard, driven both ways through `mouse_capture_override`.
+## `FcClient`'s look guard, driven both ways through `mouse_capture_override`.
 func _test_mouse_drives_view() -> void:
 	_section("The mouse turns the view only while it is captured")
 
-	var client := ArenaClient.new()
-	var stand_in := ArenaPlayer.new()
+	var client := FcClient.new()
+	var stand_in := FcPlayer.new()
 	client.player = stand_in
 	client._sampler = DotFpsSampler.new(DotFpsTunables.new())
 
@@ -477,7 +477,7 @@ func _test_mouse_drives_view() -> void:
 func _test_click_keeps_modal_pointer() -> void:
 	_section("A click does not recapture the pointer under a modal")
 
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	var click := InputEventMouseButton.new()
 	click.button_index = MOUSE_BUTTON_LEFT
 	click.pressed = true
@@ -584,14 +584,14 @@ func _test_the_kill_view() -> void:
 func _test_a_respawn_faces_its_spawn() -> void:
 	_section("A connected client's respawn faces the way its spawn faces")
 
-	var g := ArenaGame.new()
+	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(ArenaMap.dm_box())
+	var _set := g.setup(FcMap.dm_box())
 	var added: DotResult = g.add_player(7, "Seven")
-	var p: ArenaPlayer = added.value if added.ok else null
+	var p: FcPlayer = added.value if added.ok else null
 
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.game = g
 	client.player = p
 	client._offline = false
@@ -639,12 +639,12 @@ func _test_a_respawn_faces_its_spawn() -> void:
 func _test_the_view_turns_every_frame() -> void:
 	_section("A frame with no tick in it still turns the view")
 
-	var g := ArenaGame.new()
+	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(ArenaMap.dm_box())
+	var _set := g.setup(FcMap.dm_box())
 	var added: DotResult = g.add_player(7, "Seven")
-	var p: ArenaPlayer = added.value if added.ok else null
+	var p: FcPlayer = added.value if added.ok else null
 	if p == null:
 		_check(false, "a player to draw")
 		g.queue_free()
@@ -652,7 +652,7 @@ func _test_the_view_turns_every_frame() -> void:
 		return
 	var _camera := p.attach_camera()
 
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.game = g
 	client.player = p
 	client.mouse_capture_override = true
@@ -697,11 +697,11 @@ func _test_the_view_turns_every_frame() -> void:
 func _test_remote_beams_follow_the_light() -> void:
 	_section("Another player's flashlight beam follows their switch and their muzzle")
 
-	var g := ArenaGame.new()
+	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(ArenaMap.dm_box())
-	var players: Array[ArenaPlayer] = []
+	var _set := g.setup(FcMap.dm_box())
+	var players: Array[FcPlayer] = []
 	for id: int in [7, 8, 9]:
 		var added: DotResult = g.add_player(id, "P%d" % id)
 		players.append(added.value if added.ok else null)
@@ -715,7 +715,7 @@ func _test_remote_beams_follow_the_light() -> void:
 	var dark := players[2]
 	var _camera := me.attach_camera()
 
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.game = g
 	client.player = me
 	var crowd := DotFlashlightCrowd.new()

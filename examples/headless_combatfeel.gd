@@ -1,10 +1,10 @@
 extends Node
 
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaModuleCvars := preload("../game/arena_module_cvars.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcModuleCvars := preload("../game/fc_module_cvars.gd")
 
-## What dot-game's DotGameCombatFeel does to a real ArenaPlayer: spread widens while moving, airborne and
+## What dot-game's DotGameCombatFeel does to a real FcPlayer: spread widens while moving, airborne and
 ## sliding and narrows crouched; the recoil pattern is the same every run; the cl_crosshair_* cvars restyle
 ## the crosshair through the console; the sprint rules are opt-in.
 ##
@@ -50,10 +50,10 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 	print("  [%s] %s%s" % ["ok" if condition else "FAIL", what, ("  (" + detail + ")") if detail != "" else ""])
 
 
-func _player(id: int) -> ArenaPlayer:
-	var p := ArenaPlayer.new()
+func _player(id: int) -> FcPlayer:
+	var p := FcPlayer.new()
 	p.name = "P%d" % id
-	p.setup(ArenaPlayer.Mode.HEADLESS, ArenaMap.dm_box(), id, "P%d" % id)
+	p.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), id, "P%d" % id)
 	add_child(p)
 	p.spawn(Transform3D(Basis(), Vector3(-16.0, 0.05, 6.0)), 0)
 	p.give_default_loadout()
@@ -69,7 +69,7 @@ static func _move(forward: float, buttons: int) -> DotFpsCommand:
 	return c
 
 
-func _step(p: ArenaPlayer, move: DotFpsCommand, fire: bool = false) -> DotWeaponOutcome:
+func _step(p: FcPlayer, move: DotFpsCommand, fire: bool = false) -> DotWeaponOutcome:
 	var w := DotWeaponCommand.new()
 	if fire:
 		w.buttons = DotWeaponCommand.BUTTON_ATTACK
@@ -80,7 +80,7 @@ func _step(p: ArenaPlayer, move: DotFpsCommand, fire: bool = false) -> DotWeapon
 
 
 ## The widest cone over [param ticks] ticks of [param move], after settling still first.
-func _widest(p: ArenaPlayer, ticks: int, move: Callable, settle: Callable = Callable()) -> float:
+func _widest(p: FcPlayer, ticks: int, move: Callable, settle: Callable = Callable()) -> float:
 	for _i in 80:
 		await _step(p, _move(0.0, 0))
 	if settle.is_valid():
@@ -204,36 +204,36 @@ func _test_wiring() -> void:
 	_check(is_equal_approx(tun.sprint_speed_scale, 2.25), "a sprint cvar change reaches a tracked player", str(tun.sprint_speed_scale))
 
 	var arena := DotGameCombatFeel.new(true, true)
-	arena.sprint_defaults(ArenaPlayer.arena_tunables())
-	var arena_tun := ArenaPlayer.arena_tunables()
-	arena.track_tunables(arena_tun)
-	_check(arena.sprint != null and is_equal_approx(arena_tun.sprint_speed_scale, 1.25) and arena_tun.sprint_can_shoot, "the arena loads the sprint rules without changing its speeds")
-	var arena_names: Array[String] = []
+	arena.sprint_defaults(FcPlayer.fc_tunables())
+	var fc_tun := FcPlayer.fc_tunables()
+	arena.track_tunables(fc_tun)
+	_check(arena.sprint != null and is_equal_approx(fc_tun.sprint_speed_scale, 1.25) and fc_tun.sprint_can_shoot, "the arena loads the sprint rules without changing its speeds")
+	var fc_names: Array[String] = []
 	arena.bind_cvars(func(n: String, _d: String, _h: String, _f: int) -> Object:
-		arena_names.append(n)
+		fc_names.append(n)
 		return null)
-	_check(arena_names.has("sv_sprint_shoot") and arena_names.has("sv_sprint_barrel"), "sv_sprint_shoot and sv_sprint_barrel register")
+	_check(fc_names.has("sv_sprint_shoot") and fc_names.has("sv_sprint_barrel"), "sv_sprint_shoot and sv_sprint_barrel register")
 	arena.sprint.call(&"set_cvar", "sv_sprint_shoot", "0")
 	arena.sprint.call(&"set_cvar", "sv_sprint_barrel", "0")
-	_check(not arena_tun.sprint_can_shoot and not arena_tun.sprint_shot_follows_barrel, "and reach a tracked player's tunables")
+	_check(not fc_tun.sprint_can_shoot and not fc_tun.sprint_shot_follows_barrel, "and reach a tracked player's tunables")
 	var fresh := DotFpsTunables.new()
 	_check(fresh.sprint_can_shoot and fresh.sprint_shot_follows_barrel, "both default on: sprint-and-shoot allowed, along the barrel")
-	var launch_default := ArenaPlayer.arena_tunables().launch_velocity
+	var launch_default := FcPlayer.fc_tunables().launch_velocity
 	_check(launch_default >= 12.0 * 1.25 and launch_default <= 12.0 * 1.35, "the launch defaults 25 to 35 percent above the old 12 m/s", str(launch_default))
-	_check(ArenaModuleCvars.MOVEMENT_CVARS.get("fc_launch_velocity", [""])[0] == "launch_velocity" and ArenaPlayer.MOVEMENT_RULES.has("launch_velocity"), "fc_launch_velocity sets the launch and is a replicated movement rule")
-	var speeds := ArenaPlayer.arena_tunables()
+	_check(FcModuleCvars.MOVEMENT_CVARS.get("fc_launch_velocity", [""])[0] == "launch_velocity" and FcPlayer.MOVEMENT_RULES.has("launch_velocity"), "fc_launch_velocity sets the launch and is a replicated movement rule")
+	var speeds := FcPlayer.fc_tunables()
 	_check(speeds.max_speed < 6.0 and speeds.max_speed > 5.5, "the arena runs at 75 percent of the old 7.65 m/s", str(speeds.max_speed))
 	var run_before := speeds.speed_for(0)
 	speeds.speed_scale = 0.5
 	_check(is_equal_approx(speeds.speed_for(0), run_before * 0.5) and is_equal_approx(speeds.speed_for(DotFpsCommand.BUTTON_CROUCH), speeds.max_speed * speeds.crouch_speed_scale * 0.5), "speed_scale scales run and crouch alike")
-	var fresh_speeds := ArenaPlayer.arena_tunables()
+	var fresh_speeds := FcPlayer.fc_tunables()
 	_check(is_equal_approx(fresh_speeds.speed_for(DotFpsCommand.BUTTON_SPRINT) / fresh_speeds.speed_for(0), fresh_speeds.sprint_speed_scale) and fresh_speeds.sprint_speed_scale > 1.2, "a held sprint is the configured ratio over a run", str(fresh_speeds.sprint_speed_scale))
 	var run_speed := _ground_speed(fresh_speeds, 0)
 	var sprint_speed := _ground_speed(fresh_speeds, DotFpsCommand.BUTTON_SPRINT)
 	_check(sprint_speed > run_speed * (1.0 + (fresh_speeds.sprint_speed_scale - 1.0) * 0.9) and run_speed > 5.0, "the motor moves a sprinting player faster than a running one (the client predicts the same motor)", "%.2f vs %.2f" % [sprint_speed, run_speed])
 	var speed_ok := true
 	for cvar in ["fc_speed_scale", "fc_run_speed", "fc_walk_scale", "fc_sprint_scale", "fc_crouch_scale"]:
-		speed_ok = speed_ok and ArenaModuleCvars.MOVEMENT_CVARS.has(cvar) and ArenaPlayer.MOVEMENT_RULES.has(ArenaModuleCvars.MOVEMENT_CVARS[cvar][0])
+		speed_ok = speed_ok and FcModuleCvars.MOVEMENT_CVARS.has(cvar) and FcPlayer.MOVEMENT_RULES.has(FcModuleCvars.MOVEMENT_CVARS[cvar][0])
 	_check(speed_ok, "every speed cvar is a replicated movement rule, so prediction agrees")
 	_finished += 1
 

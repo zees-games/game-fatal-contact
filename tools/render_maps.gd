@@ -4,7 +4,7 @@ extends SceneTree
 ##
 ##   xvfb-run -a godot --path . --resolution 1920x1080 --script tools/render_maps.gd
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 const OUT_DIR := "screenshots/maps"
 
@@ -13,8 +13,8 @@ var _failed := 0
 
 
 func _initialize() -> void:
-	var _scratch := ArenaPresentation.use_scratch_settings("render_maps")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("render_maps")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
@@ -38,7 +38,7 @@ func _run() -> void:
 	m.pressed = true
 	Input.parse_input_event(m)
 	await _wait(0.8)
-	await _shot("arena_map_picker")
+	await _shot("fc_map_picker")
 	print("%d failed" % _failed)
 	quit(1 if _failed > 0 else 0)
 

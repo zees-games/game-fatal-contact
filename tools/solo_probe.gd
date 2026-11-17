@@ -1,6 +1,6 @@
 extends Node
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 ## Where a solo frame goes: the real offline client among N bots, sampling Godot's own
 ## monitors once a frame. Under `--headless` the render numbers are zero and what remains is
@@ -23,12 +23,12 @@ func _ready() -> void:
 			"--bots": _bots = int(args[i + 1])
 			"--seconds": _seconds = float(args[i + 1])
 	DotLog.set_level(DotLog.Level.ERROR)
-	var _scratch := ArenaPresentation.use_scratch_settings("solo_probe")
+	var _scratch := FcPresentation.use_scratch_settings("solo_probe")
 	_run.call_deferred()
 
 
 func _run() -> void:
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	add_child(client)

@@ -1,11 +1,11 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaModes := preload("../game/arena_modes.gd")
-const ArenaMapDirector := preload("../game/arena_map_director.gd")
-const ArenaMapConfig := preload("../game/arena_map_config.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcModes := preload("../game/fc_modes.gd")
+const FcMapDirector := preload("../game/fc_map_director.gd")
+const FcMapConfig := preload("../game/fc_map_config.gd")
 
 ## A maps.yml entry's profile (`DotMapDef.profile`, dot-map's `mode:`/`cfg:`): its mode on the map change when the map can host it, the server's mode back on the next map, its cvars for that map only, and the rotation filter.
 ## [codeblock] godot --headless --path . res://examples/headless_rotation_profile.tscn
@@ -20,32 +20,32 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("game-arena: per-map rotation profiles (mode and cvars)")
-	var catalogue := ArenaMaps.catalogue()
-	var ffa := ArenaModes.by_id(&"ffa")
-	var tdm := ArenaModes.by_id(&"tdm")
+	print("FC: per-map rotation profiles (mode and cvars)")
+	var catalogue := FcMaps.catalogue()
+	var ffa := FcModes.by_id(&"ffa")
+	var tdm := FcModes.by_id(&"tdm")
 	var team_map: StringName = &""
 	var other_map: StringName = &""
-	for id in ArenaMap.ids():
+	for id in FcMap.ids():
 		var def := catalogue.get_map(id)
-		if def != null and team_map == &"" and ArenaMaps.supports_mode(def, tdm):
+		if def != null and team_map == &"" and FcMaps.supports_mode(def, tdm):
 			team_map = id
 		elif def != null and other_map == &"" and id != &"dm_pit":
 			other_map = id
-	if not _check(team_map != &"" and other_map != &"" and not ArenaMaps.supports_mode(catalogue.get_map(&"dm_pit"), tdm),
+	if not _check(team_map != &"" and other_map != &"" and not FcMaps.supports_mode(catalogue.get_map(&"dm_pit"), tdm),
 			"a built-in map hosts tdm, another does not need to and dm_pit cannot", "%s %s" % [team_map, other_map]):
 		_report(CHECKS)
 		return
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.tick_rate = 64
 	game.headless = true
 	game.is_authority = true
 	game.register_service = false
 	game.mode = ffa
 	add_child(game)
-	var started := game.setup(ArenaMap.by_id(other_map))
-	var director := ArenaMapDirector.new()
+	var started := game.setup(FcMap.by_id(other_map))
+	var director := FcMapDirector.new()
 	director.name = "Maps"
 	director.game = game
 	director.map_seconds = 0.0
@@ -86,7 +86,7 @@ func _run() -> void:
 		String(after.id) if after != null else "null")
 
 	# The rotation filter, with a team mode running: dm_pit is kept only for its ffa profile.
-	game.change_map(ArenaMap.by_id(team_map), tdm)
+	game.change_map(FcMap.by_id(team_map), tdm)
 	director.session.forget_profile_mode()
 	defs.get_map(&"dm_pit").profile = {}
 	director.restrict_rotation()
@@ -104,17 +104,17 @@ func _check_profile_cvars() -> void:
 	# The profile's cvars, for one map only.
 	var console := DotConsole.new()
 	add_child(console)
-	console.cvar("arena_profile_a", "1", "", DotConVar.FLAG_ARCHIVE)
+	console.cvar("fc_profile_a", "1", "", DotConVar.FLAG_ARCHIVE)
 	console.cvar("fc_mode", "ffa", "", DotConVar.FLAG_ARCHIVE)
-	var applier := ArenaMapConfig.build_profile(console)
+	var applier := FcMapConfig.build_profile(console)
 	var with := DotMapDef.new()
 	with.id = &"p_with"
-	with.profile = {"value": "x", "mode": "", "cfg_path": "/x.yml", "values": {"arena_profile_a": 5, "fc_mode": "ctf", "no_such_cvar": 2}}
-	var got := ArenaMapConfig.apply_profile(applier, console, with)
-	_check(console.find_cvar("arena_profile_a").get_int() == 5 and got.size() == 1, "a profile's cvar is set for its map", str(got))
+	with.profile = {"value": "x", "mode": "", "cfg_path": "/x.yml", "values": {"fc_profile_a": 5, "fc_mode": "ctf", "no_such_cvar": 2}}
+	var got := FcMapConfig.apply_profile(applier, console, with)
+	_check(console.find_cvar("fc_profile_a").get_int() == 5 and got.size() == 1, "a profile's cvar is set for its map", str(got))
 	_check(console.find_cvar("fc_mode").get_string() == "ffa", "a profile cannot set fc_mode through its cvars")
 	var plain := DotMapDef.new()
 	plain.id = &"p_plain"
-	ArenaMapConfig.apply_profile(applier, console, plain)
-	_check(console.find_cvar("arena_profile_a").get_int() == 1, "the next map has the server's value back")
+	FcMapConfig.apply_profile(applier, console, plain)
+	_check(console.find_cvar("fc_profile_a").get_int() == 1, "the next map has the server's value back")
 

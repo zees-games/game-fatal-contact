@@ -1,31 +1,31 @@
 extends DotGameCheckSuite
 
-const ArenaTestToys := preload("arena_test_toys.gd")
+const FcTestToys := preload("fc_test_toys.gd")
 const HeadlessNetSteps := preload("headless_net_steps.gd")
 
-const ArenaClientExtras := preload("../game/arena_client_extras.gd")
-const ArenaConfig := preload("../game/arena_config.gd")
-const ArenaAwards := preload("../game/arena_awards.gd")
-const ArenaEvent := preload("../game/arena_event.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
-const KillPov := preload("../game/arena_kill_pov.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaModTools := preload("../game/arena_mod_tools.gd")
-const ArenaMapSession := preload("../game/arena_map_session.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaNetBridge := preload("../game/arena_net_bridge.gd")
-const ArenaNetCommand := preload("../game/arena_net_command.gd")
-const ArenaNetLink := preload("../game/arena_net_link.gd")
-const ArenaHud := preload("../game/arena_hud.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaPlayerNet := preload("../game/arena_player_net.gd")
-const ArenaSolidBody := preload("../game/arena_solid_body.gd")
-const ArenaHorde := preload("../game/arena_horde.gd")
-const ArenaNpcs := preload("../game/arena_npcs.gd")
+const FcClientExtras := preload("../game/fc_client_extras.gd")
+const FcConfig := preload("../game/fc_config.gd")
+const FcAwards := preload("../game/fc_awards.gd")
+const FcEvent := preload("../game/fc_event.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const KillPov := preload("../game/fc_kill_pov.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcModTools := preload("../game/fc_mod_tools.gd")
+const FcMapSession := preload("../game/fc_map_session.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcNetBridge := preload("../game/fc_net_bridge.gd")
+const FcNetCommand := preload("../game/fc_net_command.gd")
+const FcNetLink := preload("../game/fc_net_link.gd")
+const FcHud := preload("../game/fc_hud.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcPlayerNet := preload("../game/fc_player_net.gd")
+const FcSolidBody := preload("../game/fc_solid_body.gd")
+const FcHorde := preload("../game/fc_horde.gd")
+const FcNpcs := preload("../game/fc_npcs.gd")
 const WallRouteDriver := preload("wall_route_driver.gd")
-const ArenaRequest := preload("../game/arena_request.gd")
+const FcRequest := preload("../game/fc_request.gd")
 
 ## Two clients, one server, one process, and a lossy wire between them.
 ##
@@ -36,7 +36,7 @@ const ArenaRequest := preload("../game/arena_request.gd")
 ## until it was looked for. Two peers here is not thoroughness, it is the minimum that
 ## tests the thing at all.
 ##
-## Everything is real except the socket: real managers, a real [ArenaGame] on all
+## Everything is real except the socket: real managers, a real [FcGame] on all
 ## three sides, real bit-packed commands, real snapshots, real acknowledgements, and
 ## one packet in five dropped in each direction.
 
@@ -70,9 +70,9 @@ const SECTIONS := 27
 var _entered := 0
 var _completed := 0
 
-var _server_game: ArenaGame = null
+var _server_game: FcGame = null
 var _server_net: DotNetManager = null
-var _server_bridge: ArenaNetBridge = null
+var _server_bridge: FcNetBridge = null
 
 ## peer id -> {game, net, bridge}
 var _clients: Dictionary = {}
@@ -111,7 +111,7 @@ func _workbench_revocations(c: Dictionary) -> void:
 	var cremote: DotGameWorkbenchRemoteClient = c["cremote"]
 	var remote = c["remote"]
 	var edit: Dictionary = c["edit"]
-	var sgame: ArenaGame = c["sgame"]
+	var sgame: FcGame = c["sgame"]
 	var cwb: DotGameWorkbench = c["cwb"]
 	state["uid"] = ""
 	var _q2 := cremote.request(edit.merged({"value": 12}))
@@ -142,8 +142,8 @@ func _workbench_revocations(c: Dictionary) -> void:
 	_check(not remote.permit_actor("remote:boss", "cvar"), "and revokes the server-made actors")
 
 
-func _make_game(authority: bool) -> ArenaGame:
-	var game := ArenaGame.new()
+func _make_game(authority: bool) -> FcGame:
+	var game := FcGame.new()
 	game.name = "Arena%s" % ("Server" if authority else str(_clients.size()))
 	game.tick_rate = TICK_RATE
 	game.score_limit = 50
@@ -153,8 +153,8 @@ func _make_game(authority: bool) -> ArenaGame:
 	game.register_service = false
 	add_child(game)
 
-	ArenaTestToys.install()
-	var ready := game.setup(ArenaTestToys.give(ArenaMap.dm_box()))
+	FcTestToys.install()
+	var ready := game.setup(FcTestToys.give(FcMap.dm_box()))
 	_check(ready.ok, "%s game sets up" % ("server" if authority else "client"), str(ready.error))
 
 	game.match_node.rules.warmup_sec = 0.0
@@ -178,21 +178,21 @@ func _make_manager(is_server: bool, scope: StringName, peer_id: int) -> DotNetMa
 	# These ticks are driven by hand, as fast as the host runs them: the adaptive buffer would
 	# size the interpolation delay from wall-clock arrival gaps, a different view lag on every box.
 	net.config.adaptive_interpolation = false
-	# From the game, exactly as `ArenaModule` and `ArenaClient` do it. A suite that
+	# From the game, exactly as `FcModule` and `FcClient` do it. A suite that
 	# left this at dot-net's default would agree with itself on both ends and prove
 	# nothing about the two that actually ship — which is how the 128-against-256
 	# mismatch survived until a browser drew sky in every direction.
-	net.config.world_extent = ArenaGame.NET_WORLD_EXTENT
+	net.config.world_extent = FcGame.NET_WORLD_EXTENT
 	add_child(net)
 
 	_check(net.setup().ok, "%s manager sets up" % scope)
 
 	# NOT started here. `DotNetManager.start` seals the message registry, and
-	# `ArenaNetBridge.attach` registers this game's two message types — registering
+	# `FcNetBridge.attach` registers this game's two message types — registering
 	# after the seal fails, because ids are on the wire and adding a type would
 	# renumber every id above it and silently reinterpret every message. So the order
-	# is setup, attach, start, and it is the same order `ArenaModule` and
-	# `ArenaClient` use. See `_start`.
+	# is setup, attach, start, and it is the same order `FcModule` and
+	# `FcClient` use. See `_start`.
 	return net
 
 
@@ -209,7 +209,7 @@ func _build_server() -> void:
 	_server_game = _make_game(true)
 	_server_net = _make_manager(true, &"server", 1)
 
-	_server_bridge = ArenaNetBridge.new()
+	_server_bridge = FcNetBridge.new()
 	_server_bridge.name = "ServerBridge"
 	add_child(_server_bridge)
 	_check(_server_bridge.attach(_server_game, _server_net).ok, "the bridge attaches")
@@ -217,7 +217,7 @@ func _build_server() -> void:
 
 	# A game and a manager that disagree about authority is the one wiring mistake
 	# that produces a server resolving nobody's hits, silently.
-	var wrong := ArenaNetBridge.new()
+	var wrong := FcNetBridge.new()
 	_check(
 		not wrong.attach(_server_game, _make_manager(false, &"stray", 9)).ok,
 		"a client manager behind an authoritative game is refused"
@@ -243,7 +243,7 @@ func _build_client(peer_id: int, session_id: int) -> void:
 	var game := _make_game(false)
 	var net := _make_manager(false, &"client%d" % peer_id, peer_id)
 
-	var bridge := ArenaNetBridge.new()
+	var bridge := FcNetBridge.new()
 	bridge.name = "Bridge%d" % peer_id
 	add_child(bridge)
 	_check(bridge.attach(game, net).ok, "the bridge attaches")
@@ -268,7 +268,7 @@ func _join_everyone() -> void:
 	var site_doc := DotAvatar.make(&"builtin")
 	site_doc.set_part(&"top", &"top.skin-c")
 	site_doc.set_part(&"face", &"face.skin-k")
-	var dressed: DotAvatar = preload("../game/arena_avatars.gd").from_site(site_doc)
+	var dressed: DotAvatar = preload("../game/fc_avatars.gd").from_site(site_doc)
 	var dressed_session := int(_clients[2]["session"])
 	_server_bridge.avatar_fn = func(session_id: int) -> DotAvatar:
 		return dressed if session_id == dressed_session else null
@@ -288,7 +288,7 @@ func _join_everyone() -> void:
 
 	# Every client learns about every player, itself included.
 	for peer_id in _clients:
-		var bridge: ArenaNetBridge = _clients[peer_id]["bridge"]
+		var bridge: FcNetBridge = _clients[peer_id]["bridge"]
 
 		for payload in _joins:
 			_check(bridge.apply_join(payload).ok, "client %d mirrors a join" % peer_id)
@@ -296,7 +296,7 @@ func _join_everyone() -> void:
 		# The TOYS a signon carries; this harness routes no events by itself. Before any
 		# snapshot: a client that has not paired the toys stops reading a snapshot at the
 		# first entity it does not know, players and all (dot-net's `receive_snapshot`).
-		_deliver_event(peer_id, ArenaEvents.Kind.TOYS, _server_bridge.get("_toys_body"))
+		_deliver_event(peer_id, FcEvents.Kind.TOYS, _server_bridge.get("_toys_body"))
 		_quiet_client_toys(peer_id)
 
 		var net: DotNetManager = _clients[peer_id]["net"]
@@ -311,9 +311,9 @@ func _join_everyone() -> void:
 		"a truncated join is refused"
 	)
 
-	# [b]A member's figure reaches the other screens.[/b] Arena's JOIN carried a name and
+	# [b]A member's figure reaches the other screens.[/b] Fatal Contact's JOIN carried a name and
 	# no avatar, and its client drew everybody as stock, so nobody's choice was ever seen.
-	var watcher_game: ArenaGame = _clients[3]["game"]
+	var watcher_game: FcGame = _clients[3]["game"]
 	var seen := watcher_game.player_for(dressed_session)
 	_check(
 		seen != null and seen.avatar != null and seen.avatar.digest() == dressed.digest(),
@@ -327,7 +327,7 @@ func _join_everyone() -> void:
 	# already has them takes the new name and figure.
 	var later_doc := DotAvatar.make(&"builtin")
 	later_doc.set_part(&"top", &"skin-e")
-	var later: DotAvatar = preload("../game/arena_avatars.gd").from_site(later_doc)
+	var later: DotAvatar = preload("../game/fc_avatars.gd").from_site(later_doc)
 	_check(
 		_server_bridge.refresh_player(dressed_session, "Ada", later),
 		"the server re-describes a seated player"
@@ -401,7 +401,7 @@ func _run_ticks() -> void:
 ## its spawns stand 190 m from the origin, past the 128 m `NET_WORLD_EXTENT` was until
 ## this map, where every position the server sent was clamped to the edge of the quantiser.
 func _follow_onto_imported(
-	host: DotMapSyncHost, client_game: ArenaGame, client_entry: Dictionary, peer: int,
+	host: DotMapSyncHost, client_game: FcGame, client_entry: Dictionary, peer: int,
 	back_to: StringName
 ) -> void:
 	var changed: DotResult = await host.change_to(IMPORTED_MAP)
@@ -416,10 +416,10 @@ func _follow_onto_imported(
 		"%d shapes" % (solid.get_child_count() if solid != null else -1))
 
 	var session_id := int(client_entry["session"])
-	var client_bridge: ArenaNetBridge = client_entry["bridge"]
-	var on_server: ArenaPlayer = _server_bridge.behaviour_for(session_id).player
-	var on_client: ArenaPlayer = client_bridge.behaviour_for(session_id).player
-	_check(is_equal_approx(on_client.controller.tunables.gravity, float(ArenaPlayer.SURF_TUNABLES["gravity"]))
+	var client_bridge: FcNetBridge = client_entry["bridge"]
+	var on_server: FcPlayer = _server_bridge.behaviour_for(session_id).player
+	var on_client: FcPlayer = client_bridge.behaviour_for(session_id).player
+	_check(is_equal_approx(on_client.controller.tunables.gravity, float(FcPlayer.SURF_TUNABLES["gravity"]))
 		and is_equal_approx(on_client.controller.tunables.air_accelerate, 150.0),
 		"and moves its player on the genre's air control there, as the server does",
 		"gravity %.2f, air %.0f" % [on_client.controller.tunables.gravity, on_client.controller.tunables.air_accelerate])
@@ -508,8 +508,8 @@ func _pump(ticks: int) -> void:
 
 
 ## A link that records every event the server sends into `sent` as [peer, payload], with every client ready.
-func _capture_link(sent: Array) -> ArenaNetLink:
-	var link := ArenaNetLink.new()
+func _capture_link(sent: Array) -> FcNetLink:
+	var link := FcNetLink.new()
 	link.bridge = _server_bridge
 	link.is_server = true
 	link.loopback = func(method: StringName, peer: int, payload: PackedByteArray) -> void:
@@ -546,14 +546,14 @@ func _fire_test_shot(weapon_id: StringName, tuning: DotWeaponBallistics) -> void
 ## The server's current TOYS to every client, as a signon or a map change sends it.
 func _deliver_toys() -> void:
 	for peer_id in _clients:
-		_deliver_event(peer_id, ArenaEvents.Kind.TOYS, _server_bridge.get("_toys_body"))
+		_deliver_event(peer_id, FcEvents.Kind.TOYS, _server_bridge.get("_toys_body"))
 		_quiet_client_toys(peer_id)
 
 
 ## One process, one physics space: a client's frozen copies would stand exactly where the
 ## server's balls are and push them off. A real client is another machine.
 func _quiet_client_toys(peer_id: int) -> void:
-	var client_game: ArenaGame = _clients[peer_id]["game"]
+	var client_game: FcGame = _clients[peer_id]["game"]
 	if client_game.toys != null:
 		for toy in client_game.toys.toys:
 			if toy.body != null:
@@ -563,12 +563,12 @@ func _quiet_client_toys(peer_id: int) -> void:
 
 func _deliver_event(peer_id: int, kind: int, body: PackedByteArray) -> void:
 	var writer := DotNetWriter.new()
-	var _wrote := _server_net.messages.encode(ArenaEvent.new(kind, body), writer)
+	var _wrote := _server_net.messages.encode(FcEvent.new(kind, body), writer)
 	var _received: DotResult = _clients[peer_id]["bridge"].receive_event(writer.to_bytes())
 
 
 ## The client's copy of a monster is where the server has it and faces the same way.
-func _check_monster_mirror(mirror: Node3D, monster, client_bridge: ArenaNetBridge, server_net: Object, net_id: int) -> void:
+func _check_monster_mirror(mirror: Node3D, monster, client_bridge: FcNetBridge, server_net: Object, net_id: int) -> void:
 	var gap := mirror.global_position.distance_to(monster.position())
 	_check(gap < 1.0, "and draws it where the server has it", "%.2f m apart" % gap)
 	_check(absf(angle_difference(mirror.rotation.y, DotNpcNetSync.yaw_of(monster))) < 0.3,
@@ -600,7 +600,7 @@ func _check_monster_mirror(mirror: Node3D, monster, client_bridge: ArenaNetBridg
 ##   late on every press. Each wall jump came out a tick late on the client and the next
 ##   snapshot pulled it back, 0.13 to 0.43 m apart in between.
 ## - A command reaches the server a tick before the server runs it, carrying copies of the
-##   ones before it, as [constant ArenaNetBridge.INPUT_COPIES] and the client's input lead
+##   ones before it, as [constant FcNetBridge.INPUT_COPIES] and the client's input lead
 ##   arrange on a real link. With no lead, a lost packet is a command the server never
 ##   gets, and a lost jump press is a climb the server never makes.
 ##
@@ -611,8 +611,8 @@ func _driven_window(peer: int, driver: WallRouteDriver, ticks: int) -> Dictionar
 	var worst_aligned := 0.0
 	var worst_at := ""
 	var session := int(_clients[peer]["session"])
-	var predicted: ArenaPlayer = (_clients[peer]["bridge"] as ArenaNetBridge).behaviour_for(session).player
-	var actual: ArenaPlayer = _server_bridge.behaviour_for(session).player
+	var predicted: FcPlayer = (_clients[peer]["bridge"] as FcNetBridge).behaviour_for(session).player
+	var actual: FcPlayer = _server_bridge.behaviour_for(session).player
 	var after_landing := 0
 	var last_aligned := INF
 
@@ -674,7 +674,7 @@ func _driven_window(peer: int, driver: WallRouteDriver, ticks: int) -> Dictionar
 ## A spawn point with no map box over it, for a launch to go straight up from. Spawns
 ## because they are open floor by design — a point picked by geometry alone landed inside
 ## the middle structure and under the south arcade's roof.
-static func _open_sky(map: ArenaMap) -> Vector3:
+static func _open_sky(map: FcMap) -> Vector3:
 	for spawn: Transform3D in map.spawns:
 		var at := spawn.origin + Vector3(0.0, 0.1, 0.0)
 		var clear := true
@@ -698,8 +698,8 @@ func _lag_repeat_gap(peer: int, tick: int) -> float:
 	if peer == 0:
 		return -1.0
 	var lag_session := int(_clients[peer]["session"])
-	var sent: ArenaPlayerNet = (_clients[peer]["bridge"] as ArenaNetBridge).behaviour_for(lag_session)
-	var held: ArenaPlayerNet = _server_bridge.behaviour_for(lag_session)
+	var sent: FcPlayerNet = (_clients[peer]["bridge"] as FcNetBridge).behaviour_for(lag_session)
+	var held: FcPlayerNet = _server_bridge.behaviour_for(lag_session)
 	if held.last_view_tick >= 0 and held.last_view_tick < tick and sent.last_view_lag >= 0.0:
 		return absf(held.last_view_lag - sent.last_view_lag)
 	return -1.0
@@ -714,8 +714,8 @@ func _lag_repeat_gap(peer: int, tick: int) -> float:
 func _flight_window(peer: int, ticks: int, buttons: int, moves: Dictionary = {}) -> Dictionary:
 	var first := _server_game.current_tick() + 1
 	var closest := INF
-	var server_a: ArenaPlayer = _server_bridge.behaviour_for(int(_clients[2]["session"])).player
-	var server_b: ArenaPlayer = _server_bridge.behaviour_for(int(_clients[3]["session"])).player
+	var server_a: FcPlayer = _server_bridge.behaviour_for(int(_clients[2]["session"])).player
+	var server_b: FcPlayer = _server_bridge.behaviour_for(int(_clients[3]["session"])).player
 	var worst := 0.0
 	var worst_at := ""
 	var grounded := 0
@@ -768,8 +768,8 @@ func _flight_window(peer: int, ticks: int, buttons: int, moves: Dictionary = {})
 		var measure := peer != 0 and int(_clients[peer]["net"].stats.packets_received) != heard_before
 		if measure:
 			var session := int(_clients[peer]["session"])
-			var predicted: ArenaPlayer = (_clients[peer]["bridge"] as ArenaNetBridge).behaviour_for(session).player
-			var actual: ArenaPlayer = _server_bridge.behaviour_for(session).player
+			var predicted: FcPlayer = (_clients[peer]["bridge"] as FcNetBridge).behaviour_for(session).player
+			var actual: FcPlayer = _server_bridge.behaviour_for(session).player
 			var gap := predicted.controller.state.position.distance_to(actual.controller.state.position)
 			if gap > worst:
 				worst_at = "tick %d client %s server %s" % [

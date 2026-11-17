@@ -1,9 +1,9 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaTeamMenu := preload("../game/arena_team_menu.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcTeamMenu := preload("../game/fc_team_menu.gd")
 
 ## The team menu's server half in this game: the cards come from config, N teams, free-for-all, refusals, spectate always, and the switch itself.
 ##
@@ -19,7 +19,7 @@ var _failed := 0
 var _sections := 0
 var _now := 100.0
 var _cvars := {}
-var _menus: Array[ArenaTeamMenu] = []
+var _menus: Array[FcTeamMenu] = []
 
 
 func _ready() -> void:
@@ -44,22 +44,22 @@ func _cv(n: String, v: String) -> void:
 	(_cvars[n] as DotConVar).force_set(v)
 
 
-func _game(mode: ArenaMode) -> ArenaGame:
-	var game := ArenaGame.new()
+func _game(mode: FcMode) -> FcGame:
+	var game := FcGame.new()
 	game.name = "G%d" % get_child_count()
 	game.tick_rate = 64
 	game.headless = true
 	game.register_service = false
 	game.mode = mode
 	add_child(game)
-	var _s := game.setup(ArenaMap.dm_atrium())
+	var _s := game.setup(FcMap.dm_atrium())
 	game.start(0)
 	return game
 
 
-func _menu(game: ArenaGame) -> ArenaTeamMenu:
+func _menu(game: FcGame) -> FcTeamMenu:
 	_cvars.clear()
-	var menu := ArenaTeamMenu.new()
+	var menu := FcTeamMenu.new()
 	menu.bind(game, _add, null)
 	_menus.append(menu)
 	menu.server.clock_fn = func() -> float: return _now
@@ -76,7 +76,7 @@ func _names(data: Dictionary) -> Array:
 func _run() -> void:
 	# 1. Two teams, names from the stock pair.
 	_sections += 1
-	var game := _game(ArenaMode.team_deathmatch())
+	var game := _game(FcMode.team_deathmatch())
 	var _a := game.add_player(31, "A")
 	var _b := game.add_player(32, "B")
 	var menu := _menu(game)
@@ -105,7 +105,7 @@ func _run() -> void:
 	data = server.menu_for(31)
 	_check(data["teams"].size() == 4, "four names in mp_team_names make four teams", str(_names(data)))
 	_check(_names(data) == ["Alpha", "Beta", "Gamma", "Delta"], "named from the config")
-	_check(data["teams"][1]["colour"] == "00ff00" and data["teams"][3]["colour"] == ArenaTeamMenu.PALETTE[3].trim_prefix("#"), "colours from config, then the palette", str(data["teams"][1]["colour"]))
+	_check(data["teams"][1]["colour"] == "00ff00" and data["teams"][3]["colour"] == FcTeamMenu.PALETTE[3].trim_prefix("#"), "colours from config, then the palette", str(data["teams"][1]["colour"]))
 	_cv("mp_team_names", "Home,Away")
 	data = server.menu_for(31)
 	_check(_names(data).slice(0, 2) == ["Home", "Away"], "renaming is live", str(_names(data)))
@@ -155,7 +155,7 @@ func _run() -> void:
 	await _run_second(server)
 
 
-func _run_first(game: ArenaGame, server: Variant, data: Dictionary, other: int, res: DotResult) -> void:
+func _run_first(game: FcGame, server: Variant, data: Dictionary, other: int, res: DotResult) -> void:
 	_cv("mp_teamswitch_kill", "0")
 	_cv("mp_teamswitch_imbalance", "1")
 
@@ -180,7 +180,7 @@ func _run_first(game: ArenaGame, server: Variant, data: Dictionary, other: int, 
 
 	# 5. Free-for-all: play and spectate only.
 	_sections += 1
-	var ffa := _game(ArenaMode.free_for_all())
+	var ffa := _game(FcMode.free_for_all())
 	var _c := ffa.add_player(41, "C")
 	var ffa_menu := _menu(ffa)
 	data = ffa_menu.server.menu_for(41)
@@ -198,14 +198,14 @@ func _run_first(game: ArenaGame, server: Variant, data: Dictionary, other: int, 
 
 	# 6. No cap on teams; the mode stays in charge of its own count.
 	_sections += 1
-	var big := _game(ArenaMode.team_deathmatch())
+	var big := _game(FcMode.team_deathmatch())
 	var _d := big.add_player(51, "D")
 	var big_menu := _menu(big)
 	_cv("mp_team_names", "A,B,C,D,E,F,G,H,I,J,K,L")
 	data = big_menu.server.menu_for(51)
 	_check(data["teams"].size() == 12 and str(data["teams"][11]["name"]) == "L" and Color.html(str(data["teams"][11]["colour"])) != Color.html(str(data["teams"][10]["colour"])), "twelve names make twelve teams with distinct colours", str(data["teams"].size()))
-	_check(ArenaMode.team_deathmatch().teams().size() == 2 and ArenaMode.free_for_all().teams().is_empty(), "the modes still say two teams and none")
-	var four: ArenaMode = ArenaMode.team_deathmatch()
+	_check(FcMode.team_deathmatch().teams().size() == 2 and FcMode.free_for_all().teams().is_empty(), "the modes still say two teams and none")
+	var four: FcMode = FcMode.team_deathmatch()
 	four.team_count = 4
 	_check(four.teams().size() == 4 and four.teams()[2].spawn_tag == &"", "a four-team mode builds four, the extra two on the shared spawn pool")
 
@@ -214,11 +214,11 @@ func _run_first(game: ArenaGame, server: Variant, data: Dictionary, other: int, 
 
 
 func _run_second(server: Variant) -> void:
-	for mode: ArenaMode in [ArenaMode.free_for_all(), ArenaMode.team_deathmatch()]:
+	for mode: FcMode in [FcMode.free_for_all(), FcMode.team_deathmatch()]:
 		var solo := _game(mode)
 		var _me := solo.add_player(71, "Me")
 		var _bot := solo.add_player(72, "Bot")
-		var local := ArenaTeamMenu.new()
+		var local := FcTeamMenu.new()
 		var pair := local.bind_local(solo, func() -> int: return 71)
 		_menus.append(local)
 		local.server.clock_fn = func() -> float: return _now

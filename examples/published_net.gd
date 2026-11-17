@@ -1,12 +1,12 @@
 extends DotGameCheckSuite
 
-const ArenaClientExtras := preload("../game/arena_client_extras.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaNetBridge := preload("../game/arena_net_bridge.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaTestPorts := preload("test_ports.gd")
+const FcClientExtras := preload("../game/fc_client_extras.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcNetBridge := preload("../game/fc_net_bridge.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcTestPorts := preload("test_ports.gd")
 
 ## A real FC server on a published combat surf map, and a real client that joins it over ENet and
 ## builds that map from the pack it fetched itself.
@@ -19,8 +19,8 @@ const ArenaTestPorts := preload("test_ports.gd")
 ## process-wide: in one process the client would find the server's mount and prove nothing. This
 ## one starts `published_net_host.tscn` (a dedicated server whose game names
 ## `gamemann/arena-surf-dm-maps-surf_10x_reloaded_fixed@1.2.3`, as cfg/content.yml's `maps:` does on a
-## real one, and which changes to that map before anybody joins), then joins it as `ArenaClient`
-## does: a `DotClientLink` on ENet, the netcode, and `ArenaClientExtras`' map sync. The server's
+## real one, and which changes to that map before anybody joins), then joins it as `FcClient`
+## does: a `DotClientLink` on ENet, the netcode, and `FcClientExtras`' map sync. The server's
 ## READY admit announces its map; the client fetches the pack from the CDN a standalone client uses
 ## (`DotGameStandaloneContent.settings()`), checks it against the shipped trust list, mounts it in
 ## its own cache and builds the level, with no `maps/imported` link anywhere.
@@ -52,14 +52,14 @@ func _ready() -> void:
 
 
 func _build_client_net(side: Node, link: DotClientLink) -> Array:
-	# What `ArenaClient._build_netcode` builds, minus everything that draws (as lossy_base does).
-	var game := ArenaGame.new()
+	# What `FcClient._build_netcode` builds, minus everything that draws (as lossy_base does).
+	var game := FcGame.new()
 	game.name = "Game"
 	game.is_authority = false
 	game.headless = true
 	game.register_service = false
 	side.add_child(game)
-	game.setup(ArenaMap.dm_box())
+	game.setup(FcMap.dm_box())
 	var _following := game.follow_server_cvars(link)
 	var net := DotNetManager.new()
 	net.name = "Net"
@@ -70,21 +70,21 @@ func _build_client_net(side: Node, link: DotClientLink) -> Array:
 	net.config_file = ""
 	var cfg := DotNetConfig.new()
 	cfg.tick_rate = game.tick_rate
-	cfg.snapshot_rate = ArenaGame.NET_SNAPSHOT_RATE
+	cfg.snapshot_rate = FcGame.NET_SNAPSHOT_RATE
 	cfg.enable_prediction = true
 	cfg.enable_lag_compensation = false
 	cfg.max_entities_per_snapshot = 64
-	cfg.world_extent = ArenaGame.NET_WORLD_EXTENT
+	cfg.world_extent = FcGame.NET_WORLD_EXTENT
 	net.config = cfg
 	side.add_child(net)
 	net.setup()
-	var bridge := ArenaNetBridge.new()
+	var bridge := FcNetBridge.new()
 	bridge.name = "Bridge"
 	side.add_child(bridge)
 	bridge.attach(game, net)
 	bridge.open_link(link)
 	net.messages.seal()
-	bridge.rtt_source = func() -> float: return ArenaNetBridge.link_rtt_ms(link)
+	bridge.rtt_source = func() -> float: return FcNetBridge.link_rtt_ms(link)
 	return [game, net, bridge]
 
 
@@ -110,7 +110,7 @@ func _client_cloud(settings: Dictionary, shipped: Variant) -> DotCloudClient:
 	return cloud
 
 
-func _check_client_map(game: ArenaGame, bridge: ArenaNetBridge, cloud: DotCloudClient, mounted_before: bool, session: Array, gone: Array) -> void:
+func _check_client_map(game: FcGame, bridge: FcNetBridge, cloud: DotCloudClient, mounted_before: bool, session: Array, gone: Array) -> void:
 	var map := game.map
 	_check(map != null and map.id == MAP and map.is_imported(), "the server's announce puts the client on %s" % MAP,
 		"on %s%s" % [String(map.id) if map != null else "nothing", (", link ended: " + gone[0]) if gone[0] != "" else ""])
@@ -124,7 +124,7 @@ func _check_client_map(game: ArenaGame, bridge: ArenaNetBridge, cloud: DotCloudC
 	_check(solid != null and solid.is_inside_tree() and solid.get_child_count() > 100,
 		"with its brushes in the client's tree (%d)" % (solid.get_child_count() if solid != null else -1))
 	_check(map != null and map.movement_profile == &"surf" and map.spawns.size() > 0, "on the surf profile, with spawns")
-	var surf_gravity := float(ArenaPlayer.SURF_TUNABLES["gravity"])
+	var surf_gravity := float(FcPlayer.SURF_TUNABLES["gravity"])
 	var on_surf := func() -> bool:
 		var b: Variant = bridge.behaviour_for(int(session[0])) if int(session[0]) != 0 else null
 		return b != null and b.player != null and is_equal_approx(b.player.controller.tunables.gravity, surf_gravity)
@@ -174,7 +174,7 @@ func _run() -> void:
 	DotPaths.remove_tree(ROOT)
 	DirAccess.make_dir_recursive_absolute(ROOT)
 	_status = ProjectSettings.globalize_path(ROOT.path_join("host.json"))
-	var port := ArenaTestPorts.free_port()
+	var port := FcTestPorts.free_port()
 
 	_entered += 1
 	print("\n-- a dedicated server in its own process names the pack and changes to it")
@@ -220,20 +220,20 @@ func _run() -> void:
 	DotGameClient.report_cover(link, false)
 
 	var built := _build_client_net(side, link)
-	var game: ArenaGame = built[0]
+	var game: FcGame = built[0]
 	var net: DotNetManager = built[1]
-	var bridge: ArenaNetBridge = built[2]
+	var bridge: FcNetBridge = built[2]
 	var session := [0]
 	bridge.hello_received.connect(func(info: Dictionary) -> void: session[0] = int(info["session_id"]))
-	# ArenaClient's map sync, before READY: the server announces its map when it admits the peer.
-	var extras := ArenaClientExtras.new()
+	# FcClient's map sync, before READY: the server announces its map when it admits the peer.
+	var extras := FcClientExtras.new()
 	extras.name = "Extras"
 	extras.voice_enabled = false
 	side.add_child(extras)
 	var attached: DotResult = extras.attach(bridge, game)
-	_check(attached.ok, "ArenaClientExtras attaches its map sync", str(attached.error))
+	_check(attached.ok, "FcClientExtras attaches its map sync", str(attached.error))
 	net.start()
-	bridge.send_request(ArenaEvents.Ask.READY)
+	bridge.send_request(FcEvents.Ask.READY)
 
 	await _until(func() -> bool:
 		return (game.map != null and game.map.id == MAP) or gone[0] != "", CLIENT_SECONDS)

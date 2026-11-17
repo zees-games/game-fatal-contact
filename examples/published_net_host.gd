@@ -1,8 +1,8 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaModule := preload("../game/arena_module.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcModule := preload("../game/fc_module.gd")
 
 ## The server half of `published_net`: a real dedicated FC server, in its own process, whose game
 ## names one published combat surf pack and which changes to that map before anybody joins.
@@ -59,11 +59,11 @@ func _host_cloud(config: DotCloudConfig, settings: Dictionary) -> DotCloudClient
 
 
 func _name_the_pack() -> void:
-	# What cfg/content.yml's `maps:` gives a real server (dot-server-deploy's game-arena block): the game names
+	# What cfg/content.yml's `maps:` gives a real server (dot-server-deploy's game-fatal-contact block): the game names
 	# the published pack. A scene path with `://` in it, so a joining client is not asked to sync the game itself.
 	var descriptor := DotGameDescriptor.new()
 	descriptor.game_id = "game-arena"
-	descriptor.scene = "res://game/arena_server.tscn"
+	descriptor.scene = "res://game/fc_server.tscn"
 	descriptor.maps = PackedStringArray(["%s/%s@%s" % [OWNER, PACK, VERSION]])
 	_server.games.set(&"_current", descriptor)
 
@@ -109,7 +109,7 @@ func _run() -> void:
 	add_child(side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "Arena"
 	game.tick_rate = 64
 	game.score_limit = 0
@@ -117,7 +117,7 @@ func _run() -> void:
 	game.headless = true
 	game.register_service = true
 	side.add_child(game)
-	var ready := game.setup(ArenaMap.dm_box())
+	var ready := game.setup(FcMap.dm_box())
 	if not ready.ok:
 		_write({"ok": false, "error": "setup: %s" % ready.error})
 		return
@@ -137,12 +137,12 @@ func _run() -> void:
 
 	_name_the_pack()
 
-	ArenaModule.punishments_file = _root.path_join("punishments.json")
-	var loaded: DotResult = await _server.modules.load_module("res://game/arena_module.gd")
+	FcModule.punishments_file = _root.path_join("punishments.json")
+	var loaded: DotResult = await _server.modules.load_module("res://game/fc_module.gd")
 	if not loaded.ok:
 		_write({"ok": false, "error": "module: %s" % loaded.error})
 		return
-	var module := _server.modules.get_module("arena") as ArenaModule
+	var module := _server.modules.get_module("arena") as FcModule
 	var quota: DotBotQuota = module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("off")

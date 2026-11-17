@@ -1,14 +1,14 @@
-extends "arena_server_suite.gd"
+extends "fc_server_suite.gd"
 
-const ArenaNetBridge := preload("../game/arena_net_bridge.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaTestPorts := preload("test_ports.gd")
+const FcNetBridge := preload("../game/fc_net_bridge.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcTestPorts := preload("test_ports.gd")
 
 ## Spectate then Play from the team menu, on a dedicated server with real sessions: `/teams spectate` and `/teams play` typed as a player, in a free-for-all.
 ## The world is asserted: the scoreboard row, the one player entity, the bot fill, who is alive.
 
-var PORT := ArenaTestPorts.free_port()
-const SERVER_DIR := "user://arena_specflow"
+var PORT := FcTestPorts.free_port()
+const SERVER_DIR := "user://fc_specflow"
 const TICK_RATE := 64
 
 const SECTIONS := 3

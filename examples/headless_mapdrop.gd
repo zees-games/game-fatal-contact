@@ -1,13 +1,13 @@
 extends DotGameCheckSuite
 
-## Maps handed to Fatal Contact outside the window (ArenaMapDrop, dot-map's DotMapDropIntake, API 26): dropped on the
+## Maps handed to Fatal Contact outside the window (FcMapDrop, dot-map's DotMapDropIntake, API 26): dropped on the
 ## executable or named by `--map-path=`, through the same intake and the same on-screen answer as a window drop. A path
 ## that holds no converted map is refused out loud with what the game takes. Window drops: headless_local_maps.
 ## [codeblock] ./game.sh test headless_mapdrop [/codeblock]
 
-const ArenaClient := preload("../game/arena_client.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaMapDrop := preload("../game/arena_map_drop.gd")
+const FcClient := preload("../game/fc_client.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcMapDrop := preload("../game/fc_map_drop.gd")
 
 const FIXTURE_DIR := "res://examples/local_maps"
 const SOURCE := "user://headless_mapdrop"
@@ -21,8 +21,8 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	if DotAddonApi.build_level("dot_map") < ArenaMapDrop.NEEDS_LEVEL:
-		print("-- skipped: dot-map API %d < %d (no DotMapDropIntake)" % [DotAddonApi.build_level("dot_map"), ArenaMapDrop.NEEDS_LEVEL])
+	if DotAddonApi.build_level("dot_map") < FcMapDrop.NEEDS_LEVEL:
+		print("-- skipped: dot-map API %d < %d (no DotMapDropIntake)" % [DotAddonApi.build_level("dot_map"), FcMapDrop.NEEDS_LEVEL])
 		_report_sections(0, 0, 0)
 		return
 	var entered := 0
@@ -45,39 +45,39 @@ func _test_args() -> void:
 	print("-- the command line: config options are not drops, --map-path and bare paths are")
 	var folder := ProjectSettings.globalize_path(SOURCE.path_join("args"))
 	DirAccess.make_dir_recursive_absolute(folder)
-	var kept := ArenaMapDrop.drop_args(PackedStringArray(["--arena-bots", folder, "--dot_net.port", folder,
+	var kept := FcMapDrop.drop_args(PackedStringArray(["--arena-bots", folder, "--dot_net.port", folder,
 		"--arena-no-weapon-packs", folder, "--config=x", "--headless"]))
 	_check(kept == PackedStringArray([folder, "--config=x", "--headless"]),
 		"--arena-<key> and --<addon>.<key> values are not drops; a --arena-no- switch takes no value", str(kept))
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	var intake := client.drop_intake()
 	if not _check(intake != null, "the client makes the shared intake"):
 		client.free()
 		return
 	_check(not bool(intake.get(&"watch_window")), "it leaves the window to the client's own handler (Importing… first)")
-	var paths := ArenaMapDrop.paths_in(intake, PackedStringArray(["--path", folder, "--map", folder, "--map-path=" + folder]))
+	var paths := FcMapDrop.paths_in(intake, PackedStringArray(["--path", folder, "--map", folder, "--map-path=" + folder]))
 	_check(paths == PackedStringArray([folder]), "--map-path= is a drop; --path and --map values are not", str(paths))
-	paths = ArenaMapDrop.paths_in(intake, PackedStringArray([folder, "--arena-port", folder]))
+	paths = FcMapDrop.paths_in(intake, PackedStringArray([folder, "--arena-port", folder]))
 	_check(paths == PackedStringArray([folder]), "a bare path is a drop (the executable's drop)", str(paths))
-	paths = ArenaMapDrop.paths_in(intake, PackedStringArray(["--map-path=/no/such/zz_headless_mapdrop"]))
+	paths = FcMapDrop.paths_in(intake, PackedStringArray(["--map-path=/no/such/zz_headless_mapdrop"]))
 	_check(paths == PackedStringArray(["/no/such/zz_headless_mapdrop"]), "a --map-path that does not exist is kept, to be refused", str(paths))
-	paths = ArenaMapDrop.paths_in(intake, PackedStringArray(["--headless", "res://examples/headless_mapdrop.tscn"]))
+	paths = FcMapDrop.paths_in(intake, PackedStringArray(["--headless", "res://examples/headless_mapdrop.tscn"]))
 	_check(paths.is_empty(), "no path on a plain start", str(paths))
 	client.free()
 
 
 func _test_intake() -> void:
 	print("-- every drop goes through the intake: a deep download, a depth limit, junk, a missing path")
-	ArenaMaps.list_local = true
-	var client := ArenaClient.new()
-	client._menu_catalogue = ArenaMaps.catalogue()
+	FcMaps.list_local = true
+	var client := FcClient.new()
+	client._menu_catalogue = FcMaps.catalogue()
 	client.source_game_path = SOURCE.path_join("no_such_install")
 	var intake := client.drop_intake()
 	var id := StringName(MAP + DotMapLocalMaps.ID_SUFFIX)
 	var deep := SOURCE.path_join("deep")
 	_pack_as(deep.path_join("a/b/c/d/convert"), MAP)
 	var said: String = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(deep)]))
-	_check(said.contains("not a map this game can load (it takes %s)" % ArenaMapDrop.TAKES),
+	_check(said.contains("not a map this game can load (it takes %s)" % FcMapDrop.TAKES),
 		"a pack deeper than search_depth (3) is refused with what the game takes", said)
 	_check(not client._menu_catalogue.has(id), "and not listed")
 	intake.set(&"search_depth", 0)
@@ -100,18 +100,18 @@ func _test_intake() -> void:
 	said = await client.import_dropped(PackedStringArray(["/no/such/zz_headless_mapdrop"]))
 	_check(said.contains("zz_headless_mapdrop: not found"), "a path that does not exist is said", said)
 
-	ArenaMaps.list_local = false
+	FcMaps.list_local = false
 	said = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(deep)]), "command line")
 	_check(said.contains("dropped maps play in solo only"), "a server's client refuses an executable drop too", said)
-	ArenaMaps.list_local = true
+	FcMaps.list_local = true
 	client.free()
 
 
 func _test_cmdline() -> void:
 	print("-- dropped on the executable / --map-path: imported and said like a window drop")
-	ArenaMaps.list_local = true
-	var client := ArenaClient.new()
-	client._menu_catalogue = ArenaMaps.catalogue()
+	FcMaps.list_local = true
+	var client := FcClient.new()
+	client._menu_catalogue = FcMaps.catalogue()
 	client.source_game_path = SOURCE.path_join("no_such_install")
 	var folder := SOURCE.path_join("exe/convert")
 	_pack_as(folder, MAP)

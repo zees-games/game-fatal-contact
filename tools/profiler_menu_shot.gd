@@ -1,6 +1,6 @@
 extends SceneTree
 
-## The real solo client (res://game/arena.tscn) with its menu open on Advanced, scrolled to the
+## The real solo client (res://game/fc.tscn) with its menu open on Advanced, scrolled to the
 ## Performance card, then a one-second recording. `tools/screenshot.sh --profiler-menu [out.png]`;
 ## needs a renderer (xvfb-run or a GPU box).
 
@@ -12,7 +12,7 @@ func _initialize() -> void:
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	var out := args[0] if args.size() > 0 else "screenshots/profiler_menu.png"
-	var scene := (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var scene := (load("res://game/fc.tscn") as PackedScene).instantiate()
 	root.add_child(scene)
 	for f in 60:
 		await process_frame

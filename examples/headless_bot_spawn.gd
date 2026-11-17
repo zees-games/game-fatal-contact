@@ -21,7 +21,7 @@ func _one(id: StringName) -> void:
 	if game == null:
 		return
 	# Every bot with its own persona, whatever an archived bot_personas says.
-	ArenaBots.personas_mode = ""
+	FcBots.personas_mode = ""
 	var world := _world
 	var minds := _make_minds(BOTS)
 	var start := {}
@@ -54,7 +54,7 @@ func _one(id: StringName) -> void:
 			for o in BOTS:
 				if o != b and nav != null and nav.joined(sp, start[o + 1]):
 					linked += 1
-			var mind: ArenaBots.Mind = minds[b + 1]
+			var mind: FcBots.Mind = minds[b + 1]
 			var brain: DotBotBrain = mind.brain
 			var tag := " %s unstick %d" % [str(brain.last.state), brain._unstick.total] if brain != null else ""
 			tag += " persona %s" % (mind.persona.id if mind.persona != null else &"none")

@@ -1,19 +1,19 @@
 extends Node
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
-## The load timeline offline (ArenaLoadTimeline prints one `arena.load` line when the cover lifts), for comparing a change back to back. Software GL: the CPU side is real, shader compiles are not.
+## The load timeline offline (FcLoadTimeline prints one `arena.load` line when the cover lifts), for comparing a change back to back. Software GL: the CPU side is real, shader compiles are not.
 ## `xvfb-run -a godot --path . --rendering-driver opengl3 --resolution 480x270 res://tools/load_timeline.tscn [-- --map <id>]`
 
 
 func _ready() -> void:
-	var _scratch := ArenaPresentation.use_scratch_settings("load_timeline")
+	var _scratch := FcPresentation.use_scratch_settings("load_timeline")
 	Engine.max_fps = 0
 	_run.call_deferred()
 
 
 func _run() -> void:
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	add_child(client)

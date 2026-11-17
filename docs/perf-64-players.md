@@ -127,7 +127,7 @@ under the 350 B goal; small DM maps stay near 560 B because most players there a
 before interest, and how much of it a receiver could tell apart (`FIELDS wire ...`, only changes whose quantised code
 moved). On dm_atrium every peer is a player (65 entities, about 33 changed a snapshot): position 153 B, the 36-bit entity
 headers 158, velocity 108, yaw 78, pitch 64, flags 40. 61% of pitch writes, 8% of yaw and 7% of velocity carried the
-same codes as the last send: dot-net marks a field dirty on any raw change. `ArenaPlayerNet.hold_subquantum`
+same codes as the last send: dot-net marks a field dirty on any raw change. `FcPlayerNet.hold_subquantum`
 (`sv_net_hold_subquantum`, default 1) keeps the previous value when the new one quantises the same, so receivers decode
 exactly what they did and the repeat is not sent; position is not held (the server reads it back), and neither lag-comp
 history nor the owner's rewind (`net_exact`) reads these fields. That alone took the unfiltered control from 616 B to
@@ -145,7 +145,7 @@ both are on the nightly board.
 **Aim cone (fc-dmatrium-bytes-2, 2026-11-16).** dot-net interest (API 22) takes an observer aim,
 `DotNetIdentity.interest_aim`, and `DotNetInterest.aim_cone_deg`: a far entity inside that cone of the observer's aim
 is sent at most every `far_every`-th snapshot (the first band's rate), never the quarter rate; native core and GDScript
-agree (netcode_demo parity). FC's authority sets `interest_aim` from `ArenaPlayer.aim_direction()` each pull, and
+agree (netcode_demo parity). FC's authority sets `interest_aim` from `FcPlayer.aim_direction()` each pull, and
 `sv_net_aim_cone` (default 8 degrees, 0 = off, outside 0-180 refused) sets the cone. What you aim at, scoped or not,
 stays at half rate, so the quarter band no longer reaches a scoped shot: the default is now two bands from 15 m
 (`sv_net_far_distance` 15, `sv_net_far_tiers` 2), and `headless_hitreg_scope` passes with the rings on at 30 m and
@@ -218,7 +218,7 @@ measure. What can drift is node, object and video memory growth over a match.
 `tools/perf_bench.gd` now prints `proc census remote player tree` and `proc census root tree`. At 64 players
 there are 6500-6950 nodes:
 
-- **ArenaClient (6483):**
+- **FcClient (6483):**
   - Game: 4778
   - FxPool: 510 (`cl_fx_pool_idle` 8)
   - Level: 492

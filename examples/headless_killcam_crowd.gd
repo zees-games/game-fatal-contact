@@ -1,7 +1,7 @@
 extends DotGameCheckSuite
 
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaKillcamBodies := preload("../game/arena_killcam_bodies.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcKillcamBodies := preload("../game/fc_killcam_bodies.gd")
 
 ## Three crowds, grown in one solo match: each round kills the local player twice.
 const CROWDS := [32, 64, 128]
@@ -100,14 +100,14 @@ func _truth(id: int, t: float) -> Vector3:
 
 
 func _lethal(killer: Object, me: Object) -> DotDamage:
-	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, _game.combat.damage_type(ArenaContent.DAMAGE_BULLET))
+	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, _game.combat.damage_type(FcContent.DAMAGE_BULLET))
 	damage.weapon_id = &"smg"
 	damage.tick = _game.current_tick()
 	return damage
 
 
 func _run() -> void:
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("offline_bots", CROWDS[0])
 	_client.set("mouse_capture_override", true)
@@ -174,8 +174,8 @@ func _test_crowd(crowd: int) -> void:
 	_check(thinned > 0, "%d bots: the remote LOD skipped bodies while a replay was posed (the case this covers)" % crowd, str(thinned))
 	var swept := _sweep(buffer, since)
 	# Above cl_killcam_crowd the killcam records at cl_killcam_crowd_hz, so the row floor scales with it.
-	var hz := ArenaKillcamBodies.hz_for(crowd + 1)
-	var rate := 1.0 if hz <= 0.0 or ArenaKillcamBodies.record_hz <= 0.0 else minf(1.0, hz / ArenaKillcamBodies.record_hz)
+	var hz := FcKillcamBodies.hz_for(crowd + 1)
+	var rate := 1.0 if hz <= 0.0 or FcKillcamBodies.record_hz <= 0.0 else minf(1.0, hz / FcKillcamBodies.record_hz)
 	_check(swept[0] > int(crowd * 10 * rate) and swept[1] == 0,
 		"%d bots: every recorded row, during and after the kill views, matches the authoritative position" % crowd,
 		"%d rows, %d off by more than %.1f m, worst %.2f m %s" % [swept[0], swept[1], RECORD_TOLERANCE_M, swept[2], swept[3]])

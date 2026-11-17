@@ -7,7 +7,7 @@ extends SceneTree
 
 const _Weapons := preload("render_weapons.gd")
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "screenshots/carry"
 const EVERY := 0.15
 const SIZE := Vector2i(480, 480)
@@ -31,9 +31,9 @@ func _initialize() -> void:
 				_bots = _weapons.size()
 			"--carry":
 				(AwWorldModel as Script).set(&"person_carry", int(args[i + 1]) != 0)
-	preload("../game/arena_weapon_roles.gd").ensure()
-	var _scratch := ArenaPresentation.use_scratch_settings("render_carry")
-	client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	preload("../game/fc_weapon_roles.gd").ensure()
+	var _scratch := FcPresentation.use_scratch_settings("render_carry")
+	client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	root.add_child(client)

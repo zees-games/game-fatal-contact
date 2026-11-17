@@ -1,8 +1,8 @@
 extends SceneTree
 
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## A third-person remote body (the world model in its hand) against dm_box's south wall at three distances, seen from
 ## the side and from behind. Writes `screenshots/wall_remote/<distance>_<side|back>.png`. Needs xvfb-run.
@@ -11,7 +11,7 @@ const ArenaPlayer := preload("../game/arena_player.gd")
 const OUT_DIR := "screenshots/wall_remote"
 const WALL_Z := 24.0
 
-var _player: ArenaPlayer = null
+var _player: FcPlayer = null
 var _cam: Camera3D = null
 var _cases: Array = []
 var _case: Dictionary = {}
@@ -23,12 +23,12 @@ var _tick := 1
 func _initialize() -> void:
 	Engine.physics_ticks_per_second = 64
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
-	var map: ArenaMap = ArenaMap.dm_box()
+	var map: FcMap = FcMap.dm_box()
 	root.add_child(map.to_scene())
-	root.add_child(ArenaMapLighting.build(map))
-	_player = ArenaPlayer.new()
+	root.add_child(FcMapLighting.build(map))
+	_player = FcPlayer.new()
 	_player.name = "Them"
-	_player.setup(ArenaPlayer.Mode.HEADLESS, map, 8, "Them")
+	_player.setup(FcPlayer.Mode.HEADLESS, map, 8, "Them")
 	root.add_child(_player)
 	_player.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 20.0)), 0)
 	_player.attach_body_mesh(Color(0.8, 0.3, 0.2))

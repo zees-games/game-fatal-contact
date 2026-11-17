@@ -1,7 +1,7 @@
 extends SceneTree
 
-const ArenaConfig := preload("../game/arena_config.gd")
-const ArenaGame := preload("../game/arena_game.gd")
+const FcConfig := preload("../game/fc_config.gd")
+const FcGame := preload("../game/fc_game.gd")
 
 ## Renders the remote admin's tuning panel (what an admin sees on a server that allows `sv_workbench_remote`) to
 ## res://screenshots/workbench_remote.png. Run under xvfb-run: tools/workbench_remote_shot.sh
@@ -21,7 +21,7 @@ func _run() -> void:
 	var wb := DotGameWorkbench.new()
 	wb.remote_client = client
 	wb.remote_fn = func() -> bool: return true
-	var binder := ArenaConfig.make_binder(ArenaGame.new().config)
+	var binder := FcConfig.make_binder(FcGame.new().config)
 	var _l := binder.load_layers()
 	for set: DotProfileSet in binder.profile_sets():
 		wb.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))

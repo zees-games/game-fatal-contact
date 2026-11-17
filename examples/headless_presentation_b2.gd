@@ -6,7 +6,7 @@ extends "headless_presentation_b2a.gd"
 func _test_hud_makes_room_for_a_ballot() -> void:
 	_section("The weapon slots and the centre line make room for a ballot")
 
-	var hud := ArenaHud.new()
+	var hud := FcHud.new()
 	hud.config = DotUiConfig.new()
 	add_child(hud)
 	hud.build(null)
@@ -37,8 +37,8 @@ func _test_hud_makes_room_for_a_ballot() -> void:
 			and (laid["rows"] as Array).size() == 5,
 		"all five slots end below a seven-row ballot, where they reached under it",
 		"top %.0f free, %.0f under a ballot to %.0f, %d rows" % [free_top, under.position.y, cover.end.y, (laid["rows"] as Array).size()])
-	_check(float(laid["pitch"]) < ArenaHud.ArenaHudGlance.WeaponSlots.ROW_H
-			and float(laid["pitch"]) >= ArenaHud.ArenaHudGlance.WeaponSlots.MIN_ROW_H,
+	_check(float(laid["pitch"]) < FcHud.FcHudGlance.WeaponSlots.ROW_H
+			and float(laid["pitch"]) >= FcHud.FcHudGlance.WeaponSlots.MIN_ROW_H,
 		"by drawing the rows closer, never under the tightest pitch", "pitch %.1f" % float(laid["pitch"]))
 
 	var many: Array[Dictionary] = []
@@ -56,14 +56,14 @@ func _test_hud_makes_room_for_a_ballot() -> void:
 	ballot.visible = false
 	hud.make_room()
 	laid = hud.slots.layout()
-	_check((laid["rows"] as Array).size() == 8 and float(laid["pitch"]) == ArenaHud.ArenaHudGlance.WeaponSlots.ROW_H,
+	_check((laid["rows"] as Array).size() == 8 and float(laid["pitch"]) == FcHud.FcHudGlance.WeaponSlots.ROW_H,
 		"and every row comes back at its own pitch the frame the ballot goes")
 	ballot.visible = true
 
 	var opening := "Vote: Box, Atrium, Pit, Foundry, Canals, Spire (20s)"
 	var yes_no := "Vote: Kick quiet_one?  —  type !yes or !no (20s)"
-	_check(ArenaHud.is_ballot_line(opening) and not ArenaHud.is_ballot_line(yes_no)
-			and not ArenaHud.is_ballot_line("Changing map to Box…") and not ArenaHud.is_ballot_line("Vote: Box (soon)"),
+	_check(FcHud.is_ballot_line(opening) and not FcHud.is_ballot_line(yes_no)
+			and not FcHud.is_ballot_line("Changing map to Box…") and not FcHud.is_ballot_line("Vote: Box (soon)"),
 		"a vote's opening list is told from the yes/no vote's line and every other system line")
 	hud.notice(opening)
 	_check(hud.notice_label == null or hud.notice_label.text != opening,
@@ -94,7 +94,7 @@ func _test_vote_is_heard() -> void:
 	# The rules this game votes by, as the server builds them. dot-vote ships every cue
 	# empty, so a cue id the rules name and the catalogue lacks is a sound that is
 	# configured, sent to every client each second of a countdown, and never heard.
-	var vote := ArenaVote.new()
+	var vote := FcVote.new()
 	var rules := vote._rules()
 	vote.free()
 
@@ -143,11 +143,11 @@ func _test_vote_is_heard() -> void:
 func _test_criticals_and_the_body() -> void:
 	_section("A critical breaks a body, a respawn mends it, the HUD shows the rest")
 
-	var player := ArenaPlayer.new()
-	player.setup(ArenaPlayer.Mode.HEADLESS, ArenaMap.dm_box(), 6, "Broken")
+	var player := FcPlayer.new()
+	player.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), 6, "Broken")
 	add_child(player)
 	player.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 18.0)), 0)
-	player.attach_body_mesh(Color.WHITE, ArenaAvatars.stock_avatar(&"broken"))
+	player.attach_body_mesh(Color.WHITE, FcAvatars.stock_avatar(&"broken"))
 
 	var rules := DotPlayerBreakRules.new()
 	rules.mode = DotPlayerBreakRules.Mode.LIMBS
@@ -173,7 +173,7 @@ func _test_criticals_and_the_body() -> void:
 	_check_health_tag(player)
 	_check_tag_rules(player)
 
-	var hud := ArenaHud.new()
+	var hud := FcHud.new()
 	hud.config = DotUiConfig.new()
 	add_child(hud)
 	hud.build(null)
@@ -191,8 +191,8 @@ func _test_criticals_and_the_body() -> void:
 		"the red edge is drawn by a shader, not a stretched texture")
 
 	# The play test's "+1 POINTS".
-	_check(ArenaHud.points_text(1) == "1 point" and ArenaHud.points_text(5) == "5 points",
-		"one point is a point (%s, %s)" % [ArenaHud.points_text(1), ArenaHud.points_text(5)])
+	_check(FcHud.points_text(1) == "1 point" and FcHud.points_text(5) == "5 points",
+		"one point is a point (%s, %s)" % [FcHud.points_text(1), FcHud.points_text(5)])
 
 	player.controller.tunables.launch_enabled = true  # off by default; the button only shows when on
 	hud.present_body()
@@ -217,10 +217,10 @@ func _test_criticals_and_the_body() -> void:
 		"and a KILL alone draws no points, no hit marker and no medal: the client decides none of them")
 
 	# The achievement the player is nearest to (still sent to the client).
-	var awards: DotAchievementCatalogue = load("res://game/arena_awards.gd").catalogue()
+	var awards: DotAchievementCatalogue = load("res://game/fc_awards.gd").catalogue()
 	var progress := DotAchievementProgress.new()
 	progress.set_value(&"arena.kills", 11.0)
-	var picked: Array = load("res://game/arena_progress.gd").challenge_for(awards, progress)
+	var picked: Array = load("res://game/fc_progress.gd").challenge_for(awards, progress)
 	var picked_def: DotAchievement = awards.achievements[int(picked[0])] if int(picked[0]) >= 0 else null
 	_check(picked_def != null and int(picked[1]) == 11 and picked_def.requirements[0].stat == &"arena.kills",
 		"a challenge is the goal a player is furthest along (%s)" % (picked_def.display_name if picked_def != null else "none"))
@@ -228,7 +228,7 @@ func _test_criticals_and_the_body() -> void:
 		hud.note_kill({"killer_id": 7, "victim_id": 6, "weapon": "sniper"}, 6, "Sniper")
 	_check(hud.streaks.get(6, -1) == 0 and not hud._death_text.contains("NEMESIS"),
 		"dying ends the streak, and three deaths alone name nobody: that is the server's call")
-	hud.note_award({"killer_id": 7, "victim_id": 6, "medals": [ArenaAwards.Medal.NEMESIS], "points": 125, "streak": 3}, 6, "Broken", "Sniper")
+	hud.note_award({"killer_id": 7, "victim_id": 6, "medals": [FcAwards.Medal.NEMESIS], "points": 125, "streak": 3}, 6, "Broken", "Sniper")
 	_check(hud._death_text.contains("Sniper is your NEMESIS"), "the server's Nemesis medal for a kill of you names them")
 	player.make_dead()
 	hud.present_body()
@@ -238,7 +238,7 @@ func _test_criticals_and_the_body() -> void:
 	_check(hud.crosshair != null and not hud.crosshair.is_shown(), "and the crosshair is gone: nothing in hand to aim")
 
 	hud.note_kill({"killer_id": 6, "victim_id": 7, "weapon": "rifle"}, 6, "Broken")
-	hud.note_award({"killer_id": 6, "victim_id": 7, "medals": [ArenaAwards.Medal.REVENGE], "points": 150, "streak": 1}, 6, "Sniper", "Broken")
+	hud.note_award({"killer_id": 6, "victim_id": 7, "medals": [FcAwards.Medal.REVENGE], "points": 150, "streak": 1}, 6, "Sniper", "Broken")
 	hud.medal_row.advance(0.05)
 	_check(hud.medal_row.labels().has("Revenge") and not hud.nemeses.has(7),
 		"killing them back is the server's Revenge medal, and they are nobody's nemesis now")
@@ -248,7 +248,7 @@ func _test_criticals_and_the_body() -> void:
 	# The client shell's column (ballots, its lines) is the right edge from 110 px down. A
 	# headless frame is 64 px, so where things land is the render's to judge
 	# (`screenshot.sh --glance --ballot`); these are the structure that put them there.
-	_check(ArenaHud.feed_lines_clear(16.0) == 3 and hud.feed.max_lines == 3,
+	_check(FcHud.feed_lines_clear(16.0) == 3 and hud.feed.max_lines == 3,
 		"the kill feed keeps to the rows that end above the shell's column (%d)" % hud.feed.max_lines)
 	hud.set_safe_area(40.0)
 	var inset_rows := hud.feed.max_lines
@@ -260,15 +260,15 @@ func _test_criticals_and_the_body() -> void:
 		"the key hints are on the left, the carried weapons on the ammunition counter")
 
 	# The end of the match names the MVP, through the client's own MATCH handler.
-	var summary_game := ArenaGame.new()
+	var summary_game := FcGame.new()
 	summary_game.headless = true
 	summary_game.register_service = false
 	add_child(summary_game)
-	var _set := summary_game.setup(ArenaMap.dm_box())
+	var _set := summary_game.setup(FcMap.dm_box())
 	var best := summary_game.match_node.scoreboard.join("6", "Broken")
 	best.kills = 3
 	best.score = 3
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.game = summary_game
 	client.hud = hud
 	client._on_match({"state": DotMatch.State.MATCH_END, "round": 1, "remaining_ticks": 0})
@@ -283,7 +283,7 @@ func _test_criticals_and_the_body() -> void:
 
 
 ## Somebody else, hurt: a bar over their head for a few seconds.
-func _check_health_tag(player: ArenaPlayer) -> void:
+func _check_health_tag(player: FcPlayer) -> void:
 	player.health.health = player.health.max_health
 	player.present(0.016)
 	player.health.health = player.health.max_health * 0.4
@@ -295,14 +295,14 @@ func _check_health_tag(player: ArenaPlayer) -> void:
 		player.present(0.016)
 	_check(tag != null and absf(tag.shown_fraction - 0.4) < 0.01 and absf(tag.trail_fraction - 0.4) < 0.01,
 		"filled to what is left, the trail caught up")
-	player.present(ArenaPlayer.HEALTH_TAG_SEC + 0.1)
+	player.present(FcPlayer.HEALTH_TAG_SEC + 0.1)
 	_check(not player._health_tag.visible, "and it goes after a few seconds")
 	player.health.health = player.health.max_health
 
 
 ## When tags draw: the player's pick, the server's ceiling, team, cursor and a recent hit.
-func _check_tag_rules(player: ArenaPlayer) -> void:
-	var Rules := preload("res://game/arena_name_tag_rules.gd")
+func _check_tag_rules(player: FcPlayer) -> void:
+	var Rules := preload("res://game/fc_name_tag_rules.gd")
 	_check(Rules.parse("team") == Rules.TEAM and Rules.parse("team,hover") == (Rules.TEAM | Rules.HOVER)
 		and Rules.parse("smart") == (Rules.TEAM | Rules.HOVER | Rules.HURT) and Rules.parse("off") == 0
 		and Rules.parse("bogus") == -1 and Rules.parse("team,bogus") == -1,
@@ -366,7 +366,7 @@ func _check_tag_rules(player: ArenaPlayer) -> void:
 	Rules.server_bars = saved[3]
 	Rules.viewer_id = saved[4]
 	Rules.viewer_team = saved[5]
-	player.present(ArenaPlayer.HEALTH_TAG_SEC + 0.1)
+	player.present(FcPlayer.HEALTH_TAG_SEC + 0.1)
 
 
 ## A client turns the server's HIT and AWARD into the hit marker, a damage number, the medals and
@@ -379,10 +379,10 @@ func _test_stock_avatars_differ() -> void:
 	var shared_with_previous := 0
 	var previous := &""
 	for id in range(112, 128):
-		var avatar := ArenaAvatars.stock_avatar(StringName(ArenaGame.storage_key(id)))
-		var head := avatar.part_in(ArenaAvatars.SLOT_HEAD)
+		var avatar := FcAvatars.stock_avatar(StringName(FcGame.storage_key(id)))
+		var head := avatar.part_in(FcAvatars.SLOT_HEAD)
 		heads[head] = true
-		bodies[avatar.part_in(ArenaAvatars.SLOT_BODY)] = true
+		bodies[avatar.part_in(FcAvatars.SLOT_BODY)] = true
 		if head == previous:
 			shared_with_previous += 1
 		previous = head
@@ -395,9 +395,9 @@ func _test_stock_avatars_differ() -> void:
 		"%d of 15 neighbours" % shared_with_previous)
 	_check(bodies.size() >= 8, "and at least 8 different bodies", "%d distinct" % bodies.size())
 
-	var again := ArenaAvatars.stock_avatar(StringName(ArenaGame.storage_key(117)))
+	var again := FcAvatars.stock_avatar(StringName(FcGame.storage_key(117)))
 	_check(
-		again.equals(ArenaAvatars.stock_avatar(StringName(ArenaGame.storage_key(117)))),
+		again.equals(FcAvatars.stock_avatar(StringName(FcGame.storage_key(117)))),
 		"and a player's stock look is the same every time it is asked for"
 	)
 	_done()

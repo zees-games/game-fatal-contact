@@ -1,7 +1,7 @@
 extends "lossy_base.gd"
 
-const ArenaAttach := preload("res://game/arena_attach.gd")
-const ArenaPlayerNet := preload("res://game/arena_player_net.gd")
+const FcAttach := preload("res://game/fc_attach.gd")
+const FcPlayerNet := preload("res://game/fc_player_net.gd")
 const EXPECTED_CHECKS := 23
 
 ## A knife thrown is out of the arsenal until picked up or caught; a death and respawn hands slot 1 back, on the SERVER and on
@@ -60,10 +60,10 @@ func _teardown() -> void:
 
 func _body(a: Dictionary) -> bool:
 	var session := int(a["session"])
-	var bridge: ArenaNetBridge = a["bridge"]
+	var bridge: FcNetBridge = a["bridge"]
 	var served := _game.player_for(session)
-	var own: ArenaPlayerNet = bridge.behaviour_for(session)
-	var knife := ArenaContent.melee_id()
+	var own: FcPlayerNet = bridge.behaviour_for(session)
+	var knife := FcContent.melee_id()
 	_section("the client carries the knife in the first place")
 	var _first := _game.respawn_player(session)
 	var start := await _until(func() -> bool: return own != null and own.player != null and own.player.arsenal.carries(knife), RELIABLE_SECONDS)
@@ -98,7 +98,7 @@ func _body(a: Dictionary) -> bool:
 	_done()
 
 	_section("a boomerang flies out and is caught")
-	var fitted := ArenaAttach.serve(served.arsenal, DotNetReader.new(ArenaAttach.write_request(AwWeaponIds.SLOT_MELEE, ArenaContent.KNIFE_MOUNT, ArenaAttach.BOOMERANG)))
+	var fitted := FcAttach.serve(served.arsenal, DotNetReader.new(FcAttach.write_request(AwWeaponIds.SLOT_MELEE, FcContent.KNIFE_MOUNT, FcAttach.BOOMERANG)))
 	_check(fitted.ok, "the boomerang fits the knife")
 	# A short loop that fits any spawn room; the respawn point is random, so four directions are tried and one must come home.
 	_game.knives.rules["boomerang_distance"] = 4.0

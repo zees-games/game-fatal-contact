@@ -33,7 +33,7 @@ func _run() -> void:
 		DirAccess.make_dir_recursive_absolute(source)
 		for n in ["fixture.json", "fixture.bin"]:
 			var _copied := DirAccess.copy_absolute("res://examples/local_maps".path_join(n), source.path_join(n))
-	var client := (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client := (load("res://game/fc.tscn") as PackedScene).instantiate()
 	root.add_child(client)
 	for f in 300:
 		await process_frame

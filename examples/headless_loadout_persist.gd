@@ -6,10 +6,10 @@ extends DotGameCheckSuite
 ## godot --headless --path . res://examples/headless_loadout_persist.tscn
 ## [/codeblock]
 
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaLoadoutIdentity := preload("../game/arena_loadout_identity.gd")
-const ROOT := "user://arena_loadout_persist"
+const FcContent := preload("../game/fc_content.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcLoadoutIdentity := preload("../game/fc_loadout_identity.gd")
+const ROOT := "user://fc_loadout_persist"
 const CHECKS := 26
 
 
@@ -27,13 +27,13 @@ func _ready() -> void:
 func _make(dir: String) -> DotLoadoutManager:
 	var manager := DotLoadoutManager.new()
 	manager.register_service = false
-	manager.schema = ArenaContent.loadout_schema()
+	manager.schema = FcContent.loadout_schema()
 	var config := DotLoadoutConfig.new()
 	config.backend = "local"
 	config.allow_default_loadout = true
 	config.conform_on_load = true
 	manager.config = config
-	manager.store = ArenaLoadoutIdentity.make_store(dir)
+	manager.store = FcLoadoutIdentity.make_store(dir)
 	add_child(manager)
 	return manager
 
@@ -50,12 +50,12 @@ func _run() -> void:
 	print("arena: saved loadouts persist")
 	DotPaths.remove_tree(ROOT)
 
-	var who := ArenaLoadoutIdentity.new()
+	var who := FcLoadoutIdentity.new()
 	who.feed.scope_key_file = ROOT + "/scope.key"
 	var key := who.bind(_session(7, true))
 	_check(key == "scoped0123456789" and who.key_of(7) == key and who.id_of(key) == 7, "an identified player is filed under a stable key", key)
-	_check(who.bind(_session(9, false)) == "" and who.key_of(9) == ArenaGame.storage_key(9) and who.id_of(ArenaGame.storage_key(9)) == 9, "a seat with no identity keeps the seat key")
-	_check(ArenaLoadoutIdentity.is_durable(key) and not ArenaLoadoutIdentity.is_durable(who.key_of(9)), "only the stable key goes to disk")
+	_check(who.bind(_session(9, false)) == "" and who.key_of(9) == FcGame.storage_key(9) and who.id_of(FcGame.storage_key(9)) == 9, "a seat with no identity keeps the seat key")
+	_check(FcLoadoutIdentity.is_durable(key) and not FcLoadoutIdentity.is_durable(who.key_of(9)), "only the stable key goes to disk")
 
 	var first := _make(ROOT)
 	for label: String in ["Rusher", "Sniper", "Medic"]:
@@ -70,7 +70,7 @@ func _run() -> void:
 	remove_child(first)
 
 	var again := _make(ROOT)
-	var rejoin := ArenaLoadoutIdentity.new()
+	var rejoin := FcLoadoutIdentity.new()
 	rejoin.feed.scope_key_file = ROOT + "/scope.key"
 	var key2 := rejoin.bind(_session(31, true))
 	var _loaded: DotResult = await again.load_for(key2)
@@ -92,7 +92,7 @@ func _run() -> void:
 	remove_child(third)
 	_check(rejoin.id_of(key2) == 31, "the key maps to the new player id")
 	rejoin.release(31)
-	_check(rejoin.key_of(31) == ArenaGame.storage_key(31), "a released player falls back to the seat key")
+	_check(rejoin.key_of(31) == FcGame.storage_key(31), "a released player falls back to the seat key")
 
 	var path := "%s/%s.json" % [ROOT, key]
 	DotPaths.write_text(path, "{ not json", false)
@@ -123,7 +123,7 @@ func _run() -> void:
 
 
 func _free_by_default() -> void:
-	var schema := ArenaContent.loadout_schema()
+	var schema := FcContent.loadout_schema()
 	var priced := 0
 	for id in schema.catalogue.ids():
 		if schema.catalogue.find(id).cost > 0:

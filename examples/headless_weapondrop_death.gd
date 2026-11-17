@@ -4,12 +4,12 @@ extends Node
 ## is not below the surface nor floating above it (the burst of deaths passes the active cap, which once rested a drop
 ## in the air where it spawned: the small dark gun floating by a wall in arena-stray-weapon-3), the drop does not jitter, and it came to rest. Run: [code]godot --headless --path . res://examples/headless_weapondrop_death.tscn[/code]
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaTestToys := preload("arena_test_toys.gd")
-const Wiring := preload("../game/arena_weapon_drop_wiring.gd")
-const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcTestToys := preload("fc_test_toys.gd")
+const Wiring := preload("../game/fc_weapon_drop_wiring.gd")
+const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 
 const TOLERANCE := 0.02
 ## Most a settled drop's lowest mesh point may sit above the surface under it, in metres (DotWeaponDrops grounds a drop resting higher than 0.25).
@@ -64,14 +64,14 @@ func _sunk(node: Node, mask: int) -> float:
 
 
 func _run() -> void:
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "G"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch()
+	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	_check(game.setup(ArenaTestToys.give(ArenaMap.dm_atrium())).ok, "a game sets up")
+	_check(game.setup(FcTestToys.give(FcMap.dm_atrium())).ok, "a game sets up")
 	game.start(0)
 	var _a := game.add_player(21, "A")
 	game.tick({})
@@ -144,12 +144,12 @@ func _run() -> void:
 
 
 ## Kills the player holding each weapon at spread spots; returns drop id -> [weapon, spot].
-func _drop_deaths(game: ArenaGame, player: Object, drops: DotWeaponDrops, mask: int) -> Dictionary:
+func _drop_deaths(game: FcGame, player: Object, drops: DotWeaponDrops, mask: int) -> Dictionary:
 	var spots: Array[Vector2] = []
 	for xi in range(-8, 9, 2):
 		for zi in range(-8, 9, 2):
 			spots.append(Vector2(xi, zi))
-	ArenaWeaponRoles.ensure()
+	FcWeaponRoles.ensure()
 	var ids: Array = AwWeaponArtTable.table().keys()
 	ids.sort()
 	_check(ids.size() > 10, "the art table has weapons", str(ids.size()))

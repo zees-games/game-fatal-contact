@@ -1,19 +1,19 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaModule := preload("../game/arena_module.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcModule := preload("../game/fc_module.gd")
 const LoopbackServer := preload("loopback_server.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
-const ArenaHullGrid := preload("../game/arena_hull_grid.gd")
-const ArenaBotBrain := preload("../game/arena_bot_brain.gd")
-const ArenaBotThreads := preload("../game/arena_bot_threads.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaBotsWorld := preload("../game/arena_bots_world.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
+const FcHullGrid := preload("../game/fc_hull_grid.gd")
+const FcBotBrain := preload("../game/fc_bot_brain.gd")
+const FcBotThreads := preload("../game/fc_bot_threads.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcBotsWorld := preload("../game/fc_bots_world.gd")
 
 ## The 128-player scale harness (nightly arena-128-scale-1). Measures; asserts nothing; prints one `SCALE128 {json}` line. Driven by tools/scale128.sh, which runs it through `heavy`.
-## `godot --headless --path . res://tools/scale128.tscn -- --role server --bots 64 --tick 33 --seconds 30` (or `--role offline --bots 32 --tick 66 --seconds 20`). [b]server[/b]: DotServer + ArenaModule with N bots, no client, one physics tick timed three ways (script half between sentinels, TIME_PHYSICS_PROCESS, wall-clock ticks/s).
+## `godot --headless --path . res://tools/scale128.tscn -- --role server --bots 64 --tick 33 --seconds 30` (or `--role offline --bots 32 --tick 66 --seconds 20`). [b]server[/b]: DotServer + FcModule with N bots, no client, one physics tick timed three ways (script half between sentinels, TIME_PHYSICS_PROCESS, wall-clock ticks/s).
 ## [b]offline[/b]: the real offline client (game, bots and drawing in one process), the same numbers plus how fast game time ran against the wall clock (`sim_speed`) and a node census of one other player.
 
 var _role := "server"
@@ -64,7 +64,7 @@ func _sentinel(is_start: bool) -> void:
 		_phys_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
 
 
-const _PlayerBody := preload("res://game/arena_player_body.gd")
+const _PlayerBody := preload("res://game/fc_player_body.gd")
 
 ## --cellab N: an in-process A/B of dot-sim's binding cell (DotSimCell): every N ticks the run flips between the patched
 ## cell (side 0, notify only waiters) and upstream's notify-on-every-drop (side 1); the report splits the sections by side.
@@ -108,8 +108,8 @@ func _ab_set(side: int) -> void:
 
 func _ab_take_snap() -> void:
 	_ab_snap.clear()
-	for k in ArenaFrameProbe._sections:
-		_ab_snap[k] = (ArenaFrameProbe._sections[k] as PackedInt64Array)[0]
+	for k in FcFrameProbe._sections:
+		_ab_snap[k] = (FcFrameProbe._sections[k] as PackedInt64Array)[0]
 	if _ab_net != null:
 		var c: Dictionary = _ab_net.perf_counters()
 		_ab_net_snap = PackedInt64Array([int(c[&"server_sim_usec"]), int(c[&"server_ticks"])])
@@ -118,8 +118,8 @@ func _ab_take_snap() -> void:
 ## Adds the window just run to its side and switches the cell to the other side.
 func _ab_flush() -> void:
 	var acc := _ab_acc[_ab_side]
-	for k in ArenaFrameProbe._sections:
-		acc[k] = int(acc.get(k, 0)) + (ArenaFrameProbe._sections[k] as PackedInt64Array)[0] - int(_ab_snap.get(k, 0))
+	for k in FcFrameProbe._sections:
+		acc[k] = int(acc.get(k, 0)) + (FcFrameProbe._sections[k] as PackedInt64Array)[0] - int(_ab_snap.get(k, 0))
 	if _ab_net != null:
 		var c: Dictionary = _ab_net.perf_counters()
 		_ab_net_acc[_ab_side * 2] += int(c[&"server_sim_usec"]) - _ab_net_snap[0]
@@ -163,16 +163,16 @@ func _ready() -> void:
 			"--port": _port = int(args[i + 1])
 			"--map": _map = args[i + 1]
 			"--mode": _mode = args[i + 1]
-			"--fastsense": ArenaBotBrain.fast_sense = args[i + 1] != "0"
-			"--hullgrid": ArenaHullGrid.enabled = args[i + 1] != "0"
-			"--hullfast": ArenaHullGrid.fast = args[i + 1] != "0"
+			"--fastsense": FcBotBrain.fast_sense = args[i + 1] != "0"
+			"--hullgrid": FcHullGrid.enabled = args[i + 1] != "0"
+			"--hullfast": FcHullGrid.fast = args[i + 1] != "0"
 			"--worldcoarse": DotFpsFlatBody.world_coarse = args[i + 1] != "0"
-			"--hullverify": ArenaHullGrid.verify = args[i + 1] != "0"
-			"--hullnative": ArenaHullGrid.native = args[i + 1] != "0"
-			"--threads": ArenaBotThreads.threads = int(args[i + 1])
-			"--thinkevery": ArenaBots.think_every = int(args[i + 1])
-			"--thinknear": ArenaBots.think_near = float(args[i + 1])
-			"--tierabove": ArenaBots.tiers.above = int(args[i + 1])
+			"--hullverify": FcHullGrid.verify = args[i + 1] != "0"
+			"--hullnative": FcHullGrid.native = args[i + 1] != "0"
+			"--threads": FcBotThreads.threads = int(args[i + 1])
+			"--thinkevery": FcBots.think_every = int(args[i + 1])
+			"--thinknear": FcBots.think_near = float(args[i + 1])
+			"--tierabove": FcBots.tiers.above = int(args[i + 1])
 			"--motorprof": _motorprof = args[i + 1] != "0"
 			"--spawn": _spawn = args[i + 1] != "0"
 			"--botstyles": _botstyles = args[i + 1]
@@ -185,16 +185,16 @@ func _ready() -> void:
 			"--wlane": _PlayerBody.idle_row_lane = args[i + 1] != "0"
 			"--native": DotBotWorld.native_enabled = args[i + 1] != "0"
 			# --native-sight 0: bot sight rays through script, never dot-sim's native ray (the A/B of World.native_sight).
-			"--native-sight": ArenaBotsWorld.World.native_sight = args[i + 1] != "0"
+			"--native-sight": FcBotsWorld.World.native_sight = args[i + 1] != "0"
 			"--motornative": DotFpsPhysicsBody.native_enabled = args[i + 1] != "0"
-			# --fine 1: ArenaFrameProbe.fine for the recording, so the sections split tick_players, bots and the world (laps).
+			# --fine 1: FcFrameProbe.fine for the recording, so the sections split tick_players, bots and the world (laps).
 			"--fine": _fine = args[i + 1] != "0"
 			"--cellab": _cellab = int(args[i + 1])
 			"--weapab":
 				_cellab = int(args[i + 1])
 				_ab_weap = _cellab > 0
 	DotLog.set_level(DotLog.Level.ERROR)
-	var _scratch := ArenaPresentation.use_scratch_settings("scale128_" + _role)
+	var _scratch := FcPresentation.use_scratch_settings("scale128_" + _role)
 	for is_start in [true, false]:
 		var s := Sentinel.new()
 		s.bench = self
@@ -235,8 +235,8 @@ func _rss_mb() -> float:
 
 func _sections_ms(ticks: int) -> Dictionary:
 	var out := {}
-	for k in ArenaFrameProbe._sections:
-		var row: PackedInt64Array = ArenaFrameProbe._sections[k]
+	for k in FcFrameProbe._sections:
+		var row: PackedInt64Array = FcFrameProbe._sections[k]
 		out[String(k)] = {"per_tick_ms": snappedf(row[0] / 1000.0 / maxi(1, ticks), 0.001), "calls": row[1], "max_ms": snappedf(row[2] / 1000.0, 0.001)}
 	return out
 
@@ -258,11 +258,11 @@ func _report(extra: Dictionary) -> void:
 		"sections": _sections_ms(_count),
 		"verdict_holds": float(script.get("mean", 99999.0)) < 0.7 * budget_ms and float(script.get("p95", 99999.0)) < budget_ms and _count / wall / _tick > 0.97,
 	}
-	out["bot_threads"] = ArenaBotThreads.threads
-	out["think_every"] = ArenaBots.think_every
-	out["think_near"] = ArenaBots.think_near
-	out["par_ticks"] = ArenaBotThreads.par_ticks
-	out["tiers"] = ArenaBots.tiers.describe()
+	out["bot_threads"] = FcBotThreads.threads
+	out["think_every"] = FcBots.think_every
+	out["think_near"] = FcBots.think_near
+	out["par_ticks"] = FcBotThreads.par_ticks
+	out["tiers"] = FcBots.tiers.describe()
 	# What the bots did while recorded, so a think-rate change shows its cost in play (shots per hit, kills).
 	out["combat"] = {"shots": _shots, "hits": _hits, "headshots": _heads, "kills": _kills,
 		"hit_rate": snappedf(float(_hits) / maxi(1, _shots), 0.001)}
@@ -270,11 +270,11 @@ func _report(extra: Dictionary) -> void:
 	out["motor_native"] = DotFpsPhysicsBody.native_enabled and ClassDB.class_exists(&"DotSimFpsBody")
 	out.merge(extra)
 	out.merge(_ab_report())
-	if ArenaHullGrid.verify:
-		out["hull_verified"] = ArenaHullGrid.verified
-		out["hull_mismatches"] = ArenaHullGrid.mismatches
-		out["hull_native_verified"] = ArenaHullGrid.native_verified
-		out["hull_native_mismatches"] = ArenaHullGrid.native_mismatches
+	if FcHullGrid.verify:
+		out["hull_verified"] = FcHullGrid.verified
+		out["hull_mismatches"] = FcHullGrid.mismatches
+		out["hull_native_verified"] = FcHullGrid.native_verified
+		out["hull_native_mismatches"] = FcHullGrid.native_mismatches
 	# Hull gathers dot-sim's hull world answered in the motor tick (no script call), and the pair calls it made.
 	var arena := get_tree().root.find_child("Arena", true, false)
 	var world: Object = arena.get(&"_hull_world") if arena != null else null
@@ -309,7 +309,7 @@ var _fine := false
 var _spawn := false
 
 
-## `--spawn 1`: respawns the dead (or, with [param all], everyone) through ArenaGame.respawn_player, about once a
+## `--spawn 1`: respawns the dead (or, with [param all], everyone) through FcGame.respawn_player, about once a
 ## second; the match's own queue never runs without a person in it.
 func _respawn_dead(game: Node, all: bool) -> void:
 	for p in game.players():
@@ -354,9 +354,9 @@ func _begin_record() -> void:
 		DotFpsMotor.profile = true
 		DotFpsMotor.phase_us.fill(0)
 		DotFpsController.phase_us.fill(0)
-	ArenaFrameProbe.set_interval(1.0e9)
-	ArenaFrameProbe.fine = _fine
-	ArenaFrameProbe._sections.clear()
+	FcFrameProbe.set_interval(1.0e9)
+	FcFrameProbe.fine = _fine
+	FcFrameProbe._sections.clear()
 	AwWeaponRig.phase_us.fill(0)
 	AwWeaponRig.phase_calls.fill(0)
 	DotWeaponArsenal.phase_us.fill(0)
@@ -379,7 +379,7 @@ func _serve() -> void:
 	var data := "user://scale128_server"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(data))
 	Engine.physics_ticks_per_second = _tick
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "Arena"
 	game.tick_rate = _tick
 	game.score_limit = 0
@@ -391,15 +391,15 @@ func _serve() -> void:
 	add_child(game)
 	if _botstyles != "":
 		var _st := DotBotSettings.of(game).set_value("styles", _botstyles)
-	var map: ArenaMap = ArenaMap.by_id(StringName(_map))
-	var _set := game.setup(map if map != null else ArenaMap.dm_box())
+	var map: FcMap = FcMap.by_id(StringName(_map))
+	var _set := game.setup(map if map != null else FcMap.dm_box())
 	var config := LoopbackServer.config("scale128", _port, data, "error", 256)
 	config.tickrate = _tick
 	var server := await LoopbackServer.boot(self, config, "scale128")
 	if server == null:
 		get_tree().quit(1)
 		return
-	var module := server.modules.get_module("arena") as ArenaModule
+	var module := server.modules.get_module("arena") as FcModule
 	var quota: DotBotQuota = module.get("_bot_quota")
 	# The server's own quota manages the bots (fixed N): an "off" quota removes every bot a second later.
 	if quota != null and quota.mode_cvar != null:
@@ -499,7 +499,7 @@ func _census(g: Node, local: Node) -> Dictionary:
 
 
 func _offline() -> void:
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	add_child(client)

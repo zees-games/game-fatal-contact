@@ -6,29 +6,29 @@ extends "screenshot_b1.gd"
 
 func _initialize() -> void:
 	# A scratch settings document, never this machine's real one (see
-	# `ArenaPresentation.use_scratch_settings`): a render must not save into a player's file.
-	var _scratch := ArenaPresentation.use_scratch_settings("screenshot")
+	# `FcPresentation.use_scratch_settings`): a render must not save into a player's file.
+	var _scratch := FcPresentation.use_scratch_settings("screenshot")
 	var args := OS.get_cmdline_user_args()
 	var map_index := args.find("--map")
 	var id := StringName(args[map_index + 1]) if map_index >= 0 and map_index + 1 < args.size() else &"dm_box"
 	var mounted_at := args.find("--mounted")
 	if mounted_at >= 0 and mounted_at + 1 < args.size():
 		# A delivered map's directory (pack files unpacked), as `ensure` mounts it.
-		var added := ArenaImportedMaps.add_mounted(id, args[mounted_at + 1])
+		var added := FcImportedMaps.add_mounted(id, args[mounted_at + 1])
 		if not added.ok:
 			push_error("--mounted: %s" % added.error.message)
-	var map: ArenaMap = ArenaMap.by_id(id)
+	var map: FcMap = FcMap.by_id(id)
 
 	if map == null:
-		push_error("no such map: %s. Known: %s" % [String(id), ArenaMap.ids()])
+		push_error("no such map: %s. Known: %s" % [String(id), FcMap.ids()])
 		quit(1)
 		return
 
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 
 	# --no-bake draws a built-in map with its live lights, for before/after frames of a bake.
-	ArenaMap.use_bakes = not args.has("--no-bake")
-	ArenaMap.use_worlds = not args.has("--legacy")
+	FcMap.use_bakes = not args.has("--no-bake")
+	FcMap.use_worlds = not args.has("--legacy")
 	root.add_child(map.to_scene())
 	_stage_packs.call_deferred(map)
 	# The map's toys, as a client draws them: frozen where the map puts them. Built in the
@@ -41,7 +41,7 @@ func _initialize() -> void:
 		_toy_placements = map.toys
 
 	# Drawn under the lighting the client builds for it: a sun of this tool's own says nothing about the game.
-	root.add_child(ArenaMapLighting.build(map))
+	root.add_child(FcMapLighting.build(map))
 
 	_camera = Camera3D.new()
 	_camera.fov = 70.0

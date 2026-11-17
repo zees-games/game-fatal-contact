@@ -1,17 +1,17 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
-const ArenaGrenades := preload("../game/arena_grenades.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaHorde := preload("../game/arena_horde.gd")
-const ArenaNpcs := preload("../game/arena_npcs.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const FcGrenades := preload("../game/fc_grenades.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcHorde := preload("../game/fc_horde.gd")
+const FcNpcs := preload("../game/fc_npcs.gd")
 
 ## Utility grenades through the whole game: the loadout gate, the incendiary going off on contact, fire
-## damage through arena's combat rules (enemy hurt, owner and team-mate not), the blind and cloud events, and
+## damage through Fatal Contact's combat rules (enemy hurt, owner and team-mate not), the blind and cloud events, and
 ## the GRENADE_FX wire record.
 ##
 ## [codeblock]
@@ -42,7 +42,7 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 
 
 ## An incendiary dropped from 1.5 m over [param here] with a fuse far longer than its fall.
-func _incendiary_spawn(game: ArenaGame, here: Vector3, thrower: int) -> DotWeaponSpawn:
+func _incendiary_spawn(game: FcGame, here: Vector3, thrower: int) -> DotWeaponSpawn:
 	var spawn := DotWeaponSpawn.new()
 	spawn.id = &"incendiary"
 	spawn.origin = here + Vector3(0.0, 1.5, 0.0)
@@ -59,7 +59,7 @@ func _incendiary_spawn(game: ArenaGame, here: Vector3, thrower: int) -> DotWeapo
 
 
 ## The first of [param ids] after the thrower on its team (or, with [param same] false, not on it), or 0.
-func _first_on_team(game: ArenaGame, ids: Array, thrower: int, same: bool) -> int:
+func _first_on_team(game: FcGame, ids: Array, thrower: int, same: bool) -> int:
 	for id in ids.slice(1):
 		if (game.team_of(id) == game.team_of(thrower)) == same:
 			return id
@@ -67,7 +67,7 @@ func _first_on_team(game: ArenaGame, ids: Array, thrower: int, same: bool) -> in
 
 
 ## Stands [param together] at [param here] and every other id 30 m off, settled over three ticks.
-func _gather(game: ArenaGame, ids: Array, together: Array, here: Vector3) -> void:
+func _gather(game: FcGame, ids: Array, together: Array, here: Vector3) -> void:
 	for id in ids:
 		var far := Vector3(30.0 + float(id), here.y, 30.0)
 		game.player_for(id).controller.state.position = here if id in together else far
@@ -78,17 +78,17 @@ func _gather(game: ArenaGame, ids: Array, together: Array, here: Vector3) -> voi
 
 
 func _run() -> void:
-	_check(ArenaGrenades.supported(), "fc_weapons is at the level the glue needs", str(DotAddonApi.build_level("fc_weapons")))
+	_check(FcGrenades.supported(), "fc_weapons is at the level the glue needs", str(DotAddonApi.build_level("fc_weapons")))
 	_test_wire()
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "G"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch()
+	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	_check(ready.ok, "a team game sets up", str(ready.error))
 	game.start(0)
 
@@ -123,7 +123,7 @@ func _run() -> void:
 		game.tick({})
 		await get_tree().physics_frame
 	_check(went_off.size() == 1, "the incendiary went off on first contact, long before its fuse", str(went_off.size()))
-	var fires := seen.filter(func(i: Dictionary) -> bool: return int(i["fx"]) == ArenaGrenades.Fx.FIRE)
+	var fires := seen.filter(func(i: Dictionary) -> bool: return int(i["fx"]) == FcGrenades.Fx.FIRE)
 	_check(fires.size() == 1, "one fire zone was announced", str(fires.size()))
 	_check(game.grenades.active_fires() == 1, "and is burning")
 
@@ -158,9 +158,9 @@ func _run() -> void:
 	get_tree().quit(0 if ok else 1)
 
 
-func _test_loadout(game: ArenaGame) -> void:
+func _test_loadout(game: FcGame) -> void:
 	_entered += 1
-	var cat := ArenaContent.catalogue()
+	var cat := FcContent.catalogue()
 	var flash := cat.find(&"flash")
 	_check(flash != null and not flash.free, "the flash is not a free item")
 	var off: DotLoadoutEntitlements = game.loadouts.entitlement_source.call("k")
@@ -173,14 +173,14 @@ func _test_loadout(game: ArenaGame) -> void:
 	_finished += 1
 
 
-func _test_flash_and_smoke(game: ArenaGame, thrower: int, enemy: int, here: Vector3, seen: Array) -> void:
+func _test_flash_and_smoke(game: FcGame, thrower: int, enemy: int, here: Vector3, seen: Array) -> void:
 	_entered += 1
 	seen.clear()
 	var victim := game.player_for(enemy)
 	victim.spawn(Transform3D(Basis(), here), game.team_of(enemy))
 	game.tick({})
 	var eye := victim.muzzle_position()
-	var bots := ArenaBots.world_for(game)
+	var bots := FcBots.world_for(game)
 	var brain := DotBotBrain.new(enemy, DotBotSettings.new())
 	bots.brains[enemy] = brain
 	for kind in [&"flash", &"smoke"]:
@@ -200,8 +200,8 @@ func _test_flash_and_smoke(game: ArenaGame, thrower: int, enemy: int, here: Vect
 	for _k in 8:
 		game.tick({})
 		await get_tree().physics_frame
-	var blinds := seen.filter(func(i: Dictionary) -> bool: return int(i["fx"]) == ArenaGrenades.Fx.BLIND and int(i["victim"]) == enemy)
-	var clouds := seen.filter(func(i: Dictionary) -> bool: return int(i["fx"]) == ArenaGrenades.Fx.SMOKE)
+	var blinds := seen.filter(func(i: Dictionary) -> bool: return int(i["fx"]) == FcGrenades.Fx.BLIND and int(i["victim"]) == enemy)
+	var clouds := seen.filter(func(i: Dictionary) -> bool: return int(i["fx"]) == FcGrenades.Fx.SMOKE)
 	_check(not blinds.is_empty() and float(blinds[0]["seconds"]) > 0.0, "a flash thrown at someone's face blinds them", str(blinds.size()))
 	_check(clouds.size() == 1 and float(clouds[0]["radius"]) > 0.0, "a smoke grenade announces one cloud", str(clouds.size()))
 	var now := float(game.current_tick()) / float(game.tick_rate)
@@ -213,9 +213,9 @@ func _test_flash_and_smoke(game: ArenaGame, thrower: int, enemy: int, here: Vect
 
 
 ## The horde: a flash blinds the monster beside it and not the far one, smoke blocks the horde's sight.
-func _test_monsters(game: ArenaGame, thrower: int, here: Vector3) -> void:
+func _test_monsters(game: FcGame, thrower: int, here: Vector3) -> void:
 	_entered += 1
-	var horde := ArenaHorde.new()
+	var horde := FcHorde.new()
 	horde.name = "Horde"
 	horde.game = game
 	horde.persist_heat = false
@@ -226,18 +226,18 @@ func _test_monsters(game: ArenaGame, thrower: int, here: Vector3) -> void:
 	if not built.ok:
 		return
 
-	var pts: Array = ArenaNpcs.nav_for(game.map).points
+	var pts: Array = FcNpcs.nav_for(game.map).points
 	var at_near: Vector3 = pts[0]
 	pts.sort_custom(func(x: Vector3, y: Vector3) -> bool: return x.distance_to(at_near) > y.distance_to(at_near))
 	here = at_near
 	horde.spawner.limits.spawn_interval = 0.0
-	var near := horde.spawn_one(ArenaNpcs.GRUNT, at_near)
+	var near := horde.spawn_one(FcNpcs.GRUNT, at_near)
 	var far: DotNpcInstance = null
 	var at_far := at_near
 	for pt: Vector3 in pts:
 		if pt.distance_to(at_near) < 25.0:
 			break
-		far = horde.spawn_one(ArenaNpcs.GRUNT, pt)
+		far = horde.spawn_one(FcNpcs.GRUNT, pt)
 		at_far = pt
 		if far != null:
 			break
@@ -278,13 +278,13 @@ func _test_monsters(game: ArenaGame, thrower: int, here: Vector3) -> void:
 
 func _test_wire() -> void:
 	_entered += 1
-	var bytes := ArenaEvents.write_grenade_fx(ArenaGrenades.Fx.BLIND, Vector3(12.5, 1.0, -30.0), 0.0, 3.5, 7)
-	var back := ArenaEvents.read_grenade_fx(DotNetReader.new(bytes))
-	_check(bool(back["ok"]) and int(back["fx"]) == ArenaGrenades.Fx.BLIND and int(back["victim"]) == 7, "GRENADE_FX round-trips its kind and victim")
+	var bytes := FcEvents.write_grenade_fx(FcGrenades.Fx.BLIND, Vector3(12.5, 1.0, -30.0), 0.0, 3.5, 7)
+	var back := FcEvents.read_grenade_fx(DotNetReader.new(bytes))
+	_check(bool(back["ok"]) and int(back["fx"]) == FcGrenades.Fx.BLIND and int(back["victim"]) == 7, "GRENADE_FX round-trips its kind and victim")
 	_check(absf(float(back["seconds"]) - 3.5) < 0.1 and (back["position"] as Vector3).distance_to(Vector3(12.5, 1.0, -30.0)) < 0.5, "and its seconds and position")
-	var smoke := ArenaEvents.read_grenade_fx(DotNetReader.new(ArenaEvents.write_grenade_fx(ArenaGrenades.Fx.SMOKE, Vector3.ZERO, 6.0, 14.0, 0)))
+	var smoke := FcEvents.read_grenade_fx(DotNetReader.new(FcEvents.write_grenade_fx(FcGrenades.Fx.SMOKE, Vector3.ZERO, 6.0, 14.0, 0)))
 	_check(absf(float(smoke["radius"]) - 6.0) < 0.3 and absf(float(smoke["seconds"]) - 14.0) < 0.6, "a cloud keeps its radius and duration")
-	var soft := ArenaEvents.read_grenade_fx(DotNetReader.new(ArenaEvents.write_grenade_fx(ArenaGrenades.Fx.BLIND, Vector3.ZERO, 0.0, 3.0, 7, 0.4)))
+	var soft := FcEvents.read_grenade_fx(DotNetReader.new(FcEvents.write_grenade_fx(FcGrenades.Fx.BLIND, Vector3.ZERO, 0.0, 3.0, 7, 0.4)))
 	_check(absf(float(soft["strength"]) - 0.4) < 0.04 and absf(float(back["strength"]) - 1.0) < 0.001, "GRENADE_FX carries the flash strength, full by default")
-	_check(ArenaEvents.Kind.GRENADE_FX == ArenaEvents.Kind.STOMP + 1, "the kind is appended right after STOMP")
+	_check(FcEvents.Kind.GRENADE_FX == FcEvents.Kind.STOMP + 1, "the kind is appended right after STOMP")
 	_finished += 1

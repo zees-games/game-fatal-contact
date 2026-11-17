@@ -4,10 +4,10 @@ examples/headless_lossy.gd::_physics_process::alloc_array	1
 examples/headless_lossy.gd::_physics_process::string_build	2
 examples/headless_lossy.gd::_sample_clock::string_build	1
 examples/headless_lossy.gd::_sample_render::string_build	2
-game/arena_client_setup.gd::_local_commands::alloc_dict	1
-game/arena_hud.gd::_button::string_build	2
-game/arena_hud.gd::present_abilities::alloc_array	1
-game/arena_projectile_view.gd::present::alloc_dict	1
+game/fc_client_setup.gd::_local_commands::alloc_dict	1
+game/fc_hud.gd::_button::string_build	2
+game/fc_hud.gd::present_abilities::alloc_array	1
+game/fc_projectile_view.gd::present::alloc_dict	1
 tools/audio_probe.gd::_build::string_build	3
 tools/audio_probe.gd::_sound::string_build	2
 tools/build_weapon_icons.gd::_process::string_build	5

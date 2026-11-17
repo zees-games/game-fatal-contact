@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Drives a player along one of a map's declared wall routes ([member ArenaMap.wall_routes]),
+## Drives a player along one of a map's declared wall routes ([member FcMap.wall_routes]),
 ## one command per tick, read off the player's own state.
 ##
 ## [codeblock]

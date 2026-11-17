@@ -25,16 +25,16 @@ func _done() -> void:
 func _test_modes() -> void:
 	_section("modes")
 
-	var ids := ArenaModes.ids()
+	var ids := FcModes.ids()
 	_check(ids.size() >= 2, "the catalogue has modes", str(ids))
 
-	for mode in ArenaModes.all():
+	for mode in FcModes.all():
 		_check(mode.validate().ok, "%s validates" % mode.id, str(mode.validate().error))
 
 	# Every call must build a fresh resource. A shared object would let a server that raised a score limit edit the mode every
-	# later match reads (Resource aliasing, shipped four times; why ArenaGame duplicates the rules too).
-	var first := ArenaModes.by_id(&"ffa")
-	var second := ArenaModes.by_id(&"ffa")
+	# later match reads (Resource aliasing, shipped four times; why FcGame duplicates the rules too).
+	var first := FcModes.by_id(&"ffa")
+	var second := FcModes.by_id(&"ffa")
 	first.rules.score_limit = 999
 	_check(
 		second.rules.score_limit != 999,
@@ -42,21 +42,21 @@ func _test_modes() -> void:
 		"second read %d" % second.rules.score_limit
 	)
 
-	_check(ArenaModes.by_id(&"nonsense") == null, "an unknown id is null")
+	_check(FcModes.by_id(&"nonsense") == null, "an unknown id is null")
 	_check(
-		ArenaModes.by_id_or_default(&"nonsense").id == &"ffa",
+		FcModes.by_id_or_default(&"nonsense").id == &"ffa",
 		"and falls back rather than failing to boot"
 	)
 
 	# team_count and rules.team_based state one fact and validate() catches them disagreeing: a mode with two sides over
 	# free-for-all rules scores everyone individually while calling itself Team Deathmatch, correct inside dot-match.
-	var broken: ArenaMode = ArenaMode.team_deathmatch()
+	var broken: FcMode = FcMode.team_deathmatch()
 	broken.rules.team_based = false
 	_check(not broken.validate().ok, "a mode that disagrees with its rules is refused")
 	_done()
 
 ## Another id on the same side as [param id], or 0.
-func _first_team_mate(game: ArenaGame, id: int) -> int:
+func _first_team_mate(game: FcGame, id: int) -> int:
 	var side := game.team_of(id)
 
 	for index in range(6):
@@ -72,15 +72,15 @@ func _test_team_deathmatch() -> void:
 	print("")
 	_section("team deathmatch")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "TeamGame"
 	game.tick_rate = 64
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch()
+	game.mode = FcMode.team_deathmatch()
 	add_child(game)
 
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	_check(ready.ok, "a team game sets up", str(ready.error))
 
 	if not ready.ok:
@@ -126,7 +126,7 @@ func _test_team_deathmatch() -> void:
 		"%d vs %d" % [sizes[0], sizes[1]]
 	)
 
-	# ArenaPlayer.team was declared and assigned by NOTHING since the class was written, so the
+	# FcPlayer.team was declared and assigned by NOTHING since the class was written, so the
 	# scoreboard, the renderer and the friendly-fire check all read a zero.
 	var mirrored := 0
 
@@ -160,7 +160,7 @@ func _test_team_deathmatch() -> void:
 	_done()
 
 ## One resolved hit, returning what actually landed.
-func _hit(game: ArenaGame, attacker: int, victim: int, amount: float) -> float:
+func _hit(game: FcGame, attacker: int, victim: int, amount: float) -> float:
 	var type := game.combat.damage_type(&"bullet")
 	if type == null:
 		type = DotDamageType.new()
@@ -170,7 +170,7 @@ func _hit(game: ArenaGame, attacker: int, victim: int, amount: float) -> float:
 	var out := game.combat.resolver.resolve(damage)
 	return 0.0 if out.refused else out.amount
 
-func _go_live(game: ArenaGame) -> void:
+func _go_live(game: FcGame) -> void:
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.min_players = 1
@@ -185,15 +185,15 @@ func _go_live(game: ArenaGame) -> void:
 func _test_effects() -> void:
 	_section("effects")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "EffectGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.free_for_all(50)
+	game.mode = FcMode.free_for_all(50)
 	add_child(game)
 
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	if not _check(ready.ok, "an effects game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -224,7 +224,7 @@ func _test_effects() -> void:
 	)
 
 	# The attacker empowered.
-	var _e := game.effects.apply(ArenaEffects.EMPOWERED, 700, 700)
+	var _e := game.effects.apply(FcEffects.EMPOWERED, 700, 700)
 	var boosted := _hit(game, 700, 701, 40.0)
 	_check(
 		boosted > plain * 1.25,
@@ -232,17 +232,17 @@ func _test_effects() -> void:
 	)
 
 	# The victim untouchable.
-	var _p := game.effects.apply(ArenaEffects.PROTECTED, 701, 701)
+	var _p := game.effects.apply(FcEffects.PROTECTED, 701, 701)
 	var refused := _hit(game, 700, 701, 40.0)
 	_check(
 		refused == 0.0,
 		"and an invulnerable victim takes nothing at all", "%.1f" % refused
 	)
-	game.effects.remove(ArenaEffects.PROTECTED, 701)
+	game.effects.remove(FcEffects.PROTECTED, 701)
 
 	# A burn reports damage and the game applies it, which is the whole seam.
 	var before: float = game.combat.health_of(701).health
-	var _burn := game.effects.apply(ArenaEffects.BURNING, 701, 700)
+	var _burn := game.effects.apply(FcEffects.BURNING, 701, 700)
 	for t in range(TICK_RATE * 2):
 		game.tick({})
 	var after: float = game.combat.health_of(701).health
@@ -255,7 +255,7 @@ func _test_effects() -> void:
 	# Movement, and the compounding trap.
 	var player := game.player_for(701)
 	var base := player.controller.tunables.max_speed
-	var _slow := game.effects.apply(ArenaEffects.SLOWED, 701, 700)
+	var _slow := game.effects.apply(FcEffects.SLOWED, 701, 700)
 	game.tick({})
 	var slowed := player.controller.tunables.max_speed
 	_check(slowed < base, "a slow slows", "%.2f from %.2f" % [slowed, base])
@@ -269,7 +269,7 @@ func _test_effects() -> void:
 		"%.4f" % player.controller.tunables.max_speed
 	)
 
-	game.effects.remove(ArenaEffects.SLOWED, 701)
+	game.effects.remove(FcEffects.SLOWED, 701)
 	game.tick({})
 	_check(
 		is_equal_approx(player.controller.tunables.max_speed, base),
@@ -281,7 +281,7 @@ func _test_effects() -> void:
 	# DotHealth's own flag: it has to stop a capture as well.
 	game.effects.on_spawn(701)
 	_check(
-		game.effects.has(ArenaEffects.PROTECTED, 701),
+		game.effects.has(FcEffects.PROTECTED, 701),
 		"respawning grants spawn protection"
 	)
 	_check(
@@ -291,7 +291,7 @@ func _test_effects() -> void:
 	)
 
 	# And the seam a changelevel breaks.
-	var changed := game.change_map(ArenaMap.dm_box())
+	var changed := game.change_map(FcMap.dm_box())
 	_check(changed.ok, "the map changes", str(changed.error))
 	_check(
 		game.combat.resolver.adjust.is_valid(),
@@ -305,13 +305,13 @@ func _test_effects() -> void:
 	await get_tree().process_frame
 	_done()
 
-func _test_pack_weapons_rest(game: ArenaGame, p: ArenaPlayer) -> void:
+func _test_pack_weapons_rest(game: FcGame, p: FcPlayer) -> void:
 	_check(
-		ArenaHud.weapon_line(p) == "Plasma Beamer",
-		"and names it", ArenaHud.weapon_line(p)
+		FcHud.weapon_line(p) == "Plasma Beamer",
+		"and names it", FcHud.weapon_line(p)
 	)
 	_check(
-		ArenaHud.cause_label(AwWeaponIds.MACHINE_PISTOL) == "Machine Pistol",
+		FcHud.cause_label(AwWeaponIds.MACHINE_PISTOL) == "Machine Pistol",
 		"the kill feed says Machine Pistol, not machine_pistol"
 	)
 
@@ -321,7 +321,7 @@ func _test_pack_weapons_rest(game: ArenaGame, p: ArenaPlayer) -> void:
 	_done()
 
 ## One tick of [param id] holding [param buttons], looking along [param pitch].
-func _hold(game: ArenaGame, id: int, buttons: int, slot: int = 0, pitch: float = 0.0) -> void:
+func _hold(game: FcGame, id: int, buttons: int, slot: int = 0, pitch: float = 0.0) -> void:
 	var move := DotFpsCommand.new()
 	move.pitch = pitch
 	move.yaw = game.player_for(id).controller.state.yaw
@@ -333,12 +333,12 @@ func _hold(game: ArenaGame, id: int, buttons: int, slot: int = 0, pitch: float =
 	game.tick({id: [move, fire]})
 
 ## [param ticks] of [param id] doing nothing, so a deploy or a cooldown runs out.
-func _settle(game: ArenaGame, id: int, ticks: int) -> void:
+func _settle(game: FcGame, id: int, ticks: int) -> void:
 	for i in range(ticks):
 		_hold(game, id, 0)
 
 ## Asks for [param slot] the way the number keys do, and waits for the switch.
-func _switch_to(game: ArenaGame, id: int, slot: int) -> void:
+func _switch_to(game: FcGame, id: int, slot: int) -> void:
 	_hold(game, id, 0, slot)
 	_settle(game, id, TICK_RATE)
 
@@ -349,15 +349,15 @@ func _switch_to(game: ArenaGame, id: int, slot: int) -> void:
 func _test_pack_weapons() -> void:
 	_section("fc-weapons in Fatal Contact")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "AwGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.free_for_all(50)
+	game.mode = FcMode.free_for_all(50)
 	add_child(game)
 
-	var ready := game.setup(ArenaMap.dm_box())
+	var ready := game.setup(FcMap.dm_box())
 	if not _check(ready.ok, "a weapons game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -382,21 +382,21 @@ func _test_pack_weapons() -> void:
 	# The default: something in every slot that matters, and the GUN in hand.
 	p.give_default_loadout()
 	var carried := PackedStringArray()
-	for id in ArenaContent.default_loadout():
+	for id in FcContent.default_loadout():
 		if p.arsenal.carries(id):
 			carried.append(String(id))
 	_check(
-		carried.size() == ArenaContent.default_loadout().size(),
+		carried.size() == FcContent.default_loadout().size(),
 		"the default loadout is carried", ", ".join(carried)
 	)
 	_settle(game, 900, TICK_RATE)
 	_check(
-		p.arsenal.current_def() != null and p.arsenal.current_def().id == ArenaWeaponRoles.resolve(&"primary"),
+		p.arsenal.current_def() != null and p.arsenal.current_def().id == FcWeaponRoles.resolve(&"primary"),
 		"and a spawn holds the rifle, not the grenade in the highest slot",
 		str(p.arsenal.current_def().id if p.arsenal.current_def() != null else &"")
 	)
 	_check(
-		ArenaWeaponRoles.own_pack == "" or AwWeaponSound.class_for(&"lmg", &"") == &"lmg",
+		FcWeaponRoles.own_pack == "" or AwWeaponSound.class_for(&"lmg", &"") == &"lmg",
 		"the arena pack's lmg has the lmg sound class, not the rifle's", str(AwWeaponSound.class_for(&"lmg", &""))
 	)
 
@@ -448,8 +448,8 @@ func _test_pack_weapons() -> void:
 
 	# The flashlight: one press of its button is one switch, and holding it is not another.
 	var lit_before: bool = p.flashlight
-	for i in range(ArenaFlashlight.hold_ticks(game.tick_rate)):
-		_hold(game, 900, ArenaFlashlight.BUTTON)
+	for i in range(FcFlashlight.hold_ticks(game.tick_rate)):
+		_hold(game, 900, FcFlashlight.BUTTON)
 	_settle(game, 900, 2)
 	var lit_after: bool = p.flashlight
 	_check(lit_before != lit_after, "the flashlight button switches the light once", "%s -> %s" % [lit_before, lit_after])
@@ -475,7 +475,7 @@ func _test_pack_weapons() -> void:
 	var flying := game.projectiles.flying()
 	_check(flying.size() == 1, "letting go throws it", str(flying.size()))
 
-	var frag: ArenaProjectiles.Flying = flying[0] if flying.size() == 1 else null
+	var frag: FcProjectiles.Flying = flying[0] if flying.size() == 1 else null
 	var fuse := frag.spawn.fuse_ticks if frag != null else 0
 	_check(fuse > TICK_RATE, "with most of its fuse left", "%d ticks" % fuse)
 
@@ -509,7 +509,7 @@ func _test_pack_weapons() -> void:
 		_hold(game, 900, DotWeaponCommand.BUTTON_ATTACK, 0, -20.0)
 	_settle(game, 900, TICK_RATE / 2)
 
-	var sticky: ArenaProjectiles.Flying = (
+	var sticky: FcProjectiles.Flying = (
 		game.projectiles.flying()[0] if game.projectiles.live_count() == 1 else null
 	)
 	_check(
@@ -566,14 +566,14 @@ func _test_pack_weapons() -> void:
 	_switch_to(game, 900, AwWeaponIds.SLOT_PRIMARY)
 	var cells := p.arsenal.ammo().count(AwWeaponIds.AMMO_CELL)
 	_check(
-		ArenaHud.rounds_in_hand(p) == cells and cells > 0,
+		FcHud.rounds_in_hand(p) == cells and cells > 0,
 		"the HUD counts a beamer's cells, where a magazine count read 0",
-		"%d against %d" % [ArenaHud.rounds_in_hand(p), cells]
+		"%d against %d" % [FcHud.rounds_in_hand(p), cells]
 	)
 	await _test_pack_weapons_rest(game, p)
 
 ## Put a player somewhere, without simulating a walk there.
-func _stand(game: ArenaGame, id: int, at: Vector3) -> void:
+func _stand(game: FcGame, id: int, at: Vector3) -> void:
 	var player := game.player_for(id)
 	if player == null or player.controller == null:
 		return
@@ -585,7 +585,7 @@ func _stand(game: ArenaGame, id: int, at: Vector3) -> void:
 func _test_drops() -> void:
 	_section("a critical kill drops points and a health pack")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "DropsGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
@@ -593,7 +593,7 @@ func _test_drops() -> void:
 	add_child(game)
 
 	game.drop_rules["health"] = 25.0  # the pack is off by default; this check is about it
-	var ready := game.setup(ArenaMap.dm_box())
+	var ready := game.setup(FcMap.dm_box())
 	if not _check(ready.ok, "a drops game sets up", str(ready.error)):
 		remove_child(game)
 		game.queue_free()
@@ -658,7 +658,7 @@ func _test_drops() -> void:
 	_done()
 
 
-func _check_drops_expire(game: ArenaGame, kill: Callable) -> void:
+func _check_drops_expire(game: FcGame, kill: Callable) -> void:
 	# Drops that nobody takes go after their life.
 	game.drop_rules["any_kill"] = true
 	game.apply_drop_rules()
@@ -675,8 +675,8 @@ func _check_drops_expire(game: ArenaGame, kill: Callable) -> void:
 
 func _check_drop_wire() -> void:
 	# The wire: a drop and a take round-trip.
-	var wire := ArenaEvents.read_drop(DotNetReader.new(
-		ArenaEvents.write_drop(7, 1, 25, Vector3(1, 2, 3), Vector3(4, 0, 6))
+	var wire := FcEvents.read_drop(DotNetReader.new(
+		FcEvents.write_drop(7, 1, 25, Vector3(1, 2, 3), Vector3(4, 0, 6))
 	))
 	_check(bool(wire["ok"]) and int(wire["id"]) == 7 and int(wire["kind"]) == 1
 		and int(wire["value"]) == 25 and (wire["at"] as Vector3).is_equal_approx(Vector3(4, 0, 6)),

@@ -5,7 +5,7 @@ extends "headless_match_horde_and_siege.gd"
 func _test_atrium() -> void:
 	_section("dm_atrium")
 
-	var map: ArenaMap = ArenaMap.dm_atrium()
+	var map: FcMap = FcMap.dm_atrium()
 
 	_check(map.boxes.size() > 30, "the map has geometry", str(map.boxes.size()))
 	_check(map.spawns.size() == 10, "and ten spawns", str(map.spawns.size()))
@@ -15,12 +15,12 @@ func _test_atrium() -> void:
 	# cannot be listed or cannot be loaded.
 	var missing: Array[String] = []
 
-	for id in ArenaMap.ids():
-		if ArenaMap.by_id(id) == null:
+	for id in FcMap.ids():
+		if FcMap.by_id(id) == null:
 			missing.append(String(id))
 
 	_check(missing.is_empty(), "every listed map id builds", ", ".join(missing))
-	_check(ArenaMap.by_id(&"dm_nosuchmap") == null, "and an unknown one does not")
+	_check(FcMap.by_id(&"dm_nosuchmap") == null, "and an unknown one does not")
 
 	# One description, three representations — the same invariant `_test_map` checks
 	# for dm_box, re-checked here because a second map is a second chance to write the
@@ -43,10 +43,10 @@ func _test_atrium() -> void:
 	# [b]The walk.[/b] A controller on the yard floor at the foot of the north-west
 	# stair, told to hold forward for four seconds. It has to end up on the roof, which
 	# it can only do by climbing the eight steps.
-	var walker := ArenaPlayer.new()
+	var walker := FcPlayer.new()
 	walker.name = "Walker"
 	add_child(walker)
-	walker.setup(ArenaPlayer.Mode.HEADLESS, map, 9001, "walker")
+	walker.setup(FcPlayer.Mode.HEADLESS, map, 9001, "walker")
 
 	var start := Vector3(-22.0, 0.5, -2.0)
 	walker.controller.teleport(start)
@@ -130,7 +130,7 @@ func _test_atrium() -> void:
 
 	# [b]The map moved, so the map's version moved, and only this map's.[/b] A record and a rotation
 	# cooldown are both about a map AT a version.
-	var versions := ArenaMaps.catalogue()
+	var versions := FcMaps.catalogue()
 
 	# [b]All three moved on 2026-09-22, which is the first time that has happened and does not
 	# weaken the check.[/b] They moved for one cause — every climb on every map was above the jump
@@ -155,7 +155,7 @@ func _test_atrium() -> void:
 	# versions keep.[/b] Two minor bumps on two maps land on the same string whenever they happen to
 	# — dm_box went 1.1.0 -> 1.2.0 on 2026-09-24, where dm_atrium had been two days.
 	_check(
-		versions.get_map(&"dm_box").version != ArenaMaps.MAP_VERSION,
+		versions.get_map(&"dm_box").version != FcMaps.MAP_VERSION,
 		"and a map that moved is not at the catalogue-wide default"
 	)
 
@@ -259,7 +259,7 @@ func _test_atrium() -> void:
 	# [b]In at the north door and out at the south, walked.[/b] A doorway is a hole in a list of
 	# boxes and a hole is invisible, so the only thing that says the room is a room is something
 	# passing through it.
-	var tunables := ArenaPlayer.arena_tunables()
+	var tunables := FcPlayer.fc_tunables()
 	var keep_start := Vector3(-15.25, 0.2, -23.0)
 	# Where the lane south of the keep ends for a bot holding south: the stair's side
 	# at z -4, less the motor's 0.35 m radius.
@@ -492,11 +492,11 @@ func _test_atrium() -> void:
 				rampart.end.y, keep_top.end.x, keep_top.end.y, perch_top.position.z]
 	)
 	_check(
-		onto_perch >= tunables.step_height and onto_perch < ArenaMap.climb_limit()
-			and from_ring > ArenaMap.climb_limit(),
+		onto_perch >= tunables.step_height and onto_perch < FcMap.climb_limit()
+			and from_ring > FcMap.climb_limit(),
 		"the perch is a hop off it, and the ring is not",
 		"%.2f onto the perch, %.2f up from the ring, climb limit %.2f"
-			% [onto_perch, from_ring, ArenaMap.climb_limit()]
+			% [onto_perch, from_ring, FcMap.climb_limit()]
 	)
 
 	# Driven: on the keep roof, held east, jump never pressed. Pace is the roof's east
@@ -610,14 +610,14 @@ func _test_atrium() -> void:
 ## nobody is near and nobody fired, and the reasons it is refused.
 func _test_instant_loadout() -> void:
 	_section("instant loadout after spawn")
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "InstantGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch(50)
+	game.mode = FcMode.team_deathmatch(50)
 	add_child(game)
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	if not _check(ready.ok, "an instant-loadout game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -633,7 +633,7 @@ func _test_instant_loadout() -> void:
 	var _b := game.add_player(901, "Other")
 	game.match_node.rules.respawn_delay_sec = 120.0
 	_go_live(game)
-	var key := ArenaGame.storage_key(900)
+	var key := FcGame.storage_key(900)
 	var other := game.player_for(901)
 	var me := game.player_for(900)
 	other.global_position = me.global_position + Vector3(200.0, 0.0, 0.0)

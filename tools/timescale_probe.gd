@@ -1,7 +1,7 @@
 extends Node
 
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 ## Does the solo game keep wall-clock time? A solo match with N bots and a walking player; reports simulated ticks per wall second against the tick rate. `--burn MS` busy-waits that long in every frame; exit 1 when the scale is under `--min` (default 0.97).
 ## `xvfb-run -a godot --path . --rendering-driver opengl3 res://tools/timescale_probe.tscn -- --bots 31 --burn 40`
@@ -24,8 +24,8 @@ func _ready() -> void:
 			"--min": _min = float(args[i + 1])
 	_legacy = "--legacy" in args
 	if "--cl_perf" in args:
-		ArenaFrameProbe.set_interval(float(args[args.find("--cl_perf") + 1]))
-	var _scratch := ArenaPresentation.use_scratch_settings("timescale_probe")
+		FcFrameProbe.set_interval(float(args[args.find("--cl_perf") + 1]))
+	var _scratch := FcPresentation.use_scratch_settings("timescale_probe")
 	_run.call_deferred()
 
 
@@ -37,7 +37,7 @@ func _process(_delta: float) -> void:
 
 
 func _run() -> void:
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	client.set("offline_bots", _bots)

@@ -1,11 +1,11 @@
 extends Node
 
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 const ClientBench := preload("client_bench.gd")
 # Loaded with this script, so its _static_init (native brain off) runs before --brain-native.
-const ArenaPlayerStack := preload("../game/arena_player_stack.gd")
+const FcPlayerStack := preload("../game/fc_player_stack.gd")
 
 ## Solo (offline) client with N bots on `--map`: `godot --path . res://tools/offline_cost.tscn -- --map blackhawkdown --bots 10 --seconds 25`. Prints fps, frame p50/p95/max, the engine's monitors and physics steps per frame.
 ## `--native 0` keeps the bots' sight scan in script, `--brain-native 0` their aim, fight step and perception (DotSimBotMind), `--motor-native 0` the movement queries; `--motor-tick 1|0` toggles [member DotFpsMotor.native_tick] (needs a dot-sim with the motor tick).
@@ -29,7 +29,7 @@ var _last := 0
 
 
 func _ready() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	var args := OS.get_cmdline_user_args()
 	for i in range(args.size() - 1):
 		match args[i]:
@@ -40,28 +40,28 @@ func _ready() -> void:
 			"--prof": DotFpsPhysicsBody.profile = int(args[i + 1]) != 0
 			"--physoff": _physoff = int(args[i + 1]) != 0
 			"--target-first": (DotBotBrain as Script).set(&"target_first", int(args[i + 1]) != 0)
-			"--near": preload("../game/arena_bots.gd").think_near = float(args[i + 1])
-			"--every": preload("../game/arena_bots.gd").think_every = int(args[i + 1])
-			"--tier-above": preload("../game/arena_bots.gd").tiers.above = int(args[i + 1])
-			"--tier-near": preload("../game/arena_bots.gd").tiers.near_every = int(args[i + 1])
-			"--tier-far": preload("../game/arena_bots.gd").tiers.far_every = int(args[i + 1])
-			"--tier-engaged": preload("../game/arena_bots.gd").tiers.engaged_far_every = int(args[i + 1])
-			"--tier-idle-seen": preload("../game/arena_bots.gd").tiers.idle_view_every = int(args[i + 1])
-			"--tier-body-near": preload("../game/arena_bots.gd").tiers.body_near_every = int(args[i + 1])
-			"--tier-body-far": preload("../game/arena_bots.gd").tiers.body_far_every = int(args[i + 1])
-			"--lod": ArenaPlayer.present_lod_enabled = int(args[i + 1]) != 0
+			"--near": preload("../game/fc_bots.gd").think_near = float(args[i + 1])
+			"--every": preload("../game/fc_bots.gd").think_every = int(args[i + 1])
+			"--tier-above": preload("../game/fc_bots.gd").tiers.above = int(args[i + 1])
+			"--tier-near": preload("../game/fc_bots.gd").tiers.near_every = int(args[i + 1])
+			"--tier-far": preload("../game/fc_bots.gd").tiers.far_every = int(args[i + 1])
+			"--tier-engaged": preload("../game/fc_bots.gd").tiers.engaged_far_every = int(args[i + 1])
+			"--tier-idle-seen": preload("../game/fc_bots.gd").tiers.idle_view_every = int(args[i + 1])
+			"--tier-body-near": preload("../game/fc_bots.gd").tiers.body_near_every = int(args[i + 1])
+			"--tier-body-far": preload("../game/fc_bots.gd").tiers.body_far_every = int(args[i + 1])
+			"--lod": FcPlayer.present_lod_enabled = int(args[i + 1]) != 0
 			"--native": DotBotWorld.native_enabled = int(args[i + 1]) != 0
-			"--brain-native": ArenaPlayerStack.set_brain_native(int(args[i + 1]) != 0)
+			"--brain-native": FcPlayerStack.set_brain_native(int(args[i + 1]) != 0)
 			"--motor-native": DotFpsPhysicsBody.native_enabled = int(args[i + 1]) != 0
 			"--motor-us": _motor_us = int(args[i + 1]) != 0
 			"--motor-tick": DotFpsMotor.native_tick = int(args[i + 1]) != 0
-	var _scratch := ArenaPresentation.use_scratch_settings("offline_cost")
+	var _scratch := FcPresentation.use_scratch_settings("offline_cost")
 	_run.call_deferred()
 
 
 func _run() -> void:
-	# Headless skips the loading-cover warm; do it after the client registers its own art table, or the default table's paths are warmed and the arena rifle loads mid-match.
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	# Headless skips the loading-cover warm; do it after the client registers its own art table, or the default table's paths are warmed and Fatal Contact rifle loads mid-match.
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	_client.set("offline_bots", _bots)
@@ -74,7 +74,7 @@ func _run() -> void:
 	if not _solid:
 		_client.game.body_rules.solid = false
 	var warm := 8.0
-	ArenaFrameProbe.set_interval(1.0e9)
+	FcFrameProbe.set_interval(1.0e9)
 	var t0 := Time.get_ticks_usec()
 	var measuring := false
 	while true:
@@ -92,10 +92,10 @@ func _run() -> void:
 				DotFpsMotor.phase_us.fill(0)
 				DotFpsPhysicsBody.native_slides = 0
 				DotFpsPhysicsBody.native_ticks = 0
-			ArenaFrameProbe._reset()
-			preload("../game/arena_bots.gd").tiers.counts.clear()
-			preload("../game/arena_bots.gd").tiers.body_counts.clear()
-			ArenaPlayer.body_skipped = 0
+			FcFrameProbe._reset()
+			preload("../game/fc_bots.gd").tiers.counts.clear()
+			preload("../game/fc_bots.gd").tiers.body_counts.clear()
+			FcPlayer.body_skipped = 0
 			_tally_on(_client.game)
 			_last = now
 			t0 = now
@@ -129,12 +129,12 @@ func _report() -> void:
 		1000.0 / mean, mean, sorted[n / 2], sorted[int(n * 0.95)], sorted[int(n * 0.99)], sorted[n - 1], hitches,
 		_phys / _n, _proc / _n, float(Engine.get_physics_frames() - _steps0) / _n,
 		Engine.physics_ticks_per_second, Engine.max_physics_steps_per_frame, _bots])
-	for key: StringName in ArenaFrameProbe._sections:
-		var row: PackedInt64Array = ArenaFrameProbe._sections[key]
+	for key: StringName in FcFrameProbe._sections:
+		var row: PackedInt64Array = FcFrameProbe._sections[key]
 		print("  section %-14s %.3f ms/frame | %.3f ms/call x%d | max %.2f ms" % [key, float(row[0]) / _n / 1000.0, float(row[0]) / maxi(row[1], 1) / 1000.0, row[1], row[2] / 1000.0])
 	print("  combat shots %d hits %d headshots %d kills %d hit_rate %.3f" % [_shots, _hits, _heads, _kills, float(_hits) / maxi(1, _shots)])
-	print("  bot tiers: %s" % JSON.stringify(preload("../game/arena_bots.gd").tiers.describe()))
-	print("  bodies sat out: %.1f per frame" % (float(ArenaPlayer.body_skipped) / maxf(float(_n), 1.0)))
+	print("  bot tiers: %s" % JSON.stringify(preload("../game/fc_bots.gd").tiers.describe()))
+	print("  bodies sat out: %.1f per frame" % (float(FcPlayer.body_skipped) / maxf(float(_n), 1.0)))
 	print("  controller queries per physics step: %.1f" % (float(_queries(self) - _q0) / maxf(float(Engine.get_physics_frames() - _steps0), 1.0)))
 	var pr := DotFpsPhysicsBody.prof
 	print("  engine queries/frame: cast %.1f (%.2f ms) rest %.1f (%.2f ms) overlap %.1f (%.2f ms) ray %.1f (%.2f ms)" % [pr[0] / float(_n), pr[1] / 1000.0 / _n, pr[2] / float(_n), pr[3] / 1000.0 / _n, pr[4] / float(_n), pr[5] / 1000.0 / _n, pr[6] / float(_n), pr[7] / 1000.0 / _n])

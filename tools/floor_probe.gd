@@ -1,9 +1,9 @@
 extends Node
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
-const ArenaBotThreads := preload("../game/arena_bot_threads.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
+const FcBotThreads := preload("../game/fc_bot_threads.gd")
 
 ## Offline bots' drawn-body sink into the floor in metres: lowest sole and root vs a floor ray.
 ## `hv . scene res://tools/floor_probe.tscn -- [--bots 12] [--seconds 20] [--unit 0.025] [--pre-draw] [--worst 25, 0 = all] [--web] [--fps N]`
@@ -23,7 +23,7 @@ var _floor_normal := Vector3.UP
 
 
 func _ready() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	var args := OS.get_cmdline_user_args()
 	for i in range(args.size() - 1):
 		match args[i]:
@@ -35,12 +35,12 @@ func _ready() -> void:
 	_pre_draw = args.has("--pre-draw")
 	_web = args.has("--web")
 	if _web:
-		ArenaPlayer.lod_off_every = ArenaPlayer.WEB_LOD_OFF_EVERY
-		ArenaPlayer.anim_gate_every = ArenaPlayer.WEB_ANIM_GATE_EVERY
-		ArenaPlayer.held_draw_range = ArenaPlayer.WEB_HELD_DRAW_RANGE
-		ArenaPlayer.held_shadows = false
-		ArenaBotThreads.threads = ArenaBotThreads.WEB_THREADS
-	var _scratch := ArenaPresentation.use_scratch_settings("floor_probe")
+		FcPlayer.lod_off_every = FcPlayer.WEB_LOD_OFF_EVERY
+		FcPlayer.anim_gate_every = FcPlayer.WEB_ANIM_GATE_EVERY
+		FcPlayer.held_draw_range = FcPlayer.WEB_HELD_DRAW_RANGE
+		FcPlayer.held_shadows = false
+		FcBotThreads.threads = FcBotThreads.WEB_THREADS
+	var _scratch := FcPresentation.use_scratch_settings("floor_probe")
 	if _unit > 0.0:
 		get_tree().node_added.connect(_override_unit)
 	_run.call_deferred()
@@ -66,7 +66,7 @@ func _run() -> void:
 	_late = Late.new()
 	_late.process_priority = 1 << 30
 	add_child(_late)
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	_client.set("offline_bots", _bots)
@@ -80,7 +80,7 @@ func _run() -> void:
 			await RenderingServer.frame_pre_draw
 		else:
 			await _late.tick
-		for p: ArenaPlayer in _client.game.players():
+		for p: FcPlayer in _client.game.players():
 			if p.camera != null or p.figure == null or p.body_mesh == null or not p.body_mesh.visible or not p.is_alive():
 				continue
 			var state: DotFpsState = p.controller.state
@@ -102,7 +102,7 @@ func _run() -> void:
 				(rows.crouch if state.is_crouched() else rows.stand).append(sole - floor_y)
 				if sole - floor_y < -0.06 and (_worst_rows == 0 or _worst.size() < _worst_rows):
 					_worst.append("gap %.3f clip %s speed %.2f crouch %.2f step %d normal_y %.2f" % [sole - floor_y, p.figure.clip, state.horizontal_speed(), state.crouch_fraction, p.figure.anim_step, _floor_normal.y])
-	print("FLOOR_PROBE figure heights %s stand_height %.3f" % [str(heights.keys()), ArenaPlayerTunables.stand_height_m()])
+	print("FLOOR_PROBE figure heights %s stand_height %.3f" % [str(heights.keys()), FcPlayerTunables.stand_height_m()])
 	for w: String in _worst:
 		print("FLOOR_PROBE worst ", w)
 	for w: String in _root_worst:
@@ -112,7 +112,7 @@ func _run() -> void:
 	get_tree().quit(0)
 
 
-func _root_row(p: ArenaPlayer, root_gap: float, fig_gap: float, floor_y: float) -> String:
+func _root_row(p: FcPlayer, root_gap: float, fig_gap: float, floor_y: float) -> String:
 	var f = p.figure
 	var state: DotFpsState = p.controller.state
 	var lift_now: float = f.legs.floor_lift(f, f.floor_mask, 0.45)
@@ -145,7 +145,7 @@ func _line(key: String, v: PackedFloat64Array) -> String:
 	return "%-6s n %d min %.3f p05 %.3f p50 %.3f mean %.3f max %.3f below_3cm %.1f%% n_below_4cm %d" % [key, s.size(), s[0], s[s.size() / 20], s[s.size() / 2], sum / s.size(), s[s.size() - 1], 100.0 * sunk / s.size(), deep]
 
 
-func _floor_under(p: ArenaPlayer) -> float:
+func _floor_under(p: FcPlayer) -> float:
 	var at := p.body_mesh.global_position
 	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.6, at + Vector3.DOWN * 2.0, p.controller.tunables.collision_mask)
 	q.collide_with_areas = false

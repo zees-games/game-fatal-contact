@@ -6,8 +6,8 @@ extends DotGameCheckSuite
 ## `-- --shard wN` plays every SHARDS-th weapon of the sorted catalogue (N of SHARDS); `-- --merge LOG...` holds that
 ## every shard's log is there and that together they entered one section per weapon.
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaViewArms := preload("../game/arena_view_arms.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcViewArms := preload("../game/fc_view_arms.gd")
 
 const SHARDS := 4
 ## The catalogue size (the merge has no booted client to count it from): add a weapon and the merge says so.
@@ -39,8 +39,8 @@ func _ready() -> void:
 		return
 	# One settings directory per process: user:// is shared by every run on this machine, and a second run wiping or
 	# rewriting a shared directory re-binds the keys mid-run (a held reload key then drops).
-	_scratch_dir = ArenaPresentation.use_scratch_settings("headless_viewarms")
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_scratch_dir = FcPresentation.use_scratch_settings("headless_viewarms")
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	add_child(_client)
@@ -94,7 +94,7 @@ func _drop_scratch() -> void:
 
 
 ## The first equip of any gun after the cover lifts reads no model file: every model the art table names was loaded
-## under the cover (the prewarm in ArenaClient), so equipping is a cache hit, not a 50-110 ms load mid-fight.
+## under the cover (the prewarm in FcClient), so equipping is a cache hit, not a 50-110 ms load mid-fight.
 func _check_models_warmed() -> void:
 	var cached: Dictionary = AwModelCache._scenes
 	var cold: Array[String] = []
@@ -180,9 +180,9 @@ func _check_hold_depth(id: StringName) -> void:
 	var vm: AwViewModel = _client.get("view_model")
 	var camera: Camera3D = _client.get("player").camera
 	var depth := -(camera.global_transform.affine_inverse() * (vm.get(&"_holder") as Node3D).global_position).z
-	_check(depth <= HOLD_FAR_M and is_equal_approx(vm.hands_depth_comp, ArenaViewArms.hold_depth_comp),
+	_check(depth <= HOLD_FAR_M and is_equal_approx(vm.hands_depth_comp, FcViewArms.hold_depth_comp),
 		"%s is held near (%.2f m out, at most %.1f)" % [id, depth, HOLD_FAR_M],
-		"depth comp %.2f, cvar %.2f" % [vm.hands_depth_comp, ArenaViewArms.hold_depth_comp])
+		"depth comp %.2f, cvar %.2f" % [vm.hands_depth_comp, FcViewArms.hold_depth_comp])
 
 
 ## Held aim must bring a weapon that can aim fully up, and its gun nearer the centre than at the hip.
@@ -237,7 +237,7 @@ func _sample(worst: Dictionary, seconds: float) -> void:
 				target = wrists[w]
 			# hand_min_depth keeps a wrist 0.1 m off the eye, so a grip nearer than that (a sniper aimed) is reached to within the shortfall.
 			var depth := -(camera.global_transform.affine_inverse() * target).z
-			var off := maxf(hand.distance_to(target) - maxf(ArenaViewArms.hand_min_depth - depth, 0.0), 0.0)
+			var off := maxf(hand.distance_to(target) - maxf(FcViewArms.hand_min_depth - depth, 0.0), 0.0)
 			if off > worst.reach:
 				worst.reach = off
 				worst.hand = pair[0]

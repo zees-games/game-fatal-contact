@@ -1,12 +1,12 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
 ## Server-side hit accuracy against a moving, animated target, by body region: a synthetic shot
-## resolved as ArenaGame.tick does at `tick - lag`, aimed where the bone was, must hit.
+## resolved as FcGame.tick does at `tick - lag`, aimed where the bone was, must hit.
 ## `-- --shard NAME` plays one cell; `-- --merge LOG...` holds that every shard's log is there.
 
 const TICK_RATE := 64
@@ -22,7 +22,7 @@ const CELLS := {
 ## Fraction of shots allowed to miss; the printed table is the real report.
 const MAX_MISS := 0.0
 
-var _game: ArenaGame = null
+var _game: FcGame = null
 var _checks := 0
 var _failed := 0
 var _pose_source := "zones"
@@ -36,7 +36,7 @@ func _ready() -> void:
 
 
 func _boot() -> void:
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -45,7 +45,7 @@ func _boot() -> void:
 	_game.is_authority = true
 	_game.register_service = false
 	add_child(_game)
-	var map := ArenaMap.new()
+	var map := FcMap.new()
 	map.id = &"hitbox_lane"
 	map.display_name = "hitbox_lane"
 	map.extent = 150.0
@@ -73,7 +73,7 @@ func _ok(cond: bool, what: String) -> void:
 
 
 ## Where the drawn body's regions are right now (world space).
-func _pose(target: ArenaPlayer) -> Dictionary:
+func _pose(target: FcPlayer) -> Dictionary:
 	var base: Vector3 = target.global_position
 	var fig: Node = target.figure
 	if fig != null and fig.has_method(&"skeleton") and fig.skeleton() != null:
@@ -90,8 +90,8 @@ func _pose(target: ArenaPlayer) -> Dictionary:
 			_pose_source = "skeleton"
 			return out
 	# The zones are authored for a 1.8 m body and scaled with the configured one, then squeezed by the crouch.
-	var body: float = ArenaPlayerTunables.body_scale()
-	var squeeze: float = ArenaPlayerTunables.crouch_height_m() / maxf(ArenaPlayerTunables.stand_height_m(), 0.01)
+	var body: float = FcPlayerTunables.body_scale()
+	var squeeze: float = FcPlayerTunables.crouch_height_m() / maxf(FcPlayerTunables.stand_height_m(), 0.01)
 	var k: float = body * lerpf(1.0, squeeze, target.controller.state.crouch_fraction)
 	return {
 		"head": base + Vector3(0, 1.62 * k, 0), "chest": base + Vector3(0, 1.2 * k, 0),

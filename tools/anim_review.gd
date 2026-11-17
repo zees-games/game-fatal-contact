@@ -31,7 +31,7 @@ var _clip_key := ""
 
 
 ## --team red|blue (or a team id) plays team deathmatch on that side, so the body and the arms are the side's team
-## body (game/arena_team_bodies.gd); without it the lab is the free-for-all and the player's own look.
+## body (game/fc_team_bodies.gd); without it the lab is the free-for-all and the player's own look.
 func _before_lab(args: PackedStringArray) -> void:
 	var asked := _arg(args, "--team", "")
 	if asked == "":

@@ -1,17 +1,17 @@
 extends DotGameCheckSuite
 
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaBspMap := preload("../maps/arena_bsp_map.gd")
-const ArenaLocalMaps := preload("../maps/arena_local_maps.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaClient := preload("../game/arena_client.gd")
-const ArenaUserDir := preload("../game/arena_user_dir.gd")
-const ArenaVoteSource := preload("../game/arena_vote_source.gd")
-const ArenaVpk := preload("../game/arena_vpk.gd")
-const ArenaVtf := preload("../game/arena_vtf.gd")
-const ArenaSourceInstall := preload("../game/arena_source_install.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcBspMap := preload("../maps/fc_bsp_map.gd")
+const FcLocalMaps := preload("../maps/fc_local_maps.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcClient := preload("../game/fc_client.gd")
+const FcUserDir := preload("../game/fc_user_dir.gd")
+const FcVoteSource := preload("../game/fc_vote_source.gd")
+const FcVpk := preload("../game/fc_vpk.gd")
+const FcVtf := preload("../game/fc_vtf.gd")
+const FcSourceInstall := preload("../game/fc_source_install.gd")
 
-## Maps copied in by hand (`ArenaLocalMaps`): a raw convert folder under `res://addons/maps/` or `user://maps/` is listed as `<name>_local` only while `ArenaMaps.list_local` is on (solo), and loads with spawns, a solid, movers and a drawn world. The fixture section runs everywhere; `-- --source=<a map's convert folder>` repeats it on a real conversion.
+## Maps copied in by hand (`FcLocalMaps`): a raw convert folder under `res://addons/maps/` or `user://maps/` is listed as `<name>_local` only while `FcMaps.list_local` is on (solo), and loads with spawns, a solid, movers and a drawn world. The fixture section runs everywhere; `-- --source=<a map's convert folder>` repeats it on a real conversion.
 ## [codeblock] ./game.sh test headless_local_maps ./game.sh test headless_local_maps -- --source=/path/to/gm_fork/convert
 ## godot --headless --path . res://examples/headless_local_maps.tscn -- --source=/path/to/cp_x_orig --source-game=/path/to/tf2 [/codeblock]
 
@@ -25,7 +25,7 @@ const DROPPED_FOLDER := "user://maps/zz_local_maps_suite_drop"
 const DROPPED_ZIP := "user://maps/zz_local_maps_suite.zip"
 ## The suite's own zip cache, so a run never wipes a player's unpacked zips.
 const ZIP_CACHE := "user://zz_local_maps_suite_cache"
-## A stand-in for the old game-arena user folder and the new one, for the copy `ArenaUserDir.migrate` makes.
+## A stand-in for the old game-fatal-contact user folder and the new one, for the copy `FcUserDir.migrate` makes.
 const OLD_USER := "user://zz_local_maps_suite_old_user"
 const NEW_USER := "user://zz_local_maps_suite_new_user"
 ## A download's `convert` folder is copied as `user://maps/<its map>/convert`; the suite's map is named so.
@@ -65,8 +65,8 @@ func _run() -> void:
 	_copy_tree(FIXTURE_DIR, USER_FOLDER, ["fixture.json", "fixture.bin"])
 	_test_load(&"fixture_local", "user://maps", true)
 	sections += 1
-	# Drops, zips and `_orig` need dot-map API 24; an older host plays copied folders only (ArenaLocalMaps.can_drop).
-	if ArenaLocalMaps.can_drop():
+	# Drops, zips and `_orig` need dot-map API 24; an older host plays copied folders only (FcLocalMaps.can_drop).
+	if FcLocalMaps.can_drop():
 		_clean()
 		_test_drops()
 		sections += 1
@@ -80,8 +80,8 @@ func _run() -> void:
 		await _test_source_install()
 		sections += 1
 	else:
-		print("-- drops and _orig skipped: dot-map API %d < %d" % [DotAddonApi.build_level("dot_map"), ArenaLocalMaps.DROP_LEVEL])
-	var planned := 8 if ArenaLocalMaps.can_drop() else 4
+		print("-- drops and _orig skipped: dot-map API %d < %d" % [DotAddonApi.build_level("dot_map"), FcLocalMaps.DROP_LEVEL])
+	var planned := 8 if FcLocalMaps.can_drop() else 4
 	if not _source.is_empty():
 		var name := DotMapLocalMaps.prefix_in(_source).get_file()
 		if not _check(not name.is_empty(), "the source holds a converted map", _source):
@@ -95,13 +95,13 @@ func _run() -> void:
 		_copy_tree(_source, USER_FOLDER)
 		_test_load(id, "user://maps", false)
 		sections += 2
-		if not _source_game.is_empty() and name.ends_with("_orig") and ArenaLocalMaps.can_drop():
+		if not _source_game.is_empty() and name.ends_with("_orig") and FcLocalMaps.can_drop():
 			_clean()
 			await _test_real_install(name)
 			sections += 1
 			planned += 1
 	_clean()
-	ArenaMaps.list_local = false
+	FcMaps.list_local = false
 	_report_sections(sections, sections, planned if _source.is_empty() else planned + 2)
 
 
@@ -110,24 +110,24 @@ func _run() -> void:
 func _test_real_install(name: String) -> void:
 	print("-- %s filled from the install at %s" % [name, _source_game])
 	var t := Time.get_ticks_msec()
-	var found := ArenaSourceInstall.archives(_source_game)
+	var found := FcSourceInstall.archives(_source_game)
 	if not _check(not found.is_empty(), "the install has archives", _source_game):
 		return
-	var sets: Array = ArenaSourceInstall.open_install(_source_game)
+	var sets: Array = FcSourceInstall.open_install(_source_game)
 	var files := 0
 	for v: Variant in sets:
-		files += (v as ArenaVpk).entries.size()
+		files += (v as FcVpk).entries.size()
 	print("   %d archives, %d materials/textures listed in %d ms: %s" % [found.size(), files, Time.get_ticks_msec() - t, ", ".join(found)])
 	var src: Variant = JSON.parse_string(FileAccess.get_file_as_string(DotMapLocalMaps.prefix_in(_source) + ".json"))
 	var before: Array = ((src as Dictionary).get("original_textures", {}) as Dictionary).get("missing", []) if src is Dictionary else []
 	var target := "user://maps".path_join(name)
 	var had := DirAccess.dir_exists_absolute(target)
-	ArenaMaps.list_local = true
+	FcMaps.list_local = true
 	var local_maps: Object = DotMapLocalMaps
 	var player_cache: Variant = local_maps.get(&"zip_cache")
 	local_maps.set(&"zip_cache", ZIP_CACHE)
-	var client := ArenaClient.new()
-	client._menu_catalogue = ArenaMaps.catalogue()
+	var client := FcClient.new()
+	client._menu_catalogue = FcMaps.catalogue()
 	client.source_game_path = _source_game
 	t = Time.get_ticks_msec()
 	var said: String = await client.import_dropped(PackedStringArray([_source]))
@@ -143,7 +143,7 @@ func _test_real_install(name: String) -> void:
 	_check(said.contains("%d filled from your game install" % filled.size()), "and the drop says so", said)
 	var drawn := 0
 	for m: Variant in filled:
-		if FileAccess.file_exists(prefix.get_base_dir().path_join("textures/orig/%s.png" % ArenaVtf.safe_name(str(m)))):
+		if FileAccess.file_exists(prefix.get_base_dir().path_join("textures/orig/%s.png" % FcVtf.safe_name(str(m)))):
 			drawn += 1
 	_check(drawn == filled.size(), "each filled one is a texture in the pack", "%d of %d" % [drawn, filled.size()])
 	local_maps.set(&"zip_cache", player_cache)
@@ -155,33 +155,33 @@ func _test_real_install(name: String) -> void:
 func _test_listing() -> void:
 	print("-- listed in solo only")
 	_copy_tree(FIXTURE_DIR, RES_FOLDER.path_join("convert"), ["fixture.json", "fixture.bin"])
-	ArenaMaps.list_local = false
-	_check(not ArenaMaps.catalogue().has(&"fixture_local"), "a server's catalogue never lists a local map")
-	ArenaMaps.list_local = true
-	var cat := ArenaMaps.catalogue()
+	FcMaps.list_local = false
+	_check(not FcMaps.catalogue().has(&"fixture_local"), "a server's catalogue never lists a local map")
+	FcMaps.list_local = true
+	var cat := FcMaps.catalogue()
 	_check(cat.has(&"fixture_local"), "a solo catalogue lists the copy as fixture_local")
 	var def := cat.get_map(&"fixture_local") if cat.has(&"fixture_local") else null
 	_check(def != null and def.display_name.ends_with(DotMapLocalMaps.TAG), "titled (local)",
 		"" if def == null else def.display_name)
 	_check(def != null and def.version.begins_with("0.0.0-"), "versioned by its bytes")
-	var rows := ArenaMaps.menu_rows(cat, &"", null, [])
+	var rows := FcMaps.menu_rows(cat, &"", null, [])
 	_check(rows.any(func(row: Dictionary) -> bool: return row["id"] == "map:fixture_local"), "the solo menu offers it")
-	ArenaMaps.apply_rotation(cat)
+	FcMaps.apply_rotation(cat)
 	_check(def != null and def.enabled, "a rotation setting does not hide it")
 
 
 func _test_load(id: StringName, root: String, fixture: bool) -> void:
 	print("-- %s from %s" % [id, root])
-	ArenaMaps.list_local = true
-	var entry := ArenaLocalMaps.entry(id)
+	FcMaps.list_local = true
+	var entry := FcLocalMaps.entry(id)
 	_check(str(entry.get("root", "")) == root, "found under %s" % root, str(entry))
-	var map: ArenaMap = ArenaMap.by_id(id)
+	var map: FcMap = FcMap.by_id(id)
 	if not _check(map != null and map.local_prefix != "" and map.is_imported(), "by_id builds the local map"):
 		return
 	_check(map.display_name.ends_with(DotMapLocalMaps.TAG), "its title says local", map.display_name)
 	_check(map.spawns.size() > 0, "it has spawns", str(map.spawns.size()))
 	_check(map.bounds.size.x > 0.0 and map.bounds.size.z > 0.0, "it has bounds", str(map.bounds))
-	_check(ArenaBspMap.world_prefix(String(id), map.manifest_path.get_base_dir()) == map.local_prefix,
+	_check(FcBspMap.world_prefix(String(id), map.manifest_path.get_base_dir()) == map.local_prefix,
 		"its world is the copied folder")
 	var solid := map.to_collision()
 	_check(solid != null and solid.get_child_count() > 0, "its solid has shapes",
@@ -194,25 +194,25 @@ func _test_load(id: StringName, root: String, fixture: bool) -> void:
 		drawn.free()
 	if fixture:
 		# The fixture names no spawns: the one start is generated on its floor; its door is a mover.
-		var got := ArenaLocalMaps.mesh(entry)
+		var got := FcLocalMaps.mesh(entry)
 		_check(got != null and got.manifest.get("movers", []).size() == 2, "the copy's movers are read")
 
 
 func _test_drops() -> void:
 	print("-- dropped onto the window: a folder, a zip, and junk")
-	ArenaMaps.list_local = true
+	FcMaps.list_local = true
 	var local_maps: Object = DotMapLocalMaps  # API 24 by name, so this parses on API 23
 	var player_cache: Variant = local_maps.get(&"zip_cache")
 	local_maps.set(&"zip_cache", ZIP_CACHE)
-	var client := ArenaClient.new()
-	client._menu_catalogue = ArenaMaps.catalogue()
+	var client := FcClient.new()
+	client._menu_catalogue = FcMaps.catalogue()
 	_check(not client._menu_catalogue.has(&"fixture_local"), "nothing local before the drop")
 	_copy_tree(FIXTURE_DIR, DROP_SOURCE.path_join("zz_local_maps_suite_drop"), ["fixture.json", "fixture.bin"])
 	var said := client.on_maps_dropped(_drop(DROP_SOURCE.path_join("zz_local_maps_suite_drop")))
 	_check(DirAccess.dir_exists_absolute(DROPPED_FOLDER), "the folder is copied into user://maps")
 	_check(client._menu_catalogue.has(&"fixture_local"), "M lists the dropped map without a rebuild")
 	_check(said.begins_with("Added ") and said.contains(DotMapLocalMaps.TAG), "the player is told it was added", said)
-	var rows := ArenaMaps.menu_rows(client._menu_catalogue, &"", null, [])
+	var rows := FcMaps.menu_rows(client._menu_catalogue, &"", null, [])
 	_check(rows.any(func(row: Dictionary) -> bool: return row["id"] == "map:fixture_local"), "the solo menu offers the drop")
 	_wipe(DROPPED_FOLDER)
 
@@ -221,13 +221,13 @@ func _test_drops() -> void:
 	said = client.on_maps_dropped(_drop(zip_path))
 	_check(FileAccess.file_exists(DROPPED_ZIP), "the zip is copied into user://maps")
 	_check(said.begins_with("Added "), "a dropped zip is added", said)
-	var entry := ArenaLocalMaps.entry(&"fixture_local")
+	var entry := FcLocalMaps.entry(&"fixture_local")
 	_check(str(entry.get("zip", "")) == DROPPED_ZIP, "found as the zip", str(entry))
-	var map: ArenaMap = ArenaMap.by_id(&"fixture_local")
+	var map: FcMap = FcMap.by_id(&"fixture_local")
 	_check(map != null and map.local_prefix.begins_with(ZIP_CACHE), "by_id builds it from the unpacked zip",
 		"" if map == null else map.local_prefix)
 	if map != null:
-		_check(ArenaBspMap.world_prefix("fixture_local", map.manifest_path.get_base_dir()) == map.local_prefix,
+		_check(FcBspMap.world_prefix("fixture_local", map.manifest_path.get_base_dir()) == map.local_prefix,
 			"its world is the unpacked folder")
 		var solid := map.to_collision()
 		_check(solid != null and solid.get_child_count() > 0, "the zipped map has a solid")
@@ -244,11 +244,11 @@ func _test_drops() -> void:
 	_check(client._menu_catalogue.size() == before, "a bad drop adds no row")
 	_check(not FileAccess.file_exists("user://maps/notes.txt"), "a bad drop copies nothing")
 
-	ArenaMaps.list_local = false
-	var server_cat := ArenaMaps.catalogue()
-	_check(not ArenaMaps.add_local(server_cat, &"fixture_local") and not server_cat.has(&"fixture_local"),
+	FcMaps.list_local = false
+	var server_cat := FcMaps.catalogue()
+	_check(not FcMaps.add_local(server_cat, &"fixture_local") and not server_cat.has(&"fixture_local"),
 		"a server catalogue never takes a dropped map")
-	ArenaMaps.list_local = true
+	FcMaps.list_local = true
 	local_maps.set(&"zip_cache", player_cache)
 	client.free()
 
@@ -257,12 +257,12 @@ func _test_drops() -> void:
 ## with the pack deeper than dot-map looks, and a map named like a shipped one; each is said on screen and listed in M.
 func _test_drop_layouts() -> void:
 	print("-- dropped layouts: a download's convert folder, a deep folder, a shipped map's name")
-	ArenaMaps.list_local = true
+	FcMaps.list_local = true
 	var local_maps: Object = DotMapLocalMaps
 	var player_cache: Variant = local_maps.get(&"zip_cache")
 	local_maps.set(&"zip_cache", ZIP_CACHE)
-	var client := ArenaClient.new()
-	client._menu_catalogue = ArenaMaps.catalogue()
+	var client := FcClient.new()
+	client._menu_catalogue = FcMaps.catalogue()
 	# No game install, whatever the machine has: _test_source_install fills from a fixture one.
 	client.source_game_path = DROP_SOURCE.path_join("no_such_install")
 	var download := DROP_SOURCE.path_join("download")
@@ -285,8 +285,8 @@ func _test_drop_layouts() -> void:
 		"and the folder it was copied to", said)
 	_check(client.last_drop_said == said, "and it is what was last said on screen", client.last_drop_said)
 	_check(client._menu_catalogue.has(id), "M lists it at once")
-	_check(str(ArenaLocalMaps.entry(id).get("dir", "")).begins_with("user://maps".path_join(LAYOUT_MAP)), "found there",
-		str(ArenaLocalMaps.entry(id)))
+	_check(str(FcLocalMaps.entry(id).get("dir", "")).begins_with("user://maps".path_join(LAYOUT_MAP)), "found there",
+		str(FcLocalMaps.entry(id)))
 	_wipe("user://maps".path_join(LAYOUT_MAP))
 
 	var deep := DROP_SOURCE.path_join("deep")
@@ -325,16 +325,16 @@ func _test_drop_layouts() -> void:
 
 	await _test_drop_shipped_name(client)
 
-	ArenaMaps.list_local = false
+	FcMaps.list_local = false
 	said = await client.import_dropped(PackedStringArray(["C:\\Users\\x\\Downloads\\%s\\convert" % LAYOUT_MAP]))
 	_check(said.begins_with("convert: dropped maps play in solo only"), "a server's client says drops are solo only", said)
-	ArenaMaps.list_local = true
+	FcMaps.list_local = true
 	local_maps.set(&"zip_cache", player_cache)
 	client.free()
 
 
 ## A map named like a shipped one is listed beside it, as (local).
-func _test_drop_shipped_name(client: ArenaClient) -> void:
+func _test_drop_shipped_name(client: FcClient) -> void:
 	var shipped := StringName()
 	for def: DotMapDef in client._menu_catalogue.maps:
 		if not bool(def.meta.get("local", false)) and def.enabled \
@@ -348,12 +348,12 @@ func _test_drop_shipped_name(client: ArenaClient) -> void:
 		_check(client._menu_catalogue.has(shipped) and client._menu_catalogue.has(local_id),
 			"a map named like a shipped one is listed beside it", said)
 		var label := ""
-		for row: Dictionary in ArenaMaps.menu_rows(client._menu_catalogue, &"", null, []):
+		for row: Dictionary in FcMaps.menu_rows(client._menu_catalogue, &"", null, []):
 			if row["id"] == "map:%s" % local_id:
 				label = str(row["name"])
 		_check(label.ends_with(DotMapLocalMaps.TAG), "its M row says (local)", label)
-		# The solo server's M rows (ArenaVoteSource): a local map whatever is played, nothing the mode cannot host.
-		var source: Object = ArenaVoteSource.of(client._menu_catalogue, null, null)
+		# The solo server's M rows (FcVoteSource): a local map whatever is played, nothing the mode cannot host.
+		var source: Object = FcVoteSource.of(client._menu_catalogue, null, null)
 		var listed := PackedStringArray()
 		for choice: DotVoteChoice in source.call(&"choices"):
 			listed.append(String(choice.id))
@@ -387,19 +387,19 @@ func _touch(path: String) -> void:
 ## `DotMapLocalMaps.accept_dropped` (API 24), called so the suite still parses on an older host.
 ## The user folder is game-fatal-contact, and the first run copies the old game-arena folder's maps and settings in.
 func _test_user_dir() -> void:
-	_check(ArenaUserDir.is_ours(), "project.godot names the user folder %s" % ArenaUserDir.DIR_NAME,
+	_check(FcUserDir.is_ours(), "project.godot names the user folder %s" % FcUserDir.DIR_NAME,
 		str(ProjectSettings.get_setting("application/config/custom_user_dir_name", "")))
-	_check(OS.get_user_data_dir().get_file() == ArenaUserDir.DIR_NAME, "user:// is the game-fatal-contact folder",
+	_check(OS.get_user_data_dir().get_file() == FcUserDir.DIR_NAME, "user:// is the game-fatal-contact folder",
 		OS.get_user_data_dir())
-	_check(ArenaUserDir.old_dir().ends_with("app_userdata/game-arena"), "the old folder is Godot's app_userdata/game-arena",
-		ArenaUserDir.old_dir())
+	_check(FcUserDir.old_dir().ends_with("app_userdata/game-arena"), "the old folder is Godot's app_userdata/game-arena",
+		FcUserDir.old_dir())
 	_write(OLD_USER.path_join("settings/video.cfg"), "old")
 	_write(OLD_USER.path_join("maps/gm_fork/convert/manifest.json"), "{}")
 	_write(OLD_USER.path_join("maps/kept.json"), "old")
 	_write(OLD_USER.path_join(".hidden"), "old")
 	_write(OLD_USER.path_join("shader_cache/x.bin"), "cache")
 	_write(NEW_USER.path_join("maps/kept.json"), "new")
-	var copied := ArenaUserDir.copy_tree(ProjectSettings.globalize_path(OLD_USER), ProjectSettings.globalize_path(NEW_USER))
+	var copied := FcUserDir.copy_tree(ProjectSettings.globalize_path(OLD_USER), ProjectSettings.globalize_path(NEW_USER))
 	_check(copied == 3, "three files are copied (settings, a map, a hidden file)", str(copied))
 	_check(FileAccess.get_file_as_string(NEW_USER.path_join("settings/video.cfg")) == "old", "settings are copied")
 	_check(FileAccess.file_exists(NEW_USER.path_join("maps/gm_fork/convert/manifest.json")), "a local map is copied")
@@ -421,15 +421,15 @@ func _drop(path: String) -> Dictionary:
 
 func _test_original() -> void:
 	print("-- <map>_orig draws with its own textures, locally only")
-	_check(ArenaLocalMaps.is_original(&"gm_fork_orig_local"), "a local _orig pack is original")
-	_check(not ArenaLocalMaps.is_original(&"gm_fork_local"), "a plain local map is not")
-	_check(not ArenaLocalMaps.is_original(&"gm_fork_orig"), "a shipped or delivered id never is")
+	_check(FcLocalMaps.is_original(&"gm_fork_orig_local"), "a local _orig pack is original")
+	_check(not FcLocalMaps.is_original(&"gm_fork_local"), "a plain local map is not")
+	_check(not FcLocalMaps.is_original(&"gm_fork_orig"), "a shipped or delivered id never is")
 	var got := DotMapBspMesh.load_prefix(FIXTURE_DIR.path_join("fixture"))
 	if not _check(got.ok, "the fixture mesh reads"):
 		return
 	for pair in [["gm_fork_orig_local", true], ["fixture_local", false], ["surf_x_orig", false]]:
 		var drawn := Node3D.new()
-		var plan := ArenaBspMap._draw_plan(drawn, pair[0], got)
+		var plan := FcBspMap._draw_plan(drawn, pair[0], got)
 		_check(not plan.is_empty() and bool(plan.options.get("original_textures", false)) == pair[1],
 			"%s draws original textures: %s" % [pair[0], pair[1]])
 		drawn.free()
@@ -437,15 +437,15 @@ func _test_original() -> void:
 
 func _test_source_install() -> void:
 	print("-- an _orig pack's missing stock textures come from the player's own install, locally only")
-	_check(ArenaVpk.crc32("123456789".to_ascii_buffer()) == 0xCBF43926, "VPK CRC-32 is zlib's",
-		"%x" % ArenaVpk.crc32("123456789".to_ascii_buffer()))
-	_check(ArenaVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40") == "concrete_floor001", "a cubemap-patched name is its base",
-		ArenaVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40"))
-	var keys := ArenaVtf.vmt_keys("\"LightmappedGeneric\"\n{\n\t\"$baseTexture\" \"Concrete/Floor\" // a comment\n\t$surfaceprop concrete\n}")
+	_check(FcVpk.crc32("123456789".to_ascii_buffer()) == 0xCBF43926, "VPK CRC-32 is zlib's",
+		"%x" % FcVpk.crc32("123456789".to_ascii_buffer()))
+	_check(FcVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40") == "concrete_floor001", "a cubemap-patched name is its base",
+		FcVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40"))
+	var keys := FcVtf.vmt_keys("\"LightmappedGeneric\"\n{\n\t\"$baseTexture\" \"Concrete/Floor\" // a comment\n\t$surfaceprop concrete\n}")
 	_check(keys.get("$basetexture") == "Concrete/Floor" and keys.get("$surfaceprop") == "concrete", "a VMT's keys are read", str(keys))
-	_check(Array(ArenaSourceInstall.library_folders("\"libraryfolders\"\n{\n\t\"1\"\n\t{\n\t\t\"path\"\t\t\"D:\\\\SteamLibrary\"\n\t}\n}")) \
+	_check(Array(FcSourceInstall.library_folders("\"libraryfolders\"\n{\n\t\"1\"\n\t{\n\t\t\"path\"\t\t\"D:\\\\SteamLibrary\"\n\t}\n}")) \
 		== ["D:/SteamLibrary"], "a Steam libraryfolders.vdf's libraries are read",
-		str(ArenaSourceInstall.library_folders("\"path\"\t\t\"D:\\\\SteamLibrary\"")))
+		str(FcSourceInstall.library_folders("\"path\"\t\t\"D:\\\\SteamLibrary\"")))
 
 	# The fixture install: tf/tf2_textures_dir.vpk (VPK v2) and its part _000. A VMT stored in the dir names an RGBA8888
 	# VTF in the part (green, its smaller mips blue); a patch VMT includes a base naming a DXT1 VTF (red) partly preloaded.
@@ -463,22 +463,22 @@ func _test_source_install() -> void:
 	})
 	DirAccess.make_dir_recursive_absolute(SOURCE_GAME.path_join("bin"))
 	var install := ProjectSettings.globalize_path(SOURCE_GAME)
-	_check(Array(ArenaSourceInstall.archives(install)) == [install.path_join("tf/tf2_textures_dir.vpk")], "the install's archives are found",
-		str(ArenaSourceInstall.archives(install)))
-	_check(ArenaSourceInstall.archives(install.path_join("tf")) == ArenaSourceInstall.archives(install), "also from its tf folder")
-	_check(ArenaSourceInstall.archives(install.get_base_dir()) == ArenaSourceInstall.archives(install),
-		"and from the folder above it (a server's tf2/ + hl2/)", str(ArenaSourceInstall.archives(install.get_base_dir())))
-	_check(ArenaSourceInstall.find_install(install + "/") == install, "a set path wins, its trailing / dropped")
+	_check(Array(FcSourceInstall.archives(install)) == [install.path_join("tf/tf2_textures_dir.vpk")], "the install's archives are found",
+		str(FcSourceInstall.archives(install)))
+	_check(FcSourceInstall.archives(install.path_join("tf")) == FcSourceInstall.archives(install), "also from its tf folder")
+	_check(FcSourceInstall.archives(install.get_base_dir()) == FcSourceInstall.archives(install),
+		"and from the folder above it (a server's tf2/ + hl2/)", str(FcSourceInstall.archives(install.get_base_dir())))
+	_check(FcSourceInstall.find_install(install + "/") == install, "a set path wins, its trailing / dropped")
 	if not _test_fixture_vpk(install, green, red):
 		return
 
 	# Dropped with the install set: two of three filled, the third still a stand-in, and the drop says so.
-	ArenaMaps.list_local = true
+	FcMaps.list_local = true
 	var local_maps: Object = DotMapLocalMaps
 	var player_cache: Variant = local_maps.get(&"zip_cache")
 	local_maps.set(&"zip_cache", ZIP_CACHE)
-	var client := ArenaClient.new()
-	client._menu_catalogue = ArenaMaps.catalogue()
+	var client := FcClient.new()
+	client._menu_catalogue = FcMaps.catalogue()
 	client.source_game_path = install
 	var orig_name := LAYOUT_MAP + "_orig"
 	var tree := DROP_SOURCE.path_join("orig/convert")
@@ -504,7 +504,7 @@ func _test_source_install() -> void:
 	for s: Variant in surfaces:
 		drawn_as[str((s as Dictionary).get("material"))] = str((s as Dictionary).get("orig", ""))
 	_check(drawn_as.get("metal/metalwall001") == "textures/orig/metal_metalwall001.png", "and its surfaces draw it", str(drawn_as))
-	var cache := ArenaSourceInstall.cache_dir(install)
+	var cache := FcSourceInstall.cache_dir(install)
 	_check(cache.begins_with("user://") and FileAccess.file_exists(cache.path_join("concrete_concretefloor001.png")),
 		"decoded textures are cached in the user folder", cache)
 
@@ -512,28 +512,28 @@ func _test_source_install() -> void:
 
 	_wipe("user://maps".path_join(orig_name))
 	_wipe(cache)
-	ArenaMaps.list_local = false
+	FcMaps.list_local = false
 	local_maps.set(&"zip_cache", player_cache)
 	client.free()
 
 
 ## The fixture VPK lists, reads and decodes its files, and refuses one that fails its CRC. False when it does not open.
 func _test_fixture_vpk(install: String, green: PackedByteArray, red: PackedByteArray) -> bool:
-	var vpk := ArenaVpk.new()
+	var vpk := FcVpk.new()
 	if not _check(vpk.open(install.path_join("tf/tf2_textures_dir.vpk")), "the fixture VPK opens", vpk.error):
 		return false
 	_check(vpk.entries.size() == 5 and vpk.has("Materials/Metal/MetalWall001.vmt"), "and lists its 5 files", str(vpk.entries.keys()))
 	_check(vpk.read("materials/metal/metalwall_red.vtf") == red, "a preloaded file reads whole from its part")
-	var img := ArenaVtf.image(vpk.read("materials/concrete/concretefloor001.vtf"))
+	var img := FcVtf.image(vpk.read("materials/concrete/concretefloor001.vtf"))
 	_check(img != null and img.get_size() == Vector2i(4, 4) and img.get_pixel(3, 3).to_rgba32() == Color8(20, 200, 30).to_rgba32(),
-		"an RGBA8888 VTF decodes its largest mip", ArenaVtf.error if img == null else str(img.get_pixel(3, 3)))
-	img = ArenaVtf.image(green, 2)
+		"an RGBA8888 VTF decodes its largest mip", FcVtf.error if img == null else str(img.get_pixel(3, 3)))
+	img = FcVtf.image(green, 2)
 	_check(img != null and img.get_size() == Vector2i(2, 2) and img.get_pixel(0, 0).to_rgba32() == Color8(0, 0, 255).to_rgba32(),
-		"and a smaller mip when it is too big", ArenaVtf.error if img == null else str(img.get_size()))
-	img = ArenaVtf.image(red)
+		"and a smaller mip when it is too big", FcVtf.error if img == null else str(img.get_size()))
+	img = FcVtf.image(red)
 	_check(img != null and img.get_size() == Vector2i(8, 8) and img.get_pixel(5, 6).r > 0.95 and img.get_pixel(5, 6).g < 0.05,
-		"a DXT1 VTF decodes", ArenaVtf.error if img == null else str(img.get_pixel(5, 6)))
-	var bad := ArenaVpk.new()
+		"a DXT1 VTF decodes", FcVtf.error if img == null else str(img.get_pixel(5, 6)))
+	var bad := FcVpk.new()
 	_write_vpk(SOURCE_GAME.path_join("broken/bad"), {"materials/x.vtf": [red, 0, 0]}, true)
 	_check(bad.open(SOURCE_GAME.path_join("broken/bad_dir.vpk")) and bad.read("materials/x.vtf").is_empty()
 		and bad.error.begins_with("crc mismatch"), "a file that fails its CRC is not read", bad.error)
@@ -546,7 +546,7 @@ func _test_fixture_vpk(install: String, green: PackedByteArray, red: PackedByteA
 ## Never into the project: a res:// pack is refused, and the project holds no Valve file and no textures/orig.
 func _test_nothing_valve_in_project(install: String) -> void:
 	# Never into the project: a res:// pack is refused, and the project holds no Valve file and no textures/orig.
-	var refused := ArenaSourceInstall.fill("res://addons/maps/x/x_orig", install)
+	var refused := FcSourceInstall.fill("res://addons/maps/x/x_orig", install)
 	_check(not refused["ok"] and str(refused["error"]).begins_with("refused"), "a pack outside the user folder is refused",
 		str(refused["error"]))
 	var found := PackedStringArray()
@@ -597,9 +597,9 @@ func _write_vpk(base: String, files: Dictionary, bad_crc := false) -> void:
 				var stored := in_dir if int(files[path][1]) < 0 else part
 				var e := PackedByteArray()
 				e.resize(18)
-				e.encode_u32(0, ArenaVpk.crc32(bytes) ^ (1 if bad_crc else 0))
+				e.encode_u32(0, FcVpk.crc32(bytes) ^ (1 if bad_crc else 0))
 				e.encode_u16(4, preloaded)
-				e.encode_u16(6, ArenaVpk.IN_DIR if int(files[path][1]) < 0 else 0)
+				e.encode_u16(6, FcVpk.IN_DIR if int(files[path][1]) < 0 else 0)
 				e.encode_u32(8, stored.size())
 				e.encode_u32(12, body.size())
 				e.encode_u16(16, 0xFFFF)
@@ -615,7 +615,7 @@ func _write_vpk(base: String, files: Dictionary, bad_crc := false) -> void:
 	tree.append(0)
 	var head := PackedByteArray()
 	head.resize(28)
-	head.encode_u32(0, ArenaVpk.SIG)
+	head.encode_u32(0, FcVpk.SIG)
 	head.encode_u32(4, 2)
 	head.encode_u32(8, tree.size())
 	head.encode_u32(12, in_dir.size())
@@ -696,7 +696,7 @@ func _clean() -> void:
 		_wipe("user://maps/convert")
 	_wipe(ZIP_CACHE)
 	_wipe(SOURCE_STEAM)
-	_wipe(ArenaSourceInstall.cache_dir(ProjectSettings.globalize_path(SOURCE_GAME)))
+	_wipe(FcSourceInstall.cache_dir(ProjectSettings.globalize_path(SOURCE_GAME)))
 	_wipe("user://maps".path_join(LAYOUT_MAP + "_orig"))
 	_wipe(OLD_USER)
 	_wipe(NEW_USER)

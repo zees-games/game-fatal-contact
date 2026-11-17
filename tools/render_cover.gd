@@ -1,10 +1,10 @@
 extends Node
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 ## Two frames of a real client on a real server, to look at: the loading cover while the
 ## server still holds the seat as loading, and the first frame after the cover lifts.
-## A dedicated arena server runs in a second process (client_bench's server role).
+## A dedicated Fatal Contact server runs in a second process (client_bench's server role).
 ##
 ## [codeblock]
 ## xvfb-run -a godot --path . --resolution 1280x720 res://tools/render_cover.tscn
@@ -17,7 +17,7 @@ var _server_pid := -1
 
 
 func _ready() -> void:
-	var _scratch := ArenaPresentation.use_scratch_settings("render_cover")
+	var _scratch := FcPresentation.use_scratch_settings("render_cover")
 	DotLog.set_level(DotLog.Level.ERROR)
 	_run.call_deferred()
 
@@ -54,7 +54,7 @@ func _run() -> void:
 		await get_tree().create_timer(0.25).timeout
 		t += 0.25
 
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("mouse_capture_override", true)
 	add_child(client)
 	for i in 3:

@@ -1,11 +1,11 @@
 extends DotGameCheckSuite
 ## Shared state and the server-named section of headless_imported, split out for the file size gate.
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaImportedMaps := preload("../maps/arena_imported_maps.gd")
-const ArenaMapDirector := preload("../game/arena_map_director.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
+const FcMapDirector := preload("../game/fc_map_director.gd")
 
 ## The map the deathmatch is played on: the first of Christian's two.
 const MAP := &"surf_10x_reloaded_fixed"
@@ -14,13 +14,13 @@ const MAP := &"surf_10x_reloaded_fixed"
 ## origin has, so nothing real is shadowed and nothing is fetched.
 const DELIVERED_OWNER := "dot-test"
 const DELIVERED_ID := &"dot_test_delivered_surf"
-const DELIVERED_NOT_ARENA := &"dot_test_delivered_course"
+const DELIVERED_NOT_FC := &"dot_test_delivered_course"
 const DELIVERED_VERSION := "1.0.0"
 
 var _entered := 0
 var _completed := 0
 
-var _game: ArenaGame = null
+var _game: FcGame = null
 
 func _ticks(count: int) -> void:
 	for i in range(count):
@@ -63,20 +63,20 @@ class StandInGames:
 ## The pack layout dot-cloud mounts: `<id>.json` and `<id>.bin` in the version directory. MAP's
 ## files under a new id, and a second manifest that says it is a timer course; no lightmap.
 func _deliver_packs(mount: String, other: String) -> void:
-	var source := ArenaImportedMaps.manifest_path(MAP)
+	var source := FcImportedMaps.manifest_path(MAP)
 	var text := FileAccess.get_file_as_string(source)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(mount))
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(other))
 	_write(mount.path_join("%s.json" % DELIVERED_ID),
 		text.replace("\"id\": \"%s\"" % MAP, "\"id\": \"%s\"" % DELIVERED_ID))
 	DirAccess.copy_absolute(source.get_basename() + ".bin", mount.path_join("%s.bin" % DELIVERED_ID))
-	# The textures the manifest declares: a pack without them is hollow and refused (ArenaMaps.missing_declared_files).
+	# The textures the manifest declares: a pack without them is hollow and refused (FcMaps.missing_declared_files).
 	var tex_dir := mount.path_join("textures")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(tex_dir))
 	for name in _declared_textures(text):
 		DirAccess.copy_absolute(source.get_base_dir().path_join("textures").path_join(name), tex_dir.path_join(name))
-	_write(other.path_join("%s.json" % DELIVERED_NOT_ARENA),
-		text.replace("\"id\": \"%s\"" % MAP, "\"id\": \"%s\"" % DELIVERED_NOT_ARENA)
+	_write(other.path_join("%s.json" % DELIVERED_NOT_FC),
+		text.replace("\"id\": \"%s\"" % MAP, "\"id\": \"%s\"" % DELIVERED_NOT_FC)
 			.replace("\"kind\": \"arena\"", "\"kind\": \"course\""))
 
 
@@ -96,16 +96,16 @@ func _test_server_named() -> void:
 	_section("a map only the server names is catalogued, built from its pack, and dropped")
 
 	var key := "%s/%s@%s" % [DELIVERED_OWNER, DELIVERED_ID, DELIVERED_VERSION]
-	var not_arena_key := "%s/%s@%s" % [DELIVERED_OWNER, DELIVERED_NOT_ARENA, DELIVERED_VERSION]
+	var not_fc_key := "%s/%s@%s" % [DELIVERED_OWNER, DELIVERED_NOT_FC, DELIVERED_VERSION]
 	var mount := "res://dot_cloud/%s/%s/%s" % [DELIVERED_OWNER, DELIVERED_ID, DELIVERED_VERSION]
-	var other := "res://dot_cloud/%s/%s/%s" % [DELIVERED_OWNER, DELIVERED_NOT_ARENA, DELIVERED_VERSION]
+	var other := "res://dot_cloud/%s/%s/%s" % [DELIVERED_OWNER, DELIVERED_NOT_FC, DELIVERED_VERSION]
 
 	_deliver_packs(mount, other)
 
 	var server := StandInServer.new()
-	server.games.maps = PackedStringArray([key, not_arena_key])
+	server.games.maps = PackedStringArray([key, not_fc_key])
 
-	var director := ArenaMapDirector.new()
+	var director := FcMapDirector.new()
 	director.game = _game
 	director.server = server
 	add_child(director)
@@ -117,10 +117,10 @@ func _test_server_named() -> void:
 		and def.version == DELIVERED_VERSION,
 		"it is in the catalogue as delivered content, at its pack version (%s)" % (
 			"%s %s" % [def.content_id, def.version] if def != null else "absent"))
-	_check(def != null and not ArenaImportedMaps.is_mounted(DELIVERED_ID)
-		and not ArenaMap.imported_ids().has(DELIVERED_ID),
+	_check(def != null and not FcImportedMaps.is_mounted(DELIVERED_ID)
+		and not FcMap.imported_ids().has(DELIVERED_ID),
 		"and is not read or registered at boot, nor listed as a local import")
-	_check(catalogue != null and not catalogue.has(DELIVERED_NOT_ARENA),
+	_check(catalogue != null and not catalogue.has(DELIVERED_NOT_FC),
 		"a named pack whose manifest is not kind arena is skipped")
 
 	# What a client that has never heard of it makes of the announce: dot-map takes an unknown
@@ -130,7 +130,7 @@ func _test_server_named() -> void:
 	var accepted: DotResult = client._accept(DotMapMessage.announce(def)["map"]) if def != null \
 		else DotResult.fail(DotError.CODE_STATE, "no def")
 	client.free()
-	_check(accepted.ok and ArenaMaps.is_delivered(accepted.value),
+	_check(accepted.ok and FcMaps.is_delivered(accepted.value),
 		"a client that has never heard of it accepts the announce as delivered content%s" % (
 			"" if accepted.ok else ": " + accepted.error.message))
 
@@ -152,7 +152,7 @@ func _test_server_named() -> void:
 	server.games.maps = PackedStringArray()
 	var adopted := director.adopt_server_maps()
 	_check(not catalogue.has(DELIVERED_ID) and int(adopted.get("removed", 0)) == 1
-		and not ArenaImportedMaps.is_mounted(DELIVERED_ID),
+		and not FcImportedMaps.is_mounted(DELIVERED_ID),
 		"and gone when the server stops naming it (removed %d)" % int(adopted.get("removed", 0)))
 
 	remove_child(director)

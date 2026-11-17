@@ -1,6 +1,6 @@
 extends "offline_cost.gd"
 
-## offline_cost with a per-frame hitch breakdown: every frame over `--hitch MS` (default 150) prints which ArenaFrameProbe sections grew in it, the monitors and the node count change.
+## offline_cost with a per-frame hitch breakdown: every frame over `--hitch MS` (default 150) prints which FcFrameProbe sections grew in it, the monitors and the node count change.
 ## `godot --headless --path . res://tools/hitch_sections.tscn -- --map cp-orange-x3 --bots 31 --seconds 40`.
 
 var _hitch_ms := 150.0
@@ -12,7 +12,7 @@ var _census_at := 0
 var _last_census := {}
 var _prev_orphans := 0
 var _legacy := false
-const ArenaHud := preload("../game/arena_hud.gd")
+const FcHud := preload("../game/fc_hud.gd")
 
 
 func _ready() -> void:
@@ -22,17 +22,17 @@ func _ready() -> void:
 		_hitch_ms = float(args[i + 1])
 	# `--legacy`: the lag16 caps off, so one build measures before and after.
 	if args.has("--legacy"):
-		ArenaPlayer.held_equips_per_frame = 0
-		ArenaHud.ArenaHudGlance.PortraitCache.builds_per_frame = 0
-		ArenaHud.ArenaHudGlance.PortraitCache.keep_extra = 0
+		FcPlayer.held_equips_per_frame = 0
+		FcHud.FcHudGlance.PortraitCache.builds_per_frame = 0
+		FcHud.FcHudGlance.PortraitCache.keep_extra = 0
 		AwViewArms.albedo_cache = false
-		ArenaPresentation.fx_pool_idle = -1
+		FcPresentation.fx_pool_idle = -1
 		AwWeaponCatalogue.def_cache = false
 		_legacy = true
 	super._ready()
 	print("LAG16 legacy=%s held_equips=%d fx_pool_idle=%d glove_cache=%s def_cache=%s portraits=%d/%d" % [_legacy,
-		ArenaPlayer.held_equips_per_frame, ArenaPresentation.fx_pool_idle, AwViewArms.albedo_cache, AwWeaponCatalogue.def_cache,
-		ArenaHud.ArenaHudGlance.PortraitCache.builds_per_frame, ArenaHud.ArenaHudGlance.PortraitCache.keep_extra])
+		FcPlayer.held_equips_per_frame, FcPresentation.fx_pool_idle, AwViewArms.albedo_cache, AwWeaponCatalogue.def_cache,
+		FcHud.FcHudGlance.PortraitCache.builds_per_frame, FcHud.FcHudGlance.PortraitCache.keep_extra])
 	_watch.call_deferred()
 
 
@@ -43,7 +43,7 @@ func _watch() -> void:
 		var ms := (now - _prev_usec) / 1000.0 if _prev_usec > 0 else 0.0
 		_prev_usec = now
 		var nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
-		var rows: Dictionary = ArenaFrameProbe._sections
+		var rows: Dictionary = FcFrameProbe._sections
 		if ms >= _hitch_ms and _listed < 80:
 			_listed += 1
 			var grew: Array = []

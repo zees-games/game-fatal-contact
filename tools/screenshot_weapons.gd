@@ -21,7 +21,7 @@ extends SceneTree
 ## Each frame logs where the player is and what the projectile layer holds, because a
 ## picture of an empty floor cannot tell "nothing was thrown" from "it is off screen".
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 const OUT_DIR := "res://screenshots"
 
@@ -51,10 +51,10 @@ var _follow_grenade := false
 
 func _initialize() -> void:
 	# A scratch settings document, never this machine's real one (see
-	# `ArenaPresentation.use_scratch_settings`): a render must not save into a player's file,
+	# `FcPresentation.use_scratch_settings`): a render must not save into a player's file,
 	# and must draw from the defaults rather than whatever the last run left there.
-	var _scratch := ArenaPresentation.use_scratch_settings("screenshot_weapons")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("screenshot_weapons")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)

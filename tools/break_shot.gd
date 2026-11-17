@@ -2,10 +2,10 @@ extends SceneTree
 ## Renders a real breakable of an imported map before and after a hitscan shot (dot-combat's pellet trace) breaks it, with dot-fx's break effect: one glass pane and one wood breakable.
 ## xvfb-run godot --path . --script tools/break_shot.gd -- <map id> [<legacy map dir>]  ->  screenshots/<id>_break_<kind>_{before,after}.png
 
-const Bsp := preload("res://maps/arena_bsp_map.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const Bsp := preload("res://maps/fc_bsp_map.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 var _cam: Camera3D
 ## Frame sequence after the "after" still (DOT_SHOT_FRAMES); see DotShotSeq.
@@ -18,16 +18,16 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	var id: String = args[0] if args.size() > 0 else "crackhouse"
 	var dir: String = args[1] if args.size() > 1 else "res://maps/imported_dm/%s" % id
-	var _scratch := ArenaPresentation.use_scratch_settings("break_shot")
-	var map: ArenaMap = ArenaMap.by_id(StringName(id))
+	var _scratch := FcPresentation.use_scratch_settings("break_shot")
+	var map: FcMap = FcMap.by_id(StringName(id))
 	root.add_child(map.to_scene())
-	root.add_child(ArenaMapLighting.build(map))
+	root.add_child(FcMapLighting.build(map))
 	var body := Bsp.build_collision(Bsp.read_manifest(dir.path_join("%s.json" % id)), dir)
 	root.add_child(body)
 	_combat.trace = _trace
 	root.add_child(_combat)
 	var fx := DotFxBreak.new()
-	fx.add_to_group(&"arena_break_fx")
+	fx.add_to_group(&"fc_break_fx")
 	root.add_child(fx)
 	_cam = Camera3D.new()
 	_cam.fov = 70.0

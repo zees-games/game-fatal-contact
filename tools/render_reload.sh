@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Every magazine weapon's first-person reload, frame by frame, with the one-arm-set check (tools/render_reload.gd):
 # screenshots/reload/<id>_NN.png and <id>_sheet.png (the sheet is dot-weapon's DotWeaponReloadShots, built in the script).
-# Run it on a GPU box: ../gpu.sh shot game-arena tools/render_reload.sh
+# Run it on a GPU box: ../gpu.sh shot game-fatal-contact tools/render_reload.sh
 #   tools/render_reload.sh [--frames 12 --left 1 --only grenade_launcher,revolver]
 set -euo pipefail
 # A short frame sequence beside each still (DotShotSeq), so Nightly -> Review can play and scrub it.

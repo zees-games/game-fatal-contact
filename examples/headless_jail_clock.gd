@@ -1,9 +1,9 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcEvents := preload("../game/fc_events.gd")
 
 ## The jail's gate on one clock (jail-sim-tick-1): when it opens and who it lets out, on the server and in
 ## a client's prediction after replays; only outcomes are checked, so the script runs before and after.
@@ -46,15 +46,15 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 
 
 func _new_game(authority: bool, game_name: String) -> Node:
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = game_name
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
 	game.is_authority = authority
-	game.mode = ArenaMode.free_for_all(50)
+	game.mode = FcMode.free_for_all(50)
 	add_child(game)
-	var made: DotResult = game.setup(ArenaMap.imported(MAP))
+	var made: DotResult = game.setup(FcMap.imported(MAP))
 	if not made.ok:
 		return null
 	game.jail_rules["open"] = 1.0
@@ -111,7 +111,7 @@ func _press(presser, others: Array) -> int:
 
 func _run() -> void:
 	print("arena — the jail's gate on the game tick")
-	if ArenaMap.imported(MAP) == null:
+	if FcMap.imported(MAP) == null:
 		print("  skip  %s is not linked (fc-surf-dm-maps)" % MAP)
 		get_tree().quit(0)
 		return
@@ -173,7 +173,7 @@ func _server_two_clocks(first, late) -> void:
 
 
 ## A predicting client: its own game, told the gate by JAIL, simulating its player on the server's
-## tick numbers (as `ArenaPlayerNet._predict` does), replaying as dot-net does after a mismatch.
+## tick numbers (as `FcPlayerNet._predict` does), replaying as dot-net does after a mismatch.
 func _client_after_replays(first, late) -> void:
 	print("-- a predicting client, after replays, sees the gate the server sees")
 	var client := _new_game(false, "C")
@@ -189,8 +189,8 @@ func _client_after_replays(first, late) -> void:
 	mine.controller.teleport(_jail.button_box().get_center(), 0.0, 0.0)
 	var _s = mine.simulate_tick(pressed, delta, DotFpsCommand.new(), DotWeaponCommand.new())
 	var j: RefCounted = _jail
-	client.apply_jail_state(ArenaEvents.read_jail(DotNetReader.new(
-		ArenaEvents.write_jail(j.enabled, j.open_ticks, j.cooldown_ticks, j.opened_at))))
+	client.apply_jail_state(FcEvents.read_jail(DotNetReader.new(
+		FcEvents.write_jail(j.enabled, j.open_ticks, j.cooldown_ticks, j.opened_at))))
 
 	# Ticks pressed+1 .. probe-1 in the cell, each predicted once, and REPLAYS of them replayed again.
 	var probe_at: int = pressed + _jail.open_ticks - 2 * REPLAY_TICKS

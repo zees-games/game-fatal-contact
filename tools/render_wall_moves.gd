@@ -1,8 +1,8 @@
 extends SceneTree
 
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 const WallRouteDriver := preload("../examples/wall_route_driver.gd")
 
 ## dm_atrium's wall routes from first person, as a frame sequence and a per-frame log.
@@ -15,7 +15,7 @@ const WallRouteDriver := preload("../examples/wall_route_driver.gd")
 ##
 ## [b]What no suite reaches: the camera.[/b] The suites assert the simulated state, and every
 ## simulation-to-screen bug this family has had (a view drawn at the last tick, a roll that
-## snapped) passed all of them. So this draws a player through `ArenaPlayer.present`, the
+## snapped) passed all of them. So this draws a player through `FcPlayer.present`, the
 ## one place the game writes the camera, at three frames a tick (`--fixed-fps 192` against
 ## 64 ticks, so the interpolation fraction runs 0, 1/3, 2/3 the way it does on a 192 Hz
 ## screen), and keeps two things: a PNG every [constant SAVE_EVERY] frames (two ticks) in
@@ -33,8 +33,8 @@ const SAVE_EVERY := 6
 ## Ticks recorded after the driver's first: the approach, the move and the landing.
 const RECORD_TICKS := 120
 
-var _map: ArenaMap = null
-var _player: ArenaPlayer = null
+var _map: FcMap = null
+var _player: FcPlayer = null
 var _scenarios: Array[String] = []
 var _scenario := ""
 var _driver: WallRouteDriver = null
@@ -67,13 +67,13 @@ func _initialize() -> void:
 	Engine.physics_ticks_per_second = TICK_RATE
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 
-	_map = ArenaMap.dm_atrium()
+	_map = FcMap.dm_atrium()
 	root.add_child(_map.to_scene())
-	root.add_child(ArenaMapLighting.build(_map))
+	root.add_child(FcMapLighting.build(_map))
 
-	_player = ArenaPlayer.new()
+	_player = FcPlayer.new()
 	_player.name = "You"
-	_player.setup(ArenaPlayer.Mode.HEADLESS, _map, 7, "You")
+	_player.setup(FcPlayer.Mode.HEADLESS, _map, 7, "You")
 	root.add_child(_player)
 	_player.spawn(Transform3D(Basis(), Vector3(0.0, 0.1, 25.0)), 0)
 	_player.attach_camera(100.0)
@@ -105,8 +105,8 @@ func _next_scenario() -> void:
 
 	_player.controller.teleport(start, _driver.yaw, 0.0)
 	# `jumprun`: the automatic run is out of reach, so only a press beside the wall starts one.
-	_player.controller.tunables.wall_run_min_speed = 99.0 if _scenario == "jumprun" else ArenaPlayer.arena_tunables().wall_run_min_speed
-	_player.controller.tunables.wall_run_on_jump = _scenario == "jumprun" or ArenaPlayer.arena_tunables().wall_run_on_jump
+	_player.controller.tunables.wall_run_min_speed = 99.0 if _scenario == "jumprun" else FcPlayer.fc_tunables().wall_run_min_speed
+	_player.controller.tunables.wall_run_on_jump = _scenario == "jumprun" or FcPlayer.fc_tunables().wall_run_on_jump
 	if route["kind"] == &"run":
 		_player.controller.state.velocity = DotFpsMotor.forward_for(_driver.yaw) * 9.0
 	_settle = 0 if route["kind"] == &"run" else 24

@@ -20,7 +20,7 @@ func _run() -> void:
 
 	# A member's site avatar, translated into this game's schema. The site's document is the
 	# Kenney skins spelt `skin-c`; without a translation every member is stock here.
-	var site_avatars = preload("res://game/arena_avatars.gd")
+	var site_avatars = preload("res://game/fc_avatars.gd")
 	var site_doc := DotAvatar.make(&"builtin")
 	site_doc.set_part(&"top", &"skin-c")
 	site_doc.set_part(&"face", &"skin-k")

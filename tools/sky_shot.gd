@@ -2,10 +2,10 @@ extends SceneTree
 ## Shots fired from open ground into a map's sky, with the weapon impacts drawn: "before" treats the sky as plain world (old map data), "after" skips impacts on the marked sky, as the presentation does.
 ## tools/sky_shot.sh [<map id>] [before|after]  ->  screenshots/<id>_sky_<mode>.png
 
-const Bsp := preload("res://maps/arena_bsp_map.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const Bsp := preload("res://maps/fc_bsp_map.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 var _cam: Camera3D
 
@@ -15,10 +15,10 @@ func _initialize() -> void:
 	var id: String = args[0] if args.size() > 0 else "cp-orange-x3"
 	var mode: String = args[1] if args.size() > 1 else "after"
 	var dir := "res://maps/imported_dm/%s" % id
-	var _scratch := ArenaPresentation.use_scratch_settings("sky_shot")
-	var map: ArenaMap = ArenaMap.by_id(StringName(id))
+	var _scratch := FcPresentation.use_scratch_settings("sky_shot")
+	var map: FcMap = FcMap.by_id(StringName(id))
 	root.add_child(map.to_scene())
-	root.add_child(ArenaMapLighting.build(map))
+	root.add_child(FcMapLighting.build(map))
 	var body := Bsp.build_collision(Bsp.read_manifest(dir.path_join("%s.json" % id)), dir)
 	root.add_child(body)
 	var fx := AwShotFx.new()

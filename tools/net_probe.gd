@@ -1,9 +1,9 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 
 ## Bytes per second, snapshot size, rtt and rate-limiter starvation for one real client
 ## against a dual-stack server with N hunting bots, over real loopback ENet (no relay, so
@@ -18,7 +18,7 @@ const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
 ## and a summary; it asserts nothing.
 
 const PORT := 27196
-const DATA := "user://arena_net_probe"
+const DATA := "user://fc_net_probe"
 
 ## --port N: the server port (the ENet one follows it), so probes can run side by side; its data folder is per port too.
 var _port := PORT
@@ -28,13 +28,13 @@ var _bots := 8
 var _seconds := 20.0
 var _budget := -1
 var _pps := -1
-## --aoi players,radius,far_distance,far_every,far_tiers[,coherent[,aim_cone]]: the relevance rings (arena_net_aoi.gd); unset is the shipped defaults.
+## --aoi players,radius,far_distance,far_every,far_tiers[,coherent[,aim_cone]]: the relevance rings (fc_net_aoi.gd); unset is the shipped defaults.
 var _aoi: PackedStringArray = PackedStringArray()
 
 ## --fake N: N extra synthetic peers (unreliable sends dropped, acks 2 snapshots late) on the server, to measure per-peer snapshot cost without N full clients.
 ## Each sees from an "eye" riding on a player (see [method _install_fakes]), so relevance applies to it as to a player there.
 var _fake := 0
-## --map <id>: the map the server plays (ArenaMap.by_id: dm_box, dm_atrium, dm_pit or an imported one). Relevance needs room to matter.
+## --map <id>: the map the server plays (FcMap.by_id: dm_box, dm_atrium, dm_pit or an imported one). Relevance needs room to matter.
 var _map_id := "dm_box"
 ## The fake peers' eyes and the player each rides on.
 var _eyes: Array[Node3D] = []
@@ -59,7 +59,7 @@ var _wire_bits: Dictionary = {}
 var _distance_bands: Dictionary = {}
 var _field_snaps := 0
 var _server: DotServer = null
-var _game: ArenaGame = null
+var _game: FcGame = null
 var _module = null
 var _net: DotNetManager = null
 var _client: Node = null
@@ -88,7 +88,7 @@ func _ready() -> void:
 	if _port != PORT:
 		_data = "%s_%d" % [DATA, _port]
 	DotLog.set_level(DotLog.Level.ERROR)
-	var _scratch := ArenaPresentation.use_scratch_settings("net_probe")
+	var _scratch := FcPresentation.use_scratch_settings("net_probe")
 	_run.call_deferred()
 
 
@@ -111,7 +111,7 @@ func _boot_server() -> void:
 	add_child(server_side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), server_side.get_path())
 
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = 64
 	_game.score_limit = 0
@@ -146,12 +146,12 @@ func _boot_server() -> void:
 	_server.auto_boot = false
 	server_side.add_child(_server)
 	await _server.boot()
-	await _server.modules.load_module("res://game/arena_module.gd")
+	await _server.modules.load_module("res://game/fc_module.gd")
 
 
 ## The map (and mode) the server plays; a probe built on this one overrides it.
 func _setup_game() -> void:
-	var m: ArenaMap = ArenaMap.by_id(StringName(_map_id))
+	var m: FcMap = FcMap.by_id(StringName(_map_id))
 	if m == null:
 		push_error("net_probe: no map '%s'" % _map_id)
 		get_tree().quit(2)
@@ -213,7 +213,7 @@ func _connect_client() -> void:
 	while not (spawned[0] or _link.is_playing()) and joined < 30.0:
 		await get_tree().create_timer(0.1).timeout
 		joined += 0.1
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("mouse_capture_override", true)
 	client_side.add_child(_client)
 
@@ -400,7 +400,7 @@ func _move_eyes() -> void:
 		var on := _eye_on[i]
 		if on != null and is_instance_valid(on):
 			_eyes[i].global_position = on.global_position + Vector3.UP * 0.01 * (floorf(float(i) / _eye_laps) + 1.0)
-			# And looks where its player looks, for dot-net's aim cone (ArenaNetAoi.aim_cone_deg).
+			# And looks where its player looks, for dot-net's aim cone (FcNetAoi.aim_cone_deg).
 			var identity := _eyes[i].get_child(0)
 			if &"interest_aim" in identity and on.has_method(&"aim_direction"):
 				identity.set(&"interest_aim", on.call(&"aim_direction"))
@@ -413,7 +413,7 @@ func _measure_and_report() -> void:
 	if _fields:
 		net.snapshot_sent.connect(_count_fields)
 	# The client's own sections (arena.net_snapshot is its whole snapshot apply), with a report interval no run reaches.
-	ArenaFrameProbe.set_interval(1.0e9)
+	FcFrameProbe.set_interval(1.0e9)
 	var sum_down := 0.0
 	var n_down := 0
 	var t := 0.0
@@ -454,10 +454,10 @@ func _measure_and_report() -> void:
 		(int(perf1[&"server_send_usec"]) - int(perf0[&"server_send_usec"])) / 1000.0 / nticks,
 		(int(perf1[&"server_sim_usec"]) - int(perf0[&"server_sim_usec"])) / 1000.0 / nticks,
 		nticks, net.registry.all().size()])
-	var applied: PackedInt64Array = ArenaFrameProbe._sections.get(&"net_snapshot", PackedInt64Array([0, 0, 0]))
+	var applied: PackedInt64Array = FcFrameProbe._sections.get(&"net_snapshot", PackedInt64Array([0, 0, 0]))
 	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d" % [
 		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1]])
-	ArenaFrameProbe.set_interval(0.0)
+	FcFrameProbe.set_interval(0.0)
 	var snaps := maxi(1, int(perf1[&"snap_snapshots"]) - int(perf0[&"snap_snapshots"]))
 	var ph := ""
 	for k in ["prepare", "reads", "interest", "build", "thaw", "begin", "nint", "submit", "join", "apply"]:

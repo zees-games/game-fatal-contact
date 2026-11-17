@@ -1,10 +1,10 @@
 extends SceneTree
 
-## The standalone flow: the real arena scene offline, a bot kills the local player, frames saved at
+## The standalone flow: the real Fatal Contact scene offline, a bot kills the local player, frames saved at
 ## death + 1 s, +3 s (kill view) and at match end (final killcam). Run: tools/solo_killview.sh [outdir]
 ## Exit 1 when the kill view never started.
 
-const ArenaContent := preload("res://game/arena_content.gd")
+const FcContent := preload("res://game/fc_content.gd")
 
 var _out := "res://screenshots/solo_killview"
 var _client: Node = null
@@ -17,7 +17,7 @@ func _initialize() -> void:
 		_out = args[0]
 	_final = args.size() > 1 and args[1] == "final"
 	DirAccess.make_dir_recursive_absolute(_out)
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	root.add_child(_client)
@@ -68,11 +68,11 @@ func _run() -> void:
 	var killer: Object = await _with_clear_view(game, me, bots)
 	var type = game.combat.damage_type(&"bullet")
 	if type == null:
-		type = game.combat.damage_type(ArenaContent.DAMAGE_BULLET)
+		type = game.combat.damage_type(FcContent.DAMAGE_BULLET)
 	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, type)
 	damage.weapon_id = &"smg"
 	damage.tick = game.current_tick()
-	# Harmless behind the loading cover (ArenaGame.can_be_harmed), so keep trying until it lifts.
+	# Harmless behind the loading cover (FcGame.can_be_harmed), so keep trying until it lifts.
 	for i in 60:
 		game.combat.apply_damage(_lethal(game, killer, me))
 		if not me.is_alive():
@@ -173,7 +173,7 @@ func _aim_at(who: Object, target: Object) -> void:
 
 func _lethal(game: Object, killer: Object, me: Object) -> DotDamage:
 	_aim_at(killer, me)
-	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, game.combat.damage_type(ArenaContent.DAMAGE_BULLET))
+	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, game.combat.damage_type(FcContent.DAMAGE_BULLET))
 	damage.weapon_id = &"smg"
 	damage.tick = game.current_tick()
 	return damage

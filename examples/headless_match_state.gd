@@ -1,34 +1,34 @@
 extends DotGameCheckSuite
 
-const ArenaAwards := preload("../game/arena_awards.gd")
-const ArenaBoards := preload("../game/arena_boards.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaEffects := preload("../game/arena_effects.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
-const ArenaFlashlight := preload("../game/arena_flashlight.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaHorde := preload("../game/arena_horde.gd")
-const ArenaHud := preload("../game/arena_hud.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapDirector := preload("../game/arena_map_director.gd")
-const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaMapPaint := preload("../maps/arena_map_paint.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaMapSurvey := preload("../maps/arena_map_survey.gd")
-const ArenaHudGlance := preload("../game/arena_hud_glance.gd")
-const ArenaMenus := preload("../game/arena_menus.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaModes := preload("../game/arena_modes.gd")
-const ArenaModule := preload("../game/arena_module.gd")
-const ArenaNpcs := preload("../game/arena_npcs.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaProjectiles := preload("../game/arena_projectiles.gd")
-const ArenaProps := preload("../game/arena_props.gd")
-const ArenaStats := preload("../game/arena_stats.gd")
-const ArenaVote := preload("../game/arena_vote.gd")
+const FcAwards := preload("../game/fc_awards.gd")
+const FcBoards := preload("../game/fc_boards.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcEffects := preload("../game/fc_effects.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const FcFlashlight := preload("../game/fc_flashlight.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcHorde := preload("../game/fc_horde.gd")
+const FcHud := preload("../game/fc_hud.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapDirector := preload("../game/fc_map_director.gd")
+const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcMapPaint := preload("../maps/fc_map_paint.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcMapSurvey := preload("../maps/fc_map_survey.gd")
+const FcHudGlance := preload("../game/fc_hud_glance.gd")
+const FcMenus := preload("../game/fc_menus.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcModes := preload("../game/fc_modes.gd")
+const FcModule := preload("../game/fc_module.gd")
+const FcNpcs := preload("../game/fc_npcs.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcProjectiles := preload("../game/fc_projectiles.gd")
+const FcProps := preload("../game/fc_props.gd")
+const FcStats := preload("../game/fc_stats.gd")
+const FcVote := preload("../game/fc_vote.gd")
 const WallRouteDriver := preload("wall_route_driver.gd")
-const ArenaWeaponIcons := preload("res://game/arena_weapon_icons.gd")
+const FcWeaponIcons := preload("res://game/fc_weapon_icons.gd")
 
 ## A whole deathmatch played out headlessly with nothing called by hand; exits non-zero on failure.
 
@@ -52,7 +52,7 @@ const SECTIONS := 46
 var _entered := 0
 var _completed := 0
 
-var _game: ArenaGame = null
+var _game: FcGame = null
 
 ## Observations gathered while the match runs. Arrays rather than counters: a lambda captures locals by value, so an int
 ## incremented in a signal handler stays zero outside it and the assertion blames a signal that fired.
@@ -60,7 +60,7 @@ var _kills: Array[DotKillFeed.Entry] = []
 
 ## The map vote riding along on the real match: what state the match was in, and what the
 ## leader had, each time a ballot opened. See [method _build_vote].
-var _vote: ArenaVote = null
+var _vote: FcVote = null
 var _vote_seen: Array = []
 var _spawns: Array[int] = []
 var _states: Array[String] = []

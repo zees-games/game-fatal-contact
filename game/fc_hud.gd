@@ -1,0 +1,768 @@
+@tool
+extends "fc_hud_labels.gd"
+
+const FcFlagView := preload("fc_flag_view.gd")
+const FcThrowMeter := preload("fc_throw_meter.gd")
+const FcHudAppPoints := preload("fc_hud_app_points.gd")
+
+## The knife throw's power bar under the crosshair: shown only while the aim key winds a throw up.
+var throw_bar: DotStatBar = null
+var throw_meter := FcThrowMeter.new()
+var _throw_fill: float = 0.0
+
+
+func _build_top() -> void:
+	feed = FcHudGlance.KillFeed.new()
+	feed.name = "KillFeed"
+	_place(feed, Control.PRESET_TOP_RIGHT, Rect2(-470.0, 0.0, 460.0, 170.0))
+	_fit_feed()
+	feed.lifetime_sec = config.feed_lifetime_sec if config != null else 6.0
+
+	strip = FcHudGlance.TeamStrip.new()
+	strip.name = "Scores"
+	_place(strip, Control.PRESET_CENTER_TOP, Rect2(-260.0, 0.0, 520.0, 72.0))
+
+	portraits = FcHudGlance.Portraits.new()
+	portraits.name = "Portraits"
+	_place(portraits, Control.PRESET_CENTER_TOP, Rect2(-270.0, 74.0, 540.0, 80.0))
+	portrait_cache = FcHudGlance.PortraitCache.new()
+	portrait_cache.name = "PortraitCache"
+	add_child(portrait_cache)
+
+	objective_label = _make_label(
+		"Objective", Control.PRESET_CENTER_TOP, Vector2(0.0, 154.0)
+	)
+	carry_label = _make_label("CarryFlag", Control.PRESET_CENTER_TOP, Vector2(0.0, 184.0))
+	carry_label.add_theme_font_size_override(&"font_size", 30)
+	carry_label.add_theme_color_override(&"font_color", Color(1.0, 0.9, 0.35))
+	carry_label.visible = false
+
+
+func build(p_game: FcGame) -> void:
+	game = p_game
+
+	_build_overlays()
+
+	scope = AwScopeOverlay.new()
+	scope.name = "Scope"
+	add_child(scope)
+
+	_build_crosshair()
+
+	# Bottom left: health as a thick bar with its number at the end, armour as a thin one
+	# under it when there is any. The bars ease and the numbers do not (`DotVitals`).
+	vitals = DotVitals.new()
+	vitals.name = "Vitals"
+	_place(vitals, Control.PRESET_BOTTOM_LEFT, Rect2(0.0, -112.0, 380.0, 104.0))
+	vitals.streak_icon = Look.medal_icon("fire")
+	vitals.bar_start = 38.0
+	vitals.bar_end = 300.0
+
+	# Bottom right: the weapon's name, then `magazine | reserve`.
+	ammo = DotAmmoCounter.new()
+	ammo.name = "Ammo"
+	_place(ammo, Control.PRESET_BOTTOM_RIGHT, Rect2(-300.0, -84.0, 290.0, 70.0))
+
+	# The right edge below 110 px belongs to the client shell's ballot column (`SHELL_COLUMN_TOP`)
+	# and this game cannot see when one is open, so the hints sit left and the weapon slots
+	# stack up from the ammunition counter (checked with `screenshot.sh --glance --ballot`).
+	hints = DotKeyHints.new()
+	hints.name = "KeyHints"
+	# Seven rows: started high so the last ends above the streak meter's words.
+	_place(hints, Control.PRESET_CENTER_LEFT, Rect2(62.0, -170.0, 200.0, 196.0))
+
+	slots = FcHudGlance.WeaponSlots.new()
+	slots.name = "Slots"
+	_place(slots, Control.PRESET_BOTTOM_RIGHT, Rect2(-170.0, -294.0, 160.0, 202.0))
+
+	# Bottom left, above the health: the bottom centre is where the held weapon's viewmodel is drawn, and the icons covered it.
+	abilities = FcHudGlance.AbilityBar.new()
+	abilities.name = "Abilities"
+	# On a phone the thumbs' cluster (FcTouch.LAYOUT) fills the right edge ~370 units in; the bar sits left of it.
+	var abilities_gap: float = preload("fc_touch.gd").CLUSTER_WIDTH if DotPlatform.has_touch() else 0.0
+	_place(abilities, Control.PRESET_CENTER_RIGHT, Rect2(-388.0 - abilities_gap, -45.0, 380.0, 90.0))
+
+	# Over the middle: chevrons toward whoever hurt you.
+	damage_dirs = FcHudDamageDirs.new()
+	damage_dirs.name = "DamageDirs"
+	_place(damage_dirs, Control.PRESET_FULL_RECT, Rect2(0.0, 0.0, 0.0, 0.0))
+
+	slide_label = DotKeyPrompt.new()
+	slide_label.name = "Prompt"
+	_place(slide_label, Control.PRESET_CENTER, Rect2(-330.0, 120.0, 300.0, 36.0))
+	slide_label.visible = false
+
+	throw_bar = DotStatBar.new()
+	throw_bar.name = "ThrowMeter"
+	throw_bar.max_value = 1.0
+	throw_bar.show_text = false
+	throw_bar.bar_height = 8.0
+	throw_bar.ease_sec = 0.0
+	throw_bar.low_fraction = 0.0
+	throw_bar.fill_colour = Color(0.95, 0.78, 0.25, 1.0)
+	_place(throw_bar, Control.PRESET_CENTER, Rect2(-60.0, 52.0, 120.0, 10.0))
+	var _bound := throw_bar.bind(func() -> float: return _throw_fill)
+	throw_bar.visible = false
+
+	_build_top()
+
+	# No match, nothing to score: a render tool or a suite building the HUD alone.
+	strip.visible = game != null
+	portraits.visible = game != null
+
+	if game != null:
+		game.player_killed.connect(_on_kill)
+
+
+## The crosshair, bound to the weapon's spread.
+func _build_crosshair() -> void:
+	crosshair = DotCrosshair.new()
+	crosshair.name = "Crosshair"
+	crosshair.set_anchors_preset(Control.PRESET_FULL_RECT)
+	crosshair.fov_degrees = 75.0
+	crosshair.length = 7.0
+	crosshair.base_gap = 3.0
+	crosshair.thickness = 2.0
+	# Bound to the weapon's actual spread, so the crosshair opening means something.
+	# A crosshair that opens by an arbitrary factor tells the player something
+	# confident and wrong about where their shots will go.
+	crosshair.bind(func() -> Variant:
+		return player.spread_degrees() if _live() else 0.0
+	)
+	if _crosshair_hides:
+		crosshair.set(&"alive_source", func() -> bool: return _live() and player.is_alive())
+	add_child(crosshair)
+
+
+## Adds [param piece] with [param preset]'s anchors and [param rect] as its offsets from
+## them. Every piece ignores the mouse: a HUD that takes a click eats the shot.
+func _place(piece: Control, preset: Control.LayoutPreset, rect: Rect2) -> void:
+	piece.set_anchors_preset(preset)
+	piece.offset_left = rect.position.x
+	piece.offset_top = rect.position.y
+	piece.offset_right = rect.end.x
+	piece.offset_bottom = rect.end.y
+	piece.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Icons drawn smaller than their files: without mipmaps a silhouette's thin parts break up.
+	piece.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	add_child(piece)
+
+
+## Where each piece of the HUD draws, in frame pixels: what it puts on screen, not its
+## `Control`'s box (the feed's box is 460 wide; its rows are as wide as their names). Only
+## pieces drawn now. What `headless_presentation` checks for overlap on small frames.
+func footprints() -> Dictionary:
+	var out := {}
+	var pieces := {
+		"scores": strip, "portraits": portraits, "feed": feed, "vitals": vitals,
+		"ammo": ammo, "slots": slots, "abilities": abilities, "hints": hints,
+		"prompt": slide_label, "medals": medal_row,
+	}
+	for key: String in pieces:
+		var piece: Control = pieces[key]
+		if piece == null or not piece.is_visible_in_tree():
+			continue
+		var local: Rect2 = piece.call(&"footprint")
+		if local.has_area():
+			out[key] = piece.get_global_transform() * local
+	for label: Label in [notice_label, objective_label, death_label, points_label, app_points_label]:
+		if label != null and label.is_visible_in_tree() and label.text != "":
+			out[String(label.name)] = label.get_global_rect()
+	return out
+
+
+## Points the HUD at a player. Called on every spawn.
+##
+## The widgets hold a `Callable` that reads `player`, so re-pointing this one field
+## repoints all of them. Binding each widget to a body would mean rebinding six
+## callables every time someone respawns, and the one that got missed would show the
+## previous life's health for ever.
+func follow(p_player: FcPlayer) -> void:
+	player = p_player
+
+
+
+
+## Gives the crosshair the field of view the camera is actually drawing with.
+##
+## [b]The crosshair turns an angle of spread into pixels, and that conversion is only
+## as right as the field of view it is given.[/b] It was a constant 75 here while the
+## camera was the player's own setting converted from horizontal-at-4:3 — 83.6 degrees
+## vertical at the default of 100 — so every gap was drawn 17% wider than the cone the
+## shots actually leave in, and at a setting of 120 it was 69% wider. A crosshair that is
+## confidently wrong about where the shots go is exactly what `DotCrosshair` says it
+## exists to avoid.
+##
+## Read off the camera once a frame rather than pushed from the settings, because the
+## camera is the one place the field of view is written: a player's slider, a server's
+## clamp and the first `attach_camera` all end there, and a copy fed by one of them
+## would disagree with the other two.
+func match_view() -> void:
+	if crosshair == null or not _live() or player.camera == null:
+		return
+
+	crosshair.fov_degrees = player.camera.fov
+
+
+## Puts a kill on the feed.
+##
+## Public because on a NETWORKED client nothing local scores anything: `game.player_killed`
+## fires on the server, and the client learns about a kill from an `FcEvents.Kind.KILL`
+## event. `FcClient` rebuilds the entry and calls this; the signal path below is the
+## offline and listen-server one. Both end in the same place deliberately — a feed that
+## looked different depending on how the kill arrived would be two feeds.
+func show_kill(entry: DotKillFeed.Entry) -> void:
+	_on_kill(entry)
+
+
+## A kill's cause as a player reads it: a weapon's display name ("Machine Pistol", not
+## `machine_pistol`), and anything that is not a weapon — a monster, `slay`, the world —
+## as it came.
+static func cause_label(cause: Variant) -> String:
+	var def := FcPlayer.weapon_catalogue().get_def(StringName(str(cause)))
+	return def.display_name if def != null else str(cause)
+
+
+func _on_kill(entry: DotKillFeed.Entry) -> void:
+	if feed == null:
+		return
+
+	var me := str(player.player_id) if _live() else ""
+
+	feed.add_kill(
+		entry.killer_name if entry.killer_key != entry.victim_key else "",
+		_name_colour(entry.killer_key, entry.killer_team, me),
+		entry.cause,
+		cause_label(entry.cause),
+		entry.victim_name,
+		_name_colour(entry.victim_key, entry.victim_team, me),
+		entry.headshot,
+		me != "" and (entry.killer_key == me or entry.victim_key == me)
+	)
+
+
+
+
+
+
+## Fills the feed from kills that happened before this HUD existed.
+##
+## What a client joining a match in progress needs, and what a HUD rebuilt after a
+## settings change needs. `DotKillFeed` is bounded and keeps its entries, so the last
+## few are always available -- taking them is one call and not having it is a feed that
+## is empty until the next person dies.
+func catch_up(since_tick: int = -1) -> int:
+	if game == null or feed == null:
+		return 0
+
+	var entries := (
+		game.match_node.feed.recent(feed.max_lines) if since_tick < 0
+		else game.match_node.feed.since(since_tick)
+	)
+
+	for entry in entries:
+		_on_kill(entry)
+
+	return entries.size()
+
+
+## Refreshes the two labels that are not widgets.
+##
+## The round timer and the score are read once a frame rather than through a
+## `DotHudWidget`, because both are strings assembled from several values and a widget
+## exists to bind one.
+func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+	var t := Time.get_ticks_usec()
+	_present(delta)
+	FcFrameProbe.add(&"hud", t)
+
+
+func _present(delta: float) -> void:
+	match_view()
+	present_blind(delta)
+	present_body()
+
+	if feed != null:
+		feed.advance(delta)
+	present_gear()
+	make_room()
+
+
+## Everything the strip, the portrait row and the text lines show, off the frame path ([constant SLOW_PERIOD]).
+func _present_slow() -> void:
+	if Engine.is_editor_hint() or game == null or strip == null:
+		return
+	present_scores()
+	_portraits_in -= SLOW_PERIOD
+	if _portraits_in <= 0.0:
+		_portraits_in = 0.25
+		present_portraits()
+
+	if objective_label != null:
+		objective_label.text = _objective_line()
+	if carry_label != null:
+		var carrying := carrying_flag_text()
+		carry_label.text = carrying
+		carry_label.visible = carrying != ""
+
+
+## The clock, the two scores, the target and the mode, into the strip. Public so a render
+## tool or a suite can put it up without a frame.
+func present_scores() -> void:
+	# The override first, when there is one.
+	#
+	# [b]A networked client's own `DotMatch` never runs.[/b] Nothing ticks it, so
+	# `seconds_remaining()` is derived from `_ticks_in_state` against a `_current_tick`
+	# that is still 0 — a number nothing ever wrote, not a stale one. A connected
+	# browser client showed "IDLE" for ever while the server was playing a round.
+	# `FcClient` writes the server's figure here from the MATCH event.
+	var remaining := (
+		remaining_override if not is_nan(remaining_override)
+		else game.match_node.seconds_remaining()
+	)
+	var clock := (
+		String(DotMatch.State.keys()[game.match_node.state]).capitalize() if remaining < 0.0
+		# Rounded up, so the clock never says 0:00 with time left (dot-ui's; Fatal Contact's own
+		# rounded down until 2026-10-11).
+		else DotScoreStrip.clock_text(remaining)
+	)
+	var mode := game.displayed_mode()
+	var limit := game.match_node.rules.score_limit if game.match_node.rules != null else 0
+	strip.show_clock(clock, remaining >= 0.0 and remaining <= 30.0,
+		"First to %d" % limit if limit > 0 else "", mode.display_name if mode != null else "")
+
+	var board := game.match_node.scoreboard
+	var me := str(player.player_id) if _live() else ""
+	var mine_record: DotPlayerScore = board.find(me) if me != "" else null
+	# The sides from the game, not the match: a client's own match (solo's too) never has teams; the server's arrive as TEAM events.
+	if mode != null and mode.is_team_mode():
+		var sides: Array[DotTeam] = []
+		for side in game.teams():
+			if not side.is_spectator:
+				sides.append(side)
+		if sides.size() >= 2:
+			# Your side first: on the left, next to the clock, as the genre has it.
+			var mine := game.team_of(player.player_id) if _live() else 0
+			for i in sides.size():
+				if sides[i].id == mine:
+					sides.push_front(sides.pop_at(i))
+					break
+			var rows: Array[Dictionary] = []
+			for side in sides:
+				rows.append({"tag": _side_tag(side), "score": _side_score(side), "colour": side.colour})
+			if rows.size() == 2:
+				_show_scores(int(rows[0]["score"]), int(rows[1]["score"]), rows[0]["tag"], rows[1]["tag"], rows[0]["colour"], rows[1]["colour"])
+			else:
+				strip.show_teams(rows)
+			return
+	# A free-for-all: you, and whoever is ahead of you (behind you, when you lead).
+	var other: DotPlayerScore = null
+	for record in board.ranked():
+		if record.present and record != mine_record:
+			other = record
+			break
+	var leading := mine_record != null and (other == null or mine_record.score >= other.score)
+	_show_scores(
+		mine_record.score if mine_record != null else 0, other.score if other != null else 0,
+		"YOU", "%s  %s" % ["2ND" if leading else "1ST", other.display_name.to_upper() if other != null else "-"],
+		FcHudGlance.BLUE, FcHudGlance.RED)
+
+
+
+
+
+
+
+
+## The ranked row under the strip: a portrait, rank and kill count per player; in a mode scored
+## by objectives ranked by captures, then kills, and showing both. Yours is kept in the last
+## place when you rank below what is shown.
+func present_portraits() -> void:
+	var entries: Array[Dictionary] = []
+	var me := str(player.player_id) if _live() else ""
+	var mode := game.displayed_mode()
+	var teams := mode != null and mode.is_team_mode()
+	var objective := mode != null and mode.objective_layout != &""
+	var order: Array[DotPlayerScore] = []
+	for record in (FcEvents.ranked_by_objectives(game.match_node.scoreboard) if objective else game.match_node.scoreboard.ranked()):
+		if record.present:
+			order.append(record)
+	var ids: Array = []
+	for i in order.size():
+		var record := order[i]
+		var shown := i < FcHudGlance.Portraits.MAX_SHOWN
+		if not shown and record.key != me:
+			continue
+		var id := int(record.key) if record.key.is_valid_int() else 0
+		var who := game.player_for(id) if id != 0 else null
+		var avatar: DotAvatar = who.avatar if who != null and who.avatar != null \
+			else FcAvatars.stock_avatar(StringName(FcGame.storage_key(id)))
+		var side := _team_colour(game.team_of(id)) if teams and id != 0 else Color(0, 0, 0, 0)
+		var entry := {
+			"name": record.display_name, "rank": i + 1, "kills": record.kills, "me": record.key == me,
+			"objectives": FcEvents.objectives_of(record),
+			"ring": side if side.a > 0.0 else Color(1, 1, 1, 0.85),
+			"colour": Color.from_hsv(fmod(float(id) * 0.37, 1.0), 0.55, 0.85),
+			"texture": portrait_cache.portrait(id, avatar) if portrait_cache != null else null,
+		}
+		if shown:
+			entries.append(entry)
+			ids.append(id)
+		else:
+			entries[entries.size() - 1] = entry
+			ids[ids.size() - 1] = id
+	portraits.show_players(entries, objective)
+	if portrait_cache != null:
+		portrait_cache.keep_only(ids)
+
+
+## Health, ammunition, the carried weapons and the key hints, from the followed player.
+func present_gear() -> void:
+	var live := _live() and player.is_alive()
+	if vitals != null:
+		vitals.visible = _live()
+		if _live() and player.health != null:
+			vitals.show_vitals(player.health.health, player.health.max_health, player.health.armour, player.health.max_armour)
+
+	var slot: DotWeaponSlot = player.arsenal.current() if live and player.arsenal != null else null
+	var fire_key := String(keys.get(&"fire_mode", ""))
+	if ammo != null and slot != null and (slot != _label_slot or slot.def != _label_def or slot.fire_mode() != _label_mode or fire_key != _label_key):
+		_label_slot = slot
+		_label_def = slot.def
+		_label_mode = slot.fire_mode()
+		_label_key = fire_key
+		_weapon_label = mode_label(slot, fire_key)
+	if ammo != null:
+		if slot == null:
+			ammo.show_ammo("", -1, -1, false)
+		elif slot.def.magazine <= 0 and slot.def.ammo_type == &"":
+			ammo.show_ammo(_weapon_label, -1, -1, false)
+		elif slot.def.magazine <= 0:
+			var pool := player.arsenal.ammo().count(slot.def.ammo_type)
+			ammo.show_ammo(_weapon_label, pool, -1, pool <= 0)
+		else:
+			var reserve := player.arsenal.ammo().count(slot.def.ammo_type) if slot.def.ammo_type != &"" else -1
+			ammo.show_ammo(_weapon_label, slot.magazine, reserve,
+				float(slot.magazine) <= float(slot.def.magazine) * 0.25)
+
+	# The slot rows and the key hints are rebuilt (and compared as text by their widgets) only when what they show
+	# from changes: an integer over the keys, the carried weapons and the mode, not two arrays and strings a frame.
+	var key_sig := keys.hash()
+	if slots != null:
+		# On a phone the right edge belongs to Fire, Jump and Next; the held weapon is on the ammunition plate.
+		slots.visible = not DotPlatform.has_touch()
+		var arsenal: DotWeaponArsenal = player.arsenal if live else null
+		var row_sig := hash([key_sig, live, arsenal.get_instance_id() if arsenal != null else 0])
+		if arsenal != null:
+			row_sig = hash([row_sig, arsenal.current_slot()])
+			for index in arsenal.slots():
+				var held := arsenal.slot_at(index)
+				row_sig = hash([row_sig, index, held.def.get_instance_id() if held != null and held.def != null else 0])
+		if row_sig != _rows_sig:
+			_rows_sig = row_sig
+			_present_slots(live)
+
+	if hints != null:
+		# Keyboard keys mean nothing on a phone, and the list covers the view there.
+		hints.visible = live and not DotPlatform.has_touch() and _hints_wanted()
+		var shown_mode: Variant = game.displayed_mode() if game != null else null
+		var arms := shown_mode != null and bool(shown_mode.call(&"arms_players"))
+		var hint_sig := hash([key_sig, shown_mode == null, arms])
+		if hint_sig != _hints_sig:
+			_hints_sig = hint_sig
+			_present_hints(shown_mode == null or not arms)
+
+
+## The key list's setting (`hud_key_hints`): first, always or off, and how long "first" keeps it up (`hud_key_hints_sec`, 0 = forever).
+## Set by the client each frame: a menu, the Help page or another panel is open over the HUD.
+var overlay_open := false
+var damage_dirs: FcHudDamageDirs = null
+var hint_mode: StringName = &"first"
+var hint_seconds: float = 30.0
+var _hints_since_msec := -1
+
+func _hints_wanted() -> bool:
+	if hint_mode == &"off":
+		return false
+	if hint_mode == &"always":
+		return true
+	if _hints_since_msec < 0:
+		_hints_since_msec = Time.get_ticks_msec()
+	return hint_seconds <= 0.0 or float(Time.get_ticks_msec() - _hints_since_msec) / 1000.0 < hint_seconds
+
+
+## The signatures of what the slot rows and the key hints last showed ([method present_gear]); -1 forces a rebuild.
+var _rows_sig := -1
+var _hints_sig := -1
+
+## The rows [method _present_slots] and [method _present_hints] refill on a change; both widgets keep a copy.
+var _slot_rows: Array[Dictionary] = []
+var _hint_rows: Array = []
+
+
+func _present_slots(live: bool) -> void:
+	var rows := _slot_rows
+	rows.clear()
+	if live and player.arsenal != null:
+		for index in player.arsenal.slots():
+			var held := player.arsenal.slot_at(index)
+			if held != null:
+				rows.append({"slot": index, "id": held.def.id, "name": held.def.display_name,
+					"key": String(keys.get(SLOT_KEYS[index] if index < SLOT_KEYS.size() else &"", String.num_int64(index)))})
+	slots.show_slots(rows, player.arsenal.current_slot() if live and player.arsenal != null else 0)
+
+
+func _present_hints(loadout_menu: bool) -> void:
+	var shown := _hint_rows
+	shown.clear()
+	shown.append_array([["Scoreboard", keys[&"scoreboard"]], ["Menu", keys[&"menu"]], ["Help", keys[&"help"]],
+		["Maps", keys[&"maps"]]])
+	# The loadout's key only where there is a loadout menu: an older shell, or a mode that
+	# hands out the weapons, has none to open.
+	if String(keys.get(&"loadout", "")) != "" and loadout_menu:
+		shown.append(["Loadout", keys[&"loadout"]])
+	shown.append_array([["Chat", keys[&"chat"]], ["Slide", keys[&"slide"]]])
+	hints.show_hints(shown)
+
+
+
+
+
+
+## The throw bar: filled by the time the followed player has held the aim key with the knife in hand
+## (the server's `fc_knife_throw_charge` and `_charge_sec`, followed on the client). Public so a suite
+## can drive it with a chosen [param delta]. Returns the fill shown, or -1 when hidden.
+func present_throw_meter(delta: float, live: bool) -> float:
+	var winding := false
+	if live and game != null and game.knives != null and player.arsenal != null and player.aim_held:
+		var def: DotWeaponDef = player.arsenal.current_def()
+		winding = def != null and def.id == game.knives.weapon_id and player.is_alive()
+	var fill := throw_meter.advance(delta, winding, game.knife_rules if game != null else {})
+	# The authority's game writes the windup itself; a client's followed player takes the meter.
+	if game != null and not game.is_authority and player != null:
+		player.windup = fill
+	if throw_bar != null:
+		throw_bar.visible = fill >= 0.0
+		_throw_fill = maxf(fill, 0.0)
+		throw_bar.refresh()
+	return fill
+
+
+## The scope, the hurt edge, the launch's readiness and the slide prompt, from the
+## followed player. Public so a suite can drive it without a frame.
+func present_body() -> void:
+	var live := _live()
+	var hands: AwViewModel = (
+		player.weapons.view_model() as AwViewModel
+		if live and player.weapons != null else null
+	)
+	# The scope's view comes up over the aim-in (aw_ads_rules), so the crosshair gives way as it does.
+	var scope_up := hands != null and hands.scope_fraction() > 0.0
+
+	if scope != null:
+		if hands != null:
+			scope.follow(hands)
+			if scope.mode == 1 and player.camera != null:
+				scope.bind_camera(player.camera, (1 << (hands.view_layer - 1)) if hands.view_layer > 0 else 0)
+		else:
+			scope.fraction = 0.0
+		if scope_up:
+			_fill_viewport(scope)
+	if crosshair != null:
+		# The scope has its own reticle; a crosshair drawn over it is two.
+		# Dead or in a kill view: DotCrosshair hides itself (alive_source); older dot-ui is hidden here.
+		crosshair.visible = not scope_up and (_crosshair_hides or (live and player.is_alive()))
+		# Down an iron sight the sight is the aiming mark: the crosshair fades out as the gun
+		# comes up and back as it goes down (dot-ui's DotCrosshair, API 5; Christian's first
+		# play test had both on screen at once). Hip fire keeps it.
+		if _crosshair_fades:
+			crosshair.call(&"set_aim", hands.aim_fraction() if hands != null and not scope_up else 0.0)
+
+	_present_hurt(live)
+	present_throw_meter(get_process_delta_time(), live)
+
+	var state: DotFpsState = player.controller.state if live else null
+	var tunables: DotFpsTunables = player.controller.tunables if live else null
+	present_abilities(state, tunables)
+
+	_present_prompt(state, live)
+
+	_build_feedback()
+	if death_label == null:
+		death_label = _make_label("Death", Control.PRESET_CENTER_TOP, Vector2(0.0, 222.0))
+		death_label.add_theme_font_size_override(&"font_size", 22)
+
+	var delta := get_process_delta_time()
+	var streak := int(streaks.get(player.player_id, 0)) if player != null else 0
+	vitals.show_streak(streak, STREAK_FULL)
+	# The hit marker and the damage numbers advance themselves (`DotHudPiece._process`).
+	medal_row.advance(delta)
+
+	if notice_label != null:
+		# A menu or the Help page is open over the notice: its text was drawn across the page's header.
+		notice_label.visible = not overlay_open
+		_notice_age += delta
+		notice_label.modulate.a = clampf((NOTICE_SEC - _notice_age) / 0.5, 0.0, 1.0)
+
+	death_label.visible = player != null and not player.is_alive() and _death_text != ""
+	death_label.text = _death_text
+
+	_present_points(live)
+
+	_advance_popups(get_process_delta_time())
+
+
+## What can be done right now, as the genre prompts it.
+func _present_prompt(state: DotFpsState, live: bool) -> void:
+	if slide_label != null:
+		if state != null and state.is_sliding():
+			slide_label.show_prompt("Cancel slide", _key_label(&"slide"))
+		elif live and player.is_alive() and _needs_reload():
+			slide_label.show_prompt("Reload", _key_label(&"reload"))
+		elif live and player.is_alive() and use_hint != "":
+			slide_label.show_prompt(use_hint, _key_label(&"use"))
+		elif roam_hint != "" and player != null and not player.is_alive():
+			slide_label.show_prompt(roam_hint, _key_label(&"roam"))
+		else:
+			slide_label.show_prompt("", "")
+
+
+## The points count, top left, and the popup when it grows.
+func _present_points(live: bool) -> void:
+	if points_label == null:
+		# Top left: a count, not something to watch.
+		points_label = _make_label("Points", Control.PRESET_TOP_LEFT, Vector2(0.0, 8.0))
+		points_label.grow_horizontal = Control.GROW_DIRECTION_END
+		points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		points_label.offset_left = 8.0
+		points_label.add_theme_color_override(&"font_color", Color(1.0, 0.82, 0.25))
+	var count := 0
+	if live and game != null and game.drops != null:
+		count = int(game.drops.points.get(player.player_id, 0))
+	points_label.visible = count > 0
+	points_label.text = points_text(count)
+
+	if app_points_label == null:
+		app_points_label = _make_label("AppPoints", Control.PRESET_TOP_LEFT, FcHudAppPoints.OFFSET)
+		app_points_label.grow_horizontal = Control.GROW_DIRECTION_END
+		app_points_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		app_points_label.offset_left = 8.0
+		app_points_label.add_theme_color_override(&"font_color", FcHudAppPoints.INK)
+	var holder: Object = null
+	if live:
+		holder = player
+	FcHudAppPoints.present(app_points_label, holder)
+
+	if _points_seen >= 0 and count > _points_seen:
+		popup("".join(["+", points_text(count - _points_seen)]), Color(1.0, 0.82, 0.25))
+	_points_seen = count
+
+
+## Covers the whole viewport, like the blind: the HUD's own size leaves the safe-area strip showing.
+func _fill_viewport(control: Control) -> void:
+	if not is_inside_tree():
+		return
+	var inverse := get_global_transform().affine_inverse()
+	control.position = inverse * Vector2.ZERO
+	control.size = inverse.basis_xform(get_viewport_rect().size)
+
+
+## The key a prompt names; none on a touch device, which has no keyboard.
+func _key_label(action: StringName) -> String:
+	return "" if DotPlatform.has_touch() else String(keys[action])
+
+
+## The red edge from low health and from a flash.
+func _present_hurt(live: bool) -> void:
+	if hurt_overlay == null:
+		return
+	var hurt := 0.0
+	if live and player.health != null and player.health.max_health > 0.0:
+		var fraction := player.health.health / player.health.max_health
+		hurt = clampf((HURT_FROM - fraction) / HURT_FROM, 0.0, 1.0)
+	if live and flash_source != null and is_instance_valid(flash_source):
+		var flash: Color = flash_source.get(&"flash_colour")
+		hurt = maxf(hurt, minf(flash.a * HURT_PULSE_GAIN, HURT_PULSE_MAX))
+	hurt_overlay.modulate.a = hurt
+	if hurt > 0.0:
+		_fill_viewport(hurt_overlay)
+
+
+## The ability buttons from the followed player's movement state: slide, launch and dash
+## with their cooldowns, and the wall jump with its jumps left in the air. Only the ones
+## the server's rules turn on.
+func present_abilities(state: DotFpsState, tunables: DotFpsTunables) -> void:
+	if abilities == null:
+		return
+	var buttons: Array[Dictionary] = []
+	if state != null and tunables != null:
+		if tunables.slide_enabled:
+			buttons.append(_button(&"slide", "Slide", state.slide_cooldown_left, tunables.slide_cooldown, state.is_sliding()))
+		if tunables.launch_enabled:
+			buttons.append(_button(&"launch", "Launch", state.launch_cooldown_left, tunables.launch_cooldown, false))
+		if tunables.dash_enabled:
+			buttons.append(_button(&"dash", "Dash", state.dash_cooldown_left, tunables.dash_cooldown, false))
+		if tunables.wall_jump_enabled:
+			var b := _button(&"wall_jump", "Wall jump", 0.0, 0.0, state.is_wall_running())
+			b["key"] = keys[&"jump"]
+			b["pips_max"] = tunables.wall_jump_max_per_air
+			b["pips"] = maxi(0, tunables.wall_jump_max_per_air - state.wall_jumps_in_air)
+			buttons.append(b)
+	abilities.visible = not buttons.is_empty()
+	abilities.show_buttons(buttons)
+
+
+func _button(id: StringName, label: String, left: float, total: float, active: bool) -> Dictionary:
+	return {
+		"id": id, "label": label, "key": str(keys.get(id, "")), "left": maxf(left, 0.0), "total": total,
+		"active": active, "icon": FcHudGlance.Ink.texture("%s/%s.png" % [FcHudGlance.HUD_ICON_DIR, String(id)]),
+	}
+
+
+## An empty magazine with rounds in reserve: the moment to say R.
+func _needs_reload() -> bool:
+	if player.arsenal == null:
+		return false
+	var slot := player.arsenal.current()
+	if slot == null or slot.def.magazine <= 0 or slot.magazine > 0 or slot.def.ammo_type == &"":
+		return false
+	return player.arsenal.ammo().count(slot.def.ammo_type) > 0 and not player.arsenal.is_reloading()
+
+
+## Fades [member blind_overlay] toward whether the followed player is blinded.
+##
+## Read off [member player] rather than pushed by anybody, because the flag arrives in a
+## snapshot on a networked client and is set directly offline, and a HUD that had to be
+## told would need telling from two places. Public so a check can step it.
+func present_blind(delta: float) -> void:
+	if blind_overlay == null:
+		return
+
+	var want := 1.0 if _live() and player.blinded else 0.0
+	blind_overlay.modulate.a = move_toward(
+		blind_overlay.modulate.a, want, maxf(delta, 0.0) / BLIND_FADE_SEC
+	)
+	blind_overlay.visible = blind_overlay.modulate.a > 0.0
+
+	if blind_overlay.visible and is_inside_tree():
+		# The whole viewport, in this HUD's own coordinates — whatever the safe area and
+		# the interface scale did to where this HUD starts.
+		var inverse := get_global_transform().affine_inverse()
+		blind_overlay.position = inverse * Vector2.ZERO
+		blind_overlay.size = inverse.basis_xform(get_viewport_rect().size)
+
+
+## What the followed player carries, as a line for the screen: "YOU HAVE THE RED FLAG - TAKE IT TO YOUR BASE", or "" when they carry nothing.
+func carrying_flag_text() -> String:
+	if game == null or game.objectives == null or game.objectives.ctf == null or not _live():
+		return ""
+	var ctf: DotObjectiveCtf = game.objectives.ctf
+	var me := str(player.player_id)
+	for flag in ctf.flags():
+		if flag.state == DotObjectiveFlag.State.CARRIED and flag.carrier == me:
+			return "YOU HAVE THE %s FLAG - TAKE IT TO YOUR BASE" % FcFlagView.name_of(flag.home_team())
+	return ""
+
+

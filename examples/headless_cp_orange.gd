@@ -1,17 +1,17 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaFlagView := preload("../game/arena_flag_view.gd")
-const ArenaHud := preload("../game/arena_hud.gd")
-const ArenaObjectives := preload("../game/arena_objectives.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaModes := preload("../game/arena_modes.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaImportedMaps := preload("../maps/arena_imported_maps.gd")
-const ArenaBspMap := preload("../maps/arena_bsp_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcFlagView := preload("../game/fc_flag_view.gd")
+const FcHud := preload("../game/fc_hud.gd")
+const FcObjectives := preload("../game/fc_objectives.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcModes := preload("../game/fc_modes.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
+const FcBspMap := preload("../maps/fc_bsp_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## cp-orange-x3 (fc-dm-maps), a large control point map: its team spawns are red and blue, the
 ## manifest lists the modes it hosts, and CTF puts the flags where `flag_spawns` says. Skips
@@ -20,7 +20,7 @@ const ArenaPlayer := preload("../game/arena_player.gd")
 const MAP := &"cp-orange-x3"
 const BOTS := 12
 
-var _game: ArenaGame = null
+var _game: FcGame = null
 
 
 func _ready() -> void:
@@ -31,13 +31,13 @@ func _ready() -> void:
 func _run() -> void:
 	print("arena — cp-orange-x3: team spawns, modes, flags, routes")
 
-	if not ArenaImportedMaps.has(MAP):
-		print("no %s under maps/imported_dm — nothing to check (link arena-dm-maps)" % MAP)
+	if not FcImportedMaps.has(MAP):
+		print("no %s under maps/imported_dm — nothing to check (link fc-dm-maps)" % MAP)
 		_report_sections(0, 0, 0, -1)
 		return
 
 	print("-- the manifest's spawns, modes and flags reach the map")
-	var map: ArenaMap = ArenaMap.by_id(MAP)
+	var map: FcMap = FcMap.by_id(MAP)
 	var red := 0
 	var blue := 0
 	for index in map.spawns.size():
@@ -81,10 +81,10 @@ func _run() -> void:
 	await _run_part2(map, red, blue)
 
 
-func _run_part2(map: ArenaMap, red: int, blue: int) -> void:
+func _run_part2(map: FcMap, red: int, blue: int) -> void:
 	print("-- spawns stand on a floor")
 	var space := get_viewport().world_3d.direct_space_state
-	_game = _new_game(ArenaMode.team_deathmatch(5))
+	_game = _new_game(FcMode.team_deathmatch(5))
 	_check(_game != null, "team deathmatch sets up on it")
 	var floored := 0
 	for spawn in _game.map.spawns:
@@ -95,12 +95,12 @@ func _run_part2(map: ArenaMap, red: int, blue: int) -> void:
 	_check(floored == _game.map.spawns.size(), "every spawn has ground within 1.5 m below (%d of %d)" % [floored, _game.map.spawns.size()])
 
 	print("-- the sky stops shots as before but takes no marks")
-	var skies := get_tree().get_nodes_in_group(ArenaBspMap.SKY_GROUP)
+	var skies := get_tree().get_nodes_in_group(FcBspMap.SKY_GROUP)
 	_check(not skies.is_empty(), "the sky brushes are marked by their own area (%d)" % skies.size())
 	var sky_area := (skies[0] if not skies.is_empty() else null) as Area3D
 	var world_body := (sky_area.get_parent() if sky_area != null else null) as StaticBody3D
-	_check(sky_area != null and world_body != null and sky_area.collision_layer == ArenaBspMap.SKY_BIT \
-		and world_body.collision_layer & ArenaBspMap.SKY_BIT == 0, "on a layer of its own, beside the world body")
+	_check(sky_area != null and world_body != null and sky_area.collision_layer == FcBspMap.SKY_BIT \
+		and world_body.collision_layer & FcBspMap.SKY_BIT == 0, "on a layer of its own, beside the world body")
 	_check(sky_area != null and str(sky_area.get_meta(&"hull_kind", "")) == "sky", "tagged hull_kind sky, which the weapon effects skip")
 	var world_shapes := {}
 	for shape: Node in (world_body.get_children() if world_body != null else []):
@@ -134,7 +134,7 @@ func _run_part2(map: ArenaMap, red: int, blue: int) -> void:
 			var top := Vector3(sky_box.position.x + sky_box.size.x * (gx + 0.5) / 16.0, sky_box.end.y - 3.0,
 				sky_box.position.z + sky_box.size.z * (gz + 0.5) / 16.0)
 			var down := space.intersect_ray(PhysicsRayQueryParameters3D.create(top, Vector3(top.x, sky_box.position.y - 1.0, top.z)))
-			if down.is_empty() or ArenaBspMap.on_sky(space, down.position, Vector3.DOWN):
+			if down.is_empty() or FcBspMap.on_sky(space, down.position, Vector3.DOWN):
 				continue
 			grounds += 1
 			var from: Vector3 = down.position + Vector3.UP * 1.0
@@ -144,7 +144,7 @@ func _run_part2(map: ArenaMap, red: int, blue: int) -> void:
 			if up.position.y < roof - 0.1:
 				continue
 			up_sky += 1
-			marked_sky += 0 if ArenaBspMap.on_sky(space, up.position, Vector3.UP) else 1
+			marked_sky += 0 if FcBspMap.on_sky(space, up.position, Vector3.UP) else 1
 	_check(up_sky > 0, "a shot straight up from open ground still stops on the sky (%d of %d grounds)" % [up_sky, grounds])
 	_check(up_sky > 0 and marked_sky == 0, "every such hit reads as sky, so it gets no decal (%d missed)" % marked_sky)
 	_check(grounds > 0, "some ground under the sky does not read as sky (%d)" % grounds)
@@ -154,24 +154,24 @@ func _run_part2(map: ArenaMap, red: int, blue: int) -> void:
 
 func _offered(def: DotMapDef) -> Array:
 	var out := []
-	for mode in ArenaModes.all():
-		if def != null and ArenaMaps.supports_mode(def, mode):
+	for mode in FcModes.all():
+		if def != null and FcMaps.supports_mode(def, mode):
 			out.append(String(mode.id))
 	return out
 
 
 func _run_part3(red: int, blue: int) -> void:
 	print("-- the modes it hosts are the listed ones")
-	var def := ArenaMaps.catalogue().get_map(MAP)
-	_check(def != null and ArenaMaps.supports_mode(def, ArenaModes.by_id(&"tdm")) and ArenaMaps.supports_mode(def, ArenaModes.by_id(&"ctf")) \
-		and ArenaMaps.supports_mode(def, ArenaModes.by_id(&"ffa")), "tdm, ctf and ffa are supported")
-	_check(def != null and not ArenaMaps.supports_mode(def, ArenaModes.by_id(&"siege")) and not ArenaMaps.supports_mode(def, ArenaModes.by_id(&"koth")),
+	var def := FcMaps.catalogue().get_map(MAP)
+	_check(def != null and FcMaps.supports_mode(def, FcModes.by_id(&"tdm")) and FcMaps.supports_mode(def, FcModes.by_id(&"ctf")) \
+		and FcMaps.supports_mode(def, FcModes.by_id(&"ffa")), "tdm, ctf and ffa are supported")
+	_check(def != null and not FcMaps.supports_mode(def, FcModes.by_id(&"siege")) and not FcMaps.supports_mode(def, FcModes.by_id(&"koth")),
 		"siege and koth are not")
 	# The web build gets the map as a delivered pack, whose def knows only its key until it is mounted.
 	var listed := ["ffa", "tdm", "ctf", "gungame", "snipers"]
-	var delivered := ArenaMaps.delivered_def("gamemann/cp-orange-x3@1.0.7")
+	var delivered := FcMaps.delivered_def("gamemann/cp-orange-x3@1.0.7")
 	_check(_offered(delivered) == ["ffa", "gungame", "snipers"], "a delivered def not yet mounted offers only the free-for-all modes")
-	ArenaMaps.refresh_delivered_meta(delivered)
+	FcMaps.refresh_delivered_meta(delivered)
 	_check(_offered(def) == listed, "the linked map offers its five listed modes (%s)" % [_offered(def)])
 	_check(_offered(delivered) == listed, "the delivered def, once its manifest is mounted, offers the same five (%s)" % [_offered(delivered)])
 
@@ -211,7 +211,7 @@ func _run_part3(red: int, blue: int) -> void:
 
 func _run_part4(red: int, blue: int) -> void:
 	print("-- bots route between the two bases over the baked mesh")
-	var world := ArenaBots.world_for(_game)
+	var world := FcBots.world_for(_game)
 	var a := Vector3.ZERO
 	var b := Vector3.ZERO
 	for index in _game.map.spawns.size():
@@ -242,7 +242,7 @@ func _run_part4(red: int, blue: int) -> void:
 	# The two portable stairs are the sniper way up: the converter's ramp hull under each is what the body
 	# climbs. Hammer (x, y, z) is (x, z, -y) here. Forward held, no jump: grounded at wall-top height within
 	# 1.5 m of the landing is on the stairs' top (the floor round them is 4.7 m lower).
-	var climber: ArenaPlayer = _game.player_for(1)
+	var climber: FcPlayer = _game.player_for(1)
 	# The first tick of the match moves the body to its spawn; only after it does a teleport hold.
 	_game.tick({})
 	for stair in [[Vector3(760, -2053, -5316), Vector3(330, -1804, -5316)], [Vector3(-2275, -2053, -1808), Vector3(-1845, -1804, -1808)]]:
@@ -275,7 +275,7 @@ func _run_part4(red: int, blue: int) -> void:
 
 func _run_part5(red: int, blue: int, a: Vector3) -> void:
 	print("-- capture the flag puts each flag at its side's home")
-	_game = _new_game(ArenaMode.capture_the_flag(3))
+	_game = _new_game(FcMode.capture_the_flag(3))
 	_check(_game != null and _game.objectives != null, "capture the flag sets up with objectives")
 	if _game != null and _game.objectives != null:
 		var flags := _game.objectives.manager.objectives.flags()
@@ -284,7 +284,7 @@ func _run_part5(red: int, blue: int, a: Vector3) -> void:
 			var want: Vector3 = _game.map.flag_homes["red" if String(flag.def.id).ends_with("1") else "blue"] + Vector3.UP
 			ok = ok and flag.at.distance_to(want) < 0.5
 		_check(ok, "two flags, each at its authored home")
-		var fv := ArenaFlagView.new()
+		var fv := FcFlagView.new()
 		fv.game = _game
 		fv.ctf = _game.objectives.ctf
 		add_child(fv)
@@ -298,9 +298,9 @@ func _run_part5(red: int, blue: int, a: Vector3) -> void:
 		_check(homes_ok, "and the flag view draws both, one per side, at those homes")
 		fv.queue_free()
 		# The real client path: game.headless is true there (collision backend) and a screen decides drawing.
-		var objs: ArenaObjectives = _game.objectives
+		var objs: FcObjectives = _game.objectives
 		_check(_game.headless and objs.flag_view == null, "a headless server builds no flag view")
-		_check(ArenaObjectives.draws_flags(false) and not ArenaObjectives.draws_flags(true), "a process with a screen draws flags whatever game.headless says")
+		_check(FcObjectives.draws_flags(false) and not FcObjectives.draws_flags(true), "a process with a screen draws flags whatever game.headless says")
 		objs.draw_flags = true
 		objs._build_flag_view()
 		await get_tree().process_frame
@@ -323,7 +323,7 @@ func _run_part5(red: int, blue: int, a: Vector3) -> void:
 		one.send_home("")
 		objs.flag_view.refresh()
 		_check(seen == ["%d:taken:%d" % [team_one, thief], "%d:dropped:%d" % [team_one, thief], "%d:returned:0" % team_one], "the flag view reports taken, dropped, returned as the flag changes hands", str(seen))
-		var hud := ArenaHud.new()
+		var hud := FcHud.new()
 		add_child(hud)
 		hud.build(_game)
 		hud.follow(_game.player_for(thief))
@@ -350,15 +350,15 @@ func _walk_gap(world: Object, from: Vector3, to: Vector3) -> float:
 	return at.distance_to(to)
 
 
-func _new_game(mode: ArenaMode) -> ArenaGame:
-	var game := ArenaGame.new()
+func _new_game(mode: FcMode) -> FcGame:
+	var game := FcGame.new()
 	game.tick_rate = 64
 	game.headless = true
 	game.is_authority = true
 	game.register_service = false
 	game.mode = mode
 	add_child(game)
-	var res := game.setup(ArenaMap.by_id(MAP))
+	var res := game.setup(FcMap.by_id(MAP))
 	if not res.ok:
 		print("setup failed: %s" % res.error.message)
 		game.queue_free()

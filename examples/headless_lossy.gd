@@ -85,7 +85,7 @@ func _physics_process(delta: float) -> void:
 	for label in _clients:
 		var c: Dictionary = _clients[label]
 		var net: DotNetManager = c["net"]
-		var bridge: ArenaNetBridge = c["bridge"]
+		var bridge: FcNetBridge = c["bridge"]
 		if net == null or not net.is_running():
 			continue
 
@@ -104,7 +104,7 @@ func _physics_process(delta: float) -> void:
 			if label == "A" and _verbose:
 				_w_sent_at[tick] = Time.get_ticks_usec()
 			if label == "A":
-				var own: ArenaPlayer = (c["game"] as ArenaGame).player_for(int(c["session"]))
+				var own: FcPlayer = (c["game"] as FcGame).player_for(int(c["session"]))
 				if own != null:
 					_predicted[tick] = own.controller.state.position
 
@@ -112,7 +112,7 @@ func _physics_process(delta: float) -> void:
 		var now_q := Time.get_ticks_msec() / 500
 		if now_q != _last_half:
 			_last_half = now_q
-			var sent := ((_clients["A"]["bridge"] as ArenaNetBridge).link.inputs_sent)
+			var sent := ((_clients["A"]["bridge"] as FcNetBridge).link.inputs_sent)
 			var got := int(_module().bridge.inputs_from.get(_peer_of("A"), 0))
 			var throttle_client := -1
 			var throttle_server := -1
@@ -222,7 +222,7 @@ func _sample_render() -> void:
 	var a: Dictionary = _clients["A"]
 	var net: DotNetManager = a["net"]
 	var b_session := int(_clients["B"]["session"])
-	var seen := (a["game"] as ArenaGame).player_for(b_session)
+	var seen := (a["game"] as FcGame).player_for(b_session)
 	var track: Dictionary = _server_track.get(b_session, {})
 	if seen == null or track.is_empty() or not net.clock.is_synced():
 		return
@@ -271,7 +271,7 @@ func _sample_render() -> void:
 				_w["freeze_since"] = int(_w["last_ms"])
 			_w["max_freeze_ms"] = maxi(int(_w["max_freeze_ms"]), now_ms - int(_w["freeze_since"]))
 			if _verbose and now_ms - int(_w["freeze_since"]) > 150:
-				var b_identity := (a["bridge"] as ArenaNetBridge).behaviour_for(b_session)
+				var b_identity := (a["bridge"] as FcNetBridge).behaviour_for(b_session)
 				var b_track: Variant = net.interpolator.get("_tracks").get(b_identity.identity.net_id) if b_identity != null else null
 				print("      FREEZE %d ms: render %.2f received %d server %d newest-B %s applied %d drawn %s truth %s" % [
 					now_ms - int(_w["freeze_since"]), render_tick, net.clock.received_tick(), _game.current_tick(),
@@ -309,7 +309,7 @@ func _test_wall_moves() -> void:
 	var net: DotNetManager = a["net"]
 	var session := int(a["session"])
 	var server_a := _game.player_for(session)
-	var own: ArenaPlayer = (a["game"] as ArenaGame).player_for(session)
+	var own: FcPlayer = (a["game"] as FcGame).player_for(session)
 	if not _check(server_a != null and own != null, "A is on both ends to run a wall with"):
 		_done()
 		return
@@ -459,7 +459,7 @@ func _hop_section(title: String, pilot: bool, seconds: float) -> void:
 	var net: DotNetManager = a["net"]
 	var session := int(a["session"])
 	var server_a := _game.player_for(session)
-	var own: ArenaPlayer = (a["game"] as ArenaGame).player_for(session)
+	var own: FcPlayer = (a["game"] as FcGame).player_for(session)
 	if not _check(server_a != null and own != null, "A is on both ends to hop with"):
 		_done()
 		return
@@ -514,7 +514,7 @@ func _hop_section(title: String, pilot: bool, seconds: float) -> void:
 	await _hop_section_part2(pilot, a, own, replays, corrections, last, hop_from, holes, skip, track, off, worst, worst_all, excused)
 
 
-func _hop_section_part2(pilot: bool, a: Dictionary, own: ArenaPlayer, replays, corrections, last, hop_from, holes, skip, track: Dictionary, off: Array[int], worst, worst_all, excused) -> void:
+func _hop_section_part2(pilot: bool, a: Dictionary, own: FcPlayer, replays, corrections, last, hop_from, holes, skip, track: Dictionary, off: Array[int], worst, worst_all, excused) -> void:
 	var diffs: Array[float] = []
 	var ticks := 0
 	var pinned := 0
@@ -566,7 +566,7 @@ func _hop_section_part2(pilot: bool, a: Dictionary, own: ArenaPlayer, replays, c
 
 
 ## A's bridge keeps the jump timers, the wall-run cooldown and the stamina across a rewind.
-func _check_exact_roundtrip(a: Dictionary, own: ArenaPlayer) -> void:
+func _check_exact_roundtrip(a: Dictionary, own: FcPlayer) -> void:
 	# A rewind lands on a tick in the middle of a hop only rarely in six seconds, so the timers'
 	# trip through A's own exact copy is checked directly too.
 	var behaviour: Object = ((a["bridge"] as Object).get("_behaviours") as Dictionary).get(int(a["session"]))

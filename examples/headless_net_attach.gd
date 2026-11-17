@@ -1,11 +1,11 @@
 extends "lossy_base.gd"
 
-const ArenaAttach := preload("res://game/arena_attach.gd")
-const ArenaPlayerNet := preload("res://game/arena_player_net.gd")
+const FcAttach := preload("res://game/fc_attach.gd")
+const FcPlayerNet := preload("res://game/fc_player_net.gd")
 const EXPECTED_CHECKS := 15
 
 ## An attachment a client asks for over a real ENet link (Ask.ATTACH) is fitted by the server alone, and reaches the
-## client as `net_fitted`: a real `DotServer` running `ArenaModule` and a real client in one process (as headless_lossy).
+## client as `net_fitted`: a real `DotServer` running `FcModule` and a real client in one process (as headless_lossy).
 ## A request the catalogue refuses, or one cut short, leaves the server's fitting as it was.
 
 
@@ -69,7 +69,7 @@ func _suppressible(arsenal: DotWeaponArsenal) -> DotWeaponDef:
 func _body(a: Dictionary) -> bool:
 	_section("the server fits what the client asks for")
 	var session := int(a["session"])
-	var bridge: ArenaNetBridge = a["bridge"]
+	var bridge: FcNetBridge = a["bridge"]
 	var served := _game.player_for(session)
 	if not _check(served != null and served.arsenal.attachments != null, "the server's player has the attachments catalogue"):
 		_done()
@@ -82,29 +82,29 @@ func _body(a: Dictionary) -> bool:
 	var held := await _until(func() -> bool: return served.arsenal.current_def() != null and served.arsenal.current_def().id == def.id, RELIABLE_SECONDS)
 	_check(held and served.arsenal.fitting_at(def.slot).is_empty(), "and holds it, bare", str(def.id))
 
-	bridge.send_request(ArenaEvents.Ask.ATTACH, ArenaAttach.write_request(def.slot, &"muzzle", &"suppressor"))
+	bridge.send_request(FcEvents.Ask.ATTACH, FcAttach.write_request(def.slot, &"muzzle", &"suppressor"))
 	var fitted := await _until(func() -> bool: return served.arsenal.fitting_at(def.slot).attachment_on(&"muzzle") == &"suppressor", RELIABLE_SECONDS)
 	_check(fitted, "the request fits a suppressor on the server", served.arsenal.fitting_at(def.slot).key())
-	var code := ArenaAttach.held_code(served.arsenal)
-	_check(code != 0 and ArenaAttach.suppressed(def.id, code), "whose code reads as suppressed", str(code))
-	var own: ArenaPlayerNet = bridge.behaviour_for(session)
+	var code := FcAttach.held_code(served.arsenal)
+	_check(code != 0 and FcAttach.suppressed(def.id, code), "whose code reads as suppressed", str(code))
+	var own: FcPlayerNet = bridge.behaviour_for(session)
 	var reached := await _until(func() -> bool: return own != null and own.net_fitted == code, RELIABLE_SECONDS)
 	_check(reached, "the client receives the server's fitting as net_fitted", "%d against %d" % [own.net_fitted if own != null else -1, code])
 	_done()
 
 	_section("a refused or cut-off request changes nothing")
 	var before := served.arsenal.fitting_at(def.slot).key()
-	bridge.send_request(ArenaEvents.Ask.ATTACH, ArenaAttach.write_request(def.slot, &"muzzle", &"no_such_part"))
-	bridge.send_request(ArenaEvents.Ask.ATTACH, ArenaAttach.write_request(def.slot, &"muzzle", &"scope_6x"))
-	bridge.send_request(ArenaEvents.Ask.ATTACH, ArenaAttach.write_request(31, &"muzzle", &"compensator"))
+	bridge.send_request(FcEvents.Ask.ATTACH, FcAttach.write_request(def.slot, &"muzzle", &"no_such_part"))
+	bridge.send_request(FcEvents.Ask.ATTACH, FcAttach.write_request(def.slot, &"muzzle", &"scope_6x"))
+	bridge.send_request(FcEvents.Ask.ATTACH, FcAttach.write_request(31, &"muzzle", &"compensator"))
 	# Wait out the three by a fourth that does change something: requests arrive in order on the reliable channel.
-	bridge.send_request(ArenaEvents.Ask.ATTACH, ArenaAttach.write_request(def.slot, &"muzzle", &""))
+	bridge.send_request(FcEvents.Ask.ATTACH, FcAttach.write_request(def.slot, &"muzzle", &""))
 	var bare := await _until(func() -> bool: return served.arsenal.fitting_at(def.slot).attachment_on(&"muzzle") == &"", RELIABLE_SECONDS)
 	_check(bare and served.arsenal.fitting_at(def.slot).is_empty(), "an unknown part, a wrong mount and an empty slot fit nothing; an empty id takes it off", "%s then %s" % [before, served.arsenal.fitting_at(def.slot).key()])
-	var cut := ArenaAttach.write_request(def.slot, &"muzzle", &"suppressor").slice(0, 3)
-	_check(not ArenaAttach.serve(served.arsenal, DotNetReader.new(cut)).ok and served.arsenal.fitting_at(def.slot).is_empty(), "a cut-off request is refused")
-	_check(not ArenaAttach.serve(served.arsenal, DotNetReader.new(ArenaAttach.write_request(def.slot, &"", &"suppressor"))).ok, "and one naming no mount")
+	var cut := FcAttach.write_request(def.slot, &"muzzle", &"suppressor").slice(0, 3)
+	_check(not FcAttach.serve(served.arsenal, DotNetReader.new(cut)).ok and served.arsenal.fitting_at(def.slot).is_empty(), "a cut-off request is refused")
+	_check(not FcAttach.serve(served.arsenal, DotNetReader.new(FcAttach.write_request(def.slot, &"", &"suppressor"))).ok, "and one naming no mount")
 	var cleared := await _until(func() -> bool: return own.net_fitted == 0, RELIABLE_SECONDS)
-	_check(cleared and not ArenaAttach.suppressed(def.id, own.net_fitted), "the client sees the bare gun again", str(own.net_fitted))
+	_check(cleared and not FcAttach.suppressed(def.id, own.net_fitted), "the client sees the bare gun again", str(own.net_fitted))
 	_done()
 	return true

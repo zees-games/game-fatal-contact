@@ -1,12 +1,12 @@
 extends Node
 
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaStats := preload("../game/arena_stats.gd")
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
-const ArenaSimServer := preload("../game/arena_sim_server.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcStats := preload("../game/fc_stats.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
+const FcSimServer := preload("../game/fc_sim_server.gd")
 
 ## Bot soak on the real Arena: N bots play a free-for-all on one map for M simulated minutes
 ## through dot-bot's DotBotSoak, fed by dot-spawn's DotSpawnWatch and the game's kill stats.
@@ -32,7 +32,7 @@ const DEFAULT_BOTS := 8
 ## Never reached: a finished match would rotate the map under the soak.
 const SCORE_LIMIT := 1000000
 
-var _game: ArenaGame
+var _game: FcGame
 var _kills := 0
 var _deaths := 0
 var _damage := 0.0
@@ -81,29 +81,29 @@ func _configure(cfg: DotBotSoakConfig) -> String:
 
 
 func _add_game() -> void:
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.tick_rate = TICK_RATE
 	_game.headless = true
 	_game.is_authority = true
 	_game.register_service = false
-	_game.mode = ArenaMode.free_for_all(SCORE_LIMIT)
+	_game.mode = FcMode.free_for_all(SCORE_LIMIT)
 	_game.score_limit = SCORE_LIMIT
 	add_child(_game)
 
 
 func _run() -> void:
 	var map_id := StringName(_arg("map", String(DEFAULT_MAP)))
-	var map: ArenaMap = ArenaMap.by_id(map_id)
+	var map: FcMap = FcMap.by_id(map_id)
 	if map == null:
-		_fail("unknown map %s (is arena-surf-dm-maps linked?)" % map_id)
+		_fail("unknown map %s (is fc-surf-dm-maps linked?)" % map_id)
 		return
 
 	var cfg := DotBotSoakConfig.new()
 	var difficulty := _configure(cfg)
 	var sections := _arg("sections", "0")
 	if sections == "1" or sections == "2":
-		ArenaFrameProbe.set_interval(1.0e9)
-		ArenaFrameProbe.fine = sections == "2"
+		FcFrameProbe.set_interval(1.0e9)
+		FcFrameProbe.fine = sections == "2"
 
 	_add_game()
 	if not difficulty.is_empty():
@@ -124,7 +124,7 @@ func _run() -> void:
 			return
 
 	_game.start(0)
-	var world := ArenaBots.world_for(_game)
+	var world := FcBots.world_for(_game)
 	var frames := 0
 	while not world.warm() and frames < 1200:
 		await get_tree().process_frame
@@ -146,9 +146,9 @@ func _run() -> void:
 			await get_tree().physics_frame
 
 	var report := soak.finish()
-	if ArenaFrameProbe.on():
-		print(ArenaSimServer.sections_line(ArenaFrameProbe._sections, maxi(1, soak.ticks)))
-		var surf: RefCounted = ArenaBots.world_for(_game).surf_at(_tick)
+	if FcFrameProbe.on():
+		print(FcSimServer.sections_line(FcFrameProbe._sections, maxi(1, soak.ticks)))
+		var surf: RefCounted = FcBots.world_for(_game).surf_at(_tick)
 		if surf != null:
 			print("SOAK_SURF ", JSON.stringify(surf.call(&"describe")))
 	report["map"] = String(map_id)
@@ -165,14 +165,14 @@ func _run() -> void:
 
 
 ## The soak over the started game: its spawn watch, one mind per bot, and the route checks when the map has navigation.
-func _make_soak(cfg: DotBotSoakConfig, map: ArenaMap, world: ArenaBots.World) -> DotBotSoak:
+func _make_soak(cfg: DotBotSoakConfig, map: FcMap, world: FcBots.World) -> DotBotSoak:
 	if not map.spawns.is_empty():
 		_goal = map.spawns[0].origin
 	var watch := DotSpawnWatch.new()
 	watch.rules.enabled = true
 	watch.rules.kill_y = map.bounds.position.y - 20.0
 	for player in _game.players():
-		var mind := ArenaBots.Mind.new()
+		var mind := FcBots.Mind.new()
 		mind.seed = cfg.seed_value * 1000 + player.player_id
 		_minds[player.player_id] = mind
 
@@ -195,11 +195,11 @@ func _step(_delta: float) -> void:
 	var t_think := Time.get_ticks_usec()
 	for player in _game.players():
 		if player.is_alive():
-			_commands[player.player_id] = ArenaBots.think(_game, player, _minds[player.player_id], _tick, float(TICK_RATE))
-	ArenaFrameProbe.add(&"soak_think", t_think)
+			_commands[player.player_id] = FcBots.think(_game, player, _minds[player.player_id], _tick, float(TICK_RATE))
+	FcFrameProbe.add(&"soak_think", t_think)
 	var t_tick := Time.get_ticks_usec()
 	_game.tick(_commands)
-	ArenaFrameProbe.add(&"soak_tick", t_tick)
+	FcFrameProbe.add(&"soak_tick", t_tick)
 	_tick += 1
 
 

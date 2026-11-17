@@ -123,12 +123,12 @@ func _begin_window() -> void:
 		"late": buffer.late_count,
 		"first_tick": net.clock.input_tick(),
 		"buffer": buffer,
-		"inputs_sent": (a["bridge"] as ArenaNetBridge).link.inputs_sent,
-		"b_inputs_sent": (_clients["B"]["bridge"] as ArenaNetBridge).link.inputs_sent,
+		"inputs_sent": (a["bridge"] as FcNetBridge).link.inputs_sent,
+		"b_inputs_sent": (_clients["B"]["bridge"] as FcNetBridge).link.inputs_sent,
 		"a_inputs_got": int(_module().bridge.inputs_from.get(_peer_of("A"), 0)),
 		"b_inputs_got": int(_module().bridge.inputs_from.get(_peer_of("B"), 0)),
 		"inputs_received": _module().bridge.link.inputs_received,
-		"snapshots_received": (a["bridge"] as ArenaNetBridge).link.snapshots_received,
+		"snapshots_received": (a["bridge"] as FcNetBridge).link.snapshots_received,
 	}
 
 
@@ -201,7 +201,7 @@ func _pump_window(seconds: float) -> void:
 		if now >= next_notice:
 			var text := "seq-%d" % _sent_notices.size()
 			_sent_notices.append(text)
-			_module().bridge.send_event(0, ArenaEvents.Kind.NOTICE, ArenaEvents.write_notice(text))
+			_module().bridge.send_event(0, FcEvents.Kind.NOTICE, FcEvents.write_notice(text))
 			next_notice += 250
 		if now >= next_chat:
 			var line := "chat-%d" % _sent_chat.size()
@@ -216,7 +216,7 @@ func _pump_window(seconds: float) -> void:
 		if now >= next_slay:
 			var dummy := _game.player_for(DUMMY_ID)
 			if dummy != null and dummy.is_alive():
-				ArenaModTools.slay(_game, StringName(str(DUMMY_ID)))
+				FcModTools.slay(_game, StringName(str(DUMMY_ID)))
 				next_slay += 900
 			elif dummy != null:
 				_game.respawn_player(DUMMY_ID)
@@ -306,8 +306,8 @@ func _measure_window(
 		if not down.is_empty():
 			print("    a snapshot's age on arrival at A, in server ticks: p10 %d p50 %d p90 %d max %d (%d)" % [
 				down[int(down.size() * 0.1)], down[down.size() / 2], down[int(down.size() * 0.9)], down[down.size() - 1], down.size()])
-	var a_link := (a["bridge"] as ArenaNetBridge).link
-	var b_sent := (_clients["B"]["bridge"] as ArenaNetBridge).link.inputs_sent - int(_w["b_inputs_sent"])
+	var a_link := (a["bridge"] as FcNetBridge).link
+	var b_sent := (_clients["B"]["bridge"] as FcNetBridge).link.inputs_sent - int(_w["b_inputs_sent"])
 	print("    per peer at the server: A %d of %d, B %d of %d" % [
 		int(_module().bridge.inputs_from.get(_peer_of("A"), 0)) - int(_w["a_inputs_got"]),
 		a_link.inputs_sent - int(_w["inputs_sent"]),
@@ -478,7 +478,7 @@ func _excused(holes: Array[int], net: DotNetManager) -> Dictionary:
 ## Waits for fc_dash 1 and fc_wall_run_auto 0 to reach A's own tunables. Checked, not only
 ## waited for: a section that went on without them compared two different sets of moves and
 ## failed its prediction checks by metres, which named the wrong thing.
-func _moves_told(own: ArenaPlayer) -> void:
+func _moves_told(own: FcPlayer) -> void:
 	var from := Time.get_ticks_msec()
 	var told := await _until(func() -> bool:
 		return own.controller.tunables.dash_enabled and not own.controller.tunables.wall_run_auto, RELIABLE_SECONDS)

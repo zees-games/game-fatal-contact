@@ -4,7 +4,7 @@ extends SceneTree
 ## the scoreboard go to screenshots/killcam/. Run by render_killcam.sh. `--death`: a bot kills you, frames of your kill view.
 ## `--fx`: the killer holds the trigger first so the recording holds shots; frames go to screenshots/killcam_fx/.
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 const OUT_ROOT := "res://screenshots/"
 ## Seconds after the kill each frame is taken.
@@ -27,8 +27,8 @@ func _initialize() -> void:
 	_death = "--death" in args
 	_fx = "--fx" in args
 	_out_dir = OUT_ROOT + ("killcam_fx" if _fx else "killcam")
-	var _scratch := ArenaPresentation.use_scratch_settings("render_killcam")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("render_killcam")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
@@ -71,7 +71,7 @@ func _run() -> void:
 		print("FAIL the client built no game in 20 s")
 		quit(1)
 		return
-	var changed = game.change_map(load("res://maps/arena_map.gd").by_id(StringName(_map)))
+	var changed = game.change_map(load("res://maps/fc_map.gd").by_id(StringName(_map)))
 	print("map %s: %s" % [_map, "ok" if changed.ok else "failed"])
 	var presentation: Object = client.get("presentation")
 	if _calm and presentation != null:

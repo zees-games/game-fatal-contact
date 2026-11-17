@@ -8,7 +8,7 @@ extends "render_base.gd"
 ## Everything goes through the player's own input (`arena_fire`, `dot_fps_jump`), so the missile, the bounce and
 ## the launch are the game's, not a stand-in.
 
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## Seconds between the frames of a sequence.
 const EVERY := 0.07
@@ -54,7 +54,7 @@ func _run() -> void:
 		if game != null and game.map != null and client.get("player") != null:
 			break
 	if String(game.map.id) != _map_id:
-		var _changed = game.change_map(load("res://maps/arena_map.gd").by_id(StringName(_map_id)))
+		var _changed = game.change_map(load("res://maps/fc_map.gd").by_id(StringName(_map_id)))
 		await _wait(3.0)
 	await _wait_gate(120.0)
 	await _wait(1.0)
@@ -87,7 +87,7 @@ func _run() -> void:
 func _hold(me, id: StringName, warhead: bool) -> DotWeaponDef:
 	var arsenal = me.arsenal
 	var _given: DotResult = arsenal.give(id)
-	var def: DotWeaponDef = ArenaPlayer.weapon_catalogue().get_def(id)
+	var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(id)
 	var _held: bool = arsenal.equip(def.slot)
 	var fitting := DotWeaponFitting.make(id)
 	if warhead:

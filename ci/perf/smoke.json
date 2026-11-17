@@ -1,5 +1,5 @@
 {
-  "scene": "res://game/arena.tscn",
+  "scene": "res://game/fc.tscn",
   "load_ms": 2895.2,
   "frame_ms": 4.291,
   "nodes": 659,

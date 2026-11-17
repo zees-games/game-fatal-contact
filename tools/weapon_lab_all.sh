@@ -23,7 +23,7 @@ export GODOT_ROOT=${GODOT_ROOT:-/home/gamedev/wt/.lab-root}
 out=${LAB_OUT:-/home/gamedev/weapon-lab/out}/$run
 mkdir -p "$GODOT_ROOT" "$out"
 # One shard, retried on the other box when the first has no free shot slot (gpu.sh then falls back to llvmpipe, which crashes
-# the arena client: that run is thrown away, never kept).
+# Fatal Contact client: that run is thrown away, never kept).
 run_shard() {
   local i=$1 attempt box sdir=$out/shard-$1
   for attempt in 0 1 2 3 4 5; do

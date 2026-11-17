@@ -2,15 +2,15 @@ extends "headless_match_modes_and_drops.gd"
 
 # --- Weapon modes ------------------------------------------------------------
 
-func _weapon_mode_game(mode: ArenaMode, ids: Array) -> ArenaGame:
-	var game := ArenaGame.new()
+func _weapon_mode_game(mode: FcMode, ids: Array) -> FcGame:
+	var game := FcGame.new()
 	game.name = "WeaponModeGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
 	game.mode = mode
 	add_child(game)
-	var ready := game.setup(ArenaMap.dm_box())
+	var ready := game.setup(FcMap.dm_box())
 	if not ready.ok:
 		return null
 	game.start(0)
@@ -21,7 +21,7 @@ func _weapon_mode_game(mode: ArenaMode, ids: Array) -> ArenaGame:
 	return game
 
 ## Kill somebody the way the game does it, through dot-combat.
-func _kill_through_combat(game: ArenaGame, killer: int, victim: int, weapon: StringName = &"", headshot := false) -> void:
+func _kill_through_combat(game: FcGame, killer: int, victim: int, weapon: StringName = &"", headshot := false) -> void:
 	var health := game.combat.health_of(victim)
 	if health == null:
 		return
@@ -47,17 +47,17 @@ func _test_streaks() -> void:
 	_section("kill streaks and their rewards")
 
 	_check(
-		ArenaGame.parse_streak_rewards("3:heal, 5:haste,x:y,0:armour") == {3: "heal", 5: "haste"},
+		FcGame.parse_streak_rewards("3:heal, 5:haste,x:y,0:armour") == {3: "heal", 5: "haste"},
 		"fc_streak_rewards parses streak:reward pairs and skips the rest"
 	)
-	_check(ArenaGame.parse_streak_rewards("").is_empty(), "and empty gives nothing")
+	_check(FcGame.parse_streak_rewards("").is_empty(), "and empty gives nothing")
 
-	var game := _weapon_mode_game(ArenaMode.free_for_all(50), [940, 941, 942])
+	var game := _weapon_mode_game(FcMode.free_for_all(50), [940, 941, 942])
 	if game == null:
 		_check(false, "a streak game sets up")
 		return
 	_check(game.streak_rewards.is_empty(), "no streak reward is on by default")
-	game.streak_rewards = ArenaGame.parse_streak_rewards("3:heal,5:haste,7:empowered")
+	game.streak_rewards = FcGame.parse_streak_rewards("3:heal,5:haste,7:empowered")
 	var rewards: Array[String] = []
 	game.streak_reward.connect(func(_p: int, s: int, r: String) -> void: rewards.append("%d:%s" % [s, r]))
 
@@ -86,7 +86,7 @@ func _test_streaks() -> void:
 # --- Kill rewards ------------------------------------------------------------
 
 ## Reads the victim's replacement state: a fresh victim for every kill.
-func _revive_victim(game: ArenaGame, victim: int) -> void:
+func _revive_victim(game: FcGame, victim: int) -> void:
 	var player := game.player_for(victim)
 	player.health.alive = true
 	player.hitboxes.enabled = true
@@ -95,7 +95,7 @@ func _revive_victim(game: ArenaGame, victim: int) -> void:
 func _test_kill_rewards() -> void:
 	_section("kill rewards: +5 health per headshot, capped, the rest off by default")
 
-	var game := _weapon_mode_game(ArenaMode.free_for_all(50), [950, 951, 952])
+	var game := _weapon_mode_game(FcMode.free_for_all(50), [950, 951, 952])
 	if game == null:
 		_check(false, "a kill rewards game sets up")
 		return
@@ -117,7 +117,7 @@ func _test_kill_rewards() -> void:
 	_check(killer.health.health == 105.0, "a headshot kill gives +5 (%.0f)" % killer.health.health)
 	_check(killer.health.max_health == 100.0 and killer.health.overheal_cap == 0.0,
 		"and leaves max health and the ordinary heal ceiling alone")
-	_check(game.effects == null or not game.effects.has(ArenaEffects.HASTE, 950), "and gives no haste")
+	_check(game.effects == null or not game.effects.has(FcEffects.HASTE, 950), "and gives no haste")
 
 	_revive_victim(game, 952)
 	_kill_through_combat(game, 950, 952, &"", true)
@@ -150,8 +150,8 @@ func _test_kill_rewards() -> void:
 	_kill_through_combat(game, 950, 951)
 	_check(killer.health.health == 70.0 and killer.health.armour == 30.0, "kill_reward_heal and _armour give per kill (%.0f, %.0f)" % [killer.health.health, killer.health.armour])
 	if game.effects != null:
-		_check(game.effects.has(ArenaEffects.HASTE, 950), "kill_reward_haste gives haste")
-		_check(not game.effects.has(ArenaEffects.EMPOWERED, 950), "and empowered stays off")
+		_check(game.effects.has(FcEffects.HASTE, 950), "kill_reward_haste gives haste")
+		_check(not game.effects.has(FcEffects.EMPOWERED, 950), "and empowered stays off")
 
 	remove_child(game)
 	game.queue_free()
@@ -161,8 +161,8 @@ func _test_kill_rewards() -> void:
 # --- Medals ------------------------------------------------------------------
 
 ## One kill's facts for the medal rules, at [param tick] on a 64-tick server.
-func _facts(killer: int, victim: int, tick: int, extra: Dictionary = {}) -> ArenaAwards.KillFacts:
-	var k := ArenaAwards.KillFacts.new()
+func _facts(killer: int, victim: int, tick: int, extra: Dictionary = {}) -> FcAwards.KillFacts:
+	var k := FcAwards.KillFacts.new()
 	k.killer = killer
 	k.victim = victim
 	k.tick = tick
@@ -176,11 +176,11 @@ func _facts(killer: int, victim: int, tick: int, extra: Dictionary = {}) -> Aren
 	return k
 
 ## Every medal rule, each with the case beside it that must NOT earn it. The rules are the
-## server's (`ArenaAwards.MedalBook`); a client only draws what they decide.
+## server's (`FcAwards.MedalBook`); a client only draws what they decide.
 func _test_medal_rules() -> void:
 	_section("medals: each rule, and its near miss")
-	var M := ArenaAwards.Medal
-	var book := ArenaAwards.MedalBook.new()
+	var M := FcAwards.Medal
+	var book := FcAwards.MedalBook.new()
 
 	var first := book.judge(_facts(1, 2, 100))
 	_check(first.has(M.FIRST_BLOOD), "the round's first kill is First Blood (%s)" % [first])
@@ -214,9 +214,9 @@ func _test_medal_rules() -> void:
 	_check(not book.judge(_facts(20, 22, 2900)).has(M.REVENGE), "and nor is killing anybody else")
 
 	book.reset_round()
-	_check(book.judge(_facts(30, 31, 10, {"victim_streak": ArenaAwards.SHUTDOWN_AT})).has(M.SHUTDOWN),
-		"ending a streak of %d is a Shutdown" % ArenaAwards.SHUTDOWN_AT)
-	_check(not book.judge(_facts(30, 32, 900, {"victim_streak": ArenaAwards.SHUTDOWN_AT - 1})).has(M.SHUTDOWN),
+	_check(book.judge(_facts(30, 31, 10, {"victim_streak": FcAwards.SHUTDOWN_AT})).has(M.SHUTDOWN),
+		"ending a streak of %d is a Shutdown" % FcAwards.SHUTDOWN_AT)
+	_check(not book.judge(_facts(30, 32, 900, {"victim_streak": FcAwards.SHUTDOWN_AT - 1})).has(M.SHUTDOWN),
 		"one shorter is not")
 
 	book.reset_round()
@@ -235,10 +235,10 @@ func _test_medal_rules() -> void:
 		"and a weapon with no scope never is")
 
 	book.reset_round()
-	_check(book.judge(_facts(60, 61, 10, {"distance": ArenaAwards.LONG_SHOT_M + 5.0})).has(M.LONG_SHOT),
-		"a kill from %d m is a Long Shot" % int(ArenaAwards.LONG_SHOT_M + 5.0))
-	_check(not book.judge(_facts(60, 62, 900, {"distance": ArenaAwards.LONG_SHOT_M - 5.0})).has(M.LONG_SHOT),
-		"from %d m it is not" % int(ArenaAwards.LONG_SHOT_M - 5.0))
+	_check(book.judge(_facts(60, 61, 10, {"distance": FcAwards.LONG_SHOT_M + 5.0})).has(M.LONG_SHOT),
+		"a kill from %d m is a Long Shot" % int(FcAwards.LONG_SHOT_M + 5.0))
+	_check(not book.judge(_facts(60, 62, 900, {"distance": FcAwards.LONG_SHOT_M - 5.0})).has(M.LONG_SHOT),
+		"from %d m it is not" % int(FcAwards.LONG_SHOT_M - 5.0))
 	_check(not book.judge(_facts(60, 63, 1800, {"distance": 50.0, "tags": [AwWeaponIds.TAG_EXPLOSIVE]})).has(M.LONG_SHOT),
 		"and a rocket lands where it lands, so never")
 
@@ -258,10 +258,10 @@ func _test_medal_rules() -> void:
 	_check(book.judge(_facts(82, 82, 20)).is_empty(), "and nor does killing yourself")
 
 	_check(
-		ArenaAwards.points_for([M.HEADSHOT, M.FIRST_BLOOD]) == ArenaAwards.KILL_POINTS + 25 + 50,
+		FcAwards.points_for([M.HEADSHOT, M.FIRST_BLOOD]) == FcAwards.KILL_POINTS + 25 + 50,
 		"a kill's points are the kill's and each medal's"
 	)
-	_check(ArenaAwards.medal_name(M.NO_SCOPE) == "No Scope" and ArenaAwards.medal_sound(M.NO_SCOPE) == &"medal_no_scope",
+	_check(FcAwards.medal_name(M.NO_SCOPE) == "No Scope" and FcAwards.medal_sound(M.NO_SCOPE) == &"medal_no_scope",
 		"every medal has a name and a sound id")
 	_done()
 
@@ -269,7 +269,7 @@ func _test_medal_rules() -> void:
 ## authoritative game, with the hit confirmed for the attacker and the medals after the kill.
 func _test_medals_from_a_game() -> void:
 	_section("medals: a game judges its own kills, and confirms the hits")
-	var game := _weapon_mode_game(ArenaMode.free_for_all(50), [950, 951])
+	var game := _weapon_mode_game(FcMode.free_for_all(50), [950, 951])
 	if game == null:
 		_check(false, "a medal game sets up")
 		return
@@ -306,16 +306,16 @@ func _test_medals_from_a_game() -> void:
 	var _k := game.combat.apply_damage(shot)
 	_check(hits.size() == 2 and bool(hits[1]["lethal"]) and bool(hits[1]["head"]), "the killing hit is confirmed as lethal and to the head")
 	var got: Array = awards[0]["medals"] if not awards.is_empty() else []
-	var M := ArenaAwards.Medal
+	var M := FcAwards.Medal
 	_check(got.has(M.FIRST_BLOOD) and got.has(M.HEADSHOT) and got.has(M.NO_SCOPE),
-		"and the kill earns First Blood, Headshot and No Scope (%s)" % [got.map(func(m: int) -> String: return ArenaAwards.medal_name(m))])
+		"and the kill earns First Blood, Headshot and No Scope (%s)" % [got.map(func(m: int) -> String: return FcAwards.medal_name(m))])
 	_check(order == ["kill", "award"], "after the kill itself, so a client hears the KILL first (%s)" % [order])
-	_check(not awards.is_empty() and int(awards[0]["points"]) == ArenaAwards.points_for(got) and int(awards[0]["streak"]) == 1,
+	_check(not awards.is_empty() and int(awards[0]["points"]) == FcAwards.points_for(got) and int(awards[0]["streak"]) == 1,
 		"with the kill's points and the killer's streak")
 
 	# The aim bit: the weapon command carries it, the simulation records it.
 	var ask := DotWeaponCommand.new()
-	ask.set_button(ArenaPlayer.BUTTON_AIM, true)
+	ask.set_button(FcPlayer.BUTTON_AIM, true)
 	var _o := killer.simulate_tick(game.current_tick() + 1, 1.0 / 64.0, DotFpsCommand.new(), ask)
 	_check(killer.aiming, "a command with the aim held is a player aiming, on the server")
 
@@ -334,7 +334,7 @@ func _test_medals_from_a_game() -> void:
 	_done()
 
 ## Forward, jumping and firing: what a player does during a freeze.
-func _jump_and_fire(a: ArenaPlayer) -> Array:
+func _jump_and_fire(a: FcPlayer) -> Array:
 	var move := DotFpsCommand.new()
 	move.move = Vector2(0.0, 1.0)
 	move.yaw = a.controller.state.yaw
@@ -350,7 +350,7 @@ func _jump_and_fire(a: ArenaPlayer) -> Array:
 ## exactly when the round is live; `mp_freezetime` 0 has no countdown at all.
 func _test_freeze_countdown() -> void:
 	_section("the pre-round freeze")
-	var game := _weapon_mode_game(ArenaMode.free_for_all(25), [960, 961])
+	var game := _weapon_mode_game(FcMode.free_for_all(25), [960, 961])
 	if not _check(game != null, "a two-player game sets up"):
 		return
 	for _i in range(6):
@@ -396,7 +396,7 @@ func _test_freeze_countdown() -> void:
 	for _i in range(6):
 		await get_tree().process_frame
 	# Neither presses a slot key, as a bot never does: spawned into the freeze, both hold the primary.
-	_check(a.arsenal.current_slot() == ArenaContent.DEFAULT_SLOT and game.player_for(961).arsenal.current_slot() == ArenaContent.DEFAULT_SLOT,
+	_check(a.arsenal.current_slot() == FcContent.DEFAULT_SLOT and game.player_for(961).arsenal.current_slot() == FcContent.DEFAULT_SLOT,
 		"a spawn into the freeze holds the starting weapon, not the knife", "%d %d" % [a.arsenal.current_slot(), game.player_for(961).arsenal.current_slot()])
 	spot = a.controller.state.position
 	var released := {960: intent.call()}
@@ -420,7 +420,7 @@ func _test_freeze_countdown() -> void:
 ## them, as far back as `fc_max_unlag_ms` allows (2026-10-09; before, never).
 func _test_lag_compensation() -> void:
 	_section("lag compensation")
-	var game := _weapon_mode_game(ArenaMode.free_for_all(25), [940, 941])
+	var game := _weapon_mode_game(FcMode.free_for_all(25), [940, 941])
 	if not _check(game != null, "a two-player game sets up"):
 		return
 	for _i in range(6):
@@ -477,7 +477,7 @@ func _test_lag_compensation() -> void:
 	game.queue_free()
 	_done()
 
-func _revive(game: ArenaGame, id: int) -> void:
+func _revive(game: FcGame, id: int) -> void:
 	var health := game.combat.health_of(id)
 	if health != null and not health.alive:
 		health.revive()
@@ -486,7 +486,7 @@ func _revive(game: ArenaGame, id: int) -> void:
 func _test_launch_inside_team_mate() -> void:
 	_section("a launch from inside a team-mate")
 	var ids := [950, 951, 952, 953]
-	var game := _weapon_mode_game(ArenaMode.team_deathmatch(), ids)
+	var game := _weapon_mode_game(FcMode.team_deathmatch(), ids)
 	if not _check(game != null, "a team game sets up"):
 		return
 	for _i in range(4):
@@ -597,7 +597,7 @@ func _test_launch_inside_team_mate() -> void:
 	var _frag: DotWeaponSpawn = launch.call(TICK_RATE * 2)
 	for _k in range(6):
 		game.tick({})
-	var frag: ArenaProjectiles.Flying = (
+	var frag: FcProjectiles.Flying = (
 		game.projectiles.flying()[0] if game.projectiles.live_count() == 1 else null
 	)
 	_check(frag != null and frag.bounces == 0 and frag.position.z < muzzle.z - 1.0,
@@ -657,7 +657,7 @@ func _test_launch_inside_team_mate() -> void:
 	game.queue_free()
 	_done()
 
-func _carried(game: ArenaGame, id: int) -> Array[StringName]:
+func _carried(game: FcGame, id: int) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for slot in game.player_for(id).arsenal.slots():
 		var def: DotWeaponDef = game.player_for(id).arsenal.slot_at(slot).def
@@ -668,14 +668,14 @@ func _carried(game: ArenaGame, id: int) -> Array[StringName]:
 func _test_weapon_modes() -> void:
 	_section("gun game and a weapon pool")
 
-	_check(ArenaModes.ids().has(&"gungame") and ArenaModes.ids().has(&"snipers"),
+	_check(FcModes.ids().has(&"gungame") and FcModes.ids().has(&"snipers"),
 		"gun game and only snipers are modes a server or a vote can name")
 
-	var broken: ArenaMode = ArenaMode.gun_game_mode()
+	var broken: FcMode = FcMode.gun_game_mode()
 	broken.rules.score_limit = 3
 	_check(not broken.validate().ok, "a gun game whose score limit is not its list's length is refused")
 
-	var gun: ArenaMode = ArenaMode.gun_game_mode()
+	var gun: FcMode = FcMode.gun_game_mode()
 	var game := _weapon_mode_game(gun, [920, 921])
 	if not _check(game != null, "a gun game sets up"):
 		return
@@ -717,7 +717,7 @@ func _test_weapon_modes() -> void:
 	remove_child(game)
 	game.queue_free()
 
-	var snipers: ArenaMode = ArenaMode.only_snipers()
+	var snipers: FcMode = FcMode.only_snipers()
 	var sniping := _weapon_mode_game(snipers, [930, 931])
 	if not _check(sniping != null, "an only-snipers game sets up"):
 		return
@@ -736,7 +736,7 @@ func _test_weapon_modes() -> void:
 	await get_tree().process_frame
 	_done()
 
-func _first_other_team(game: ArenaGame, id: int) -> int:
+func _first_other_team(game: FcGame, id: int) -> int:
 	var side := game.team_of(id)
 	for index in range(4):
 		var other := 800 + index

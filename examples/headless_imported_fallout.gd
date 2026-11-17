@@ -6,11 +6,11 @@ var _fallout_only := ""
 ## The imported-map suite's fall-out checks over every map. Split out of headless_imported_b2.gd for file size.
 
 
-func _test_fallout_all_part2(sealed: Array[String], report: Array[String], player: ArenaPlayer) -> void:
-	for id in ArenaMap.imported_ids():
+func _test_fallout_all_part2(sealed: Array[String], report: Array[String], player: FcPlayer) -> void:
+	for id in FcMap.imported_ids():
 		if _fallout_only != "" and String(id) != _fallout_only:
 			continue
-		var changed := _game.change_map(ArenaMap.by_id(id))
+		var changed := _game.change_map(FcMap.by_id(id))
 		if not changed.ok:
 			sealed.append("%s (does not load)" % id)
 			continue

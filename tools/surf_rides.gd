@@ -1,11 +1,11 @@
 extends "surf_rides_measure.gd"
 
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaSurfRides := preload("../game/arena_surf_rides.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcSurfRides := preload("../game/fc_surf_rides.gd")
 
 ## Finds a combat surf map's ride edges, plans each on the real motor, and measures the bot that
-## rides them. Writes `maps/surf/<id>.surf.json`, which `arena_surf.gd` links into the bots' mesh.
+## rides them. Writes `maps/surf/<id>.surf.json`, which `fc_surf.gd` links into the bots' mesh.
 ##
 ##     godot --headless --path . tools/surf_rides.tscn -- surf_10x_reloaded_fixed --explore
 ##     godot --headless --path . tools/surf_rides.tscn -- surf_10x_reloaded_fixed --plan 0 --starts 6 --repairs 32 --rounds 3
@@ -29,7 +29,7 @@ const ArenaSurfRides := preload("../game/arena_surf_rides.gd")
 ## cache with the verified recordings added to `maps/surf/<id>.merged.surf.json` (`--out FILE` for another path), which is never loaded by itself: review it, then copy it over the cache.
 ##
 ## For a map that finds nothing: `--probe`, `--section`, `--hold`, `--search`, `--wander`, `--islands` and `--picture` (read the code for arguments).
-## `--measure --think` drives the live rides through `ArenaBots.think`. Everything is seeded, so two runs print the same numbers.
+## `--measure --think` drives the live rides through `FcBots.think`. Everything is seeded, so two runs print the same numbers.
 
 
 ## Platforms smaller than this are not worth a ride (a ramp's walkable seam), m².
@@ -85,12 +85,12 @@ func _run() -> void:
 	if not await _load():
 		get_tree().quit(1)
 		return
-	var path := ProjectSettings.globalize_path(ArenaSurf.path_for(map_id))
+	var path := ProjectSettings.globalize_path(FcSurf.path_for(map_id))
 	if args.has("--check") or args.has("--stamp"):
 		var cached := _read(path)
-		var stale := String(cached.get("bake", "")) != ArenaSurf.bake_id(nav)
+		var stale := String(cached.get("bake", "")) != FcSurf.bake_id(nav)
 		print("[surf] %s: cache %s" % [map_id, "STALE (planned on another bake)" if stale else "matches the bake"])
-		print("[surf] %s: bake %s" % [map_id, ArenaSurf.bake_id(nav)])
+		print("[surf] %s: bake %s" % [map_id, FcSurf.bake_id(nav)])
 		if args.has("--stamp"):
 			_write(path, cached)
 		get_tree().quit(3 if stale and args.has("--check") else 0)
@@ -143,14 +143,14 @@ func _run() -> void:
 
 ## The map, in a game, with one bot and the bots' mesh baked the way the game bakes it.
 func _load() -> bool:
-	game = ArenaGame.new()
+	game = FcGame.new()
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.is_authority = true
 	game.register_service = false
-	game.mode = ArenaMode.free_for_all(1000)
+	game.mode = FcMode.free_for_all(1000)
 	add_child(game)
-	var map: ArenaMap = ArenaMap.by_id(map_id)
+	var map: FcMap = FcMap.by_id(map_id)
 	if map == null or not map.is_imported():
 		print("[surf] %s is not a combat surf map here (is maps/imported linked?)" % map_id)
 		return false
@@ -191,7 +191,7 @@ func hold(args: PackedStringArray) -> void:
 	var v := args[at + 2].split(",")
 	var yaw := float(args[at + 3])
 	var m := args[at + 4].split(",")
-	var course := ArenaSurf.course_for(game.map, nav, Vector3.ZERO, Vector3.FORWARD)
+	var course := FcSurf.course_for(game.map, nav, Vector3.ZERO, Vector3.FORWARD)
 	var sim := _simulator(course.event_at)
 	var s := _standing_at(Vector3(float(p[0]), float(p[1]), float(p[2])), yaw)
 	s.velocity = Vector3(float(v[0]), float(v[1]), float(v[2]))
@@ -234,7 +234,7 @@ func wander(width: int) -> Array:
 			starts[key] = [to, float(pit["yaw"])]
 	print("[surf] wandering from %d teleport landings" % starts.size())
 	var planner := DotBotSurfPlanner.new()
-	planner.seconds = ArenaSurf.RIDE_SECONDS
+	planner.seconds = FcSurf.RIDE_SECONDS
 	planner.width = width
 	var edges: Array = []
 	for key: Vector3i in starts:
@@ -244,11 +244,11 @@ func wander(width: int) -> Array:
 		var course := ExploreCourse.new()
 		course.nav = nav
 		course.start = to
-		course.gravity = 800.0 * ArenaSurf.UNITS
-		course.floor_y = bounds.position.y - ArenaSurf.FALL_OUT_DEPTH
+		course.gravity = 800.0 * FcSurf.UNITS
+		course.floor_y = bounds.position.y - FcSurf.FALL_OUT_DEPTH
 		course.progress_weight = 0.3
-		course.unsupported_fn = ArenaSurf.unsupported_test(game.map)
-		course.unsupported_penalty = ArenaSurf.UNSUPPORTED_PENALTY
+		course.unsupported_fn = FcSurf.unsupported_test(game.map)
+		course.unsupported_penalty = FcSurf.UNSUPPORTED_PENALTY
 		for pit: Dictionary in game.map.pits:
 			course.pit_boxes.append(pit["box"])
 		for t in targets:
@@ -285,15 +285,15 @@ func search_from(args: PackedStringArray, path: String) -> void:
 	course.nav = nav
 	course.start = Vector3(float(p[0]), float(p[1]), float(p[2]))
 	course.directed = true
-	course.gravity = 800.0 * ArenaSurf.UNITS
-	course.floor_y = game.map.bounds.position.y - ArenaSurf.FALL_OUT_DEPTH
+	course.gravity = 800.0 * FcSurf.UNITS
+	course.floor_y = game.map.bounds.position.y - FcSurf.FALL_OUT_DEPTH
 	for pit: Dictionary in game.map.pits:
 		course.pit_boxes.append(pit["box"])
 	for t in all_targets:
 		course.targets.append(int(t))
-	course.unsupported_fn = ArenaSurf.unsupported_test(game.map)
+	course.unsupported_fn = FcSurf.unsupported_test(game.map)
 	course.toward_goal = true
-	course.unsupported_penalty = ArenaSurf.UNSUPPORTED_PENALTY
+	course.unsupported_penalty = FcSurf.UNSUPPORTED_PENALTY
 	course.goal_centre = nav.closest((nav.islands()[target] as Dictionary)["centre"])
 	var pw := args.find("--progress")
 	if pw >= 0:
@@ -309,7 +309,7 @@ func search_from(args: PackedStringArray, path: String) -> void:
 	var s := _standing_at(course.start, course.reference_yaw())
 	s.velocity = Vector3(float(v[0]), float(v[1]), float(v[2]))
 	var planner := DotBotSurfPlanner.new()
-	planner.seconds = ArenaSurf.RIDE_SECONDS
+	planner.seconds = FcSurf.RIDE_SECONDS
 	planner.width = _opt(args, "--width", planner.width)
 	planner.seconds = float(_opt(args, "--seconds", int(planner.seconds)))
 	var began := Time.get_ticks_msec()
@@ -395,7 +395,7 @@ func list_landings(data: Dictionary) -> void:
 		var to := _metres(row["to"])
 		var off := nav.closest(to).distance_to(to)
 		print("[surf] edge %d: from island %d (cached %d), lands on %d (cached %d; %d bare, %.2f m off the mesh), planned %s" % [i,
-			ArenaSurf.landing_island_at(nav, from), int(row.get("from_island", -2)), ArenaSurf.landing_island_at(nav, to),
+			FcSurf.landing_island_at(nav, from), int(row.get("from_island", -2)), FcSurf.landing_island_at(nav, to),
 			int(row.get("to_island", -2)), nav.island_at(to, 1.0), off, row.has("lengths")])
 
 
@@ -477,7 +477,7 @@ func probe() -> void:
 			continue
 		seen[island] = true
 		var from := nav.closest(spawn.origin)
-		var course := ArenaSurf.course_for(game.map, nav, from, from + Vector3.FORWARD * 10.0)
+		var course := FcSurf.course_for(game.map, nav, from, from + Vector3.FORWARD * 10.0)
 		var sim := _simulator(course.event_at)
 		for k in range(8):
 			var yaw := k * 45.0
@@ -541,7 +541,7 @@ func explore(platforms: int, progress: Callable) -> Array:
 	print("[surf] exploring from %d platforms toward %d landings" % [queue.size(), landings.size()])
 	var edges: Array = []
 	var planner := DotBotSurfPlanner.new()
-	planner.seconds = ArenaSurf.RIDE_SECONDS
+	planner.seconds = FcSurf.RIDE_SECONDS
 	var explored := 0
 	while not queue.is_empty() and edges.size() < MAX_EDGES and explored < platforms:
 		var from_island: int = queue.pop_front()
@@ -571,8 +571,8 @@ func explore(platforms: int, progress: Callable) -> Array:
 			course.nav = nav
 			course.start = from
 			course.directed = true
-			course.gravity = 800.0 * ArenaSurf.UNITS
-			course.floor_y = bounds.position.y - ArenaSurf.FALL_OUT_DEPTH
+			course.gravity = 800.0 * FcSurf.UNITS
+			course.floor_y = bounds.position.y - FcSurf.FALL_OUT_DEPTH
 			for pit: Dictionary in game.map.pits:
 				course.pit_boxes.append(pit["box"])
 			# Steered toward this one, but landing on any of them is a ride: the best line toward a
@@ -581,9 +581,9 @@ func explore(platforms: int, progress: Callable) -> Array:
 			for other: int in order:
 				if other != target:
 					course.targets.append(other)
-			course.unsupported_fn = ArenaSurf.unsupported_test(game.map)
+			course.unsupported_fn = FcSurf.unsupported_test(game.map)
 			course.toward_goal = true
-			course.unsupported_penalty = ArenaSurf.UNSUPPORTED_PENALTY
+			course.unsupported_penalty = FcSurf.UNSUPPORTED_PENALTY
 			course.goal_centre = aim
 			var _settled := course.settle()
 			var sim := _simulator(course.event_at)
@@ -636,7 +636,7 @@ func _replay_end(start: DotFpsState, actions: PackedByteArray, course: DotBotSur
 func plan(index: int, edge: Dictionary, starts: int, repairs: int, rounds: int) -> void:
 	var from := _metres(edge["from"])
 	var to := _metres(edge["to"])
-	var course := ArenaSurf.course_for(game.map, nav, from, to)
+	var course := FcSurf.course_for(game.map, nav, from, to)
 	if course.landing_island < 0:
 		print("[surf] edge %d lands on no island of this mesh; explore again" % index)
 		return
@@ -653,7 +653,7 @@ func plan(index: int, edge: Dictionary, starts: int, repairs: int, rounds: int) 
 	for i in range(repairs):
 		repair_starts.append(perturbed(from, course.reference_yaw(), repair_rng))
 	var planner := DotBotSurfPlanner.new()
-	planner.seconds = ArenaSurf.RIDE_SECONDS
+	planner.seconds = FcSurf.RIDE_SECONDS
 	planner.repair_back = TICK_RATE
 	var started := Time.get_ticks_msec()
 	print("[surf] planning edge %d: island %d to %d, %.0f m" % [index, int(edge.get("from_island", -1)), int(edge.get("to_island", -1)), from.distance_to(to)])
@@ -668,7 +668,7 @@ func plan(index: int, edge: Dictionary, starts: int, repairs: int, rounds: int) 
 	edge["rides"] = built["seconds"]
 	edge["planned"] = {"starts": starts, "repairs": repairs, "rounds": built["rounds"], "searches": built["searches"],
 		"seconds": snappedf(spent, 0.1), "motor_ticks": sim.steps + repair_sim.steps, "tick_rate": TICK_RATE}
-	edge["entries"] = DotBotSurfPilot.entries_to_rows(built["rides"], ArenaSurf.UNITS)
+	edge["entries"] = DotBotSurfPilot.entries_to_rows(built["rides"], FcSurf.UNITS)
 
 
 # --- Recorded rides ------------------------------------------------------------------
@@ -683,13 +683,13 @@ func demos(verify: bool, merged_path: String = "") -> void:
 		return
 	var store: DotBotDemoStore = made.value
 	var _opened := store.open()
-	var rides := ArenaSurfRides.new()
+	var rides := FcSurfRides.new()
 	var ready := rides.setup(game, cfg, store, float(TICK_RATE))
 	if not ready.ok:
 		print("[surf] %s" % ready.error.message)
 		return
 	rides.set_map(game.map, nav)
-	var counts: DotResult = await store.counts(rides.recorder.map_id, rides.recorder.map_version, ArenaSurfRides.KIND)
+	var counts: DotResult = await store.counts(rides.recorder.map_id, rides.recorder.map_version, FcSurfRides.KIND)
 	if not counts.ok:
 		print("[surf] the store did not answer: %s" % counts.error.message)
 		return
@@ -698,7 +698,7 @@ func demos(verify: bool, merged_path: String = "") -> void:
 	if counts.value.is_empty():
 		print("[surf] nothing recorded for %s@%s" % [rides.recorder.map_id, rides.recorder.map_version])
 	# Before the harvest, so a recording is judged and piloted on the course a bot rides its edge on.
-	var surf := ArenaSurf.load_for(game.map, nav)
+	var surf := FcSurf.load_for(game.map, nav)
 	if surf != null:
 		await rides.attach_surf(surf)
 	if verify:
@@ -707,13 +707,13 @@ func demos(verify: bool, merged_path: String = "") -> void:
 			print("[surf] no simulator to replay on")
 			return
 		for key: String in counts.value:
-			var done: DotResult = await harvest.harvest(store, rides.recorder.map_id, rides.recorder.map_version, ArenaSurfRides.KIND, key)
+			var done: DotResult = await harvest.harvest(store, rides.recorder.map_id, rides.recorder.map_version, FcSurfRides.KIND, key)
 			print("[surf] edge %s: %s" % [key, "%d verified now" % done.value if done.ok else done.error.message])
 		for line in harvest.describe_lines():
 			print("[surf] %s" % line)
 		print("[surf] %d of the replays ridden by the pilot (piloted %s)" % [harvest.describe()["piloted_replays"], str(harvest.is_piloted())])
 	for key: String in counts.value:
-		var _loaded: DotResult = await rides.book.load_edge(store, ArenaSurfRides.KIND, key, rides.schema, float(TICK_RATE), rides.reference_yaw_for(key))
+		var _loaded: DotResult = await rides.book.load_edge(store, FcSurfRides.KIND, key, rides.schema, float(TICK_RATE), rides.reference_yaw_for(key))
 	for line in rides.book.describe_lines():
 		print("[surf] %s" % line)
 	if verify and surf != null and merged_path != "":
@@ -721,11 +721,11 @@ func demos(verify: bool, merged_path: String = "") -> void:
 
 
 ## The planned cache of the map with each edge's verified recordings added as rides of their own, in the cache's units.
-func _write_merged(rides: ArenaSurfRides, surf: ArenaSurf, path: String) -> void:
-	var data := _read(ProjectSettings.globalize_path(ArenaSurf.path_for(map_id)))
+func _write_merged(rides: FcSurfRides, surf: FcSurf, path: String) -> void:
+	var data := _read(ProjectSettings.globalize_path(FcSurf.path_for(map_id)))
 	var edges: Array = data.get("edges", [])
 	var added := 0
-	for edge: ArenaSurf.Edge in surf.edges:
+	for edge: FcSurf.Edge in surf.edges:
 		if edge.id >= edges.size():
 			continue
 		var row: Dictionary = edges[edge.id]
@@ -735,7 +735,7 @@ func _write_merged(rides: ArenaSurfRides, surf: ArenaSurf, path: String) -> void
 			var cache: Variant = (ride["data"] as Dictionary).get("cache") if ride["data"] is Dictionary else null
 			if ride["source"] != DotBotRideBook.RECORDED or not (cache is PackedFloat32Array):
 				continue
-			var rows := DotBotSurfPilot.entries_to_rows(cache, ArenaSurf.UNITS)
+			var rows := DotBotSurfPilot.entries_to_rows(cache, FcSurf.UNITS)
 			entries.append_array(rows)
 			lengths.append(rows.size())
 			added += 1

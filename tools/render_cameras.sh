@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Flies the arena's third-person and chase cameras round every spawn of a map, fails on any
+# Flies Fatal Contact's third-person and chase cameras round every spawn of a map, fails on any
 # frame inside the level, and draws the worst case before and after the probe, plus a body
 # between the camera and the player and one walking into the first-person camera.
 #

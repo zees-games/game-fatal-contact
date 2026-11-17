@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Bake the maps' light: one lightmaps/<id>.res per map, which the game's pack ships and a client
-# lays over the map it builds (ArenaMap._attach_bake; dot-lighting's DotLightBake).
+# lays over the map it builds (FcMap._attach_bake; dot-lighting's DotLightBake).
 #
 #   tools/bake_lightmaps.sh                    # every built-in map
 #   tools/bake_lightmaps.sh dm_box dm_pit   # these

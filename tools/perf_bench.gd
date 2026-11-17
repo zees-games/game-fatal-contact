@@ -1,18 +1,18 @@
 extends DotGamePerfBench
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const ClientBench := preload("client_bench.gd")
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
-const ArenaHullGrid := preload("../game/arena_hull_grid.gd")
-const ArenaSimHost := preload("../game/arena_sim_host.gd")
-const ArenaNetContext := preload("../game/arena_net_context.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
+const FcHullGrid := preload("../game/fc_hull_grid.gd")
+const FcSimHost := preload("../game/fc_sim_host.gd")
+const FcNetContext := preload("../game/fc_net_context.gd")
 const ProcSplit := preload("proc_split.gd")
 # Loaded with this script, so its _static_init (native brain on) runs before --brain-native.
-const ArenaPlayerStack := preload("../game/arena_player_stack.gd")
+const FcPlayerStack := preload("../game/fc_player_stack.gd")
 
-## The 16v16 benchmark: dot-game's DotGamePerfBench (flags, recording, sidecar; see it) on arena's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Arena's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (DotSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (DotSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
-## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (ArenaPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (dot-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
-## `--first-use-only a,b` for some ids); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (ArenaPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (dot-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms.
+## The 16v16 benchmark: dot-game's DotGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (DotSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (DotSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
+## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (dot-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
+## `--first-use-only a,b` for some ids); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (dot-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms.
 
 var _pilot := true
 var _motor_us := false
@@ -26,7 +26,7 @@ var _weapon_us := false
 ## `--tick N`: the game and engine tick rate (default: the game's, 66); 128 for the 128 Hz cost.
 var _tick := 0
 var _max_steps := -1
-## `--fine 0`: no sub-spans inside a system (ArenaFrameProbe.fine), so a report matches one from before they were on by default.
+## `--fine 0`: no sub-spans inside a system (FcFrameProbe.fine), so a report matches one from before they were on by default.
 var _fine := true
 var _ablate := PackedStringArray()
 var _sim_host := false
@@ -36,11 +36,11 @@ var _proc_split: ProcSplit = null
 
 
 func _configure() -> void:
-	client_scene = "res://game/arena.tscn"
+	client_scene = "res://game/fc.tscn"
 	map = "cp-orange-x3"
 	mode = "ctf"
-	preload("../game/arena_weapon_roles.gd").ensure()
-	var _scratch := ArenaPresentation.use_scratch_settings("perf_bench")
+	preload("../game/fc_weapon_roles.gd").ensure()
+	var _scratch := FcPresentation.use_scratch_settings("perf_bench")
 
 
 func _ready() -> void:
@@ -53,55 +53,55 @@ func _ready() -> void:
 	_native_us = int(args.get("native-us", 0)) != 0 and ClassDB.class_exists(&"DotSimFpsBody")
 	_max_steps = int(args.get("max-steps", -1))
 	_fine = int(args.get("fine", 1)) != 0
-	ArenaFrameProbe.fine_on_record = _fine
+	FcFrameProbe.fine_on_record = _fine
 	_tick = int(args.get("tick", 0))
 	if _max_steps > 0:
-		preload("../game/arena_tick_budget.gd").max_steps = _max_steps
+		preload("../game/fc_tick_budget.gd").max_steps = _max_steps
 	var wh := String(args.get("res", "")).split("x")
 	if wh.size() == 2 and DisplayServer.get_name() != "headless":
 		get_window().size = Vector2i(int(wh[0]), int(wh[1]))
 	if int(args.get("web-defaults", 0)) != 0:
 		# The browser build's defaults (DotPlatform.is_web()), before the flags below may override one.
-		var ap := preload("../game/arena_player.gd")
+		var ap := preload("../game/fc_player.gd")
 		ap.lod_off_every = ap.WEB_LOD_OFF_EVERY
 		say("web defaults: lod_off_every %d" % ap.lod_off_every)
 	if args.has("killcam-hz"):
-		preload("../game/arena_killcam_bodies.gd").record_hz = float(args["killcam-hz"])
+		preload("../game/fc_killcam_bodies.gd").record_hz = float(args["killcam-hz"])
 	if args.has("killcam-crowd"):
-		preload("../game/arena_killcam_bodies.gd").crowd_players = int(args["killcam-crowd"])
+		preload("../game/fc_killcam_bodies.gd").crowd_players = int(args["killcam-crowd"])
 	if args.has("lod-crowd"):
-		preload("../game/arena_player.gd").lod_crowd_players = int(args["lod-crowd"])
+		preload("../game/fc_player.gd").lod_crowd_players = int(args["lod-crowd"])
 	if args.has("figure-lift-range"):
-		# By name as well: the console hands the figure ArenaPlayer's value; a dot-player-char older than 27 has no lift_range.
-		preload("../game/arena_player.gd").figure_lift_range = float(args["figure-lift-range"])
+		# By name as well: the console hands the figure FcPlayer's value; a dot-player-char older than 27 has no lift_range.
+		preload("../game/fc_player.gd").figure_lift_range = float(args["figure-lift-range"])
 		(DotHumanoidFigure as Script).set(&"lift_range", float(args["figure-lift-range"]))
 	if args.has("lod-scale"):
-		preload("../game/arena_player.gd").lod_scale = float(args["lod-scale"])
+		preload("../game/fc_player.gd").lod_scale = float(args["lod-scale"])
 	if args.has("sight-far"):
-		preload("../game/arena_bots.gd").sight_far = float(args["sight-far"])
+		preload("../game/fc_bots.gd").sight_far = float(args["sight-far"])
 	if args.has("sight-far-reuse"):
-		preload("../game/arena_bots.gd").sight_far_reuse = float(args["sight-far-reuse"])
+		preload("../game/fc_bots.gd").sight_far_reuse = float(args["sight-far-reuse"])
 	if args.has("tier-idle-seen"):
-		preload("../game/arena_bots.gd").tiers.idle_view_every = int(args["tier-idle-seen"])
+		preload("../game/fc_bots.gd").tiers.idle_view_every = int(args["tier-idle-seen"])
 	if args.has("tier-body-near"):
-		preload("../game/arena_bots.gd").tiers.body_near_every = int(args["tier-body-near"])
+		preload("../game/fc_bots.gd").tiers.body_near_every = int(args["tier-body-near"])
 	if args.has("tier-body-far"):
-		preload("../game/arena_bots.gd").tiers.body_far_every = int(args["tier-body-far"])
+		preload("../game/fc_bots.gd").tiers.body_far_every = int(args["tier-body-far"])
 	if int(args.get("batch", 1)) == 0:
-		ArenaHullGrid.batch = false
-	ArenaHullGrid.min_players = int(args.get("hull-min", ArenaHullGrid.MIN_PLAYERS))
+		FcHullGrid.batch = false
+	FcHullGrid.min_players = int(args.get("hull-min", FcHullGrid.MIN_PLAYERS))
 	if int(args.get("lod", 1)) == 0:
-		preload("../game/arena_player.gd").present_lod_enabled = false
+		preload("../game/fc_player.gd").present_lod_enabled = false
 	if int(args.get("occl", 1)) == 0:
-		preload("../game/arena_player.gd").occlusion_enabled = false
+		preload("../game/fc_player.gd").occlusion_enabled = false
 	if int(args.get("anim-gate", 1)) == 0:
-		preload("../game/arena_player.gd").anim_gate_enabled = false
+		preload("../game/fc_player.gd").anim_gate_enabled = false
 	if int(args.get("carry", 1)) == 0:
 		# By name: a no-op against an fc-weapons older than the switch.
 		(AwWorldModel as Script).set(&"person_carry", false)
 	if args.has("brain-native"):
-		ArenaPlayerStack.set_brain_native(int(args["brain-native"]) != 0)
-	say("brain: %s" % ("native" if ArenaPlayerStack.brain_native() else "script"))
+		FcPlayerStack.set_brain_native(int(args["brain-native"]) != 0)
+	say("brain: %s" % ("native" if FcPlayerStack.brain_native() else "script"))
 	if args.has("weapon-native"):
 		AwWeaponRig.native_spread = int(args["weapon-native"]) != 0
 	say("weapon spread: %s" % ("native" if AwWeaponRig.native_spread_active() else "script"))
@@ -112,8 +112,8 @@ func _ready() -> void:
 		# By name: the bench also runs against a dot-bot older than the switch.
 		(DotBotBrain as Script).set(&"target_first", false)
 	_ablate = String(args.get("ablate", "")).split(",", false)
-	preload("../game/arena_player.gd").present_ablate = int(args.get("present-ablate", 0))
-	preload("../game/arena_client_prewarm.gd").prewarm_weapons_enabled = int(args.get("prewarm", 1)) != 0
+	preload("../game/fc_player.gd").present_ablate = int(args.get("present-ablate", 0))
+	preload("../game/fc_client_prewarm.gd").prewarm_weapons_enabled = int(args.get("prewarm", 1)) != 0
 
 
 func _setup_client(c: Node) -> void:
@@ -121,10 +121,10 @@ func _setup_client(c: Node) -> void:
 	c.set("mouse_capture_override", true)
 	_sim_host = int(args.get("sim-host", 0)) != 0
 	if _sim_host:
-		ArenaSimHost.forced = 1
+		FcSimHost.forced = 1
 		# `--boot-map ID`: the server boots there, and the bench changes to the map from the menu (a timed map change).
-		ArenaSimHost.ask_map = String(args.get("boot-map", map))
-		ArenaSimHost.ask_mode = mode
+		FcSimHost.ask_map = String(args.get("boot-map", map))
+		FcSimHost.ask_mode = mode
 
 
 func _select(game: Object) -> void:
@@ -295,7 +295,7 @@ func _sched_report(a: Dictionary, b: Dictionary) -> Dictionary:
 
 func _record_begin() -> void:
 	_sched0 = _sched_snapshot()
-	ArenaFrameProbe.fine = _fine
+	FcFrameProbe.fine = _fine
 	_apply_ablate()
 	if args.has("script-top") and profiler != null:
 		profiler.config.script_top = int(args["script-top"])
@@ -340,7 +340,7 @@ func _record_end() -> void:
 	for who: String in _sched:
 		for r: Dictionary in _sched[who]:
 			say("sched %s %s%s run %.2f rq %.2f vcs %.2f nvcs %.2f ms|n/frame" % [who, r.comm, " (main)" if r.main else "", r.run_ms, r.rq_wait_ms, r.vcs, r.nvcs])
-	ArenaFrameProbe.fine = false
+	FcFrameProbe.fine = false
 	DotFpsPhysicsBody.profile = false
 	DotFpsMotor.profile = false
 	DotFpsController.phase_timers = false
@@ -402,10 +402,10 @@ func _sidecar_extra(_game: Object) -> Dictionary:
 					native_n += 1
 			hulls["roster"] = (roster as Array).size()
 		hulls["native"] = native_n
-		hulls["batch"] = ArenaHullGrid.batch
-		hulls["batch_rows"] = ArenaHullGrid.batch_rows
-		hulls["batch_faults"] = ArenaHullGrid.batch_faults
-	return {"phases_ms_per_frame": phases, "weapon_us_per_call": weapon, "native": native, "hulls": hulls, "sim_host": _sim_host and client.get("_sim_host") != null, "sched": _sched, "net": ArenaNetContext.describe(client.get("bridge")), "pilot": _pilot, "brain_native": ArenaPlayerStack.brain_native(), "ragdoll_native": (DotPlayerRagdoll as Script).get(&"native_pose") == true and ClassDB.class_exists(&"DotSimRagdollPose"), "queries": _queries, "max_steps": _max_steps, "fine": _fine, "motor_queries": queries, "body_skipped": preload("../game/arena_player.gd").body_skipped, "tiers": preload("../game/arena_bots.gd").tiers.describe()}
+		hulls["batch"] = FcHullGrid.batch
+		hulls["batch_rows"] = FcHullGrid.batch_rows
+		hulls["batch_faults"] = FcHullGrid.batch_faults
+	return {"phases_ms_per_frame": phases, "weapon_us_per_call": weapon, "native": native, "hulls": hulls, "sim_host": _sim_host and client.get("_sim_host") != null, "sched": _sched, "net": FcNetContext.describe(client.get("bridge")), "pilot": _pilot, "brain_native": FcPlayerStack.brain_native(), "ragdoll_native": (DotPlayerRagdoll as Script).get(&"native_pose") == true and ClassDB.class_exists(&"DotSimRagdollPose"), "queries": _queries, "max_steps": _max_steps, "fine": _fine, "motor_queries": queries, "body_skipped": preload("../game/fc_player.gd").body_skipped, "tiers": preload("../game/fc_bots.gd").tiers.describe()}
 
 
 ## Casters by size: the census (`shadowcensus`) and the cuts `smallcast` (longest side < 0.6 m) and `smallcast2` (< 1.5 m).

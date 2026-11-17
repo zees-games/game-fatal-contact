@@ -4,14 +4,14 @@ extends DotGameCheckSuite
 ## before the click, and fires: at its middle, and at either edge [constant EDGE_MARGIN_M] inside the silhouette, where a rewind a few centimetres off turns a hit into a miss. The server must register every one. The gun's spread, bloom and recoil are zeroed for the round (they are the gun's, not the netcode's), and the trace reaching the server is checked to be the one aimed. Also measured, per shot: how far the server's rewound body
 ## stood from the one drawn, which must stay under [constant REWIND_TOLERANCE_M]. The clocks are placed by hand, as the net suites do: [code]DotNetClock[/code] follows the wall clock, which would make the run a different one on every box. The client's frame is drawn at a fraction through the tick ([constant ALPHAS]), as a monitor faster than the tick rate draws it, and the click is read by the next tick's command, as the game does.
 
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaNetBridge := preload("../game/arena_net_bridge.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcNetBridge := preload("../game/fc_net_bridge.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
-const TICK_RATE := ArenaContent.TICK_RATE
+const TICK_RATE := FcContent.TICK_RATE
 const SHOOTER_PEER := 2
 const TARGET_PEER := 3
 const SHOOTER := 11
@@ -35,7 +35,7 @@ const PITCH_STEP_DEG := 180.0 / 511.0
 const ORIGIN_M := 0.01
 ## How far the server's rewound body may stand from the one drawn: a quarter-tick step of the wire, and the server's tick ring against the snapshots between.
 const REWIND_TOLERANCE_M := 0.025
-## The torso hitbox, [code]ArenaPlayer[/code]'s zones, before the body scale.
+## The torso hitbox, [code]FcPlayer[/code]'s zones, before the body scale.
 const TORSO_RADIUS := 0.30
 const TORSO_HEIGHT := 0.98
 const HITSCAN := "dot_weapon_hitscan.gd"
@@ -54,9 +54,9 @@ const SECTIONS := 4
 var _entered := 0
 var _completed := 0
 
-var _server_game: ArenaGame = null
+var _server_game: FcGame = null
 var _server_net: DotNetManager = null
-var _server_bridge: ArenaNetBridge = null
+var _server_bridge: FcNetBridge = null
 var _clients: Dictionary = {}
 var _joins: Array[PackedByteArray] = []
 
@@ -83,7 +83,7 @@ var _ease_counting := false
 var _resolved: Array[Dictionary] = []
 ## Where the server's rewind for the shot being traced stood the target (null: no rewind).
 var _stood: Variant = null
-## The view tick of that rewind, and whether it blended the shooter's bracket (ArenaNetBridge.shot_feet).
+## The view tick of that rewind, and whether it blended the shooter's bracket (FcNetBridge.shot_feet).
 var _stood_view := -1.0
 var _stood_blended := false
 ## Ticks between taps this round: the gun's refire, at least [constant TAP_TICKS].
@@ -129,7 +129,7 @@ func _done() -> void:
 ## projectile, a knife, a grenade or a gun that charges before it fires.
 func _hitscan_weapons() -> Array[StringName]:
 	var out: Array[StringName] = []
-	for def: DotWeaponDef in ArenaContent.weapons():
+	for def: DotWeaponDef in FcContent.weapons():
 		var tuning := def.tuning as DotWeaponBallistics
 		var traced := def.behaviour_path.ends_with(HITSCAN) or def.behaviour_path.ends_with(BEAM)
 		if tuning == null or not traced or def.fire_mode == DotWeaponDef.Fire.CHARGE:
@@ -141,8 +141,8 @@ func _hitscan_weapons() -> Array[StringName]:
 
 # The three ends.
 
-func _lane() -> ArenaMap:
-	var map := ArenaMap.new()
+func _lane() -> FcMap:
+	var map := FcMap.new()
 	map.id = &"hitreg_lane"
 	map.display_name = "hitreg_lane"
 	map.extent = 150.0
@@ -153,8 +153,8 @@ func _lane() -> ArenaMap:
 	return map
 
 
-func _make_game(authority: bool) -> ArenaGame:
-	var game := ArenaGame.new()
+func _make_game(authority: bool) -> FcGame:
+	var game := FcGame.new()
 	game.name = "Arena%s" % ("Server" if authority else str(_clients.size()))
 	game.tick_rate = TICK_RATE
 	game.score_limit = 0
@@ -183,12 +183,12 @@ func _make_manager(is_server: bool, scope: StringName, peer_id: int) -> DotNetMa
 	net.config_file = ""
 	net.config = DotNetConfig.new()
 	net.config.tick_rate = TICK_RATE
-	net.config.snapshot_rate = ArenaGame.snapshot_rate_for(TICK_RATE)
+	net.config.snapshot_rate = FcGame.snapshot_rate_for(TICK_RATE)
 	# Sized from wall-clock arrival gaps it would be a different delay on every box.
 	net.config.adaptive_interpolation = false
-	net.config.world_extent = ArenaGame.NET_WORLD_EXTENT
+	net.config.world_extent = FcGame.NET_WORLD_EXTENT
 	# The game's client ease; `--ease-sec=` / `--ease-max=` try others.
-	net.config.resume_ease_sec = ArenaGame.CLIENT_RESUME_EASE_SEC
+	net.config.resume_ease_sec = FcGame.CLIENT_RESUME_EASE_SEC
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--ease-sec="):
 			net.config.resume_ease_sec = float(arg.get_slice("=", 1))
@@ -203,7 +203,7 @@ func _build() -> void:
 	_section("a server and two clients")
 	_server_game = _make_game(true)
 	_server_net = _make_manager(true, &"server", 1)
-	_server_bridge = ArenaNetBridge.new()
+	_server_bridge = FcNetBridge.new()
 	_server_bridge.name = "ServerBridge"
 	add_child(_server_bridge)
 	_check(_server_bridge.attach(_server_game, _server_net).ok, "the server bridge attaches")
@@ -229,7 +229,7 @@ func _build() -> void:
 	for pair: Vector2i in [Vector2i(SHOOTER_PEER, SHOOTER), Vector2i(TARGET_PEER, TARGET)]:
 		var game := _make_game(false)
 		var net := _make_manager(false, &"client%d" % pair.x, pair.x)
-		var bridge := ArenaNetBridge.new()
+		var bridge := FcNetBridge.new()
 		bridge.name = "Bridge%d" % pair.x
 		add_child(bridge)
 		_check(bridge.attach(game, net).ok, "client %d's bridge attaches" % pair.x)
@@ -248,10 +248,10 @@ func _build() -> void:
 
 # One round.
 
-func _players(id: int) -> Array[ArenaPlayer]:
-	var out: Array[ArenaPlayer] = [_server_game.player_for(id)]
+func _players(id: int) -> Array[FcPlayer]:
+	var out: Array[FcPlayer] = [_server_game.player_for(id)]
 	for peer_id: int in _clients:
-		out.append((_clients[peer_id]["game"] as ArenaGame).player_for(id))
+		out.append((_clients[peer_id]["game"] as FcGame).player_for(id))
 	return out
 
 
@@ -259,7 +259,7 @@ func _round(weapon_id: StringName, ping: int) -> void:
 	var total := int(roundf(float(ping) / 1000.0 * float(TICK_RATE)))
 	_up_ticks = total / 2
 	_down_ticks = total - _up_ticks
-	var def: DotWeaponDef = ArenaPlayer.weapon_catalogue().get_def(weapon_id)
+	var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(weapon_id)
 	# The catalogue's def is the one all three ends read: zeroed here, restored after.
 	var tuning := def.tuning as DotWeaponBallistics
 	var kept: Dictionary = {}
@@ -428,11 +428,11 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 			# As bots do at range: down while shooting, up again; [constant CROUCH_TICKS] drifts across the taps.
 			move.set_button(DotFpsCommand.BUTTON_CROUCH, _as_played and (index / CROUCH_TICKS) % 2 == 1)
 		elif not _last_frame.is_empty():
-			var me: ArenaPlayer = (entry["game"] as ArenaGame).player_for(SHOOTER)
+			var me: FcPlayer = (entry["game"] as FcGame).player_for(SHOOTER)
 			var muzzle := me.muzzle_position()
 			var centre: Vector3 = _last_frame["point"]
 			var across := (centre - muzzle).cross(Vector3.UP).normalized()
-			var point := centre + across * float(side) * (TORSO_RADIUS * ArenaPlayerTunables.body_scale() - EDGE_MARGIN_M)
+			var point := centre + across * float(side) * (TORSO_RADIUS * FcPlayerTunables.body_scale() - EDGE_MARGIN_M)
 			var aim := angles_to(muzzle, point)
 			_last_frame["aimed"] = point
 			move.yaw = aim.x
@@ -440,10 +440,10 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 			fire.yaw = aim.x
 			fire.pitch = aim.y
 			if _as_played:
-				fire.set_button(ArenaPlayer.BUTTON_AIM, true)
+				fire.set_button(FcPlayer.BUTTON_AIM, true)
 			if firing:
 				fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
-		var bridge: ArenaNetBridge = entry["bridge"]
+		var bridge: FcNetBridge = entry["bridge"]
 		bridge.client_tick(input_tick, move, fire)
 		var packet := bridge.encode_input(input_tick, move, fire)
 		var lands := _up_at(k)
@@ -453,7 +453,7 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 			fired = input_tick
 			var seen := _last_frame.duplicate()
 			seen["point"] = seen["aimed"]
-			seen["muzzle"] = (entry["game"] as ArenaGame).player_for(SHOOTER).muzzle_position()
+			seen["muzzle"] = (entry["game"] as FcGame).player_for(SHOOTER).muzzle_position()
 			seen["side"] = side
 			seen["lag"] = float(bridge._lag_for_q) * 0.25
 			seen["drawn_tick"] = bridge._drawn_tick
@@ -486,12 +486,12 @@ func _read_frame(k: int) -> void:
 		# the wall clock of a headless step (a millisecond here, more on a loaded box) stretched it
 		# over ten times as many ticks as a 64 Hz screen shows it, a different number on every box.
 		net._last_frame_usec = Time.get_ticks_usec() - int(1.0e6 / float(TICK_RATE))
-		(_clients[SHOOTER_PEER]["bridge"] as ArenaNetBridge).draw_frame(alpha)
-		var drawn: ArenaPlayer = (_clients[SHOOTER_PEER]["game"] as ArenaGame).player_for(_target)
+		(_clients[SHOOTER_PEER]["bridge"] as FcNetBridge).draw_frame(alpha)
+		var drawn: FcPlayer = (_clients[SHOOTER_PEER]["game"] as FcGame).player_for(_target)
 		var drawn_at := float(net.clock.received_tick()) + alpha - net.interpolator.delay_ticks()
 		_last_frame = {
 			"feet": drawn.global_position,
-			"point": drawn.global_position + Vector3.UP * TORSO_HEIGHT * ArenaPlayerTunables.body_scale() * _stance_scale(drawn),
+			"point": drawn.global_position + Vector3.UP * TORSO_HEIGHT * FcPlayerTunables.body_scale() * _stance_scale(drawn),
 			"time": drawn_at,
 			"alpha": alpha,
 			"crouch": drawn.controller.state.crouch_fraction,
@@ -537,13 +537,13 @@ func _lead_ticks() -> int:
 ## How far the interpolator's resume ease ([method DotNetInterpolator._ease_resume]) moved the drawn
 ## target off its blend this frame, in metres: what is left of the jump out of an extrapolation. The
 ## server rewinds to the blend; it cannot know this offset (and must not take one from a client).
-func _ease_offset(net: DotNetManager, bridge: ArenaNetBridge, render_tick: float) -> float:
+func _ease_offset(net: DotNetManager, bridge: FcNetBridge, render_tick: float) -> float:
 	return _ease_vector(net, bridge, render_tick).length()
 
 
 ## The resume ease's offset on the drawn target's position this frame, drawn at [param render_tick]
 ## (zero when none).
-func _ease_vector(net: DotNetManager, bridge: ArenaNetBridge, render_tick: float) -> Vector3:
+func _ease_vector(net: DotNetManager, bridge: FcNetBridge, render_tick: float) -> Vector3:
 	var behaviour: DotNetBehaviour = bridge._behaviours.get(_target)
 	if behaviour == null or behaviour.identity == null:
 		return Vector3.ZERO
@@ -599,8 +599,8 @@ func _target_move(index: int) -> Vector2:
 	return Vector2(1.0 if (index / 30) % 2 == 0 else -1.0, -1.0 if _as_played else 0.0)
 
 
-## How far the drawn body is squeezed down by its stance: [method ArenaPlayer.fit_hitboxes_to_stance]'s factor.
-static func _stance_scale(player: ArenaPlayer) -> float:
+## How far the drawn body is squeezed down by its stance: [method FcPlayer.fit_hitboxes_to_stance]'s factor.
+static func _stance_scale(player: FcPlayer) -> float:
 	var t := player.controller.tunables
 	return lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(player.controller.state.crouch_fraction, 0.0, 1.0))
 
@@ -612,7 +612,7 @@ func _on_resolved(shot: DotShot) -> void:
 	for d: DotDamage in shot.damages:
 		if d.victim == _target and not d.refused:
 			hit = true
-	# The tap this is: a late shot (ArenaNetBridge.take_late_fire) fires on a later tick than its
+	# The tap this is: a late shot (FcNetBridge.take_late_fire) fires on a later tick than its
 	# command's, so it is the newest tap not yet resolved within the late-fire window before it.
 	var tap := shot.tick
 	if not _drawn_for.has(tap):
@@ -621,7 +621,7 @@ func _on_resolved(shot: DotShot) -> void:
 			done[int(r["tick"])] = true
 		tap = -1
 		for t: int in _drawn_for:
-			if t < shot.tick and t >= shot.tick - ArenaNetBridge.LATE_FIRE_MAX_TICKS and not done.has(t) and t > tap:
+			if t < shot.tick and t >= shot.tick - FcNetBridge.LATE_FIRE_MAX_TICKS and not done.has(t) and t > tap:
 				tap = t
 	# Where the server stood the target for this shot: as its rewind left it, else its ring now.
 	var error := INF

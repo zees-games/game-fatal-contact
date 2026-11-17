@@ -3,18 +3,18 @@ extends "headless_match_progression.gd"
 # --- Changing the map ------------------------------------------------------
 
 ## dot-map, over the game that is already running, with players in it. The deployment shape that did not exist: dot-map's own
-## suite runs scenes, this runs a catalogue of code-made maps, a session that builds rather than loads, and an [ArenaGame] that
+## suite runs scenes, this runs a catalogue of code-made maps, a session that builds rather than loads, and an [FcGame] that
 ## tears down a combat manager and a match node it did not expect to lose.
 func _test_map_change() -> void:
 	_section("changing the map")
 
-	var catalogue := ArenaMaps.catalogue()
+	var catalogue := FcMaps.catalogue()
 
 	# The built-ins and every imported combat surf map the link holds (none without it).
-	var buildable := ArenaMap.ids().size() + ArenaMap.imported_ids().size()
+	var buildable := FcMap.ids().size() + FcMap.imported_ids().size()
 	_check(
 		catalogue.size() == buildable,
-		"every map ArenaMap can build is in the catalogue",
+		"every map FcMap can build is in the catalogue",
 		"%d of %d" % [catalogue.size(), buildable]
 	)
 
@@ -36,7 +36,7 @@ func _test_map_change() -> void:
 		", ".join(missing)
 	)
 
-	var director := ArenaMapDirector.new()
+	var director := FcMapDirector.new()
 	director.name = "Maps"
 	director.game = _game
 	director.map_seconds = 0.0
@@ -72,11 +72,11 @@ func _test_map_change() -> void:
 
 	for player in _game.players():
 		kills_before += _game.progress.session_values(player.player_id).get_value(
-			ArenaStats.KILLS, 0.0
+			FcStats.KILLS, 0.0
 		)
 
 	var changed_to: Array[StringName] = []
-	_game.map_changed.connect(func(m: ArenaMap) -> void: changed_to.append(m.id))
+	_game.map_changed.connect(func(m: FcMap) -> void: changed_to.append(m.id))
 
 	var changed: DotResult = await director.change_to(target)
 
@@ -109,7 +109,7 @@ func _test_map_change() -> void:
 		"%d of %d" % [registered, _game.players().size()]
 	)
 
-	var expected_spawns: int = ArenaMap.by_id(target).spawns.size()
+	var expected_spawns: int = FcMap.by_id(target).spawns.size()
 	_check(
 		_game.match_node.spawn_points().size() == expected_spawns,
 		"the spawn points are the new map's",
@@ -119,7 +119,7 @@ func _test_map_change() -> void:
 	# The trace is the map. Rebuilding the manager and forgetting the trace would
 	# leave every shot resolving against the geometry of a room nobody is in — and
 	# nothing would error, because a trace that hits nothing is a legitimate answer.
-	var new_map: ArenaMap = ArenaMap.by_id(target)
+	var new_map: FcMap = FcMap.by_id(target)
 	var outward := _game.combat.trace.ray(
 		Vector3(0.0, 2.0, 0.0), Vector3.RIGHT, new_map.extent * 4.0
 	)
@@ -139,7 +139,7 @@ func _test_map_change() -> void:
 		]
 	)
 
-	# Progression across a change: `ArenaProgress` is connected to the combat manager and match node just freed; without
+	# Progression across a change: `FcProgress` is connected to the combat manager and match node just freed; without
 	# `rebind_world` it would listen to two dead objects and count nothing, silently, like a quiet game.
 	var alive := _game.players()
 
@@ -148,7 +148,7 @@ func _test_map_change() -> void:
 
 		# An ENEMY, not the next player in the list: the resolver refuses a team-mate when friendly fire is off and a team mode
 		# has assigned everybody by now. Team 0 is "no team" and two unassigned players are not allies, so the fallback is right in a FFA.
-		var victim: ArenaPlayer = alive[1]
+		var victim: FcPlayer = alive[1]
 
 		for candidate in alive.slice(1):
 			if _game.team_of(candidate.player_id) \
@@ -173,31 +173,31 @@ func _test_map_change() -> void:
 				str(victim.player_id), _game.current_tick()
 			)
 
-		# [b]And THREE records, not two.[/b] `ArenaPlayerStack.refresh_spawn_rules` says it outright
+		# [b]And THREE records, not two.[/b] `FcPlayerStack.refresh_spawn_rules` says it outright
 		# -- spawn protection is enforced by [DotHealth]'s window, by dot-spawn's ledger, and by the
 		# `arena_protected` effect -- and this cleared the first two.
 		if _game.effects != null and _game.effects.manager != null:
 			_game.effects.manager.remove(
-				ArenaEffects.PROTECTED, victim.player_id
+				FcEffects.PROTECTED, victim.player_id
 			)
 
 		var before := _game.progress.session_values(shooter.player_id).get_value(
-			ArenaStats.DAMAGE_DEALT, 0.0
+			FcStats.DAMAGE_DEALT, 0.0
 		)
 
 		# Stamped, because an unstamped `DotDamage` is tick 0 and every gate that
-		# compares a tick against a window refuses it for ever. `ArenaEffects` carries
+		# compares a tick against a window refuses it for ever. `FcEffects` carries
 		# the same warning and names where this family found it the first time.
 		var event := DotDamage.make(
 			shooter.player_id, victim.player_id, 10.0,
-			_game.combat.damage_type(ArenaContent.DAMAGE_BULLET)
+			_game.combat.damage_type(FcContent.DAMAGE_BULLET)
 		)
 		event.tick = _game.current_tick()
 
 		var damage := _game.combat.apply_damage(event)
 
 		var after := _game.progress.session_values(shooter.player_id).get_value(
-			ArenaStats.DAMAGE_DEALT, 0.0
+			FcStats.DAMAGE_DEALT, 0.0
 		)
 
 		# The refusal reason is in the message because without it this check says
@@ -219,7 +219,7 @@ func _test_map_change() -> void:
 
 		var zoned := DotDamage.make(
 			shooter.player_id, victim.player_id, 5.0,
-			_game.combat.damage_type(ArenaContent.DAMAGE_BULLET)
+			_game.combat.damage_type(FcContent.DAMAGE_BULLET)
 		)
 		zoned.tick = _game.current_tick()
 		zoned.hit_group = DotHitGroup.NECK
@@ -229,16 +229,16 @@ func _test_map_change() -> void:
 			_game.progress.session_values(shooter.player_id).get_cell(DotStatsHitzones.HITS, "zone:neck") >= 1.0,
 			"a landed hit is filed by body zone through the dot-stats hitzone hook"
 		)
-		var pts_before := _game.progress.session_values(shooter.player_id).get_value(ArenaStats.POINTS, 0.0)
+		var pts_before := _game.progress.session_values(shooter.player_id).get_value(FcStats.POINTS, 0.0)
 		var _landed := _game.progress.points.award(shooter.player_id, DotStatsPoints.SOURCE_PICKUP, 3.0)
 		_check(
-			_game.progress.session_values(shooter.player_id).get_value(ArenaStats.POINTS, 0.0) == pts_before + 3.0,
+			_game.progress.session_values(shooter.player_id).get_value(FcStats.POINTS, 0.0) == pts_before + 3.0,
 			"a points award lands on the player's arena.points stat through the DotStatsPoints hook"
 		)
 		_game.progress.rank.mode = DotStatsRank.MODE_ELO
 		var _moved := _game.progress.rank.duel(shooter.player_id, -999)
 		_check(
-			_game.progress.session_values(shooter.player_id).get_value(ArenaStats.RANK_SCORE, 0.0) == 1012.0,
+			_game.progress.session_values(shooter.player_id).get_value(FcStats.RANK_SCORE, 0.0) == 1012.0,
 			"an Elo win files rank_score through the DotStatsRank hook"
 		)
 		_game.progress.rank.mode = DotStatsRank.MODE_WEIGHTED
@@ -250,7 +250,7 @@ func _test_map_change() -> void:
 		var sess := tracker.session_values(StringName(_game.progress._key_of(shooter.player_id)))
 		var session_only := rk.publish(shooter.player_id, sess.to_dictionary())
 		var career := DotStatsValues.new()
-		career.values[str(ArenaStats.KILLS)] = 100.0
+		career.values[str(FcStats.KILLS)] = 100.0
 		var store := DotStatsStoreMemory.new()
 		var _stored := await store.merge(StringName(_game.progress._key_of(shooter.player_id)), career, tracker.schema)
 		rk.forget(shooter.player_id)
@@ -272,7 +272,7 @@ func _test_map_change() -> void:
 		tracker.store = null
 		rk.mode = DotStatsRank.MODE_ELO
 		var stored_rank := DotStatsValues.new()
-		stored_rank.values[str(ArenaStats.RANK_SCORE)] = 1500.0
+		stored_rank.values[str(FcStats.RANK_SCORE)] = 1500.0
 		rk.seed_baseline(victim.player_id, stored_rank)
 		_check(rk.rating_of(victim.player_id) == 1500.0, "Elo mode seeds the rating from the stored rank_score")
 		rk.mode = DotStatsRank.MODE_WEIGHTED
@@ -287,17 +287,17 @@ func _test_map_change() -> void:
 		var visitor := 9001
 		var vkey := StringName(_game.progress._key_of(visitor))
 		await _game.progress.begin(visitor, "Visitor")
-		_game.progress.record(visitor, ArenaStats.KILLS, 3.0)
+		_game.progress.record(visitor, FcStats.KILLS, 3.0)
 		await _game.progress.leave(visitor)
 		var _w: DotResult = await tracker.flush_store()
-		var kills_id := StringName(ArenaStats.KILLS)
+		var kills_id := StringName(FcStats.KILLS)
 		var stored_after_leave: float = (await fstore.values_for(vkey)).value.get_value(kills_id)
 		_check(stored_after_leave == 3.0, "a leave files the session into the lifetime store", str(stored_after_leave))
 		await _game.progress.begin(visitor, "Visitor")
 		var base: DotStatsValues = _game.progress.rank.baselines.get(visitor, null)
 		_check(base != null and base.get_value(kills_id) == 3.0, "a rejoin reads the stored lifetime total as the rank baseline")
 		_check(_game.progress.stats.session_values(vkey).get_value(kills_id) == 0.0, "the rejoined session starts at zero")
-		_game.progress.record(visitor, ArenaStats.KILLS, 2.0)
+		_game.progress.record(visitor, FcStats.KILLS, 2.0)
 		var _w2: DotResult = await tracker.flush()
 		var stored_after_flush: float = (await fstore.values_for(vkey)).value.get_value(kills_id)
 		_check(stored_after_flush == 5.0, "a flush after the rejoin adds only the new session", str(stored_after_flush))
@@ -316,7 +316,7 @@ func _test_map_change() -> void:
 
 	for player in _game.players():
 		kills_after += _game.progress.session_values(player.player_id).get_value(
-			ArenaStats.KILLS, 0.0
+			FcStats.KILLS, 0.0
 		)
 
 	# A session is a visit to the server, not a visit to a room. Resetting here would
@@ -360,7 +360,7 @@ func _test_map_change_box_trap() -> void:
 	# --- A box where somebody was standing -------------------------------  [b]The check above
 	# passes on the shipped maps by luck of layout.[/b] A map change used to keep every player's
 	# position and swap the geometry under them.
-	var trap_map: ArenaMap = ArenaMap.by_id(_game.map.id)
+	var trap_map: FcMap = FcMap.by_id(_game.map.id)
 	var standing: Variant = _open_floor_away_from_spawns(trap_map)
 
 	if _check(
@@ -368,7 +368,7 @@ func _test_map_change_box_trap() -> void:
 		"there is open floor away from every spawn to build a box on",
 		String(trap_map.id)
 	):
-		var carried: ArenaPlayer = _game.players()[0]
+		var carried: FcPlayer = _game.players()[0]
 		carried.controller.teleport(standing as Vector3, 0.0, 0.0)
 		trap_map.add_box(_trap_at(standing as Vector3))
 

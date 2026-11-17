@@ -5,7 +5,7 @@ func _test_event_budget() -> void:
 	print("")
 	_section("[events over a frame budget]")
 	var sent: Array[PackedByteArray] = []
-	var bridge := ArenaNetBridge.new()
+	var bridge := FcNetBridge.new()
 	bridge.name = "BudgetBridge"
 	add_child(bridge)
 	var game := _make_game(true)
@@ -23,7 +23,7 @@ func _test_event_budget() -> void:
 		var _joined := bridge.add_player(80 + i, 710 + i, "Joiner %d" % i)
 		expected.append(710 + i)
 
-	var watcher := ArenaNetBridge.new()
+	var watcher := FcNetBridge.new()
 	watcher.name = "BudgetWatcher"
 	watcher.event_budget_usec = 1
 	add_child(watcher)
@@ -32,7 +32,7 @@ func _test_event_budget() -> void:
 	var _watching := watcher.attach(watcher_game, watcher_net)
 	_start(watcher_net)
 	var order: Array[int] = []
-	watcher_game.player_added.connect(func(added: ArenaPlayer) -> void: order.append(added.player_id))
+	watcher_game.player_added.connect(func(added: FcPlayer) -> void: order.append(added.player_id))
 	for payload in sent:
 		var _got := watcher.receive_event(payload)
 	_check(sent.size() >= 6 and watcher.events_waiting() > 0 and order.size() < expected.size(),
@@ -58,7 +58,7 @@ func _test_predicted_node_is_not_moved() -> void:
 	# `DotNetManager.receive_snapshot` calls `read_state` — and therefore `_net_state_applied` —
 	# BEFORE `DotNetPredictor.reconcile`, and the first thing reconcile does is read the node as
 	# "what the client is showing" so it can measure the correction.
-	var behaviour := (_clients[2]["bridge"] as ArenaNetBridge).behaviour_for(11)
+	var behaviour := (_clients[2]["bridge"] as FcNetBridge).behaviour_for(11)
 
 	if not _check(behaviour != null, "the local player's behaviour is found"):
 		return
@@ -83,7 +83,7 @@ func _test_predicted_node_is_not_moved() -> void:
 	# The remote player is the other half, and it must move: its node is driven by
 	# nothing else, so a guard that skipped it would leave every remote player standing
 	# where they spawned.
-	var remote := (_clients[2]["bridge"] as ArenaNetBridge).behaviour_for(12)
+	var remote := (_clients[2]["bridge"] as FcNetBridge).behaviour_for(12)
 
 	if not _check(remote != null, "the remote player's behaviour is found"):
 		return
@@ -111,9 +111,9 @@ func _test_config_agreement() -> void:
 
 	# **A quantised value decoded against a different range is a different value, not a less precise
 	# one.** `world_extent` is the range every replicated position is an integer over, and the
-	# server and the client wrote it separately — 128 in `ArenaModule`.
+	# server and the client wrote it separately — 128 in `FcModule`.
 	_check(
-		is_equal_approx(_server_net.config.world_extent, ArenaGame.NET_WORLD_EXTENT),
+		is_equal_approx(_server_net.config.world_extent, FcGame.NET_WORLD_EXTENT),
 		"the server quantises positions over the game's extent",
 		"%.1f" % _server_net.config.world_extent
 	)
@@ -175,20 +175,20 @@ class EngineErrors extends Logger:
 		return out
 
 
-## dot-map's announce/ready/load protocol, over this game's own link: two [ArenaNetLink]s, a
+## dot-map's announce/ready/load protocol, over this game's own link: two [FcNetLink]s, a
 ## real [DotMapSyncHost] and [DotMapSyncClient], payloads through the same `send_map` a socket
 ## would use. dot-map's own suite only runs a loopback `send_fn`.
 func _test_map_sync_wire() -> void:
 	print("")
 	_section("[map sync over the link]")
 
-	var server_link := ArenaNetLink.attached_to(self, _server_bridge, true)
+	var server_link := FcNetLink.attached_to(self, _server_bridge, true)
 	add_child(server_link)
 	server_link.name = "MapServerLink"
 
 	var client_entry: Dictionary = _clients[_clients.keys()[0]]
-	var client_bridge: ArenaNetBridge = client_entry["bridge"]
-	var client_link := ArenaNetLink.attached_to(self, client_bridge, false)
+	var client_bridge: FcNetBridge = client_entry["bridge"]
+	var client_link := FcNetLink.attached_to(self, client_bridge, false)
 	add_child(client_link)
 	client_link.name = "MapClientLink"
 
@@ -204,9 +204,9 @@ func _test_map_sync_wire() -> void:
 	client_link.loopback_map = func(m: StringName, _peer: int, payload: Dictionary) -> void:
 		server_link.deliver_map(m, 2, payload)
 
-	var catalogue := ArenaMaps.catalogue()
+	var catalogue := FcMaps.catalogue()
 
-	var session := ArenaMapSession.new()
+	var session := FcMapSession.new()
 	session.name = "MapSession"
 	session.game = _server_game
 	session.catalogue = catalogue
@@ -223,12 +223,12 @@ func _test_map_sync_wire() -> void:
 	# The FOLLOWER needs a catalogue too: `DotMapSyncClient` accepts an announced map only if
 	# it is in its own catalogue at the same version, else it refuses with "a host may not
 	# send a map that is not delivered content".
-	var client_game: ArenaGame = client_entry["game"]
+	var client_game: FcGame = client_entry["game"]
 
-	var follower_session := ArenaMapSession.new()
+	var follower_session := FcMapSession.new()
 	follower_session.name = "FollowerSession"
 	follower_session.game = client_game
-	follower_session.catalogue = ArenaMaps.catalogue()
+	follower_session.catalogue = FcMaps.catalogue()
 	add_child(follower_session)
 
 	var follower := DotMapSyncClient.new()
@@ -298,8 +298,8 @@ func _test_map_sync_wire() -> void:
 	# predictor adopts the server's state over the same one-in-five loss.
 	var peer: int = _clients.keys()[0]
 	var session_id := int(client_entry["session"])
-	var on_server: ArenaPlayer = _server_bridge.behaviour_for(session_id).player
-	var on_client: ArenaPlayer = client_bridge.behaviour_for(session_id).player
+	var on_server: FcPlayer = _server_bridge.behaviour_for(session_id).player
+	var on_client: FcPlayer = client_bridge.behaviour_for(session_id).player
 	var respawned_at := on_server.controller.state.position
 	var nearest := INF
 
@@ -325,10 +325,10 @@ func _test_map_sync_wire() -> void:
 	)
 
 	# The same wire onto an imported combat surf map, and back.
-	if ArenaMap.imported_ids().has(IMPORTED_MAP):
+	if FcMap.imported_ids().has(IMPORTED_MAP):
 		await _follow_onto_imported(host, client_game, client_entry, peer, target)
 	else:
-		print("  skip  no imported maps linked (arena-surf-dm-maps); %d checks not run" % IMPORTED_CHECKS)
+		print("  skip  no imported maps linked (fc-surf-dm-maps); %d checks not run" % IMPORTED_CHECKS)
 		_skipped_checks += IMPORTED_CHECKS
 
 	host.queue_free()

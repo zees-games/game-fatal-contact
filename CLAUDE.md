@@ -2,7 +2,7 @@
 
 The reference game: a 3D deathmatch in six kinds of mode on three built-in maps and fc-surf-dm-maps' combat surf maps (delivered, not shipped), with bots and fc-weapons, over dot-net, as a signed dot-cloud pack: the only test of the joins between the addons.
 
-The game is **Zee's Fatal Contact** (it was Arena; the repository was game-arena). **Wire and storage ids keep the old name on purpose**: the pack id `gamemann/game-arena` and publish id `game-arena`, the cfg game id `game-arena` (`cfg/game/game-arena/`), the site app slug `arena` until the owner runs website-city's slug migration, the dot-server-deploy former id `arena` (the pack is `fatalcontact` there now; `arena` still answers `--game` and `sv_game`), the `Arena` node names, the `Arena*` class and `arena_*` file names, `arena-player-%08d` keys and suite names. Change one only together with dot-server-deploy, website-city and dot-cloud. **Console names are `fc_*`** (cvars, commands, config profile keys); the map change is dot-map's `map` and `maps`. A new console name never starts with `arena_`: the old names are only hidden shims that log an ERR naming the new one (`game/arena_renamed_names.gd`, removed after one release; `headless_console_names` checks it). `config/name` is "Fatal Contact" and the user folder is `game-fatal-contact` (`~/.local/share/game-fatal-contact`, `%APPDATA%\game-fatal-contact`); the first run copies the old `app_userdata/game-arena` folder in (`game/arena_user_dir.gd`).
+The game is **Zee's Fatal Contact** (it had an older name before that; the repository is zees-games/game-fatal-contact). **Wire and storage ids keep the old name on purpose**: the pack id `gamemann/game-arena` and publish id `game-arena`, the cfg game id `game-arena` (`cfg/game/game-arena/`), the site app slug `arena` until the owner runs website-city's slug migration, the dot-server-deploy former id `arena` (the pack is `fatalcontact` there now; `arena` still answers `--game` and `sv_game`), the `Arena`, `ArenaServer`, `ArenaClient` and `ArenaSimServer` node names (RPC paths), `arena-player-%08d` keys, stat and award keys, input actions, effect, prop and avatar part ids, user:// settings, env vars and argv. Classes, files and suites are `Fc*`/`fc_*` since fc-rename-1 (`tools/fc_rename_apply.sh` re-applies the map to a branch that predates it; the full list and plan are in [docs/fc-rename-plan.md](docs/fc-rename-plan.md)). Change one only together with dot-server-deploy, website-city and dot-cloud. **Console names are `fc_*`** (cvars, commands, config profile keys); the map change is dot-map's `map` and `maps`. A new console name never starts with `arena_`: the old names are only hidden shims that log an ERR naming the new one (`game/fc_renamed_names.gd`, removed after one release; `headless_console_names` checks it). `config/name` is "Fatal Contact" and the user folder is `game-fatal-contact` (`~/.local/share/game-fatal-contact`, `%APPDATA%\game-fatal-contact`); the first run copies the old `app_userdata/game-arena` folder in (`game/fc_user_dir.gd`).
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to this game. **The detail is in [docs/](docs/README.md)**.
 
@@ -29,7 +29,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | `npcs/`, `props/`, `avatars/`, `scenes/fx/`, `assets/` | monsters, props, avatar parts, effects, vendored base weapon art, Kenney's grid and medal icons |
 | `examples/` | the nine suites; `wall_route_driver.gd` drives a map's wall routes |
 | `tools/` | render tools (`screenshot.sh --glance`), avatar and icon builders, `audio_probe.sh`, `loudness_pilot.gd`. [client](docs/client.md#looking-at-it) |
-| `scenes/arena_server.tscn`, `game.yml` | the server scene and the descriptor that travels in the pack |
+| `scenes/fc_server.tscn`, `game.yml` | the server scene and the descriptor that travels in the pack |
 
 ## Running and testing
 
@@ -37,7 +37,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - **Run the suites after changing any dot-* addon this game links.** [testing](docs/testing.md)
 - `headless_presentation` and `headless_feel` have a client, `headless_lossy` and `headless_feel` real ENet and loss; only `headless_feel` judges frames. [testing](docs/testing.md#the-suites)
 - Read every suite's stderr even when it exits 0; cap every run with `timeout`. [testing](docs/testing.md#traps-the-suites-have-hit)
-- A suite or tool that builds a presentation or client calls `ArenaPresentation.use_scratch_settings` first. [testing](docs/testing.md#traps-the-suites-have-hit)
+- A suite or tool that builds a presentation or client calls `FcPresentation.use_scratch_settings` first. [testing](docs/testing.md#traps-the-suites-have-hit)
 - **Look at it.** No check reaches the screen: `tools/` under `xvfb-run`; a camera change in `render_cameras.sh` (armed) and `render_views.gd`. [client](docs/client.md#looking-at-it)
 - Without the `maps/imported` link the built-in maps play and the imported checks skip; supported.
 
@@ -53,18 +53,18 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - Footsteps and per-map beds are dot-audio's stock; measure levels with its `loudness.sh`, and check the pilot walked. [client](docs/client.md#footsteps-and-the-bed)
 - One player id: `player_id` is the session userid, never the peer id. Loadout keys are `"arena-player-%08d"`. [architecture](docs/architecture.md#one-id-space-for-players)
 - Tick order: movement, then shots after everyone moved, then map hurt, then the match. [architecture](docs/architecture.md#order-inside-a-tick)
-- `ArenaMap`'s scene, movement body and trace come from one box list; never build one separately. [architecture](docs/architecture.md#one-description-three-representations)
-- No `class_name` anywhere (pack delivery): preload by relative path, `res://` through `ArenaPaths.rebase`. [architecture](docs/architecture.md#where-it-runs)
-- Only `ArenaModule` and `ArenaServices` name dot-server; only `ArenaNetBridge` names both the game and dot-net.
+- `FcMap`'s scene, movement body and trace come from one box list; never build one separately. [architecture](docs/architecture.md#one-description-three-representations)
+- No `class_name` anywhere (pack delivery): preload by relative path, `res://` through `FcPaths.rebase`. [architecture](docs/architecture.md#where-it-runs)
+- Only `FcModule` and `FcServices` name dot-server; only `FcNetBridge` names both the game and dot-net.
 
 **Netcode**
 
 - The first `_net_simulate` on a tick runs the whole game (`ensure_game_ticked`); the server tick calls it again. [netcode](docs/netcode.md#the-bridge)
 - `Authority.SHARED`; `receive_snapshot` must not reconcile. [netcode](docs/netcode.md#the-bridge)
-- `NET_WORLD_EXTENT` (512) and `NET_SNAPSHOT_RATE` are written once, on `ArenaGame`. [netcode](docs/netcode.md#one-number-written-once)
+- `NET_WORLD_EXTENT` (512) and `NET_SNAPSHOT_RATE` are written once, on `FcGame`. [netcode](docs/netcode.md#one-number-written-once)
 - The client predicts with the server's collision (`Mode.HEADLESS`, or the imported brushes), never physics of its own. [netcode](docs/netcode.md#the-client-predicts-with-the-servers-collision)
 - Players are solid through the movement body (`mp_solidplayers` REPLICATED), never a physics hull; spawn sight uses `combat.trace`. [netcode](docs/netcode.md#players-are-solid-to-each-other)
-- A READY before the seat is kept (`ArenaNetBridge._ready_unseated`) and answered by `add_player`; answered at once its HELLO named session 0. [netcode](docs/netcode.md#events-and-requests)
+- A READY before the seat is kept (`FcNetBridge._ready_unseated`) and answered by `add_player`; answered at once its HELLO named session 0. [netcode](docs/netcode.md#events-and-requests)
 - Event and request kinds are appended, never inserted. No message script preloads itself. [netcode](docs/netcode.md#events-and-requests)
 - Anything a client predicts or draws from a server rule travels in RULES, to a joiner before any JOIN. [netcode](docs/netcode.md#rules-a-client-predicts-with-travel-in-rules)
 - A family cvar a client predicts with is `FLAG_REPLICATED` and followed, not in RULES, re-applied after a map change. [netcode](docs/netcode.md#rules-a-client-predicts-with-travel-in-rules)
@@ -75,13 +75,13 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 **Client**
 
 - Adopt the player on `player_added`, never `player_spawned`. Offline, name the player before creating it. [client](docs/client.md#booting-and-adopting-a-player)
-- The camera is written only in `ArenaPlayer.present`, never `DotFpsView`; a server may clamp the field of view, never read it. [client](docs/client.md#the-camera-is-written-in-exactly-one-place)
+- The camera is written only in `FcPlayer.present`, never `DotFpsView`; a server may clamp the field of view, never read it. [client](docs/client.md#the-camera-is-written-in-exactly-one-place)
 - A client's own `mode` is never replaced; display reads `displayed_mode()`. [client](docs/client.md#a-client-knows-the-mode-only-for-display)
-- Effects are built against `ArenaPresentation.facing` (-Z along the shot); a missing scene is a warning. [client](docs/client.md#effect-scenes)
-- Players and bots are dot-player-char's people (`ArenaAvatars.look_of`); the document stays `arena_stock`; the gun hand is the left. [client](docs/client.md#avatars)
-- The Escape menu is dot-menu's (`ArenaMenus`): Escape releases, then opens it; only a click captures. [client](docs/client.md#escape-the-pointer-and-the-menu)
-- The team menu (Period) is dot-menu's screen over dot-team's server rules (`ArenaTeamMenu`, `mp_teamswitch_*`, `mp_team_names`); no row may default to Period. [netcode](docs/netcode.md#the-team-menu)
-- Every key the client reads is an `ArenaBindings` row read through its action, never a keycode; props modes reuse Launch and Bash; V is push to talk (no noclip). [client](docs/client.md#keys)
+- Effects are built against `FcPresentation.facing` (-Z along the shot); a missing scene is a warning. [client](docs/client.md#effect-scenes)
+- Players and bots are dot-player-char's people (`FcAvatars.look_of`); the document stays `arena_stock`; the gun hand is the left. [client](docs/client.md#avatars)
+- The Escape menu is dot-menu's (`FcMenus`): Escape releases, then opens it; only a click captures. [client](docs/client.md#escape-the-pointer-and-the-menu)
+- The team menu (Period) is dot-menu's screen over dot-team's server rules (`FcTeamMenu`, `mp_teamswitch_*`, `mp_team_names`); no row may default to Period. [netcode](docs/netcode.md#the-team-menu)
+- Every key the client reads is an `FcBindings` row read through its action, never a keycode; props modes reuse Launch and Bash; V is push to talk (no noclip). [client](docs/client.md#keys)
 - M is the map menu: solo `map_menu_rows()` / `change_from_menu()`, on a server dot-vote's menu over this ballot. No row may default to M. [client](docs/client.md#escape-the-pointer-and-the-menu)
 - B is the loadout menu: the authority's `loadout_command` decides; a choice is in the hands at once only in warmup or spawn protection. No row may default to B. [modes](docs/modes.md#loadouts-and-the-owners-rules)
 - The crosshair fades down the sights (`set_aim`); a scope still hides it. [client](docs/client.md#escape-the-pointer-and-the-menu)
@@ -94,18 +94,18 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - Nothing of the HUD on the right edge from 110 px down (the shell's column); below a ballot a piece reads `dot_hud_cover`. [client](docs/client.md#the-hud)
 - The streak meter ends above a full chat log; the chat box is scaled with the HUD and clear of the slide prompt. [client](docs/client.md#the-chat-box)
 - Hit marker, damage numbers, medals, points and nemesis come only from the server's HIT and AWARD, never a predicted shot. [client](docs/client.md#kill-feedback)
-- Medal rules live in `ArenaAwards.MedalBook` on the authority; `ArenaAwards.Medal` is a wire index, appended only. [services](docs/services.md#progression)
-- Every bot, solo and server, is `ArenaBots.think`; its settings live on the game, never in the registry. [netcode](docs/netcode.md#bots)
+- Medal rules live in `FcAwards.MedalBook` on the authority; `FcAwards.Medal` is a wire index, appended only. [services](docs/services.md#progression)
+- Every bot, solo and server, is `FcBots.think`; its settings live on the game, never in the registry. [netcode](docs/netcode.md#bots)
 - Third person is deliberately not here: one motor to agree about. [client](docs/client.md#avatars)
 
 **Modes and the round**
 
 - Wall run, jump and slide are on (`fc_wall_*`, in RULES); `wall_run_auto` starts a run on touching a wall in the air and a press wall-jumps; `wall_run_min_speed` (the no-press run) stays above `max_speed`. [modes](docs/modes.md#movement-is-a-games-choice)
-- Modes are `ArenaMode` resources; `team_count` and `team_based` must agree; the rules are duplicated before use. [modes](docs/modes.md#modes-are-data)
+- Modes are `FcMode` resources; `team_count` and `team_based` must agree; the rules are duplicated before use. [modes](docs/modes.md#modes-are-data)
 - Build the team manager before `add_child(match_node)`; assign `resolver.team_of` after `add_child(combat)`. [modes](docs/modes.md#modes-are-data)
 - Whether there are sides is the mode's answer (`is_team_mode()`), not the team manager's. [modes](docs/modes.md#modes-are-data)
 - Gun game's level is the match score, and its score limit is the list's length. [modes](docs/modes.md#gun-game-and-weapon-pools)
-- A match cvar writes the `ArenaGame` export AND the live match (`apply_match_limits`). [modes](docs/modes.md#modes-are-data)
+- A match cvar writes the `FcGame` export AND the live match (`apply_match_limits`). [modes](docs/modes.md#modes-are-data)
 - Anything hooked to the combat manager rebinds on `map_changed`. [modes](docs/modes.md#effects)
 - Spawn protection: one duration, three records; it does not break on attack; an admin slay passes. [modes](docs/modes.md#spawn-protection)
 - Body breaking is seeded from victim and killer, never the tick; a death's fall is the server's pick (`decide_death`), never a client's. [modes](docs/modes.md#criticals-and-bodies)
@@ -114,11 +114,11 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 **Maps**
 
-- The catalogue is built from `ArenaMap.ids()`, never a second list; bump `MAP_VERSIONS` when a map's geometry changes. [maps](docs/maps.md#maps-are-content-and-these-maps-are-code)
+- The catalogue is built from `FcMap.ids()`, never a second list; bump `MAP_VERSIONS` when a map's geometry changes. [maps](docs/maps.md#maps-are-content-and-these-maps-are-code)
 - `setup` is not re-entrant; `change_map` is, and respawns everybody. Rebind, never rebuild, what survives. [maps](docs/maps.md#changing-the-map)
 - A client builds the def it is handed, never `game.map`. [maps](docs/maps.md#reaching-the-players)
 - `dm_pit`'s spawns stay untagged; `restrict_rotation` never empties the order. [maps](docs/maps.md#modes-a-map-can-host)
-- Built-in maps place no physics props (toys); the path stays for map data and tests (`ArenaTestToys`); a client registers every toy mirror before its map is built. [maps](docs/maps.md#toys), [netcode](docs/netcode.md#the-maps-toys)
+- Built-in maps place no physics props (toys); the path stays for map data and tests (`FcTestToys`); a client registers every toy mirror before its map is built. [maps](docs/maps.md#toys), [netcode](docs/netcode.md#the-maps-toys)
 - Every map passes the survey: no slot under 0.8 m and nothing unreached unless declared; a bot that covers ground does not hold jump. [maps](docs/maps.md#every-map-is-surveyed)
 - Stairs are 0.36 treads ending flush; crate gaps 0.5; a new way up is watched from above. [maps](docs/maps.md#design-rules-every-map-follows)
 - A wall route is declared (`add_wall_route`) and driven in `headless_match`; a run gap drops about 0.7 m and outspans a dash-jump. [maps](docs/maps.md#design-rules-every-map-follows)
@@ -129,7 +129,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - `fc_weapons` is the whole weapon runtime (its `Aw*` classes are named directly), so `requires.floor.json` and `requires.pins.json` carry it at level 32, the first level under the `fc_weapons` name (below it the folder was `arena_weapons`, which this pack no longer loads); no other weapon addon is linked.
 - An imported map's solid is in the tree on every machine before any player is bodied; spawns are settled. [imported](docs/imported-maps.md#the-solid-is-the-games-on-every-machine)
 - Bots route on an imported map over a `DotBotNav` baked in the background, never in the tick. [imported](docs/imported-maps.md#bots-route-over-a-mesh-baked-from-the-brushes)
-- Ride edges are planned by `tools/surf_rides.tscn`, never at load; `arena_surf.gd` loads by path only with dot-bot 4, dot-player-controller 3. [imported](docs/imported-maps.md#bots-ride-the-ramps)
+- Ride edges are planned by `tools/surf_rides.tscn`, never at load; `fc_surf.gd` loads by path only with dot-bot 4, dot-player-controller 3. [imported](docs/imported-maps.md#bots-ride-the-ramps)
 - Map mechanics run inside the simulated tick on both ends; pushes are stateless; swim and ladder modes are registered on every map. [imported](docs/imported-maps.md#the-maps-own-mechanics)
 - A Workshop map (solo only, `provides.json` `accepts`) is a JSON box-list document whose id is its entry's id; a bad one is refused and unlisted, the game's ids win. [maps](docs/maps.md#workshop-maps)
 - Fatal Contact needs a shell with dot-player-controller v0.1.5+, the wall moves and `DotFpsViewMotion`. [imported](docs/imported-maps.md#the-solid-is-the-games-on-every-machine)
@@ -148,4 +148,4 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - `admin_abilities` on every player, both ends. [services](docs/services.md#an-administrators-live-tools)
 - One vote clock; voters keyed by bare session id. [services](docs/services.md#the-map-vote)
 - A private match reports nothing (`reporting_allowed()`), and does not migrate. [services](docs/services.md#a-private-match-files-nothing)
-- **Avatar library (`game/arena_avatar_library.gd`).** The one place Fatal Contact talks to the site's avatar library (dot-user-avatar's `DotAvatarLibraryClient`) and reads the app's `DotAvatarAppRules`. It sends the app id (cvar `sv_avatar_app_id`, 0 = unset, calls refused), honours the emote/pose/gesture and wearable switches and per-wearable rules, treats an equip cap of 0 as unlimited, and refuses (never trims) a list over it. The loadout limits are the cvars `sv_avatar_loadout_max_entries` and `sv_avatar_loadout_max_per_kind` (0 = unlimited). Suite: `headless_avatar_library`.
+- **Avatar library (`game/fc_avatar_library.gd`).** The one place Fatal Contact talks to the site's avatar library (dot-user-avatar's `DotAvatarLibraryClient`) and reads the app's `DotAvatarAppRules`. It sends the app id (cvar `sv_avatar_app_id`, 0 = unset, calls refused), honours the emote/pose/gesture and wearable switches and per-wearable rules, treats an equip cap of 0 as unlimited, and refuses (never trims) a list over it. The loadout limits are the cvars `sv_avatar_loadout_max_entries` and `sv_avatar_loadout_max_per_kind` (0 = unlimited). Suite: `headless_avatar_library`.

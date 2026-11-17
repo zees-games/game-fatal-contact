@@ -8,8 +8,8 @@ extends SceneTree
 ##
 ##     tools/render_fallout.sh <map>[,<map>...] [rank[,rank...]]
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcMap := preload("../maps/fc_map.gd")
 
 const OUT_DIR := "res://screenshots"
 
@@ -29,8 +29,8 @@ func _initialize() -> void:
 	at = args.find("--rank")
 	if at >= 0 and at + 1 < args.size():
 		_ranks = args[at + 1]
-	var _scratch := ArenaPresentation.use_scratch_settings("render_fallout")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("render_fallout")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
@@ -68,7 +68,7 @@ func _run() -> void:
 
 
 func _photograph(game, me, id: String, rank: int) -> void:
-	var changed = game.change_map(ArenaMap.by_id(StringName(id)))
+	var changed = game.change_map(FcMap.by_id(StringName(id)))
 	if not changed.ok:
 		print("map %s does not load" % id)
 		return

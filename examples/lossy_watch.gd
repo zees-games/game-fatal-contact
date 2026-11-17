@@ -1,7 +1,7 @@
 extends DotGameCheckSuite
 ## Shared state, the harness and the boot of headless_lossy, split out for the file size gate.
 
-const ArenaGame := preload("../game/arena_game.gd")
+const FcGame := preload("../game/fc_game.gd")
 ## `-- --tick-rate=30` (or ARENA_TICK_RATE) runs the same suite at another rate; tick-count thresholds scale with it.
 @export var tick_rate_override := 0
 var TICK_RATE: int:
@@ -10,7 +10,7 @@ var TICK_RATE: int:
 const MEASURE_ATTEMPTS := 6
 var _entered := 0
 var _completed := 0
-var _game: ArenaGame = null
+var _game: FcGame = null
 static func _tick_rate_arg() -> int:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--tick-rate="):

@@ -1,9 +1,9 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
 
-## The COUNTDOWN-start bulk spawn: the director's cost per player, and what ArenaGame.respawn_player costs, on the largest map.
+## The COUNTDOWN-start bulk spawn: the director's cost per player, and what FcGame.respawn_player costs, on the largest map.
 const PLAYERS := 11
 const BUDGET_MS := 4.0
 ## The very first respawn pays lazy loadout/resource setup once (5-9 ms on PH, 12-20 ms before); budget is one 60 fps frame.
@@ -24,7 +24,7 @@ func _run() -> void:
 		maps = [&"crackhouse", &"dm-overwatch"]
 	var ran := 0
 	for id in maps:
-		if ArenaMap.by_id(id) == null:
+		if FcMap.by_id(id) == null:
 			print("skip %s: not linked" % id)
 			continue
 		await _one(id)
@@ -33,7 +33,7 @@ func _run() -> void:
 
 
 func _one(id: StringName) -> void:
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.tick_rate = 64
 	game.score_limit = 100000
 	game.time_limit_sec = 0.0
@@ -41,7 +41,7 @@ func _one(id: StringName) -> void:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	if not game.setup(ArenaMap.by_id(id)).ok:
+	if not game.setup(FcMap.by_id(id)).ok:
 		_check(false, "%s sets up" % id)
 		return
 	for b in PLAYERS:

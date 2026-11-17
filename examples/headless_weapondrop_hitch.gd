@@ -4,8 +4,8 @@ extends Node
 ## cold layer and a prewarmed one, on a server layer and a client layer, and checks the
 ## prewarmed throw takes a parked body and is not slower than cold.
 
-const Wiring := preload("../game/arena_weapon_drop_wiring.gd")
-const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
+const Wiring := preload("../game/fc_weapon_drop_wiring.gd")
+const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 
 var _checks := 0
 var _failed := 0
@@ -64,7 +64,7 @@ func _frames() -> float:
 
 
 func _run() -> void:
-	ArenaWeaponRoles.ensure()
+	FcWeaponRoles.ensure()
 	var ids: Array = AwWeaponArtTable.table().keys()
 	ids.sort()
 	var weapon: StringName = &"rifle" if ids.has(&"rifle") else ids[0]
@@ -90,7 +90,7 @@ func _run() -> void:
 			var again := _spawn(cold, weapon, Vector3(6, 1, 0))
 			print("  server second cold spawn %.2f ms" % again)
 			_check(again < 25.0, "server: a second throw of a known weapon builds no model", "%.2f ms" % again)
-	# The server's own warm-up (ArenaWeaponDropWiring.build starts it on a layer that draws nothing):
+	# The server's own warm-up (FcWeaponDropWiring.build starts it on a layer that draws nothing):
 	# afterwards the first throw of any weapon, even one never thrown, builds nothing.
 	var served := _layer(world, false)
 	await Wiring.warm_server(served, 1000)

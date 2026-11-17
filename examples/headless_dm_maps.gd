@@ -1,13 +1,13 @@
 extends DotGameCheckSuite
 
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaImportedMaps := preload("../maps/arena_imported_maps.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaModes := preload("../game/arena_modes.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcModes := preload("../game/fc_modes.gd")
 
 ## The deathmatch and gun game maps (fc-dm-maps, linked at maps/imported_dm): each in maps.json
-## is discovered, answers to ArenaMap.by_id with its author's credit and spawns, and is walked,
+## is discovered, answers to FcMap.by_id with its author's credit and spawns, and is walked,
 ## not surfed. Skips (exit 0, says so) without the link, a supported state.
 ##
 ## [codeblock]
@@ -37,7 +37,7 @@ func _run() -> void:
 	var json_path := resolved.get_base_dir().path_join("maps.json")
 
 	if resolved.is_empty() or not FileAccess.file_exists(json_path):
-		print("no maps/imported_dm link — nothing more to check (link arena-dm-maps)")
+		print("no maps/imported_dm link — nothing more to check (link fc-dm-maps)")
 		_report_sections(2, 2, 2, SOLO_CHECKS)
 		return
 
@@ -49,25 +49,25 @@ func _run() -> void:
 	for entry: Dictionary in listed:
 		var id := StringName(str(entry.id))
 
-		if not ArenaImportedMaps.has(id):
+		if not FcImportedMaps.has(id):
 			# Not converted on this machine: reported, not failed (content is delivered, not in git).
 			print("  absent here: %s" % id)
 			continue
 
 		found += 1
-		var map: ArenaMap = ArenaMap.by_id(id)
+		var map: FcMap = FcMap.by_id(id)
 		_check(map != null and map.is_imported() and map.author == str(entry.author),
 			"%s is catalogued and credited to %s" % [id, entry.author])
 		_check(map != null and map.spawns.size() > 0, "%s has spawns" % id)
 		_check(map != null and map.movement_profile == &"", "%s is walked, not surfed" % id)
 		# A delivered pack has no local root to fall back on, so the manifest has to say it.
-		_check(str(ArenaImportedMaps.manifest(id).get("movement", "")) == "walk" and ArenaImportedMaps.movement_of(id) == &"",
+		_check(str(FcImportedMaps.manifest(id).get("movement", "")) == "walk" and FcImportedMaps.movement_of(id) == &"",
 			"%s's manifest declares movement walk" % id)
 
 	_check(found > 0, "at least one listed map is present (%d of %d)" % [found, listed.size()])
 
 	print("-- the solo map picker (M) lists them, named for what they are, ahead of the surf maps")
-	var rows := ArenaMaps.menu_rows(ArenaMaps.catalogue(), &"", ArenaMode.gun_game_mode(), [])
+	var rows := FcMaps.menu_rows(FcMaps.catalogue(), &"", FcMode.gun_game_mode(), [])
 	var names: Dictionary = {}
 	var first_surf := rows.size()
 	var last_dm := -1
@@ -82,10 +82,10 @@ func _run() -> void:
 
 	for want: Dictionary in listed:
 		var wid := "map:%s" % want.id
-		if ArenaImportedMaps.has(StringName(str(want.id))):
+		if FcImportedMaps.has(StringName(str(want.id))):
 			_check(names.has(wid) and names[wid] != "Combat surf map", "%s is in the picker, not labelled a surf map" % wid)
 	_check(last_dm < first_surf, "deathmatch and gun game maps come before the surf maps")
-	# found is the listed maps present here (maps.json filtered by ArenaImportedMaps.has), so the
+	# found is the listed maps present here (maps.json filtered by FcImportedMaps.has), so the
 	# total follows the linked map list instead of a count fixed when it had a given size.
 	_report_sections(entered + 2, entered + 2, 4, SOLO_CHECKS + LINKED_FIXED_CHECKS + PER_MAP_CHECKS * found)
 
@@ -95,37 +95,37 @@ func _test_solo() -> void:
 	print("arena — the deathmatch and gun game maps")
 	print("-- solo play with no server lists the published maps")
 	var solo := DotMapCatalogue.new()
-	var keys := ArenaMaps.standalone_keys(solo)
-	var _first := ArenaMaps.adopt_delivered(solo, keys)
-	var _again := ArenaMaps.adopt_delivered(solo, ArenaMaps.standalone_keys(solo))
+	var keys := FcMaps.standalone_keys(solo)
+	var _first := FcMaps.adopt_delivered(solo, keys)
+	var _again := FcMaps.adopt_delivered(solo, FcMaps.standalone_keys(solo))
 	_check(solo.get_map(&"gg-garage") != null and solo.get_map(&"dm-overwatch") != null,
 		"gg-garage and dm-overwatch are catalogued without a server")
-	_check(solo.maps.size() == ArenaMaps.STANDALONE_KEYS.size() and solo.maps.size() >= 6,
+	_check(solo.maps.size() == FcMaps.STANDALONE_KEYS.size() and solo.maps.size() >= 6,
 		"all %d published maps are listed, and a second pass keeps them" % solo.maps.size())
 	_check(solo.get_map(&"gg-garage").scene_path == "res://dot_cloud/gamemann/gg-garage/1.0.5/gg-garage.json",
 		"gg-garage mounts at its hyphenated manifest")
 
 	print("-- an unlinked picker lists the suggested packs by label, and a pick with no cloud fails naming it")
-	var solo_rows := ArenaMaps.menu_rows(solo, &"", null, [])
+	var solo_rows := FcMaps.menu_rows(solo, &"", null, [])
 	var solo_detail: Dictionary = {}
 	for each: Dictionary in solo_rows:
 		solo_detail[str(each["id"])] = str(each["detail"])
-	_check(ArenaMaps.STANDALONE_KEYS.has("gamemann/crackhouse@1.0.5") and solo.get_map(&"crackhouse") != null,
+	_check(FcMaps.STANDALONE_KEYS.has("gamemann/crackhouse@1.0.5") and solo.get_map(&"crackhouse") != null,
 		"crackhouse is a suggested pack")
-	_check(ArenaMaps.STANDALONE_KEYS.has("gamemann/cp-orange-x3@1.0.10") and solo.get_map(&"cp-orange-x3") != null,
+	_check(FcMaps.STANDALONE_KEYS.has("gamemann/cp-orange-x3@1.0.10") and solo.get_map(&"cp-orange-x3") != null,
 		"cp-orange-x3 is a suggested pack")
 	_check(solo_detail.get("map:crackhouse", "") == "Deathmatch map", "crackhouse reads 'Deathmatch map'")
 	_check(solo_detail.get("map:gg-garage", "") == "Gun game map", "gg-garage reads 'Gun game map'")
-	var pick := await ArenaMaps.mount_delivered(solo.get_map(&"crackhouse"), DotMapLoader.new(), solo)
+	var pick := await FcMaps.mount_delivered(solo.get_map(&"crackhouse"), DotMapLoader.new(), solo)
 	_check(not pick.ok, "picking an unfetched pack with no cloud client fails")
 	_check(solo.get_map(&"gg-garage") != null, "the failed pick leaves the catalogue usable")
 	var surf := solo.get_map(&"surf_thriller")
-	_check(surf != null and ArenaMaps.is_delivered(surf), "a surf map (prefixed pack file, bare id) counts as delivered")
+	_check(surf != null and FcMaps.is_delivered(surf), "a surf map (prefixed pack file, bare id) counts as delivered")
 
 	print("-- a pack the origin does not have (HTTP 404) says so and leaves the solo list")
 	var fake := _Missing404.new()
 	DotRegistry.register(DotMapLoader.CLOUD_SERVICE, fake)
-	var missing := await ArenaMaps.mount_delivered(solo.get_map(&"crackhouse"), DotMapLoader.new(), solo)
+	var missing := await FcMaps.mount_delivered(solo.get_map(&"crackhouse"), DotMapLoader.new(), solo)
 	DotRegistry.unregister(DotMapLoader.CLOUD_SERVICE)
 	_check(not missing.ok and missing.error.http_status == 404, "a 404 pack fails keeping the status")
 	_check(missing.ok or missing.error.message.contains("could not fetch the map crackhouse"), "outer sentence names the map")
@@ -133,19 +133,19 @@ func _test_solo() -> void:
 	_check(solo.get_map(&"crackhouse") == null, "an unpublished map leaves the solo list")
 
 	await _test_dead_maps()
-	ArenaMaps.clear_dead()
+	FcMaps.clear_dead()
 
 	print("-- a pack already mounted at another version (the Workshop's) is named and fetched at that version")
 	var index := DotContentIndex.new()
 	var _p := index.add_pack({"content_id": "gamemann/crackhouse", "version": "9.9.9", "provides": {}, "session": "solo"})
-	var swapped := ArenaMaps.standalone_keys(DotMapCatalogue.new(), index)
+	var swapped := FcMaps.standalone_keys(DotMapCatalogue.new(), index)
 	_check(swapped.has("gamemann/crackhouse@9.9.9") and not swapped.has("gamemann/crackhouse@1.0.5"),
 		"the mounted version replaces the pinned one")
 	var mounted_cat := DotMapCatalogue.new()
-	var _m := ArenaMaps.adopt_delivered(mounted_cat, swapped)
+	var _m := FcMaps.adopt_delivered(mounted_cat, swapped)
 	var only := _OnlyVersion.new()
 	DotRegistry.register(DotMapLoader.CLOUD_SERVICE, only)
-	var got := await ArenaMaps.mount_delivered(mounted_cat.get_map(&"crackhouse"), DotMapLoader.new(), mounted_cat)
+	var got := await FcMaps.mount_delivered(mounted_cat.get_map(&"crackhouse"), DotMapLoader.new(), mounted_cat)
 	DotRegistry.unregister(DotMapLoader.CLOUD_SERVICE)
 	_check(only.asked == PackedStringArray(["gamemann/crackhouse@9.9.9"]), "the pick asks for the mounted version (%s)" % ", ".join(only.asked))
 	_check(got.ok or not got.error.message.contains("could not fetch"), "and the fetch is not what fails")
@@ -155,45 +155,45 @@ func _test_solo() -> void:
 
 func _test_solo_part2(solo: DotMapCatalogue, only: _OnlyVersion) -> void:
 	print("-- solo: a pinned pack that 404s falls back to its latest; online (no allow_latest) keeps the exact version")
-	ArenaMaps.clear_dead()
+	FcMaps.clear_dead()
 	var lat := _Latest.new()
 	lat.have = ["1.0.9"]
 	lat.latest = "1.0.9"
 	var lcat := DotMapCatalogue.new()
-	var _l := ArenaMaps.adopt_delivered(lcat, PackedStringArray(["gamemann/crackhouse@1.0.5"]))
+	var _l := FcMaps.adopt_delivered(lcat, PackedStringArray(["gamemann/crackhouse@1.0.5"]))
 	DotRegistry.register(DotMapLoader.CLOUD_SERVICE, lat)
-	var online := await ArenaMaps.mount_delivered(lcat.get_map(&"crackhouse"), DotMapLoader.new(), lcat)
+	var online := await FcMaps.mount_delivered(lcat.get_map(&"crackhouse"), DotMapLoader.new(), lcat)
 	_check(not online.ok and lat.asked == PackedStringArray(["gamemann/crackhouse@1.0.5"]), "online asks only the exact version (%s)" % ", ".join(lat.asked))
-	ArenaMaps.clear_dead()
+	FcMaps.clear_dead()
 	lcat = DotMapCatalogue.new()
-	var _l2 := ArenaMaps.adopt_delivered(lcat, PackedStringArray(["gamemann/crackhouse@1.0.5"]))
+	var _l2 := FcMaps.adopt_delivered(lcat, PackedStringArray(["gamemann/crackhouse@1.0.5"]))
 	lat.asked = PackedStringArray()
 	var lm := lcat.get_map(&"crackhouse")
-	var fell := await ArenaMaps.mount_delivered(lm, DotMapLoader.new(), lcat, true)
+	var fell := await FcMaps.mount_delivered(lm, DotMapLoader.new(), lcat, true)
 	_check(lat.asked == PackedStringArray(["gamemann/crackhouse@1.0.5", "gamemann/crackhouse@1.0.9"]), "solo retries at latest (%s)" % ", ".join(lat.asked))
 	_check(fell.ok or not fell.error.message.contains("could not fetch"), "the latest fetch is not what fails")
 	_check(lm != null and lm.effective_content_version() == "1.0.9" and lm.scene_path.contains("/1.0.9/"), "the map now points at the latest")
 	lat.have = []
-	ArenaMaps.clear_dead()
+	FcMaps.clear_dead()
 	lcat = DotMapCatalogue.new()
-	var _l3 := ArenaMaps.adopt_delivered(lcat, PackedStringArray(["gamemann/crackhouse@1.0.5"]))
-	var none := await ArenaMaps.mount_delivered(lcat.get_map(&"crackhouse"), DotMapLoader.new(), lcat, true)
+	var _l3 := FcMaps.adopt_delivered(lcat, PackedStringArray(["gamemann/crackhouse@1.0.5"]))
+	var none := await FcMaps.mount_delivered(lcat.get_map(&"crackhouse"), DotMapLoader.new(), lcat, true)
 	DotRegistry.unregister(DotMapLoader.CLOUD_SERVICE)
 	_check(not none.ok and lcat.get_map(&"crackhouse") == null, "neither pinned nor latest published: dropped from the list")
 
-	var ffa: ArenaMode = ArenaModes.by_id(&"ffa")
-	var gungame: ArenaMode = ArenaModes.by_id(&"gungame")
+	var ffa: FcMode = FcModes.by_id(&"ffa")
+	var gungame: FcMode = FcModes.by_id(&"gungame")
 	var ffa_ids: Dictionary = {}
 	var gg_ids: Dictionary = {}
-	for each: Dictionary in ArenaMaps.menu_rows(solo, &"", ffa, []):
+	for each: Dictionary in FcMaps.menu_rows(solo, &"", ffa, []):
 		ffa_ids[str(each["id"])] = true
-	for each: Dictionary in ArenaMaps.menu_rows(solo, &"", gungame, []):
+	for each: Dictionary in FcMaps.menu_rows(solo, &"", gungame, []):
 		gg_ids[str(each["id"])] = true
 	var both := true
 	for each in solo.maps:
 		var def: DotMapDef = each
 		var id := "map:%s" % def.id
-		both = both and ArenaMaps.supports_mode(def, ffa) and ArenaMaps.supports_mode(def, gungame) \
+		both = both and FcMaps.supports_mode(def, ffa) and FcMaps.supports_mode(def, gungame) \
 			and ffa_ids.has(id) and gg_ids.has(id)
 	_check(both, "every suggested map is playable and listed in both deathmatch and gun game, whatever its label")
 
@@ -203,13 +203,13 @@ func _test_solo_part2(solo: DotMapCatalogue, only: _OnlyVersion) -> void:
 ## dm-hollowtest. Any failure drops the map from the list and is never asked for twice; the rest stay.
 func _test_dead_maps() -> void:
 	print("-- any fetch failure (opaque, 5xx, hollow pack) drops the map and is not retried")
-	ArenaMaps.clear_dead()
+	FcMaps.clear_dead()
 	var hollow_dir := "res://dot_cloud/gamemann/dm-hollowtest/0.0.1"
 	_write_hollow_pack(hollow_dir)
 	var cat := DotMapCatalogue.new()
-	var keys := ArenaMaps.standalone_keys(cat)
+	var keys := FcMaps.standalone_keys(cat)
 	keys.append("gamemann/dm-hollowtest@0.0.1")
-	var _a := ArenaMaps.adopt_delivered(cat, keys)
+	var _a := FcMaps.adopt_delivered(cat, keys)
 	var cdn := _FakeCdn.new()
 	DotRegistry.register(DotMapLoader.CLOUD_SERVICE, cdn)
 	var before := cat.maps.size()
@@ -217,24 +217,24 @@ func _test_dead_maps() -> void:
 	for id in [&"crackhouse", &"aim-forts", &"gg-garage", &"dm-hollowtest"]:
 		var def := cat.get_map(id)
 		_check(def != null, "%s is listed before the pick" % id)
-		var r := await ArenaMaps.mount_delivered(def, DotMapLoader.new(), cat, true)
+		var r := await FcMaps.mount_delivered(def, DotMapLoader.new(), cat, true)
 		_check(not r.ok and r.error.message.contains("could not "), "%s fails with a one-line message (%s)" % [id, r.error.message if not r.ok else "ok"])
 		_check(cat.get_map(id) == null, "%s leaves the list after its failure" % id)
 
 	_check(cat.maps.size() == before - 4, "only the four dead maps left the list (%d of %d)" % [cat.maps.size(), before])
-	_check(not ArenaImportedMaps.is_mounted(&"dm-hollowtest"), "the hollow pack is not left mounted")
+	_check(not FcImportedMaps.is_mounted(&"dm-hollowtest"), "the hollow pack is not left mounted")
 	var asked := cdn.asked.size()
 	var again := DotMapCatalogue.new()
-	var _b := ArenaMaps.adopt_delivered(again, keys)
+	var _b := FcMaps.adopt_delivered(again, keys)
 	_check(again.get_map(&"aim-forts") == null and again.get_map(&"crackhouse") == null and again.get_map(&"surf_10x_final") != null,
 		"a re-adopted list does not bring the dead keys back")
-	var ghost := ArenaMaps.delivered_def("gamemann/aim-forts@1.0.5")
-	var retry := await ArenaMaps.mount_delivered(ghost, DotMapLoader.new(), again)
+	var ghost := FcMaps.delivered_def("gamemann/aim-forts@1.0.5")
+	var retry := await FcMaps.mount_delivered(ghost, DotMapLoader.new(), again)
 	_check(not retry.ok and retry.error.message.contains("not retried") and cdn.asked.size() == asked,
 		"a dead key is refused without asking the CDN again")
 	DotRegistry.unregister(DotMapLoader.CLOUD_SERVICE)
 	_remove_dir(hollow_dir)
-	ArenaMaps.clear_dead()
+	FcMaps.clear_dead()
 
 
 func _write_hollow_pack(dir: String) -> void:

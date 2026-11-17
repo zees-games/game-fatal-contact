@@ -1,12 +1,12 @@
 extends RefCounted
 ## The glance flags that stage a player state to look at: --dead, --killcam and --dropped.
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 
 ## Stages the flags given; true when the staging took over the shots (so the caller stops).
-static func stage(host: Object, game: ArenaGame, late: Array) -> bool:
+static func stage(host: Object, game: FcGame, late: Array) -> bool:
 	var args := OS.get_cmdline_user_args()
 	if args.has("--dead"):
 		host._local.make_dead()
@@ -49,7 +49,7 @@ static func _dropped(host: Object) -> void:
 
 
 ## `--glance --flashlight`: the map gone dark and the local player's flashlight on, to look at the beam.
-static func stage_flashlight(local: ArenaPlayer, game: ArenaGame) -> void:
+static func stage_flashlight(local: FcPlayer, game: FcGame) -> void:
 	for node in local.get_tree().root.find_children("*", "WorldEnvironment", true, false):
 		var env := (node as WorldEnvironment).environment
 		env.background_mode = Environment.BG_COLOR
@@ -69,7 +69,7 @@ static func stage_flashlight(local: ArenaPlayer, game: ArenaGame) -> void:
 
 
 ## The glance shot's file name: the staged map, the mode, then one suffix per flag given.
-static func shot_name(host: Object, game: ArenaGame, args: PackedStringArray, streak_at: int) -> String:
+static func shot_name(host: Object, game: FcGame, args: PackedStringArray, streak_at: int) -> String:
 	var parts: Array[String] = [String(host._staged_id), "glance", String(game.mode_id)]
 	if host._glance_ballot:
 		parts.append("mapballot" if host._glance_map_ballot else "ballot")

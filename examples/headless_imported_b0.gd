@@ -1,7 +1,7 @@
 extends "imported_base.gd"
 
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaBspMap := preload("../maps/arena_bsp_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcBspMap := preload("../maps/fc_bsp_map.gd")
 
 
 const TICK_RATE := 64
@@ -14,15 +14,15 @@ func _test_surf_movement() -> void:
 	_section("the surf air control is on here, off on a built-in map, and on again")
 
 	var player := _game.player_for(1)
-	var surf := ArenaPlayer.SURF_TUNABLES
-	var arena := ArenaPlayer.arena_tunables()
+	var surf := FcPlayer.SURF_TUNABLES
+	var arena := FcPlayer.fc_tunables()
 	_check(_matches(player, surf, 150.0),
 		"on %s: air_accelerate %.0f, air cap %.3f m/s, gravity %.2f" % [
 			MAP, player.controller.tunables.air_accelerate,
 			player.controller.tunables.max_air_wish_speed, player.controller.tunables.gravity
 		])
 
-	var to_box := _game.change_map(ArenaMap.dm_box())
+	var to_box := _game.change_map(FcMap.dm_box())
 	_check(to_box.ok and is_equal_approx(player.controller.tunables.air_accelerate, arena.air_accelerate)
 		and is_equal_approx(player.controller.tunables.max_air_wish_speed, arena.max_air_wish_speed)
 		and is_equal_approx(player.controller.tunables.gravity, arena.gravity),
@@ -33,7 +33,7 @@ func _test_surf_movement() -> void:
 	_check(_game.map.collision_root == null and _game._world_collision == null,
 		"and the imported solid went with the map")
 
-	var back := _game.change_map(ArenaMap.by_id(MAP))
+	var back := _game.change_map(FcMap.by_id(MAP))
 	_check(back.ok and _matches(player, surf, 150.0), "back on %s: on again" % MAP)
 
 	_game.set_movement_rules({"surf_air_accelerate": 400.0})
@@ -51,7 +51,7 @@ func _test_surf_movement() -> void:
 	_done()
 
 
-func _matches(player: ArenaPlayer, surf: Dictionary, air: float) -> bool:
+func _matches(player: FcPlayer, surf: Dictionary, air: float) -> bool:
 	var t := player.controller.tunables
 	return (
 		is_equal_approx(t.air_accelerate, air)
@@ -66,7 +66,7 @@ func _test_ramp() -> void:
 
 	var face := _steepest_big_ramp()
 	_check(not face.is_empty(), "the map has a surf ramp (a face between %.0f and 75 degrees, %.0f m² of it)" % [
-		ArenaPlayer.arena_tunables().max_slope_angle, float(face.get("area", 0.0))
+		FcPlayer.fc_tunables().max_slope_angle, float(face.get("area", 0.0))
 	])
 
 	if face.is_empty():
@@ -119,10 +119,10 @@ func _test_ramp() -> void:
 ## The biggest triangle of the map's own drawn RAMP surfaces whose slope is one the
 ## movement cannot stand on: `{centre, normal, area}`, or empty.
 func _steepest_big_ramp() -> Dictionary:
-	var manifest := ArenaImportedMaps.manifest(MAP)
-	var dir := ArenaImportedMaps.manifest_path(MAP).get_base_dir()
+	var manifest := FcImportedMaps.manifest(MAP)
+	var dir := FcImportedMaps.manifest_path(MAP).get_base_dir()
 	var blob := FileAccess.get_file_as_bytes(dir.path_join("%s.bin" % MAP))
-	var limit := cos(deg_to_rad(ArenaPlayer.arena_tunables().max_slope_angle + 3.0))
+	var limit := cos(deg_to_rad(FcPlayer.fc_tunables().max_slope_angle + 3.0))
 	var best := {}
 	var best_area := 0.0
 
@@ -135,7 +135,7 @@ func _steepest_big_ramp() -> Dictionary:
 		var vcount := int(surface.get("vertex_count", 0))
 		var icount := int(surface.get("index_count", 0))
 		var floats := blob.slice(int(surface["vertex_offset"]),
-			int(surface["vertex_offset"]) + vcount * ArenaBspMap.VERTEX_FLOATS * 4).to_float32_array()
+			int(surface["vertex_offset"]) + vcount * FcBspMap.VERTEX_FLOATS * 4).to_float32_array()
 		var indices := blob.slice(int(surface["index_offset"]),
 			int(surface["index_offset"]) + icount * 4).to_int32_array()
 
@@ -143,8 +143,8 @@ func _steepest_big_ramp() -> Dictionary:
 			var p: Array[Vector3] = []
 
 			for k in range(3):
-				var o := int(indices[t + k]) * ArenaBspMap.VERTEX_FLOATS
-				p.append(Vector3(floats[o], floats[o + 1], floats[o + 2]) * ArenaBspMap.METRES_PER_UNIT)
+				var o := int(indices[t + k]) * FcBspMap.VERTEX_FLOATS
+				p.append(Vector3(floats[o], floats[o + 1], floats[o + 2]) * FcBspMap.METRES_PER_UNIT)
 
 			var cross := (p[1] - p[0]).cross(p[2] - p[0])
 			var area := cross.length() * 0.5
@@ -185,7 +185,7 @@ func _test_pits() -> void:
 	_check(at.distance_to(pit["to"]) < 0.5,
 		"stepped into one, the player is at its destination (%.2f m off)" % at.distance_to(pit["to"]))
 
-	var under := _game.map.bounds.position - Vector3(-1.0, ArenaPlayer.FALL_OUT_DEPTH + 5.0, -1.0)
+	var under := _game.map.bounds.position - Vector3(-1.0, FcPlayer.FALL_OUT_DEPTH + 5.0, -1.0)
 	player.controller.teleport(under, 0.0, 0.0)
 	_game.tick({})
 	var spawn: Transform3D = _game.map.spawns[0]
@@ -201,7 +201,7 @@ func _test_pits() -> void:
 func _test_fallout() -> void:
 	_section("surf_ski_2: a fall into the floor catch-all lands in the cell, and the way out is open")
 
-	var changed := _game.change_map(ArenaMap.by_id(RIDE_MAP))
+	var changed := _game.change_map(FcMap.by_id(RIDE_MAP))
 	_check(changed.ok, "the map loads")
 	if not changed.ok:
 		_done()
@@ -248,7 +248,7 @@ func _test_fallout() -> void:
 
 
 ## A player alive and out of their spawn protection, standing still.
-func _fresh(id: int) -> ArenaPlayer:
+func _fresh(id: int) -> FcPlayer:
 	var player := _game.player_for(id)
 	if not player.is_alive():
 		_game.respawn_player(id)

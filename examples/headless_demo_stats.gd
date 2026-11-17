@@ -1,10 +1,10 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaDemoStatsScript := preload("../game/arena_demo_stats.gd")
-const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcDemoStatsScript := preload("../game/fc_demo_stats.gd")
+const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
 ## Place and engage recordings and heatmap-weighted roaming: off by default, a bot is never
 ## recorded, a player standing and aiming at another becomes a `place` and an `engage` episode,
@@ -15,7 +15,7 @@ const EXPECTED_CHECKS := 29
 
 var _checks := 0
 var _failed := 0
-var _game: ArenaGame = null
+var _game: FcGame = null
 
 
 func _ready() -> void:
@@ -32,7 +32,7 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 
 
 func _boot() -> void:
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -41,7 +41,7 @@ func _boot() -> void:
 	_game.is_authority = true
 	_game.register_service = false
 	add_child(_game)
-	var map := ArenaMap.new()
+	var map := FcMap.new()
 	map.id = &"demo_lane"
 	map.display_name = "demo_lane"
 	map.extent = 150.0
@@ -118,7 +118,7 @@ func _run() -> void:
 	stats.place_span = 1.0
 	var eye: Vector3 = shooter.muzzle_position()
 	# The head, above the chest the recorder measures against, so the first view error is small but not zero.
-	var a := angles_to(eye, victim.global_position + Vector3(0.0, 1.62 * ArenaPlayerTunables.body_scale(), 0.0))
+	var a := angles_to(eye, victim.global_position + Vector3(0.0, 1.62 * FcPlayerTunables.body_scale(), 0.0))
 	var aim := DotWeaponCommand.BUTTON_USER_0
 	for _i in 150:
 		await _step(aim, a.x, a.y)
@@ -173,7 +173,7 @@ func _run_part2(store: DotBotDemoStoreMemory, stats: RefCounted, victim, a, aim,
 	# Roaming: a point people stand at is repeated.
 	var busy := Vector3(0.0, 0.05, 0.0)
 	var empty := Vector3(5.0, 0.05, 0.0)
-	var world: ArenaBots.World = ArenaBots.world_for(_game)
+	var world: FcBots.World = FcBots.world_for(_game)
 	var plain := world.waypoints()
 	_check(plain.size() == 2 and plain.has(busy) and plain.has(empty), "waypoints are unweighted before the heatmap has enough", str(plain.size()))
 	var heat: DotBotDemoHeatmap = stats.heatmap
@@ -229,7 +229,7 @@ func _run_part3(store: DotBotDemoStoreMemory, stats: RefCounted, victim, a) -> v
 
 	# The suggestion tool's lines over a store: too few episodes say so, enough print a table.
 	var tool_store := DotBotDemoStoreMemory.new()
-	var few := await ArenaDemoStatsScript.preset_lines(tool_store, "lane", "1")
+	var few := await FcDemoStatsScript.preset_lines(tool_store, "lane", "1")
 	_check(not few.is_empty() and few[few.size() - 1].contains("not enough"), "no recordings print a message", str(few))
 	for i in 40:
 		var ep := DotBotDemoEpisode.new()
@@ -244,7 +244,7 @@ func _run_part3(store: DotBotDemoStoreMemory, stats: RefCounted, victim, a) -> v
 			ep.ticks.append_array(PackedFloat32Array([4.0 + i * 0.1, 1.0 if f >= 2 + i % 8 else 0.0, 3.0]))
 		var _kept := ep.ticks.size()
 		var _added := await tool_store.append([ep])
-	var many := await ArenaDemoStatsScript.preset_lines(tool_store, "lane", "1", 10)
+	var many := await FcDemoStatsScript.preset_lines(tool_store, "lane", "1", 10)
 	_check(many.size() > 3 and "\n".join(many).contains("aim_error") and "\n".join(many).contains("hard"), "enough recordings print every preset", "\n".join(many))
 
 	var off_game: PackedStringArray = stats.describe_lines()

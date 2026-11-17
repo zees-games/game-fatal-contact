@@ -5,15 +5,15 @@ extends SceneTree
 ##
 ##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_equipped.gd
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 var client: Node = null
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
-	var _scratch := ArenaPresentation.use_scratch_settings("render_equipped")
-	client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	preload("../game/fc_weapon_roles.gd").ensure()
+	var _scratch := FcPresentation.use_scratch_settings("render_equipped")
+	client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	root.add_child(client)

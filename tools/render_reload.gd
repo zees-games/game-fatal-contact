@@ -5,8 +5,8 @@ extends SceneTree
 ## the frame re-rendered); anything but exactly one fails.
 ##   xvfb-run -a godot --path . --resolution 1920x1080 --script tools/render_reload.gd [-- --frames 12 --left 1 --only a,b --pose-debug]
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaViewArms := preload("../game/arena_view_arms.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcViewArms := preload("../game/fc_view_arms.gd")
 ## The fractions to stop at, the wait for a rig to reach one and the contact sheet: dot-weapon's, shared with ZZ's review.
 const ReloadShots := preload("res://addons/dot_weapon/view/dot_weapon_reload_shots.gd")
 
@@ -19,9 +19,9 @@ var retried: Array = []
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
-	var _scratch := ArenaPresentation.use_scratch_settings("render_reload")
-	client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	preload("../game/fc_weapon_roles.gd").ensure()
+	var _scratch := FcPresentation.use_scratch_settings("render_reload")
+	client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	root.add_child(client)
@@ -63,10 +63,10 @@ func _run() -> void:
 		var def: DotWeaponDef = AwWeaponCatalogue.table()[id]
 		if def.uses_magazine():
 			ids.append(str(id))
-	ArenaViewArms.debug_pose = args.has("--pose-debug")
-	ArenaViewArms.hand_scale_mult = float(_arg(args, "--hand-scale", "1.0"))
-	ArenaViewArms.forearm_scale_mult = float(_arg(args, "--forearm-scale", "1.0"))
-	ArenaViewArms.max_lean_override = float(_arg(args, "--max-lean", "-1"))
+	FcViewArms.debug_pose = args.has("--pose-debug")
+	FcViewArms.hand_scale_mult = float(_arg(args, "--hand-scale", "1.0"))
+	FcViewArms.forearm_scale_mult = float(_arg(args, "--forearm-scale", "1.0"))
+	FcViewArms.max_lean_override = float(_arg(args, "--max-lean", "-1"))
 	var only := _arg(args, "--only", "")
 	if only != "":
 		ids = Array(only.split(","))

@@ -4,7 +4,7 @@ extends "headless_match_streaks_and_lag.gd"
 
 const SECTIONS_CTF := 9
 const CHECKS_CTF := 83
-const ArenaFlagView := preload("res://game/arena_flag_view.gd")
+const FcFlagView := preload("res://game/fc_flag_view.gd")
 
 
 func _ready() -> void:
@@ -29,17 +29,17 @@ func _run() -> void:
 	_report_sections(_entered, _completed, SECTIONS_CTF, CHECKS_CTF)
 
 
-func _ctf_game(rules_edit: Callable = Callable(), map: ArenaMap = null, ids: Array = [910, 911, 912, 913]) -> ArenaGame:
-	var game := ArenaGame.new()
+func _ctf_game(rules_edit: Callable = Callable(), map: FcMap = null, ids: Array = [910, 911, 912, 913]) -> FcGame:
+	var game := FcGame.new()
 	game.name = "CtfGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
 	if rules_edit.is_valid():
 		rules_edit.call(game.ctf_rules)
-	game.mode = ArenaMode.capture_the_flag(3)
+	game.mode = FcMode.capture_the_flag(3)
 	add_child(game)
-	var ready := game.setup(map if map != null else ArenaMap.dm_atrium())
+	var ready := game.setup(map if map != null else FcMap.dm_atrium())
 	if not _check(ready.ok, "a capture-the-flag game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -51,13 +51,13 @@ func _ctf_game(rules_edit: Callable = Callable(), map: ArenaMap = null, ids: Arr
 	return game
 
 
-func _free(game: ArenaGame) -> void:
+func _free(game: FcGame) -> void:
 	game.queue_free()
 	remove_child(game)
 	await get_tree().process_frame
 
 
-func _team_ids(game: ArenaGame, team: int) -> Array[int]:
+func _team_ids(game: FcGame, team: int) -> Array[int]:
 	var out: Array[int] = []
 	for id in game.player_ids():
 		if game.team_of(id) == team:
@@ -65,18 +65,18 @@ func _team_ids(game: ArenaGame, team: int) -> Array[int]:
 	return out
 
 
-func _flag(game: ArenaGame, team: int) -> DotObjectiveFlag:
+func _flag(game: FcGame, team: int) -> DotObjectiveFlag:
 	return game.objectives.ctf.flag_of(team)
 
 
 ## Scripted bots: put one on a spot and tick, as a bot that walked there would have.
-func _go(game: ArenaGame, id: int, at: Vector3, ticks: int = 3) -> void:
+func _go(game: FcGame, id: int, at: Vector3, ticks: int = 3) -> void:
 	for i in ticks:
 		_stand(game, id, at)
 		game.tick({})
 
 
-func _stand_of(game: ArenaGame, team: int) -> Vector3:
+func _stand_of(game: FcGame, team: int) -> Vector3:
 	return _flag(game, team).def.area.centre
 
 
@@ -97,7 +97,7 @@ func _test_flow() -> void:
 	_go(game, thief, _stand_of(game, 2))
 	_check(_flag(game, 2).carrier == str(thief), "a bot on the enemy stand takes the flag")
 	var tunables := game.player_for(thief).controller.tunables
-	var base: float = tunables.get_meta("arena_base_speed")
+	var base: float = tunables.get_meta("fc_base_speed")
 	_check(is_equal_approx(tunables.max_speed, base * game.ctf_rules.carrier_speed), "and runs slower for it")
 	_go(game, thief, Vector3.ZERO)
 	_check(_flag(game, 2).carrier == str(thief) and ctf.scores[1] == 0, "carrying across the middle scores nothing")
@@ -220,7 +220,7 @@ func _test_bases() -> void:
 	_check(not hit.ok or (hit.value as DotSpawnChoice).site.id != &"auth_flag", "nobody respawns on a flag stand")
 	await _free(game)
 
-	var box := _ctf_game(Callable(), ArenaMap.dm_box())
+	var box := _ctf_game(Callable(), FcMap.dm_box())
 	if box == null:
 		return
 	var fb := box.objectives.ctf_bases()
@@ -234,15 +234,15 @@ func _test_replication() -> void:
 	var server := _ctf_game()
 	if server == null:
 		return
-	var client := ArenaGame.new()
+	var client := FcGame.new()
 	client.name = "CtfClient"
 	client.tick_rate = TICK_RATE
 	client.headless = true
 	client.register_service = false
 	client.is_authority = false
-	client.mode = ArenaMode.capture_the_flag(3)
+	client.mode = FcMode.capture_the_flag(3)
 	add_child(client)
-	var ready := client.setup(ArenaMap.dm_atrium())
+	var ready := client.setup(FcMap.dm_atrium())
 	if not _check(ready.ok, "a client game sets up", str(ready.error)):
 		await _free(server)
 		return
@@ -266,19 +266,19 @@ func _test_replication() -> void:
 	server.objectives.apply_ctf_text(text)
 	_check(server.objectives.ctf.scores[1] == 1, "and the server ignores a state sent to it")
 	_check(server.objectives.ctf_wire_text(server.current_tick()) == "", "an unchanged state is not sent again at once")
-	_check(ArenaEvents.Kind.keys().has("CTF"), "the CTF event kind exists")
+	_check(FcEvents.Kind.keys().has("CTF"), "the CTF event kind exists")
 	# A real dedicated-server client never has the mode set locally: its own `mode` is the default (free-for-all)
 	# and the server's arrives as RULES mode_index. The flag layer has to follow that.
-	var real := ArenaGame.new()
+	var real := FcGame.new()
 	real.name = "CtfRealClient"
 	real.tick_rate = TICK_RATE
 	real.headless = true
 	real.register_service = false
 	real.is_authority = false
 	add_child(real)
-	var real_ready := real.setup(ArenaMap.dm_atrium())
+	var real_ready := real.setup(FcMap.dm_atrium())
 	_check(real_ready.ok and real.objectives == null, "a client left on the default mode has no flag layer")
-	real.set_movement_rules({"mode_index": ArenaModes.ids().find(&"ctf")})
+	real.set_movement_rules({"mode_index": FcModes.ids().find(&"ctf")})
 	_check(real.objectives != null and real.objectives.ctf != null, "and builds it the moment the server says capture the flag")
 	real.objectives.apply_ctf_text(text)
 	_check(real.objectives.ctf.flag_of(2).state == DotObjectiveFlag.State.CARRIED, "and then mirrors the server's flags")
@@ -290,9 +290,9 @@ func _test_replication() -> void:
 
 func _test_cvars() -> void:
 	_section("ctf: every number is a cvar")
-	var module_keys := ArenaModule.CTF_CVARS.keys()
-	for key: String in ArenaModule.CTF_CVARS:
-		_check(DotObjectiveCtfRules.new().get(ArenaModule.CTF_CVARS[key][0]) != null, "%s names a rule" % key)
+	var module_keys := FcModule.CTF_CVARS.keys()
+	for key: String in FcModule.CTF_CVARS:
+		_check(DotObjectiveCtfRules.new().get(FcModule.CTF_CVARS[key][0]) != null, "%s names a rule" % key)
 	_check(module_keys.size() == 8, "capture limit, time limit, return, drop, carrier speed, friendly return, flag at home and teams")
 	var rules := DotObjectiveCtfRules.new()
 	_check(rules.validate().ok and rules.team_count == 2 and rules.capture_limit == 3, "the defaults are two teams and three captures")
@@ -354,9 +354,9 @@ func _test_indicator() -> void:
 	var dist := flag.get_node_or_null("Dist") as Label3D
 	_check(flag.get_node_or_null("Beam") == null and flag.get_node_or_null("Tag") == null, "no beam and no team-name text")
 	_check(icon != null and icon.texture != null and icon.no_depth_test and icon.fixed_size, "a fixed-size flag icon, through walls by default")
-	_check(icon != null and is_equal_approx(icon.modulate.r, ArenaFlagView.color_of(1).r) and icon.modulate.a < 1.0, "tinted in the team's colour and see-through")
+	_check(icon != null and is_equal_approx(icon.modulate.r, FcFlagView.color_of(1).r) and icon.modulate.a < 1.0, "tinted in the team's colour and see-through")
 	_check(dist != null and dist.font_size <= 24, "small distance text beside it")
-	_check(ArenaFlagView.distance_text(19.43) == "19.4m", "the distance reads like Halo's 19.4m", ArenaFlagView.distance_text(19.43))
+	_check(FcFlagView.distance_text(19.43) == "19.4m", "the distance reads like Halo's 19.4m", FcFlagView.distance_text(19.43))
 	game.ctf_view.see_through = false
 	view.refresh()
 	_check(not icon.no_depth_test and not dist.no_depth_test, "fc_ctf_indicator_seethrough 0 hides it behind walls")
@@ -364,19 +364,19 @@ func _test_indicator() -> void:
 	view.refresh()
 	_check(not icon.visible and not dist.visible, "fc_ctf_indicator 0 hides it")
 	var wire: String = game.objectives.ctf_wire_text(game.current_tick(), true)
-	var client := ArenaGame.new()
+	var client := FcGame.new()
 	client.name = "CtfViewClient"
 	client.tick_rate = TICK_RATE
 	client.headless = true
 	client.register_service = false
 	client.is_authority = false
-	client.mode = ArenaMode.capture_the_flag(3)
+	client.mode = FcMode.capture_the_flag(3)
 	add_child(client)
-	var _r := client.setup(ArenaMap.dm_atrium())
+	var _r := client.setup(FcMap.dm_atrium())
 	_check(client.ctf_view.indicator and client.ctf_view.see_through, "a client starts with both on")
 	client.objectives.apply_ctf_text(wire)
 	_check(not client.ctf_view.indicator and not client.ctf_view.see_through, "and takes the server's settings with the flag state")
-	_check(ArenaModule.CTF_VIEW_CVARS.size() == 2 and ArenaModule.CTF_VIEW_CVARS.has("fc_ctf_indicator_seethrough"), "both are server cvars")
+	_check(FcModule.CTF_VIEW_CVARS.size() == 2 and FcModule.CTF_VIEW_CVARS.has("fc_ctf_indicator_seethrough"), "both are server cvars")
 	await _free(client)
 	await _free(game)
 	_done()

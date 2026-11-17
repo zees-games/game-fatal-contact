@@ -1,10 +1,10 @@
 extends "headless_presentation_b1.gd"
 
-const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
+const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 
 
 ## Records 9.5 s of the killer running down +x with the victim standing down its aim, and a kill at 8 s.
-func _record_kill_run(kc: DotKillcamHost, killer: ArenaPlayer, victim: ArenaPlayer, clock: Array, at: Callable) -> void:
+func _record_kill_run(kc: DotKillcamHost, killer: FcPlayer, victim: FcPlayer, clock: Array, at: Callable) -> void:
 	var step := 1.0 / 60.0
 	var start := killer.controller.state.position
 	killer.controller.state.pitch = 0.0
@@ -21,9 +21,9 @@ func _record_kill_run(kc: DotKillcamHost, killer: ArenaPlayer, victim: ArenaPlay
 
 
 ## A killcam host over [param players] and the game's rules, driven by hand from [param clock].
-func _killcam_host(g: ArenaGame, players: Array, clock: Array) -> DotKillcamHost:
+func _killcam_host(g: FcGame, players: Array, clock: Array) -> DotKillcamHost:
 	var kc := DotKillcamHost.new()
-	ArenaKillcamBodies.configure(kc)
+	FcKillcamBodies.configure(kc)
 	kc.players_fn = func() -> Array: return players
 	kc.player_for_fn = g.player_for
 	kc.now_fn = func() -> float: return clock[0]
@@ -45,7 +45,7 @@ func _check_banner_icon(kc: DotKillcamHost) -> void:
 ## applies at once in warmup or spawn protection and otherwise on the next spawn.
 func _test_the_loadout_menu() -> void:
 	_section("B is the loadout menu, and the crosshair fades down the sights")
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.force_offline = true
 	add_child(client)
 	for _i in 6:
@@ -56,7 +56,7 @@ func _test_the_loadout_menu() -> void:
 		"the loadout menu is on B, and nothing else in the table is",
 		str(keys.defaults_on("B").map(func(r: Dictionary) -> String: return str(r["label"]))) if keys != null else "no menu")
 	await _check_loadout_accounts(client)
-	var game: ArenaGame = client.game
+	var game: FcGame = client.game
 	var me := client.player
 	if not _check(game.loadout_command != null and me != null, "the game has the menu's server half, and a player"):
 		remove_child(client)
@@ -107,7 +107,7 @@ func _test_the_loadout_menu() -> void:
 	_done()
 
 
-func _check_loadout_rules(client: ArenaClient, me, game: ArenaGame) -> void:
+func _check_loadout_rules(client: FcClient, me, game: FcGame) -> void:
 	var snipers: DotResult = game.loadout_command.call(&"apply_strings", true, "primary=tag:scoped", "")
 	var limited: Dictionary = await client.loadout_offer()
 	var primaries: Array = ((limited["slots"] as Array)[0]["choices"] as Array).map(func(c: Dictionary) -> String: return str(c["id"]))
@@ -115,7 +115,7 @@ func _check_loadout_rules(client: ArenaClient, me, game: ArenaGame) -> void:
 		"an owner's 'snipers only' is what the menu offers", str(primaries))
 	var refused: Dictionary = await client.choose_loadout({"primary": "rifle"})
 	_check(not bool(refused.get("ok", true)), "and a rifle is refused by the game, not only hidden", str(refused))
-	var active: DotResult = await game.loadouts.active_for(ArenaGame.storage_key(me.player_id))
+	var active: DotResult = await game.loadouts.active_for(FcGame.storage_key(me.player_id))
 	_check(primaries.has(str((active.value as DotLoadout).item_in(&"primary"))),
 		"a saved carbine spawns as a scoped gun while the rule is on", str((active.value as DotLoadout).item_in(&"primary")))
 	var locked: DotResult = game.loadout_command.call(&"apply_strings", false, "", "primary=sniper")
@@ -125,7 +125,7 @@ func _check_loadout_rules(client: ArenaClient, me, game: ArenaGame) -> void:
 	var _open: Variant = game.loadout_command.call(&"apply_strings", true, "", "")
 
 	var was_mode := game.mode
-	game.mode = ArenaMode.only_snipers()
+	game.mode = FcMode.only_snipers()
 	var closed: Dictionary = await client.loadout_offer()
 	_check(closed["choose"] == false and str(closed["note"]).contains("hands out the weapons"),
 		"a mode that hands out the weapons says so, and lets nothing be picked", str(closed.get("note", "")))
@@ -136,15 +136,15 @@ func _check_loadout_rules(client: ArenaClient, me, game: ArenaGame) -> void:
 ## can change it.
 func _test_the_hud_follows_the_theme() -> void:
 	_section("The HUD is dark by default and follows the menu's theme live")
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.force_offline = true
 	add_child(client)
 	for _i in 6:
 		await get_tree().process_frame
 	var menu: DotMenu = client.game_menu
-	var hud: ArenaHud = client.hud
+	var hud: FcHud = client.hud
 	var piece: DotHudPiece = null
-	# The kill feed: one of the pieces arena keeps, drawn with its own `Ink`.
+	# The kill feed: one of the pieces Fatal Contact keeps, drawn with its own `Ink`.
 	var own: Control = hud.feed
 	for n in hud.find_children("*", "Control", true, false):
 		if n is DotHudPiece:
@@ -157,20 +157,20 @@ func _test_the_hud_follows_the_theme() -> void:
 		client.free()
 		_done()
 		return
-	var Ink = ArenaHud.ArenaHudGlance.Ink
+	var Ink = FcHud.FcHudGlance.Ink
 	var _m := menu.settings.set_value(&"ui_theme", &"midnight")
 	var plate := piece.colour(&"plate")
 	_check(plate.get_luminance() < 0.1 and plate.a >= 0.7 and piece.colour(&"keycap").get_luminance() < 0.3,
 		"the default HUD is dark: deep plates and dark key caps", str(plate))
 	_check(Ink.c(own, &"plate") == plate and Ink.bright(own) < 0.5, "and this game's own pieces draw in the same theme")
-	_check(piece.colour(&"highlight") == ArenaHud.GOLD, "with arena's gold as its accent")
+	_check(piece.colour(&"highlight") == FcHud.GOLD, "with arena's gold as its accent")
 	var _a := menu.settings.set_value(&"ui_theme", &"arcade")
 	_check(piece.number(&"team_fill") == 100 and piece.colour(&"keycap").get_luminance() > 0.8 and Ink.bright(own) > 0.99,
 		"the bright first HUD is a theme a player can pick, and both kinds of piece follow it")
 	var _p := menu.settings.set_value(&"ui_theme", &"contrast")
 	var contrast := menu.themes.named(&"contrast")
 	_check(piece.colour(&"plate") == contrast.hud_plate and Ink.c(own, &"plate_edge") == contrast.hud_edge
-		and piece.colour(&"highlight") == ArenaHud.GOLD, "another theme reaches every piece at once, the accent kept")
+		and piece.colour(&"highlight") == FcHud.GOLD, "another theme reaches every piece at once, the accent kept")
 	var _s := menu.settings.set_value(&"hud_scale", 1.2)
 	_check(is_equal_approx(hud.user_scale, 1.2), "and the HUD size setting resizes the HUD")
 	_s = menu.settings.set_value(&"hud_scale", 1.0)
@@ -188,7 +188,7 @@ func _test_the_hud_follows_the_theme() -> void:
 func _test_the_weapon_art_is_vendored() -> void:
 	_section("Every model the weapon art table names is vendored in this game")
 	# The table holds only registered packs; the suite's order must not decide whether it is empty.
-	ArenaWeaponRoles.ensure()
+	FcWeaponRoles.ensure()
 	var count := AwWeaponArtTable.model_paths().size()
 	_check(count > 20, "the table names models (%d)" % count)
 	var models := AwWeaponArtTable.validate_models()
@@ -198,12 +198,12 @@ func _test_the_weapon_art_is_vendored() -> void:
 
 func _test_the_final_killcam() -> void:
 	_section("The final killcam replays the last kill from behind the killer (or its eye), and 0 turns it off")
-	var g := ArenaGame.new()
+	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(ArenaMap.dm_box())
-	var killer: ArenaPlayer = g.add_player(41, "Killer").value
-	var victim: ArenaPlayer = g.add_player(42, "Victim").value
+	var _set := g.setup(FcMap.dm_box())
+	var killer: FcPlayer = g.add_player(41, "Killer").value
+	var victim: FcPlayer = g.add_player(42, "Victim").value
 	_check(is_equal_approx(g.match_node.rules.match_end_sec, g.mode.rules.match_end_sec + 7.0),
 		"the end of the match waits the killcam's 7 s on top of the mode's")
 	var clock := [0.0]
@@ -274,7 +274,7 @@ func _test_the_final_killcam() -> void:
 func _test_hud_fits_the_frame() -> void:
 	_section("No piece of the HUD lies over another, from a phone to a desktop frame")
 
-	var hud := ArenaHud.new()
+	var hud := FcHud.new()
 	hud.config = DotUiConfig.new()
 	add_child(hud)
 	hud.build(null)
@@ -285,11 +285,11 @@ func _test_hud_fits_the_frame() -> void:
 
 	_fill_hud(hud)
 
-	# The chat box, scaled with the HUD as ArenaPresentation scales it: unscaled, a full log
+	# The chat box, scaled with the HUD as FcPresentation scales it: unscaled, a full log
 	# at 854x480 reached the killstreak meter and the key hints.
 	var chat_screen := Control.new()
 	add_child(chat_screen)
-	var chat := ArenaPresentation.make_chat_window()
+	var chat := FcPresentation.make_chat_window()
 	chat_screen.add_child(chat)
 	var chat_met := PackedStringArray()
 
@@ -316,7 +316,7 @@ func _test_hud_fits_the_frame() -> void:
 			"at %s, none of the %d pieces meets another" % [size_name, keys.size()], ", ".join(met))
 		_check(outside.is_empty(), "and every one is inside the frame", ", ".join(outside))
 
-		ArenaPresentation.fit_chat_screen(chat_screen, frame)
+		FcPresentation.fit_chat_screen(chat_screen, frame)
 		var fit := chat_screen.scale.x
 		var rows := float(chat.max_lines) * (chat.line_height + chat.line_gap)
 		var log_top := frame.y / fit - chat.margin_bottom - chat.entry_height - rows
@@ -335,11 +335,11 @@ func _test_hud_fits_the_frame() -> void:
 		hud.fit_to_frame(frame)
 		same = same and hud.scale == Vector2.ONE and hud.position == Vector2(16, 16) and hud.size == frame - Vector2(32, 32)
 	_check(same, "from 1280x720 up the HUD is not scaled, and sits where it always did")
-	_check(is_equal_approx(ArenaHud.fit_scale(Vector2(854, 480)), 480.0 / 720.0)
-			and is_equal_approx(ArenaHud.fit_scale(Vector2(960, 720)), 0.75)
-			and is_equal_approx(ArenaHud.fit_scale(Vector2(720, 1280)), 0.5625)
-			and ArenaHud.fit_scale(Vector2(200, 100)) == hud.fit_min
-			and hud.fit_design == ArenaHud.DESIGN_FRAME and hud.fit_min == 0.5,
+	_check(is_equal_approx(FcHud.fit_scale(Vector2(854, 480)), 480.0 / 720.0)
+			and is_equal_approx(FcHud.fit_scale(Vector2(960, 720)), 0.75)
+			and is_equal_approx(FcHud.fit_scale(Vector2(720, 1280)), 0.5625)
+			and FcHud.fit_scale(Vector2(200, 100)) == hud.fit_min
+			and hud.fit_design == FcHud.DESIGN_FRAME and hud.fit_min == 0.5,
 		"below it, it is scaled by the short side's share of 1280x720, never under half")
 
 	await _check_crowded_frames(hud)
@@ -347,7 +347,7 @@ func _test_hud_fits_the_frame() -> void:
 	hud.queue_free()
 	_done()
 
-func _check_crowded_frames(hud: ArenaHud) -> void:
+func _check_crowded_frames(hud: FcHud) -> void:
 	# Four sides' plates and a capture-ranked row with two stats a card still fit, the row
 	# dropping players where the frame is too narrow.
 	var sides: Array[Dictionary] = []
@@ -381,14 +381,14 @@ func _check_crowded_frames(hud: ArenaHud) -> void:
 	_check(hud.strip.teams.is_empty() and hud.strip.left_score == 1 and hud.strip.right_score == 2,
 		"two sides go back to the plain two plates")
 	# The clock is dot-ui's `DotScoreStrip.clock_text`, which rounds up: a clock never says
-	# 0:00 with time left. Arena's own rounded down (9:37.4 read 9:37).
+	# 0:00 with time left. Fatal Contact's own rounded down (9:37.4 read 9:37).
 	_check(DotScoreStrip.clock_text(577.4) == "9:38" and DotScoreStrip.clock_text(0.3) == "0:01"
 			and DotScoreStrip.clock_text(0.0) == "0:00" and DotScoreStrip.clock_text(600.0) == "10:00",
 		"the clock rounds the seconds left up (%s, %s)" % [DotScoreStrip.clock_text(577.4), DotScoreStrip.clock_text(0.3)])
 
 
 ## Every piece of the HUD at its busiest.
-func _fill_hud(hud: ArenaHud) -> void:
+func _fill_hud(hud: FcHud) -> void:
 	hud.strip.visible = true
 	hud.strip.show_scores(4, 4, "YOU", "2ND  GAMEMANN", Color.BLUE, Color.RED)
 	hud.strip.show_clock("9:37", false, "First to 25", "Free-For-All")
@@ -413,9 +413,9 @@ func _fill_hud(hud: ArenaHud) -> void:
 	hud.abilities.show_buttons(buttons)
 	hud.hints.show_hints([["Scoreboard", "Tab"], ["Menu", "Esc"], ["Chat", "Y"], ["Slide", "C"]])
 	hud.slide_label.show_prompt("Cancel slide", "C")
-	hud.vitals.show_streak(3, ArenaHud.STREAK_FULL)
-	hud.medal_row.add(ArenaAwards.Medal.HEADSHOT, "Headshot")
-	hud.medal_row.add(ArenaAwards.Medal.DOUBLE_KILL, "Double Kill")
+	hud.vitals.show_streak(3, FcHud.STREAK_FULL)
+	hud.medal_row.add(FcAwards.Medal.HEADSHOT, "Headshot")
+	hud.medal_row.add(FcAwards.Medal.DOUBLE_KILL, "Double Kill")
 	hud.medal_row.advance(1.0)
 
 
@@ -485,7 +485,7 @@ func _test_chat_box() -> void:
 	_completed += 1
 
 
-func _check_rebind(p: ArenaPresentation, window: DotChatWindow) -> void:
+func _check_rebind(p: FcPresentation, window: DotChatWindow) -> void:
 	# The binding is a setting, so changing the setting has to move the key — and move
 	# it, not add a second one.
 	p.settings.set_value(&"chat_open_key", "T")
@@ -506,12 +506,12 @@ func _check_rebind(p: ArenaPresentation, window: DotChatWindow) -> void:
 	)
 
 
-func _check_join_notice(p: ArenaPresentation, window: DotChatWindow) -> void:
+func _check_join_notice(p: FcPresentation, window: DotChatWindow) -> void:
 	# A join notice is a name and NO text (dot-chat's `_presence`). Drawn as name and text it was a
 	# bare "Guest 435:" in the box, which read as a chat command echoed with its text stripped.
-	var extras_script := preload("../game/arena_client_extras.gd")
+	var extras_script := preload("../game/fc_client_extras.gd")
 	var join := DotChatMessage.make(DotChatMessage.Kind.JOIN, &"all", "k2", "Guest 435", "")
-	var said_client := ArenaClient.new()
+	var said_client := FcClient.new()
 	said_client.presentation = p
 	said_client._on_said(extras_script.speaker_of(join), extras_script.text_of(join), join.kind_name())
 	var said_rows := window.history()
@@ -529,13 +529,13 @@ func _check_join_notice(p: ArenaPresentation, window: DotChatWindow) -> void:
 func _check_log_over_streak(window: DotChatWindow) -> void:
 	# A full log, at the frame the client shell always draws on, must stay under the
 	# killstreak meter's words: at a 250-tall meter the sixth line wrote over them.
-	var hud := ArenaHud.new()
+	var hud := FcHud.new()
 	hud.config = DotUiConfig.new()
 	add_child(hud)
 	hud.build(null)
 	hud._build_feedback()
 	hud.fit_to_frame(Vector2(1280, 720))
-	hud.vitals.show_streak(3, ArenaHud.STREAK_FULL)
+	hud.vitals.show_streak(3, FcHud.STREAK_FULL)
 	var streak: Rect2 = hud.vitals.get_global_transform() * hud.vitals.footprint()
 	var rows := float(window.max_lines) * (window.line_height + window.line_gap)
 	var log_box := Rect2(window.margin_left, 720.0 - window.margin_bottom - window.entry_height - rows, window.width, rows)

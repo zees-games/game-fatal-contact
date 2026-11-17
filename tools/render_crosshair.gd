@@ -1,8 +1,8 @@
 extends SceneTree
 
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## The spread crosshair through DotGameCombatFeel.drive in each posture, one frame each to look at:
 ## screenshots/crosshair/<phase>.png, each with the cone it was drawn at in its name's log line.
@@ -14,7 +14,7 @@ const SETTLE := [90, 50, 90, 40, 120, 40, 8]
 const FILES := ["still.png", "moving.png", "crouched.png", "crouched_firing.png", "rested.png", "firing.png", "air.png"]
 const TICK_RATE := 64
 
-var _player: ArenaPlayer = null
+var _player: FcPlayer = null
 var _cross: DotCrosshair = null
 var _feel: DotGameCombatFeel = null
 var _tick := 1
@@ -30,12 +30,12 @@ var _after_clip := false
 func _initialize() -> void:
 	Engine.physics_ticks_per_second = TICK_RATE
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
-	var map: ArenaMap = ArenaMap.dm_box()
+	var map: FcMap = FcMap.dm_box()
 	root.add_child(map.to_scene())
-	root.add_child(ArenaMapLighting.build(map))
+	root.add_child(FcMapLighting.build(map))
 	_feel = DotGameCombatFeel.new(true, false)
-	_player = ArenaPlayer.new()
-	_player.setup(ArenaPlayer.Mode.HEADLESS, map, 7, "You")
+	_player = FcPlayer.new()
+	_player.setup(FcPlayer.Mode.HEADLESS, map, 7, "You")
 	root.add_child(_player)
 	_player.spawn(Transform3D(Basis(), Vector3(-16.0, 0.05, 6.0)), 0)
 	_player.attach_camera(100.0)

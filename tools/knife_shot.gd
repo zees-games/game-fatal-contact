@@ -10,7 +10,7 @@ extends SceneTree
 ## Fails (exit 1) when the farthest point is off the distance, it does not come back, does not spin or is not caught.
 ## The bots are frozen and nobody can die; the tool's camera wins over the client's (which re-asserts its own every frame).
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "res://screenshots/knife_throw"
 
 var client: Node = null
@@ -46,8 +46,8 @@ func _initialize() -> void:
 	var at := args.find("--map")
 	if at >= 0 and at + 1 < args.size():
 		_map = args[at + 1]
-	var _scratch := ArenaPresentation.use_scratch_settings("knife_shot")
-	client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var _scratch := FcPresentation.use_scratch_settings("knife_shot")
+	client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	client.set("offline_bots", 1)
@@ -207,7 +207,7 @@ func _run() -> void:
 		game = client.get("game")
 		if game != null and game.map != null and client.get("player") != null:
 			break
-	var _changed = game.change_map(load("res://maps/arena_map.gd").by_id(StringName(_map)))
+	var _changed = game.change_map(load("res://maps/fc_map.gd").by_id(StringName(_map)))
 	await _wait(3.0)
 	# The weapons warm up under the loading cover after the map opens; frames before it lifts film the cover.
 	var gate: Object = client.get("gate")

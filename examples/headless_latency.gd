@@ -1,5 +1,5 @@
 extends "lossy_windows.gd"
-## `cl_latency_baseline` against a real arena server over real ENet on loopback: 0.2 s on the client adds
+## `cl_latency_baseline` against a real Fatal Contact server over real ENet on loopback: 0.2 s on the client adds
 ## about 0.4 s to the round trip, and the server's `sv_allow_client_latency 0` takes it back off.
 ## `--legacy` is the control: the client drives its frame the way it did before the bridge carried the
 ## delay (nothing releases the held snapshots, inputs skip the delay), and the checks fail.
@@ -117,7 +117,7 @@ func _window(a: Dictionary) -> Dictionary:
 	var up := _median(_up_ms)
 	var down := _median(_down_ms)
 	return {"up": up, "down": down, "round_trip": up + down, "rtt": net.clock.rtt_ms(),
-		"enet": ArenaNetBridge.link_rtt_ms(a["link"]), "late": buffer.late_count - late0, "n": _up_ms.size(),
+		"enet": FcNetBridge.link_rtt_ms(a["link"]), "late": buffer.late_count - late0, "n": _up_ms.size(),
 		"frames": Engine.get_process_frames() - frames0, "stall": _window_stall_ms}
 
 
@@ -161,7 +161,7 @@ func _physics_process(delta: float) -> void:
 		return
 	var a: Dictionary = _clients["A"]
 	var net: DotNetManager = a["net"]
-	var bridge: ArenaNetBridge = a["bridge"]
+	var bridge: FcNetBridge = a["bridge"]
 	if net == null or not net.is_running():
 		return
 	net.stats.roll()

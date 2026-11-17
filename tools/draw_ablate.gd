@@ -4,7 +4,7 @@ extends Node
 ## `xvfb-run -a godot --path . --rendering-driver opengl3 res://tools/draw_ablate.tscn -- --bots 3 --map crackhouse [--web 0]`.
 ## Web render defaults (no MSAA, 2 sun splits, 60 m sun shadows) are applied first; `--web 0` skips them.
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const RenderQuality := preload("../addons/dot_game/runtime/dot_game_render_quality.gd")
 
 var _bots := 3
@@ -13,13 +13,13 @@ var _client: Node = null
 
 
 func _ready() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	var args := OS.get_cmdline_user_args()
 	for i in range(args.size() - 1):
 		match args[i]:
 			"--bots": _bots = int(args[i + 1])
 			"--web": _web = args[i + 1] != "0"
-	var _scratch := ArenaPresentation.use_scratch_settings("draw_ablate")
+	var _scratch := FcPresentation.use_scratch_settings("draw_ablate")
 	_run.call_deferred()
 
 
@@ -81,7 +81,7 @@ func _hide(n: Node, label: String, base: Array) -> void:
 func _run() -> void:
 	if _web:
 		RenderQuality.values = RenderQuality.web_defaults()
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	_client.set("offline_bots", _bots)

@@ -1,6 +1,6 @@
 extends DotGameCheckSuite
 
-## FC's per-app customisation (game/arena_app_wiring.gd) with fakes: every part off with no
+## FC's per-app customisation (game/fc_app_wiring.gd) with fakes: every part off with no
 ## config, the avatars settings turning into rules and back, the earn events and who earns them,
 ## the site's points on the player and the HUD label hidden and shown.
 ##
@@ -8,10 +8,10 @@ extends DotGameCheckSuite
 ## godot --headless --path . res://examples/headless_app_points.tscn
 ## [/codeblock]
 
-const ArenaAppWiring := preload("../game/arena_app_wiring.gd")
-const ArenaHudAppPoints := preload("../game/arena_hud_app_points.gd")
-const ArenaTeamBodies := preload("../game/arena_team_bodies.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
+const FcAppWiring := preload("../game/fc_app_wiring.gd")
+const FcHudAppPoints := preload("../game/fc_hud_app_points.gd")
+const FcTeamBodies := preload("../game/fc_team_bodies.gd")
+const FcEvents := preload("../game/fc_events.gd")
 const CHECKS := 37
 const BOT := 900_000_001
 const HUMAN := 7
@@ -116,8 +116,8 @@ func _run() -> void:
 	_report(CHECKS)
 
 
-func _wiring(game: FakeGame, client: Object) -> ArenaAppWiring:
-	var w := ArenaAppWiring.new()
+func _wiring(game: FakeGame, client: Object) -> FcAppWiring:
+	var w := FcAppWiring.new()
 	w.follow_settings = false
 	w.call(&"setup", game, client, DotPointsReporterConfig.new(), DotLoadoutConfig.new())
 	return w
@@ -131,7 +131,7 @@ func _config_off() -> void:
 	_check(not parts["events"], "no app_id or key: earn events off")
 	_check(not parts["settings"], "no client with get_integration: settings off")
 	_check(not parts["points"], "no client: points off")
-	var refused: DotResult = w.report_event(HUMAN, ArenaAppWiring.EVENT_KILL, false)
+	var refused: DotResult = w.report_event(HUMAN, FcAppWiring.EVENT_KILL, false)
 	_check(not refused.ok, "a report while off is refused, not sent")
 	w.player_joined(HUMAN)
 	w.player_left(HUMAN)
@@ -163,12 +163,12 @@ func _settings() -> void:
 	_check(game.rules["team_body_a"] == 1.0, "slot team:*:a binds side a to fc_military (index 1)",
 		str(game.rules["team_body_a"]))
 	_check(game.rules["team_body_b"] == -1.0, "an avatar FC lacks leaves side b in config order")
-	_check(ArenaTeamBodies._pick(game, 0) == 1, "side a wears the bound body")
-	_check(ArenaTeamBodies._pick(game, 1) == 1, "side b keeps its own place")
+	_check(FcTeamBodies._pick(game, 0) == 1, "side a wears the bound body")
+	_check(FcTeamBodies._pick(game, 1) == 1, "side b keeps its own place")
 	client.body = {"appId": "1", "sections": {"avatars": {"version": 3, "values": {"appOnly": false, "slots": []}}}}
 	read = await w.settings.refresh()
 	_check(read.ok and game.rules["team_avatars"] == 0.0, "appOnly off puts team avatars back")
-	_check(game.rules["team_body_a"] == -1.0 and ArenaTeamBodies._pick(game, 0) == 0, "no slots: side a back to config order")
+	_check(game.rules["team_body_a"] == -1.0 and FcTeamBodies._pick(game, 0) == 0, "no slots: side a back to config order")
 	read = await w.settings.refresh()
 	_check(read.ok and (read.value as PackedStringArray).is_empty(), "the same version again changes nothing")
 	w.free()
@@ -265,13 +265,13 @@ func _points() -> void:
 func _hud() -> void:
 	print("hud label")
 	var label := Label.new()
-	_check(not ArenaHudAppPoints.present(label, null) and not label.visible, "no player: hidden")
+	_check(not FcHudAppPoints.present(label, null) and not label.visible, "no player: hidden")
 	var player := FakePlayer.new()
 	player.app_points = 30
-	_check(not ArenaHudAppPoints.present(label, player) and not label.visible, "points off: hidden")
+	_check(not FcHudAppPoints.present(label, player) and not label.visible, "points off: hidden")
 	player.app_points_on = true
 	player.app_points = 42
-	_check(ArenaHudAppPoints.present(label, player) and label.visible and label.text == "App points 42",
+	_check(FcHudAppPoints.present(label, player) and label.visible and label.text == "App points 42",
 		"points on: shown with the balance", label.text)
 	label.free()
 
@@ -281,9 +281,9 @@ func _rules_codec() -> void:
 	var many := {}
 	for i in 70:
 		many["rule_%d" % i] = float(i)
-	var read := ArenaEvents.read_rules(DotNetReader.new(ArenaEvents.write_rules(many)))
+	var read := FcEvents.read_rules(DotNetReader.new(FcEvents.write_rules(many)))
 	_check(read["ok"] and (read["rules"] as Dictionary).size() == 70, "70 rules round-trip: no key cap",
 		str((read["rules"] as Dictionary).size()))
-	var short := ArenaEvents.write_rules(many).slice(0, 40)
-	var cut := ArenaEvents.read_rules(DotNetReader.new(short))
+	var short := FcEvents.write_rules(many).slice(0, 40)
+	var cut := FcEvents.read_rules(DotNetReader.new(short))
 	_check(not cut["ok"], "a short packet stops and says so")

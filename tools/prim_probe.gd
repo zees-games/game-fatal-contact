@@ -3,8 +3,8 @@ extends Node
 ## Solo client with N bots: the renderer's draws and primitives per frame, and which nodes hold the primitives.
 ## `xvfb-run -a godot --path . --rendering-driver opengl3 res://tools/prim_probe.tscn -- --bots 5 --seconds 12`.
 
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const ClientBench := preload("client_bench.gd")
 
 var _bots := 5
@@ -13,18 +13,18 @@ var _client: Node = null
 
 
 func _ready() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	var args := OS.get_cmdline_user_args()
 	for i in range(args.size() - 1):
 		match args[i]:
 			"--bots": _bots = int(args[i + 1])
 			"--seconds": _seconds = float(args[i + 1])
-	var _scratch := ArenaPresentation.use_scratch_settings("prim_probe")
+	var _scratch := FcPresentation.use_scratch_settings("prim_probe")
 	_run.call_deferred()
 
 
 func _run() -> void:
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	_client.set("offline_bots", _bots)

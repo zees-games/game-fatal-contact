@@ -1,13 +1,13 @@
 extends DotGameCheckSuite
 
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## The bots, in the real game: one bot per difficulty preset against one reference player on
-## dm_box, with arena's own weapons, movement, trace and match.
+## dm_box, with Fatal Contact's own weapons, movement, trace and match.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_bots.tscn
@@ -15,7 +15,7 @@ const ArenaPlayer := preload("../game/arena_player.gd")
 ## [/codeblock]
 ##
 ## [b]What it holds still.[/b] dot-bot's own suite measures the brain against a scripted
-## opponent in a world of rays. This is the same brain fed from arena (ArenaBots): a bot at
+## opponent in a world of rays. This is the same brain fed from Fatal Contact (FcBots): a bot at
 ## each preset plays [constant SECONDS] of a one-on-one deathmatch against a reference player
 ## whose settings are pinned here and never follow a preset, so the kill/death ratio moves only
 ## with the preset. Alongside it, every tick:
@@ -27,10 +27,10 @@ const ArenaPlayer := preload("../game/arena_player.gd")
 ##                                 per engagement, against the preset's bot_reaction
 ## [/codeblock]
 ##
-## The solo client runs these bots too (ArenaClient._drive_bots), which is the point: the
+## The solo client runs these bots too (FcClient._drive_bots), which is the point: the
 ## first play test met a test-fixture aimbot there instead.
 
-const TICK_RATE := ArenaContent.TICK_RATE
+const TICK_RATE := FcContent.TICK_RATE
 
 ## Independent fights per preset ([bot seed, reference seed]), pooled: one 600 s fight is about 30 deaths, so its K/D alone moves by tens of percent between seeds.
 const SEEDS := [[7, 11], [21, 33], [42, 58]]
@@ -105,10 +105,10 @@ func _run() -> void:
 
 	# The think-rate stagger on, and every bot counted as far (think_near 0), so the coast and the think after it
 	# are in every check below: the turn-rate contract has to hold with them.
-	ArenaBots.think_every = 2
-	ArenaBots.think_near = 0.0
+	FcBots.think_every = 2
+	FcBots.think_near = 0.0
 	# The K/D bands are per bot_difficulty: one shared preset, no persona's scale or spread on top.
-	ArenaBots.personas_mode = ArenaBots.PERSONAS_OFF
+	FcBots.personas_mode = FcBots.PERSONAS_OFF
 
 	var shard := DotGameShardArgs.shard()
 
@@ -165,7 +165,7 @@ func _play(preset: String) -> void:
 	var thrown: Array[int] = [0]
 	_fastest = 0.0
 	var per_seed := []
-	var game: ArenaGame
+	var game: FcGame
 	var settings: DotBotSettings
 	var trace: DotTrace
 	for seed_pair: Array in SEEDS:
@@ -197,9 +197,9 @@ func _play(preset: String) -> void:
 		game.tick({})
 		await get_tree().process_frame
 
-		var bot_mind := ArenaBots.Mind.new()
+		var bot_mind := FcBots.Mind.new()
 		bot_mind.seed = int(seed_pair[0])
-		var ref_mind := ArenaBots.Mind.new()
+		var ref_mind := FcBots.Mind.new()
 		ref_mind.brain = DotBotBrain.new(int(seed_pair[1]), reference)
 
 		# Grenades the bot let go of: a throw is not a shot (a frag lobbed at where a target went
@@ -225,7 +225,7 @@ func _play(preset: String) -> void:
 
 	# The world walks bots round the boxes: a route between the two spawns furthest apart, each
 	# leg clear at knee height (the horde's graph, built for this map).
-	var world := ArenaBots.world_for(game)
+	var world := FcBots.world_for(game)
 	var spawns: Array[Transform3D] = game.map.spawns
 	var a := spawns[0].origin
 	var b := a
@@ -237,8 +237,8 @@ func _play(preset: String) -> void:
 	await _play_rest(preset, game, trace, world, a, b, route, clear)
 
 
-func _new_game(preset: String) -> ArenaGame:
-	var game := ArenaGame.new()
+func _new_game(preset: String) -> FcGame:
+	var game := FcGame.new()
 	game.name = "Arena_%s" % preset
 	game.tick_rate = TICK_RATE
 	game.score_limit = 100000
@@ -247,7 +247,7 @@ func _new_game(preset: String) -> ArenaGame:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	_check(game.setup(ArenaMap.dm_box()).ok, "the game sets up")
+	_check(game.setup(FcMap.dm_box()).ok, "the game sets up")
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0
@@ -269,7 +269,7 @@ func _judge_preset(preset: String, kills: Array[int], thrown: Array[int], p: Dot
 
 
 ## Plays one seed's match tick by tick, judging the bot from outside its brain.
-func _play_ticks(game: ArenaGame, trace: DotTrace, bot_mind: ArenaBots.Mind, ref_mind: ArenaBots.Mind) -> void:
+func _play_ticks(game: FcGame, trace: DotTrace, bot_mind: FcBots.Mind, ref_mind: FcBots.Mind) -> void:
 	var last_first_shot := NAN
 	var last_seen_tick := {}
 	var ticks := int(SECONDS * TICK_RATE)
@@ -279,8 +279,8 @@ func _play_ticks(game: ArenaGame, trace: DotTrace, bot_mind: ArenaBots.Mind, ref
 		var ref := game.player_for(REFERENCE)
 		var comp_before: Vector2 = bot_mind.recoil_comp
 		var commands := {
-			BOT: ArenaBots.think(game, bot, bot_mind, tick, float(TICK_RATE)),
-			REFERENCE: ArenaBots.think(game, ref, ref_mind, tick, float(TICK_RATE)),
+			BOT: FcBots.think(game, bot, bot_mind, tick, float(TICK_RATE)),
+			REFERENCE: FcBots.think(game, ref, ref_mind, tick, float(TICK_RATE)),
 		}
 
 		# What the bot did this tick, judged from outside the brain.
@@ -299,7 +299,7 @@ func _play_ticks(game: ArenaGame, trace: DotTrace, bot_mind: ArenaBots.Mind, ref
 				_shots += 1
 				var target := game.player_for(brain.last.target_id) if brain.last.target_id >= 0 else null
 				# Sight as the brain judges it (its eye to the target's chest or head) or from the muzzle: a corner can block one and not the other.
-				var chest := target.global_position + Vector3.UP * ArenaBots.chest_height() if target != null else Vector3.ZERO
+				var chest := target.global_position + Vector3.UP * FcBots.chest_height() if target != null else Vector3.ZERO
 				var seen := _sighted(trace, bot, target)
 				# The brain reuses a sight answer for DotBotBrain.SIGHT_REUSE, so a shot within it of the target leaving sight is still sighted.
 				var stale_ticks := int(ceil(DotBotBrain.SIGHT_REUSE * TICK_RATE)) + 1
@@ -318,7 +318,7 @@ func _play_ticks(game: ArenaGame, trace: DotTrace, bot_mind: ArenaBots.Mind, ref
 			await get_tree().process_frame
 
 
-func _play_rest(preset: String, game: ArenaGame, trace: DotTrace, world: ArenaBots.World, a: Vector3, b: Vector3, route: PackedVector3Array, clear: bool) -> void:
+func _play_rest(preset: String, game: FcGame, trace: DotTrace, world: FcBots.World, a: Vector3, b: Vector3, route: PackedVector3Array, clear: bool) -> void:
 	var from := a
 	for corner in route:
 		clear = clear and trace.line_of_sight(from + Vector3.UP * 0.5, corner + Vector3.UP * 0.5)
@@ -357,7 +357,7 @@ func _test_order() -> void:
 	_done()
 
 
-## ArenaBots' typed command writer gives exactly what dot-bot's generic write_move/write_fire give.
+## FcBots' typed command writer gives exactly what dot-bot's generic write_move/write_fire give.
 func _check_typed_write() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 0xb07
@@ -379,7 +379,7 @@ func _check_typed_write() -> void:
 		intent.write_fire(fire_a)
 		var move_b := DotFpsCommand.new()
 		var fire_b := DotWeaponCommand.new()
-		ArenaBots._write(intent, move_b, fire_b)
+		FcBots._write(intent, move_b, fire_b)
 		if move_a.yaw == move_b.yaw and move_a.pitch == move_b.pitch and move_a.move == move_b.move and move_a.buttons == move_b.buttons \
 				and fire_a.yaw == fire_b.yaw and fire_a.pitch == fire_b.pitch and fire_a.buttons == fire_b.buttons and fire_a.slot == fire_b.slot:
 			same += 1
@@ -390,9 +390,9 @@ func _sighted(trace: DotTrace, bot: Node3D, target: Node3D) -> bool:
 	if target == null:
 		return false
 	# Sight as the brain judges it (its eye to the target's chest or head) or from the muzzle: a corner can block one and not the other.
-	var chest := target.global_position + Vector3.UP * ArenaBots.chest_height()
-	var eye := bot.global_position + Vector3.UP * ArenaBots.eye_height()
-	return trace.line_of_sight(bot.muzzle_position(), chest) or trace.line_of_sight(bot.muzzle_position(), target.muzzle_position()) or trace.line_of_sight(eye, chest) or trace.line_of_sight(eye, target.global_position + Vector3.UP * ArenaBots.eye_height())
+	var chest := target.global_position + Vector3.UP * FcBots.chest_height()
+	var eye := bot.global_position + Vector3.UP * FcBots.eye_height()
+	return trace.line_of_sight(bot.muzzle_position(), chest) or trace.line_of_sight(bot.muzzle_position(), target.muzzle_position()) or trace.line_of_sight(eye, chest) or trace.line_of_sight(eye, target.global_position + Vector3.UP * FcBots.eye_height())
 
 
 func _mean(values: Array[float]) -> float:

@@ -4,7 +4,7 @@ extends Node
 ## wearable switches honoured, 0 = unlimited and over the cap refused (never trimmed), and the loadout limits.
 ## godot --headless --path . res://examples/headless_avatar_library.tscn
 
-const AvatarLibrary := preload("res://game/arena_avatar_library.gd")
+const AvatarLibrary := preload("res://game/fc_avatar_library.gd")
 const CHECKS := 28
 
 var _passed := 0

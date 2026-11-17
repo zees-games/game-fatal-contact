@@ -1,11 +1,11 @@
 extends DotGameCheckSuite
 
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaHullGrid := preload("../game/arena_hull_grid.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaModTools := preload("../game/arena_mod_tools.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcHullGrid := preload("../game/fc_hull_grid.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcModTools := preload("../game/fc_mod_tools.gd")
 
 ## `fc_motor_batch`: the players' motors ticked in runs of one dot-sim call play exactly the
 ## match the loop one player after another plays. A recorded bot match is replayed through both
@@ -30,7 +30,7 @@ const CHECKS := 24
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
 ## which the loop calls after each player's turn, to a player whose turn that tick is over or still to come.
 class Meddler extends RefCounted:
-	var game: ArenaGame = null
+	var game: FcGame = null
 	## &"between", &"earlier" or &"later".
 	var where: StringName = &""
 	var done := 0
@@ -67,9 +67,9 @@ class Meddler extends RefCounted:
 		done += 1
 		match MEDDLES[turn % MEDDLES.size()]:
 			&"slay":
-				var _slain := ArenaModTools.slay(game, StringName(str(id)))
+				var _slain := FcModTools.slay(game, StringName(str(id)))
 			&"slap":
-				var _slapped := ArenaModTools.slap(game, StringName(str(id)), 0.0)
+				var _slapped := FcModTools.slap(game, StringName(str(id)), 0.0)
 			&"push":
 				victim.controller.apply_external_velocity(PUSH)
 
@@ -84,8 +84,8 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact: fc_motor_batch plays the same match")
-	ArenaBots.tiers.above = -1
-	var was := ArenaHullGrid.batch
+	FcBots.tiers.above = -1
+	var was := FcHullGrid.batch
 	if not DotFpsMotorBatch.available() or not ClassDB.class_exists(&"DotSimHullWorld"):
 		# Natives older than the batch: the cvar changes nothing and there is nothing to compare.
 		print("skip: the loaded dot-sim has no motor batch")
@@ -123,7 +123,7 @@ func _run() -> void:
 	var kept: StringName = &""
 	var kept_streams: Array = []
 	for id in IMPORTED_MAPS:
-		if ArenaMap.by_id(id) == null:
+		if FcMap.by_id(id) == null:
 			print("skip %s: not linked" % id)
 			_check(true, "(skipped: %s is not linked)" % id)
 			continue
@@ -189,27 +189,27 @@ func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> vo
 			_check(true, "(skipped: no imported map is linked)")
 	else:
 		# The bots think once with the tiers on; each tick's motor period is recorded with its commands and replayed.
-		ArenaBots.tiers.above = 0
-		ArenaBots.tiers.body_above = 0
-		ArenaBots.tiers.body_near_every = 2
-		ArenaBots.tiers.body_far_every = 3
+		FcBots.tiers.above = 0
+		FcBots.tiers.body_above = 0
+		FcBots.tiers.body_near_every = 2
+		FcBots.tiers.body_far_every = 3
 		var stepped: Array = []
 		var _thought: Array = await _play(false, kept, SMALL_BOTS, SMALL_SECONDS, stepped, true)
-		ArenaBots.tiers.body_near_every = 1
-		ArenaBots.tiers.body_far_every = 1
-		ArenaBots.tiers.body_above = 24
-		ArenaBots.tiers.above = -1
-		var sat := ArenaPlayer.body_skipped
+		FcBots.tiers.body_near_every = 1
+		FcBots.tiers.body_far_every = 1
+		FcBots.tiers.body_above = 24
+		FcBots.tiers.above = -1
+		var sat := FcPlayer.body_skipped
 		off = await _play(false, kept, SMALL_BOTS, SMALL_SECONDS, stepped, false)
-		var sat_off := ArenaPlayer.body_skipped - sat
+		var sat_off := FcPlayer.body_skipped - sat
 		on = await _play(true, kept, SMALL_BOTS, SMALL_SECONDS, stepped, false)
-		var sat_on := ArenaPlayer.body_skipped - sat - sat_off
+		var sat_on := FcPlayer.body_skipped - sat - sat_off
 		print("%s, body tiers: %d and %d bodies sat out, %d kills, %d rows, %d faults" % [kept, sat_off, sat_on, off[1], on[2], on[3]])
 		_check(sat_off > SMALL_BOTS and sat_on == sat_off, "bodies sat out ticks (%d, batched %d)" % [sat_off, sat_on])
 		_check(on[0] == off[0] and off[0].size() > 5, "both loops play the same stepped match (%s)" % _first_diff(off[0], on[0]))
 		_check(on[2] > 0 and on[3] == 0, "through the batch with no fault (%d rows)" % on[2])
 	_done()
-	ArenaHullGrid.batch = was
+	FcHullGrid.batch = was
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
@@ -234,9 +234,9 @@ func _first_diff(a: PackedStringArray, b: PackedStringArray) -> String:
 ## [param streams] replayed: [digests, kills, batch rows, batch faults, hits, rewound changes].
 ## [param opts]: `lag`, `collide`, `meddle` (where a [Meddler] acts).
 func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams: Array, think: bool, opts: Dictionary = {}) -> Array:
-	ArenaHullGrid.batch = batched
-	ArenaHullGrid.batch_rows = 0
-	ArenaHullGrid.batch_faults = 0
+	FcHullGrid.batch = batched
+	FcHullGrid.batch_rows = 0
+	FcHullGrid.batch_faults = 0
 	var game := _new_game(batched, think, map_id)
 	var kills := [0]
 	game.player_killed.connect(func(_entry: DotKillFeed.Entry) -> void: kills[0] += 1)
@@ -263,7 +263,7 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 		var made := game.add_player(100 + i, "Bot%d" % i)
 		if made.ok:
 			players.append(made.value)
-			var mind := ArenaBots.Mind.new()
+			var mind := FcBots.Mind.new()
 			mind.seed = 100 + i
 			minds.append(mind)
 	game.start(0)
@@ -295,7 +295,7 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 		# space queries settled a contact a tenth of a millimetre apart (dm-morpheus, 1 run in 20 on PH). Same in every run here.
 		if tick_index % 8 == 0:
 			await get_tree().physics_frame
-	var out := [digests, kills[0], ArenaHullGrid.batch_rows, ArenaHullGrid.batch_faults, counts[0], meddler.done if meddler != null else counts[1]]
+	var out := [digests, kills[0], FcHullGrid.batch_rows, FcHullGrid.batch_faults, counts[0], meddler.done if meddler != null else counts[1]]
 	game.demo_stats = null
 	game.remote_feet_fn = Callable()
 	game.remote_lags_fn = Callable()
@@ -305,8 +305,8 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 	return out
 
 
-func _new_game(batched: bool, think: bool, map_id: StringName) -> ArenaGame:
-	var game := ArenaGame.new()
+func _new_game(batched: bool, think: bool, map_id: StringName) -> FcGame:
+	var game := FcGame.new()
 	game.name = "Arena_%d_%d" % [int(batched), int(think)]
 	game.tick_rate = TICK_RATE
 	game.score_limit = 100000
@@ -315,16 +315,16 @@ func _new_game(batched: bool, think: bool, map_id: StringName) -> ArenaGame:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var _setup := game.setup(ArenaMap.dm_box() if map_id == &"" else ArenaMap.by_id(map_id))
+	var _setup := game.setup(FcMap.dm_box() if map_id == &"" else FcMap.by_id(map_id))
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0
 	return game
 
 
-func _warm_routes(game: ArenaGame) -> void:
+func _warm_routes(game: FcGame) -> void:
 	# The routes start when the mesh bake lands; start every run from there.
-	var world := ArenaBots.world_for(game)
+	var world := FcBots.world_for(game)
 	var _first := world.route(Vector3.ZERO, Vector3.ONE)
 	var frames := 0
 	while world.is_route_pending() and frames < 3000:
@@ -334,13 +334,13 @@ func _warm_routes(game: ArenaGame) -> void:
 
 
 ## This tick's commands: the bots' own thinking (recorded into `streams`) or the recorded stream replayed.
-func _commands_for(game: ArenaGame, players: Array, minds: Array, streams: Array, tick_index: int, think: bool, lagging: bool) -> Dictionary:
+func _commands_for(game: FcGame, players: Array, minds: Array, streams: Array, tick_index: int, think: bool, lagging: bool) -> Dictionary:
 	var commands := {}
 	if think:
 		var recorded := {}
 		var tick := game.current_tick()
 		for i in players.size():
-			var pair: Array = ArenaBots.think(game, players[i], minds[i], tick, float(TICK_RATE))
+			var pair: Array = FcBots.think(game, players[i], minds[i], tick, float(TICK_RATE))
 			var move: DotFpsCommand = pair[0]
 			var fire: DotWeaponCommand = pair[1]
 			commands[players[i].player_id] = pair
@@ -362,7 +362,7 @@ func _commands_for(game: ArenaGame, players: Array, minds: Array, streams: Array
 
 
 ## The bytes one tick adds to the run's window: every player's state, and where a lagged viewer saw them.
-func _players_chunk(game: ArenaGame, players: Array, lagging: bool, now: int, counts: Array) -> PackedByteArray:
+func _players_chunk(game: FcGame, players: Array, lagging: bool, now: int, counts: Array) -> PackedByteArray:
 	var chunk := PackedByteArray()
 	for player: Object in players:
 		var state: DotFpsState = player.controller.state if player.controller != null else null

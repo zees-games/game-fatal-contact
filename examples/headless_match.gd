@@ -58,7 +58,7 @@ func _run() -> void:
 	await _test_map_change()
 
 	_check(_stats_errors.is_empty(), "the stats layer logged no error", str(_stats_errors))
-	_check(ArenaStats.schema().validate().ok, "arena's stats schema, hitzones included, validates", str(ArenaStats.schema().validate().error))
+	_check(FcStats.schema().validate().ok, "arena's stats schema, hitzones included, validates", str(FcStats.schema().validate().error))
 
 	if _game != null:
 		_game.queue_free()

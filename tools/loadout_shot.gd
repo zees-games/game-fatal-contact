@@ -3,12 +3,12 @@ extends SceneTree
 ## Frame sequence after the still (DOT_SHOT_FRAMES); see DotShotSeq.
 var _seq := DotShotSeq.new()
 
-## Renders the loadout screen over three saved loadouts, saved through the arena's own store.
+## Renders the loadout screen over three saved loadouts, saved through Fatal Contact's own store.
 ##
 ##   xvfb-run -a godot --path . --resolution 1600x900 --script tools/loadout_shot.gd
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaLoadoutIdentity := preload("../game/arena_loadout_identity.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcLoadoutIdentity := preload("../game/fc_loadout_identity.gd")
 const DIR := "user://shot_loadouts"
 const KEY := "scoped0123456789"
 
@@ -19,10 +19,10 @@ func _initialize() -> void:
 
 func _run() -> void:
 	DotPaths.remove_tree(DIR)
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	root.add_child(game)
 	game._build_loadouts()
-	game.loadouts.store = ArenaLoadoutIdentity.make_store(DIR)
+	game.loadouts.store = FcLoadoutIdentity.make_store(DIR)
 	var picks := [["Rusher", &"smg", &"pistol"], ["Sniper", &"sniper", &"pistol"], ["Breacher", &"shotgun", &"pistol"]]
 	for pick: Array in picks:
 		var l := game.loadouts.schema.default_loadout()

@@ -1,9 +1,9 @@
 extends Node
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaSimHost := preload("../game/arena_sim_host.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaSimServer := preload("../game/arena_sim_server.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcSimHost := preload("../game/fc_sim_host.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcSimServer := preload("../game/fc_sim_server.gd")
 
 ## `--sim_host 1`: the solo game runs as a loopback server process and this client joins it, so
 ## the simulation is off the render thread. Off unless asked for; the client sees the bots, lives,
@@ -21,7 +21,7 @@ var _errors: RouteErrors = null
 
 func _ready() -> void:
 	DotLog.set_level(DotLog.Level.ERROR)
-	var _scratch := ArenaPresentation.use_scratch_settings("headless_sim_host")
+	var _scratch := FcPresentation.use_scratch_settings("headless_sim_host")
 	_run.call_deferred()
 
 
@@ -54,13 +54,13 @@ func _run() -> void:
 	_check_wanted_rules()
 	_check_tick_tiers()
 
-	ArenaSimHost.forced = 1
-	ArenaSimHost.ask_map = "dm_box"
-	ArenaSimHost.ask_mode = "ctf"
+	FcSimHost.forced = 1
+	FcSimHost.ask_map = "dm_box"
+	FcSimHost.ask_mode = "ctf"
 	# As long as a slow machine builds after joining; headless builds in the same frame and hid the spam.
-	ArenaSimHost.hold_joined_sec = 3.0
-	_check(ArenaSimHost.wanted(), "a tool can ask for it")
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	FcSimHost.hold_joined_sec = 3.0
+	_check(FcSimHost.wanted(), "a tool can ask for it")
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	# What a bench sets: the host is joined all the same.
 	_client.set("force_offline", true)
 	_client.set("offline_bots", BOTS)
@@ -68,7 +68,7 @@ func _run() -> void:
 	add_child(_client)
 	# As long as the host itself may take (boot, join, the hold) and a build after it: a flat 90 s was shorter than
 	# the host's own 60 + 30 + 3, so a loaded laptop failed here while the host was still within its limits.
-	var limit := ArenaSimHost.BOOT_LIMIT_SEC + ArenaSimHost.JOIN_LIMIT_SEC + ArenaSimHost.hold_joined_sec + BUILD_SEC
+	var limit := FcSimHost.BOOT_LIMIT_SEC + FcSimHost.JOIN_LIMIT_SEC + FcSimHost.hold_joined_sec + BUILD_SEC
 	var added_msec := Time.get_ticks_msec()
 	var built := await _until(func() -> bool: return _client.get("game") != null, limit)
 	print("  the client built %.1f s after it was added (limit %.0f s)" % [(Time.get_ticks_msec() - added_msec) / 1000.0, limit])
@@ -76,7 +76,7 @@ func _run() -> void:
 	if not built:
 		_end()
 		return
-	var host: ArenaSimHost = _client.get("_sim_host")
+	var host: FcSimHost = _client.get("_sim_host")
 	_check(host != null and host.up, "the client joined its own server")
 	if host == null:
 		_end()
@@ -135,29 +135,29 @@ func _synced_checks() -> void:
 
 
 func _check_wanted_rules() -> void:
-	_check(not ArenaSimHost.wanted(), "a suite's or a tool's client stays in this process")
-	_check(ArenaSimHost.wanted(true), "the launched game is hosted")
-	_check(ArenaSimHost.wanted_for(PackedStringArray(["--offline", "+bot_quota", "8"]), true), "a launcher's --offline is still hosted")
-	_check(not ArenaSimHost.wanted_for(PackedStringArray(["--offline", "--sim_host", "0"]), true), "--sim_host 0 opts out under --offline")
-	ArenaSimHost.forced = 0
-	_check(not ArenaSimHost.wanted(true), "and can be told not to be")
+	_check(not FcSimHost.wanted(), "a suite's or a tool's client stays in this process")
+	_check(FcSimHost.wanted(true), "the launched game is hosted")
+	_check(FcSimHost.wanted_for(PackedStringArray(["--offline", "+bot_quota", "8"]), true), "a launcher's --offline is still hosted")
+	_check(not FcSimHost.wanted_for(PackedStringArray(["--offline", "--sim_host", "0"]), true), "--sim_host 0 opts out under --offline")
+	FcSimHost.forced = 0
+	_check(not FcSimHost.wanted(true), "and can be told not to be")
 
 
-## The solo server's rate by player count (ArenaConfig.solo_tick_tiers), and its loud line when it falls behind the clock.
+## The solo server's rate by player count (FcConfig.solo_tick_tiers), and its loud line when it falls behind the clock.
 func _check_tick_tiers() -> void:
 	var spec := "players<=32:66,<=64:33,else:22"
-	_check(ArenaSimServer.solo_tick_rate(spec, 32, 66) == 66, "16v16 solo keeps 66 Hz")
-	_check(ArenaSimServer.solo_tick_rate(spec, 64, 66) == 33, "33-64 players tick at 33 Hz")
-	_check(ArenaSimServer.solo_tick_rate(spec, 65, 66) == 22, "64 bots and you tick at 22 Hz")
-	_check(ArenaSimServer.solo_tick_rate("", 65, 66) == 66, "an empty table keeps the configured rate")
-	_check(ArenaSimServer.behind_line(65.0, 66, 12.0) == "", "a window that held its rate is quiet")
-	var line := ArenaSimServer.behind_line(25.5, 66, 32.3)
+	_check(FcSimServer.solo_tick_rate(spec, 32, 66) == 66, "16v16 solo keeps 66 Hz")
+	_check(FcSimServer.solo_tick_rate(spec, 64, 66) == 33, "33-64 players tick at 33 Hz")
+	_check(FcSimServer.solo_tick_rate(spec, 65, 66) == 22, "64 bots and you tick at 22 Hz")
+	_check(FcSimServer.solo_tick_rate("", 65, 66) == 66, "an empty table keeps the configured rate")
+	_check(FcSimServer.behind_line(65.0, 66, 12.0) == "", "a window that held its rate is quiet")
+	var line := FcSimServer.behind_line(25.5, 66, 32.3)
 	_check(line.contains("BEHIND") and line.contains("39%"), "a window at 25.5 of 66 says the game runs at 39% speed", line)
-	var told := ArenaSimServer.behind_notice(25.5, 66)
-	_check(told.contains("39%") and ArenaSimServer.behind_notice(65.0, 66) == "", "the player is told the same share, and nothing while it keeps up", told)
-	_check(ArenaSimServer.notice_due(1000, -1, 60.0) and not ArenaSimServer.notice_due(30000, 1000, 60.0)
-		and ArenaSimServer.notice_due(61000, 1000, 60.0), "the player's line is said as it falls behind, then once a minute")
-	_check(ArenaSimServer.notice_due(6000, 1000, 0.0), "behind_notice_sec 0 says it on every behind report")
+	var told := FcSimServer.behind_notice(25.5, 66)
+	_check(told.contains("39%") and FcSimServer.behind_notice(65.0, 66) == "", "the player is told the same share, and nothing while it keeps up", told)
+	_check(FcSimServer.notice_due(1000, -1, 60.0) and not FcSimServer.notice_due(30000, 1000, 60.0)
+		and FcSimServer.notice_due(61000, 1000, 60.0), "the player's line is said as it falls behind, then once a minute")
+	_check(FcSimServer.notice_due(6000, 1000, 0.0), "behind_notice_sec 0 says it on every behind report")
 
 
 ## The client is built on the server's map, so its announcement keeps that world instead of rebuilding it.
@@ -165,7 +165,7 @@ func _first_map_checks(game: Object) -> void:
 	var session: Object = (_client.get("extras") as Object).get("maps").get("session")
 	var announced := await _until(func() -> bool: return session.get("current") != null and not bool(_client.get("_level_busy")), 30.0)
 	var builds := 0
-	for m: Array in (load("res://game/arena_load_timeline.gd") as Script).get("_marks"):
+	for m: Array in (load("res://game/fc_load_timeline.gd") as Script).get("_marks"):
 		builds += 1 if str(m[2]) == "map_scene_built" else 0
 	var drawn: Object = _client.get("_level_map")
 	_check(announced and builds == 1, "the announced boot map keeps the level the client was set up on",
@@ -189,7 +189,7 @@ func _row(prefix: String) -> String:
 
 ## B and the team screen ask the server process over its link, as a connected client's do; the
 ## server must answer and not refuse them as "sending messages too quickly".
-func _menu_checks(host: ArenaSimHost) -> void:
+func _menu_checks(host: FcSimHost) -> void:
 	var refused := [0]
 	host.link.chat_received.connect(func(payload: Dictionary) -> void:
 		if str(payload).contains("too quickly"):
@@ -235,7 +235,7 @@ func _board_checks() -> void:
 
 
 ## Every kill was said again in chat; the feed top-right is the only place for it.
-func _kill_feed_checks(host: ArenaSimHost, game: Object) -> void:
+func _kill_feed_checks(host: FcSimHost, game: Object) -> void:
 	var chat: Array[String] = []
 	var kills: Array[String] = []
 	var heard := func(payload: Dictionary) -> void: chat.append(str(payload))
@@ -284,8 +284,8 @@ func _drop_checks() -> void:
 	DirAccess.make_dir_recursive_absolute(source)
 	for n in ["fixture.json", "fixture.bin"]:
 		var _copied := DirAccess.copy_absolute("res://examples/local_maps".path_join(n), source.path_join(n))
-	var was_listing := ArenaMaps.list_local
-	ArenaMaps.list_local = true
+	var was_listing := FcMaps.list_local
+	FcMaps.list_local = true
 	var refused: DotResult = await _ask("host_local no_such_map_local")
 	_check(not refused.ok, "host_local refuses a map that is not there", "" if refused.ok else refused.error.message)
 	var said: String = await _client.call("import_dropped", PackedStringArray([ProjectSettings.globalize_path(source)]))
@@ -299,7 +299,7 @@ func _drop_checks() -> void:
 		return false, 10.0)
 	_check(offered, "M, asked of the server process, offers it during CTF", str((maps.get("last_offer") as Dictionary).get("maps", []).size()))
 	(_client.get("game_menu") as Object).call("close_all")
-	ArenaMaps.list_local = was_listing
+	FcMaps.list_local = was_listing
 	for dir in ["user://zz_sim_host_drop_src/convert", "user://zz_sim_host_drop_src", "user://maps/fixture/convert", "user://maps/fixture"]:
 		for n in DirAccess.get_files_at(dir):
 			var _gone := DirAccess.remove_absolute(dir.path_join(n))
@@ -381,17 +381,17 @@ func _host_state() -> String:
 		parts.append("up %s, pid %d, ready file %s, link %s" % [
 			str(host.get("up")), int(host.get("_pid")), str(FileAccess.file_exists(str(host.get("_ready_path")))),
 			"none" if link == null else ("playing" if bool(link.call("is_playing")) else "not playing")])
-	var text := FileAccess.get_file_as_string(ArenaSimHost.SERVER_LOG)
+	var text := FileAccess.get_file_as_string(FcSimHost.SERVER_LOG)
 	var lines := text.strip_edges().split("\n", false)
-	parts.append("server log %s, %d lines, last: %s" % [ProjectSettings.globalize_path(ArenaSimHost.SERVER_LOG), lines.size(),
+	parts.append("server log %s, %d lines, last: %s" % [ProjectSettings.globalize_path(FcSimHost.SERVER_LOG), lines.size(),
 		" | ".join(lines.slice(maxi(lines.size() - 8, 0)))])
 	return "; ".join(parts)
 
 
 func _end() -> void:
-	ArenaSimHost.forced = -1
-	ArenaSimHost.ask_map = ""
-	ArenaSimHost.ask_mode = ""
+	FcSimHost.forced = -1
+	FcSimHost.ask_map = ""
+	FcSimHost.ask_mode = ""
 	if _client != null:
 		_client.queue_free()
 		await get_tree().process_frame

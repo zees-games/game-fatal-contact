@@ -1,10 +1,10 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaBspMap := preload("../maps/arena_bsp_map.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcBspMap := preload("../maps/fc_bsp_map.gd")
+const FcBots := preload("../game/fc_bots.gd")
 
 ## A surf map's jail through the global importer: a pad beside the jail is a release to the top of the
 ## spawn, the cell's glass is one-way, and the use key on the button swings the jail doors.
@@ -54,12 +54,12 @@ func _door_pose(world: DotMapWorld) -> Transform3D:
 
 
 func _run() -> void:
-	var map: ArenaMap = ArenaMap.imported(MAP)
+	var map: FcMap = FcMap.imported(MAP)
 	if map == null:
-		print("  skip  %s is not linked (arena-surf-dm-maps)" % MAP)
+		print("  skip  %s is not linked (fc-surf-dm-maps)" % MAP)
 		get_tree().quit(0)
 		return
-	var prefix := ArenaBspMap.world_prefix(String(MAP), map.manifest_path.get_base_dir())
+	var prefix := FcBspMap.world_prefix(String(MAP), map.manifest_path.get_base_dir())
 	var got: DotResult = DotMapBspMesh.load_prefix(prefix)
 	_check(got.ok, "the converted world reads", str(got.error))
 	if not got.ok:
@@ -89,12 +89,12 @@ func _run() -> void:
 	_check(hook.call({"glass": "bars", "tint": []}) == null, "while bars keep their own look")
 	_check(DotMapOneWayGlass.sees_solid(centre, centre, float(cell["radius"])) and not DotMapOneWayGlass.sees_solid(centre + Vector3(0, 0, 30), centre, float(cell["radius"])), "the glass is solid from inside the cell and clear from outside")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "G"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch()
+	game.mode = FcMode.team_deathmatch()
 	add_child(game)
 	var ready := game.setup(map)
 	_check(ready.ok, "a game sets up on the map", str(ready.error))
@@ -129,7 +129,7 @@ func _run() -> void:
 
 ## The jail glass as a rule for gameplay: a bot inside cannot see out, a shot from inside stops at the glass, a shooter
 ## outside reaches in, and a camera (plain world-layer ray) is unaffected.
-func _check_glass_sight(game: ArenaGame, centre: Vector3) -> void:
+func _check_glass_sight(game: FcGame, centre: Vector3) -> void:
 	var rules: DotMapGlassSight = game.glass_rules
 	_check(rules.glass_mask != 0 and rules.centre.distance_to(centre) < 0.01, "the game's glass rule has the cell and the glass layer", str(rules.glass_mask))
 	_check(rules.problem() == "" and rules.world_mask != 0 and rules.glass_mask & rules.world_mask == 0, "the glass has its own bit, apart from the world's", rules.problem())
@@ -181,7 +181,7 @@ func _check_glass_sight(game: ArenaGame, centre: Vector3) -> void:
 	var beyond := edge + dir * 3.0
 	var far := origin + dir * (rules.radius + 4.0)
 	var trace: DotTrace = game.combat.trace
-	var bots := ArenaBots.world_for(game)
+	var bots := FcBots.world_for(game)
 	_check(not bots.line_of_sight(origin, beyond), "a bot inside cannot see out through the glass")
 	rules.block_sight = false
 	var open := bots.line_of_sight(origin, beyond)

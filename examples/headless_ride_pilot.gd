@@ -1,10 +1,10 @@
 extends "imported_base.gd"
 
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaSurf := preload("../game/arena_surf.gd")
-const ArenaSurfRides := preload("../game/arena_surf_rides.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcSurf := preload("../game/fc_surf.gd")
+const FcSurfRides := preload("../game/fc_surf_rides.gd")
 
 ## The harvest replays a recorded ride with the bot's pilot (tracking and veto), judged on the edge's own course. A ride is made
 ## synthetically by driving the planned cache down one edge of a shipped map and keeping the commands, as a recording would;
@@ -17,8 +17,8 @@ const EDGE := 6
 const SECTIONS := 1
 const CHECKS := 12
 
-var _edge: ArenaSurf.Edge = null
-var _surf: ArenaSurf = null
+var _edge: FcSurf.Edge = null
+var _surf: FcSurf = null
 var _rides: RefCounted = null
 var _store := DotBotDemoStoreMemory.new()
 
@@ -29,29 +29,29 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	if ArenaMap.imported_ids().is_empty() or ArenaMap.by_id(RIDE_MAP) == null:
+	if FcMap.imported_ids().is_empty() or FcMap.by_id(RIDE_MAP) == null:
 		print("no imported maps - nothing to check")
 		get_tree().quit(0)
 		return
-	ArenaMap.use_worlds = false
+	FcMap.use_worlds = false
 	_section("a recorded ride is replayed with the pilot, on the edge's course")
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.tick_rate = TICK_RATE
 	_game.headless = true
 	_game.is_authority = true
 	_game.register_service = false
-	_game.mode = ArenaMode.free_for_all(4)
+	_game.mode = FcMode.free_for_all(4)
 	add_child(_game)
-	var setup := _game.setup(ArenaMap.by_id(RIDE_MAP))
+	var setup := _game.setup(FcMap.by_id(RIDE_MAP))
 	var _added := _game.add_player(1, "a")
-	var world := ArenaBots.world_for(_game)
+	var world := FcBots.world_for(_game)
 	var _first := world.route(Vector3.ZERO, Vector3.ONE)
 	var frames := 0
 	while world.is_route_pending() and frames < 3000:
 		await get_tree().process_frame
 		frames += 1
 	_surf = world.surf_for_map() if setup.ok else null
-	var planned: Array = _surf.edges.filter(func(e: ArenaSurf.Edge) -> bool: return e.linked and e.id == EDGE) if _surf != null else []
+	var planned: Array = _surf.edges.filter(func(e: FcSurf.Edge) -> bool: return e.linked and e.id == EDGE) if _surf != null else []
 	if planned.is_empty():
 		_check(false, "%s has linked ride edge %d" % [RIDE_MAP, EDGE])
 		_done()
@@ -67,9 +67,9 @@ func _test_pilot() -> void:
 	var cfg := DotBotDemoConfig.new()
 	cfg.store = "memory"
 	cfg.record = false
-	_rides = ArenaSurfRides.new()
+	_rides = FcSurfRides.new()
 	var ready: DotResult = _rides.call(&"setup", _game, cfg, _store, float(TICK_RATE))
-	_rides.set_map(_game.map, ArenaBots.world_for(_game).nav_for_rides())
+	_rides.set_map(_game.map, FcBots.world_for(_game).nav_for_rides())
 	await _rides.attach_surf(_surf)
 	var key: String = _rides.edge_key(_edge)
 	var player := _game.player_for(1)
@@ -109,9 +109,9 @@ func _test_pilot() -> void:
 
 	# Through the store, as the server does: verified, filed with the edge's pilot cache.
 	var appended: DotResult = await _store.append([full, coast])
-	var done: DotResult = await harvest.harvest(_store, _rides.recorder.map_id, _rides.recorder.map_version, ArenaSurfRides.KIND, key)
+	var done: DotResult = await harvest.harvest(_store, _rides.recorder.map_id, _rides.recorder.map_version, FcSurfRides.KIND, key)
 	_check(appended.ok and done.ok and int(done.value) == 1, "of two stored rides one is verified and the coasting one is not")
-	var loaded: DotResult = await _rides.book.load_edge(_store, ArenaSurfRides.KIND, key, _rides.schema, float(TICK_RATE), _rides.reference_yaw_for(key))
+	var loaded: DotResult = await _rides.book.load_edge(_store, FcSurfRides.KIND, key, _rides.schema, float(TICK_RATE), _rides.reference_yaw_for(key))
 	var recorded: Array = _rides.book.ranked(key).filter(func(r: Dictionary) -> bool: return r["source"] == DotBotRideBook.RECORDED)
 	var data: Dictionary = recorded[0]["data"] if not recorded.is_empty() else {}
 	_check(loaded.ok and recorded.size() == 1 and data.has("cache") and is_equal_approx(float(data.get("reference_yaw", NAN)), _edge.course.start_yaw),
@@ -126,7 +126,7 @@ func _test_pilot() -> void:
 
 
 ## The commands of the planned cache riding [param player]'s edge, kept every [param hold]th tick; [param coast] keeps no key at all. Null if it does not land.
-func _synthetic_ride(player: ArenaPlayer, key: String, hold: int, coast: bool, tracking: bool = false) -> DotBotDemoEpisode:
+func _synthetic_ride(player: FcPlayer, key: String, hold: int, coast: bool, tracking: bool = false) -> DotBotDemoEpisode:
 	var sim := _surf._sim_for(_edge, player.controller)
 	player.controller.teleport(_edge.from, _edge.course.start_yaw, 0.0)
 	var s: DotFpsState = player.controller.state.duplicate_state()
@@ -135,9 +135,9 @@ func _synthetic_ride(player: ArenaPlayer, key: String, hold: int, coast: bool, t
 	ep.map_id = _rides.recorder.map_id
 	ep.map_version = _rides.recorder.map_version
 	ep.schema_id = _rides.schema.schema_id()
-	ep.kind = ArenaSurfRides.KIND
+	ep.kind = FcSurfRides.KIND
 	ep.key = key
-	ep.start = ArenaSurfRides.encode_state(s)
+	ep.start = FcSurfRides.encode_state(s)
 	ep.rate = float(TICK_RATE) / hold
 	ep.frame_size = _rides.schema.frame_size()
 	ep.outcome = "landed"
@@ -148,7 +148,7 @@ func _synthetic_ride(player: ArenaPlayer, key: String, hold: int, coast: bool, t
 	rider.score = _edge.course.score
 	rider.reset()
 	var rows := PackedFloat32Array()
-	for t in int(ArenaSurf.RIDE_SECONDS * TICK_RATE):
+	for t in int(FcSurf.RIDE_SECONDS * TICK_RATE):
 		var cmd: DotFpsCommand = rider.command(s)
 		if t % hold == 0:
 			var yaw := cmd.yaw if not coast else _edge.course.start_yaw
@@ -163,14 +163,14 @@ func _synthetic_ride(player: ArenaPlayer, key: String, hold: int, coast: bool, t
 
 
 ## Steers a bot down [param entry] on the edge's simulator from the lip; returns the ride's status.
-func _bot_rides(player: ArenaPlayer, entry: Dictionary) -> int:
+func _bot_rides(player: FcPlayer, entry: Dictionary) -> int:
 	var sim := _surf._sim_for(_edge, player.controller)
 	player.controller.teleport(_edge.from, _edge.course.start_yaw, 0.0)
 	var s: DotFpsState = player.controller.state.duplicate_state()
 	var ride := DotBotSurfRide.new().begin_picked(entry, _edge.cache, _edge.course, sim, 0, _rides.decode, float(TICK_RATE))
 	var intent := DotBotIntent.new()
 	intent.yaw = _edge.course.start_yaw
-	for t in int(ArenaSurf.RIDE_SECONDS * TICK_RATE):
+	for t in int(FcSurf.RIDE_SECONDS * TICK_RATE):
 		var status := ride.steer(s, intent, t)
 		if status != DotBotSurfRide.RIDING:
 			return status
@@ -180,7 +180,7 @@ func _bot_rides(player: ArenaPlayer, entry: Dictionary) -> int:
 
 
 ## What a replay costs per tick and per harvest slice against the slice budget (printed; the checks are only that it runs).
-func _cost(player: ArenaPlayer, episodes: Array, tracking: bool) -> void:
+func _cost(player: FcPlayer, episodes: Array, tracking: bool) -> void:
 	_rides.ride_config.pilot_tracking = tracking
 	var harvest: DotBotRideHarvest = _rides.harvest_on(player.controller)
 	var budget_us: float = harvest.config.budget_msec * 1000.0

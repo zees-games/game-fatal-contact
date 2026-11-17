@@ -1,15 +1,15 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
-const ArenaEvent := preload("../game/arena_event.gd")
-const ArenaKnifeEvents := preload("../game/arena_knife_events.gd")
-const ArenaKnifeFollow := preload("../game/arena_knife_follow.gd")
-const ArenaThrowMeter := preload("../game/arena_throw_meter.gd")
-const ArenaAttach := preload("../game/arena_attach.gd")
-const ArenaContent := preload("../game/arena_content.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const FcEvent := preload("../game/fc_event.gd")
+const FcKnifeEvents := preload("../game/fc_knife_events.gd")
+const FcKnifeFollow := preload("../game/fc_knife_follow.gd")
+const FcThrowMeter := preload("../game/fc_throw_meter.gd")
+const FcAttach := preload("../game/fc_attach.gd")
+const FcContent := preload("../game/fc_content.gd")
 
 ## Knife throwing through the whole game: the aim key throws the knife in hand, a miss bounces
 ## and settles, an enemy hit kills and the knife stays in the body, walking over either picks
@@ -42,7 +42,7 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 	print("  [%s] %s%s" % ["ok" if condition else "FAIL", what, ("  (" + detail + ")") if detail != "" else ""])
 
 
-func _first_on_team(game: ArenaGame, ids: Array, thrower: int, same: bool) -> int:
+func _first_on_team(game: FcGame, ids: Array, thrower: int, same: bool) -> int:
 	for id in ids.slice(1):
 		if (game.team_of(id) == game.team_of(thrower)) == same:
 			return id
@@ -50,7 +50,7 @@ func _first_on_team(game: ArenaGame, ids: Array, thrower: int, same: bool) -> in
 
 
 ## Puts each of [param where]'s ids at its spot and everybody else 30 m off, held there for three ticks.
-func _place(game: ArenaGame, ids: Array, where: Dictionary) -> void:
+func _place(game: FcGame, ids: Array, where: Dictionary) -> void:
 	for _k in 3:
 		for id in ids:
 			var p = game.player_for(id)
@@ -61,7 +61,7 @@ func _place(game: ArenaGame, ids: Array, where: Dictionary) -> void:
 
 
 ## The knife back in [param id]'s hand, or false when they have none.
-func _knife_in_hand(game: ArenaGame, id: int) -> bool:
+func _knife_in_hand(game: FcGame, id: int) -> bool:
 	var arsenal: DotWeaponArsenal = game.player_for(id).arsenal
 	var home := arsenal.catalogue.get_def(&"knife").slot
 	for _try in 4:
@@ -81,13 +81,13 @@ func _knife_in_hand(game: ArenaGame, id: int) -> bool:
 
 ## Holds the aim key down along yaw/pitch for [param hold_ticks] ticks (a throw winds up while the aim key is
 ## held; the default is past full power at one second), then lets go: the release throws.
-func _press_aim(game: ArenaGame, id: int, yaw: float, pitch: float, hold_ticks: int = HOLD_FULL) -> void:
+func _press_aim(game: FcGame, id: int, yaw: float, pitch: float, hold_ticks: int = HOLD_FULL) -> void:
 	_hold_aim(game, id, yaw, pitch, hold_ticks)
 	game.tick({})
 
 
 ## The aim key down for [param hold_ticks] ticks and one tick up, without the empty tick after.
-func _hold_aim(game: ArenaGame, id: int, yaw: float, pitch: float, hold_ticks: int) -> void:
+func _hold_aim(game: FcGame, id: int, yaw: float, pitch: float, hold_ticks: int) -> void:
 	var open := DotWeaponCommand.new()
 	game.tick({id: [DotFpsCommand.new(), open]})
 	for _t in hold_ticks:
@@ -104,7 +104,7 @@ func _hold_aim(game: ArenaGame, id: int, yaw: float, pitch: float, hold_ticks: i
 
 
 ## Ticks until the only knife stops flying (or [param seconds] pass); returns it, or null if none.
-func _settle(game: ArenaGame, seconds: float, hold: Dictionary = {}) -> DotWeaponKnives.Knife:
+func _settle(game: FcGame, seconds: float, hold: Dictionary = {}) -> DotWeaponKnives.Knife:
 	for _k in int(seconds * TICK_RATE):
 		var all := game.knives.entries()
 		if all.is_empty() or (all[0] as DotWeaponKnives.Knife).phase != DotWeaponKnives.Phase.FLY:
@@ -120,14 +120,14 @@ func _settle(game: ArenaGame, seconds: float, hold: Dictionary = {}) -> DotWeapo
 func _run() -> void:
 	_test_wire()
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "G"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch()
+	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	_check(ready.ok, "a team game sets up", str(ready.error))
 	game.start(0)
 	# The charged throws hold the key for a second each, so the match clock runs past the warmup into a round's
@@ -185,7 +185,7 @@ func _run() -> void:
 	_report()
 
 
-func _miss_and_pickup(game: ArenaGame, ids: Array, thrower: int, here: Vector3, floor_y: float) -> void:
+func _miss_and_pickup(game: FcGame, ids: Array, thrower: int, here: Vector3, floor_y: float) -> void:
 	# A throw at the floor ahead: gone from the hand, bounces, and settles on the floor.
 	_place(game, ids, {thrower: here})
 	_check(_knife_in_hand(game, thrower), "the thrower has the knife in hand")
@@ -210,7 +210,7 @@ func _report() -> void:
 	get_tree().quit(0 if ok else 1)
 
 
-func _check_throw_disabled(game: ArenaGame, ids: Array, thrower: int, here: Vector3) -> void:
+func _check_throw_disabled(game: FcGame, ids: Array, thrower: int, here: Vector3) -> void:
 	# Disabled: the aim key does not throw.
 	game.knife_rules["enabled"] = false
 	_place(game, ids, {thrower: here})
@@ -220,7 +220,7 @@ func _check_throw_disabled(game: ArenaGame, ids: Array, thrower: int, here: Vect
 	game.knife_rules["enabled"] = true
 
 
-func _check_pickup_rule(game: ArenaGame, ids: Array, thrower: int, stuck: DotWeaponKnives.Knife, target: Vector3, floor_y: float, events: Array) -> void:
+func _check_pickup_rule(game: FcGame, ids: Array, thrower: int, stuck: DotWeaponKnives.Knife, target: Vector3, floor_y: float, events: Array) -> void:
 	# Pickup off for the moment: walking over the body leaves it there.
 	game.knife_rules["pickup"] = 0.0
 	var body: Vector3 = stuck.at if stuck != null else target
@@ -232,7 +232,7 @@ func _check_pickup_rule(game: ArenaGame, ids: Array, thrower: int, stuck: DotWea
 	_check(events.any(func(e: Array) -> bool: return int(e[1]) == DotWeaponKnives.Phase.GONE), "and the layer said it went")
 
 
-func _throw_at_mate_and_slow(game: ArenaGame, ids: Array, thrower: int, mate: int, here: Vector3, floor_y: float, pitch: float) -> void:
+func _throw_at_mate_and_slow(game: FcGame, ids: Array, thrower: int, mate: int, here: Vector3, floor_y: float, pitch: float) -> void:
 	# A team-mate: friendly fire is off, so the knife bounces off and they live.
 	var mate_at := here + Vector3(0.0, 0.0, -6.0)
 	_place(game, ids, {thrower: here, mate: mate_at})
@@ -257,7 +257,7 @@ func _throw_at_mate_and_slow(game: ArenaGame, ids: Array, thrower: int, mate: in
 
 
 ## Settles the layer back to nothing in flight, the knife back in [param id]'s hand at [param here].
-func _on_knife_changed(id: int, _owner: int, phase: int, _victim: int, _at: Vector3, motion: Vector3, game: ArenaGame) -> void:
+func _on_knife_changed(id: int, _owner: int, phase: int, _victim: int, _at: Vector3, motion: Vector3, game: FcGame) -> void:
 	if phase == DotWeaponKnives.Phase.FLY and game.knives.get_knife(id) != null:
 		_throws.append({"id": id, "speed": motion.length(), "glide": game.knives.glides(id), "turn": game.knives.turn_of(id)})
 
@@ -266,7 +266,7 @@ func _last_throw() -> Dictionary:
 	return _throws[-1] if not _throws.is_empty() else {"id": -1, "speed": -1.0, "glide": false, "turn": Vector3.ZERO}
 
 
-func _reset_throw(game: ArenaGame, ids: Array, thrower: int, here: Vector3) -> void:
+func _reset_throw(game: FcGame, ids: Array, thrower: int, here: Vector3) -> void:
 	game.knives.clear()
 	_throws.clear()
 	_place(game, ids, {thrower: here})
@@ -274,9 +274,9 @@ func _reset_throw(game: ArenaGame, ids: Array, thrower: int, here: Vector3) -> v
 
 
 ## The charged throw (on by default, one second to full) and the Boomerang attachment through the whole game.
-func _charge_and_boomerang(game: ArenaGame, ids: Array, thrower: int, here: Vector3) -> void:
+func _charge_and_boomerang(game: FcGame, ids: Array, thrower: int, here: Vector3) -> void:
 	_entered += 1
-	var fresh := ArenaGame.new()
+	var fresh := FcGame.new()
 	_check(bool(fresh.knife_rules["charge"]) and is_equal_approx(float(fresh.knife_rules["charge_sec"]), 1.0), "the charge is on by default, one second to full")
 	fresh.free()
 	game.knife_rules["speed"] = 40.0
@@ -321,12 +321,12 @@ func _charge_and_boomerang(game: ArenaGame, ids: Array, thrower: int, here: Vect
 	# The Boomerang: the knife carries the mount, the catalogue the attachment, and a fitted knife glides.
 	var arsenal: DotWeaponArsenal = game.player_for(thrower).arsenal
 	var def := arsenal.catalogue.get_def(&"knife")
-	_check(def.mounts.has(ArenaContent.KNIFE_MOUNT), "the knife has the grip mount")
-	var boom := ArenaAttach.catalogue().get_attachment(ArenaAttach.BOOMERANG)
+	_check(def.mounts.has(FcContent.KNIFE_MOUNT), "the knife has the grip mount")
+	var boom := FcAttach.catalogue().get_attachment(FcAttach.BOOMERANG)
 	_check(boom != null and boom.fits(def) and DotWeaponKnives.PARAM_BOOMERANG in boom.params_set, "the catalogue has a Boomerang that fits it")
 	_reset_throw(game, ids, thrower, here)
 	var fitting := DotWeaponFitting.make(&"knife")
-	fitting.fit(ArenaContent.KNIFE_MOUNT, ArenaAttach.BOOMERANG)
+	fitting.fit(FcContent.KNIFE_MOUNT, FcAttach.BOOMERANG)
 	var fitted := arsenal.fit(def.slot, fitting)
 	_check(fitted.ok, "the Boomerang fits the knife in hand", str(fitted.error))
 	_hold_aim(game, thrower, 0.0, 60.0, HOLD_FULL)
@@ -337,10 +337,10 @@ func _charge_and_boomerang(game: ArenaGame, ids: Array, thrower: int, here: Vect
 	_check(bare, "the thrower waits for the catch bare-handed, not on the pistol", "slot %d" % arsenal.current_slot())
 	# dot-weapon 43+: the turn is zero on the straight leg and only set while circling, so send a circling-leg turn.
 	var circling := Vector3(0.0, 4.0, 0.0)
-	var body := ArenaKnifeEvents.write_knife(int(boomerang["id"]), thrower, DotWeaponKnives.Phase.FLY, 0, here, Vector3(0.0, 0.0, -20.0), bool(boomerang["glide"]), circling)
+	var body := FcKnifeEvents.write_knife(int(boomerang["id"]), thrower, DotWeaponKnives.Phase.FLY, 0, here, Vector3(0.0, 0.0, -20.0), bool(boomerang["glide"]), circling)
 	var reader := DotNetReader.new(body)
-	var _kind := ArenaKnifeEvents.read_more(reader)
-	var back := ArenaKnifeEvents.read_knife(reader)
+	var _kind := FcKnifeEvents.read_more(reader)
+	var back := FcKnifeEvents.read_knife(reader)
 	_check(bool(back["glide"]) and (back["turn"] as Vector3).distance_to(circling) < 0.05, "its curve (glide and turn) goes over the KNIFE record", str(back["turn"]))
 	_reset_throw(game, ids, thrower, here)
 	var _cleared := arsenal.fit(def.slot, DotWeaponFitting.make(&"knife"))
@@ -351,7 +351,7 @@ func _test_pieces() -> void:
 	_entered += 1
 	var rules := DotWeaponKnives.DEFAULT_RULES.duplicate()
 	rules["charge"] = true
-	var meter := ArenaThrowMeter.new()
+	var meter := FcThrowMeter.new()
 	_check(meter.advance(0.5, false, rules) == -1.0, "the meter is hidden while aim is not held")
 	var half := meter.advance(0.5, true, rules)
 	_check(absf(half - 0.5) < 0.001, "half a second of aim is half the meter", str(half))
@@ -364,31 +364,31 @@ func _test_pieces() -> void:
 	_check(absf(meter.advance(1.0, true, rules) - 0.5) < 0.001, "charge_sec 2 takes two seconds to fill")
 
 	var followed := DotWeaponKnives.DEFAULT_RULES.duplicate()
-	_check(ArenaKnifeFollow.apply(followed, "fc_knife_throw_charge", "1") and bool(followed["charge"]), "a replicated fc_knife_throw_charge lands in the rules")
-	_check(ArenaKnifeFollow.apply(followed, "fc_knife_throw_charge_sec", "2.5") and is_equal_approx(float(followed["charge_sec"]), 2.5), "and a number")
-	_check(not ArenaKnifeFollow.apply(followed, "mp_something", "1"), "another cvar is ignored")
-	_check(not ArenaKnifeFollow.follow(followed, null), "no source, no follow")
+	_check(FcKnifeFollow.apply(followed, "fc_knife_throw_charge", "1") and bool(followed["charge"]), "a replicated fc_knife_throw_charge lands in the rules")
+	_check(FcKnifeFollow.apply(followed, "fc_knife_throw_charge_sec", "2.5") and is_equal_approx(float(followed["charge_sec"]), 2.5), "and a number")
+	_check(not FcKnifeFollow.apply(followed, "mp_something", "1"), "another cvar is ignored")
+	_check(not FcKnifeFollow.follow(followed, null), "no source, no follow")
 
-	var bytes := ArenaKnifeEvents.write_knife(3, 1, DotWeaponKnives.Phase.FLY, 0, Vector3.ONE, Vector3(0.0, 0.0, -20.0), true, Vector3(0.0, -2.0, 0.0))
+	var bytes := FcKnifeEvents.write_knife(3, 1, DotWeaponKnives.Phase.FLY, 0, Vector3.ONE, Vector3(0.0, 0.0, -20.0), true, Vector3(0.0, -2.0, 0.0))
 	var reader := DotNetReader.new(bytes)
-	var _kind := ArenaKnifeEvents.read_more(reader)
-	var back := ArenaKnifeEvents.read_knife(reader)
+	var _kind := FcKnifeEvents.read_more(reader)
+	var back := FcKnifeEvents.read_knife(reader)
 	_check(bool(back["glide"]) and (back["turn"] as Vector3).distance_to(Vector3(0.0, -2.0, 0.0)) < 0.1, "a gliding knife's turn round-trips over the wire", str(back["turn"]))
-	var plain := ArenaKnifeEvents.write_knife(4, 1, DotWeaponKnives.Phase.FLY, 0, Vector3.ONE, Vector3(0.0, 0.0, -20.0))
+	var plain := FcKnifeEvents.write_knife(4, 1, DotWeaponKnives.Phase.FLY, 0, Vector3.ONE, Vector3(0.0, 0.0, -20.0))
 	var reader2 := DotNetReader.new(plain)
-	var _kind2 := ArenaKnifeEvents.read_more(reader2)
-	_check(not bool(ArenaKnifeEvents.read_knife(reader2)["glide"]), "a plain knife does not glide")
+	var _kind2 := FcKnifeEvents.read_more(reader2)
+	_check(not bool(FcKnifeEvents.read_knife(reader2)["glide"]), "a plain knife does not glide")
 	_finished += 1
 
 
 func _test_wire() -> void:
 	_entered += 1
-	var bytes := ArenaKnifeEvents.write_knife(7, 12, DotWeaponKnives.Phase.STUCK, 13, Vector3(12.5, 1.25, -30.0), Vector3(0.0, -0.6, 0.8))
+	var bytes := FcKnifeEvents.write_knife(7, 12, DotWeaponKnives.Phase.STUCK, 13, Vector3(12.5, 1.25, -30.0), Vector3(0.0, -0.6, 0.8))
 	var reader := DotNetReader.new(bytes)
-	_check(ArenaKnifeEvents.read_more(reader) == ArenaKnifeEvents.More.KNIFE, "MORE leads with the KNIFE sub-kind")
-	var back := ArenaKnifeEvents.read_knife(reader)
+	_check(FcKnifeEvents.read_more(reader) == FcKnifeEvents.More.KNIFE, "MORE leads with the KNIFE sub-kind")
+	var back := FcKnifeEvents.read_knife(reader)
 	_check(bool(back["ok"]) and int(back["id"]) == 7 and int(back["owner"]) == 12 and int(back["victim"]) == 13, "KNIFE round-trips its id, owner and victim")
 	_check(int(back["phase"]) == DotWeaponKnives.Phase.STUCK and (back["at"] as Vector3).distance_to(Vector3(12.5, 1.25, -30.0)) < 0.05, "and its phase and position")
 	_check((back["motion"] as Vector3).distance_to(Vector3(0.0, -0.6, 0.8)) < 0.05, "and its motion")
-	_check(ArenaEvents.Kind.MORE == ArenaEvents.Kind.TEAM + 1 and ArenaEvent.fits(), "MORE is appended after TEAM and the kinds still fit")
+	_check(FcEvents.Kind.MORE == FcEvents.Kind.TEAM + 1 and FcEvent.fits(), "MORE is appended after TEAM and the kinds still fit")
 	_finished += 1

@@ -2,7 +2,7 @@ extends "screenshot_stages.gd"
 
 const OUT_DIR := "screenshots"
 const ScreenshotGlanceStates := preload("screenshot_glance_states.gd")
-const GLANCE_MEDALS: Array = [ArenaAwards.Medal.HEADSHOT, ArenaAwards.Medal.DOUBLE_KILL]
+const GLANCE_MEDALS: Array = [FcAwards.Medal.HEADSHOT, FcAwards.Medal.DOUBLE_KILL]
 const ScreenshotUse := preload("screenshot_use.gd")
 const ScreenshotDrop := preload("screenshot_drop.gd")
 
@@ -12,9 +12,9 @@ func _initialize_rest(args: PackedStringArray, id: StringName) -> void:
 
 
 ## `--glance`: a game on the map, played by [method _process] and photographed.
-func _stage_glance(map: ArenaMap, id: StringName, args: PackedStringArray, glance_at: int) -> void:
+func _stage_glance(map: FcMap, id: StringName, args: PackedStringArray, glance_at: int) -> void:
 	var mode := StringName(args[glance_at + 1]) if glance_at + 1 < args.size() and not args[glance_at + 1].begins_with("--") else &"ffa"
-	_glance_game = ArenaGame.new()
+	_glance_game = FcGame.new()
 	_glance_game.name = "Game"
 	_glance_game.headless = true
 	_glance_game.is_authority = true
@@ -156,9 +156,9 @@ func _process(delta: float) -> bool:
 	return false
 
 
-## The HUD as a player sees it mid-match, every piece with something in it: a real [ArenaGame]
+## The HUD as a player sees it mid-match, every piece with something in it: a real [FcGame]
 ## (free-for-all, or `--glance tdm`) with eight players and a few kills filed through dot-match.
-var _glance_game: ArenaGame = null
+var _glance_game: FcGame = null
 
 
 ## `--glance --ballot`: the game vote open over the HUD, as a server running several games
@@ -172,7 +172,7 @@ var _glance_map_ballot := false
 
 
 ## `--glance --chat`: a full chat log (eight rows, a vote line wrapped across two) in the box
-## the game builds, scaled with the HUD as [ArenaPresentation] scales it.
+## the game builds, scaled with the HUD as [FcPresentation] scales it.
 var _glance_chat := false
 
 
@@ -185,7 +185,7 @@ const GLANCE_NAMES := ["You", "gamemann", "a_very_long_display_name", "bo", "qui
 
 
 ## Sets the glance game up, seats eight players and runs it into the live state; false (and quits) when setup fails.
-func _glance_go_live(game: ArenaGame) -> bool:
+func _glance_go_live(game: FcGame) -> bool:
 	var res := game.setup(_staged_map)
 	if not res.ok:
 		push_error("the glance game did not set up: ", res.error.message)
@@ -225,7 +225,7 @@ func _play_glance() -> void:
 	for player in game.players():
 		if player.player_id != 112:
 			player.attach_body_mesh(Color.from_hsv(fmod(float(player.player_id) * 0.37, 1.0), 0.55, 0.85),
-				ArenaAvatars.stock_avatar(StringName(ArenaGame.storage_key(player.player_id))))
+				FcAvatars.stock_avatar(StringName(FcGame.storage_key(player.player_id))))
 			_players.append(player)
 
 	_local = game.player_for(112)
@@ -238,9 +238,9 @@ func _play_glance() -> void:
 	var _given := _local.weapons.give_everything()
 	if OS.get_cmdline_user_args().has("--sprites"):
 		# `cl_weapon_sprites 1`: the flat sprite under the camera in place of the hands.
-		ArenaWeaponIcons.shared.sprites = true
+		FcWeaponIcons.shared.sprites = true
 		hands.visible = false
-		var flat = ArenaSpriteWeapon.make(ArenaSpriteWeapon.Mode.VIEW)
+		var flat = FcSpriteWeapon.make(FcSpriteWeapon.Mode.VIEW)
 		_local.camera.add_child(flat)
 		flat.show_weapon(&"marksman")
 	var ask := DotWeaponCommand.new()
@@ -250,7 +250,7 @@ func _play_glance() -> void:
 		ask = DotWeaponCommand.new()
 	_players.append(_local)
 
-	_hud = ArenaHud.new()
+	_hud = FcHud.new()
 	_hud.name = "Hud"
 	_hud.config = DotUiConfig.new()
 	_hud.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -264,7 +264,7 @@ func _play_glance() -> void:
 	var theme_at := args.find("--theme")
 	if theme_at >= 0 and theme_at + 1 < args.size():
 		_glance_theme = args[theme_at + 1]
-		_hud.theme = DotMenuThemes.stock().named(StringName(_glance_theme)).hud_theme(ArenaHud.accent_theme())
+		_hud.theme = DotMenuThemes.stock().named(StringName(_glance_theme)).hud_theme(FcHud.accent_theme())
 	var scale_at := args.find("--hud-scale")
 	if scale_at >= 0 and scale_at + 1 < args.size():
 		_hud.user_scale = float(args[scale_at + 1])
@@ -318,11 +318,11 @@ func _play_glance() -> void:
 	_play_glance_rest(game, args, late, streak_at)
 
 
-func _play_glance_rest(game: ArenaGame, args: PackedStringArray, late: Array, streak_at: int) -> void:
+func _play_glance_rest(game: FcGame, args: PackedStringArray, late: Array, streak_at: int) -> void:
 	if _glance_ballot:
 		_stage_shell_ballot()
 		# What the server says in chat as the ballot opens, which this client centre-prints
-		# (`ArenaClient._on_said`, a system line). Staged late: the notice fades in 4 s.
+		# (`FcClient._on_said`, a system line). Staged late: the notice fades in 4 s.
 		var said := "Vote: Box, Atrium, Pit, Foundry, Canals, Spire (20s)" if _glance_map_ballot \
 			else "Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playground, g2gfast (20s)"
 		late.append([10, func() -> void: _hud.notice(said)])
@@ -335,7 +335,7 @@ func _play_glance_rest(game: ArenaGame, args: PackedStringArray, late: Array, st
 				var medals := GLANCE_MEDALS
 				_hud.note_award(
 					{"killer_id": 112, "victim_id": 118, "medals": medals,
-						"points": ArenaAwards.points_for(medals), "streak": 3},
+						"points": FcAwards.points_for(medals), "streak": 3},
 					112, "newcomer", "You"
 				)],
 			[4, func() -> void:
@@ -349,7 +349,7 @@ func _play_glance_rest(game: ArenaGame, args: PackedStringArray, late: Array, st
 
 ## `--killcam`: the kill view as a victim sees it, played from a clip of [param killer_id]'s eye swinging onto the local
 ## player, advanced partway so the replay is still on screen. The real client plays the server's clip the same way (DotKillViewClient).
-func _play_killview(game: ArenaGame, killer_id: int) -> void:
+func _play_killview(game: FcGame, killer_id: int) -> void:
 	var rules := DotKillViewRules.new()
 	rules.enabled = true
 	var ring := DotKillViewRing.new(rules)
@@ -384,9 +384,9 @@ func _stage_full_chat() -> void:
 	var screen := Control.new()
 	screen.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.add_child(screen)
-	var window := ArenaPresentation.make_chat_window()
+	var window := FcPresentation.make_chat_window()
 	screen.add_child(window)
-	ArenaPresentation.fit_chat_screen(screen, root.get_visible_rect().size)
+	FcPresentation.fit_chat_screen(screen, root.get_visible_rect().size)
 	window.add_text("Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playground, g2gfast (20s)", Color(0.80, 0.82, 0.86))
 	for i in range(6):
 		window.add_said("Player %d" % (i + 1), "line %d of a full log" % (i + 1), Color(0.62, 0.78, 1.0))
@@ -399,7 +399,7 @@ func _stage_shell_ballot() -> void:
 	root.add_child(layer)
 	# Below 1280x720 the shell draws on a 1280x720 canvas stretched to the window, its ballot and
 	# the game's HUD alike.
-	var fit := ArenaHud.fit_scale(Vector2(root.size))
+	var fit := FcHud.fit_scale(Vector2(root.size))
 	var canvas := Vector2(root.size) / fit
 	var overlay := Control.new()
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -448,26 +448,26 @@ func _stage_shell_ballot() -> void:
 
 ## An imported combat surf map, with a deathmatch played on it for a few seconds first.
 const IMPORTED_TICKS := 160
-var _imported_game: ArenaGame = null
+var _imported_game: FcGame = null
 
 
 ## The map's health and ammo packs, drawn the way a client draws the ones the server announces:
 ## through the drops layer's own `mirror_drop`.
-func _stage_packs(map: ArenaMap) -> void:
+func _stage_packs(map: FcMap) -> void:
 	if map.packs.is_empty():
 		return
-	var layer := ArenaDrops.new()
+	var layer := FcDrops.new()
 	layer.name = "Packs"
 	layer.is_authority = false
 	layer.draws = true
 	root.add_child(layer)
 	for index in range(map.packs.size()):
 		var pack: Dictionary = map.packs[index]
-		layer.mirror_drop(ArenaDrops.PACK_ID_BASE + index, int(pack["kind"]), pack["at"], pack["at"], 0)
+		layer.mirror_drop(FcDrops.PACK_ID_BASE + index, int(pack["kind"]), pack["at"], pack["at"], 0)
 
 
-func _stage_imported(map: ArenaMap, id: StringName) -> void:
-	_imported_game = ArenaGame.new()
+func _stage_imported(map: FcMap, id: StringName) -> void:
+	_imported_game = FcGame.new()
 	_imported_game.name = "Game"
 	_imported_game.headless = true
 	_imported_game.is_authority = true
@@ -477,7 +477,7 @@ func _stage_imported(map: ArenaMap, id: StringName) -> void:
 	_staged_id = id
 
 
-var _staged_map: ArenaMap = null
+var _staged_map: FcMap = null
 var _overview_box := AABB()
 var _overview_reach := 1.0
 
@@ -488,7 +488,7 @@ func _frame_overview() -> void:
 	_overview_reach = _staged_map.extent
 
 	# A map with no 3D skybox writes `"skybox": null`, which does not cast to a Dictionary.
-	var sky: Variant = ArenaMap.ArenaImportedMaps.manifest(_staged_map.id).get("skybox", null) if _staged_map.is_imported() else null
+	var sky: Variant = FcMap.FcImportedMaps.manifest(_staged_map.id).get("skybox", null) if _staged_map.is_imported() else null
 	if not (sky is Dictionary) or not bool((sky as Dictionary).get("drawn", false)):
 		return
 
@@ -526,7 +526,7 @@ func _play_imported() -> void:
 	# The jail's gate and button, as a client draws them (the game here is headless, which
 	# draws none of its own presentation).
 	if _staged_map.jail != null:
-		var jail_view := ArenaJailView.new()
+		var jail_view := FcJailView.new()
 		root.add_child(jail_view)
 		jail_view.build(_staged_map.jail, func() -> int: return 0)
 
@@ -557,7 +557,7 @@ func _play_imported() -> void:
 	for player in players:
 		player.attach_body_mesh(
 			Color.from_hsv(fmod(float(player.player_id) * 0.37, 1.0), 0.55, 0.85),
-			ArenaAvatars.stock_avatar(StringName(ArenaGame.storage_key(player.player_id)))
+			FcAvatars.stock_avatar(StringName(FcGame.storage_key(player.player_id)))
 		)
 		_players.append(player)
 		print("  %s at %s, %s" % [
@@ -567,7 +567,7 @@ func _play_imported() -> void:
 
 	# Over the shoulder of somebody STANDING, at whoever is nearest them: a frame whose
 	# subject is in mid-air on a ramp says nothing about the floor.
-	var first: ArenaPlayer = players[0]
+	var first: FcPlayer = players[0]
 
 	for player in players:
 		if player.controller.state.is_grounded():
@@ -650,7 +650,7 @@ func _play_imported() -> void:
 
 ## Two of the walking bots handed to the map's own mechanics, and a frame of each: one put in its
 ## deepest pool to the chest and left to sink (`<id>_water`).
-func _stage_mechanics(game: ArenaGame) -> Array[Dictionary]:
+func _stage_mechanics(game: FcGame) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var mech := _staged_map.mechanics
 	var swimmer := game.player_for(205)

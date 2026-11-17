@@ -1,8 +1,8 @@
 extends DotGameCheckSuite
 
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
 
 ## Bots use the movement tricks on the real motor: slides, wall runs, ducks and the air-jump,
 ## often at nightmare and rarely at easy, with the air-jump only where the game has it on.
@@ -63,7 +63,7 @@ func _play(map_id: StringName, preset: String, launch: bool, seeds: Vector2i = S
 	# The bots' nav bake and edge search run a time-budgeted slice a frame and the bots walk without them until
 	# it lands, so the ticks it took (and the wall runs) depended on frame timing: wait for it, then play.
 	var warm_frames := 0
-	while not ArenaBots.world_for(game).warm() and warm_frames < 3000:
+	while not FcBots.world_for(game).warm() and warm_frames < 3000:
 		warm_frames += 1
 		await get_tree().process_frame
 	game.start(0)
@@ -72,7 +72,7 @@ func _play(map_id: StringName, preset: String, launch: bool, seeds: Vector2i = S
 	for id in [BOT, OTHER]:
 		game.player_for(id).controller.tunables.launch_enabled = launch
 
-	var minds := {BOT: ArenaBots.Mind.new(), OTHER: ArenaBots.Mind.new()}
+	var minds := {BOT: FcBots.Mind.new(), OTHER: FcBots.Mind.new()}
 	minds[BOT].seed = seeds.x
 	minds[OTHER].seed = seeds.y
 	var ducks := 0
@@ -85,7 +85,7 @@ func _play(map_id: StringName, preset: String, launch: bool, seeds: Vector2i = S
 		var tick := game.current_tick()
 		var commands := {}
 		for id in [BOT, OTHER]:
-			commands[id] = ArenaBots.think(game, game.player_for(id), minds[id], tick, float(TICK_RATE))
+			commands[id] = FcBots.think(game, game.player_for(id), minds[id], tick, float(TICK_RATE))
 		var move: DotFpsCommand = commands[BOT][0]
 		if game.player_for(BOT).is_alive() and move.is_pressed(DotFpsCommand.BUTTON_CROUCH):
 			ducks += 1
@@ -127,8 +127,8 @@ func _play(map_id: StringName, preset: String, launch: bool, seeds: Vector2i = S
 
 
 ## A headless authority game on the map with no warm-up, named after the run.
-func _make_game(map_id: StringName, preset: String, seeds: Vector2i) -> ArenaGame:
-	var game := ArenaGame.new()
+func _make_game(map_id: StringName, preset: String, seeds: Vector2i) -> FcGame:
+	var game := FcGame.new()
 	game.name = "Arena_%s_%s_%d" % [preset, map_id, seeds.x]
 	game.tick_rate = TICK_RATE
 	game.score_limit = 100000
@@ -137,7 +137,7 @@ func _make_game(map_id: StringName, preset: String, seeds: Vector2i) -> ArenaGam
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	_check(game.setup(ArenaMap.by_id(map_id)).ok, "the game sets up")
+	_check(game.setup(FcMap.by_id(map_id)).ok, "the game sets up")
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0

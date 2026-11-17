@@ -1,7 +1,7 @@
 extends Node
 
 ## A shot builds no node once the warm-up has run. This runs the client's warm-up
-## (`ArenaClient._prewarm_tick` phase 1) on the local player's `AwShotFx`, fires every weapon
+## (`FcClient._prewarm_tick` phase 1) on the local player's `AwShotFx`, fires every weapon
 ## class several times, plays impacts, and counts nodes entering the tree by the shot: zero.
 
 const CLASSES: Array[StringName] = [
@@ -36,7 +36,7 @@ func _frames(n: int) -> void:
 		await get_tree().process_frame
 
 
-## The client's own warm-up for flashes (ArenaClient._prewarm_tick, phase 1), without the gate.
+## The client's own warm-up for flashes (FcClient._prewarm_tick, phase 1), without the gate.
 func _warm(cam: Camera3D, host: AwShotFx) -> void:
 	DotMuzzleFlash.pin_scenes(1 << 30)
 	# Wait on the pools being built, not on the clock: the game's 4 s give-up (and a frame cap, which runs out in

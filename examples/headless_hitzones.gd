@@ -1,17 +1,17 @@
 extends DotGameCheckSuite
 
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
 ## Hit zones, damage and bot fairness, measured: what one round of every firearm does to each
 ## zone of a fresh player, and what each bot difficulty lands on a target (hit share, head share,
 ## damage rate) with the recoil control it is given.
 
-const TICK_RATE := ArenaContent.TICK_RATE
+const TICK_RATE := FcContent.TICK_RATE
 const ATTACKER := 1
 const TARGET := 2
 const ZONES := {"head": 1.62, "neck": 1.46, "chest": 1.15, "stomach": 0.85, "leg": 0.5}
@@ -47,7 +47,7 @@ const SECTIONS := 4
 
 var _entered := 0
 var _completed := 0
-var _game: ArenaGame = null
+var _game: FcGame = null
 var _hits: Array[DotDamage] = []
 
 
@@ -58,8 +58,8 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact headless hit zones and bot fairness")
-	ArenaBots.think_every = 1
-	ArenaBots.think_near = 0.0
+	FcBots.think_every = 1
+	FcBots.think_near = 0.0
 	await _boot()
 	await _table()
 	_shots_to_kill()
@@ -68,7 +68,7 @@ func _run() -> void:
 
 
 func _boot() -> void:
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -77,7 +77,7 @@ func _boot() -> void:
 	_game.is_authority = true
 	_game.register_service = false
 	add_child(_game)
-	var map := ArenaMap.new()
+	var map := FcMap.new()
 	map.id = &"hitzone_lane"
 	map.display_name = "hitzone_lane"
 	map.extent = 150.0
@@ -113,8 +113,8 @@ static func angles_to(from: Vector3, to: Vector3) -> Vector2:
 ## Both whole (health and armour as a spawn gives them), [param dist] metres apart along -Z.
 func _place(dist: float, weapon: StringName = &"") -> void:
 	var tick: int = _game.current_tick()
-	var shooter: ArenaPlayer = _game.player_for(ATTACKER)
-	var target: ArenaPlayer = _game.player_for(TARGET)
+	var shooter: FcPlayer = _game.player_for(ATTACKER)
+	var target: FcPlayer = _game.player_for(TARGET)
 	shooter.spawn(Transform3D(Basis(), Vector3(-10.0, 0.05, -20.0)), tick)
 	target.spawn(Transform3D(Basis(), Vector3(-10.0, 0.05, -20.0 - dist)), tick)
 	if weapon == &"":
@@ -129,9 +129,9 @@ func _place(dist: float, weapon: StringName = &"") -> void:
 
 
 func _aim_at(height: float, press: bool) -> Array:
-	var shooter: ArenaPlayer = _game.player_for(ATTACKER)
-	var target: ArenaPlayer = _game.player_for(TARGET)
-	var k := ArenaPlayerTunables.body_scale()
+	var shooter: FcPlayer = _game.player_for(ATTACKER)
+	var target: FcPlayer = _game.player_for(TARGET)
+	var k := FcPlayerTunables.body_scale()
 	var aim := angles_to(shooter.muzzle_position(), target.global_position + Vector3.UP * height * k)
 	var m := DotFpsCommand.new()
 	m.yaw = aim.x
@@ -175,7 +175,7 @@ static func round_loss(got: Array[DotDamage]) -> float:
 
 func _table() -> void:
 	_place(10.0)
-	var target: ArenaPlayer = _game.player_for(TARGET)
+	var target: FcPlayer = _game.player_for(TARGET)
 	var spawn_health: float = target.health.health
 	print("")
 	print("    a spawn: health %.0f armour %.0f (max %.0f), head x%.2f neck x%.2f" % [
@@ -212,7 +212,7 @@ func _table() -> void:
 ## game's adjust hook), not the trace's spread. TTK is the time from the first to the killing round at the weapon's
 ## refire interval.
 func _shots_to_kill() -> void:
-	var catalogue := ArenaPlayer.weapon_catalogue()
+	var catalogue := FcPlayer.weapon_catalogue()
 	_section("shots to kill (TTK ms) per body part at 10 m, chest at 40 / 70 m and with armour 100; head x%.2f leg x%.2f" % [
 		_head_mult(), _game.combat.resolver.hit_groups.multiplier(DotHitGroup.LEG)])
 	print("    %-15s %-7s %-12s %-12s %-12s %-6s %-6s %-6s" % ["weapon", "damage", "head", "chest", "leg", "40 m", "70 m", "armour"])
@@ -293,7 +293,7 @@ func _bots() -> void:
 	var settings := DotBotSettings.of(_game)
 	var shares := PackedFloat32Array()
 	for preset: String in DotBotProfile.PRESETS:
-		shares.append(float(ArenaBots.RECOIL_CONTROL.get(preset, -1.0)))
+		shares.append(float(FcBots.RECOIL_CONTROL.get(preset, -1.0)))
 	var worst_head := 0.0
 	var rising := true
 	for i in range(1, shares.size()):
@@ -302,10 +302,10 @@ func _bots() -> void:
 	for preset: String in DotBotProfile.PRESETS:
 		for strafing in [false, true]:
 			var _set := settings.set_difficulty(preset)
-			var mind := ArenaBots.Mind.new()
+			var mind := FcBots.Mind.new()
 			mind.seed = 7
 			_place(BOT_RANGE)
-			var bot: ArenaPlayer = _game.player_for(ATTACKER)
+			var bot: FcPlayer = _game.player_for(ATTACKER)
 			_game.shot_stats.reset()
 			_hits.clear()
 			var ticks := int(BOT_SECONDS * TICK_RATE)
@@ -314,7 +314,7 @@ func _bots() -> void:
 				var m := DotFpsCommand.new()
 				if strafing:
 					m.move = Vector2(1.0 if (i / 24) % 2 == 0 else -1.0, 0.0)
-				_game.tick({ATTACKER: ArenaBots.think(_game, bot, mind, tick, float(TICK_RATE)), TARGET: [m, DotWeaponCommand.new()]})
+				_game.tick({ATTACKER: FcBots.think(_game, bot, mind, tick, float(TICK_RATE)), TARGET: [m, DotWeaponCommand.new()]})
 				_game.combat.health_of(TARGET).health = 1.0e7
 				if i % 16 == 0:
 					await get_tree().physics_frame

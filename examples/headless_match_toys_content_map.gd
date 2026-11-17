@@ -1,18 +1,18 @@
 extends "headless_match_spectating_and_objectives.gd"
 
-const ArenaTestToys := preload("arena_test_toys.gd")
+const FcTestToys := preload("fc_test_toys.gd")
 
 ## dot-props' toys on the built-in maps, on a headless authority: every map's built, clear of its
 ## boxes and spawns; a walk into a ball sends it on; a shot pushes it and is still the combat's.
 func _test_toys() -> void:
 	_section("the maps' toys")
 	var bad: Array = []
-	var game: ArenaGame = null
+	var game: FcGame = null
 	# dm_box last, and kept: each game's level and toys share this one physics space, so the
 	# others are freed before the next is built.
 	for id: StringName in [&"dm_atrium", &"dm_pit", &"dm_box"]:
-		var map: ArenaMap = ArenaTestToys.give(ArenaMap.by_id(id))
-		var g := ArenaGame.new()
+		var map: FcMap = FcTestToys.give(FcMap.by_id(id))
+		var g := FcGame.new()
 		g.name = "ToyGame_%s" % id
 		g.tick_rate = TICK_RATE
 		g.headless = true
@@ -140,17 +140,17 @@ func _test_content_rest(schema: DotLoadoutSchema, unowned: DotLoadout) -> void:
 func _test_content() -> void:
 	_section("content")
 
-	for weapon in ArenaContent.weapons():
+	for weapon in FcContent.weapons():
 		_check(
 			weapon.validate().ok,
 			"%s is a valid weapon" % weapon.id,
 			str(weapon.validate().error)
 		)
 
-	var catalogue := ArenaContent.catalogue()
+	var catalogue := FcContent.catalogue()
 	_check(catalogue.validate().ok, "the item catalogue validates")
 
-	var schema := ArenaContent.loadout_schema()
+	var schema := FcContent.loadout_schema()
 	_check(schema.validate().ok, "the loadout schema validates",
 		str(schema.validate().error))
 
@@ -163,7 +163,7 @@ func _test_content() -> void:
 		for item in schema.choices_for(slot, everything):
 			reachable[item.id] = true
 
-	for weapon in ArenaContent.weapons():
+	for weapon in FcContent.weapons():
 		_check(
 			reachable.has(weapon.id),
 			"%s can be put in a loadout" % weapon.id
@@ -207,14 +207,14 @@ func _test_content() -> void:
 	saved.set_item(&"secondary", AwWeaponIds.PISTOL)
 	var _changes := DotLoadoutValidator.conform(saved, schema, everything)
 	_check(
-		saved.item_in(&"melee") == ArenaWeaponRoles.resolve(&"melee")
-		and saved.item_in(&"thrown") == ArenaWeaponRoles.resolve(&"thrown")
+		saved.item_in(&"melee") == FcWeaponRoles.resolve(&"melee")
+		and saved.item_in(&"thrown") == FcWeaponRoles.resolve(&"thrown")
 		and saved.item_in(&"primary") == AwWeaponIds.RIFLE
 		and DotLoadoutValidator.validate(saved, schema, everything).ok,
 		"an old primary-and-sidearm loadout gains a knife and a frag and keeps its choices"
 	)
 	_check(
-		schema.default_loadout().item_in(&"thrown") == ArenaWeaponRoles.resolve(&"thrown"),
+		schema.default_loadout().item_in(&"thrown") == FcWeaponRoles.resolve(&"thrown"),
 		"and the default loadout has a grenade in it, which an optional slot never put there"
 	)
 
@@ -234,12 +234,12 @@ func _test_content() -> void:
 func _test_map() -> void:
 	_section("map")
 
-	var map: ArenaMap = ArenaMap.dm_box()
+	var map: FcMap = FcMap.dm_box()
 
 	_check(map.boxes.size() > 8, "the map has geometry", str(map.boxes.size()))
 	_check(map.spawns.size() >= 4, "and spawn points", str(map.spawns.size()))
 
-	# The whole point of ArenaMap: one description, three representations, and they
+	# The whole point of FcMap: one description, three representations, and they
 	# cannot disagree because they are generated from the same list.
 	var body := map.to_fps_body()
 	var trace := map.to_trace()
@@ -279,7 +279,7 @@ func _test_map() -> void:
 
 	# The generated dev texture, so the "no art assets" claim is checked rather than
 	# asserted in a comment.
-	var texture := ArenaMap.dev_texture(64, 16)
+	var texture := FcMap.dev_texture(64, 16)
 	_check(texture != null and texture.get_width() == 64, "the dev texture generates")
 	_done()
 
@@ -292,8 +292,8 @@ func _test_map_look() -> void:
 	var roles := {}
 	var geometry_kept := true
 
-	for id in ArenaMap.ids():
-		var map: ArenaMap = ArenaMap.by_id(id)
+	for id in FcMap.ids():
+		var map: FcMap = FcMap.by_id(id)
 		var before := map.boxes.duplicate()
 		var level := map.to_scene()
 
@@ -304,41 +304,41 @@ func _test_map_look() -> void:
 					materials[(mesh as MeshInstance3D).material_override] = true
 
 		for box in map.boxes:
-			roles[ArenaMapPaint.role_of(box, map.extent)] = true
+			roles[FcMapPaint.role_of(box, map.extent)] = true
 
 		geometry_kept = geometry_kept and map.boxes == before
 		level.free()
 
 	var expected := 0
-	for id in ArenaMap.ids():
-		expected += ArenaMap.by_id(id).boxes.size() + 1
+	for id in FcMap.ids():
+		expected += FcMap.by_id(id).boxes.size() + 1
 	_check(painted == expected, "every box and the floor is drawn with a material", "%d of %d" % [painted, expected])
 	_check(geometry_kept, "painting a map leaves its box list as it was")
 
 	# Baked light: every built-in map has a lightmap made from these boxes (a stale one is drawn
 	# with live light and a WARN, so the check is what keeps a box edit from shipping unbaked).
-	if ArenaMap.can_bake():
+	if FcMap.can_bake():
 		var all_baked := true
 		var stale := PackedStringArray()
 
-		for id in ArenaMap.ids():
-			var map: ArenaMap = ArenaMap.by_id(id)
-			var data := ResourceLoader.load(ArenaMap.BAKE_PATH % String(id)) as LightmapGIData if ResourceLoader.exists(ArenaMap.BAKE_PATH % String(id)) else null
+		for id in FcMap.ids():
+			var map: FcMap = FcMap.by_id(id)
+			var data := ResourceLoader.load(FcMap.BAKE_PATH % String(id)) as LightmapGIData if ResourceLoader.exists(FcMap.BAKE_PATH % String(id)) else null
 
 			if data == null or str(data.get_meta(&"dot_light_fingerprint", "")) != map.light_fingerprint():
 				all_baked = false
 				stale.append(String(id))
 
 		_check(all_baked, "every built-in map has a bake made from its current boxes (tools/bake_lightmaps.sh)", ", ".join(stale))
-		var sample := ArenaMap.lightmap_box(Vector3(2, 3, 4), false)
+		var sample := FcMap.lightmap_box(Vector3(2, 3, 4), false)
 		_check(
 			(sample.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV2] as PackedVector2Array).size() == 36 and sample.lightmap_size_hint != Vector2i.ZERO,
 			"a lightmapped box carries a second UV set and a size hint"
 		)
-		_check(ArenaMap.dm_box().light_fingerprint() == ArenaMap.dm_box().light_fingerprint(), "a map's bake fingerprint is the same on every build")
+		_check(FcMap.dm_box().light_fingerprint() == FcMap.dm_box().light_fingerprint(), "a map's bake fingerprint is the same on every build")
 	_check(materials.size() < painted / 4, "boxes of one colour share one material", "%d materials for %d boxes" % [materials.size(), painted])
 	_check(
-		roles.has(ArenaMapPaint.Role.WALL) and roles.has(ArenaMapPaint.Role.TREAD) and roles.has(ArenaMapPaint.Role.COVER),
+		roles.has(FcMapPaint.Role.WALL) and roles.has(FcMapPaint.Role.TREAD) and roles.has(FcMapPaint.Role.COVER),
 		"the maps have walls, stairs and cover, so all three colours are in use",
 		str(roles.keys())
 	)
@@ -347,20 +347,20 @@ func _test_map_look() -> void:
 	# behind a fight says which side it is on.
 	var sides := {}
 	for at in [Vector3(0, 0, -20), Vector3(20, 0, 0), Vector3(0, 0, 20), Vector3(-20, 0, 0)]:
-		sides[ArenaMapPaint.zone_colour(at, [] as Array[Dictionary], 24.0).to_html()] = true
+		sides[FcMapPaint.zone_colour(at, [] as Array[Dictionary], 24.0).to_html()] = true
 	_check(sides.size() == 4, "the four sides are four colours", str(sides.size()))
 
-	var atrium: ArenaMap = ArenaMap.dm_atrium()
+	var atrium: FcMap = FcMap.dm_atrium()
 	_check(
-		ArenaMapPaint.zone_colour(Vector3(-15.0, 2.0, -12.0), atrium.paint_zones, atrium.extent) == ArenaMapPaint.LAVENDER,
+		FcMapPaint.zone_colour(Vector3(-15.0, 2.0, -12.0), atrium.paint_zones, atrium.extent) == FcMapPaint.LAVENDER,
 		"dm_atrium's keep is its own named zone"
 	)
 	_check(
-		ArenaMapPaint.zone_colour(Vector3(-20.0, 1.0, -27.0), atrium.paint_zones, atrium.extent) == ArenaMapPaint.AQUA,
+		FcMapPaint.zone_colour(Vector3(-20.0, 1.0, -27.0), atrium.paint_zones, atrium.extent) == FcMapPaint.AQUA,
 		"and so is its north gallery, the wall-run ledges"
 	)
 
-	var lit := ArenaMapLighting.build(atrium)
+	var lit := FcMapLighting.build(atrium)
 	var env: Environment = null
 	var sun: DirectionalLight3D = null
 	var fill: DirectionalLight3D = null
@@ -395,8 +395,8 @@ func _test_map_look() -> void:
 	_done()
 
 ## `dm_pit`'s shelf stair, the pit floor to the third tier, walked.
-func _test_pit_shelf_stair(map: ArenaMap, shelf: AABB, perch: AABB) -> void:
-	var tunables := ArenaPlayer.arena_tunables()
+func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
+	var tunables := FcPlayer.fc_tunables()
 	var shelf_top: float = shelf.position.y + shelf.size.y
 	var shelf_east: float = shelf.position.x + shelf.size.x
 	var treads: Array[AABB] = []
@@ -462,10 +462,10 @@ func _test_pit_shelf_stair(map: ArenaMap, shelf: AABB, perch: AABB) -> void:
 		", ".join(low)
 	)
 
-	var walker := ArenaPlayer.new()
+	var walker := FcPlayer.new()
 	walker.name = "ShelfStairWalker"
 	add_child(walker)
-	walker.setup(ArenaPlayer.Mode.HEADLESS, map, 9005, "shelf stair walker")
+	walker.setup(FcPlayer.Mode.HEADLESS, map, 9005, "shelf stair walker")
 
 	var delta := 1.0 / 64.0
 	var tick := 0

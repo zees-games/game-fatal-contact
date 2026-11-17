@@ -1,18 +1,18 @@
 extends "headless_imported_b0.gd"
 
-const ArenaBots := preload("../game/arena_bots.gd")
+const FcBots := preload("../game/fc_bots.gd")
 
 
-const ArenaSurf := preload("../game/arena_surf.gd")
-const ArenaSurfRides := preload("../game/arena_surf_rides.gd")
+const FcSurf := preload("../game/fc_surf.gd")
+const FcSurfRides := preload("../game/fc_surf_rides.gd")
 
 
 func _test_bot_routes() -> void:
 	_section("bots route round the brushes, from a mesh baked off the tick")
 
 	# The deathmatch above asked for routes, so the bake started there; it lands on a later
-	# frame. Armed by returning null from ArenaBots.World._nav_for_map (routes empty, as before).
-	var world := ArenaBots.world_for(_game)
+	# frame. Armed by returning null from FcBots.World._nav_for_map (routes empty, as before).
+	var world := FcBots.world_for(_game)
 	var spawns: Array[Transform3D] = _game.map.spawns
 	var a := spawns[0].origin
 	var b := a
@@ -67,7 +67,7 @@ const RIDE_LANDING := 2
 ## land from the lip at rest, never "the first linked", which moves on every replan. Edges 0,
 ## 1, 3 and 7 miss or fall and want a replan.
 const RECORD_EDGES := [6, 4]
-## The rate the ride caches were planned at (ArenaContent.TICK_RATE, the game's default), which the
+## The rate the ride caches were planned at (FcContent.TICK_RATE, the game's default), which the
 ## recorded rides are ridden at: a cache stepped at another rate drifts off its line and the ride dies.
 const RIDE_CACHE_RATE := 66
 ## The recorded-ride check's rate: [constant RIDE_CACHE_RATE] unless `-- --ride-rate=N` says otherwise (for working on the rides).
@@ -101,7 +101,7 @@ const SNIPERS_RIDE_LANDING: Array = [5, 5, 5]
 const FLOW_RIDE_LANDING: Array = [5, 5]
 
 
-## Bots ride the ramps (`game/arena_surf.gd`): the edges are linked into the mesh, a route
+## Bots ride the ramps (`game/fc_surf.gd`): the edges are linked into the mesh, a route
 ## crosses one, a bot handed it lands alive from [constant RIDE_STARTS] starts, and a roaming
 ## bot is handed one by its own route.
 func _test_surf_rides() -> void:
@@ -111,14 +111,14 @@ func _test_surf_rides() -> void:
 		_check(false, "nor take one of its own accord")
 		_done()
 		return
-	var surf: ArenaSurf = rode["surf"]
-	var edge: ArenaSurf.Edge = rode["edge"]
+	var surf: FcSurf = rode["surf"]
+	var edge: FcSurf.Edge = rode["edge"]
 	await _roam_takes_ride(surf, edge.from, int(rode["tick"]))
 	_done()
 
 
 ## A bot alone on the map, put at [param start], roams until its own route hands it a ride.
-func _roam_takes_ride(surf: ArenaSurf, start: Vector3, tick: int) -> int:
+func _roam_takes_ride(surf: FcSurf, start: Vector3, tick: int) -> int:
 	# Of its own accord: a bot on a spawn platform roams, and its routes cross the edges.
 	var roamer := _game.player_for(5)
 	if not roamer.is_alive():
@@ -132,12 +132,12 @@ func _roam_takes_ride(surf: ArenaSurf, start: Vector3, tick: int) -> int:
 			others.append(other.player_id)
 	for id in others:
 		_game.remove_player(id)
-	var roam_mind := ArenaBots.Mind.new()
+	var roam_mind := FcBots.Mind.new()
 	roam_mind.seed = 5
 	var begun_before := surf.begun
 	var landed_before := surf.landed
 	for t in range(int(ROAM_SECONDS * TICK_RATE)):
-		_game.tick({5: ArenaBots.think(_game, roamer, roam_mind, tick, float(TICK_RATE))})
+		_game.tick({5: FcBots.think(_game, roamer, roam_mind, tick, float(TICK_RATE))})
 		tick += 1
 		if t % 32 == 0:
 			await get_tree().physics_frame
@@ -159,26 +159,26 @@ func _test_recorded_rides(record_edge: int) -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--ride-rate="):
 			_ride_rate = clampi(int(arg.trim_prefix("--ride-rate=")), 15, 128)
-	var changed := _game.change_map(ArenaMap.by_id(RIDE_MAP))
-	var world := ArenaBots.world_for(_game)
+	var changed := _game.change_map(FcMap.by_id(RIDE_MAP))
+	var world := FcBots.world_for(_game)
 	var _first := world.route(Vector3.ZERO, Vector3.ONE)
 	var frames := 0
 	while world.is_route_pending() and frames < 3000:
 		await get_tree().process_frame
 		frames += 1
-	var surf: ArenaSurf = world.surf_for_map() if changed.ok else null
-	var planned: Array = surf.edges.filter(func(e: ArenaSurf.Edge) -> bool: return e.linked and e.id == record_edge) if surf != null else []
+	var surf: FcSurf = world.surf_for_map() if changed.ok else null
+	var planned: Array = surf.edges.filter(func(e: FcSurf.Edge) -> bool: return e.linked and e.id == record_edge) if surf != null else []
 	if planned.is_empty():
 		_check(false, "%s has linked ride edge %d to record" % [RIDE_MAP, record_edge])
 		_done()
 		return
-	var edge: ArenaSurf.Edge = planned[0]
+	var edge: FcSurf.Edge = planned[0]
 
 	# Off until the config says so, and the two numbers are the recorder's own.
 	# Existing players follow the game's rate (set_tick_rate reaches them, not only new ones).
 	var suite_rate := _game.tick_rate
 	_game.set_tick_rate(_ride_rate)
-	_check(_game.players().all(func(p: ArenaPlayer) -> bool: return p.controller.tick_rate == _ride_rate),
+	_check(_game.players().all(func(p: FcPlayer) -> bool: return p.controller.tick_rate == _ride_rate),
 		"players already in the game move on its new tick rate (%d)" % _ride_rate)
 	var started := _game.start_ride_recording()
 	var rides: RefCounted = _game.surf_rides
@@ -189,12 +189,12 @@ func _test_recorded_rides(record_edge: int) -> void:
 	cfg.cap = 7
 	cfg.target = 3
 	cfg.record = false
-	var shared := ArenaSurfRides.ride_config_for(cfg)
+	var shared := FcSurfRides.ride_config_for(cfg)
 	_check(shared.cap == 7 and shared.target == 3, "the harvest's cap and target are bot_record_cap and bot_record_target (%d, %d)" % [shared.cap, shared.target])
 	cfg.cap = DotBotDemoConfig.new().cap
 	cfg.target = DotBotDemoConfig.new().target
 	var store := DotBotDemoStoreMemory.new()
-	var fresh: RefCounted = ArenaSurfRides.new()
+	var fresh: RefCounted = FcSurfRides.new()
 	var ready: DotResult = fresh.call(&"setup", _game, cfg, store, float(_ride_rate))
 	_check(ready.ok, "a recorder and its ride book are built over a store")
 	# release() breaks the callables that point back at the recorder, or it outlives the run.
@@ -219,7 +219,7 @@ func _test_recorded_rides(record_edge: int) -> void:
 	await _test_recorded_rides_part2(surf, edge, suite_rate, rides, cfg, store, fresh, human, aside, tick)
 
 
-func _test_recorded_rides_part2(surf: ArenaSurf, edge: ArenaSurf.Edge, suite_rate, rides: RefCounted, cfg: DotBotDemoConfig, store: DotBotDemoStoreMemory, fresh: RefCounted, human, aside: Vector3, tick) -> void:
+func _test_recorded_rides_part2(surf: FcSurf, edge: FcSurf.Edge, suite_rate, rides: RefCounted, cfg: DotBotDemoConfig, store: DotBotDemoStoreMemory, fresh: RefCounted, human, aside: Vector3, tick) -> void:
 	cfg.record = true
 	var starts := 6
 	tick = await _ride_as_player(human, edge, surf, tick, starts)
@@ -228,18 +228,18 @@ func _test_recorded_rides_part2(surf: ArenaSurf, edge: ArenaSurf.Edge, suite_rat
 		"real players' rides are recorded when on (%d kept of %d starts, %d discarded %s)" % [rides.kept, starts, rides.discarded, str(rides.why_not)])
 	_check(flushed.ok and rides.recorder.written == rides.kept and rides.recorder.queued() == 0,
 		"and written to the store (%d written)" % rides.recorder.written)
-	var counts: DotResult = await store.counts(rides.recorder.map_id, rides.recorder.map_version, ArenaSurfRides.KIND)
+	var counts: DotResult = await store.counts(rides.recorder.map_id, rides.recorder.map_version, FcSurfRides.KIND)
 	var key: String = rides.edge_key(edge)
 	_check(counts.ok and counts.value.has(key), "filed under the edge's island key %s (%s)" % [key, str(counts.value.keys()) if counts.ok else "no counts"])
 
-	var state_back := ArenaSurfRides.decode_state(JSON.parse_string(JSON.stringify(ArenaSurfRides.encode_state(human.controller.state))))
+	var state_back := FcSurfRides.decode_state(JSON.parse_string(JSON.stringify(FcSurfRides.encode_state(human.controller.state))))
 	_check(state_back.equals(human.controller.state, 0.001) and state_back.mode == human.controller.state.mode,
 		"a motor state survives the store's JSON")
 
 	# The open-loop replay and the bot playing the raw commands; headless_ride_pilot covers the piloted harvest.
 	rides.ride_config.piloted = false
 	var harvest: DotBotRideHarvest = rides.harvest_on(human.controller)
-	var done: DotResult = await harvest.harvest(store, rides.recorder.map_id, rides.recorder.map_version, ArenaSurfRides.KIND, key)
+	var done: DotResult = await harvest.harvest(store, rides.recorder.map_id, rides.recorder.map_version, FcSurfRides.KIND, key)
 	var verified_total: int = harvest.verified + rides.harvested
 	# Most land: with the players' motor on 1/66 s while the game ticked 1/64, edge 4 landed 2 of 5; on one rate, all 5.
 	_check(harvest.ready().ok and done.ok and verified_total >= 1 and verified_total * 2 >= rides.kept,
@@ -250,7 +250,7 @@ func _test_recorded_rides_part2(surf: ArenaSurf, edge: ArenaSurf.Edge, suite_rat
 	var rebuilt := DotBotRideBook.new(rides.ride_config)
 	rebuilt.set_map(rides.recorder.map_id, rides.recorder.map_version)
 	rides.book = rebuilt
-	var loaded: DotResult = await rebuilt.load_edge(store, ArenaSurfRides.KIND, key, rides.schema, float(_ride_rate))
+	var loaded: DotResult = await rebuilt.load_edge(store, FcSurfRides.KIND, key, rides.schema, float(_ride_rate))
 	rides._edge_keys[edge.id] = key
 	_check(loaded.ok and rebuilt.recorded_count(key) >= 1, "the book holds %d verified recordings of the edge" % rebuilt.recorded_count(key))
 	var bot := _game.player_for(5)
@@ -276,8 +276,8 @@ func _test_recorded_rides_part2(surf: ArenaSurf, edge: ArenaSurf.Edge, suite_rat
 	_done()
 
 
-## Steers [param bot] down [param edge] up to eight times from the lip until [member ArenaSurf.landed] passes [param landed_before]; returns the final tick, the recording's source and the ticks ridden.
-func _bot_rides(bot: ArenaPlayer, surf: ArenaSurf, edge: ArenaSurf.Edge, landed_before: int, tick: int) -> Dictionary:
+## Steers [param bot] down [param edge] up to eight times from the lip until [member FcSurf.landed] passes [param landed_before]; returns the final tick, the recording's source and the ticks ridden.
+func _bot_rides(bot: FcPlayer, surf: FcSurf, edge: FcSurf.Edge, landed_before: int, tick: int) -> Dictionary:
 	var source := ""
 	var ridden := 0
 	# Recordings begin where their players stood, some off-centre or moving, so a bot standing still at the lip lands with some and not others.
@@ -285,12 +285,12 @@ func _bot_rides(bot: ArenaPlayer, surf: ArenaSurf, edge: ArenaSurf.Edge, landed_
 		if surf.landed > landed_before:
 			break
 		bot.controller.teleport(edge.from, edge.course.reference_yaw(), 0.0)
-		var mind := ArenaBots.Mind.new()
+		var mind := FcBots.Mind.new()
 		mind.seed = 9 + attempt
 		var intent := DotBotIntent.new()
 		intent.ride = edge.id
 		ridden = 0
-		while ridden < int(ArenaSurf.RIDE_SECONDS * _ride_rate) + 4:
+		while ridden < int(FcSurf.RIDE_SECONDS * _ride_rate) + 4:
 			surf.steer(bot, mind, intent, tick, float(_ride_rate))
 			if mind.ride == null:
 				break
@@ -306,7 +306,7 @@ func _bot_rides(bot: ArenaPlayer, surf: ArenaSurf, edge: ArenaSurf.Edge, landed_
 
 
 ## Everyone but the rider steps aside: players are solid to each other and a respawned one stands on the lip.
-func _park_others(rider: ArenaPlayer, edge: ArenaSurf.Edge) -> void:
+func _park_others(rider: FcPlayer, edge: FcSurf.Edge) -> void:
 	var aside: Vector3 = edge.to + Vector3(30.0, 0.0, 0.0)
 	for other in _game.players():
 		if other != rider:
@@ -327,7 +327,7 @@ func _clear_wall_state(state: DotFpsState) -> void:
 
 
 ## [param player] rides [param edge] [param count] times on the planned cache, from the lip or (with [param spread]) from perturbed starts, as a person's commands would be.
-func _ride_as_player(player: ArenaPlayer, edge: ArenaSurf.Edge, surf: ArenaSurf, tick: int, count: int, spread: bool = false) -> int:
+func _ride_as_player(player: FcPlayer, edge: FcSurf.Edge, surf: FcSurf, tick: int, count: int, spread: bool = false) -> int:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 91
 	for k in range(count):
@@ -343,13 +343,13 @@ func _ride_as_player(player: ArenaPlayer, edge: ArenaSurf.Edge, surf: ArenaSurf,
 		player.controller.state.velocity = velocity
 		_clear_wall_state(player.controller.state)
 		_park_others(player, edge)
-		var mind := ArenaBots.Mind.new()
+		var mind := FcBots.Mind.new()
 		mind.seed = 300 + k
 		var outcome := [surf.landed, surf.fell, surf.timed_out]
 		mind.ride = DotBotSurfRide.new().begin(edge.cache, edge.course, surf._sim_for(edge, player.controller), tick, float(_ride_rate))
 		var ticks := 0
-		while mind.ride != null and ticks < int(ArenaSurf.RIDE_SECONDS * _ride_rate) + 4:
-			_game.tick({player.player_id: ArenaBots.think(_game, player, mind, tick, float(_ride_rate))})
+		while mind.ride != null and ticks < int(FcSurf.RIDE_SECONDS * _ride_rate) + 4:
+			_game.tick({player.player_id: FcBots.think(_game, player, mind, tick, float(_ride_rate))})
 			tick += 1
 			ticks += 1
 			if ticks % 32 == 0:
@@ -357,7 +357,7 @@ func _ride_as_player(player: ArenaPlayer, edge: ArenaSurf.Edge, surf: ArenaSurf,
 		var st := player.controller.state
 		# A few ticks standing on the far platform, which is where a recorded ride ends.
 		for _s in range(8):
-			_game.tick({player.player_id: ArenaBots.think(_game, player, ArenaBots.Mind.new(), tick, float(_ride_rate))})
+			_game.tick({player.player_id: FcBots.think(_game, player, FcBots.Mind.new(), tick, float(_ride_rate))})
 			tick += 1
 		# `-- --ride-notes` says where each ride ended, for working on an edge that does not land.
 		var nav: Variant = _game.surf_rides.get("nav") if _game.surf_rides != null else null
@@ -402,26 +402,26 @@ const BAND_METRES_MIN := 800.0
 const BAND_RIDES_MIN := 1
 
 
-## Bots as they play: [method ArenaBots.think] for all six on every map with ride edges, for
+## Bots as they play: [method FcBots.think] for all six on every map with ride edges, for
 ## [constant BAND_SECONDS]. They must roam (several platforms stood on, metres covered, a ride
 ## taken), fight (kills landed) and stay inside the map.
 func _test_bot_band() -> void:
 	_section("six bots roam and fight on every map with rides")
 	var tick := 100000
 	for map_id in BAND_MAPS:
-		if ArenaMap.by_id(map_id) == null:
+		if FcMap.by_id(map_id) == null:
 			_check(false, "%s is in the catalogue to be played" % map_id)
 			_check(false, "so its bots cannot fight")
 			_check(false, "nor stay in bounds")
 			continue
-		var changed := _game.change_map(ArenaMap.by_id(map_id))
-		var world := ArenaBots.world_for(_game)
+		var changed := _game.change_map(FcMap.by_id(map_id))
+		var world := FcBots.world_for(_game)
 		var _first := world.route(Vector3.ZERO, Vector3.ONE)
 		var frames := 0
 		while world.is_route_pending() and frames < 3000:
 			await get_tree().process_frame
 			frames += 1
-		var surf: ArenaSurf = world.surf_for_map() if changed.ok else null
+		var surf: FcSurf = world.surf_for_map() if changed.ok else null
 		var kills: Array[int] = [0]
 		var on_kill := func(_entry: DotKillFeed.Entry) -> void: kills[0] += 1
 		_game.player_killed.connect(on_kill)
@@ -433,7 +433,7 @@ func _test_bot_band() -> void:
 		var bounds := _game.map.bounds.grow(1.0)
 		var begun_before := surf.begun if surf != null else 0
 		for player in _game.players():
-			var mind := ArenaBots.Mind.new()
+			var mind := FcBots.Mind.new()
 			mind.seed = 900 + player.player_id
 			minds[player.player_id] = mind
 		# Bots are random: a window that ended before the bar was met runs on, up to three times over, before it is judged.
@@ -444,7 +444,7 @@ func _test_bot_band() -> void:
 			var commands := {}
 			for player in _game.players():
 				if player.is_alive():
-					commands[player.player_id] = ArenaBots.think(_game, player, minds[player.player_id], tick, float(TICK_RATE))
+					commands[player.player_id] = FcBots.think(_game, player, minds[player.player_id], tick, float(TICK_RATE))
 			_game.tick(commands)
 			tick += 1
 			if t % 8 == 0:
@@ -482,8 +482,8 @@ func _test_bot_band() -> void:
 ## the first, then rides that edge from [param starts] starts, [param need] of which must land. Returns
 ## the map's surf, the edge and the tick reached, or nothing when there was nothing to ride.
 func _ride_on(map_id: StringName, tick: int, starts: int, need: Array) -> Dictionary:
-	var changed := _game.change_map(ArenaMap.by_id(map_id))
-	var world := ArenaBots.world_for(_game)
+	var changed := _game.change_map(FcMap.by_id(map_id))
+	var world := FcBots.world_for(_game)
 	# The mesh bakes in the background from the first route asked; the rides are linked when
 	# it lands.
 	var _first := world.route(Vector3.ZERO, Vector3.ONE)
@@ -491,11 +491,11 @@ func _ride_on(map_id: StringName, tick: int, starts: int, need: Array) -> Dictio
 	while world.is_route_pending() and frames < 3000:
 		await get_tree().process_frame
 		frames += 1
-	var surf: ArenaSurf = world.surf_for_map() if changed.ok else null
-	var planned: Array = surf.edges.filter(func(e: ArenaSurf.Edge) -> bool: return e.cache.size() > 0) if surf != null else []
-	var linked := not planned.is_empty() and planned.all(func(e: ArenaSurf.Edge) -> bool: return e.linked)
+	var surf: FcSurf = world.surf_for_map() if changed.ok else null
+	var planned: Array = surf.edges.filter(func(e: FcSurf.Edge) -> bool: return e.cache.size() > 0) if surf != null else []
+	var linked := not planned.is_empty() and planned.all(func(e: FcSurf.Edge) -> bool: return e.linked)
 	_check(linked, "%s's planned ride edges are linked into the bots' mesh (%s)" % [map_id,
-		str(surf.describe()) if surf != null else "no surf after %d frames, cache %s" % [frames, ArenaSurf.path_for(map_id)]])
+		str(surf.describe()) if surf != null else "no surf after %d frames, cache %s" % [frames, FcSurf.path_for(map_id)]])
 	if not linked:
 		_check(false, "so no route crosses one")
 		_check(false, "nor does a bot ride one")
@@ -510,7 +510,7 @@ func _ride_on(map_id: StringName, tick: int, starts: int, need: Array) -> Dictio
 
 
 ## One planned [param edge]: the route crosses it, then a bot rides it from [param starts] starts.
-func _ride_edge(map_id: StringName, world: ArenaBots.World, surf: ArenaSurf, edge: ArenaSurf.Edge, tick: int, starts: int, need: int) -> Dictionary:
+func _ride_edge(map_id: StringName, world: FcBots.World, surf: FcSurf, edge: FcSurf.Edge, tick: int, starts: int, need: int) -> Dictionary:
 	var way := world.route_detail(edge.from, edge.to)
 	_check((way["rides"] as PackedInt32Array).has(edge.id),
 		"the route from its platform to the one below crosses ride edge %d (%d corners)" % [edge.id, (way["points"] as PackedVector3Array).size()])
@@ -550,14 +550,14 @@ func _ride_edge(map_id: StringName, world: ArenaBots.World, surf: ArenaSurf, edg
 			velocity = DotFpsMotor.forward_for(edge.course.reference_yaw() + rng.randf_range(-60.0, 60.0)) * rng.randf_range(2.0, 8.0)
 		bot.controller.teleport(at, edge.course.reference_yaw(), 0.0)
 		bot.controller.state.velocity = velocity
-		var mind := ArenaBots.Mind.new()
+		var mind := FcBots.Mind.new()
 		mind.seed = 77 + k
 		# What the route hands it when it reaches the edge's start.
 		mind.ride = DotBotSurfRide.new().begin(edge.cache, edge.course, surf._sim_for(edge, bot.controller), tick, rate)
 		var before := surf.landed
 		var ticks := 0
-		while mind.ride != null and ticks < int(ArenaSurf.RIDE_SECONDS * rate) + 4:
-			_game.tick({id: ArenaBots.think(_game, bot, mind, tick, rate)})
+		while mind.ride != null and ticks < int(FcSurf.RIDE_SECONDS * rate) + 4:
+			_game.tick({id: FcBots.think(_game, bot, mind, tick, rate)})
 			tick += 1
 			ticks += 1
 			if ticks % 32 == 0:

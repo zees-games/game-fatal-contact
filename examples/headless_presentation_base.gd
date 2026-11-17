@@ -1,23 +1,23 @@
 extends DotGameCheckSuite
 
-const ArenaViewArms := preload("../game/arena_view_arms.gd")
-const ArenaAmbience := preload("../game/arena_ambience.gd")
-const ArenaAvatars := preload("../game/arena_avatars.gd")
-const ArenaAwards := preload("../game/arena_awards.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
-const ArenaClient := preload("../game/arena_client.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaBindings := preload("../game/arena_bindings.gd")
-const ArenaBrowser := preload("../game/arena_browser.gd")
-const ArenaHud := preload("../game/arena_hud.gd")
-const ArenaKillcamBodies := preload("../game/arena_killcam_bodies.gd")
-const ArenaMenus := preload("../game/arena_menus.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaParty := preload("../game/arena_party.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaVote := preload("../game/arena_vote.gd")
+const FcViewArms := preload("../game/fc_view_arms.gd")
+const FcAmbience := preload("../game/fc_ambience.gd")
+const FcAvatars := preload("../game/fc_avatars.gd")
+const FcAwards := preload("../game/fc_awards.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const FcClient := preload("../game/fc_client.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcBindings := preload("../game/fc_bindings.gd")
+const FcBrowser := preload("../game/fc_browser.gd")
+const FcHud := preload("../game/fc_hud.gd")
+const FcKillcamBodies := preload("../game/fc_killcam_bodies.gd")
+const FcMenus := preload("../game/fc_menus.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcParty := preload("../game/fc_party.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcVote := preload("../game/fc_vote.gd")
 
 ## Settings, audio, effects, the console and the private-match party.
 ##
@@ -29,7 +29,7 @@ const ArenaVote := preload("../game/arena_vote.gd")
 ## a whole deathmatch with no client in it; the second boots a real server and never
 ## connects one. That is exactly the shape this game has already been bitten by — its
 ## module looked a session up by the wrong key and **nobody could ever join a dedicated
-## arena server**, silently, while `dedicated.tscn` passed its twenty-one checks
+## Fatal Contact server**, silently, while `dedicated.tscn` passed its twenty-one checks
 ## throughout, because it never connected a client.
 ##
 ## Exits non-zero on any failure.
@@ -42,21 +42,21 @@ var _completed := 0
 
 
 ## The player's own settings file as it was before this run: its modification time, or -1
-## for none. Checked at the end; see [method ArenaPresentation.use_scratch_settings].
+## for none. Checked at the end; see [method FcPresentation.use_scratch_settings].
 var _player_file_was: int = -1
 
 
 ## A presentation layer, set up. [param console] builds its console with no menu, which is
 ## what a suite that wants the console alone needs; the client builds it after its menu
-## ([method ArenaPresentation.build_console]).
+## ([method FcPresentation.build_console]).
 ## When the player's own settings document was last written, or -1 when there is none.
 static func _player_file_stamp() -> int:
-	var path := ProjectSettings.globalize_path(ArenaPresentation.PLAYER_SETTINGS).path_join("game_arena.local.json")
+	var path := ProjectSettings.globalize_path(FcPresentation.PLAYER_SETTINGS).path_join("game_arena.local.json")
 	return FileAccess.get_modified_time(path) if FileAccess.file_exists(path) else -1
 
 
-func _make(console: bool = true) -> ArenaPresentation:
-	var p := ArenaPresentation.new()
+func _make(console: bool = true) -> FcPresentation:
+	var p := FcPresentation.new()
 	p.name = "P%d" % _entered
 	add_child(p)
 	p.setup()
@@ -66,7 +66,7 @@ func _make(console: bool = true) -> ArenaPresentation:
 
 
 ## Gore is on by default, and off live (no restart) takes the blood and nothing else.
-func _check_gore_toggle(p: ArenaPresentation, eye: Vector3, aim: Vector3, dead: Transform3D, drawn: Dictionary) -> void:
+func _check_gore_toggle(p: FcPresentation, eye: Vector3, aim: Vector3, dead: Transform3D, drawn: Dictionary) -> void:
 	_check(p.settings.get_bool(&"gore", false) and p.settings.schema.has(&"gore"), "gore is declared and on by default")
 	p.settings.set_value(&"gore", false)
 	drawn.clear()
@@ -151,13 +151,13 @@ static func _key_event(text: String, down: bool) -> InputEventKey:
 
 ## The loadout is filed per site account: two accounts differ, a guest is "local", and a
 ## sign-in or sign-out mid-session re-keys it.
-func _check_loadout_accounts(client: ArenaClient) -> void:
+func _check_loadout_accounts(client: FcClient) -> void:
 	var menu: Object = client.loadout_menu
 	if not _check(menu != null, "the client has a loadout menu to key"):
 		return
 	_check(menu.get(&"remember_account") == "local", "with no auth client in the registry the loadout is filed under local")
 	var bare := Node.new()
-	_check(ArenaClient.loadout_account_key(null) == "local" and ArenaClient.loadout_account_key(bare) == "local",
+	_check(FcClient.loadout_account_key(null) == "local" and FcClient.loadout_account_key(bare) == "local",
 		"no auth, or an auth with no account_key, is local")
 	bare.free()
 	var auth := FakeAuth.new()
@@ -182,8 +182,8 @@ func _check_loadout_accounts(client: ArenaClient) -> void:
 
 
 ## The crosshair, down the sights: hip draws it, aimed hides it, released brings it back.
-func _check_crosshair_sights(client: ArenaClient, me: ArenaPlayer, game: ArenaGame) -> void:
-	var hud: ArenaHud = client.hud
+func _check_crosshair_sights(client: FcClient, me: FcPlayer, game: FcGame) -> void:
+	var hud: FcHud = client.hud
 	var hands: AwViewModel = me.weapons.view_model() as AwViewModel if me.weapons != null else null
 	me.arsenal.select(AwWeaponIds.SLOT_PRIMARY, game.current_tick())
 	for _i in 30:
@@ -228,7 +228,7 @@ func _done() -> void:
 ## and pings, and a screen that goes dark. Nothing here can say they LOOK right — that is
 ## `tools/screenshot.sh --admin` — but it can say they are built, that they come and go
 ## with the flag, and that the ping happens once a period rather than once a frame.
-static func _shrunk_bones(player: ArenaPlayer) -> int:
+static func _shrunk_bones(player: FcPlayer) -> int:
 	if player.figure == null or player.figure.skeleton() == null:
 		return -1
 	var skel := player.figure.skeleton()
@@ -351,7 +351,7 @@ class FakeAuth extends Node:
 
 ## A hole needs a surface (dot-fx 0.3.3): a miss's endpoint is open air, a character walks
 ## away, and a crate that moves carries its hole with it.
-func _test_decals_need_a_surface(p: ArenaPresentation, eye: Vector3, aim: Vector3) -> void:
+func _test_decals_need_a_surface(p: FcPresentation, eye: Vector3, aim: Vector3) -> void:
 	var drawn := {}
 	p.fx.spawned.connect(func(id: StringName, node: Node, reason: StringName) -> void:
 		drawn[id] = node if node != null else reason
@@ -425,18 +425,18 @@ func _test_own_body() -> void:
 	var _flushed := p.settings.flush()
 	var again := _make(false)
 	_check(again.settings.get_string(&"first_person_body", "") == "legs", "the choice is saved for the next start")
-	var g := ArenaGame.new()
+	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(ArenaMap.dm_box())
+	var _set := g.setup(FcMap.dm_box())
 	var added: DotResult = g.add_player(9, "Nine")
-	var me: ArenaPlayer = added.value if added.ok else null
+	var me: FcPlayer = added.value if added.ok else null
 	if not _check(me != null, "a player to look down from"):
 		_done()
 		return
 	var _camera := me.attach_camera()
-	me.attach_body_mesh(Color.WHITE, ArenaAvatars.stock_avatar(&"nine"))
-	var client := ArenaClient.new()
+	me.attach_body_mesh(Color.WHITE, FcAvatars.stock_avatar(&"nine"))
+	var client := FcClient.new()
 	client.game = g
 	client.player = me
 	client.presentation = again

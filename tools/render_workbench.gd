@@ -6,13 +6,13 @@ var _seq := DotShotSeq.new()
 ## Renders the solo client with the lazy workbench opened (the toggle_action key): screenshots/workbench/open.png. Use the compatibility renderer (Forward+ on llvmpipe segfaults in Mesa):
 ## `xvfb-run -a godot --path . --rendering-method gl_compatibility --rendering-driver opengl3 --resolution 1280x720 --script tools/render_workbench.gd`
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT := "res://screenshots/workbench/open.png"
 
 
 func _initialize() -> void:
-	var _scratch := ArenaPresentation.use_scratch_settings("render_workbench")
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var _scratch := FcPresentation.use_scratch_settings("render_workbench")
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	client.set("offline_bots", 2)

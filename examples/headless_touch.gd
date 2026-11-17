@@ -1,7 +1,7 @@
 extends DotGameCheckSuite
 
-const ArenaTouch := preload("../game/arena_touch.gd")
-const TagRules := preload("../game/arena_name_tag_rules.gd")
+const FcTouch := preload("../game/fc_touch.gd")
+const TagRules := preload("../game/fc_name_tag_rules.gd")
 
 ## The touch layout fits a phone without overlapping; dot-mobile's overlay drives the sampler; auto-fire's crosshair holds fire on team-mates and the dead.
 ## Run: `godot --headless --path . res://examples/headless_touch.tscn`
@@ -16,7 +16,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact: touch buttons")
-	var sets: Dictionary = {"arena": ArenaTouch.LAYOUT}
+	var sets: Dictionary = {"arena": FcTouch.LAYOUT}
 	for label: String in sets:
 		var layout: Array[Dictionary] = sets[label]
 		var ids: Array[StringName] = []
@@ -43,10 +43,10 @@ func _run() -> void:
 			buttons.free()
 	# A phone: 844x390 stretched to a 720-unit canvas, 0.54 real px per unit, so a 72-unit button is 39 px.
 	var canvas := Vector2(1556, 720)
-	var fit := DotGameScreenFit.button_scale_for(ArenaTouch.LAYOUT, 390.0 / 720.0, DotGameScreenFit.target_px_for(400.0), canvas)
+	var fit := DotGameScreenFit.button_scale_for(FcTouch.LAYOUT, 390.0 / 720.0, DotGameScreenFit.target_px_for(400.0), canvas)
 	var fitted := DotTouchButtons.new()
 	fitted.size = canvas
-	fitted.set_buttons(ArenaTouch.LAYOUT)
+	fitted.set_buttons(FcTouch.LAYOUT)
 	fitted.button_scale = fit
 	add_child(fitted)
 	_check(fit > 1.0, "phone fit: the buttons grow past the design", str(fit))
@@ -60,7 +60,7 @@ func _run() -> void:
 	off.free()
 	DotPlatform.touch_override = -1
 	var client_methods: Array = []
-	for m: Dictionary in load("res://game/arena_client.gd").get_script_method_list():
+	for m: Dictionary in load("res://game/fc_client.gd").get_script_method_list():
 		client_methods.append(m["name"])
 	_check("touch_next_weapon" in client_methods and "_touch_held" in client_methods, "the split client carries the touch wiring")
 	var drag := InputEventScreenDrag.new()
@@ -89,7 +89,7 @@ class Body extends Node3D:
 
 
 func _overlay() -> void:
-	var rules: DotMobileRules = (load("res://game/arena_game_state.gd") as GDScript).call(&"_make_mobile_rules")
+	var rules: DotMobileRules = (load("res://game/fc_game_state.gd") as GDScript).call(&"_make_mobile_rules")
 	var prefs := DotMobilePrefs.new()
 	_check(rules.resolve(prefs, true).autofire, "auto-fire is on for a touch player by default")
 	_check(not rules.resolve(prefs, false).autofire, "and off for keyboard and mouse")
@@ -98,7 +98,7 @@ func _overlay() -> void:
 	host.size = Vector2(844, 390)
 	add_child(host)
 	var sampler := DotFpsTouchSampler.new(DotFpsTunables.new())
-	var touch: RefCounted = ArenaTouch.build(self, host, sampler, rules)
+	var touch: RefCounted = FcTouch.build(self, host, sampler, rules)
 	var controls: DotMobileControls = touch.get(&"controls")
 	_check(controls != null and controls.touch and controls.sampler == sampler, "the overlay drives the client's own sampler", str(touch.call(&"describe")))
 	var tap := InputEventScreenTouch.new()
@@ -124,25 +124,25 @@ func _crosshair() -> void:
 	var none := DotMobileAutoFire.TARGET_NONE
 	var foe := DotMobileAutoFire.TARGET_ENEMY
 	var friend := DotMobileAutoFire.TARGET_FRIEND
-	_check(ArenaTouch.crosshair_kind(eye, ahead, me, [me, enemy], null, 0) == foe, "the crosshair on a living opponent is an enemy")
-	_check(ArenaTouch.crosshair_kind(eye, Vector3(1, 0, 0), me, [me, enemy], null, 0) == none, "looking away is nothing")
+	_check(FcTouch.crosshair_kind(eye, ahead, me, [me, enemy], null, 0) == foe, "the crosshair on a living opponent is an enemy")
+	_check(FcTouch.crosshair_kind(eye, Vector3(1, 0, 0), me, [me, enemy], null, 0) == none, "looking away is nothing")
 	var mate := _body(4, 2, Vector3(0, 0, -5))
-	_check(ArenaTouch.crosshair_kind(eye, ahead, me, [me, enemy, mate], null, 0) == friend, "a team-mate in front holds fire")
+	_check(FcTouch.crosshair_kind(eye, ahead, me, [me, enemy, mate], null, 0) == friend, "a team-mate in front holds fire")
 	mate.free()
 	enemy.alive = false
-	_check(ArenaTouch.crosshair_kind(eye, ahead, me, [me, enemy], null, 0) == friend, "the dead are never shot")
+	_check(FcTouch.crosshair_kind(eye, ahead, me, [me, enemy], null, 0) == friend, "the dead are never shot")
 	enemy.alive = true
 	TagRules.viewer_team = -1
 	var other := _body(9, 2, Vector3(0, 0, -5))
-	_check(ArenaTouch.crosshair_kind(eye, ahead, me, [me, enemy, other], null, 0) == foe, "without teams the nearest body is an enemy")
-	_check(ArenaTouch.assist_targets(eye, ahead, me, [me, enemy, other], null, 0).size() == 2, "aim assist sees the living opponents near the crosshair")
+	_check(FcTouch.crosshair_kind(eye, ahead, me, [me, enemy, other], null, 0) == foe, "without teams the nearest body is an enemy")
+	_check(FcTouch.assist_targets(eye, ahead, me, [me, enemy, other], null, 0).size() == 2, "aim assist sees the living opponents near the crosshair")
 	var crowd: Array = [me]
 	for i in 31:
 		crowd.append(_body(10 + i, 3, Vector3(float(i % 8) - 4.0, 0, -6.0 - float(i))))
 	var reps := 200
 	var t := Time.get_ticks_usec()
 	for _r in reps:
-		var _k := ArenaTouch.crosshair_kind(eye, ahead, me, crowd, null, 0)
+		var _k := FcTouch.crosshair_kind(eye, ahead, me, crowd, null, 0)
 	var each_ms := float(Time.get_ticks_usec() - t) / reps / 1000.0
 	_check(each_ms < 0.1, "the crosshair query over 32 players is under 0.1 ms", "%.4f ms" % each_ms)
 	for b: Node in crowd:

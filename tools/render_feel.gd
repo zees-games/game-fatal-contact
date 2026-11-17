@@ -1,10 +1,10 @@
 extends SceneTree
 
-const ArenaAvatars := preload("../game/arena_avatars.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcAvatars := preload("../game/fc_avatars.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## Frame sequences of what `headless_feel` measures, to look at: drawn at 144 frames a second
 ## against 64 ticks (`--fixed-fps 144`), so the interpolation fraction runs 0, 0.44, 0.89 as
@@ -33,9 +33,9 @@ const ArenaPlayer := preload("../game/arena_player.gd")
 const OUT_DIR := "screenshots/feel"
 const TICK_RATE := 64
 
-var _map: ArenaMap = null
-var _player: ArenaPlayer = null
-var _bot: ArenaPlayer = null
+var _map: FcMap = null
+var _player: FcPlayer = null
+var _bot: FcPlayer = null
 var _scenarios: Array[String] = []
 var _scenario := ""
 var _tick := 1
@@ -59,24 +59,24 @@ func _initialize() -> void:
 	Engine.physics_ticks_per_second = TICK_RATE
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 
-	_map = ArenaMap.dm_box()
+	_map = FcMap.dm_box()
 	root.add_child(_map.to_scene())
-	root.add_child(ArenaMapLighting.build(_map))
+	root.add_child(FcMapLighting.build(_map))
 
-	_player = ArenaPlayer.new()
+	_player = FcPlayer.new()
 	_player.name = "You"
-	_player.setup(ArenaPlayer.Mode.HEADLESS, _map, 7, "You")
+	_player.setup(FcPlayer.Mode.HEADLESS, _map, 7, "You")
 	root.add_child(_player)
 	_player.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 20.0)), 0)
 	_player.attach_camera(100.0)
 	_player.camera.current = true
 
-	_bot = ArenaPlayer.new()
+	_bot = FcPlayer.new()
 	_bot.name = "Bot"
-	_bot.setup(ArenaPlayer.Mode.HEADLESS, _map, 8, "Bot")
+	_bot.setup(FcPlayer.Mode.HEADLESS, _map, 8, "Bot")
 	root.add_child(_bot)
 	_bot.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, -20.0)), 0)
-	_bot.attach_body_mesh(Color(0.85, 0.35, 0.3), ArenaAvatars.stock_avatar(&"arena-player-00000008"))
+	_bot.attach_body_mesh(Color(0.85, 0.35, 0.3), FcAvatars.stock_avatar(&"arena-player-00000008"))
 	# `--stepped` draws the bot where its last tick left it, as every bot was drawn offline
 	# before `interpolate_body`: the control the sheet is compared with.
 	_bot.interpolate_body = not OS.get_cmdline_user_args().has("--stepped")
@@ -199,7 +199,7 @@ func _process(delta: float) -> bool:
 	if _scenario == "starting":
 		return false
 
-	# The view turns once a frame, as the client's sampler turns it (`ArenaPlayer.view_now`);
+	# The view turns once a frame, as the client's sampler turns it (`FcPlayer.view_now`);
 	# drawn at the ticks' yaw the sway would be kicked once a tick and zigzag.
 	if _scenario == "run":
 		var turned := float(_tick - 1) - 1.0 + Engine.get_physics_interpolation_fraction()
@@ -207,7 +207,7 @@ func _process(delta: float) -> bool:
 	else:
 		_player.view_now = null
 	if _scenario == "flinch":
-		# What ArenaClient does each frame with a hit: the shake onto the camera, the wobble onto the aim.
+		# What FcClient does each frame with a hit: the shake onto the camera, the wobble onto the aim.
 		var now := float(_frame) / 144.0
 		if _settle <= 0 and _frame == 8:
 			_flinch.note_hit(now, _player.controller.tunables, 25.0)

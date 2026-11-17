@@ -2,7 +2,7 @@ extends Node
 
 ## Fire, Tab and the console key reach their handlers through the real input path. They all come
 ## from the presentation; if it fails to compile (an addon class the published addon lacks), the
-## client's InputMap.has_action guards drop every arena key, so the chain is load()ed, not preloaded.
+## client's InputMap.has_action guards drop every Fatal Contact key, so the chain is load()ed, not preloaded.
 
 const EXPECTED_CHECKS := 7
 
@@ -31,9 +31,9 @@ func _finish() -> void:
 ## Client-chain roots that fail to compile: a class missing anywhere in their graph fails the root.
 ## Only the roots: load()ing all of res://game keeps ~1300 scripts alive past exit (a leak in game.sh).
 const CLIENT_ROOTS: Array[String] = [
-	"res://game/arena_client.gd", "res://game/arena_presentation.gd",
-	"res://game/arena_presentation_b1.gd", "res://game/arena_presentation_b2.gd",
-	"res://game/arena_menus.gd", "res://game/arena_bindings.gd",
+	"res://game/fc_client.gd", "res://game/fc_presentation.gd",
+	"res://game/fc_presentation_b1.gd", "res://game/fc_presentation_b2.gd",
+	"res://game/fc_menus.gd", "res://game/fc_bindings.gd",
 ]
 
 
@@ -55,10 +55,10 @@ func _run() -> void:
 		_finish()
 		return
 
-	var presentation_script := load("res://game/arena_presentation.gd") as GDScript
-	var client_script := load("res://game/arena_client.gd") as GDScript
-	var menus_script := load("res://game/arena_menus.gd") as GDScript
-	var bindings_script := load("res://game/arena_bindings.gd") as GDScript
+	var presentation_script := load("res://game/fc_presentation.gd") as GDScript
+	var client_script := load("res://game/fc_client.gd") as GDScript
+	var menus_script := load("res://game/fc_menus.gd") as GDScript
+	var bindings_script := load("res://game/fc_bindings.gd") as GDScript
 
 	var _scratch: Variant = presentation_script.call(&"use_scratch_settings", "headless_input_reach")
 	var p: Node = presentation_script.new()
@@ -66,7 +66,7 @@ func _run() -> void:
 	add_child(p)
 	p.call(&"setup")
 
-	# ArenaMenus.build builds the console over the menu (build_console(menu)), as the client
+	# FcMenus.build builds the console over the menu (build_console(menu)), as the client
 	# does; a second, menu-less build_console here would orphan one console and leak it.
 	var client: Node = client_script.new()
 	client.set(&"presentation", p)

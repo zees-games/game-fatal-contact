@@ -1,10 +1,10 @@
 extends DotGameCheckSuite
 
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaBotLoadouts := preload("../game/arena_bot_loadouts.gd")
-const ArenaBotsWorld := preload("../game/arena_bots_world.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcBotLoadouts := preload("../game/fc_bot_loadouts.gd")
+const FcBotsWorld := preload("../game/fc_bots_world.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
 
 ## Bot play styles by weapon: the gun in a bot's hand sets its style class (dot-bot's table), so
 ## snipers take cover and peek. Run: [code]./game.sh test headless_bot_styles[/code].
@@ -30,11 +30,11 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact headless bot styles")
-	ArenaBotLoadouts.seed = 0
+	FcBotLoadouts.seed = 0
 	_classes()
 	await _fight("sniper", "snipers take cover, peek and move, and do not all play one way", _sniper_checks)
 	await _fight("shotgun", "shotgun bots play the shotgun styles, and not all one", _shotgun_checks)
-	ArenaBotLoadouts.mode = ArenaBotLoadouts.ALL
+	FcBotLoadouts.mode = FcBotLoadouts.ALL
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
@@ -43,7 +43,7 @@ func _classes() -> void:
 	var unmapped: Array[String] = []
 	var unknown: Array[String] = []
 	for id: StringName in AwWeaponPack.IDS:
-		var klass: Variant = ArenaBotsWorld.STYLE_CLASS.get(id)
+		var klass: Variant = FcBotsWorld.STYLE_CLASS.get(id)
 		if klass == null:
 			unmapped.append(String(id))
 		elif not DotBotStyle.DEFAULTS.has(String(klass)):
@@ -52,26 +52,26 @@ func _classes() -> void:
 	_check(unknown.is_empty(), "every class has styles in the shipped table", ", ".join(unknown))
 	var def := DotWeaponDef.new()
 	def.id = &"aw_sniper"
-	var prefixed := ArenaBotsWorld.World._class_of(def)
+	var prefixed := FcBotsWorld.World._class_of(def)
 	def.id = &"other_pack_scope"
 	def.tags = [&"scoped"]
-	_check(prefixed == &"sniper" and ArenaBotsWorld.World._class_of(def) == &"sniper", "a pack's prefixed id and a scoped gun from another pack are snipers")
+	_check(prefixed == &"sniper" and FcBotsWorld.World._class_of(def) == &"sniper", "a pack's prefixed id and a scoped gun from another pack are snipers")
 	_done()
 
 
 ## [param kit] for every bot, [param seconds] of their fight, then [param checks] on the minds.
 func _fight(kit: String, title: String, checks: Callable) -> void:
 	_section(title)
-	ArenaBotLoadouts.mode = kit
+	FcBotLoadouts.mode = kit
 	var game := _boot()
 	game.match_node.rules.respawn_delay_sec = 1.0
 	var ids: Array[int] = []
 	var minds := {}
 	for i in BOTS:
-		var id := ArenaGame.BOT_SESSION_BASE + 1 + i
+		var id := FcGame.BOT_SESSION_BASE + 1 + i
 		ids.append(id)
 		var _a := game.add_player(id, "Bot%d" % i)
-		minds[id] = ArenaBots.Mind.new()
+		minds[id] = FcBots.Mind.new()
 		minds[id].seed = 3 + i
 	game.start(0)
 	game.tick({})
@@ -82,7 +82,7 @@ func _fight(kit: String, title: String, checks: Callable) -> void:
 		var tick := game.current_tick()
 		var commands := {}
 		for id in ids:
-			commands[id] = ArenaBots.think(game, game.player_for(id), minds[id], tick, float(TICK_RATE))
+			commands[id] = FcBots.think(game, game.player_for(id), minds[id], tick, float(TICK_RATE))
 			var brain: DotBotBrain = minds[id].brain
 			if brain != null and brain.last != null:
 				states[brain.last.state] = true
@@ -130,8 +130,8 @@ func _shotgun_checks(_minds: Array, states: Dictionary, labels: Dictionary) -> v
 	_check(states.has(&"rush"), "some rush in", str(states.keys()))
 
 
-func _boot() -> ArenaGame:
-	var game := ArenaGame.new()
+func _boot() -> FcGame:
+	var game := FcGame.new()
 	game.tick_rate = TICK_RATE
 	game.score_limit = 100000
 	game.time_limit_sec = 0.0
@@ -139,13 +139,13 @@ func _boot() -> ArenaGame:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	_check(game.setup(ArenaMap.by_id(MAP)).ok, "the game sets up on %s" % MAP)
+	_check(game.setup(FcMap.by_id(MAP)).ok, "the game sets up on %s" % MAP)
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	return game
 
 
-func _free(game: ArenaGame) -> void:
+func _free(game: FcGame) -> void:
 	remove_child(game)
 	game.queue_free()
 

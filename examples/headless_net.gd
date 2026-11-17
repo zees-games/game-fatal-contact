@@ -63,7 +63,7 @@ func _run() -> void:
 	_report_sections(_entered, _completed, SECTIONS, CHECKS - _skipped_checks)
 
 
-## sv_workbench_remote over the real frames, in the order ArenaModule and ArenaClient register them: an admin gets a
+## sv_workbench_remote over the real frames, in the order FcModule and FcClient register them: an admin gets a
 ## panel and an edit that applies and replicates; a guest, a non-admin, a revoked admin and the cvar off are refused.
 func _test_the_remote_workbench() -> void:
 	_section("[a flagged admin edits the server's profiles, and nobody else can]")
@@ -76,10 +76,10 @@ func _test_the_remote_workbench() -> void:
 	var state := {"on": false, "uid": "", "now": 100000}
 	var snet := _make_manager(true, &"wbserver", 1)
 	var cnet := _make_manager(false, &"wbclient", 5)
-	var sgame := ArenaGame.new()
-	var cgame := ArenaGame.new()
-	var sbinder := ArenaConfig.make_binder(sgame.config)
-	var cbinder := ArenaConfig.make_binder(cgame.config)
+	var sgame := FcGame.new()
+	var cgame := FcGame.new()
+	var sbinder := FcConfig.make_binder(sgame.config)
+	var cbinder := FcConfig.make_binder(cgame.config)
 	var _l1 := sbinder.load_layers()
 	var _l2 := cbinder.load_layers()
 	var set: DotProfileSet = sbinder.profile_sets()[0]
@@ -155,13 +155,13 @@ func _test_large_map_state_arrives_whole() -> void:
 	var body := JSON.stringify({"type": "io_batch", "messages": messages}).to_utf8_buffer()
 	_check(body.size() > 16384, "the payload is past the old 16 KB event cap", "%d bytes" % body.size())
 
-	var back := ArenaEvent.new()
-	back.read(DotNetReader.new(ArenaEvent.new(ArenaEvents.Kind.MAP_STATE, body).to_bytes()))
-	_check(back.kind == ArenaEvents.Kind.MAP_STATE and back.body == body, "it reads back byte for byte",
+	var back := FcEvent.new()
+	back.read(DotNetReader.new(FcEvent.new(FcEvents.Kind.MAP_STATE, body).to_bytes()))
+	_check(back.kind == FcEvents.Kind.MAP_STATE and back.body == body, "it reads back byte for byte",
 		"%d of %d bytes" % [back.body.size(), body.size()])
 
 	# The engine logger above fails the run on the parse error an emptied body used to cause.
-	_deliver_event(2, ArenaEvents.Kind.MAP_STATE, body)
+	_deliver_event(2, FcEvents.Kind.MAP_STATE, body)
 	_done()
 
 
@@ -179,13 +179,13 @@ func _test_voice_wire() -> void:
 	var relayed: Array[Dictionary] = []
 	var heard: Array[PackedByteArray] = []
 
-	var server_link := ArenaNetLink.attached_to(self, _server_bridge, true)
+	var server_link := FcNetLink.attached_to(self, _server_bridge, true)
 	add_child(server_link)
 	server_link.name = "VoiceServerLink"
 
 	var client_entry: Dictionary = _clients[_clients.keys()[0]]
-	var client_bridge: ArenaNetBridge = client_entry["bridge"]
-	var client_link := ArenaNetLink.attached_to(self, client_bridge, false)
+	var client_bridge: FcNetBridge = client_entry["bridge"]
+	var client_link := FcNetLink.attached_to(self, client_bridge, false)
 	add_child(client_link)
 	client_link.name = "VoiceClientLink"
 
@@ -227,7 +227,7 @@ func _test_voice_wire() -> void:
 	await _test_voice_wire_part2(relayed, heard, server_link, client_entry, client_bridge, client_link, frame)
 
 
-func _test_voice_wire_part2(relayed: Array[Dictionary], heard: Array[PackedByteArray], server_link: ArenaNetLink, client_entry: Dictionary, client_bridge: ArenaNetBridge, client_link: ArenaNetLink, frame: PackedByteArray) -> void:
+func _test_voice_wire_part2(relayed: Array[Dictionary], heard: Array[PackedByteArray], server_link: FcNetLink, client_entry: Dictionary, client_bridge: FcNetBridge, client_link: FcNetLink, frame: PackedByteArray) -> void:
 	_check(heard.size() == 1, "and the relay reaches a listener")
 
 	# Never a broadcast. `send(bytes, 0)` is how this family last delivered a private
@@ -241,14 +241,14 @@ func _test_voice_wire_part2(relayed: Array[Dictionary], heard: Array[PackedByteA
 	)
 
 	# [b]The client's own voice reaches the server.[/b] Armed: until 2026-10-11 the client's
-	# manager had `frame_sent.connect(pass)` where its send_fn belonged, so an arena player
+	# manager had `frame_sent.connect(pass)` where its send_fn belonged, so Fatal Contact player
 	# holding the talk key was heard by nobody, while every check above handed the link bytes.
 	relayed.clear()
-	# The bridge's own link, as `ArenaNetBridge` sets it on a real client; this harness
+	# The bridge's own link, as `FcNetBridge` sets it on a real client; this harness
 	# attached the looped one by hand.
 	var held_link := client_bridge.link
 	client_bridge.link = client_link
-	var extras := ArenaClientExtras.new()
+	var extras := FcClientExtras.new()
 	extras.name = "VoiceExtras"
 	add_child(extras)
 	var attached := extras.attach(client_bridge, client_entry["game"])
@@ -270,14 +270,14 @@ func _test_voice_wire_part2(relayed: Array[Dictionary], heard: Array[PackedByteA
 	await _test_voice_wire_part3(server_link, client_bridge, client_link, frame, held_link, extras, voice)
 
 
-func _test_voice_wire_part3(server_link: ArenaNetLink, client_bridge: ArenaNetBridge, client_link: ArenaNetLink, frame: PackedByteArray, held_link: ArenaNetLink, extras: ArenaClientExtras, voice: DotVoiceManager) -> void:
-	# [b]The player's block list (sm) reaches arena's voice.[/b] dot-chat's DotChatSelfMute
-	# binds whatever is published as dot_voice_client; arena's manager did not publish, so
+func _test_voice_wire_part3(server_link: FcNetLink, client_bridge: FcNetBridge, client_link: FcNetLink, frame: PackedByteArray, held_link: FcNetLink, extras: FcClientExtras, voice: DotVoiceManager) -> void:
+	# [b]The player's block list (sm) reaches Fatal Contact's voice.[/b] dot-chat's DotChatSelfMute
+	# binds whatever is published as dot_voice_client; Fatal Contact's manager did not publish, so
 	# `sm` muted a player's lines here and never their voice.
 	_check(voice != null and DotRegistry.get_service(&"dot_voice_client") == voice,
 		"the client's voice is published as dot_voice_client")
 	var self_mute := DotChatSelfMute.new()
-	self_mute.path = "user://arena_net_self_mute.json"
+	self_mute.path = "user://fc_net_self_mute.json"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(self_mute.path))
 	const TALKER := 1_900_000_001
 	self_mute.set_roster([{"id": 9, "name": "Loud", "key": "loud-key", "peer": TALKER}], 2)
@@ -333,8 +333,8 @@ func _test_event_wire() -> void:
 	# has shipped a stored voice mute that loaded back as a warning, and a leaderboard
 	# reporter whose file format was not its wire format. Nothing checks that a pair are
 	# inverses except a test that runs both.
-	var hello := ArenaEvents.read_hello(DotNetReader.new(
-		ArenaEvents.write_hello(128, 4242, 7, 90210, "dm_box", 25, 600.0)
+	var hello := FcEvents.read_hello(DotNetReader.new(
+		FcEvents.write_hello(128, 4242, 7, 90210, "dm_box", 25, 600.0)
 	))
 	_check(bool(hello["ok"]), "a HELLO round-trips")
 	_check(int(hello["tick_rate"]) == 128, "with the tick rate", str(hello["tick_rate"]))
@@ -344,8 +344,8 @@ func _test_event_wire() -> void:
 	_check(String(hello["map_name"]) == "dm_box", "and the map")
 	_check(int(hello["score_limit"]) == 25, "and the rules")
 
-	var kill := ArenaEvents.read_kill(DotNetReader.new(
-		ArenaEvents.write_kill(11, 12, "rifle", true)
+	var kill := FcEvents.read_kill(DotNetReader.new(
+		FcEvents.write_kill(11, 12, "rifle", true)
 	))
 	_check(bool(kill["ok"]), "a KILL round-trips")
 	_check(
@@ -356,8 +356,8 @@ func _test_event_wire() -> void:
 	_check(bool(kill["headshot"]), "and the headshot flag")
 	_check(not bool(kill["critical"]), "and no critical unless one was written")
 
-	var critical := ArenaEvents.read_kill(DotNetReader.new(
-		ArenaEvents.write_kill(11, 12, "sniper", true, true)
+	var critical := FcEvents.read_kill(DotNetReader.new(
+		FcEvents.write_kill(11, 12, "sniper", true, true)
 	))
 	_check(bool(critical["ok"]) and bool(critical["critical"]), "a lethal critical says so")
 
@@ -366,29 +366,29 @@ func _test_event_wire() -> void:
 	var old := DotNetWriter.new()
 	old.write_varint(11)
 	old.write_varint(12)
-	old.write_string("rifle", ArenaEvents.WEAPON_BYTES)
+	old.write_string("rifle", FcEvents.WEAPON_BYTES)
 	old.write_bool(true)
-	var older := ArenaEvents.read_kill(DotNetReader.new(old.to_bytes()))
+	var older := FcEvents.read_kill(DotNetReader.new(old.to_bytes()))
 	_check(bool(older["ok"]) and not bool(older["critical"]), "and an older server's kill reads as no critical")
 
 	_test_event_wire_part2(older)
 
 
 func _test_event_wire_part2(older: Dictionary) -> void:
-	var rules := ArenaEvents.read_rules(DotNetReader.new(ArenaEvents.write_rules(
+	var rules := FcEvents.read_rules(DotNetReader.new(FcEvents.write_rules(
 		{"slide_boost": 2.5, "fp_body": 1.0, "break_mode": 2.0, "nametags": 6.0, "hpbars": 10.0}
 	)))
 	# A drop and its take, through a client's real event handler: the point a server says
 	# player 11 took is on that client's tally, which is what its HUD reads.
-	var client_game: ArenaGame = _clients[2]["game"]
-	var client_bridge: ArenaNetBridge = _clients[2]["bridge"]
+	var client_game: FcGame = _clients[2]["game"]
+	var client_bridge: FcNetBridge = _clients[2]["bridge"]
 	if client_game.drops != null:
 		var before := int(client_game.drops.points.get(11, 0))
 		var _d := client_bridge.receive_event(_server_bridge.encode_event(
-			ArenaEvents.Kind.DROP, ArenaEvents.write_drop(9001, 0, 3, Vector3.ZERO, Vector3(1, 0, 1))
+			FcEvents.Kind.DROP, FcEvents.write_drop(9001, 0, 3, Vector3.ZERO, Vector3(1, 0, 1))
 		))
 		var _t := client_bridge.receive_event(_server_bridge.encode_event(
-			ArenaEvents.Kind.TAKEN, ArenaEvents.write_taken(9001, 11)
+			FcEvents.Kind.TAKEN, FcEvents.write_taken(9001, 11)
 		))
 		_check(int(client_game.drops.points.get(11, 0)) == before + 3,
 			"a point taken on the server is on the client's tally (+3)")
@@ -404,13 +404,13 @@ func _test_event_wire_part2(older: Dictionary) -> void:
 
 	# The world kills as 0, not as a name. It is the one value with two shapes, and a
 	# string on the wire for it is a string somebody eventually puts a name in.
-	var world := ArenaEvents.read_kill(DotNetReader.new(
-		ArenaEvents.write_kill(0, 12, "fall", false)
+	var world := FcEvents.read_kill(DotNetReader.new(
+		FcEvents.write_kill(0, 12, "fall", false)
 	))
 	_check(int(world["killer_id"]) == 0, "and the world kills as 0")
 
-	var state := ArenaEvents.read_match(DotNetReader.new(
-		ArenaEvents.write_match(3, 1920, 5)
+	var state := FcEvents.read_match(DotNetReader.new(
+		FcEvents.write_match(3, 1920, 5)
 	))
 	_check(bool(state["ok"]), "a MATCH round-trips")
 	_check(int(state["state"]) == 3 and int(state["round"]) == 5, "with the state and round")
@@ -418,15 +418,15 @@ func _test_event_wire_part2(older: Dictionary) -> void:
 
 	# Negative, because "no limit" is negative and a match past its clock reports a
 	# negative remainder. A uint here would have wrapped it to four billion.
-	var over := ArenaEvents.read_match(DotNetReader.new(
-		ArenaEvents.write_match(3, -64, 5)
+	var over := FcEvents.read_match(DotNetReader.new(
+		FcEvents.write_match(3, -64, 5)
 	))
 	_check(int(over["remaining_ticks"]) == -64, "and a clock past zero stays negative")
 
 	# The score limit rides at the end, because an extend raises it mid-match and HELLO
 	# is sent once. A MATCH without it — an older server — keeps the limit it had.
-	var limited := ArenaEvents.read_match(DotNetReader.new(
-		ArenaEvents.write_match(3, 1920, 5, 35)
+	var limited := FcEvents.read_match(DotNetReader.new(
+		FcEvents.write_match(3, 1920, 5, 35)
 	))
 	_check(
 		bool(limited["ok"]) and int(limited.get("score_limit", -1)) == 35
@@ -438,11 +438,11 @@ func _test_event_wire_part2(older: Dictionary) -> void:
 
 
 func _test_event_wire_part3(older: Dictionary) -> void:
-	var leave := ArenaEvents.read_leave(DotNetReader.new(ArenaEvents.write_leave(99)))
+	var leave := FcEvents.read_leave(DotNetReader.new(FcEvents.write_leave(99)))
 	_check(bool(leave["ok"]) and int(leave["session_id"]) == 99, "a LEAVE round-trips")
 
-	var notice := ArenaEvents.read_notice(DotNetReader.new(
-		ArenaEvents.write_notice("Match point")
+	var notice := FcEvents.read_notice(DotNetReader.new(
+		FcEvents.write_notice("Match point")
 	))
 	_check(
 		bool(notice["ok"]) and String(notice["text"]) == "Match point",
@@ -451,16 +451,16 @@ func _test_event_wire_part3(older: Dictionary) -> void:
 
 	# The map vote's cue and countdown. The one event whose two halves are optional each:
 	# a countdown second with no cue, a cue with no second. Both shapes round-trip.
-	var counting := ArenaEvents.read_vote(DotNetReader.new(
-		ArenaEvents.write_vote("vote_count", 7, true)
+	var counting := FcEvents.read_vote(DotNetReader.new(
+		FcEvents.write_vote("vote_count", 7, true)
 	))
 	_check(
 		bool(counting["ok"]) and String(counting["cue"]) == "vote_count"
 			and int(counting["seconds_left"]) == 7 and bool(counting["runoff"]),
 		"a VOTE round-trips, with the cue, the second and the runoff flag"
 	)
-	var opening := ArenaEvents.read_vote(DotNetReader.new(
-		ArenaEvents.write_vote("vote_start", 0, false)
+	var opening := FcEvents.read_vote(DotNetReader.new(
+		FcEvents.write_vote("vote_start", 0, false)
 	))
 	_check(
 		bool(opening["ok"]) and String(opening["cue"]) == "vote_start"
@@ -468,12 +468,12 @@ func _test_event_wire_part3(older: Dictionary) -> void:
 		"and a cue with no countdown second is exactly that"
 	)
 	_check(
-		ArenaEvent.new(ArenaEvents.Kind.VOTE, PackedByteArray()).validate().ok,
+		FcEvent.new(FcEvents.Kind.VOTE, PackedByteArray()).validate().ok,
 		"and VOTE is a kind the message validates"
 	)
 
-	var hit := ArenaEvents.read_hit(DotNetReader.new(
-		ArenaEvents.write_hit(12, 87.4, Vector3(12.5, 1.4, -30.25), true, false)
+	var hit := FcEvents.read_hit(DotNetReader.new(
+		FcEvents.write_hit(12, 87.4, Vector3(12.5, 1.4, -30.25), true, false)
 	))
 	_check(
 		bool(hit["ok"]) and int(hit["victim_id"]) == 12 and int(hit["amount"]) == 87
@@ -481,8 +481,8 @@ func _test_event_wire_part3(older: Dictionary) -> void:
 			and bool(hit["headshot"]) and not bool(hit["lethal"]),
 		"a HIT round-trips: victim, whole hit points, where, head, not lethal", str(hit)
 	)
-	var award := ArenaEvents.read_award(DotNetReader.new(
-		ArenaEvents.write_award(11, 12, 225, 6, [0, 1, 10])
+	var award := FcEvents.read_award(DotNetReader.new(
+		FcEvents.write_award(11, 12, 225, 6, [0, 1, 10])
 	))
 	_check(
 		bool(award["ok"]) and int(award["killer_id"]) == 11 and int(award["victim_id"]) == 12
@@ -491,7 +491,7 @@ func _test_event_wire_part3(older: Dictionary) -> void:
 		"an AWARD round-trips: both players, points, streak and the medals in order", str(award)
 	)
 	_check(
-		ArenaEvents.Kind.HIT == ArenaEvents.Kind.TAKEN + 1 and ArenaEvents.Kind.AWARD == ArenaEvents.Kind.HIT + 1,
+		FcEvents.Kind.HIT == FcEvents.Kind.TAKEN + 1 and FcEvents.Kind.AWARD == FcEvents.Kind.HIT + 1,
 		"and both were appended after TAKEN, so no older kind moved"
 	)
 
@@ -503,7 +503,7 @@ func _test_event_wire_part4() -> void:
 		{"session_id": 11, "kills": 7, "deaths": 3, "assists": 1, "score": -2, "objectives": 2},
 		{"session_id": 12, "kills": 0, "deaths": 9, "assists": 0, "score": 0, "objectives": 0},
 	]
-	var score := ArenaEvents.read_scores(DotNetReader.new(ArenaEvents.write_scores(score_rows, {1: 3, 2: -1})))
+	var score := FcEvents.read_scores(DotNetReader.new(FcEvents.write_scores(score_rows, {1: 3, 2: -1})))
 	var first_row: Dictionary = score["rows"][0] if score["rows"].size() == 2 else {}
 	_check(
 		bool(score["ok"]) and int(first_row.get("kills", 0)) == 7 and int(first_row.get("deaths", 0)) == 3
@@ -511,39 +511,39 @@ func _test_event_wire_part4() -> void:
 			and int(score["teams"].get(1, 0)) == 3 and int(score["teams"].get(2, 0)) == -1,
 		"a SCORE round-trips every row (a negative score too) and the team scores", str(score)
 	)
-	var cut := ArenaEvents.write_scores(score_rows, {1: 3})
+	var cut := FcEvents.write_scores(score_rows, {1: 3})
 	cut.resize(cut.size() - 3)
-	_check(not bool(ArenaEvents.read_scores(DotNetReader.new(cut))["ok"]), "and a cut SCORE is not ok")
+	_check(not bool(FcEvents.read_scores(DotNetReader.new(cut))["ok"]), "and a cut SCORE is not ok")
 
 	# A truncated body must not read as a valid event of nothing. `StreamPeerBuffer`
 	# reads past its end by returning zeros rather than failing, and dot-timer shipped a
 	# replay that parsed that way; `DotNetReader.ok()` is the equivalent here and it is
 	# sticky, so a decoder that skipped the check gets a plausible value for the field
 	# AFTER the overrun.
-	var truncated := ArenaEvents.read_hello(DotNetReader.new(
-		ArenaEvents.write_hello(128, 1, 1, 1, "dm_box", 25, 600.0).slice(0, 3)
+	var truncated := FcEvents.read_hello(DotNetReader.new(
+		FcEvents.write_hello(128, 1, 1, 1, "dm_box", 25, 600.0).slice(0, 3)
 	))
 	_check(not bool(truncated["ok"]), "and a truncated HELLO is refused, not guessed")
 
 	# Both message types validate their kind, so a peer that disagrees about the schema
 	# is a refusal rather than an out-of-range read.
 	_check(
-		not ArenaEvent.new(ArenaEvents.Kind.size(), PackedByteArray()).validate().ok,
+		not FcEvent.new(FcEvents.Kind.size(), PackedByteArray()).validate().ok,
 		"an unknown event kind is refused"
 	)
 	_check(
-		ArenaEvent.new(ArenaEvents.Kind.HELLO, PackedByteArray()).validate().ok,
+		FcEvent.new(FcEvents.Kind.HELLO, PackedByteArray()).validate().ok,
 		"and a known one is not"
 	)
 
 	# A kind goes out in a fixed field the writer masks without a word, so one past it aliases a
 	# smaller kind: game-zombie-zone sent HURT and AMMO as HELLO and MAP that way.
-	_check(ArenaEvent.fits(), "every event kind fits the event's kind field",
-		"%d kinds in %d bits" % [ArenaEvents.Kind.size(), ArenaEvent.KIND_BITS])
-	_check(ArenaRequest.fits(), "every request kind fits the request's kind field",
-		"%d kinds in %d bits" % [ArenaEvents.Ask.size(), ArenaRequest.KIND_BITS])
-	_check(ArenaEvents.prop_acts_fit(), "every prop act fits the prop request's act field",
-		"%d acts in %d bits" % [ArenaEvents.PropAct.size(), ArenaEvents.PROP_ACT_BITS])
+	_check(FcEvent.fits(), "every event kind fits the event's kind field",
+		"%d kinds in %d bits" % [FcEvents.Kind.size(), FcEvent.KIND_BITS])
+	_check(FcRequest.fits(), "every request kind fits the request's kind field",
+		"%d kinds in %d bits" % [FcEvents.Ask.size(), FcRequest.KIND_BITS])
+	_check(FcEvents.prop_acts_fit(), "every prop act fits the prop request's act field",
+		"%d acts in %d bits" % [FcEvents.PropAct.size(), FcEvents.PROP_ACT_BITS])
 
 	_test_event_wire_rest()
 
@@ -575,7 +575,7 @@ func _test_glass_breaks_on_a_client() -> void:
 	var told := 0
 	for item in sent:
 		var decoded: DotResult = _clients[2]["net"].messages.decode(DotNetReader.new(item[1]), 1, false)
-		if decoded.ok and (decoded.value as ArenaEvent).kind == ArenaEvents.Kind.PANE_BROKEN:
+		if decoded.ok and (decoded.value as FcEvent).kind == FcEvents.Kind.PANE_BROKEN:
 			told += 1
 			var _r: DotResult = _clients[2]["bridge"].receive_event(item[1])
 	_check(told >= 1, "the server sends PANE_BROKEN", str(told))

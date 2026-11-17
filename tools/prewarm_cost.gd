@@ -1,11 +1,11 @@
 extends Node
 
-const ArenaPaths := preload("../game/arena_paths.gd")
-const ArenaWeaponSkins := preload("../game/arena_weapon_skins.gd")
+const FcPaths := preload("../game/fc_paths.gd")
+const FcWeaponSkins := preload("../game/fc_weapon_skins.gd")
 
 func _ready() -> void:
-	AwModelCache.set_asset_root(ArenaPaths.root())
-	ArenaWeaponSkins.apply()
+	AwModelCache.set_asset_root(FcPaths.root())
+	FcWeaponSkins.apply()
 	var cam := Camera3D.new()
 	add_child(cam)
 	var vm := AwViewModel.new()

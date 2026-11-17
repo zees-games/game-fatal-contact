@@ -1,8 +1,8 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## sv_ballistics through the whole game: off, a velocity weapon stays hitscan and damages instantly; on, its
 ## bullet takes time, drops, and hits once.
@@ -16,7 +16,7 @@ const EXPECTED_CHECKS := 18
 
 var _checks := 0
 var _failed := 0
-var _game: ArenaGame = null
+var _game: FcGame = null
 
 
 func _ready() -> void:
@@ -42,7 +42,7 @@ func _fire(ticks: int) -> void:
 
 ## Builds the game with a shooter and a target and lets it settle.
 func _boot() -> void:
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -51,7 +51,7 @@ func _boot() -> void:
 	_game.is_authority = true
 	_game.register_service = false
 	add_child(_game)
-	var ready := _game.setup(ArenaMap.dm_box())
+	var ready := _game.setup(FcMap.dm_box())
 	_check(ready.ok, "the arena sets up", str(ready.error))
 	_game.match_node.rules.warmup_sec = 0.0
 	_game.match_node.rules.countdown_sec = 0.0
@@ -72,7 +72,7 @@ func _run() -> void:
 		_game.tick({})
 		await get_tree().physics_frame
 	var def := shooter.arsenal.current_def()
-	var tuning := ArenaPlayer.weapon_catalogue().get_def(def.id).tuning as DotWeaponBallistics
+	var tuning := FcPlayer.weapon_catalogue().get_def(def.id).tuning as DotWeaponBallistics
 	var was := [tuning.muzzle_velocity, tuning.bullet_gravity, tuning.drag, tuning.max_range, tuning.spread, tuning.spread_moving, tuning.recoil_pitch]
 	tuning.muzzle_velocity = 40.0
 	tuning.bullet_gravity = 1.0
@@ -141,7 +141,7 @@ func _run() -> void:
 
 
 ## A hitscan shot through a thin wall must carry the penetration on its damage and reach the stats as penetration_*.
-func _wallbang_check(shooter: ArenaPlayer, victim: ArenaPlayer) -> void:
+func _wallbang_check(shooter: FcPlayer, victim: FcPlayer) -> void:
 	for _i in 150:
 		_game.tick({})
 		await get_tree().physics_frame

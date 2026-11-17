@@ -5,7 +5,7 @@ extends SceneTree
 ##
 ##     tools/render_wallbang.sh [map]       # frames in screenshots/wallbang/, exit 1 if a mark is invisible
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "res://screenshots/wallbang"
 
 var client: Node = null
@@ -19,8 +19,8 @@ func _initialize() -> void:
 	var at := args.find("--map")
 	if at >= 0 and at + 1 < args.size():
 		_map = args[at + 1]
-	var _scratch := ArenaPresentation.use_scratch_settings("render_wallbang")
-	client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var _scratch := FcPresentation.use_scratch_settings("render_wallbang")
+	client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	client.set("offline_bots", 0)
@@ -102,7 +102,7 @@ func _run() -> void:
 		game = client.get("game")  # Set part-way through a windowed client's `_ready`, which spans frames.
 		if game != null and game.map != null and client.get("player") != null:
 			break
-	var _changed = game.change_map(load("res://maps/arena_map.gd").by_id(StringName(_map)))
+	var _changed = game.change_map(load("res://maps/fc_map.gd").by_id(StringName(_map)))
 	await _wait(3.0)
 	var gate: Variant = client.get("gate")
 	for i in 240:

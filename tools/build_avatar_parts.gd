@@ -19,7 +19,7 @@ const FACE_FORWARD := Basis(Vector3.UP, PI)
 ## the kit gaining a nineteenth character would mean noticing.
 ##
 ## The split is by slot, not by file: a "body" is everything except the head, because
-## [ArenaAvatars] has a head slot and a player who picks a different head must not get
+## [FcAvatars] has a head slot and a player who picks a different head must not get
 ## two.
 ##
 ## [b]Two corrections a straight export does not make, and both are invisible in the
@@ -27,7 +27,7 @@ const FACE_FORWARD := Basis(Vector3.UP, PI)
 ## which is 1.372 m -- so an imported character is very nearly TWICE the size of the
 ## thing it represents, standing with its head above the camera and its shoulders
 ## through every doorway, with every property of every node correct. And the parts are
-## authored in the character's own space (feet at 0, head at 1.9) while ArenaAvatars mounts
+## authored in the character's own space (feet at 0, head at 1.9) while FcAvatars mounts
 ## each slot at a point and expects the part to be centred on it, the way the capsule
 ## primitives that came first are. Both are applied here rather than asked of the rig,
 ## because the rig is right and the art is what has to fit it.
@@ -36,8 +36,8 @@ const KENNEY_DIR := "res://avatars/kenney"
 const OUT_DIR := "res://avatars"
 const HEAD_MESH := "head"
 
-## Arena's own numbers. It is not a genre-units game -- its capsule is 1.8 m and its
-## avatar mounts are absolute metres in `ArenaAvatars` -- so the figures that fit
+## Fatal Contact's own numbers. It is not a genre-units game -- its capsule is 1.8 m and its
+## avatar mounts are absolute metres in `FcAvatars` -- so the figures that fit
 ## g2gfast's 72-unit hull are wrong here by a third.
 const HULL_HEIGHT := 1.8
 const BODY_MOUNT := 0.65
@@ -129,9 +129,9 @@ func _write(source: Node, letter: String, head_only: bool, scale: float) -> int:
 	# it on.
 	#
 	# The head is centred on its mount, like the stock capsules. The BODY is not: it is
-	# aligned so its feet land on the floor. `ArenaAvatars` mounts the body at BODY_MOUNT and the stock capsule is centred there, which leaves it floating about
+	# aligned so its feet land on the floor. `FcAvatars` mounts the body at BODY_MOUNT and the stock capsule is centred there, which leaves it floating about
 	# 13 cm -- invisible on a capsule, and a character standing in mid-air the moment
-	# the part has legs. The rig is not changed for this because arena mounts the same
+	# the part has legs. The rig is not changed for this because Fatal Contact mounts the same
 	# way and its parts are still primitives; the art is what fits the rig.
 	var box := _bounds(root)
 	var centre := box.get_center()

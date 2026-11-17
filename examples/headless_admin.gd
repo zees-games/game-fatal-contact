@@ -1,8 +1,8 @@
-extends "arena_server_suite.gd"
+extends "fc_server_suite.gd"
 
-const ArenaNetBridge := preload("../game/arena_net_bridge.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaTestPorts := preload("test_ports.gd")
+const FcNetBridge := preload("../game/fc_net_bridge.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcTestPorts := preload("test_ports.gd")
 
 ## An administrator's live tools, on a real dedicated server, typed the way a person types
 ## them.
@@ -11,7 +11,7 @@ const ArenaTestPorts := preload("test_ports.gd")
 ## godot --headless --path . res://examples/headless_admin.tscn
 ## [/codeblock]
 ##
-## A real [DotServer] listening on a port, [ArenaModule] loaded into it by path, three
+## A real [DotServer] listening on a port, [FcModule] loaded into it by path, three
 ## sessions adopted the way dot-server documents for a test — an administrator, a
 ## moderator and a player — and every command sent through [method DotConsole.execute]
 ## with a CHAT context built from the speaker's own session, which is exactly what
@@ -29,8 +29,8 @@ const ArenaTestPorts := preload("test_ports.gd")
 ## Whether the owning client PREDICTS a forced noclip rather than rubber-banding against it
 ## is `headless_net`'s, which is where a client exists.
 
-var PORT := ArenaTestPorts.free_port()
-const SERVER_DIR := "user://arena_admin"
+var PORT := FcTestPorts.free_port()
+const SERVER_DIR := "user://fc_admin"
 const TICK_RATE := 64
 
 const SECTIONS := 10
@@ -108,7 +108,7 @@ func _move(forward: float, buttons: int = 0, yaw: float = 0.0) -> DotFpsCommand:
 	return command
 
 
-func _ada() -> ArenaPlayer:
+func _ada() -> FcPlayer:
 	return _game.player_for(73)
 
 

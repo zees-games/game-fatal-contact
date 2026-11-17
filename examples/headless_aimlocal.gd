@@ -1,10 +1,10 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaBindings := preload("../game/arena_bindings.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcBindings := preload("../game/fc_bindings.gd")
 
-## Local play (the offline ArenaClient) aim test: a still bot at 5, 15 and 30 m, a held burst
+## Local play (the offline FcClient) aim test: a still bot at 5, 15 and 30 m, a held burst
 ## from the hip and aimed. The bullet ray must leave the camera ray with spread and recoil
 ## offset only. Frames are stepped, two a tick (game.sh's FIXED_FPS table).
 
@@ -40,8 +40,8 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 func _wait_live(client: Node) -> bool:
 	for _i in 2400:
 		await get_tree().process_frame
-		var p: ArenaPlayer = client.get("player")
-		var g: ArenaGame = client.get("game")
+		var p: FcPlayer = client.get("player")
+		var g: FcGame = client.get("game")
 		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == DotMatch.State.LIVE:
 			for o in g.players():
 				if o != p and o.is_alive():
@@ -82,7 +82,7 @@ func _stat(values: Array) -> String:
 
 
 func _run() -> void:
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	add_child(client)
@@ -91,19 +91,19 @@ func _run() -> void:
 	if not live:
 		get_tree().quit(1)
 		return
-	var g: ArenaGame = client.get("game")
-	var me: ArenaPlayer = client.get("player")
-	var bot: ArenaPlayer = null
+	var g: FcGame = client.get("game")
+	var me: FcPlayer = client.get("player")
+	var bot: FcPlayer = null
 	for o in g.players():
 		if o != me and o.is_alive():
 			bot = o
 	var bots: Dictionary = client.get("_bots")
 	for id in bots:
-		var b: ArenaPlayer = bots[id]
+		var b: FcPlayer = bots[id]
 		b.set_meta(&"bot_scripted", true)
 		b.set_meta(&"bot_move", DotFpsCommand.new())
 		b.set_meta(&"bot_fire", DotWeaponCommand.new())
-	for act in [ArenaBindings.FIRE, ArenaBindings.AIM, ArenaBindings.DUCK]:
+	for act in [FcBindings.FIRE, FcBindings.AIM, FcBindings.DUCK]:
 		if not InputMap.has_action(act):
 			InputMap.add_action(act)
 	var _fill := me.arsenal.give(AwWeaponIds.RIFLE)
@@ -153,7 +153,7 @@ func _run() -> void:
 	get_tree().quit(0 if ok else 1)
 
 ## Fires the bursts for one distance and stance; returns how many shots it measured (0 if there was no clear line).
-func _measure_cell(g: ArenaGame, me: ArenaPlayer, bot: ArenaPlayer, sampler, hits: Array, d: float, crouch: bool, ads: bool, all_origin: Array, all_extra: Array) -> int:
+func _measure_cell(g: FcGame, me: FcPlayer, bot: FcPlayer, sampler, hits: Array, d: float, crouch: bool, ads: bool, all_origin: Array, all_extra: Array) -> int:
 	var tag := "%.0f m %s %s" % [d, "crouched" if crouch else "standing", "ADS" if ads else "hip"]
 	var fired := 0
 	var landed := 0
@@ -171,9 +171,9 @@ func _measure_cell(g: ArenaGame, me: ArenaPlayer, bot: ArenaPlayer, sampler, hit
 		me.spawn(Transform3D(Basis(), spot), g.current_tick())
 		g.combat.health_of(bot.player_id).health = 100000.0
 		if crouch:
-			Input.action_press(ArenaBindings.DUCK)
+			Input.action_press(FcBindings.DUCK)
 		if ads:
-			Input.action_press(ArenaBindings.AIM)
+			Input.action_press(FcBindings.AIM)
 		var a := Vector2.ZERO
 		for _i in 140:
 			await get_tree().process_frame
@@ -181,7 +181,7 @@ func _measure_cell(g: ArenaGame, me: ArenaPlayer, bot: ArenaPlayer, sampler, hit
 			sampler.look_at_angles(a.x, a.y)
 		_shots.clear()
 		hits.clear()
-		Input.action_press(ArenaBindings.FIRE)
+		Input.action_press(FcBindings.FIRE)
 		var pf := Engine.get_physics_frames()
 		for _i in 24:
 			await get_tree().process_frame
@@ -189,7 +189,7 @@ func _measure_cell(g: ArenaGame, me: ArenaPlayer, bot: ArenaPlayer, sampler, hit
 			_frames += 1
 			_frames_ticked += 1 if Engine.get_physics_frames() > pf else 0
 			pf = Engine.get_physics_frames()
-		Input.action_release(ArenaBindings.FIRE)
+		Input.action_release(FcBindings.FIRE)
 		for _i in 20:
 			await get_tree().process_frame
 		fired += _shots.size()
@@ -199,8 +199,8 @@ func _measure_cell(g: ArenaGame, me: ArenaPlayer, bot: ArenaPlayer, sampler, hit
 			pitch_gaps.append(s.pitch_gap)
 			origins.append(s.origin)
 			extra.append(float(s.gap))
-		Input.action_release(ArenaBindings.AIM)
-		Input.action_release(ArenaBindings.DUCK)
+		Input.action_release(FcBindings.AIM)
+		Input.action_release(FcBindings.DUCK)
 		for _i in 100:
 			await get_tree().process_frame
 	if skipped:

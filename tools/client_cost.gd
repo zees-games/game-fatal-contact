@@ -1,13 +1,13 @@
 extends Node
 
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 const ClientBench := preload("client_bench.gd")
-const ArenaKillcamBodies := preload("../game/arena_killcam_bodies.gd")
+const FcKillcamBodies := preload("../game/fc_killcam_bodies.gd")
 
 ## What the CLIENT costs per remote player in one offline process: the frame, engine process time, each client section in ms per frame and per remote player, and a node census.
-## `godot --headless --path . res://tools/client_cost.tscn -- --bots 16 --seconds 15 [--map dm_atrium] [--variants default,full]`; variants `before`, `default`, `nogate` (default without the game-time animation gate), `off8`, `full`, `no_anim`/`no_held`/`no_held_proc`/`no_rest`/`bare` (`full` less that part, `ArenaPlayer.present_ablate`), `still` (remotes not presented).
+## `godot --headless --path . res://tools/client_cost.tscn -- --bots 16 --seconds 15 [--map dm_atrium] [--variants default,full]`; variants `before`, `default`, `nogate` (default without the game-time animation gate), `off8`, `full`, `no_anim`/`no_held`/`no_held_proc`/`no_rest`/`bare` (`full` less that part, `FcPlayer.present_ablate`), `still` (remotes not presented).
 ## Headless draws nothing: this is script and scene-tree cost; render cost needs a windowed GPU profile.
 
 var _bots := 16
@@ -18,7 +18,7 @@ var _rounds := 3
 
 
 func _ready() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	var args := OS.get_cmdline_user_args()
 	for i in range(args.size() - 1):
 		match args[i]:
@@ -30,12 +30,12 @@ func _ready() -> void:
 				Engine.physics_ticks_per_second = maxi(1, int(args[i + 1]))
 				Engine.max_physics_steps_per_frame = 1
 			"--rounds": _rounds = maxi(1, int(args[i + 1]))
-	var _scratch := ArenaPresentation.use_scratch_settings("client_cost")
+	var _scratch := FcPresentation.use_scratch_settings("client_cost")
 	_run.call_deferred()
 
 
 func _run() -> void:
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	_client.set("offline_bots", _bots)
@@ -44,10 +44,10 @@ func _run() -> void:
 	var pilot := ClientBench.Pilot.new()
 	pilot.process_priority = -999
 	add_child(pilot)
-	ArenaFrameProbe.set_interval(1.0e9)
+	FcFrameProbe.set_interval(1.0e9)
 	await _frames_for(8.0)
 	var remotes := 0
-	for p: ArenaPlayer in _client.game.players():
+	for p: FcPlayer in _client.game.players():
 		if p.camera == null:
 			remotes += 1
 	print("CLIENT_COST bots %d remotes %d" % [_bots, remotes])
@@ -74,16 +74,16 @@ func _run() -> void:
 
 func _apply(variant: String) -> void:
 	# "before" is the game as it was: the cone, a kill-cam recording every frame. "default" is the game as it ships now.
-	ArenaPlayer.lod_frustum = variant != "before"
-	ArenaPlayer.lod_off_every = 8 if variant == "off8" else 4
-	ArenaKillcamBodies.record_hz = 0.0 if variant == "before" else 60.0
-	ArenaPlayer.anim_gate_enabled = variant not in ["nogate", "before"]
-	ArenaPlayer.present_lod_enabled = variant in ["default", "before", "off8", "nogate"]
-	ArenaPlayer.present_remote_paused = variant == "still"
+	FcPlayer.lod_frustum = variant != "before"
+	FcPlayer.lod_off_every = 8 if variant == "off8" else 4
+	FcKillcamBodies.record_hz = 0.0 if variant == "before" else 60.0
+	FcPlayer.anim_gate_enabled = variant not in ["nogate", "before"]
+	FcPlayer.present_lod_enabled = variant in ["default", "before", "off8", "nogate"]
+	FcPlayer.present_remote_paused = variant == "still"
 	# "full" with one part of the remote presentation left out: the cost of that part alone.
-	ArenaPlayer.present_ablate = {"no_anim": 1, "no_held": 2, "no_held_proc": 6, "no_rest": 8, "bare": 15}.get(variant, 0)
+	FcPlayer.present_ablate = {"no_anim": 1, "no_held": 2, "no_held_proc": 6, "no_rest": 8, "bare": 15}.get(variant, 0)
 	if variant in ["default", "before", "off8", "full", "nogate"]:
-		for p: ArenaPlayer in _client.game.players():
+		for p: FcPlayer in _client.game.players():
 			if p.held != null:
 				p.held.set_process(true)
 
@@ -95,7 +95,7 @@ func _frames_for(seconds: float) -> void:
 
 
 func _measure(seconds: float) -> Dictionary:
-	ArenaFrameProbe._reset()
+	FcFrameProbe._reset()
 	var frames := PackedFloat64Array()
 	var proc := PackedFloat64Array()
 	var t0 := Time.get_ticks_usec()
@@ -107,8 +107,8 @@ func _measure(seconds: float) -> Dictionary:
 		last = now
 		proc.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 	var sections := {}
-	for key: StringName in ArenaFrameProbe._sections:
-		var row: PackedInt64Array = ArenaFrameProbe._sections[key]
+	for key: StringName in FcFrameProbe._sections:
+		var row: PackedInt64Array = FcFrameProbe._sections[key]
 		sections[key] = float(row[0]) / 1000.0
 	return {"proc": proc, "frame": frames, "sections": sections}
 
@@ -145,7 +145,7 @@ func _report(acc: Dictionary, remotes: int) -> void:
 
 ## Nodes, meshes, lights, skeletons and processing nodes under one remote player (the render-side bill the headless run cannot time).
 func _census() -> void:
-	for p: ArenaPlayer in _client.game.players():
+	for p: FcPlayer in _client.game.players():
 		if p.camera != null:
 			continue
 		var c := {"nodes": 0, "meshes": 0, "lights": 0, "skeletons": 0, "processing": 0, "particles": 0, "audio": 0, "visible_meshes": 0}

@@ -1,19 +1,19 @@
 extends "lossy_watch.gd"
 
-const ArenaEvents := preload("../game/arena_events.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaModTools := preload("../game/arena_mod_tools.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaModule := preload("../game/arena_module.gd")
-const ArenaNetBridge := preload("../game/arena_net_bridge.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaTestPorts := preload("test_ports.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcModTools := preload("../game/fc_mod_tools.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcModule := preload("../game/fc_module.gd")
+const FcNetBridge := preload("../game/fc_net_bridge.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcTestPorts := preload("test_ports.gd")
 
 ## dot-net's lossy UDP relay, by path: a test tool that ships inside the addon so a game
 ## that links dot_net can reach it, and has no class_name for the same reason.
 const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
 
-## A real arena server, real ENet clients, and real packet loss between them.
+## A real Fatal Contact server, real ENet clients, and real packet loss between them.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_lossy.tscn
@@ -24,7 +24,7 @@ const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
 ## every quarter second, its inputs and ENet's packet throttle every half second, input
 ## transit and snapshot age, and a line per freeze. [code]--ping-rtt[/code] puts a defect
 ## back as a control: it feeds the clock the heartbeat's round trip instead of ENet's (see
-## [method ArenaNetBridge.link_rtt_ms]), and it fails checks. (`--stock-enet` was the other
+## [method FcNetBridge.link_rtt_ms]), and it fails checks. (`--stock-enet` was the other
 ## until dot-core's DotTransportENet stopped advertising six bytes a second; its own
 ## `dual_transport_selftest` holds that one now.)
 ##
@@ -33,7 +33,7 @@ const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
 ## "unreliable" is TCP. So until a server listened on ENet as well, nothing here had ever
 ## had a datagram arrive late, out of order, twice, or not at all -- and a reliable event
 ## had never been retransmitted. This puts dot-net's relay between a real `DotClientLink`
-## on ENet and a real `DotServer` running `ArenaModule`, and plays.
+## on ENet and a real `DotServer` running `FcModule`, and plays.
 ##
 ## Two clients. **A** goes through the relay and is the one measured: it runs, strafes and
 ## turns, so its prediction has something to get wrong. **B** connects straight to the
@@ -51,8 +51,8 @@ const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
 ## relay injected; and that every reliable event -- a numbered notice, a kill, a chat line
 ## either way, a join and a leave -- arrived exactly once and in order.
 
-var PORT := ArenaTestPorts.free_port()
-const DATA := "user://arena_lossy"
+var PORT := FcTestPorts.free_port()
+const DATA := "user://fc_lossy"
 const DUMMY_ID := 9001
 
 ## The windows: name, loss each way, delay, jitter (so 30..80 ms), seconds.
@@ -190,8 +190,8 @@ func _peer_of(label: String) -> int:
 	return (_clients[label]["link"] as DotClientLink).multiplayer.get_unique_id()
 
 
-func _module() -> ArenaModule:
-	return _server.modules.get_module("arena") as ArenaModule if _server != null else null
+func _module() -> FcModule:
+	return _server.modules.get_module("arena") as FcModule if _server != null else null
 
 
 # --- Boot -------------------------------------------------------------------
@@ -230,7 +230,7 @@ func _boot() -> bool:
 	# is routed by its path relative to the API's root -- `Server/Arena` on every end.
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), _server_side.get_path())
 
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -239,7 +239,7 @@ func _boot() -> bool:
 	_game.register_service = true
 	_server_side.add_child(_game)
 
-	var ready := _game.setup(ArenaMap.dm_box())
+	var ready := _game.setup(FcMap.dm_box())
 	if not _check(ready.ok, "the arena sets up", str(ready.error)):
 		_done()
 		return false
@@ -262,8 +262,8 @@ func _boot() -> bool:
 		_done()
 		return false
 
-	ArenaModule.punishments_file = "%s/punishments.json" % DATA
-	var loaded: DotResult = await _server.modules.load_module("res://game/arena_module.gd")
+	FcModule.punishments_file = "%s/punishments.json" % DATA
+	var loaded: DotResult = await _server.modules.load_module("res://game/fc_module.gd")
 	if not _check(loaded.ok, "the arena module loads", str(loaded.error)):
 		_done()
 		return false
@@ -291,16 +291,16 @@ func _boot() -> bool:
 	return relayed.ok
 
 
-## What `ArenaClient._build_netcode` builds, minus everything that draws; fills `record`.
+## What `FcClient._build_netcode` builds, minus everything that draws; fills `record`.
 func _client_netcode(record: Dictionary, side: Node, link: DotClientLink, label: String) -> DotNetManager:
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "Game"
 	game.is_authority = false
 	game.headless = true
 	game.register_service = false
 	side.add_child(game)
-	game.setup(ArenaMap.dm_box())
-	# What `ArenaClient._build_netcode` does: the server's replicated cvars, through the link.
+	game.setup(FcMap.dm_box())
+	# What `FcClient._build_netcode` does: the server's replicated cvars, through the link.
 	var _following := game.follow_server_cvars(link)
 
 	var net := DotNetManager.new()
@@ -312,27 +312,27 @@ func _client_netcode(record: Dictionary, side: Node, link: DotClientLink, label:
 	net.config_file = ""
 	var cfg := DotNetConfig.new()
 	cfg.tick_rate = game.tick_rate
-	cfg.snapshot_rate = ArenaGame.NET_SNAPSHOT_RATE
+	cfg.snapshot_rate = FcGame.NET_SNAPSHOT_RATE
 	cfg.enable_prediction = true
 	cfg.enable_lag_compensation = false
 	cfg.max_entities_per_snapshot = 64
-	cfg.world_extent = ArenaGame.NET_WORLD_EXTENT
+	cfg.world_extent = FcGame.NET_WORLD_EXTENT
 	net.config = cfg
 	side.add_child(net)
 	net.setup()
 
-	var bridge := ArenaNetBridge.new()
+	var bridge := FcNetBridge.new()
 	bridge.name = "Bridge"
 	side.add_child(bridge)
 	bridge.attach(game, net)
 	bridge.open_link(link)
 	net.messages.seal()
-	# What `ArenaClient` feeds it. `--ping-rtt` puts back the heartbeat alone, which is the
+	# What `FcClient` feeds it. `--ping-rtt` puts back the heartbeat alone, which is the
 	# control for the clock checks: the first eight seconds of a connection are late then.
 	if "--ping-rtt" in OS.get_cmdline_user_args():
 		bridge.rtt_source = func() -> float: return float(maxi(0, link.ping_ms()))
 	else:
-		bridge.rtt_source = func() -> float: return ArenaNetBridge.link_rtt_ms(link)
+		bridge.rtt_source = func() -> float: return FcNetBridge.link_rtt_ms(link)
 	bridge.hello_received.connect(func(info: Dictionary) -> void:
 		record["hello"][0] = info
 		record["session"] = int(info["session_id"])
@@ -342,11 +342,11 @@ func _client_netcode(record: Dictionary, side: Node, link: DotClientLink, label:
 	record["net"] = net
 	record["bridge"] = bridge
 	net.start()
-	bridge.send_request(ArenaEvents.Ask.READY)
+	bridge.send_request(FcEvents.Ask.READY)
 	return net
 
 
-## A client: a DotClientLink on ENet only, and the netcode `ArenaClient._build_netcode`
+## A client: a DotClientLink on ENet only, and the netcode `FcClient._build_netcode`
 ## builds, minus everything that draws.
 func _connect_client(label: String, udp_port: int, lift_cover: bool = true) -> Dictionary:
 	var side := Node.new()
@@ -400,7 +400,7 @@ func _test_server_cvars_reach_the_client() -> void:
 	_section("the server's mp_teammate_passthrough reaches a client's world, live")
 	var a: Dictionary = _clients["A"]
 	var link: DotClientLink = a["link"]
-	var a_game: ArenaGame = a["game"]
+	var a_game: FcGame = a["game"]
 	_check(link.replicated_cvar("mp_teammate_passthrough") == "1" and a_game.combat.rules.pass_through_level() == 1,
 		"the join carried the server's level and A's world is on it",
 		str(link.replicated_cvars))
@@ -447,12 +447,12 @@ func _test_server_cvars_reach_the_client() -> void:
 
 
 ## [b]`fc_ambient*` on a client.[/b] The server's ambience intent rides the replicated cvars, and a
-## director that follows the game's rules (as `ArenaClient` wires it) has it in its layer's config.
+## director that follows the game's rules (as `FcClient` wires it) has it in its layer's config.
 func _test_ambient_cvars_reach_the_client() -> void:
 	_section("the server's fc_ambient* reaches a client's ambience director, live")
 	var a: Dictionary = _clients["A"]
 	var link: DotClientLink = a["link"]
-	var a_game: ArenaGame = a["game"]
+	var a_game: FcGame = a["game"]
 	var director := DotAmbienceDirector.new()
 	director.ambient = DotAmbience.new()
 	director.follow_settings(null, a_game.ambient_rules)
@@ -481,7 +481,7 @@ func _test_ambient_cvars_reach_the_client() -> void:
 func _test_view_feel_and_packs_reach_the_client() -> void:
 	_section("the server's mp_vm_* and the map's packs reach a client")
 	var a: Dictionary = _clients["A"]
-	var a_game: ArenaGame = a["game"]
+	var a_game: FcGame = a["game"]
 	var link: DotClientLink = a["link"]
 	var held := link.replicated_cvar("mp_vm_sway", "")
 	_check(held != "" and is_equal_approx(a_game.feel_rules.sway, held.to_float()),
@@ -500,7 +500,7 @@ func _test_view_feel_and_packs_reach_the_client() -> void:
 	# signon does (one DROP each, from the server's bridge) and see them known, through the loss.
 	var out: int = _game.drops.packs_available() if _game != null and _game.drops != null else -1
 	for pack in _game.drops.packs_out():
-		_module().bridge.send_event(_peer_of("A"), ArenaEvents.Kind.DROP, ArenaEvents.write_drop(
+		_module().bridge.send_event(_peer_of("A"), FcEvents.Kind.DROP, FcEvents.write_drop(
 			int(pack["id"]), int(pack["kind"]), int(pack["value"]), pack["at"], pack["at"]))
 	_check(out > 0 and await _until(func() -> bool: return a_game.drops.known_count() >= out, RELIABLE_SECONDS),
 		"A was told every pack that is out (%d)" % out, "A knows %d" % a_game.drops.known_count())
@@ -509,13 +509,13 @@ func _test_view_feel_and_packs_reach_the_client() -> void:
 
 ## A's side of every delivery check: what it was told, collected for the sections.
 func _listen_as_a(a: Dictionary) -> void:
-	var a_game: ArenaGame = a["game"]
-	a_game.player_added.connect(func(p: ArenaPlayer) -> void: _a_saw_added.append(p.player_id))
-	(a["bridge"] as ArenaNetBridge).notice_received.connect(func(text: String) -> void:
+	var a_game: FcGame = a["game"]
+	a_game.player_added.connect(func(p: FcPlayer) -> void: _a_saw_added.append(p.player_id))
+	(a["bridge"] as FcNetBridge).notice_received.connect(func(text: String) -> void:
 		if text.begins_with("seq-"):
 			_got_notices.append(text)
 	)
-	(a["bridge"] as ArenaNetBridge).kill_received.connect(func(info: Dictionary) -> void:
+	(a["bridge"] as FcNetBridge).kill_received.connect(func(info: Dictionary) -> void:
 		_got_kills.append("%d>%d" % [int(info["killer_id"]), int(info["victim_id"])])
 	)
 	(a["link"] as DotClientLink).chat_received.connect(func(payload: Dictionary) -> void:
@@ -631,7 +631,7 @@ func _connect_everyone() -> bool:
 	if not await _check_box_pace(first, a, first_in_time):
 		return false
 
-	var a_game: ArenaGame = a["game"]
+	var a_game: FcGame = a["game"]
 	_listen_as_a(a)
 
 	var b := await _connect_client("B", _server.config.effective_enet_port())

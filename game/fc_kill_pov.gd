@@ -1,0 +1,219 @@
+extends RefCounted
+
+## What a kill view records of the killer's screen beyond the camera: held weapon, ADS, shots, ammo, spread, hits.
+
+const Roles := preload("fc_weapon_roles.gd")
+const CHANNEL := "arena.killpov"
+const HITS_META := &"kill_pov_hits"
+const RECOIL_META := &"kill_pov_recoil"
+const REPLAY_META := &"fc_replay_camera"
+## How far behind the eye the clearance sweep starts, and the lens sphere it sweeps.
+const CLEAR_BACK := 0.6
+const CLEAR_RADIUS := 0.12
+## How far out of a solid an eye sunk in it may be moved (metres), and the directions tried at each step.
+const CLEAR_STEP_OUT := 1.2
+const CLEAR_WAYS := 16
+
+## Aux slots, in the order [DotKillViewRing] records them; SIZE is the contract with the ring's AUX.
+const WEAPON := 0
+const ADS := 1
+const FIRE_SEQ := 2
+const FIRE_KIND := 3
+const MAG := 4
+const RESERVE := 5
+const SPREAD := 6
+const HITS := 7
+const KICK_PITCH := 8
+const KICK_YAW := 9
+const FLAGS := 10
+const SPEED := 11
+const SIZE := 12
+
+## Bits of FLAGS.
+const GROUNDED := 1
+const CROUCHED := 2
+const SIGNED := 4
+
+const FOV_META := &"kill_pov_fov"
+## What a killer whose setting never reached the server is drawn with: the addon's default, 100 at 4:3 as a vertical lens.
+const DEFAULT_FOV := 83.6
+## The horizontal-at-4:3 settings a client may name (the settings slider's range, with room).
+const FOV_MIN := 40.0
+const FOV_MAX := 160.0
+
+static var _ids: Dictionary = {}
+static var _ids_generation := -1
+## [method aux_of_tick]'s readings for the physics tick [member _tick_frame], by instance id.
+static var _tick_aux: Dictionary = {}
+static var _tick_frame := -1
+
+
+## Marks [param cam] as showing a replay (the kill view or final killcam) while the view draws it.
+static func mark_replay_camera(cam: Camera3D, on: bool) -> void:
+	if cam != null and is_instance_valid(cam):
+		cam.set_meta(REPLAY_META, on)
+
+
+## Whether [param cam] is a replay camera right now: the world drawn through it is a past moment.
+static func is_replay_camera(cam: Camera3D) -> bool:
+	return cam != null and bool(cam.get_meta(REPLAY_META, false))
+
+
+## Where a replay eye may sit: [param eye] itself when a small sphere there is clear, else pulled back along
+## [param forward] until it is, so the lens never ends inside a crate or against a wall the recording stood beside.
+static func clear_eye(space: PhysicsDirectSpaceState3D, eye: Vector3, forward: Vector3, mask: int) -> Vector3:
+	var f := forward.normalized()
+	var back := eye - f * CLEAR_BACK
+	var along := DotCameraProbe.clear_length(space, back, eye, CLEAR_RADIUS, mask)
+	var placed := back + f * along
+	if not DotCameraProbe.is_inside(space, placed, CLEAR_RADIUS, mask):
+		return placed
+	return step_out(space, eye, f, mask, placed)
+
+
+## An eye sunk in a solid sideways or deeper than [constant CLEAR_BACK] (a recording that cut a corner, a body
+## pressed into a wall): the nearest clear spot around it, behind the eye first, then the sides, then above, out to
+## [constant CLEAR_STEP_OUT] metres; [param fallback] when nothing that near is clear. Only runs when the swept lens
+## is still inside, so a clear eye costs nothing more.
+static func step_out(space: PhysicsDirectSpaceState3D, eye: Vector3, forward: Vector3, mask: int, fallback: Vector3) -> Vector3:
+	var flat := Vector3(forward.x, 0.0, forward.z)
+	flat = flat.normalized() if flat.length() > 0.001 else Vector3.FORWARD
+	var ways: Array[Vector3] = []
+	for i in CLEAR_WAYS:
+		ways.append(-flat.rotated(Vector3.UP, TAU * float(i) / float(CLEAR_WAYS)))
+	# Behind the eye first: the side the killer stood on.
+	ways.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.dot(-flat) > b.dot(-flat))
+	ways.append(Vector3.UP)
+	var reach := CLEAR_RADIUS
+	while reach <= CLEAR_STEP_OUT + 0.001:
+		for way: Vector3 in ways:
+			var at := eye + way * reach
+			if not DotCameraProbe.is_inside(space, at, CLEAR_RADIUS, mask):
+				return at
+		reach += CLEAR_RADIUS
+	return fallback
+
+
+## The twelve aux floats for [param p] (layout in [DotKillViewRing]): weapon, ads, fire count, reload, mag, reserve,
+## spread, hits, the last shot's recoil pitch and yaw (0 when this end never saw the outcome), flags, ground speed.
+## [param size] is the ring's AUX; a shorter ring (an older dot-replay) gets the slots it has, never an out-of-range write.
+static func aux_of(p: Object, size: int = DotKillViewRing.AUX) -> PackedFloat32Array:
+	var full := _aux_full(p)
+	full.resize(size)
+	return full
+
+
+## [method aux_of], read at most once per physics tick per player: the kill view's eye list reads it fresh ([param fresh], every game tick, however many a physics frame runs) and keeps it; the killcam's body recording
+## (every drawn frame) reuses that reading, as the aux only changes inside a tick. The returned array is shared until the next tick: copy it before writing to it.
+static func aux_of_tick(p: Object, size: int = DotKillViewRing.AUX, fresh := false) -> PackedFloat32Array:
+	if p == null or size != SIZE:
+		return aux_of(p, size)
+	var frame := Engine.get_physics_frames()
+	if frame != _tick_frame:
+		_tick_frame = frame
+		_tick_aux.clear()
+	var key := p.get_instance_id()
+	var hit: Variant = null if fresh else _tick_aux.get(key)
+	if hit != null:
+		return hit
+	var full := _aux_full(p)
+	_tick_aux[key] = full
+	return full
+
+
+static func _aux_full(p: Object) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(SIZE)
+	if p == null:
+		return out
+	var arsenal: Variant = p.get(&"arsenal")
+	var weapons: Variant = p.get(&"weapons")
+	var id := StringName(p.get(&"mirror_weapon")) if bool(p.get(&"mirrored")) else &""
+	if arsenal != null and arsenal.current() != null:
+		var slot: Variant = arsenal.current()
+		id = slot.def.id
+		out[MAG] = float(slot.magazine) if slot.def.magazine > 0 else 0.0
+		out[RESERVE] = float(arsenal.ammo().count(slot.def.ammo_type)) if slot.def.ammo_type != &"" else 0.0
+		out[SPREAD] = float(p.call(&"spread_degrees"))
+	out[WEAPON] = float(int(String(id).hash() & 0xFFFFFF)) if id != &"" else 0.0
+	out[ADS] = 1.0 if bool(p.get(&"aim_held")) else 0.0
+	if bool(p.get(&"mirrored")):
+		out[FIRE_SEQ] = float(int(p.get(&"mirror_fire_seq")) % 4096)
+		out[FIRE_KIND] = float(int(p.get(&"mirror_fire_kind")))
+	elif weapons != null:
+		out[FIRE_SEQ] = float(int(weapons.fire_seq) % 4096)
+		out[FIRE_KIND] = float(int(weapons.fire_kind))
+		_watch_recoil(weapons as Object)
+		var kick: Vector3 = (weapons as Object).get_meta(RECOIL_META, Vector3.ZERO)
+		out[KICK_PITCH] = kick.x
+		out[KICK_YAW] = kick.y
+		out[FLAGS] = SIGNED if kick.z > 0.0 else 0
+	out[HITS] = float(int(p.get_meta(HITS_META, 0)) % 4096)
+	var controller: Variant = p.get(&"controller")
+	if controller is DotFpsController and (controller as DotFpsController).state != null:
+		var st := (controller as DotFpsController).state
+		out[FLAGS] += (GROUNDED if st.is_grounded() else 0) + (CROUCHED if st.is_crouched() else 0)
+		out[SPEED] = st.horizontal_speed()
+	return out
+
+
+## Keeps the rig's last shot's recoil (pitch, yaw, signed) where [method aux_of] reads it: the per-weapon
+## recoil model's own output, wherever the outcome is decided (the server, the local player).
+static func _watch_recoil(rig: Object) -> void:
+	if rig.has_meta(RECOIL_META) or not rig.has_signal(&"used"):
+		return
+	rig.set_meta(RECOIL_META, Vector3.ZERO)
+	rig.connect(&"used", func(outcome: Object) -> void:
+		var r: Variant = outcome.get(&"recoil")
+		if r is Vector2 and (r as Vector2).is_finite():
+			rig.set_meta(RECOIL_META, Vector3(r.x, r.y, 1.0 if bool(outcome.get(&"recoil_signed")) else 0.0)))
+
+
+## Counts a confirmed hit against its attacker, so the replay can flash the crosshair when it lands.
+static func count_hit(attacker: int, _victim: int, _amount: float, _point: Vector3, _headshot: bool, _lethal: bool, game: Node) -> void:
+	var who: Object = game.call(&"player_for", attacker)
+	if who != null:
+		who.set_meta(HITS_META, int(who.get_meta(HITS_META, 0)) + 1)
+
+
+## Counts hits on [param game] once, however many kill views ask.
+static func watch_hits(game: Node) -> void:
+	if not game.has_meta(HITS_META):
+		game.set_meta(HITS_META, true)
+		game.connect(&"hit_confirmed", func(a: int, v: int, n: float, at: Vector3, h: bool, l: bool) -> void: count_hit(a, v, n, at, h, l, game))
+
+
+## Keeps the field of view [param degrees] (horizontal at 4:3, as the setting is) a client reported for [param p].
+static func note_field_of_view(p: Object, degrees: float) -> void:
+	if p != null and degrees >= FOV_MIN and degrees <= FOV_MAX:
+		p.set_meta(FOV_META, degrees_to_vertical(degrees))
+
+
+## The vertical field of view a horizontal one at 4:3 makes, as the camera is set.
+static func degrees_to_vertical(horizontal_at_4_3: float) -> float:
+	return rad_to_deg(2.0 * atan(tan(deg_to_rad(clampf(horizontal_at_4_3, FOV_MIN, FOV_MAX) * 0.5)) * 0.75))
+
+
+## The killer's own lens, unzoomed (the replay applies the aim zoom itself): what its client reported, the local
+## player's camera setting where this end draws it, else the default.
+static func fov_of(p: Object) -> float:
+	if p == null:
+		return DEFAULT_FOV
+	if p.has_meta(FOV_META):
+		return float(p.get_meta(FOV_META))
+	if p.get(&"camera") != null:
+		var base: Variant = p.get(&"_base_fov")
+		if base is float and base > 0.0:
+			return base
+	return DEFAULT_FOV
+
+
+## The weapon id an aux hash names, or empty.
+static func weapon_of(hash_value: float) -> StringName:
+	Roles.ensure()
+	if _ids.is_empty() or _ids_generation != Roles.generation:
+		_ids_generation = Roles.generation
+		_ids.clear()
+		for k: Variant in AwWeaponArtTable.table().keys():
+			_ids[int(String(k).hash() & 0xFFFFFF)] = StringName(k)
+	return _ids.get(int(hash_value), &"")

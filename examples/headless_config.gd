@@ -1,16 +1,16 @@
 extends DotGameCheckSuite
 
-## ArenaConfig through DotGameConfigBinder: fields, cvars, the horde reading them, strict refusal, the diff.
+## FcConfig through DotGameConfigBinder: fields, cvars, the horde reading them, strict refusal, the diff.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_config.tscn
 ## [/codeblock]
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaHorde := preload("../game/arena_horde.gd")
-const ArenaAmbience := preload("../game/arena_ambience.gd")
-const ArenaConfig := preload("../game/arena_config.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcHorde := preload("../game/fc_horde.gd")
+const FcAmbience := preload("../game/fc_ambience.gd")
+const FcConfig := preload("../game/fc_config.gd")
+const FcMap := preload("../maps/fc_map.gd")
 ## One directory per suite process (the probe child is handed its parent's): user:// is shared by
 ## every copy of this project on a box, and two suites at once wrote and deleted each other's cfg files.
 const ROOT_ARG := "--cfgroot="
@@ -32,7 +32,7 @@ func _root() -> String:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with(ROOT_ARG):
 			return a.substr(ROOT_ARG.length())
-	return "user://arena_cfgtest_%d" % OS.get_process_id()
+	return "user://fc_cfgtest_%d" % OS.get_process_id()
 
 
 func _run() -> void:
@@ -40,8 +40,8 @@ func _run() -> void:
 		_probe()
 		return
 	print("arena: config binder")
-	var game := ArenaGame.new()
-	var binder := ArenaConfig.make_binder(game.config)
+	var game := FcGame.new()
+	var binder := FcConfig.make_binder(game.config)
 	binder.strict = true
 	_check(binder.load_layers().ok, "defaults load")
 	_check(binder.schema().size() == 56 and binder.diff().is_empty(), "56 fields, no diff at the code defaults")
@@ -51,7 +51,7 @@ func _run() -> void:
 	_check(console.get_int("fc_horde_cap") == 36, "cvar starts at the default")
 	console.set_cvar("fc_horde_cap", "12")
 	_check(game.config.horde_cap == 12 and binder.source_of("horde_cap") == "cvar", "cvar writes the field")
-	var horde := ArenaHorde.new()
+	var horde := FcHorde.new()
 	horde.game = game
 	var rules: DotNpcDirectorRules = horde._rules()
 	_check(rules.absolute_cap == 12 and rules.spawn_burst == 3, "the horde's rules read the config")
@@ -59,7 +59,7 @@ func _run() -> void:
 	console.set_cvar("fc_surf_volume", "1.5")
 	var surf := DotAudioSurfRules.new()
 	_check(surf.apply_values(game.config.surf_values()) == 7 and is_equal_approx(surf.volume, 1.5), "the surf profile keys reach the rules")
-	_check(ArenaConfig.new().surf_values()["volume"] == 0.6 and surf.mute_steps, "surf defaults match dot-audio's")
+	_check(FcConfig.new().surf_values()["volume"] == 0.6 and surf.mute_steps, "surf defaults match dot-audio's")
 	game.config.horde_spawn_max_distance = 5.0
 	_check(not game.config.validate().ok, "validate refuses max <= min distance")
 	_check(not binder.check_map("dm_nowhere", ["dm_box"]).ok, "strict: an unknown map is refused")
@@ -75,7 +75,7 @@ func _run() -> void:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	game.setup(ArenaMap.dm_box())
+	game.setup(FcMap.dm_box())
 	game.add_player(1, "A")
 	_check(game.player_for(1).health.max_health == 150.0, "a new player has the configured health")
 	_falls(game)
@@ -83,7 +83,7 @@ func _run() -> void:
 	_check(game.match_node.rules.respawn_delay_sec == 7.0, "the respawn delay overrides the mode's")
 	game._sync_award_config()
 	_check(game.medals.nemesis_at == 5, "the medal book reads the award thresholds")
-	var schema_path := OS.get_cache_dir().path_join("arena_schema_check.json")
+	var schema_path := OS.get_cache_dir().path_join("fc_schema_check.json")
 	_check(binder.write_schema(schema_path).ok, "write_schema writes the schema")
 	DirAccess.remove_absolute(schema_path)
 	_stats_keys(game)
@@ -96,7 +96,7 @@ func _run() -> void:
 
 
 ## sv_falldamage: the controller's landed(impact) is what the component hears.
-func _falls(game: ArenaGame) -> void:
+func _falls(game: FcGame) -> void:
 	_begin()
 	var faller := game.player_for(1)
 	var fall := faller.get_node_or_null("FallDamage") as DotFallDamage
@@ -130,7 +130,7 @@ class _Member extends RefCounted:
 
 
 ## Stats go under dot-game's stable per-server key once a session is known, the seat's key without one.
-func _stats_keys(game: ArenaGame) -> void:
+func _stats_keys(game: FcGame) -> void:
 	_begin()
 	var p := game.progress
 	if not _check(p != null, "the authority keeps progress"):
@@ -145,14 +145,14 @@ func _stats_keys(game: ArenaGame) -> void:
 	_check(key.length() == 22 and not key.begins_with("backbone:"), "a member is filed under a scoped pseudonym", key)
 	_check(p._id_from_key(key) == 2, "and the key maps back to the player")
 	p.session_fn = Callable()
-	_check(p._key_of(3) == ArenaGame.storage_key(3), "with no session, the seat's key")
+	_check(p._key_of(3) == FcGame.storage_key(3), "with no session, the seat's key")
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(file))
 	_end()
 
 
 func _probe() -> void:
-	var config := ArenaConfig.new()
-	var binder := ArenaConfig.make_binder(config)
+	var config := FcConfig.new()
+	var binder := FcConfig.make_binder(config)
 	binder.strict = true
 	binder.roots = PackedStringArray([ProjectSettings.globalize_path(ROOT)])
 	var loaded := binder.load_layers()
@@ -201,7 +201,7 @@ func _layers() -> void:
 	_end()
 
 
-## The shipped cfg files hold every key, in step with ArenaConfig, and change nothing as they are.
+## The shipped cfg files hold every key, in step with FcConfig, and change nothing as they are.
 func _templates(binder: DotGameConfigBinder) -> void:
 	_begin()
 	var files := binder.template_files()
@@ -247,7 +247,7 @@ func _workbench(binder: DotGameConfigBinder, game: Node) -> void:
 	var console := DotConsole.new()
 	add_child(console)
 	var _bound: Variant = game.ambient_rules.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, DotConVar.FLAG_ARCHIVE)
-	var ambient := DotGameWorkbench.cvar_set(console, ArenaAmbience.cvar_types(), "ambience")
+	var ambient := DotGameWorkbench.cvar_set(console, FcAmbience.cvar_types(), "ambience")
 	_check(ambient != null and ambient.schema.size() >= 4, "the fc_ambient* cvars make a workbench set")
 	wb.api.add_set(ambient)
 	DotGameWorkbench.bind_cvar_set(ambient, wb.api.runtime, console)
@@ -255,8 +255,8 @@ func _workbench(binder: DotGameConfigBinder, game: Node) -> void:
 	_check(amb.ok and is_equal_approx(console.get_float("fc_ambient_volume"), 0.2), "an edit of the ambience set moves the cvar")
 	wb.free()
 	console.free()
-	_check(int(ProjectSettings.get_setting("physics/common/physics_ticks_per_second")) == ArenaGame.DEFAULT_TICK_RATE, "project.godot's physics rate is ArenaGame.DEFAULT_TICK_RATE")
-	_check(game.config.tick_rate == ArenaGame.DEFAULT_TICK_RATE and ArenaGame.snapshot_rate_for(ArenaGame.DEFAULT_TICK_RATE) == 33, "the config default is the one rate and its snapshot rate is whole ticks")
+	_check(int(ProjectSettings.get_setting("physics/common/physics_ticks_per_second")) == FcGame.DEFAULT_TICK_RATE, "project.godot's physics rate is FcGame.DEFAULT_TICK_RATE")
+	_check(game.config.tick_rate == FcGame.DEFAULT_TICK_RATE and FcGame.snapshot_rate_for(FcGame.DEFAULT_TICK_RATE) == 33, "the config default is the one rate and its snapshot rate is whole ticks")
 	_end()
 
 

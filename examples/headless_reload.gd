@@ -7,18 +7,18 @@ extends DotGameCheckSuite
 ## the module twice, then joins a real client and asks for the HELLO, which is a server RPC.
 ## [DotGameLink] is the fix; break it (a bare `add_child` in `open_link`) and this fails.
 
-const ArenaEvents := preload("../game/arena_events.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaModule := preload("../game/arena_module.gd")
-const ArenaNetBridge := preload("../game/arena_net_bridge.gd")
-const ArenaNetLink := preload("../game/arena_net_link.gd")
-const ArenaTestPorts := preload("test_ports.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcModule := preload("../game/fc_module.gd")
+const FcNetBridge := preload("../game/fc_net_bridge.gd")
+const FcNetLink := preload("../game/fc_net_link.gd")
+const FcTestPorts := preload("test_ports.gd")
 
-var PORT := ArenaTestPorts.free_port()
+var PORT := FcTestPorts.free_port()
 const DATA := "user://arena_reload"
 const TICK_RATE := 64
-const MODULE := "res://game/arena_module.gd"
+const MODULE := "res://game/fc_module.gd"
 const SECTIONS := 3
 const CHECKS := 11
 
@@ -27,7 +27,7 @@ var _completed := 0
 
 var _server_side: Node = null
 var _server: DotServer = null
-var _game: ArenaGame = null
+var _game: FcGame = null
 
 
 func _ready() -> void:
@@ -69,8 +69,8 @@ func _until(condition: Callable, seconds: float) -> bool:
 	return bool(condition.call())
 
 
-func _module() -> ArenaModule:
-	return _server.modules.get_module("arena") as ArenaModule
+func _module() -> FcModule:
+	return _server.modules.get_module("arena") as FcModule
 
 
 ## What a reload resets: no quota bots, or one could meet the client and change the section.
@@ -87,7 +87,7 @@ func _boot() -> bool:
 	add_child(_server_side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), _server_side.get_path())
 
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -95,7 +95,7 @@ func _boot() -> bool:
 	_game.headless = true
 	_game.register_service = true
 	_server_side.add_child(_game)
-	if not _check(_game.setup(ArenaMap.dm_box()).ok, "the arena sets up"):
+	if not _check(_game.setup(FcMap.dm_box()).ok, "the arena sets up"):
 		_done()
 		return false
 
@@ -125,7 +125,7 @@ func _boot() -> bool:
 	if not _check(booted.ok, "the server boots on %d" % PORT, str(booted.error)):
 		_done()
 		return false
-	ArenaModule.punishments_file = "%s/punishments.json" % DATA
+	FcModule.punishments_file = "%s/punishments.json" % DATA
 	var loaded: DotResult = await _server.modules.load_module(MODULE)
 	_check(loaded.ok, "the module loads", str(loaded.error))
 	_done()
@@ -135,7 +135,7 @@ func _boot() -> bool:
 func _links() -> int:
 	var count := 0
 	for child in _server.get_children():
-		if child is ArenaNetLink:
+		if child is FcNetLink:
 			count += 1
 	return count
 
@@ -149,8 +149,8 @@ func _test_reload() -> void:
 	await get_tree().process_frame
 	_quiet_the_bots()
 	var links := _links()
-	_check(links == 1 and _server.has_node(NodePath(String(ArenaNetLink.NODE_NAME))),
-		"exactly one link, named %s (%d)" % [ArenaNetLink.NODE_NAME, links])
+	_check(links == 1 and _server.has_node(NodePath(String(FcNetLink.NODE_NAME))),
+		"exactly one link, named %s (%d)" % [FcNetLink.NODE_NAME, links])
 	_done()
 
 
@@ -175,13 +175,13 @@ func _test_client_hears_the_server() -> void:
 		return
 	DotGameClient.report_cover(link, false)
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "Game"
 	game.is_authority = false
 	game.headless = true
 	game.register_service = false
 	side.add_child(game)
-	game.setup(ArenaMap.dm_box())
+	game.setup(FcMap.dm_box())
 	var net := DotNetManager.new()
 	net.name = "Net"
 	net.is_server = false
@@ -191,15 +191,15 @@ func _test_client_hears_the_server() -> void:
 	net.config_file = ""
 	var cfg := DotNetConfig.new()
 	cfg.tick_rate = game.tick_rate
-	cfg.snapshot_rate = ArenaGame.NET_SNAPSHOT_RATE
+	cfg.snapshot_rate = FcGame.NET_SNAPSHOT_RATE
 	cfg.enable_prediction = true
 	cfg.enable_lag_compensation = false
 	cfg.max_entities_per_snapshot = 64
-	cfg.world_extent = ArenaGame.NET_WORLD_EXTENT
+	cfg.world_extent = FcGame.NET_WORLD_EXTENT
 	net.config = cfg
 	side.add_child(net)
 	net.setup()
-	var bridge := ArenaNetBridge.new()
+	var bridge := FcNetBridge.new()
 	bridge.name = "Bridge"
 	side.add_child(bridge)
 	bridge.attach(game, net)
@@ -208,7 +208,7 @@ func _test_client_hears_the_server() -> void:
 	var hello := [0]
 	bridge.hello_received.connect(func(info: Dictionary) -> void: hello[0] = int(info["session_id"]))
 	net.start()
-	bridge.send_request(ArenaEvents.Ask.READY)
+	bridge.send_request(FcEvents.Ask.READY)
 	var heard := await _until(func() -> bool: return hello[0] != 0, 20.0)
 	_check(heard, "the client hears the server's HELLO over the reloaded link")
 	_check(_links() == 1, "and there is still exactly one link under the server (%d)" % _links())

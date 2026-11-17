@@ -1,7 +1,7 @@
 #!/bin/bash
-# Publishes this game's pack (id game-fatal-contact, bare: the site adds the owner from the token). Addons are host-owned (the client shell and servers carry them, arena-weapons included),
+# Publishes this game's pack (id game-fatal-contact, bare: the site adds the owner from the token). Addons are host-owned (the client shell and servers carry them, fc-weapons included),
 # so they are left out. Examples, tests, tools, docs and README art are not runtime content.
-# Map content ships as its own packs (arena-surf-dm-maps, arena-dm-maps: one per map, named by a server or solo-listed), never in this
+# Map content ships as its own packs (fc-surf-dm-maps, fc-dm-maps: one per map, named by a server or solo-listed), never in this
 # one: MAP_LINKS are the links dot-bootstrap makes to those repositories (every `# bootstrap-link:` path in .gitignore), about 430 MiB.
 # A gitignore line without a trailing slash does not hide them from the publisher, and heavy publishes from a copy with links resolved,
 # so they are named here. headless_delivered fails when a link in .gitignore is missing from MAP_LINKS.

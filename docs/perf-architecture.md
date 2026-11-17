@@ -42,7 +42,7 @@ The client has one busy thread (main). The render thread is the main thread (`re
 | `arena.net_snapshot` | 0.5-0.8 | decoding snapshots |
 | `arena.c_rest`, `c_killcam`, `hud`, `c_spectate`, `c_flashlights` | 1.2 | the rest of the client |
 | engine physics outside game code | 1.7 | GodotPhysics step: ragdolls, drops, 135 GPU particle nodes' physics notification |
-| process phase outside arena spans | about 1.0 | 50-odd singletons' `_process`, skeleton flushes |
+| process phase outside Fatal Contact spans | about 1.0 | 50-odd singletons' `_process`, skeleton flushes |
 
 The process phase split (`--proc-split 1`, wall clock, n=2): early flush 0.52, `_process` pass 6.5-6.7, late flush (Skeleton3D pose updates) 0.62-0.65, transform notifications to pre-draw 0.24.
 
@@ -54,7 +54,7 @@ The process phase split (`--proc-split 1`, wall clock, n=2): early flush 0.52, `
 
 ### (a) Scene-tree cost
 
-4120 nodes is not the cost by itself: transform notifications to pre-draw are 0.24 ms and the early flush 0.52 ms. The cost is per-node *script*: 46 humanoid figures and about 60 effect nodes each with a GDScript `_process`, and the per-body work in `arena.bodies`. The about 1 ms of process phase outside arena spans at 0 bots is the singletons and engine flushes; worth one profile with `profiler_script_top` under the debugger before any change.
+4120 nodes is not the cost by itself: transform notifications to pre-draw are 0.24 ms and the early flush 0.52 ms. The cost is per-node *script*: 46 humanoid figures and about 60 effect nodes each with a GDScript `_process`, and the per-body work in `arena.bodies`. The about 1 ms of process phase outside Fatal Contact spans at 0 bots is the singletons and engine flushes; worth one profile with `profiler_script_top` under the debugger before any change.
 
 ### (b) Skinning and animation
 
@@ -75,7 +75,7 @@ The render phase is 1.57 ms of the 12.9 ms frame (1.02 ms of it `render_cpu`) an
 - `--ablate no3d` (no 3D drawn): p50 -1.77 ms; render phase 1.53 to 0.82, `render_cpu` 0.98 to 0.40, GPU 2.71 to 0.56, and the physics phase 0.64 lower. So all of 3D drawing costs the main thread about 1-1.8 ms.
 - `--res 640x360` (a ninth of the pixels): no change (GPU 2.68 ms, p50 within noise). The game is not fill-bound, so **MSAA (4x, `DotGameRenderQuality`) and shadow resolution are not where the frame goes**: lowering them buys no client fps on this box. Shadows: 383 shadow-casting meshes but one shadowed light; the cost is draw submission on the CPU, counted in the 1.0 ms `render_cpu`.
 
-**A separate render thread (`rendering/driver/threads/thread_model=2`) is not usable on Godot 4.7.2**: the bench run crashed (exit 139) after a sky shader compile race (`arena_sky.gdshader` interleaved with the engine's sky shader: "Expected a ';'"), `RenderingDevice.finalize` "can only be called from the render thread", and 11504 warnings that `particles_is_inactive` forces a RenderingServer sync every frame (dot-fx `dot_muzzle_flash.gd:90`, from `aw_shot_fx_flash._pack_flash`). Even without the crash those syncs would serialise the two threads. The most the render thread could win is the 1.0-1.5 ms of render CPU on main; it needs the engine's threaded model to mature and dot-fx to stop polling particles.
+**A separate render thread (`rendering/driver/threads/thread_model=2`) is not usable on Godot 4.7.2**: the bench run crashed (exit 139) after a sky shader compile race (`fc_sky.gdshader` interleaved with the engine's sky shader: "Expected a ';'"), `RenderingDevice.finalize` "can only be called from the render thread", and 11504 warnings that `particles_is_inactive` forces a RenderingServer sync every frame (dot-fx `dot_muzzle_flash.gd:90`, from `aw_shot_fx_flash._pack_flash`). Even without the crash those syncs would serialise the two threads. The most the render thread could win is the 1.0-1.5 ms of render CPU on main; it needs the engine's threaded model to mature and dot-fx to stop polling particles.
 
 ### (f) Bench pacing and vsync
 
@@ -92,8 +92,8 @@ Saved ms are at 32 players, sim host, client frame of 12.9 ms p50. Effort: S sma
 | 3 | Unattributed process (about 1.0 ms of singletons and effects' `_process`) and engine physics (1.7 ms: ragdolls, 135 particle nodes) | 1-2 ms (estimate, profile first) | M | game-fatal-contact, fc-weapons, dot-fx | `perf-unattributed-process-1` |
 | 4 | Separate render thread, once safe: needs the engine fixes above and dot-fx's muzzle flash to stop calling `particles_is_inactive` | 1.0-1.5 ms (render CPU on main) | M, blocked | dot-fx, engine | `perf-render-thread-1` |
 | 5 | Server: native player row and bots (10.7 of 15.15 ms a tick at 32) | server headroom, not client fps | L | dot-player-controller, dot-bot | existing `simhost-sim-cost-1`, `simhost-native-player-row-1`, `perf-native-motor-2` |
-| 6 | Bench default `--sim-host 1`, and report the server's ms per tick | none; measures what ships | S | game-arena tools | `perf-bench-simhost-default-1` |
-| 7 | HUD portrait figures stop processing after their single render | under 0.1 ms | S | game-arena | `perf-portrait-figures-1` |
+| 6 | Bench default `--sim-host 1`, and report the server's ms per tick | none; measures what ships | S | game-fatal-contact tools | `perf-bench-simhost-default-1` |
+| 7 | HUD portrait figures stop processing after their single render | under 0.1 ms | S | game-fatal-contact | `perf-portrait-figures-1` |
 
 Not worth it on this evidence: MSAA, shadow resolution and render scale (the GPU is parallel and not fill-bound), and node count alone (0.24 ms of transform notifications for 4120 nodes).
 

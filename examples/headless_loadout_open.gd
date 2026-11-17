@@ -1,6 +1,6 @@
 extends Node
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 ## Pressing B costs no allocation worth a hitch: the weapon previews render through one shared
 ## viewport, so the first open after the prewarm makes no viewport or preview, and later opens
@@ -15,8 +15,8 @@ var _client: Node = null
 
 func _ready() -> void:
 	DotLog.set_level(DotLog.Level.ERROR)
-	var _scratch := ArenaPresentation.use_scratch_settings("headless_loadout_open")
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var _scratch := FcPresentation.use_scratch_settings("headless_loadout_open")
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	add_child(_client)

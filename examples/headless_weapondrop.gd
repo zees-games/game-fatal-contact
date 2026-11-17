@@ -1,13 +1,13 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaTestToys := preload("arena_test_toys.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaWeaponDropWiring := preload("../game/arena_weapon_drop_wiring.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaRoles := preload("../game/arena_weapon_roles.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcTestToys := preload("fc_test_toys.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcWeaponDropWiring := preload("../game/fc_weapon_drop_wiring.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcRoles := preload("../game/fc_weapon_roles.gd")
 
 ## Dropped weapons through the whole game: the drop key throws the gun in hand, the thrower's empty
 ## slot takes it back once the delay is up, a rule turns the key off, a kill leaves the dead player's
@@ -20,7 +20,7 @@ const ArenaRoles := preload("../game/arena_weapon_roles.gd")
 const TICK_RATE := 64
 const EXPECTED_CHECKS := 55
 
-const WeaponDropWiring := preload("../game/arena_weapon_drop_wiring.gd")
+const WeaponDropWiring := preload("../game/fc_weapon_drop_wiring.gd")
 
 
 class _StubCrosshair extends RefCounted:
@@ -61,7 +61,7 @@ func _press(down: bool, button: int = DotWeaponCommand.BUTTON_DROP) -> DotWeapon
 	return c
 
 
-func _step(game: ArenaGame, id: int, down: bool, ticks: int, button: int = DotWeaponCommand.BUTTON_DROP) -> void:
+func _step(game: FcGame, id: int, down: bool, ticks: int, button: int = DotWeaponCommand.BUTTON_DROP) -> void:
 	for _k in ticks:
 		game.tick({id: [DotFpsCommand.new(), _press(down, button)]})
 		await get_tree().physics_frame
@@ -75,14 +75,14 @@ func _meshes(node: Node) -> int:
 
 
 func _run() -> void:
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "G"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch()
+	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	var ready := game.setup(ArenaTestToys.give(ArenaMap.dm_atrium()))
+	var ready := game.setup(FcTestToys.give(FcMap.dm_atrium()))
 	_check(ready.ok, "a game sets up", str(ready.error))
 	game.start(0)
 	var _a := game.add_player(21, "A")
@@ -125,7 +125,7 @@ func _run() -> void:
 	await _run_part2(game, drops, player, rules)
 
 
-func _run_part2(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPlayer, rules: DotWeaponDropRules) -> void:
+func _run_part2(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules) -> void:
 	var held_id: StringName = player.arsenal.current().id()
 	rules.auto_pickup = true
 	await _step(game, 21, true, 1)
@@ -145,7 +145,7 @@ func _run_part2(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPlayer, rul
 
 	rules.auto_pickup = false
 	drops.draws = true
-	player.hold(ArenaContent.DEFAULT_SLOT)
+	player.hold(FcContent.DEFAULT_SLOT)
 	var gun = player.arsenal.current()
 	gun.magazine = 7
 	var gun_slot: int = gun.def.slot
@@ -166,7 +166,7 @@ func _run_part2(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPlayer, rul
 	var back_gun = player.arsenal.weapons_in(gun_slot)
 	_check(not back_gun.is_empty() and back_gun[0].magazine == 7, "with the magazine it lay with", str(back_gun[0].magazine if not back_gun.is_empty() else -1))
 
-	player.hold(ArenaContent.DEFAULT_SLOT)
+	player.hold(FcContent.DEFAULT_SLOT)
 	rules.pickup_radius = 0.0
 	await _step(game, 21, true, 1)
 	await _step(game, 21, false, 1)
@@ -178,13 +178,13 @@ func _run_part2(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPlayer, rul
 ## The second half of the weapon drop checks.
 
 
-func _run_end(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPlayer, rules: DotWeaponDropRules) -> void:
+func _run_end(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules) -> void:
 	var victim := game.player_for(22)
 	victim.controller.state.position = Vector3(30.0, victim.controller.state.position.y, 30.0)
 	await _run_middle(game, drops, player, rules)
 
 
-func _run_middle(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPlayer, rules: DotWeaponDropRules) -> void:
+func _run_middle(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules) -> void:
 	var before := drops.count()
 	var fatal := DotDamage.make(21, 22, 5000.0, game.combat.damage_type(&""))
 	game.combat.health_of(22).spawn_protection_ticks = 0
@@ -223,7 +223,7 @@ func _run_middle(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPlayer, ru
 	await _run_second(game, drops, player, rules, snap)
 
 
-func _run_second(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPlayer, rules: DotWeaponDropRules, snap: Dictionary) -> void:
+func _run_second(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules, snap: Dictionary) -> void:
 	_check(drops.active_count() > 0, "an explosion's sphere wakes it too")
 
 	var held_def: StringName = StringName(str((snap["state"] as Dictionary).get("id", "")))
@@ -309,7 +309,7 @@ func _check_shot_pools() -> void:
 	shot.queue_free()
 
 
-func _check_prewarm(game: ArenaGame, drops: DotWeaponDrops, snap: Dictionary, open_spot: Vector3) -> void:
+func _check_prewarm(game: FcGame, drops: DotWeaponDrops, snap: Dictionary, open_spot: Vector3) -> void:
 	# Pre-warm: bodies are parked under the loading cover, so the first throw builds no model.
 	var builds := [0]
 	var inner: Callable = drops.look_of
@@ -317,14 +317,14 @@ func _check_prewarm(game: ArenaGame, drops: DotWeaponDrops, snap: Dictionary, op
 		builds[0] += 1
 		return inner.call(w)
 	drops.draws = true
-	var ids: Array = ArenaWeaponDropWiring.prewarm_ids()
+	var ids: Array = FcWeaponDropWiring.prewarm_ids()
 	_check(ids.size() > 3, "the pre-warm walks every weapon with art", str(ids.size()))
 	var orphans_before := int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
 	# A weapon a player starts with is parked POOL_DEPTH deep, any other once.
 	var starters := 0
 	var single: StringName = &""
 	for id: StringName in ids:
-		if id in ArenaContent.default_loadout():
+		if id in FcContent.default_loadout():
 			starters += 1
 		elif single == &"":
 			single = id
@@ -332,8 +332,8 @@ func _check_prewarm(game: ArenaGame, drops: DotWeaponDrops, snap: Dictionary, op
 	for spare: Array in drops._parked.get(single, []):
 		(spare[0] as Node).free()
 	drops._parked.erase(single)
-	var want: int = ids.size() + starters * (ArenaWeaponDropWiring.POOL_DEPTH - 1)
-	var next := ArenaWeaponDropWiring.prewarm_step(game, ids, 0, Time.get_ticks_msec() + 60000)
+	var want: int = ids.size() + starters * (FcWeaponDropWiring.POOL_DEPTH - 1)
+	var next := FcWeaponDropWiring.prewarm_step(game, ids, 0, Time.get_ticks_msec() + 60000)
 	_check(next == ids.size() and builds[0] == want and single != &"", "one body is built per weapon under the cover, a starting weapon's pool deep", "%d of %d, %d builds, want %d" % [next, ids.size(), builds[0], want])
 	_check(int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)) - orphans_before >= ids.size(), "the bodies wait out of the tree")
 	var built_warm: int = builds[0]
@@ -346,7 +346,7 @@ func _check_prewarm(game: ArenaGame, drops: DotWeaponDrops, snap: Dictionary, op
 	_check(builds[0] == built_warm + 1, "a second drop beyond the parked body builds one (control)", "%d builds" % (builds[0] - built_warm))
 
 
-func _check_pickup_panel(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPlayer, rules: DotWeaponDropRules, snap: Dictionary) -> void:
+func _check_pickup_panel(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules, snap: Dictionary) -> void:
 	# The world panel: shown for a drop the player looks at, hidden out of reach.
 	drops.clear()
 	drops.rules.pickup_delay = 0.0
@@ -390,13 +390,13 @@ func _check_pickup_panel(game: ArenaGame, drops: DotWeaponDrops, player: ArenaPl
 
 func _check_railgun_slot() -> void:
 	# The railgun is primary-only: no catalogue path may put it anywhere else.
-	var rail: DotWeaponDef = ArenaContent.weapon_table().get(AwWeaponIds.CHARGE_RIFLE)
+	var rail: DotWeaponDef = FcContent.weapon_table().get(AwWeaponIds.CHARGE_RIFLE)
 	_check(rail != null and rail.slot == AwWeaponIds.SLOT_PRIMARY, "the railgun is defined in the primary slot", str(rail.slot if rail != null else -1))
-	_check(ArenaContent.weapon_catalogue().get_def(AwWeaponIds.CHARGE_RIFLE).slot == AwWeaponIds.SLOT_PRIMARY, "and the validated catalogue agrees")
-	for def in ArenaContent.weapons():
+	_check(FcContent.weapon_catalogue().get_def(AwWeaponIds.CHARGE_RIFLE).slot == AwWeaponIds.SLOT_PRIMARY, "and the validated catalogue agrees")
+	for def in FcContent.weapons():
 		if def.id == AwWeaponIds.CHARGE_RIFLE:
 			_check(def.slot == AwWeaponIds.SLOT_PRIMARY, "and the weapon list agrees")
-	_check(ArenaContent.loadout_slot_for(rail.slot) == &"primary", "and its loadout slot is primary")
+	_check(FcContent.loadout_slot_for(rail.slot) == &"primary", "and its loadout slot is primary")
 	for role in [&"melee", &"secondary", &"primary", &"heavy", &"thrown"]:
-		_check(role == &"primary" or ArenaRoles.resolve(role) != AwWeaponIds.CHARGE_RIFLE, "the %s role never resolves to the railgun" % role)
+		_check(role == &"primary" or FcRoles.resolve(role) != AwWeaponIds.CHARGE_RIFLE, "the %s role never resolves to the railgun" % role)
 

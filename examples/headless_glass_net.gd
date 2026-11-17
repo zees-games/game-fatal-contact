@@ -3,7 +3,7 @@ extends "lossy_base.gd"
 const EXPECTED_CHECKS := 14
 const MAP := &"crackhouse"
 
-## A pane the server's shot breaks breaks on a real client too: a real `DotServer` running `ArenaModule` and a real ENet client in one process (as headless_lossy), no loss. The server's game changes to a converted dm world, the client follows
+## A pane the server's shot breaks breaks on a real client too: a real `DotServer` running `FcModule` and a real ENet client in one process (as headless_lossy), no loss. The server's game changes to a converted dm world, the client follows
 ## it, a DotShot goes through the server game's `_resolve_shot`, and the client's copy of that pane (the same `model`) breaks from the PANE_BROKEN event alone: its own pane is not `authoritative`.
 
 
@@ -91,9 +91,9 @@ func _teardown() -> void:
 
 func _body(a: Dictionary) -> bool:
 	_section("the server breaks a pane and the client's copy breaks")
-	var a_game: ArenaGame = a["game"]
-	var map: ArenaMap = ArenaMap.by_id(MAP)
-	# A bare ArenaGame stands for the client: the real client loads the map itself (fetch, then `change_map`), the wire
+	var a_game: FcGame = a["game"]
+	var map: FcMap = FcMap.by_id(MAP)
+	# A bare FcGame stands for the client: the real client loads the map itself (fetch, then `change_map`), the wire
 	# carries only what happens in it.
 	if not _check(map != null and _game.change_map(map).ok and a_game.change_map(map).ok, "both ends move to crackhouse"):
 		_done()
@@ -142,7 +142,7 @@ func _body(a: Dictionary) -> bool:
 	_check(mine != null and not bool(mine.call(&"is_broken")), "the client has its copy of it, standing", "model %d" % model)
 
 	# The server hooks a pane on its next tick, as it does in a running game.
-	await _until(func() -> bool: return target.has_meta(&"arena_watched") and not target.get_signal_connection_list(&"broken").is_empty(), 5.0)
+	await _until(func() -> bool: return target.has_meta(&"fc_watched") and not target.get_signal_connection_list(&"broken").is_empty(), 5.0)
 	var shot := DotShot.new()
 	shot.origin = origin
 	shot.direction = dir

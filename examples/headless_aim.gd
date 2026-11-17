@@ -1,9 +1,9 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaBindings := preload("../game/arena_bindings.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcBindings := preload("../game/fc_bindings.gd")
 
 ## Hit registration end to end: a still target at 20, 40 and 80 m, the aim centred on its head, a scoped sniper
 ## fired. The shot must land on the head (a headshot, a confirmed hit), standing and crouched, on the first shot
@@ -19,7 +19,7 @@ const EXPECTED_CHECKS := 42
 
 var _checks := 0
 var _failed := 0
-var _game: ArenaGame = null
+var _game: FcGame = null
 var _hits: Array = []
 
 
@@ -41,7 +41,7 @@ func _now() -> int:
 
 
 func _boot() -> void:
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -50,7 +50,7 @@ func _boot() -> void:
 	_game.is_authority = true
 	_game.register_service = false
 	add_child(_game)
-	var map := ArenaMap.new()
+	var map := FcMap.new()
 	map.id = &"aim_lane"
 	map.display_name = "aim_lane"
 	map.extent = 150.0
@@ -107,7 +107,7 @@ func _trial(dist: float, crouch: bool, follow_up: bool) -> Dictionary:
 	for _i in 4:
 		await _step(0, 0.0, 0.0)
 	var eye := shooter.muzzle_position()
-	var head := victim.global_position + Vector3(0.0, 1.62 * ArenaPlayer.stand_height() / 1.8, 0.0)
+	var head := victim.global_position + Vector3(0.0, 1.62 * FcPlayer.stand_height() / 1.8, 0.0)
 	var a := angles_to(eye, head)
 	_hits.clear()
 	var aim := DotWeaponCommand.BUTTON_USER_0
@@ -163,7 +163,7 @@ func _run() -> void:
 	get_tree().quit(0 if ok else 1)
 
 
-func _select_sniper(shooter: ArenaPlayer) -> void:
+func _select_sniper(shooter: FcPlayer) -> void:
 	var _ok := shooter.arsenal.select(AwWeaponIds.big_gun_slot(), _now())
 
 
@@ -200,8 +200,8 @@ func _probe_buffer() -> void:
 func _wait_live(client: Node) -> bool:
 	for _i in 2400:
 		await get_tree().process_frame
-		var p: ArenaPlayer = client.get("player")
-		var g: ArenaGame = client.get("game")
+		var p: FcPlayer = client.get("player")
+		var g: FcGame = client.get("game")
 		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == DotMatch.State.LIVE:
 			for o in g.players():
 				if o != p and o.is_alive():
@@ -213,7 +213,7 @@ func _wait_live(client: Node) -> bool:
 func _clear_spot(space: PhysicsDirectSpaceState3D, at: Vector3) -> Vector3:
 	for k in 16:
 		var dir := Vector3.RIGHT.rotated(Vector3.UP, TAU * float(k) / 16.0)
-		var q := PhysicsRayQueryParameters3D.create(at + dir * 6.0 + Vector3(0.0, 1.6, 0.0), at + Vector3(0.0, ArenaPlayer.eye_height(), 0.0), 1)
+		var q := PhysicsRayQueryParameters3D.create(at + dir * 6.0 + Vector3(0.0, 1.6, 0.0), at + Vector3(0.0, FcPlayer.eye_height(), 0.0), 1)
 		if space.intersect_ray(q).is_empty():
 			return at + dir * 6.0
 	return Vector3.INF
@@ -222,7 +222,7 @@ func _clear_spot(space: PhysicsDirectSpaceState3D, at: Vector3) -> Vector3:
 func _probe_client() -> void:
 	_game.queue_free()
 	await get_tree().process_frame
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	add_child(client)
@@ -231,19 +231,19 @@ func _probe_client() -> void:
 	if not live:
 		client.queue_free()
 		return
-	var g: ArenaGame = client.get("game")
-	var me: ArenaPlayer = client.get("player")
-	var bot: ArenaPlayer = null
+	var g: FcGame = client.get("game")
+	var me: FcPlayer = client.get("player")
+	var bot: FcPlayer = null
 	for o in g.players():
 		if o != me and o.is_alive():
 			bot = o
 	var bots: Dictionary = client.get("_bots")
 	for id in bots:
-		var b: ArenaPlayer = bots[id]
+		var b: FcPlayer = bots[id]
 		b.set_meta(&"bot_scripted", true)
 		b.set_meta(&"bot_move", DotFpsCommand.new())
 		b.set_meta(&"bot_fire", DotWeaponCommand.new())
-	for act in [ArenaBindings.FIRE, ArenaBindings.AIM]:
+	for act in [FcBindings.FIRE, FcBindings.AIM]:
 		if not InputMap.has_action(act):
 			InputMap.add_action(act)
 	var sounds: Array = []
@@ -261,7 +261,7 @@ func _probe_client() -> void:
 
 
 ## One pass of [method _probe_client]: [param me] fires at the still [param bot], hip or scoped, and the hit, marker and sound are checked.
-func _shoot_bot(client: Node, g: ArenaGame, me: ArenaPlayer, bot: ArenaPlayer, audio: DotAudioManager, sounds: Array, asked: Array, scoped: bool) -> void:
+func _shoot_bot(client: Node, g: FcGame, me: FcPlayer, bot: FcPlayer, audio: DotAudioManager, sounds: Array, asked: Array, scoped: bool) -> void:
 	# The hip shot uses a rifle: the sniper's 8 degree hip cone (a missed shot at 6 m, now that the body is
 	# the 72 unit one and a third smaller in area) tests the weapon's inaccuracy, not that the shot registers.
 	var _fill := me.arsenal.give(AwWeaponIds.SNIPER if scoped else AwWeaponIds.RIFLE)
@@ -282,25 +282,25 @@ func _shoot_bot(client: Node, g: ArenaGame, me: ArenaPlayer, bot: ArenaPlayer, a
 	g.combat.health_of(bot.player_id).health = 100000.0
 	var sampler = client.get("_sampler")
 	if scoped:
-		Input.action_press(ArenaBindings.AIM)
+		Input.action_press(FcBindings.AIM)
 	for _i in 200:
 		await get_tree().process_frame
 		# Chest, not head: a hip shot leaves the muzzle and crosses the crosshair at hip_zero, so it lands a hand below the muzzle line and a head-height aim missed the capsule top.
-		var a := angles_to(me.muzzle_position(), bot.global_position + Vector3(0.0, 1.2 * ArenaPlayer.stand_height() / 1.8, 0.0))
+		var a := angles_to(me.muzzle_position(), bot.global_position + Vector3(0.0, 1.2 * FcPlayer.stand_height() / 1.8, 0.0))
 		sampler.look_at_angles(a.x, a.y)
 	var hud = client.get("hud")
 	_check(not scoped or me.aim_zoom() < 0.9, "client: the sights are up before the shot" if scoped else "client: hip fire")
 	_check(not scoped or is_equal_approx(float(me.get("_view_fov_scale")), 1.0), "client: with the scope lens (cl_scope_mode 1) the camera keeps the hip's field of view")
-	Input.action_press(ArenaBindings.FIRE)
+	Input.action_press(FcBindings.FIRE)
 	var marker := 0.0
 	for _i in 90:
 		await get_tree().process_frame
 		if hud != null and hud.hit_marker != null:
 			marker = maxf(marker, hud.hit_marker.alpha())
 		if not hits.is_empty() and _i > 3:
-			Input.action_release(ArenaBindings.FIRE)
-	Input.action_release(ArenaBindings.FIRE)
-	Input.action_release(ArenaBindings.AIM)
+			Input.action_release(FcBindings.FIRE)
+	Input.action_release(FcBindings.FIRE)
+	Input.action_release(FcBindings.AIM)
 	var tag := "scoped" if scoped else "hip"
 	_check(not hits.is_empty(), "client: a %s shot at a still bot registers" % tag, str(hits.size()))
 	_check(marker > 0.0, "client: the hit marker flashes (%s)" % tag, str(marker))

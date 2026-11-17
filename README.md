@@ -188,7 +188,7 @@ A player can be a name, `@me`, `@all`, `@others`, `@alive`, `@dead` or `@team:<n
 
 ### The map vote
 
-The next-map vote is [dot-vote](https://github.com/gamespice-platform/vote). The defaults (shown below) are in `game/arena_vote.gd`. To change them, create `user://cfg/arena_vote.json`, or use `DOT_VOTE_*` environment variables or `--vote-*` arguments:
+The next-map vote is [dot-vote](https://github.com/gamespice-platform/vote). The defaults (shown below) are in `game/fc_vote.gd`. To change them, create `user://cfg/arena_vote.json`, or use `DOT_VOTE_*` environment variables or `--vote-*` arguments:
 
 ```json
 { "end_vote": true, "vote_lead_sec": 120, "include_extend": true, "extend_seconds": 600, "max_extends": 3 }
@@ -218,11 +218,11 @@ The next-map vote is [dot-vote](https://github.com/gamespice-platform/vote). The
 
 | Path | What it does |
 | --- | --- |
-| `maps/arena_map.gd` | Builds each built-in map from a list of boxes: meshes, collision, and what a headless server checks shots against |
-| `maps/arena_bsp_map.gd`, `maps/arena_imported_maps.gd` | Find the combat surf maps and build them |
-| `game/arena_player.gd` | Movement, weapons, health and hitboxes on one body |
-| `game/arena_game.gd` | Joins the addons together, e.g. turns a kill into a point |
-| `game/arena_module.gd` | The dedicated-server side: cvars and console commands |
+| `maps/fc_map.gd` | Builds each built-in map from a list of boxes: meshes, collision, and what a headless server checks shots against |
+| `maps/fc_bsp_map.gd`, `maps/fc_imported_maps.gd` | Find the combat surf maps and build them |
+| `game/fc_player.gd` | Movement, weapons, health and hitboxes on one body |
+| `game/fc_game.gd` | Joins the addons together, e.g. turns a kill into a point |
+| `game/fc_module.gd` | The dedicated-server side: cvars and console commands |
 
 [`CLAUDE.md`](CLAUDE.md) has the reasoning behind each of these.
 

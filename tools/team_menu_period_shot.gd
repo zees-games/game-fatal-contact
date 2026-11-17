@@ -27,7 +27,7 @@ func _run() -> void:
 		root.add_child(menu)
 		var _t := menu.use_teams()
 	else:
-		client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+		client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 		root.add_child(client)
 		for f in 240:
 			await process_frame

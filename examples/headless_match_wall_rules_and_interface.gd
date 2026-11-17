@@ -2,7 +2,7 @@ extends "headless_match_climb_routes.gd"
 
 ## Every position and velocity of the north gallery's two wall routes, driven the
 ## intended way, as one hash.
-func _wall_trace(map: ArenaMap, tunables: DotFpsTunables) -> int:
+func _wall_trace(map: FcMap, tunables: DotFpsTunables) -> int:
 	var numbers := PackedFloat64Array()
 	var body := map.to_fps_body()
 
@@ -20,11 +20,11 @@ func _wall_trace(map: ArenaMap, tunables: DotFpsTunables) -> int:
 
 	return hash(numbers)
 
-## The wall moves arena turns on, the cvar for each, and what "off" means.
+## The wall moves Fatal Contact turns on, the cvar for each, and what "off" means.
 func _test_wall_rules() -> void:
 	_section("wall movement: on in the arena, a cvar each, and off is what it was")
 
-	var t := ArenaPlayer.arena_tunables()
+	var t := FcPlayer.fc_tunables()
 	_check(t.wall_run_enabled and t.wall_jump_enabled and is_equal_approx(t.wall_slide_speed, 2.5),
 		"the arena wall-runs, wall-jumps and wall-slides by default")
 	_check(t.wall_run_min_speed > t.max_speed,
@@ -33,12 +33,12 @@ func _test_wall_rules() -> void:
 
 	var unbacked := PackedStringArray()
 	var walls_cvars := 0
-	for cvar: String in ArenaModule.MOVEMENT_CVARS:
+	for cvar: String in FcModule.MOVEMENT_CVARS:
 		if not cvar.begins_with("fc_wall"):
 			continue
 		walls_cvars += 1
-		var key: String = ArenaModule.MOVEMENT_CVARS[cvar][0]
-		if not ArenaPlayer.MOVEMENT_RULES.has(key) or (t.get(key) == null and not ArenaPlayer.BODY_RULES.has(key)):
+		var key: String = FcModule.MOVEMENT_CVARS[cvar][0]
+		if not FcPlayer.MOVEMENT_RULES.has(key) or (t.get(key) == null and not FcPlayer.BODY_RULES.has(key)):
 			unbacked.append(cvar)
 	_check(walls_cvars >= 3 and unbacked.is_empty(),
 		"every fc_wall_* cvar sets a tunable RULES carries (%d)" % walls_cvars, ", ".join(unbacked))
@@ -62,20 +62,20 @@ func _test_wall_rules() -> void:
 		"and back on, a player has the arena's wall numbers again")
 
 	# Off, through the same path a cvar takes, against the motor's own pre-wall defaults.
-	var ruled_off := ArenaPlayer.arena_tunables()
+	var ruled_off := FcPlayer.fc_tunables()
 	for key in off:
-		ArenaPlayer._set_rule(ruled_off, key, off[key])
-	var before := ArenaPlayer.arena_tunables()
+		FcPlayer._set_rule(ruled_off, key, off[key])
+	var before := FcPlayer.fc_tunables()
 	var stock := DotFpsTunables.new()
 	for property in before.get_property_list():
 		var name := String(property["name"])
 		if name.begins_with("wall_"):
 			before.set(name, stock.get(name))
 
-	var map: ArenaMap = ArenaMap.dm_atrium()
+	var map: FcMap = FcMap.dm_atrium()
 	var off_hash := _wall_trace(map, ruled_off)
 	var before_hash := _wall_trace(map, before)
-	var on_hash := _wall_trace(map, ArenaPlayer.arena_tunables())
+	var on_hash := _wall_trace(map, FcPlayer.fc_tunables())
 	_check(off_hash == before_hash, "with the wall cvars at 0 the motor moves byte for byte as it did before walls",
 		"%d against %d" % [off_hash, before_hash])
 	_check(on_hash != before_hash, "and the same ticks with them on do not, so the trace reaches a wall",
@@ -102,8 +102,8 @@ func _test_players_exist() -> void:
 		)
 	_done()
 
-func _nearest_target(from: ArenaPlayer) -> ArenaPlayer:
-	var best: ArenaPlayer = null
+func _nearest_target(from: FcPlayer) -> FcPlayer:
+	var best: FcPlayer = null
 	var best_distance := INF
 
 	for other in _game.players():
@@ -196,14 +196,14 @@ func _play() -> void:
 func _build_vote() -> void:
 	_section("a map vote over the match")
 
-	var maps := ArenaMapDirector.new()
+	var maps := FcMapDirector.new()
 	maps.name = "VoteMaps"
 	maps.game = _game
 	maps.map_seconds = 0.0
 	add_child(maps)
 	_check(maps.setup().ok, "a map director for the vote sets up")
 
-	_vote = ArenaVote.new()
+	_vote = FcVote.new()
 	_vote.name = "Vote"
 	_vote.game = _game
 	_vote.maps = maps
@@ -269,7 +269,7 @@ func _test_score_vote() -> void:
 	_check(
 		_vote.director.clock.rounds_played == 1,
 		"and dot-match's round end reached it (%d)" % _vote.director.clock.rounds_played,
-		"ArenaVote.note_round_end existed and was called by nothing"
+		"FcVote.note_round_end existed and was called by nothing"
 	)
 
 	# A new match is followed without a map change: `fc_mode` calls `game.change_map` directly, which never fires
@@ -372,7 +372,7 @@ func _test_outcome() -> void:
 	)
 	_done()
 
-func _test_interface_rest(hud: ArenaHud, menu, board) -> void:
+func _test_interface_rest(hud: FcHud, menu, board) -> void:
 	_check(not menu.any_open(), "and closes")
 	board.follow("")
 
@@ -400,13 +400,13 @@ func _stats_event_check(progress) -> void:
 	entry.victim_key = str(victim.player_id)
 	progress._on_killed(entry)
 	_check(
-		seen.has(ArenaStats.KILLS) and seen.has(ArenaStats.DEATHS),
+		seen.has(FcStats.KILLS) and seen.has(FcStats.DEATHS),
 		"a kill produces kills and deaths stat events", str(seen)
 	)
 	_check(progress.stats.reporter.pending_kills() == 0, "a kill is not filed for the site while reporting is off")
 	progress.stats.report_to_backbone = true
 	var bot_entry := DotKillFeed.Entry.new()
-	bot_entry.killer_key = str(ArenaGame.BOT_SESSION_BASE + 1)
+	bot_entry.killer_key = str(FcGame.BOT_SESSION_BASE + 1)
 	bot_entry.victim_key = str(victim.player_id)
 	bot_entry.cause = &"rifle"
 	progress._on_killed(bot_entry)
@@ -417,9 +417,9 @@ func _stats_event_check(progress) -> void:
 
 func _test_progression_rest(defined: int) -> void:
 	_check(
-		defined == ArenaBoards.definitions().size(),
+		defined == FcBoards.definitions().size(),
 		"every board definition was accepted",
-		"%d of %d" % [defined, ArenaBoards.definitions().size()]
+		"%d of %d" % [defined, FcBoards.definitions().size()]
 	)
 	_done()
 
@@ -429,16 +429,16 @@ func _test_boards_async(progress) -> void:
 	_check(DotBoardsConfig.for_game("arena").validate().ok, "the boards config validates")
 
 	var values := DotStatsValues.new()
-	values.values[ArenaStats.KILLS] = 7.0
-	var scope := ArenaBoards.scope_for(&"ffa")
+	values.values[FcStats.KILLS] = 7.0
+	var scope := FcBoards.scope_for(&"ffa")
 
-	await ArenaBoards.submit_session(progress.boards, &"ffa", &"async_p", "Ada", values)
-	var mem: DotResult = await progress.boards.entry_for_async(ArenaBoards.KILLS, scope, &"async_p")
+	await FcBoards.submit_session(progress.boards, &"ffa", &"async_p", "Ada", values)
+	var mem: DotResult = await progress.boards.entry_for_async(FcBoards.KILLS, scope, &"async_p")
 	_check(
 		mem.ok and mem.value is DotLeaderboardEntry and absf((mem.value as DotLeaderboardEntry).value - 7.0) < 0.001,
 		"async submit lands on the memory store"
 	)
-	var memory_page: DotResult = await progress.boards.page_async(ArenaBoards.KILLS, scope, 0, 10)
+	var memory_page: DotResult = await progress.boards.page_async(FcBoards.KILLS, scope, 0, 10)
 	_check(memory_page.ok and (memory_page.value as Array).size() >= 1, "async page reads the memory store")
 
 	var site := DotLeaderboardFakeSite.new(get_tree())
@@ -446,14 +446,14 @@ func _test_boards_async(progress) -> void:
 	remote.backend = "backbone"
 	remote.backbone_client = site
 	add_child(remote)
-	for board in ArenaBoards.definitions():
+	for board in FcBoards.definitions():
 		remote.define(board)
 
-	var plain := remote.page(ArenaBoards.KILLS, scope, 0, 10)
+	var plain := remote.page(FcBoards.KILLS, scope, 0, 10)
 	_check(not plain.ok, "the synchronous form refuses a remote store")
 
-	await ArenaBoards.submit_session(remote, &"ffa", &"async_p", "Ada", values)
-	var remote_page: DotResult = await remote.page_async(ArenaBoards.KILLS, scope, 0, 10)
+	await FcBoards.submit_session(remote, &"ffa", &"async_p", "Ada", values)
+	var remote_page: DotResult = await remote.page_async(FcBoards.KILLS, scope, 0, 10)
 	_check(
 		remote_page.ok and (remote_page.value as Array).size() == 1
 		and ((remote_page.value as Array)[0] as DotLeaderboardEntry).value == 7.0,
@@ -472,7 +472,7 @@ func _test_interface() -> void:
 	var ui_config := DotUiConfig.new()
 	ui_config.allow_pause = false
 
-	var hud := ArenaHud.new()
+	var hud := FcHud.new()
 	hud.name = "Hud"
 	hud.config = ui_config
 	add_child(hud)
@@ -591,7 +591,7 @@ func _test_interface() -> void:
 		"the strip's left score is the followed player's own", "%d" % hud.strip.left_score
 	)
 	# The server's figure, as a networked client hands it over: rounded up, never 0:00 with
-	# time left (dot-ui's `DotScoreStrip.clock_text`; arena's own rounded down).
+	# time left (dot-ui's `DotScoreStrip.clock_text`; Fatal Contact's own rounded down).
 	hud.remaining_override = 59.4
 	hud.present_scores()
 	_check(hud.strip.clock == "1:00" and not hud.strip.clock_low, "the clock rounds the seconds left up (59.4 s reads %s)" % hud.strip.clock)
@@ -604,13 +604,13 @@ func _test_interface() -> void:
 	for e in hud.portraits.entries:
 		ranked_kills.append(int(e["rank"]))
 	_check(
-		hud.portraits.entries.size() == mini(BOTS, ArenaHudGlance.Portraits.MAX_SHOWN)
+		hud.portraits.entries.size() == mini(BOTS, FcHudGlance.Portraits.MAX_SHOWN)
 			and ranked_kills == range(1, hud.portraits.entries.size() + 1),
 		"the portraits are every player, ranked 1 to N", str(ranked_kills)
 	)
 	# Somebody alive: a dead player's HUD shows no gear, and the match that ended left
 	# whoever it left.
-	var armed: ArenaPlayer = null
+	var armed: FcPlayer = null
 	for p in _game.players():
 		if p.is_alive() and p.arsenal != null and not p.arsenal.slots().is_empty():
 			armed = p
@@ -626,27 +626,27 @@ func _test_interface() -> void:
 	hud.follow(subject)
 	var no_icon := PackedStringArray()
 	for weapon in AwWeaponPack.IDS:
-		if ArenaHudGlance.Ink.weapon_icon(weapon) == null:
+		if FcHudGlance.Ink.weapon_icon(weapon) == null:
 			no_icon.append(String(weapon))
 	_check(no_icon.is_empty(), "every weapon has a silhouette for the feed and the slots", ", ".join(no_icon))
 
 	var no_sprite := PackedStringArray()
-	for weapon in ArenaWeaponIcons.TAGS:
-		if not ArenaWeaponIcons.shared.icon_set().has_icon(weapon):
+	for weapon in FcWeaponIcons.TAGS:
+		if not FcWeaponIcons.shared.icon_set().has_icon(weapon):
 			no_sprite.append(String(weapon))
-	_check(no_sprite.is_empty() and ArenaWeaponIcons.shared.texture(&"pistol") is AtlasTexture, "every mapped weapon draws a Jestan sprite by default", ", ".join(no_sprite))
-	_check(ArenaWeaponIcons.shared.set_style(&"silhouette") and ArenaWeaponIcons.shared.texture(&"pistol") == null and ArenaHudGlance.Ink.weapon_icon(&"pistol") != null,
+	_check(no_sprite.is_empty() and FcWeaponIcons.shared.texture(&"pistol") is AtlasTexture, "every mapped weapon draws a Jestan sprite by default", ", ".join(no_sprite))
+	_check(FcWeaponIcons.shared.set_style(&"silhouette") and FcWeaponIcons.shared.texture(&"pistol") == null and FcHudGlance.Ink.weapon_icon(&"pistol") != null,
 		"the silhouette style turns the sprites off and the old outline answers")
-	var _style_back := ArenaWeaponIcons.shared.set_style(&"pixel")
-	ArenaWeaponIcons.shared.icon_set().override(&"pistol", ArenaHudGlance.Ink.texture("res://assets/weapon_icons/knife.png"), &"test")
-	ArenaWeaponIcons.shared.set_profile(&"test")
-	var overridden := ArenaWeaponIcons.shared.texture(&"pistol") == ArenaHudGlance.Ink.texture("res://assets/weapon_icons/knife.png")
-	ArenaWeaponIcons.shared.set_profile(&"")
-	_check(overridden and ArenaWeaponIcons.shared.texture(&"pistol") is AtlasTexture, "a profile's override replaces one weapon's picture and only for that profile")
+	var _style_back := FcWeaponIcons.shared.set_style(&"pixel")
+	FcWeaponIcons.shared.icon_set().override(&"pistol", FcHudGlance.Ink.texture("res://assets/weapon_icons/knife.png"), &"test")
+	FcWeaponIcons.shared.set_profile(&"test")
+	var overridden := FcWeaponIcons.shared.texture(&"pistol") == FcHudGlance.Ink.texture("res://assets/weapon_icons/knife.png")
+	FcWeaponIcons.shared.set_profile(&"")
+	_check(overridden and FcWeaponIcons.shared.texture(&"pistol") is AtlasTexture, "a profile's override replaces one weapon's picture and only for that profile")
 
 	# The Escape menu and the Tab board are dot-menu's (since 2026-10-10), built with no
 	# presentation layer here: no settings document, so only rows that need none draw.
-	var menu := ArenaMenus.build(self, null)
+	var menu := FcMenus.build(self, null)
 	_check(menu != null and menu.screen != null, "the menu builds without a settings document")
 	var page_ids: Array[StringName] = []
 	for page in menu.pages:
@@ -663,7 +663,7 @@ func _test_interface() -> void:
 		"the key table holds the board's Tab"
 	)
 
-	var board := ArenaMenus.Board.new(menu.scoreboard, _game.match_node.scoreboard, null, _game.match_node.teams)
+	var board := FcMenus.Board.new(menu.scoreboard, _game.match_node.scoreboard, null, _game.match_node.teams)
 	menu.scoreboard.open()
 	_check(
 		menu.scoreboard.is_open() and menu.scoreboard.rows().size() == BOTS,

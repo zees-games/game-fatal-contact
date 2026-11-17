@@ -5,16 +5,16 @@ extends SceneTree
 ## the offset of the ring's centre from the screen's middle) in screenshots/scope_align/<W>x<H>.csv.
 ## tools/render_scope_align.sh runs it at several window sizes. SCOPE_ROLES=sniper,marksman,charge_rifle narrows the roles.
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "screenshots/scope_align"
 
 var client: Node = null
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
-	var _scratch := ArenaPresentation.use_scratch_settings("render_scope_align")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	preload("../game/fc_weapon_roles.gd").ensure()
+	var _scratch := FcPresentation.use_scratch_settings("render_scope_align")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)

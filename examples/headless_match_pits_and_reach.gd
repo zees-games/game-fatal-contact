@@ -4,7 +4,7 @@ extends "headless_match_toys_content_map.gd"
 func _test_pit() -> void:
 	_section("dm_pit")
 
-	var map: ArenaMap = ArenaMap.dm_pit()
+	var map: FcMap = FcMap.dm_pit()
 
 	_check(map.boxes.size() > 24, "the map has geometry", str(map.boxes.size()))
 	_check(map.spawns.size() == 9, "and nine spawns", str(map.spawns.size()))
@@ -43,10 +43,10 @@ func _test_pit() -> void:
 
 	# The lookout, climbed: a bot on the east arm facing east (yaw 270) holding forward and jump, grounded on the lookout's
 	# top. Then why it exists: an eye on the lookout sees an eye on the perch, with no box between.
-	var lookout_climber := ArenaPlayer.new()
+	var lookout_climber := FcPlayer.new()
 	lookout_climber.name = "LookoutClimber"
 	add_child(lookout_climber)
-	lookout_climber.setup(ArenaPlayer.Mode.HEADLESS, map, 9004, "lookout climber")
+	lookout_climber.setup(FcPlayer.Mode.HEADLESS, map, 9004, "lookout climber")
 	lookout_climber.controller.teleport(Vector3(11.6, 3.7, 4.0), 270.0, 0.0)
 
 	var looking := false
@@ -91,7 +91,7 @@ func _test_pit() -> void:
 		", ".join(in_the_way)
 	)
 
-	var catalogue := ArenaMaps.catalogue()
+	var catalogue := FcMaps.catalogue()
 	var def := catalogue.get_map(&"dm_pit")
 
 	if not _check(def != null, "and it is in the catalogue"):
@@ -102,14 +102,14 @@ func _test_pit() -> void:
 		"whose entry records that it has no team spawns"
 	)
 
-	var ffa: ArenaMode = ArenaMode.free_for_all()
+	var ffa: FcMode = FcMode.free_for_all()
 	var team := _first_team_mode()
 
-	_check(ArenaMaps.supports_mode(def, ffa), "a free-for-all can be played on it")
+	_check(FcMaps.supports_mode(def, ffa), "a free-for-all can be played on it")
 
 	if _check(team != null, "this game has a team mode to test the refusal with"):
 		_check(
-			not ArenaMaps.supports_mode(def, team),
+			not FcMaps.supports_mode(def, team),
 			"and a team mode cannot -- the first map here that says so",
 			String(team.id)
 		)
@@ -117,8 +117,8 @@ func _test_pit() -> void:
 		# The other two maps must still say yes, or the filter below is passing for
 		# the wrong reason.
 		_check(
-			ArenaMaps.supports_mode(catalogue.get_map(&"dm_box"), team)
-				and ArenaMaps.supports_mode(catalogue.get_map(&"dm_atrium"), team),
+			FcMaps.supports_mode(catalogue.get_map(&"dm_box"), team)
+				and FcMaps.supports_mode(catalogue.get_map(&"dm_atrium"), team),
 			"while the other two maps still can"
 		)
 
@@ -128,12 +128,12 @@ func _test_pit() -> void:
 	holder.name = "PitBot"
 	add_child(holder)
 
-	var bot := ArenaPlayer.HeadlessController.new()
+	var bot := FcPlayer.HeadlessController.new()
 	bot.name = "Movement"
 	bot.flat_body = map.to_fps_body()
 	bot.drive = DotFpsController.Drive.EXTERNAL
 	bot.tick_rate = TICK_RATE
-	bot.tunables = ArenaPlayer.arena_tunables()
+	bot.tunables = FcPlayer.fc_tunables()
 	bot.register_service = false
 	bot.register_default_actions = false
 	bot.body_ref = DotNodeRef.of_path(NodePath(".."))
@@ -223,7 +223,7 @@ func _test_pit() -> void:
 
 	# The shelf and the perch: both rises must be hops (a ledge 1.3 m up is drawn like one 0.9 m up and is a tier nobody
 	# reaches, `[gate-sweep-1]`'s second question), then the second question about the third tier.
-	var jump: float = ArenaPlayer.arena_tunables().jump_height
+	var jump: float = FcPlayer.fc_tunables().jump_height
 
 	# Both boxes found by their footprint rather than by an index into the list: `add_box` order is
 	# an implementation detail and an index is a check that silently starts measuring a different.
@@ -310,14 +310,14 @@ func _top_speed(
 func _test_bot_ground_speed() -> void:
 	_section("what a bot actually travels at")
 
-	var map: ArenaMap = ArenaMap.dm_atrium()
-	var tunables := ArenaPlayer.arena_tunables()
+	var map: FcMap = FcMap.dm_atrium()
+	var tunables := FcPlayer.fc_tunables()
 
 	var holder := Node3D.new()
 	holder.name = "SpeedBot"
 	add_child(holder)
 
-	var bot := ArenaPlayer.HeadlessController.new()
+	var bot := FcPlayer.HeadlessController.new()
 	bot.name = "Movement"
 	bot.flat_body = map.to_fps_body()
 	bot.drive = DotFpsController.Drive.EXTERNAL
@@ -356,19 +356,19 @@ func _test_bot_ground_speed() -> void:
 func _test_reach() -> void:
 	_section("what a player can climb")
 
-	var tunables := ArenaPlayer.arena_tunables()
+	var tunables := FcPlayer.fc_tunables()
 
 	# The deliberate copy, and the check that the copies agree: a map is content (`by_id` runs with no player in the tree),
 	# so the numbers it sizes itself against cannot be read off the player class.
 	_check(
-		is_equal_approx(ArenaMap.MOVE_SPEED, tunables.max_speed)
-		and is_equal_approx(ArenaMap.JUMP_HEIGHT, tunables.jump_height)
-		and is_equal_approx(ArenaMap.MOVE_GRAVITY, tunables.gravity)
-		and is_equal_approx(ArenaMap.STEP_HEIGHT, tunables.step_height),
+		is_equal_approx(FcMap.MOVE_SPEED, tunables.max_speed)
+		and is_equal_approx(FcMap.JUMP_HEIGHT, tunables.jump_height)
+		and is_equal_approx(FcMap.MOVE_GRAVITY, tunables.gravity)
+		and is_equal_approx(FcMap.STEP_HEIGHT, tunables.step_height),
 		"the numbers the maps are sized against are the ones the server applies",
 		"map %.2f/%.2f/%.2f/%.2f vs tunables %.2f/%.2f/%.2f/%.2f" % [
-			ArenaMap.MOVE_SPEED, ArenaMap.JUMP_HEIGHT, ArenaMap.MOVE_GRAVITY,
-			ArenaMap.STEP_HEIGHT, tunables.max_speed, tunables.jump_height,
+			FcMap.MOVE_SPEED, FcMap.JUMP_HEIGHT, FcMap.MOVE_GRAVITY,
+			FcMap.STEP_HEIGHT, tunables.max_speed, tunables.jump_height,
 			tunables.gravity, tunables.step_height
 		]
 	)
@@ -376,15 +376,15 @@ func _test_reach() -> void:
 	# Printed rather than only asserted, as `_test_bot_ground_speed` explains: a detail line shows only on failure. These
 	# four numbers are all a map here may ask for.
 	print("  ..    a jump peaks at %.2f m; climb limit %.2f m; reach %.2f m flat, "
-		% [ArenaMap.JUMP_HEIGHT, ArenaMap.climb_limit(), ArenaMap.jump_reach(0.0)]
-		+ "%.2f m onto the limit" % ArenaMap.jump_reach(ArenaMap.climb_limit()))
+		% [FcMap.JUMP_HEIGHT, FcMap.climb_limit(), FcMap.jump_reach(0.0)]
+		+ "%.2f m onto the limit" % FcMap.jump_reach(FcMap.climb_limit()))
 
 	var too_high := PackedStringArray()
 	var too_far := PackedStringArray()
 	var total := 0
 
-	for id in ArenaMap.ids():
-		var map: ArenaMap = ArenaMap.by_id(id)
+	for id in FcMap.ids():
+		var map: FcMap = FcMap.by_id(id)
 
 		if map == null:
 			continue
@@ -394,16 +394,16 @@ func _test_reach() -> void:
 
 			# A rise at or under `step_height` is walked and has no airborne phase to spend on a gap, so it is legal only when the
 			# boxes touch. dm_atrium's ring is a 0.1 m step with no gap; `jump_reach(0.1)` would call a stair a jump.
-			var walked: bool = climb.rise <= ArenaMap.STEP_HEIGHT and climb.gap <= 0.001
+			var walked: bool = climb.rise <= FcMap.STEP_HEIGHT and climb.gap <= 0.001
 
 			if walked:
 				continue
 
-			if climb.rise > ArenaMap.climb_limit():
+			if climb.rise > FcMap.climb_limit():
 				too_high.append("%s rises %.2f m" % [climb.name, climb.rise])
 				continue
 
-			var reach := ArenaMap.jump_reach(climb.rise)
+			var reach := FcMap.jump_reach(climb.rise)
 
 			if climb.gap > reach:
 				too_far.append(
@@ -428,8 +428,8 @@ func _test_reach() -> void:
 func _test_collision_audit() -> void:
 	_section("every map: nothing drawn is walked through")
 
-	for id in ArenaMap.ids():
-		var map: ArenaMap = ArenaMap.by_id(id)
+	for id in FcMap.ids():
+		var map: FcMap = FcMap.by_id(id)
 		var world := Node3D.new()
 		world.add_child(map.to_scene())
 		world.add_child(map.to_collision())
@@ -460,13 +460,13 @@ func _test_collision_audit() -> void:
 func _test_survey() -> void:
 	_section("every map: slots and reach, as a rule")
 
-	for id in ArenaMap.ids():
-		var map: ArenaMap = ArenaMap.by_id(id)
+	for id in FcMap.ids():
+		var map: FcMap = FcMap.by_id(id)
 
 		if map == null:
 			continue
 
-		var slots := ArenaMapSurvey.slots(map)
+		var slots := FcMapSurvey.slots(map)
 		var closed := PackedStringArray()
 		var tight := 0
 
@@ -478,8 +478,8 @@ func _test_survey() -> void:
 			else:
 				tight += 1
 
-		var surveyed := ArenaMapSurvey.reach(map)
-		var unexplained := ArenaMapSurvey.unexplained(map, surveyed)
+		var surveyed := FcMapSurvey.reach(map)
+		var unexplained := FcMapSurvey.unexplained(map, surveyed)
 		var lost := PackedStringArray()
 
 		for region in unexplained:
@@ -527,7 +527,7 @@ func _test_survey() -> void:
 
 	# --- The survey itself, shown the three things it is for ---------------
 
-	var bad := ArenaMap.new()
+	var bad := FcMap.new()
 	bad.id = &"survey_fixture"
 	bad.extent = 8.0
 	bad.wall_height = 6.0
@@ -550,16 +550,16 @@ func _test_survey() -> void:
 
 	var found := false
 
-	for slot in ArenaMapSurvey.slots(bad):
+	for slot in FcMapSurvey.slots(bad):
 		if slot["closed"] and absf(float(slot["gap"]) - 0.5) < 0.01:
 			found = true
 
 	_check(found, "the survey finds a 0.5 m slot when there is one")
 
-	var fixture := ArenaMapSurvey.reach(bad)
+	var fixture := FcMapSurvey.reach(bad)
 	var tower_lost := false
 
-	for region in ArenaMapSurvey.unexplained(bad, fixture):
+	for region in FcMapSurvey.unexplained(bad, fixture):
 		if is_equal_approx(float(region["height"]), 4.0):
 			tower_lost = true
 
@@ -568,7 +568,7 @@ func _test_survey() -> void:
 	bad.add_out_of_reach(tower)
 	var still := 0
 
-	for region in ArenaMapSurvey.unexplained(bad, fixture):
+	for region in FcMapSurvey.unexplained(bad, fixture):
 		if is_equal_approx(float(region["height"]), 4.0):
 			still += 1
 

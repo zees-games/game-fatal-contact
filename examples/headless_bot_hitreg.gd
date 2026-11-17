@@ -1,18 +1,18 @@
 extends DotGameCheckSuite
 
 
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaPlayerTunables := preload("../game/arena_player_tunables.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
 ## "The bots shoot at me and I take no damage": every bot shot is a hit that costs health, or a
-## miss whose reason is on record (ArenaShotStats). Direct dead-on shots must all damage, also
+## miss whose reason is on record (FcShotStats). Direct dead-on shots must all damage, also
 ## paced like a loaded server; the real brain for a minute refuses or prevents none.
 
-const TICK_RATE := ArenaContent.TICK_RATE
+const TICK_RATE := FcContent.TICK_RATE
 const ATTACKER := 1
 const TARGET := 2
 
@@ -29,7 +29,7 @@ const SHARDS := {"direct": [2, 26], "brain": [1, 12], "crowd": [2, 16]}
 
 var _entered := 0
 var _completed := 0
-var _game: ArenaGame = null
+var _game: FcGame = null
 
 
 func _ready() -> void:
@@ -51,8 +51,8 @@ func _run() -> void:
 	if DotGameShardArgs.is_merge():
 		_merge()
 		return
-	ArenaBots.think_every = 2
-	ArenaBots.think_near = 0.0
+	FcBots.think_every = 2
+	FcBots.think_near = 0.0
 	var shard := DotGameShardArgs.shard()
 	if shard == "" or shard == "direct":
 		await _direct("calm server, one tick per frame", 1, 0)
@@ -74,7 +74,7 @@ func _boot(seed_value: int = 1) -> void:
 		remove_child(_game)
 		_game.queue_free()
 		await get_tree().process_frame
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -83,7 +83,7 @@ func _boot(seed_value: int = 1) -> void:
 	_game.is_authority = true
 	_game.register_service = false
 	add_child(_game)
-	var map := ArenaMap.new()
+	var map := FcMap.new()
 	map.id = &"hitreg_lane"
 	map.display_name = "hitreg_lane"
 	map.extent = 150.0
@@ -120,8 +120,8 @@ static func angles_to(from: Vector3, to: Vector3) -> Vector2:
 ## Attacker at the origin of the lane, target [param dist] metres away along -Z, both whole and unprotected.
 func _place(dist: float) -> void:
 	var tick: int = _game.current_tick()
-	var shooter: ArenaPlayer = _game.player_for(ATTACKER)
-	var target: ArenaPlayer = _game.player_for(TARGET)
+	var shooter: FcPlayer = _game.player_for(ATTACKER)
+	var target: FcPlayer = _game.player_for(TARGET)
 	shooter.spawn(Transform3D(Basis(), Vector3(-10.0, 0.05, -20.0)), tick)
 	target.spawn(Transform3D(Basis(), Vector3(-10.0, 0.05, -20.0 - dist)), tick)
 	_game.combat.health_of(TARGET).health = 1.0e7
@@ -131,9 +131,9 @@ func _place(dist: float) -> void:
 
 ## The attacker's trigger-down command, aimed at the target's chest where it stands now.
 func _aimed(tick_index: int) -> Array:
-	var shooter: ArenaPlayer = _game.player_for(ATTACKER)
-	var target: ArenaPlayer = _game.player_for(TARGET)
-	var aim := angles_to(shooter.muzzle_position(), target.global_position + Vector3.UP * ArenaBots.chest_height())
+	var shooter: FcPlayer = _game.player_for(ATTACKER)
+	var target: FcPlayer = _game.player_for(TARGET)
+	var aim := angles_to(shooter.muzzle_position(), target.global_position + Vector3.UP * FcBots.chest_height())
 	var m := DotFpsCommand.new()
 	m.yaw = aim.x
 	m.pitch = aim.y
@@ -184,23 +184,23 @@ func _direct(title: String, burst: int, stall_ms: int) -> void:
 ## The brain at the trigger against a still and a strafing target (made unkillable), its deliberate aim error
 ## switched off so what is left is the gun: once without the recoil compensation, once with it.
 func _brain() -> void:
-	_section("brain: ArenaBots.think against a still and a strafing target, recoil compensation off then on")
+	_section("brain: FcBots.think against a still and a strafing target, recoil compensation off then on")
 	await _boot()
 	var landed := {false: 0, true: 0}
 	var shots := {false: 0, true: 0}
 	# Whole control, so what is measured is the correction itself; bot_recoil_control scales it per difficulty.
-	ArenaBots.recoil_control = 1.0
+	FcBots.recoil_control = 1.0
 	# The generic bot: a weapon style (a rifle's strafe) would move the shooter under the aim this measures.
 	var _st := DotBotSettings.of(_game).set_value("styles", "0")
 	for comp in [false, true]:
-		ArenaBots.recoil_compensation = comp
-		var mind := ArenaBots.Mind.new()
+		FcBots.recoil_compensation = comp
+		var mind := FcBots.Mind.new()
 		mind.seed = 5
 		for strafing in [false, true]:
 			for dist: float in [4.0, 20.0]:
 				_place(dist)
-				var bot: ArenaPlayer = _game.player_for(ATTACKER)
-				var ref: ArenaPlayer = _game.player_for(TARGET)
+				var bot: FcPlayer = _game.player_for(ATTACKER)
+				var ref: FcPlayer = _game.player_for(TARGET)
 				for _i in _game.match_node.spawn_protection_ticks() + 4:
 					_game.tick({})
 				_game.shot_stats.reset()
@@ -210,7 +210,7 @@ func _brain() -> void:
 				var spreads: Array[float] = []
 				var probe := func(shot: DotShot) -> void:
 					if shot.attacker == ATTACKER:
-						var want := (ref.global_position + Vector3.UP * ArenaBots.chest_height() - shot.origin).normalized()
+						var want := (ref.global_position + Vector3.UP * FcBots.chest_height() - shot.origin).normalized()
 						dirs.append(rad_to_deg(shot.direction.angle_to(want)))
 						spreads.append(shot.spread)
 				_game.combat.shot_resolved.connect(probe)
@@ -219,11 +219,11 @@ func _brain() -> void:
 					if mind.brain != null:
 						mind.brain.settings.profile.aim_error = 0.0
 						mind.brain.settings.profile.aim_floor = 0.0
-					var cmds := {ATTACKER: ArenaBots.think(_game, bot, mind, tick, float(TICK_RATE)), TARGET: _strafe(i, strafing)}
+					var cmds := {ATTACKER: FcBots.think(_game, bot, mind, tick, float(TICK_RATE)), TARGET: _strafe(i, strafing)}
 					var wc: DotWeaponCommand = cmds[ATTACKER][1]
 					if wc.is_pressed(DotWeaponCommand.BUTTON_ATTACK) and bot.is_alive():
 						var mv: DotFpsCommand = cmds[ATTACKER][0]
-						var ideal := angles_to(bot.muzzle_position(), ref.global_position + Vector3.UP * ArenaBots.chest_height())
+						var ideal := angles_to(bot.muzzle_position(), ref.global_position + Vector3.UP * FcBots.chest_height())
 						errs.append(Vector2(wrapf(mv.yaw - ideal.x, -180.0, 180.0), mv.pitch - ideal.y).length())
 					_game.tick(cmds)
 					_game.combat.health_of(TARGET).health = 1.0e7
@@ -249,8 +249,8 @@ func _brain() -> void:
 					# The gun's own spread (5 degrees held) takes the rest; what the bot owns is where the bullet is pointed.
 					if not strafing and not dirs.is_empty():
 						_check(dirs[dirs.size() / 2] < 1.0, "%s: the bullets leave within a degree of the chest" % label, "median %.2f" % dirs[dirs.size() / 2])
-	ArenaBots.recoil_compensation = true
-	ArenaBots.recoil_control = -1.0
+	FcBots.recoil_compensation = true
+	FcBots.recoil_control = -1.0
 	var _st1 := DotBotSettings.of(_game).set_value("styles", "1")
 	print("    hit rate without compensation %d of %d, with it %d of %d" % [landed[false], shots[false], landed[true], shots[true]])
 	_check(float(landed[true]) / maxf(float(shots[true]), 1.0) > 1.3 * float(landed[false]) / maxf(float(shots[false]), 1.0),
@@ -259,9 +259,9 @@ func _brain() -> void:
 	_done()
 
 
-## 16v16 and latency: 30 more players crowd the arena (the rewind moves every one of them each shot) while a strafing
+## 16v16 and latency: 30 more players crowd Fatal Contact (the rewind moves every one of them each shot) while a strafing
 ## target is shot from a still attacker, aimed at where its head and chest WERE `lag` ticks ago (what the shooter's screen
-## showed), resolved as ArenaGame.tick resolves a fired weapon. Nearly every shot must land, head shots in the head zone.
+## showed), resolved as FcGame.tick resolves a fired weapon. Nearly every shot must land, head shots in the head zone.
 func _crowd() -> void:
 	_section("crowd: 32 players, strafing target, head and chest, rewound by 0 to 25 ticks")
 	await _boot()
@@ -271,10 +271,10 @@ func _crowd() -> void:
 	_place(25.0)
 	for _i in _game.match_node.spawn_protection_ticks() + 4:
 		_game.tick({})
-	var shooter: ArenaPlayer = _game.player_for(ATTACKER)
-	var target: ArenaPlayer = _game.player_for(TARGET)
+	var shooter: FcPlayer = _game.player_for(ATTACKER)
+	var target: FcPlayer = _game.player_for(TARGET)
 	var hist := {"head": [], "chest": []}
-	var offsets := {"head": 1.62 * ArenaPlayerTunables.body_scale(), "chest": ArenaBots.chest_height()}
+	var offsets := {"head": 1.62 * FcPlayerTunables.body_scale(), "chest": FcBots.chest_height()}
 	var ticks := 0
 	for lag: float in [0.0, 6.0, 12.5, 25.0]:
 		var got := {"head": 0, "chest": 0}

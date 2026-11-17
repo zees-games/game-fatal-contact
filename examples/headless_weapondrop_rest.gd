@@ -7,7 +7,7 @@ extends Node
 ## godot --headless --path . res://examples/headless_weapondrop_rest.tscn
 ## [/codeblock]
 
-const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
+const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 const TOLERANCE := 0.02
 ## The drops spawn with a random yaw and spin (DotWeaponDrops), so the global RNG is seeded per course: a run replays
 ## the same tumble, whatever box or load it runs on (physics is stepped by ticks, never by wall time).
@@ -96,7 +96,7 @@ func _sunk(node: Node, course: String) -> float:
 
 
 func _run() -> void:
-	ArenaWeaponRoles.ensure()
+	FcWeaponRoles.ensure()
 	var ids: Array = AwWeaponArtTable.table().keys()
 	ids.sort()
 	_check(ids.size() > 10, "the art table has weapons", str(ids.size()))
@@ -143,7 +143,7 @@ func _make_drops(world: Node3D) -> DotWeaponDrops:
 		var art: Variant = AwWeaponArtTable.table().get(w)
 		if not (art is AwWeaponVisual):
 			return null
-		return (load("res://game/arena_weapon_drop_wiring.gd") as GDScript).call("look", w)
+		return (load("res://game/fc_weapon_drop_wiring.gd") as GDScript).call("look", w)
 	drops.rules.lifetime = 0.0
 	drops.rules.max_count = 0
 	world.add_child(drops)

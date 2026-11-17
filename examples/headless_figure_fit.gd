@@ -6,10 +6,10 @@ extends DotGameCheckSuite
 ## A shot at the middle of the drawn head ("HeadMid") is asserted too: at the original 36 unit crouch the zones squeezed under it and all 64 such shots missed on every
 ## avatar, crouched or crouch walking (the head bone, the head's base, still landed). The crouch is 54 units now and the figure crouches with its knees near square.
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaAvatars := preload("../game/arena_avatars.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcAvatars := preload("../game/fc_avatars.gd")
 
 const RANGE_M := 65.0
 const WARMUP_TICKS := 40
@@ -34,7 +34,7 @@ const CASES: Array = [
 	["crouch walk", Vector2(1, 0), true, 0.0, false],
 ]
 
-var _game: ArenaGame = null
+var _game: FcGame = null
 ## The last [method _measure]'s pose numbers: mean knee angle (degrees, 180 straight), drawn head bone and head zone
 ## centre over the feet (metres), averaged over the sampled ticks.
 var _pose := {}
@@ -51,7 +51,7 @@ func _ready() -> void:
 func _run() -> void:
 	print("arena: the drawn figure stands inside the hit zones at %d m" % int(RANGE_M))
 	_build()
-	var target: ArenaPlayer = _game.player_for(2)
+	var target: FcPlayer = _game.player_for(2)
 	for key in AVATARS:
 		_wear(target, key)
 		if not _check(target.figure != null, "%s has a figure" % key):
@@ -66,7 +66,7 @@ func _run() -> void:
 
 
 func _build() -> void:
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = 64
 	_game.score_limit = 0
@@ -75,7 +75,7 @@ func _build() -> void:
 	_game.is_authority = true
 	_game.register_service = false
 	add_child(_game)
-	var map := ArenaMap.new()
+	var map := FcMap.new()
 	map.id = &"fit_lane"
 	map.display_name = "fit_lane"
 	map.extent = 150.0
@@ -92,14 +92,14 @@ func _build() -> void:
 	_game.tick({})
 
 
-func _wear(target: ArenaPlayer, key: String) -> void:
+func _wear(target: FcPlayer, key: String) -> void:
 	if target.body_mesh != null:
 		target.remove_child(target.body_mesh)
 		target.body_mesh.free()
 		target.body_mesh = null
 		target.figure = null
 		target.held = null
-	target.attach_body_mesh(Color.WHITE, ArenaAvatars.stock_avatar(StringName(key)))
+	target.attach_body_mesh(Color.WHITE, FcAvatars.stock_avatar(StringName(key)))
 	_head_mid = 0.0
 	if target.figure == null:
 		return
@@ -114,11 +114,11 @@ func _wear(target: ArenaPlayer, key: String) -> void:
 
 
 ## Bone -> "missed n of m" for every bone a shot from [constant RANGE_M] at missed at least once.
-func _measure(target: ArenaPlayer, case: Array) -> Dictionary:
+func _measure(target: FcPlayer, case: Array) -> Dictionary:
 	var t: int = _game._tick
 	target.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, -RANGE_M)), t)
 	_game.player_for(1).spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 0.0)), t)
-	var eye := Vector3(0.0, 0.05 + ArenaPlayer.eye_height(), 0.0)
+	var eye := Vector3(0.0, 0.05 + FcPlayer.eye_height(), 0.0)
 	var bones: Array[String] = CORE.duplicate()
 	if case[4]:
 		bones.append_array(ARMS)

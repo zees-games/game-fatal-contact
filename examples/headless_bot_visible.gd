@@ -1,7 +1,7 @@
 extends DotGameCheckSuite
 
-const ArenaContent := preload("../game/arena_content.gd")
-const KillcamBodies := preload("../game/arena_killcam_bodies.gd")
+const FcContent := preload("../game/fc_content.gd")
+const KillcamBodies := preload("../game/fc_killcam_bodies.gd")
 
 const EXPECTED_CHECKS := 9
 
@@ -50,7 +50,7 @@ func _draws(bot: Node) -> bool:
 
 
 func _run() -> void:
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	add_child(_client)
@@ -82,7 +82,7 @@ func _run() -> void:
 	# A killcam that starts while a bot is down saves the body hidden, and puts that back at its end.
 	var touched := {}
 	for id in bots:
-		var hit := DotDamage.make(_client.get("player").player_id, id, 1000.0, gm.combat.damage_type(ArenaContent.DAMAGE_BULLET))
+		var hit := DotDamage.make(_client.get("player").player_id, id, 1000.0, gm.combat.damage_type(FcContent.DAMAGE_BULLET))
 		hit.weapon_id = &"smg"
 		hit.tick = gm.current_tick()
 		var _d = gm.combat.apply_damage(hit)

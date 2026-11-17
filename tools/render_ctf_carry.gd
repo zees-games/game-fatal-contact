@@ -4,7 +4,7 @@ extends "render_base.gd"
 ## thrown with the drop key, in flight and at rest. Frames in screenshots/ctf_carry/; exit 1 on a failed check. Run:
 ##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_ctf_carry.gd -- --map dm_atrium
 
-const ArenaFlagCarry := preload("../game/arena_flag_carry.gd")
+const FcFlagCarry := preload("../game/fc_flag_carry.gd")
 
 
 
@@ -97,7 +97,7 @@ func _run_part2(game, me, view, mine: int, enemy, f_mine: DotObjectiveFlag, f_en
 	carrier.controller.teleport(stand + Vector3.UP * 0.05, _yaw_to(stand, watch), 0.0)
 	_put(watch, stand + Vector3.UP * 1.0, -6.0)
 	await _wait(1.2)
-	_check(ArenaFlagCarry.allowed_slots().has(carrier.arsenal.current_slot()), "the bot carrier holds a one-handed item (slot %d)" % carrier.arsenal.current_slot())
+	_check(FcFlagCarry.allowed_slots().has(carrier.arsenal.current_slot()), "the bot carrier holds a one-handed item (slot %d)" % carrier.arsenal.current_slot())
 	var pole := _view_node(view, mine)
 	var right: Vector3 = carrier.global_basis.x
 	_check(pole != null and (pole.global_position - carrier.global_position).dot(right) < -0.05,
@@ -132,30 +132,30 @@ func _run_part3(game, me, view, enemy, f_mine: DotObjectiveFlag, f_enemy: DotObj
 	me.controller.teleport(out + Vector3.UP * 0.05, yaw, 0.0)
 	client.get("_sampler").look_at_angles(yaw, -5.0)
 	await _wait(1.2)
-	_check(ArenaFlagCarry.allowed_slots().has(me.arsenal.current_slot()), "I hold a one-handed item (slot %d)" % me.arsenal.current_slot())
+	_check(FcFlagCarry.allowed_slots().has(me.arsenal.current_slot()), "I hold a one-handed item (slot %d)" % me.arsenal.current_slot())
 	await _shot("first_person_ahead")
 	client.get("_sampler").look_at_angles(yaw + 55.0, -40.0)
 	await _wait(0.5)
 	await _shot("first_person_left_shoulder")
-	ArenaFlagCarry.left_handed = true
+	FcFlagCarry.left_handed = true
 	client.get("_sampler").look_at_angles(yaw - 55.0, -40.0)
 	await _wait(0.5)
 	await _shot("first_person_right_shoulder_lefthand")
-	ArenaFlagCarry.left_handed = false
+	FcFlagCarry.left_handed = false
 
 	# 3. The drop key: the flag leaves ahead of the aim, flies, and rests upright.
 	client.get("_sampler").look_at_angles(yaw, 10.0)
 	await _wait(0.3)
-	var dropped := ArenaFlagCarry.try_drop(game, me.player_id, me)
+	var dropped := FcFlagCarry.try_drop(game, me.player_id, me)
 	_check(dropped and f_enemy.state == DotObjectiveFlag.State.DROPPED, "the drop key drops the flag")
 	await _wait(0.12)
-	_check(ArenaFlagCarry.flying(game, enemy), "it flies")
+	_check(FcFlagCarry.flying(game, enemy), "it flies")
 	await _shot("drop_in_flight")
 	for i in 60:
 		await _wait(0.05)
-		if not ArenaFlagCarry.flying(game, enemy):
+		if not FcFlagCarry.flying(game, enemy):
 			break
-	_check(not ArenaFlagCarry.flying(game, enemy), "and comes to rest")
+	_check(not FcFlagCarry.flying(game, enemy), "and comes to rest")
 	var flag_node := _view_node(view, enemy)
 	_check(flag_node != null and flag_node.global_basis.y.normalized().dot(Vector3.UP) > 0.99, "upright")
 	_check(flag_node != null and (flag_node.get_node("Beam") as Node3D).visible, "its indicator beam shows")

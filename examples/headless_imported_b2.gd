@@ -1,16 +1,16 @@
 extends "headless_imported_fallout.gd"
 
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaModes := preload("../game/arena_modes.gd")
-const ArenaPaths := preload("../game/arena_paths.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcModes := preload("../game/fc_modes.gd")
+const FcPaths := preload("../game/fc_paths.gd")
 
 
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaDrops := preload("../game/arena_drops.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
-const ArenaJail := preload("../maps/arena_jail.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcDrops := preload("../game/fc_drops.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const FcJail := preload("../maps/fc_jail.gd")
 
-## The combat surf maps game-airdrift imported, played as an arena deathmatch. [codeblock] godot
+## The combat surf maps game-airdrift imported, played as Fatal Contact deathmatch. [codeblock] godot
 ## --headless --path .
 
 
@@ -46,29 +46,29 @@ func _expected_sections() -> int:
 
 
 func _expected_checks() -> int:
-	return CHECKS_FIXED + ArenaMap.imported_ids().size()
+	return CHECKS_FIXED + FcMap.imported_ids().size()
 
 
 func _test_catalogue() -> void:
 	_section("found by its manifest, catalogued, and in the rotation by name")
 
-	var ids := ArenaMap.imported_ids()
+	var ids := FcMap.imported_ids()
 	_check(ids.has(MAP), "%s is found (%d combat surf maps: %s)" % [MAP, ids.size(), ids])
 
-	var not_arena: Array[String] = []
+	var not_fc: Array[String] = []
 
 	for id in ids:
-		if str(ArenaImportedMaps.manifest(id).get("kind", "")) != "arena":
-			not_arena.append(String(id))
+		if str(FcImportedMaps.manifest(id).get("kind", "")) != "arena":
+			not_fc.append(String(id))
 
-	_check(not_arena.is_empty(),
-		"and every map found says \"kind\": \"arena\" itself (%s do not)" % [not_arena])
+	_check(not_fc.is_empty(),
+		"and every map found says \"kind\": \"arena\" itself (%s do not)" % [not_fc])
 
-	_check(ArenaMap.by_id(MAP) != null and ArenaMap.by_id(MAP).is_imported(),
-		"ArenaMap.by_id builds it, as an imported map")
+	_check(FcMap.by_id(MAP) != null and FcMap.by_id(MAP).is_imported(),
+		"FcMap.by_id builds it, as an imported map")
 
-	ArenaMaps.imported_rotation = ArenaMaps.IMPORTED_ROTATION_DEFAULT
-	var catalogue := ArenaMaps.catalogue()
+	FcMaps.imported_rotation = FcMaps.IMPORTED_ROTATION_DEFAULT
+	var catalogue := FcMaps.catalogue()
 	var def := catalogue.get_map(MAP)
 	_check(def != null and bool(def.meta.get("imported", false)),
 		"the catalogue carries it, marked imported")
@@ -85,25 +85,25 @@ func _test_catalogue() -> void:
 	_check(on.size() == ids.size(),
 		"the default rotation offers every combat surf map found (%d of %d)" % [on.size(), ids.size()])
 
-	ArenaMaps.imported_rotation = "all"
-	ArenaMaps.apply_rotation(catalogue)
+	FcMaps.imported_rotation = "all"
+	FcMaps.apply_rotation(catalogue)
 	var all_on := catalogue.maps.filter(
 		func(m: DotMapDef) -> bool: return bool(m.meta.get("imported", false)) and m.enabled
 	).size()
-	ArenaMaps.imported_rotation = "none"
-	ArenaMaps.apply_rotation(catalogue)
+	FcMaps.imported_rotation = "none"
+	FcMaps.apply_rotation(catalogue)
 	var none_on := catalogue.maps.filter(
 		func(m: DotMapDef) -> bool: return bool(m.meta.get("imported", false)) and m.enabled
 	).size()
-	ArenaMaps.imported_rotation = ArenaMaps.IMPORTED_ROTATION_DEFAULT
+	FcMaps.imported_rotation = FcMaps.IMPORTED_ROTATION_DEFAULT
 	_check(all_on == ids.size() and none_on == 0,
 		"and `all` / `none` change it on a running catalogue (%d / %d)" % [all_on, none_on])
 
 	_check(
-		ArenaMaps.supports_mode(def, ArenaModes.by_id(&"ffa"))
-		and ArenaMaps.supports_mode(def, ArenaModes.by_id(&"gungame"))
-		and not ArenaMaps.supports_mode(def, ArenaModes.by_id(&"siege"))
-		and not ArenaMaps.supports_mode(def, ArenaModes.by_id(&"koth")),
+		FcMaps.supports_mode(def, FcModes.by_id(&"ffa"))
+		and FcMaps.supports_mode(def, FcModes.by_id(&"gungame"))
+		and not FcMaps.supports_mode(def, FcModes.by_id(&"siege"))
+		and not FcMaps.supports_mode(def, FcModes.by_id(&"koth")),
 		"it hosts the deathmatch modes and refuses the ones built out of boxes"
 	)
 
@@ -115,31 +115,31 @@ func _test_catalogue() -> void:
 ## surf_buck_wild a sky it packed.
 func _test_worlds() -> void:
 	_section("a map with a converted world is drawn from it, the rest keep their legacy meshes")
-	var linked := ArenaBspMap.world_prefix("surf_grave_reloaded") != ""
+	var linked := FcBspMap.world_prefix("surf_grave_reloaded") != ""
 	if not linked:
 		_line("  (no res://worlds link: skipped)")
 		for _i in 5:
 			_check(true, "skipped without the link")
 		_done()
 		return
-	var map: ArenaMap = ArenaMap.by_id(&"surf_grave_reloaded")
-	ArenaMap.use_worlds = true
+	var map: FcMap = FcMap.by_id(&"surf_grave_reloaded")
+	FcMap.use_worlds = true
 	var drawn := map.to_scene()
 	var world := drawn.get_node_or_null("World")
 	_check(world != null and world.get_child_count() > 0, "surf_grave_reloaded is drawn from its world pack")
 	_check(drawn.get_children().all(func(c: Node) -> bool: return not (c is MeshInstance3D)), "the legacy meshes are gone")
 	drawn.free()
-	ArenaMap.use_worlds = false
+	FcMap.use_worlds = false
 	var legacy := map.to_scene()
 	_check(legacy.get_node_or_null("World") is MeshInstance3D and legacy.get_children().any(func(c: Node) -> bool: return c is MeshInstance3D), "with worlds off the legacy meshes are drawn")
 	legacy.free()
-	_check(ArenaBspMap.world_prefix("surf_no_such_map") == "", "a map without a world has no prefix")
-	var mount := OS.get_temp_dir().path_join("arena_world_mount")
+	_check(FcBspMap.world_prefix("surf_no_such_map") == "", "a map without a world has no prefix")
+	var mount := OS.get_temp_dir().path_join("fc_world_mount")
 	var wdir := mount.path_join("worlds/surf_grave_reloaded")
 	DirAccess.make_dir_recursive_absolute(wdir)
 	for ext in ["json", "bin"]:
 		FileAccess.open(wdir.path_join("surf_grave_reloaded." + ext), FileAccess.WRITE).store_string("x")
-	_check(ArenaBspMap.world_prefix("surf_grave_reloaded", mount) == wdir.path_join("surf_grave_reloaded"), "a delivered map's own worlds/ wins over the linked root")
+	_check(FcBspMap.world_prefix("surf_grave_reloaded", mount) == wdir.path_join("surf_grave_reloaded"), "a delivered map's own worlds/ wins over the linked root")
 	_done()
 
 
@@ -150,8 +150,8 @@ func _test_prop_visuals() -> void:
 	var absent := 0
 	var props := 0
 	var unseen: Array[String] = []
-	for root in [ArenaBspMap.WORLD_ROOT, ArenaBspMap.WORLD_ROOT_DM]:
-		var base := ArenaPaths.rebase(root)
+	for root in [FcBspMap.WORLD_ROOT, FcBspMap.WORLD_ROOT_DM]:
+		var base := FcPaths.rebase(root)
 		for id in DirAccess.get_directories_at(base):
 			var manifest := base.path_join(id).path_join(id + ".json")
 			if not FileAccess.file_exists(manifest):
@@ -214,7 +214,7 @@ func _test_lighting() -> void:
 
 	var white := _lit(&"surf_29_12_06")
 	var white_top := _sky_top(white)
-	var table_top: Color = ArenaMapLighting.SKY_TOPS["sky_day01_01"]
+	var table_top: Color = FcMapLighting.SKY_TOPS["sky_day01_01"]
 	_check(
 		white_top.is_equal_approx(table_top) or _sky_is_panorama(white),
 		"a white ambient draws the sky its name says, not a white dome (%s)" % white_top
@@ -233,8 +233,8 @@ func _test_lighting() -> void:
 		"a map whose packed sky faces are gone (stripped pack) keeps the fallback sky instead of a hole"
 	)
 
-	var builtin := ArenaMapLighting.build(ArenaMap.by_id(&"dm_box"))
-	var builtin_top: Array = ArenaMap.DAYLIGHT["sky_top"]
+	var builtin := FcMapLighting.build(FcMap.by_id(&"dm_box"))
+	var builtin_top: Array = FcMap.DAYLIGHT["sky_top"]
 	_check(
 		_sky_top(builtin).is_equal_approx(Color(float(builtin_top[0]), float(builtin_top[1]), float(builtin_top[2]))),
 		"a built-in map still draws its own sky_top"
@@ -249,7 +249,7 @@ func _test_lighting() -> void:
 
 
 func _lit(id: StringName) -> Node3D:
-	return ArenaMapLighting.build(ArenaMap.by_id(id))
+	return FcMapLighting.build(FcMap.by_id(id))
 
 
 func _environment(root: Node3D) -> Environment:
@@ -267,7 +267,7 @@ func _sky_is_panorama(root: Node3D) -> bool:
 func _sky_top(root: Node3D) -> Color:
 	var env := _environment(root)
 	if env != null and env.sky != null and env.sky.sky_material is ShaderMaterial:
-		# The cloud sky (arena_sky.gdshader) keeps the rig's zenith colour as a parameter.
+		# The cloud sky (fc_sky.gdshader) keeps the rig's zenith colour as a parameter.
 		var zenith = (env.sky.sky_material as ShaderMaterial).get_shader_parameter("top_colour")
 		return zenith if zenith is Color else Color(0, 0, 0, 0)
 	if env == null or env.sky == null or not (env.sky.sky_material is ProceduralSkyMaterial):
@@ -317,17 +317,17 @@ func _solid_signature(root: Node) -> Array:
 func _test_loads() -> bool:
 	_section("the game loads it, with its solid in the tree")
 
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.tick_rate = TICK_RATE
 	_game.headless = true
 	_game.is_authority = true
 	_game.register_service = false
-	_game.mode = ArenaMode.free_for_all(SCORE_LIMIT)
+	_game.mode = FcMode.free_for_all(SCORE_LIMIT)
 	# The game's own export, which outranks the mode's when it is set (and is, by default).
 	_game.score_limit = SCORE_LIMIT
 	add_child(_game)
 
-	var map: ArenaMap = ArenaMap.by_id(MAP)
+	var map: FcMap = FcMap.by_id(MAP)
 	var res := _game.setup(map)
 	_check(res.ok, "setup succeeds%s" % ("" if res.ok else ": " + res.error.message))
 
@@ -335,7 +335,7 @@ func _test_loads() -> bool:
 		_done()
 		return false
 
-	var manifest := ArenaImportedMaps.manifest(MAP)
+	var manifest := FcImportedMaps.manifest(MAP)
 	var info: Dictionary = manifest.get("collision", {})
 	var expected := int(info.get("hull_count", 0)) + (
 		1 if int(info.get("displacement_index_count", 0)) > 0 else 0
@@ -346,13 +346,13 @@ func _test_loads() -> bool:
 	if solid != null:
 		shapes = 0
 		for shape: Node in solid.find_children("*", "CollisionShape3D", true, false):
-			shapes += 0 if shape.get_parent().is_in_group(ArenaBspMap.SKY_GROUP) else 1
+			shapes += 0 if shape.get_parent().is_in_group(FcBspMap.SKY_GROUP) else 1
 	_check(solid != null and solid.is_inside_tree() and shapes == expected,
 		"one shape per brush is in the tree (%d of %d)" % [shapes, expected])
-	# A client changing map builds this solid a slice a frame (ArenaMap.to_collision_async): it must be the same body.
+	# A client changing map builds this solid a slice a frame (FcMap.to_collision_async): it must be the same body.
 	var dir := _game.map.manifest_path.get_base_dir()
-	var one_shot := ArenaBspMap.build_collision(manifest, dir)
-	var sliced: Node = await ArenaBspMap.build_collision_async(manifest, dir, DotFrameSlice.new(0))
+	var one_shot := FcBspMap.build_collision(manifest, dir)
+	var sliced: Node = await FcBspMap.build_collision_async(manifest, dir, DotFrameSlice.new(0))
 	var one_sig := _solid_signature(one_shot)
 	_check(one_sig.size() > 0 and one_sig == _solid_signature(sliced),
 		"the solid built in slices is the one-shot solid (%d nodes)" % one_sig.size())
@@ -379,7 +379,7 @@ func _test_loads() -> bool:
 			return false
 
 	var first := _game.player_for(1)
-	# Inside the solid-players wrapper (`arena_solid_body.gd`), which only adds the others.
+	# Inside the solid-players wrapper (`fc_solid_body.gd`), which only adds the others.
 	var map_body: Variant = first.controller.flat_body.get(&"inner")
 	_check(map_body is DotFpsPhysicsBody
 		and (map_body as DotFpsPhysicsBody).is_bound(),
@@ -392,14 +392,14 @@ func _test_loads() -> bool:
 
 ## Checks the untextured water surfaces are drawn as water.
 func _check_water(manifest: Dictionary) -> void:
-	# Water the map shipped no texture for is drawn as water (arena_bsp_water.gdshader), one
+	# Water the map shipped no texture for is drawn as water (fc_bsp_water.gdshader), one
 	# material per such surface. Armed by skipping the water branch in _material_for.
 	var water_wanted := 0
 	for entry: Dictionary in manifest.get("surfaces", []):
 		var shipped: Variant = entry.get("texture", null)
 		if shipped is String and not (shipped as String).is_empty():
 			continue
-		if ArenaBspMap.is_water_material(str(entry.get("material", ""))):
+		if FcBspMap.is_water_material(str(entry.get("material", ""))):
 			water_wanted += 1
 	var water_drawn := _water_drawn()
 	_check(water_wanted > 0 and water_drawn == water_wanted,
@@ -482,7 +482,7 @@ func _test_deathmatch() -> void:
 	var samples := 0
 	var bounds := _game.map.bounds.grow(1.0)
 	var probe := DotFpsPhysicsBody.for_node(_game.map.collision_root)
-	var tunables := ArenaPlayer.arena_tunables()
+	var tunables := FcPlayer.fc_tunables()
 
 	for tick in range(ticks):
 		_game.tick(_commands_for_tick(tick))
@@ -547,7 +547,7 @@ func _commands_for_tick(tick: int) -> Dictionary:
 		if not player.is_alive():
 			continue
 
-		var target: ArenaPlayer = null
+		var target: FcPlayer = null
 		var best := INF
 
 		for other in _game.players():
@@ -597,7 +597,7 @@ func _test_jail() -> void:
 	var jail: RefCounted = _game.map.jail
 	var falls: Array[int] = []
 	for index: int in jail.roles:
-		if int(jail.roles[index]) == ArenaJail.Role.FALL:
+		if int(jail.roles[index]) == FcJail.Role.FALL:
 			falls.append(index)
 	_check(jail != null and falls.size() >= 2 and not jail.exit_indices.is_empty(),
 		"found by its shape: %d pits fall into it, %d ways out" % [falls.size(), jail.exit_indices.size()])
@@ -665,7 +665,7 @@ func _test_jail() -> void:
 		"with fc_jail off every volume does what the map shipped")
 	jail.enabled = true
 
-	var wire := ArenaEvents.read_jail(DotNetReader.new(ArenaEvents.write_jail(true, 640, 1280, 4321)))
+	var wire := FcEvents.read_jail(DotNetReader.new(FcEvents.write_jail(true, 640, 1280, 4321)))
 	var shut_tick := 4321 + 640
 	_game.apply_jail_state(wire)
 	_check(bool(wire["ok"]) and jail.opened_at == 4321 and jail.is_open(4321 + 10) and not jail.is_open(shut_tick),
@@ -681,33 +681,33 @@ func _test_jail() -> void:
 func _test_packs() -> void:
 	_section("the shift powerup is off, and a map's packs heal, refill and come back")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.is_authority = true
 	game.register_service = false
-	game.mode = ArenaMode.free_for_all(SCORE_LIMIT)
+	game.mode = FcMode.free_for_all(SCORE_LIMIT)
 	add_child(game)
-	var res := game.setup(ArenaMap.by_id(&"dm_box"))
+	var res := game.setup(FcMap.by_id(&"dm_box"))
 	_check(res.ok, "a map with packs loads")
 	var _added := game.add_player(1, "a")
 	var player := game.player_for(1)
 	game.respawn_player(1)
 
-	_check(not player.controller.tunables.dash_enabled and not ArenaPlayer.arena_tunables().dash_enabled,
+	_check(not player.controller.tunables.dash_enabled and not FcPlayer.fc_tunables().dash_enabled,
 		"the dash is off by default (fc_dash turns it on)")
 	_check(game.drops.pack_count() == game.map.packs.size() and game.map.packs.size() >= 4
 		and game.drops.packs_available() == game.map.packs.size(),
 		"every pack the map places is out (%d)" % game.map.packs.size())
-	_check(ArenaMap.PACK_HEALTH == ArenaDrops.Kind.HEALTH and ArenaMap.PACK_AMMO == ArenaDrops.Kind.AMMO,
+	_check(FcMap.PACK_HEALTH == FcDrops.Kind.HEALTH and FcMap.PACK_AMMO == FcDrops.Kind.AMMO,
 		"the map and the drops layer number the pack kinds alike")
 
 	var health_at := Vector3.ZERO
 	var ammo_at := Vector3.ZERO
 	for pack: Dictionary in game.map.packs:
-		if int(pack["kind"]) == ArenaMap.PACK_HEALTH and health_at == Vector3.ZERO:
+		if int(pack["kind"]) == FcMap.PACK_HEALTH and health_at == Vector3.ZERO:
 			health_at = pack["at"]
-		if int(pack["kind"]) == ArenaMap.PACK_AMMO and ammo_at == Vector3.ZERO:
+		if int(pack["kind"]) == FcMap.PACK_AMMO and ammo_at == Vector3.ZERO:
 			ammo_at = pack["at"]
 
 	# At full health a health pack stays where it is, for someone who needs it.

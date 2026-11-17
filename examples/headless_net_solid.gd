@@ -3,9 +3,9 @@ extends "headless_net_base.gd"
 
 ## Walking into another player: the server stops the walker, the client predicted it, and a strafing blocker too.
 func _solid_walk_checks(c: Dictionary) -> void:
-	var server_a: ArenaPlayer = c.server_a
-	var server_b: ArenaPlayer = c.server_b
-	var client_game: ArenaGame = c.client_game
+	var server_a: FcPlayer = c.server_a
+	var server_b: FcPlayer = c.server_b
+	var client_game: FcGame = c.client_game
 	var place: Callable = c.place
 	var walk: DotFpsCommand = c.walk
 	var idle: DotFpsCommand = c.idle
@@ -36,11 +36,11 @@ func _solid_walk_checks(c: Dictionary) -> void:
 	server_a.controller.teleport(Vector3(lane_x, 0.1, 19.0), 0.0)
 	server_b.controller.teleport(Vector3(lane_x, 0.1, 16.5), 0.0)
 	var _settle_moving := _flight_window(0, 24, 0, {2: idle, 3: idle})
-	var stops_before := ArenaSolidBody.hull_stops
+	var stops_before := FcSolidBody.hull_stops
 	var moving_worst := 0.0
 	var lag_repeats := 0
 	var lag_worst := 0.0
-	ArenaNetBridge.solid_trace = OS.get_environment("NC_SOLID_TRACE") == "1"
+	FcNetBridge.solid_trace = OS.get_environment("NC_SOLID_TRACE") == "1"
 	# A leg is seven ticks at 66 Hz; slower rates need more ticks to cover the same ground.
 	var leg_ticks := maxi(7, ceili(7.0 * 66.0 / float(TICK_RATE)))
 	for leg in range(14):
@@ -55,8 +55,8 @@ func _solid_walk_checks(c: Dictionary) -> void:
 		moving_worst = maxf(moving_worst, float(window["worst_aligned"]))
 		lag_repeats += int(window["lag_repeats"])
 		lag_worst = maxf(lag_worst, float(window["lag_worst"]))
-	ArenaNetBridge.solid_trace = false
-	var moving_stops := ArenaSolidBody.hull_stops - stops_before
+	FcNetBridge.solid_trace = false
+	var moving_stops := FcSolidBody.hull_stops - stops_before
 	print("  measured: a strafing, jumping blocker, %d hull stops, worst prediction gap %.3f m" % [moving_stops, moving_worst])
 	_check(
 		moving_stops > 0 and moving_worst < 0.03,
@@ -73,9 +73,9 @@ func _solid_walk_checks(c: Dictionary) -> void:
 
 ## The view lag a walker sends, its cap, and the unlag history below tick 0.
 func _solid_lag_checks(c: Dictionary) -> void:
-	var server_a: ArenaPlayer = c.server_a
-	var server_b: ArenaPlayer = c.server_b
-	var client_game: ArenaGame = c.client_game
+	var server_a: FcPlayer = c.server_a
+	var server_b: FcPlayer = c.server_b
+	var client_game: FcGame = c.client_game
 	var place: Callable = c.place
 	var walk: DotFpsCommand = c.walk
 	var idle: DotFpsCommand = c.idle
@@ -89,12 +89,12 @@ func _solid_lag_checks(c: Dictionary) -> void:
 	var saved_unlag := _server_game.max_unlag_ms
 	var cap := _server_game.collision_lag(127.0)
 	_check(
-		cap > 0.0 and cap <= ArenaGame.COLLISION_LAG_MAX_SEC * float(_server_game.tick_rate) + 0.001 and _server_game.collision_lag(2.5) == 2.5,
+		cap > 0.0 and cap <= FcGame.COLLISION_LAG_MAX_SEC * float(_server_game.tick_rate) + 0.001 and _server_game.collision_lag(2.5) == 2.5,
 		"a claimed view lag of 127 ticks collides at most %.0f back" % cap
 	)
 	# No event link here: RULES handed over as the link would carry it.
 	var relay := func(rules: Dictionary) -> void:
-		var bytes := _server_bridge.encode_event(ArenaEvents.Kind.RULES, ArenaEvents.write_rules(rules))
+		var bytes := _server_bridge.encode_event(FcEvents.Kind.RULES, FcEvents.write_rules(rules))
 		for peer_id in _clients:
 			var _r: DotResult = _clients[peer_id]["bridge"].receive_event(bytes)
 	_server_game.movement_rules_changed.connect(relay)
@@ -107,10 +107,10 @@ func _solid_lag_checks(c: Dictionary) -> void:
 	_server_game.max_unlag_ms = saved_unlag
 	_server_game.movement_rules_changed.disconnect(relay)
 	var fresh_ticks := PackedInt32Array()
-	fresh_ticks.resize(ArenaGame.UNLAG_HISTORY)
+	fresh_ticks.resize(FcGame.UNLAG_HISTORY)
 	fresh_ticks.fill(-1)
 	var fresh_positions := PackedVector3Array()
-	fresh_positions.resize(ArenaGame.UNLAG_HISTORY)
+	fresh_positions.resize(FcGame.UNLAG_HISTORY)
 	_server_game._unlag[-77] = [fresh_positions, fresh_ticks]
 	_check(
 		_server_game.unlag_position_at(-77, -0.5) == null,
@@ -121,16 +121,16 @@ func _solid_lag_checks(c: Dictionary) -> void:
 
 ## With mp_solidplayers 0 the same walk passes through, predicted so; solidity is restored after.
 func _solid_off_checks(c: Dictionary) -> void:
-	var server_a: ArenaPlayer = c.server_a
-	var server_b: ArenaPlayer = c.server_b
-	var client_game: ArenaGame = c.client_game
+	var server_a: FcPlayer = c.server_a
+	var server_b: FcPlayer = c.server_b
+	var client_game: FcGame = c.client_game
 	var place: Callable = c.place
 	var walk: DotFpsCommand = c.walk
 	var idle: DotFpsCommand = c.idle
 	_server_game.body_rules.solid = false
 	client_game.body_rules.solid = false
 	for peer_id in _clients:
-		(_clients[peer_id]["bridge"] as ArenaNetBridge).game.body_rules.solid = false
+		(_clients[peer_id]["bridge"] as FcNetBridge).game.body_rules.solid = false
 	place.call()
 	var through := _flight_window(2, 96, 0, {2: walk, 3: idle})
 	print("  measured: mp_solidplayers 0, closest %.3f m, A at z %.2f, worst prediction gap %.3f m" % [
@@ -147,23 +147,23 @@ func _solid_off_checks(c: Dictionary) -> void:
 
 	_server_game.body_rules.solid = true
 	for peer_id in _clients:
-		(_clients[peer_id]["bridge"] as ArenaNetBridge).game.body_rules.solid = true
+		(_clients[peer_id]["bridge"] as FcNetBridge).game.body_rules.solid = true
 
 
 ## Teammates pass by default, enemies stop, mp_teamblock and the !noblock state string flip the pair on both ends.
 func _solid_team_checks(c: Dictionary) -> void:
-	var server_a: ArenaPlayer = c.server_a
-	var server_b: ArenaPlayer = c.server_b
-	var client_game: ArenaGame = c.client_game
+	var server_a: FcPlayer = c.server_a
+	var server_b: FcPlayer = c.server_b
+	var client_game: FcGame = c.client_game
 	var place: Callable = c.place
 	var walk: DotFpsCommand = c.walk
 	var idle: DotFpsCommand = c.idle
 	# Teams: teammates pass through each other by default (mp_teamblock 0), predicted so on the
 	# walker's client; enemies still stop; a player's !block / !noblock request travels as the
 	# mp_blockstate string and flips the pair on both ends.
-	var games: Array[ArenaGame] = [_server_game]
+	var games: Array[FcGame] = [_server_game]
 	for peer_id in _clients:
-		games.append((_clients[peer_id]["bridge"] as ArenaNetBridge).game)
+		games.append((_clients[peer_id]["bridge"] as FcNetBridge).game)
 	var ids := [server_a.player_id, server_b.player_id]
 	var sides := {ids[0]: "1", ids[1]: "1"}
 	for g in games:

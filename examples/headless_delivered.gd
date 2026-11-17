@@ -1,15 +1,15 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaImportedMaps := preload("../maps/arena_imported_maps.gd")
-const ArenaBspMap := preload("../maps/arena_bsp_map.gd")
-const ArenaMapDirector := preload("../game/arena_map_director.gd")
-const ArenaContentGroups := preload("../game/arena_content_groups.gd")
-const ArenaClientView := preload("../game/arena_client_view.gd")
-const ArenaSimHost := preload("../game/arena_sim_host.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
+const FcBspMap := preload("../maps/fc_bsp_map.gd")
+const FcMapDirector := preload("../game/fc_map_director.gd")
+const FcContentGroups := preload("../game/fc_content_groups.gd")
+const FcClientView := preload("../game/fc_client_view.gd")
+const FcSimHost := preload("../game/fc_sim_host.gd")
 
 ## An arena map delivered the way a player gets it: published as a signed pack, fetched by a
 ## real [DotCloudClient], mounted, and built from the mount alone.
@@ -36,14 +36,14 @@ const OWNER := "gamemann"
 const VERSION := "1.0.4"
 ## user:// is shared by every worktree of this project, so parallel shards (and runs in two worktrees) wiped
 ## each other's tree: the three scratch roots carry the process id.
-var ROOT := "user://arena_delivered_check_%d" % OS.get_process_id()
+var ROOT := "user://fc_delivered_check_%d" % OS.get_process_id()
 ## Inside the project, so the publisher finds the imported outputs the markers name; under
 ## `.godot`, which git ignores.
-const STAGE := "res://.godot/arena_delivered_stage"
+const STAGE := "res://.godot/fc_delivered_stage"
 ## Where the game-pack section stages its stand-in tree.
-var PACK_ROOT := "user://arena_pack_maps_check_%d" % OS.get_process_id()
+var PACK_ROOT := "user://fc_pack_maps_check_%d" % OS.get_process_id()
 ## Where the per-map groups section publishes and mounts its stand-in pack.
-var GROUPS_ROOT := "user://arena_map_groups_check_%d" % OS.get_process_id()
+var GROUPS_ROOT := "user://fc_map_groups_check_%d" % OS.get_process_id()
 const SECTIONS := 8
 ## Without a frame; two more with `--shot`.
 const CHECKS := 38
@@ -84,10 +84,10 @@ func _run() -> void:
 	_line("arena — a combat surf map delivered as a signed pack")
 	_test_game_pack_leaves_maps_out()
 	_test_solo_start_map()
-	var source_manifest := ArenaImportedMaps.manifest_path(MAP)
+	var source_manifest := FcImportedMaps.manifest_path(MAP)
 
 	if source_manifest.is_empty():
-		_line("no %s under %s — nothing to publish (link arena-surf-dm-maps)" % [MAP, ArenaImportedMaps.roots()[0]])
+		_line("no %s under %s — nothing to publish (link fc-surf-dm-maps)" % [MAP, FcImportedMaps.roots()[0]])
 		await _test_map_groups()
 		get_tree().quit(1 if _failed > 0 else 0)
 		return
@@ -117,14 +117,14 @@ func _test_solo_start_map() -> void:
 	add_child(solo)
 	DotRegistry.register(&"dot_solo", solo)
 	solo.start_map = &"dm_pit"
-	_check(ArenaClientView._startup_map().id == &"dm_pit", "a built-in start map is the first map")
-	_check(ArenaSimHost.asked_map_id() == "dm_pit", "a sim host starts its server child on the start map",
-		ArenaSimHost.asked_map_id())
+	_check(FcClientView._startup_map().id == &"dm_pit", "a built-in start map is the first map")
+	_check(FcSimHost.asked_map_id() == "dm_pit", "a sim host starts its server child on the start map",
+		FcSimHost.asked_map_id())
 	solo.start_map = &"surf_not_built_in"
-	_check(ArenaClientView._solo_start_map() == "surf_not_built_in" and ArenaClientView._startup_map().id == &"dm_box",
+	_check(FcClientView._solo_start_map() == "surf_not_built_in" and FcClientView._startup_map().id == &"dm_box",
 		"a delivered one not yet mounted starts on dm_box")
 	solo.start_map = &"../dm_pit"
-	_check(ArenaClientView._solo_start_map() == "", "a start map that is not a map id is ignored")
+	_check(FcClientView._solo_start_map() == "", "a start map that is not a map id is ignored")
 	DotRegistry.unregister(&"dot_solo")
 	solo.queue_free()
 	_done()
@@ -155,7 +155,7 @@ func _test_game_pack_leaves_maps_out() -> void:
 	_check(missing.is_empty(), "every link is in MAP_LINKS (missing: %s)" % ", ".join(missing))
 	_check(passed, "publish.sh hands MAP_LINKS to the publisher as --exclude-dir")
 	DotPaths.remove_tree(PACK_ROOT)
-	var kept := PackedStringArray(["game/arena_game.gd", "maps/arena_map.gd", "maps/surf/x.surf.json"])
+	var kept := PackedStringArray(["game/fc_game.gd", "maps/fc_map.gd", "maps/surf/x.surf.json"])
 	var files := kept.duplicate()
 
 	for link in listed:
@@ -189,14 +189,14 @@ func _test_map_groups() -> void:
 				files.append(dir.path_join(rel))
 	var loose := PackedStringArray()
 	for rel in files:
-		var listed: Array = groups.get(ArenaContentGroups.group_for(StringName(rel.get_file().get_slice(".", 0))), [])
+		var listed: Array = groups.get(FcContentGroups.group_for(StringName(rel.get_file().get_slice(".", 0))), [])
 		if not listed.has(rel):
 			loose.append(rel)
 	_check(files.size() >= 8 and loose.is_empty(), "every bake and ride file is in its map's group (%d files; loose: %s)" % [files.size(), ", ".join(loose)])
 
 	DotPaths.remove_tree(GROUPS_ROOT)
 	var src := GROUPS_ROOT.path_join("src")
-	for rel in files + PackedStringArray(["game/arena_game.gd"]):
+	for rel in files + PackedStringArray(["game/fc_game.gd"]):
 		DotPaths.ensure_parent_dir(src.path_join(rel))
 		DotPaths.write_text(src.path_join(rel), rel)
 	DirAccess.copy_absolute(ProjectSettings.globalize_path("res://groups.json"), ProjectSettings.globalize_path(src.path_join("groups.json")))
@@ -205,7 +205,7 @@ func _test_map_groups() -> void:
 	publisher.content_id = "%s/arena-groups-check" % OWNER
 	publisher.version = VERSION
 	publisher.signing_key_pem = str(pair.value["private"]) if pair.ok else ""
-	publisher.signing_key_id = "arena_groups"
+	publisher.signing_key_id = "fc_groups"
 	var published := publisher.publish(src, GROUPS_ROOT.path_join("dist").path_join(publisher.content_id))
 	_check(published.ok, "the publisher accepts groups.json (no pattern matches nothing)%s" % ("" if published.ok else ": " + str(published.error)))
 
@@ -220,7 +220,7 @@ func _test_map_groups() -> void:
 	config.side = "both"
 	config.cache_dir = GROUPS_ROOT.path_join("cache")
 	config.require_signed_manifests = true
-	config.trusted_keys = {"arena_groups": str(pair.value["public"])}
+	config.trusted_keys = {"fc_groups": str(pair.value["public"])}
 	var cloud := DotCloudClient.new()
 	cloud.name = "GroupsCloud"
 	cloud.config = config
@@ -230,11 +230,11 @@ func _test_map_groups() -> void:
 	cloud.manifest_url_template = "{base}/{id}/manifest.json"
 	add_child(cloud)
 	var prefix := DotCloudClient.mount_prefix_for(StringName(publisher.content_id), VERSION).trim_suffix("/")
-	var first: DotResult = await cloud.ensure(StringName(publisher.content_id), VERSION, ArenaContentGroups.groups_for(&"dm_box"))
-	_check(first.ok and FileAccess.file_exists(prefix.path_join("game/arena_game.gd")), "a join on dm_box mounts the pack's code%s" % ("" if first.ok else ": " + str(first.error)))
+	var first: DotResult = await cloud.ensure(StringName(publisher.content_id), VERSION, FcContentGroups.groups_for(&"dm_box"))
+	_check(first.ok and FileAccess.file_exists(prefix.path_join("game/fc_game.gd")), "a join on dm_box mounts the pack's code%s" % ("" if first.ok else ": " + str(first.error)))
 	_check(FileAccess.file_exists(prefix.path_join("lightmaps/dm_box.res")), "and dm_box's bake")
 	_check(not FileAccess.file_exists(prefix.path_join("lightmaps/dm_pit.res")) and not FileAccess.file_exists(prefix.path_join("maps/surf/surf_ski_2.surf.json")), "and no other map's files")
-	var topped: DotResult = await cloud.call(&"ensure_groups_at", prefix.path_join("game"), ArenaContentGroups.groups_for(&"dm_pit"))
+	var topped: DotResult = await cloud.call(&"ensure_groups_at", prefix.path_join("game"), FcContentGroups.groups_for(&"dm_pit"))
 	_check(topped.ok and str(topped.value) == prefix and FileAccess.file_exists(prefix.path_join("lightmaps/dm_pit.res")), "a change to dm_pit tops up its bake%s" % ("" if topped.ok else ": " + str(topped.error)))
 	_check(not FileAccess.file_exists(prefix.path_join("lightmaps/dm_atrium.res")), "and still not the maps nobody played")
 	cloud.queue_free()
@@ -276,7 +276,7 @@ func _test_publish(source: String) -> Dictionary:
 	publisher.content_id = "%s/%s" % [OWNER, MAP]
 	publisher.version = VERSION
 	publisher.signing_key_pem = str(pair.value["private"])
-	publisher.signing_key_id = "arena_delivered"
+	publisher.signing_key_id = "fc_delivered"
 	var out := ROOT.path_join("dist").path_join(publisher.content_id)
 	var published := publisher.publish(staged, out)
 	_check(published.ok, "it publishes%s" % ("" if published.ok else ": " + str(published.error)))
@@ -291,7 +291,7 @@ func _test_publish(source: String) -> Dictionary:
 func _stage(source: String) -> String:
 	var dest := STAGE.path_join(String(MAP))
 	_stage_dir(source, dest)
-	var world := ArenaBspMap.world_prefix(String(MAP))
+	var world := FcBspMap.world_prefix(String(MAP))
 
 	# The real pack carries worlds/<id>/ beside the map folder (tools/stage_packs.sh).
 	if not world.is_empty():
@@ -318,21 +318,21 @@ func _stage_dir(source: String, dest: String) -> void:
 			DirAccess.copy_absolute(from, ProjectSettings.globalize_path(to))
 
 
-var _director: ArenaMapDirector = null
+var _director: FcMapDirector = null
 var _server: StandInServer = null
 var _cloud: DotCloudClient = null
 var _mount := ""
 
 
 ## The fetch and the build, through the director a server runs.
-func _test_fetch_and_build(keys: Dictionary) -> ArenaGame:
+func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 	_section("a content client fetches it, and the game builds the map from the mount")
 
 	var config := DotCloudConfig.new()
 	config.side = "both"
 	config.cache_dir = ROOT.path_join("cache")
 	config.require_signed_manifests = true
-	config.trusted_keys = {"arena_delivered": str(keys["public"])}
+	config.trusted_keys = {"fc_delivered": str(keys["public"])}
 	_cloud = DotCloudClient.new()
 	_cloud.name = "Cloud"
 	_cloud.config = config
@@ -346,19 +346,19 @@ func _test_fetch_and_build(keys: Dictionary) -> ArenaGame:
 
 	# A built-in first, so the first change is a change; the delivered map then replaces the
 	# local import of its id (a client without the link has no other copy).
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.tick_rate = 64
 	game.headless = true
 	game.is_authority = true
 	game.register_service = false
-	game.mode = ArenaMode.free_for_all(4)
+	game.mode = FcMode.free_for_all(4)
 	add_child(game)
-	_check(game.setup(ArenaMap.by_id(&"dm_box")).ok, "the game starts on a built-in map")
+	_check(game.setup(FcMap.by_id(&"dm_box")).ok, "the game starts on a built-in map")
 
 	var key := "%s/%s@%s" % [OWNER, MAP, VERSION]
 	var server := StandInServer.new()
 	server.games.maps = PackedStringArray([key])
-	var director := ArenaMapDirector.new()
+	var director := FcMapDirector.new()
 	director.game = game
 	director.server = server
 	add_child(director)
@@ -386,7 +386,7 @@ func _test_fetch_and_build(keys: Dictionary) -> ArenaGame:
 	add_child(solo)
 	DotRegistry.register(&"dot_solo", solo)
 	solo.start_map = MAP
-	var first := ArenaClientView._startup_map()
+	var first := FcClientView._startup_map()
 	_check(first != null and first.id == MAP, "a mounted solo start map is the first map, with no dm_box before it",
 		str(first.id) if first != null else "none")
 	DotRegistry.unregister(&"dot_solo")
@@ -398,7 +398,7 @@ func _test_fetch_and_build(keys: Dictionary) -> ArenaGame:
 
 
 ## Every texture, the lightmap and the mesh come from the mount; none from the link.
-func _test_frame(game: ArenaGame) -> void:
+func _test_frame(game: FcGame) -> void:
 	_section("everything drawn comes from the pack, and a frame renders")
 
 	if game == null or game.map == null:
@@ -419,10 +419,10 @@ func _test_frame(game: ArenaGame) -> void:
 		meshes += 1
 
 	_check(meshes > 0, "the map draws meshes (%d)" % meshes)
-	var world := ArenaBspMap.world_prefix(MAP, _mount)
+	var world := FcBspMap.world_prefix(MAP, _mount)
 	_check(world.begins_with(_mount) and FileAccess.file_exists(world + ".bin"),
 		"the world (textures, lightmaps, mesh) is read from the pack: %s" % world)
-	_check(ArenaImportedMaps.manifest_path(MAP).begins_with(_mount),
+	_check(FcImportedMaps.manifest_path(MAP).begins_with(_mount),
 		"the map's manifest resolves to the mount, not the maps/imported link")
 
 	var args := OS.get_cmdline_user_args()
@@ -437,7 +437,7 @@ func _test_frame(game: ArenaGame) -> void:
 	_done()
 
 
-func _shot(scene: Node, map: ArenaMap, path: String) -> void:
+func _shot(scene: Node, map: FcMap, path: String) -> void:
 	var camera := Camera3D.new()
 	camera.far = 4000.0
 	add_child(camera)
@@ -476,21 +476,21 @@ func _test_leaves() -> void:
 
 func _test_surf_keys() -> void:
 	_section("the published surf packs are in the solo list, under their manifest ids")
-	var def := ArenaMaps.delivered_def("gamemann/arena-surf-dm-maps-surf_10x_final@1.2.3")
+	var def := FcMaps.delivered_def("gamemann/arena-surf-dm-maps-surf_10x_final@1.2.3")
 	_check(def != null and String(def.id) == "surf_10x_final", "the pack prefix is stripped from the map id (%s)" % (String(def.id) if def != null else "null"))
-	_check(ArenaMaps.is_delivered(def), "a prefixed surf pack counts as delivered (is_delivered)")
+	_check(FcMaps.is_delivered(def), "a prefixed surf pack counts as delivered (is_delivered)")
 	var surf := 0
-	for key in ArenaMaps.STANDALONE_KEYS:
-		if key.begins_with("gamemann/" + ArenaMaps.PACK_PREFIX) and "@1.2." in key:
+	for key in FcMaps.STANDALONE_KEYS:
+		if key.begins_with("gamemann/" + FcMaps.PACK_PREFIX) and "@1.2." in key:
 			surf += 1
 	_check(surf == 39, "STANDALONE_KEYS holds 39 surf packs (%d)" % surf)
-	var listed := ArenaMaps.standalone_keys(null)
+	var listed := FcMaps.standalone_keys(null)
 	_check("gamemann/arena-surf-dm-maps-surf_10x_final@1.2.3" in listed, "standalone_keys() lists a surf pack")
 	_check(listed.size() >= surf, "standalone_keys() lists at least all of them (%d)" % listed.size())
 	_done()
 
 
-func _cleanup(game: ArenaGame) -> void:
+func _cleanup(game: FcGame) -> void:
 	if game != null:
 		remove_child(game)
 		game.free()

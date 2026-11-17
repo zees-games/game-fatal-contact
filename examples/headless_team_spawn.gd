@@ -1,9 +1,9 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaEffects := preload("../game/arena_effects.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcEffects := preload("../game/fc_effects.gd")
 
 ## Team deathmatch must spawn each side at its own spots; a free-for-all stays random.
 ## Every built-in dm_ map and every imported map that is linked: per team, many respawns, each landing on a
@@ -27,7 +27,7 @@ func _run() -> void:
 		for id in ["crackhouse", "blackhawkdown", "dm-morpheus", "gg-woods", "dm-overwatch", "surf_ski_2"]:
 			extra.append(StringName(id))
 	for id in extra:
-		if ArenaMap.by_id(id) == null:
+		if FcMap.by_id(id) == null:
 			print("skip %s: not linked" % id)
 		else:
 			ids.append(id)
@@ -40,8 +40,8 @@ func _run() -> void:
 	_report_sections(ids.size() + 4, ids.size() + 4, ids.size() + 4, ids.size() * 2 + 27)
 
 
-func _game(map: ArenaMap, mode: ArenaMode, split := true) -> ArenaGame:
-	var game := ArenaGame.new()
+func _game(map: FcMap, mode: FcMode, split := true) -> FcGame:
+	var game := FcGame.new()
 	game.team_spawn_split = split
 	game.tick_rate = 64
 	game.score_limit = 100000
@@ -59,8 +59,8 @@ func _game(map: ArenaMap, mode: ArenaMode, split := true) -> ArenaGame:
 
 
 func _one(id: StringName) -> void:
-	var map: ArenaMap = ArenaMap.by_id(id)
-	var game := _game(map, ArenaMode.team_deathmatch())
+	var map: FcMap = FcMap.by_id(id)
+	var game := _game(map, FcMode.team_deathmatch())
 	if game == null:
 		_check(false, "%s sets up" % id)
 		return
@@ -97,8 +97,8 @@ func _one(id: StringName) -> void:
 
 ## FFA ignores teams: players land on both ends of dm_atrium.
 func _ffa_is_random() -> void:
-	var map: ArenaMap = ArenaMap.dm_atrium()
-	var game := _game(map, ArenaMode.free_for_all())
+	var map: FcMap = FcMap.dm_atrium()
+	var game := _game(map, FcMode.free_for_all())
 	var seen := {}
 	for b in PLAYERS:
 		var _a := game.add_player(b + 1, "P%d" % b)
@@ -117,7 +117,7 @@ func _ffa_is_random() -> void:
 ## The fallback itself: a map with no sides is cut in two halves by position, both the same size, the
 ## red half holding one anchor; a map that tags both sides is left alone; `fc_team_spawn_split` 0 keeps one pool.
 func _split_is_documented() -> void:
-	var map: ArenaMap = ArenaMap.dm_box()
+	var map: FcMap = FcMap.dm_box()
 	for index in range(map.spawns.size()):
 		map.spawn_tags[index] = ""
 	var n := map.split_spawns_for_teams()
@@ -134,10 +134,10 @@ func _split_is_documented() -> void:
 			centre_blue += map.spawns[i].origin / float(blue)
 	_check(centre_red.distance_to(centre_blue) > 5.0, "and the halves sit apart", "%.1f m" % centre_red.distance_to(centre_blue))
 	_check(map.split_spawns_for_teams() == map.spawns.size() or map.split_spawns_for_teams() == 0, "and running it again does no harm")
-	var tagged: ArenaMap = ArenaMap.dm_atrium()
+	var tagged: FcMap = FcMap.dm_atrium()
 	var before := tagged.spawn_tags.duplicate()
 	_check(tagged.split_spawns_for_teams() == 0 and tagged.spawn_tags == before, "a map that tags both sides keeps its tags")
-	var off := _game(ArenaMap.dm_pit(), ArenaMode.team_deathmatch(), false)
+	var off := _game(FcMap.dm_pit(), FcMode.team_deathmatch(), false)
 	_check(off != null and Array(off.map.spawn_tags).count("") == off.map.spawns.size(), "with the split off both teams share one pool", str(off.map.spawn_tags) if off != null else "no game")
 	if off != null:
 		off.queue_free()
@@ -146,7 +146,7 @@ func _split_is_documented() -> void:
 ## Spawn protection: lasts the mode's seconds for the spawned player and no longer, the victim is the one protected
 ## and not the attacker, a shot or a move ends it when `spawn_protection_break` says so, and 0 seconds is none.
 func _protection() -> void:
-	var game := _game(ArenaMap.dm_atrium(), ArenaMode.team_deathmatch())
+	var game := _game(FcMap.dm_atrium(), FcMode.team_deathmatch())
 	game.match_node.rules.spawn_protection_sec = 1.0
 	game.player_stack.refresh_spawn_rules()
 	for b in 4:
@@ -167,7 +167,7 @@ func _protection() -> void:
 			first_hurt = game.current_tick() - spawned
 		game.tick({})
 	_check(first_hurt >= rate - 2 and first_hurt <= rate + 3, "protection lasts spawn_protection_sec, no more and no less", "first hurt after %d ticks of %d" % [first_hurt, rate])
-	_check(not game.player_for(1).health.is_protected(game.current_tick()) and not game.effects.has(ArenaEffects.PROTECTED, 1)
+	_check(not game.player_for(1).health.is_protected(game.current_tick()) and not game.effects.has(FcEffects.PROTECTED, 1)
 		and not game.player_stack.spawns.protection.is_protected("1", game.current_tick()), "and all three records have ended")
 	# The attacker's own protection does not stop it hurting somebody unprotected.
 	var _r2 := game.respawn_player(2)
@@ -184,7 +184,7 @@ func _protection() -> void:
 	var walk := DotFpsCommand.new()
 	walk.move = Vector2(0.0, 1.0)
 	game.tick({3: [walk, DotWeaponCommand.new()]})
-	_check(not game.player_for(3).health.is_protected(game.current_tick()) and not game.effects.has(ArenaEffects.PROTECTED, 3), "the first move ends it when the cvar says move")
+	_check(not game.player_for(3).health.is_protected(game.current_tick()) and not game.effects.has(FcEffects.PROTECTED, 3), "the first move ends it when the cvar says move")
 	game.config.spawn_protection_break = 0
 	var _r4 := game.respawn_player(3)
 	game.tick({3: [walk, DotWeaponCommand.new()]})
@@ -202,7 +202,7 @@ func _protection() -> void:
 
 
 ## Spawn protection by distance walked, the bubble cvar and a 0.5 s window; frees [param game].
-func _protection_distance(game: ArenaGame, walk: DotFpsCommand) -> void:
+func _protection_distance(game: FcGame, walk: DotFpsCommand) -> void:
 	var rate := game.tick_rate
 	# Distance: with the shot/move bits off, travel past spawn_protection_move_feet (2 ft = 0.61 m) ends it.
 	game.config.spawn_protection_break = 0
@@ -218,7 +218,7 @@ func _protection_distance(game: ArenaGame, walk: DotFpsCommand) -> void:
 		steps += 1
 	var travelled := game.player_for(3).global_position.distance_to(start)
 	_check(steps < rate and travelled >= 0.55 and travelled < 1.6, "walking ends protection after about two feet", "ended after %d ticks at %.2f m" % [steps, travelled])
-	_check(not game.effects.has(ArenaEffects.PROTECTED, 3) and not game.player_stack.spawns.protection.is_protected("3", game.current_tick()), "in all three records")
+	_check(not game.effects.has(FcEffects.PROTECTED, 3) and not game.player_stack.spawns.protection.is_protected("3", game.current_tick()), "in all three records")
 	game.config.spawn_protection_move_feet = 0.0
 	var _r7 := game.respawn_player(3)
 	for _i in 40:
@@ -242,7 +242,7 @@ func _protection_distance(game: ArenaGame, walk: DotFpsCommand) -> void:
 
 
 func _jump_gate() -> void:
-	var Gate := preload("../game/arena_jump_gate.gd")
+	var Gate := preload("../game/fc_jump_gate.gd")
 	var gate := Gate.new()
 	var held := DotFpsCommand.new()
 	held.set_button(DotFpsCommand.BUTTON_JUMP, true)

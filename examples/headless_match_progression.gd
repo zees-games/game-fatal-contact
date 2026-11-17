@@ -17,10 +17,10 @@ func _test_progression() -> void:
 		"stats, achievements and boards are all up"
 	)
 
-	var bot_id: int = ArenaGame.BOT_SESSION_BASE + 1
+	var bot_id: int = FcGame.BOT_SESSION_BASE + 1
 	progress.begin(bot_id, "bot")
 	progress.record(bot_id, &"kills", 1.0)
-	_check(not progress.stats.has_player(StringName(ArenaGame.storage_key(bot_id))), "a bot never enters the stats")
+	_check(not progress.stats.has_player(StringName(FcGame.storage_key(bot_id))), "a bot never enters the stats")
 
 	# The catalogue's validator refuses one stat read with two merge rules (a total and a personal best cannot be one number);
 	# checked here because otherwise one achievement never unlocks for one player with nothing erroring.
@@ -54,12 +54,12 @@ func _test_progression() -> void:
 
 	for player in _game.players():
 		var values := progress.session_values(player.player_id)
-		total_kills += values.get_value(ArenaStats.KILLS, 0.0)
-		total_fired += values.get_value(ArenaStats.SHOTS_FIRED, 0.0)
-		total_hit += values.get_value(ArenaStats.SHOTS_HIT, 0.0)
-		best_streak = maxf(best_streak, values.get_value(ArenaStats.BEST_STREAK, 0.0))
+		total_kills += values.get_value(FcStats.KILLS, 0.0)
+		total_fired += values.get_value(FcStats.SHOTS_FIRED, 0.0)
+		total_hit += values.get_value(FcStats.SHOTS_HIT, 0.0)
+		best_streak = maxf(best_streak, values.get_value(FcStats.BEST_STREAK, 0.0))
 
-		if values.get_value(ArenaStats.DEATHS, 0.0) > 0.0:
+		if values.get_value(FcStats.DEATHS, 0.0) > 0.0:
 			any_deaths = true
 
 	# The kill feed is the independent witness. Suicides carry no killer, so the
@@ -108,7 +108,7 @@ func _test_progression() -> void:
 
 	for player in _game.players():
 		if progress.achievements.is_unlocked(
-			ArenaGame.storage_key(player.player_id), &"arena.first_blood"
+			FcGame.storage_key(player.player_id), &"arena.first_blood"
 		):
 			unlocked_any = true
 
@@ -120,19 +120,19 @@ func _test_progression() -> void:
 	var mismatched := PackedStringArray()
 
 	for player in _game.players():
-		var key := ArenaGame.storage_key(player.player_id)
+		var key := FcGame.storage_key(player.player_id)
 		var held := progress.achievements.progress_of(key)
 
 		if held == null:
 			continue
 
 		var session := progress.session_values(player.player_id).get_value(
-			ArenaStats.KILLS, 0.0
+			FcStats.KILLS, 0.0
 		)
 
-		if absf(held.value_of(ArenaStats.KILLS) - session) > 0.001:
+		if absf(held.value_of(FcStats.KILLS) - session) > 0.001:
 			mismatched.append("%s: lifetime %.0f, session %.0f" % [
-				key, held.value_of(ArenaStats.KILLS), session
+				key, held.value_of(FcStats.KILLS), session
 			])
 
 	_check(
@@ -144,15 +144,15 @@ func _test_progression() -> void:
 	# Boards: filed when a player leaves, so this removes one. The only place `leave` is exercised, and it is a coroutine
 	# (the achievement store may be remote), so it is awaited here.
 	var leaver := _game.players()[0]
-	var leaver_key := StringName(ArenaGame.storage_key(leaver.player_id))
+	var leaver_key := StringName(FcGame.storage_key(leaver.player_id))
 	var leaver_kills := progress.session_values(leaver.player_id).get_value(
-		ArenaStats.KILLS, 0.0
+		FcStats.KILLS, 0.0
 	)
 
 	await progress.leave(leaver.player_id)
 
-	var scope := ArenaBoards.scope_for(_game.mode.id)
-	var entry := progress.boards.entry_for(ArenaBoards.KILLS, scope, leaver_key)
+	var scope := FcBoards.scope_for(_game.mode.id)
+	var entry := progress.boards.entry_for(FcBoards.KILLS, scope, leaver_key)
 
 	if leaver_kills > 0.0:
 		_check(
@@ -184,7 +184,7 @@ func _test_progression() -> void:
 	_test_progression_rest(defined)
 
 ## Which spawn of [param map] is nearest [param at], and how far: [index, metres].
-func _nearest_spawn(map: ArenaMap, at: Vector3) -> Array:
+func _nearest_spawn(map: FcMap, at: Vector3) -> Array:
 	var best := -1
 	var best_distance := INF
 
@@ -205,9 +205,9 @@ func _spawn_tag_of_team(team_id: int) -> StringName:
 
 	return &""
 
-func _test_map_change_rest(director: ArenaMapDirector, team: ArenaMode) -> void:
+func _test_map_change_rest(director: FcMapDirector, team: FcMode) -> void:
 	if team != null:
-		var to_team := _game.change_map(ArenaMap.by_id(_game.map.id), team)
+		var to_team := _game.change_map(FcMap.by_id(_game.map.id), team)
 
 		if _check(to_team.ok, "the game moves into a team mode", str(to_team.error)):
 			# The respawn a map change now does is the round start's, so it has to
@@ -259,7 +259,7 @@ func _test_map_change_rest(director: ArenaMapDirector, team: ArenaMode) -> void:
 			)
 
 			var back := _game.change_map(
-				ArenaMap.by_id(_game.map.id), ArenaMode.free_for_all()
+				FcMap.by_id(_game.map.id), FcMode.free_for_all()
 			)
 
 			if _check(back.ok, "the game goes back to a free-for-all", str(back.error)):
@@ -282,7 +282,7 @@ func _trap_at(standing: Vector3) -> AABB:
 ## The first patch of bare floor, scanning in a fixed order, where a trap box would
 ## touch no other box and would sit at least four metres from every spawn — so the only
 ## way a player ends up inside it is by having been left there.
-func _open_floor_away_from_spawns(map: ArenaMap) -> Variant:
+func _open_floor_away_from_spawns(map: FcMap) -> Variant:
 	var reach := int(map.extent) - 3
 
 	for x in range(-reach, reach + 1, 2):
@@ -313,7 +313,7 @@ func _open_floor_away_from_spawns(map: ArenaMap) -> Variant:
 ## Every player whose body is inside a box of [param map], by id. Two points up the
 ## body rather than the feet, because a player standing ON a box has their feet on its
 ## top face and is exactly where they should be.
-func _players_inside_boxes(map: ArenaMap) -> Array[int]:
+func _players_inside_boxes(map: FcMap) -> Array[int]:
 	var out: Array[int] = []
 
 	for player in _game.players():
@@ -336,7 +336,7 @@ func _players_inside_boxes(map: ArenaMap) -> Array[int]:
 ## bot-crouch-rewind-60m-1; footage 2026-11-15).
 func _test_lag_compensation_stance() -> void:
 	_section("lag compensation carries the crouch")
-	var game := _weapon_mode_game(ArenaMode.free_for_all(25), [942, 943])
+	var game := _weapon_mode_game(FcMode.free_for_all(25), [942, 943])
 	if not _check(game != null, "a two-player game sets up"):
 		return
 	for _i in range(6):
@@ -370,7 +370,7 @@ func _test_lag_compensation_stance() -> void:
 	_done()
 
 ## B held crouched (or not) eight metres in front of A for [param ticks]: `[the tick, B's head zone centre]` at the end.
-func _stance_hold(game: ArenaGame, crouch: bool, ticks: int) -> Array:
+func _stance_hold(game: FcGame, crouch: bool, ticks: int) -> Array:
 	var a_at := game.player_for(942).controller.state.position
 	var b_at := game.player_for(943).controller.state.position
 	for _k in range(ticks):
@@ -382,14 +382,14 @@ func _stance_hold(game: ArenaGame, crouch: bool, ticks: int) -> Array:
 		game.tick({943: [move, DotWeaponCommand.new()]})
 	return [game.current_tick(), _stance_head(game)]
 
-func _stance_head(game: ArenaGame) -> Vector3:
+func _stance_head(game: FcGame) -> Vector3:
 	for box: DotHitbox in game.player_for(943).hitboxes.hitboxes():
 		if box.group == DotHitGroup.HEAD:
 			return box.global_position
 	return Vector3.INF
 
 ## A's rifle at where [param seen] drew B's head, rewound to that tick: the zone group it met on B, or empty.
-func _stance_shot(game: ArenaGame, seen: Array) -> StringName:
+func _stance_shot(game: FcGame, seen: Array) -> StringName:
 	var shot := DotShot.make(&"rifle", 942, game.current_tick(), 0)
 	shot.origin = game.player_for(942).global_position + Vector3.UP * 1.5
 	var aim: Vector3 = (seen[1] as Vector3) - shot.origin

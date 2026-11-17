@@ -1,10 +1,10 @@
 extends DotGameCheckSuite
 
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaKillcamBodies := preload("../game/arena_killcam_bodies.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcKillcamBodies := preload("../game/fc_killcam_bodies.gd")
 
 ## Remote players nobody can see are presented less often, and the ones in view never are (arena-client-perf-1).
-## A bare ArenaPlayer has no controller, so `present` returns at once and the counters in `present_lod` are the whole
+## A bare FcPlayer has no controller, so `present` returns at once and the counters in `present_lod` are the whole
 ## story. Run: [code]godot --headless --path . res://examples/headless_remote_lod.tscn[/code]
 
 const SECTIONS := 11
@@ -32,15 +32,15 @@ func _done() -> void:
 	_completed += 1
 
 
-func _body(at: Vector3) -> ArenaPlayer:
-	var p := ArenaPlayer.new()
+func _body(at: Vector3) -> FcPlayer:
+	var p := FcPlayer.new()
 	_root.add_child(p)
 	p.global_position = at
 	return p
 
 
-## A remote body with a figure, a held gun and a crest, as far as [method ArenaPlayer.present_lod] needs one.
-func _armed_body(at: Vector3) -> ArenaPlayer:
+## A remote body with a figure, a held gun and a crest, as far as [method FcPlayer.present_lod] needs one.
+func _armed_body(at: Vector3) -> FcPlayer:
 	var p := _body(at)
 	p.health = DotHealth.new()
 	p.add_child(p.health)
@@ -59,7 +59,7 @@ func _shown(node: Variant) -> bool:
 
 
 ## Presents [param p] for [param frames] frames and returns how many of them were let through (lod counter reset).
-func _passes(p: ArenaPlayer, frames: int) -> int:
+func _passes(p: FcPlayer, frames: int) -> int:
 	var passed := 0
 	var frustum := _cam.get_frustum()
 	for _i in frames:
@@ -86,11 +86,11 @@ func _test_figure_draw_range() -> void:
 	armed.global_position = Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE - 20.0))
 	_n = _passes(armed, 1)
 	_check(armed.held.visible and _shown(armed.get("_crest")), "back in range: both drawn again")
-	ArenaPlayer.figure_draw_range = 0.0
+	FcPlayer.figure_draw_range = 0.0
 	armed.global_position = Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE + 20.0))
 	_n = _passes(armed, 1)
 	_check(armed.held.visible and _shown(armed.get("_crest")), "cl_figure_draw_range 0: drawn at every distance, gun and crest too")
-	ArenaPlayer.figure_draw_range = DotHumanoidFigure.DRAW_RANGE
+	FcPlayer.figure_draw_range = DotHumanoidFigure.DRAW_RANGE
 	_done()
 
 	_section("a figure whose skin is hidden draws no gun either (floatgun-ak-1)")
@@ -121,9 +121,9 @@ func _run() -> void:
 	_cam.look_at(Vector3(0, 0, -10), Vector3.UP)
 	_cam.make_current()
 	await get_tree().process_frame
-	ArenaPlayer.present_lod_enabled = true
-	ArenaPlayer.lod_frustum = true
-	ArenaPlayer.lod_off_every = 4
+	FcPlayer.present_lod_enabled = true
+	FcPlayer.lod_frustum = true
+	FcPlayer.lod_off_every = 4
 
 	_section("a body in the frustum is presented every frame")
 	var ahead := _body(Vector3(0, 0, -20))
@@ -151,14 +151,14 @@ func _run() -> void:
 	_test_dead_joiner()
 
 	_section("the kill-cam recording cap")
-	_check(ArenaKillcamBodies.record_hz == 30.0, "default 30 recordings a second")
-	_check(ArenaKillcamBodies.record_hz > 0.0 and 1.0e6 / ArenaKillcamBodies.record_hz < 40000.0, "a gap under 40 ms: the replay interpolates between rows")
-	_check(ArenaKillcamBodies.hz_for(32) == ArenaKillcamBodies.record_hz, "32 players: cl_killcam_hz")
-	_check(ArenaKillcamBodies.hz_for(64) == ArenaKillcamBodies.crowd_hz and ArenaKillcamBodies.crowd_hz == 15.0, "64 players: cl_killcam_crowd_hz, 15")
-	var crowd := ArenaKillcamBodies.crowd_players
-	ArenaKillcamBodies.crowd_players = 0
-	_check(ArenaKillcamBodies.hz_for(64) == ArenaKillcamBodies.record_hz, "cl_killcam_crowd 0: never the crowd rate")
-	ArenaKillcamBodies.crowd_players = crowd
+	_check(FcKillcamBodies.record_hz == 30.0, "default 30 recordings a second")
+	_check(FcKillcamBodies.record_hz > 0.0 and 1.0e6 / FcKillcamBodies.record_hz < 40000.0, "a gap under 40 ms: the replay interpolates between rows")
+	_check(FcKillcamBodies.hz_for(32) == FcKillcamBodies.record_hz, "32 players: cl_killcam_hz")
+	_check(FcKillcamBodies.hz_for(64) == FcKillcamBodies.crowd_hz and FcKillcamBodies.crowd_hz == 15.0, "64 players: cl_killcam_crowd_hz, 15")
+	var crowd := FcKillcamBodies.crowd_players
+	FcKillcamBodies.crowd_players = 0
+	_check(FcKillcamBodies.hz_for(64) == FcKillcamBodies.record_hz, "cl_killcam_crowd 0: never the crowd rate")
+	FcKillcamBodies.crowd_players = crowd
 	_done()
 
 	_test_lod_crowd()
@@ -193,45 +193,45 @@ func _test_dead_joiner() -> void:
 ## The cl_remote_lod cvars: the rate, off, and the cone instead of the frustum.
 func _test_cvars() -> void:
 	_section("the cvars")
-	ArenaPlayer.lod_off_every = 8
+	FcPlayer.lod_off_every = 8
 	var slow := _body(Vector3(0, 0, 20))
 	_check(_passes(slow, 16) == 2, "cl_remote_lod_every 8: 2 of 16 frames", "%d" % _passes(slow, 16))
-	ArenaPlayer.lod_off_every = 1
+	FcPlayer.lod_off_every = 1
 	var every := _body(Vector3(0, 0, 20))
 	_check(_passes(every, 8) == 8, "cl_remote_lod_every 1 presents everything")
-	ArenaPlayer.lod_off_every = 4
-	ArenaPlayer.present_lod_enabled = false
+	FcPlayer.lod_off_every = 4
+	FcPlayer.present_lod_enabled = false
 	var off := _body(Vector3(0, 0, 20))
 	_check(_passes(off, 8) == 8, "cl_remote_lod 0 presents everything")
-	ArenaPlayer.present_lod_enabled = true
-	ArenaPlayer.lod_frustum = false
+	FcPlayer.present_lod_enabled = true
+	FcPlayer.lod_frustum = false
 	var cone := _body(Vector3(40, 0, -20))
 	_check(_passes(cone, 8) == 8, "cl_remote_lod_frustum 0: the cone keeps that body in view (all 8)", "%d" % _passes(cone, 8))
 	var cone_back := _body(Vector3(0, 0, 20))
 	_check(_passes(cone_back, 8) == 2, "cl_remote_lod_frustum 0: behind is still thinned")
-	ArenaPlayer.lod_frustum = true
+	FcPlayer.lod_frustum = true
 	_done()
 
 
 ## Above cl_remote_lod_crowd players the anim-gate and far-tier distances shrink by cl_remote_lod_crowd_scale.
 func _test_lod_crowd() -> void:
 	_section("a crowd thins nearer bodies (fc-64p-2)")
-	_check(ArenaPlayer.lod_distance_scale(32) == ArenaPlayer.lod_scale, "32 players: the distances as set")
-	_check(is_equal_approx(ArenaPlayer.lod_distance_scale(64), ArenaPlayer.lod_scale * ArenaPlayer.lod_crowd_scale), "64 players: times the crowd scale")
-	ArenaPlayer.anim_gate_enabled = true
-	ArenaPlayer.set_lod_crowd(64)
+	_check(FcPlayer.lod_distance_scale(32) == FcPlayer.lod_scale, "32 players: the distances as set")
+	_check(is_equal_approx(FcPlayer.lod_distance_scale(64), FcPlayer.lod_scale * FcPlayer.lod_crowd_scale), "64 players: times the crowd scale")
+	FcPlayer.anim_gate_enabled = true
+	FcPlayer.set_lod_crowd(64)
 	var mid := _body(Vector3(0, 0, -16))
 	var _m := _passes(mid, 1)
-	_check(is_equal_approx(mid.get("_anim_min_dt") as float, ArenaPlayer.ANIM_GATE_FAR_DT), "64 players, 16 m in view: 20 Hz (past 20 x 0.67 m)")
-	ArenaPlayer.set_lod_crowd(8)
+	_check(is_equal_approx(mid.get("_anim_min_dt") as float, FcPlayer.ANIM_GATE_FAR_DT), "64 players, 16 m in view: 20 Hz (past 20 x 0.67 m)")
+	FcPlayer.set_lod_crowd(8)
 	var _n := _passes(mid, 1)
-	_check(is_equal_approx(mid.get("_anim_min_dt") as float, ArenaPlayer.ANIM_GATE_DT), "8 players, the same body: 30 Hz")
+	_check(is_equal_approx(mid.get("_anim_min_dt") as float, FcPlayer.ANIM_GATE_DT), "8 players, the same body: 30 Hz")
 	_done()
 
 
 func _test_anim_gate() -> void:
 	_section("thinning is a rate, not only a frame count")
-	ArenaPlayer.anim_gate_enabled = true
+	FcPlayer.anim_gate_enabled = true
 	var fast_behind := _body(Vector3(0, 0, 20))
 	var fast_n := 0
 	var fast_frustum := _cam.get_frustum()
@@ -241,7 +241,7 @@ func _test_anim_gate() -> void:
 		if (fast_behind.get("_lod_frames") as int) <= b4:
 			fast_n += 1
 	_check(fast_n >= 3 and fast_n <= 5, "out of sight at 250 fps: about 30 presents a second (4 of 36 frames)", "%d" % fast_n)
-	ArenaPlayer.anim_gate_enabled = false
+	FcPlayer.anim_gate_enabled = false
 	var ungated := _body(Vector3(0, 0, 20))
 	var ungated_n := 0
 	for _i in 36:
@@ -250,16 +250,16 @@ func _test_anim_gate() -> void:
 		if (ungated.get("_lod_frames") as int) <= b5:
 			ungated_n += 1
 	_check(ungated_n == 9, "cl_remote_anim_gate 0: back to every fourth frame (9 of 36)", "%d" % ungated_n)
-	ArenaPlayer.anim_gate_enabled = true
+	FcPlayer.anim_gate_enabled = true
 	var mid := _body(Vector3(0, 0, -12))
 	var _m := _passes(mid, 1)
-	_check(is_equal_approx(mid.get("_anim_min_dt") as float, ArenaPlayer.ANIM_GATE_DT), "in view past 8 m: the clip is stepped at 30 Hz at most")
+	_check(is_equal_approx(mid.get("_anim_min_dt") as float, FcPlayer.ANIM_GATE_DT), "in view past 8 m: the clip is stepped at 30 Hz at most")
 	var far := _body(Vector3(0, 0, -30))
 	var _f := _passes(far, 1)
-	_check(is_equal_approx(far.get("_anim_min_dt") as float, ArenaPlayer.ANIM_GATE_FAR_DT), "in view past 20 m: the clip is stepped at 20 Hz at most")
+	_check(is_equal_approx(far.get("_anim_min_dt") as float, FcPlayer.ANIM_GATE_FAR_DT), "in view past 20 m: the clip is stepped at 20 Hz at most")
 	var behind := _body(Vector3(0, 0, 20))
 	var _b := _passes(behind, 8)
-	_check(is_equal_approx(behind.get("_anim_min_dt") as float, ArenaPlayer.ANIM_GATE_OFF_DT), "out of sight: the clip is stepped at 10 Hz at most")
+	_check(is_equal_approx(behind.get("_anim_min_dt") as float, FcPlayer.ANIM_GATE_OFF_DT), "out of sight: the clip is stepped at 10 Hz at most")
 	var close := _body(Vector3(0, 0, -5))
 	var _c := _passes(close, 1)
 	_check((close.get("_anim_min_dt") as float) == 0.0, "in view within 8 m: the clip is stepped every frame")
@@ -267,20 +267,20 @@ func _test_anim_gate() -> void:
 
 	_section("in a browser a gated body steps its clip every second present (web-frame-1)")
 	var drawn := DotFpsState.new()
-	var still_hz := ArenaPlayer.still_anim_hz
-	ArenaPlayer.still_anim_hz = 0.0
+	var still_hz := FcPlayer.still_anim_hz
+	FcPlayer.still_anim_hz = 0.0
 	for every: int in [2, 1]:
-		ArenaPlayer.anim_gate_every = every
+		FcPlayer.anim_gate_every = every
 		var gated := _armed_body(Vector3(0, 0, -12))
-		gated.set("_anim_min_dt", ArenaPlayer.ANIM_GATE_DT)
+		gated.set("_anim_min_dt", FcPlayer.ANIM_GATE_DT)
 		var stepped := 0
 		for _i in 8:  # 8 frames of 70 ms (a 14 fps browser): the time gate alone lets every one through
 			gated._present_rest(0.07, drawn)
 			if (gated.get("_anim_owed") as float) == 0.0:
 				stepped += 1
 		_check(stepped == 8 / every, "anim_gate_every %d at 14 fps: the clip steps %d of 8 presents" % [every, 8 / every], "%d" % stepped)
-	ArenaPlayer.anim_gate_every = 1
-	ArenaPlayer.still_anim_hz = still_hz
+	FcPlayer.anim_gate_every = 1
+	FcPlayer.still_anim_hz = still_hz
 	_done()
 
 	_test_still_gate()
@@ -289,12 +289,12 @@ func _test_anim_gate() -> void:
 ## A body standing still past 8 m steps its idle at cl_remote_still_anim_hz; a move wakes it the same present.
 func _test_still_gate() -> void:
 	_section("a body standing still steps its idle less often (figure-still-pose-skip-1)")
-	var still_hz := ArenaPlayer.still_anim_hz
-	ArenaPlayer.still_anim_hz = 10.0
+	var still_hz := FcPlayer.still_anim_hz
+	FcPlayer.still_anim_hz = 10.0
 	var drawn := DotFpsState.new()
 	var idle := _armed_body(Vector3(0, 0, -12))
-	idle.set("_anim_min_dt", ArenaPlayer.ANIM_GATE_DT)
-	var steps := func(p: ArenaPlayer, frames: int, state: DotFpsState) -> int:
+	idle.set("_anim_min_dt", FcPlayer.ANIM_GATE_DT)
+	var steps := func(p: FcPlayer, frames: int, state: DotFpsState) -> int:
 		var n := 0
 		for _i in frames:
 			p._present_rest(0.01, state)
@@ -310,11 +310,11 @@ func _test_still_gate() -> void:
 	_check(woke >= 1, "a move steps the clip within one 30 Hz period (the owed time carried)", "%d" % woke)
 	var moving_n: int = steps.call(idle, 100, moving)
 	_check(moving_n >= 24 and moving_n <= 34, "moving: back to the 30 Hz gate (every 4th frame at 100 fps)", "%d" % moving_n)
-	ArenaPlayer.still_anim_hz = 0.0
+	FcPlayer.still_anim_hz = 0.0
 	var off := _armed_body(Vector3(0, 0, -12))
-	off.set("_anim_min_dt", ArenaPlayer.ANIM_GATE_DT)
+	off.set("_anim_min_dt", FcPlayer.ANIM_GATE_DT)
 	var _s: int = steps.call(off, 50, drawn)
 	var off_n: int = steps.call(off, 100, drawn)
 	_check(off_n >= 24 and off_n <= 34, "cl_remote_still_anim_hz 0: a still body keeps the 30 Hz gate", "%d" % off_n)
-	ArenaPlayer.still_anim_hz = still_hz
+	FcPlayer.still_anim_hz = still_hz
 	_done()

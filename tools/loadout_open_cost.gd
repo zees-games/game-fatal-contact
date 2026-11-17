@@ -1,6 +1,6 @@
 extends Node
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 ## What pressing B costs in the offline client: each phase of an open, the nodes, viewports and textures it creates, first open against repeat opens. Needs a display (`--headless` draws nothing):
 ## `xvfb-run -a godot --path . --rendering-method gl_compatibility --rendering-driver opengl3 res://tools/loadout_open_cost.tscn -- [--opens 4]`
@@ -10,12 +10,12 @@ var _opens := 4
 
 
 func _ready() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	var args := OS.get_cmdline_user_args()
 	for i in range(args.size() - 1):
 		if args[i] == "--opens":
 			_opens = int(args[i + 1])
-	var _scratch := ArenaPresentation.use_scratch_settings("loadout_open_cost")
+	var _scratch := FcPresentation.use_scratch_settings("loadout_open_cost")
 	_run.call_deferred()
 
 
@@ -36,7 +36,7 @@ func _snap() -> Dictionary:
 
 
 func _run() -> void:
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	add_child(_client)

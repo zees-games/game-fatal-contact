@@ -1,9 +1,9 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaMapDirector := preload("../game/arena_map_director.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcMapDirector := preload("../game/fc_map_director.gd")
 
 ## A combat surf map as a real client gets it: fetched over HTTPS from the CDN a standalone client
 ## uses (`DotGameStandaloneContent.settings()`: content.json's `content_urls`, else content.gamespice.net), verified
@@ -79,18 +79,18 @@ func _run() -> void:
 	DotRegistry.register(&"dot_cloud_client", cloud)
 	await get_tree().process_frame
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.tick_rate = 64
 	game.headless = true
 	game.is_authority = true
 	game.register_service = false
-	game.mode = ArenaMode.free_for_all(4)
+	game.mode = FcMode.free_for_all(4)
 	add_child(game)
-	_check(game.setup(ArenaMap.by_id(&"dm_box")).ok, "the game starts on a built-in map")
+	_check(game.setup(FcMap.by_id(&"dm_box")).ok, "the game starts on a built-in map")
 
 	var server := StandInServer.new()
 	server.games.maps = PackedStringArray(["%s/%s@%s" % [OWNER, PACK, VERSION]])
-	var director := ArenaMapDirector.new()
+	var director := FcMapDirector.new()
 	director.game = game
 	director.server = server
 	add_child(director)

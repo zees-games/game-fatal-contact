@@ -1,10 +1,10 @@
 extends DotGameCheckSuite
 
-const ArenaTickBudget := preload("../game/arena_tick_budget.gd")
-const ArenaAudioManager := preload("../game/arena_audio_manager.gd")
+const FcTickBudget := preload("../game/fc_tick_budget.gd")
+const FcAudioManager := preload("../game/fc_audio_manager.gd")
 
 ## A solo frame must keep the simulation on wall-clock time. Models the engine's loop (time owed
-## accumulates, at most `cap` ticks run) with ArenaTickBudget choosing the cap from the cost of
+## accumulates, at most `cap` ticks run) with FcTickBudget choosing the cap from the cost of
 ## a tick, and checks the simulated ticks per wall second at 17 fps with cheap ticks.
 
 const SECTIONS := 6
@@ -33,7 +33,7 @@ func _done() -> void:
 
 ## Ticks per wall second the engine loop would run for frames of [param frame_sec] when one
 ## tick costs [param tick_cost_sec] and [param budget] picks the cap (null = a fixed 2).
-func _scale(frame_sec: float, tick_cost_sec: float, rate: float, budget: ArenaTickBudget) -> float:
+func _scale(frame_sec: float, tick_cost_sec: float, rate: float, budget: FcTickBudget) -> float:
 	var step := 1.0 / rate
 	var owed := 0.0
 	var cap := 2
@@ -52,28 +52,28 @@ func _scale(frame_sec: float, tick_cost_sec: float, rate: float, budget: ArenaTi
 
 func _run() -> void:
 	_section("the cap follows what a tick costs")
-	var b := ArenaTickBudget.new()
+	var b := FcTickBudget.new()
 	var cheap := 0
 	for _i in 30:
 		cheap = b.steps_for(0.002)
-	_check(cheap == ArenaTickBudget.MAX_STEPS, "a 2 ms tick may catch up the most", "%d" % cheap)
+	_check(cheap == FcTickBudget.MAX_STEPS, "a 2 ms tick may catch up the most", "%d" % cheap)
 	var dear := 0
 	for _i in 60:
 		dear = b.steps_for(0.030)
-	_check(dear == ArenaTickBudget.MIN_STEPS, "a tick dearer than the budget falls back to the floor", "%d" % dear)
-	_check(ArenaTickBudget.new().steps_for(0.0) == ArenaTickBudget.MAX_STEPS, "no measurement yet allows the most")
-	ArenaTickBudget.max_steps = 0
-	var open_cap := ArenaTickBudget.new()
+	_check(dear == FcTickBudget.MIN_STEPS, "a tick dearer than the budget falls back to the floor", "%d" % dear)
+	_check(FcTickBudget.new().steps_for(0.0) == FcTickBudget.MAX_STEPS, "no measurement yet allows the most")
+	FcTickBudget.max_steps = 0
+	var open_cap := FcTickBudget.new()
 	var unlimited := 0
 	for _i in 30:
 		unlimited = open_cap.steps_for(0.002)
-	_check(unlimited > ArenaTickBudget.MAX_STEPS, "fc_tick_max_steps 0: the budget alone sets the cap", "%d" % unlimited)
+	_check(unlimited > FcTickBudget.MAX_STEPS, "fc_tick_max_steps 0: the budget alone sets the cap", "%d" % unlimited)
 	var dear_free := 0
 	for _i in 60:
 		dear_free = open_cap.steps_for(0.030)
-	_check(dear_free == ArenaTickBudget.MIN_STEPS, "and a dear tick still falls back to the floor", "%d" % dear_free)
-	ArenaTickBudget.max_steps = ArenaTickBudget.MAX_STEPS
-	var spiky := ArenaTickBudget.new()
+	_check(dear_free == FcTickBudget.MIN_STEPS, "and a dear tick still falls back to the floor", "%d" % dear_free)
+	FcTickBudget.max_steps = FcTickBudget.MAX_STEPS
+	var spiky := FcTickBudget.new()
 	for _i in 30:
 		spiky.steps_for(0.0118)
 	var before := spiky.steps_for(0.0118)
@@ -87,36 +87,36 @@ func _run() -> void:
 
 	_section("17 fps with cheap ticks")
 	var fixed := _scale(0.059, 0.003, 66.0, null)
-	var follow := _scale(0.059, 0.003, 66.0, ArenaTickBudget.new())
+	var follow := _scale(0.059, 0.003, 66.0, FcTickBudget.new())
 	_check(fixed < 0.6, "the flat cap of 2 ran at about half speed", "%.2f" % fixed)
 	_check(follow > 0.97, "the budgeted cap keeps real time", "%.2f" % follow)
-	_check(_scale(0.030, 0.003, 66.0, ArenaTickBudget.new()) > 0.97, "30 fps keeps real time", "")
+	_check(_scale(0.030, 0.003, 66.0, FcTickBudget.new()) > 0.97, "30 fps keeps real time", "")
 	_done()
 
 	_section("when a tick is dearer than the tick")
 	# 20 ms of work for a 15 ms tick: nothing keeps real time, but it must not collapse.
-	var slow := _scale(0.060, 0.020, 66.0, ArenaTickBudget.new())
+	var slow := _scale(0.060, 0.020, 66.0, FcTickBudget.new())
 	_check(slow > 0.3 and slow < 1.0, "the simulation slows by the shortfall, no further", "%.2f" % slow)
 	_check(slow >= _scale(0.060, 0.020, 66.0, null) - 0.001, "and never worse than the flat cap", "")
-	_check(ArenaTickBudget.MAX_STEPS * ArenaTickBudget.PHYSICS_BUDGET_SEC > 0.0, "constants are sane")
-	var lb := ArenaTickBudget.new()
+	_check(FcTickBudget.MAX_STEPS * FcTickBudget.PHYSICS_BUDGET_SEC > 0.0, "constants are sane")
+	var lb := FcTickBudget.new()
 	lb.steps_for(0.004)
 	_check(is_equal_approx(lb.load_scale(1.0 / 66.0), 1.0), "a tick that fits its period leaves the bots' think periods alone")
-	var hb := ArenaTickBudget.new()
+	var hb := FcTickBudget.new()
 	hb.steps_for(0.0227)
-	_check(hb.load_scale(1.0 / 66.0) > 1.5 and hb.load_scale(1.0 / 66.0) <= ArenaTickBudget.MAX_LOAD_SCALE, "a tick over its period stretches them, capped")
+	_check(hb.load_scale(1.0 / 66.0) > 1.5 and hb.load_scale(1.0 / 66.0) <= FcTickBudget.MAX_LOAD_SCALE, "a tick over its period stretches them, capped")
 	_done()
 
 	# The loop above is a model; this one is the engine: a frame of 45 ms (22 fps) with a 2 ms
-	# tick, once with the flat cap of 2 and once with ArenaTickBudget's cap, counting the
+	# tick, once with the flat cap of 2 and once with FcTickBudget's cap, counting the
 	# physics frames that really ran against wall time.
 	_section("the real engine loop at 22 fps")
 	var rate := float(Engine.physics_ticks_per_second)
 	var flat := await _engine_scale(null, 45.0, 2.0, 3.0)
-	var followed := await _engine_scale(ArenaTickBudget.new(), 45.0, 2.0, 3.0)
+	var followed := await _engine_scale(FcTickBudget.new(), 45.0, 2.0, 3.0)
 	_check(flat < 0.75, "a flat cap of 2 drops owed ticks in the real engine", "%.2f of %.0f Hz" % [flat, rate])
 	_check(followed > 0.9, "the budgeted cap keeps the real engine on wall-clock time", "%.2f of %.0f Hz" % [followed, rate])
-	_check(Engine.max_physics_steps_per_frame >= ArenaTickBudget.MIN_STEPS, "the cap never falls under the floor", "%d" % Engine.max_physics_steps_per_frame)
+	_check(Engine.max_physics_steps_per_frame >= FcTickBudget.MIN_STEPS, "the cap never falls under the floor", "%d" % Engine.max_physics_steps_per_frame)
 	_check(followed > flat + 0.2, "and the difference is large", "%.2f vs %.2f" % [followed, flat])
 	_done()
 	Engine.max_physics_steps_per_frame = 8
@@ -129,7 +129,7 @@ func _run_part2(hitched) -> void:
 	# 1876 ticks dropped). The budget then asks for cosmetic work to be shed, and gives it back afterwards.
 	_section("a game that stays behind sheds cosmetic work")
 	var period := 1.0 / 66.0
-	var sb := ArenaTickBudget.new()
+	var sb := FcTickBudget.new()
 	for _f in 60:
 		for _k in 4:
 			sb.note_tick()
@@ -141,33 +141,33 @@ func _run_part2(hitched) -> void:
 		for _k in 2:
 			sb.note_tick()
 		sb.note_frame(0.057, period, 2)
-	_check(sb.shed() >= ArenaTickBudget.SHED_ON, "40 frames that each dropped ticks at the cap turn shedding on", "%.2f" % sb.shed())
-	_check(sb.load_scale(period) > cost_only and sb.load_scale(period) <= ArenaTickBudget.BEHIND_SCALE, "and stretch the thinning bots' periods past the cost-based cap", "%.2f -> %.2f" % [cost_only, sb.load_scale(period)])
-	var one := ArenaTickBudget.new()
+	_check(sb.shed() >= FcTickBudget.SHED_ON, "40 frames that each dropped ticks at the cap turn shedding on", "%.2f" % sb.shed())
+	_check(sb.load_scale(period) > cost_only and sb.load_scale(period) <= FcTickBudget.BEHIND_SCALE, "and stretch the thinning bots' periods past the cost-based cap", "%.2f -> %.2f" % [cost_only, sb.load_scale(period)])
+	var one := FcTickBudget.new()
 	one.note_tick()
 	one.note_tick()
 	one.note_frame(0.4, period, 2)
-	_check(one.shed() < ArenaTickBudget.SHED_ON, "one hitched frame does not", "%.2f" % one.shed())
+	_check(one.shed() < FcTickBudget.SHED_ON, "one hitched frame does not", "%.2f" % one.shed())
 	for _f in 200:
 		sb.note_tick()
 		sb.note_frame(0.015, period, 8)
 	_check(is_zero_approx(sb.shed()), "shedding ends once frames stop dropping ticks", "%.2f" % sb.shed())
 
-	var audio := ArenaAudioManager.new()
+	var audio := FcAudioManager.new()
 	add_child(audio)
 	var refused: Array = []
 	audio.played.connect(func(_id: StringName, handle: int, why: StringName) -> void:
 		if handle == 0 and why == &"shed":
 			refused.append(why))
 	audio.listener_position = Vector3.ZERO
-	ArenaTickBudget.shed_now = 0.0
+	FcTickBudget.shed_now = 0.0
 	for _n in 6:
 		audio.play_at(&"no_such_sound", Vector3(40, 0, 0))
 	_check(audio.shed_count == 0, "on time, no sound is shed", "%d" % audio.shed_count)
-	ArenaTickBudget.shed_now = 1.0
+	FcTickBudget.shed_now = 1.0
 	for _n in 6:
 		audio.play_at(&"no_such_sound", Vector3(40, 0, 0))
-	_check(audio.shed_count == 6 - ArenaAudioManager.SHED_FAR_PER_FRAME and refused.size() == audio.shed_count, "behind, distant one-shots past the first two of a frame are refused", "%d" % audio.shed_count)
+	_check(audio.shed_count == 6 - FcAudioManager.SHED_FAR_PER_FRAME and refused.size() == audio.shed_count, "behind, distant one-shots past the first two of a frame are refused", "%d" % audio.shed_count)
 	var was := audio.shed_count
 	for _n in 6:
 		audio.play_at(&"no_such_sound", Vector3(3, 0, 0))
@@ -176,7 +176,7 @@ func _run_part2(hitched) -> void:
 	await get_tree().process_frame
 	audio.play_at(&"no_such_sound", Vector3(40, 0, 0))
 	_check(audio.shed_count == was, "and the next frame has its own allowance")
-	ArenaTickBudget.shed_now = 0.0
+	FcTickBudget.shed_now = 0.0
 	audio.queue_free()
 	_done()
 
@@ -184,54 +184,54 @@ func _run_part2(hitched) -> void:
 
 
 ## `cl_shed_slow_frames`: a client of a server never drops owed ticks (its clock is the server's), so
-## [method ArenaTickBudget.note_slow_frame] calls it behind on frame LENGTH alone: longer than
+## [method FcTickBudget.note_slow_frame] calls it behind on frame LENGTH alone: longer than
 ## SLOW_FRAME_TICKS ticks. Only a browser has it on by default; the shedding itself is the solo one.
 func _run_slow_frames() -> void:
 	_section("a joined client sheds distant sounds while its frames run long")
 	var period := 1.0 / 66.0
-	_check(ArenaTickBudget.shed_slow_frames == OS.has_feature("web"), "slow-frame shedding is on by default only in a browser",
-		"%s, web %s" % [ArenaTickBudget.shed_slow_frames, OS.has_feature("web")])
-	var jb := ArenaTickBudget.new()
+	_check(FcTickBudget.shed_slow_frames == OS.has_feature("web"), "slow-frame shedding is on by default only in a browser",
+		"%s, web %s" % [FcTickBudget.shed_slow_frames, OS.has_feature("web")])
+	var jb := FcTickBudget.new()
 	for _f in 100:
 		jb.note_slow_frame(period * 3.9, period)
 	_check(is_zero_approx(jb.shed()), "frames up to four ticks long shed nothing", "%.2f" % jb.shed())
 	var to_on := 0
-	while jb.shed() < ArenaTickBudget.SHED_ON and to_on < 100:
+	while jb.shed() < FcTickBudget.SHED_ON and to_on < 100:
 		jb.note_slow_frame(period * 4.5, period)
 		to_on += 1
 	# SHED_ON / SHED_RISE frames, give or take the float sum's last bit.
-	var want_on := roundi(ArenaTickBudget.SHED_ON / ArenaTickBudget.SHED_RISE)
+	var want_on := roundi(FcTickBudget.SHED_ON / FcTickBudget.SHED_RISE)
 	_check(to_on >= want_on and to_on <= want_on + 1, "a run of frames longer than four ticks turns shedding on", "after %d frames" % to_on)
-	var hitch := ArenaTickBudget.new()
+	var hitch := FcTickBudget.new()
 	hitch.note_slow_frame(0.5, period)
-	_check(hitch.shed() < ArenaTickBudget.SHED_ON, "one hitched frame does not", "%.2f" % hitch.shed())
-	_check(is_zero_approx(ArenaTickBudget.new().note_slow_frame(1.0, 0.0)), "no tick period, no verdict")
-	var audio := ArenaAudioManager.new()
+	_check(hitch.shed() < FcTickBudget.SHED_ON, "one hitched frame does not", "%.2f" % hitch.shed())
+	_check(is_zero_approx(FcTickBudget.new().note_slow_frame(1.0, 0.0)), "no tick period, no verdict")
+	var audio := FcAudioManager.new()
 	add_child(audio)
 	audio.listener_position = Vector3.ZERO
-	ArenaTickBudget.shed_now = jb.note_slow_frame(period * 6.0, period)
+	FcTickBudget.shed_now = jb.note_slow_frame(period * 6.0, period)
 	for _n in 5:
 		audio.play_at(&"no_such_sound", Vector3(0, 0, 30))
 		audio.play_at(&"no_such_sound", Vector3(0, 0, 4))
-	_check(audio.shed_count == 5 - ArenaAudioManager.SHED_FAR_PER_FRAME, "while slow, the distant one-shots past two a frame are shed and the near ones play",
+	_check(audio.shed_count == 5 - FcAudioManager.SHED_FAR_PER_FRAME, "while slow, the distant one-shots past two a frame are shed and the near ones play",
 		"%d shed" % audio.shed_count)
 	var frames := 0
-	while jb.shed() >= ArenaTickBudget.SHED_ON and frames < 1000:
-		ArenaTickBudget.shed_now = jb.note_slow_frame(period * 2.0, period)
+	while jb.shed() >= FcTickBudget.SHED_ON and frames < 1000:
+		FcTickBudget.shed_now = jb.note_slow_frame(period * 2.0, period)
 		frames += 1
 	await get_tree().process_frame
 	var was := audio.shed_count
 	for _n in 5:
 		audio.play_at(&"no_such_sound", Vector3(0, 0, 30))
 	_check(audio.shed_count == was and frames < 1000, "once frames are short again every sound plays", "after %d short frames, %d shed" % [frames, audio.shed_count - was])
-	ArenaTickBudget.shed_now = 0.0
+	FcTickBudget.shed_now = 0.0
 	audio.queue_free()
 	_done()
 
 
 ## Real ticks per wall second over [param seconds] (as a share of the tick rate) with frames
 ## [param frame_ms] long and ticks [param tick_ms] dear; [param budget] null keeps a flat 2.
-func _engine_scale(budget: ArenaTickBudget, frame_ms: float, tick_ms: float, seconds: float) -> float:
+func _engine_scale(budget: FcTickBudget, frame_ms: float, tick_ms: float, seconds: float) -> float:
 	var worker := _Burner.new()
 	worker.frame_ms = frame_ms
 	worker.tick_ms = tick_ms
@@ -251,7 +251,7 @@ func _engine_scale(budget: ArenaTickBudget, frame_ms: float, tick_ms: float, sec
 class _Burner extends Node:
 	var frame_ms := 0.0
 	var tick_ms := 0.0
-	var budget: ArenaTickBudget = null
+	var budget: FcTickBudget = null
 	var ticks := 0
 
 	func _burn(ms: float) -> void:

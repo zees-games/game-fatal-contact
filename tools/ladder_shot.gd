@@ -1,9 +1,9 @@
 extends SceneTree
 
-const ArenaAvatars := preload("../game/arena_avatars.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcAvatars := preload("../game/fc_avatars.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## Drives a player up one of a converted map's ladders, over the lip and back down, and saves a
 ## frame every EVERY ticks from the side (tp_NN) and from the player's eyes (fp_NN).
@@ -13,7 +13,7 @@ const TICK_RATE := 64
 const EVERY := 20
 const OUT := "screenshots/ladder"
 
-var _player: ArenaPlayer
+var _player: FcPlayer
 var _cam: Camera3D
 var _fp: Camera3D
 var _rung := AABB()
@@ -33,23 +33,23 @@ var _tag := ""
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
-	var map: ArenaMap = ArenaMap.by_id(StringName(args[0]))
+	var map: FcMap = FcMap.by_id(StringName(args[0]))
 	_tag = "%s_%s" % [args[0], args[1]]
 	Engine.physics_ticks_per_second = TICK_RATE
 	root.add_child(map.to_scene())
-	root.add_child(ArenaMapLighting.build(map))
+	root.add_child(FcMapLighting.build(map))
 	DirAccess.make_dir_recursive_absolute(OUT)
 	var tall: Array[AABB] = []
 	for rung in map.mechanics.ladders:
 		if rung.size.y >= 1.5:
 			tall.append(rung)
 	_rung = tall[int(args[1])]
-	_player = ArenaPlayer.new()
-	_player.setup(ArenaPlayer.Mode.HEADLESS, map, 7, "You")
+	_player = FcPlayer.new()
+	_player.setup(FcPlayer.Mode.HEADLESS, map, 7, "You")
 	root.add_child(_player)
 	_player.spawn(Transform3D(Basis(), Vector3.ZERO), 0)
 	_player.attach_camera(100.0)
-	_player.attach_body_mesh(Color(0.3, 0.5, 0.85), ArenaAvatars.stock_avatar(&"arena-player-00000007"))
+	_player.attach_body_mesh(Color(0.3, 0.5, 0.85), FcAvatars.stock_avatar(&"arena-player-00000007"))
 	_fp = _player.camera
 	_cam = Camera3D.new()
 	_cam.fov = 70.0
@@ -58,7 +58,7 @@ func _initialize() -> void:
 	_pick_side(map)
 
 
-func _pick_side(map: ArenaMap) -> void:
+func _pick_side(map: FcMap) -> void:
 	var body := DotFpsPhysicsBody.for_node(map.collision_root)
 	var tun: DotFpsTunables = _player.controller.tunables
 	var thin_x := _rung.size.x < _rung.size.z

@@ -1,10 +1,10 @@
 extends DotGameCheckSuite
 
-const ArenaContent := preload("../game/arena_content.gd")
-const KillPov := preload("../game/arena_kill_pov.gd")
-const Bodies := preload("../game/arena_killcam_bodies.gd")
-const KillcamShots := preload("../game/arena_killcam_shots.gd")
-const KillPovView := preload("../game/arena_kill_pov_view.gd")
+const FcContent := preload("../game/fc_content.gd")
+const KillPov := preload("../game/fc_kill_pov.gd")
+const Bodies := preload("../game/fc_killcam_bodies.gd")
+const KillcamShots := preload("../game/fc_killcam_shots.gd")
+const KillPovView := preload("../game/fc_kill_pov_view.gd")
 
 const EXPECTED_CHECKS := 65
 
@@ -34,7 +34,7 @@ func _until(cond: Callable, limit: float) -> bool:
 
 
 func _lethal(game: Object, killer: Object, me: Object) -> DotDamage:
-	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, game.combat.damage_type(ArenaContent.DAMAGE_BULLET))
+	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, game.combat.damage_type(FcContent.DAMAGE_BULLET))
 	damage.weapon_id = &"smg"
 	damage.tick = game.current_tick()
 	return damage
@@ -48,7 +48,7 @@ func _press(action: StringName) -> InputEventAction:
 
 
 func _run() -> void:
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	add_child(_client)
@@ -79,7 +79,7 @@ func _run() -> void:
 		bots[id].set_meta(&"bot_fire", DotWeaponCommand.new())
 	await _wait(4.0)
 	var killer: Object = bots.values()[0]
-	var hurt := DotDamage.make(me.player_id, killer.player_id, 5.0, gm.combat.damage_type(ArenaContent.DAMAGE_BULLET))
+	var hurt := DotDamage.make(me.player_id, killer.player_id, 5.0, gm.combat.damage_type(FcContent.DAMAGE_BULLET))
 	hurt.weapon_id = &"smg"
 	hurt.tick = gm.current_tick()
 	gm.combat.apply_damage(hurt)

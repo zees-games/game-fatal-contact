@@ -1,12 +1,12 @@
 extends "dedicated_b1.gd"
 
-const ArenaAvatars := preload("../game/arena_avatars.gd")
-const ArenaServer := preload("../game/arena_server.gd")
-const ArenaServices := preload("../game/arena_services.gd")
-const ArenaMapDirector := preload("../game/arena_map_director.gd")
+const FcAvatars := preload("../game/fc_avatars.gd")
+const FcServer := preload("../game/fc_server.gd")
+const FcServices := preload("../game/fc_services.gd")
+const FcMapDirector := preload("../game/fc_map_director.gd")
 
 
-const SERVER_DIR := "user://arena_dedicated"
+const SERVER_DIR := "user://fc_dedicated"
 
 
 ## The app's URL segment on the website, which is this game's code name.
@@ -22,10 +22,10 @@ func _cleanup() -> void:
 func _build() -> bool:
 	print("booting")
 
-	# The game first, and registered: ArenaModule finds it through DotRegistry rather
+	# The game first, and registered: FcModule finds it through DotRegistry rather
 	# than being handed it, which is what makes `load_module(path)` work at all —
 	# dot-server loads a module from a script path and has nowhere to pass an argument.
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = 64
 	_game.score_limit = 25
@@ -33,13 +33,13 @@ func _build() -> bool:
 	_game.register_service = true
 	add_child(_game)
 
-	var ready := _game.setup(ArenaMap.dm_box())
+	var ready := _game.setup(FcMap.dm_box())
 
 	if not _check(ready.ok, "the arena sets up", str(ready.error)):
 		return false
 
 	_check(
-		DotRegistry.get_node_service(ArenaGame.SERVICE) == _game,
+		DotRegistry.get_node_service(FcGame.SERVICE) == _game,
 		"and registers itself so a module can find it"
 	)
 
@@ -87,10 +87,10 @@ func _build() -> bool:
 
 	# Into this run's own directory, which is deleted on the way in and out. Before this
 	# line every run wrote an hour-long gag into the store a real server enforces.
-	ArenaModule.punishments_file = "%s/punishments.json" % SERVER_DIR
+	FcModule.punishments_file = "%s/punishments.json" % SERVER_DIR
 
 	var loaded: DotResult = await _server.modules.load_module(
-		"res://game/arena_module.gd"
+		"res://game/fc_module.gd"
 	)
 
 	if not _check(loaded.ok, "the arena module loads into it", str(loaded.error)):
@@ -117,19 +117,19 @@ func _test_module_loaded() -> void:
 
 	_check(_server.modules.has_module("arena"), "is listed among the server's modules")
 
-	var module := _server.modules.get_module("arena") as ArenaModule
-	_check(module != null, "and is an ArenaModule")
+	var module := _server.modules.get_module("arena") as FcModule
+	_check(module != null, "and is an FcModule")
 
 	if module == null:
 		return
 
 	_check(module.game == _game, "holding the game it found in the registry")
-	_check(ArenaServer.host_tick_rate() == _server.config.tickrate,
-		"the server scene declares the host's sv_tickrate", "%d vs %d" % [ArenaServer.host_tick_rate(), _server.config.tickrate])
+	_check(FcServer.host_tick_rate() == _server.config.tickrate,
+		"the server scene declares the host's sv_tickrate", "%d vs %d" % [FcServer.host_tick_rate(), _server.config.tickrate])
 	var spacing := PackedStringArray()
 	for rate in [30, 60, 64, 120, 128]:
-		var snaps := ArenaGame.snapshot_rate_for(rate)
-		if rate % snaps != 0 or absi(snaps - ArenaGame.NET_SNAPSHOT_RATE) > 6:
+		var snaps := FcGame.snapshot_rate_for(rate)
+		if rate % snaps != 0 or absi(snaps - FcGame.NET_SNAPSHOT_RATE) > 6:
 			spacing.append("%d->%d" % [rate, snaps])
 	_check(spacing.is_empty(), "snapshots are a whole number of ticks apart near 32 a second", ", ".join(spacing))
 
@@ -225,7 +225,7 @@ func _test_services() -> void:
 	print("")
 	print("chat, voice and moderation")
 
-	var module := _server.modules.get_module("arena") as ArenaModule
+	var module := _server.modules.get_module("arena") as FcModule
 
 	if not _check(module != null and module.services != null, "the services layer is up"):
 		return
@@ -269,11 +269,11 @@ func _test_services() -> void:
 		", ".join(PackedStringArray(ids.map(func(x: StringName) -> String: return String(x))))
 	)
 	_check(
-		services.chat.has_channel(ArenaServices.CH_NEAR),
+		services.chat.has_channel(FcServices.CH_NEAR),
 		"including a radius channel"
 	)
 
-	var near := services.chat.channel(ArenaServices.CH_NEAR)
+	var near := services.chat.channel(FcServices.CH_NEAR)
 	_check(
 		near != null and near.scope == DotChatChannel.Scope.RADIUS,
 		"which really is scoped by distance"
@@ -361,7 +361,7 @@ func _test_services() -> void:
 		var stock := module.identity.avatar_for("arena-player-00000007")
 		_check(stock != null, "every player has an avatar, their own or a stock one")
 
-		var conformed := ArenaAvatars.schema().conform(stock, null)
+		var conformed := FcAvatars.schema().conform(stock, null)
 		_check(
 			conformed.ok,
 			"and a stock avatar conforms to the schema it was built from",
@@ -377,7 +377,7 @@ func _test_map_rotation_file() -> void:
 	print("")
 	print("maps.yml")
 
-	var module := _server.modules.get_module("arena") as ArenaModule
+	var module := _server.modules.get_module("arena") as FcModule
 
 	if not _check(module != null and module.maps != null and module.vote != null, "the module has maps and a vote"):
 		return
@@ -402,7 +402,7 @@ func _test_map_rotation_file() -> void:
 	var box := catalogue.get_map(&"dm_box")
 	var pit := catalogue.get_map(&"dm_pit")
 	_check(box.in_rotation and not pit.in_rotation, "the active rotation puts dm_pit out and dm_box in")
-	_check(catalogue.get_map(&"dm_pit") != null and ArenaMap.ids().has(&"dm_pit"),
+	_check(catalogue.get_map(&"dm_pit") != null and FcMap.ids().has(&"dm_pit"),
 		"and dm_pit stays installed and loadable")
 	_check(not catalogue.available().has(pit) and catalogue.available().has(box),
 		"available() leaves it out")
@@ -444,7 +444,7 @@ func _test_map_rotation_file() -> void:
 	_end()
 
 
-func _check_renamed_rtv(module: ArenaModule) -> void:
+func _check_renamed_rtv(module: FcModule) -> void:
 	# a renamed command
 	var rtv := DotVoteCommands.new()
 	rtv.director = module.vote.director
@@ -465,7 +465,7 @@ func _check_renamed_rtv(module: ArenaModule) -> void:
 		_check(not replies.is_empty(), "and answers", " ".join(replies))
 
 
-func _check_rotation_draws(maps: ArenaMapDirector) -> void:
+func _check_rotation_draws(maps: FcMapDirector) -> void:
 	# next-map: the pool and a hundred draws never show it, and it cannot be forced.
 	var drew_pit := false
 	for i in 100:
@@ -509,7 +509,7 @@ func _test_loadout_command() -> void:
 	_check(snipers.ok and not bool(rifle.get("ok", true)),
 		"with mp_loadout_allow primary=tag:scoped, a player's rifle is refused by the server", str(rifle))
 	var marksman: Dictionary = say.call("loadout primary=marksman")
-	var active: DotResult = await _game.loadouts.active_for(ArenaGame.storage_key(77))
+	var active: DotResult = await _game.loadouts.active_for(FcGame.storage_key(77))
 	_check(bool(marksman.get("ok", false)) and active.ok and (active.value as DotLoadout).item_in(&"primary") == &"marksman",
 		"and a scoped gun is taken and is what they spawn with", str(marksman))
 
@@ -521,7 +521,7 @@ func _test_loadout_command() -> void:
 	var _fixed := _server.console.execute("mp_loadout_fixed primary=sniper")
 	var _off := _server.console.execute("mp_loadout_menu 0")
 	var locked: Dictionary = say.call("loadout primary=marksman")
-	var spawned: DotResult = await _game.loadouts.active_for(ArenaGame.storage_key(77))
+	var spawned: DotResult = await _game.loadouts.active_for(FcGame.storage_key(77))
 	_check(not bool(locked.get("ok", true)) and (spawned.value as DotLoadout).item_in(&"primary") == &"sniper",
 		"locked by the owner, nobody chooses and everybody spawns with the fixed slot", str(locked))
 
@@ -535,7 +535,7 @@ func _test_loadout_command_part2(cmd: Object, say: Callable) -> void:
 	_check(_game.loadouts.rules == null, "and emptied, the cvars are no restriction")
 
 	# Random: server-authoritative, new each time, and a cvar turns it off for a modified client too.
-	var offer: Dictionary = cmd.call(&"offer", ArenaGame.storage_key(77))
+	var offer: Dictionary = cmd.call(&"offer", FcGame.storage_key(77))
 	_check(_server.console.find_cvar("mp_loadout_random") != null and bool((offer.get("random", {}) as Dictionary).get("enabled", false)),
 		"the offer advertises Random while mp_loadout_random is on")
 	_check(_server.console.find_cvar("mp_loadout_random_on_spawn") != null and int((offer.get("random", {}) as Dictionary).get("spawn", 0)) == 1,
@@ -544,20 +544,20 @@ func _test_loadout_command_part2(cmd: Object, say: Callable) -> void:
 	var seen := {}
 	var rolled_ok := true
 	for i in 6:
-		var rk := ArenaGame.storage_key(9100 + i)
+		var rk := FcGame.storage_key(9100 + i)
 		var r: Dictionary = await cmd.call(&"choose_random", null, rk)
 		rolled_ok = rolled_ok and bool(r.get("ok", false))
 		var got: DotResult = await _game.loadouts.active_for(rk)
 		seen[str((got.value as DotLoadout).item_in(&"primary")) + "/" + str((got.value as DotLoadout).item_in(&"secondary"))] = true
 	_check(rolled_ok and seen.size() > 1, "a random roll is taken and is not the same loadout every time", str(seen.keys()))
 	var _r_off := _server.console.set_cvar("mp_loadout_random", "0")
-	var offer_off: Dictionary = cmd.call(&"offer", ArenaGame.storage_key(77))
+	var offer_off: Dictionary = cmd.call(&"offer", FcGame.storage_key(77))
 	var refused: Dictionary = say.call("loadout random")
 	_check(not bool((offer_off.get("random", {}) as Dictionary).get("enabled", true)) and not bool(refused.get("ok", true)),
 		"with mp_loadout_random 0 the entry is hidden and the server refuses a modified client", str(refused))
 	var _r_on := _server.console.set_cvar("mp_loadout_random", "1")
 	var _r_slots := _server.console.set_cvar("mp_loadout_random_slots", "primary")
-	var sk := ArenaGame.storage_key(9200)
+	var sk := FcGame.storage_key(9200)
 	var before: DotResult = await _game.loadouts.active_for(sk)
 	var sec_before := (before.value as DotLoadout).item_in(&"secondary")
 	var only: Dictionary = await cmd.call(&"choose_random", null, sk)
@@ -579,7 +579,7 @@ func _test_bots() -> void:
 	print("")
 	print("bots")
 
-	var module := _server.modules.get_module("arena") as ArenaModule
+	var module := _server.modules.get_module("arena") as FcModule
 	if not _check(module != null and module.bridge != null, "the module has a bridge to add bots through"):
 		return
 
@@ -596,7 +596,7 @@ func _test_bots() -> void:
 
 
 ## Fill mode tops the game up to bot_quota; returns the bot ids that were added.
-func _test_bots_fill(module: ArenaModule) -> Array:
+func _test_bots_fill(module: FcModule) -> Array:
 	_check(_server.console.find_cvar("bot_quota") != null and _server.console.get_string("bot_quota_mode", "") == "fill",
 		"bot_quota is the module's and fill is the default", _server.console.get_string("bot_quota_mode", ""))
 
@@ -627,7 +627,7 @@ func _test_bots_fill(module: ArenaModule) -> Array:
 
 
 ## A person joining takes a bot's place and leaving gives it back.
-func _test_bots_swap(module: ArenaModule, bots: Array) -> void:
+func _test_bots_swap(module: FcModule, bots: Array) -> void:
 	var session := DotClientSession.new()
 	session.peer_id = 4343
 	session.userid = 78
@@ -646,7 +646,7 @@ func _test_bots_swap(module: ArenaModule, bots: Array) -> void:
 
 
 ## Within a few seconds a bot fires at somebody it can see, and fires once the round is live.
-func _test_bots_fight(module: ArenaModule) -> void:
+func _test_bots_fight(module: FcModule) -> void:
 	# They fight: within a few seconds one of them has fired at somebody it can see.
 	var fired := false
 	# A pressed trigger is not a shot (no weapon ready fires nothing): count real shots.
@@ -704,7 +704,7 @@ func _test_unload() -> void:
 
 	# Reloading has to work, because that is what a live configuration change does.
 	var again: DotResult = await _server.modules.load_module(
-		"res://game/arena_module.gd"
+		"res://game/fc_module.gd"
 	)
 	_check(again.ok, "and it loads again cleanly", str(again.error))
 	_check(

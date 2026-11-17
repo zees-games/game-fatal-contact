@@ -1,6 +1,6 @@
 extends SceneTree
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 ## The first-person view at a world field of view and a view-model one, for a sniper and a
 ## rifle, to look at: the check that the hands keep their size while the world widens.
@@ -16,8 +16,8 @@ var client: Node = null
 
 
 func _initialize() -> void:
-	var _scratch := ArenaPresentation.use_scratch_settings("render_fov")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("render_fov")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)

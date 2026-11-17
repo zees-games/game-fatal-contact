@@ -1,7 +1,7 @@
 extends "imported_base.gd"
 
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## Every ladder a converted map declares can be grabbed, climbed up, stepped off at the top, and
 ## climbed down to its foot. Runs on each map in [constant MAPS] that is present; skips otherwise.
@@ -32,7 +32,7 @@ func _run() -> void:
 	var maps := 0
 
 	for id in MAPS:
-		if not ArenaImportedMaps.has(id):
+		if not FcImportedMaps.has(id):
 			print("absent here: %s" % id)
 			continue
 
@@ -49,14 +49,14 @@ func _run() -> void:
 
 func _test_map(id: StringName) -> int:
 	_section("%s: ladders are grabbed, climbed, and stepped off at both ends" % id)
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.tick_rate = TICK_RATE
 	_game.headless = true
 	_game.is_authority = true
 	_game.register_service = false
-	_game.mode = ArenaMode.free_for_all(10)
+	_game.mode = FcMode.free_for_all(10)
 	add_child(_game)
-	var res := _game.setup(ArenaMap.by_id(id))
+	var res := _game.setup(FcMap.by_id(id))
 	_check(res.ok, "setup succeeds")
 	var mech := _game.map.mechanics
 	var _added := _game.add_player(4, "climber")
@@ -114,7 +114,7 @@ func _test_map(id: StringName) -> int:
 
 
 ## Walk at the ladder from a clear side looking up, then from its top looking down.
-func _climb(player: ArenaPlayer, probe: DotFpsPhysicsBody, tunables: DotFpsTunables, rung: AABB) -> Dictionary:
+func _climb(player: FcPlayer, probe: DotFpsPhysicsBody, tunables: DotFpsTunables, rung: AABB) -> Dictionary:
 	var out := {"grabbed": false, "topped": false, "descended": false, "top": rung.end.y}
 	var thin_x := rung.size.x < rung.size.z
 

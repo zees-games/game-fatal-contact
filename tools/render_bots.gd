@@ -12,7 +12,7 @@ extends SceneTree
 ## state, its target, whether it can see that target, whether its trigger is down), because a
 ## picture of a wall cannot say whether the bot behind the camera was aiming at it.
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 const OUT_DIR := "res://screenshots"
 const FRAMES := 40
@@ -28,8 +28,8 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_difficulty = args[0]
-	var _scratch := ArenaPresentation.use_scratch_settings("render_bots")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("render_bots")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)

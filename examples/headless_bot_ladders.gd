@@ -1,9 +1,9 @@
 extends DotGameCheckSuite
 
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## A bot climbs a ladder on an imported map: crackhouse has ladders up to platforms that nothing else reaches.
 ##
@@ -27,7 +27,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact bot ladders")
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.tick_rate = TICK_RATE
 	game.score_limit = 100000
 	game.time_limit_sec = 0.0
@@ -35,7 +35,7 @@ func _run() -> void:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var map: ArenaMap = ArenaMap.by_id(MAP)
+	var map: FcMap = FcMap.by_id(MAP)
 	_check(map != null and game.setup(map).ok, "the game sets up on %s" % MAP)
 	if map == null:
 		_report_sections(1, 0, SECTIONS, CHECKS)
@@ -47,7 +47,7 @@ func _run() -> void:
 	game.tick({})
 	await get_tree().process_frame
 
-	var world := ArenaBots.world_for(game)
+	var world := FcBots.world_for(game)
 	world.join_edges = false
 	var _first := world.route(Vector3.ZERO, Vector3.ONE)
 	var frames := 0
@@ -61,7 +61,7 @@ func _run() -> void:
 	var nav := world.nav_for_rides()
 	var bot := game.player_for(BOT)
 	var space := bot.get_world_3d().direct_space_state
-	var tries := _tries(nav, space, bot.ladder.volumes, ArenaPlayer.stand_height())
+	var tries := _tries(nav, space, bot.ladder.volumes, FcPlayer.stand_height())
 	_check(tries.size() >= TRIES, "ladders reach a platform the mesh joins by no other way", "%d found" % tries.size())
 
 	var reached := 0
@@ -92,14 +92,14 @@ func _run() -> void:
 
 
 ## Drives [param bot] up toward [param goal] for CLIMB_SECONDS; returns {done, grabbed, tick}.
-func _climb(game: ArenaGame, bot: ArenaPlayer, goal: Vector3, seed_value: int, tick: int) -> Dictionary:
-	var mind := ArenaBots.Mind.new()
+func _climb(game: FcGame, bot: FcPlayer, goal: Vector3, seed_value: int, tick: int) -> Dictionary:
+	var mind := FcBots.Mind.new()
 	mind.seed = seed_value
 	var done := false
 	var grabbed_now := false
 	var steps := int(CLIMB_SECONDS * TICK_RATE)
 	for i in steps:
-		var commands := {BOT: ArenaBots.think(game, bot, mind, tick, float(TICK_RATE))}
+		var commands := {BOT: FcBots.think(game, bot, mind, tick, float(TICK_RATE))}
 		if i == 1:
 			mind.brain.set(&"_waypoint", goal)
 		game.tick(commands)

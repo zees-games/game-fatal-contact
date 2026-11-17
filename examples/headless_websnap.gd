@@ -1,9 +1,9 @@
 extends DotGameCheckSuite
 
-const ArenaNetLink := preload("../game/arena_net_link.gd")
+const FcNetLink := preload("../game/fc_net_link.gd")
 const WebsnapBridge := preload("websnap_bridge.gd")
 
-## `cl_snapshot_coalesce`, the browser client's snapshot skipping (ArenaNetLink): the snapshots one network poll brings are held, and at the end of the poll only the newest tick's parts are applied, in arrival order; older ticks count as lost (`snapshots_coalesced`), which the server's resend
+## `cl_snapshot_coalesce`, the browser client's snapshot skipping (FcNetLink): the snapshots one network poll brings are held, and at the end of the poll only the newest tick's parts are applied, in arrival order; older ticks count as lost (`snapshots_coalesced`), which the server's resend
 ## already repairs. A reliable event or a map message applies the held newest tick first, so state and events keep their order. Native clients decode every snapshot as it comes. The link is driven exactly as the RPC poll drives it (`_net_snapshot` / `_net_event` / `_net_map`
 ## called back to back within one frame); the frame's end is the deferred flush.
 
@@ -18,7 +18,7 @@ func _ready() -> void:
 	DotLog.set_level(DotLog.Level.ERROR)
 	print("game-fatal-contact: a browser client applies only the newest snapshot of a poll")
 	await _run()
-	ArenaNetLink.coalesce = OS.has_feature("web")
+	FcNetLink.coalesce = OS.has_feature("web")
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
@@ -52,7 +52,7 @@ func _is(seen: Array[String], want: Array) -> bool:
 
 func _link() -> Array:
 	var bridge := WebsnapBridge.new()
-	var link := ArenaNetLink.new()
+	var link := FcNetLink.new()
 	link.bridge = bridge
 	add_child(bridge)
 	add_child(link)
@@ -66,11 +66,11 @@ func _drop(pair: Array) -> void:
 
 func _run() -> void:
 	_section("on only in a browser; off, every snapshot is decoded as it comes")
-	_check(ArenaNetLink.coalesce == OS.has_feature("web"), "coalescing is on by default only in a browser",
-		"%s, web %s" % [ArenaNetLink.coalesce, OS.has_feature("web")])
-	ArenaNetLink.coalesce = false
+	_check(FcNetLink.coalesce == OS.has_feature("web"), "coalescing is on by default only in a browser",
+		"%s, web %s" % [FcNetLink.coalesce, OS.has_feature("web")])
+	FcNetLink.coalesce = false
 	var off := _link()
-	var off_link: ArenaNetLink = off[0]
+	var off_link: FcNetLink = off[0]
 	var off_bridge: WebsnapBridge = off[1]
 	off_link._net_snapshot(_snap(10))
 	off_link._net_snapshot(_snap(11))
@@ -81,10 +81,10 @@ func _run() -> void:
 	_drop(off)
 	_done()
 
-	ArenaNetLink.coalesce = true
+	FcNetLink.coalesce = true
 	_section("on, a poll's older ticks are dropped and the newest applied once")
 	var on := _link()
-	var link: ArenaNetLink = on[0]
+	var link: FcNetLink = on[0]
 	var bridge: WebsnapBridge = on[1]
 	link._net_snapshot(_snap(20))
 	link._net_snapshot(_snap(22))

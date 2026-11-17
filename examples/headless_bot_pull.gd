@@ -1,15 +1,15 @@
 extends DotGameCheckSuite
 
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaNetBridge := preload("../game/arena_net_bridge.gd")
-const ArenaPlayerNet := preload("../game/arena_player_net.gd")
-const ArenaKillViewServer := preload("../game/arena_killview_server.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcNetBridge := preload("../game/fc_net_bridge.gd")
+const FcPlayerNet := preload("../game/fc_player_net.gd")
+const FcKillViewServer := preload("../game/fc_killview_server.gd")
 
-## A bot's replicated copy is pulled only on the ticks a snapshot is written (`ArenaPlayerNet.skip_idle_pull`). The same bots on dm_box play the same match through the server's bridge with it off and on: every bot's
+## A bot's replicated copy is pulled only on the ticks a snapshot is written (`FcPlayerNet.skip_idle_pull`). The same bots on dm_box play the same match through the server's bridge with it off and on: every bot's
 ## position, view, health and commands every tick, and every replicated property of every bot on every snapshot tick as it goes out on the wire, are identical. Only what is sent is read from those properties, so that is the whole claim.
-## The kill view asks for an eye only on the ticks its ring keeps one (`ArenaKillViewServer.Due.ask_due_only`): with it off and on, every bot's kill view clip, read every second, is identical too.
+## The kill view asks for an eye only on the ticks its ring keeps one (`FcKillViewServer.Due.ask_due_only`): with it off and on, every bot's kill view clip, read every second, is identical too.
 
 const TICK_RATE := 66
 const SNAPSHOT_RATE := 33
@@ -31,16 +31,16 @@ func _ready() -> void:
 func _run() -> void:
 	print("game-fatal-contact: a bot's idle pulls are skipped and nothing sent changes")
 	_section("the same match and the same snapshots, every tick pulled or not")
-	var was: bool = ArenaPlayerNet.skip_idle_pull
-	var was_due: bool = ArenaKillViewServer.Due.ask_due_only
-	ArenaPlayerNet.skip_idle_pull = false
-	ArenaKillViewServer.Due.ask_due_only = false
+	var was: bool = FcPlayerNet.skip_idle_pull
+	var was_due: bool = FcKillViewServer.Due.ask_due_only
+	FcPlayerNet.skip_idle_pull = false
+	FcKillViewServer.Due.ask_due_only = false
 	var every := await _play()
-	ArenaPlayerNet.skip_idle_pull = true
-	ArenaKillViewServer.Due.ask_due_only = true
+	FcPlayerNet.skip_idle_pull = true
+	FcKillViewServer.Due.ask_due_only = true
 	var skipped := await _play()
-	ArenaPlayerNet.skip_idle_pull = was
-	ArenaKillViewServer.Due.ask_due_only = was_due
+	FcPlayerNet.skip_idle_pull = was
+	FcKillViewServer.Due.ask_due_only = was_due
 	_check(every[0].size() > 100 and every[1].size() > 100, "the match was played (%d ticks, %d snapshots)" % [every[0].size(), every[1].size()])
 	_check(every[0] == skipped[0], "the simulation is identical, tick for tick", "first differing tick %d%s" % [_first_diff(every[0], skipped[0]), _entry_diff(every[5], skipped[5], _first_diff(every[0], skipped[0]))])
 	_check(every[1] == skipped[1], "every bot's replicated properties are identical on every snapshot tick", "first differing snapshot %d" % _first_diff(every[1], skipped[1]))
@@ -100,10 +100,10 @@ func _play() -> Array:
 	net.config = DotNetConfig.new()
 	net.config.tick_rate = TICK_RATE
 	net.config.snapshot_rate = SNAPSHOT_RATE
-	net.config.world_extent = ArenaGame.NET_WORLD_EXTENT
+	net.config.world_extent = FcGame.NET_WORLD_EXTENT
 	add_child(net)
 	var _net_ok := net.setup()
-	var bridge := ArenaNetBridge.new()
+	var bridge := FcNetBridge.new()
 	bridge.name = "Bridge_%s" % game.name
 	add_child(bridge)
 	var _attached := bridge.attach(game, net)
@@ -127,7 +127,7 @@ func _play() -> Array:
 		var props := PackedStringArray()
 		var snapshot: bool = int(net.get(&"_ticks_since_snapshot")) == 0
 		for id in ids:
-			var b: ArenaPlayerNet = bridge.behaviour_for(id)
+			var b: FcPlayerNet = bridge.behaviour_for(id)
 			if b == null or b.player == null:
 				sim.append("-")
 				continue
@@ -135,7 +135,7 @@ func _play() -> Array:
 			sim.append("%d:%.5f,%.5f,%.5f,%.5f,%.5f,%.3f" % [id, state.position.x, state.position.y, state.position.z, state.yaw, state.pitch, b.player.health.health])
 			if snapshot:
 				for declaration: DotNetVar in b.net_vars:
-					# As a receiver decodes it: ArenaPlayerNet.hold_subquantum keeps a raw value that quantises the same.
+					# As a receiver decodes it: FcPlayerNet.hold_subquantum keeps a raw value that quantises the same.
 					props.append(var_to_str(declaration.wire_value(b.get(declaration.property))))
 				props.append(str(b.identity.always_relevant))
 			elif b.net_position != state.position:
@@ -163,9 +163,9 @@ func _play() -> Array:
 
 
 ## A headless authority game on dm_box with no warm-up, named after the pull mode.
-func _make_game() -> ArenaGame:
-	var game := ArenaGame.new()
-	game.name = "Arena_%s" % ("skip" if ArenaPlayerNet.skip_idle_pull else "every")
+func _make_game() -> FcGame:
+	var game := FcGame.new()
+	game.name = "Arena_%s" % ("skip" if FcPlayerNet.skip_idle_pull else "every")
 	game.tick_rate = TICK_RATE
 	game.score_limit = 100000
 	game.time_limit_sec = 0.0
@@ -173,7 +173,7 @@ func _make_game() -> ArenaGame:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var _setup := game.setup(ArenaMap.dm_box())
+	var _setup := game.setup(FcMap.dm_box())
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0

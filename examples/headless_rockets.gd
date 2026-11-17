@@ -1,13 +1,13 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaAttach := preload("../game/arena_attach.gd")
-const ArenaRocketJump := preload("../game/arena_rocket_jump.gd")
-const ArenaProjectileView := preload("../game/arena_projectile_view.gd")
-const ArenaProjectiles := preload("../game/arena_projectiles.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcAttach := preload("../game/fc_attach.gd")
+const FcRocketJump := preload("../game/fc_rocket_jump.gd")
+const FcProjectileView := preload("../game/fc_projectile_view.gd")
+const FcProjectiles := preload("../game/fc_projectiles.gd")
 
 ## The launchers and grenades of fc-weapons level 27 through the whole FC game: the single-missile launcher's
 ## one-missile tube and bigger blast under `sv_rocket_*`, grenades bouncing off the floor under `sv_grenade_*`
@@ -43,16 +43,16 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 
 
 func _run() -> void:
-	_check(ArenaRocketJump.supported(), "fc-weapons is at the level the rockets need", str(DotAddonApi.build_level("fc_weapons")))
+	_check(FcRocketJump.supported(), "fc-weapons is at the level the rockets need", str(DotAddonApi.build_level("fc_weapons")))
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "G"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch()
+	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	_check(ready.ok, "a team game sets up", str(ready.error))
 	# No warmup or countdown: the countdown holds everybody still and unhurtable.
 	game.match_node.rules.warmup_sec = 0.0
@@ -81,11 +81,11 @@ func _splash_radius(def: DotWeaponDef) -> float:
 
 
 ## Owner batch items 2 and 10: one missile with a bigger blast than the quad, and the warhead's cut, both cvars.
-func _test_rules(game: ArenaGame) -> void:
+func _test_rules(game: FcGame) -> void:
 	_entered += 1
 	print("rules")
 	var rules: RefCounted = game.rocket_rules
-	var catalogue := ArenaPlayer.weapon_catalogue()
+	var catalogue := FcPlayer.weapon_catalogue()
 	var single := catalogue.get_def(&"launcher")
 	var quad := catalogue.get_def(&"quad_launcher")
 
@@ -99,7 +99,7 @@ func _test_rules(game: ArenaGame) -> void:
 	var _back: bool = rules.call(&"set_cvar", "sv_rocket_launcher_splash_radius", "5.5")
 	game.apply_rocket_rules()
 
-	var warhead := ArenaAttach.catalogue().get_attachment(ArenaRocketJump.ATTACHMENT)
+	var warhead := FcAttach.catalogue().get_attachment(FcRocketJump.ATTACHMENT)
 	_check(warhead != null and is_equal_approx(float(warhead.scale.get("damage", 0.0)), 0.4), "the Rocketjump warhead cuts damage to 0.4", str(warhead.scale if warhead else {}))
 	var _cut: bool = rules.call(&"set_cvar", "sv_rocket_jump_damage_scale", "0.25")
 	game.apply_rocket_rules()
@@ -108,7 +108,7 @@ func _test_rules(game: ArenaGame) -> void:
 	game.apply_rocket_rules()
 
 	var fitted := _rocketjump_def()
-	_check(ArenaRocketJump.is_rocketjump(fitted), "the fitted launcher carries the warhead")
+	_check(FcRocketJump.is_rocketjump(fitted), "the fitted launcher carries the warhead")
 	var base_splash := (single.tuning as DotWeaponBallistics).splash_damage
 	var cut_splash := (fitted.tuning as DotWeaponBallistics).splash_damage
 	_check(is_equal_approx(cut_splash, base_splash * 0.4), "and its blast does 0.4 of the plain one", "%s of %s" % [cut_splash, base_splash])
@@ -117,13 +117,13 @@ func _test_rules(game: ArenaGame) -> void:
 
 func _rocketjump_def() -> DotWeaponDef:
 	var fitting := DotWeaponFitting.make(&"launcher")
-	fitting.fit(&"warhead", ArenaRocketJump.ATTACHMENT)
-	var made := ArenaAttach.catalogue().apply(ArenaPlayer.weapon_catalogue().get_def(&"launcher"), fitting)
+	fitting.fit(&"warhead", FcRocketJump.ATTACHMENT)
+	var made := FcAttach.catalogue().apply(FcPlayer.weapon_catalogue().get_def(&"launcher"), fitting)
 	return made.value as DotWeaponDef if made.ok else null
 
 
 ## A grenade dropped onto the floor at [param at] from 2 m, with a fuse far longer than the test.
-func _drop(game: ArenaGame, at: Vector3, sticks: bool) -> ArenaProjectiles.Flying:
+func _drop(game: FcGame, at: Vector3, sticks: bool) -> FcProjectiles.Flying:
 	var spawn := DotWeaponSpawn.new()
 	spawn.id = &"frag"
 	spawn.origin = at + Vector3(0.0, 2.0, 0.0)
@@ -141,7 +141,7 @@ func _drop(game: ArenaGame, at: Vector3, sticks: bool) -> ArenaProjectiles.Flyin
 
 
 ## Flies [param f] for [param ticks] and returns its highest upward speed after its first bounce.
-func _fly(game: ArenaGame, f: Object, ticks: int) -> float:
+func _fly(game: FcGame, f: Object, ticks: int) -> float:
 	var up := -INF
 	for _k in ticks:
 		game.tick({})
@@ -152,7 +152,7 @@ func _fly(game: ArenaGame, f: Object, ticks: int) -> float:
 
 
 ## Owner batch item 9: a frag comes back up off the floor, a sticky does not, and the cvars say how.
-func _test_grenades(game: ArenaGame) -> void:
+func _test_grenades(game: FcGame) -> void:
 	_entered += 1
 	print("grenades")
 	var rules := game.grenades_rules
@@ -184,7 +184,7 @@ func _test_grenades(game: ArenaGame) -> void:
 
 
 ## Fires [param def]'s missile from 1.2 m over [param shooter]'s feet straight down, and flies it out.
-func _fire_down(game: ArenaGame, shooter: int, def: DotWeaponDef) -> void:
+func _fire_down(game: FcGame, shooter: int, def: DotWeaponDef) -> void:
 	var b := def.tuning as DotWeaponBallistics
 	var feet := game.player_for(shooter).controller.state.position
 	var spawn := DotWeaponSpawn.new()
@@ -202,7 +202,7 @@ func _fire_down(game: ArenaGame, shooter: int, def: DotWeaponDef) -> void:
 
 
 ## How far [param id] rises over [param ticks] from where they stand now.
-func _rise(game: ArenaGame, id: int, ticks: int) -> float:
+func _rise(game: FcGame, id: int, ticks: int) -> float:
 	var start := game.player_for(id).controller.state.position.y
 	var top := start
 	for _k in ticks:
@@ -213,7 +213,7 @@ func _rise(game: ArenaGame, id: int, ticks: int) -> float:
 
 
 ## Owner batch item 10: the Rocketjump throws its own shooter and spares them; a plain missile hurts and does not.
-func _test_rocketjump(game: ArenaGame, shooter: int, other: int) -> void:
+func _test_rocketjump(game: FcGame, shooter: int, other: int) -> void:
 	_entered += 1
 	print("rocketjump")
 	game.combat.rules.self_damage = true
@@ -232,9 +232,9 @@ func _test_rocketjump(game: ArenaGame, shooter: int, other: int) -> void:
 	_check(given.ok, "the shooter is handed the launcher", str(given.error))
 	var _held := arsenal.equip(def.slot)
 	var fitting := DotWeaponFitting.make(&"launcher")
-	fitting.fit(&"warhead", ArenaRocketJump.ATTACHMENT)
+	fitting.fit(&"warhead", FcRocketJump.ATTACHMENT)
 	var fitted := arsenal.fit(def.slot, fitting)
-	_check(fitted.ok and ArenaRocketJump.is_rocketjump(arsenal.current_def()), "and fits the Rocketjump warhead", str(fitted.error))
+	_check(fitted.ok and FcRocketJump.is_rocketjump(arsenal.current_def()), "and fits the Rocketjump warhead", str(fitted.error))
 
 	var hp := game.combat.health_of(shooter).health
 	_fire_down(game, shooter, arsenal.current_def())
@@ -246,7 +246,7 @@ func _test_rocketjump(game: ArenaGame, shooter: int, other: int) -> void:
 
 	var off := DotWeaponFitting.make(&"launcher")
 	var bare := arsenal.fit(def.slot, off)
-	_check(bare.ok and not ArenaRocketJump.is_rocketjump(arsenal.current_def()), "the warhead comes off")
+	_check(bare.ok and not FcRocketJump.is_rocketjump(arsenal.current_def()), "the warhead comes off")
 	for _k in TICK_RATE * 2:
 		game.tick({})
 		await get_tree().physics_frame
@@ -258,7 +258,7 @@ func _test_rocketjump(game: ArenaGame, shooter: int, other: int) -> void:
 
 	var rules: RefCounted = game.rocket_rules
 	var still := p.controller.state.velocity
-	_check(not ArenaRocketJump.launch(p, def, rules, p.controller.state.position + Vector3(0.0, 0.0, 9.0)), "a blast out of reach pushes nobody")
+	_check(not FcRocketJump.launch(p, def, rules, p.controller.state.position + Vector3(0.0, 0.0, 9.0)), "a blast out of reach pushes nobody")
 	_check(p.controller.state.velocity == still, "and leaves their velocity alone")
 	_finished += 1
 
@@ -272,10 +272,10 @@ func _labels(node: Node, out: PackedStringArray) -> PackedStringArray:
 
 
 ## Owner batch item 3 and the loadout: each launcher draws its own missile, and the menu names the mount.
-func _test_view_and_menu(game: ArenaGame) -> void:
+func _test_view_and_menu(game: FcGame) -> void:
 	_entered += 1
 	print("view and menu")
-	var view := ArenaProjectileView.new()
+	var view := FcProjectileView.new()
 	add_child(view)
 	view.projectiles = game.projectiles
 	var drawn := {}
@@ -298,12 +298,12 @@ func _test_view_and_menu(game: ArenaGame) -> void:
 	_check((drawn[&"frag"] as Node).get_node_or_null(^"Exhaust") == null, "a frag is still a grenade")
 	view.queue_free()
 
-	var base := ArenaPlayer.weapon_catalogue().get_def(&"launcher")
-	var choices := ArenaAttach.catalogue().choices_for(base)
-	_check(ArenaRocketJump.ATTACHMENT in choices.get(&"warhead", []), "the launcher takes the Rocketjump on its warhead mount", str(choices.keys()))
+	var base := FcPlayer.weapon_catalogue().get_def(&"launcher")
+	var choices := FcAttach.catalogue().choices_for(base)
+	_check(FcRocketJump.ATTACHMENT in choices.get(&"warhead", []), "the launcher takes the Rocketjump on its warhead mount", str(choices.keys()))
 	var menu := DotWeaponAttachMenu.new()
 	add_child(menu)
-	menu.open(ArenaAttach.catalogue(), base, DotWeaponFitting.make(&"launcher"))
+	menu.open(FcAttach.catalogue(), base, DotWeaponFitting.make(&"launcher"))
 	var heads := Array(_labels(menu, PackedStringArray())).filter(func(t: String) -> bool: return t.ends_with("Warhead"))
 	_check(heads.size() == 1, "the loadout menu has a Warhead row", str(_labels(menu, PackedStringArray())))
 	menu.queue_free()

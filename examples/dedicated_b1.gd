@@ -1,21 +1,21 @@
 extends DotGameCheckSuite
 
-const ArenaBrowser := preload("../game/arena_browser.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaModule := preload("../game/arena_module.gd")
-const ArenaTestPorts := preload("test_ports.gd")
+const FcBrowser := preload("../game/fc_browser.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcModule := preload("../game/fc_module.gd")
+const FcTestPorts := preload("test_ports.gd")
 
 
-const ArenaVote := preload("../game/arena_vote.gd")
-const ArenaVoteSource := preload("../game/arena_vote_source.gd")
+const FcVote := preload("../game/fc_vote.gd")
+const FcVoteSource := preload("../game/fc_vote_source.gd")
 
-## A real [DotServer], listening, with the arena loaded into it; exits non-zero on any failure.
-## Unlike `headless_match` (an [ArenaGame] driven directly) this binds a port, loads
-## [ArenaModule] and exercises its console commands, cvar, sessions and unload. No client connects.
+## A real [DotServer], listening, with Fatal Contact loaded into it; exits non-zero on any failure.
+## Unlike `headless_match` (an [FcGame] driven directly) this binds a port, loads
+## [FcModule] and exercises its console commands, cvar, sessions and unload. No client connects.
 
 
-var PORT := ArenaTestPorts.free_port(2)
+var PORT := FcTestPorts.free_port(2)
 
 
 var _entered := 0
@@ -23,7 +23,7 @@ var _finished := 0
 
 
 var _server: DotServer = null
-var _game: ArenaGame = null
+var _game: FcGame = null
 
 
 ## What the bridge sent to the sessions this suite adopts with no socket behind them,
@@ -33,7 +33,7 @@ var _caught: Array[Dictionary] = []
 
 
 ## The vote and map clocks, the ballot's ids and cooldown, and dot-vote's commands.
-func _test_vote_wiring(module: ArenaModule, options: Array) -> void:
+func _test_vote_wiring(module: FcModule, options: Array) -> void:
 	# Both map clocks follow hibernation; their own suites assert what following does.
 	_check(
 		_server.hibernation_changed.is_connected(module.vote.director.set_hibernating),
@@ -50,7 +50,7 @@ func _test_vote_wiring(module: ArenaModule, options: Array) -> void:
 	for choice in options:
 		var text := String(choice.id)
 
-		if not text.begins_with(ArenaVoteSource.MAP_PREFIX) 				and not text.begins_with(ArenaVoteSource.MODE_PREFIX):
+		if not text.begins_with(FcVoteSource.MAP_PREFIX) 				and not text.begins_with(FcVoteSource.MODE_PREFIX):
 			unprefixed.append(text)
 
 	_check(
@@ -113,7 +113,7 @@ func _test_maps_and_vote() -> void:
 	print("")
 	print("maps and the vote")
 
-	var module := _server.modules.get_module("arena") as ArenaModule
+	var module := _server.modules.get_module("arena") as FcModule
 
 	if not _check(module != null and module.maps != null, "the map director is up"):
 		return
@@ -189,7 +189,7 @@ func _test_maps_and_vote() -> void:
 		await get_tree().create_timer(0.1).timeout
 
 	# Every row the menu lists is one the source offers, and a mode row changes the mode on the
-	# same map. A stale row is refused with the reason (ArenaVoteSource.unavailable_reason).
+	# same map. A stale row is refused with the reason (FcVoteSource.unavailable_reason).
 	var fresh: Array = (menu_half.call("offer", staff) as Dictionary)["maps"]
 	var unknown := fresh.filter(func(r: Dictionary) -> bool:
 		return not module.vote.director.source.has(StringName(str(r["id"]))))
@@ -314,7 +314,7 @@ func _test_maps_and_vote() -> void:
 		"" if started.ok else started.error.message
 	)
 	_check(
-		heard.has([String(ArenaVote.CUE_WARNING), 0, false]) and heard.has(["", 10, false]),
+		heard.has([String(FcVote.CUE_WARNING), 0, false]) and heard.has(["", 10, false]),
 		"and its warning cue and first second are handed on for the wire (%s)" % str(heard)
 	)
 
@@ -330,7 +330,7 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 	_begin()
 	print("")
 	print("finish_round waits for a live round, not warmup")
-	var module := _server.modules.get_module("arena") as ArenaModule
+	var module := _server.modules.get_module("arena") as FcModule
 	var director: DotVoteDirector = module.vote.director if module != null and module.vote != null else null
 	var hook: Variant = director.get("round_in_progress_fn") if director != null else null
 	var hooked := hook is Callable and (hook as Callable).is_valid()
@@ -418,7 +418,7 @@ func _test_query() -> void:
 	print("")
 	print("the server browser's half")
 
-	var module := _server.modules.get_module("arena") as ArenaModule
+	var module := _server.modules.get_module("arena") as FcModule
 
 	if module == null:
 		return
@@ -453,7 +453,7 @@ func _test_browser() -> void:
 	print("")
 	print("a browser asking this server")
 
-	var browser := ArenaBrowser.new()
+	var browser := FcBrowser.new()
 	browser.name = "Browser"
 	browser.timeout_ms = 2000
 	# In memory. A suite that wrote a player's favourites to disk is a suite that
@@ -514,18 +514,18 @@ func _test_browser() -> void:
 			"%d vs %d" % [entry.max_players, _server.config.max_players]
 		)
 
-		# The game half, which is what `ArenaModule`'s query provider contributes. It is NOT
+		# The game half, which is what `FcModule`'s query provider contributes. It is NOT
 		# `entry.map` (dot-server's `info.map`, empty before any game switch); dot-browser nests
 		# the game's section under `rules["game"]` so a field named `map` cannot overwrite it.
 		_check(
-			ArenaBrowser.game_field(entry, "map") == String(_game.map.id),
+			FcBrowser.game_field(entry, "map") == String(_game.map.id),
 			"and the map the GAME says it is running",
-			"%s vs %s" % [ArenaBrowser.game_field(entry, "map"), String(_game.map.id)]
+			"%s vs %s" % [FcBrowser.game_field(entry, "map"), String(_game.map.id)]
 		)
 		_check(
-			ArenaBrowser.game_field(entry, "mode") != "",
+			FcBrowser.game_field(entry, "mode") != "",
 			"and the mode, which only the query provider knows",
-			ArenaBrowser.game_field(entry, "mode")
+			FcBrowser.game_field(entry, "mode")
 		)
 
 	# Favourites and history, which is the half a list is actually for.
@@ -565,7 +565,7 @@ func _test_client_spawn() -> void:
 	# `client_spawn` carries `userid` and `name`, not `peer_id`. The module once looked the
 	# session up by `peer_id` (0 on every event) and nobody joined; this suite fires the event
 	# dot-server fires and asserts somebody joined.
-	var module := _server.modules.get_module("arena") as ArenaModule
+	var module := _server.modules.get_module("arena") as FcModule
 
 	if not _check(module != null, "the module is loaded"):
 		return
@@ -677,7 +677,7 @@ func _test_commands() -> void:
 	_check(modes.ok, "fc_modes runs", str(modes.error))
 
 	# **The cvar that makes the two modes which are not about killing people reachable
-	# from a deployment.** `ArenaGame.mode_id` is an export read once at setup, so
+	# from a deployment.** `FcGame.mode_id` is an export read once at setup, so
 	# without this an operator has a game with five modes and one of them.
 	var was := String(_game.mode.id)
 	var switched := _server.console.execute("fc_mode koth")
@@ -757,7 +757,7 @@ func _test_match_cvars() -> void:
 	)
 
 	# A map change builds a new match from the mode; the server's numbers go with it.
-	var changed := _game.change_map(ArenaMap.dm_box())
+	var changed := _game.change_map(FcMap.dm_box())
 	var after := _game.match_node.rules
 	_check(
 		changed.ok and after != rules and after.score_limit == 7

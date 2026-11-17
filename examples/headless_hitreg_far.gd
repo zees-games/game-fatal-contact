@@ -1,11 +1,11 @@
 extends "headless_hitreg_chaos.gd"
 
-## "Hit registration sucks at times" (the owner's recording): far shots in a full room. With more than sv_net_aoi_players in it (64 bots here, 66 players) the relevance rings (ArenaNetAoi) send a player 30-120 m out every fourth snapshot, every second inside the shooter's aim cone; a flick onto a far player shoots it before the cone has caught up (cone 0 here).
-## The client draws such a player from its own sparse samples, blended across eight ticks or carried on past the newest (DotNetInterpolator._extrapolate), and the server's rewind must stand the body where that frame drew it, not where its every-tick ring had it (ArenaNetBridge.shot_feet, the per-target view a command carries).
+## "Hit registration sucks at times" (the owner's recording): far shots in a full room. With more than sv_net_aoi_players in it (64 bots here, 66 players) the relevance rings (FcNetAoi) send a player 30-120 m out every fourth snapshot, every second inside the shooter's aim cone; a flick onto a far player shoots it before the cone has caught up (cone 0 here).
+## The client draws such a player from its own sparse samples, blended across eight ticks or carried on past the newest (DotNetInterpolator._extrapolate), and the server's rewind must stand the body where that frame drew it, not where its every-tick ring had it (FcNetBridge.shot_feet, the per-target view a command carries).
 ## Every tap is aimed at the drawn torso, middle and edges, with the gun's noise zeroed as headless_hitreg_ping does, at 35, 46.8 and 60 m, over round trips of 30, 60 and 100 ms: on a clean link, with a seeded 0-30 ms jitter, and with the jitter and one snapshot to the shooter lost before each tap. Each miss is put down to its cause from the target's own samples. Then the recording's other cases: a scoped Marksman at a bot 46.8 m out (7:35.2; still and playing, hitscan as shipped and a flying round under sv_ballistics), every bot in the rewind ring every tick, the carbine's 100 to 37 in three hits, and the drum shotgun's pellets by distance (16 is two of its seven 8-point pellets). Deterministic: clocks by hand, seeded draws, the buffer set rather than adapted.
 
-const ArenaNetAoi := preload("../game/arena_net_aoi.gd")
-const ArenaNetCommand := preload("../game/arena_net_command.gd")
+const FcNetAoi := preload("../game/fc_net_aoi.gd")
+const FcNetCommand := preload("../game/fc_net_command.gd")
 
 const FAR_RTTS: Array[int] = [30, 60, 100]
 const FAR_RANGES: Array[float] = [35.0, 46.8, 60.0]
@@ -22,7 +22,7 @@ const SHOTGUN_RANGES: Array[float] = [2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 14.0]
 ## The share of all far taps that must hit; what misses is the client's resume ease (DotNetInterpolator._ease_resume), the client's alone.
 const FAR_HIT_FLOOR := 0.95
 
-var _aoi: ArenaNetAoi = null
+var _aoi: FcNetAoi = null
 var _drop_before := false
 var _round_base := -1
 var _dropped := 0
@@ -107,7 +107,7 @@ func _add_bots() -> void:
 	_check(waited < BOT_SPAWN_WAIT_TICKS, "every bot is up within %d ticks" % BOT_SPAWN_WAIT_TICKS, "%d ticks" % waited)
 	_stand_bots()
 	_wait_out_protection()
-	_aoi = ArenaNetAoi.new()
+	_aoi = FcNetAoi.new()
 	var players := _server_game.players().size()
 	var _changed := _aoi.refresh(_server_net.interest, players)
 	_check(_aoi.active, "the relevance rings go on by themselves at %d players (sv_net_aoi_players %d)" % [players, _aoi.min_players])
@@ -130,7 +130,7 @@ func _place(weapon_id: StringName, def: DotWeaponDef, distance: float) -> void:
 
 func _set_cone(degrees: float) -> void:
 	_aoi.aim_cone_deg = degrees
-	ArenaNetAoi._set_cone(_server_net.interest, degrees)
+	FcNetAoi._set_cone(_server_net.interest, degrees)
 
 
 # The far rounds.
@@ -157,7 +157,7 @@ func _far_section(link: Array, rtt: int, cone: float, ranges: Array) -> void:
 	for r: float in ranges:
 		_range = r
 		for id in FAR_WEAPONS:
-			var def: DotWeaponDef = ArenaPlayer.weapon_catalogue().get_def(id)
+			var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(id)
 			if def == null or (def.tuning as DotWeaponBallistics).max_range < r:
 				continue
 			_rng.seed = hash([_link, rtt, String(id), r])
@@ -216,7 +216,7 @@ func _read_frame(k: int) -> void:
 ## The target's own samples on the shooter's client around [param render_tick], as DotNetInterpolator.sample picks them: {older, newer, ahead (past the newest)}.
 func _track_view(render_tick: float) -> Dictionary:
 	var net: DotNetManager = _clients[SHOOTER_PEER]["net"]
-	var behaviour: DotNetBehaviour = (_clients[SHOOTER_PEER]["bridge"] as ArenaNetBridge)._behaviours.get(_target)
+	var behaviour: DotNetBehaviour = (_clients[SHOOTER_PEER]["bridge"] as FcNetBridge)._behaviours.get(_target)
 	if behaviour == null or behaviour.identity == null:
 		return {}
 	var track: Variant = net.interpolator._tracks.get(behaviour.identity.net_id)
@@ -347,7 +347,7 @@ func _wait_out_protection() -> void:
 
 ## 7:35.2: a scoped Marksman, the shooter nearly still, at a bot's chest 46.8 m out; ammo 10 to 9, no hit.
 func _scoped_bot_sections() -> void:
-	var marksman: DotWeaponDef = ArenaPlayer.weapon_catalogue().get_def(&"marksman")
+	var marksman: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(&"marksman")
 	_check(marksman != null, "the pack has the Marksman")
 	if marksman == null:
 		return
@@ -415,7 +415,7 @@ func _bots_recorded_section() -> void:
 	var span := 60
 	var gaps := 0
 	var bots := 0
-	for player: ArenaPlayer in _server_game.players():
+	for player: FcPlayer in _server_game.players():
 		if not player.has_meta(&"bot") or not player.is_alive():
 			continue
 		bots += 1
@@ -445,7 +445,7 @@ func _damage_hook() -> void:
 ## 100 to 37 in 0.4 s: three carbine hits of 21, each counted once (a command carried in several packets fires once).
 func _burst_section() -> void:
 	_section("carbine: three hits take 100 to 37")
-	var carbine: DotWeaponDef = ArenaPlayer.weapon_catalogue().get_def(&"carbine")
+	var carbine: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(&"carbine")
 	var tuning := carbine.tuning as DotWeaponBallistics
 	print("    carbine: damage %.0f, a shot every %d ticks: three hits in %.3f s" % [tuning.damage, carbine.use_interval_ticks,
 		2.0 * float(carbine.use_interval_ticks) / float(TICK_RATE)])
@@ -478,7 +478,7 @@ func _burst_section() -> void:
 ## The drum shotgun at a still bot's chest, as played (its pattern kept): pellets on the body and damage by distance.
 func _shotgun_section() -> void:
 	_section("drum shotgun: pellets and damage by distance at a still bot's chest")
-	var def: DotWeaponDef = ArenaPlayer.weapon_catalogue().get_def(&"drum_shotgun")
+	var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(&"drum_shotgun")
 	_check(def != null, "the pack has the drum shotgun")
 	if def == null:
 		return
@@ -519,7 +519,7 @@ func _shotgun_section() -> void:
 	_done()
 
 
-## The server's count of how each hitscan rewind stood each body ([member ArenaGame.shot_rewind_counts], logged by `sv_shot_rewind_log_sec`).
+## The server's count of how each hitscan rewind stood each body ([member FcGame.shot_rewind_counts], logged by `sv_shot_rewind_log_sec`).
 func _counters_section() -> void:
 	_section("rewind counters")
 	var stats: Dictionary = _server_game.shot_rewind_counts
@@ -535,7 +535,7 @@ func _counters_section() -> void:
 ## A target's resume ease rides the firing command to the server in millimetres; one over `sv_shot_ease_max` is refused and counted, and the samples stand alone.
 func _ease_wire_section() -> void:
 	_section("a target's resume ease on the wire")
-	var sent := ArenaNetCommand.new()
+	var sent := FcNetCommand.new()
 	sent.tick = 1000
 	sent.move = DotFpsCommand.new()
 	sent.fire = DotWeaponCommand.new()
@@ -544,7 +544,7 @@ func _ease_wire_section() -> void:
 	sent.view_targets = [[7, 12, 8], [9, 14, 8, 120, -3, -387]]
 	var writer := DotNetWriter.new()
 	sent.write(writer)
-	var got := ArenaNetCommand.new()
+	var got := FcNetCommand.new()
 	got.read(writer.to_reader())
 	var pairs := got.view_target_pairs()
 	_check(got.view_targets == sent.view_targets, "the targets and their eases come back as sent", str(got.view_targets))

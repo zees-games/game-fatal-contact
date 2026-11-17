@@ -40,8 +40,8 @@ func _run() -> void:
 
 
 func _setup_game() -> void:
-	var m: ArenaMap = ArenaMap.dm_atrium() if _map == "atrium" else (ArenaMap.dm_pit() if _map == "pit" else ArenaMap.dm_box())
-	_game.mode = preload("../game/arena_mode.gd").free_for_all(0)
+	var m: FcMap = FcMap.dm_atrium() if _map == "atrium" else (FcMap.dm_pit() if _map == "pit" else FcMap.dm_box())
+	_game.mode = preload("../game/fc_mode.gd").free_for_all(0)
 	_game.setup(m)
 
 

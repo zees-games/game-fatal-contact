@@ -1,8 +1,8 @@
 extends SceneTree
 
-const ArenaAvatars := preload("../game/arena_avatars.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
+const FcAvatars := preload("../game/fc_avatars.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 
 ## A person jogging with a noisy pace around the run threshold, a rifle in the hand, a side camera:
 ## for `--write-movie`, to look at whether the held gun snaps. Logs the gun's step per frame.
@@ -25,18 +25,18 @@ var _next_pace := 0.0
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():
 		_mode = args[0]
 	_rng.seed = 7
-	var map: ArenaMap = ArenaMap.dm_box()
+	var map: FcMap = FcMap.dm_box()
 	root.add_child(map.to_scene())
-	root.add_child(ArenaMapLighting.build(map))
+	root.add_child(FcMapLighting.build(map))
 	var id := &"arena-player-00000007"
 	_fig = DotHumanoidFigure.new()
 	root.add_child(_fig)
-	_fig.build(ArenaAvatars.look_of(ArenaAvatars.stock_avatar(id), id), 1.8)
+	_fig.build(FcAvatars.look_of(FcAvatars.stock_avatar(id), id), 1.8)
 	_fig.set_run_speeds(4.4, 3.6)
 	_fig.sprint_speed = 6.0
 	_fig.global_position = Vector3(0.0, 1.05, 0.0)

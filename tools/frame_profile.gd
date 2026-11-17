@@ -1,10 +1,10 @@
 extends RefCounted
 
 ## `client_bench --profile`: every measured frame split into physics, script, render CPU, GPU and
-## wait, with the client's ArenaFrameProbe sections of that same frame, so a slow frame names its
+## wait, with the client's FcFrameProbe sections of that same frame, so a slow frame names its
 ## system. The engine's TIME_PROCESS monitor is a once-a-second figure and cannot do this.
 
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 
 var rows: Array = []
 var _vp := RID()
@@ -30,7 +30,7 @@ func start(tree: SceneTree, clock: DotMenuFrameClock) -> void:
 	_clock = clock
 	_vp = tree.root.get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(_vp, true)
-	ArenaFrameProbe._sections.clear()
+	FcFrameProbe._sections.clear()
 	clock.on_frame = _on_frame
 	_place_probes(tree)
 	var _c := tree.process_frame.connect(func() -> void: _signal_at = Time.get_ticks_usec())
@@ -85,10 +85,10 @@ func stop() -> void:
 
 func _on_frame(wall_us: int, phys_us: int, script_us: int, render_us: int, steps: int) -> void:
 	var sec := {}
-	for key: StringName in ArenaFrameProbe._sections:
-		var row: PackedInt64Array = ArenaFrameProbe._sections[key]
+	for key: StringName in FcFrameProbe._sections:
+		var row: PackedInt64Array = FcFrameProbe._sections[key]
 		sec[key] = row[0]
-	ArenaFrameProbe._sections.clear()
+	FcFrameProbe._sections.clear()
 	if _marks.size() > 0 and _marks[0] > 0:
 		sec[&"<signals+deferred>"] = _marks[0] - _signal_at
 		for k in range(1, _marks.size()):

@@ -1,6 +1,6 @@
-extends "../game/arena_net_bridge.gd"
+extends "../game/fc_net_bridge.gd"
 
-## headless_websnap's bridge: records what [code]ArenaNetLink[/code] hands it, in order, and decodes nothing. A snapshot is logged as [code]"snap <tick>:<part>"[/code] (the 32-bit tick every snapshot
+## headless_websnap's bridge: records what [code]FcNetLink[/code] hands it, in order, and decodes nothing. A snapshot is logged as [code]"snap <tick>:<part>"[/code] (the 32-bit tick every snapshot
 ## starts with, then the byte the suite put after it), an event as [code]"event"[/code], a map message as [code]"map"[/code].
 
 var seen: Array[String] = []

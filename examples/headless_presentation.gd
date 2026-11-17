@@ -1,15 +1,15 @@
 extends "headless_presentation_b3.gd"
 
-const ArenaFlashlight := preload("../game/arena_flashlight.gd")
-const ArenaTeamBodies := preload("../game/arena_team_bodies.gd")
-const ArenaNewerApi := preload("../game/arena_newer_api.gd")
+const FcFlashlight := preload("../game/fc_flashlight.gd")
+const FcTeamBodies := preload("../game/fc_team_bodies.gd")
+const FcNewerApi := preload("../game/fc_newer_api.gd")
 
 
 func _ready() -> void:
 	# Before anything builds a presentation layer: every settings document this suite writes
 	# goes to a scratch directory emptied first, never this machine's real one.
 	_player_file_was = _player_file_stamp()
-	var _scratch := ArenaPresentation.use_scratch_settings("headless_presentation")
+	var _scratch := FcPresentation.use_scratch_settings("headless_presentation")
 	DotLog.set_level(
 		DotLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
 		else DotLog.Level.ERROR
@@ -61,7 +61,7 @@ func _run() -> void:
 	_check(
 		_player_file_stamp() == _player_file_was,
 		"the player's own settings file was not touched",
-		ArenaPresentation.PLAYER_SETTINGS
+		FcPresentation.PLAYER_SETTINGS
 	)
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
@@ -83,7 +83,7 @@ func _lock_covers(pins: Dictionary) -> String:
 	return ""
 
 
-## Every key `ArenaClient` reads is a row in `ArenaBindings`; the action names are written out here
+## Every key `FcClient` reads is a row in `FcBindings`; the action names are written out here
 ## so a missing row fails the check rather than shrinking the table.
 func _test_every_key_is_an_action() -> void:
 	_section("Every key the client reads is an action in the table, rebound live and kept")
@@ -107,7 +107,7 @@ func _test_every_key_is_an_action() -> void:
 	_check_mode_label()
 
 	# The wheel rows by name: a pack asks for dot-ui 4, which names the wheel (level 2).
-	var named := ArenaBindings.make().row_for_action(&"arena_weapon_previous")
+	var named := FcBindings.make().row_for_action(&"arena_weapon_previous")
 	_check(
 		str(named["label"]) == "Previous weapon" and str(named["default"]) == "Wheel up",
 		"the wheel rows say Wheel up / Wheel down", str(named)
@@ -116,7 +116,7 @@ func _test_every_key_is_an_action() -> void:
 	_check_floors()
 
 	# One key, one meaning: V is push to talk and nothing else; the sampler reads no noclip.
-	var sampler := ArenaClient.make_sampler()
+	var sampler := FcClient.make_sampler()
 	_check(
 		str(sampler.actions.get("noclip", &"")) == "" and not InputMap.has_action(&"dot_fps_noclip"),
 		"the sampler has no noclip key, so V is not dot_fps_noclip's",
@@ -130,8 +130,8 @@ func _test_every_key_is_an_action() -> void:
 
 	# A client with this presentation and a stand-in player, not in the tree (see
 	# `_test_mouse_drives_view`); the pointer counts as captured.
-	var client := ArenaClient.new()
-	var stand_in := ArenaPlayer.new()
+	var client := FcClient.new()
+	var stand_in := FcPlayer.new()
 	client.player = stand_in
 	client.presentation = p
 	client._sampler = sampler
@@ -162,7 +162,7 @@ func _test_every_key_is_an_action() -> void:
 	# F is the flashlight and X the melee, through the same polling path.
 	client._unhandled_input(_key_event("F", true))
 	client._read_fire(DotFpsCommand.new())
-	var f_lights := client._fire.is_pressed(ArenaFlashlight.BUTTON)
+	var f_lights := client._fire.is_pressed(FcFlashlight.BUTTON)
 	client._flash_ticks = 0
 	_press(DotInputBinding.from_text("X"), true)
 	client._read_fire(DotFpsCommand.new())
@@ -184,21 +184,21 @@ func _test_every_key_is_an_action() -> void:
 
 	# The props-mode remap: in Siege the Launch key grabs, the Bash key freezes and the
 	# launch moves to its own row; anywhere else the Launch key launches and grabs nothing.
-	var g := ArenaGame.new()
+	var g := FcGame.new()
 	client.game = g
-	g.shown_mode = ArenaMode.free_for_all()
+	g.shown_mode = FcMode.free_for_all()
 	client.last_prop_asked = -1
 	client._unhandled_input(_key_event("E", true))
 	_check(client.launch_action() == &"arena_launch" and client.last_prop_asked == -1,
 		"outside a props mode E is the launch and asks the prop tool for nothing")
-	g.shown_mode = ArenaMode.siege()
+	g.shown_mode = FcMode.siege()
 	client._holding = false
 	client._unhandled_input(_key_event("E", true))
-	var e_grabs := client.last_prop_asked == ArenaEvents.PropAct.GRAB
+	var e_grabs := client.last_prop_asked == FcEvents.PropAct.GRAB
 	client._unhandled_input(_key_event("X", true))
-	var f_freezes := client.last_prop_asked == ArenaEvents.PropAct.FREEZE
+	var f_freezes := client.last_prop_asked == FcEvents.PropAct.FREEZE
 	client._unhandled_input(_key_event("G", true))
-	var g_punts := client.last_prop_asked == ArenaEvents.PropAct.PUNT
+	var g_punts := client.last_prop_asked == FcEvents.PropAct.PUNT
 	_check(e_grabs and f_freezes and g_punts and client.launch_action() == &"arena_launch_props",
 		"in Siege E grabs, X freezes, G punts and the launch is P's",
 		"grab %s freeze %s punt %s launch %s" % [e_grabs, f_freezes, g_punts, client.launch_action()])
@@ -208,7 +208,7 @@ func _test_every_key_is_an_action() -> void:
 	client._unhandled_input(_key_event("E", true))
 	var e_after := client.last_prop_asked
 	client._unhandled_input(_key_event("T", true))
-	_check(res.ok and e_after == -1 and client.last_prop_asked == ArenaEvents.PropAct.GRAB,
+	_check(res.ok and e_after == -1 and client.last_prop_asked == FcEvents.PropAct.GRAB,
 		"and with Launch moved to T, the grab moves with it",
 		"E %d, T %d" % [e_after, client.last_prop_asked])
 	client.game = null
@@ -253,13 +253,13 @@ func _check_mode_label() -> void:
 	var one_slot := DotWeaponSlot.new()
 	one_slot.def = one
 	_check(
-		ArenaHud.mode_label(two_slot, "N") == "Rifle  AUTO [N]" and ArenaHud.mode_label(one_slot, "N") == "Pistol",
+		FcHud.mode_label(two_slot, "N") == "Rifle  AUTO [N]" and FcHud.mode_label(one_slot, "N") == "Pistol",
 		"the ammo line names the fire mode and its key on a gun with a selector, and only then",
-		"%s / %s" % [ArenaHud.mode_label(two_slot, "N"), ArenaHud.mode_label(one_slot, "N")]
+		"%s / %s" % [FcHud.mode_label(two_slot, "N"), FcHud.mode_label(one_slot, "N")]
 	)
 
 
-func _test_every_key_rest(p: ArenaPresentation, client: ArenaClient, stand_in: ArenaPlayer, g: ArenaGame) -> void:
+func _test_every_key_rest(p: FcPresentation, client: FcClient, stand_in: FcPlayer, g: FcGame) -> void:
 	g.free()
 
 	# Kept: what was rebound is in the document, and a new presentation reading it puts it back on
@@ -292,12 +292,12 @@ func _test_party_is_sandboxed() -> void:
 
 	DotP2PSignallerLoopback.reset_all()
 
-	var party := ArenaParty.new()
+	var party := FcParty.new()
 	party.name = "Party"
 	add_child(party)
 	_check(party.setup().ok, "a party sets up")
 
-	# The decision this game makes and the lobby does not: arena reports to dot-stats, unlocks dot-
+	# The decision this game makes and the lobby does not: Fatal Contact reports to dot-stats, unlocks dot-
 	# achievements and files to dot-leaderboard.
 	_check(
 		party.session.config.trust == DotP2PConfig.Trust.SANDBOXED,
@@ -324,7 +324,7 @@ func _test_party_is_sandboxed() -> void:
 
 
 ## `[p2p-await-games]`: a private match over the HTTP rendezvous, host and join, each awaited end to
-## end — through `ArenaParty`, `DotP2PSession` and `DotP2PSignallerHttp` to a socket and back.
+## end — through `FcParty`, `DotP2PSession` and `DotP2PSignallerHttp` to a socket and back.
 func _test_party_over_http() -> void:
 	_section("A private match that meets over HTTP waits for the answer")
 
@@ -340,11 +340,11 @@ func _test_party_over_http() -> void:
 		return
 
 	var url := "http://127.0.0.1:%d/p2p" % stub.port
-	var ada := ArenaParty.new()
+	var ada := FcParty.new()
 	ada.name = "PartyAda"
 	ada.signalling_url = url
 	add_child(ada)
-	var bob := ArenaParty.new()
+	var bob := FcParty.new()
 	bob.name = "PartyBob"
 	bob.signalling_url = url
 	add_child(bob)
@@ -405,7 +405,7 @@ func _test_party_over_http() -> void:
 
 	# A refusal arrives as a failure the caller can read, not as null and not as success.
 	bob.leave()
-	var carol := ArenaParty.new()
+	var carol := FcParty.new()
 	carol.name = "PartyCarol"
 	carol.signalling_url = url
 	add_child(carol)
@@ -425,17 +425,17 @@ func _test_party_over_http() -> void:
 ## A team body that is not on this machine leaves that side its own looks, and off a team mode nobody wears one.
 func _test_team_bodies_fall_back() -> void:
 	_section("Team avatars fall back to the player's own look")
-	var key := StringName(ArenaGame.storage_key(140))
-	var own := ArenaAvatars.look_of(null, key)
-	var got := ArenaTeamBodies.register("fc_no_such_body,", "user://no_such_dir")
+	var key := StringName(FcGame.storage_key(140))
+	var own := FcAvatars.look_of(null, key)
+	var got := FcTeamBodies.register("fc_no_such_body,", "user://no_such_dir")
 	_check(got.size() == 2 and got[0] == &"" and got[1] == &"", "a missing body registers nothing", str(got))
-	_check(ArenaTeamBodies.wear_key(1) == "" and ArenaTeamBodies.wear_key(2) == "", "no side wears a body off a team mode")
-	var worn := ArenaTeamBodies.look_of(null, key, 1)
+	_check(FcTeamBodies.wear_key(1) == "" and FcTeamBodies.wear_key(2) == "", "no side wears a body off a team mode")
+	var worn := FcTeamBodies.look_of(null, key, 1)
 	_check(worn.body == own.body and worn.top == own.top, "a side without a body keeps the player's look",
 		"%s/%s vs %s/%s" % [worn.body, worn.top, own.body, own.top])
-	var _reset := ArenaTeamBodies.register("", "")
-	if ArenaTeamBodies.has_bodies():
-		var assets := ArenaNewerApi.script_of(&"DotHumanoidAssets")
+	var _reset := FcTeamBodies.register("", "")
+	if FcTeamBodies.has_bodies():
+		var assets := FcNewerApi.script_of(&"DotHumanoidAssets")
 		var was: Variant = assets.get(&"team_tint")
 		assets.set(&"team_tint", 0.5)
 		_check(is_equal_approx(float(assets.get(&"team_tint")), 0.5), "dot-player-char's team tint is set through its class found by name", str(assets.get(&"team_tint")))

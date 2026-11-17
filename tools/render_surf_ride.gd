@@ -1,18 +1,18 @@
 extends SceneTree
 
 ## Plays the offline client on a combat surf map and photographs a bot riding a ride edge (see
-## `game/arena_surf.gd`), so a person can see whether it surfs like a player: on the face of the
+## `game/fc_surf.gd`), so a person can see whether it surfs like a player: on the face of the
 ## ramp, not in it or above it, holding its line, and still looking at what it is fighting.
 ##
 ##     tools/render_surf_ride.sh [map] [edge]
 ##
 ## The bot is put at the edge's start and handed the ride the way its route would hand it; from
-## there everything is the game's: the brain aims and shoots, the pilot has the legs, the arena
+## there everything is the game's: the brain aims and shoots, the pilot has the legs, Fatal Contact
 ## ticks it. Each frame logs where it is, how fast, whether it is on the ground, the ride's state
 ## and what the brain is doing.
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcBots := preload("../game/fc_bots.gd")
 
 const OUT_DIR := "res://screenshots"
 const FRAMES := 48
@@ -33,8 +33,8 @@ func _initialize() -> void:
 	at = args.find("--edge")
 	if at >= 0 and at + 1 < args.size():
 		_edge = int(args[at + 1])
-	var _scratch := ArenaPresentation.use_scratch_settings("render_surf_ride")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("render_surf_ride")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
@@ -68,7 +68,7 @@ func _run() -> void:
 	for i in range(240):
 		await _wait(0.25)
 		if game != null and game.map != null and String(game.map.id) == _map:
-			surf = ArenaBots.world_for(game).surf_for_map()
+			surf = FcBots.world_for(game).surf_for_map()
 			if surf != null:
 				break
 	if surf == null:

@@ -22,8 +22,8 @@ ms per tick, inclusive. "Per unit" is per call for CS:S and per player or bot-ti
 | `_Host_RunFrame_Server` / `GameFrame` | 2.20 / 2.17 | | SIM_HOST `sim` | 12.15-12.31 | | 5.6x | structural (the sum of the rows) |
 | `CBotManager::StartFrame` (all bot work) | 1.115 | 36 µs per bot-tick | `srv_bots` | 2.98-3.0 | 97 µs per bot-tick | 2.7x | mixed: sight scan (`DotSimBotSenses`) and mind (`DotSimBotMind`) are native; the tick loop around them is GDScript |
 | `CCSBot::Update` (full think) | 1.083, 15.5 calls | 70 µs per think | `bot_brain` wall + `bot_refresh` | 1.14-1.16 + 0.54, 16 thinks | 71 µs per think (brain) + 34 (refresh) | 1.5x | already native, measured no gain: `--bot_native_brain 1` leaves `bot_brain` at 1.07 ms (see A/B). The remaining cost is the GDScript think loop: native candidate in the bot-tick scope below |
-| `CCSBot::Upkeep` (aim each tick) | inside StartFrame, about 0.03 | about 1 µs | `bt_coast` + `bt_gate` | 0.13-0.14 + 0.12 | 10 µs per coast, 4 µs per gate | about 8x | native candidate: about 0.2 ms, about 150 lines (`arena_bots.gd` coast and gate) |
-| `UpdateReactionQueue` / `FindMostDangerousThreat` | 0.72 | 46 µs per think | `br_contacts` + `_candidates` / `_sees` inside `bot_brain` | 0.44 + part of 1.15 | 0.44 shared, once a tick | about 1x | native candidate: about 0.3 ms, about 200 lines (`arena_bots_world.gd` contact table) |
+| `CCSBot::Upkeep` (aim each tick) | inside StartFrame, about 0.03 | about 1 µs | `bt_coast` + `bt_gate` | 0.13-0.14 + 0.12 | 10 µs per coast, 4 µs per gate | about 8x | native candidate: about 0.2 ms, about 150 lines (`fc_bots.gd` coast and gate) |
+| `UpdateReactionQueue` / `FindMostDangerousThreat` | 0.72 | 46 µs per think | `br_contacts` + `_candidates` / `_sees` inside `bot_brain` | 0.44 + part of 1.15 | 0.44 shared, once a tick | about 1x | native candidate: about 0.3 ms, about 200 lines (`fc_bots_world.gd` contact table) |
 | `IsVisible(player)` | 80 calls, 0.58 | 7.3 µs | `_sees` (chest, then head) | inside brain | 1-2 rays | | structural: Godot physics rays |
 | `IsVisible(pos)` | 249 calls, 0.43 | 1.74 µs | `bot_los` (one ray) | 0.2-0.72 at 8-33 rays | 22 µs at threads 0, about 6 µs per worker ray | 3-12x per ray | structural on threads 3 (rays run on workers). A Rust BSP trace would be about 0.15 ms at threads 0, about 800 lines; not recommended now |
 | `BoxTrace` (engine trace) | 548 calls, 0.44 | 0.8 µs | `DotTracePhysics.line_of_sight` | | 22 µs | 27x | structural: Godot physics against BSP brushes |
@@ -37,7 +37,7 @@ ms per tick, inclusive. "Per unit" is per call for CS:S and per player or bot-ti
 | `NET_ProcessSocket` + `ProcessUsercmds` (listen) | 0.064 x 2 | | dot-net dispatch and input | about 0.2 | | about 1.5x | structural: dot-net dispatch, about 0.2 ms |
 | `SV_SendClientMessages` (bots only) | 0.001 | | none on bots | 0 | | | n/a |
 | (no Source equivalent) | | | `net_pull` | 0.56-1.7 | | in flight, `arena-simnet` | in flight (`arena-simnet`) |
-| (no Source equivalent) | | | bot glue: `bot_after` 0.25, `ba_tail` 0.30, `bt_setup` 0.11, `ba_throw` 0.10, `ba_write` 0.07, `ba_sanitise` 0.04, `br_tiers` 0.04, `br_near` 0.03 | about 0.95 | 31 µs per bot-tick | | native candidate: about 0.7 of 0.95 ms, about 500 lines (`arena_bots.gd` tail and glue) |
+| (no Source equivalent) | | | bot glue: `bot_after` 0.25, `ba_tail` 0.30, `bt_setup` 0.11, `ba_throw` 0.10, `ba_write` 0.07, `ba_sanitise` 0.04, `br_tiers` 0.04, `br_near` 0.03 | about 0.95 | 31 µs per bot-tick | | native candidate: about 0.7 of 0.95 ms, about 500 lines (`fc_bots.gd` tail and glue) |
 
 `srv_game` (7.2-7.3) holds `pl_sim`, `p_controller`, `p_weapons` and the world. `srv_net` (13.0) wraps the whole sim plus the send.
 
@@ -73,8 +73,8 @@ So FC already thinks as often as Source and scans no more than Source does. The 
 
 Two bot-only changes. Neither touches human commands, hit reg, lag compensation or the authoritative player sim:
 
-1. **Sight rays skip the hit report** (`game/arena_bots_world.gd`, `_line_of_sight`). When the bots' trace is the plain `DotTracePhysics` or `ArenaGlassTrace`, the sight test does one `intersect_ray` with a reused `PhysicsRayQueryParameters3D`. It uses the same mask, glass exclusion and exclude RIDs as the trace's own `line_of_sight`, and builds no `Hit` objects and no material lookup. Bullets, rockets and hit reg still use the full trace. `headless_imported` checks 200 seeded rays around the spawns and requires the same answer from both paths.
-2. **Kept commands are reused** (`game/arena_bots.gd`, `think_finish`). The bot's `last_move` and `last_fire` are overwritten in place instead of being duplicated twice a think. The coast still hands out copies, so no command is ever shared.
+1. **Sight rays skip the hit report** (`game/fc_bots_world.gd`, `_line_of_sight`). When the bots' trace is the plain `DotTracePhysics` or `FcGlassTrace`, the sight test does one `intersect_ray` with a reused `PhysicsRayQueryParameters3D`. It uses the same mask, glass exclusion and exclude RIDs as the trace's own `line_of_sight`, and builds no `Hit` objects and no material lookup. Bullets, rockets and hit reg still use the full trace. `headless_imported` checks 200 seeded rays around the spawns and requires the same answer from both paths.
+2. **Kept commands are reused** (`game/fc_bots.gd`, `think_finish`). The bot's `last_move` and `last_fire` are overwritten in place instead of being duplicated twice a think. The coast still hands out copies, so no command is ever shared.
 
 A/B results (n=3 interleaved, staging02, sim host up): see the "A/B" section below.
 
@@ -124,7 +124,7 @@ The Native column in the scope table marks each line as **already native**, a **
   - the think tiers (`DotBotThinkTier`, 221 lines);
   - the contact table (`br_contacts`);
   - coast and gate (`bt_coast`, `bt_gate`);
-  - the think tail and glue (`ba_tail`, `bot_after`, `bt_setup`, the `arena_bots.gd` and `arena_bots_world.gd` parts);
+  - the think tail and glue (`ba_tail`, `bot_after`, `bt_setup`, the `fc_bots.gd` and `fc_bots_world.gd` parts);
   - the brain's per-think GDScript in `dot_bot_brain.gd` (965 lines) that wraps the existing `DotSimBotMind`.
 - **Size**: about 1,400 GDScript lines become about 1,500 Rust lines in dot-sim, plus a GDScript twin that is kept for the web.
 - **Expected saving**: `srv_bots` from 2.9 to about 1.1-1.4 ms a tick at 31 bots, so 1.5-1.8 ms a tick, or 50-60 µs per bot-tick. That is CS:S's 36 µs per bot-tick plus FC's engine rays.

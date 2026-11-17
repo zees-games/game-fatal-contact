@@ -1,6 +1,6 @@
 extends Node
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const StallRecorder := preload("stall_recorder.gd")
 
 ## The frames around the loading cover, offline: how long the cover is up and what the first
@@ -27,13 +27,13 @@ func _ready() -> void:
 			"--window": _window = float(args[i + 1])
 			"--budget": _budget = float(args[i + 1])
 	DotLog.set_level(DotLog.Level.ERROR)
-	var _scratch := ArenaPresentation.use_scratch_settings("load_stall")
+	var _scratch := FcPresentation.use_scratch_settings("load_stall")
 	Engine.max_fps = 0
 	_run.call_deferred()
 
 
 func _run() -> void:
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	var rec := StallRecorder.new()

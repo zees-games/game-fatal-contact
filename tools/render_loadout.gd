@@ -10,7 +10,7 @@ extends SceneTree
 ##
 ## `-- --locked` owns nothing, so the launcher shows as a locked store item. Free is the default; `--costed` prices a few weapons and sets a budget, as a server would.
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 const OUT_DIR := "screenshots/loadout"
 
@@ -21,8 +21,8 @@ var _locked := OS.get_cmdline_user_args().has("--locked")
 
 
 func _initialize() -> void:
-	var _scratch := ArenaPresentation.use_scratch_settings("render_loadout")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("render_loadout")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
@@ -58,7 +58,7 @@ func _run() -> void:
 	await _wait(0.5)
 	var screen := menu.loadout_screen
 	_check(screen != null and screen.is_open(), "B opens the loadout screen")
-	await _shot("arena_loadout_primary" + suffix)
+	await _shot("fc_loadout_primary" + suffix)
 	if _locked:
 		var locked := 0
 		for c: Variant in screen.choices():
@@ -69,11 +69,11 @@ func _run() -> void:
 				var _s := screen.pick(i)
 				break
 		await _wait(0.3)
-		await _shot("arena_loadout_locked")
+		await _shot("fc_loadout_locked")
 	_check(screen.costs_shown() == _costed, "costs are shown only when the server prices something (%s)" % suffix)
 	await _costed_or_free(screen, menu, suffix)
 	screen.show_slot(3)
-	await _shot("arena_loadout_grenades")
+	await _shot("fc_loadout_grenades")
 	screen.show_slot(0)
 	for i in screen.choices().size():
 		if str((screen.choices()[i] as Dictionary)["id"]) == "battle_rifle":
@@ -81,12 +81,12 @@ func _run() -> void:
 	screen.close()
 	await _wait(0.6)
 	_check(me.arsenal.carries(&"battle_rifle"), "closing sends it, and in warmup it is in the player's hands")
-	await _shot("arena_loadout_equipped")
+	await _shot("fc_loadout_equipped")
 
 	# The crosshair: at the hip, then down the sights with the aim key held.
 	me.arsenal.select(AwWeaponIds.SLOT_PRIMARY, client.get("game").current_tick())
 	await _wait(1.0)
-	await _shot("arena_ads_hip")
+	await _shot("fc_ads_hip")
 	var hud = client.get("hud")
 	await _run_rest(me, hud)
 
@@ -103,12 +103,12 @@ func _costed_or_free(screen: Variant, menu: DotMenu, suffix: String) -> void:
 				refused = not screen.pick(i)
 		_check(refused, "a priced secondary over the budget is refused")
 		_check(screen.points_with() <= 7, "the draft stays within the budget (%d / 7)" % screen.points_with())
-		await _shot("arena_loadout_over_budget" + suffix)
+		await _shot("fc_loadout_over_budget" + suffix)
 		screen.revert()
 	else:
 		screen.toggle_random_spawn()
 		await _wait(0.3)
-		await _shot("arena_loadout_every_spawn_on")
+		await _shot("fc_loadout_every_spawn_on")
 		_check(screen.random_spawn_on(), "the Every spawn toggle turns on")
 		_check(screen.spawn_locked() and (screen.find_child("Random", true, false) as Button).disabled, "ticked: every other loadout control is locked")
 		var before_pick: Dictionary = screen.draft.duplicate()
@@ -123,21 +123,21 @@ func _costed_or_free(screen: Variant, menu: DotMenu, suffix: String) -> void:
 		_check(not screen.spawn_locked(), "unticked: the controls are live again")
 		screen.show_slot(0)
 		await _wait(0.3)
-		await _shot("arena_loadout_every_spawn_off")
+		await _shot("fc_loadout_every_spawn_off")
 
 
 func _run_rest(me, hud) -> void:
 	var hip: float = hud.crosshair.aim_opacity
 	Input.action_press(&"arena_aim")
 	await _wait(0.12)
-	await _shot("arena_ads_raising")
+	await _shot("fc_ads_raising")
 	# Poll, not a fixed wait: game time runs slower than wall time on a loaded renderer.
 	for _i in 40:
 		if hud.crosshair.aim_opacity < 0.01:
 			break
 		await _wait(0.2)
 	var aimed: float = hud.crosshair.aim_opacity
-	await _shot("arena_ads_aimed")
+	await _shot("fc_ads_aimed")
 	Input.action_release(&"arena_aim")
 	for _i in 40:
 		if hud.crosshair.aim_opacity > 0.99:
@@ -152,7 +152,7 @@ func _run_rest(me, hud) -> void:
 	await _wait(1.0)
 	Input.action_press(&"arena_aim")
 	await _wait(1.0)
-	await _shot("arena_ads_scoped")
+	await _shot("fc_ads_scoped")
 	Input.action_release(&"arena_aim")
 
 	print("%d failed" % _failed)

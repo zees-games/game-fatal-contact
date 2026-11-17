@@ -3,12 +3,12 @@ extends "headless_presentation_b2.gd"
 func _test_schema() -> void:
 	_section("What a player may change, and what a server may cap")
 
-	var s := ArenaPresentation.schema()
+	var s := FcPresentation.schema()
 	_check(s.validate().ok, "the schema validates")
 	_check(
-		ArenaPresentation.settings_directory.begins_with("user://scratch/"),
+		FcPresentation.settings_directory.begins_with("user://scratch/"),
 		"this suite's settings are a scratch document, not the player's",
-		ArenaPresentation.settings_directory
+		FcPresentation.settings_directory
 	)
 
 	var clamped := s.keys_in_scope(DotSettingsDef.Scope.SERVER_CLAMPED)
@@ -26,16 +26,16 @@ func _test_schema() -> void:
 	)
 
 	_check(
-		ArenaPresentation.sound_catalogue().validate().ok,
+		FcPresentation.sound_catalogue().validate().ok,
 		"the sound catalogue validates with no audio files present at all"
 	)
 	_check(
-		ArenaPresentation.fx_catalogue().validate().ok,
+		FcPresentation.fx_catalogue().validate().ok,
 		"and so does the effect catalogue, which loads no scene to validate"
 	)
 	var stock_ok := true
 	for sound: StringName in DotAudioWeaponStock.COUNTS:
-		stock_ok = stock_ok and ArenaPresentation.sound_catalogue().find(DotAudioWeaponStock.id_of(sound)) != null
+		stock_ok = stock_ok and FcPresentation.sound_catalogue().find(DotAudioWeaponStock.id_of(sound)) != null
 	_check(stock_ok, "the game's sound catalogue carries every stock weapon sound")
 	_check_grenade_blasts()
 	var stock_streams := true
@@ -74,7 +74,7 @@ func _test_ambience_is_quiet_and_obeys_settings() -> void:
 	_check(a.ambient.target_level() < 0.5, "and the layer's target level is under half (%.2f)" % a.ambient.target_level())
 
 	var _r1 := p.settings.set_value(&"ambient_volume", 0.5)
-	_check(is_equal_approx(a.ambient.config.volume, ArenaAmbience.LEVEL * 0.5), "the player's slider turns it down")
+	_check(is_equal_approx(a.ambient.config.volume, FcAmbience.LEVEL * 0.5), "the player's slider turns it down")
 	var _r2 := p.settings.set_value(&"ambient", false)
 	_check(not a.ambient.config.enabled, "the player's switch turns it off")
 	var _r3 := p.settings.set_value(&"ambient", true)
@@ -137,7 +137,7 @@ func _test_audio_is_a_firefight() -> void:
 
 	# Every id has a noise, and every noise has an id: an id with no recipe stays silent for ever,
 	# and a recipe naming no id reaches nothing; neither errors, so check both directions.
-	var recipes := ArenaPresentation.sound_recipes()
+	var recipes := FcPresentation.sound_recipes()
 	_check_recipes_cover_ids(cat, recipes)
 
 	# The bank is what the real sink would be given. Baking it here is the only place a
@@ -188,7 +188,7 @@ func _check_sliced_bank(cat: DotAudioCatalogue, recipes: Dictionary, bank: Dicti
 	var total := 0
 	while not queue.is_empty() and calls < 10000:
 		var t0 := Time.get_ticks_msec()
-		ArenaPresentation.bake_into(sliced, cat, recipes, queue, 1)
+		FcPresentation.bake_into(sliced, cat, recipes, queue, 1)
 		var took := Time.get_ticks_msec() - t0
 		longest = maxi(longest, took)
 		total += took
@@ -205,7 +205,7 @@ func _check_recorded_sounds(cat: DotAudioCatalogue, rifle: DotAudioDef, bank: Di
 	# Item 1722: every game sound was a synthesised stand-in because its file was looked for in a
 	# res://audio nobody filled. They name the addons' recorded files now.
 	var unrecorded: Array[String] = []
-	for id: StringName in ArenaPresentation.RECORDED:
+	for id: StringName in FcPresentation.RECORDED:
 		var def := cat.find(id)
 		if def == null:
 			unrecorded.append(String(id))
@@ -213,7 +213,7 @@ func _check_recorded_sounds(cat: DotAudioCatalogue, rifle: DotAudioDef, bank: Di
 		var files: Array[String] = [def.path]
 		for v in def.variants:
 			files.append(String(v))
-		if def.path.begins_with(ArenaPresentation.SOUND_DIR) or (def.variants.size() < 2 and int(ArenaPresentation.RECORDED[id][2]) > 1):
+		if def.path.begins_with(FcPresentation.SOUND_DIR) or (def.variants.size() < 2 and int(FcPresentation.RECORDED[id][2]) > 1):
 			unrecorded.append(String(id))
 			continue
 		for f in files:
@@ -223,7 +223,7 @@ func _check_recorded_sounds(cat: DotAudioCatalogue, rifle: DotAudioDef, bank: Di
 		"the recorded sounds play the addons' files, several each where several are named (wrong: %s)" % str(unrecorded))
 	var unfilled: Array[String] = []
 	for id: StringName in cat.ids():
-		if cat.find(id).path.begins_with(ArenaPresentation.SOUND_DIR):
+		if cat.find(id).path.begins_with(FcPresentation.SOUND_DIR):
 			unfilled.append(String(id))
 	_check(unfilled.is_empty(), "and no sound still looks in the empty res://audio (%s)" % str(unfilled))
 	_check(
@@ -305,7 +305,7 @@ func _check_render_quality(p) -> void:
 	# which follows the presentation's settings only because the client hands them over.
 	var screen := SubViewport.new()
 	add_child(screen)
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.presentation = p
 	client.platform = DotGameClient.new()
 	var quality: Node = load("res://addons/dot_fx/runtime/dot_fx_render_quality.gd").new()
@@ -328,7 +328,7 @@ func _check_render_quality(p) -> void:
 ## exist, and dot-fx logs a missing scene at DEBUG.
 func _test_a_shot_is_drawn() -> void:
 	_section("A shot is drawn: a flash at the gun, a spark and a hole where it stopped")
-	var missing := ArenaPresentation.fx_catalogue().missing_scenes()
+	var missing := FcPresentation.fx_catalogue().missing_scenes()
 	_check(
 		missing.is_empty(),
 		"every scene the effect catalogue names is present (missing: %s)" % ", ".join(missing)
@@ -426,7 +426,7 @@ func _test_blood() -> void:
 	var chest := Vector3(0, 1.2, -1)
 
 	_check(p.blood != null and p.blood.decals.blood_count() == 0, "the presentation owns a blood layer, empty")
-	_check(p.break_fx != null and p.break_fx.is_in_group(&"arena_break_fx"), "the presentation owns the break effects, found by the panes")
+	_check(p.break_fx != null and p.break_fx.is_in_group(&"fc_break_fx"), "the presentation owns the break effects, found by the panes")
 	p.on_body_hit(DotEntity.make_id(DotEntity.KIND_PROP, 3), chest, eye)
 	_check(p.blood.decals.blood_count() == 0, "a prop bleeds nothing")
 	p.on_body_hit(npc, chest, eye)
@@ -452,18 +452,18 @@ func _test_blood() -> void:
 
 ## Each of the five thrown grenades is heard as its own recording on detonation, a launcher as the stock blast.
 func _check_grenade_blasts() -> void:
-	var catalogue := ArenaPresentation.sound_catalogue()
-	if DotAddonApi.build_level("fc_weapons") < ArenaPresentation.GRENADE_BLAST_LEVEL:
-		_check(ArenaPresentation.blast_sound_id(&"frag") == ArenaPresentation.EXPLOSION, "without fc_weapons level 26 a grenade keeps the stock blast")
+	var catalogue := FcPresentation.sound_catalogue()
+	if DotAddonApi.build_level("fc_weapons") < FcPresentation.GRENADE_BLAST_LEVEL:
+		_check(FcPresentation.blast_sound_id(&"frag") == FcPresentation.EXPLOSION, "without fc_weapons level 26 a grenade keeps the stock blast")
 		return
 	var heard: Dictionary = {}
-	for grenade: StringName in ArenaPresentation.GRENADE_BLASTS:
-		var id := ArenaPresentation.blast_sound_id(grenade)
+	for grenade: StringName in FcPresentation.GRENADE_BLASTS:
+		var id := FcPresentation.blast_sound_id(grenade)
 		var def := catalogue.find(id)
 		var stream := AwGrenadeSound.stream(grenade, randi())
-		_check(id != ArenaPresentation.EXPLOSION and def != null and stream != null, "%s has its own detonation sound (%s)" % [grenade, id])
+		_check(id != FcPresentation.EXPLOSION and def != null and stream != null, "%s has its own detonation sound (%s)" % [grenade, id])
 		if def != null:
 			_check(def.pick_path(0.0) == AwGrenadeSound.stream(grenade, 0).resource_path and ResourceLoader.exists(def.pick_path(0.99)), "%s's sound plays the pack's recordings" % grenade)
 		heard[id] = true
-	_check(heard.size() == ArenaPresentation.GRENADE_BLASTS.size(), "the five grenades have five different detonation sounds")
-	_check(ArenaPresentation.blast_sound_id(&"rocket") == ArenaPresentation.EXPLOSION and ArenaPresentation.blast_sound_id(&"") == ArenaPresentation.EXPLOSION, "a rocket or an unnamed blast stays the stock explosion")
+	_check(heard.size() == FcPresentation.GRENADE_BLASTS.size(), "the five grenades have five different detonation sounds")
+	_check(FcPresentation.blast_sound_id(&"rocket") == FcPresentation.EXPLOSION and FcPresentation.blast_sound_id(&"") == FcPresentation.EXPLOSION, "a rocket or an unnamed blast stays the stock explosion")

@@ -1,12 +1,12 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
-const ArenaPlayerNet := preload("../game/arena_player_net.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
+const FcPlayerNet := preload("../game/fc_player_net.gd")
 
 ## The fire-mode key through the whole game: a press moves the held gun to its next mode, a held key moves
-## it once, and the replicated `net_fire_mode` follows. Arena binds the key to N.
+## it once, and the replicated `net_fire_mode` follows. Fatal Contact binds the key to N.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_firemode.tscn
@@ -32,7 +32,7 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 	print("  [%s] %s%s" % ["ok" if condition else "FAIL", what, ("  (" + detail + ")") if detail != "" else ""])
 
 
-func _step(game: ArenaGame, id: int, down: bool, ticks: int) -> void:
+func _step(game: FcGame, id: int, down: bool, ticks: int) -> void:
 	for _k in ticks:
 		var c := DotWeaponCommand.new()
 		c.set_button(DotWeaponCommand.BUTTON_FIRE_MODE, down)
@@ -45,14 +45,14 @@ func _run() -> void:
 		DotInputBinding.describe_action(&"arena_fire_mode") == "N" or not InputMap.has_action(&"arena_fire_mode"),
 		"the fire-mode action is N by default (or not registered in a bare game)"
 	)
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "G"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch()
+	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	_check(game.setup(ArenaMap.dm_atrium()).ok, "a game sets up")
+	_check(game.setup(FcMap.dm_atrium()).ok, "a game sets up")
 	game.start(0)
 	var _a := game.add_player(31, "A")
 	game.tick({})
@@ -74,7 +74,7 @@ func _run() -> void:
 	var modes: Array = slot.def.allowed_fire_modes()
 	var start: int = slot.fire_mode_index
 
-	var net := ArenaPlayerNet.new()
+	var net := FcPlayerNet.new()
 	net.player = player
 	net.pull()
 	_check(net.net_fire_mode == start, "before the press net_fire_mode is the gun's mode", str(net.net_fire_mode))

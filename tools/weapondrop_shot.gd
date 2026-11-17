@@ -1,6 +1,6 @@
 extends SceneTree
 
-const Wiring := preload("../game/arena_weapon_drop_wiring.gd")
+const Wiring := preload("../game/fc_weapon_drop_wiring.gd")
 
 ## Dropped weapons settled on a floor, a ramp and a step, seen from low and close: any gun sunk
 ## into the surface shows. The server layer draws nothing; the client layer mirrors it.
@@ -33,7 +33,7 @@ func _slab(pos: Vector3, size: Vector3, tilt: float = 0.0) -> void:
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	var args := OS.get_cmdline_user_args()
 	if args.size() > 0:
 		_out = args[0]

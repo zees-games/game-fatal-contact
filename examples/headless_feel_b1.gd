@@ -1,10 +1,10 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaModule := preload("../game/arena_module.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaTestPorts := preload("test_ports.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcModule := preload("../game/fc_module.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcTestPorts := preload("test_ports.gd")
 
 
 ## dot-net's lossy UDP relay, by path (it has no class_name).
@@ -15,8 +15,8 @@ const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
 ## res://examples/headless_feel.tscn -- --verbose godot --headless --path .
 
 
-var PORT := ArenaTestPorts.free_port()
-const DATA := "user://arena_feel"
+var PORT := FcTestPorts.free_port()
+const DATA := "user://fc_feel"
 const TICK_RATE := 64
 
 
@@ -58,7 +58,7 @@ var _completed := 0
 
 var _server_side: Node = null
 var _server: DotServer = null
-var _game: ArenaGame = null
+var _game: FcGame = null
 var _relay = null
 var _client_side: Node = null
 var _link: DotClientLink = null
@@ -83,7 +83,7 @@ var _offline_bots: Dictionary = {}
 
 
 ## The standalone player the moves section drives, its command, its tick and its frames.
-var _mover: ArenaPlayer = null
+var _mover: FcPlayer = null
 var _mover_command: DotFpsCommand = null
 var _mover_tick := 1
 var _mover_frames: Array = []
@@ -217,8 +217,8 @@ static func _vertical(frames: Array, keep: Callable) -> Dictionary:
 		"ratio": high / mean if mean > 0.0 else INF, "top": top}
 
 
-func _module() -> ArenaModule:
-	return _server.modules.get_module("arena") as ArenaModule if _server != null else null
+func _module() -> FcModule:
+	return _server.modules.get_module("arena") as FcModule if _server != null else null
 
 
 func _boot() -> bool:
@@ -229,7 +229,7 @@ func _boot() -> bool:
 	add_child(_server_side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), _server_side.get_path())
 
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -237,7 +237,7 @@ func _boot() -> bool:
 	_game.headless = true
 	_game.register_service = true
 	_server_side.add_child(_game)
-	var ready := _game.setup(ArenaMap.dm_box())
+	var ready := _game.setup(FcMap.dm_box())
 	if not _check(ready.ok, "the arena sets up", str(ready.error)):
 		_done()
 		return false
@@ -271,8 +271,8 @@ func _boot() -> bool:
 		_done()
 		return false
 
-	ArenaModule.punishments_file = "%s/punishments.json" % DATA
-	var loaded: DotResult = await _server.modules.load_module("res://game/arena_module.gd")
+	FcModule.punishments_file = "%s/punishments.json" % DATA
+	var loaded: DotResult = await _server.modules.load_module("res://game/fc_module.gd")
 	if not _check(loaded.ok, "the arena module loads", str(loaded.error)):
 		_done()
 		return false
@@ -316,7 +316,7 @@ func _connect() -> bool:
 	_link.spawned.connect(func() -> void: spawned[0] = true)
 	await _until(func() -> bool: return spawned[0] or _link.is_playing(), 30.0)
 
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("mouse_capture_override", true)
 	_client_side.add_child(_client)
 
@@ -343,7 +343,7 @@ func _connect() -> bool:
 				opened_on[0] = "after the server's map" if map_in[0] else "before the server's map")
 
 	var playing := await _until(func() -> bool:
-		var p: ArenaPlayer = _client.get("player")
+		var p: FcPlayer = _client.get("player")
 		var net: DotNetManager = _client.get("net")
 		return p != null and p.is_alive() and net != null and net.clock.is_synced(), 40.0)
 	_check(playing, "the client adopts its player and is alive", "transport %s" % _link.transport_used)
@@ -359,7 +359,7 @@ func _connect() -> bool:
 	# into a corner, and a frame across a corner is not a measurement of anything drawn.
 	# The client's copy of itself is corrected once, here, before anything is measured.
 	_place_on_circle(_game.player_for(_bot_session), Vector3(-16.0, 0.05, 14.0), 4.0)
-	var me := _client.get("player") as ArenaPlayer
+	var me := _client.get("player") as FcPlayer
 	_place_on_circle(_game.player_for(me.player_id) if me != null else null, RUN_CENTRE, 2.2, -45.0, false)
 	_done()
 	return playing and sees
@@ -368,7 +368,7 @@ func _connect() -> bool:
 ## Puts [param p] (on the server) where the circle it runs is centred on [param centre]:
 ## [param radius] metres from it, square to its heading ([param heading] degrees off the yaw).
 ## [param turns_left] says which side the centre is on; the local runner's yaw shrinks.
-func _place_on_circle(p: ArenaPlayer, centre: Vector3, radius: float, heading: float = 0.0,
+func _place_on_circle(p: FcPlayer, centre: Vector3, radius: float, heading: float = 0.0,
 		turns_left: bool = true) -> void:
 	if p == null:
 		return
@@ -378,10 +378,10 @@ func _place_on_circle(p: ArenaPlayer, centre: Vector3, radius: float, heading: f
 	p.global_position = at
 
 
-func _remote_bot() -> ArenaPlayer:
+func _remote_bot() -> FcPlayer:
 	if _client == null:
 		return null
-	var g: ArenaGame = _client.get("game")
+	var g: FcGame = _client.get("game")
 	return g.player_for(_bot_session) if g != null else null
 
 
@@ -414,7 +414,7 @@ func _early_physics() -> void:
 		var _outcome := _mover.simulate_tick(_mover_tick, 1.0 / float(TICK_RATE), _mover_command, DotWeaponCommand.new())
 		_mover_tick += 1
 	for id in _offline_bots:
-		var bot: ArenaPlayer = _offline_bots[id]
+		var bot: FcPlayer = _offline_bots[id]
 		if not is_instance_valid(bot):
 			continue
 		var move := DotFpsCommand.new()
@@ -453,7 +453,7 @@ func _late_physics() -> void:
 func _early_process(delta: float) -> void:
 	if not _driving or not _turning or _client == null:
 		return
-	var p: ArenaPlayer = _client.get("player")
+	var p: FcPlayer = _client.get("player")
 	if p == null:
 		return
 	var tunables := p.controller.tunables
@@ -486,7 +486,7 @@ func _late_process(delta: float) -> void:
 	if server_buffer != null and server_buffer.late_count + server_buffer.starved_count > int(_w.get("late_seen", 1 << 30)):
 		_w["late_seen"] = server_buffer.late_count + server_buffer.starved_count
 		_w["last_late_ms"] = Time.get_ticks_msec() - int(_w["started"])
-	var p: ArenaPlayer = _client.get("player")
+	var p: FcPlayer = _client.get("player")
 	if p == null or p.camera == null or not p.is_alive():
 		_w["last"] = null
 		return
@@ -502,7 +502,7 @@ func _late_process(delta: float) -> void:
 		"alpha": p.get("drawn_alpha"), "frac": Engine.get_physics_interpolation_fraction(),
 		"offset": p.drawn_offset,
 	}
-	var g: ArenaGame = _client.get("game")
+	var g: FcGame = _client.get("game")
 	for other in g.players():
 		if other == p or not other.is_alive():
 			continue
@@ -517,13 +517,13 @@ func _late_process(delta: float) -> void:
 ## The velocity of the stretch of motion a frame is drawn on: from the previous tick's
 ## position to this one's, which is what interpolation between them moves along. The state's
 ## own velocity is the wrong reference wherever a tick changed it (a wall, a landing).
-static func _segment_velocity(p: ArenaPlayer) -> Vector3:
+static func _segment_velocity(p: FcPlayer) -> Vector3:
 	var previous := p.controller.render_state(0.0).position
 	return (p.controller.state.position - previous) * float(p.controller.tick_rate)
 
 
 ## The view model's animated offset under the camera: sway, bob, kick.
-static func _view_model_offset(p: ArenaPlayer) -> Variant:
+static func _view_model_offset(p: FcPlayer) -> Variant:
 	if p.weapons == null or p.weapons.view_model() == null:
 		return null
 	var animated: Node3D = p.weapons.view_model().get("_animated")

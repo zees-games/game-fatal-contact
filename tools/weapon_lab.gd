@@ -4,12 +4,12 @@ extends SceneTree
 ## `xvfb-run -a godot --path . --resolution 960x540 --fixed-fps 30 --script tools/weapon_lab.gd -- --out <dir> [--only a,b] [--anims idle,draw,fire,ads,reload_empty,reload_tactical,melee,holster,sprint] [--no-turntable] [--no-anims]`
 ## Per weapon, under <out>/<id>/: fp_<anim>.mp4 + strips, tp_turntable.mp4, tp_orbit_strip.png, closeups and manifest.json (JPEG frames in _frames/ for weapon_lab.sh).
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 const ALL_ANIMS: PackedStringArray = ["idle", "draw", "fire", "ads", "reload_empty", "reload_tactical", "melee", "holster", "sprint", "inspect"]
 const STRIP_FRAMES := 8
 const THUMB := Vector2i(480, 270)
-## The stage the model viewer lives on, far from the arena so nothing else is in shot.
+## The stage the model viewer lives on, far from Fatal Contact so nothing else is in shot.
 const STAGE := Vector3(400.0, 0.0, 0.0)
 const FP_FLOOR_DROP := 1.0
 
@@ -25,9 +25,9 @@ var _stage_node: Node3D = null
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
-	var _scratch := ArenaPresentation.use_scratch_settings("weapon_lab")
-	client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	preload("../game/fc_weapon_roles.gd").ensure()
+	var _scratch := FcPresentation.use_scratch_settings("weapon_lab")
+	client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	client.set("offline_bots", 0)
@@ -96,7 +96,7 @@ func _run() -> void:
 
 # the lab
 
-## Hides the arena and builds the one neutral room: flat grey floor and backdrop, one fixed sun, flat ambient. The player stands
+## Hides Fatal Contact and builds the one neutral room: flat grey floor and backdrop, one fixed sun, flat ambient. The player stands
 ## where it spawned; the stage for the model viewer is the same room built again far away.
 func _build_lab() -> void:
 	for n in ["Level", "Lighting", "Hud", "Flashlights"]:

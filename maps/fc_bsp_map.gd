@@ -1,0 +1,731 @@
+extends "fc_bsp_map_materials.gd"
+
+const FcLoadTimeline := preload("../game/fc_load_timeline.gd")
+const FcLocalMaps := preload("fc_local_maps.gd")
+
+## A map imported from a compiled `.bsp` by game-airdrift's importer, built here from the
+## manifest it wrote: the drawn mesh, the baked lightmap, the brushes as convex hulls, the
+## map's own spawn points and the teleport volumes that catch a player who falls.
+##
+## [b]A copy of the half of `G2GBspMap` Fatal Contact needs, not a dependency on it, and not an
+## addon.[/b] Three ways were open and two are closed:
+##
+## - [b]Naming g2gfast's script.[/b] A game cannot depend on another game — each is its own
+##   repository and its own delivered pack — and a delivered pack cannot resolve a
+##   `class_name` from anywhere (see the family's pack note), so `G2GBspMap` is not
+##   reachable from Fatal Contact at all, delivered or not.
+## - [b]Lifting it into an addon.[/b] The right home in the long run, and the expensive one
+##   now: an addon is in the client SHELL, so Fatal Contact's pack could not use it until the addon
+##   is tagged and the shell rebuilt and published — and the reusable half is tangled with
+##   g2gfast's own (genre units as a class, its timer zones, its texture set and Kenney
+##   stand-ins, its flashlight, dot-lighting). What Fatal Contact needs is about three hundred
+##   lines with none of that.
+## - [b]A copy, which is this file.[/b] The family's rule for anything shared between two
+##   games is that it is duplicated deliberately or lives in dot-core; this is the first.
+##
+## What the copy keeps is exactly what the manifest format promises: `<id>.bin` holds the
+## vertices (ten floats: position, normal, uv, uv2) and indices of each surface, then the
+## brush hulls (a u32 count and that many float triples each) and the welded displacement
+## triangles; the manifest says where each block starts. [b]Genre units on the wire,
+## metres in the scene, converted at one boundary — [constant METRES_PER_UNIT] — and no
+## axis swap[/b]: the importer already wrote Godot's axes, so a manifest coordinate is
+## `(x, y up, z)` in units of 0.75 inch. When the format changes in g2gfast, this file has
+## to follow, and the suite that loads one of these maps is what says so.
+##
+## What it deliberately leaves out, and why that is safe for a deathmatch:
+##
+## - [b]Timer zones.[/b] dot-timer is not in this game. A combat surf map has no finish by
+##   definition (that is what its `"kind": "arena"` says); the only zones Fatal Contact reads are
+##   the pits, which are a teleport.
+## - [b]The map's sky, sun and fog.[/b] Not built here: `fc_map_lighting.gd` reads the
+##   manifest's `lighting` block through dot-lighting, as g2gfast does, packed sky faces
+##   included. The surfaces are `unshaded` and lit by the baked lightmap alone, so the
+##   world looks like the map; the lighting is the sun on the players, the fog and the sky.
+## - [b]Kenney stand-ins and g2gfast's prototype set[/b] for a texture the map did not
+##   carry. Fatal Contact's own generated grid ([method FcMap.dev_texture]) is drawn instead,
+##   tinted the colour the map's compiler measured for that texture.
+##
+## The map's own mechanics (pushes, water, ladders, conveyors, gravity, hurt) are not left
+## out, but they are not built here either: [code]fc_map_mechanics.gd[/code] reads the
+## manifest's `mechanics` block and the player runs it inside the simulated tick
+## ([code]FcPlayer._run_map_mechanics[/code]). Sinking blocks are the one part not ported;
+## see the game's docs/imported-maps.md.
+
+## Metres per genre unit: 0.75 inch, the scale these maps were built at. Not the 1-inch
+## figure sometimes quoted — at that scale a surf ramp is one the movement cannot hold.
+const METRES_PER_UNIT := 0.01905
+
+## Floats per vertex in the mesh block: position 3, normal 3, uv 2, uv2 2.
+const VERTEX_FLOATS := 10
+
+
+## dot-map's drawn world, loaded by path so a shell without it still plays the legacy meshes.
+const DRAWN_WORLD := "res://addons/dot_map/bsp/dot_map_drawn_world.gd"
+
+## Where the converted worlds (`bsp.py regen`, fc-surf-dm-maps/worlds) are linked.
+const WORLD_ROOT := "res://worlds"
+
+## The deathmatch maps' worlds (fc-dm-maps/worlds), a second link because ids differ per repository.
+const WORLD_ROOT_DM := "res://worlds_dm"
+
+
+## Where [param id]'s converted world is, without extension, or "" when there is none. A delivered map ([param map_dir], its manifest's directory) carries its own under `worlds/`, which wins over the linked root.
+static func world_prefix(id: String, map_dir: String = "") -> String:
+	var local := FcLocalMaps.prefix_in(id, map_dir)
+	if not local.is_empty():
+		return local
+	var candidates: Array[String] = []
+	if not map_dir.is_empty():
+		candidates.append(map_dir.path_join("worlds").path_join(id).path_join(id))
+	candidates.append(FcPaths.rebase(WORLD_ROOT).path_join(id).path_join(id))
+	candidates.append(FcPaths.rebase(WORLD_ROOT_DM).path_join(id).path_join(id))
+	for prefix in candidates:
+		if FileAccess.file_exists(prefix + ".json") and FileAccess.file_exists(prefix + ".bin"):
+			return prefix
+	return ""
+
+
+## Replaces [param drawn]'s legacy meshes with the map's dot-map world (free PBR art, same frame
+## and scale); collision, spawns and mechanics stay the manifest's. False leaves the legacy meshes.
+static func draw_world(drawn: Node3D, id: String, map_dir: String = "") -> bool:
+	var prefix := _draw_prefix(id, map_dir)
+	var plan := {} if prefix.is_empty() else _draw_plan(drawn, id, DotMapBspMesh.load_prefix(prefix))
+	if plan.is_empty():
+		return false
+	(plan.script as GDScript).call("attach", drawn, plan.mesh, plan.options)
+	return true
+
+
+## [method draw_world] in slices: the pack is read on a worker ([method DotMapBspMesh.load_prefix_async]) and the build
+## awaits [param slice] between batches, so the cover never freezes on one frame.
+static func draw_world_async(drawn: Node3D, id: String, map_dir: String, slice: DotFrameSlice) -> bool:
+	var prefix := _draw_prefix(id, map_dir)
+	if prefix.is_empty():
+		return false
+	# The drawn-world script and the addon scripts behind it compile on a loader thread
+	# while the pack is read: a plain load() of them was a 40 to 110 ms frame.
+	var threaded := ResourceLoader.load_threaded_request(DRAWN_WORLD) == OK
+	var got: DotResult = await DotMapBspMesh.load_prefix_async(prefix)
+	FcLoadTimeline.mark("world: pack read")
+	var tree := Engine.get_main_loop() as SceneTree
+	while threaded and tree != null and ResourceLoader.load_threaded_get_status(DRAWN_WORLD) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		await tree.process_frame
+	if threaded:
+		ResourceLoader.load_threaded_get(DRAWN_WORLD)
+	FcLoadTimeline.mark("world: script loaded")
+	if not is_instance_valid(drawn):
+		return false
+	var plan := _draw_plan(drawn, id, got)
+	if plan.is_empty():
+		return false
+	FcLoadTimeline.mark("world: planned")
+	await (plan.script as GDScript).call("attach_async", drawn, plan.mesh, plan.options, slice)
+	return true
+
+
+## [method world_prefix], or "" when the drawn-world script is not linked either.
+static func _draw_prefix(id: String, map_dir: String) -> String:
+	return world_prefix(id, map_dir) if ResourceLoader.exists(DRAWN_WORLD) else ""
+
+
+static func _draw_plan(drawn: Node3D, id: String, got: DotResult) -> Dictionary:
+	if not got.ok:
+		DotLog.warn("arena.maps", "a map's world would not read; its legacy meshes are drawn", {"map": id, "why": got.error.message})
+		return {}
+	for child in drawn.get_children():
+		drawn.remove_child(child)
+		child.free()
+	var surfaces := FcPaths.rebase("res://assets/surfaces")
+	return {"script": load(DRAWN_WORLD), "mesh": got.value, "options": {
+		"props": true,
+		"mark": func(label: String) -> void: FcLoadTimeline.mark(label),
+		# A local `<map>_orig` pack only (dot-map 24); every shipped and delivered map keeps the free textures.
+		"original_textures": FcLocalMaps.is_original(StringName(id)),
+		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else DotMapSurfaces.DEFAULT_ROOT,
+	}}
+
+
+## Replaces the solid hulls of the world's breakable glass with [DotMapGlass] panes, so a window can be shot out and seen
+## through. The legacy hulls carry no owner, so a hull is the pane's when its box matches one of the pane's hulls.
+static func _swap_glass(body: StaticBody3D, id: String, dir: String) -> void:
+	var prefix := world_prefix(id, dir)
+	if prefix.is_empty():
+		return
+	var got: DotMapBspMesh = DotMapBspMesh.load_prefix(prefix).value
+	if got == null:
+		return
+	var solids: Array[CollisionShape3D] = []
+	for child in body.get_children():
+		if child is CollisionShape3D and (child as CollisionShape3D).shape is ConvexPolygonShape3D:
+			solids.append(child)
+	var swapped := 0
+	for rec: Dictionary in got.breakables():
+		if rec.get("model") == null:
+			continue
+		var kind := str(rec.get("glass", "")) if rec.get("glass") != null else ""
+		if kind.is_empty():
+			var mi := int(rec.get("material", 1))
+			kind = DotMapBreakable.MATERIALS[mi] if mi >= 0 and mi < DotMapBreakable.MATERIALS.size() else "wood"
+		var model := int(rec["model"])
+		var pane := DotMapGlass.new()
+		pane.name = "breakable_%d" % model
+		pane.model = model
+		pane.kind = StringName(kind)
+		pane.health = float(rec.get("health", 1.0))
+		pane.collision_mask = 0
+		pane.position = got.model_origin(model)
+		for h: Dictionary in got.hull_shapes(model):
+			var want := _box_of((h["shape"] as ConvexPolygonShape3D).points, pane.position)
+			for s in solids:
+				var have := _box_of((s.shape as ConvexPolygonShape3D).points, Vector3.ZERO)
+				if have.position.distance_to(want.position) < 0.06 and have.size.distance_to(want.size) < 0.06:
+					solids.erase(s)
+					body.remove_child(s)
+					s.free()
+					break
+			var cs := CollisionShape3D.new()
+			cs.shape = h["shape"]
+			pane.add_child(cs)
+		body.add_child(pane)
+		swapped += 1
+	DotLog.debug("arena.maps", "glass swapped for breakable panes", {"map": id, "panes": swapped})
+
+
+## Collision bit the jail glass is on besides player_clip: a body still stops on it, and a shot sees it only when its mask asks (`DotMapGlassSight`).
+const GLASS_BIT := 1 << 20
+const GLASS_META := &"glass_sight"
+
+
+## Group of the area marking a map's sky brushes ([method _mark_sky]): a shot ending on one drew a hole or a spark in the open sky.
+const SKY_GROUP := &"arena_sky"
+## Collision layer of that area, which only [method on_sky] asks for. Areas are not in the bots' nav bake, and shots do not see them.
+const SKY_BIT := 1 << 21
+
+
+## Marks the sky hulls with meta hull_kind "sky" and copies their shapes into an Area3D in [constant SKY_GROUP] on [constant SKY_BIT]: the
+## world body is not changed, so shots, bodies and the nav bake are as before. hull_kinds in [param info] names them by hull index; a
+## manifest from before hull_kinds is matched by box against the converted world, as the fences are.
+static func _mark_sky(body: StaticBody3D, id: String, dir: String, info: Dictionary) -> void:
+	var hulls := body.get_children()
+	var sky: Array[CollisionShape3D] = []
+	var kinds: Variant = info.get("hull_kinds")
+	if kinds is Dictionary:
+		for n: Variant in (kinds as Dictionary).get("sky", []):
+			var shape := hulls[int(n)] as CollisionShape3D if int(n) >= 0 and int(n) < hulls.size() else null
+			if shape != null:
+				sky.append(shape)
+	else:
+		var prefix := world_prefix(id, dir)
+		var got: DotMapBspMesh = DotMapBspMesh.load_prefix(prefix).value if not prefix.is_empty() else null
+		if got == null:
+			return
+		# Matched on a scratch body of the same shapes: re-adding a hull to the world body would reorder its shape
+		# owners, and the bots' nav bake depends on that order.
+		var scratch := StaticBody3D.new()
+		var by_shape := {}
+		for hull: Node in hulls:
+			if hull is CollisionShape3D:
+				by_shape[(hull as CollisionShape3D).shape] = hull
+				var copy := CollisionShape3D.new()
+				copy.shape = (hull as CollisionShape3D).shape
+				copy.transform = (hull as CollisionShape3D).transform
+				scratch.add_child(copy)
+		var _moved := got.split_legacy_hulls(scratch, {"sky": SKY_BIT})
+		var split := scratch.find_child("ImportedSky", false, false)
+		for copy: Node in (split.get_children() if split != null else []):
+			sky.append(by_shape[(copy as CollisionShape3D).shape])
+		scratch.free()
+	var faces := sky_face_shapes(info)
+	if sky.is_empty() and faces.is_empty():
+		return
+	var area := Area3D.new()
+	area.name = "ImportedSky"
+	area.collision_layer = SKY_BIT
+	area.collision_mask = 0
+	area.monitoring = false
+	area.set_meta(&"hull_kind", "sky")
+	area.add_to_group(SKY_GROUP, true)
+	for shape in sky:
+		shape.set_meta(&"hull_kind", "sky")
+		var mark := CollisionShape3D.new()
+		mark.shape = shape.shape
+		mark.transform = shape.transform
+		area.add_child(mark)
+	for face in faces:
+		var mark := CollisionShape3D.new()
+		mark.name = "SkyFace"
+		mark.shape = face
+		area.add_child(mark)
+	body.add_child(area)
+	DotLog.debug("arena.maps", "sky hulls marked for the effects", {"map": id, "hulls": sky.size(), "faces": faces.size(), "by_index": kinds is Dictionary})
+
+
+## How far behind a sky face its mark reaches, in metres: more than the 5 cm [method on_sky] looks past a hit, little enough that a hit on the
+## real wall beside the face (further than this from it) is not read as sky.
+const SKY_FACE_DEPTH := 0.08
+
+
+## One thin convex slab per entry of the manifest's collision.sky_faces (the sky side of a wall brush with one TOOLSSKYBOX side, which
+## hull_kinds cannot name without silencing the wall): the face's corners and the same corners pushed [constant SKY_FACE_DEPTH] into the brush.
+static func sky_face_shapes(info: Dictionary) -> Array[ConvexPolygonShape3D]:
+	var shapes: Array[ConvexPolygonShape3D] = []
+	var faces: Variant = info.get("sky_faces")
+	if not faces is Array:
+		return shapes
+	for face: Variant in faces as Array:
+		if not face is Dictionary:
+			continue
+		var n: Array = (face as Dictionary).get("normal", [])
+		var corners: Array = (face as Dictionary).get("points", [])
+		if n.size() != 3 or corners.size() < 3:
+			continue
+		var inward := -Vector3(float(n[0]), float(n[1]), float(n[2])).normalized() * SKY_FACE_DEPTH
+		var points := PackedVector3Array()
+		for c: Variant in corners:
+			var p := Vector3(float((c as Array)[0]), float((c as Array)[1]), float((c as Array)[2])) * METRES_PER_UNIT
+			points.append(p)
+			points.append(p + inward)
+		var shape := ConvexPolygonShape3D.new()
+		shape.points = points
+		shapes.append(shape)
+	return shapes
+
+
+## Whether a shot along [param direction] that ended at [param at] ended on a sky brush: no hole, spark or mark belongs there.
+static func on_sky(space: PhysicsDirectSpaceState3D, at: Vector3, direction: Vector3) -> bool:
+	if space == null or not at.is_finite():
+		return false
+	var query := PhysicsPointQueryParameters3D.new()
+	query.position = at + direction.normalized() * 0.05
+	query.collision_mask = SKY_BIT
+	query.collide_with_bodies = false
+	query.collide_with_areas = true
+	for hit: Dictionary in space.intersect_point(query, 4):
+		var node := hit.get("collider") as Node
+		if node != null and node.is_in_group(SKY_GROUP):
+			return true
+	# A grazing or thin-hull hit can end beside the point: a short ray along the shot finds the hull's face too.
+	var dir := direction.normalized()
+	if not dir.is_finite() or dir == Vector3.ZERO:
+		return false
+	var ray := PhysicsRayQueryParameters3D.create(at - dir * 0.1, at + dir * 0.2, SKY_BIT)
+	ray.collide_with_bodies = false
+	ray.collide_with_areas = true
+	var found := space.intersect_ray(ray)
+	var area := found.get("collider") as Node if not found.is_empty() else null
+	return area != null and area.is_in_group(SKY_GROUP)
+
+
+## Moves the legacy player-clip, fence, grate, vent and glass hulls off the shot layer: they still stop a body, and a shot passes.
+## Glass goes on [constant GLASS_BIT] as well, and a jail cell gets a `DotMapGlassSight` stored as [constant GLASS_META] on [param body].
+static func _split_fences(body: StaticBody3D, id: String, dir: String) -> void:
+	var prefix := world_prefix(id, dir)
+	if prefix.is_empty():
+		return
+	var got: DotMapBspMesh = DotMapBspMesh.load_prefix(prefix).value
+	if got == null:
+		return
+	var layout := DotPhysicsLayout.shooter_3d()
+	var rules := DotMapGlassSight.install(got, body, layout.mask_of([&"player_clip"]), GLASS_BIT,
+		layout.mask_of([&"world"]), layout.mask_of([&"world", &"player_clip"]))
+	if rules != null:
+		body.set_meta(GLASS_META, rules)
+	DotLog.debug("arena.maps", "clip, fence and glass hulls moved off the shot layer", {"map": id, "glass": rules != null})
+
+
+static func _box_of(points: PackedVector3Array, origin: Vector3) -> AABB:
+	var box := AABB(points[0] + origin, Vector3.ZERO) if points.size() > 0 else AABB()
+	for p in points:
+		box = box.expand(p + origin)
+	return box
+
+
+## A manifest, parsed, or empty when the file is missing or is not one.
+static func read_manifest(path: String) -> Dictionary:
+	var text := FileAccess.get_file_as_string(path)
+
+	if text.is_empty():
+		return {}
+
+	var parsed: Variant = JSON.parse_string(text)
+
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+
+	return parsed
+
+
+## A manifest coordinate in metres. No axis swap: the importer wrote Godot's axes.
+static func to_metres(value: Variant) -> Vector3:
+	var arr: Array = value as Array
+
+	if arr == null or arr.size() < 3:
+		return Vector3.ZERO
+
+	return Vector3(float(arr[0]), float(arr[1]), float(arr[2])) * METRES_PER_UNIT
+
+
+## The volume the map occupies, in metres.
+##
+## [b]`abs()`, because the manifest's two corners are not min and max on every axis.[/b]
+## The importer wrote them through the axis swap that negates one, so `min.z` is the
+## LARGER z on every map — an AABB built straight from them has a negative depth, which
+## every containment test answers "no" to.
+static func bounds_of(manifest: Dictionary) -> AABB:
+	var b: Dictionary = manifest.get("bounds", {})
+	var a := to_metres(b.get("min", [0, 0, 0]))
+	var c := to_metres(b.get("max", [0, 0, 0]))
+	return AABB(a, c - a).abs()
+
+
+## Where a player may appear: every spawn the map placed, facing the way its mapper faced
+## it. The yaw is already the motor's (the importer converted it, the fault g2gfast found
+## the hard way); falls back to the manifest's one `spawn` when the list is empty.
+static func spawns_of(manifest: Dictionary) -> Array[Transform3D]:
+	var out: Array[Transform3D] = []
+	var listed: Array = manifest.get("spawns", [])
+
+	if listed.is_empty() and manifest.has("spawn"):
+		listed = [manifest["spawn"]]
+
+	for entry: Variant in listed:
+		var spot: Dictionary = entry as Dictionary
+		var yaw := deg_to_rad(float(spot.get("yaw", 0.0)))
+		out.append(Transform3D(Basis(Vector3.UP, yaw), to_metres(spot.get("origin", [0, 0, 0]))))
+
+	return out
+
+
+## The side each spawn belongs to, parallel to [method spawns_of]: the tag the importer wrote
+## (`red`, `blue`) or empty for a spawn either side may use.
+static func spawn_tags_of(manifest: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	var listed: Array = manifest.get("spawns", [])
+
+	if listed.is_empty() and manifest.has("spawn"):
+		listed = [manifest["spawn"]]
+
+	for entry: Variant in listed:
+		out.append(str((entry as Dictionary).get("team", "")))
+
+	return out
+
+
+## Where each side's flag sits, by tag, in metres.
+static func flag_homes_of(manifest: Dictionary) -> Dictionary:
+	var out := {}
+
+	for entry: Variant in manifest.get("flag_spawns", []):
+		var spot := entry as Dictionary
+		out[str(spot.get("team", ""))] = to_metres(spot.get("origin", [0, 0, 0]))
+
+	return out
+
+
+## Every volume that sends a player somewhere: `{box: AABB, to: Vector3, yaw: float}`.
+##
+## These are the map's `trigger_teleport`s, which on a combat surf map are the pits under
+## the ramps and the ways in and out of its jail: each aims at a spawn, a jail or the top of
+## a ramp. A RESPAWN zone with no destination aims at nothing usable and is left out —
+## the fall-out floor (see `FcPlayer`) still catches a player under it.
+static func pits_of(manifest: Dictionary) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+
+	for entry: Variant in manifest.get("zones", []):
+		var zone: Dictionary = entry as Dictionary
+
+		if str(zone.get("kind", "")) != "RESPAWN" or not zone.has("destination"):
+			continue
+
+		var a := to_metres(zone.get("min", [0, 0, 0]))
+		var c := to_metres(zone.get("max", [0, 0, 0]))
+		out.append({
+			"box": AABB(a, c - a).abs(),
+			"to": to_metres(zone["destination"]),
+			"yaw": float(zone.get("destination_yaw", 0.0)),
+		})
+
+	return out
+
+
+## The map as a player sees it: one [MeshInstance3D] per 256 surfaces, no collision.
+##
+## [b]No collision on purpose.[/b] The solid is [method build_collision], which the GAME
+## builds on every machine (a dedicated server included, because the movement and the
+## shots are physics queries on an imported map). A client that also added colliders here
+## would have two copies of every brush in one space.
+##
+## One instance per 256 surfaces because that is the engine's cap on one mesh; past it a
+## surface is refused with an engine error and simply not drawn (g2gfast lost 55 that way).
+## Static props are drawn like the world; the 3D skybox is not drawn at all, because it is
+## the map's backdrop scaled up far outside the play space and Fatal Contact has its own sky.
+static func build_visual(manifest: Dictionary, dir: String) -> Node3D:
+	var root := Node3D.new()
+	root.name = "Imported"
+
+	var id := str(manifest.get("id", ""))
+	var blob := FileAccess.get_file_as_bytes(dir.path_join("%s.bin" % id))
+
+	if blob.is_empty():
+		DotLog.error("arena.maps", "an imported map's mesh is missing", {
+			"map": id, "dir": dir
+		})
+		return root
+
+	var lm_info: Dictionary = manifest.get("lightmap", {})
+	var lightmap := _load_texture(dir.path_join(str(lm_info.get("file", ""))))
+
+	var surfaces: Array = manifest.get("surfaces", [])
+	var mesh: ArrayMesh = null
+	var sources := PackedInt32Array()
+	var made := 0
+
+	for i in range(surfaces.size()):
+		var s: Dictionary = surfaces[i]
+
+		if bool(s.get("skybox", false)):
+			continue
+
+		var arrays := _surface_arrays(blob, s)
+
+		if arrays.is_empty():
+			continue
+
+		if mesh == null or mesh.get_surface_count() >= RenderingServer.MAX_MESH_SURFACES:
+			if mesh != null:
+				root.add_child(_mesh_instance(mesh, sources, surfaces, dir, lightmap, made))
+				made += 1
+
+			mesh = ArrayMesh.new()
+			sources = PackedInt32Array()
+
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		sources.append(i)
+
+	if mesh != null:
+		root.add_child(_mesh_instance(mesh, sources, surfaces, dir, lightmap, made))
+
+	return root
+
+
+static func _mesh_instance(
+	mesh: ArrayMesh, sources: PackedInt32Array, surfaces: Array, dir: String,
+	lightmap: Texture2D, index: int
+) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.name = "World" if index == 0 else "World%d" % (index + 1)
+	mi.mesh = mesh
+
+	# [b]Per surface, from the surface it came from[/b], never by position in a second
+	# loop: one skipped surface would otherwise give every surface after it its
+	# neighbour's material.
+	for at in range(sources.size()):
+		mi.set_surface_override_material(at, _material_for(surfaces[sources[at]], dir, lightmap))
+
+	return mi
+
+
+## The map's solid volume: one convex shape per brush, plus the displacement terrain.
+##
+## [b]From the brushes, not from the drawn mesh.[/b] A compiled map deletes every face
+## nobody can see and paints the rest of a brush `nodraw`, and a surf ramp is routinely
+## wrapped in player clip, which is never drawn at all: built from the mesh, a third to
+## three quarters of every solid is missing and a player falls through the map. And
+## [b]convex per brush rather than one trimesh[/b], because a hull sliding across loose
+## triangles catches on every interior edge between them — on a ramp ridden at speed that
+## is a ride ended by a bump that is not there. Displacements are the exception (terrain is
+## not convex): one [ConcavePolygonShape3D], welded at import.
+##
+## A manifest with no `collision` block predates the brush reader; it gets a trimesh over
+## the drawn mesh, which is the wrong collider for the reason above but still a map.
+static func build_collision(manifest: Dictionary, dir: String) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = "ImportedSolid"
+
+	var id := str(manifest.get("id", ""))
+	var blob := FileAccess.get_file_as_bytes(dir.path_join("%s.bin" % id))
+	var info: Dictionary = manifest.get("collision", {})
+
+	if blob.is_empty():
+		DotLog.error("arena.maps", "an imported map's collision is missing", {
+			"map": id, "dir": dir
+		})
+		return body
+
+	if info.is_empty():
+		var visual := build_visual(manifest, dir)
+
+		for child in visual.get_children():
+			if child is MeshInstance3D:
+				var shape := CollisionShape3D.new()
+				shape.shape = (child as MeshInstance3D).mesh.create_trimesh_shape()
+				body.add_child(shape)
+
+		visual.free()
+		return body
+
+	var _end := _add_hulls(body, blob, int(info.get("hull_offset", 0)), int(info.get("hull_count", 0)))
+	_finish_collision(body, blob, info, id, dir)
+	return body
+
+
+## Hulls a [method build_collision_async] step adds before it asks the slice whether the frame is spent.
+const COLLISION_HULLS_PER_STEP := 64
+
+## [method build_collision] a few hundred hulls a frame, for a client changing map behind its cover: the
+## same body, built in the same order, so the solid the game is handed is the one the one-shot build makes.
+## A map with no hull table takes the one-shot build.
+static func build_collision_async(manifest: Dictionary, dir: String, slice: DotFrameSlice) -> StaticBody3D:
+	var id := str(manifest.get("id", ""))
+	var info: Dictionary = manifest.get("collision", {})
+	var blob := FileAccess.get_file_as_bytes(dir.path_join("%s.bin" % id))
+
+	if blob.is_empty() or info.is_empty():
+		return build_collision(manifest, dir)
+
+	var body := StaticBody3D.new()
+	body.name = "ImportedSolid"
+	var offset := int(info.get("hull_offset", 0))
+	var left := int(info.get("hull_count", 0))
+
+	while left > 0 and offset >= 0:
+		var step := mini(left, COLLISION_HULLS_PER_STEP)
+		offset = _add_hulls(body, blob, offset, step)
+		left -= step
+
+		if slice.due():
+			await slice.pause()
+
+	await slice.pause()
+	_finish_collision(body, blob, info, id, dir)
+	return body
+
+
+## Adds [param hulls] convex hulls read from [param blob] at [param offset] to [param body]. Returns the
+## offset after them, or -1 when the blob ran out (the hulls before it are kept).
+static func _add_hulls(body: StaticBody3D, blob: PackedByteArray, offset: int, hulls: int) -> int:
+	for _h in range(hulls):
+		if offset + 4 > blob.size():
+			return -1
+
+		var count := int(blob.decode_u32(offset))
+		offset += 4
+		var floats := blob.slice(offset, offset + count * 12).to_float32_array()
+		offset += count * 12
+
+		if floats.size() < count * 3:
+			return -1
+
+		var points := PackedVector3Array()
+		points.resize(count)
+
+		for v in range(count):
+			points[v] = Vector3(
+				floats[v * 3], floats[v * 3 + 1], floats[v * 3 + 2]
+			) * METRES_PER_UNIT
+
+		var hull := ConvexPolygonShape3D.new()
+		hull.points = points
+		var shape := CollisionShape3D.new()
+		shape.shape = hull
+		body.add_child(shape)
+
+	return offset
+
+
+## What follows the hulls: the sky, glass and fence classes, and the terrain.
+static func _finish_collision(body: StaticBody3D, blob: PackedByteArray, info: Dictionary, id: String, dir: String) -> void:
+	_mark_sky(body, id, dir, info)
+	_swap_glass(body, id, dir)
+	_split_fences(body, id, dir)
+
+	_add_terrain(body, blob, info)
+
+
+static func _add_terrain(body: StaticBody3D, blob: PackedByteArray, info: Dictionary) -> void:
+	var vertex_count := int(info.get("displacement_vertex_count", 0))
+	var index_count := int(info.get("displacement_index_count", 0))
+
+	if vertex_count > 0 and index_count > 0:
+		var voff := int(info.get("displacement_vertex_offset", 0))
+		var coords := blob.slice(voff, voff + vertex_count * 12).to_float32_array()
+		var ioff := int(info.get("displacement_index_offset", 0))
+		var indices := blob.slice(ioff, ioff + index_count * 4).to_int32_array()
+		var faces := PackedVector3Array()
+		faces.resize(index_count)
+
+		for i in range(index_count):
+			var v := int(indices[i]) * 3
+
+			if v + 2 >= coords.size():
+				continue
+
+			faces[i] = Vector3(coords[v], coords[v + 1], coords[v + 2]) * METRES_PER_UNIT
+
+		# One-sided: a displacement is terrain with a solid brush under it, and a two-sided
+		# one catches a player already inside the ground instead of letting them out.
+		var terrain := ConcavePolygonShape3D.new()
+		terrain.set_faces(faces)
+		var shape := CollisionShape3D.new()
+		shape.shape = terrain
+		body.add_child(shape)
+
+
+static func _surface_arrays(blob: PackedByteArray, s: Dictionary) -> Array:
+	var vcount := int(s.get("vertex_count", 0))
+	var icount := int(s.get("index_count", 0))
+
+	if vcount <= 0 or icount <= 0:
+		return []
+
+	var voff := int(s.get("vertex_offset", 0))
+	var ioff := int(s.get("index_offset", 0))
+	var floats := blob.slice(voff, voff + vcount * VERTEX_FLOATS * 4).to_float32_array()
+
+	if floats.size() < vcount * VERTEX_FLOATS:
+		return []
+
+	var positions := PackedVector3Array()
+	positions.resize(vcount)
+	var normals := PackedVector3Array()
+	normals.resize(vcount)
+	var uvs := PackedVector2Array()
+	uvs.resize(vcount)
+	var uv2s := PackedVector2Array()
+	uv2s.resize(vcount)
+
+	for v in range(vcount):
+		var o := v * VERTEX_FLOATS
+		positions[v] = Vector3(floats[o], floats[o + 1], floats[o + 2]) * METRES_PER_UNIT
+		normals[v] = Vector3(floats[o + 3], floats[o + 4], floats[o + 5])
+		uvs[v] = Vector2(floats[o + 6], floats[o + 7])
+		uv2s[v] = Vector2(floats[o + 8], floats[o + 9])
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = positions
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uv2s
+	arrays[Mesh.ARRAY_INDEX] = blob.slice(ioff, ioff + icount * 4).to_int32_array()
+
+	# A blend surface's second texture shows by vertex alpha, which is its own block
+	# rather than an eleventh float, so a manifest without it still reads.
+	if s.has("alpha_offset"):
+		var aoff := int(s["alpha_offset"])
+		var alphas := blob.slice(aoff, aoff + vcount * 4).to_float32_array()
+
+		if alphas.size() == vcount:
+			var colours := PackedColorArray()
+			colours.resize(vcount)
+
+			for v in range(vcount):
+				colours[v] = Color(1.0, 1.0, 1.0, alphas[v])
+
+			arrays[Mesh.ARRAY_COLOR] = colours
+
+	return arrays
+
+
+
+

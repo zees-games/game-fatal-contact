@@ -5,7 +5,7 @@ extends Node
 ## Deterministic: each seed seeds the drops' own stream (randomized otherwise); time is physics ticks, not the wall clock.
 ## Run: [code]godot --headless --path . res://examples/headless_weapondrop_settle.tscn[/code].
 
-const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
+const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 ## Support-check period (a rest may be woken by it) and the ticks a forced rest is grounded for.
 const WAKE_EVERY_SEC := DotWeaponDrops.SUPPORT_EVERY
 const GROUND_TICKS := 2
@@ -56,7 +56,7 @@ func _bound(rules: DotWeaponDropRules) -> float:
 
 
 func _run() -> void:
-	ArenaWeaponRoles.ensure()
+	FcWeaponRoles.ensure()
 	var ids: Array = AwWeaponArtTable.table().keys()
 	ids.sort()
 	var seeds := int(OS.get_environment("SEEDS")) if OS.get_environment("SEEDS") != "" else 6
@@ -79,7 +79,7 @@ func _run() -> void:
 			var art: Variant = AwWeaponArtTable.table().get(w)
 			if not (art is AwWeaponVisual):
 				return null
-			return (load("res://game/arena_weapon_drop_wiring.gd") as GDScript).call("look", w)
+			return (load("res://game/fc_weapon_drop_wiring.gd") as GDScript).call("look", w)
 		drops.rules.lifetime = 0.0
 		drops.rules.max_count = 0
 		drops.rules.max_active = 0

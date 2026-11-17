@@ -1,8 +1,8 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMode := preload("../game/arena_mode.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMode := preload("../game/fc_mode.gd")
 
 ## Converted-map buttons and doors through the whole game: the use key presses the button a player looks at,
 ## the door moves on the host and on a mirror fed the host's state, and a map with no movers pays nothing.
@@ -46,7 +46,7 @@ func _use(down: bool) -> DotWeaponCommand:
 
 
 ## Ticks the game with the player held at [param at], looking straight down, the use key as given.
-func _step(game: ArenaGame, id: int, at: Vector3, down: bool, ticks: int) -> void:
+func _step(game: FcGame, id: int, at: Vector3, down: bool, ticks: int) -> void:
 	for _k in ticks:
 		var p := game.player_for(id)
 		p.controller.state.position = at
@@ -64,16 +64,16 @@ func _door_y(world: DotMapWorld) -> float:
 
 
 func _run() -> void:
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "G"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch()
+	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	var map: ArenaMap = ArenaMap.imported(MAP)
+	var map: FcMap = FcMap.imported(MAP)
 	if map == null:
-		print("  skip  %s is not linked (arena-surf-dm-maps)" % MAP)
+		print("  skip  %s is not linked (fc-surf-dm-maps)" % MAP)
 		get_tree().quit(0)
 		return
 	var ready := game.setup(map)
@@ -91,15 +91,15 @@ func _run() -> void:
 	var stand := button_at + Vector3(0.0, 1.0, 0.0) - Vector3(0.0, 1.6, 0.0)
 
 	# A mirror: a second game that is a client, fed what the host sends.
-	var mirror_game := ArenaGame.new()
+	var mirror_game := FcGame.new()
 	mirror_game.name = "M"
 	mirror_game.tick_rate = TICK_RATE
 	mirror_game.headless = true
 	mirror_game.register_service = false
 	mirror_game.is_authority = false
-	mirror_game.mode = ArenaMode.team_deathmatch()
+	mirror_game.mode = FcMode.team_deathmatch()
 	add_child(mirror_game)
-	var _r := mirror_game.setup(ArenaMap.imported(MAP))
+	var _r := mirror_game.setup(FcMap.imported(MAP))
 	var mirror = mirror_game.map_io
 	_check(mirror != null and not mirror.is_authority, "a client game builds the mirror, without authority")
 	var sent := [0]
@@ -147,14 +147,14 @@ func _test_bodies_and_plain(mio: Object, world: DotMapWorld, player: Object) -> 
 	world.io.damage_fn.call(21, 10.0, "crush", null)
 	_check(player.health.health < hp, "and a crush is world damage through dot-combat", "%s -> %s" % [hp, player.health.health])
 
-	var plain := ArenaGame.new()
+	var plain := FcGame.new()
 	plain.name = "P"
 	plain.tick_rate = TICK_RATE
 	plain.headless = true
 	plain.register_service = false
-	plain.mode = ArenaMode.team_deathmatch()
+	plain.mode = FcMode.team_deathmatch()
 	add_child(plain)
-	var _s := plain.setup(ArenaMap.dm_atrium())
+	var _s := plain.setup(FcMap.dm_atrium())
 	_check(plain.map_io == null, "a map with no movers builds no mover world and costs nothing")
 
 

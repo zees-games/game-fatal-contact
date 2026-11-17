@@ -5,15 +5,15 @@ extends "headless_match_streaks_and_lag.gd"
 func _test_spectating() -> void:
 	_section("spectating")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "SpectateGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch(50)
+	game.mode = FcMode.team_deathmatch(50)
 	add_child(game)
 
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	if not _check(ready.ok, "a spectating game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -92,7 +92,7 @@ func _test_spectating() -> void:
 	await get_tree().process_frame
 	_done()
 
-func _test_free_roam_rest(game: ArenaGame, victim: int, rules: DotSpectatorRules) -> void:
+func _test_free_roam_rest(game: FcGame, victim: int, rules: DotSpectatorRules) -> void:
 	_check(
 		not game.spectate.is_roaming(str(victim)),
 		"a restricted camera moves a roamer back onto a player"
@@ -108,7 +108,7 @@ func _test_free_roam_rest(game: ArenaGame, victim: int, rules: DotSpectatorRules
 
 ## Three checks: what the director is told about players 901..903 when 900 respawns in [param game]'s free-for-all, and which
 ## of two sites it picks. One shares 900's roster side and stands 2 m from one site; the other two stand 12 m from the other.
-func _ffa_spawn_scenario(game: ArenaGame, when: String) -> void:
+func _ffa_spawn_scenario(game: FcGame, when: String) -> void:
 	var stack := game.player_stack
 	var respawner := 900
 	var side := stack.teams.team_of(str(respawner))
@@ -189,7 +189,7 @@ func _sight_scenario_rest(chosen: DotResult, picked: String) -> void:
 	)
 
 ## A wall hides a spawn from an enemy in a headless game, and the director prefers the hidden site.
-func _spawn_sight_scenario(game: ArenaGame) -> void:
+func _spawn_sight_scenario(game: FcGame) -> void:
 	var stack := game.player_stack
 	var map := game.map
 	var trace := map.shot_trace()
@@ -266,9 +266,9 @@ func _spawn_sight_scenario(game: ArenaGame) -> void:
 	_sight_scenario_rest(chosen, picked)
 
 ## The first mode in this game that needs tagged spawns, or null if there is none.
-func _first_team_mode() -> ArenaMode:
-	for id in ArenaModes.ids():
-		var mode := ArenaModes.by_id(id)
+func _first_team_mode() -> FcMode:
+	for id in FcModes.ids():
+		var mode := FcModes.by_id(id)
 
 		if mode != null and mode.is_team_mode():
 			return mode
@@ -281,15 +281,15 @@ func _first_team_mode() -> ArenaMode:
 func _test_ffa_spawn_sides() -> void:
 	_section("free-for-all: nobody is a friend at a spawn")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "FfaSpawnGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.free_for_all(50)
+	game.mode = FcMode.free_for_all(50)
 	add_child(game)
 
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	if not _check(ready.ok, "a free-for-all game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -307,8 +307,8 @@ func _test_ffa_spawn_sides() -> void:
 	# [b]The case the queue item was written about.[/b] A team mode's sides stay in the roster
 	# across a change into a free-for-all.
 	var team := _first_team_mode()
-	var to_team := game.change_map(ArenaMap.dm_atrium(), team)
-	var to_ffa := game.change_map(ArenaMap.dm_atrium(), ArenaMode.free_for_all(50))
+	var to_team := game.change_map(FcMap.dm_atrium(), team)
+	var to_ffa := game.change_map(FcMap.dm_atrium(), FcMode.free_for_all(50))
 	_check(
 		to_team.ok and to_ffa.ok,
 		"the game goes into a team mode and back into a free-for-all",
@@ -327,15 +327,15 @@ func _test_ffa_spawn_sides() -> void:
 func _test_king_of_the_hill() -> void:
 	_section("king of the hill")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "KothGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.king_of_the_hill()
+	game.mode = FcMode.king_of_the_hill()
 	add_child(game)
 
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	if not _check(ready.ok, "a king-of-the-hill game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -420,7 +420,7 @@ func _test_king_of_the_hill() -> void:
 
 	# **A mode change has to build and unbuild the layers the mode asks for.** Without it `changegame` from a deathmatch to koth
 	# left a mode claiming objectives with `objectives` null, and nothing errored because a null layer is legitimate.
-	var to_ffa := game.change_map(ArenaMap.dm_box(), ArenaMode.free_for_all())
+	var to_ffa := game.change_map(FcMap.dm_box(), FcMode.free_for_all())
 	_check(to_ffa.ok, "the mode changes to one with no objectives", str(to_ffa.error))
 	_check(
 		game.objectives == null,
@@ -428,7 +428,7 @@ func _test_king_of_the_hill() -> void:
 		+ "can capture"
 	)
 
-	var to_ctf := game.change_map(ArenaMap.dm_atrium(), ArenaMode.capture_the_flag())
+	var to_ctf := game.change_map(FcMap.dm_atrium(), FcMode.capture_the_flag())
 	_check(to_ctf.ok, "and to one that has them", str(to_ctf.error))
 	_check(
 		game.objectives != null and game.objectives.layout == &"ctf",
@@ -448,15 +448,15 @@ func _test_king_of_the_hill() -> void:
 func _test_capture_the_flag() -> void:
 	_section("capture the flag")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "CtfGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.capture_the_flag(3)
+	game.mode = FcMode.capture_the_flag(3)
 	add_child(game)
 
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	if not _check(ready.ok, "a capture-the-flag game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -526,19 +526,19 @@ func _test_capture_the_flag() -> void:
 	_done()
 
 ## Free roam: on by default, off by `mp_freeroam 0`, refused under `mp_forcecamera 1`. The
-## client flies the camera (`ArenaClient._fly_free_camera`); this is the policy under it.
+## client flies the camera (`FcClient._fly_free_camera`); this is the policy under it.
 func _test_free_roam() -> void:
 	_section("free roam")
 
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "RoamGame"
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.register_service = false
-	game.mode = ArenaMode.team_deathmatch(50)
+	game.mode = FcMode.team_deathmatch(50)
 	add_child(game)
 
-	var ready := game.setup(ArenaMap.dm_atrium())
+	var ready := game.setup(FcMap.dm_atrium())
 	if not _check(ready.ok, "a roaming game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -564,11 +564,11 @@ func _test_free_roam() -> void:
 	var mgr := game.spectate.manager
 	_check(game.spectate.can_roam(str(victim)), "a dead player may roam")
 
-	var dead: ArenaPlayer = game.player_for(victim)
+	var dead: FcPlayer = game.player_for(victim)
 	if dead != null and dead.flashlight_cfg != null:
 		var lit_dead: bool = dead.flashlight
-		for i in range(ArenaFlashlight.hold_ticks(game.tick_rate)):
-			_hold(game, victim, ArenaFlashlight.BUTTON)
+		for i in range(FcFlashlight.hold_ticks(game.tick_rate)):
+			_hold(game, victim, FcFlashlight.BUTTON)
 		_settle(game, victim, 2)
 		_check(dead.flashlight == lit_dead, "a dead spectator's flashlight key switches nothing")
 	else:

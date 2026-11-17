@@ -1,11 +1,11 @@
 extends Node
 
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaRecoilView := preload("../game/arena_recoil_view.gd")
-const KillPov := preload("../game/arena_kill_pov.gd")
-const KillPovRecoil := preload("../game/arena_kill_pov_recoil.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcRecoilView := preload("../game/fc_recoil_view.gd")
+const KillPov := preload("../game/fc_kill_pov.gd")
+const KillPovRecoil := preload("../game/fc_kill_pov_recoil.gd")
 
 ## Per-weapon recoil: the game tier of the Gamespice profile gives every firearm a kick, the camera
 ## climbs with a held trigger and settles after it, the same shots kick the same way twice,
@@ -69,7 +69,7 @@ func _pitch(def: DotWeaponDef) -> float:
 func _test_profiles() -> void:
 	_entered += 1
 	print("== the game tier gives every weapon its kick")
-	var defs := ArenaContent.weapons()
+	var defs := FcContent.weapons()
 	var by_id := {}
 	for d in defs:
 		by_id[String(d.id)] = d
@@ -108,8 +108,8 @@ func _outcome(pitch: float, yaw: float) -> DotWeaponOutcome:
 func _test_view() -> void:
 	_entered += 1
 	print("== the camera climbs with a burst and settles")
-	ArenaRecoilView.scale = 1.0
-	var v := ArenaRecoilView.new()
+	FcRecoilView.scale = 1.0
+	var v := FcRecoilView.new()
 	_check(v.step(0.016) == Vector2.ZERO, "a fresh view is still")
 	for _i in 10:
 		v.kick(_outcome(0.7, 0.1))
@@ -119,8 +119,8 @@ func _test_view() -> void:
 	for _i in 120:
 		v.step(1.0 / 60.0)
 	_check(v.offset().length() < 0.01, "and it settles after two seconds", str(v.offset()))
-	var a := ArenaRecoilView.new()
-	var b := ArenaRecoilView.new()
+	var a := FcRecoilView.new()
+	var b := FcRecoilView.new()
 	a.kick(_outcome(2.0, 0.0))
 	b.kick(_outcome(2.0, 0.0))
 	a.step(0.5)
@@ -130,7 +130,7 @@ func _test_view() -> void:
 	a.kick(null)
 	a.kick(DotWeaponOutcome.new())
 	_check(is_equal_approx(a.offset().x, b.offset().x), "a null or kickless outcome leaves it alone")
-	var big := ArenaRecoilView.new()
+	var big := FcRecoilView.new()
 	for _i in 100:
 		big.kick(_outcome(5.0, 0.0))
 	_check(big.offset().x <= big.max_pitch + 0.001, "the climb is capped", str(big.offset().x))
@@ -139,10 +139,10 @@ func _test_view() -> void:
 	_finished += 1
 
 
-func _player(id: int) -> ArenaPlayer:
-	var p := ArenaPlayer.new()
+func _player(id: int) -> FcPlayer:
+	var p := FcPlayer.new()
 	p.name = "P%d" % id
-	p.setup(ArenaPlayer.Mode.HEADLESS, ArenaMap.dm_box(), id, "P%d" % id)
+	p.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), id, "P%d" % id)
 	add_child(p)
 	p.spawn(Transform3D(Basis(), Vector3(-16.0, 0.05, 6.0)), 0)
 	p.give_default_loadout()
@@ -150,7 +150,7 @@ func _player(id: int) -> ArenaPlayer:
 	return p
 
 
-func _fire(p: ArenaPlayer, ticks: int) -> Array:
+func _fire(p: FcPlayer, ticks: int) -> Array:
 	var kicks: Array = []
 	for _i in ticks:
 		var w := DotWeaponCommand.new()
@@ -168,7 +168,7 @@ func _fire(p: ArenaPlayer, ticks: int) -> Array:
 func _test_burst() -> void:
 	_entered += 1
 	print("== a real weapon's burst, predicted twice")
-	ArenaRecoilView.scale = 1.0
+	FcRecoilView.scale = 1.0
 	var p1 := _player(21)
 	var p2 := _player(22)
 	await get_tree().physics_frame
@@ -181,7 +181,7 @@ func _test_burst() -> void:
 	var b: Array = await _fire(p2, 90)
 	_check(a.size() >= 8, "a held trigger kicks every shot", str(a.size()))
 	_check(a.size() == b.size() and a.hash() == b.hash(), "two simulations of the same shots kick identically (no desync)")
-	var view := ArenaRecoilView.new()
+	var view := FcRecoilView.new()
 	for k in a:
 		var o := _outcome((k as Vector2).x, (k as Vector2).y)
 		view.kick(o)
@@ -211,10 +211,10 @@ func _angles(dir: Vector3) -> Vector2:
 func _test_crosshair() -> void:
 	_entered += 1
 	print("== the crosshair is where a held burst's bullets go")
-	ArenaRecoilView.scale = 1.0
+	FcRecoilView.scale = 1.0
 	var p := _player(23)
 	# The rate the player's sim (and so the server's recoil decay) runs at, which a client's frames add up to.
-	var dt := 1.0 / float(ArenaContent.TICK_RATE)
+	var dt := 1.0 / float(FcContent.TICK_RATE)
 	var camera := Camera3D.new()
 	p.camera = camera
 	p.add_child(camera)
@@ -258,19 +258,19 @@ func _test_crosshair() -> void:
 func _test_cvar() -> void:
 	_entered += 1
 	print("== cl_recoil_view scales or disables the drawn kick")
-	var v := ArenaRecoilView.new()
+	var v := FcRecoilView.new()
 	v.kick(_outcome(2.0, 0.0))
-	ArenaRecoilView.scale = 0.0
+	FcRecoilView.scale = 0.0
 	_check(v.step(0.0) == Vector2.ZERO, "0 keeps the crosshair still")
-	ArenaRecoilView.scale = 0.5
+	FcRecoilView.scale = 0.5
 	var half := v.step(0.0).x
-	ArenaRecoilView.scale = 1.0
+	FcRecoilView.scale = 1.0
 	var full := v.step(0.0).x
 	_check(is_equal_approx(half * 2.0, full) and full > 1.9, "0.5 halves it", "%.2f %.2f" % [half, full])
-	ArenaRecoilView.scale = 99.0
+	FcRecoilView.scale = 99.0
 	_check(v.step(0.0).x <= full * 5.01, "and it is capped at 5")
 	_check(is_equal_approx(v.offset().x, full), "the underlying kick (what the bullet follows) is not scaled")
-	ArenaRecoilView.scale = 1.0
+	FcRecoilView.scale = 1.0
 	var rules := DotWeaponRecoilRules.new()
 	_check(rules.get_script().resource_path.ends_with("dot_weapon_recoil_rules.gd") and _feel.recoil != null and _feel.recoil.enabled, "the server's sv_recoil_* rules are on for the arena")
 	_finished += 1
@@ -303,7 +303,7 @@ func _spray(def: DotWeaponDef) -> Array:
 func _test_spray() -> void:
 	_entered += 1
 	print("== a held second of every firearm (server rules): peak climb, peak sideways, left after 1.5 s")
-	var cat := ArenaContent.weapon_catalogue()
+	var cat := FcContent.weapon_catalogue()
 	var sprays := {}
 	for id in KICKERS:
 		if not cat.has(StringName(id)) or not (cat.get_def(StringName(id)).tuning is DotWeaponBallistics):
@@ -343,7 +343,7 @@ func _test_killcam() -> void:
 	print("== a killcam replays the killer's kick, shot by shot")
 	var r := KillPovRecoil.new()
 	r.rules = _feel.recoil
-	r.catalogue = ArenaContent.weapon_catalogue()
+	r.catalogue = FcContent.weapon_catalogue()
 	r.tick_rate = TICK_RATE
 	_check(r.shots(_aux(&"rifle", 10), 0.016).is_empty(), "the first frame only learns the fire count")
 	var burst := r.shots(_aux(&"rifle", 13), 0.016)

@@ -1,7 +1,7 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
 
 ## A lone human with no bots (bot_quota_mode off) on a deathmatch whose ruleset wants two players waits in warmup, but is alive on a spawn point, not dead or parked at the origin.
 ## Run: [code]godot --headless --path . res://examples/headless_lone_spawn.tscn[/code]
@@ -15,13 +15,13 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact: a lone player is not left dead")
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.tick_rate = TICK_RATE
 	game.headless = true
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var ok := game.setup(ArenaMap.dm_box()).ok
+	var ok := game.setup(FcMap.dm_box()).ok
 	_check(ok, "sets up")
 	if ok:
 		var m := game.match_node

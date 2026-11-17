@@ -5,7 +5,7 @@ extends "headless_match_pits_and_reach.gd"
 func _test_box_upper() -> void:
 	_section("dm_box: the upper level, climbed")
 
-	var map: ArenaMap = ArenaMap.dm_box()
+	var map: FcMap = FcMap.dm_box()
 
 	# [b]The property dm_box exists for, asked of the whole list.[/b] Every box has a twin turned
 	# half a circle about the origin, so every spawn scores identically.
@@ -31,10 +31,10 @@ func _test_box_upper() -> void:
 		", ".join(unpaired)
 	)
 
-	var climber := ArenaPlayer.new()
+	var climber := FcPlayer.new()
 	climber.name = "BoxClimber"
 	add_child(climber)
-	climber.setup(ArenaPlayer.Mode.HEADLESS, map, 9003, "box climber")
+	climber.setup(FcPlayer.Mode.HEADLESS, map, 9003, "box climber")
 
 	var delta := 1.0 / 64.0
 	var tick := 0
@@ -146,7 +146,7 @@ func _test_box_upper() -> void:
 
 	# The two nest stairs, walked and each separately: a turned box list meets a different gantry
 	# (`[gate-sweep-1]`).
-	var tunables := ArenaPlayer.arena_tunables()
+	var tunables := FcPlayer.fc_tunables()
 	var trace := map.to_trace()
 
 	for flight in [
@@ -425,8 +425,8 @@ func _test_box_upper() -> void:
 
 ## Drives [param route] through a bare motor on [param body]: `made`, `at`, `runs`, `jumps`, and
 ## `worst_on_wall`.
-func _drive_route(map: ArenaMap, body: DotFpsBody, route: Dictionary, how: StringName, walls: bool) -> Dictionary:
-	var t := ArenaPlayer.arena_tunables()
+func _drive_route(map: FcMap, body: DotFpsBody, route: Dictionary, how: StringName, walls: bool) -> Dictionary:
+	var t := FcPlayer.fc_tunables()
 	if not walls:
 		t.wall_run_enabled = false
 		t.wall_jump_enabled = false
@@ -484,8 +484,8 @@ func _test_wall_routes() -> void:
 	_section("every map: the wall routes, run and climbed")
 
 	var routes := 0
-	for id in ArenaMap.ids():
-		var map: ArenaMap = ArenaMap.by_id(id)
+	for id in FcMap.ids():
+		var map: FcMap = FcMap.by_id(id)
 		var body := map.to_fps_body()
 
 		for route: Dictionary in map.wall_routes:
@@ -507,7 +507,7 @@ func _test_wall_routes() -> void:
 						crossed.append(String(how))
 				_check(crossed.is_empty(), "%s: nothing but the wall crosses it" % name,
 					"crossed by %s" % ", ".join(crossed))
-				var gravity_tick := ArenaPlayer.arena_tunables().gravity / float(TICK_RATE)
+				var gravity_tick := FcPlayer.fc_tunables().gravity / float(TICK_RATE)
 				_check(float(made["along_moved"]) < 0.01,
 					"%s: the run never touches the speed along the wall" % name,
 					"moved %.3f m/s" % made["along_moved"])
@@ -518,7 +518,7 @@ func _test_wall_routes() -> void:
 	_check(routes >= 2, "the maps declare wall routes (%d)" % routes)
 
 	# The trade every way up on dm_atrium makes: the gallery is watched from higher.
-	var atrium: ArenaMap = ArenaMap.dm_atrium()
+	var atrium: FcMap = FcMap.dm_atrium()
 	var trace := atrium.shot_trace()
 	var hidden := PackedStringArray()
 	var rampart_eye := Vector3(-4.0, 5.86 + 1.6, -13.5)
@@ -554,12 +554,12 @@ func _test_wall_routes() -> void:
 func _test_crate_climb() -> void:
 	_section("dm_atrium: the crates, climbed")
 
-	var map: ArenaMap = ArenaMap.dm_atrium()
+	var map: FcMap = FcMap.dm_atrium()
 
-	var climber := ArenaPlayer.new()
+	var climber := FcPlayer.new()
 	climber.name = "Climber"
 	add_child(climber)
-	climber.setup(ArenaPlayer.Mode.HEADLESS, map, 9002, "climber")
+	climber.setup(FcPlayer.Mode.HEADLESS, map, 9002, "climber")
 
 	# On the yard floor south of the first crate. The column runs north up x 12.5..16,
 	# so the bot starts in the middle of it and holds north.
@@ -639,7 +639,7 @@ func _test_crate_climb() -> void:
 func _build() -> void:
 	_section("bringing up the match")
 
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.name = "Arena"
 	# Throwaway achievement store, or a persisted file from an earlier run seeds the lifetime totals.
 	_game.progress_dir = DotSettingsScratch.use("headless_match_achievements")
@@ -651,7 +651,7 @@ func _build() -> void:
 	_game.register_service = false
 	add_child(_game)
 
-	var ready := _game.setup(ArenaMap.dm_box())
+	var ready := _game.setup(FcMap.dm_box())
 	_check(ready.ok, "the game sets up", str(ready.error))
 
 	# Warmup and countdown out of the way: this test is about the match, and waiting
@@ -665,7 +665,7 @@ func _build() -> void:
 	_game.player_killed.connect(func(entry: DotKillFeed.Entry) -> void:
 		_kills.append(entry)
 	)
-	_game.player_spawned.connect(func(player: ArenaPlayer) -> void:
+	_game.player_spawned.connect(func(player: FcPlayer) -> void:
 		_spawns.append(player.player_id)
 	)
 	_game.match_state_changed.connect(

@@ -1,0 +1,637 @@
+@tool
+extends "fc_game_unlag.gd"
+
+## The deathmatch itself: a match, a combat manager, a map, and some players.
+
+## The snapshot rate at [param rate] ticks a second: the rate nearest [param target] (default
+## [constant NET_SNAPSHOT_RATE], or `sv_snapshot_rate` on a server) that is an EXACT divisor of the tick rate,
+## so a snapshot lands on every n-th tick (64 and 128 give 32, 60 gives 30, 66 gives 33, 33 gives 33, 22 gives 22).
+## A target above the tick rate is the tick rate. A rate that does not divide the tick rate (16 at 33 Hz) made the
+## client's death-camera chain stall in `headless_net`, so it is never returned.
+static func snapshot_rate_for(rate: int, target: int = NET_SNAPSHOT_RATE) -> int:
+	var want := target if target > 0 else NET_SNAPSHOT_RATE
+	var total := maxi(rate, 1)
+	var best := total
+	for every in range(2, total + 1):
+		if total % every != 0:
+			continue
+		var candidate := total / every
+		var gap := absi(candidate - want)
+		var best_gap := absi(best - want)
+		if gap < best_gap or (gap == best_gap and candidate > best):
+			best = candidate
+	return best
+
+## Snapshots of interpolation delay for a client receiving [param snapshot_rate] a second: `cl_interp` seconds
+## (launch option, 0 = unset) wins over `cl_interp_ratio` snapshots (default 2, dot-net's own). The delay in TIME is then
+## the same at any tick rate, as CS2's cl_interp is; never under one snapshot.
+static func interp_buffer_for(snapshot_rate: int, interp_sec: float, ratio: float) -> float:
+	var buffer := interp_sec * float(maxi(snapshot_rate, 1)) if interp_sec > 0.0 else ratio
+	return clampf(buffer, 1.0, 10.0)
+
+## The two launch options (`--cl_interp S`, `--cl_interp_ratio N`, or the same query parameters in a browser) as a buffer.
+static func client_interp_buffer(snapshot_rate: int) -> float:
+	var sec := FcFrameProbe.launch_value("cl_interp")
+	var ratio := FcFrameProbe.launch_value("cl_interp_ratio")
+	return interp_buffer_for(snapshot_rate, sec.to_float() if sec != "" else 0.0, ratio.to_float() if ratio != "" else 2.0)
+
+## The game tick the pits are asked about, for what is drawn from it (the jail's gate): the game's
+## own count where it ticks, and on a predicting client the tick its player was last simulated on.
+func sim_tick() -> int:
+	if is_authority:
+		return _tick
+	for id in _players:
+		var p: FcPlayer = _players[id]
+		if p != null and is_instance_valid(p) and p.game_tick() >= 0:
+			return p.game_tick()
+	return _tick
+
+func _exit_tree() -> void:
+	if surf_rides != null:
+		surf_rides.call(&"release")
+		surf_rides = null
+	if demo_stats != null:
+		demo_stats.call(&"release")
+		demo_stats = null
+	if _registered_name != &"":
+		DotRegistry.unregister_instance(_registered_name, self)
+		_registered_name = &""
+
+func _follow_cvar_source() -> bool:
+	if _cvar_source == null or not is_instance_valid(_cvar_source) or combat == null:
+		return false
+	if not combat.has_method(&"follow_cvars"):
+		return false
+	return bool(combat.call(&"follow_cvars", _cvar_source))
+
+## One bridge per combat manager, so a new map's manager gets its own. Inert while sv_ballistics is 0.
+func _build_bullets() -> void:
+	if bullet_bridge != null:
+		bullet_bridge.queue_free()
+		bullet_bridge = null
+	var rules := combat_feel.ballistics as DotWeaponBallisticsRules
+	if rules == null:
+		return
+	bullet_bridge = DotWeaponBulletBridge.new()
+	bullet_bridge.name = "Bullets"
+	add_child(bullet_bridge)
+	bullet_bridge.setup(combat, rules, tick_rate)
+	bullet_bridge.rewinding.connect(func(owner_id: int) -> void: _unlag_shooter = owner_id)
+	if tracers == null:
+		tracers = DotWeaponTracers.new()
+		tracers.name = "Tracers"
+		add_child(tracers)
+	tracers.follow(bullet_bridge.bullets)
+
+## The fitted def that fired [param spawn]: its owner's weapon in hand, when that is the one it came from.
+## What tells the projectile layer a missile carries the Rocketjump warhead.
+func _fired_def(spawn: DotWeaponSpawn) -> DotWeaponDef:
+	var shooter := player_for(spawn.owner_entity)
+	if shooter == null or shooter.arsenal == null:
+		return null
+	var def := shooter.arsenal.current_def()
+	return def if def != null and def.id == spawn.id else null
+
+## Flash, smoke and incendiary effects: server only, and only on an fc_weapons that has them.
+func _build_grenades() -> void:
+	grenades = null
+	if is_authority and FcGrenades.supported():
+		grenades = FcGrenades.new()
+		grenades.rules = grenades_rules
+		grenades.attach(self)
+		grenades.effect.connect(grenade_effect.emit)
+
+## Puts [member jail_rules] on the map's jail, if it has one. Called when the drops layer is
+## built (which is on every map) and when a rule changes. Authority side tells clients.
+func apply_jail_rules() -> void:
+	if map == null or map.jail == null:
+		return
+	var jail: RefCounted = map.jail
+	jail.enabled = bool(jail_rules["enabled"])
+	jail.open_ticks = maxi(int(round(float(jail_rules["open"]) * float(tick_rate))), 1)
+	jail.cooldown_ticks = maxi(int(round(float(jail_rules["cooldown"]) * float(tick_rate))), 0)
+	if is_authority:
+		jail_changed.emit()
+
+## Puts [member drop_rules] on the drops layer. Called when it is built and when a rule
+## changes.
+func apply_drop_rules() -> void:
+	if drops == null:
+		return
+	drops.points_per_kill = int(drop_rules["points"])
+	drops.point_value = int(drop_rules["point_value"])
+	drops.health_amount = float(drop_rules["health"])
+	drops.any_kill = bool(drop_rules["any_kill"])
+	drops.life_sec = float(drop_rules["life"])
+	drops.packs_enabled = bool(drop_rules["packs"])
+	drops.pack_health = float(drop_rules["pack_health"])
+	drops.pack_ammo_share = clampf(float(drop_rules["pack_ammo"]) / 100.0, 0.0, 1.0)
+	drops.pack_respawn_sec = float(drop_rules["pack_respawn"])
+	var wanted: Array = [
+		map, drops, drops.packs_enabled, drops.pack_health, drops.pack_ammo_share, drops.pack_respawn_sec,
+	]
+	if map != null and is_authority and (_packs_placed_with.size() != wanted.size() or wanted != _packs_placed_with):
+		_packs_placed_with = wanted
+		drops.set_packs(map.packs, _tick)
+
+
+
+
+
+
+## Gives [param player_id] what [param reward] names. Authority side.
+func _reward_streak(player_id: int, streak: int, reward: String) -> void:
+	var player := player_for(player_id)
+	if player == null or not player.is_alive():
+		return
+
+	match reward:
+		"heal":
+			var _h := player.health.heal(player.health.max_health)
+		"armour":
+			player.health.add_armour(player.health.max_armour)
+		"haste":
+			if effects != null:
+				var _r := effects.apply(FcEffects.HASTE, player_id)
+		"empowered":
+			if effects != null:
+				var _r := effects.apply(FcEffects.EMPOWERED, player_id)
+		_:
+			return
+
+	streak_reward.emit(player_id, streak, reward)
+
+## What a kill gives [param killer_id] by the `config` rules: [member FcConfig.headshot_heal] on a
+## headshot (up to [member FcConfig.max_health_cap], 0 for no cap), then the per-kill rewards
+## (`kill_reward_*`), all off but the headshot's by default. Authority side.
+func _reward_kill(killer_id: int, headshot: bool) -> void:
+	var killer := player_for(killer_id)
+	if killer == null or not killer.is_alive() or killer.health == null:
+		return
+	if headshot and config.headshot_heal > 0.0:
+		var health: DotHealth = killer.health
+		var cap := config.max_health_cap if config.max_health_cap > 0.0 else 1.0e9
+		var was := health.overheal_cap
+		health.overheal_cap = maxf(cap, health.max_health)
+		var _landed := health.heal(config.headshot_heal, killer_id)
+		health.overheal_cap = was
+	if config.kill_reward_heal > 0.0:
+		var _h := killer.health.heal(config.kill_reward_heal, killer_id)
+	if config.kill_reward_armour > 0.0:
+		killer.health.add_armour(config.kill_reward_armour)
+	if effects != null and config.kill_reward_haste:
+		var _r := effects.apply(FcEffects.HASTE, killer_id)
+	if effects != null and config.kill_reward_empowered:
+		var _r2 := effects.apply(FcEffects.EMPOWERED, killer_id)
+
+## The medal thresholds from [member config], before each judgement so a workbench edit counts.
+func _sync_award_config() -> void:
+	medals.multi_window_sec = config.award_multi_window_sec
+	medals.shutdown_at = config.award_shutdown_at
+	medals.point_blank_m = config.award_point_blank_m
+	medals.long_shot_m = config.award_long_shot_m
+	medals.nemesis_at = config.award_nemesis_at
+
+## The fall a death gets: dot-player-char's reaction rule over the server's weights, seeded from
+## the victim and the tick. Server side; the bridge sends it on KILL and every client draws it.
+##
+## The direction is the shot's; a death with none (a fall, a slay) is pushed by nothing. The
+## killing weapon's def is what lets the sniper and the launcher throw a body
+## (fc-weapons' `params.death_reaction`).
+func decide_death(entity_id: int, damage: DotDamage) -> DotPlayerDeath:
+	# The shared catalogue, built under the loading cover. A table of its own, built here, made the
+	# first kill of a match 37 ms on staging02: twenty-seven fresh copies of the same defs.
+	var catalogue := FcPlayer.weapon_catalogue()
+	var def: Object = catalogue.get_def(damage.weapon_id) if catalogue.has(damage.weapon_id) else null
+	var direction := damage.direction
+	if direction.length_squared() < 0.0001 and damage.attacker != 0 and damage.attacker != entity_id:
+		var killer := player_for(damage.attacker)
+		var victim := player_for(entity_id)
+		if killer != null and victim != null:
+			direction = victim.controller.state.position - killer.controller.state.position
+	direction.y = clampf(direction.y, -0.4, 0.4)
+	return DotPlayerDeath.decide(
+		ragdoll_rules.reactions(), damage.is_headshot(), damage.amount, direction,
+		DotPlayerDeath.seed_of(entity_id, _tick), def
+	)
+
+## What the mode says a player carries, over whatever their loadout gave them: gun game's
+## weapon at their score, or the mode's pool. Authority side; the arsenal replicates.
+func arm_for_mode(player: FcPlayer) -> void:
+	if player == null or mode == null or not mode.arms_players() or not player.is_alive():
+		return
+
+	var catalogue := player.arsenal.catalogue
+	var give: Array[StringName] = []
+
+	if not mode.gun_game.is_empty():
+		var record := match_node.scoreboard.find(str(player.player_id)) if match_node != null else null
+		var level := clampi(record.score if record != null else 0, 0, mode.gun_game.size() - 1)
+		give.append(StringName(mode.gun_game[level]))
+	else:
+		var pool := mode.pool_ids(catalogue)
+		if mode.pool_random and not pool.is_empty():
+			var rng := RandomNumberGenerator.new()
+			rng.seed = player.player_id * 7919 + _tick
+			give.append(pool[rng.randi_range(0, pool.size() - 1)])
+		else:
+			give = pool
+
+	player.arsenal.clear()
+	var hand := 0
+	for id in give:
+		if catalogue.has(id) and player.arsenal.give(id).ok:
+			# The heaviest gun, never the grenade: the loadout's own rule.
+			hand = FcPlayer._better_hand(hand, catalogue.get_def(id).slot)
+	if mode.pool_keeps_melee and not player.arsenal.has_slot(AwWeaponIds.SLOT_MELEE):
+		var _knife := player.arsenal.give(FcContent.melee_id())
+	if hand > 0:
+		player.hold(hand)
+
+## What the medal rules are told about a kill: all of it read off the simulation.
+func _kill_facts(damage: DotDamage, victim: FcPlayer, entry: DotKillFeed.Entry) -> FcAwards.KillFacts:
+	var killer := player_for(damage.attacker)
+	var k := FcAwards.KillFacts.new()
+	k.killer = damage.attacker
+	k.victim = victim.player_id
+	k.tick = _tick
+	k.tick_rate = tick_rate
+	k.headshot = damage.is_headshot()
+	k.victim_streak = int(streaks.get(victim.player_id, 0))
+	k.team_kill = entry.team_kill
+	# Eye to eye from the simulated states, never `damage.distance`: a detonation pins the
+	# attacker's origin to the blast, so a rocket's distance is the blast's, not the throw's.
+	k.distance = killer.controller.state.position.distance_to(victim.controller.state.position)
+	k.aiming = killer.aiming
+	var weapon := damage.weapon_id
+	var def := FcPlayer.weapon_catalogue().get_def(weapon) if weapon != &"" else null
+	if def != null:
+		k.tags = Array(def.tags)
+	elif weapon == &"":
+		# Not a weapon at all (a world hazard pushed by somebody): no range medals.
+		k.tags = [AwWeaponIds.TAG_THROWN]
+	return k
+
+## Gun game: a melee kill costs the victim a gun ([member FcMode.gun_game_melee_demotes]).
+##
+## The level IS the score, so this is a point off the victim's record and nothing else:
+## [method arm_for_mode] reads the score at their respawn and hands them the gun before.
+## Never below zero, because a negative score would be a level the list has no gun for
+## and a scoreboard showing a player behind where they started.
+func _demote_for_melee(damage: DotDamage, killer: FcPlayer) -> void:
+	if not mode.gun_game_melee_demotes or killer.arsenal == null:
+		return
+
+	var weapon_id := damage.weapon_id
+	if weapon_id == &"":
+		return
+	var def := killer.arsenal.catalogue.get_def(weapon_id)
+	if def == null or not def.tags.has(AwWeaponIds.TAG_MELEE):
+		return
+
+	var record := match_node.scoreboard.find(str(damage.victim))
+	if record == null or record.score <= 0:
+		return
+
+	record.score -= 1
+	match_node.scoreboard.score_changed.emit(record)
+
+func _on_entity_killed(entity_id: int, damage: DotDamage) -> void:
+	var victim := player_for(entity_id)
+
+	if victim == null:
+		# Not a player. Something else registered with the combat manager, and the
+		# match must not hear about it — see `non_player_killed`.
+		non_player_killed.emit(entity_id, damage)
+		return
+
+	victim.make_dead()
+
+	# An attacker of 0 is world damage — a fall, the void — and dot-match reads an
+	# empty killer key as exactly that. Passing "0" instead would create a scoreboard
+	# record for a player who does not exist.
+	var killer_key := "" if damage.attacker == 0 else str(damage.attacker)
+
+	var entry := match_node.report_kill(
+		killer_key,
+		str(entity_id),
+		damage.weapon_id if damage.weapon_id != &"" else damage.type.id,
+		_tick,
+		damage.is_headshot()
+	)
+	# dot-match's entry has no field for it; the bridge reads it to tell every client a
+	# lethal critical happened, which is what breaks a body and what a reward hangs on.
+	entry.set_meta(&"critical", damage.critical)
+	# How the body falls, picked once, here, and sent with the kill (see `decide_death`).
+	if is_authority:
+		entry.set_meta(&"death", decide_death(entity_id, damage))
+
+	# The medals, before the streaks move: a shutdown is judged on the streak the victim
+	# died with. Emitted after `player_killed`, so a client hears the kill first.
+	var awarded: Array[int] = []
+	var judged := false
+	if is_authority:
+		judged = true
+		if damage.attacker == 0 or damage.attacker == entity_id or player_for(damage.attacker) == null:
+			medals.note_death(entity_id)
+		else:
+			_sync_award_config()
+			awarded = medals.judge(_kill_facts(damage, victim, entry))
+
+	# The streaks: the victim's ends, the killer's grows, and a reward lands on the kill
+	# that reaches it.
+	streaks[entity_id] = 0
+	if is_authority and damage.attacker != 0 and damage.attacker != entity_id:
+		var streak := int(streaks.get(damage.attacker, 0)) + 1
+		streaks[damage.attacker] = streak
+		if streak_rewards.has(streak):
+			_reward_streak(damage.attacker, streak, String(streak_rewards[streak]))
+
+	# The kill rewards: a headshot's health and whatever per-kill rewards the server turned on.
+	if is_authority and damage.attacker != 0 and damage.attacker != entity_id:
+		_reward_kill(damage.attacker, damage.is_headshot())
+
+	# Gun game: the killer's score just went up, so their weapon moves along the list.
+	if is_authority and mode != null and not mode.gun_game.is_empty() and damage.attacker != 0:
+		var killer_player := player_for(damage.attacker)
+		if killer_player != null and killer_player != victim:
+			arm_for_mode(killer_player)
+			_demote_for_melee(damage, killer_player)
+
+	# Points out of the body, if the rules say this kill drops any.
+	if drops != null and is_authority:
+		var _n := drops.on_kill(
+			victim.controller.state.position, damage.critical, _tick, entity_id * 7919 + _tick
+		)
+
+	player_killed.emit(entry)
+
+	if judged and damage.attacker != 0 and damage.attacker != entity_id and player_for(damage.attacker) != null:
+		medals_awarded.emit(
+			damage.attacker, entity_id, awarded, FcAwards.points_for(awarded, config.award_kill_points),
+			int(streaks.get(damage.attacker, 0))
+		)
+
+func _on_damage_applied(damage: DotDamage) -> void:
+	# The hit marker's source, for anything a player hurt that is not themselves. Before
+	# the scoreboard's filter, because a monster hit is a hit too.
+	if (
+		is_authority and damage.attacker != 0 and damage.attacker != damage.victim
+		and player_for(damage.attacker) != null
+	):
+		var taken := damage.health_lost + damage.armour_absorbed
+		if taken > 0.0:
+			# Damage applied without a trace (a blast, a hazard) has no point; a player's
+			# chest is where its number rises from then.
+			var at := damage.point
+			var hurt := player_for(damage.victim)
+			if at == Vector3.ZERO and hurt != null:
+				at = hurt.controller.state.position + Vector3(0.0, 1.3, 0.0)
+			hit_confirmed.emit(
+				damage.attacker, damage.victim, taken, at, damage.is_headshot(), damage.lethal
+			)
+
+	# Only players are on the scoreboard. Damage to or from anything else a game layer registered with
+	# dot-combat — a monster, a breakable — would otherwise create a record keyed on an id no player has,
+	# for the same reason `non_player_killed` exists.
+	if player_for(damage.victim) == null:
+		return
+
+	var attacker := (
+		str(damage.attacker) if player_for(damage.attacker) != null else ""
+	)
+
+	match_node.report_damage(attacker, str(damage.victim), damage.health_lost)
+
+func _build_projectiles() -> void:
+	projectiles = FcProjectiles.new()
+	# The same gravity the players fall under (FcPlayer's tunables); the two must not drift.
+	projectiles.setup(combat, 22.0)
+	projectiles.catalogue = FcPlayer.weapon_catalogue()
+	projectiles.origin_of = func(entity_id: int) -> Variant:
+		var thrower := player_for(entity_id)
+		return thrower.muzzle_position() if thrower != null else null
+	projectiles.grenade_rules = grenades_rules
+	projectiles.rocket_rules = rocket_rules
+	if rocket_rules != null:
+		projectiles.def_of = _fired_def
+		projectiles.launch_owner = func(entity_id: int, def: DotWeaponDef, at: Vector3) -> void:
+			var _pushed := FcRocketJump.launch(player_for(entity_id), def, rocket_rules, at)
+
+
+func _build_combat() -> DotResult:
+	combat = DotCombatManager.new()
+	combat.name = "Combat"
+	combat.is_authority = is_authority
+	combat.register_service = false
+	combat.trace = map.shot_trace()
+
+	var rules := DotDamageRules.new()
+	# Self damage stays on in every mode: rocket jumping is a movement option.
+	rules.friendly_fire = mode.friendly_fire if config.friendly_fire < 0 else config.friendly_fire == 1
+	rules.self_damage = mode.self_damage
+	rules.hit_groups = true
+	rules.falloff = true
+	rules.maximum = 400.0
+	combat.rules = rules
+
+	var config := DotCombatConfig.new()
+	config.tick_rate = tick_rate
+	config.lag_compensation = max_unlag_ms > 0.0
+	config.max_rewind_ms = max_unlag_ms
+	config.max_origin_error = 2.5
+	combat.config = config
+	combat.rewind_fn = _unlag_rewind
+	combat.restore_fn = _unlag_restore
+
+	add_child(combat)
+
+	# AFTER add_child: the resolver is built in `_ready`. This is the whole friendly-fire seam:
+	# team 0 means "no team", so unassigned players in a free-for-all can always hurt each other.
+	combat.resolver.team_of = func(entity_id: int) -> int:
+		var player := player_for(entity_id)
+		return player.team if player != null else 0
+
+	for type in FcContent.damage_types():
+		combat.register_damage_type(type)
+
+	combat.entity_killed.connect(_on_entity_killed)
+	combat.damage_applied.connect(_on_damage_applied)
+	shot_stats.attach(self)
+
+	_build_bullets()
+
+	# A new manager starts on dot-combat's defaults; a client re-follows the server's cvars here.
+	var _following := _follow_cvar_source()
+
+	_build_projectiles()
+
+
+	_build_grenades()
+
+	drops = FcDrops.new()
+	drops.name = "Drops"
+	drops.is_authority = is_authority
+	drops.draws = not headless
+	add_child(drops)
+	drops.setup(tick_rate)
+	drops.position_of = func(entity_id: int) -> Variant:
+		var who := player_for(entity_id)
+		return who.global_position if who != null else null
+	apply_drop_rules()
+	FcWeaponDropWiring.build(self)
+	_build_knives()
+	apply_jail_rules()
+
+	if not headless and map != null and map.jail != null:
+		jail_view = FcJailView.new()
+		add_child(jail_view)
+		jail_view.build(map.jail, sim_tick)
+
+	return DotResult.success(null)
+
+func _build_knives() -> void:
+	knives = DotWeaponKnives.new()
+	knives.name = "Knives"
+	knives.rules = knife_rules
+	knives.is_authority = is_authority
+	knives.draws = not DotPlatform.is_headless()
+	knives.tick_rate = tick_rate
+	knives.combat = combat
+	knives.player_for = player_for
+	knives.player_ids = player_ids
+	knives.look_of = _thrown_knife_look
+	add_child(knives)
+
+
+## A thrown knife's model: the weapon's world model with a streak behind it while it flies (game/fc_knife_trail.gd).
+func _thrown_knife_look(weapon: StringName) -> Node3D:
+	var model := FcWeaponDropWiring.look(weapon)
+	if model != null:
+		var trail := Node3D.new()
+		trail.name = "KnifeTrail"
+		trail.set_script(load("res://game/fc_knife_trail.gd"))
+		model.add_child(trail)
+	return model
+
+
+## A presentation rule's current value: the server's, or the default.
+func rule(key: String) -> float:
+	return float(movement_rules.get(key, SHOW_DEFAULTS.get(key, 0.0)))
+
+func _override_rules(rules: DotMatchRules) -> void:
+	# The final killcam plays inside the match's end, so the end is that much longer.
+	rules.match_end_sec = mode.rules.match_end_sec + rule("killcam")
+
+	# Gun game's limit is the length of its list: a kill is a level, and a limit past the
+	# last gun is kills with the knife nobody is counting ([FcMode]).
+	if score_limit > 0 and mode.gun_game.is_empty():
+		rules.score_limit = score_limit
+
+	if time_limit_sec > 0.0:
+		rules.time_limit_sec = time_limit_sec
+
+	if config.respawn_delay_sec >= 0.0:
+		rules.respawn_delay_sec = config.respawn_delay_sec
+	if config.spawn_protection_sec >= 0.0:
+		rules.spawn_protection_sec = config.spawn_protection_sec
+
+	if warmup_sec >= 0.0:
+		rules.warmup_sec = warmup_sec
+
+	if min_players > 0:
+		rules.min_players = min_players
+
+	if freeze_sec >= 0.0:
+		rules.countdown_sec = freeze_sec
+
+	_override_ctf_rules(rules)
+
+## After the generic limits, on the first build of the match and on every change: capture the flag is limited by captures (`fc_ctf_capturelimit`) and by seconds only when `fc_ctf_timelimit` says so (0, the default, is no clock; the generic `fc_timelimit` and its 600 s do not apply). Its score is captures only: a kill is still a kill on the scoreboard, worth no points.
+func _override_ctf_rules(rules: DotMatchRules) -> void:
+	if mode == null or mode.objective_layout != &"ctf":
+		return
+	rules.score_limit = ctf_rules.capture_limit
+	rules.time_limit_sec = float(maxi(ctf_rules.time_limit_sec, 0))
+	rules.kill_points = 0
+	rules.suicide_points = 0
+	rules.friendly_points = 0
+	rules.assist_points = 0
+
+func _resolve_shot(shot: DotShot, view_tick: float) -> void:
+	if bullet_bridge == null:
+		combat.resolve_shot(shot, view_tick)
+		return
+	var catalogue := FcPlayer.weapon_catalogue()
+	var def: DotWeaponDef = catalogue.get_def(shot.weapon_id) if catalogue.has(shot.weapon_id) else null
+	var _resolved := bullet_bridge.resolve_shot(shot, def.tuning as DotWeaponBallistics if def != null else null, view_tick)
+
+
+## Whoever stands in the jail's button presses it. Authority side, after everybody has moved.
+func _sweep_jail_button() -> void:
+	if not is_authority or map == null or map.jail == null:
+		return
+	var jail: RefCounted = map.jail
+	if not jail.enabled:
+		return
+	var box: AABB = jail.button_box()
+	for id in player_ids():
+		var p: FcPlayer = _players[id]
+		if p.is_alive() and box.has_point(p.controller.state.position):
+			# The game tick, which every player's pits are asked on and a client predicts on too.
+			var at: int = _tick
+			if jail.press(at):
+				DotLog.info(CHANNEL, "the jail's gate opened", {"by": id, "tick": at})
+				jail_changed.emit()
+				return
+
+
+
+## A client takes the server's sides (`FcEvents.Kind.TEAM` text, `id:team;...`; empty for none).
+func apply_teams_text(text: String) -> void:
+	replicated_teams.clear()
+	for part in text.split(";", false):
+		var pair := part.split(":")
+		if pair.size() == 2 and pair[0].is_valid_int() and pair[1].is_valid_int():
+			replicated_teams[int(pair[0])] = int(pair[1])
+	for id in player_ids():
+		var player := player_for(id)
+		if player != null:
+			player.team = team_of(id)
+
+
+
+
+## The side with [param team_id], or null (a free-for-all, nobody).
+func team_def(team_id: int) -> DotTeam:
+	for side in teams():
+		if side.id == team_id:
+			return side
+	return null
+
+
+
+
+
+
+# --- Simulation ------------------------------------------------------------
+
+
+
+func _tick_rest(delta: float) -> void:
+	match_node.tick(_tick)
+
+	if surf_rides != null:
+		surf_rides.call(&"process", delta)
+	if demo_stats != null:
+		demo_stats.call(&"process", delta)
+
+## Who can pick up a drop this tick, keyed by player id.
+func _drop_sweepers() -> Dictionary:
+	var sweepers := {}
+	for id in player_ids():
+		var p: FcPlayer = _players[id]
+		if p.is_alive():
+			# The player, asked only when a pickup is in reach: what it lacks is a walk over its slots.
+			sweepers[id] = {"position": p.controller.state.position, "player": p}
+	return sweepers

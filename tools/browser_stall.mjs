@@ -8,7 +8,7 @@
 // prints fps and the worst frame for the cover, the first 2 s of play and the rest, the content
 // download's end (the page's .pck/.dot-pack responses), the cover drop, the time to the first smooth
 // second (no frame of 50 ms or more for 1 s) and the worst frames after the drop, each named by the
-// client's last load mark before it (arena_load / arena_after_open, published by ArenaLoadTimeline).
+// client's last load mark before it (arena_load / arena_after_open, published by FcLoadTimeline).
 // --phases also prints the load marks on the page clock, after the boot marks (each .wasm/.pck/.js
 // fetch with its size over the wire, wasm compile, the engine's first prints). Several runs end in a median line. Exits 1
 // when a run's first 2 s of play hold a frame over --budget-ms (default 0, off). How to run it:

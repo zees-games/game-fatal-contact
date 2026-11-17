@@ -3,7 +3,7 @@ extends SceneTree
 ## The kill view across its edge cases, offline, with frames at the first drawn frame, mid, last and after the hand-over to the respawn. Run: tools/killcam_audit.sh <outdir> <scenario>.
 ## Scenarios: crowd, bot, world, fall, killer_dead, killer_left, round (the match ends mid-view). Prints one "T" line per 0.1 s and "RESULT" lines; exit 1 on a failed check.
 
-const ArenaContent := preload("res://game/arena_content.gd")
+const FcContent := preload("res://game/fc_content.gd")
 
 var _out := "res://screenshots/killcam_audit"
 var _scenario := "bot"
@@ -18,7 +18,7 @@ func _initialize() -> void:
 	if args.size() > 1:
 		_scenario = args[1]
 	DirAccess.make_dir_recursive_absolute(_out)
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	if _scenario == "crowd":
@@ -136,11 +136,11 @@ func _run() -> void:
 			_check(_near_bodies(kv.camera, 1.2).is_empty(), "no body fills the lens mid-replay")
 			if _scenario == "killer_dead" and not killed_killer:
 				killed_killer = true
-				_hit(gm, me.player_id, killer, ArenaContent.DAMAGE_BULLET)
+				_hit(gm, me.player_id, killer, FcContent.DAMAGE_BULLET)
 			if _scenario == "round" and not round_done:
 				round_done = true
 				gm.match_node.rules.score_limit = 1
-				_hit(gm, killer.player_id, killer, ArenaContent.DAMAGE_WORLD)
+				_hit(gm, killer.player_id, killer, FcContent.DAMAGE_WORLD)
 		if playing and prog >= 0.95 and not shots.has("last"):
 			shots["last"] = true
 			_shot("d_last")
@@ -174,13 +174,13 @@ func _judge(kv: Node, first_active: float, first_play: float, done: float, respa
 
 func _kill_player(gm: Object, killer: Object, me: Object) -> int:
 	var attacker: int = killer.player_id
-	var type: StringName = ArenaContent.DAMAGE_BULLET
+	var type: StringName = FcContent.DAMAGE_BULLET
 	if _scenario == "world":
 		attacker = 0
-		type = ArenaContent.DAMAGE_WORLD
+		type = FcContent.DAMAGE_WORLD
 	elif _scenario == "fall":
 		attacker = 0
-		type = ArenaContent.DAMAGE_FALL
+		type = FcContent.DAMAGE_FALL
 	elif _scenario == "killer_left":
 		_client.call("_remove_offline_bot", killer.player_id)
 	for i in 60:

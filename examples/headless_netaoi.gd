@@ -1,9 +1,9 @@
 extends DotGameCheckSuite
 
-## ArenaNetAoi: the relevance rings are off for a 16v16, on above sv_net_aoi_players with
+## FcNetAoi: the relevance rings are off for a 16v16, on above sv_net_aoi_players with
 ## hysteresis, read their cvars live, and describe the same rings dot-net applies.
 
-const ArenaNetAoi := preload("../game/arena_net_aoi.gd")
+const FcNetAoi := preload("../game/fc_net_aoi.gd")
 
 
 func _ready() -> void:
@@ -15,7 +15,7 @@ func _run() -> void:
 	print("arena: net relevance rings")
 	var console := DotConsole.new()
 	add_child(console)
-	var aoi := ArenaNetAoi.new()
+	var aoi := FcNetAoi.new()
 	aoi.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE)
 	var interest := DotNetInterestDistance.new()
 	var base := [interest.radius, interest.far_every, interest.far_distance, interest.far_tiers, interest.far_coherent, interest.aim_cone_deg]
@@ -59,7 +59,7 @@ func _run() -> void:
 	console.set_cvar("sv_net_aoi_players", "9999")
 	_check(aoi.refresh(interest, 128) == true and not aoi.active, "9999 turns them off whatever the count")
 
-	var a := ArenaNetAoi.new()
+	var a := FcNetAoi.new()
 	_check(a.ring_of(0.0) == 0 and a.ring_of(15.0) == 0 and a.ring_of(15.1) == 1 and a.ring_of(30.0) == 1 and a.ring_of(30.1) == 2 and a.ring_of(120.0) == 2 and a.ring_of(120.1) == -1, "default rings: full rate to 15 m, half to 30 m, a quarter to 120 m, none past")
 	_check(a.every_for(0) == 1 and a.every_for(1) == 2 and a.every_for(2) == 4, "full, half and quarter rate")
 	_check(a.every_for_aimed(2, 8.0) == 2 and a.every_for_aimed(2, 8.1) == 4 and a.every_for_aimed(1, 0.0) == 2 and a.every_for_aimed(0, 0.0) == 1, "inside the aim cone the quarter band goes at half rate, nothing else changes")

@@ -7,7 +7,7 @@ extends SceneTree
 ##
 ##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_views.gd
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 const OUT_DIR := "screenshots/cameras"
 
@@ -16,8 +16,8 @@ var _failed := 0
 
 
 func _initialize() -> void:
-	var _scratch := ArenaPresentation.use_scratch_settings("render_views")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("render_views")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
@@ -33,7 +33,7 @@ func _run() -> void:
 	me.health.invulnerable = true
 
 	_check(not me.third_person, "starts in first person")
-	await _shot("arena_view_first")
+	await _shot("fc_view_first")
 
 	client.call("toggle_view")
 	await _wait(0.6)
@@ -42,7 +42,7 @@ func _run() -> void:
 	_check(me.body_mesh != null and me.body_mesh.visible, "and their own body drawn")
 	var behind: float = (me.camera.global_position - me.view.global_position).length()
 	_check(behind > 0.5, "the camera is behind the eye (%.2f m)" % behind)
-	await _shot("arena_view_third")
+	await _shot("fc_view_third")
 
 	game.view_rules.force_view = DotPlayerViewRules.FIRST_ONLY
 	await _wait(0.3)
@@ -50,7 +50,7 @@ func _run() -> void:
 	client.call("toggle_view")
 	await _wait(0.3)
 	_check(not me.third_person, "and the view key does nothing")
-	await _shot("arena_view_forced_first")
+	await _shot("fc_view_forced_first")
 
 	game.view_rules.force_view = DotPlayerViewRules.THIRD_ONLY
 	await _wait(0.3)

@@ -1,12 +1,12 @@
-extends "arena_server_suite.gd"
+extends "fc_server_suite.gd"
 
-const ArenaTestPorts := preload("test_ports.gd")
+const FcTestPorts := preload("test_ports.gd")
 
 ## Fatal Contact's console names on a real dedicated server: the game's own are `fc_*`, the map
 ## change is dot-map's `map`, and an old `arena_*` name is only a hidden shim that says loudly
 ## what it was renamed to and then does it. Run `headless_console_names`.
 
-var PORT := ArenaTestPorts.free_port()
+var PORT := FcTestPorts.free_port()
 const SERVER_DIR := "user://fc_console_names"
 const TICK_RATE := 64
 

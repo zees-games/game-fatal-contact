@@ -19,7 +19,7 @@ func _key(key: Key) -> InputEventKey:
 func _run() -> void:
 	var dir := OS.get_cmdline_user_args()[0] if OS.get_cmdline_user_args().size() > 0 else "screenshots"
 	DirAccess.make_dir_recursive_absolute(dir)
-	var client := (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client := (load("res://game/fc.tscn") as PackedScene).instantiate()
 	root.add_child(client)
 	for f in 240:
 		await process_frame

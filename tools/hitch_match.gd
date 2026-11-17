@@ -1,6 +1,6 @@
 extends Node
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const ClientBench := preload("client_bench.gd")
 
 ## A whole solo match on the real client with bots, every frame over a threshold logged with
@@ -8,7 +8,7 @@ const ClientBench := preload("client_bench.gd")
 ## Window it on a GPU, because software GL makes every frame a hitch:
 ##
 ## [codeblock]
-## ./gpu.sh run game-arena res://tools/hitch_match.tscn -- --bots 3 --score 6 --seconds 150
+## ./gpu.sh run game-fatal-contact res://tools/hitch_match.tscn -- --bots 3 --score 6 --seconds 150
 ## [/codeblock]
 ##
 ## `--score N` / `--time S` (default 6 kills, 45 s) end the match so MATCH_END and the kill-cam are reached;
@@ -46,7 +46,7 @@ func _ready() -> void:
 			"--boom": _boom = float(args[i + 1])
 			"--top": _top = int(args[i + 1])
 	_pilot = not "--no-pilot" in args
-	var _scratch := ArenaPresentation.use_scratch_settings("hitch_match")
+	var _scratch := FcPresentation.use_scratch_settings("hitch_match")
 	_run.call_deferred()
 
 
@@ -55,7 +55,7 @@ func _run() -> void:
 	_hitch.threshold_ms = _threshold
 	_hitch.start(get_tree())
 	_t0 = Time.get_ticks_usec()
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	_client.set("offline_bots", _bots)

@@ -7,8 +7,8 @@ extends DotGameCheckSuite
 ## `-- --shard wN` plays every SHARDS-th gun of the sorted catalogue; `-- --merge LOG...` joins the shards.
 ## `-- --only=marksman,rifle` plays those guns; `-- --shots=DIR` (windowed, tools/attach_menu_shot.sh) saves a frame per pick.
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaAttach := preload("../game/arena_attach.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcAttach := preload("../game/fc_attach.gd")
 
 const SHARDS := 2
 ## Guns with at least one attachment choice (the merge has no client to count them from): a new one says so here.
@@ -38,8 +38,8 @@ func _ready() -> void:
 			_shots = a.trim_prefix("--shots=")
 	if _shots != "":
 		DirAccess.make_dir_recursive_absolute(_shots)
-	var _dir := ArenaPresentation.use_scratch_settings("headless_attach_all")
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var _dir := FcPresentation.use_scratch_settings("headless_attach_all")
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	add_child(_client)
@@ -65,7 +65,7 @@ func _run() -> void:
 		return
 	var me = _client.get("player")
 	me.health.invulnerable = true
-	var cat := ArenaAttach.catalogue()
+	var cat := FcAttach.catalogue()
 	var ids: Array = []
 	for id: StringName in AwWeaponCatalogue.table().keys():
 		var base: DotWeaponDef = me.arsenal.catalogue.get_def(id)
@@ -105,7 +105,7 @@ func _gun(me: Node, id: StringName) -> void:
 		return
 	var panel: Node = _client.get("attach_panel")
 	var base: DotWeaponDef = me.arsenal.catalogue.get_def(id)
-	var choices: Dictionary = ArenaAttach.catalogue().choices_for(base)
+	var choices: Dictionary = FcAttach.catalogue().choices_for(base)
 	var before := _errors.seen().size()
 	for mount: StringName in choices:
 		for att: StringName in choices[mount]:

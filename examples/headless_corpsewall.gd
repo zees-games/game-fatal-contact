@@ -1,6 +1,6 @@
 extends DotGameCheckSuite
 
-const ArenaMap := preload("../maps/arena_map.gd")
+const FcMap := preload("../maps/fc_map.gd")
 
 const EXPECTED_CHECKS := 14
 
@@ -76,7 +76,7 @@ func _fall(me: Object, yard: DotPlayerRagdolls, wall: Dictionary, out_body: Arra
 
 ## An offline client with an instant, one-player match.
 func _start_client() -> Object:
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	add_child(_client)
@@ -92,7 +92,7 @@ func _start_client() -> Object:
 
 func _run() -> void:
 	var gm: Object = await _start_client()
-	var map: ArenaMap = ArenaMap.by_id(&"crackhouse")
+	var map: FcMap = FcMap.by_id(&"crackhouse")
 	_check(map != null and gm.change_map(map).ok, "the game moves to crackhouse")
 	var me: Object = null
 	var live := false

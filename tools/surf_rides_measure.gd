@@ -1,29 +1,29 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
+const FcGame := preload("../game/fc_game.gd")
 
 
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaSurf := preload("../game/arena_surf.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
-const ArenaContent := preload("../game/arena_content.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcSurf := preload("../game/fc_surf.gd")
+const FcBots := preload("../game/fc_bots.gd")
+const FcContent := preload("../game/fc_content.gd")
 
 
 ## The rate rides are planned and measured at: the game's default, which a listen server and the
-## suites' recorded rides play at. The caches planned before ArenaGame.add_player applied the game's
+## suites' recorded rides play at. The caches planned before FcGame.add_player applied the game's
 ## rate were stepped at this one too (the controller's default), whatever their stamp said.
-const TICK_RATE := ArenaContent.TICK_RATE
+const TICK_RATE := FcContent.TICK_RATE
 
 
 ## A perturbed start: up to this far sideways and along, metres, and moving at up to the
-## arena's run speed in a direction up to this far off the ride's (degrees).
+## Fatal Contact's run speed in a direction up to this far off the ride's (degrees).
 const SIDE := 1.0
 const ALONG := 0.7
 const TURN := 100.0
 
 
-var game: ArenaGame = null
-var bot: ArenaPlayer = null
+var game: FcGame = null
+var bot: FcPlayer = null
 var nav: DotBotNav = null
 var map_id: StringName = &""
 
@@ -37,10 +37,10 @@ func measure(data: Dictionary, runs: int, live: int) -> void:
 			continue
 		var from := _metres(row["from"])
 		var to := _metres(row["to"])
-		var course := ArenaSurf.course_for(game.map, nav, from, to, float(row.get("reference_yaw", NAN)))
+		var course := FcSurf.course_for(game.map, nav, from, to, float(row.get("reference_yaw", NAN)))
 		var sim := _simulator(course.event_at)
 		var pilot := DotBotSurfPilot.new()
-		pilot.load_stage(row, ArenaSurf.UNITS)
+		pilot.load_stage(row, FcSurf.UNITS)
 		pilot.sim = sim
 		pilot.score = course.score
 		var rng := RandomNumberGenerator.new()
@@ -53,7 +53,7 @@ func measure(data: Dictionary, runs: int, live: int) -> void:
 		var steps_before := sim.steps
 		var ride_sim := _simulator(course.event_at)
 		for r in range(runs):
-			var res := pilot.ride(perturbed(from, course.reference_yaw(), rng), ride_sim, int(ArenaSurf.RIDE_SECONDS * TICK_RATE))
+			var res := pilot.ride(perturbed(from, course.reference_yaw(), rng), ride_sim, int(FcSurf.RIDE_SECONDS * TICK_RATE))
 			ridden += int(res["ticks"])
 			if int(res["event"]) == DotBotSurfCourse.EVENT_GOAL:
 				ok += 1
@@ -65,20 +65,20 @@ func measure(data: Dictionary, runs: int, live: int) -> void:
 			await _ride_live(i, row, course, live)
 
 
-## Rides edge [param index] [param count] times in the game: the arena's own tick, its teleports,
+## Rides edge [param index] [param count] times in the game: Fatal Contact's own tick, its teleports,
 ## its pushes, with the view held on the map's middle while the legs surf. Times the steering
 ## (lookup, forecast and veto) and the bot's whole command.
 func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: int) -> void:
-	var surf := ArenaSurf.new()
+	var surf := FcSurf.new()
 	surf.map = game.map
 	surf.nav = nav
-	var edge := ArenaSurf.Edge.new()
+	var edge := FcSurf.Edge.new()
 	edge.id = 0
 	edge.from = course.start
 	edge.to = course.goal_centre
 	edge.course = course
 	edge.cache = DotBotSurfPilot.new()
-	edge.cache.load_stage(row, ArenaSurf.UNITS)
+	edge.cache.load_stage(row, FcSurf.UNITS)
 	edge.linked = true
 	surf.edges.append(edge)
 	var rng := RandomNumberGenerator.new()
@@ -88,9 +88,9 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 	var failures: Array[String] = []
 	var times: Array[float] = []
 	var use_think := OS.get_cmdline_user_args().has("--think")
-	var surf_world: ArenaSurf = null
+	var surf_world: FcSurf = null
 	if use_think:
-		var w := ArenaBots.world_for(game)
+		var w := FcBots.world_for(game)
 		var _r := w.route(Vector3.ZERO, Vector3.ONE)
 		while w.is_route_pending():
 			await get_tree().process_frame
@@ -108,14 +108,14 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 		var first := true
 		var ticks := 0
 		var outcome := -1
-		var think_mind: ArenaBots.Mind = null
+		var think_mind: FcBots.Mind = null
 		if use_think:
-			think_mind = ArenaBots.Mind.new()
+			think_mind = FcBots.Mind.new()
 			think_mind.seed = 77 + r
 			think_mind.ride = DotBotSurfRide.new().begin(surf_world.edges[index].cache, surf_world.edges[index].course, surf_world._sim_for(surf_world.edges[index], bot.controller), tick, float(TICK_RATE))
-		while use_think and ticks < int(ArenaSurf.RIDE_SECONDS * TICK_RATE) + 2:
+		while use_think and ticks < int(FcSurf.RIDE_SECONDS * TICK_RATE) + 2:
 			var landed_before := surf_world.landed
-			game.tick({1: ArenaBots.think(game, bot, think_mind, tick, float(TICK_RATE))})
+			game.tick({1: FcBots.think(game, bot, think_mind, tick, float(TICK_RATE))})
 			tick += 1
 			ticks += 1
 			if ticks % 32 == 0:
@@ -123,7 +123,7 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 			if think_mind.ride == null:
 				outcome = 1 if surf_world.landed > landed_before else 0
 				break
-		while not use_think and ticks < int(ArenaSurf.RIDE_SECONDS * TICK_RATE) + 2:
+		while not use_think and ticks < int(FcSurf.RIDE_SECONDS * TICK_RATE) + 2:
 			var intent := DotBotIntent.new()
 			var eye := bot.controller.state.position + Vector3.UP * 1.6
 			var look := DotBotAim.angles_to(eye, aim_at)
@@ -163,7 +163,7 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 			if failures.size() == 1:
 				var st := bot.controller.state
 				print("[surf]   first miss: landing %s, under it island %d, grounded %s, course says %d, outcome %d after %d ticks" % [
-					str((course as ArenaSurf.EdgeCourse).landing_islands), nav.island_at(st.position, 2.0), st.is_grounded(), course.event_at(st), outcome, ticks])
+					str((course as FcSurf.EdgeCourse).landing_islands), nav.island_at(st.position, 2.0), st.is_grounded(), course.event_at(st), outcome, ticks])
 	var d := surf.describe()
 	print("[surf] edge %d live: %d of %d land (%.0f%%), %s; steering %.0f us a riding tick (%.1f%% of a core per riding bot at %d Hz)%s" % [
 		index, landed, count, 100.0 * landed / maxf(1.0, count), _spread(times), float(d["steer_us_per_tick"]),
@@ -171,7 +171,7 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 		"" if failures.is_empty() else "; missed: " + ", ".join(failures)])
 
 
-## What [method ArenaSurf.steer] keeps on a bot.
+## What [method FcSurf.steer] keeps on a bot.
 class RideMind:
 	extends RefCounted
 	var ride: Variant = null
@@ -201,7 +201,7 @@ func _standing_at(at: Vector3, yaw: float) -> DotFpsState:
 
 
 ## [param at] moved up to [constant SIDE] sideways and [constant ALONG] along, running at up to
-## the arena's speed within [constant TURN] degrees of [param yaw]: how a bot whose route reached
+## Fatal Contact's speed within [constant TURN] degrees of [param yaw]: how a bot whose route reached
 ## the edge arrives at it.
 func perturbed(at: Vector3, yaw: float, rng: RandomNumberGenerator) -> DotFpsState:
 	var forward := DotFpsMotor.forward_for(yaw)
@@ -214,18 +214,18 @@ func perturbed(at: Vector3, yaw: float, rng: RandomNumberGenerator) -> DotFpsSta
 
 
 static func _units(v: Vector3) -> Array:
-	var u := v / ArenaSurf.UNITS
+	var u := v / FcSurf.UNITS
 	return [snappedf(u.x, 0.1), snappedf(u.y, 0.1), snappedf(u.z, 0.1)]
 
 
 static func _metres(row: Array) -> Vector3:
-	return Vector3(float(row[0]), float(row[1]), float(row[2])) * ArenaSurf.UNITS
+	return Vector3(float(row[0]), float(row[1]), float(row[2])) * FcSurf.UNITS
 
 
 func _write(path: String, data: Dictionary) -> void:
 	data["id"] = String(map_id)
-	data["units"] = ArenaSurf.UNITS
-	data["bake"] = ArenaSurf.bake_id(nav)
+	data["units"] = FcSurf.UNITS
+	data["bake"] = FcSurf.bake_id(nav)
 	data["note"] = "Written by tools/surf_rides.gd: a combat surf map's ride edges (platform to platform, in genre units, Godot axes) and, per edge, every tick of every ride the planner found on the real motor as [x, y, z, vx, vy, vz, action]. Replan after a movement or collision change."
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	var f := FileAccess.open(path, FileAccess.WRITE)

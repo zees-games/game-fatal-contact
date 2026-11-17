@@ -2,8 +2,8 @@
 
 One fixed room, one fixed first-person camera (the player's own, standing at spawn, no look input), one fixed model-viewer
 camera (30 degree fov, orbit about the model's bounds centre) and one fixed sun/ambient, so only the weapon and its animation
-change between clips and runs. Built by `tools/weapon_lab.gd` (a SceneTree script driving the offline arena client with the
-arena hidden); nothing in the game is touched.
+change between clips and runs. Built by `tools/weapon_lab.gd` (a SceneTree script driving the offline Fatal Contact client with the
+Fatal Contact hidden); nothing in the game is touched.
 
 ## Run it
 
@@ -27,5 +27,5 @@ One weapon alone, on one box: `gpu.sh shot proj tools/weapon_lab.sh --out DIR --
 
 ## Notes
 
-- Weapons are the arena catalogue (`AwWeaponCatalogue`, the fc-weapons pack). zee-dot-weapons is not loaded by arena.
+- Weapons are Fatal Contact catalogue (`AwWeaponCatalogue`, the fc-weapons pack). zee-dot-weapons is not loaded by arena.
 - The boxes need nothing but godot, xvfb-run and ffmpeg (they have all three). The JPEG frames are deleted after encoding.

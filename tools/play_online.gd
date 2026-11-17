@@ -1,14 +1,14 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaModule := preload("../game/arena_module.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcModule := preload("../game/fc_module.gd")
 const LoopbackServer := preload("loopback_server.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
-## A played online session you can look at: a dedicated arena server (this scene again with
+## A played online session you can look at: a dedicated Fatal Contact server (this scene again with
 ## `--role server`, real ENet, the module's own map rotation and vote) and the real client
-## (`arena.tscn`) connected to it, a pilot that runs and shoots, and a frame saved every
+## (`fc.tscn`) connected to it, a pilot that runs and shoots, and a frame saved every
 ## `--every` seconds into `screenshots/online/`. The server ends a round fast (`--score`
 ## frags) and opens the map vote at `--vote-at` seconds, so round end and the ballot are on
 ## the frames. Needs a display: `xvfb-run -a godot --path . res://tools/play_online.tscn`.
@@ -42,7 +42,7 @@ func _ready() -> void:
 			"--map": _map = args[i + 1]
 			"--profile": _profile = args[i + 1] == "1"
 	DotLog.set_level(DotLog.Level.WARN)
-	var _scratch := ArenaPresentation.use_scratch_settings("play_online_" + _role)
+	var _scratch := FcPresentation.use_scratch_settings("play_online_" + _role)
 	if _role == "server":
 		_serve.call_deferred()
 	else:
@@ -52,7 +52,7 @@ func _ready() -> void:
 func _serve() -> void:
 	var data := "user://play_online_server"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(data))
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "Arena"
 	game.tick_rate = 60
 	game.score_limit = 0
@@ -61,14 +61,14 @@ func _serve() -> void:
 	game.headless = true
 	game.register_service = true
 	add_child(game)
-	var map: ArenaMap = ArenaMap.by_id(StringName(_map))
-	var _set := game.setup(map if map != null else ArenaMap.dm_box())
+	var map: FcMap = FcMap.by_id(StringName(_map))
+	var _set := game.setup(map if map != null else FcMap.dm_box())
 	var config := LoopbackServer.config("play online", PORT, data, "warn")
 	var server := await LoopbackServer.boot(self, config, "play_online server")
 	if server == null:
 		get_tree().quit(1)
 		return
-	var module := server.modules.get_module("arena") as ArenaModule
+	var module := server.modules.get_module("arena") as FcModule
 	game.start(0)
 	print("play_online server: ready, vote options ", module.vote.source.choices().size() if module.vote != null else -1)
 	await get_tree().create_timer(12.0).timeout
@@ -172,7 +172,7 @@ func _run() -> void:
 		await get_tree().create_timer(0.25).timeout
 		t += 0.25
 	print("play_online: connected=", link.is_playing())
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("mouse_capture_override", true)
 	add_child(_client)
 	t = 0.0

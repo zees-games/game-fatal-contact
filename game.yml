@@ -21,9 +21,9 @@ kind: pack
 name: "Zee's Fatal Contact"
 max_players: 16
 
-scene: scenes/arena_server.tscn
-client_scene: game/arena.tscn
-module: game/arena_module.gd
+scene: scenes/fc_server.tscn
+client_scene: game/fc.tscn
+module: game/fc_module.gd
 
 cvars:
   fc_scorelimit: "25"

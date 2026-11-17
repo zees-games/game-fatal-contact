@@ -54,9 +54,9 @@ func _run() -> void:
 	var net: DotNetManager = _clients[SHOOTER_PEER]["net"]
 	var period := float(net.config.ticks_per_snapshot())
 	print("    tick %d Hz, snapshots %d Hz (every %d ticks), input copies %d, max extrapolation %.3f s" % [
-		TICK_RATE, net.config.snapshot_rate, int(period), ArenaNetBridge.INPUT_COPIES, net.config.max_extrapolation_sec])
+		TICK_RATE, net.config.snapshot_rate, int(period), FcNetBridge.INPUT_COPIES, net.config.max_extrapolation_sec])
 	print("    server rewind: max_unlag %.0f ms, ring %.1f s, collision lag cap %.3f s" % [
-		_server_game.max_unlag_ms, ArenaGame.UNLAG_SECONDS, ArenaGame.COLLISION_LAG_MAX_SEC])
+		_server_game.max_unlag_ms, FcGame.UNLAG_SECONDS, FcGame.COLLISION_LAG_MAX_SEC])
 	for link: Array in LINKS:
 		for rtt in CHAOS_RTTS:
 			_link = link[0]
@@ -244,7 +244,7 @@ func _judge(weapon_id: StringName, ping: int, c: Dictionary) -> void:
 	# stood the target on a spawn once), never the network's: the ring is two seconds deep.
 	_check(float(c["worst_err"]) < INF, "%s: every shot finds the target in the rewind history" % tag, "worst %.3f m" % float(c["worst_err"]))
 	# The ring's own tick is not the drawn body: at a strafe reversal the blend of two snapshots cut
-	# the corner by up to 12 cm, and edge shots missed (ArenaNetBridge.shot_feet).
+	# the corner by up to 12 cm, and edge shots missed (FcNetBridge.shot_feet).
 	_check(worst_blend <= REWIND_TOLERANCE_M, "%s: the server rewinds each shot to the body the shooter drew" % tag,
 		"worst %.3f m at tick %d%s" % [worst_blend, blend_at, blend_how])
 	if _link == "clean":
@@ -276,7 +276,7 @@ func _print_carriers(t: int) -> void:
 	var at := _clients.keys().find(SHOOTER_PEER)
 	var k0 := t - _lead_ticks()
 	var line := "        carried by:"
-	for k in range(k0, k0 + ArenaNetBridge.INPUT_COPIES):
+	for k in range(k0, k0 + FcNetBridge.INPUT_COPIES):
 		var sent: Array = _ups.get(k, [])
 		if at < sent.size():
 			line += " step %d (server tick %d) lands %d;" % [k, int(sent[at][0]), int(sent[at][1])]

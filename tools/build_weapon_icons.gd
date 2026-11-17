@@ -33,7 +33,7 @@ var _written := 0
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	DotLog.set_level(DotLog.Level.ERROR)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 

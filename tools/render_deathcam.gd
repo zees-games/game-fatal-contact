@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## The solo client's death camera for a death against a wall, killer on the open side, with the
-## body on the floor: ArenaClient driving dot-spectate's stand-back death camera (6087cbf), not a
+## body on the floor: FcClient driving dot-spectate's stand-back death camera (6087cbf), not a
 ## standalone DotSpectatorManager. Frames at 0.3, 1.2 and 3 s after the kill, the eye's distance
 ## from the body, and whether the camera is inside the level, printed and saved to
 ## screenshots/deathcam/. The look no assertion gives: is the camera held against the wall, and
@@ -12,7 +12,7 @@ extends SceneTree
 ## The wall is found with rays from each spawn: the first spot with a wall 0.6 to 1.6 m away in
 ## some direction and 5 m of clear floor on the opposite side, where the killer is put.
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 const OUT_DIR := "res://screenshots/deathcam"
 
@@ -25,8 +25,8 @@ func _initialize() -> void:
 	var at := args.find("--map")
 	if at >= 0 and at + 1 < args.size():
 		_map = args[at + 1]
-	var _scratch := ArenaPresentation.use_scratch_settings("render_deathcam")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	var _scratch := FcPresentation.use_scratch_settings("render_deathcam")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
@@ -76,7 +76,7 @@ func _run() -> void:
 		game = client.get("game")  # Set part-way through a windowed client's `_ready`, which spans frames.
 		if game != null and game.map != null and client.get("player") != null:
 			break
-	var changed = game.change_map(load("res://maps/arena_map.gd").by_id(StringName(_map)))
+	var changed = game.change_map(load("res://maps/fc_map.gd").by_id(StringName(_map)))
 	print("map %s: %s" % [_map, "ok" if changed.ok else "failed"])
 	await _wait(3.0)
 	var me = client.get("player")

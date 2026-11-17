@@ -1,6 +1,6 @@
 extends "headless_feel_b1.gd"
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 
 ## Offline: display rate and seconds.
@@ -48,7 +48,7 @@ func _ready() -> void:
 	if at >= 0 and at + 1 < args.size():
 		_only = args[at + 1]
 	DotLog.set_level(DotLog.Level.INFO if _verbose else DotLog.Level.ERROR)
-	var _scratch := ArenaPresentation.use_scratch_settings("headless_feel")
+	var _scratch := FcPresentation.use_scratch_settings("headless_feel")
 
 	var early := Early.new()
 	early.probe = self
@@ -108,14 +108,14 @@ func _wait(seconds: float) -> void:
 
 ## Zeroed so a nearby wall cannot be mistaken for bob or sway.
 func _zero_wall_retract(client: Node) -> void:
-	var p: ArenaPlayer = client.get("player")
+	var p: FcPlayer = client.get("player")
 	if p != null and p.weapons != null and p.weapons.view_model() != null:
 		p.weapons.view_model().get("feel_rules").set("wall_retract", 0.0)
 
 
 func _test_offline() -> void:
 	_section("offline at %d Hz: running, strafing and turning among the bots" % OFFLINE_FPS)
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	add_child(client)
@@ -124,8 +124,8 @@ func _test_offline() -> void:
 
 	# Warmup places nobody until the match is live; wait for the player and two bots alive.
 	var live := await _until(func() -> bool:
-		var p: ArenaPlayer = client.get("player")
-		var g: ArenaGame = client.get("game")
+		var p: FcPlayer = client.get("player")
+		var g: FcGame = client.get("game")
 		if p == null or g == null or not p.is_alive() or g.match_node == null or g.match_node.state != DotMatch.State.LIVE:
 			return false
 		var alive := 0
@@ -138,11 +138,11 @@ func _test_offline() -> void:
 	# The bots run circles rather than hunt: a bot that shoots the player measures a death.
 	var bots: Dictionary = client.get("_bots")
 	for id in bots:
-		(bots[id] as ArenaPlayer).set_meta(&"bot_scripted", true)
+		(bots[id] as FcPlayer).set_meta(&"bot_scripted", true)
 	_offline_bots = bots
 	_zero_wall_retract(client)
 	# Out-of-sight bodies are presented every fourth frame; this measures every frame.
-	ArenaPlayer.present_lod_enabled = false
+	FcPlayer.present_lod_enabled = false
 	_hold_movement(false)
 	_turning = true
 	_driving = true
@@ -164,7 +164,7 @@ func _test_offline() -> void:
 	_starved_reason = ""
 
 	_offline_bots = {}
-	ArenaPlayer.present_lod_enabled = true
+	FcPlayer.present_lod_enabled = true
 	client.queue_free()
 	_client = null
 	await get_tree().process_frame
@@ -191,16 +191,16 @@ func _release_movement() -> void:
 
 # --- The moves, through the one place the camera is written ------------------------
 
-## A player of its own on dm_box, drawn through `ArenaPlayer.present` at the display rate:
+## A player of its own on dm_box, drawn through `FcPlayer.present` at the display rate:
 ## up the stair at a run, a slide, a jump and its landing. What each frame's eye did.
 func _test_moves() -> void:
 	_section("moves at %d Hz: up dm_box's stair at a run, a slide, a jump and a landing" % OFFLINE_FPS)
 	Engine.physics_ticks_per_second = TICK_RATE
 	Engine.max_fps = OFFLINE_FPS
-	var map: ArenaMap = ArenaMap.dm_box()
-	_mover = ArenaPlayer.new()
+	var map: FcMap = FcMap.dm_box()
+	_mover = FcPlayer.new()
 	_mover.name = "Mover"
-	_mover.setup(ArenaPlayer.Mode.HEADLESS, map, 7, "Mover")
+	_mover.setup(FcPlayer.Mode.HEADLESS, map, 7, "Mover")
 	add_child(_mover)
 	_mover.spawn(Transform3D(Basis(), Vector3(-12.0, 0.05, -12.0)), 0)
 	_mover.attach_camera(100.0)
@@ -291,12 +291,12 @@ func _test_moves() -> void:
 	_check(climb["n"] > 40 and climb["top"] > 3.0, "the run goes up the stair", "%d frames, top %.2f m" % [climb["n"], climb["top"]])
 	_starved_reason = stair_starved
 	# One step's smoothed rise takes the same frames at any speed while the mean falls with it, so the bound is 2.5 at the old 7.65 m/s run.
-	var ratio_limit := 2.5 * 7.65 / ArenaPlayer.arena_tunables().max_speed
+	var ratio_limit := 2.5 * 7.65 / FcPlayer.fc_tunables().max_speed
 	_check(climb["ratio"] < ratio_limit, "the eye climbs the stair smoothly: no frame rises more than %.1fx the climb's average" % ratio_limit,
 		"max %.1f mm against a mean of %.1f mm" % [climb["max"] * 1000.0, climb["mean"] * 1000.0])
 	_starved_reason = ""
 
-	# The camera's motion (`ArenaPlayer.camera_motion_picks`): each eases, none snaps.
+	# The camera's motion (`FcPlayer.camera_motion_picks`): each eases, none snaps.
 	if _verbose:
 		for f in drop.slice(0, drop.size(), 12):
 			print("      drop frame: pos %s grounded %s dip %.4f" % [f["pos"], f["grounded"], f["dip"]])
@@ -386,7 +386,7 @@ func _check_view_model(w: Dictionary) -> void:
 ## other check here judges a frame against one velocity, which a wall or a ceiling breaks;
 ## a runner that drifted into one is measuring the wall (see `_place_on_circle`).
 func _check_open_floor(w: Dictionary) -> void:
-	var me: ArenaPlayer = _client.get("player")
+	var me: FcPlayer = _client.get("player")
 	var touched := PackedStringArray()
 	var ticks := 0
 	for who in [me.player_id if me != null else 0, _bot_session]:
@@ -424,7 +424,7 @@ func _play_window(window: Array) -> void:
 	_set_link(window)
 	Engine.max_fps = int(window[1])
 	# Every window starts on its circle, wherever the last one ended (see `_place_on_circle`).
-	var me := _client.get("player") as ArenaPlayer
+	var me := _client.get("player") as FcPlayer
 	_place_on_circle(_game.player_for(me.player_id) if me != null else null, RUN_CENTRE, 2.2, -45.0, false)
 	_hold_movement(bool(window[6]))
 	_turning = true

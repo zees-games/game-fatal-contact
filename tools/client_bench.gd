@@ -1,12 +1,12 @@
 extends Node
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaModule := preload("../game/arena_module.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcModule := preload("../game/fc_module.gd")
 const LoopbackServer := preload("loopback_server.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
-const ArenaFrameProbe := preload("../game/arena_frame_probe.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 const StallRecorder := preload("stall_recorder.gd")
 const FrameProfile := preload("frame_profile.gd")
 
@@ -14,7 +14,7 @@ const FrameProfile := preload("frame_profile.gd")
 const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
 
 ## What a CONNECTED client's frame costs, and whether the round trip changes it: the real
-## client (`arena.tscn`) in this process, a dedicated arena server with hunting bots in a
+## client (`fc.tscn`) in this process, a dedicated Fatal Contact server with hunting bots in a
 ## second one, and dot-net's relay between them adding a delay each way.
 ##
 ## [codeblock]
@@ -53,8 +53,8 @@ var _play := false
 ## `--wallrun` (needs a map with wall routes, dm_atrium): the server puts the client's player at the start of the first wall route every few seconds and the client's pilot drives the route
 ## (the run, the slide, the jump onto the wall) instead of wandering, so the mismatch check covers a predicted wall run. An earlier "0 mismatches" ran on dm_box, which has none.
 var _wallrun := false
-## The server game's tick rate. 60 is dot-server's default `sv_tickrate`; 64 is ArenaGame's.
-var _tick := ArenaContent.TICK_RATE
+## The server game's tick rate. 60 is dot-server's default `sv_tickrate`; 64 is FcGame's.
+var _tick := FcContent.TICK_RATE
 
 var _server_pid := -1
 var _relay = null
@@ -85,7 +85,7 @@ func _ready() -> void:
 	_wallrun = "--wallrun" in args
 	_json = "--json" in args
 	DotLog.set_level(DotLog.Level.ERROR)
-	var _scratch := ArenaPresentation.use_scratch_settings("client_bench_" + _role)
+	var _scratch := FcPresentation.use_scratch_settings("client_bench_" + _role)
 	if _role == "server":
 		_serve.call_deferred()
 	else:
@@ -97,7 +97,7 @@ func _ready() -> void:
 func _serve() -> void:
 	var data := "user://client_bench_server"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(data))
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.name = "Arena"
 	game.tick_rate = _tick
 	game.score_limit = 0
@@ -107,15 +107,15 @@ func _serve() -> void:
 	game.mode_id = StringName(_mode)
 	game.register_service = true
 	add_child(game)
-	var map: ArenaMap = ArenaMap.by_id(StringName(_map))
-	var _set := game.setup(map if map != null else ArenaMap.dm_box())
+	var map: FcMap = FcMap.by_id(StringName(_map))
+	var _set := game.setup(map if map != null else FcMap.dm_box())
 
 	var config := LoopbackServer.config("client bench", _port, data, "error", 256)
 	var server := await LoopbackServer.boot(self, config, "client_bench server")
 	if server == null:
 		get_tree().quit(1)
 		return
-	var module := server.modules.get_module("arena") as ArenaModule
+	var module := server.modules.get_module("arena") as FcModule
 	var quota: DotBotQuota = module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		# "off" is wanted = 0: the quota removes every bot a second later (arena-128-scale-1).
@@ -132,7 +132,7 @@ func _serve() -> void:
 
 ## `--wallrun`, server side: every 7 s sends each human player to the start of the map's first
 ## wall route, facing along it.
-func _feed_wall_routes(game: ArenaGame, module: Object) -> void:
+func _feed_wall_routes(game: FcGame, module: Object) -> void:
 	if game.map.wall_routes.is_empty():
 		printerr("client_bench: --wallrun needs a map with wall routes (dm_atrium)")
 		return
@@ -322,7 +322,7 @@ func _run() -> void:
 	burner.process_priority = -1000
 	add_child(burner)
 
-	_client = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("mouse_capture_override", true)
 	var stall: RefCounted = null
 	if "--stall" in OS.get_cmdline_user_args() or _json:
@@ -371,7 +371,7 @@ func _run() -> void:
 func _start_pilot() -> bool:
 	# After the client, whose bindings register the actions the pilot presses.
 	if _wallrun:
-		var wall_map: ArenaMap = ArenaMap.by_id(StringName(_map))
+		var wall_map: FcMap = FcMap.by_id(StringName(_map))
 		if wall_map == null or wall_map.wall_routes.is_empty():
 			_fail("--wallrun needs a map with wall routes, e.g. --map dm_atrium")
 			return false
@@ -498,7 +498,7 @@ func _print_mismatches() -> void:
 
 
 func _measure() -> void:
-	ArenaFrameProbe.set_interval(1.0e9)
+	FcFrameProbe.set_interval(1.0e9)
 	var frames := PackedFloat32Array()
 	var steps := PackedInt32Array()
 	var calls := 0.0
@@ -565,13 +565,13 @@ func _measure() -> void:
 		fs["physics_ms"], float(fs["physics_ms"]) / maxf(0.01, float(fs["steps"])), fs["script_ms"], fs["render_ms"], fs["wait_ms"],
 		float(step_sum) / n, step_max, calls / n, objs / n])
 	_print_net(net, perf0, n, lead_sum)
-	for key: StringName in ArenaFrameProbe._sections:
-		var row: PackedInt64Array = ArenaFrameProbe._sections[key]
+	for key: StringName in FcFrameProbe._sections:
+		var row: PackedInt64Array = FcFrameProbe._sections[key]
 		if String(key).ends_with("_n"):
 			print("  %-12s %.1f/frame max %d" % [key, float(row[0]) / n, row[2]])
 		else:
 			print("  %-12s %.3f ms/frame  max %.2f  x%.2f" % [key, float(row[0]) / n / 1000.0, row[2] / 1000.0, float(row[1]) / n])
-	ArenaFrameProbe.set_interval(0.0)
+	FcFrameProbe.set_interval(0.0)
 	print("  physics3d active %d pairs %d | nodes %d" % [
 		int(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS)),
 		int(Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS)),

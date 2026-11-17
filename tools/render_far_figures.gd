@@ -6,7 +6,7 @@ extends "render_base.gd"
 ## Frames in screenshots/far_figures/; exit 1 on a failed check. Run:
 ##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_far_figures.gd
 
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 const DISTANCES: Array[float] = [8.0, 28.0, 36.0]
 const CROP := 96
 
@@ -65,7 +65,7 @@ func _run() -> void:
 	await _wait(1.5)
 	var camera := root.get_viewport().get_camera_3d()
 	for pass_lift: float in [22.0, 0.0]:
-		ArenaPlayer.figure_lift_range = pass_lift
+		FcPlayer.figure_lift_range = pass_lift
 		(DotHumanoidFigure as Script).set(&"lift_range", pass_lift)
 		await _wait(0.8)
 		var name := "lift%d" % int(pass_lift)

@@ -1,6 +1,6 @@
 extends "headless_imported_b2.gd"
 
-const ArenaContent := preload("../game/arena_content.gd")
+const FcContent := preload("../game/fc_content.gd")
 
 
 ## The map whose hurt volumes are checked: MAP has none.
@@ -44,7 +44,7 @@ func _expected_checks() -> int:
 
 ## The imported maps this run covers: all of them, or this shard's every MAP_SHARDS-th.
 func _map_ids() -> Array:
-	var all: Array = ArenaMap.imported_ids()
+	var all: Array = FcMap.imported_ids()
 	if not _shard.begins_with("maps"):
 		return all
 	var out := []
@@ -69,14 +69,14 @@ func _run() -> void:
 		return
 	_shard = DotGameShardArgs.shard()
 
-	if ArenaMap.imported_ids().is_empty():
-		_line("no imported maps under %s — nothing to check" % ArenaImportedMaps.roots()[0])
-		_line("  link arena-surf-dm-maps: dot-bootstrap/bootstrap.sh --links game-arena")
+	if FcMap.imported_ids().is_empty():
+		_line("no imported maps under %s — nothing to check" % FcImportedMaps.roots()[0])
+		_line("  link fc-surf-dm-maps: dot-bootstrap/bootstrap.sh --links game-arena")
 		get_tree().quit(0)
 		return
 
 	# The legacy meshes are what the probes below read; _test_worlds turns the worlds on for itself.
-	ArenaMap.use_worlds = false
+	FcMap.use_worlds = false
 	if _shard.begins_with("maps"):
 		await _test_every_map()
 		await _test_collision_audit()
@@ -193,8 +193,8 @@ func _test_shots() -> void:
 ## The bots' sight ray (one ray query: no Hit, no material lookup) answers as the trace's own line_of_sight,
 ## on 200 seeded rays around the spawn.
 func _check_sight_ray(trace: DotTrace, eye: Vector3) -> void:
-	var world := ArenaBots.world_for(_game)
-	var fast := trace is DotTracePhysics and ArenaBots.World._plain_sight_trace(trace)
+	var world := FcBots.world_for(_game)
+	var fast := trace is DotTracePhysics and FcBots.World._plain_sight_trace(trace)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 0x5197
 	var same := 0
@@ -359,7 +359,7 @@ func _test_mechanics() -> void:
 func _test_hurt() -> void:
 	_section("a hurt volume hurts through dot-combat, kills as the world, and heals")
 
-	var changed := _game.change_map(ArenaMap.by_id(HURT_MAP))
+	var changed := _game.change_map(FcMap.by_id(HURT_MAP))
 	var mech := _game.map.mechanics if changed.ok else null
 
 	var picked := _pick_hurt_volumes(mech)
@@ -396,7 +396,7 @@ func _test_hurt() -> void:
 	_game.player_killed.connect(on_kill)
 
 	var per_second := float(hurts["damage"])
-	var pulse := per_second * ArenaMap.ArenaMapMechanics.HURT_INTERVAL
+	var pulse := per_second * FcMap.FcMapMechanics.HURT_INTERVAL
 	var before := player.health.health
 	_stand_in(player, hurts["box"])
 	_game.tick(idle)
@@ -405,7 +405,7 @@ func _test_hurt() -> void:
 		"stepping into a %.0f-a-second volume takes %.0f at once (%.1f, %.0f left)" % [
 			per_second, pulse, first, player.health.health])
 	_check(dealt.size() == 1 and dealt[0].attacker == 0 and dealt[0].type != null
-		and dealt[0].type.id == ArenaContent.DAMAGE_WORLD,
+		and dealt[0].type.id == FcContent.DAMAGE_WORLD,
 		"through dot-combat, as world damage (%d events, attacker %d, type %s)" % [
 			dealt.size(), dealt[0].attacker if not dealt.is_empty() else -1,
 			dealt[0].type.id if not dealt.is_empty() and dealt[0].type != null else &"?"])
@@ -423,7 +423,7 @@ func _test_hurt() -> void:
 
 	# The next pulse is half a second on, and not a tick sooner: then a second one, which
 	# from a full 100 at 50 a pulse is the death.
-	var interval := roundi(ArenaMap.ArenaMapMechanics.HURT_INTERVAL * TICK_RATE)
+	var interval := roundi(FcMap.FcMapMechanics.HURT_INTERVAL * TICK_RATE)
 	for _i in range(interval - 3):
 		_game.tick(idle)
 	var held := player.health.health
@@ -450,7 +450,7 @@ func _test_hurt() -> void:
 	_stand_in(player, heals["box"])
 	_game.tick(idle)
 	var healed := player.health.health - hurt_to
-	_check(is_equal_approx(healed, -float(heals["damage"]) * ArenaMap.ArenaMapMechanics.HURT_INTERVAL),
+	_check(is_equal_approx(healed, -float(heals["damage"]) * FcMap.FcMapMechanics.HURT_INTERVAL),
 		"a volume of %.0f a second heals %.1f a pulse (%.1f)" % [
 			float(heals["damage"]), -float(heals["damage"]) * 0.5, healed])
 
@@ -460,7 +460,7 @@ func _test_hurt() -> void:
 
 
 ## Puts [param player] standing on the top of [param box], in the middle of it.
-func _stand_in(player: ArenaPlayer, box: AABB) -> void:
+func _stand_in(player: FcPlayer, box: AABB) -> void:
 	player.controller.teleport(Vector3(box.get_center().x, box.end.y + 0.02, box.get_center().z), 0.0, 0.0)
 
 
@@ -474,7 +474,7 @@ func _test_every_map() -> void:
 	var report: Array[String] = []
 
 	for id in _map_ids():
-		var map: ArenaMap = ArenaMap.by_id(id)
+		var map: FcMap = FcMap.by_id(id)
 		var solid := map.to_collision()
 		add_child(solid)
 		map.collision_root = solid
@@ -498,7 +498,7 @@ func _test_every_map() -> void:
 		var trace := map.shot_trace()
 		if "collision_mask" in trace:
 			trace.set("collision_mask", ISOLATED_LAYER)
-		var tunables := ArenaPlayer.arena_tunables()
+		var tunables := FcPlayer.fc_tunables()
 		var floored := 0
 		var stuck := 0
 		# What the game does at load, so what is checked is what a player is put on.
@@ -536,12 +536,12 @@ func _test_every_map() -> void:
 ## dot-core's [DotCollisionAudit] over every imported map as a client draws it (the drawn brushes
 ## beside the collision the game builds): geometry with no shape near it is a wall a player
 ## walks into. Fails on any finding; what is meant to be walked through is opted out in
-## `arena_bsp_map.gd` with the reason.
+## `fc_bsp_map.gd` with the reason.
 func _test_collision_audit() -> void:
 	_section("every imported map: nothing drawn is walked through")
 
 	for id in _map_ids():
-		var map: ArenaMap = ArenaMap.by_id(id)
+		var map: FcMap = FcMap.by_id(id)
 		var world := Node3D.new()
 		world.add_child(map.to_scene())
 		world.add_child(map.to_collision())

@@ -3,7 +3,7 @@ extends SceneTree
 ## What a player sees of a scoped weapon when NOT aiming: every frame (at the render rate) of the raise, the steady hip, the aim-in, the release, and a sprint, for each scoped rifle, saved to screenshots/scope_hip/<role>_<phase>_NNN.png and
 ## the aim fraction, scope fraction and flags in <role>.csv. tools/render_scope_hip.sh joins them into sheets. SCOPE_ROLES=sniper,marksman,charge_rifle tools/render_scope_hip.sh
 
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "screenshots/scope_hip"
 
 var client: Node = null
@@ -12,9 +12,9 @@ var _n := 0
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
-	var _scratch := ArenaPresentation.use_scratch_settings("render_scope_hip")
-	var scene: PackedScene = load("res://game/arena.tscn")
+	preload("../game/fc_weapon_roles.gd").ensure()
+	var _scratch := FcPresentation.use_scratch_settings("render_scope_hip")
+	var scene: PackedScene = load("res://game/fc.tscn")
 	client = scene.instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)

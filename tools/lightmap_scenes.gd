@@ -1,7 +1,7 @@
 extends Node
 
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 
 ## Writes one bake scene per built-in map for dot-lighting's baker: the level built exactly as a
 ## client builds it (every box with its UV2), the map's sun and sky, a LightmapGI added and the
@@ -13,7 +13,7 @@ const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
 ##
 ## [b]What the bake sees.[/b] The boxes and the floor. The sun gives only its bounce
 ## (BAKE_DYNAMIC) because it stays live; the fill is left out (BAKE_DISABLED), being already
-## "more sky". Changing any of that changes what a bake means: bump ArenaMap.BAKE_VERSION.
+## "more sky". Changing any of that changes what a bake means: bump FcMap.BAKE_VERSION.
 
 ## Per map: LightmapGI settings for DotLightBake.prepare, over "default".
 const SETTINGS := {
@@ -38,13 +38,13 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(out))
 	var wanted := _arg("maps", "")
 	var written := 0
-	ArenaMap.use_bakes = false
+	FcMap.use_bakes = false
 
-	for id: StringName in ArenaMap.ids():
+	for id: StringName in FcMap.ids():
 		if wanted != "" and not wanted.split(",").has(String(id)):
 			continue
 
-		var map: ArenaMap = ArenaMap.by_id(id)
+		var map: FcMap = FcMap.by_id(id)
 
 		if map == null or map.is_imported():
 			continue
@@ -61,7 +61,7 @@ func _run() -> void:
 	get_tree().quit(0 if written > 0 else 1)
 
 
-func _bake_scene(map: ArenaMap) -> Node3D:
+func _bake_scene(map: FcMap) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Bake"
 	var settings: Dictionary = (SETTINGS["default"] as Dictionary).duplicate()
@@ -92,7 +92,7 @@ func _bake_scene(map: ArenaMap) -> Node3D:
 		root.add_child(holder)
 
 	level.free()
-	var lighting := ArenaMapLighting.build(map)
+	var lighting := FcMapLighting.build(map)
 	root.add_child(lighting)
 
 	for node in lighting.get_children():
@@ -100,7 +100,7 @@ func _bake_scene(map: ArenaMap) -> Node3D:
 			# The sun first (DotLightRig adds it before the fill).
 			node.light_bake_mode = Light3D.BAKE_DYNAMIC if node == lighting.get_child(0) else Light3D.BAKE_DISABLED
 
-	var gi := DotLightBake.prepare(root, map.light_fingerprint(), ArenaMap.BAKE_PATH % String(map.id), settings)
+	var gi := DotLightBake.prepare(root, map.light_fingerprint(), FcMap.BAKE_PATH % String(map.id), settings)
 	gi.bounce_indirect_energy = float(settings.get("bounce_energy", 1.0))
 	var world := lighting.get_node_or_null("Lighting") as WorldEnvironment
 

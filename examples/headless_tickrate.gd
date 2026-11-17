@@ -1,11 +1,11 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaEvents := preload("../game/arena_events.gd")
-const ArenaProjectiles := preload("../game/arena_projectiles.gd")
-const ArenaFlashlight := preload("../game/arena_flashlight.gd")
-const ArenaContent := preload("../game/arena_content.gd")
-const ArenaBots := preload("../game/arena_bots.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcEvents := preload("../game/fc_events.gd")
+const FcProjectiles := preload("../game/fc_projectiles.gd")
+const FcFlashlight := preload("../game/fc_flashlight.gd")
+const FcContent := preload("../game/fc_content.gd")
+const FcBots := preload("../game/fc_bots.gd")
 
 ## The tick rate is a setting: what has to hold at 22, 33, 66 and 128 Hz. The snapshot rate is
 ## its own number, a predicting client stays within 2 cm of the server when rewound, and a
@@ -50,19 +50,19 @@ func _test_snapshot_rate() -> void:
 	_section("the snapshot rate is derived from the target, never above the tick rate")
 	var cases := [[66, 32, 33], [64, 32, 32], [60, 32, 30], [128, 32, 32], [33, 32, 33], [22, 32, 22], [66, 22, 22], [66, 16, 11], [66, 0, 33], [22, 128, 22]]
 	for c: Array in cases:
-		var got := ArenaGame.snapshot_rate_for(int(c[0]), int(c[1]))
+		var got := FcGame.snapshot_rate_for(int(c[0]), int(c[1]))
 		_check(got == int(c[2]), "%d Hz aiming at %d snapshots a second sends %d" % [c[0], c[1], c[2]], str(got))
 	for rate: int in [15, 22, 30, 33, 44, 60, 66, 100, 128]:
 		for target: int in [8, 16, 20, 32, 64]:
-			if rate % ArenaGame.snapshot_rate_for(rate, target) != 0:
+			if rate % FcGame.snapshot_rate_for(rate, target) != 0:
 				_check(false, "%d Hz aiming at %d sends a divisor of the tick rate" % [rate, target])
-	_check(ArenaGame.snapshot_rate_for(66) == 33 and ArenaGame.snapshot_rate_for(22) == 22, "the default target is unchanged")
+	_check(FcGame.snapshot_rate_for(66) == 33 and FcGame.snapshot_rate_for(22) == 22, "the default target is unchanged")
 	for rate: int in [15, 22, 30, 33, 44, 60, 66, 100, 128]:
-		_check(ArenaGame.snapshot_rate_for(rate) <= rate and ArenaGame.snapshot_rate_for(rate) >= 1, "%d Hz sends at most one snapshot a tick" % rate)
+		_check(FcGame.snapshot_rate_for(rate) <= rate and FcGame.snapshot_rate_for(rate) >= 1, "%d Hz sends at most one snapshot a tick" % rate)
 
-	var hello := ArenaEvents.read_hello(DotNetReader.new(ArenaEvents.write_hello(22, 1, 2, 3, "dm_box", 25, 600.0, 11)))
+	var hello := FcEvents.read_hello(DotNetReader.new(FcEvents.write_hello(22, 1, 2, 3, "dm_box", 25, 600.0, 11)))
 	_check(bool(hello["ok"]) and int(hello["tick_rate"]) == 22 and int(hello["snapshot_rate"]) == 11, "HELLO carries the snapshot rate beside the tick rate")
-	var plain := ArenaEvents.read_hello(DotNetReader.new(ArenaEvents.write_hello(22, 1, 2, 3, "dm_box", 25, 600.0)))
+	var plain := FcEvents.read_hello(DotNetReader.new(FcEvents.write_hello(22, 1, 2, 3, "dm_box", 25, 600.0)))
 	_check(bool(plain["ok"]) and int(plain["snapshot_rate"]) == 0, "and 0 means derive it")
 	_done()
 
@@ -247,7 +247,7 @@ func _secs(def: DotWeaponDef, authored: int, rate: int) -> float:
 
 func _test_weapon_parity() -> void:
 	_section("every weapon's fire interval, reload, deploy and holster last the same time at 66 and 128 Hz (within half a tick)")
-	var defs := ArenaContent.weapons()
+	var defs := FcContent.weapons()
 	_check(defs.size() > 0, "the catalogue has weapons", str(defs.size()))
 	var unscaled := 0
 	var worst_rpm := 0.0
@@ -278,27 +278,27 @@ func _test_weapon_parity() -> void:
 func _test_tick_counts() -> void:
 	_section("tick-count constants are seconds now: the same time at each rate")
 	for rate: int in RATES:
-		var grace := maxi(1, roundi(ArenaProjectiles.THROWER_GRACE_SEC * float(rate)))
-		var hold := ArenaFlashlight.hold_ticks(rate)
-		var g := ArenaGame.new()
+		var grace := maxi(1, roundi(FcProjectiles.THROWER_GRACE_SEC * float(rate)))
+		var hold := FcFlashlight.hold_ticks(rate)
+		var g := FcGame.new()
 		g.tick_rate = rate
 		var lag := g.collision_lag(1000.0)
 		print("  measured: %d Hz: one tick %.1f ms; thrower grace %d ticks = %.0f ms; flashlight hold %d = %.0f ms; collision lag cap %.1f ticks = %.0f ms; unlag ring %d slots = %.2f s" % [rate, 1000.0 / rate, grace, 1000.0 * grace / rate, hold, 1000.0 * hold / rate, lag, 1000.0 * lag / rate, g.unlag_history(), float(g.unlag_history()) / rate])
 		_check(absf(1000.0 * grace / rate - 120.0) <= 500.0 / rate + 0.01, "%d Hz: thrower grace is 120 ms to a tick" % rate)
 		_check(hold >= 1 and absf(1000.0 * hold / rate - 45.0) <= 1000.0 / rate, "%d Hz: the flashlight bit is held about 45 ms" % rate)
 		_check(absf(1000.0 * lag / rate - 485.0) < 0.01, "%d Hz: the collision lag cap is 485 ms" % rate, str(lag))
-		_check(float(g.unlag_history()) / rate >= ArenaGame.UNLAG_SECONDS, "%d Hz: the unlag ring holds two seconds" % rate)
+		_check(float(g.unlag_history()) / rate >= FcGame.UNLAG_SECONDS, "%d Hz: the unlag ring holds two seconds" % rate)
 		g.free()
-	_check(ArenaFlashlight.hold_ticks(66) == 3 and ArenaProjectiles.THROWER_GRACE_SEC * 66.0 > 7.9, "66 Hz keeps the old 3 and 8 ticks")
+	_check(FcFlashlight.hold_ticks(66) == 3 and FcProjectiles.THROWER_GRACE_SEC * 66.0 > 7.9, "66 Hz keeps the old 3 and 8 ticks")
 	_done()
 
 
 func _test_rate_settings() -> void:
 	_section("the rate settings: interpolation delay, bot think rate")
 	for sr: int in [22, 33, 64]:
-		_check(ArenaGame.interp_buffer_for(sr, 0.0, 2.0) == 2.0, "%d snapshots/s, no cl_interp: the ratio is the buffer" % sr)
-		_check(absf(ArenaGame.interp_buffer_for(sr, 0.1, 2.0) / float(sr) - 0.1) < 0.0001, "%d snapshots/s, cl_interp 0.1: the delay is 100 ms" % sr)
-	_check(ArenaGame.interp_buffer_for(33, 0.001, 2.0) == 1.0 and ArenaGame.interp_buffer_for(33, 9.0, 2.0) == 10.0, "the buffer is held to 1..10 snapshots")
-	_check(ArenaBots.every_for_hz(33.0, 66) == 2 and ArenaBots.every_for_hz(33.0, 128) == 4 and ArenaBots.every_for_hz(200.0, 66) == 1, "bot_think_hz 33 is every 2nd tick at 66, every 4th at 128, never under 1")
-	_check(ArenaGame.snapshot_rate_for(128, 64) == 64 and ArenaGame.snapshot_rate_for(128, 0) == 32, "128 Hz can send 64 snapshots a second when asked")
+		_check(FcGame.interp_buffer_for(sr, 0.0, 2.0) == 2.0, "%d snapshots/s, no cl_interp: the ratio is the buffer" % sr)
+		_check(absf(FcGame.interp_buffer_for(sr, 0.1, 2.0) / float(sr) - 0.1) < 0.0001, "%d snapshots/s, cl_interp 0.1: the delay is 100 ms" % sr)
+	_check(FcGame.interp_buffer_for(33, 0.001, 2.0) == 1.0 and FcGame.interp_buffer_for(33, 9.0, 2.0) == 10.0, "the buffer is held to 1..10 snapshots")
+	_check(FcBots.every_for_hz(33.0, 66) == 2 and FcBots.every_for_hz(33.0, 128) == 4 and FcBots.every_for_hz(200.0, 66) == 1, "bot_think_hz 33 is every 2nd tick at 66, every 4th at 128, never under 1")
+	_check(FcGame.snapshot_rate_for(128, 64) == 64 and FcGame.snapshot_rate_for(128, 0) == 32, "128 Hz can send 64 snapshots a second when asked")
 	_done()

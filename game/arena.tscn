@@ -1,6 +1,5 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://game/arena_client.gd" id="1_client"]
+[ext_resource type="PackedScene" path="res://game/fc.tscn" id="1"]
 
-[node name="ArenaClient" type="Node"]
-script = ExtResource("1_client")
+[node name="ArenaClient" instance=ExtResource("1")]

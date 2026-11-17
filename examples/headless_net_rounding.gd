@@ -13,7 +13,7 @@ func _ready() -> void:
 func _run() -> void:
 	var errors := EngineErrors.new()
 	OS.add_logger(errors)
-	print("game-arena — float32 rounding of a pulled player")
+	print("FC — float32 rounding of a pulled player")
 
 	_build_server()
 	_build_client(2, 11)
@@ -52,7 +52,7 @@ func _load_state(state: DotFpsState) -> void:
 func _test_bot_stays_unrounded(bot_session: int) -> void:
 	print("")
 	_section("[a bot (owner 0) keeps its unrounded state after a pull]")
-	var behaviour: ArenaPlayerNet = _server_bridge.behaviour_for(bot_session)
+	var behaviour: FcPlayerNet = _server_bridge.behaviour_for(bot_session)
 	_check(behaviour != null and behaviour.identity != null, "the bot has a net behaviour")
 	_check(behaviour.identity.owner_peer_id == 0 and behaviour.identity.is_authoritative,
 		"owned by the server, which is authoritative")
@@ -72,8 +72,8 @@ func _test_peer_owned_rounds_identically() -> void:
 	print("")
 	_section("[a peer-owned player is rounded on the server and on its owning client alike]")
 	var session := int(_clients[2]["session"])
-	var on_server: ArenaPlayerNet = _server_bridge.behaviour_for(session)
-	var on_client: ArenaPlayerNet = (_clients[2]["bridge"] as ArenaNetBridge).behaviour_for(session)
+	var on_server: FcPlayerNet = _server_bridge.behaviour_for(session)
+	var on_client: FcPlayerNet = (_clients[2]["bridge"] as FcNetBridge).behaviour_for(session)
 	_check(on_server.identity.owner_peer_id == 2 and on_server.identity.is_authoritative, "the server holds peer 2's player as authority")
 	_check(on_client.identity.is_predicted(), "and the owning client predicts it")
 	var server_state := on_server.player.controller.state
@@ -98,8 +98,8 @@ func _test_replay_stays_consistent() -> void:
 	print("")
 	_section("[a snapshot replay on the owning client lands on the server's state]")
 	var session := int(_clients[2]["session"])
-	var on_server: ArenaPlayerNet = _server_bridge.behaviour_for(session)
-	var on_client: ArenaPlayerNet = (_clients[2]["bridge"] as ArenaNetBridge).behaviour_for(session)
+	var on_server: FcPlayerNet = _server_bridge.behaviour_for(session)
+	var on_client: FcPlayerNet = (_clients[2]["bridge"] as FcNetBridge).behaviour_for(session)
 	var server_state := on_server.player.controller.state
 	var client_state := on_client.player.controller.state
 	_load_state(server_state)

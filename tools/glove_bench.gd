@@ -8,7 +8,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	await get_tree().process_frame
 	var paths: Array = []
 	for art in AwWeaponArtTable.all():

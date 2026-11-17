@@ -7,9 +7,9 @@ func _test_owner_only() -> void:
 	# Client 2 owns player 11 and observes player 12. Ammunition is owner-only, so it
 	# must know its own and not the other's — data never sent cannot be read out of a
 	# modified client.
-	var bridge: ArenaNetBridge = _clients[2]["bridge"]
-	var own: ArenaPlayerNet = bridge.behaviour_for(11)
-	var other: ArenaPlayerNet = bridge.behaviour_for(12)
+	var bridge: FcNetBridge = _clients[2]["bridge"]
+	var own: FcPlayerNet = bridge.behaviour_for(11)
+	var other: FcPlayerNet = bridge.behaviour_for(12)
 
 	var declaration := own.find_var(&"net_magazine")
 	_check(
@@ -35,7 +35,7 @@ func _test_client_death_camera() -> void:
 	_section("[the death camera on a client]")
 
 	var client: Dictionary = _clients[2]
-	var client_game: ArenaGame = client["game"]
+	var client_game: FcGame = client["game"]
 	var victim := 11
 	var killer := 12
 
@@ -63,10 +63,10 @@ func _test_client_death_camera() -> void:
 	# a link delivers it. The harness carries snapshots and not events.
 	var writer := DotNetWriter.new()
 	var _enc := _server_net.messages.encode(
-		ArenaEvent.new(ArenaEvents.Kind.KILL, ArenaEvents.write_kill(killer, victim, "rifle", false)),
+		FcEvent.new(FcEvents.Kind.KILL, FcEvents.write_kill(killer, victim, "rifle", false)),
 		writer
 	)
-	var _got := (client["bridge"] as ArenaNetBridge).receive_event(writer.to_bytes())
+	var _got := (client["bridge"] as FcNetBridge).receive_event(writer.to_bytes())
 
 	_check(
 		client_game.spectate != null and client_game.spectate.is_spectating(str(victim)),
@@ -123,7 +123,7 @@ func _test_hits_and_medals_reach_clients() -> void:
 	var heard := {}
 	for peer in _clients:
 		heard[peer] = {"hits": [], "awards": []}
-		var bridge: ArenaNetBridge = _clients[peer]["bridge"]
+		var bridge: FcNetBridge = _clients[peer]["bridge"]
 		var mine: Dictionary = heard[peer]
 		bridge.hit_received.connect(func(info: Dictionary) -> void: (mine["hits"] as Array).append(info))
 		bridge.award_received.connect(func(info: Dictionary) -> void: (mine["awards"] as Array).append(info))
@@ -167,8 +167,8 @@ func _test_hits_and_medals_reach_clients() -> void:
 	var award_victim: Array = heard[2]["awards"]
 	_check(
 		award_killer.size() == 1 and award_victim.size() == 1
-			and (award_killer[0]["medals"] as Array).has(ArenaAwards.Medal.FIRST_BLOOD)
-			and (award_killer[0]["medals"] as Array).has(ArenaAwards.Medal.HEADSHOT),
+			and (award_killer[0]["medals"] as Array).has(FcAwards.Medal.FIRST_BLOOD)
+			and (award_killer[0]["medals"] as Array).has(FcAwards.Medal.HEADSHOT),
 		"the AWARD reaches every client, with the server's First Blood and Headshot",
 		"%s / %s" % [award_killer, award_victim]
 	)
@@ -185,7 +185,7 @@ func _test_hits_and_medals_reach_clients() -> void:
 func _test_bullets_reach_a_client() -> void:
 	print("")
 	_section("[simulated bullets reach a client]")
-	var client_game: ArenaGame = _clients[2]["game"]
+	var client_game: FcGame = _clients[2]["game"]
 	var sent: Array = []
 	var previous := _server_bridge.link
 	var link := _capture_link(sent)
@@ -193,7 +193,7 @@ func _test_bullets_reach_a_client() -> void:
 	var shooter := _server_game.player_for(11)
 	shooter.give_default_loadout()
 	var weapon_id := shooter.arsenal.current_def().id
-	var tuning := ArenaPlayer.weapon_catalogue().get_def(weapon_id).tuning as DotWeaponBallistics
+	var tuning := FcPlayer.weapon_catalogue().get_def(weapon_id).tuning as DotWeaponBallistics
 	var was := [tuning.muzzle_velocity, tuning.max_range, tuning.tracer_interval, tuning.pellets]
 	_tune(tuning, [40.0, 30.0, 1, 1])
 	_pump(2)
@@ -204,7 +204,7 @@ func _test_bullets_reach_a_client() -> void:
 		var out: Array = []
 		for item in sent:
 			var decoded: DotResult = _clients[2]["net"].messages.decode(DotNetReader.new(item[1]), 1, false)
-			var event := decoded.value as ArenaEvent if decoded.ok else null
+			var event := decoded.value as FcEvent if decoded.ok else null
 			if event != null and event.kind == kind:
 				out.append(item)
 		return out
@@ -217,17 +217,17 @@ func _test_bullets_reach_a_client() -> void:
 	_check(not _server_game.combat_feel.ballistics.enabled, "sv_ballistics is off by default")
 	fire.call()
 	_pump(2)
-	_check(kinds.call(ArenaEvents.Kind.BULLET).is_empty() and kinds.call(ArenaEvents.Kind.BULLET_END).is_empty(),
+	_check(kinds.call(FcEvents.Kind.BULLET).is_empty() and kinds.call(FcEvents.Kind.BULLET_END).is_empty(),
 		"off: a shot sends no bullet event at all", str(sent.size()))
 	_check(client_game.bullet_mirrors == null or client_game.bullet_mirrors.count() == 0, "off: the client has no bullet")
 	sent.clear()
 
 	for g in [_server_game, client_game]: g.combat_feel.ballistics.set(&"enabled", true)
 	fire.call()
-	var spawned: Array = kinds.call(ArenaEvents.Kind.BULLET)
+	var spawned: Array = kinds.call(FcEvents.Kind.BULLET)
 	_check(spawned.size() >= 1 and int(spawned[0][0]) == 2, "on: a BULLET goes to the ready client", str(spawned.size()))
-	var read := ArenaEvents.read_bullet(DotNetReader.new(ArenaEvents.write_bullet(7, 11, ArenaContent.weapon_index(weapon_id), Vector3(1.0, 8.0, -2.0), Vector3(10.0, 5.0, -30.0))))
-	_check(bool(read["ok"]) and int(read["id"]) == 7 and ArenaContent.weapon_at(int(read["weapon"])) == weapon_id
+	var read := FcEvents.read_bullet(DotNetReader.new(FcEvents.write_bullet(7, 11, FcContent.weapon_index(weapon_id), Vector3(1.0, 8.0, -2.0), Vector3(10.0, 5.0, -30.0))))
+	_check(bool(read["ok"]) and int(read["id"]) == 7 and FcContent.weapon_at(int(read["weapon"])) == weapon_id
 		and (read["velocity"] as Vector3).distance_to(Vector3(10.0, 5.0, -30.0)) < 0.1, "a BULLET round-trips")
 	deliver.call()
 	_check(client_game.bullet_mirrors != null and client_game.bullet_mirrors.count() == 1, "the client flies a copy of it")
@@ -237,7 +237,7 @@ func _test_bullets_reach_a_client() -> void:
 	_check(client_game.tracers != null and client_game.tracers.count() > 0, "and its tracer exists",
 		str(client_game.tracers.count() if client_game.tracers != null else -1))
 	_pump(100)
-	_check(not kinds.call(ArenaEvents.Kind.BULLET_END).is_empty(), "the server says when it ended")
+	_check(not kinds.call(FcEvents.Kind.BULLET_END).is_empty(), "the server says when it ended")
 	deliver.call()
 	_check(client_game.bullet_mirrors.count() == 0, "and the client's copy is gone")
 
@@ -245,7 +245,7 @@ func _test_bullets_reach_a_client() -> void:
 	deliver.call()
 	var live := client_game.bullet_mirrors.count()
 	var server_id := int(client_game._mirror_ids.keys()[0]) if not client_game._mirror_ids.is_empty() else -1
-	_deliver_event(2, ArenaEvents.Kind.BULLET_END, ArenaEvents.write_bullet_end(server_id))
+	_deliver_event(2, FcEvents.Kind.BULLET_END, FcEvents.write_bullet_end(server_id))
 	_check(live == 1 and client_game.bullet_mirrors.count() == 0, "a BULLET_END ends a copy early", "%d then %d" % [live, client_game.bullet_mirrors.count()])
 
 	for g in [_server_game, client_game]: g.combat_feel.ballistics.set(&"enabled", false)
@@ -300,8 +300,8 @@ func _test_killview_reaches_the_victim() -> void:
 	var views: Array = []
 	for item in sent:
 		var decoded: DotResult = _clients[2]["net"].messages.decode(DotNetReader.new(item[1]), 1, false)
-		var event := decoded.value as ArenaEvent if decoded.ok else null
-		if event != null and event.kind == ArenaEvents.Kind.KILLVIEW:
+		var event := decoded.value as FcEvent if decoded.ok else null
+		if event != null and event.kind == FcEvents.Kind.KILLVIEW:
 			views.append(item)
 	_check(views.size() == 1 and int(views[0][0]) == 2, "one KILLVIEW goes out, to the victim's peer alone", str(views.size()))
 	for item in views:
@@ -309,7 +309,7 @@ func _test_killview_reaches_the_victim() -> void:
 	_check(heard.size() == 1 and other_heard.is_empty(), "the victim's client hears the clip and nobody else does")
 	var made := DotKillViewClip.to_buffer(heard[0][0]) if not heard.is_empty() else DotResult.fail(DotError.CODE_STATE, "none")
 	_check(made.ok and String(heard[0][1].get("killer", "")) == "Bolt", "the clip is a usable view of the killer", str(heard[0][1] if not heard.is_empty() else {}))
-	_check(heard.size() == 1 and heard[0][0]["f"].size() <= ArenaEvents.KILLVIEW_BYTES / 4, "and fits one event")
+	_check(heard.size() == 1 and heard[0][0]["f"].size() <= FcEvents.KILLVIEW_BYTES / 4, "and fits one event")
 	var respawns := _server_game.match_node.respawns
 	var normal := died_at + int(_server_game.match_node.rules.respawn_delay_sec * TICK_RATE)
 	_check(respawns.is_waiting(str(victim)) and respawns.ready_tick(str(victim)) > normal + TICK_RATE,
@@ -317,7 +317,7 @@ func _test_killview_reaches_the_victim() -> void:
 
 	# Space: the client's respawn request, taken only from a victim being held.
 	var writer := DotNetWriter.new()
-	var _wrote := _server_net.messages.encode(ArenaRequest.new(ArenaEvents.Ask.RESPAWN), writer)
+	var _wrote := _server_net.messages.encode(FcRequest.new(FcEvents.Ask.RESPAWN), writer)
 	var _asked := _server_bridge.receive_request(2, writer.to_bytes())
 	_pump(2)
 	_check(target.is_alive(), "a respawn request from the victim skips the wait: back in the match at once")
@@ -333,10 +333,10 @@ func _test_killview_reaches_the_victim() -> void:
 
 
 ## The killer's field of view: a client's setting reaches the server and its kill view is drawn with it.
-func _check_killer_fov(target: ArenaPlayer, victim: int, bot: int) -> void:
+func _check_killer_fov(target: FcPlayer, victim: int, bot: int) -> void:
 	# The killer's own field of view: a client's setting reaches the server, a bot is drawn with the default.
 	var fov_writer := DotNetWriter.new()
-	var _fov_wrote := _server_net.messages.encode(ArenaRequest.new(ArenaEvents.Ask.FOV, ArenaEvents.write_fov(110.0)), fov_writer)
+	var _fov_wrote := _server_net.messages.encode(FcRequest.new(FcEvents.Ask.FOV, FcEvents.write_fov(110.0)), fov_writer)
 	var _fov_asked := _server_bridge.receive_request(2, fov_writer.to_bytes())
 	var want_fov := KillPov.degrees_to_vertical(110.0)
 	_check(is_equal_approx(KillPov.fov_of(target), want_fov) and absf(want_fov - 83.6) > 5.0,
@@ -372,12 +372,12 @@ func _test_disconnect() -> void:
 
 ## Hands a client an event exactly as the server's link would put it on the wire.
 ## The map's toys on a client: paired by index from TOYS, frozen copies, a ball kicked on the
-## server followed there, and the switch... arena places loose toys only, so a kick and a shot.
+## server followed there, and the switch... Fatal Contact places loose toys only, so a kick and a shot.
 func _test_toys_reach_a_client() -> void:
 	print("")
 	_section("[the map's toys reach a client]")
-	var client_game: ArenaGame = _clients[2]["game"]
-	var client_bridge: ArenaNetBridge = _clients[2]["bridge"]
+	var client_game: FcGame = _clients[2]["game"]
+	var client_bridge: FcNetBridge = _clients[2]["bridge"]
 	_check(client_game.map.id == _server_game.map.id and client_bridge.toy_count() == _server_game.toys.count() and _server_game.toys.count() > 0,
 		"the client's toys are paired with the server's, by index, on the map they share",
 		"%s and %s, %d of %d" % [client_game.map.id, _server_game.map.id, client_bridge.toy_count(), _server_game.toys.count()])
@@ -433,7 +433,7 @@ func _test_monsters_reach_a_client() -> void:
 	print("")
 	_section("[monsters reach a client]")
 
-	var horde := ArenaHorde.new()
+	var horde := FcHorde.new()
 	horde.name = "Horde"
 	horde.game = _server_game
 	horde.persist_heat = false
@@ -444,7 +444,7 @@ func _test_monsters_reach_a_client() -> void:
 	_pump(1)
 
 	var at: Vector3 = horde.nav.points[horde.nav.point_count() / 2]
-	var monster := horde.spawn_one(ArenaNpcs.GRUNT, at)
+	var monster := horde.spawn_one(FcNpcs.GRUNT, at)
 	_check(monster != null, "a monster spawns")
 
 	if monster == null:
@@ -455,8 +455,8 @@ func _test_monsters_reach_a_client() -> void:
 	_check(server_net != null, "and the server replicates it")
 
 	var net_id: int = server_net.get("identity").net_id
-	_deliver_event(2, ArenaEvents.Kind.NPC, ArenaEvents.write_npc(net_id, monster.def.id, monster.position()))
-	var client_bridge: ArenaNetBridge = _clients[2]["bridge"]
+	_deliver_event(2, FcEvents.Kind.NPC, FcEvents.write_npc(net_id, monster.def.id, monster.position()))
+	var client_bridge: FcNetBridge = _clients[2]["bridge"]
 	_check(client_bridge.monster_count() == 1, "the client builds it from the NPC event")
 
 	_pump(40)
@@ -474,7 +474,7 @@ func _test_monsters_reach_a_client() -> void:
 
 	horde.spawner.remove(monster.instance_id, DotNpcSpawner.REASON_ADMIN)
 	_check(not _server_bridge.get("_monster_nets").has(monster.instance_id), "the server lets it go")
-	_deliver_event(2, ArenaEvents.Kind.NPC_GONE, ArenaEvents.write_npc_gone(net_id))
+	_deliver_event(2, FcEvents.Kind.NPC_GONE, FcEvents.write_npc_gone(net_id))
 	_check(client_bridge.monster_count() == 0, "and so does the client")
 
 	_server_game.horde = null
@@ -491,8 +491,8 @@ func _test_forced_noclip_is_predicted() -> void:
 
 	var entry: Dictionary = _clients[2]
 	var session := int(entry["session"])
-	var server_player: ArenaPlayer = _server_bridge.behaviour_for(session).player
-	var client_player: ArenaPlayer = (entry["bridge"] as ArenaNetBridge).behaviour_for(session).player
+	var server_player: FcPlayer = _server_bridge.behaviour_for(session).player
+	var client_player: FcPlayer = (entry["bridge"] as FcNetBridge).behaviour_for(session).player
 
 	_check(
 		not client_player.controller.tunables.can_noclip,
@@ -562,9 +562,9 @@ func _test_movement_rules_reach_clients() -> void:
 
 	var entry: Dictionary = _clients[2]
 	var session := int(entry["session"])
-	var server_player: ArenaPlayer = _server_bridge.behaviour_for(session).player
-	var client_game: ArenaGame = entry["game"]
-	var client_player: ArenaPlayer = (entry["bridge"] as ArenaNetBridge).behaviour_for(session).player
+	var server_player: FcPlayer = _server_bridge.behaviour_for(session).player
+	var client_game: FcGame = entry["game"]
+	var client_player: FcPlayer = (entry["bridge"] as FcNetBridge).behaviour_for(session).player
 
 	_check(
 		client_player.controller.tunables.slide_enabled and not client_player.controller.tunables.launch_enabled
@@ -575,7 +575,7 @@ func _test_movement_rules_reach_clients() -> void:
 	# This harness has no event link, so RULES is handed to each client as the link would
 	# carry it: encoded by the server's bridge, read by the client's.
 	var relay := func(rules: Dictionary) -> void:
-		var bytes := _server_bridge.encode_event(ArenaEvents.Kind.RULES, ArenaEvents.write_rules(rules))
+		var bytes := _server_bridge.encode_event(FcEvents.Kind.RULES, FcEvents.write_rules(rules))
 		for peer_id in _clients:
 			var _r: DotResult = _clients[peer_id]["bridge"].receive_event(bytes)
 	_server_game.movement_rules_changed.connect(relay)
@@ -664,9 +664,9 @@ func _test_wall_moves_predicted() -> void:
 	var peer: int = _clients.keys()[0]
 	var entry: Dictionary = _clients[peer]
 	var session := int(entry["session"])
-	var client_game: ArenaGame = entry["game"]
-	var server_player: ArenaPlayer = _server_bridge.behaviour_for(session).player
-	var client_player: ArenaPlayer = (entry["bridge"] as ArenaNetBridge).behaviour_for(session).player
+	var client_game: FcGame = entry["game"]
+	var server_player: FcPlayer = _server_bridge.behaviour_for(session).player
+	var client_player: FcPlayer = (entry["bridge"] as FcNetBridge).behaviour_for(session).player
 	var net: DotNetManager = entry["net"]
 
 	_check(
@@ -725,12 +725,12 @@ func _test_blind_and_beacon() -> void:
 	print("")
 	_section("[an admin's blind and beacon: who is told]")
 
-	var handlers := ArenaModTools.handlers(_server_game)
+	var handlers := FcModTools.handlers(_server_game)
 	var blind: Callable = handlers[DotModTools.ACTION_BLIND]
 	var beacon: Callable = handlers[DotModTools.ACTION_BEACON]
 
-	var owner: ArenaNetBridge = _clients[2]["bridge"]
-	var watcher: ArenaNetBridge = _clients[3]["bridge"]
+	var owner: FcNetBridge = _clients[2]["bridge"]
+	var watcher: FcNetBridge = _clients[3]["bridge"]
 
 	_check(
 		owner.behaviour_for(11).find_var(&"net_blind").audience == DotNetVar.Audience.OWNER

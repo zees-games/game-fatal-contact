@@ -5,7 +5,7 @@ extends SceneTree
 
 
 func _initialize() -> void:
-	preload("../game/arena_weapon_roles.gd").ensure()
+	preload("../game/fc_weapon_roles.gd").ensure()
 	var paths := AwWeaponArtTable.model_paths()
 	var total_tris := 0
 	var rows: Array = []

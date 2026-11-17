@@ -1,7 +1,7 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcMap := preload("../maps/fc_map.gd")
 
 ## Free-for-all spawns must spread over every eligible point: 32 players respawned many times
 ## on each map, counted per point.
@@ -24,7 +24,7 @@ func _run() -> void:
 		maps = DEFAULT_MAPS
 	var ran := 0
 	for id in maps:
-		if ArenaMap.by_id(id) == null:
+		if FcMap.by_id(id) == null:
 			print("skip %s: not linked" % id)
 			continue
 		await _one(id)
@@ -33,7 +33,7 @@ func _run() -> void:
 
 
 func _one(id: StringName) -> void:
-	var game := ArenaGame.new()
+	var game := FcGame.new()
 	game.tick_rate = 64
 	game.score_limit = 100000
 	game.time_limit_sec = 0.0
@@ -41,7 +41,7 @@ func _one(id: StringName) -> void:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var map: ArenaMap = ArenaMap.by_id(id)
+	var map: FcMap = FcMap.by_id(id)
 	if not game.setup(map).ok:
 		_check(false, "%s sets up" % id)
 		return
@@ -104,7 +104,7 @@ func _one(id: StringName) -> void:
 	_check_apart(game, id, dupes, total)
 
 ## Points at least 2 m apart decide how strict the repeat check is.
-func _check_apart(game: ArenaGame, id: StringName, dupes: int, total: int) -> void:
+func _check_apart(game: FcGame, id: StringName, dupes: int, total: int) -> void:
 	var apart: Array[Vector3] = []
 	for site in game.player_stack.spawns.sites():
 		var clear := true

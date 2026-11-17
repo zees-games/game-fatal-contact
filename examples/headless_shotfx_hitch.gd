@@ -1,11 +1,11 @@
 extends Node
 
 ## Somebody else's first shot must not build an audio stack: the presentation hands every remote
-## hand its one shot player (`ArenaPresentation.share_shots`). Times the first shot of 31
+## hand its one shot player (`FcPresentation.share_shots`). Times the first shot of 31
 ## shooters on hands that share it and that do not, and checks the real client wires its bots' hands.
 
 const SHOOTERS := 31
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 var _checks := 0
 var _failed := 0
@@ -50,7 +50,7 @@ func _layers(hand: Node) -> int:
 
 
 ## [param shared] hands get the presentation's player, the way the client wires its remote players.
-func _volley(world: Node3D, p: ArenaPresentation, shared: bool) -> Dictionary:
+func _volley(world: Node3D, p: FcPresentation, shared: bool) -> Dictionary:
 	var ids: Array[StringName] = [&"rifle", &"pistol", &"smg", &"shotgun"]
 	var worst := 0.0
 	var total := 0.0
@@ -75,7 +75,7 @@ func _volley(world: Node3D, p: ArenaPresentation, shared: bool) -> Dictionary:
 
 
 func _run() -> void:
-	var p := ArenaPresentation.new()
+	var p := FcPresentation.new()
 	add_child(p)
 	p.setup()
 	var world := Node3D.new()
@@ -102,7 +102,7 @@ func _run() -> void:
 	await _test_pool(world, p, float(shared.worst))
 
 	# The real client: its bots' hands are wired, and their first shot builds no audio stack.
-	var client: Node = (load("res://game/arena.tscn") as PackedScene).instantiate()
+	var client: Node = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	client.set("force_offline", true)
 	client.set("mouse_capture_override", true)
 	add_child(client)
@@ -133,7 +133,7 @@ func _run() -> void:
 
 
 ## Hands that take their effects from a pool filled under the cover: the first shot builds nothing at all.
-func _test_pool(world: Node3D, p: ArenaPresentation, shared_worst: float) -> void:
+func _test_pool(world: Node3D, p: FcPresentation, shared_worst: float) -> void:
 	var pool := AwFxPool.new()
 	add_child(pool)
 	while not pool.fill(SHOOTERS, 2, 2.0):

@@ -1,14 +1,14 @@
 extends SceneTree
 
-const ArenaMaps := preload("../game/arena_maps.gd")
-const ArenaMenus := preload("../game/arena_menus.gd")
-const ArenaModes := preload("../game/arena_modes.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcMaps := preload("../game/fc_maps.gd")
+const FcMenus := preload("../game/fc_menus.gd")
+const FcModes := preload("../game/fc_modes.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 ## The solo map menu (M) with a Workshop map in it, to screenshots/menu_maps_workshop.png.
 ##
 ## The map is a fixture in a [DotContentIndex] this script fills, so the rows are the ones
-## `ArenaMaps.menu_rows` makes from a catalogue that followed it; nothing is drawn by hand.
+## `FcMaps.menu_rows` makes from a catalogue that followed it; nothing is drawn by hand.
 ## Run: `xvfb-run -a godot --path . --resolution 1280x800 --script tools/screenshot_workshop.gd`.
 ## Not `--headless`: a null renderer saves empty frames.
 
@@ -16,7 +16,7 @@ const OUT := "res://screenshots/menu_maps_workshop.png"
 const SETTLE := 6
 
 var _menu: DotMenu = null
-var _presentation: ArenaPresentation = null
+var _presentation: FcPresentation = null
 var _wait := SETTLE
 var _opened := false
 ## Frame sequence after the still (DOT_SHOT_FRAMES); see DotShotSeq.
@@ -27,7 +27,7 @@ var _seq_active := false
 func _process(_delta: float) -> bool:
 	if _menu == null:
 		DotLog.set_level(DotLog.Level.ERROR)
-		var _scratch := ArenaPresentation.use_scratch_settings("screenshot_workshop")
+		var _scratch := FcPresentation.use_scratch_settings("screenshot_workshop")
 		DirAccess.make_dir_recursive_absolute("res://screenshots")
 		DirAccess.make_dir_recursive_absolute("user://workshop_shot")
 		var doc := FileAccess.open("user://workshop_shot/hill.json", FileAccess.WRITE)
@@ -44,12 +44,12 @@ func _process(_delta: float) -> bool:
 				{"kind": "map", "id": "fixture_run", "name": "Fixture Run", "scene": "run.json", "map_kind": "surf"},
 			]},
 		})
-		var catalogue := ArenaMaps.catalogue(index)
-		_presentation = ArenaPresentation.new()
+		var catalogue := FcMaps.catalogue(index)
+		_presentation = FcPresentation.new()
 		root.add_child(_presentation)
 		var _set_up := _presentation.setup()
-		_menu = ArenaMenus.build(root, _presentation, null)
-		var rows := ArenaMaps.menu_rows(catalogue, &"dm_box", null, ArenaModes.all())
+		_menu = FcMenus.build(root, _presentation, null)
+		var rows := FcMaps.menu_rows(catalogue, &"dm_box", null, FcModes.all())
 		var _maps := _menu.use_maps(func() -> Array: return rows, func(_id: StringName) -> DotResult: return DotResult.success(null))
 		return false
 	if not _opened:

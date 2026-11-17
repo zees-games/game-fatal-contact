@@ -8,13 +8,13 @@ One line each; the detail is in [bugs-found.md](../../../docs/bugs-found.md) or 
 
 - **dot-chat: a parser with a default for every field cannot refuse anything.** dot-server's chat payload parsed as a valid `DotChatMessage` with no text, and every line drew as `": "`. `m` is the discriminator now.
 - **dot-ui: `DotTableView` drew one column** (the rest zero-width) and the rebinder's rows came out in interned-pointer order. Found by `tools/screenshot_menus.sh`.
-- **dot-ui: `DotBindingsPanel.prefix` was one string**; arena's chat keys are a second namespace. `also_prefixed` was added for it.
+- **dot-ui: `DotBindingsPanel.prefix` was one string**; Fatal Contact's chat keys are a second namespace. `also_prefixed` was added for it.
 - **dot-match: `refresh_spawns` walked `current_scene`** when no `spawns_ref` was set, so a second game in the process contributed its spawns. It also warned "no spawn points" on every code-built map; `announce_empty` was added.
 - **dot-weapon: a held trigger on an empty weapon restarted its reload for ever.** Seen as bots scoring a third of their usual kills.
-- **The rocket launcher never damaged anything** until dot-weapon's projectile spawn forced `ArenaProjectiles` into existence; then every rocket that went off more than 2.5 m from its owner exploded in the owner's face (dot-combat's origin correction re-traced the blast). Any explosive check asks the thrower's health.
-- **dot-net: `DotNetStats` reported half of every clean link lost** (it counted ticks; arena snapshots every second tick), **the render timeline went backwards with every late packet**, and **the interpolation delay had the flight time taken out of it.** All found by `headless_lossy`.
+- **The rocket launcher never damaged anything** until dot-weapon's projectile spawn forced `FcProjectiles` into existence; then every rocket that went off more than 2.5 m from its owner exploded in the owner's face (dot-combat's origin correction re-traced the blast). Any explosive check asks the thrower's health.
+- **dot-net: `DotNetStats` reported half of every clean link lost** (it counted ticks; Fatal Contact snapshots every second tick), **the render timeline went backwards with every late packet**, and **the interpolation delay had the flight time taken out of it.** All found by `headless_lossy`.
 - **The engine passes `create_server`'s `max_channels` to ENet as the host's incoming bandwidth**, so every dot-server told every ENet client it could take six bytes a second, and the client throttled its commands to 1/32 for its first seconds. Fixed in dot-core's `DotTransportENet` by passing 0. A `throttle_configure` on the client does not help.
-- **dot-player-controller: `DotFpsFlatBody.rest_contact` pushed out along the deepest axis**, exposed when the world extent moved the quantisation step; a client slid 2.8 m along a wall during a straight-up launch. Fixed in v0.1.5, so arena must not run on a client shell older than 20261009-1627.
+- **dot-player-controller: `DotFpsFlatBody.rest_contact` pushed out along the deepest axis**, exposed when the world extent moved the quantisation step; a client slid 2.8 m along a wall during a straight-up launch. Fixed in v0.1.5, so Fatal Contact must not run on a client shell older than 20261009-1627.
 - **dot-player-controller's rewind kept the client's own launch cooldown and buttons**; they travel in `net_flags` now.
 - **dot-player-controller: a wall run ended four ticks in over the wire.** Jumping off the gallery's high ledge onto the north wall, the uncrouch after the slide dropped the feet past the ledge's top a hand beyond its end face, and the wall probe took the nearest wall, that face, whose speed "along" was nothing. Offline the driver's timing missed it by centimetres; one lost crouch press in `headless_net` shifted it a tick and both ends agreed on a run that ended. A run now keeps the wall beside its velocity (2026-10-10).
 - **dot-spawn: the spawning player was their own enemy**; a two-argument `enemies_fn` gets the spawning key.
@@ -23,7 +23,7 @@ One line each; the detail is in [bugs-found.md](../../../docs/bugs-found.md) or 
 
 ## Joining a dedicated server
 
-**Nobody could ever join a dedicated arena server.** `ArenaModule` looked a session up by `peer_id`, which `client_spawn` does not carry; a null session is a legitimate thing to find. `dedicated` passed throughout, because it never connects a client.
+**Nobody could ever join a dedicated Fatal Contact server.** `FcModule` looked a session up by `peer_id`, which `client_spawn` does not carry; a null session is a legitimate thing to find. `dedicated` passed throughout, because it never connects a client.
 
 **The two ends quantised against different world extents** (128 and 256, in two files). The client connected, sealed an identical schema, adopted its player alive with 100 health, and drew sky in every direction with a HUD reading zero.
 
@@ -31,7 +31,7 @@ One line each; the detail is in [bugs-found.md](../../../docs/bugs-found.md) or 
 
 **The client tried Godot physics first**: the player fell through a perfectly drawn floor into a void.
 
-**A READY that overtook the seat was answered with nobody (2026-10-12).** Over a lossy ENet link a client's READY can arrive before its seat, and `mark_ready` sent the signon then: a HELLO naming session 0, so the client never knew which body was its own. Eleven other bridges had already been fixed for the same race the same day; arena's `mark_ready` never looked at the seat and had not been checked. `headless_net`'s ready gate had asserted the bug as the rule ("marking it ready sends it the whole signon", to a peer nobody had seated).
+**A READY that overtook the seat was answered with nobody (2026-10-12).** Over a lossy ENet link a client's READY can arrive before its seat, and `mark_ready` sent the signon then: a HELLO naming session 0, so the client never knew which body was its own. Eleven other bridges had already been fixed for the same race the same day; Fatal Contact's `mark_ready` never looked at the seat and had not been checked. `headless_net`'s ready gate had asserted the bug as the rule ("marking it ready sends it the whole signon", to a peer nobody had seated).
 
 ## Map changes
 
@@ -43,7 +43,7 @@ One line each; the detail is in [bugs-found.md](../../../docs/bugs-found.md) or 
 
 **`_build_world_layers` ran once at setup**, so `koth` on a running server had a null objectives layer and `siege` no monsters. `fc_mode` was the first thing to change a mode at runtime.
 
-**server.yml's `map:` never reached FC** (found 2026-11-16, the owner's `map: cp_orange_x3`). The host looks for a map changer under `server.games`; FC's director is a module's child, so the host warned "this game has no maps" and the server stayed on its default. A `--map` naming a delivered pack failed the boot outright. Both now go through `ArenaServer`, which forwards to the director.
+**server.yml's `map:` never reached FC** (found 2026-11-16, the owner's `map: cp_orange_x3`). The host looks for a map changer under `server.games`; FC's director is a module's child, so the host warned "this game has no maps" and the server stayed on its default. A `--map` naming a delivered pack failed the boot outright. Both now go through `FcServer`, which forwards to the director.
 
 **The director did not know about sides**: sites lost their team tag and the roster kept the previous mode's sides, so a team mode spawned both sides from one pool.
 
@@ -55,8 +55,8 @@ One line each; the detail is in [bugs-found.md](../../../docs/bugs-found.md) or 
 
 The family's most repeated shape, found here many times:
 
-- `ArenaPlayer.team` was declared and assigned by nothing since the class was written; friendly fire, the scoreboard and the renderer all read it.
-- Spawn protection was three mechanisms with two durations; dot-spawn's ledger was drained every tick and filled by nothing, and `ArenaEffects.on_spawn` was called by nothing, so a player who died burning respawned burning.
+- `FcPlayer.team` was declared and assigned by nothing since the class was written; friendly fire, the scoreboard and the renderer all read it.
+- Spawn protection was three mechanisms with two durations; dot-spawn's ledger was drained every tick and filled by nothing, and `FcEffects.on_spawn` was called by nothing, so a player who died burning respawned burning.
 - `DotPlayerClassDef.loadout_id` reached nothing; everybody got a hardcoded pair.
 - The physics gun and gravity gun were built per player and reachable from nothing; the avatar documents were resolved and every player drew a capsule; the client's chat history was fed by nothing. Found by the unused-method grep.
 - `fx_catalogue()` named four effect scenes in a directory that did not exist, and the suite asserted the refusal as if it were correct. Found from mg-buses-from-hell, the first game to ship its effect scenes.
@@ -65,9 +65,9 @@ The family's most repeated shape, found here many times:
 - The rebinder filtered on `arena_` and there had never been an `arena_` action: a Controls menu with no controls.
 - The game's chat commands were behind a prefix check that returned before `player_chat`; `!rtv` and `!vote` looked alive because dot-server has commands of those names.
 - dot-vote's commands were never installed, two map clocks ran, and nothing called `note_score` or `note_round_end`.
-- `ArenaHud.notice` did not exist; the client had called it for chat lines and map-change notices since it was written. Found because the parser refused the same call inside the HUD's own file.
+- `FcHud.notice` did not exist; the client had called it for chat lines and map-change notices since it was written. Found because the parser refused the same call inside the HUD's own file.
 - `DotFpsSampler.suspended` was documented "for a chat box" and never set, so typing walked the player.
-- `ArenaGame.mode_id` was read once at setup: a game with five modes and one of them.
+- `FcGame.mode_id` was read once at setup: a game with five modes and one of them.
 - The Interface screen (dot-ui's `DotSettingsScreen` over a `DotUiConfig`) edited an object nothing saved and nothing read again after the HUD was built: scale, safe area, transition time and line counts all moved a slider and changed nothing. Found converting to dot-menu (2026-10-10); `hud_safe_area` is the one kept, as a real setting.
 
 ## Wiring the horde
@@ -91,13 +91,13 @@ The family's most repeated shape, found here many times:
 
 ## The wire
 
-- **A predicted replay re-emitted every movement signal.** `ArenaPlayerNet._predict` marked a replay for the weapon rig only, never for `DotFpsController`, so the slide's, the dash's and the launch's signals and the jump statistics repeated on every correction, and nothing listened closely enough to say. The wall moves' sounds did: one wall run heard six times and one wall jump seven, over 20% loss (`headless_lossy`, 2026-10-10). The controller is marked now; the rule is in [netcode](netcode.md#weapons-over-the-wire).
+- **A predicted replay re-emitted every movement signal.** `FcPlayerNet._predict` marked a replay for the weapon rig only, never for `DotFpsController`, so the slide's, the dash's and the launch's signals and the jump statistics repeated on every correction, and nothing listened closely enough to say. The wall moves' sounds did: one wall run heard six times and one wall jump seven, over 20% loss (`headless_lossy`, 2026-10-10). The controller is marked now; the rule is in [netcode](netcode.md#weapons-over-the-wire).
 
 - **The `mp_teammate_passthrough` checks waited 5 s for a reliable message through 20% loss** (`headless_lossy`, 2026-10-11). One run in 30 failed "and to 0" and then the map-change check: the 2 took past 5 s to land, and the 0 waited behind it in order on the channel, nine seconds in all. 60 changes measured 48 ms to 4.2 s, in steps that are ENet's resend backoff. Six runs after the waits went to 35 s saw one 2 land at 12.3 s and one change at 4.7 s, with the 0 behind the late 2 landing 100 ms after it, so it was always arriving. Nothing was lost, so nothing in the game changed: the waits are the suite's `RELIABLE_SECONDS`, and the map-change check is held to what the link holds, so one late message fails one check.
 
 ## Feedback the client decided for itself
 
-- **The hit marker sounded on the client's own prediction** (`ArenaPresentation.on_used`, `shot.damages`), so a shot the server refused still said "hit". And revenge and the nemesis line were counted on each client from the kill feed: a client that joined late or missed one KILL disagreed with the server about who was whose nemesis. Both moved to the server on 2026-10-10 (`HIT`, `AWARD`); the rule is in [client](client.md#kill-feedback).
+- **The hit marker sounded on the client's own prediction** (`FcPresentation.on_used`, `shot.damages`), so a shot the server refused still said "hit". And revenge and the nemesis line were counted on each client from the kill feed: a client that joined late or missed one KILL disagreed with the server about who was whose nemesis. Both moved to the server on 2026-10-10 (`HIT`, `AWARD`); the rule is in [client](client.md#kill-feedback).
 
 ## Seen only by rendering
 
@@ -108,7 +108,7 @@ The family's most repeated shape, found here many times:
 - `--feel` arming in `_init`, before anything was in the tree, so every frame showed empty hands.
 - The first-person body as a grey slab of hip tops.
 - Untextured water: a swimmer standing in an empty pool.
-- The HUD's health, ammunition and key hints all but invisible over the pale prototype floors: regular-weight text, no outline, no plate (`dm_box_feel_kill_compat.png`, 2026-10-10). Rebuilt as `ArenaHudGlance`, bold and outlined on plates.
+- The HUD's health, ammunition and key hints all but invisible over the pale prototype floors: regular-weight text, no outline, no plate (`dm_box_feel_kill_compat.png`, 2026-10-10). Rebuilt as `FcHudGlance`, bold and outlined on plates.
 - The first portraits were the back of each head: the character kit faces -Z here and the camera had been put on +Z. Weapon silhouettes drawn from 600-pixel renders broke into dashes until they were saved at 48 px and mipmapped.
 
 ## Frames, not ticks (2026-10-11)
@@ -117,15 +117,15 @@ Measured by `headless_feel`, the first suite to judge what a frame shows rather 
 
 ## The runner was never on open floor (2026-10-12)
 
-`headless_feel` failed one check now and then for several sessions, always a different one, and passed every time it was rerun. No arena commit broke it: the runner placed on its circle at `bd2fb1e` and `00e7130` was against the east wall too. `_place_on_circle` assumed the local runner's yaw grows; it shrinks (the mouse moves right and forward and right are held), so its circle was centred 4.4 m off, under the east ledge's lip at x 17.5. In the jumping window held jump bunny-hopped it from 11 to 24 m/s into the wall, and each apex hit the ledge's underside at 3.0 m. Client and server disagree about a ceiling bump and a wall slide by up to 7 cm after a quantised snapshot, the correction was eased across the frames being judged, and on a busy machine one of those landed on a judged frame (29 mm). The runner now starts every window on its circle in the open south floor, jump is pressed every 52 ticks rather than held, and a check fails any window in which either runner came within 0.7 m of a wall or a ceiling. On open floor a jump's corrections are quantisation, about 1 cm. Once the eye was judged at a run on open floor, the clock's own work showed: while it gains lead its ticks run 12% short and a slip is taken up at 27% a tick, so a frame ran half a step fast by design (2.4-2.9 cm, one 40 to 70 ms window in four); the eye's allowance includes what the clock was doing on that frame now. The suite is still real time: on a machine whose load is over its cores, frames stall and the stair, the lean and the bot fail.
+`headless_feel` failed one check now and then for several sessions, always a different one, and passed every time it was rerun. No Fatal Contact commit broke it: the runner placed on its circle at `bd2fb1e` and `00e7130` was against the east wall too. `_place_on_circle` assumed the local runner's yaw grows; it shrinks (the mouse moves right and forward and right are held), so its circle was centred 4.4 m off, under the east ledge's lip at x 17.5. In the jumping window held jump bunny-hopped it from 11 to 24 m/s into the wall, and each apex hit the ledge's underside at 3.0 m. Client and server disagree about a ceiling bump and a wall slide by up to 7 cm after a quantised snapshot, the correction was eased across the frames being judged, and on a busy machine one of those landed on a judged frame (29 mm). The runner now starts every window on its circle in the open south floor, jump is pressed every 52 ticks rather than held, and a check fails any window in which either runner came within 0.7 m of a wall or a ceiling. On open floor a jump's corrections are quantisation, about 1 cm. Once the eye was judged at a run on open floor, the clock's own work showed: while it gains lead its ticks run 12% short and a slip is taken up at 27% a tick, so a frame ran half a step fast by design (2.4-2.9 cm, one 40 to 70 ms window in four); the eye's allowance includes what the clock was doing on that frame now. The suite is still real time: on a machine whose load is over its cores, frames stall and the stair, the lean and the bot fail.
 
 ## Camera motion (2026-10-11)
 
-Arena had none of the landing dip, strafe roll and speed widening dot-player-controller's own camera had, because it writes its camera itself and had copied only the wall-run lean. Measured first: the landing was a 4.9 cm a frame corner at 144 Hz. The addon's own dip turned out to be a snap (the full dip and a 6 degree pitch set on the landing frame), so the cues moved into `DotFpsViewMotion` there, the dip as a spring kicked in velocity, and arena calls it. Two things only the frames showed: kicked when `landed` fired, the dip began a tick early, while the eye was still drawing the last of the fall (21 cm in two frames, then a stop); and the step-easing reset from `39e7d23` sat at the end of `_follow_map_volumes`, which runs every tick on an imported map, so stairs there were never eased and the frame two ticks back was always forgotten. It is `_forget_drawn` now, on a spawn and a teleport.
+Fatal Contact had none of the landing dip, strafe roll and speed widening dot-player-controller's own camera had, because it writes its camera itself and had copied only the wall-run lean. Measured first: the landing was a 4.9 cm a frame corner at 144 Hz. The addon's own dip turned out to be a snap (the full dip and a 6 degree pitch set on the landing frame), so the cues moved into `DotFpsViewMotion` there, the dip as a spring kicked in velocity, and Fatal Contact calls it. Two things only the frames showed: kicked when `landed` fired, the dip began a tick early, while the eye was still drawing the last of the fall (21 cm in two frames, then a stop); and the step-easing reset from `39e7d23` sat at the end of `_follow_map_volumes`, which runs every tick on an imported map, so stairs there were never eased and the frame two ticks back was always forgotten. It is `_forget_drawn` now, on a spawn and a teleport.
 
 ## Solo bots were the test fixture (2026-10-11)
 
-The first play test on Windows (bootstrap, solo) died twelve times in ninety seconds and was killed from 30 to 40 m within a second, again and again. Nothing was mistuned: `ArenaClient._drive_bots` was `headless_match`'s fixture, copied into the client to get kills on screen, and its own comment said so. It faced the nearest player through any wall at pitch 0 and held the trigger under 40 m. The brain a server ran (sight, reaction, aim error, range, strafing) was never met by anybody playing solo, because solo never ran it. Both run dot-bot's `DotBotBrain` now (`ArenaBots`), and `headless_bots` holds every preset to a K/D band in the real game. The lesson for any game here: a bot driver in the client is a second brain, and the one players meet first.
+The first play test on Windows (bootstrap, solo) died twelve times in ninety seconds and was killed from 30 to 40 m within a second, again and again. Nothing was mistuned: `FcClient._drive_bots` was `headless_match`'s fixture, copied into the client to get kills on screen, and its own comment said so. It faced the nearest player through any wall at pitch 0 and held the trigger under 40 m. The brain a server ran (sight, reaction, aim error, range, strafing) was never met by anybody playing solo, because solo never ran it. Both run dot-bot's `DotBotBrain` now (`FcBots`), and `headless_bots` holds every preset to a K/D band in the real game. The lesson for any game here: a bot driver in the client is a second brain, and the one players meet first.
 
 Building it found one dot-bot bug: a sound made on the same timestamp as a brain's last think was never heard (a time comparison), so a bot with its back to a shooter died without turning round. Sounds carry a sequence number now.
 
@@ -135,11 +135,11 @@ The first play test respawned in view of the bot that had just killed him, twice
 
 ## Players walked through each other (2026-10-12)
 
-`mp_solidplayers` is the family's cvar, and every other first-person game makes it bite with a capsule in the physics space that the motor's physics sweep stops at. Arena's motor sweeps the map's box list on the server and on every predicting client, so that capsule reached neither, and bots walked through the player, their faces filling the screen. The other players are boxes in the movement body's sweep now (`arena_solid_body.gd`), and `headless_net` walks one player into another on a server with a predicting client, both ways round the cvar.
+`mp_solidplayers` is the family's cvar, and every other first-person game makes it bite with a capsule in the physics space that the motor's physics sweep stops at. Fatal Contact's motor sweeps the map's box list on the server and on every predicting client, so that capsule reached neither, and bots walked through the player, their faces filling the screen. The other players are boxes in the movement body's sweep now (`fc_solid_body.gd`), and `headless_net` walks one player into another on a server with a predicting client, both ways round the cvar.
 
 ## A route through a crate's corner (2026-10-12)
 
-`headless_bots` failed "the world routes between spawns … every leg clear" on all four presets, and bisecting arena, dot-bot and the people commits found nothing: fresh clones of every committed head passed. The failure was an uncommitted change in the shared dot-npc checkout, a native A* that breaks equal-cost ties the other way. Its path was as short as the old one, but dot-npc's smoother then cut the first leg through the corner of dm_box's east top crate: a probe inside a grid cell the builder had removed snapped to the nearest point left, across the corner, and the hop to it was a real, clear diagonal edge, so `can_walk_straight` passed it. The check measured the right thing (a knee-height ray through a box is a bot walking into it); the smoother was wrong, and only the old tie-break had hidden it. The fix is dot-npc's: `can_walk_straight` refuses a probe further than 0.75 of a grid cell from every point, which is a probe in a removed cell. When a suite fails at HEAD and the commits do not explain it, look at `git status` in every linked addon first.
+`headless_bots` failed "the world routes between spawns … every leg clear" on all four presets, and bisecting Fatal Contact, dot-bot and the people commits found nothing: fresh clones of every committed head passed. The failure was an uncommitted change in the shared dot-npc checkout, a native A* that breaks equal-cost ties the other way. Its path was as short as the old one, but dot-npc's smoother then cut the first leg through the corner of dm_box's east top crate: a probe inside a grid cell the builder had removed snapped to the nearest point left, across the corner, and the hop to it was a real, clear diagonal edge, so `can_walk_straight` passed it. The check measured the right thing (a knee-height ray through a box is a bot walking into it); the smoother was wrong, and only the old tie-break had hidden it. The fix is dot-npc's: `can_walk_straight` refuses a probe further than 0.75 of a grid cell from every point, which is a probe in a removed cell. When a suite fails at HEAD and the commits do not explain it, look at `git status` in every linked addon first.
 
 ## A chimney that failed only on CI (2026-10-14)
 

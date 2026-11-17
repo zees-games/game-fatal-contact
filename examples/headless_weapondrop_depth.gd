@@ -4,10 +4,10 @@ extends Node
 ## after 10 s the client's lowest mesh point is not below the surface, the drop does not jitter, and the client's box is the server's box.
 ## Run: [code]godot --headless --path . res://examples/headless_weapondrop_depth.tscn[/code]
 
-const ArenaBspMap := preload("../maps/arena_bsp_map.gd")
-const ArenaImportedMaps := preload("../maps/arena_imported_maps.gd")
-const Wiring := preload("../game/arena_weapon_drop_wiring.gd")
-const ArenaWeaponRoles := preload("../game/arena_weapon_roles.gd")
+const FcBspMap := preload("../maps/fc_bsp_map.gd")
+const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
+const Wiring := preload("../game/fc_weapon_drop_wiring.gd")
+const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 
 const TOLERANCE := 0.02
 const RUN_TICKS := 640
@@ -187,7 +187,7 @@ func _grid(origin: Vector3, count: int, cols: int = 10, pitch: float = 1.5) -> A
 
 
 func _run() -> void:
-	ArenaWeaponRoles.ensure()
+	FcWeaponRoles.ensure()
 	# The engine is named so a run under override.cfg's Jolt is told apart from the default's.
 	print("weapondrop_depth: physics %s" % ProjectSettings.get_setting("physics/3d/physics_engine", "DEFAULT"))
 	var ids: Array = AwWeaponArtTable.table().keys()
@@ -245,16 +245,16 @@ func _run() -> void:
 
 
 func _map_course(map_id: StringName, ids: Array) -> void:
-	var path := ArenaImportedMaps.manifest_path(map_id)
+	var path := FcImportedMaps.manifest_path(map_id)
 	if path == "":
 		print("  %s: not linked, skipped" % map_id)
 		return
-	var manifest := ArenaBspMap.read_manifest(path)
-	var solid := ArenaBspMap.build_collision(manifest, path.get_base_dir())
+	var manifest := FcBspMap.read_manifest(path)
+	var solid := FcBspMap.build_collision(manifest, path.get_base_dir())
 	var world := Node3D.new()
 	add_child(world)
 	world.add_child(solid)
-	var spawns := ArenaBspMap.spawns_of(manifest)
+	var spawns := FcBspMap.spawns_of(manifest)
 	var spots := []
 	await get_tree().physics_frame
 	await get_tree().physics_frame

@@ -1,19 +1,19 @@
 extends SceneTree
 
-const ArenaAvatars := preload("../game/arena_avatars.gd")
-const ArenaWeaponIcons := preload("../game/arena_weapon_icons.gd")
-const ArenaSpriteWeapon := preload("../game/arena_sprite_weapon.gd")
-const ArenaAwards := preload("../game/arena_awards.gd")
-const ArenaViewArms := preload("../game/arena_view_arms.gd")
-const ArenaImportedMaps := preload("../maps/arena_imported_maps.gd")
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaDrops := preload("../game/arena_drops.gd")
-const ArenaJailView := preload("../game/arena_jail_view.gd")
-const ArenaHud := preload("../game/arena_hud.gd")
-const ArenaMap := preload("../maps/arena_map.gd")
-const ArenaMapLighting := preload("../maps/arena_map_lighting.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
-const ArenaPresentation := preload("../game/arena_presentation.gd")
+const FcAvatars := preload("../game/fc_avatars.gd")
+const FcWeaponIcons := preload("../game/fc_weapon_icons.gd")
+const FcSpriteWeapon := preload("../game/fc_sprite_weapon.gd")
+const FcAwards := preload("../game/fc_awards.gd")
+const FcViewArms := preload("../game/fc_view_arms.gd")
+const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcDrops := preload("../game/fc_drops.gd")
+const FcJailView := preload("../game/fc_jail_view.gd")
+const FcHud := preload("../game/fc_hud.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcMapLighting := preload("../maps/fc_map_lighting.gd")
+const FcPlayer := preload("../game/fc_player.gd")
+const FcPresentation := preload("../game/fc_presentation.gd")
 
 ## The `--admin`, `--feel`, `--fx` and `--action` stagings of tools/screenshot.gd, kept apart for the file-size budget.
 
@@ -22,9 +22,9 @@ var _index := 0
 var _camera: Camera3D = null
 
 ## `--admin`'s cast: drawn every frame by their own `present`, as a client draws them.
-var _players: Array[ArenaPlayer] = []
-var _local: ArenaPlayer = null
-var _hud: ArenaHud = null
+var _players: Array[FcPlayer] = []
+var _local: FcPlayer = null
+var _hud: FcHud = null
 
 var _action_figure: DotHumanoidFigure = null
 var _toy_box: DotPropBodyBox = null
@@ -38,7 +38,7 @@ var _toy_placements: Array = []
 ## Written against `dm_box`'s layout — open floor at the south end, a five-metre pillar
 ## at (-12, -4) — and still renders on another map, where the pillar frame may simply not
 ## have a pillar in it.
-func _stage_admin(map: ArenaMap, id: StringName) -> void:
+func _stage_admin(map: FcMap, id: StringName) -> void:
 	# Beaconed, on open floor, with a player who is not beside them for contrast.
 	var marked := _cast(map, 101, "Marked", Vector3(1.0, 0.05, 11.0), 200.0)
 	var plain := _cast(map, 102, "Plain", Vector3(4.2, 0.05, 12.5), 160.0)
@@ -48,16 +48,16 @@ func _stage_admin(map: ArenaMap, id: StringName) -> void:
 	hidden.beacon = true
 
 	# Whose eyes the last two frames are behind, looking north at the other two.
-	_local = ArenaPlayer.new()
+	_local = FcPlayer.new()
 	_local.name = "Local"
-	_local.setup(ArenaPlayer.Mode.HEADLESS, map, 104, "You")
+	_local.setup(FcPlayer.Mode.HEADLESS, map, 104, "You")
 	root.add_child(_local)
 	_local.spawn(Transform3D(Basis(), Vector3(-1.0, 0.05, 20.0)), 0)
 	_local.attach_camera(100.0)
 	_local.camera.current = false
 	_players.append(_local)
 
-	_hud = ArenaHud.new()
+	_hud = FcHud.new()
 	_hud.name = "Hud"
 	_hud.config = DotUiConfig.new()
 	_hud.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -99,24 +99,24 @@ func _stage_admin(map: ArenaMap, id: StringName) -> void:
 
 # --- --feel -----------------------------------------------------------------
 
-## What the arena's 2026-10-06 additions look like, which no suite can say: the sniper's
+## What Fatal Contact's 2026-10-06 additions look like, which no suite can say: the sniper's
 ## scope, the HUD (hurt, the launch counting down, the slide prompt), a body exploding on a
 ## lethal critical, and your own body when you look down.
 var _feel_tick: int = 1
 
 
-func _stage_feel(map: ArenaMap, id: StringName) -> void:
+func _stage_feel(map: FcMap, id: StringName) -> void:
 	var victim := _cast(map, 111, "Victim", Vector3(1.0, 0.05, 12.0), 180.0)
 	var hurt := _cast(map, 113, "Hurt", Vector3(4.0, 0.05, 13.0), 200.0)
 
-	_local = ArenaPlayer.new()
+	_local = FcPlayer.new()
 	_local.name = "Local"
-	_local.setup(ArenaPlayer.Mode.HEADLESS, map, 112, "You")
+	_local.setup(FcPlayer.Mode.HEADLESS, map, 112, "You")
 	root.add_child(_local)
 	_local.spawn(Transform3D(Basis(), Vector3(-1.0, 0.05, 20.0)), 0)
 	_local.attach_camera(100.0)
 	_local.camera.current = false
-	# Where the arena's vendored weapon art is; the client says so at boot, and without it
+	# Where Fatal Contact's vendored weapon art is; the client says so at boot, and without it
 	# the hands are drawn holding nothing.
 	AwModelCache.set_asset_root("res://")
 	_players.append(_local)
@@ -136,11 +136,11 @@ func _stage_feel(map: ArenaMap, id: StringName) -> void:
 		var old_arms := root.get_node_or_null(^"ViewArms")
 		if old_arms != null:
 			old_arms.free()
-		ArenaViewArms.mount(root, hands, _local, ArenaAvatars.look_of(_local.avatar, &"arena-player-00000001"))
+		FcViewArms.mount(root, hands, _local, FcAvatars.look_of(_local.avatar, &"arena-player-00000001"))
 		_local.arm_first_person(hands, true)
 		var _given := _local.weapons.give_everything()
 
-	_hud = ArenaHud.new()
+	_hud = FcHud.new()
 	_hud.name = "Hud"
 	_hud.config = DotUiConfig.new()
 	_hud.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -168,7 +168,7 @@ func _stage_feel(map: ArenaMap, id: StringName) -> void:
 
 
 ## The first-person frames of `--feel`: sniper at the hip, scope, HUD and kill feedback.
-func _feel_shots_view(id: StringName, victim: ArenaPlayer, hurt: ArenaPlayer, arm_hands: Callable, hold: Callable) -> Array[Dictionary]:
+func _feel_shots_view(id: StringName, victim: FcPlayer, hurt: FcPlayer, arm_hands: Callable, hold: Callable) -> Array[Dictionary]:
 	return [
 		{
 			# The sniper at the hip: its view model against the vendored art.
@@ -222,11 +222,11 @@ func _feel_shots_view(id: StringName, victim: ArenaPlayer, hurt: ArenaPlayer, ar
 				_local.challenge = -1,
 			"late": [
 				[12, func() -> void:
-					var medals := [ArenaAwards.Medal.FIRST_BLOOD, ArenaAwards.Medal.HEADSHOT, ArenaAwards.Medal.DOUBLE_KILL]
+					var medals := [FcAwards.Medal.FIRST_BLOOD, FcAwards.Medal.HEADSHOT, FcAwards.Medal.DOUBLE_KILL]
 					_hud.note_kill({"killer_id": 112, "victim_id": 111, "headshot": true, "weapon": "rifle"}, 112, "You")
 					_hud.note_award(
 						{"killer_id": 112, "victim_id": 111, "medals": medals,
-							"points": ArenaAwards.points_for(medals), "streak": 4},
+							"points": FcAwards.points_for(medals), "streak": 4},
 						112, "Victim", "You"
 					)],
 				[4, func() -> void:
@@ -239,7 +239,7 @@ func _feel_shots_view(id: StringName, victim: ArenaPlayer, hurt: ArenaPlayer, ar
 
 
 ## The world frames of `--feel`: a broken body, the health bar, drops and your own body.
-func _feel_shots_world(id: StringName, victim: ArenaPlayer, hurt: ArenaPlayer, arm_hands: Callable, hold: Callable) -> Array[Dictionary]:
+func _feel_shots_world(id: StringName, victim: FcPlayer, hurt: FcPlayer, arm_hands: Callable, hold: Callable) -> Array[Dictionary]:
 	return [
 		{
 			"name": "%s_feel_break" % String(id),
@@ -272,15 +272,15 @@ func _feel_shots_world(id: StringName, victim: ArenaPlayer, hurt: ArenaPlayer, a
 			"from": Vector3(3.5, 2.4, 19.0),
 			"at": Vector3(0.0, 0.3, 14.5),
 			"arm": func() -> void:
-				var drops := ArenaDrops.new()
+				var drops := FcDrops.new()
 				drops.is_authority = false
 				drops.draws = true
 				root.add_child(drops)
 				var from := Vector3(0.0, 0.05, 14.5)
 				for i in range(5):
 					var a := TAU * float(i) / 5.0
-					drops.mirror_drop(i + 1, ArenaDrops.Kind.POINT, from + Vector3(cos(a) * 1.6, 0.0, sin(a) * 1.6), from, 1)
-				drops.mirror_drop(9, ArenaDrops.Kind.HEALTH, from + Vector3(0.0, 0.0, 0.3), from, 25),
+					drops.mirror_drop(i + 1, FcDrops.Kind.POINT, from + Vector3(cos(a) * 1.6, 0.0, sin(a) * 1.6), from, 1)
+				drops.mirror_drop(9, FcDrops.Kind.HEALTH, from + Vector3(0.0, 0.0, 0.3), from, 25),
 			"wait": 40,
 		},
 		{
@@ -297,7 +297,7 @@ func _feel_shots_world(id: StringName, victim: ArenaPlayer, hurt: ArenaPlayer, a
 					_local.sampler.look_at_angles(_local.controller.state.yaw, -62.0)
 				_local.health.health = _local.health.max_health
 				# A real avatar: a player with none is drawn as a capsule, which has no legs to keep.
-				_local.avatar = load("res://game/arena_avatars.gd").stock_avatar(&"you")
+				_local.avatar = load("res://game/fc_avatars.gd").stock_avatar(&"you")
 				# Current first: present_own_body draws nothing for a camera nobody looks through.
 				_local.camera.current = true
 				_local.present_own_body(1, _local.controller.state.yaw)
@@ -349,7 +349,7 @@ func _stage_muzzle(id: StringName, arm_hands: Callable, hold: Callable) -> void:
 # --- --fx -------------------------------------------------------------------
 
 ## A death at [param at], its two emitters (drops and mist) slowed so a frame catches the burst.
-func _fx_death(presentation: ArenaPresentation, at: Vector3, eye: Vector3, aim: Vector3, step_first: bool) -> void:
+func _fx_death(presentation: FcPresentation, at: Vector3, eye: Vector3, aim: Vector3, step_first: bool) -> void:
 	if step_first:
 		presentation.present(0.016, eye, aim)
 	presentation.on_died(Transform3D(Basis.IDENTITY, at))
@@ -360,7 +360,7 @@ func _fx_death(presentation: ArenaPresentation, at: Vector3, eye: Vector3, aim: 
 
 
 ## The re-firable volley of `--fx`: six shots from [param eye] along [param aim], slowed so a frame catches them.
-func _fx_fire(presentation: ArenaPresentation, trace: DotTraceFlat, eye: Vector3, aim: Vector3, side: Vector3) -> Callable:
+func _fx_fire(presentation: FcPresentation, trace: DotTraceFlat, eye: Vector3, aim: Vector3, side: Vector3) -> Callable:
 	var refused := {}
 	presentation.fx.spawned.connect(func(fx_id: StringName, node: Node, why: StringName) -> void:
 		if node == null:
@@ -401,15 +401,15 @@ func _fx_fire(presentation: ArenaPresentation, trace: DotTraceFlat, eye: Vector3
 
 
 ## A burst of rifle shots at a wall, drawn by the real presentation layer the way a client
-## draws its own: [method ArenaPresentation.on_used] with a [DotWeaponOutcome] whose
+## draws its own: [method FcPresentation.on_used] with a [DotWeaponOutcome] whose
 ## impacts are where the map's own trace says each shot stopped.
 ##
 ## [b]The particles are slowed to a twentieth of real speed and restarted once spawned.[/b]
 ## A muzzle flash lives 80 ms and a software renderer under xvfb takes longer than that per
 ## frame, so at full speed the frame this saves is the one after it went out. The holes are
 ## decals and are not affected.
-func _stage_fx(map: ArenaMap, id: StringName, eye: Vector3, aim_at: Vector3) -> void:
-	var presentation := ArenaPresentation.new()
+func _stage_fx(map: FcMap, id: StringName, eye: Vector3, aim_at: Vector3) -> void:
+	var presentation := FcPresentation.new()
 	presentation.name = "Presentation"
 	root.add_child(presentation)
 	var built := presentation.setup()
@@ -481,7 +481,7 @@ func _stage_fx(map: ArenaMap, id: StringName, eye: Vector3, aim_at: Vector3) -> 
 
 
 ## fc-weapons' smoke and fire clouds, then the blind flash, as the GRENADE_FX event draws them.
-func _fx_grenade_shots(presentation: ArenaPresentation, id: StringName, eye: Vector3, aim: Vector3, side: Vector3) -> Array:
+func _fx_grenade_shots(presentation: FcPresentation, id: StringName, eye: Vector3, aim: Vector3, side: Vector3) -> Array:
 	var cloud_at := eye + aim * 5.0
 	var cases := [
 		["smoke", AwUtilityZones.Fx.SMOKE, cloud_at, 4.0, 1.0, 90],
@@ -503,7 +503,7 @@ func _fx_grenade_shots(presentation: ArenaPresentation, id: StringName, eye: Vec
 
 ## `--action <kind> <id>` (`--action emote dance`, `--action pose sit`): a figure playing an avatar
 ## action from the front, early and later in the clip. The id goes through dot-user-avatar's own list.
-func _stage_action(map: ArenaMap, id: StringName, kind: StringName, action: String) -> void:
+func _stage_action(map: FcMap, id: StringName, kind: StringName, action: String) -> void:
 	var body := _cast(map, 1, "Actor", Vector3(0.0, 1.3, 0.0), 0.0)
 	_action_figure = body.figure
 	var entry := DotAvatarActions.defaults().find(kind, action)
@@ -519,18 +519,18 @@ func _stage_action(map: ArenaMap, id: StringName, kind: StringName, action: Stri
 
 
 ## `--people`: each of the four bodies in first person (two-hand rifle) and in a row in third person, front and back.
-func _stage_people(map: ArenaMap, id: StringName) -> void:
+func _stage_people(map: FcMap, id: StringName) -> void:
 	var bodies: Array[StringName] = [&"matt", &"lis", &"sam", &"shaun"]
-	var casts: Array[ArenaPlayer] = []
+	var casts: Array[FcPlayer] = []
 	for i in bodies.size():
 		var cast := _cast(map, 200 + i, String(bodies[i]), Vector3(-1.5 + i, 1.3, 0.0), 0.0)
-		var look := ArenaAvatars.look_of(cast.avatar, StringName("arena-player-%08d" % (200 + i)))
+		var look := FcAvatars.look_of(cast.avatar, StringName("arena-player-%08d" % (200 + i)))
 		look.body = bodies[i]
 		cast.figure.build(look, 1.8)
 		casts.append(cast)
-	_local = ArenaPlayer.new()
+	_local = FcPlayer.new()
 	_local.name = "Local"
-	_local.setup(ArenaPlayer.Mode.HEADLESS, map, 112, "You")
+	_local.setup(FcPlayer.Mode.HEADLESS, map, 112, "You")
 	root.add_child(_local)
 	_local.spawn(Transform3D(Basis(), Vector3(-1.0, 0.05, 20.0)), 0)
 	_local.attach_camera(100.0)
@@ -548,9 +548,9 @@ func _stage_people(map: ArenaMap, id: StringName) -> void:
 		var old_arms := root.get_node_or_null(^"ViewArms")
 		if old_arms != null:
 			old_arms.free()
-		var look := ArenaAvatars.look_of(_local.avatar, &"arena-player-00000001")
+		var look := FcAvatars.look_of(_local.avatar, &"arena-player-00000001")
 		look.body = body
-		ArenaViewArms.mount(root, hands, _local, look)
+		FcViewArms.mount(root, hands, _local, look)
 		_local.arm_first_person(hands, true)
 		var _given := _local.weapons.give_everything()
 		var ask := DotWeaponCommand.new()
@@ -567,27 +567,27 @@ func _stage_people(map: ArenaMap, id: StringName) -> void:
 	_shots.append({"name": "%s_people_third_b" % String(id), "from": Vector3(0.0, 2.2, 3.6), "at": at, "wait": 5})
 
 
-func _cast(map: ArenaMap, pid: int, name_text: String, at: Vector3, yaw: float) -> ArenaPlayer:
-	var body := ArenaPlayer.new()
+func _cast(map: FcMap, pid: int, name_text: String, at: Vector3, yaw: float) -> FcPlayer:
+	var body := FcPlayer.new()
 	body.name = name_text
-	body.setup(ArenaPlayer.Mode.HEADLESS, map, pid, name_text)
+	body.setup(FcPlayer.Mode.HEADLESS, map, pid, name_text)
 	root.add_child(body)
 	body.spawn(Transform3D(Basis(Vector3.UP, deg_to_rad(yaw)), at), 0)
 	body.attach_body_mesh(
 		Color.from_hsv(fmod(float(pid) * 0.37, 1.0), 0.55, 0.85),
-		ArenaAvatars.stock_avatar(StringName(ArenaGame.storage_key(pid)))
+		FcAvatars.stock_avatar(StringName(FcGame.storage_key(pid)))
 	)
 	_players.append(body)
 	return body
 
 
 ## The biggest triangle the map draws as a surf ramp, `{centre, normal}`.
-static func _biggest_ramp(map: ArenaMap) -> Dictionary:
-	var manifest: Dictionary = ArenaMap.ArenaImportedMaps.manifest(map.id)
+static func _biggest_ramp(map: FcMap) -> Dictionary:
+	var manifest: Dictionary = FcMap.FcImportedMaps.manifest(map.id)
 	var dir := map.manifest_path.get_base_dir()
 	var blob := FileAccess.get_file_as_bytes(dir.path_join("%s.bin" % String(map.id)))
-	var stride := ArenaMap.ArenaBspMap.VERTEX_FLOATS
-	var scale := ArenaMap.ArenaBspMap.METRES_PER_UNIT
+	var stride := FcMap.FcBspMap.VERTEX_FLOATS
+	var scale := FcMap.FcBspMap.METRES_PER_UNIT
 	var best := {}
 	var best_area := 0.0
 

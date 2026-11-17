@@ -1,10 +1,10 @@
 extends DotGameCheckSuite
 
-const ArenaGame := preload("../game/arena_game.gd")
-const ArenaPlayerStack := preload("../game/arena_player_stack.gd")
-const ArenaPlayer := preload("../game/arena_player.gd")
+const FcGame := preload("../game/fc_game.gd")
+const FcPlayerStack := preload("../game/fc_player_stack.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
-## The player stack, run against a real arena rather than against a stub.
+## The player stack, run against a real Fatal Contact rather than against a stub.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_stack.tscn
@@ -29,7 +29,7 @@ const CHECKS := 76
 
 var _section_count := 0
 
-var _game: ArenaGame = null
+var _game: FcGame = null
 
 
 func _ready() -> void:
@@ -58,7 +58,7 @@ func _run() -> void:
 
 
 func _build() -> bool:
-	_game = ArenaGame.new()
+	_game = FcGame.new()
 	_game.tick_rate = TICK_RATE
 	_game.headless = true
 	_game.is_authority = true
@@ -92,7 +92,7 @@ func _build() -> bool:
 	return true
 
 
-func _stack() -> ArenaPlayerStack:
+func _stack() -> FcPlayerStack:
 	return _game.player_stack
 
 
@@ -362,7 +362,7 @@ func _test_classes_and_spawns() -> void:
 	_test_classes_rest(classes, spawns, stack)
 
 
-func _test_classes_rest(classes: DotPlayerClassManager, spawns: DotSpawnDirector, stack: ArenaPlayerStack) -> void:
+func _test_classes_rest(classes: DotPlayerClassManager, spawns: DotSpawnDirector, stack: FcPlayerStack) -> void:
 	for cond in stack.spawns.conditions:
 		cond.enabled = false
 	var counts := {}
@@ -431,8 +431,8 @@ func _test_class_immunity() -> void:
 
 
 ## Puts [param top] over [param under]'s head falling at [param speed], ticks once and says whether [param under] died.
-func _stomp_try(top: ArenaPlayer, under: ArenaPlayer, speed: float, height := 1.8) -> bool:
-	for p: ArenaPlayer in [top, under]:
+func _stomp_try(top: FcPlayer, under: FcPlayer, speed: float, height := 1.8) -> bool:
+	for p: FcPlayer in [top, under]:
 		_game.combat.health_of(p.player_id).revive()
 		_game.combat.health_of(p.player_id).invulnerable_until_tick = -1
 	_game.stomp.forget(top.player_id)
@@ -454,10 +454,10 @@ func _test_stomp() -> void:
 	_section("stomp")
 
 	var all := _game.players()
-	var a: ArenaPlayer = all[0]
-	var b: ArenaPlayer = null
-	var mate: ArenaPlayer = null
-	for p: ArenaPlayer in all:
+	var a: FcPlayer = all[0]
+	var b: FcPlayer = null
+	var mate: FcPlayer = null
+	for p: FcPlayer in all:
 		if p == a:
 			continue
 		if _game.team_of(p.player_id) != _game.team_of(a.player_id) and b == null:
@@ -524,7 +524,7 @@ func _test_leaving() -> void:
 	# Into a free-for-all on the same map: the roster gives up the last mode's sides.
 	var ids := _game.player_ids()
 	var on_side_before := ids.filter(func(id: int) -> bool: return teams.teams.is_playing(teams.team_of(str(id)))).size()
-	var changed := _game.change_map(_game.map, ArenaGame.ArenaModes.by_id_or_default(&"ffa"))
+	var changed := _game.change_map(_game.map, FcGame.FcModes.by_id_or_default(&"ffa"))
 	var on_side_after := ids.filter(func(id: int) -> bool: return teams.teams.is_playing(teams.team_of(str(id)))).size()
 	_check(changed.ok and on_side_before > 0 and on_side_after == 0,
 		"a free-for-all after a team mode puts nobody on the old sides (%d before, %d after)" % [on_side_before, on_side_after])

@@ -14,7 +14,7 @@ func _test_command_wire() -> void:
 	fire.slot = 2
 	fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
 
-	var sent := ArenaNetCommand.new()
+	var sent := FcNetCommand.new()
 	sent.tick = 4242
 	sent.delta = 1.0 / float(TICK_RATE)
 	sent.move = move
@@ -23,7 +23,7 @@ func _test_command_wire() -> void:
 	var writer := DotNetWriter.new()
 	sent.write(writer)
 
-	var got := ArenaNetCommand.new()
+	var got := FcNetCommand.new()
 	got.read(DotNetReader.new(writer.to_bytes()))
 
 	_check(got.tick == 4242, "the tick survives the wire")
@@ -42,22 +42,22 @@ func _test_command_wire() -> void:
 	sent.view_lag_q = 37
 	var lagged := DotNetWriter.new()
 	sent.write(lagged)
-	var got_lag := ArenaNetCommand.new()
+	var got_lag := FcNetCommand.new()
 	got_lag.read(DotNetReader.new(lagged.to_bytes()))
 	_check(got_lag.view_lag_q == 37 and absf(got_lag.view_lag_ticks() - 9.25) < 0.001,
 		"the view lag survives the wire (%d quarter ticks)" % got_lag.view_lag_q)
-	var idle := ArenaNetCommand.new()
+	var idle := FcNetCommand.new()
 	idle.view_lag_q = 37
 	var quiet := DotNetWriter.new()
 	idle.write(quiet)
-	var got_idle := ArenaNetCommand.new()
+	var got_idle := FcNetCommand.new()
 	got_idle.read(DotNetReader.new(quiet.to_bytes()))
 	_check(got_idle.view_lag_q == -1 and quiet.to_bytes().size() < lagged.to_bytes().size(),
 		"and a command with no button down sends none (%d bytes against %d)" % [quiet.to_bytes().size(), lagged.to_bytes().size()])
 
 	# The one thing quantisation cannot bound: a legal pair of components with an
 	# illegal length. Diagonal at full deflection is 41% more speed than anyone else.
-	var cheat := ArenaNetCommand.new()
+	var cheat := FcNetCommand.new()
 	cheat.move = DotFpsCommand.new()
 	cheat.move.move = Vector2(1.0, 1.0)
 	cheat.fire = DotWeaponCommand.new()
@@ -68,7 +68,7 @@ func _test_command_wire() -> void:
 		str(cheat.move.move.length())
 	)
 
-	var greedy := ArenaNetCommand.new()
+	var greedy := FcNetCommand.new()
 	greedy.move = DotFpsCommand.new()
 	greedy.fire = DotWeaponCommand.new()
 	greedy.delta = 10.0
@@ -100,12 +100,12 @@ func _test_convergence() -> void:
 	# only the first peer's updates — the shape of dot-net's replication bug — passes
 	# half of these and fails the other half.
 	for peer_id in _clients:
-		var bridge: ArenaNetBridge = _clients[peer_id]["bridge"]
+		var bridge: FcNetBridge = _clients[peer_id]["bridge"]
 
 		for other_peer in _clients:
 			var session := int(_clients[other_peer]["session"])
-			var mine: ArenaPlayerNet = bridge.behaviour_for(session)
-			var theirs: ArenaPlayerNet = _server_bridge.behaviour_for(session)
+			var mine: FcPlayerNet = bridge.behaviour_for(session)
+			var theirs: FcPlayerNet = _server_bridge.behaviour_for(session)
 
 			_check(mine != null and theirs != null, "client %d has player %d" % [peer_id, session])
 
@@ -139,7 +139,7 @@ func _test_acks_and_recovery() -> void:
 
 	# A value that changes rarely is the one acknowledgements exist for: a position is
 	# repaired by the next snapshot, health is not.
-	var victim: ArenaPlayerNet = _server_bridge.behaviour_for(11)
+	var victim: FcPlayerNet = _server_bridge.behaviour_for(11)
 	victim.player.health.health = maxf(1.0, victim.player.health.health - 37.0)
 
 	for tick in range(RUN_TICKS + 1, RUN_TICKS + 41):
@@ -170,7 +170,7 @@ func _test_acks_and_recovery() -> void:
 	var authoritative := int(ceil(victim.player.health.health))
 
 	for peer_id in _clients:
-		var seen: ArenaPlayerNet = _clients[peer_id]["bridge"].behaviour_for(11)
+		var seen: FcPlayerNet = _clients[peer_id]["bridge"].behaviour_for(11)
 		_check(
 			absi(seen.net_health - authoritative) <= 1,
 			"client %d has the right health for player 11" % peer_id,
@@ -193,22 +193,22 @@ func _test_weapons_over_the_wire() -> void:
 
 	_pump(16)
 
-	var owner: ArenaNetBridge = _clients[2]["bridge"]
-	var watcher: ArenaNetBridge = _clients[3]["bridge"]
+	var owner: FcNetBridge = _clients[2]["bridge"]
+	var watcher: FcNetBridge = _clients[3]["bridge"]
 	var served := _server_bridge.behaviour_for(11).player
 	var own := owner.behaviour_for(11)
 	var seen := watcher.behaviour_for(11)
 
 	# The earlier sections fire this sidearm dry (a magazine, no auto-reload); a dry gun uses nothing and shows 0.
-	for who: ArenaPlayer in [served, own.player]:
+	for who: FcPlayer in [served, own.player]:
 		who.arsenal.current().magazine = who.arsenal.current().def.magazine
 
-	var server_mask := ArenaContent.carry_mask(served.arsenal)
+	var server_mask := FcContent.carry_mask(served.arsenal)
 	_check(server_mask != 0, "the server's player carries weapons", str(server_mask))
 	_check(
-		ArenaContent.carry_mask(own.player.arsenal) == server_mask,
+		FcContent.carry_mask(own.player.arsenal) == server_mask,
 		"and their own client's arsenal carries exactly the same",
-		"%d against %d" % [ArenaContent.carry_mask(own.player.arsenal), server_mask]
+		"%d against %d" % [FcContent.carry_mask(own.player.arsenal), server_mask]
 	)
 	_check(
 		own.player.arsenal.current_slot() == served.arsenal.current_slot(),
@@ -217,9 +217,9 @@ func _test_weapons_over_the_wire() -> void:
 		]
 	)
 	_check(
-		ArenaHud.rounds_in_hand(own.player) > 0,
+		FcHud.rounds_in_hand(own.player) > 0,
 		"so the owner's HUD counts real ammunition, where it read zero",
-		str(ArenaHud.rounds_in_hand(own.player))
+		str(FcHud.rounds_in_hand(own.player))
 	)
 	_check(
 		seen.net_carry == 0,
@@ -247,8 +247,8 @@ func _test_weapons_over_the_wire() -> void:
 	var uses: Array[DotWeaponOutcome] = []
 	own.player.used.connect(func(o: DotWeaponOutcome) -> void: uses.append(o))
 
-	var idle := ArenaNetCommand.new()
-	var shoot := ArenaNetCommand.new()
+	var idle := FcNetCommand.new()
+	var shoot := FcNetCommand.new()
 	shoot.fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
 	shoot.fire.slot = 0
 
@@ -282,8 +282,8 @@ func _test_weapons_over_the_wire() -> void:
 
 
 ## A launch the server announces flies on a client, and hurts nobody there.
-func _test_launch_flies_on_client(own: ArenaPlayerNet) -> void:
-	var client_game: ArenaGame = _clients[2]["game"]
+func _test_launch_flies_on_client(own: FcPlayerNet) -> void:
+	var client_game: FcGame = _clients[2]["game"]
 	var gone: Array = []
 	client_game.projectiles.detonated.connect(func(at: Vector3, _s: DotWeaponSpawn) -> void:
 		gone.append(at)
@@ -297,17 +297,17 @@ func _test_launch_flies_on_client(own: ArenaPlayerNet) -> void:
 	spawn.life_ticks = 400
 	spawn.tick = _server_game.current_tick()
 
-	var wire := ArenaEvents.write_launch(spawn, ArenaContent.weapon_index(spawn.id))
-	var read := ArenaEvents.read_launch(DotNetReader.new(wire))
+	var wire := FcEvents.write_launch(spawn, FcContent.weapon_index(spawn.id))
+	var read := FcEvents.read_launch(DotNetReader.new(wire))
 	_check(
 		bool(read["ok"]) and int(read["fuse"]) == 24 and int(read["owner"]) == 12
-		and ArenaContent.weapon_at(int(read["weapon"])) == AwWeaponIds.FRAG
+		and FcContent.weapon_at(int(read["weapon"])) == AwWeaponIds.FRAG
 		and (read["velocity"] as Vector3).distance_to(spawn.velocity) < 0.01,
 		"a LAUNCH round-trips: who, which weapon, how fast, the fuse"
 	)
 
 	var health_before := own.player.health.health
-	_deliver_event(2, ArenaEvents.Kind.LAUNCH, wire)
+	_deliver_event(2, FcEvents.Kind.LAUNCH, wire)
 	_check(client_game.projectiles.live_count() == 1, "the client flies a copy of it")
 	_pump(32)
 	_check(gone.size() == 1, "which goes off on its fuse there", str(gone.size()))
@@ -326,9 +326,9 @@ func _test_solid_players_predicted() -> void:
 
 	var session_a := int(_clients[2]["session"])
 	var session_b := int(_clients[3]["session"])
-	var server_a: ArenaPlayer = _server_bridge.behaviour_for(session_a).player
-	var server_b: ArenaPlayer = _server_bridge.behaviour_for(session_b).player
-	var client_game: ArenaGame = (_clients[2]["bridge"] as ArenaNetBridge).game
+	var server_a: FcPlayer = _server_bridge.behaviour_for(session_a).player
+	var server_b: FcPlayer = _server_bridge.behaviour_for(session_b).player
+	var client_game: FcGame = (_clients[2]["bridge"] as FcNetBridge).game
 	var radius := server_a.controller.tunables.radius
 	var two_radii := radius * 2.0
 
@@ -387,7 +387,7 @@ func _test_ready_gate() -> void:
 	# and THEN the client builds its scene, so everything sent in between lands on a node that does
 	# not exist and is lost — one "Node not found" per call.
 	var sent: Array = []
-	var bridge := ArenaNetBridge.new()
+	var bridge := FcNetBridge.new()
 	bridge.name = "GateBridge"
 	add_child(bridge)
 
@@ -400,7 +400,7 @@ func _test_ready_gate() -> void:
 	link.loopback = func(method: StringName, peer: int, payload: PackedByteArray) -> void:
 		sent.append([method, peer, payload.size(), payload])
 
-	bridge.send_event(77, ArenaEvents.Kind.NOTICE, ArenaEvents.write_notice("early"))
+	bridge.send_event(77, FcEvents.Kind.NOTICE, FcEvents.write_notice("early"))
 	_check(sent.is_empty(), "an event to a peer that has not said READY is dropped")
 
 	# [b]A READY before the seat is kept, and the seat answers it.[/b] Over ENet with loss a
@@ -409,7 +409,7 @@ func _test_ready_gate() -> void:
 	bridge.mark_ready(77)
 	_check(sent.is_empty(), "a READY before the seat is kept: nothing is sent yet", str(sent.size()))
 	var early := bridge.add_player(77, 577, "Early")
-	var watcher := ArenaNetBridge.new()
+	var watcher := FcNetBridge.new()
 	watcher.name = "GateWatcher"
 	add_child(watcher)
 	var watcher_game := _make_game(false)
@@ -428,12 +428,12 @@ func _test_ready_gate() -> void:
 	watcher_net.queue_free()
 	var after_ready: int = sent.size()
 
-	bridge.send_event(77, ArenaEvents.Kind.NOTICE, ArenaEvents.write_notice("late"))
+	bridge.send_event(77, FcEvents.Kind.NOTICE, FcEvents.write_notice("late"))
 	_check(sent.size() > after_ready, "and later events reach it")
 
 	# A broadcast goes to ready peers only, which is the same rule stated the other way.
 	sent.clear()
-	bridge.send_event(0, ArenaEvents.Kind.NOTICE, ArenaEvents.write_notice("all"))
+	bridge.send_event(0, FcEvents.Kind.NOTICE, FcEvents.write_notice("all"))
 	_check(sent.size() == 1, "a broadcast reaches exactly the ready peers", str(sent.size()))
 
 	# [b]A player who joins later is announced to everybody already in.[/b] Only the READY

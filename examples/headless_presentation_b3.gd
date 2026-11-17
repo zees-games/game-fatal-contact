@@ -5,10 +5,10 @@ extends "headless_presentation_b3a.gd"
 func _test_bodies_fall() -> void:
 	_section("A dead body falls the way the server picked, and gets up on respawn")
 
-	var g := ArenaGame.new()
+	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(ArenaMap.dm_box())
+	var _set := g.setup(FcMap.dm_box())
 	var dmg := DotDamage.new()
 	dmg.attacker = 3
 	dmg.weapon_id = AwWeaponIds.SNIPER
@@ -33,14 +33,14 @@ func _test_bodies_fall() -> void:
 	g.ragdoll_rules.set_cvar("sv_ragdoll_reactions", "")
 
 	# The wire: the death rides KILL, and an older kill still reads.
-	var wrote := ArenaEvents.write_kill(3, 9, "sniper", false, true, sniped)
-	var read := ArenaEvents.read_kill(DotNetReader.new(wrote))
+	var wrote := FcEvents.write_kill(3, 9, "sniper", false, true, sniped)
+	var read := FcEvents.read_kill(DotNetReader.new(wrote))
 	var back := DotPlayerDeath.from_dict(read)
 	_check(bool(read["ok"]) and bool(read["critical"]) and back.reaction == sniped.reaction
 		and back.roll_seed == sniped.roll_seed and absf(back.damage - 120.0) < 0.5
 		and back.direction.distance_to(sniped.direction) < 0.02,
 		"the KILL carries the reaction, the seed, the damage and the direction (%d bytes)" % wrote.size())
-	var old := ArenaEvents.read_kill(DotNetReader.new(ArenaEvents.write_kill(3, 9, "pistol", true, false)))
+	var old := FcEvents.read_kill(DotNetReader.new(FcEvents.write_kill(3, 9, "pistol", true, false)))
 	_check(bool(old["ok"]) and not old.has("death_reaction") and DotPlayerDeath.from_dict(old).reaction == &"limp",
 		"a KILL without one reads as a plain fall")
 
@@ -49,12 +49,12 @@ func _test_bodies_fall() -> void:
 	var yard := DotPlayerRagdolls.new()
 	add_child(yard)
 
-	var player := ArenaPlayer.new()
-	player.setup(ArenaPlayer.Mode.HEADLESS, ArenaMap.dm_box(), 6, "Faller")
+	var player := FcPlayer.new()
+	player.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), 6, "Faller")
 	add_child(player)
 	# Away from the origin: the game above keeps a collision copy of the level there.
 	player.spawn(Transform3D(Basis(), Vector3(20.0, 0.0, 20.0)), 0)
-	player.attach_body_mesh(Color.WHITE, ArenaAvatars.stock_avatar(&"faller"))
+	player.attach_body_mesh(Color.WHITE, FcAvatars.stock_avatar(&"faller"))
 	player.present(0.016)
 	player.make_dead()
 	var fall := DotPlayerDeath.new()
@@ -101,15 +101,15 @@ func _test_bodies_fall() -> void:
 	_check(player.fall_body(yard, fall) == null and not player.body_mesh.visible,
 		"sv_ragdoll_style hide: nothing, and the figure gone")
 
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.game = g
 	client._build_ragdolls()
 	# The client is not in the tree here (its _ready builds a whole game); its yard has to be.
 	client.remove_child(client.ragdolls)
 	add_child(client.ragdolls)
 	var added: DotResult = g.add_player(11, "Eleven")
-	var eleven: ArenaPlayer = added.value if added.ok else null
-	eleven.attach_body_mesh(Color.WHITE, ArenaAvatars.stock_avatar(&"eleven"))
+	var eleven: FcPlayer = added.value if added.ok else null
+	eleven.attach_body_mesh(Color.WHITE, FcAvatars.stock_avatar(&"eleven"))
 	eleven.make_dead()
 	var entry := DotKillFeed.Entry.new()
 	entry.victim_key = "11"
@@ -117,7 +117,7 @@ func _test_bodies_fall() -> void:
 	_test_bodies_fall_rest(g, floor_body, yard, player, client, entry)
 
 
-func _test_bodies_fall_rest(g: ArenaGame, floor_body: StaticBody3D, yard: DotPlayerRagdolls, player: ArenaPlayer, client: ArenaClient, entry: DotKillFeed.Entry) -> void:
+func _test_bodies_fall_rest(g: FcGame, floor_body: StaticBody3D, yard: DotPlayerRagdolls, player: FcPlayer, client: FcClient, entry: DotKillFeed.Entry) -> void:
 	client._on_solo_kill(entry)
 	_check(client.ragdolls.live().size() == 1, "solo, a kill's entry carries the fall and the client draws it")
 	_check(client.ragdolls.rules == g.ragdoll_rules, "and it draws under the game's (the server's) rules")
@@ -158,7 +158,7 @@ func _test_bodies_fall_rest(g: ArenaGame, floor_body: StaticBody3D, yard: DotPla
 ## changes now. A whole offline client, because the change rebuilds its level.
 func _test_the_map_menu() -> void:
 	_section("M opens the maps and the modes, and solo a choice changes the map")
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.force_offline = true
 	add_child(client)
 	for _i in 6:
@@ -218,7 +218,7 @@ func _test_the_map_menu() -> void:
 		client.winner_reveal.skip()
 	_check(revealed and menu.scoreboard.is_open(), "the end of the match reveals the winner, then raises the board by itself")
 	# A parse error in the client script (a misplaced line in one function) leaves no killcam, podium or board at all.
-	var script := load("res://game/arena_client.gd") as GDScript
+	var script := load("res://game/fc_client.gd") as GDScript
 	_check(script != null and script.can_instantiate(), "the client script parses, so the end-of-match flow exists at all")
 	_check(client.winner_reveal != null and client.killcam != null, "the killcam is built at start and the podium by the first match end")
 	client._on_match({"state": DotMatch.State.WARMUP, "round": 2, "remaining_ticks": 0})
@@ -237,7 +237,7 @@ func _test_the_map_menu() -> void:
 	await _check_map_menu_tail(client)
 
 
-func _check_map_menu_tail(client: ArenaClient) -> void:
+func _check_map_menu_tail(client: FcClient) -> void:
 	client.free()
 	await get_tree().process_frame
 	_done()
@@ -265,45 +265,45 @@ func _key_press(key: Key) -> InputEventKey:
 
 func _test_feedback_from_the_wire() -> void:
 	_section("The server's hits and medals become a hit marker, numbers, medals and points")
-	var M := ArenaAwards.Medal
+	var M := FcAwards.Medal
 
-	var g := ArenaGame.new()
+	var g := FcGame.new()
 	g.is_authority = true
 	g.headless = true
 	g.register_service = false
 	add_child(g)
-	var _set := g.setup(ArenaMap.dm_box())
-	var me: ArenaPlayer = g.add_player(6, "Broken").value
-	var them: ArenaPlayer = g.add_player(7, "Victim").value
+	var _set := g.setup(FcMap.dm_box())
+	var me: FcPlayer = g.add_player(6, "Broken").value
+	var them: FcPlayer = g.add_player(7, "Victim").value
 
-	var hud := ArenaHud.new()
+	var hud := FcHud.new()
 	hud.config = DotUiConfig.new()
 	add_child(hud)
 	hud.build(null)
 	hud.follow(me)
 
-	var client := ArenaClient.new()
+	var client := FcClient.new()
 	client.game = g
 	client.player = me
 	client.hud = hud
 
 	var at := them.global_position + Vector3(0.0, 1.4, 0.0)
-	client._on_hit(ArenaEvents.read_hit(DotNetReader.new(ArenaEvents.write_hit(7, 34.0, at, false, false))))
+	client._on_hit(FcEvents.read_hit(DotNetReader.new(FcEvents.write_hit(7, 34.0, at, false, false))))
 	_check(hud.hit_marker.alpha() > 0.9 and not hud.hit_marker.kill, "a HIT flashes the hit marker, white")
 	_check(hud.damage_numbers.entries.size() == 1 and int(hud.damage_numbers.entries[0]["amount"]) == 34,
 		"and a number rises from where it landed, saying what it took")
-	client._on_hit(ArenaEvents.read_hit(DotNetReader.new(ArenaEvents.write_hit(7, 20.0, at, false, false))))
+	client._on_hit(FcEvents.read_hit(DotNetReader.new(FcEvents.write_hit(7, 20.0, at, false, false))))
 	_check(hud.damage_numbers.entries.size() == 1 and int(hud.damage_numbers.entries[0]["amount"]) == 54,
 		"a second hit on them straight after adds into the same number (%s)" % [hud.damage_numbers.entries.map(func(e: Dictionary) -> int: return int(e["amount"]))])
-	client._on_hit(ArenaEvents.read_hit(DotNetReader.new(ArenaEvents.write_hit(7, 80.0, at, true, true))))
+	client._on_hit(FcEvents.read_hit(DotNetReader.new(FcEvents.write_hit(7, 80.0, at, true, true))))
 	_check(hud.hit_marker.kill and bool(hud.damage_numbers.entries[0]["headshot"]),
 		"a lethal hit to the head turns the marker red and the number gold")
 	hud.hit_marker.advance(1.0)
 	hud.damage_numbers.advance(1.0)
 	_check(hud.hit_marker.alpha() == 0.0 and hud.damage_numbers.entries.is_empty(), "and both are gone within a second")
 
-	var award := ArenaEvents.read_award(DotNetReader.new(
-		ArenaEvents.write_award(6, 7, ArenaAwards.points_for([M.FIRST_BLOOD, M.HEADSHOT]), 4, [M.FIRST_BLOOD, M.HEADSHOT])
+	var award := FcEvents.read_award(DotNetReader.new(
+		FcEvents.write_award(6, 7, FcAwards.points_for([M.FIRST_BLOOD, M.HEADSHOT]), 4, [M.FIRST_BLOOD, M.HEADSHOT])
 	))
 	client._on_award(award)
 	var texts: Array = []
@@ -325,14 +325,14 @@ func _test_feedback_from_the_wire() -> void:
 	hud.medal_row.advance(0.3)
 	_check(hud.medal_row.shown.is_empty() and hud._popups.size() == 1, "somebody else's medals are not drawn on your screen")
 
-	var catalogue := ArenaPresentation.sound_catalogue()
-	var recipes := ArenaPresentation.sound_recipes()
+	var catalogue := FcPresentation.sound_catalogue()
+	var recipes := FcPresentation.sound_recipes()
 	var unheard: Array = []
-	for medal in ArenaAwards.MEDALS:
-		var id := ArenaAwards.medal_sound(int(medal))
+	for medal in FcAwards.MEDALS:
+		var id := FcAwards.medal_sound(int(medal))
 		if catalogue.find(id) == null or not recipes.has(id):
 			unheard.append(String(id))
-	_check(unheard.is_empty() and catalogue.find(ArenaPresentation.KILL_CONFIRMED) != null,
+	_check(unheard.is_empty() and catalogue.find(FcPresentation.KILL_CONFIRMED) != null,
 		"every medal and the kill confirmation is a sound with a stand-in (%s)" % [unheard])
 
 	client.free()
@@ -347,18 +347,18 @@ func _test_blind_and_beacon() -> void:
 	var p := _make()
 	var sink := p.audio.sink as DotAudioSinkNull
 
-	var def := p.audio.catalogue.find(ArenaPresentation.BEACON_SOUND)
+	var def := p.audio.catalogue.find(FcPresentation.BEACON_SOUND)
 	_check(
 		def != null and def.kind == DotAudioDef.Kind.POSITIONAL_3D and def.max_distance >= 90.0,
 		"the ping is positional and carries at least as far as a shot",
 		"a beacon's job is to say where somebody is"
 	)
 	sink.forget()
-	_check(p.on_beacon(Vector3(4.0, 0.0, 2.0)) != 0 and sink.count_of(ArenaPresentation.BEACON_SOUND) == 1,
+	_check(p.on_beacon(Vector3(4.0, 0.0, 2.0)) != 0 and sink.count_of(FcPresentation.BEACON_SOUND) == 1,
 		"and it plays where the beacon is")
 
-	var player := ArenaPlayer.new()
-	player.setup(ArenaPlayer.Mode.HEADLESS, ArenaMap.dm_box(), 5, "Marked")
+	var player := FcPlayer.new()
+	player.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), 5, "Marked")
 	add_child(player)
 	player.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 18.0)), 0)
 
@@ -394,7 +394,7 @@ func _test_blind_and_beacon() -> void:
 	player.present(0.016)
 	_check(player.beacon_marker == null, "and switched off, the marker goes")
 
-	var hud := ArenaHud.new()
+	var hud := FcHud.new()
 	hud.config = DotUiConfig.new()
 	add_child(hud)
 	hud.build(null)
@@ -406,7 +406,7 @@ func _test_blind_and_beacon() -> void:
 		"the blind is under every HUD widget, and off"
 	)
 	player.blinded = true
-	hud.present_blind(ArenaHud.BLIND_FADE_SEC * 0.5)
+	hud.present_blind(FcHud.BLIND_FADE_SEC * 0.5)
 	_check(
 		hud.blind_overlay.visible and hud.blind_overlay.modulate.a > 0.4
 			and hud.blind_overlay.modulate.a < 0.6,

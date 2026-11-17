@@ -70,7 +70,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
   - Nothing is copied between snapshots.
 - **FC now.**
   - dot-net deltas against the client's acked snapshot (`encode_ack` / `receive_ack`).
-  - The replicated fields are a mirror that `ArenaPlayerNet.pull()` refills every tick, for every player.
+  - The replicated fields are a mirror that `FcPlayerNet.pull()` refills every tick, for every player.
   - The in-flight `arena-simnet` patch stops refilling bots between snapshots. That is half of 31 bots' pulls.
   - A person's pull cannot skip, because `_pull_exact` puts his state back through float32 every tick, as his client's replay does.
 - **Saves.** The bot half is about 0.3-0.8 ms and is the in-flight patch, not repeated here.
@@ -86,7 +86,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
   - It cuts bytes and client work, not server sim time.
 - **FC now.**
   - dot-net's `DotNetInterestDistance` / `DotNetInterestGrid`, with a flat radius.
-  - FC's `ArenaNetAoi` distance tiers apply from 33 players: full rate inside 20 m, every 2nd snapshot to 120 m (`sv_net_far_distance`, `sv_net_far_tiers`; 40 m with a quarter-rate band past 80 m before fc-dmatrium-bytes-1).
+  - FC's `FcNetAoi` distance tiers apply from 33 players: full rate inside 20 m, every 2nd snapshot to 120 m (`sv_net_far_distance`, `sv_net_far_tiers`; 40 m with a quarter-rate band past 80 m before fc-dmatrium-bytes-1).
   - A beaconed player is `always_relevant`.
   - No PVS yet: a branch exists on `net-visibility-interest-1`, not merged.
 - **Saves.** About 0 server ms at one client; it trims client decode and bandwidth.
@@ -109,7 +109,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
   - Bots never touch the network: `CCSBot` fills a usercmd and runs it straight through `PlayerRunCommand`.
 - **FC now.**
   - dot-net buffers input per peer and applies it on the tick (`_apply_input`, `has_method`/`call` per behaviour).
-  - It then calls `_net_simulate` on every identity; the first player's call runs the whole game tick once (`ArenaNetBridge.ensure_game_ticked`).
+  - It then calls `_net_simulate` on every identity; the first player's call runs the whole game tick once (`FcNetBridge.ensure_game_ticked`).
   - Bots' commands are made in `_commands()`, in the slot a client's input lands in.
   - Measured: input about 0.05 ms, dispatch residual 0.14 ms.
 - **Saves.** At most 0.2 ms. `simhost-net-dispatch-1` was rejected below the gate.
@@ -170,7 +170,7 @@ Nothing in this pass. Every candidate is one of three kinds:
 - **Measured below 0.6 ms in this repository:**
   - dispatch 0.14;
   - input 0.05;
-  - the pre-net watches in `ArenaNetBridge.server_tick`, which are all change-gated or run every 15th tick;
+  - the pre-net watches in `FcNetBridge.server_tick`, which are all change-gated or run every 15th tick;
   - the kill view record gate;
   - the per-player glue `pl_pre` + `pl_post`: 0.9 ms with the fine spans on, which inflate it (64 clock-read pairs a tick). It is not split further here, and cutting 0.6 of it is not credible.
 - **In an addon:**
