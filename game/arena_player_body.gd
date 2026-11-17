@@ -539,6 +539,10 @@ var flag_one_hand := false
 ## Whether the rig has simulate_idle (fc-weapons API 24); the live shell pins 21, whose idle tick is simulate_tick with no context.
 static var idle_tick := DotAddonApi.build_level("fc_weapons") >= 24
 
+## Whether an idle tick hands the rig its posture as a row (fc-weapons API 33, simulate_idle_row): one native call per
+## idle weapon instead of the arsenal asking idle_still and idle_posture. Bit-exact either way; off is the A/B arm.
+static var idle_row_lane := DotAddonApi.build_level("fc_weapons") >= 33
+
 
 func simulate_tick(
 	tick: int,
@@ -666,7 +670,13 @@ func tick_post(tick: int, delta: float, combat_command: DotWeaponCommand) -> Dot
 	# [method _idle_posture] for the same fields the context below gets, so a moving player takes this path too.
 	_posture_tick = tick
 	if weapons.would_idle(_command):
-		out = weapons.simulate_idle(_command, tick) if idle_tick else weapons.simulate_tick(_command, tick, null)
+		if idle_row_lane and controller != null:
+			var still := _idle_row()
+			out = weapons.call(&"simulate_idle_row", _command, tick, _posture_row, still)
+		elif idle_tick:
+			out = weapons.simulate_idle(_command, tick)
+		else:
+			out = weapons.simulate_tick(_command, tick, null)
 		# The rig's idle tick asks the shared player bridge for the sprint, and this player has none of
 		# its controller nodes: without this the hands never go to the sprint carry on a plain run.
 		var hands := weapons.view_model()

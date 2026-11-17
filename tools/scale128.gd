@@ -57,6 +57,9 @@ func _sentinel(is_start: bool) -> void:
 		_phys_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
 
 
+const _PlayerBody := preload("res://game/arena_player_body.gd")
+
+
 func _ready() -> void:
 	var args := OS.get_cmdline_user_args()
 	for i in range(args.size() - 1):
@@ -84,6 +87,8 @@ func _ready() -> void:
 			"--wphases":
 				AwWeaponRig.phase_timers = args[i + 1] != "0"
 				DotWeaponArsenal.phase_timers = AwWeaponRig.phase_timers
+			# --wlane 0: idle weapons through the arsenal's idle_still and idle_posture callables (the row lane's A/B arm).
+			"--wlane": _PlayerBody.idle_row_lane = args[i + 1] != "0"
 			"--native": DotBotWorld.native_enabled = args[i + 1] != "0"
 			"--motornative": DotFpsPhysicsBody.native_enabled = args[i + 1] != "0"
 			# --fine 1: ArenaFrameProbe.fine for the recording, so the sections split tick_players, bots and the world (laps).
