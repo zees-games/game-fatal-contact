@@ -1,7 +1,7 @@
 // Frames of the FC web client in a real browser, split at the loading cover (needs ?cl_perf, which
 // makes the client set window.dotWeb.publishedAt.arena_gate_open when the gate opens).
 //
-//   node tools/browser_stall.mjs [pageUrl] [--budget-ms N] [--runs N] [--phases]
+//   node tools/browser_stall.mjs [pageUrl] [--budget-ms N] [--runs N] [--phases] [--steady-s N]
 //
 // Connects over CDP to a Chrome on a GPU box (`gpu.sh cdp-run --serve 8099 -- node ...` sets
 // GPU_CDP_URL; or CDP=..., default 127.0.0.1:9222); SwiftShader frame times say nothing. Per run it
@@ -13,12 +13,21 @@
 // fetch with its size over the wire, wasm compile, the engine's first prints). Several runs end in a median line. Exits 1
 // when a run's first 2 s of play hold a frame over --budget-ms (default 0, off). How to run it:
 // docs/client.md.
+//
+// --steady-s N (default 0, off) is the frame bench: it plays N more seconds after the first 2 s and
+// prints one BROWSER_BENCH line per run with the frame-time p50/p95/p99 over them, plus which engine
+// the page ran (embed.html's __TMC_ENGINE__ threads|single, __TMC_NATIVES__ native|script) and
+// whether it was cross-origin isolated. Against a server with 63 bots that is the 64-player number
+// (docs/client.md, "A 64-player frame in the browser").
 const pw = (await import(process.env.PLAYWRIGHT_CORE ?? '/home/christian/.local/share/mcp/playwright-mcp/node_modules/playwright-core/index.js')).default;
 const args = process.argv.slice(2);
 const num = (flag, dflt) => args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : dflt;
 const budget = num('--budget-ms', 0);
 const runs = num('--runs', 1);
 const phases = args.includes('--phases');
+const steadyS = num('--steady-s', 0);
+if (!(steadyS >= 0)) { console.error('--steady-s needs seconds (0 is off)'); process.exit(2); }
+const pct = (d, q) => +d[Math.min(d.length - 1, Math.floor(q * d.length))].toFixed(2);
 const url = args.find(a => a.startsWith('http')) ?? 'http://127.0.0.1:8099/embed.html?server=ws://127.0.0.1:6174&cl_perf=5';
 const SMOOTH_MS = 50;
 const browser = await pw.chromium.connectOverCDP(process.env.CDP ?? process.env.GPU_CDP_URL ?? 'http://127.0.0.1:9222');
@@ -56,6 +65,7 @@ async function run(i) {
   for (let s = 0; s < 180 && open === null; s++) { await page.waitForTimeout(1000); open = await page.evaluate(() => window.dotWeb?.publishedAt?.arena_gate_open ?? null); }
   for (let s = 0; s < 12; s++) { await page.waitForTimeout(1000); if (await page.evaluate(() => window.dotWeb?.publishedAt?.arena_after_open != null)) break; }
   await page.waitForTimeout(1000);
+  if (open !== null && steadyS > 0) await page.waitForTimeout(Math.max(0, open + 2000 + steadyS * 1000 - await page.evaluate(() => performance.now())));
   const r = await page.evaluate(() => {
     const gl = document.createElement('canvas').getContext('webgl2');
     const packs = performance.getEntriesByType('resource').filter(e => /\.(pck|dot-pack|wasm)(\?|$)/.test(e.name));
@@ -66,6 +76,7 @@ async function run(i) {
         [e.responseEnd, `fetch ${e.name.split('/').pop().split('?')[0]} done ${MB(e.decodedBodySize)} MB, ${MB(e.transferSize)} MB over the wire, ${(e.responseEnd - e.startTime).toFixed(0)} ms`]]);
     return { frames: window.__frames, gpu: gl.getParameter(gl.getExtension('WEBGL_debug_renderer_info').UNMASKED_RENDERER_WEBGL),
       download: packs.length ? Math.max(...packs.map(e => e.responseEnd)) : null,
+      engine: window.__TMC_ENGINE__ ?? null, natives: window.__TMC_NATIVES__ ?? null, isolated: self.crossOriginIsolated === true,
       boot: [...performance.getEntriesByType('navigation').flatMap(n => [[n.requestStart, 'page request'], [n.responseEnd, 'page received'], [n.domContentLoadedEventEnd, 'page parsed']]), ...files, ...(window.__boot ?? [])], load: w.published.arena_load, loadAt: w.publishedAt.arena_load, after: w.published.arena_after_open, afterAt: w.publishedAt.arena_after_open };
   });
   await page.close();
@@ -88,6 +99,12 @@ async function run(i) {
     open_after_download_ms: r.download && +(open - r.download).toFixed(0), first_smooth_after_open_ms: smooth && +(smooth - open).toFixed(0),
     first_smooth_ms: smooth && +smooth.toFixed(0), play2s: play, cover: stat(r.frames.filter(f => f[0] <= open)), after: stat(r.frames.filter(f => f[0] > open + 2000)) };
   console.log(JSON.stringify(out));
+  if (steadyS > 0) {
+    const d = r.frames.filter(f => f[0] > open + 2000 && f[0] <= open + 2000 + steadyS * 1000).map(f => f[1]).sort((x, y) => x - y);
+    out.bench = d.length ? { frames: d.length, p50_ms: pct(d, 0.5), p95_ms: pct(d, 0.95), p99_ms: pct(d, 0.99), worst_ms: +d[d.length - 1].toFixed(1),
+      fps: +(d.length / (d.reduce((s, x) => s + x, 0) / 1000)).toFixed(1), engine: r.engine, natives: r.natives, isolated: r.isolated } : null;
+    console.log('BROWSER_BENCH', JSON.stringify({ run: i + 1, seconds: steadyS, ...(out.bench ?? { frames: 0 }) }));
+  }
   const errs = [...errors].sort((a, b) => b[1] - a[1]);
   console.log(`  console errors/warnings: ${errs.reduce((s, e) => s + e[1], 0)}`, errs.slice(0, 4).map(([k, n]) => `${n}x ${k}`).join(' | '));
   if (phases) for (const t of raw) console.log('    err:', t);
@@ -104,5 +121,6 @@ for (let i = 0; i < runs; i++) all.push(await run(i));
 const ok = all.filter(Boolean);
 if (runs > 1 && ok.length) console.log('median', JSON.stringify({ runs: ok.length, open_after_download_ms: median(ok.map(o => o.open_after_download_ms)),
   first_smooth_after_open_ms: median(ok.map(o => o.first_smooth_after_open_ms)), play2s_worst: median(ok.map(o => o.play2s?.worst)),
-  play2s_fps: median(ok.map(o => o.play2s?.fps)), cover_worst: median(ok.map(o => o.cover?.worst)) }));
+  play2s_fps: median(ok.map(o => o.play2s?.fps)), cover_worst: median(ok.map(o => o.cover?.worst)),
+  ...(steadyS > 0 ? { bench_p50_ms: median(ok.map(o => o.bench?.p50_ms)), bench_p95_ms: median(ok.map(o => o.bench?.p95_ms)) } : {}) }));
 process.exit(ok.length < runs || (budget > 0 && ok.some(o => o.play2s && o.play2s.worst > budget)) ? 1 : 0);
