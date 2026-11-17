@@ -69,6 +69,9 @@ const _PlayerBody := preload("res://game/arena_player_body.gd")
 ## --cellab N: an in-process A/B of dot-sim's binding cell (DotSimCell): every N ticks the run flips between the patched
 ## cell (side 0, notify only waiters) and upstream's notify-on-every-drop (side 1); the report splits the sections by side.
 var _cellab := 0
+## --weapab N: the same alternating A/B for dot-weapon's native hitscan spread tick (DotWeaponHitscan.native_tick):
+## side 0 ("patched") runs dot-sim's DotSimWeaponSpread, side 1 ("upstream") the GDScript tick.
+var _ab_weap := false
 var _ab_side := 0
 var _ab_ticks := PackedInt64Array([0, 0])
 var _ab_script := PackedFloat64Array([0.0, 0.0])
@@ -82,8 +85,9 @@ var _ab_net_acc := PackedInt64Array([0, 0, 0, 0])
 func _ab_begin() -> void:
 	if _cellab <= 0:
 		return
-	if not ClassDB.class_exists(&"DotSimCell"):
-		push_error("scale128: --cellab needs dot-sim's DotSimCell")
+	var need := &"DotSimWeaponSpread" if _ab_weap else &"DotSimCell"
+	if not ClassDB.class_exists(need):
+		push_error("scale128: --%s needs dot-sim's %s" % ["weapab" if _ab_weap else "cellab", need])
 		get_tree().quit(1)
 		return
 	_ab_side = 0
@@ -91,8 +95,15 @@ func _ab_begin() -> void:
 	_ab_script = PackedFloat64Array([0.0, 0.0])
 	_ab_acc = [{}, {}]
 	_ab_net_acc = PackedInt64Array([0, 0, 0, 0])
-	ClassDB.class_call_static(&"DotSimCell", &"set_notify_always", false)
+	_ab_set(0)
 	_ab_take_snap()
+
+
+func _ab_set(side: int) -> void:
+	if _ab_weap:
+		DotWeaponHitscan.native_tick = side == 0
+	else:
+		ClassDB.class_call_static(&"DotSimCell", &"set_notify_always", side == 1)
 
 
 func _ab_take_snap() -> void:
@@ -118,7 +129,7 @@ func _ab_flush() -> void:
 func _ab_flip() -> void:
 	_ab_flush()
 	_ab_side = 1 - _ab_side
-	ClassDB.class_call_static(&"DotSimCell", &"set_notify_always", _ab_side == 1)
+	_ab_set(_ab_side)
 	_ab_take_snap()
 
 
@@ -126,7 +137,7 @@ func _ab_report() -> Dictionary:
 	if _cellab <= 0:
 		return {}
 	_ab_flush()
-	ClassDB.class_call_static(&"DotSimCell", &"set_notify_always", false)
+	_ab_set(0)
 	var out := {}
 	for side in 2:
 		var n := maxi(1, _ab_ticks[side])
@@ -138,7 +149,7 @@ func _ab_report() -> Dictionary:
 			"net_sim_ms": snappedf(_ab_net_acc[side * 2] / 1000.0 / maxi(1, _ab_net_acc[side * 2 + 1]), 0.001),
 			"sections_ms": sec,
 		}
-	return {"cellab": out}
+	return {"weapab" if _ab_weap else "cellab": out}
 
 
 func _ready() -> void:
@@ -179,6 +190,9 @@ func _ready() -> void:
 			# --fine 1: ArenaFrameProbe.fine for the recording, so the sections split tick_players, bots and the world (laps).
 			"--fine": _fine = args[i + 1] != "0"
 			"--cellab": _cellab = int(args[i + 1])
+			"--weapab":
+				_cellab = int(args[i + 1])
+				_ab_weap = _cellab > 0
 	DotLog.set_level(DotLog.Level.ERROR)
 	var _scratch := ArenaPresentation.use_scratch_settings("scale128_" + _role)
 	for is_start in [true, false]:
@@ -426,6 +440,9 @@ func _serve() -> void:
 		"net_send_ms_per_tick": snappedf((int(after[&"server_send_usec"]) - int(before[&"server_send_usec"])) / 1000.0 / nt, 0.001),
 		"net_ticks": nt, "snapshot_every_ticks": net.config.ticks_per_snapshot(),
 		"snapshot_hz": net.config.snapshot_rate, "entities": net.registry.all().size(),
+		# Whether dot-sim's hitscan spread tick is loaded: false with a dot-sim build older than its weapon module, where
+		# every weapon tick runs the GDScript fallback (--weapab toggles DotWeaponHitscan.native_tick on top of this).
+		"weapon_native_loaded": ClassDB.class_exists(&"DotSimWeaponSpread"),
 	})
 	get_tree().quit()
 
