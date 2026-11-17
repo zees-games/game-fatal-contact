@@ -51,6 +51,8 @@ const BOT_SESSION_BASE := 900_000_000
 ## and second playing side, bound through the `team_body_a` / `team_body_b` rules (arena_team_bodies.gd).
 const SIDE_SUFFIXES: PackedStringArray = [":a", ":b"]
 const SIDE_RULES: PackedStringArray = ["team_body_a", "team_body_b"]
+## The dot-loadout level that brought DotLoadoutSiteSettings.
+const SETTINGS_LEVEL := 3
 
 ## The game: anything with `rule`, `set_movement_rules`, `config`, `player_for`, `player_ids`,
 ## `team_of`, `mode`, `match_node`, `loadout_identity` and the `player_killed` / `map_changed` signals.
@@ -259,7 +261,8 @@ func _loadout_config() -> DotLoadoutConfig:
 
 
 func _setup_settings(cfg: Object) -> void:
-	var script := ArenaNewerApi.script_of(&"DotLoadoutSiteSettings")
+	# dot-loadout level 3 introduced the site settings; the floor is 2, so ask the host before reaching for the class.
+	var script: Script = ArenaNewerApi.script_of(&"DotLoadoutSiteSettings") if DotAddonApi.build_level("dot_loadout") >= SETTINGS_LEVEL else null
 	if script == null:
 		_once(&"no_settings", "app avatars settings are off: this build has no DotLoadoutSiteSettings (dot-loadout)")
 		return
