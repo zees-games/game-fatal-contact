@@ -125,3 +125,6 @@ textures/orig/
 
 # Team bodies prepared from other people's art (arena_team_bodies.gd): kept out of the repository.
 /private/
+
+# Old boot screenshot dumps (no current tool writes here; kept out of the repo and packs)
+/shots_boot/
