@@ -1,7 +1,7 @@
 extends Node
 
 const ArenaContent := preload("arena_content.gd")
-const ArenaGame := preload("arena_game.gd")
+const ArenaPlayer := preload("arena_player.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
 const ArenaNpcs := preload("arena_npcs.gd")
 const ArenaStats := preload("arena_stats.gd")
@@ -95,7 +95,9 @@ signal wave_spawned(at: Vector3, count: int)
 ## wave, several times a minute, on the server.
 @export_range(2.0, 40.0, 1.0) var spawn_spacing: float = 7.0
 
-var game: ArenaGame = null
+## Typed as its native base on purpose: a typed reference back to arena_game.gd closes a
+## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
+var game: Node = null
 
 var spawner: DotNpcSpawner = null
 var director: DotNpcDirector = null
@@ -404,7 +406,7 @@ func npc_shoot(npc: DotNpcInstance, origin: Vector3, aim_at: Vector3, amount: fl
 	if game == null or game.combat == null or npc == null or not npc.is_alive():
 		return null
 
-	var type := game.combat.damage_type(ArenaContent.DAMAGE_BULLET)
+	var type: DotDamageType = game.combat.damage_type(ArenaContent.DAMAGE_BULLET)
 	var direction := aim_at - origin
 
 	if type == null or direction.length_squared() < 0.0001:
@@ -422,7 +424,7 @@ func npc_shoot(npc: DotNpcInstance, origin: Vector3, aim_at: Vector3, amount: fl
 	# and dot-combat traces the pellets, not the direction — so without it every gunner
 	# shot was resolved, counted and hit nothing, which a suite asking "did it hit" found.
 	shot.scatter()
-	var resolved := game.combat.resolve_shot(shot)
+	var resolved: DotShot = game.combat.resolve_shot(shot)
 
 	if spawner != null:
 		sounds.emit(DotNpcAiSounds.Kind.COMBAT, origin, GUNFIRE_RADIUS, spawner.now(), 0.5)
@@ -453,11 +455,11 @@ func _rebuild_candidates() -> void:
 		if not player.is_alive():
 			continue
 
-		var state := player.controller.state
+		var state: DotFpsState = player.controller.state
 
 		# Loudness as a radius, which is the number this game already has: a running
 		# player is heard further than a still one, and a crouching one barely at all.
-		var speed := state.horizontal_speed()
+		var speed: float = state.horizontal_speed()
 		var loudness := 0.0 if speed < 0.5 else lerpf(4.0, 18.0, clampf(speed / 9.0, 0.0, 1.0))
 
 		if state.is_crouched():
@@ -505,12 +507,12 @@ func npc_attack(npc: DotNpcInstance, victim_key: StringName, amount: float) -> v
 		return
 
 	var victim := String(victim_key).to_int()
-	var player := game.player_for(victim)
+	var player: ArenaPlayer = game.player_for(victim)
 
 	if player == null or not player.is_alive():
 		return
 
-	var type := game.combat.damage_type(ArenaContent.DAMAGE_WORLD)
+	var type: DotDamageType = game.combat.damage_type(ArenaContent.DAMAGE_WORLD)
 
 	if type == null:
 		return
@@ -531,7 +533,7 @@ func npc_attack(npc: DotNpcInstance, victim_key: StringName, amount: float) -> v
 ## resolver and once to the spawner — so [method _on_health_changed] is the only writer
 ## on the dot-npc side.
 func _register_combat(npc: DotNpcInstance) -> void:
-	var opened := game.entities.open(
+	var opened: DotResult = game.entities.open(
 		DotEntity.KIND_NPC,
 		npc.node,
 		&"",

@@ -56,22 +56,26 @@ static func jump_reach(rise: float) -> float:
 ## it and `headless_match`'s sweep re-decides it. A climb is not checked against
 ## anything here — a map is content and content does not assert — it is checked in the
 ## suite, where failing is useful.
-func add_climb(of_name: String, from_box: AABB, to_box: AABB) -> ArenaMap:
+func add_climb(of_name: String, from_box: AABB, to_box: AABB) -> RefCounted:
 	climbs.append(Climb.between(of_name, from_box.abs(), to_box.abs()))
 	return self
 
 ## Declares a route the walls make, from [param from_box]'s top to [param to_box]'s. See
 ## [member wall_routes]; [param kind] is `&"run"` or `&"jump"`.
 func add_wall_route(
-	of_name: String, kind: StringName, from_box: AABB, to_box: AABB, walls: Array[AABB]
-) -> ArenaMap:
+	of_name: String, kind: StringName, from_box: AABB, to_box: AABB, walls: Array
+) -> RefCounted:
+	# [param walls] is a plain Array because the factories reach a map untyped (see `_blank_map`),
+	# and an untyped call does not make a literal a typed one; held as Array[AABB] all the same.
+	var held: Array[AABB] = []
+	held.assign(walls)
 	wall_routes.append({
-		"name": of_name, "kind": kind, "from": from_box.abs(), "to": to_box.abs(), "walls": walls,
+		"name": of_name, "kind": kind, "from": from_box.abs(), "to": to_box.abs(), "walls": held,
 	})
 	return self
 
 ## Declares that nobody is meant to stand on [param box]'s top. See [member out_of_reach].
-func add_out_of_reach(box: AABB) -> ArenaMap:
+func add_out_of_reach(box: AABB) -> RefCounted:
 	out_of_reach.append(box.abs())
 	return self
 
@@ -90,8 +94,8 @@ static func _floor_at(y: float) -> AABB:
 ## Symmetric on purpose. A symmetric map makes every spawn point score identically for
 ## the spawn selector, which is exactly the tie its name-based tie-break exists for —
 ## so the map that ships is also the map that exercises it.
-static func dm_box() -> ArenaMap:
-	var map := ArenaMap.new()
+static func dm_box() -> RefCounted:
+	var map: RefCounted = _blank_map()
 	map.id = &"dm_box"
 	map.display_name = "dm_box"
 	map.extent = 24.0

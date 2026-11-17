@@ -17,7 +17,7 @@ func _initialize() -> void:
 		var added := ArenaImportedMaps.add_mounted(id, args[mounted_at + 1])
 		if not added.ok:
 			push_error("--mounted: %s" % added.error.message)
-	var map := ArenaMap.by_id(id)
+	var map: ArenaMap = ArenaMap.by_id(id)
 
 	if map == null:
 		push_error("no such map: %s. Known: %s" % [String(id), ArenaMap.ids()])

@@ -5,7 +5,7 @@ extends "headless_match_pits_and_reach.gd"
 func _test_box_upper() -> void:
 	_section("dm_box: the upper level, climbed")
 
-	var map := ArenaMap.dm_box()
+	var map: ArenaMap = ArenaMap.dm_box()
 
 	# [b]The property dm_box exists for, asked of the whole list.[/b] Every box has a twin turned
 	# half a circle about the origin, so every spawn scores identically.
@@ -485,7 +485,7 @@ func _test_wall_routes() -> void:
 
 	var routes := 0
 	for id in ArenaMap.ids():
-		var map := ArenaMap.by_id(id)
+		var map: ArenaMap = ArenaMap.by_id(id)
 		var body := map.to_fps_body()
 
 		for route: Dictionary in map.wall_routes:
@@ -518,7 +518,7 @@ func _test_wall_routes() -> void:
 	_check(routes >= 2, "the maps declare wall routes (%d)" % routes)
 
 	# The trade every way up on dm_atrium makes: the gallery is watched from higher.
-	var atrium := ArenaMap.dm_atrium()
+	var atrium: ArenaMap = ArenaMap.dm_atrium()
 	var trace := atrium.shot_trace()
 	var hidden := PackedStringArray()
 	var rampart_eye := Vector3(-4.0, 5.86 + 1.6, -13.5)
@@ -554,7 +554,7 @@ func _test_wall_routes() -> void:
 func _test_crate_climb() -> void:
 	_section("dm_atrium: the crates, climbed")
 
-	var map := ArenaMap.dm_atrium()
+	var map: ArenaMap = ArenaMap.dm_atrium()
 
 	var climber := ArenaPlayer.new()
 	climber.name = "Climber"

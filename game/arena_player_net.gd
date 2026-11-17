@@ -2,7 +2,6 @@ extends DotNetBehaviour
 
 const ArenaContent := preload("arena_content.gd")
 const ArenaFrameProbe := preload("arena_frame_probe.gd")
-const ArenaNetBridge := preload("arena_net_bridge.gd")
 const ArenaNetCommand := preload("arena_net_command.gd")
 const ArenaPlayer := preload("arena_player.gd")
 
@@ -24,7 +23,9 @@ const ArenaPlayer := preload("arena_player.gd")
 var player: ArenaPlayer = null
 
 ## The bridge, so the authority can drive the whole game exactly once per tick.
-var bridge: ArenaNetBridge = null
+## Typed as its native base on purpose: a typed reference back to the bridge closes a preload
+## cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
+var bridge: Node = null
 
 ## Whether a bot's replicated copy is filled only on the ticks a snapshot is written. Its properties are read by nothing but the snapshot (and the history recorded with it): nobody
 ## predicts a bot, so nothing pushes them back into its simulation. Off is the old every-tick copy, for headless_bot_pull, which holds the two to the same sim and the same snapshots.
@@ -296,7 +297,7 @@ func _net_apply_input(input: DotNetInput, _tick: int) -> void:
 
 	# A shot whose own command came after its tick fires on this one, aimed where the shooter drew.
 	if bridge != null and identity != null and identity.is_authoritative and identity.owner_peer_id != 0:
-		var late := bridge.take_late_fire(identity.owner_peer_id, _tick, command)
+		var late: Array = bridge.take_late_fire(identity.owner_peer_id, _tick, command)
 		if not late.is_empty():
 			last_fire = late[0]
 			last_view_lag = late[1]

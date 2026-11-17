@@ -310,7 +310,7 @@ func _first_map() -> ArenaMap:
 	if _offline:
 		return _startup_map()
 	var asked := ArenaSimHost.asked_map_id() if _sim_host != null else ""
-	var map := ArenaMap.by_id(StringName(asked)) if asked != "" else null
+	var map: ArenaMap = ArenaMap.by_id(StringName(asked)) if asked != "" else null
 	return map if map != null else ArenaMap.dm_box()
 
 ## What the game tells the client: a player joined, a flag event, the mode's banner.

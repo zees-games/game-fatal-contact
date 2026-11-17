@@ -55,7 +55,7 @@ func _run() -> void:
 			continue
 
 		found += 1
-		var map := ArenaMap.by_id(id)
+		var map: ArenaMap = ArenaMap.by_id(id)
 		_check(map != null and map.is_imported() and map.author == str(entry.author),
 			"%s is catalogued and credited to %s" % [id, entry.author])
 		_check(map != null and map.spawns.size() > 0, "%s has spawns" % id)

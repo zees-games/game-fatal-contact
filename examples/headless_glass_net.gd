@@ -92,7 +92,7 @@ func _teardown() -> void:
 func _body(a: Dictionary) -> bool:
 	_section("the server breaks a pane and the client's copy breaks")
 	var a_game: ArenaGame = a["game"]
-	var map := ArenaMap.by_id(MAP)
+	var map: ArenaMap = ArenaMap.by_id(MAP)
 	# A bare ArenaGame stands for the client: the real client loads the map itself (fetch, then `change_map`), the wire
 	# carries only what happens in it.
 	if not _check(map != null and _game.change_map(map).ok and a_game.change_map(map).ok, "both ends move to crackhouse"):

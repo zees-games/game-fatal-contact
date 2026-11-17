@@ -39,8 +39,8 @@ extends "arena_map_routes_and_dm_box.gd"
 ## it, all the ground the ring cannot see was in the south, which is blue's. A roofed
 ## room with a doorway at each end and a firing slit to the west, and a roof at 5.5 --
 ## over the ring -- reached by one jump west off the ring's north arm.
-static func dm_atrium() -> ArenaMap:
-	var map := ArenaMap.new()
+static func dm_atrium() -> RefCounted:
+	var map: RefCounted = _blank_map()
 	map.id = &"dm_atrium"
 	map.display_name = "dm_atrium"
 	map.extent = 30.0

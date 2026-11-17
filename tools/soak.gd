@@ -93,7 +93,7 @@ func _add_game() -> void:
 
 func _run() -> void:
 	var map_id := StringName(_arg("map", String(DEFAULT_MAP)))
-	var map := ArenaMap.by_id(map_id)
+	var map: ArenaMap = ArenaMap.by_id(map_id)
 	if map == null:
 		_fail("unknown map %s (is arena-surf-dm-maps linked?)" % map_id)
 		return

@@ -273,7 +273,7 @@ static func mount_delivered(
 ## Fills a mounted delivered map's listing from its manifest, as `_imported_def_for` does for a linked one: the key alone
 ## cannot say which modes the map lists or whether its spawns have sides, so until then only the free-for-all modes are offered.
 static func refresh_delivered_meta(def: DotMapDef) -> void:
-	var map := ArenaMap.imported(def.id, true) if def != null else null
+	var map: ArenaMap = ArenaMap.imported(def.id, true) if def != null else null
 
 	if map == null:
 		return
@@ -477,7 +477,7 @@ static func adopt_delivered(
 		if def.id != playing:
 			ArenaImportedMaps.remove_mounted(def.id)
 
-		var local := ArenaMap.imported(def.id)
+		var local: ArenaMap = ArenaMap.imported(def.id)
 
 		if local != null:
 			var _put_back := catalogue.add(_def_for(def.id, local))

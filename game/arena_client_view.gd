@@ -74,7 +74,7 @@ func _slide_on_c() -> bool:
 ## lists (so only a solo, accepted, valid one). Null value with ok is not returned: an unknown
 ## id is a failure here, as the menu's own refusal.
 func _build_map(id: StringName) -> DotResult:
-	var own := ArenaMap.by_id(id)
+	var own: ArenaMap = ArenaMap.by_id(id)
 	if own != null:
 		return DotResult.success(own)
 	var def := _catalogue().get_map(id)
@@ -478,7 +478,7 @@ static func _startup_map() -> ArenaMap:
 		var start: ArenaMap = ArenaMap.by_id(StringName(solo)) if solo != "" else null
 		return start if start != null else ArenaMap.dm_box()
 
-	var map := ArenaMap.by_id(StringName(args[index + 1]))
+	var map: ArenaMap = ArenaMap.by_id(StringName(args[index + 1]))
 
 	if map == null:
 		DotLog.warn(CHANNEL, "no such map, playing dm_box", {

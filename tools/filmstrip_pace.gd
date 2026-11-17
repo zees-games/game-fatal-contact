@@ -30,7 +30,7 @@ func _initialize() -> void:
 	if not args.is_empty():
 		_mode = args[0]
 	_rng.seed = 7
-	var map := ArenaMap.dm_box()
+	var map: ArenaMap = ArenaMap.dm_box()
 	root.add_child(map.to_scene())
 	root.add_child(ArenaMapLighting.build(map))
 	var id := &"arena-player-00000007"

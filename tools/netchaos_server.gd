@@ -30,7 +30,7 @@ func _boot_world() -> void:
 	_game.headless = true
 	_game.register_service = true
 	add_child(_game)
-	var map := ArenaMap.by_id(StringName(map_id))
+	var map: ArenaMap = ArenaMap.by_id(StringName(map_id))
 	var _set := _game.setup(map if map != null else ArenaMap.dm_box())
 	if not (await boot_server()).ok:
 		return

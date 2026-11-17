@@ -59,7 +59,7 @@ func _game(map: ArenaMap, mode: ArenaMode, split := true) -> ArenaGame:
 
 
 func _one(id: StringName) -> void:
-	var map := ArenaMap.by_id(id)
+	var map: ArenaMap = ArenaMap.by_id(id)
 	var game := _game(map, ArenaMode.team_deathmatch())
 	if game == null:
 		_check(false, "%s sets up" % id)
@@ -97,7 +97,7 @@ func _one(id: StringName) -> void:
 
 ## FFA ignores teams: players land on both ends of dm_atrium.
 func _ffa_is_random() -> void:
-	var map := ArenaMap.dm_atrium()
+	var map: ArenaMap = ArenaMap.dm_atrium()
 	var game := _game(map, ArenaMode.free_for_all())
 	var seen := {}
 	for b in PLAYERS:
@@ -117,7 +117,7 @@ func _ffa_is_random() -> void:
 ## The fallback itself: a map with no sides is cut in two halves by position, both the same size, the
 ## red half holding one anchor; a map that tags both sides is left alone; `fc_team_spawn_split` 0 keeps one pool.
 func _split_is_documented() -> void:
-	var map := ArenaMap.dm_box()
+	var map: ArenaMap = ArenaMap.dm_box()
 	for index in range(map.spawns.size()):
 		map.spawn_tags[index] = ""
 	var n := map.split_spawns_for_teams()
@@ -134,7 +134,7 @@ func _split_is_documented() -> void:
 			centre_blue += map.spawns[i].origin / float(blue)
 	_check(centre_red.distance_to(centre_blue) > 5.0, "and the halves sit apart", "%.1f m" % centre_red.distance_to(centre_blue))
 	_check(map.split_spawns_for_teams() == map.spawns.size() or map.split_spawns_for_teams() == 0, "and running it again does no harm")
-	var tagged := ArenaMap.dm_atrium()
+	var tagged: ArenaMap = ArenaMap.dm_atrium()
 	var before := tagged.spawn_tags.duplicate()
 	_check(tagged.split_spawns_for_teams() == 0 and tagged.spawn_tags == before, "a map that tags both sides keeps its tags")
 	var off := _game(ArenaMap.dm_pit(), ArenaMode.team_deathmatch(), false)

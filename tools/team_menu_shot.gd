@@ -62,7 +62,7 @@ func _shot(name: String, mode: ArenaMode, names: String, colours: String, extra:
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://screenshots"))
 	await _shot("teams_two", ArenaMode.team_deathmatch(), "", "", 3)
-	var four := ArenaMode.team_deathmatch()
+	var four: ArenaMode = ArenaMode.team_deathmatch()
 	four.team_count = 4
 	await _shot("teams_four", four, "Wolves,Hawks,Bears,Sharks", "#dd3333,#3388dd,#33bb55,#eebb33", 6)
 	await _shot("teams_ffa", ArenaMode.free_for_all(), "", "", 3)

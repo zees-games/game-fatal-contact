@@ -37,7 +37,7 @@ func _run() -> void:
 		return
 
 	print("-- the manifest's spawns, modes and flags reach the map")
-	var map := ArenaMap.by_id(MAP)
+	var map: ArenaMap = ArenaMap.by_id(MAP)
 	var red := 0
 	var blue := 0
 	for index in map.spawns.size():

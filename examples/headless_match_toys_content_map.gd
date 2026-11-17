@@ -234,7 +234,7 @@ func _test_content() -> void:
 func _test_map() -> void:
 	_section("map")
 
-	var map := ArenaMap.dm_box()
+	var map: ArenaMap = ArenaMap.dm_box()
 
 	_check(map.boxes.size() > 8, "the map has geometry", str(map.boxes.size()))
 	_check(map.spawns.size() >= 4, "and spawn points", str(map.spawns.size()))
@@ -293,7 +293,7 @@ func _test_map_look() -> void:
 	var geometry_kept := true
 
 	for id in ArenaMap.ids():
-		var map := ArenaMap.by_id(id)
+		var map: ArenaMap = ArenaMap.by_id(id)
 		var before := map.boxes.duplicate()
 		var level := map.to_scene()
 
@@ -322,7 +322,7 @@ func _test_map_look() -> void:
 		var stale := PackedStringArray()
 
 		for id in ArenaMap.ids():
-			var map := ArenaMap.by_id(id)
+			var map: ArenaMap = ArenaMap.by_id(id)
 			var data := ResourceLoader.load(ArenaMap.BAKE_PATH % String(id)) as LightmapGIData if ResourceLoader.exists(ArenaMap.BAKE_PATH % String(id)) else null
 
 			if data == null or str(data.get_meta(&"dot_light_fingerprint", "")) != map.light_fingerprint():
@@ -350,7 +350,7 @@ func _test_map_look() -> void:
 		sides[ArenaMapPaint.zone_colour(at, [] as Array[Dictionary], 24.0).to_html()] = true
 	_check(sides.size() == 4, "the four sides are four colours", str(sides.size()))
 
-	var atrium := ArenaMap.dm_atrium()
+	var atrium: ArenaMap = ArenaMap.dm_atrium()
 	_check(
 		ArenaMapPaint.zone_colour(Vector3(-15.0, 2.0, -12.0), atrium.paint_zones, atrium.extent) == ArenaMapPaint.LAVENDER,
 		"dm_atrium's keep is its own named zone"

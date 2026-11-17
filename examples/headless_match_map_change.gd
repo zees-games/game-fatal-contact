@@ -109,7 +109,7 @@ func _test_map_change() -> void:
 		"%d of %d" % [registered, _game.players().size()]
 	)
 
-	var expected_spawns := ArenaMap.by_id(target).spawns.size()
+	var expected_spawns: int = ArenaMap.by_id(target).spawns.size()
 	_check(
 		_game.match_node.spawn_points().size() == expected_spawns,
 		"the spawn points are the new map's",
@@ -119,7 +119,7 @@ func _test_map_change() -> void:
 	# The trace is the map. Rebuilding the manager and forgetting the trace would
 	# leave every shot resolving against the geometry of a room nobody is in — and
 	# nothing would error, because a trace that hits nothing is a legitimate answer.
-	var new_map := ArenaMap.by_id(target)
+	var new_map: ArenaMap = ArenaMap.by_id(target)
 	var outward := _game.combat.trace.ray(
 		Vector3(0.0, 2.0, 0.0), Vector3.RIGHT, new_map.extent * 4.0
 	)
@@ -346,7 +346,7 @@ func _test_map_change() -> void:
 	# --- A box where somebody was standing -------------------------------  [b]The check above
 	# passes on the shipped maps by luck of layout.[/b] A map change used to keep every player's
 	# position and swap the geometry under them.
-	var trap_map := ArenaMap.by_id(_game.map.id)
+	var trap_map: ArenaMap = ArenaMap.by_id(_game.map.id)
 	var standing: Variant = _open_floor_away_from_spawns(trap_map)
 
 	if _check(

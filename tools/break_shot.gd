@@ -19,7 +19,7 @@ func _initialize() -> void:
 	var id: String = args[0] if args.size() > 0 else "crackhouse"
 	var dir: String = args[1] if args.size() > 1 else "res://maps/imported_dm/%s" % id
 	var _scratch := ArenaPresentation.use_scratch_settings("break_shot")
-	var map := ArenaMap.by_id(StringName(id))
+	var map: ArenaMap = ArenaMap.by_id(StringName(id))
 	root.add_child(map.to_scene())
 	root.add_child(ArenaMapLighting.build(map))
 	var body := Bsp.build_collision(Bsp.read_manifest(dir.path_join("%s.json" % id)), dir)

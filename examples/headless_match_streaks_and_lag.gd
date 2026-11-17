@@ -671,11 +671,11 @@ func _test_weapon_modes() -> void:
 	_check(ArenaModes.ids().has(&"gungame") and ArenaModes.ids().has(&"snipers"),
 		"gun game and only snipers are modes a server or a vote can name")
 
-	var broken := ArenaMode.gun_game_mode()
+	var broken: ArenaMode = ArenaMode.gun_game_mode()
 	broken.rules.score_limit = 3
 	_check(not broken.validate().ok, "a gun game whose score limit is not its list's length is refused")
 
-	var gun := ArenaMode.gun_game_mode()
+	var gun: ArenaMode = ArenaMode.gun_game_mode()
 	var game := _weapon_mode_game(gun, [920, 921])
 	if not _check(game != null, "a gun game sets up"):
 		return
@@ -717,7 +717,7 @@ func _test_weapon_modes() -> void:
 	remove_child(game)
 	game.queue_free()
 
-	var snipers := ArenaMode.only_snipers()
+	var snipers: ArenaMode = ArenaMode.only_snipers()
 	var sniping := _weapon_mode_game(snipers, [930, 931])
 	if not _check(sniping != null, "an only-snipers game sets up"):
 		return

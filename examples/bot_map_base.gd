@@ -57,7 +57,7 @@ func _boot_map(id: StringName, bots: int, human := 0) -> ArenaGame:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var map := ArenaMap.by_id(id)
+	var map: ArenaMap = ArenaMap.by_id(id)
 	if not game.setup(map).ok:
 		_check(false, "%s sets up" % id)
 		return null

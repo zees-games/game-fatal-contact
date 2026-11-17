@@ -62,7 +62,7 @@ func _ready() -> void:
 		game.mode_id = StringName(mode)
 	add_child(game)
 	_game = game
-	var map := ArenaMap.by_id(StringName(_arg("--map", "")))
+	var map: ArenaMap = ArenaMap.by_id(StringName(_arg("--map", "")))
 	var built := game.setup(map if map != null else ArenaMap.dm_box())
 	if not built.ok:
 		_die("the arena could not be built: %s" % built.error.message)

@@ -1,7 +1,5 @@
 extends Node
 
-const ArenaNetBridge := preload("arena_net_bridge.gd")
-const ArenaNetLink := preload("arena_net_link.gd")
 const ArenaFrameProbe := preload("arena_frame_probe.gd")
 
 ## The four remote calls this game needs, on one node that exists on both ends.
@@ -59,7 +57,9 @@ const CHANNEL_STATE := 1
 const CHANNEL_VOICE := 2
 
 ## The bridge these calls are delivered to. Set by whoever creates this node.
-var bridge: ArenaNetBridge = null
+## Typed as its native base on purpose: a typed reference back to the bridge closes a preload
+## cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
+var bridge: Node = null
 
 ## Whether this end is the authority. Only used to refuse an obviously misrouted call
 ## early, with a log line naming the node rather than a silent no-op.
@@ -123,9 +123,10 @@ var _was_live: Variant = null
 
 
 static func attached_to(
-	parent: Node, p_bridge: ArenaNetBridge, server: bool
-) -> ArenaNetLink:
-	var link := ArenaNetLink.new()
+	parent: Node, p_bridge: Node, server: bool
+) -> Node:
+	# Bare new(): naming this script here would be a self-preload, which never frees.
+	var link: Node = new()
 	link.name = NODE_NAME
 	link.bridge = p_bridge
 	link.is_server = server

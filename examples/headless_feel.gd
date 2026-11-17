@@ -197,7 +197,7 @@ func _test_moves() -> void:
 	_section("moves at %d Hz: up dm_box's stair at a run, a slide, a jump and a landing" % OFFLINE_FPS)
 	Engine.physics_ticks_per_second = TICK_RATE
 	Engine.max_fps = OFFLINE_FPS
-	var map := ArenaMap.dm_box()
+	var map: ArenaMap = ArenaMap.dm_box()
 	_mover = ArenaPlayer.new()
 	_mover.name = "Mover"
 	_mover.setup(ArenaPlayer.Mode.HEADLESS, map, 7, "Mover")

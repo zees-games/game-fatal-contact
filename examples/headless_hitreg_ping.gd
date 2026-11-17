@@ -147,9 +147,9 @@ func _lane() -> ArenaMap:
 	map.display_name = "hitreg_lane"
 	map.extent = 150.0
 	map.wall_height = 8.0
-	var _p := map.add_perimeter()
-	var _s1 := map.add_spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 0.0)))
-	var _s2 := map.add_spawn(Transform3D(Basis(), Vector3(5.0, 0.05, 0.0)))
+	var _p: RefCounted = map.add_perimeter()
+	var _s1: RefCounted = map.add_spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 0.0)))
+	var _s2: RefCounted = map.add_spawn(Transform3D(Basis(), Vector3(5.0, 0.05, 0.0)))
 	return map
 
 

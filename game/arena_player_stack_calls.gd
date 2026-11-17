@@ -1,6 +1,5 @@
 extends Node
 
-const ArenaGame := preload("arena_game.gd")
 
 
 const ArenaPlayer := preload("arena_player.gd")
@@ -10,7 +9,9 @@ const ArenaBspMap := preload("../maps/arena_bsp_map.gd")
 ## nothing about the arena, met here: session roster, sides, classes, spawns and physics settings.
 
 
-var game: ArenaGame = null
+## Typed as its native base on purpose: a typed reference back to arena_game.gd closes a
+## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
+var game: Node = null
 
 
 var physics: DotPhysicsWorld = null
@@ -25,7 +26,7 @@ func _side_of_id(team_id: int) -> StringName:
 		return &""
 
 	var playing := teams.teams.playing_ids()
-	var listed := game.teams()
+	var listed: Array[DotTeam] = game.teams()
 
 	for i in range(listed.size()):
 		if listed[i] != null and listed[i].id == team_id:
@@ -48,7 +49,7 @@ func _side_of_tags(tags: Array[StringName]) -> StringName:
 
 
 func _alive_of_key(key: String) -> bool:
-	var player := game.player_for(int(key))
+	var player: ArenaPlayer = game.player_for(int(key))
 	return player != null and player.is_alive()
 
 
@@ -58,14 +59,14 @@ func _joined_tick_of_key(key: String) -> int:
 
 
 func _score_of_key(key: String) -> float:
-	var score := game.match_node.scoreboard.find(key)
+	var score: DotPlayerScore = game.match_node.scoreboard.find(key)
 	return float(score.score) if score != null else 0.0
 
 
 ## Where a player's EYES are, which is not where their feet are. dot-spectate's documentation is explicit: a chase camera derived from a capsule's origin sits in the floor and a first-person one is at the knees.
 ## The controller answers it, because it knows the eye height and the pitch.
 func _pose_of_key(key: String) -> Transform3D:
-	var player := game.player_for(int(key))
+	var player: ArenaPlayer = game.player_for(int(key))
 
 	if player == null or player.controller == null:
 		return Transform3D.IDENTITY
@@ -79,7 +80,7 @@ func _enemy_positions(team: StringName, key: String = "") -> Array:
 	var out: Array = []
 	# The MODE says whether there are sides, not dot-match's team manager: that exists in a free-for-all too, and the roster keeps whatever side a team mode left everybody on,
 	# which told a free-for-all respawner its old team-mates were friends.
-	var sided := game.mode != null and game.mode.is_team_mode() and team != &""
+	var sided: bool = game.mode != null and game.mode.is_team_mode() and team != &""
 
 	for player in game.players():
 		if not player.is_alive() or player.controller == null or str(player.player_id) == key:

@@ -3,9 +3,13 @@ extends Node
 const ArenaAwardStore := preload("arena_award_store.gd")
 const ArenaAwards := preload("arena_awards.gd")
 const ArenaBoards := preload("arena_boards.gd")
-const ArenaGame := preload("arena_game.gd")
+const ArenaPlayer := preload("arena_player.gd")
 const ArenaStats := preload("arena_stats.gd")
 const ArenaStatsStore := preload("arena_stats_store.gd")
+const ArenaLoadoutIdentity := preload("arena_loadout_identity.gd")
+## Mirrors ArenaGame.BOT_SESSION_BASE (arena_game_vars.gd); a preload of the game here would close a
+## parser cycle that GDScript never frees.
+const BOT_SESSION_BASE := 900_000_000
 
 ## What a player keeps when the match ends: statistics, achievements and boards.
 ##
@@ -66,7 +70,9 @@ var boards: DotLeaderboardManager = null
 ## The differencer between the two. See the class note.
 var link: DotAchievementStatsLink = null
 
-var _game: ArenaGame = null
+## Typed as its native base on purpose: a typed reference back to arena_game.gd closes a
+## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
+var _game: Node = null
 
 ## func(userid) -> DotClientSession, set by the module. With it a player's numbers are filed under
 ## dot-game's stable per-server key; without it (or no session), the seat's [method ArenaGame.storage_key].
@@ -101,7 +107,7 @@ var _bound: bool = false
 ## Call once, after this node is in the tree. [param game] must already have run
 ## [method ArenaGame.setup] — the combat manager is what the shot and damage counters
 ## hang off, and it does not exist before then.
-func attach(game: ArenaGame) -> DotResult:
+func attach(game: Node) -> DotResult:
 	if _attached:
 		return DotResult.fail(DotError.CODE_STATE, "Already attached.")
 
@@ -232,7 +238,7 @@ func _build() -> DotResult:
 	add_child(stats)
 	_kill_feed = DotStatsEventFeed.new(stats)
 	_kill_feed.key_of = func(id: Variant) -> StringName: return StringName(_key_of(int(id)))
-	_kill_feed.is_bot = func(id: Variant) -> bool: return int(id) >= ArenaGame.BOT_SESSION_BASE
+	_kill_feed.is_bot = func(id: Variant) -> bool: return int(id) >= BOT_SESSION_BASE
 	_kill_feed.extra = func() -> Dictionary: return {
 		"map": String(_game.map.id) if _game != null and _game.map != null else "",
 		"mode": String(_game.mode.id) if _game != null and _game.mode != null else "",
@@ -344,7 +350,7 @@ func begin(player_id: int, display_name: String = "") -> void:
 	if not _attached:
 		return
 
-	if player_id >= ArenaGame.BOT_SESSION_BASE:
+	if player_id >= BOT_SESSION_BASE:
 		return
 
 	var key := _key_of(player_id)
@@ -387,7 +393,7 @@ func begin(player_id: int, display_name: String = "") -> void:
 ## when somebody looks at it. A session is the natural unit — it is also when a
 ## player's totals stop moving.
 func leave(player_id: int) -> void:
-	if not _attached or player_id >= ArenaGame.BOT_SESSION_BASE:
+	if not _attached or player_id >= BOT_SESSION_BASE:
 		return
 
 	var key := _key_of(player_id)
@@ -432,7 +438,7 @@ func leave(player_id: int) -> void:
 
 ## Records one reading against a player. The single door into dot-stats.
 func record(player_id: int, stat_id: StringName, value: float = 1.0) -> void:
-	if not _attached or player_id >= ArenaGame.BOT_SESSION_BASE:
+	if not _attached or player_id >= BOT_SESSION_BASE:
 		return
 
 	stats.record(StringName(_key_of(player_id)), stat_id, value)
@@ -584,7 +590,7 @@ func _update_rank(killer: int, victim: int) -> void:
 		var _moved := rank.duel(killer, victim)
 		return
 	for who in [killer, victim]:
-		if not _attached or int(who) >= ArenaGame.BOT_SESSION_BASE:
+		if not _attached or int(who) >= BOT_SESSION_BASE:
 			continue
 		var _s := rank.publish_lifetime(who, stats.session_values(StringName(_key_of(int(who)))), stats.schema)
 
@@ -690,7 +696,7 @@ func _won(player_id: int, winner: int) -> bool:
 	if _game.mode != null and _game.mode.is_team_mode():
 		return winner != 0 and _game.team_of(player_id) == winner
 
-	var leader := _game.match_node.scoreboard.leader()
+	var leader: DotPlayerScore = _game.match_node.scoreboard.leader()
 	return leader != null and leader.key == str(player_id)
 
 
@@ -721,7 +727,7 @@ func _name_of(player_id: int) -> String:
 	if _game == null:
 		return str(player_id)
 
-	var player := _game.player_for(player_id)
+	var player: ArenaPlayer = _game.player_for(player_id)
 	return player.display_name if player != null else str(player_id)
 
 
@@ -730,7 +736,7 @@ func _key_of(player_id: int) -> String:
 	if _keys.has(player_id):
 		return _keys[player_id]
 	var session: Variant = session_fn.call(player_id) if session_fn.is_valid() else null
-	var key := String(stats_keys.key_for(session)) if session is DotClientSession else ArenaGame.storage_key(player_id)
+	var key := String(stats_keys.key_for(session)) if session is DotClientSession else ArenaLoadoutIdentity.seat_key(player_id)
 	_keys[player_id] = key
 	_ids[key] = player_id
 	return key

@@ -71,7 +71,7 @@ func _run() -> void:
 	game.register_service = false
 	game.mode = ArenaMode.team_deathmatch()
 	add_child(game)
-	var map := ArenaMap.imported(MAP)
+	var map: ArenaMap = ArenaMap.imported(MAP)
 	if map == null:
 		print("  skip  %s is not linked (arena-surf-dm-maps)" % MAP)
 		get_tree().quit(0)

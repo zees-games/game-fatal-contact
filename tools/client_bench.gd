@@ -107,7 +107,7 @@ func _serve() -> void:
 	game.mode_id = StringName(_mode)
 	game.register_service = true
 	add_child(game)
-	var map := ArenaMap.by_id(StringName(_map))
+	var map: ArenaMap = ArenaMap.by_id(StringName(_map))
 	var _set := game.setup(map if map != null else ArenaMap.dm_box())
 
 	var config := LoopbackServer.config("client bench", _port, data, "error", 256)
@@ -371,7 +371,7 @@ func _run() -> void:
 func _start_pilot() -> bool:
 	# After the client, whose bindings register the actions the pilot presses.
 	if _wallrun:
-		var wall_map := ArenaMap.by_id(StringName(_map))
+		var wall_map: ArenaMap = ArenaMap.by_id(StringName(_map))
 		if wall_map == null or wall_map.wall_routes.is_empty():
 			_fail("--wallrun needs a map with wall routes, e.g. --map dm_atrium")
 			return false

@@ -102,7 +102,7 @@ func change_to_map(map: DotMapDef) -> DotResult:
 			String(map.id)
 		)
 
-	var built := ArenaMap.by_id(map.id)
+	var built: ArenaMap = ArenaMap.by_id(map.id)
 
 	if built == null:
 		return DotResult.fail(

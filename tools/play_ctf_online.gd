@@ -57,7 +57,7 @@ func _serve() -> void:
 	game.register_service = true
 	game.mode = ArenaMode.capture_the_flag(3)
 	add_child(game)
-	var map := ArenaMap.by_id(StringName(_map))
+	var map: ArenaMap = ArenaMap.by_id(StringName(_map))
 	var set := game.setup(map if map != null else ArenaMap.dm_box())
 	if not set.ok:
 		printerr("play_ctf server setup: ", set.error)

@@ -61,8 +61,8 @@ static func build(text: String, entry_id: StringName) -> DotResult:
 		var box := AABB(Vector3(six[0], six[1], six[2]), Vector3(six[3], six[4], six[5]))
 		if absf(box.position.x) > extent * 2.0 or absf(box.position.z) > extent * 2.0 or absf(box.end.x) > extent * 2.0 or absf(box.end.z) > extent * 2.0:
 			return DotResult.fail(DotError.CODE_INVALID, "a box lies far outside the extent", str(each))
-		var _b := map.add_box(box)
-	var _p := map.add_perimeter()
+		var _b: RefCounted = map.add_box(box)
+	var _p: RefCounted = map.add_perimeter()
 
 	var spawns: Variant = doc.get("spawns", [])
 	if not (spawns is Array) or (spawns as Array).is_empty() or (spawns as Array).size() > MAX_SPAWNS:
@@ -75,7 +75,7 @@ static func build(text: String, entry_id: StringName) -> DotResult:
 		if at.is_empty() or is_nan(yaw) or absf(at[0]) >= extent or absf(at[2]) >= extent:
 			return DotResult.fail(DotError.CODE_INVALID, "a spawn is inside the extent: {at: [x, y, z], yaw}", str(each))
 		var basis := Basis(Vector3.UP, deg_to_rad(yaw))
-		var _s := map.add_spawn(Transform3D(basis, Vector3(at[0], at[1], at[2])))
+		var _s: RefCounted = map.add_spawn(Transform3D(basis, Vector3(at[0], at[1], at[2])))
 	return DotResult.success(map)
 
 

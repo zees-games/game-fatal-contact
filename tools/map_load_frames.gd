@@ -56,7 +56,7 @@ func _stop(label: String) -> int:
 
 
 func _run() -> void:
-	var map := ArenaMap.by_id(StringName(_map))
+	var map: ArenaMap = ArenaMap.by_id(StringName(_map))
 	if map == null:
 		print("map_load_frames: no map %s" % _map)
 		get_tree().quit(2)

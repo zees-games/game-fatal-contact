@@ -68,7 +68,7 @@ func _broken_count() -> int:
 
 func _run() -> void:
 	var gm: Object = await _start_client()
-	var map := ArenaMap.by_id(MAP)
+	var map: ArenaMap = ArenaMap.by_id(MAP)
 	_check(map != null and gm.change_map(map).ok, "the game moves to crackhouse")
 	var live := false
 	var me: Object = null

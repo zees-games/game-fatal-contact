@@ -35,7 +35,7 @@ func _run() -> void:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var map := ArenaMap.by_id(MAP)
+	var map: ArenaMap = ArenaMap.by_id(MAP)
 	_check(map != null and game.setup(map).ok, "the game sets up on %s" % MAP)
 	if map == null:
 		_report_sections(1, 0, SECTIONS, CHECKS)

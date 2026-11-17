@@ -61,7 +61,7 @@ func _serve() -> void:
 	game.headless = true
 	game.register_service = true
 	add_child(game)
-	var map := ArenaMap.by_id(StringName(_map))
+	var map: ArenaMap = ArenaMap.by_id(StringName(_map))
 	var _set := game.setup(map if map != null else ArenaMap.dm_box())
 	var config := LoopbackServer.config("play online", PORT, data, "warn")
 	var server := await LoopbackServer.boot(self, config, "play_online server")

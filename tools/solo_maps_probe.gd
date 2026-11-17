@@ -36,7 +36,7 @@ func _run() -> void:
 			print("FAIL %s: fetch/mount: %s" % [key, res.error.message if res.error != null else "?"])
 			continue
 
-		var map := ArenaMap.by_id(def.id)
+		var map: ArenaMap = ArenaMap.by_id(def.id)
 		var spawns := map.spawns.size() if map != null else -1
 		var meshes := 0
 

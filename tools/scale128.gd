@@ -277,7 +277,7 @@ func _serve() -> void:
 	add_child(game)
 	if _botstyles != "":
 		var _st := DotBotSettings.of(game).set_value("styles", _botstyles)
-	var map := ArenaMap.by_id(StringName(_map))
+	var map: ArenaMap = ArenaMap.by_id(StringName(_map))
 	var _set := game.setup(map if map != null else ArenaMap.dm_box())
 	var config := LoopbackServer.config("scale128", _port, data, "error", 256)
 	config.tickrate = _tick

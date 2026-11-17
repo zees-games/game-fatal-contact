@@ -122,7 +122,7 @@ func _test_worlds() -> void:
 			_check(true, "skipped without the link")
 		_done()
 		return
-	var map := ArenaMap.by_id(&"surf_grave_reloaded")
+	var map: ArenaMap = ArenaMap.by_id(&"surf_grave_reloaded")
 	ArenaMap.use_worlds = true
 	var drawn := map.to_scene()
 	var world := drawn.get_node_or_null("World")
@@ -327,7 +327,7 @@ func _test_loads() -> bool:
 	_game.score_limit = SCORE_LIMIT
 	add_child(_game)
 
-	var map := ArenaMap.by_id(MAP)
+	var map: ArenaMap = ArenaMap.by_id(MAP)
 	var res := _game.setup(map)
 	_check(res.ok, "setup succeeds%s" % ("" if res.ok else ": " + res.error.message))
 

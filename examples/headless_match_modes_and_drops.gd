@@ -50,7 +50,7 @@ func _test_modes() -> void:
 
 	# team_count and rules.team_based state one fact and validate() catches them disagreeing: a mode with two sides over
 	# free-for-all rules scores everyone individually while calling itself Team Deathmatch, correct inside dot-match.
-	var broken := ArenaMode.team_deathmatch()
+	var broken: ArenaMode = ArenaMode.team_deathmatch()
 	broken.rules.team_based = false
 	_check(not broken.validate().ok, "a mode that disagrees with its rules is refused")
 	_done()

@@ -150,7 +150,7 @@ func _load() -> bool:
 	game.register_service = false
 	game.mode = ArenaMode.free_for_all(1000)
 	add_child(game)
-	var map := ArenaMap.by_id(map_id)
+	var map: ArenaMap = ArenaMap.by_id(map_id)
 	if map == null or not map.is_imported():
 		print("[surf] %s is not a combat surf map here (is maps/imported linked?)" % map_id)
 		return false

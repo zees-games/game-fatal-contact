@@ -3,7 +3,7 @@ extends Node
 const ArenaPaths := preload("arena_paths.gd")
 
 const ArenaEvents := preload("arena_events.gd")
-const ArenaGame := preload("arena_game.gd")
+const ArenaPlayer := preload("arena_player.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
 const ArenaStats := preload("arena_stats.gd")
 
@@ -67,7 +67,9 @@ var prop_damage: DotPropDamage = null
 ## an accident. [method clear_players] is what an admin actually wants.
 @export var scatter_count: int = 0
 
-var game: ArenaGame = null
+## Typed as its native base on purpose: a typed reference back to arena_game.gd closes a
+## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
+var game: Node = null
 
 var spawner: DotPropSpawner = null
 
@@ -310,7 +312,7 @@ func scatter(count: int) -> int:
 
 	var kinds := [CRATE, BARREL, CRATE, CRATE]
 	var placed := 0
-	var radius := game.map.extent * 0.55
+	var radius: float = game.map.extent * 0.55
 
 	for index in range(count):
 		var angle := TAU * float(index) / float(maxi(count, 1))
@@ -427,7 +429,7 @@ func _answer_queued() -> void:
 	_queued_acts = []
 
 	for entry: Array in queued:
-		var player := game.player_for(int(entry[0])) if game != null else null
+		var player: ArenaPlayer = game.player_for(int(entry[0])) if game != null else null
 
 		if player == null or not player.is_alive():
 			continue
@@ -455,7 +457,7 @@ func _carry(delta: float) -> void:
 		if gun.held == null or not gun.held.is_alive():
 			continue
 
-		var player := game.player_for(int(id))
+		var player: ArenaPlayer = game.player_for(int(id))
 
 		if player == null or not player.is_alive():
 			gun.release()
@@ -475,7 +477,7 @@ func _carry(delta: float) -> void:
 		if not gun.is_carrying():
 			continue
 
-		var player := game.player_for(int(id))
+		var player: ArenaPlayer = game.player_for(int(id))
 
 		if player == null or not player.is_alive():
 			gun.drop()
@@ -564,7 +566,7 @@ func _classify_level(root: Node) -> void:
 	if game == null or game.player_stack == null:
 		return
 
-	var done := game.player_stack.classify_tree(root, &"world")
+	var done: int = game.player_stack.classify_tree(root, &"world")
 	DotLog.debug(CHANNEL, "level classified", {"bodies": done})
 
 
@@ -578,7 +580,7 @@ func _on_spawned(prop: DotPropInstance) -> void:
 	# the layout is [world, player, npc, prop, projectile, vehicle], which is what a
 	# player pushing a crate into another crate needs.
 	if game != null and game.player_stack != null and prop.node != null:
-		var _put := game.player_stack.classify(prop.node, &"prop")
+		var _put: DotResult = game.player_stack.classify(prop.node, &"prop")
 
 	if prop.node is RigidBody3D and prop_damage != null and prop.def != null and prop.def.max_health > 0.0 and prop.node.get_script() == null:
 		prop.node.set_script(PropTarget)

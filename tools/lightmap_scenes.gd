@@ -44,7 +44,7 @@ func _run() -> void:
 		if wanted != "" and not wanted.split(",").has(String(id)):
 			continue
 
-		var map := ArenaMap.by_id(id)
+		var map: ArenaMap = ArenaMap.by_id(id)
 
 		if map == null or map.is_imported():
 			continue

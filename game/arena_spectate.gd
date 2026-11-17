@@ -1,6 +1,5 @@
 extends DotSpectatorHost
 
-const ArenaGame := preload("arena_game.gd")
 const ArenaPlayer := preload("arena_player.gd")
 
 ## Where a dead player looks.
@@ -27,7 +26,9 @@ const ArenaPlayer := preload("arena_player.gd")
 
 const CHANNEL := "arena.spectate"
 
-var game: ArenaGame = null
+## Typed as its native base on purpose: a typed reference back to arena_game.gd closes a
+## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
+var game: Node = null
 var _participant_ids: Array[int] = []
 var _participant_keys := PackedStringArray()
 
@@ -119,7 +120,7 @@ func _team_of(key: String) -> int:
 
 
 func _is_alive(key: String) -> bool:
-	var player := game.player_for(int(key))
+	var player: ArenaPlayer = game.player_for(int(key))
 	return player != null and player.is_alive()
 
 
@@ -135,7 +136,7 @@ func _current_tick() -> int:
 ## a muzzle is where a shot leaves and an eye is where a view starts, and the day one of
 ## them moves is the day sharing them is a bug.
 func _pose_of(key: String) -> Transform3D:
-	var player := game.player_for(int(key))
+	var player: ArenaPlayer = game.player_for(int(key))
 	if player == null or player.controller == null:
 		return Transform3D.IDENTITY
 	var state := player.controller.state
@@ -159,7 +160,7 @@ func on_kill_event(info: Dictionary) -> void:
 		return
 	var victim := int(info.get("victim_id", 0))
 	var killer := int(info.get("killer_id", 0))
-	var player := game.player_for(victim)
+	var player: ArenaPlayer = game.player_for(victim)
 	if player == null or player.controller == null:
 		# A kill for somebody this client does not hold: nobody here to draw a camera for.
 		return
@@ -182,7 +183,7 @@ func cycle_mode(key: String) -> DotResult:
 func _on_killed(entry: DotKillFeed.Entry) -> void:
 	if manager == null:
 		return
-	var player := game.player_for(int(entry.victim_key))
+	var player: ArenaPlayer = game.player_for(int(entry.victim_key))
 	var at := Vector3.ZERO
 	if player != null and player.controller != null:
 		at = player.controller.state.position

@@ -175,7 +175,7 @@ func _test_load(id: StringName, root: String, fixture: bool) -> void:
 	ArenaMaps.list_local = true
 	var entry := ArenaLocalMaps.entry(id)
 	_check(str(entry.get("root", "")) == root, "found under %s" % root, str(entry))
-	var map := ArenaMap.by_id(id)
+	var map: ArenaMap = ArenaMap.by_id(id)
 	if not _check(map != null and map.local_prefix != "" and map.is_imported(), "by_id builds the local map"):
 		return
 	_check(map.display_name.ends_with(DotMapLocalMaps.TAG), "its title says local", map.display_name)
@@ -223,7 +223,7 @@ func _test_drops() -> void:
 	_check(said.begins_with("Added "), "a dropped zip is added", said)
 	var entry := ArenaLocalMaps.entry(&"fixture_local")
 	_check(str(entry.get("zip", "")) == DROPPED_ZIP, "found as the zip", str(entry))
-	var map := ArenaMap.by_id(&"fixture_local")
+	var map: ArenaMap = ArenaMap.by_id(&"fixture_local")
 	_check(map != null and map.local_prefix.begins_with(ZIP_CACHE), "by_id builds it from the unpacked zip",
 		"" if map == null else map.local_prefix)
 	if map != null:

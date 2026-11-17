@@ -158,7 +158,7 @@ func _wallbang_check(shooter: ArenaPlayer, victim: ArenaPlayer) -> void:
 	var wall_at := origin + dir * 7.0
 	var boxes_was := flat.boxes.duplicate()
 	var mats_was := flat.box_materials.duplicate()
-	var _w := flat.add_box(AABB(wall_at - Vector3(3.0, 3.0, 0.1), Vector3(6.0, 6.0, 0.2)))
+	var _w: RefCounted = flat.add_box(AABB(wall_at - Vector3(3.0, 3.0, 0.1), Vector3(6.0, 6.0, 0.2)))
 	await get_tree().physics_frame
 	var seen: Array = []
 	var on_damage := func(d: DotDamage) -> void: seen.append(d)

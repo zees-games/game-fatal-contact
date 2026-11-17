@@ -33,7 +33,7 @@ var _tag := ""
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
-	var map := ArenaMap.by_id(StringName(args[0]))
+	var map: ArenaMap = ArenaMap.by_id(StringName(args[0]))
 	_tag = "%s_%s" % [args[0], args[1]]
 	Engine.physics_ticks_per_second = TICK_RATE
 	root.add_child(map.to_scene())

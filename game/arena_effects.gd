@@ -1,6 +1,6 @@
 extends Node
 
-const ArenaGame := preload("arena_game.gd")
+const ArenaPlayer := preload("arena_player.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
 
 ## Status effects in the arena, and the one line that makes them count.
@@ -47,7 +47,9 @@ const SLOWED := &"arena_slowed"
 ## spawn-protection ledger may refuse it. See [method adjust_damage].
 const ADMIN_KILL := &"arena_admin_kill"
 
-var game: ArenaGame = null
+## Typed as its native base on purpose: a typed reference back to arena_game.gd closes a
+## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
+var game: Node = null
 
 var manager: DotEffectManager = null
 
@@ -272,7 +274,7 @@ func tick(_delta: float) -> void:
 ## scratch, which is the only arrangement that survives an effect expiring.
 func _apply_movement() -> void:
 	for id in game.player_ids():
-		var player := game.player_for(id)
+		var player: ArenaPlayer = game.player_for(id)
 		if player == null or player.controller == null:
 			continue
 		var tunables := player.controller.tunables
@@ -303,11 +305,11 @@ func _apply_movement() -> void:
 func _on_damaged(entity: int, amount: float, type: StringName, source: int) -> void:
 	if game.combat == null:
 		return
-	var health := game.combat.health_of(entity)
+	var health: DotHealth = game.combat.health_of(entity)
 	if health == null:
 		return
 
-	var damage_type := game.combat.damage_type(type)
+	var damage_type: DotDamageType = game.combat.damage_type(type)
 	if damage_type == null:
 		damage_type = DotDamageType.new()
 		damage_type.id = type
@@ -327,7 +329,7 @@ func _on_damaged(entity: int, amount: float, type: StringName, source: int) -> v
 func _on_healed(entity: int, amount: float, overheal: bool, _source: int) -> void:
 	if game.combat == null:
 		return
-	var health := game.combat.health_of(entity)
+	var health: DotHealth = game.combat.health_of(entity)
 	if health == null:
 		return
 	var _got := health.heal(amount)
@@ -351,7 +353,7 @@ func on_spawn(entity: int) -> void:
 	# The live rule, not the table's: the effect was defined once at setup with the duration then, so a
 	# `spawn_protection_sec` changed since (a config key, a mode, a test) left the effect at the old length,
 	# and 0 (no protection) fell back to two seconds here while the other two records gave none.
-	var ticks := _protection_ticks() if game.match_node != null else 2 * game.tick_rate
+	var ticks: int = _protection_ticks() if game.match_node != null else 2 * game.tick_rate
 	if game.match_node != null and ticks <= 0:
 		return
 	var def := manager.definition(PROTECTED)

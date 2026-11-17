@@ -1,6 +1,6 @@
 extends Node
 
-const ArenaGame := preload("arena_game.gd")
+const ArenaPlayer := preload("arena_player.gd")
 const ArenaMap := preload("../maps/arena_map.gd")
 const ArenaFlagView := preload("arena_flag_view.gd")
 const ArenaFlagCarry := preload("arena_flag_carry.gd")
@@ -38,7 +38,9 @@ const KOTH := &"koth"
 const RED := 1
 const BLUE := 2
 
-var game: ArenaGame = null
+## Typed as its native base on purpose: a typed reference back to arena_game.gd closes a
+## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
+var game: Node = null
 
 var manager: DotObjectiveManager = null
 
@@ -214,8 +216,8 @@ func ctf_bases() -> Dictionary:
 		return out
 
 	# No usable spawns at all: the old derived ends of the map, two teams only.
-	var reach := maxf(game.map.extent - 4.0, 4.0)
-	var floor_y := game.map.floor_y
+	var reach: float = maxf(game.map.extent - 4.0, 4.0)
+	var floor_y: float = game.map.floor_y
 	for i in team_ids.size():
 		if not out.has(team_ids[i]):
 			var angle := TAU * float(i) / float(team_ids.size())
@@ -238,7 +240,7 @@ func _announce_flag(team: int, what: StringName, data: Dictionary) -> void:
 		&"captured":
 			text = "Team %d captured a flag" % int(data.get("team", 0))
 	if who != "" and what != &"captured":
-		var player := game.player_for(int(who)) if who.is_valid_int() else null
+		var player: ArenaPlayer = game.player_for(int(who)) if who.is_valid_int() else null
 		if player != null:
 			text += " by " + String(player.display_name)
 	if text != "":
@@ -283,7 +285,7 @@ func apply_ctf_text(text: String) -> void:
 ## A client has no effects layer, so the slowdown it predicts with is applied here, from the same base the effects layer uses.
 func _apply_carrier_speed() -> void:
 	for id in game.player_ids():
-		var player := game.player_for(id)
+		var player: ArenaPlayer = game.player_for(id)
 		if player == null or player.controller == null or player.controller.tunables == null:
 			continue
 		var tunables = player.controller.tunables
@@ -316,14 +318,14 @@ func _presence() -> DotObjectivePresence:
 				out.append(str(id))
 			return out,
 		func(key: String) -> Vector3:
-			var player := game.player_for(int(key))
+			var player: ArenaPlayer = game.player_for(int(key))
 			if player == null or player.controller == null:
 				return Vector3(1e9, 1e9, 1e9)
 			return player.controller.state.position,
 		func(key: String) -> int:
 			return game.team_of(int(key)),
 		func(key: String) -> bool:
-			var player := game.player_for(int(key))
+			var player: ArenaPlayer = game.player_for(int(key))
 			return player != null and player.is_alive()
 	)
 	# An invulnerable player may not capture and may still block, which is the whole
@@ -441,7 +443,7 @@ func _touch_flags() -> void:
 		return
 	for flag in manager.objectives.flags():
 		for id in game.player_ids():
-			var player := game.player_for(id)
+			var player: ArenaPlayer = game.player_for(id)
 			if player == null or not player.is_alive():
 				continue
 			var at := player.controller.state.position

@@ -2,7 +2,8 @@ extends RefCounted
 ## A spatial index of the players for [method ArenaGame.solid_hulls_for] (cvar `fc_hull_grid`): each bot asked for "every living player within a few metres", which scanned the whole roster, 127 reads per bot per tick at 128.
 ## Built once at the start of the players' loop and moved by one player's cell after that player ticked, so a player moved earlier in the tick is found where it moved to. The caller applies the same filters in roster order, so the answer is the full scan's.
 
-const ArenaPlayer := preload("arena_player.gd")
+## Players are typed as Node3D on purpose: arena_player.gd reaches this file through
+## arena_player_state.gd, and a typed reference back closes a parser cycle GDScript never frees.
 
 const CELL := 6.0
 const BIAS := 4096
@@ -47,13 +48,13 @@ static func key_at(at: Vector3) -> int:
 	return (int(floorf(at.x / CELL)) + BIAS) * 8192 + int(floorf(at.z / CELL)) + BIAS
 
 
-static func _key_of_player(p: ArenaPlayer) -> int:
+static func _key_of_player(p: Node3D) -> int:
 	if p == null or p.controller == null or p.controller.state == null:
 		return -1
 	return key_at(p.controller.state.position)
 
 
-func begin(roster: Array[ArenaPlayer], ids: PackedInt64Array) -> void:
+func begin(roster: Array, ids: PackedInt64Array) -> void:
 	_cells.clear()
 	_index_of.clear()
 	_key_of.resize(roster.size())
@@ -75,7 +76,7 @@ func _put(k: int, i: int) -> void:
 
 
 ## Player [param id] has just ticked: re-file it if it left its cell.
-func moved(id: int, p: ArenaPlayer) -> void:
+func moved(id: int, p: Node3D) -> void:
 	var i: int = _index_of.get(id, -1)
 	if i < 0:
 		return

@@ -121,7 +121,7 @@ static func startup_map() -> ArenaMap:
 		return ArenaMap.dm_box()
 
 	var id := StringName(asked)
-	var map := ArenaMap.by_id(id)
+	var map: ArenaMap = ArenaMap.by_id(id)
 
 	if map == null:
 		DotLog.warn(CHANNEL, "no such map, booting the default instead", {

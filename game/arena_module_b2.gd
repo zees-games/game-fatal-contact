@@ -668,7 +668,7 @@ func _change_mode_in_place(old_value: String, wanted: ArenaMode) -> void:
 	var map := game.map
 
 	if wanted.preferred_map != &"" and wanted.preferred_map != map.id:
-		var preferred := ArenaMap.by_id(wanted.preferred_map)
+		var preferred: ArenaMap = ArenaMap.by_id(wanted.preferred_map)
 
 		if preferred != null:
 			map = preferred

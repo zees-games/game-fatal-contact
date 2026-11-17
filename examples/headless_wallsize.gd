@@ -92,7 +92,7 @@ func _test_clip_hulls() -> void:
 		for _i in 3:
 			_check(true, "skipped without the imported map")
 		return
-	var root := ArenaMap.by_id(id).to_collision()
+	var root: Node3D = ArenaMap.by_id(id).to_collision()
 	add_child(root)
 	await get_tree().physics_frame
 	await get_tree().physics_frame

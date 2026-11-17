@@ -5,7 +5,7 @@ extends "headless_match_horde_and_siege.gd"
 func _test_atrium() -> void:
 	_section("dm_atrium")
 
-	var map := ArenaMap.dm_atrium()
+	var map: ArenaMap = ArenaMap.dm_atrium()
 
 	_check(map.boxes.size() > 30, "the map has geometry", str(map.boxes.size()))
 	_check(map.spawns.size() == 10, "and ten spawns", str(map.spawns.size()))

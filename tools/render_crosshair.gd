@@ -30,7 +30,7 @@ var _after_clip := false
 func _initialize() -> void:
 	Engine.physics_ticks_per_second = TICK_RATE
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
-	var map := ArenaMap.dm_box()
+	var map: ArenaMap = ArenaMap.dm_box()
 	root.add_child(map.to_scene())
 	root.add_child(ArenaMapLighting.build(map))
 	_feel = DotGameCombatFeel.new(true, false)

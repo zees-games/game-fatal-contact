@@ -474,7 +474,7 @@ func _test_every_map() -> void:
 	var report: Array[String] = []
 
 	for id in _map_ids():
-		var map := ArenaMap.by_id(id)
+		var map: ArenaMap = ArenaMap.by_id(id)
 		var solid := map.to_collision()
 		add_child(solid)
 		map.collision_root = solid
@@ -541,7 +541,7 @@ func _test_collision_audit() -> void:
 	_section("every imported map: nothing drawn is walked through")
 
 	for id in _map_ids():
-		var map := ArenaMap.by_id(id)
+		var map: ArenaMap = ArenaMap.by_id(id)
 		var world := Node3D.new()
 		world.add_child(map.to_scene())
 		world.add_child(map.to_collision())

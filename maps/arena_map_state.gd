@@ -1,6 +1,5 @@
 extends RefCounted
 
-const ArenaMap := preload("arena_map.gd")
 const ArenaBspMap := preload("arena_bsp_map.gd")
 const ArenaGlassTrace := preload("../game/arena_glass_trace.gd")
 const ArenaImportedMaps := preload("arena_imported_maps.gd")
@@ -30,6 +29,17 @@ static var use_bakes: bool = true
 
 ## Whether an imported map is drawn from its converted world when one is linked at `res://worlds`.
 static var use_worlds: bool = true
+
+## A blank arena_map.gd for the factories along this chain. Reached by path, and every map method
+## returns RefCounted, on purpose: arena_map.gd extends this chain, so naming it from here (or a
+## script naming itself) closes a preload cycle, and GDScript never frees the parser trees of
+## scripts in a cycle (CI perf-smoke mem_mb). Callers that want the type:
+## `var map: ArenaMap = ArenaMap.dm_box()`.
+const MAP_SCRIPT := "res://maps/arena_map.gd"
+
+
+static func _blank_map() -> RefCounted:
+	return (load(MAP_SCRIPT) as Script).new()
 
 ## A level as a list of boxes, and the three things that list becomes. The boxes are declared once
 ## here and become a [MeshInstance3D] set to see, [StaticBody3D]s for physics, and analytic [AABB]s

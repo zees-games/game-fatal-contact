@@ -39,7 +39,7 @@ func _test_horde() -> void:
 		"and it matches the geometry it was built from"
 	)
 
-	var other := ArenaMap.by_id(&"dm_atrium" if _game.map.id == &"dm_box" else &"dm_box")
+	var other: ArenaMap = ArenaMap.by_id(&"dm_atrium" if _game.map.id == &"dm_box" else &"dm_box")
 	_check(
 		not nav.matches(ArenaNpcs.digest_of(other)),
 		"and does not match a different map's"

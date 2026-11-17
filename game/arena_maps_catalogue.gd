@@ -92,7 +92,7 @@ static func _list_local(out: DotMapCatalogue) -> void:
 static func add_local(out: DotMapCatalogue, id: StringName) -> bool:
 	if not list_local or out == null or not ArenaMap.ArenaLocalMaps.is_local(id):
 		return false
-	var map := ArenaMap.local(id, true)
+	var map: ArenaMap = ArenaMap.local(id, true)
 	if map == null:
 		return false
 	var def := _imported_def_for(id, map)
@@ -111,7 +111,7 @@ static func add_local(out: DotMapCatalogue, id: StringName) -> bool:
 
 
 static func _list(out: DotMapCatalogue, id: StringName) -> void:
-	var map := ArenaMap.listing_by_id(id)
+	var map: ArenaMap = ArenaMap.listing_by_id(id)
 
 	if map == null:
 		return
@@ -251,7 +251,7 @@ static func _build_workshop_imported(def: DotMapDef, doc_id: String) -> DotResul
 		var added := ArenaImportedMaps.add_mounted(key, dir)
 		if not added.ok:
 			return added
-	var map := ArenaMap.imported(key)
+	var map: ArenaMap = ArenaMap.imported(key)
 	if map == null:
 		return DotResult.fail(DotError.CODE_INVALID, "the manifest cannot be built into a map", def.scene_path)
 	if map.spawns.is_empty():

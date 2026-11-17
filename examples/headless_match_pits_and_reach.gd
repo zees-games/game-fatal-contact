@@ -4,7 +4,7 @@ extends "headless_match_toys_content_map.gd"
 func _test_pit() -> void:
 	_section("dm_pit")
 
-	var map := ArenaMap.dm_pit()
+	var map: ArenaMap = ArenaMap.dm_pit()
 
 	_check(map.boxes.size() > 24, "the map has geometry", str(map.boxes.size()))
 	_check(map.spawns.size() == 9, "and nine spawns", str(map.spawns.size()))
@@ -102,7 +102,7 @@ func _test_pit() -> void:
 		"whose entry records that it has no team spawns"
 	)
 
-	var ffa := ArenaMode.free_for_all()
+	var ffa: ArenaMode = ArenaMode.free_for_all()
 	var team := _first_team_mode()
 
 	_check(ArenaMaps.supports_mode(def, ffa), "a free-for-all can be played on it")
@@ -310,7 +310,7 @@ func _top_speed(
 func _test_bot_ground_speed() -> void:
 	_section("what a bot actually travels at")
 
-	var map := ArenaMap.dm_atrium()
+	var map: ArenaMap = ArenaMap.dm_atrium()
 	var tunables := ArenaPlayer.arena_tunables()
 
 	var holder := Node3D.new()
@@ -384,7 +384,7 @@ func _test_reach() -> void:
 	var total := 0
 
 	for id in ArenaMap.ids():
-		var map := ArenaMap.by_id(id)
+		var map: ArenaMap = ArenaMap.by_id(id)
 
 		if map == null:
 			continue
@@ -429,7 +429,7 @@ func _test_collision_audit() -> void:
 	_section("every map: nothing drawn is walked through")
 
 	for id in ArenaMap.ids():
-		var map := ArenaMap.by_id(id)
+		var map: ArenaMap = ArenaMap.by_id(id)
 		var world := Node3D.new()
 		world.add_child(map.to_scene())
 		world.add_child(map.to_collision())
@@ -461,7 +461,7 @@ func _test_survey() -> void:
 	_section("every map: slots and reach, as a rule")
 
 	for id in ArenaMap.ids():
-		var map := ArenaMap.by_id(id)
+		var map: ArenaMap = ArenaMap.by_id(id)
 
 		if map == null:
 			continue

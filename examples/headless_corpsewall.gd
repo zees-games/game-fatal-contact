@@ -92,7 +92,7 @@ func _start_client() -> Object:
 
 func _run() -> void:
 	var gm: Object = await _start_client()
-	var map := ArenaMap.by_id(&"crackhouse")
+	var map: ArenaMap = ArenaMap.by_id(&"crackhouse")
 	_check(map != null and gm.change_map(map).ok, "the game moves to crackhouse")
 	var me: Object = null
 	var live := false

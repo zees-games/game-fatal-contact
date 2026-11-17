@@ -54,7 +54,7 @@ func _door_pose(world: DotMapWorld) -> Transform3D:
 
 
 func _run() -> void:
-	var map := ArenaMap.imported(MAP)
+	var map: ArenaMap = ArenaMap.imported(MAP)
 	if map == null:
 		print("  skip  %s is not linked (arena-surf-dm-maps)" % MAP)
 		get_tree().quit(0)

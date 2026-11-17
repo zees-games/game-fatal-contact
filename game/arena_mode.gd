@@ -1,6 +1,8 @@
 extends Resource
 
-const ArenaMode := preload("arena_mode.gd")
+## The factories below return Resource and build with a bare new() on purpose: naming this script
+## inside itself is a self-preload, and GDScript never frees the parser tree of a script in a
+## cycle (CI perf-smoke mem_mb). Callers that want the type: `var m: ArenaMode = ArenaMode.siege()`.
 
 ## What is being played: the rules, the sides, and what damage does.
 ##
@@ -135,7 +137,7 @@ const ArenaMode := preload("arena_mode.gd")
 
 
 ## Gun game: every kill gives you the next gun; the first through the list wins.
-static func gun_game_mode() -> ArenaMode:
+static func gun_game_mode() -> Resource:
 	var mode := free_for_all(0)
 	mode.id = &"gungame"
 	mode.display_name = "Gun Game"
@@ -152,7 +154,7 @@ static func gun_game_mode() -> ArenaMode:
 
 
 ## Only snipers: a random scoped rifle on every spawn, and the knife.
-static func only_snipers(limit: int = 25) -> ArenaMode:
+static func only_snipers(limit: int = 25) -> Resource:
 	var mode := free_for_all(limit)
 	mode.id = &"snipers"
 	mode.display_name = "Only Snipers"
@@ -184,8 +186,8 @@ func pool_ids(catalogue: DotWeaponCatalogue) -> Array[StringName]:
 
 
 ## Free-for-all: everybody against everybody, first to the score limit.
-static func free_for_all(limit: int = 25) -> ArenaMode:
-	var mode := ArenaMode.new()
+static func free_for_all(limit: int = 25) -> Resource:
+	var mode := new()
 	mode.id = &"ffa"
 	mode.display_name = "Free-For-All"
 	mode.description = "Everybody for themselves. First to %d." % limit
@@ -220,8 +222,8 @@ static func free_for_all(limit: int = 25) -> ArenaMode:
 ## map expensive to hold, and movable cover is the only answer to that a player can
 ## build themselves — which is the trade the raised centre of `dm_box` has always
 ## wanted and never had.
-static func siege(limit: int = 20) -> ArenaMode:
-	var mode := ArenaMode.new()
+static func siege(limit: int = 20) -> Resource:
+	var mode := new()
 	mode.id = &"siege"
 	mode.display_name = "Siege"
 	mode.description = "Everybody for themselves, with monsters in the middle and cover you can move."
@@ -251,8 +253,8 @@ static func siege(limit: int = 20) -> ArenaMode:
 
 
 ## Team deathmatch: two sides, a shared score, and no shooting your own.
-static func team_deathmatch(limit: int = 75) -> ArenaMode:
-	var mode := ArenaMode.new()
+static func team_deathmatch(limit: int = 75) -> Resource:
+	var mode := new()
 	mode.id = &"tdm"
 	mode.display_name = "Team Deathmatch"
 	mode.description = "Red against Blue. First side to %d." % limit
@@ -289,8 +291,8 @@ static func team_deathmatch(limit: int = 75) -> ArenaMode:
 ## partial capture that decays over a minute, and a clock that FREEZES rather than
 ## resetting when the point changes hands. That last one is the whole tension of the
 ## mode and it is the thing every hand-written version gets wrong.
-static func king_of_the_hill() -> ArenaMode:
-	var mode := ArenaMode.new()
+static func king_of_the_hill() -> Resource:
+	var mode := new()
 	mode.id = &"koth"
 	mode.display_name = "King of the Hill"
 	mode.description = "One point in the middle. Hold it for ninety seconds."
@@ -323,8 +325,8 @@ static func king_of_the_hill() -> ArenaMode:
 ## The respawn is long on purpose. A capture is a journey across the map and a defender
 ## who is back in three seconds makes it one nobody completes; five seconds is what
 ## turns a kill near the flag into time on the clock.
-static func capture_the_flag(limit: int = 3) -> ArenaMode:
-	var mode := ArenaMode.new()
+static func capture_the_flag(limit: int = 3) -> Resource:
+	var mode := new()
 	mode.id = &"ctf"
 	mode.display_name = "Capture the Flag"
 	mode.description = "Take theirs to yours. First side to %d." % limit

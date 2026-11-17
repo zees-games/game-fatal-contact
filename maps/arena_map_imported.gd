@@ -13,7 +13,7 @@ extends "arena_map_atrium.gd"
 ## and from `boxes`, which an imported map does not have, so `ArenaMaps.supports_mode`
 ## keeps those modes off it rather than letting them build a layout out of nothing.
 ## [param light] stops after what a listing reads (name, author, bounds, spawns and their tags, the modes, the movement): no pits, jail or mechanics, which a catalogue of sixty maps would build and discard (about a third of the time a cold catalogue takes).
-static func imported(map_id: StringName, light: bool = false) -> ArenaMap:
+static func imported(map_id: StringName, light: bool = false) -> RefCounted:
 	if ArenaLocalMaps.is_local(map_id):
 		return local(map_id, light)
 
@@ -22,7 +22,7 @@ static func imported(map_id: StringName, light: bool = false) -> ArenaMap:
 	if manifest.is_empty():
 		return null
 
-	var map := ArenaMap.new()
+	var map: RefCounted = _blank_map()
 	map.id = map_id
 	map.display_name = String(map_id)
 	map.manifest_path = ArenaImportedMaps.manifest_path(map_id)
@@ -42,7 +42,7 @@ static func imported(map_id: StringName, light: bool = false) -> ArenaMap:
 	var at_index := 0
 
 	for at in ArenaBspMap.spawns_of(manifest):
-		var _m := map.add_spawn(at, StringName(tags[at_index] if at_index < tags.size() else ""))
+		var _m: RefCounted = map.add_spawn(at, StringName(tags[at_index] if at_index < tags.size() else ""))
 		at_index += 1
 
 	map.flag_homes = ArenaBspMap.flag_homes_of(manifest)
@@ -59,14 +59,14 @@ static func imported(map_id: StringName, light: bool = false) -> ArenaMap:
 
 ## A map copied in by hand ([code]ArenaLocalMaps[/code]), or null when there is none by that id or it does not load.
 ## It has no pits, jail, mechanics or listed modes: a raw convert carries none of the legacy manifest's extras.
-static func local(map_id: StringName, light: bool = false) -> ArenaMap:
+static func local(map_id: StringName, light: bool = false) -> RefCounted:
 	var found := ArenaLocalMaps.entry(map_id)
 	var got: DotMapBspMesh = ArenaLocalMaps.mesh(found) if not found.is_empty() else null
 
 	if got == null:
 		return null
 
-	var map := ArenaMap.new()
+	var map: RefCounted = _blank_map()
 	map.id = map_id
 	map.display_name = str(found["title"])
 	map.local_prefix = str(found["prefix"])
@@ -82,7 +82,7 @@ static func local(map_id: StringName, light: bool = false) -> ArenaMap:
 	)
 
 	for spot: Dictionary in ArenaLocalMaps.spawns_of(got):
-		var _m := map.add_spawn(spot["at"], StringName(str(spot["tag"])))
+		var _m: RefCounted = map.add_spawn(spot["at"], StringName(str(spot["tag"])))
 
 	if not light:
 		map.mechanics = ArenaMapMechanics.new()
@@ -94,8 +94,8 @@ static func local(map_id: StringName, light: bool = false) -> ArenaMap:
 ## array of them is 40-odd boxes built at load time for the one the server is not
 ## running.[/b] `ids()` is the cheap half — a menu, a `fc_maps` listing and a
 ## validity check all want the names and none of them want the geometry.
-static func by_id(id: StringName) -> ArenaMap:
-	var found: ArenaMap = _by_id_bare(id)
+static func by_id(id: StringName) -> RefCounted:
+	var found: RefCounted = _by_id_bare(id)
 	# Tests only: a map set up by id (a map change) gets the placements a test registered,
 	# since no deathmatch map carries toys of its own.
 	if found != null and test_toys.has(id):
@@ -105,7 +105,7 @@ static func by_id(id: StringName) -> ArenaMap:
 ## Toys by map id that [method by_id] adds. Empty always, outside a test (see ArenaTestToys).
 static var test_toys: Dictionary = {}
 
-static func _by_id_bare(id: StringName) -> ArenaMap:
+static func _by_id_bare(id: StringName) -> RefCounted:
 	match id:
 		&"dm_box":
 			return dm_box()
@@ -118,7 +118,7 @@ static func _by_id_bare(id: StringName) -> ArenaMap:
 	return imported(id)
 
 ## [method by_id] for a listing: an imported map comes without its pits, jail and mechanics (see [method imported]). Not for playing.
-static func listing_by_id(id: StringName) -> ArenaMap:
+static func listing_by_id(id: StringName) -> RefCounted:
 	if id in ids():
 		return by_id(id)
 	return imported(id, true)
@@ -142,7 +142,7 @@ static func imported_ids() -> Array[StringName]:
 ## useful: the untagged ones are a shared pool both sides can fall back to when their
 ## own are all on cooldown, which `DotSpawnSelector._fallback` will do rather than
 ## refuse to spawn anybody.
-func add_spawn(at: Transform3D, tag: StringName = &"") -> ArenaMap:
+func add_spawn(at: Transform3D, tag: StringName = &"") -> RefCounted:
 	spawns.append(at)
 	spawn_tags.append(String(tag))
 	return self
@@ -221,17 +221,17 @@ func spawn_tag(index: int) -> StringName:
 
 	return StringName(spawn_tags[index])
 
-func add_pack(kind: int, at: Vector3) -> ArenaMap:
+func add_pack(kind: int, at: Vector3) -> RefCounted:
 	packs.append({"kind": kind, "at": at})
 	return self
 
-func add_box(box: AABB) -> ArenaMap:
+func add_box(box: AABB) -> RefCounted:
 	boxes.append(box.abs())
 	return self
 
 ## Adds the four outer walls. Solid boxes rather than planes, because everything downstream understands a box and only some of it a plane,
 ## and a map that is boxes all the way down is a map whose three representations cannot disagree.
-func add_perimeter(thickness: float = 2.0) -> ArenaMap:
+func add_perimeter(thickness: float = 2.0) -> RefCounted:
 	var span := extent * 2.0 + thickness * 2.0
 
 	add_box(AABB(
@@ -518,8 +518,8 @@ static func lightmap_box(size: Vector3, hide_bottom: bool) -> ArrayMesh:
 ## crossing rather than a chord, and a shelf in the south-west corner carries a perch
 ## at 5.4 — the map's third tier, two 0.9 m hops up from the ring. Nine spawns now,
 ## and still none of them tagged.
-static func dm_pit() -> ArenaMap:
-	var map := ArenaMap.new()
+static func dm_pit() -> RefCounted:
+	var map: RefCounted = _blank_map()
 	map.id = &"dm_pit"
 	map.display_name = "dm_pit"
 	map.extent = 14.0

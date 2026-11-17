@@ -42,7 +42,7 @@ var _sites_from: ArenaMap = null
 ## Builds everything and binds it to [param p_game]. Returns a failure without having built anything
 ## when the game is not set up, because half a stack is worse than none: the roster would exist,
 ## nothing would feed it, and every consumer would read an empty scoreboard on a running server.
-func setup(p_game: ArenaGame) -> DotResult:
+func setup(p_game: Node) -> DotResult:
 	if p_game == null:
 		return DotResult.fail(DotError.CODE_INVALID, "No game to bind to.")
 
@@ -398,7 +398,7 @@ func refresh_spawns() -> void:
 	_sites_from = game.map
 
 	for point in game.match_node.spawn_points():
-		var at := point.spawn_transform()
+		var at: Transform3D = point.spawn_transform()
 		var site := DotSpawnSite.point(
 			StringName(point.name), at.origin, at.basis.get_euler().y
 		)
@@ -557,7 +557,7 @@ func _adopt_match_sides() -> void:
 	if not game.is_authority or teams == null:
 		return
 
-	var sided := game.mode != null and game.mode.is_team_mode()
+	var sided: bool = game.mode != null and game.mode.is_team_mode()
 
 	for id in game.player_ids():
 		var key := str(id)

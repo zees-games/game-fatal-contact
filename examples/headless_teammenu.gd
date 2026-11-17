@@ -205,7 +205,7 @@ func _run_first(game: ArenaGame, server: Variant, data: Dictionary, other: int, 
 	data = big_menu.server.menu_for(51)
 	_check(data["teams"].size() == 12 and str(data["teams"][11]["name"]) == "L" and Color.html(str(data["teams"][11]["colour"])) != Color.html(str(data["teams"][10]["colour"])), "twelve names make twelve teams with distinct colours", str(data["teams"].size()))
 	_check(ArenaMode.team_deathmatch().teams().size() == 2 and ArenaMode.free_for_all().teams().is_empty(), "the modes still say two teams and none")
-	var four := ArenaMode.team_deathmatch()
+	var four: ArenaMode = ArenaMode.team_deathmatch()
 	four.team_count = 4
 	_check(four.teams().size() == 4 and four.teams()[2].spawn_tag == &"", "a four-team mode builds four, the extra two on the shared spawn pool")
 
