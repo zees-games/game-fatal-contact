@@ -303,6 +303,8 @@ func _test_map_change() -> void:
 		_check(stored_after_flush == 5.0, "a flush after the rejoin adds only the new session", str(stored_after_flush))
 		var _w3: DotResult = await tracker.flush()
 		_check((await fstore.values_for(vkey)).value.get_value(kills_id) == 5.0, "a second flush adds nothing")
+		# The store writes behind on a worker; a fresh process sees the file only once the owner has finished it (the tracker does on exit).
+		fstore.finish()
 		var reread := DotStatsStoreFile.new(file_path)
 		reread.schema = tracker.schema
 		_check((await reread.values_for(vkey)).value.get_value(kills_id) == 5.0, "the file holds the same total for a fresh process")
