@@ -12,6 +12,7 @@
 #   ./game.sh test                 parse every script, then run every test suite
 #   ./game.sh test NAME...         run only these suites (e.g. ./game.sh test headless_net)
 #   ./game.sh test NAME -- ARGS    pass ARGS to the suite (e.g. test headless_maps -- --map=ID)
+#   ./game.sh defs [--check]       write deployment/achievement-defs.json and leaderboard-defs.json (the site's import files)
 #   ./game.sh soak [MAP] [MIN]     bot soak on tools/soak.tscn (report in .godot/test-logs/soak-MAP.json)
 #   ./game.sh suites               list the test suites
 #   ./game.sh visual [--update] [MAP...]  compare map frames to tests/golden (tools/visual_check.sh)
@@ -309,7 +310,25 @@ do_test() {
     return 1
 }
 
+# defs_run ADDON_DIR SPEC OUT [--check]: SPEC is "res://file.gd:static_method"; the exporter ships with the addon
+# repository (dot-achievements, dot-leaderboard), found through the game's addons/ link.
+defs_run() {
+    local addon="$1" spec="$2" out="$3" tool; shift 3
+    [ -n "$spec" ] || return 0
+    tool="$(readlink -f "addons/$addon")/../../tools/export_site_defs.gd"
+    [ -f "$tool" ] || die "No exporter at $tool (addons/$addon must link into its repository)." 2
+    "$GODOT" --headless --path . --script "$tool" -- --source "${spec%:*}" --method "${spec##*:}" --out "$out" "$@"
+}
+
 case "$cmd" in
+    defs)
+        check_addons
+        [ -z "${1:-}" ] || [ "$1" = "--check" ] || die "usage: ./game.sh defs [--check]" 2
+        rc=0
+        defs_run dot_achievements "res://game/arena_awards.gd:catalogue" deployment/achievement-defs.json "$@" || rc=1
+        defs_run dot_leaderboard "res://game/arena_boards.gd:definitions" deployment/leaderboard-defs.json "$@" || rc=1
+        exit "$rc"
+        ;;
     play)
         check_addons
         [ "${1:-}" = "--" ] && shift
