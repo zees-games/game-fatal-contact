@@ -106,9 +106,9 @@ func clear() -> void:
 ## Frees the drawn node of [param f], taking its missile back for the next shot.
 func _release(f: Variant) -> void:
 	var node := _drawn[f] as Node3D
-	var missile: Variant = node.get_meta(&"missile", null)
-	if missile != null:
-		node.remove_child(missile as Node)
+	if node.has_meta(&"missile"):
+		var missile := node.get_meta(&"missile") as Node
+		node.remove_child(missile)
 		(_missiles[node.get_meta(&"missile_id")] as Array).append(missile)
 	node.queue_free()
 	_drawn.erase(f)
