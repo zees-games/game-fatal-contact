@@ -10,12 +10,15 @@ const TagRules := preload("arena_name_tag_rules.gd")
 ## Offsets are from the bottom-right corner (see [DotTouchButtons]). Every radius is at least 24 so a
 ## button is 48 px across, thumb size, and the cluster still sits above the ammunition plate.
 const LAYOUT: Array[Dictionary] = [
-	{"id": &"fire", "label": "FIRE", "offset": Vector2(86, 150), "radius": 52.0},
-	{"id": &"jump", "label": "JUMP", "offset": Vector2(200, 130), "radius": 42.0, "hold": DotFpsCommand.BUTTON_JUMP},
-	{"id": &"crouch", "label": "DUCK", "offset": Vector2(60, 272), "radius": 36.0, "hold": DotFpsCommand.BUTTON_CROUCH},
-	{"id": &"reload", "label": "R", "offset": Vector2(170, 244), "radius": 36.0},
-	{"id": &"next", "label": "NEXT", "offset": Vector2(268, 200), "radius": 36.0},
+	{"id": &"fire", "label": "FIRE", "offset": Vector2(86, 150), "radius": 48.0},
+	{"id": &"jump", "label": "JUMP", "offset": Vector2(195, 118), "radius": 38.0, "hold": DotFpsCommand.BUTTON_JUMP},
+	{"id": &"crouch", "label": "DUCK", "offset": Vector2(60, 268), "radius": 34.0, "hold": DotFpsCommand.BUTTON_CROUCH},
+	{"id": &"reload", "label": "R", "offset": Vector2(160, 252), "radius": 34.0},
+	{"id": &"next", "label": "NEXT", "offset": Vector2(280, 185), "radius": 32.0},
 ]
+
+## How far in from the right edge the cluster reaches, in design units, for HUD pieces that must clear it.
+const CLUSTER_WIDTH := 370.0
 
 ## Aim assist's candidates: within this many degrees of the crosshair and metres, each checked for a wall.
 const ASSIST_CONE_DEG := 10.0

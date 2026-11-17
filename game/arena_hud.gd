@@ -78,7 +78,9 @@ func build(p_game: ArenaGame) -> void:
 	# Bottom left, above the health: the bottom centre is where the held weapon's viewmodel is drawn, and the icons covered it.
 	abilities = ArenaHudGlance.AbilityBar.new()
 	abilities.name = "Abilities"
-	_place(abilities, Control.PRESET_CENTER_RIGHT, Rect2(-388.0, -45.0, 380.0, 90.0))
+	# On a phone the thumbs' cluster (ArenaTouch.LAYOUT) fills the right edge ~370 units in; the bar sits left of it.
+	var abilities_gap: float = preload("arena_touch.gd").CLUSTER_WIDTH if DotPlatform.has_touch() else 0.0
+	_place(abilities, Control.PRESET_CENTER_RIGHT, Rect2(-388.0 - abilities_gap, -45.0, 380.0, 90.0))
 
 	# Over the middle: chevrons toward whoever hurt you.
 	damage_dirs = ArenaHudDamageDirs.new()
