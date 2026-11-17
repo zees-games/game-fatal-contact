@@ -324,11 +324,13 @@ func _charge_and_boomerang(game: ArenaGame, ids: Array, thrower: int, here: Vect
 	_hold_aim(game, thrower, 0.0, 60.0, HOLD_FULL)
 	var boomerang := _last_throw()
 	_check(bool(boomerang["glide"]), "a fitted knife is thrown as a boomerang, gliding")
-	var body := ArenaKnifeEvents.write_knife(int(boomerang["id"]), thrower, DotWeaponKnives.Phase.FLY, 0, here, Vector3(0.0, 0.0, -20.0), bool(boomerang["glide"]), boomerang["turn"])
+	# dot-weapon 43+: the turn is zero on the straight leg and only set while circling, so send a circling-leg turn.
+	var circling := Vector3(0.0, 4.0, 0.0)
+	var body := ArenaKnifeEvents.write_knife(int(boomerang["id"]), thrower, DotWeaponKnives.Phase.FLY, 0, here, Vector3(0.0, 0.0, -20.0), bool(boomerang["glide"]), circling)
 	var reader := DotNetReader.new(body)
 	var _kind := ArenaKnifeEvents.read_more(reader)
 	var back := ArenaKnifeEvents.read_knife(reader)
-	_check(bool(back["glide"]) and (back["turn"] as Vector3).length() > 0.1, "its curve (glide and turn) goes over the KNIFE record", str(back["turn"]))
+	_check(bool(back["glide"]) and (back["turn"] as Vector3).distance_to(circling) < 0.05, "its curve (glide and turn) goes over the KNIFE record", str(back["turn"]))
 	_reset_throw(game, ids, thrower, here)
 	var _cleared := arsenal.fit(def.slot, DotWeaponFitting.make(&"knife"))
 
