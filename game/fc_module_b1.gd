@@ -579,6 +579,8 @@ func _follow_mode() -> void:
 ## The converted world's PVS as the snapshot visibility (cvar net_visibility); a built-in map clears it.
 ## [param map] is untyped: FcMap is not a DotMapDef subclass (as in arena_map_io).
 func _attach_visibility(map) -> void:
+	if game != null:
+		game.set_meta(FcBotPvs.META, null)
 	if net == null or map == null or DotAddonApi.build_level("dot_game") < 52:
 		return
 	var mesh: Object = null
@@ -587,6 +589,9 @@ func _attach_visibility(map) -> void:
 		var got: DotResult = DotMapBspMesh.load_prefix(prefix) if not prefix.is_empty() else null
 		mesh = got.value if got != null and got.ok else null
 	var on: bool = (DotGameNetcode as GDScript).call(&"attach_visibility", net, mesh)
+	# The same set before each bot sight ray (FcBotPvs, cvar `fc_bot_pvs`): the bots' world has the game, not the netcode.
+	if game != null and on:
+		game.set_meta(FcBotPvs.META, net.interest.get(&"visibility"))
 	log_info("snapshot visibility", {"map": String(map.id), "in_force": on})
 
 

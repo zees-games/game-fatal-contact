@@ -6,6 +6,7 @@ const FcContent := preload("fc_content.gd")
 const FcPlayer := preload("fc_player.gd")
 const FcBotBrain := preload("fc_bot_brain.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
+const FcBotPvs := preload("fc_bot_pvs.gd")
 
 
 ## The behaviour of a weapon whose shot flies (a rocket, a bolt); every other one is led as
@@ -182,6 +183,8 @@ class World:
 	extends NavWorld
 
 	var tick_rate: float = float(FcContent.TICK_RATE)
+	## The map's PVS before each sight ray (cvar `fc_bot_pvs`), bound by [method refresh].
+	var pvs := FcBotPvs.new()
 	var _loadouts: Dictionary = {}
 	## [constant STYLE_CLASS] by weapon definition, so a contact's class is one lookup a tick.
 	var _classes: Dictionary = {}
@@ -282,6 +285,7 @@ class World:
 		if tick == _tick:
 			return
 		_tick = tick
+		pvs.bind(game)
 		contacts_version = tick
 		_contacts.clear()
 		_players.clear()
@@ -543,10 +547,20 @@ class World:
 
 	func line_of_sight(from: Vector3, to: Vector3) -> bool:
 		if par:
+			if pvs.active != null and not pvs.open(from, to):
+				return _pvs_ruled_out(from, to)
 			return _los_par(from, to)
 		var t_los := Time.get_ticks_usec()
-		var seen := _line_of_sight(from, to)
+		var seen := _pvs_ruled_out(from, to) if pvs.active != null and not pvs.open(from, to) else _line_of_sight(from, to)
 		FcFrameProbe.add(&"bot_los", t_los)
+		return seen
+
+	## A sight the map's PVS ruled out: blocked; with `fc_bot_pvs_verify`, the ray's own answer, a clear one counted.
+	func _pvs_ruled_out(from: Vector3, to: Vector3) -> bool:
+		if not FcBotPvs.verify:
+			return false
+		var seen := _los_par(from, to) if par else _line_of_sight(from, to)
+		FcBotPvs.ruled_out_but(seen)
 		return seen
 
 	func _line_of_sight(from: Vector3, to: Vector3) -> bool:

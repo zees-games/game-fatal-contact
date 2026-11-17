@@ -10,6 +10,7 @@ const FcBotBrain := preload("fc_bot_brain.gd")
 const FcBotThreads := preload("fc_bot_threads.gd")
 const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
+const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 const TagRules := preload("fc_name_tag_rules.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
@@ -427,6 +428,21 @@ func _add_bot_engine_cvars() -> void:
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.batch = new_value.to_float() >= 0.5)
+	add_cvar("fc_bot_pvs", "1" if FcBotPvs.enabled else "0",
+		"1: a bot's sight ray is skipped where the map's PVS rules the pair out (same answers: those rays come back blocked); 0: every ray is cast",
+		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotPvs.enabled = new_value.to_float() >= 0.5)
+	add_cvar("fc_bot_pvs_native", "1" if FcBotPvs.native else "0",
+		"1: with fc_bot_pvs, dot-sim asks the PVS where its library has it (bit for bit with the script), else no pre-cull; 0: the script set (slower than none)",
+		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotPvs.native = new_value.to_float() >= 0.5)
+	add_cvar("fc_bot_pvs_verify", "1" if FcBotPvs.verify else "0",
+		"1: every sight the PVS rules out is cast anyway and every native ask is put to the script too, disagreements counted (a check, not for play)",
+		0).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotPvs.verify = new_value.to_float() >= 0.5)
 	add_cvar("fc_tick_max_steps", str(FcTickBudget.max_steps),
 		"Solo: the most ticks a frame may run to catch up with wall-clock time. 8 (default) keeps real time while ticks are cheap; 1 draws more frames while the simulation runs slower; 0 = no limit (the 45 ms budget alone)",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(

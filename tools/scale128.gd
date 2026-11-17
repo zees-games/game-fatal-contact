@@ -10,6 +10,7 @@ const FcHullGrid := preload("../game/fc_hull_grid.gd")
 const FcBotBrain := preload("../game/fc_bot_brain.gd")
 const FcBotThreads := preload("../game/fc_bot_threads.gd")
 const FcBots := preload("../game/fc_bots.gd")
+const FcBotPvs := preload("../game/fc_bot_pvs.gd")
 const FcBotsWorld := preload("../game/fc_bots_world.gd")
 
 ## The 128-player scale harness (nightly arena-128-scale-1). Measures; asserts nothing; prints one `SCALE128 {json}` line. Driven by tools/scale128.sh, which runs it through `heavy`.
@@ -182,6 +183,10 @@ func _ready() -> void:
 			# --wlane 0: idle weapons through the arsenal's idle_still and idle_posture callables (the row lane's A/B arm).
 			# --bphases 1: DotBotBrain's phase clocks (bb_*, main thread only: with --threads 0), the split of bot_brain.
 			"--bphases": (DotBotBrain as GDScript).set(&"phase_timers", args[i + 1] != "0")
+			# --pvs/--pvsnative/--pvsverify: the bots' PVS pre-cull before a sight ray (fc_bot_pvs*).
+			"--pvs": FcBotPvs.enabled = args[i + 1] != "0"
+			"--pvsnative": FcBotPvs.native = args[i + 1] != "0"
+			"--pvsverify": FcBotPvs.verify = args[i + 1] != "0"
 			"--wlane": _PlayerBody.idle_row_lane = args[i + 1] != "0"
 			"--native": DotBotWorld.native_enabled = args[i + 1] != "0"
 			# --native-sight 0: bot sight rays through script, never dot-sim's native ray (the A/B of World.native_sight).
@@ -301,9 +306,17 @@ func _report(extra: Dictionary) -> void:
 		for i in b_names.size():
 			bp[b_names[i]] = snappedf(b_us[i] / 1000.0 / maxi(1, _count), 0.001)
 		out["brain_phases_ms"] = bp
+	var pv := FcBotPvs.stats
+	out["bot_pvs"] = {
+		"mode": ("native" if FcBotPvs.native and DotSim.has(&"pvs") else "script") if FcBotPvs.enabled else "off",
+		"on_net": _pvs_net, "on_game": _pvs_game, "asks": pv[0], "ruled_out": pv[1], "ruled_out_clear": pv[2], "native_mismatch": pv[3],
+	}
 	print("SCALE128 ", JSON.stringify(out))
 
 
+## Whether the map's PVS was on the netcode and on the game (for the bots) when the record began.
+var _pvs_net := false
+var _pvs_game := false
 var _motorprof := false
 var _fine := false
 var _spawn := false
@@ -350,6 +363,8 @@ func _motor_phases(ticks: int) -> Dictionary:
 
 
 func _begin_record() -> void:
+	FcBotPvs.counting = true
+	FcBotPvs.reset_stats()
 	if _motorprof:
 		DotFpsMotor.profile = true
 		DotFpsMotor.phase_us.fill(0)
@@ -392,6 +407,11 @@ func _serve() -> void:
 	if _botstyles != "":
 		var _st := DotBotSettings.of(game).set_value("styles", _botstyles)
 	var map: FcMap = FcMap.by_id(StringName(_map))
+	if map == null and _map != "dm_box":
+		# Loud: an unknown id (cp_orange_x3 for cp-orange-x3) used to profile dm_box under the asked name.
+		push_error("scale128: no map '%s' (converted maps use dashes, e.g. cp-orange-x3)" % _map)
+		get_tree().quit(2)
+		return
 	var _set := game.setup(map if map != null else FcMap.dm_box())
 	var config := LoopbackServer.config("scale128", _port, data, "error", 256)
 	config.tickrate = _tick
@@ -419,6 +439,8 @@ func _serve() -> void:
 		_respawn_dead(game, true)
 	await get_tree().create_timer(_settle).timeout
 	var net: DotNetManager = module.net
+	_pvs_net = net.interest != null and net.interest.visibility != null
+	_pvs_game = game.has_meta(FcBotPvs.META)
 	var before: Dictionary = net.perf_counters()
 	_ab_net = net
 	_begin_record()

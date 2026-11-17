@@ -7,6 +7,7 @@ extends RefCounted
 const FcGame := preload("fc_game.gd")
 const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
+const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetContext := preload("fc_net_context.gd")
 
@@ -117,6 +118,7 @@ static func natives() -> Dictionary:
 	out["status"] = FcPlayerStack.dot_sim_status()
 	out["hull_native"] = FcHullGrid.native
 	out["fc_hull_native"] = "1" if FcHullGrid.native else "0"
+	out["fc_bot_pvs"] = ("native" if FcBotPvs.native and DotSim.has(&"pvs") else "script") if FcBotPvs.enabled else "off"
 	return out
 
 
