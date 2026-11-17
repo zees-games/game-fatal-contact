@@ -23,8 +23,11 @@ var _client: Node = null
 var _host: Node = null
 var _game: Object = null
 var _times := PackedFloat64Array()
-## One entry per [member _times]: player id -> tick position, for the players alive then.
-var _alive_at: Array[Dictionary] = []
+## One entry per [member _times]: where its rows start in [member _row_ids] / [member _row_pos] (the players alive then, id and tick
+## position); the sample's rows end where the next one's start, flat so a frame's record allocates nothing but the growth.
+var _row_start := PackedInt32Array()
+var _row_ids := PackedInt64Array()
+var _row_pos := PackedVector3Array()
 ## While a kill view plays: [compared, off, worst, which], filled at the end of each frame.
 var _posed: Array = []
 
@@ -59,13 +62,22 @@ func _process(_delta: float) -> void:
 	var now: float = _host.now_fn.call()
 	if not _times.is_empty() and now <= _times[_times.size() - 1]:
 		return
-	var at := {}
+	_times.append(now)
+	_row_start.append(_row_ids.size())
 	for p: Node in _game.players():
 		var controller: DotFpsController = p.get(&"controller")
 		if controller != null and bool(p.call(&"is_alive")):
-			at[int(p.get(&"player_id"))] = controller.state.position
-	_times.append(now)
-	_alive_at.append(at)
+			_row_ids.append(int(p.get(&"player_id")))
+			_row_pos.append(controller.state.position)
+
+
+## The row of [param id] in sample [param i], or -1 when it was not alive then.
+func _row_of(i: int, id: int) -> int:
+	var end := _row_start[i + 1] if i + 1 < _row_start.size() else _row_ids.size()
+	for r in range(_row_start[i], end):
+		if _row_ids[r] == id:
+			return r
+	return -1
 
 
 ## The authoritative position of [param id] at [param t], or INF when it cannot be told (dead,
@@ -75,12 +87,12 @@ func _truth(id: int, t: float) -> Vector3:
 	var i := _times.bsearch(t, false)
 	if i <= 0 or i >= _times.size():
 		return nope
-	var before: Dictionary = _alive_at[i - 1]
-	var after: Dictionary = _alive_at[i]
-	if not before.has(id) or not after.has(id):
+	var at_a := _row_of(i - 1, id)
+	var at_b := _row_of(i, id)
+	if at_a < 0 or at_b < 0:
 		return nope
-	var a: Vector3 = before[id]
-	var b: Vector3 = after[id]
+	var a: Vector3 = _row_pos[at_a]
+	var b: Vector3 = _row_pos[at_b]
 	if a.distance_to(b) > JUMP_M:
 		return nope
 	var alpha := clampf((t - _times[i - 1]) / maxf(_times[i] - _times[i - 1], 0.000001), 0.0, 1.0)
@@ -157,7 +169,7 @@ func _test_crowd(crowd: int) -> void:
 		_posed = []
 		_check(posed[0] > 0 and posed[1] == 0,
 			"%d bots, kill %d: every body the replay drew stands where its row puts it" % [crowd, k + 1],
-			"%d compared, %d off, worst %.2f m %s" % posed)
+			"%d compared, %d off, worst %.2f m (id %s)" % posed)
 	await _wait(1.0)
 	_check(thinned > 0, "%d bots: the remote LOD skipped bodies while a replay was posed (the case this covers)" % crowd, str(thinned))
 	var swept := _sweep(buffer, since)
@@ -217,7 +229,7 @@ func _compare_posed(out: Array) -> void:
 			out[1] += 1
 			if off > out[2]:
 				out[2] = off
-				out[3] = "(id %s)" % id
+				out[3] = id
 
 
 ## Every row recorded since [param since] against the authoritative positions: [rows, off, worst, which].

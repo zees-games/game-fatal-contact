@@ -41,6 +41,23 @@ func _wait(sec: float) -> void:
 	await create_timer(sec, true, false, true).timeout
 
 
+func _film_shots(game: Object) -> void:
+	var last := 0.0
+	for at_sec: float in SHOTS:
+		await _wait(at_sec - last)
+		last = at_sec
+		await process_frame
+		var kc: Object = client.get("killcam")
+		var reveal: Object = client.get("winner_reveal")
+		print("t=%.1f state=%d killcam=%s reveal=%s fps=%d paused=%s" % [at_sec, int(game.match_node.state),
+			str(kc.call(&"is_playing")) if kc != null else "-", str(reveal.call(&"is_active")) if reveal != null else "-",
+			Engine.get_frames_per_second(), paused])
+		if kc != null:
+			print("   %s" % "; ".join(kc.call(&"describe_lines")))
+		var path := ProjectSettings.globalize_path("%s/%s%s_%03d.png" % [_out_dir, _map, "_calm" if _calm else "", int(at_sec * 10.0)])
+		root.get_texture().get_image().save_png(path)
+
+
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(_out_dir))
 	# The client builds its game after a frame or two, so it is read on every poll, not once before them.
@@ -108,20 +125,8 @@ func _run() -> void:
 	if noted != null:
 		print("kills noted: %s" % str(noted.get("buffer").call(&"events_between", 0.0, 1.0e9, &"kill")))
 
-	var last := 0.0
-	for at_sec: float in SHOTS:
-		await _wait(at_sec - last)
-		last = at_sec
-		await process_frame
-		var kc: Object = client.get("killcam")
-		var reveal: Object = client.get("winner_reveal")
-		print("t=%.1f state=%d killcam=%s reveal=%s fps=%d paused=%s" % [at_sec, int(game.match_node.state),
-			str(kc.call(&"is_playing")) if kc != null else "-", str(reveal.call(&"is_active")) if reveal != null else "-",
-			Engine.get_frames_per_second(), paused])
-		if kc != null:
-			print("   %s" % "; ".join(kc.call(&"describe_lines")))
-		var path := ProjectSettings.globalize_path("%s/%s%s_%03d.png" % [_out_dir, _map, "_calm" if _calm else "", int(at_sec * 10.0)])
-		root.get_texture().get_image().save_png(path)
+	await _film_shots(game)
+
 	quit(0)
 
 

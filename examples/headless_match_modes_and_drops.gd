@@ -649,6 +649,16 @@ func _test_drops() -> void:
 	_check(game.drops.live_count() == 0 and killer.health.health > 60.0,
 		"and taken by a hurt player, who is healed (%.0f)" % killer.health.health)
 
+	_check_drops_expire(game, kill)
+	_check_drop_wire()
+
+	remove_child(game)
+	game.queue_free()
+	await get_tree().process_frame
+	_done()
+
+
+func _check_drops_expire(game: ArenaGame, kill: Callable) -> void:
 	# Drops that nobody takes go after their life.
 	game.drop_rules["any_kill"] = true
 	game.apply_drop_rules()
@@ -662,6 +672,8 @@ func _test_drops() -> void:
 		game.tick({})
 	_check(game.drops.live_count() == 0, "and what nobody takes is gone after its life")
 
+
+func _check_drop_wire() -> void:
 	# The wire: a drop and a take round-trip.
 	var wire := ArenaEvents.read_drop(DotNetReader.new(
 		ArenaEvents.write_drop(7, 1, 25, Vector3(1, 2, 3), Vector3(4, 0, 6))
@@ -670,7 +682,3 @@ func _test_drops() -> void:
 		and int(wire["value"]) == 25 and (wire["at"] as Vector3).is_equal_approx(Vector3(4, 0, 6)),
 		"DROP round-trips")
 
-	remove_child(game)
-	game.queue_free()
-	await get_tree().process_frame
-	_done()

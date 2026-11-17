@@ -418,3 +418,127 @@ func _fill_hud(hud: ArenaHud) -> void:
 	hud.medal_row.add(ArenaAwards.Medal.DOUBLE_KILL, "Double Kill")
 	hud.medal_row.advance(1.0)
 
+
+func _test_chat_box() -> void:
+	_section("A chat box, and the three answers to whether it is drawn")
+
+	var p := _make()
+	var window := p.chat_window
+
+	_check(window != null, "the client builds one at all")
+
+	if window == null:
+		_completed += 1
+		return
+
+	_check(
+		DotInputBinding.describe_action(window.open_action) == "Y",
+		"opened by Y, which is where this genre has put it for twenty-five years"
+	)
+	_check(
+		DotInputBinding.describe_action(window.team_action) == "U",
+		"and team chat by U"
+	)
+	_check(window.enabled, "drawn by default, on a server that said nothing")
+
+	# `auto`: the server is carrying chat somewhere the player can already see it.
+	p.set_chat_relayed(true)
+	_check(not window.enabled, "auto takes the box away when a relay is carrying chat")
+
+	window.add_said("someone", "but you can still hear this")
+	_check(
+		window.line_count() > 0,
+		"and the log still draws what other people said",
+		"off means you type somewhere else, never that you are out of the conversation"
+	)
+
+	# `on`: both halves at once, which is the configuration the relay does not preclude.
+	p.settings.set_value(&"chat_window", &"on")
+	_check(window.enabled, "on keeps the box even with a relay running: both, if you want")
+
+	p.settings.set_value(&"chat_window", &"off")
+	_check(not window.enabled, "off never draws it")
+
+	p.set_chat_relayed(false)
+	_check(not window.enabled, "not even on a server with no relay at all")
+
+	p.settings.set_value(&"chat_window", &"auto")
+	_check(window.enabled, "and auto gives it back")
+
+	_check_rebind(p, window)
+
+	# The console and the chat box are the same question: does something on screen own the keyboard?
+	# A client that keeps reading movement while somebody types walks them across the map.
+	_check(not p.swallows_input(), "a closed box does not swallow input")
+	window.open()
+	_check(p.swallows_input(), "an open one does")
+	window.close()
+	_check(not p.swallows_input(), "and gives it back when it closes")
+
+	_check_join_notice(p, window)
+
+	p.settings.reset_value(&"chat_open_key")
+	p.settings.reset_value(&"chat_window")
+
+	_check_log_over_streak(window)
+
+	_completed += 1
+
+
+func _check_rebind(p: ArenaPresentation, window: DotChatWindow) -> void:
+	# The binding is a setting, so changing the setting has to move the key — and move
+	# it, not add a second one.
+	p.settings.set_value(&"chat_open_key", "T")
+	_check(
+		DotInputBinding.describe_action(window.open_action) == "T",
+		"rebinding through the settings document moves the key"
+	)
+	_check(
+		InputMap.action_get_events(window.open_action).size() == 1,
+		"and leaves ONE binding, not the old one as well"
+	)
+
+	# A field somebody cleared must not unbind chat with no way back from inside the game.
+	p.settings.set_value(&"chat_open_key", "")
+	_check(
+		DotInputBinding.describe_action(window.open_action) == "T",
+		"an empty binding in the document is ignored rather than applied"
+	)
+
+
+func _check_join_notice(p: ArenaPresentation, window: DotChatWindow) -> void:
+	# A join notice is a name and NO text (dot-chat's `_presence`). Drawn as name and text it was a
+	# bare "Guest 435:" in the box, which read as a chat command echoed with its text stripped.
+	var extras_script := preload("../game/arena_client_extras.gd")
+	var join := DotChatMessage.make(DotChatMessage.Kind.JOIN, &"all", "k2", "Guest 435", "")
+	var said_client := ArenaClient.new()
+	said_client.presentation = p
+	said_client._on_said(extras_script.speaker_of(join), extras_script.text_of(join), join.kind_name())
+	var said_rows := window.history()
+	var said_line := ""
+	for part in (said_rows[said_rows.size() - 1] if not said_rows.is_empty() else []):
+		said_line += str((part as Dictionary).get("text", ""))
+	_check(
+		said_line.contains("Guest 435 joined") and not said_line.contains(":"),
+		"a join notice is drawn as a sentence, not as a bare name",
+		"'%s'" % said_line
+	)
+	said_client.free()
+
+
+func _check_log_over_streak(window: DotChatWindow) -> void:
+	# A full log, at the frame the client shell always draws on, must stay under the
+	# killstreak meter's words: at a 250-tall meter the sixth line wrote over them.
+	var hud := ArenaHud.new()
+	hud.config = DotUiConfig.new()
+	add_child(hud)
+	hud.build(null)
+	hud._build_feedback()
+	hud.fit_to_frame(Vector2(1280, 720))
+	hud.vitals.show_streak(3, ArenaHud.STREAK_FULL)
+	var streak: Rect2 = hud.vitals.get_global_transform() * hud.vitals.footprint()
+	var rows := float(window.max_lines) * (window.line_height + window.line_gap)
+	var log_box := Rect2(window.margin_left, 720.0 - window.margin_bottom - window.entry_height - rows, window.width, rows)
+	_check(not log_box.intersects(streak), "a full chat log stays under the killstreak meter at 1280x720",
+		"log %s, meter's words %s" % [log_box, streak])
+	hud.queue_free()

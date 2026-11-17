@@ -396,6 +396,13 @@ func _check_lens(gm: Object, me: Object, killer: Object) -> void:
 	_check(after < peak * 0.5, "and lowers it again in the open", "%s of %s" % [after, peak])
 	view.present({})
 	_check(not KillPov.is_replay_camera(cam), "ending the replay unflags the camera")
+	await _check_rig_pool(view, cam, aux)
+	await _check_ghost_guns(view, cam, aux, wall_eye, wall_dir)
+	cam.queue_free()
+	view.queue_free()
+
+
+func _check_rig_pool(view: KillPovView, cam: Camera3D, aux: PackedFloat32Array) -> void:
 	# The rig pool: a kill view builds nothing it has built before.
 	var used: Array = view.parked()
 	var held := KillPov.weapon_of(aux[0])
@@ -417,9 +424,6 @@ func _check_lens(gm: Object, me: Object, killer: Object) -> void:
 	view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
 	_check(view.hands != null and view.hands == parked_rig, "the next kill by that weapon takes the parked view model")
 	view.present({})
-	await _check_ghost_guns(view, cam, aux, wall_eye, wall_dir)
-	cam.queue_free()
-	view.queue_free()
 
 
 ## Owner video: small dark copies of the player's gun floated in the map, switching and reloading with it, up to one per kill-view rig. A rig parked hidden at a wall kept its wall pass (a CanvasLayer, which no hidden or stopped

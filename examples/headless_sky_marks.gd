@@ -20,6 +20,36 @@ func _box_shape(size: Vector3) -> BoxShape3D:
 	return s
 
 
+func _test_mixed_brush(root: Node3D, space: PhysicsDirectSpaceState3D) -> void:
+	# A brick brush whose top side alone is TOOLSSKYBOX: the manifest's sky_faces names that side (units, as the importer writes), the
+	# brush is no sky hull, so a shot at the cap reads as sky and a shot at its brick wall does not.
+	var brick := StaticBody3D.new()
+	var brick_shape := CollisionShape3D.new()
+	brick_shape.shape = _box_shape(Vector3(2, 2, 2))
+	brick_shape.position = Vector3(40, 0, 0)  # the body stays at the origin, as the world body does: the area under it takes its transform
+	brick.add_child(brick_shape)
+	root.add_child(brick)
+	var u := 1.0 / ArenaBspMap.METRES_PER_UNIT
+	var cap := []
+	for corner: Vector3 in [Vector3(-1, 1, -1), Vector3(1, 1, -1), Vector3(1, 1, 1), Vector3(-1, 1, 1)]:
+		cap.append([(corner.x + 40.0) * u, corner.y * u, corner.z * u])
+	var info := {"hull_kinds": {}, "sky_faces": [{"normal": [0.0, 1.0, 0.0], "points": cap}]}
+	_check(ArenaBspMap.sky_face_shapes(info).size() == 1 and ArenaBspMap.sky_face_shapes({"hull_kinds": {}}).is_empty(), "one slab per manifest sky face, none without")
+	ArenaBspMap._mark_sky(brick, "mixed", "", info)
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var cap_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(40, 5, 0.3), Vector3(40, -5, 0.3), 0xFFFFFFFF ^ ArenaBspMap.SKY_BIT))
+	_check(not cap_hit.is_empty() and cap_hit.collider == brick and ArenaBspMap.on_sky(space, cap_hit.position, Vector3.DOWN), "a shot at the sky cap of a mixed brush reads as sky")
+	var brick_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(30, 0.3, 0.3), Vector3(50, 0.3, 0.3), 0xFFFFFFFF ^ ArenaBspMap.SKY_BIT))
+	_check(not brick_hit.is_empty() and brick_hit.collider == brick and not ArenaBspMap.on_sky(space, brick_hit.position, Vector3.RIGHT), "a shot at the same brush's wall face does not")
+	var steep := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(40, 5, 0.3), Vector3(40.4, -5, 0.3), 0xFFFFFFFF ^ ArenaBspMap.SKY_BIT))
+	_check(not steep.is_empty() and ArenaBspMap.on_sky(space, steep.position, (Vector3(40.4, -5, 0.3) - Vector3(40, 5, 0.3)).normalized()), "a slanted shot at the cap reads as sky too")
+	var mixed_marks := [{"point": cap_hit.position, "normal": Vector3.UP}, {"point": brick_hit.position, "normal": Vector3.LEFT}]
+	var mixed_kept := ArenaPresentationB1.without_sky(space, mixed_marks, Vector3.DOWN)
+	_check(mixed_kept.size() == 1 and mixed_kept[0] == mixed_marks[1], "the cap's decal is dropped, the brick wall's decal is made", str(mixed_kept.size()))
+	_check(brick.collision_layer & ArenaBspMap.SKY_BIT == 0, "the brick body is not on the sky layer, its wall still stops shots")
+
+
 func _run() -> void:
 	print("arena - sky marks: no decal on sky brushes")
 	var root := Node3D.new()
@@ -73,32 +103,6 @@ func _run() -> void:
 	_check(kept_b.size() == 1 and kept_b[0] == bounces[0], "a ricochet on the sky is dropped, a wall's kept", str(kept_b.size()))
 	_check(sky_body.collision_layer & ArenaBspMap.SKY_BIT == 0, "the sky body itself is not on the sky layer (shots unchanged)")
 
-	# A brick brush whose top side alone is TOOLSSKYBOX: the manifest's sky_faces names that side (units, as the importer writes), the
-	# brush is no sky hull, so a shot at the cap reads as sky and a shot at its brick wall does not.
-	var brick := StaticBody3D.new()
-	var brick_shape := CollisionShape3D.new()
-	brick_shape.shape = _box_shape(Vector3(2, 2, 2))
-	brick_shape.position = Vector3(40, 0, 0)  # the body stays at the origin, as the world body does: the area under it takes its transform
-	brick.add_child(brick_shape)
-	root.add_child(brick)
-	var u := 1.0 / ArenaBspMap.METRES_PER_UNIT
-	var cap := []
-	for corner: Vector3 in [Vector3(-1, 1, -1), Vector3(1, 1, -1), Vector3(1, 1, 1), Vector3(-1, 1, 1)]:
-		cap.append([(corner.x + 40.0) * u, corner.y * u, corner.z * u])
-	var info := {"hull_kinds": {}, "sky_faces": [{"normal": [0.0, 1.0, 0.0], "points": cap}]}
-	_check(ArenaBspMap.sky_face_shapes(info).size() == 1 and ArenaBspMap.sky_face_shapes({"hull_kinds": {}}).is_empty(), "one slab per manifest sky face, none without")
-	ArenaBspMap._mark_sky(brick, "mixed", "", info)
-	await get_tree().physics_frame
-	await get_tree().physics_frame
-	var cap_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(40, 5, 0.3), Vector3(40, -5, 0.3), 0xFFFFFFFF ^ ArenaBspMap.SKY_BIT))
-	_check(not cap_hit.is_empty() and cap_hit.collider == brick and ArenaBspMap.on_sky(space, cap_hit.position, Vector3.DOWN), "a shot at the sky cap of a mixed brush reads as sky")
-	var brick_hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(30, 0.3, 0.3), Vector3(50, 0.3, 0.3), 0xFFFFFFFF ^ ArenaBspMap.SKY_BIT))
-	_check(not brick_hit.is_empty() and brick_hit.collider == brick and not ArenaBspMap.on_sky(space, brick_hit.position, Vector3.RIGHT), "a shot at the same brush's wall face does not")
-	var steep := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(40, 5, 0.3), Vector3(40.4, -5, 0.3), 0xFFFFFFFF ^ ArenaBspMap.SKY_BIT))
-	_check(not steep.is_empty() and ArenaBspMap.on_sky(space, steep.position, (Vector3(40.4, -5, 0.3) - Vector3(40, 5, 0.3)).normalized()), "a slanted shot at the cap reads as sky too")
-	var mixed_marks := [{"point": cap_hit.position, "normal": Vector3.UP}, {"point": brick_hit.position, "normal": Vector3.LEFT}]
-	var mixed_kept := ArenaPresentationB1.without_sky(space, mixed_marks, Vector3.DOWN)
-	_check(mixed_kept.size() == 1 and mixed_kept[0] == mixed_marks[1], "the cap's decal is dropped, the brick wall's decal is made", str(mixed_kept.size()))
-	_check(brick.collision_layer & ArenaBspMap.SKY_BIT == 0, "the brick body is not on the sky layer, its wall still stops shots")
+	await _test_mixed_brush(root, space)
 
 	_report(EXPECTED_CHECKS)

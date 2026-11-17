@@ -149,21 +149,7 @@ func _run() -> void:
 	var floor_y: float = game.player_for(thrower).controller.state.position.y
 	var here := Vector3(0.0, floor_y, 0.0)
 
-	# A throw at the floor ahead: gone from the hand, bounces, and settles on the floor.
-	_place(game, ids, {thrower: here})
-	_check(_knife_in_hand(game, thrower), "the thrower has the knife in hand")
-	_press_aim(game, thrower, 0.0, -35.0)
-	var thrown := game.knives.count()
-	_check(thrown == 1 and not game.player_for(thrower).arsenal.carries(&"knife"), "the aim key throws it: one knife out, none in the arsenal", str(thrown))
-	var miss: DotWeaponKnives.Knife = await _settle(game, 6.0, {thrower: here})
-	_check(miss != null and miss.phase == DotWeaponKnives.Phase.REST, "the miss comes to rest", str(miss.phase if miss != null else -1))
-	_check(miss != null and miss.bounces >= 1, "after bouncing", str(miss.bounces if miss != null else -1))
-	_check(miss != null and absf(miss.at.y - floor_y) < 0.4, "on the floor", "%s vs %s" % [miss.at if miss != null else Vector3.ZERO, floor_y])
-
-	# Walking over it picks it up.
-	var lying: Vector3 = miss.at if miss != null else here
-	_place(game, ids, {thrower: Vector3(lying.x, floor_y, lying.z) + Vector3(0.4, 0.0, 0.0)})
-	_check(game.player_for(thrower).arsenal.carries(&"knife") and game.knives.count() == 0, "walking over the knife on the floor picks it up")
+	await _miss_and_pickup(game, ids, thrower, here, floor_y)
 
 	_check_throw_disabled(game, ids, thrower, here)
 
@@ -196,6 +182,28 @@ func _run() -> void:
 	_finished += 1
 	_test_pieces()
 
+	_report()
+
+
+func _miss_and_pickup(game: ArenaGame, ids: Array, thrower: int, here: Vector3, floor_y: float) -> void:
+	# A throw at the floor ahead: gone from the hand, bounces, and settles on the floor.
+	_place(game, ids, {thrower: here})
+	_check(_knife_in_hand(game, thrower), "the thrower has the knife in hand")
+	_press_aim(game, thrower, 0.0, -35.0)
+	var thrown := game.knives.count()
+	_check(thrown == 1 and not game.player_for(thrower).arsenal.carries(&"knife"), "the aim key throws it: one knife out, none in the arsenal", str(thrown))
+	var miss: DotWeaponKnives.Knife = await _settle(game, 6.0, {thrower: here})
+	_check(miss != null and miss.phase == DotWeaponKnives.Phase.REST, "the miss comes to rest", str(miss.phase if miss != null else -1))
+	_check(miss != null and miss.bounces >= 1, "after bouncing", str(miss.bounces if miss != null else -1))
+	_check(miss != null and absf(miss.at.y - floor_y) < 0.4, "on the floor", "%s vs %s" % [miss.at if miss != null else Vector3.ZERO, floor_y])
+
+	# Walking over it picks it up.
+	var lying: Vector3 = miss.at if miss != null else here
+	_place(game, ids, {thrower: Vector3(lying.x, floor_y, lying.z) + Vector3(0.4, 0.0, 0.0)})
+	_check(game.player_for(thrower).arsenal.carries(&"knife") and game.knives.count() == 0, "walking over the knife on the floor picks it up")
+
+
+func _report() -> void:
 	print("%d sections entered, %d finished" % [_entered, _finished])
 	var ok := _failed == 0 and _entered == EXPECTED_SECTIONS and _finished == EXPECTED_SECTIONS and _checks == EXPECTED_CHECKS
 	print("%d checks, %d failed (expected %d)" % [_checks, _failed, EXPECTED_CHECKS])

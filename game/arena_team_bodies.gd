@@ -137,6 +137,11 @@ static func body_of(team: int) -> StringName:
 	return _sides[team][0] if forced and _sides.has(team) else &""
 
 
+## The key a player's drawn look is cached under.
+static func look_key(player_id: int) -> StringName:
+	return StringName("arena-player-%08d" % player_id)
+
+
 ## What [param team]'s players wear, as a key a drawn body compares: "" for their own looks, else the body,
 ## the side's colour and the tint (each one material, so any change is a rebuild).
 static func wear_key(team: int) -> String:

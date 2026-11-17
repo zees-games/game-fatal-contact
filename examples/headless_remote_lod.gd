@@ -70,41 +70,7 @@ func _passes(p: ArenaPlayer, frames: int) -> int:
 	return passed
 
 
-func _run() -> void:
-	_root = Node3D.new()
-	add_child(_root)
-	_cam = Camera3D.new()
-	_cam.fov = 75.0
-	_root.add_child(_cam)
-	_cam.global_position = Vector3.ZERO
-	_cam.look_at(Vector3(0, 0, -10), Vector3.UP)
-	_cam.make_current()
-	await get_tree().process_frame
-	ArenaPlayer.present_lod_enabled = true
-	ArenaPlayer.lod_frustum = true
-	ArenaPlayer.lod_off_every = 4
-
-	_section("a body in the frustum is presented every frame")
-	var ahead := _body(Vector3(0, 0, -20))
-	_check(_passes(ahead, 8) == 8, "20 m straight ahead: all 8 frames", "%d" % _passes(ahead, 8))
-	var edge := _body(Vector3(12, 0, -20))
-	_check(_passes(edge, 8) == 8, "inside the right edge of the view: all 8 frames", "%d" % _passes(edge, 8))
-	var near := _body(Vector3(0, 0, 4))
-	_check(_passes(near, 8) == 8, "behind but within 6 m: all 8 frames")
-	_done()
-
-	_section("a body out of the frustum is presented every fourth frame")
-	var behind := _body(Vector3(0, 0, 20))
-	_check(_passes(behind, 8) == 2, "20 m behind: 2 of 8 frames", "%d" % _passes(behind, 8))
-	var beside := _body(Vector3(40, 0, -20))
-	_check(_passes(beside, 8) == 2, "past the right edge of the view (the old cone kept it): 2 of 8", "%d" % _passes(beside, 8))
-	var carried := _body(Vector3(0, 0, 20))
-	var _a := _passes(carried, 3)
-	_check((carried.get("_lod_delta") as float) > 0.04, "the skipped time is carried to the frame that presents")
-	_done()
-
-	_test_cvars()
-
+func _test_figure_draw_range() -> void:
 	_section("past the figure's draw range its gun and crest go with it (arena-vm-regress-1)")
 	# The figure's mesh stops drawing at its draw range (cl_figure_draw_range); a gun left on would float alone in the sky.
 	var armed := _armed_body(Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE - 20.0)))
@@ -143,6 +109,44 @@ func _run() -> void:
 		_check(false, "skin hidden: the gun is hidden", "no skin")
 		_check(false, "skin drawn again: the gun is back", "no skin")
 	_done()
+
+
+func _run() -> void:
+	_root = Node3D.new()
+	add_child(_root)
+	_cam = Camera3D.new()
+	_cam.fov = 75.0
+	_root.add_child(_cam)
+	_cam.global_position = Vector3.ZERO
+	_cam.look_at(Vector3(0, 0, -10), Vector3.UP)
+	_cam.make_current()
+	await get_tree().process_frame
+	ArenaPlayer.present_lod_enabled = true
+	ArenaPlayer.lod_frustum = true
+	ArenaPlayer.lod_off_every = 4
+
+	_section("a body in the frustum is presented every frame")
+	var ahead := _body(Vector3(0, 0, -20))
+	_check(_passes(ahead, 8) == 8, "20 m straight ahead: all 8 frames", "%d" % _passes(ahead, 8))
+	var edge := _body(Vector3(12, 0, -20))
+	_check(_passes(edge, 8) == 8, "inside the right edge of the view: all 8 frames", "%d" % _passes(edge, 8))
+	var near := _body(Vector3(0, 0, 4))
+	_check(_passes(near, 8) == 8, "behind but within 6 m: all 8 frames")
+	_done()
+
+	_section("a body out of the frustum is presented every fourth frame")
+	var behind := _body(Vector3(0, 0, 20))
+	_check(_passes(behind, 8) == 2, "20 m behind: 2 of 8 frames", "%d" % _passes(behind, 8))
+	var beside := _body(Vector3(40, 0, -20))
+	_check(_passes(beside, 8) == 2, "past the right edge of the view (the old cone kept it): 2 of 8", "%d" % _passes(beside, 8))
+	var carried := _body(Vector3(0, 0, 20))
+	var _a := _passes(carried, 3)
+	_check((carried.get("_lod_delta") as float) > 0.04, "the skipped time is carried to the frame that presents")
+	_done()
+
+	_test_cvars()
+
+	_test_figure_draw_range()
 
 	_test_dead_joiner()
 

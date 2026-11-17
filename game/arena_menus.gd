@@ -84,6 +84,38 @@ static func build(host: Node, presentation: Node, browser: ArenaBrowser = null) 
 	return menu
 
 
+static func _add_video_audio_controls(menu: DotMenu) -> void:
+	var video := menu.page(&"video")
+	if video != null:
+		video.section("Image").add(DotMenuRow.toggle(&"view_model", "Weapon in view", "Your hands and gun. A server may turn them off.")) \
+			.add(DotMenuRow.select(&"first_person_body", "My body", "What you see of yourself when you look down. Server default follows the server.",
+				[[&"auto", "Server default"], [&"off", "None"], [&"legs", "Legs and feet"], [&"body", "Whole body"]])) \
+			.add(DotMenuRow.toggle(DotOwnBodySetting.KEY, "Show legs", "Show your own legs and body when you look down. Off hides them whatever the server or the choice above says."))
+		video.section("Players").add(DotMenuRow.select(&"name_tags", "Name tags", "Whose name floats over their head. The server may allow fewer.",
+				[[&"always", "Everybody"], [&"team", "Team-mates"], [&"team_hover", "Team-mates and under cursor"], [&"hover", "Under cursor"], [&"off", "Off"]])) \
+			.add(DotMenuRow.slider(&"nametag_min_scale", "Name tag, smallest", "Smallest a name tag looks, however far. 0 is no limit.")
+				.formatted(func(v: float) -> String: return "off" if v <= 0.0 else "x%.1f" % v)) \
+			.add(DotMenuRow.slider(&"nametag_max_scale", "Name tag, largest", "Largest a name tag looks, however close. 0 is no limit.")
+				.formatted(func(v: float) -> String: return "off" if v <= 0.0 else "x%.1f" % v)) \
+			.add(DotMenuRow.select(&"health_bar_colour", "Health bar colour", "Team: enemies red, team-mates light green, each side its own colour with more than two sides. Health: green to red by health left.",
+				[[&"team", "Team"], [&"health", "Health"]])) \
+			.add(DotMenuRow.select(&"health_bars", "Health bars", "Whose health bar floats over their head. Smart: team-mates, whoever the cursor is on, anybody just hurt. The server may allow fewer.",
+				[[&"always", "Everybody"], [&"smart", "Smart"], [&"team", "Team-mates"], [&"team_hover", "Team-mates and under cursor"], [&"hover", "Under cursor"], [&"off", "Off"]]))
+		DotMenuStock.add_gore_row(video)
+
+	var audio := menu.page(&"audio")
+	if audio != null:
+		audio.section("Voice").add(DotMenuRow.toggle(&"push_to_talk", "Push to talk", "Hold the Push to talk key (Controls) to talk. Off: an open microphone."))
+
+	var controls := menu.page(&"controls")
+	if controls != null:
+		# This game's invert is `invert_pitch`, stored before dot-menu's `invert_mouse`
+		# existed; the stock row for the stock key is not drawn, because it is not declared.
+		controls.section("Mouse") \
+			.add(DotMenuRow.toggle(&"invert_pitch", "Invert vertical look")) \
+			.add(DotMenuRow.toggle(&"right_mouse_aims", "Right mouse aims", "Off: the Aim key (right mouse) bashes with the weapon instead of aiming."))
+
+
 ## This game's rows and pages onto [param menu]'s stock ones. Public so a suite can build
 ## a menu without a client.
 static func add_pages(menu: DotMenu, browser: ArenaBrowser = null) -> void:
@@ -136,35 +168,7 @@ static func add_pages(menu: DotMenu, browser: ArenaBrowser = null) -> void:
 
 	_add_local_maps_row(menu, general)
 
-	var video := menu.page(&"video")
-	if video != null:
-		video.section("Image").add(DotMenuRow.toggle(&"view_model", "Weapon in view", "Your hands and gun. A server may turn them off.")) \
-			.add(DotMenuRow.select(&"first_person_body", "My body", "What you see of yourself when you look down. Server default follows the server.",
-				[[&"auto", "Server default"], [&"off", "None"], [&"legs", "Legs and feet"], [&"body", "Whole body"]])) \
-			.add(DotMenuRow.toggle(DotOwnBodySetting.KEY, "Show legs", "Show your own legs and body when you look down. Off hides them whatever the server or the choice above says."))
-		video.section("Players").add(DotMenuRow.select(&"name_tags", "Name tags", "Whose name floats over their head. The server may allow fewer.",
-				[[&"always", "Everybody"], [&"team", "Team-mates"], [&"team_hover", "Team-mates and under cursor"], [&"hover", "Under cursor"], [&"off", "Off"]])) \
-			.add(DotMenuRow.slider(&"nametag_min_scale", "Name tag, smallest", "Smallest a name tag looks, however far. 0 is no limit.")
-				.formatted(func(v: float) -> String: return "off" if v <= 0.0 else "x%.1f" % v)) \
-			.add(DotMenuRow.slider(&"nametag_max_scale", "Name tag, largest", "Largest a name tag looks, however close. 0 is no limit.")
-				.formatted(func(v: float) -> String: return "off" if v <= 0.0 else "x%.1f" % v)) \
-			.add(DotMenuRow.select(&"health_bar_colour", "Health bar colour", "Team: enemies red, team-mates light green, each side its own colour with more than two sides. Health: green to red by health left.",
-				[[&"team", "Team"], [&"health", "Health"]])) \
-			.add(DotMenuRow.select(&"health_bars", "Health bars", "Whose health bar floats over their head. Smart: team-mates, whoever the cursor is on, anybody just hurt. The server may allow fewer.",
-				[[&"always", "Everybody"], [&"smart", "Smart"], [&"team", "Team-mates"], [&"team_hover", "Team-mates and under cursor"], [&"hover", "Under cursor"], [&"off", "Off"]]))
-		DotMenuStock.add_gore_row(video)
-
-	var audio := menu.page(&"audio")
-	if audio != null:
-		audio.section("Voice").add(DotMenuRow.toggle(&"push_to_talk", "Push to talk", "Hold the Push to talk key (Controls) to talk. Off: an open microphone."))
-
-	var controls := menu.page(&"controls")
-	if controls != null:
-		# This game's invert is `invert_pitch`, stored before dot-menu's `invert_mouse`
-		# existed; the stock row for the stock key is not drawn, because it is not declared.
-		controls.section("Mouse") \
-			.add(DotMenuRow.toggle(&"invert_pitch", "Invert vertical look")) \
-			.add(DotMenuRow.toggle(&"right_mouse_aims", "Right mouse aims", "Off: the Aim key (right mouse) bashes with the weapon instead of aiming."))
+	_add_video_audio_controls(menu)
 
 	if browser != null:
 		menu.add_page(_servers_page(menu, browser), &"advanced")

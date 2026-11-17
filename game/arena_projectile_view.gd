@@ -37,16 +37,18 @@ var _drawn: Dictionary = {}
 var _round_mesh: SphereMesh = null
 var _round_material: StandardMaterial3D = null
 var _missile_art: Script = null
-## Weapon id -> a built missile kept off the tree to copy, or null for one that could not be built.
+## Weapon id -> the built missiles kept off the tree for the next shot (a spent one is taken back, so a shot copies nothing).
 var _missiles: Dictionary = {}
+## Weapon ids whose missile could not be built, so they are not tried again.
+var _missile_failed: Dictionary = {}
 
 
 func _notification(what: int) -> void:
 	# The kept missiles are off the tree, so nothing else frees them.
 	if what == NOTIFICATION_PREDELETE:
-		for template: Variant in _missiles.values():
-			if template != null:
-				(template as Node).free()
+		for spare: Variant in _missiles.values():
+			for node: Variant in spare:
+				(node as Node).free()
 		_missiles.clear()
 
 
@@ -54,6 +56,8 @@ func _ready() -> void:
 	# Top level, so the world's position is the only one: a parent that moved would carry
 	# every grenade in the air with it.
 	top_level = true
+	if DotAddonApi.build_level("fc_weapons") >= MISSILE_LEVEL:
+		_missile_art = load(MISSILE_ART) as Script
 
 
 func _process(_delta: float) -> void:
@@ -86,8 +90,7 @@ func present() -> void:
 
 	for f in _drawn.keys():
 		if not seen.has(f):
-			(_drawn[f] as Node3D).queue_free()
-			_drawn.erase(f)
+			_release(f)
 
 
 func drawn_count() -> int:
@@ -96,9 +99,19 @@ func drawn_count() -> int:
 
 ## Drops everything drawn: a map change, the client leaving.
 func clear() -> void:
-	for node in _drawn.values():
-		(node as Node3D).queue_free()
-	_drawn.clear()
+	for f in _drawn.keys():
+		_release(f)
+
+
+## Frees the drawn node of [param f], taking its missile back for the next shot.
+func _release(f: Variant) -> void:
+	var node := _drawn[f] as Node3D
+	var missile: Variant = node.get_meta(&"missile", null)
+	if missile != null:
+		node.remove_child(missile as Node)
+		(_missiles[node.get_meta(&"missile_id")] as Array).append(missile)
+	node.queue_free()
+	_drawn.erase(f)
 
 
 func _make(f: ArenaProjectiles.Flying) -> Node3D:
@@ -109,6 +122,8 @@ func _make(f: ArenaProjectiles.Flying) -> Node3D:
 	var missile := _missile(f.spawn.id)
 	if missile != null:
 		root.add_child(missile)
+		root.set_meta(&"missile", missile)
+		root.set_meta(&"missile_id", f.spawn.id)
 		root.add_child(_fuse_light() if f.spawn.fuse_ticks > 0 else _exhaust_light())
 		return root
 
@@ -136,16 +151,17 @@ func _make(f: ArenaProjectiles.Flying) -> Node3D:
 func _missile(weapon_id: StringName) -> Node3D:
 	if DotAddonApi.build_level("fc_weapons") < MISSILE_LEVEL:
 		return null
-	if _missile_art == null:
-		_missile_art = load(MISSILE_ART) as Script
-	if _missile_art == null or not bool(_missile_art.call(&"has_missile", weapon_id)):
+	if _missile_art == null or _missile_failed.has(weapon_id) or not bool(_missile_art.call(&"has_missile", weapon_id)):
 		return null
-	# Built once per weapon and copied: building one instances the whole launcher model to take its missile.
-	if not _missiles.has(weapon_id):
-		var built: Variant = _missile_art.call(&"build", weapon_id)
-		_missiles[weapon_id] = built if built is Node3D else null
-	var template: Node3D = _missiles[weapon_id]
-	return template.duplicate() as Node3D if template != null else null
+	var spare: Array = _missiles.get(weapon_id, [])
+	_missiles[weapon_id] = spare
+	if not spare.is_empty():
+		return spare.pop_back() as Node3D
+	var built: Variant = _missile_art.call(&"build", weapon_id)
+	if built is Node3D:
+		return built as Node3D
+	_missile_failed[weapon_id] = true
+	return null
 
 
 ## The motor's glow behind a flying missile: the hot round's light, moved to its tail.

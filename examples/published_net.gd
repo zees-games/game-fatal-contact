@@ -51,10 +51,88 @@ func _ready() -> void:
 	_run.call_deferred()
 
 
-func _run() -> void:
-	print("FC: a real client joins a server on a published combat surf map and builds it from the pack")
-	var settings := DotGameStandaloneContent.settings()
-	var origin := String((settings["urls"] as PackedStringArray)[0])
+func _build_client_net(side: Node, link: DotClientLink) -> Array:
+	# What `ArenaClient._build_netcode` builds, minus everything that draws (as lossy_base does).
+	var game := ArenaGame.new()
+	game.name = "Game"
+	game.is_authority = false
+	game.headless = true
+	game.register_service = false
+	side.add_child(game)
+	game.setup(ArenaMap.dm_box())
+	var _following := game.follow_server_cvars(link)
+	var net := DotNetManager.new()
+	net.name = "Net"
+	net.is_server = false
+	net.service_scope = &"published_net"
+	net.local_peer_id = side.multiplayer.get_unique_id()
+	net.auto_tick = false
+	net.config_file = ""
+	var cfg := DotNetConfig.new()
+	cfg.tick_rate = game.tick_rate
+	cfg.snapshot_rate = ArenaGame.NET_SNAPSHOT_RATE
+	cfg.enable_prediction = true
+	cfg.enable_lag_compensation = false
+	cfg.max_entities_per_snapshot = 64
+	cfg.world_extent = ArenaGame.NET_WORLD_EXTENT
+	net.config = cfg
+	side.add_child(net)
+	net.setup()
+	var bridge := ArenaNetBridge.new()
+	bridge.name = "Bridge"
+	side.add_child(bridge)
+	bridge.attach(game, net)
+	bridge.open_link(link)
+	net.messages.seal()
+	bridge.rtt_source = func() -> float: return ArenaNetBridge.link_rtt_ms(link)
+	return [game, net, bridge]
+
+
+func _client_cloud(settings: Dictionary, shipped: Variant) -> DotCloudClient:
+	var config := DotCloudConfig.new()
+	config.side = "client"
+	config.cache_dir = ROOT.path_join("client_cache")
+	config.require_signed_manifests = true
+	config.trusted_keys = (shipped as Dictionary)["trusted_keys"] if shipped is Dictionary else []
+	# What DotGameStandaloneContent.install builds, with a cache of its own.
+	var cloud := DotCloudClient.new()
+	cloud.name = "Cloud"
+	cloud.host_role = "client"
+	cloud.config = config
+	cloud.config_file = ""
+	cloud.register_service = false
+	cloud.http_base_urls = settings["urls"]
+	cloud.manifest_url_template = "{base}/{id}/{version}/manifest.json"
+	cloud.manifest_url_fallbacks = PackedStringArray(["{base}/{id}/manifest.json"])
+	add_child(cloud)
+	DotRegistry.register(&"dot_cloud_client", cloud)
+	await get_tree().process_frame
+	return cloud
+
+
+func _check_client_map(game: ArenaGame, bridge: ArenaNetBridge, cloud: DotCloudClient, mounted_before: bool, session: Array, gone: Array) -> void:
+	var map := game.map
+	_check(map != null and map.id == MAP and map.is_imported(), "the server's announce puts the client on %s" % MAP,
+		"on %s%s" % [String(map.id) if map != null else "nothing", (", link ended: " + gone[0]) if gone[0] != "" else ""])
+	_check(not mounted_before and cloud.is_mounted(StringName("%s/%s" % [OWNER, PACK]), VERSION),
+		"the client's own dot-cloud fetched and mounted the signed pack")
+	var cached := DirAccess.get_files_at(cloud.config.cache_dir).size() + DirAccess.get_directories_at(cloud.config.cache_dir).size()
+	_check(cached > 0, "into the client's own cache (%d entries)" % cached)
+	_check(map != null and map.manifest_path.begins_with("res://dot_cloud/") and map.manifest_path.find("maps/imported") < 0,
+		"built from the mount, nothing from the maps/imported link (%s)" % (map.manifest_path if map != null else "none"))
+	var solid := map.collision_root if map != null else null
+	_check(solid != null and solid.is_inside_tree() and solid.get_child_count() > 100,
+		"with its brushes in the client's tree (%d)" % (solid.get_child_count() if solid != null else -1))
+	_check(map != null and map.movement_profile == &"surf" and map.spawns.size() > 0, "on the surf profile, with spawns")
+	var surf_gravity := float(ArenaPlayer.SURF_TUNABLES["gravity"])
+	var on_surf := func() -> bool:
+		var b: Variant = bridge.behaviour_for(int(session[0])) if int(session[0]) != 0 else null
+		return b != null and b.player != null and is_equal_approx(b.player.controller.tunables.gravity, surf_gravity)
+	await _until(on_surf, 10.0)
+	_check(on_surf.call(), "and the client's own player moves on surf air control there", "session %d" % int(session[0]))
+
+
+func _cdn_up(origin: String) -> bool:
 	var probe := HTTPRequest.new()
 	add_child(probe)
 	probe.request("%s/%s/%s/%s/manifest.json" % [origin, OWNER, PACK, VERSION])
@@ -62,6 +140,34 @@ func _run() -> void:
 	probe.queue_free()
 	if int(answer[0]) != HTTPRequest.RESULT_SUCCESS or int(answer[1]) != 200:
 		print("CDN unreachable (result %d, HTTP %d): nothing to check" % [int(answer[0]), int(answer[1])])
+		return false
+	return true
+
+
+func _connect_client(port: int, enet_port: int) -> Array:
+	var side := Node.new()
+	side.name = "Client"
+	add_child(side)
+	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
+	var link := DotClientLink.new()
+	link.name = "Server"
+	link.player_name = "Surfer"
+	link.transport_preference = "udp"
+	link.udp_address = "127.0.0.1:%d" % enet_port
+	side.add_child(link)
+	var spawned := [false]
+	var gone := [""]
+	link.spawned.connect(func() -> void: spawned[0] = true)
+	link.disconnected.connect(func(reason: String) -> void: gone[0] = reason)
+	link.connect_to_server("127.0.0.1:%d" % port)
+	return [side, link, spawned, gone]
+
+
+func _run() -> void:
+	print("FC: a real client joins a server on a published combat surf map and builds it from the pack")
+	var settings := DotGameStandaloneContent.settings()
+	var origin := String((settings["urls"] as PackedStringArray)[0])
+	if not await _cdn_up(origin):
 		get_tree().quit(0)
 		return
 
@@ -96,41 +202,15 @@ func _run() -> void:
 	_entered += 1
 	print("\n-- a client with its own dot-cloud joins over ENet and follows it onto the map")
 	var shipped: Variant = JSON.parse_string(FileAccess.get_file_as_string(String(settings["config_file"])))
-	var config := DotCloudConfig.new()
-	config.side = "client"
-	config.cache_dir = ROOT.path_join("client_cache")
-	config.require_signed_manifests = true
-	config.trusted_keys = (shipped as Dictionary)["trusted_keys"] if shipped is Dictionary else []
-	# What DotGameStandaloneContent.install builds, with a cache of its own.
-	var cloud := DotCloudClient.new()
-	cloud.name = "Cloud"
-	cloud.host_role = "client"
-	cloud.config = config
-	cloud.config_file = ""
-	cloud.register_service = false
-	cloud.http_base_urls = settings["urls"]
-	cloud.manifest_url_template = "{base}/{id}/{version}/manifest.json"
-	cloud.manifest_url_fallbacks = PackedStringArray(["{base}/{id}/manifest.json"])
-	add_child(cloud)
-	DotRegistry.register(&"dot_cloud_client", cloud)
-	await get_tree().process_frame
+	var cloud: DotCloudClient = await _client_cloud(settings, shipped)
+	var config := cloud.config
 	var mounted_before := cloud.is_mounted(StringName("%s/%s" % [OWNER, PACK]), VERSION)
 
-	var side := Node.new()
-	side.name = "Client"
-	add_child(side)
-	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
-	var link := DotClientLink.new()
-	link.name = "Server"
-	link.player_name = "Surfer"
-	link.transport_preference = "udp"
-	link.udp_address = "127.0.0.1:%d" % int(h.get("enet_port", port))
-	side.add_child(link)
-	var spawned := [false]
-	var gone := [""]
-	link.spawned.connect(func() -> void: spawned[0] = true)
-	link.disconnected.connect(func(reason: String) -> void: gone[0] = reason)
-	link.connect_to_server("127.0.0.1:%d" % port)
+	var joined := _connect_client(port, int(h.get("enet_port", port)))
+	var side: Node = joined[0]
+	var link: DotClientLink = joined[1]
+	var spawned: Array = joined[2]
+	var gone: Array = joined[3]
 	await _until(func() -> bool:
 		return spawned[0] or gone[0] != "" or link.phase == DotClientLink.Phase.FAILED, 30.0)
 	if not _check(spawned[0], "the client joins over ENet",
@@ -139,39 +219,10 @@ func _run() -> void:
 		return
 	DotGameClient.report_cover(link, false)
 
-	# What `ArenaClient._build_netcode` builds, minus everything that draws (as lossy_base does).
-	var game := ArenaGame.new()
-	game.name = "Game"
-	game.is_authority = false
-	game.headless = true
-	game.register_service = false
-	side.add_child(game)
-	game.setup(ArenaMap.dm_box())
-	var _following := game.follow_server_cvars(link)
-	var net := DotNetManager.new()
-	net.name = "Net"
-	net.is_server = false
-	net.service_scope = &"published_net"
-	net.local_peer_id = side.multiplayer.get_unique_id()
-	net.auto_tick = false
-	net.config_file = ""
-	var cfg := DotNetConfig.new()
-	cfg.tick_rate = game.tick_rate
-	cfg.snapshot_rate = ArenaGame.NET_SNAPSHOT_RATE
-	cfg.enable_prediction = true
-	cfg.enable_lag_compensation = false
-	cfg.max_entities_per_snapshot = 64
-	cfg.world_extent = ArenaGame.NET_WORLD_EXTENT
-	net.config = cfg
-	side.add_child(net)
-	net.setup()
-	var bridge := ArenaNetBridge.new()
-	bridge.name = "Bridge"
-	side.add_child(bridge)
-	bridge.attach(game, net)
-	bridge.open_link(link)
-	net.messages.seal()
-	bridge.rtt_source = func() -> float: return ArenaNetBridge.link_rtt_ms(link)
+	var built := _build_client_net(side, link)
+	var game: ArenaGame = built[0]
+	var net: DotNetManager = built[1]
+	var bridge: ArenaNetBridge = built[2]
 	var session := [0]
 	bridge.hello_received.connect(func(info: Dictionary) -> void: session[0] = int(info["session_id"]))
 	# ArenaClient's map sync, before READY: the server announces its map when it admits the peer.
@@ -186,25 +237,8 @@ func _run() -> void:
 
 	await _until(func() -> bool:
 		return (game.map != null and game.map.id == MAP) or gone[0] != "", CLIENT_SECONDS)
-	var map := game.map
-	_check(map != null and map.id == MAP and map.is_imported(), "the server's announce puts the client on %s" % MAP,
-		"on %s%s" % [String(map.id) if map != null else "nothing", (", link ended: " + gone[0]) if gone[0] != "" else ""])
-	_check(not mounted_before and cloud.is_mounted(StringName("%s/%s" % [OWNER, PACK]), VERSION),
-		"the client's own dot-cloud fetched and mounted the signed pack")
-	var cached := DirAccess.get_files_at(config.cache_dir).size() + DirAccess.get_directories_at(config.cache_dir).size()
-	_check(cached > 0, "into the client's own cache (%d entries)" % cached)
-	_check(map != null and map.manifest_path.begins_with("res://dot_cloud/") and map.manifest_path.find("maps/imported") < 0,
-		"built from the mount, nothing from the maps/imported link (%s)" % (map.manifest_path if map != null else "none"))
-	var solid := map.collision_root if map != null else null
-	_check(solid != null and solid.is_inside_tree() and solid.get_child_count() > 100,
-		"with its brushes in the client's tree (%d)" % (solid.get_child_count() if solid != null else -1))
-	_check(map != null and map.movement_profile == &"surf" and map.spawns.size() > 0, "on the surf profile, with spawns")
-	var surf_gravity := float(ArenaPlayer.SURF_TUNABLES["gravity"])
-	var on_surf := func() -> bool:
-		var b: Variant = bridge.behaviour_for(int(session[0])) if int(session[0]) != 0 else null
-		return b != null and b.player != null and is_equal_approx(b.player.controller.tunables.gravity, surf_gravity)
-	await _until(on_surf, 10.0)
-	_check(on_surf.call(), "and the client's own player moves on surf air control there", "session %d" % int(session[0]))
+	await _check_client_map(game, bridge, cloud, mounted_before, session, gone)
+
 	_completed += 1
 
 	link.disconnect_from_server("test over")

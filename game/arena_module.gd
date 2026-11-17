@@ -65,6 +65,29 @@ func _module_author() -> String:
 	return "dot"
 
 
+func _build_optional() -> void:
+	# Everything below this line is optional in the sense that the game runs without it. None of it
+	# is optional in the sense that matters: a server with no chat, no rotation and no vote is a
+	# server nobody stays on.
+	var identified: DotResult = await _build_identity()
+	DotLog.result(CHANNEL, "the identity layer", identified)
+
+	var serviced: DotResult = await _build_services()
+	DotLog.result(CHANNEL, "chat, voice and moderation", serviced)
+
+	if serviced.ok:
+		_build_mod_commands()
+
+	DotLog.result(CHANNEL, "the app customisation", _build_app())
+
+	var mapped := _build_maps()
+	DotLog.result(CHANNEL, "the map director", mapped)
+
+	if mapped.ok:
+		var voted := _build_vote()
+		DotLog.result(CHANNEL, "the vote", voted)
+
+
 func _module_load() -> DotResult:
 	game = DotRegistry.get_node_service(ArenaGame.SERVICE) as ArenaGame
 
@@ -122,26 +145,7 @@ func _module_load() -> DotResult:
 	if not netted.ok:
 		return netted.wrap("The arena netcode could not start")
 
-	# Everything below this line is optional in the sense that the game runs without it. None of it
-	# is optional in the sense that matters: a server with no chat, no rotation and no vote is a
-	# server nobody stays on.
-	var identified: DotResult = await _build_identity()
-	DotLog.result(CHANNEL, "the identity layer", identified)
-
-	var serviced: DotResult = await _build_services()
-	DotLog.result(CHANNEL, "chat, voice and moderation", serviced)
-
-	if serviced.ok:
-		_build_mod_commands()
-
-	DotLog.result(CHANNEL, "the app customisation", _build_app())
-
-	var mapped := _build_maps()
-	DotLog.result(CHANNEL, "the map director", mapped)
-
-	if mapped.ok:
-		var voted := _build_vote()
-		DotLog.result(CHANNEL, "the vote", voted)
+	await _build_optional()
 
 	_follow_hibernation()
 

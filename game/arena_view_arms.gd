@@ -164,7 +164,7 @@ static func team_look(p_body: Object, memo: Array) -> DotHumanoidLook:
 	if wear == "":
 		return null
 	if memo.size() != 2 or String(memo[0]) != wear:
-		var key := StringName("arena-player-%08d" % int(p_body.get(&"player_id")))
+		var key := ArenaTeamBodies.look_key(int(p_body.get(&"player_id")))
 		memo.assign([wear, ArenaTeamBodies.look_of(p_body.get(&"avatar") as DotAvatar, key, team)])
 	return memo[1] as DotHumanoidLook
 

@@ -42,11 +42,9 @@ func clear() -> void:
 func _process(delta: float) -> void:
 	for hit in _hits:
 		hit["age"] = float(hit["age"]) + delta
-	var kept: Array[Dictionary] = []
-	for hit in _hits:
-		if float(hit["age"]) < life_sec:
-			kept.append(hit)
-	_hits = kept
+	for i in range(_hits.size() - 1, -1, -1):
+		if float(_hits[i]["age"]) >= life_sec:
+			_hits.remove_at(i)
 	if _hits.is_empty():
 		set_process(false)
 	queue_redraw()

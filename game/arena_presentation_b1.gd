@@ -196,6 +196,51 @@ func _add_view_vars(local: DotConsoleLocal) -> void:
 
 
 ## The remote-body thinning variables (ArenaPlayer.present_lod).
+func _add_remote_lod_vars(local: DotConsoleLocal) -> void:
+	local.add_var(&"cl_remote_occlusion", "1 treats a remote player behind the level's walls (nothing of it in line of sight) as out of sight, 0 only by the view frustum.",
+		func() -> Variant: return 1 if ArenaPlayer.occlusion_enabled else 0,
+		func(v: Variant) -> Variant:
+			ArenaPlayer.occlusion_enabled = str(v).strip_edges() != "0"
+			return DotResult.success(1 if ArenaPlayer.occlusion_enabled else 0)
+	)
+	local.add_var(&"cl_remote_lod_every", "Frames between updates of a remote player out of sight (1 or more; 1 turns it off; 4 is the default, 8 in a browser).",
+		func() -> Variant: return ArenaPlayer.lod_off_every,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_int() or text.to_int() < 1:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_every takes a whole number of frames, 1 or more")
+			ArenaPlayer.lod_off_every = text.to_int()
+			return DotResult.success(ArenaPlayer.lod_off_every)
+	)
+	local.add_var(&"cl_remote_lod_scale", "Factor on the remote-body LOD distances (anim gate 8/20 m, every 2nd/4th frame 45/90 m); under 1 thins nearer bodies (1 is the default).",
+		func() -> Variant: return ArenaPlayer.lod_scale,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_float() or text.to_float() <= 0.0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_scale takes a number above 0")
+			ArenaPlayer.lod_scale = text.to_float()
+			return DotResult.success(ArenaPlayer.lod_scale)
+	)
+	local.add_var(&"cl_remote_lod_crowd", "Above this many players the remote-body LOD distances are also times cl_remote_lod_crowd_scale (0: never; 32 is the default).",
+		func() -> Variant: return ArenaPlayer.lod_crowd_players,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_int() or text.to_int() < 0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_crowd takes a whole number of players, 0 or more")
+			ArenaPlayer.lod_crowd_players = text.to_int()
+			return DotResult.success(ArenaPlayer.lod_crowd_players)
+	)
+	local.add_var(&"cl_remote_lod_crowd_scale", "Factor on the remote-body LOD distances above cl_remote_lod_crowd players (1: as in a small game; 0.67 is the default).",
+		func() -> Variant: return ArenaPlayer.lod_crowd_scale,
+		func(v: Variant) -> Variant:
+			var text := str(v).strip_edges()
+			if not text.is_valid_float() or text.to_float() <= 0.0:
+				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_crowd_scale takes a number above 0")
+			ArenaPlayer.lod_crowd_scale = text.to_float()
+			return DotResult.success(ArenaPlayer.lod_crowd_scale)
+	)
+
+
 func _add_remote_vars(local: DotConsoleLocal) -> void:
 	local.add_var(&"cl_remote_lod", "1 draws remote players nobody can see (off screen, far away) less often; 0 presents every remote player every frame.",
 		func() -> Variant: return 1 if ArenaPlayer.present_lod_enabled else 0,
@@ -242,48 +287,7 @@ func _add_remote_vars(local: DotConsoleLocal) -> void:
 			ArenaTickBudget.shed_slow_frames = str(v).strip_edges() != "0"
 			return DotResult.success(1 if ArenaTickBudget.shed_slow_frames else 0)
 	)
-	local.add_var(&"cl_remote_occlusion", "1 treats a remote player behind the level's walls (nothing of it in line of sight) as out of sight, 0 only by the view frustum.",
-		func() -> Variant: return 1 if ArenaPlayer.occlusion_enabled else 0,
-		func(v: Variant) -> Variant:
-			ArenaPlayer.occlusion_enabled = str(v).strip_edges() != "0"
-			return DotResult.success(1 if ArenaPlayer.occlusion_enabled else 0)
-	)
-	local.add_var(&"cl_remote_lod_every", "Frames between updates of a remote player out of sight (1 or more; 1 turns it off; 4 is the default, 8 in a browser).",
-		func() -> Variant: return ArenaPlayer.lod_off_every,
-		func(v: Variant) -> Variant:
-			var text := str(v).strip_edges()
-			if not text.is_valid_int() or text.to_int() < 1:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_every takes a whole number of frames, 1 or more")
-			ArenaPlayer.lod_off_every = text.to_int()
-			return DotResult.success(ArenaPlayer.lod_off_every)
-	)
-	local.add_var(&"cl_remote_lod_scale", "Factor on the remote-body LOD distances (anim gate 8/20 m, every 2nd/4th frame 45/90 m); under 1 thins nearer bodies (1 is the default).",
-		func() -> Variant: return ArenaPlayer.lod_scale,
-		func(v: Variant) -> Variant:
-			var text := str(v).strip_edges()
-			if not text.is_valid_float() or text.to_float() <= 0.0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_scale takes a number above 0")
-			ArenaPlayer.lod_scale = text.to_float()
-			return DotResult.success(ArenaPlayer.lod_scale)
-	)
-	local.add_var(&"cl_remote_lod_crowd", "Above this many players the remote-body LOD distances are also times cl_remote_lod_crowd_scale (0: never; 32 is the default).",
-		func() -> Variant: return ArenaPlayer.lod_crowd_players,
-		func(v: Variant) -> Variant:
-			var text := str(v).strip_edges()
-			if not text.is_valid_int() or text.to_int() < 0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_crowd takes a whole number of players, 0 or more")
-			ArenaPlayer.lod_crowd_players = text.to_int()
-			return DotResult.success(ArenaPlayer.lod_crowd_players)
-	)
-	local.add_var(&"cl_remote_lod_crowd_scale", "Factor on the remote-body LOD distances above cl_remote_lod_crowd players (1: as in a small game; 0.67 is the default).",
-		func() -> Variant: return ArenaPlayer.lod_crowd_scale,
-		func(v: Variant) -> Variant:
-			var text := str(v).strip_edges()
-			if not text.is_valid_float() or text.to_float() <= 0.0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_crowd_scale takes a number above 0")
-			ArenaPlayer.lod_crowd_scale = text.to_float()
-			return DotResult.success(ArenaPlayer.lod_crowd_scale)
-	)
+	_add_remote_lod_vars(local)
 	_add_figure_vars(local)
 
 

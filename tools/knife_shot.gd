@@ -174,6 +174,31 @@ func _knife_out(me) -> Dictionary:
 	return me.arsenal.drop_from_slot(slot, [] as Array[int])
 
 
+func _miss_throw(game: Object, me: Object, bot: Object, spot: Dictionary, yaw: float, dir: Vector3, side: Vector3) -> int:
+	var failures := 0
+	var eye: Vector3
+	# A miss: at the floor a few metres off to the side, and where it ends up.
+	_place(me, spot["me"], yaw)
+	await _wait(0.2)
+	var floor_at: Vector3 = spot["me"] + side * 3.0 - dir * 0.5
+	if me.arsenal.carries(&"knife"):
+		var _second := _knife_out(me)
+	eye = me.muzzle_position()
+	var miss_id: int = game.knives.throw(me.player_id, eye, (floor_at - eye).normalized())
+	_look(floor_at, -dir, 4.0)
+	for n in 3:
+		await _wait(0.06)
+		await _grab("%s_3_bounce_%d" % [_map, n])
+	await _wait(2.0)
+	var miss = game.knives.get_knife(miss_id)
+	print("miss phase=%s bounces=%s at=%s" % [miss.phase if miss != null else -1, miss.bounces if miss != null else -1, miss.at if miss != null else Vector3.ZERO])
+	if miss == null or miss.phase != 1:
+		failures += 1
+	_look(miss.at if miss != null else floor_at, side, 1.2)
+	await _grab("%s_4_rest" % _map)
+	return failures
+
+
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 	var game = client.get("game")
@@ -248,25 +273,8 @@ func _run() -> void:
 		_look(where, side, 1.6)
 		await _grab("%s_2_stuck_%02d" % [_map, int(at_sec * 10.0)])
 
-	# A miss: at the floor a few metres off to the side, and where it ends up.
-	_place(me, spot["me"], yaw)
-	await _wait(0.2)
-	var floor_at: Vector3 = spot["me"] + side * 3.0 - dir * 0.5
-	if me.arsenal.carries(&"knife"):
-		var _second := _knife_out(me)
-	eye = me.muzzle_position()
-	var miss_id: int = game.knives.throw(me.player_id, eye, (floor_at - eye).normalized())
-	_look(floor_at, -dir, 4.0)
-	for n in 3:
-		await _wait(0.06)
-		await _grab("%s_3_bounce_%d" % [_map, n])
-	await _wait(2.0)
-	var miss = game.knives.get_knife(miss_id)
-	print("miss phase=%s bounces=%s at=%s" % [miss.phase if miss != null else -1, miss.bounces if miss != null else -1, miss.at if miss != null else Vector3.ZERO])
-	if miss == null or miss.phase != 1:
-		failures += 1
-	_look(miss.at if miss != null else floor_at, side, 1.2)
-	await _grab("%s_4_rest" % _map)
+	failures += await _miss_throw(game, me, bot, spot, yaw, dir, side)
+
 	quit(1 if failures > 0 else 0)
 
 

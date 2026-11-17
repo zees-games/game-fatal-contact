@@ -236,6 +236,37 @@ func _test_the_escape_menu() -> void:
 	remove_child(solo)
 	solo.free()
 
+	_check_controls_page(p, menu)
+	menu.close()
+
+	# H is help, nothing else is on H; the Escape menu has Help & commands and a working Leave.
+	_check(p.bindings.key_for(DotMenuBindings.HELP_ACTION) == "H" and p.bindings.defaults_on("H").size() == 1,
+		"help is on H, and nothing else in the table is",
+		str(p.bindings.defaults_on("H").map(func(r: Dictionary) -> String: return str(r["label"]))))
+	var h := InputEventKey.new()
+	h.physical_keycode = KEY_H
+	h.keycode = KEY_H
+	h.pressed = true
+	_check(menu.handle_event(h) and menu.help.is_open(), "H opens the help screen")
+	_check(menu.help.about != "" and menu.help.heading() == "How to play Zee's Fatal Contact" and int(menu.help.describe()["sections"]) >= 2,
+		"which says what the game is and lists the modes before the keys")
+	menu.help.close()
+	menu.open()
+	var leave := menu.screen.find_child("Action_leave", true, false) as Button
+	_check(menu.screen.find_child("Action_help", true, false) != null and leave != null and leave.visible,
+		"the Escape menu has Help & commands and Leave")
+	_check(menu.leave_on_its_own and menu.help_hint == null,
+		"Leave disconnects or quits by itself, and the HUD's own hints carry H, not a second plate")
+	menu.close()
+
+	p.settings.reset_value(&"master_volume")
+	menu.queue_free()
+	browser.queue_free()
+	p.queue_free()
+	_done()
+
+
+func _check_controls_page(p: ArenaPresentation, menu: DotMenu) -> void:
 	menu.open(&"controls")
 	var dash := menu.screen.find_child("Row_bind_dash", true, false)
 	_check(dash != null and menu.screen.find_child("Row_invert_pitch", true, false) != null,
@@ -271,146 +302,6 @@ func _test_the_escape_menu() -> void:
 		not menu.help.extra_keys.has("Weapons") and p.bindings.groups().has("Weapons"),
 		"the help screen's weapon keys come from the table, not a fixed list"
 	)
-	menu.close()
-
-	# H is help, nothing else is on H; the Escape menu has Help & commands and a working Leave.
-	_check(p.bindings.key_for(DotMenuBindings.HELP_ACTION) == "H" and p.bindings.defaults_on("H").size() == 1,
-		"help is on H, and nothing else in the table is",
-		str(p.bindings.defaults_on("H").map(func(r: Dictionary) -> String: return str(r["label"]))))
-	var h := InputEventKey.new()
-	h.physical_keycode = KEY_H
-	h.keycode = KEY_H
-	h.pressed = true
-	_check(menu.handle_event(h) and menu.help.is_open(), "H opens the help screen")
-	_check(menu.help.about != "" and menu.help.heading() == "How to play Zee's Fatal Contact" and int(menu.help.describe()["sections"]) >= 2,
-		"which says what the game is and lists the modes before the keys")
-	menu.help.close()
-	menu.open()
-	var leave := menu.screen.find_child("Action_leave", true, false) as Button
-	_check(menu.screen.find_child("Action_help", true, false) != null and leave != null and leave.visible,
-		"the Escape menu has Help & commands and Leave")
-	_check(menu.leave_on_its_own and menu.help_hint == null,
-		"Leave disconnects or quits by itself, and the HUD's own hints carry H, not a second plate")
-	menu.close()
-
-	p.settings.reset_value(&"master_volume")
-	menu.queue_free()
-	browser.queue_free()
-	p.queue_free()
-	_done()
-
-
-func _test_chat_box() -> void:
-	_section("A chat box, and the three answers to whether it is drawn")
-
-	var p := _make()
-	var window := p.chat_window
-
-	_check(window != null, "the client builds one at all")
-
-	if window == null:
-		_completed += 1
-		return
-
-	_check(
-		DotInputBinding.describe_action(window.open_action) == "Y",
-		"opened by Y, which is where this genre has put it for twenty-five years"
-	)
-	_check(
-		DotInputBinding.describe_action(window.team_action) == "U",
-		"and team chat by U"
-	)
-	_check(window.enabled, "drawn by default, on a server that said nothing")
-
-	# `auto`: the server is carrying chat somewhere the player can already see it.
-	p.set_chat_relayed(true)
-	_check(not window.enabled, "auto takes the box away when a relay is carrying chat")
-
-	window.add_said("someone", "but you can still hear this")
-	_check(
-		window.line_count() > 0,
-		"and the log still draws what other people said",
-		"off means you type somewhere else, never that you are out of the conversation"
-	)
-
-	# `on`: both halves at once, which is the configuration the relay does not preclude.
-	p.settings.set_value(&"chat_window", &"on")
-	_check(window.enabled, "on keeps the box even with a relay running: both, if you want")
-
-	p.settings.set_value(&"chat_window", &"off")
-	_check(not window.enabled, "off never draws it")
-
-	p.set_chat_relayed(false)
-	_check(not window.enabled, "not even on a server with no relay at all")
-
-	p.settings.set_value(&"chat_window", &"auto")
-	_check(window.enabled, "and auto gives it back")
-
-	# The binding is a setting, so changing the setting has to move the key — and move
-	# it, not add a second one.
-	p.settings.set_value(&"chat_open_key", "T")
-	_check(
-		DotInputBinding.describe_action(window.open_action) == "T",
-		"rebinding through the settings document moves the key"
-	)
-	_check(
-		InputMap.action_get_events(window.open_action).size() == 1,
-		"and leaves ONE binding, not the old one as well"
-	)
-
-	# A field somebody cleared must not unbind chat with no way back from inside the game.
-	p.settings.set_value(&"chat_open_key", "")
-	_check(
-		DotInputBinding.describe_action(window.open_action) == "T",
-		"an empty binding in the document is ignored rather than applied"
-	)
-
-	# The console and the chat box are the same question: does something on screen own the keyboard?
-	# A client that keeps reading movement while somebody types walks them across the map.
-	_check(not p.swallows_input(), "a closed box does not swallow input")
-	window.open()
-	_check(p.swallows_input(), "an open one does")
-	window.close()
-	_check(not p.swallows_input(), "and gives it back when it closes")
-
-	# A join notice is a name and NO text (dot-chat's `_presence`). Drawn as name and text it was a
-	# bare "Guest 435:" in the box, which read as a chat command echoed with its text stripped.
-	var extras_script := preload("../game/arena_client_extras.gd")
-	var join := DotChatMessage.make(DotChatMessage.Kind.JOIN, &"all", "k2", "Guest 435", "")
-	var said_client := ArenaClient.new()
-	said_client.presentation = p
-	said_client._on_said(extras_script.speaker_of(join), extras_script.text_of(join), join.kind_name())
-	var said_rows := window.history()
-	var said_line := ""
-	for part in (said_rows[said_rows.size() - 1] if not said_rows.is_empty() else []):
-		said_line += str((part as Dictionary).get("text", ""))
-	_check(
-		said_line.contains("Guest 435 joined") and not said_line.contains(":"),
-		"a join notice is drawn as a sentence, not as a bare name",
-		"'%s'" % said_line
-	)
-	said_client.free()
-
-	p.settings.reset_value(&"chat_open_key")
-	p.settings.reset_value(&"chat_window")
-
-	# A full log, at the frame the client shell always draws on, must stay under the
-	# killstreak meter's words: at a 250-tall meter the sixth line wrote over them.
-	var hud := ArenaHud.new()
-	hud.config = DotUiConfig.new()
-	add_child(hud)
-	hud.build(null)
-	hud._build_feedback()
-	hud.fit_to_frame(Vector2(1280, 720))
-	hud.vitals.show_streak(3, ArenaHud.STREAK_FULL)
-	var streak: Rect2 = hud.vitals.get_global_transform() * hud.vitals.footprint()
-	var rows := float(window.max_lines) * (window.line_height + window.line_gap)
-	var log_box := Rect2(window.margin_left, 720.0 - window.margin_bottom - window.entry_height - rows, window.width, rows)
-	_check(not log_box.intersects(streak), "a full chat log stays under the killstreak meter at 1280x720",
-		"log %s, meter's words %s" % [log_box, streak])
-	hud.queue_free()
-
-	_completed += 1
 
 
 ## `sensitivity`, `invert_pitch` and `crosshair` were on the settings screen and read by nothing:
