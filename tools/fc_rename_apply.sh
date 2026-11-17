@@ -28,11 +28,11 @@ SHIMS = {
     f"game/{O}.tscn": ("game/fc.tscn", OC + "Client"),
     f"scenes/{O}_server.tscn": ("scenes/fc_server.tscn", OC + "Server"),
 }
-# Paths whose names are data (ids built into file names) or other repos' ids.
-KEEP_PATH = [
-    re.compile(rf"^cfg/game/game-{O}/"),
-    re.compile(rf"^avatars/{O}_(body|head|crest)_"),
-]
+# Paths whose names are data (ids built into file names) or other repos' ids:
+# never moved. The cfg game dir's contents are left alone too; the avatar parts
+# still get their res:// paths rewritten.
+KEEP_CONTENT = [re.compile(rf"^cfg/game/game-{O}/")]
+KEEP_PATH = KEEP_CONTENT + [re.compile(rf"^avatars/{O}_(body|head|crest)_")]
 # Node names RPCs address by path: wire-visible, never renamed.
 NODE_NAMES = {OC + "Server", OC + "Client", OC + "SimServer"}
 
@@ -64,6 +64,14 @@ for f in files:
     if f in SHIMS:
         continue  # written below
     moves.append((f, os.path.join(d, nb)))
+# Files already moved (by an earlier run or on main): a branch may still name their old stems.
+for f in files:
+    base = os.path.basename(f)
+    if base.startswith("fc_") and not base.endswith(".uid"):
+        nstem = base.split(".")[0]
+        ostem = O + nstem[2:]
+        if not any(k.search(os.path.join(os.path.dirname(f), ostem + ".x")) for k in KEEP_PATH):
+            stems.setdefault(ostem, nstem)
 for old, new in SHIMS.items():
     stems[old.rsplit("/", 1)[1].split(".")[0]] = new[0].rsplit("/", 1)[1].split(".")[0]
 
@@ -133,6 +141,16 @@ def prose(seg):
     return seg
 
 GENERIC = re.compile(rf"(memory|bump|frame|scratch) {O}|{O} (map|maps|allocator|kind)|KIND_{OU}|{OC} map|{O}s\b", re.I)
+# Log, check and error text in GDScript strings: only "the/an <old name>", never a bare id.
+TEXT = re.compile(rf"\b([Tt]he|[Aa]n) {O}('s)?(?![A-Za-z0-9_\-.:/])")
+PLACE = re.compile(rf"\b(in|populates) the {O}\b")
+
+def text_line(line):
+    if GENERIC.search(line) or PLACE.search(line):
+        return line
+    parts = re.split(r'("(?:[^"\\]|\\.)*")', line)
+    return "".join(TEXT.sub(lambda m: "Fatal Contact" + (m.group(2) or ""), p) if i % 2 else p
+                   for i, p in enumerate(parts))
 
 def prose_line(line):
     if GENERIC.search(line):
@@ -165,6 +183,8 @@ def rewrite(path, text):
     out = []
     for line in text.split("\n"):
         line = code_line(line, path)
+        if ext == ".gd":
+            line = text_line(line)
         if ext == ".md":
             line = prose_line(line)
         elif ext in COMMENT:
@@ -177,7 +197,7 @@ def rewrite(path, text):
     return "\n".join(out)
 
 for f in git("ls-files", "-z").split("\0"):
-    if not f or f in SELF or f in SHIMS or any(k.search(f) for k in KEEP_PATH) or not os.path.isfile(f):
+    if not f or f in SELF or f in SHIMS or any(k.search(f) for k in KEEP_CONTENT) or not os.path.isfile(f):
         continue
     if f.endswith((".uid", ".import")) or f.startswith(("assets/", "addons/")):
         continue

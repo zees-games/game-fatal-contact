@@ -35,7 +35,7 @@ func _build() -> bool:
 
 	var ready := _game.setup(FcMap.dm_box())
 
-	if not _check(ready.ok, "the arena sets up", str(ready.error)):
+	if not _check(ready.ok, "Fatal Contact sets up", str(ready.error)):
 		return false
 
 	_check(
@@ -93,7 +93,7 @@ func _build() -> bool:
 		"res://game/fc_module.gd"
 	)
 
-	if not _check(loaded.ok, "the arena module loads into it", str(loaded.error)):
+	if not _check(loaded.ok, "Fatal Contact module loads into it", str(loaded.error)):
 		return false
 
 	return true

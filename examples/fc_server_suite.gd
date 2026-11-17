@@ -46,7 +46,7 @@ func _boot_server(hostname: String, port: int, dir: String, tick_rate: int) -> b
 	add_child(_game)
 
 	if not _game.setup(FcMap.dm_box()).ok:
-		print("  the arena would not set up")
+		print("  Fatal Contact would not set up")
 		return false
 
 	# Straight to a live round, so nothing the match does on its own — a warmup, a round

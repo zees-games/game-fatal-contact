@@ -120,7 +120,7 @@ static func scan(from: String = "") -> void:
 		wanted = wanted.duplicate()
 		wanted.append(own_pack)
 	else:
-		DotLog.error(CHANNEL, "the game's own weapon pack is missing; the arena has no weapons", {"pack": own})
+		DotLog.error(CHANNEL, "the game's own weapon pack is missing; Fatal Contact has no weapons", {"pack": own})
 
 	var taken: Array = []
 

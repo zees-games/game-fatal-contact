@@ -52,7 +52,7 @@ func _boot() -> void:
 	map.toys = [{"toy": "beach_ball", "at": [100.0, 0.0, 100.0]}]
 	var _s1: RefCounted = map.add_spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 0.0)))
 	var _s2: RefCounted = map.add_spawn(Transform3D(Basis(), Vector3(5.0, 0.05, 0.0)))
-	_check(_game.setup(map).ok, "the arena sets up")
+	_check(_game.setup(map).ok, "Fatal Contact sets up")
 	_game.match_node.rules.warmup_sec = 0.0
 	_game.match_node.rules.countdown_sec = 0.0
 	# The shot comes within the default protection of the first spawn, which would absorb it.

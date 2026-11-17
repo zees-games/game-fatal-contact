@@ -207,7 +207,7 @@ func _test_wiring() -> void:
 	arena.sprint_defaults(FcPlayer.fc_tunables())
 	var fc_tun := FcPlayer.fc_tunables()
 	arena.track_tunables(fc_tun)
-	_check(arena.sprint != null and is_equal_approx(fc_tun.sprint_speed_scale, 1.25) and fc_tun.sprint_can_shoot, "the arena loads the sprint rules without changing its speeds")
+	_check(arena.sprint != null and is_equal_approx(fc_tun.sprint_speed_scale, 1.25) and fc_tun.sprint_can_shoot, "Fatal Contact loads the sprint rules without changing its speeds")
 	var fc_names: Array[String] = []
 	arena.bind_cvars(func(n: String, _d: String, _h: String, _f: int) -> Object:
 		fc_names.append(n)
@@ -222,7 +222,7 @@ func _test_wiring() -> void:
 	_check(launch_default >= 12.0 * 1.25 and launch_default <= 12.0 * 1.35, "the launch defaults 25 to 35 percent above the old 12 m/s", str(launch_default))
 	_check(FcModuleCvars.MOVEMENT_CVARS.get("fc_launch_velocity", [""])[0] == "launch_velocity" and FcPlayer.MOVEMENT_RULES.has("launch_velocity"), "fc_launch_velocity sets the launch and is a replicated movement rule")
 	var speeds := FcPlayer.fc_tunables()
-	_check(speeds.max_speed < 6.0 and speeds.max_speed > 5.5, "the arena runs at 75 percent of the old 7.65 m/s", str(speeds.max_speed))
+	_check(speeds.max_speed < 6.0 and speeds.max_speed > 5.5, "Fatal Contact runs at 75 percent of the old 7.65 m/s", str(speeds.max_speed))
 	var run_before := speeds.speed_for(0)
 	speeds.speed_scale = 0.5
 	_check(is_equal_approx(speeds.speed_for(0), run_before * 0.5) and is_equal_approx(speeds.speed_for(DotFpsCommand.BUTTON_CROUCH), speeds.max_speed * speeds.crouch_speed_scale * 0.5), "speed_scale scales run and crouch alike")

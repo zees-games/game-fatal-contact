@@ -77,7 +77,7 @@ func _ready() -> void:
 
 	var built := game.setup(FcMap.dm_box() if deferred_map != &"" else startup_map())
 
-	DotLog.result(CHANNEL, "the arena was built", built)
+	DotLog.result(CHANNEL, "Fatal Contact was built", built)
 
 	if built.ok:
 		game.start(0)

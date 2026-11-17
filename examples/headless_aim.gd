@@ -59,7 +59,7 @@ func _boot() -> void:
 	var _s1: RefCounted = map.add_spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 0.0)))
 	var _s2: RefCounted = map.add_spawn(Transform3D(Basis(), Vector3(5.0, 0.05, 0.0)))
 	var ready := _game.setup(map)
-	_check(ready.ok, "the arena sets up", str(ready.error))
+	_check(ready.ok, "Fatal Contact sets up", str(ready.error))
 	_game.match_node.rules.warmup_sec = 0.0
 	_game.match_node.rules.countdown_sec = 0.0
 	var _a := _game.add_player(1, "Shooter")

@@ -81,7 +81,7 @@ func _quiet_the_bots() -> void:
 
 
 func _boot() -> bool:
-	_section("an arena server boots")
+	_section("Fatal Contact server boots")
 	_server_side = Node.new()
 	_server_side.name = "ServerSide"
 	add_child(_server_side)
@@ -95,7 +95,7 @@ func _boot() -> bool:
 	_game.headless = true
 	_game.register_service = true
 	_server_side.add_child(_game)
-	if not _check(_game.setup(FcMap.dm_box()).ok, "the arena sets up"):
+	if not _check(_game.setup(FcMap.dm_box()).ok, "Fatal Contact sets up"):
 		_done()
 		return false
 

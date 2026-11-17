@@ -146,7 +146,7 @@ func _test_audio() -> void:
 	manager.catalogue = DotAudioCatalogue.new()
 	manager.mixer = DotAudioMixer.new()
 	add_child(manager)
-	_check(manager.setup().ok, "the arena's manager sets up")
+	_check(manager.setup().ok, "Fatal Contact's manager sets up")
 	var holder := _Holder.new()
 	holder.audio = manager
 	var ctx := FcProfilerContext.audio_context(holder)

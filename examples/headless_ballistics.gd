@@ -52,7 +52,7 @@ func _boot() -> void:
 	_game.register_service = false
 	add_child(_game)
 	var ready := _game.setup(FcMap.dm_box())
-	_check(ready.ok, "the arena sets up", str(ready.error))
+	_check(ready.ok, "Fatal Contact sets up", str(ready.error))
 	_game.match_node.rules.warmup_sec = 0.0
 	_game.match_node.rules.countdown_sec = 0.0
 	var _a := _game.add_player(1, "Shooter")

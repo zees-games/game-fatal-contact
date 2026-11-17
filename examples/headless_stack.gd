@@ -163,7 +163,7 @@ func _test_joining() -> void:
 	_check(classes.keys().size() == BOTS, "and each of them has a class")
 	_check(
 		classes.class_of("1") == &"default",
-		"the arena's single class — a catalogue with one entry is how 'no classes' is "
+		"Fatal Contact's single class — a catalogue with one entry is how 'no classes' is "
 		+ "said without every consumer branching on whether classes exist"
 	)
 
@@ -185,7 +185,7 @@ func _test_sides() -> void:
 
 	_check(
 		mismatched == 0,
-		"and it is the side dot-match assigned, not one dot-team picked — the arena's "
+		"and it is the side dot-match assigned, not one dot-team picked — Fatal Contact's "
 		+ "sides come from a balance dot-match does and a map's per-side spawn tags, "
 		+ "and driving that from outside would mean reimplementing both"
 	)
@@ -496,7 +496,7 @@ func _test_leaving() -> void:
 
 	_check(
 		roster.has_player("4"),
-		"a player who leaves keeps their seat — an arena player who drops mid-match "
+		"a player who leaves keeps their seat — Fatal Contact player who drops mid-match "
 		+ "and comes back inside the window keeps their score, and the roster is the "
 		+ "only thing here that can offer that"
 	)

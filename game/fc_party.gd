@@ -41,7 +41,7 @@ func setup() -> DotResult:
 
 	var res := session.setup()
 	if not res.ok:
-		return res.wrap("the arena's party session")
+		return res.wrap("Fatal Contact's party session")
 
 	session.signaller = _make_signaller()
 	session.ended.connect(func(r: DotResult) -> void: closed.emit(r))

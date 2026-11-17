@@ -177,7 +177,7 @@ func _build_physics() -> DotResult:
 	var built := physics.layout.build()
 
 	if not built.ok:
-		return built.wrap("The arena's collision layout")
+		return built.wrap("Fatal Contact's collision layout")
 
 	if not apply_physics:
 		return DotResult.success(null)
@@ -187,7 +187,7 @@ func _build_physics() -> DotResult:
 	if res.ok:
 		physics_applied.emit(physics.profile)
 
-	return res.wrap("The arena's physics profile")
+	return res.wrap("Fatal Contact's physics profile")
 
 
 ## The mask a player's movement sweeps against, out of the layout.

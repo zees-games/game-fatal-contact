@@ -397,7 +397,7 @@ func _test_pack_weapons() -> void:
 	)
 	_check(
 		FcWeaponRoles.own_pack == "" or AwWeaponSound.class_for(&"lmg", &"") == &"lmg",
-		"the arena pack's lmg has the lmg sound class, not the rifle's", str(AwWeaponSound.class_for(&"lmg", &""))
+		"Fatal Contact pack's lmg has the lmg sound class, not the rifle's", str(AwWeaponSound.class_for(&"lmg", &""))
 	)
 
 	# A loadout saved before the melee slot existed still gives something under 1.

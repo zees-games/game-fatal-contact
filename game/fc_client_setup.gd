@@ -56,7 +56,7 @@ func _ready() -> void:
 
 	FcLoadTimeline.mark("setup: game built")
 	if not built.ok:
-		DotLog.result(CHANNEL, "the arena could not be built", built)
+		DotLog.result(CHANNEL, "Fatal Contact could not be built", built)
 		_set_client_processing(true)
 		return
 

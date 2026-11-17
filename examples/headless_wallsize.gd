@@ -36,7 +36,7 @@ func _runs_beside(t: DotFpsTunables, top: float) -> bool:
 
 func _run() -> void:
 	var t := FcPlayer.fc_tunables()
-	_check(t.wall_run_min_height > 0.0 and t.wall_run_min_length > 0.0, "the arena inherits the size rules on")
+	_check(t.wall_run_min_height > 0.0 and t.wall_run_min_length > 0.0, "Fatal Contact inherits the size rules on")
 	_check(_runs_beside(t, 4.0), "a 4 m wall starts a run")
 	_check(not _runs_beside(t, 1.0), "a 1 m crate starts none by default")
 

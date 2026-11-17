@@ -731,7 +731,7 @@ var shot_roof := DotAmbienceRoof.new()
 
 func describe_lines() -> PackedStringArray:
 	var out := PackedStringArray()
-	out.append("the arena's presentation layer")
+	out.append("Fatal Contact's presentation layer")
 	out.append_array(settings.describe_lines())
 	out.append_array(audio.describe_lines())
 	if ambient != null:

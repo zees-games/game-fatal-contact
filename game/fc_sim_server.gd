@@ -65,7 +65,7 @@ func _ready() -> void:
 	var map: FcMap = FcMap.by_id(StringName(_arg("--map", "")))
 	var built := game.setup(map if map != null else FcMap.dm_box())
 	if not built.ok:
-		_die("the arena could not be built: %s" % built.error.message)
+		_die("Fatal Contact could not be built: %s" % built.error.message)
 		return
 	# As FcServer does: without it the boot map's match stays IDLE (nobody spawns, no
 	# rounds) until the first host_change restarts it.

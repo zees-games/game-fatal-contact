@@ -26,7 +26,7 @@ func _test_wall_rules() -> void:
 
 	var t := FcPlayer.fc_tunables()
 	_check(t.wall_run_enabled and t.wall_jump_enabled and is_equal_approx(t.wall_slide_speed, 2.5),
-		"the arena wall-runs, wall-jumps and wall-slides by default")
+		"Fatal Contact wall-runs, wall-jumps and wall-slides by default")
 	_check(t.wall_run_min_speed > t.max_speed,
 		"a run needs more than the plain run along the wall (%.1f over %.1f m/s)" % [t.wall_run_min_speed, t.max_speed],
 		"at or under it, every jump beside a wall would become a run")
@@ -59,7 +59,7 @@ func _test_wall_rules() -> void:
 	var back := _game.players()[0].controller.tunables
 	_check(back.wall_run_enabled and back.wall_jump_enabled and back.wall_slide_speed == t.wall_slide_speed
 			and back.wall_jump_max_per_air == t.wall_jump_max_per_air,
-		"and back on, a player has the arena's wall numbers again")
+		"and back on, a player has Fatal Contact's wall numbers again")
 
 	# Off, through the same path a cvar takes, against the motor's own pre-wall defaults.
 	var ruled_off := FcPlayer.fc_tunables()

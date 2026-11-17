@@ -259,7 +259,7 @@ func _run_second(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: D
 
 	# A splash is stopped by a wall: find a blocked and an open spot round one centre in the real level.
 	drops.clear()
-	_check(drops.can_see.is_valid(), "the arena gives the drop layer its sight check")
+	_check(drops.can_see.is_valid(), "Fatal Contact gives the drop layer its sight check")
 	var trace: DotTrace = game.combat.trace
 	var centre := Vector3.ZERO
 	var wall_spot := Vector3.INF

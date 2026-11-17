@@ -237,7 +237,7 @@ func _build_player_stack() -> DotResult:
 	player_stack.register_service = register_service
 	add_child(player_stack)
 
-	return player_stack.setup(self).wrap("The arena's player stack")
+	return player_stack.setup(self).wrap("Fatal Contact's player stack")
 
 func _build_progress() -> DotResult:
 	if not track_progress or not is_authority:

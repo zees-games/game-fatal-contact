@@ -26,7 +26,7 @@ func _test_surf_movement() -> void:
 	_check(to_box.ok and is_equal_approx(player.controller.tunables.air_accelerate, arena.air_accelerate)
 		and is_equal_approx(player.controller.tunables.max_air_wish_speed, arena.max_air_wish_speed)
 		and is_equal_approx(player.controller.tunables.gravity, arena.gravity),
-		"on dm_box: back to the arena's own (%.0f, %.2f, %.0f)" % [
+		"on dm_box: back to Fatal Contact's own (%.0f, %.2f, %.0f)" % [
 			player.controller.tunables.air_accelerate,
 			player.controller.tunables.max_air_wish_speed, player.controller.tunables.gravity
 		])
@@ -43,7 +43,7 @@ func _test_surf_movement() -> void:
 	_game.set_movement_rules({"surf": 0.0})
 	_check(is_equal_approx(player.controller.tunables.air_accelerate, arena.air_accelerate)
 		and is_equal_approx(player.controller.tunables.gravity, arena.gravity),
-		"and fc_surf 0 plays it with the arena's own")
+		"and fc_surf 0 plays it with Fatal Contact's own")
 
 	_game.set_movement_rules({"surf": 1.0, "surf_air_accelerate": 150.0})
 	_check(_matches(player, surf, 150.0), "and 1 puts the genre's back")

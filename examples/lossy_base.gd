@@ -240,7 +240,7 @@ func _boot() -> bool:
 	_server_side.add_child(_game)
 
 	var ready := _game.setup(FcMap.dm_box())
-	if not _check(ready.ok, "the arena sets up", str(ready.error)):
+	if not _check(ready.ok, "Fatal Contact sets up", str(ready.error)):
 		_done()
 		return false
 
@@ -264,7 +264,7 @@ func _boot() -> bool:
 
 	FcModule.punishments_file = "%s/punishments.json" % DATA
 	var loaded: DotResult = await _server.modules.load_module("res://game/fc_module.gd")
-	if not _check(loaded.ok, "the arena module loads", str(loaded.error)):
+	if not _check(loaded.ok, "Fatal Contact module loads", str(loaded.error)):
 		_done()
 		return false
 

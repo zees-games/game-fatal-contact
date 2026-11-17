@@ -143,7 +143,7 @@ func _module_load() -> DotResult:
 	var netted := _build_netcode()
 
 	if not netted.ok:
-		return netted.wrap("The arena netcode could not start")
+		return netted.wrap("Fatal Contact netcode could not start")
 
 	await _build_optional()
 

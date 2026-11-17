@@ -258,7 +258,7 @@ func rebuild_navigation() -> DotResult:
 	var valid := nav.validate()
 
 	if not valid.ok:
-		return valid.wrap("The arena navigation graph is not usable")
+		return valid.wrap("Fatal Contact navigation graph is not usable")
 
 	var applied := spawner.set_nav_data(nav)
 

@@ -83,7 +83,7 @@ const _OTHER_MOVEMENT_CVARS := {
 	"fc_fp_arms": ["fp_arms", "First-person arms everybody sees, own and the killer's in a kill view: 0 each player's own look, N one stock arm set"],
 	"fc_team_avatars": ["team_avatars", "Team modes draw every player on a side as the side's body (fc_team_bodies), tinted its colour (1), or each player's own look (0)"],
 	"fc_team_tint": ["team_tint", "How far a team body's clothes turn toward the side's colour, 0 (its own texture) to 1"],
-	"fc_surf": ["surf", "A combat surf map plays with the genre's air control (1) or the arena's own (0)"],
+	"fc_surf": ["surf", "A combat surf map plays with the genre's air control (1) or Fatal Contact's own (0)"],
 	"fc_surf_airaccelerate": ["surf_air_accelerate", "Air acceleration on a combat surf map (the genre's sv_airaccelerate)"],
 	"mp_killcam_time": ["killcam", "Seconds the final killcam plays at a match's end, added to the end's wait (0 for none)"],
 	"fc_crit_scale": ["", "Extra damage multiplier on a critical hit (1 for none)"],

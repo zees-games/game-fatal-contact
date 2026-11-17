@@ -414,7 +414,7 @@ func _build_chat() -> DotResult:
 	var started := chat.start()
 
 	if not started.ok:
-		return started.wrap("The arena chat router could not start")
+		return started.wrap("Fatal Contact chat router could not start")
 
 	for channel in _channels():
 		var added := chat.add_channel(channel)

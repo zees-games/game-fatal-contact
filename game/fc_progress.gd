@@ -261,7 +261,7 @@ func _build() -> DotResult:
 	var stats_started := stats.start()
 
 	if not stats_started.ok:
-		return stats_started.wrap("The arena stats tracker could not start")
+		return stats_started.wrap("Fatal Contact stats tracker could not start")
 
 	achievements = DotAchievementTracker.new()
 	achievements.name = "Achievements"
@@ -280,7 +280,7 @@ func _build() -> DotResult:
 	var awards_started := achievements.start()
 
 	if not awards_started.ok:
-		return awards_started.wrap("The arena achievement tracker could not start")
+		return awards_started.wrap("Fatal Contact achievement tracker could not start")
 
 	achievements.unlocked.connect(_on_unlocked)
 

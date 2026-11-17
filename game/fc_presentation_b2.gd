@@ -236,7 +236,7 @@ func _build_settings() -> DotResult:
 
 	var res := settings.setup()
 	if not res.ok:
-		return res.wrap("the arena's settings")
+		return res.wrap("Fatal Contact's settings")
 	settings.changed.connect(_on_setting_changed)
 	return DotResult.success(null)
 
@@ -375,7 +375,7 @@ func _build_audio() -> DotResult:
 
 	var res := audio.setup()
 	if not res.ok:
-		return res.wrap("the arena's audio")
+		return res.wrap("Fatal Contact's audio")
 
 	steps = DotAudioFootsteps.new()
 	steps.name = "Footsteps"
@@ -456,7 +456,7 @@ func _build_fx() -> DotResult:
 
 	var res := fx.setup()
 	if not res.ok:
-		return res.wrap("the arena's effects")
+		return res.wrap("Fatal Contact's effects")
 
 	blood = FcBlood.new()
 	add_child(blood)
