@@ -612,7 +612,7 @@ func _push_weapons() -> void:
 	if identity != null and identity.is_authoritative:
 		return
 
-	var owned := identity != null and identity.is_predicted()
+	var owned: bool = identity != null and identity.is_predicted()
 
 	if owned:
 		var changed := ArenaContent.apply_carry(player.arsenal, net_carry)
@@ -623,9 +623,9 @@ func _push_weapons() -> void:
 	var arsenal := player.arsenal
 	# A remote copy that holds nothing and is not told to hold a slot it has: the push is a no-op and no
 	# mode can change, which is every remote player on a client that gives them no guns.
-	var idle := not owned and arsenal.current() == null and (net_slot <= 0 or not arsenal.has_slot(net_slot))
-	var unchanged := idle or (not owned and _remote_push_unchanged())
-	var clicks := not owned and not unchanged and DotWeaponNetSync.fire_mode_will_change(self, arsenal)
+	var idle: bool = not owned and arsenal.current() == null and (net_slot <= 0 or not arsenal.has_slot(net_slot))
+	var unchanged: bool = idle or (not owned and _remote_push_unchanged())
+	var clicks: bool = not owned and not unchanged and DotWeaponNetSync.fire_mode_will_change(self, arsenal)
 	if not unchanged:
 		DotWeaponNetSync.push(self, arsenal, not owned)
 		if not owned:

@@ -372,7 +372,7 @@ func _test_blind_and_beacon() -> void:
 	var lit := await _say(_moderator, "!beacon Ada")
 	_check(_ada().beacon, "a moderator may !beacon Ada", " / ".join(lit))
 	_step(2)
-	var identity := (_module.bridge.behaviour_for(73) as DotNetBehaviour).identity
+	var identity: DotNetIdentity = (_module.bridge.behaviour_for(73) as DotNetBehaviour).identity
 	_check(
 		identity != null and identity.always_relevant,
 		"and a beaconed player is relevant to everybody, however far away"

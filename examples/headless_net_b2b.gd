@@ -64,7 +64,7 @@ func _test_predicted_node_is_not_moved() -> void:
 		return
 
 	var player := behaviour.player
-	var predicted := behaviour.identity != null and behaviour.identity.is_predicted()
+	var predicted: bool = behaviour.identity != null and behaviour.identity.is_predicted()
 
 	_check(predicted, "and the local player is predicted, not server-driven")
 

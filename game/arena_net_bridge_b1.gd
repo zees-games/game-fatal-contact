@@ -566,7 +566,7 @@ func _forget_monster(instance_id: int) -> void:
 	if behaviour == null or behaviour.identity == null or net == null:
 		return
 
-	var net_id := behaviour.identity.net_id
+	var net_id: int = behaviour.identity.net_id
 	net.registry.unregister(net_id)
 	send_event(0, ArenaEvents.Kind.NPC_GONE, ArenaEvents.write_npc_gone(net_id))
 
