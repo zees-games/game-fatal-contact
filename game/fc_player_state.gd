@@ -400,6 +400,11 @@ static var look_down_back_override: float = -1.0
 ## Whether [method present_lod] may thin out the bodies nobody is looking at.
 static var present_lod_enabled: bool = true
 
+## The server's players' loop without the per-player calls that change nothing: the surf rides follow the map once a tick
+## instead of once per player, and the map mechanics leave the node where the controller put it unless they moved the
+## state. Off runs the long way; the results are the same. `tools/scale128.gd --leanab` flips it for an in-process A/B.
+static var lean_tick: bool = true
+
 ## Probe only (`tools/client_cost.gd`): when true a remote body is not presented at all, to measure what presenting them costs.
 static var present_remote_paused: bool = false
 

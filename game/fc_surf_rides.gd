@@ -198,6 +198,16 @@ func _sync() -> void:
 			surf.set(&"rides", self)
 			attach_surf(surf)
 
+## Once a tick, before the players' loop: what [method before] does first for every player (follow the map and the
+## bots' mesh), done once, then whether the rides record ([method is_on]). Nothing in the loop changes either, so
+## [method before_synced] per player after it is [method before] per player.
+func begin_tick() -> bool:
+	if recorder == null:
+		return false
+	_sync()
+	return is_on()
+
+
 ## Before [param player] simulates a tick: where it stands, which is what its command is judged from.
 func before(id: int, player: Object) -> void:
 	if recorder == null:
@@ -205,6 +215,11 @@ func before(id: int, player: Object) -> void:
 	_sync()
 	if not is_on():
 		return
+	before_synced(id, player)
+
+
+## [method before] for a tick whose [method begin_tick] answered true.
+func before_synced(id: int, player: Object) -> void:
 	var state: DotFpsState = player.controller.state
 	var t := _track(id)
 	t.pre_pos = state.position

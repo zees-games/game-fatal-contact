@@ -230,6 +230,9 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	var t_fine := 0
 	var ids := player_ids()
 	var n := ids.size()
+	# The surf rides follow the map once a tick, not once per player (~4 us a player a tick of lookups that change nothing).
+	var lean := FcPlayer.lean_tick
+	var surfing := lean and surf_rides != null and bool(surf_rides.call(&"begin_tick"))
 	if _batch_rows.size() < n:
 		_batch_rows.resize(n)
 		_batch_pairs.resize(n)
@@ -252,7 +255,9 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		if move == null or fire == null:
 			continue
 		match_node.note_activity(str(id), _tick)
-		if surf_rides != null:
+		if surfing:
+			surf_rides.call(&"before_synced", id, player)
+		elif not lean and surf_rides != null:
 			surf_rides.call(&"before", id, player)
 		# The command pair as it came (move, fire): no new two-item array per player per tick.
 		_batch_pairs[i] = pair if pair.size() == 2 else [move, fire]

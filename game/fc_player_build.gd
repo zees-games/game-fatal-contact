@@ -444,6 +444,9 @@ func _run_map_mechanics(start: Vector3, delta: float) -> void:
 
 	# A push moved the state after the controller wrote it out; the node follows, as the
 	# controller's own publish does, so the muzzle and the hitboxes are where the player is.
+	# Nothing moved it (most ticks): the node is already there, and a write would only send every child's transform round again.
+	if lean_tick and global_position == state.position:
+		return
 	global_position = state.position
 
 func _apply_body_rules() -> void:

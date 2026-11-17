@@ -24,7 +24,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 24
+const CHECKS := 26
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -100,11 +100,16 @@ func _run() -> void:
 	var off := await _play(false, &"", BOTS, SECONDS, streams, false)
 	var on := await _play(true, &"", BOTS, SECONDS, streams, false)
 	var live := await _play(true, &"", BOTS, SECONDS, [], true)
+	# The lean loop (FcPlayer.lean_tick) only skips calls that change nothing: the long way must play the same match.
+	FcPlayer.lean_tick = false
+	var long_way := await _play(true, &"", BOTS, SECONDS, streams, false)
+	FcPlayer.lean_tick = true
 	_check(thought[0].size() > 10 and thought[1] > 0, "the match was played (%d digests, %d kills)" % [thought[0].size(), thought[1]])
 	_check(off[0] == thought[0], "the recorded commands replay the match (%s)" % _first_diff(thought[0], off[0]))
 	_check(on[0] == off[0], "the batched loop plays the recording to the bit (%s)" % _first_diff(off[0], on[0]))
 	_check(live[0] == thought[0], "and the bots' own match, thinking on what it gives them (%s)" % _first_diff(thought[0], live[0]))
 	_check(on[1] == off[1], "as many kills (%d, batched %d)" % [off[1], on[1]])
+	_check(long_way[0] == on[0], "the lean players' loop plays it to the bit as the long way (%s)" % _first_diff(long_way[0], on[0]))
 	_check(off[2] == 0, "and none with the cvar off")
 	_check(on[3] == 0 and live[3] == 0, "no player was changed by another's turn (%d, %d faults)" % [on[3], live[3]])
 	_done()
@@ -122,6 +127,7 @@ func _run() -> void:
 	var ran := 0
 	var kept: StringName = &""
 	var kept_streams: Array = []
+	var lean_diffs: PackedStringArray = []
 	for id in IMPORTED_MAPS:
 		if FcMap.by_id(id) == null:
 			print("skip %s: not linked" % id)
@@ -131,6 +137,11 @@ func _run() -> void:
 		off = await _play(false, id, SMALL_BOTS, SMALL_SECONDS, streams, true)
 		var again: Array = await _play(false, id, SMALL_BOTS, SMALL_SECONDS, streams, false)
 		on = await _play(true, id, SMALL_BOTS, SMALL_SECONDS, streams, false)
+		FcPlayer.lean_tick = false
+		var long_map: Array = await _play(true, id, SMALL_BOTS, SMALL_SECONDS, streams, false)
+		FcPlayer.lean_tick = true
+		if long_map[0] != on[0]:
+			lean_diffs.append("%s: %s" % [id, _first_diff(long_map[0], on[0])])
 		if kept == &"":
 			kept = id
 			kept_streams = streams
@@ -141,6 +152,7 @@ func _run() -> void:
 		print("%s: replay against the recording: %s" % [id, _first_diff(off[0], again[0])])
 		_check(on[0] == again[0] and again[0].size() > 5, "the batched loop plays %s to the bit (%s)" % [id, _first_diff(again[0], on[0])])
 	_check(ran == 0 or rows > 0, "through the batch (%d rows)" % rows)
+	_check(lean_diffs.is_empty(), "the lean players' loop (surf rides once a tick) plays every map as the long way (%s)" % ", ".join(lean_diffs))
 	_done()
 
 	await _run_part2(was, off, on, rows, kept, kept_streams)
