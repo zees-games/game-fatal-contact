@@ -614,7 +614,8 @@ func _push_weapons() -> void:
 	var owned := identity != null and identity.is_predicted()
 
 	if owned:
-		var _changed := ArenaContent.apply_carry(player.arsenal, net_carry)
+		var changed := ArenaContent.apply_carry(player.arsenal, net_carry)
+		_follow_empty_hand(changed > 0)
 
 	# The owner's own selector is predicted; only a remote copy adopts and clicks.
 	# A remote copy whose inputs match the last push skips it: the push copies a fitting per call.
@@ -646,6 +647,24 @@ func _push_weapons() -> void:
 	player.mirror_fitted = net_fitted
 	if clicks:
 		player.mirror_mode_click()
+
+
+## The slot the server last said the owner holds, for [method _follow_empty_hand].
+var _owner_slot_was := 0
+
+
+## The owner's arsenal lowers its weapon when the server emptied the hand: a Boomerang thrower waits for the catch
+## bare-handed (dot-weapon rule `boomerang_empty_hand`), where the carry's take alone would draw the next weapon.
+## Only on the snapshot that took a weapon away or emptied the hand, so a draw the owner predicts from an empty
+## hand is not undone while the server catches up.
+func _follow_empty_hand(carry_changed: bool) -> void:
+	var was := _owner_slot_was
+	_owner_slot_was = net_slot
+	if net_slot != 0 or not (carry_changed or was > 0):
+		return
+	var arsenal := player.arsenal
+	if arsenal != null and arsenal.current_slot() != 0 and arsenal.has_method(&"empty_hand"):
+		var _emptied: bool = arsenal.call(&"empty_hand")
 
 
 ## What [method DotWeaponNetSync.push] reads and writes on a remote arsenal, as of the last push: the snapshot's

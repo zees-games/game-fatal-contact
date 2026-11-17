@@ -62,6 +62,9 @@ func _animate_windup() -> void:
 		hands.on_windup(windup)
 	if _windup_was >= 0.0 and windup < 0.0 and is_alive():
 		figure.throw_release()
+		# The owner's knife leaves on the server, so no throw outcome reaches the hands; the release plays from here.
+		if hands != null and hands.has_method(&"on_throw"):
+			hands.call(&"on_throw")
 	_windup_was = windup
 
 

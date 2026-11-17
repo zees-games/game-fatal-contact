@@ -21,7 +21,7 @@ const HOLD_FULL := 70
 ## The throws the layer announced, newest last: {"id", "speed", "glide", "turn"}, read at the moment of the throw.
 var _throws: Array = []
 const EXPECTED_SECTIONS := 4
-const EXPECTED_CHECKS := 51
+const EXPECTED_CHECKS := 52
 
 var _checks := 0
 var _failed := 0
@@ -332,6 +332,9 @@ func _charge_and_boomerang(game: ArenaGame, ids: Array, thrower: int, here: Vect
 	_hold_aim(game, thrower, 0.0, 60.0, HOLD_FULL)
 	var boomerang := _last_throw()
 	_check(bool(boomerang["glide"]), "a fitted knife is thrown as a boomerang, gliding")
+	# dot-weapon 46+: the thrower waits for the catch with an empty hand, not on the pistol the knife's going would select.
+	var bare := not arsenal.has_method(&"empty_hand") or (arsenal.current_slot() == 0 and not arsenal.slots().is_empty())
+	_check(bare, "the thrower waits for the catch bare-handed, not on the pistol", "slot %d" % arsenal.current_slot())
 	# dot-weapon 43+: the turn is zero on the straight leg and only set while circling, so send a circling-leg turn.
 	var circling := Vector3(0.0, 4.0, 0.0)
 	var body := ArenaKnifeEvents.write_knife(int(boomerang["id"]), thrower, DotWeaponKnives.Phase.FLY, 0, here, Vector3(0.0, 0.0, -20.0), bool(boomerang["glide"]), circling)
