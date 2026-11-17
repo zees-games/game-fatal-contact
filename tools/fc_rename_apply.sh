@@ -29,8 +29,8 @@ SHIMS = {
     f"scenes/{O}_server.tscn": ("scenes/fc_server.tscn", OC + "Server"),
 }
 # Paths whose names are data (ids built into file names) or other repos' ids:
-# never moved. The cfg game dir's contents are left alone too; the avatar parts
-# still get their res:// paths rewritten.
+# never moved. Inside the cfg game dir only identifiers change (its templates are
+# generated from code); the avatar parts still get their res:// paths rewritten.
 KEEP_CONTENT = [re.compile(rf"^cfg/game/game-{O}/")]
 KEEP_PATH = KEEP_CONTENT + [re.compile(rf"^avatars/{O}_(body|head|crest)_")]
 # Node names RPCs address by path: wire-visible, never renamed.
@@ -107,7 +107,7 @@ EXT = r"(?=\.(?:gd|tscn|tres|gdshader|gdshaderinc|uid|res|scn)\b)"
 stem_re = re.compile(r"(?<![A-Za-z0-9_\-])(" + "|".join(sorted(map(re.escape, stems), key=len, reverse=True)) + ")" + EXT)
 glob_re = re.compile(rf"(?<=/){O}_(?=[a-z_]*\*)")
 suite_re = re.compile(rf"\b(headless_){O}16\b")
-cls_re = re.compile(rf"(?<![A-Za-z0-9_])(Headless)?{OC}([A-Z][A-Za-z0-9]*)")
+cls_re = re.compile(rf"(?<![A-Za-z0-9_])(Headless)?{OC}([A-Z0-9][A-Za-z0-9]*)")
 
 # Internal lowercase names: meta keys, groups, helpers, test scratch dirs, screenshot names.
 WORDS = [f"{O}_tunables", f"{O}_tun", f"{O}_names", f"not_{O}_key", f"not_{O}",
@@ -185,7 +185,9 @@ def rewrite(path, text):
         line = code_line(line, path)
         if ext == ".gd":
             line = text_line(line)
-        if ext == ".md":
+        if any(k.search(path) for k in KEEP_CONTENT):
+            pass  # generated from code: class names follow it, the game id header stays
+        elif ext == ".md":
             line = prose_line(line)
         elif ext in COMMENT:
             c = COMMENT[ext]
@@ -197,7 +199,7 @@ def rewrite(path, text):
     return "\n".join(out)
 
 for f in git("ls-files", "-z").split("\0"):
-    if not f or f in SELF or f in SHIMS or any(k.search(f) for k in KEEP_CONTENT) or not os.path.isfile(f):
+    if not f or f in SELF or f in SHIMS or not os.path.isfile(f):
         continue
     if f.endswith((".uid", ".import")) or f.startswith(("assets/", "addons/")):
         continue
