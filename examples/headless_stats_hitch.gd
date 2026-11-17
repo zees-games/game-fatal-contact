@@ -1,13 +1,13 @@
 extends Node
 
 ## The timed stats flush writes the stats file once, not once per player. This flushes 24 players
-## through `ArenaStatsStore` and the addon's store, and asserts one write, the same file, and
+## through the addon's write-behind `DotStatsStoreFile` and a write-through one (`write_behind = false`), and
+## asserts no file write on the flush's own frame (none on the main thread per player), one write per flush, the same file, and
 ## nothing lost; the achievement autosave gets the same checks.
 
 const ArenaAwards := preload("../game/arena_awards.gd")
 const ArenaAwardStore := preload("../game/arena_award_store.gd")
 const ArenaStats := preload("../game/arena_stats.gd")
-const ArenaStatsStore := preload("../game/arena_stats_store.gd")
 
 const PLAYERS := 24
 ## Rows already in the file: a profile that has met a few hundred names.
@@ -111,12 +111,12 @@ func _awards() -> void:
 		for i in PLAYERS:
 			batched.record("p%d" % i, ArenaStats.KILLS, float(1 + i + round))
 			plain.record("p%d" % i, ArenaStats.KILLS, float(1 + i + round))
-		var before: int = store.get(&"writes")
+		var before: int = store.writes
 		var t0 := Time.get_ticks_usec()
 		var saved: DotResult = await batched.flush()
 		worst_batched = maxf(worst_batched, (Time.get_ticks_usec() - t0) / 1000.0)
 		_check(saved.ok and int(saved.value) == PLAYERS, "awards round %d: the autosave saved every dirty player" % round, str(saved.value) if saved.ok else "failed")
-		_check(int(store.get(&"writes")) == before, "awards round %d: the autosave's own frame wrote no file" % round)
+		_check(int(store.writes) == before, "awards round %d: the autosave's own frame wrote no file" % round)
 		t0 = Time.get_ticks_usec()
 		await plain.flush()
 		worst_plain = maxf(worst_plain, (Time.get_ticks_usec() - t0) / 1000.0)
@@ -127,11 +127,11 @@ func _awards() -> void:
 			_check(early.ok and DotValue.same_dictionary((early.value as DotAchievementProgress).to_dictionary(), want.to_dictionary()),
 				"a load before the write lands returns the saved progress")
 		var waited := 0
-		while int(store.get(&"writes")) - before < PLAYERS and waited < 600:
+		while int(store.writes) - before < PLAYERS and waited < 600:
 			await get_tree().process_frame
 			waited += 1
 		await _frames(6)
-		_check(int(store.get(&"writes")) - before == PLAYERS, "awards round %d: every player's file went out once" % round, str(int(store.get(&"writes")) - before))
+		_check(int(store.writes) - before == PLAYERS, "awards round %d: every player's file went out once" % round, str(int(store.writes) - before))
 		_check(_same_files(store, plain_store) == PLAYERS, "awards round %d: and they are the files the addon's store writes" % round, str(_same_files(store, plain_store)))
 
 	for i in PLAYERS:
@@ -139,7 +139,7 @@ func _awards() -> void:
 		plain.record("p%d" % i, ArenaStats.DEATHS, 2.0)
 	await batched.flush()
 	await plain.flush()
-	store.call(&"finish")
+	store.finish()
 	_check(_same_files(store, plain_store) == PLAYERS, "awards: finish() writes the last autosave without waiting for a frame", str(_same_files(store, plain_store)))
 	print("  worst autosave frame: %.2f ms batched, %.2f ms per-player writes (%d players)" % [worst_batched, worst_plain, PLAYERS])
 	_check(worst_batched < worst_plain, "the batched autosave frame is cheaper than per-player writes", "%.2f vs %.2f ms" % [worst_batched, worst_plain])
@@ -155,9 +155,11 @@ func _awards() -> void:
 func _run() -> void:
 	_seed(BATCHED)
 	_seed(PLAIN)
-	var store: DotStatsStoreFile = ArenaStatsStore.new(BATCHED)
+	var store := DotStatsStoreFile.new(BATCHED)
+	var plain_file := DotStatsStoreFile.new(PLAIN)
+	plain_file.write_behind = false
 	var batched := _tracker(store)
-	var plain := _tracker(DotStatsStoreFile.new(PLAIN))
+	var plain := _tracker(plain_file)
 	await _frames(2)
 
 	var worst_batched := 0.0
@@ -165,22 +167,22 @@ func _run() -> void:
 	for round in 3:
 		_play(batched, round)
 		_play(plain, round)
-		var before: int = store.get(&"writes")
+		var before: int = store.writes
 		var t0 := Time.get_ticks_usec()
 		var flushed: DotResult = await batched.flush()
 		worst_batched = maxf(worst_batched, (Time.get_ticks_usec() - t0) / 1000.0)
 		_check(flushed.ok, "round %d: the flush succeeded" % round)
 		_check(batched.store_pending() == 0, "round %d: every player's delta was merged" % round, str(batched.store_pending()))
-		_check(int(store.get(&"writes")) == before, "round %d: the flush's own frame wrote no file" % round)
+		_check(int(store.writes) == before, "round %d: the flush's own frame wrote no file" % round)
 		t0 = Time.get_ticks_usec()
 		await plain.flush()
 		worst_plain = maxf(worst_plain, (Time.get_ticks_usec() - t0) / 1000.0)
 		var waited := 0
-		while int(store.get(&"writes")) == before and waited < 600:
+		while int(store.writes) == before and waited < 600:
 			await get_tree().process_frame
 			waited += 1
 		await _frames(6)
-		var wrote: int = int(store.get(&"writes")) - before
+		var wrote: int = int(store.writes) - before
 		_check(wrote == 1, "round %d: %d players' flush wrote the file once" % [round, PLAYERS], "%d writes" % wrote)
 		var a := _read(BATCHED)
 		var b := _read(PLAIN)
@@ -192,7 +194,7 @@ func _run() -> void:
 	_play(plain, 3)
 	await batched.flush()
 	await plain.flush()
-	store.call(&"finish")
+	store.finish()
 	_check(DotValue.same_dictionary(_read(BATCHED), _read(PLAIN)), "finish() writes the last flush without waiting for a frame")
 
 	# And the real order at quit: the tracker leaves the tree with a delta unflushed and merges it there, then its owner calls finish().
@@ -200,7 +202,7 @@ func _run() -> void:
 	_play(plain, 4)
 	remove_child(batched)
 	remove_child(plain)
-	store.call(&"finish")
+	store.finish()
 	_check(DotValue.same_dictionary(_read(BATCHED), _read(PLAIN)), "a tracker leaving the tree mid-interval loses nothing")
 
 	var again := DotStatsStoreFile.new(BATCHED)

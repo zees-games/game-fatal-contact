@@ -5,7 +5,6 @@ const ArenaAwards := preload("arena_awards.gd")
 const ArenaBoards := preload("arena_boards.gd")
 const ArenaPlayer := preload("arena_player.gd")
 const ArenaStats := preload("arena_stats.gd")
-const ArenaStatsStore := preload("arena_stats_store.gd")
 const ArenaLoadoutIdentity := preload("arena_loadout_identity.gd")
 ## Mirrors ArenaGame.BOT_SESSION_BASE (arena_game_vars.gd); a preload of the game here would close a
 ## parser cycle that GDScript never frees.
@@ -218,9 +217,9 @@ func set_reporting(on: bool) -> DotResult:
 func _exit_tree() -> void:
 	if stats != null:
 		DotRegistry.unregister_instance(STATS_SERVICE, stats)
-		# The tracker (a child, so already out) has just merged its last interval; no frame may follow to write it.
-		if stats.store is ArenaStatsStore:
-			(stats.store as ArenaStatsStore).finish()
+		# The tracker (a child, so already out) has just merged and finished its store; this covers one that never entered the tree.
+		if stats.store != null:
+			stats.store.finish()
 	if achievements != null and achievements.store is ArenaAwardStore:
 		(achievements.store as ArenaAwardStore).finish()
 
@@ -234,7 +233,7 @@ func _build() -> DotResult:
 	stats.define_on_start = true
 	# Before add_child, so the tracker's flush timer also writes the store.
 	if _game != null and _game.stats_file != "":
-		stats.store = ArenaStatsStore.new(_game.stats_file)
+		stats.store = DotStatsStoreFile.new(_game.stats_file)
 	add_child(stats)
 	_kill_feed = DotStatsEventFeed.new(stats)
 	_kill_feed.key_of = func(id: Variant) -> StringName: return StringName(_key_of(int(id)))
