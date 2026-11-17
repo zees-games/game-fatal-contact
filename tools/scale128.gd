@@ -10,6 +10,7 @@ const ArenaHullGrid := preload("../game/arena_hull_grid.gd")
 const ArenaBotBrain := preload("../game/arena_bot_brain.gd")
 const ArenaBotThreads := preload("../game/arena_bot_threads.gd")
 const ArenaBots := preload("../game/arena_bots.gd")
+const ArenaBotsWorld := preload("../game/arena_bots_world.gd")
 
 ## The 128-player scale harness (nightly arena-128-scale-1). Measures; asserts nothing; prints one `SCALE128 {json}` line. Driven by tools/scale128.sh, which runs it through `heavy`.
 ## `godot --headless --path . res://tools/scale128.tscn -- --role server --bots 64 --tick 33 --seconds 30` (or `--role offline --bots 32 --tick 66 --seconds 20`). [b]server[/b]: DotServer + ArenaModule with N bots, no client, one physics tick timed three ways (script half between sentinels, TIME_PHYSICS_PROCESS, wall-clock ticks/s).
@@ -88,8 +89,12 @@ func _ready() -> void:
 				AwWeaponRig.phase_timers = args[i + 1] != "0"
 				DotWeaponArsenal.phase_timers = AwWeaponRig.phase_timers
 			# --wlane 0: idle weapons through the arsenal's idle_still and idle_posture callables (the row lane's A/B arm).
+			# --bphases 1: DotBotBrain's phase clocks (bb_*, main thread only: with --threads 0), the split of bot_brain.
+			"--bphases": (DotBotBrain as GDScript).set(&"phase_timers", args[i + 1] != "0")
 			"--wlane": _PlayerBody.idle_row_lane = args[i + 1] != "0"
 			"--native": DotBotWorld.native_enabled = args[i + 1] != "0"
+			# --native-sight 0: bot sight rays through script, never dot-sim's native ray (the A/B of World.native_sight).
+			"--native-sight": ArenaBotsWorld.World.native_sight = args[i + 1] != "0"
 			"--motornative": DotFpsPhysicsBody.native_enabled = args[i + 1] != "0"
 			# --fine 1: ArenaFrameProbe.fine for the recording, so the sections split tick_players, bots and the world (laps).
 			"--fine": _fine = args[i + 1] != "0"
@@ -192,6 +197,14 @@ func _report(extra: Dictionary) -> void:
 		wp["rig_calls"] = AwWeaponRig.phase_calls
 		wp["ars_calls"] = DotWeaponArsenal.phase_calls
 		out["weapon_phases_ms"] = wp
+	if (DotBotBrain as GDScript).get(&"phase_timers"):
+		# Brain think sub-phases (ms per tick), by name: an older dot-bot has no such clocks.
+		var bp := {}
+		var b_names: Array = (DotBotBrain as GDScript).get(&"PHASES")
+		var b_us: PackedInt64Array = (DotBotBrain as GDScript).get(&"phase_us")
+		for i in b_names.size():
+			bp[b_names[i]] = snappedf(b_us[i] / 1000.0 / maxi(1, _count), 0.001)
+		out["brain_phases_ms"] = bp
 	print("SCALE128 ", JSON.stringify(out))
 
 
@@ -252,6 +265,10 @@ func _begin_record() -> void:
 	AwWeaponRig.phase_calls.fill(0)
 	DotWeaponArsenal.phase_us.fill(0)
 	DotWeaponArsenal.phase_calls.fill(0)
+	if (DotBotBrain as GDScript).get(&"phase_timers"):
+		var b_us: PackedInt64Array = (DotBotBrain as GDScript).get(&"phase_us")
+		b_us.fill(0)
+		(DotBotBrain as GDScript).set(&"phase_us", b_us)
 	_script_us.clear()
 	_phys_ms.clear()
 	_count = 0

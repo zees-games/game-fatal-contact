@@ -508,6 +508,7 @@ class World:
 		# The brain prunes both each think; once here, theirs find nothing to remove.
 		prune_sight_blockers(now())
 		var _heard := sounds_after(1 << 60, now())
+		_sight_par = _sight_bind(true)
 		par = true
 		return true
 
@@ -602,6 +603,69 @@ class World:
 		_sight_query.collision_mask = mask
 		_sight_query.exclude = trace.exclude_rids
 		return space.intersect_ray(_sight_query).is_empty()
+
+	## Whether a native mind may ask sight of dot-sim's [code]DotSimSightRay[/code] (when loaded) in place of
+	## [method line_of_sight]; off: every ray goes through script (scale128 [code]--native-sight 0[/code]).
+	static var native_sight: bool = true
+	## The native ray (a DotSimSightRay), made once when the class is loaded; null: script only.
+	var _sight_native: Object = null
+	var _sight_tried: bool = false
+	## [method sight_callable]'s answer while a tick's brains think on workers, bound by [method par_begin].
+	var _sight_par: Callable = Callable()
+	## [method sight_callable]'s answer on the main thread, bound once per tick ([member _sight_at]).
+	var _sight_main: Callable = Callable()
+	var _sight_at: int = -1
+
+	## dot-bot's hook: the native ray's [code]clear[/code] when this world's sight is the one plain engine ray
+	## [method _sight_ray] / [method _los_par] ask (a plain physics or glass trace; the jail glass rule goes with it),
+	## bound to that ray's space, mask and exclusions; else [method line_of_sight]. The same answer to the bit.
+	func sight_callable() -> Callable:
+		if par:
+			return _sight_par
+		if _sight_at != _tick or not _sight_main.is_valid():
+			_sight_at = _tick
+			_sight_main = _sight_bind()
+		return _sight_main
+
+	## The native ray bound to this moment's trace, or [method line_of_sight] when the ray does not answer the same.
+	func _sight_bind(for_par: bool = false) -> Callable:
+		var script_sight := Callable(self, &"line_of_sight")
+		if not native_sight:
+			return script_sight
+		if not _sight_tried:
+			_sight_tried = true
+			if ClassDB.class_exists(&"DotSimSightRay"):
+				_sight_native = ClassDB.instantiate(&"DotSimSightRay")
+		if _sight_native == null:
+			return script_sight
+		# The jail glass rule, as _line_of_sight (main thread: the collision root's space) and _los_par
+		# (par_begin's space) ask it: the native ray asks it too, for rays from inside the cell.
+		var cell: DotMapGlassSight = null
+		var cell_space: PhysicsDirectSpaceState3D = null
+		var rules: Variant = game.get("glass_rules")
+		if rules is DotMapGlassSight and (rules as DotMapGlassSight).block_sight:
+			var map: Variant = game.get("map")
+			var root: Variant = (map as Object).get("collision_root") if map is Object else null
+			if root is Node3D and (root as Node3D).is_inside_tree():
+				cell = rules as DotMapGlassSight
+				cell_space = _par_space if for_par else (root as Node3D).get_world_3d().direct_space_state
+		var combat: Variant = game.get("combat")
+		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
+		if not (trace is DotTracePhysics and _plain_sight_trace(trace as Object)):
+			return script_sight
+		var bound: Variant = (trace as Object).get("_world")
+		var space: PhysicsDirectSpaceState3D = (bound as World3D).direct_space_state if bound is World3D else null
+		var mask: int = (trace as DotTracePhysics).collision_mask
+		var glass: Variant = (trace as Object).get("glass")
+		if glass is DotMapGlassSight and (glass as DotMapGlassSight).glass_mask != 0:
+			mask &= ~(glass as DotMapGlassSight).glass_mask
+		if cell != null:
+			_sight_native.call(&"bind", space, mask, (trace as DotTracePhysics).exclude_rids, _ray_lock,
+					cell_space, cell.glass_mask, cell.centre, cell.radius, cell.radius + cell.margin)
+		else:
+			_sight_native.call(&"bind", space, mask, (trace as DotTracePhysics).exclude_rids, _ray_lock,
+					null, 0, Vector3.ZERO, 0.0, 0.0)
+		return Callable(_sight_native, &"clear")
 
 	const SPAWN_THINNING := 25.0
 	static func _near_any(points: PackedVector3Array, at: Vector3, within: float) -> bool:
