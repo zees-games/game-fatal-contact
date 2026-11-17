@@ -80,7 +80,7 @@ You need [Godot 4.7](https://godotengine.org/download). The game is built from G
 git clone https://github.com/gamespice-platform/bootstrap.git
 cd dot-bootstrap
 ./bootstrap.sh
-cd projects/game-arena
+cd projects/game-fatal-contact
 ./game.sh
 ```
 

@@ -6,7 +6,7 @@ Measured 2026-11-02 over 76 converted worlds (fc-dm-maps 17, fc-surf-dm-maps 39 
 
 The converted world and its library models were never part of what a client downloads. A DM map's published pack held the legacy mesh only (no `worlds/<id>/`), so the client drew the legacy meshes (flat `standin_*` boxes for cars, vending machines and crates, no models at all) and collided with the manifest's prop hulls: an empty street, a white box, and invisible blockers. A surf pack carried the world but `licence.model_store` pointed at `../../model-library`, a git-ignored folder that exists only on a developer's disk, so every library prop fell back to a box of its measured size or to nothing.
 
-`bsp.py bundle` (dot-map-convert `dotbsp/bundle.py`) now copies a world with exactly the library models it draws into `worlds/<id>/models/` and points `model_store` there. `arena-dm-maps/tools/stage_packs.sh` and `arena-surf-dm-maps/tools/stage_packs.sh` call it, so a pack is self-contained: Crackhouse is 15 models, 36 MB, cars and van included. Republishing the packs is the step that reaches players.
+`bsp.py bundle` (dot-map-convert `dotbsp/bundle.py`) now copies a world with exactly the library models it draws into `worlds/<id>/models/` and points `model_store` there. `fc-dm-maps/tools/stage_packs.sh` and `fc-surf-dm-maps/tools/stage_packs.sh` call it, so a pack is self-contained: Crackhouse is 15 models, 36 MB, cars and van included. Republishing the packs is the step that reaches players.
 
 ## Resolved status, all worlds
 
