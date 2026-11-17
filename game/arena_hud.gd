@@ -449,6 +449,8 @@ func present_gear() -> void:
 	# from changes: an integer over the keys, the carried weapons and the mode, not two arrays and strings a frame.
 	var key_sig := keys.hash()
 	if slots != null:
+		# On a phone the right edge belongs to Fire, Jump and Next; the held weapon is on the ammunition plate.
+		slots.visible = not DotPlatform.has_touch()
 		var arsenal: DotWeaponArsenal = player.arsenal if live else null
 		var row_sig := hash([key_sig, live, arsenal.get_instance_id() if arsenal != null else 0])
 		if arsenal != null:
