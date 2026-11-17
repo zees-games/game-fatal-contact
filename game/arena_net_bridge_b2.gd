@@ -288,42 +288,66 @@ func remote_feet(other_id: int, mover_id: int, tick: int) -> Variant:
 	return at
 
 
-## Where [param other_id] stood on [param shooter_id]'s screen for a shot rewound to [param view_tick]: blended between the two snapshots the shooter's firing command named, as the client drew them,
-## not the ring's own tick there, which a strafe reversal between two snapshots puts up to 12 cm off the drawn body (headless_hitreg_chaos). Null, for the ring, when no bracket came, when it does
-## not hold the view tick (a held or repeated command), or when it spans more than [constant SHOT_BRACKET_MAX_SPAN] ticks: a client may pick its two samples, never far-apart ones.
+## Where [param other_id] stood on [param shooter_id]'s screen for a hitscan shot rewound to [param view_tick], as the client drew it: across the target's own sample pair when the firing command named one
+## (ArenaNetCommand.view_targets: blended, or run on past the newer as the client extrapolates), else across the room's pair, else null for the ring. Each answer is counted in [member ArenaGame.shot_rewind_counts];
+## a pair wider than `sv_shot_bracket_max_span`, or one that does not hold the view tick, is refused and counted: a client may pick its samples, never far-apart ones.
 func shot_feet(other_id: int, shooter_id: int, view_tick: float) -> Variant:
-	var bracket := _shot_bracket(shooter_id, view_tick)
-	if bracket.is_empty():
+	var source := _shot_source(other_id, shooter_id, view_tick, true)
+	if source.is_empty():
 		return null
-	return game.unlag_position_between(other_id, bracket[0], bracket[1],
-		clampf(view_tick, float(bracket[0]), float(bracket[1])), _position_wire(other_id))
+	var older: int = source[1]
+	var newer: int = source[2]
+	var wire := _position_wire(other_id)
+	var ease: Vector3 = source[4] if source.size() > 4 else Vector3.ZERO
+	if source[0] != &"target_ahead":
+		var at: Variant = game.unlag_position_between(other_id, older, newer, source[3], wire)
+		return at + ease if at != null else null
+	var a: Variant = game.unlag_position_at(other_id, float(older))
+	var b: Variant = game.unlag_position_at(other_id, float(newer))
+	if a == null or b == null:
+		return null
+	if wire.is_valid():
+		a = wire.call(a)
+		b = wire.call(b)
+	# The client's extrapolation (DotNetInterpolator._continue): the line through its two newest samples of this target.
+	return (b as Vector3) + ((b as Vector3) - (a as Vector3)) / float(newer - older) * (float(source[3]) - float(newer)) + ease
 
-## [param other_id]'s crouch over the bracket [method shot_feet] blends the feet across (the client draws the crouch
-## between the same two snapshots); -1, for the ring, when [method shot_feet] would give null.
+## [param other_id]'s crouch as [method shot_feet] stands the feet (the client blends the crouch between the same two samples, and holds the newer's when it runs ahead); -1, for the ring, when [method shot_feet] gives null.
 func shot_crouch(other_id: int, shooter_id: int, view_tick: float) -> float:
-	var bracket := _shot_bracket(shooter_id, view_tick)
-	if bracket.is_empty():
+	var source := _shot_source(other_id, shooter_id, view_tick, false)
+	if source.is_empty():
 		return -1.0
-	return game.unlag_crouch_between(other_id, bracket[0], bracket[1],
-		clampf(view_tick, float(bracket[0]), float(bracket[1])))
+	return game.unlag_crouch_between(other_id, source[1], source[2], source[3])
 
-## `[older, newer]`, the snapshot ticks [param shooter_id]'s firing command named, when they hold [param view_tick]; else empty.
-func _shot_bracket(shooter_id: int, view_tick: float) -> Array:
+## `[kind, older, newer, at]` for a shot of [param shooter_id] at [param other_id] seen at [param view_tick]: kind is target, target_ahead or target_held (the target's own pair), or bracket (the room's); empty for the ring.
+## With [param count], the answer goes into [member ArenaGame.shot_rewind_counts] ([method ArenaGame._unlag_rewind] counts the ring).
+func _shot_source(other_id: int, shooter_id: int, view_tick: float, count: bool) -> Array:
 	var shooter: ArenaPlayerNet = _behaviours.get(shooter_id)
-	if shooter == null or game == null or shooter.last_view_back < 0 or shooter.last_view_tick < 0:
+	if shooter == null or game == null or shooter.last_view_tick < 0:
+		return []
+	var max_span := game.shot_bracket_max_span
+	if not shooter.last_view_targets.is_empty():
+		var other: ArenaPlayerNet = _behaviours.get(other_id)
+		var named: Variant = shooter.last_view_targets.get(other.identity.net_id, null) if other != null and other.identity != null else null
+		if named != null and shooter.last_view_targets_tick != shooter.last_view_tick:
+			_count_shot(&"held", count)
+		elif named != null:
+			var own := _target_source(named[0], view_tick, max_span, count)
+			if not own.is_empty():
+				own.append(_judged_ease(named[1], count))
+			return own
+	if shooter.last_view_back < 0:
 		return []
 	var span := shooter.last_view_span
 	var older := shooter.last_view_tick - shooter.last_view_back
-	# The view lag goes up in quarter ticks: a drawn tick on a bracket's end rounds up to an eighth past it.
-	if span < 0 or span > SHOT_BRACKET_MAX_SPAN or view_tick < float(older) - SHOT_BRACKET_SLACK \
-			or view_tick > float(older + span) + SHOT_BRACKET_SLACK:
+	if span < 0 or (max_span > 0 and span > max_span):
+		_count_shot(&"refused_span", count)
 		return []
-	return [older, older + span]
-
-## The widest snapshot bracket a shot is blended across: four snapshot periods, three lost in a row.
-const SHOT_BRACKET_MAX_SPAN := 8
-## How far, in ticks, a shot's view tick may sit outside its bracket and still be blended in it.
-const SHOT_BRACKET_SLACK := 0.2
+	# The view lag goes up in quarter ticks: a drawn tick on a bracket's end rounds up to an eighth past it.
+	if view_tick < float(older) - SHOT_BRACKET_SLACK or view_tick > float(older + span) + SHOT_BRACKET_SLACK:
+		return []
+	_count_shot(&"bracket", count)
+	return [&"bracket", older, older + span, clampf(view_tick, float(older), float(older + span))]
 
 
 ## Between the snapshot ticks [param older] and older + [param span] when the command named them

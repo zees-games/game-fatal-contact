@@ -224,7 +224,7 @@ func _build() -> void:
 		var target := _server_game.player_for(_target)
 		_stood = target.global_position if target != null else null
 		_stood_view = view_tick
-		_stood_blended = _server_bridge.shot_feet(_target, SHOOTER, view_tick) != null
+		_stood_blended = not _server_bridge._shot_source(_target, SHOOTER, view_tick, false).is_empty()
 
 	for pair: Vector2i in [Vector2i(SHOOTER_PEER, SHOOTER), Vector2i(TARGET_PEER, TARGET)]:
 		var game := _make_game(false)
@@ -553,10 +553,13 @@ func _ease_vector(net: DotNetManager, bridge: ArenaNetBridge, render_tick: float
 		return Vector3.ZERO
 	if net.interpolator.is_native():
 		# dot-sim's DotSimInterpolator draws the whole frame, ease included, and keeps its offsets to itself: the GDScript track's offsets stay empty. The ease is how far the drawn position is
-		# off the blend of the same snapshots at the same tick; none while extrapolating, as DotNetInterpolator._ease_resume eases only once the draw is back inside a bracket.
-		if track.samples.size() < 2 or render_tick >= float(track.newest_tick()):
+		# off the blend of the same snapshots at the same tick, or off the line through the two newest past them (a new newest sample eases out of the old line, DotNetInterpolator._ease_resume).
+		if track.samples.size() < 2:
 			return Vector3.ZERO
 		var blend: Variant = net.interpolator.value_at(net_id, &"net_position", render_tick)
+		if render_tick >= float(track.newest_tick()):
+			var last: int = track.samples.size() - 1
+			blend = net.interpolator._continue(track.samples[last], track.samples[last - 1], render_tick).get(&"net_position")
 		var drawn: Variant = behaviour.get(&"net_position")
 		if blend is Vector3 and drawn is Vector3:
 			return (drawn as Vector3) - (blend as Vector3)

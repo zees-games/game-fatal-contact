@@ -169,6 +169,11 @@ var last_view_span: int = 0
 ## ([method ArenaNetBridge.remote_feet]).
 var last_view_tick: int = -1
 
+## The newest firing command's targets drawn across a sample pair of their own, `{net_id: Vector2i(older, newer)}` in absolute ticks
+## ([method ArenaNetCommand.view_target_pairs]), and the tick they were measured for: a command repeated over a lost packet keeps the pairs, which no longer name what was drawn.
+var last_view_targets: Dictionary = {}
+var last_view_targets_tick: int = -1
+
 ## Newest tick whose state this behaviour has adopted. Client side, for reconciliation.
 var last_state_tick: int = -1
 
@@ -283,6 +288,11 @@ func _net_apply_input(input: DotNetInput, _tick: int) -> void:
 	last_view_back = command.view_back
 	last_view_span = command.view_span
 	last_view_tick = _tick
+	if not command.view_targets.is_empty():
+		last_view_targets = command.view_target_pairs()
+	elif not last_view_targets.is_empty():
+		last_view_targets = {}
+	last_view_targets_tick = command.tick
 
 	# A shot whose own command came after its tick fires on this one, aimed where the shooter drew.
 	if bridge != null and identity != null and identity.is_authoritative and identity.owner_peer_id != 0:
@@ -293,6 +303,8 @@ func _net_apply_input(input: DotNetInput, _tick: int) -> void:
 			last_view_back = late[2]
 			last_view_span = late[3]
 			player.late_fire_aim = Vector2(late[4], late[5])
+			last_view_targets = late[6]
+			last_view_targets_tick = _tick
 
 
 # --- Simulation ------------------------------------------------------------

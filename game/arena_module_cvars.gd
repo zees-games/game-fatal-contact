@@ -219,6 +219,34 @@ func _add_unlag_cvar() -> void:
 			log_info("lag compensation limit changed", {"ms": game.max_unlag_ms}))
 
 
+## The hitscan rewind's knobs: `sv_shot_bracket_max_span`, `sv_shot_ease_max` and `sv_shot_rewind_log_sec` (server), `cl_shot_view_cone_deg` (client); see [member ArenaGame.shot_bracket_max_span].
+func _add_shot_rewind_cvars() -> void:
+	add_cvar("sv_shot_bracket_max_span", str(game.shot_bracket_max_span),
+		"Widest snapshot pair, in ticks, a hitscan shot is rewound across as the shooter drew it; wider is refused to the ring (0 no limit)",
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.shot_bracket_max_span = new_value.to_int()
+			log_info("shot bracket span limit changed", {"ticks": game.shot_bracket_max_span}))
+	add_cvar("sv_shot_ease_max", str(game.shot_ease_max),
+		"Largest resume ease, in metres, a shot may say it drew a target off its samples by; larger is refused (0 no limit)",
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.shot_ease_max = new_value.to_float()
+			log_info("shot ease limit changed", {"m": game.shot_ease_max}))
+	add_cvar("sv_shot_rewind_log_sec", str(game.shot_rewind_log_sec),
+		"Seconds between log lines of how hitscan rewinds stood their targets, when a fallback grew (0 never)",
+		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.shot_rewind_log_sec = new_value.to_float()
+			log_info("shot rewind log period changed", {"sec": game.shot_rewind_log_sec}))
+	add_cvar("cl_shot_view_cone_deg", str(game.shot_view_cone_deg),
+		"Degrees off the aim within which a shot names a target's own snapshot pair to the server (0 every target)",
+		DotConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.shot_view_cone_deg = new_value.to_float()
+			log_info("shot view cone changed", {"deg": game.shot_view_cone_deg}))
+
+
 ## `stats_report` (dot-game's family cvar): 1 files the players' stats with the backbone. Off by default. The old `arena_stats_report` is a loud renamed shim (arena_renamed_names.gd).
 func _add_stats_report_cvar() -> void:
 	var _cv := DotGameStatsReport.bind(self,
@@ -703,3 +731,23 @@ func _add_bot_tier_cvar(cvar: String, field: String, help: String, min_value: fl
 	add_cvar(cvar, str(tiers.get(name)), help, DotConVar.FLAG_ARCHIVE).with_min(min_value).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			tiers.set(name, int(new_value.to_float()) if typeof(tiers.get(name)) == TYPE_INT else new_value.to_float()))
+
+
+## The counts in [member ArenaGame.shot_rewind_counts] that mean a shot was not stood where its shooter drew the target.
+const SHOT_FALLBACKS: Array[StringName] = [&"ring", &"held", &"refused_span", &"refused_view", &"unrecorded", &"target_held", &"refused_ease"]
+var _shot_log_since := 0.0
+var _shot_logged: Dictionary = {}
+
+## Logs every hitscan rewind count once `sv_shot_rewind_log_sec` has passed and a fallback in [constant SHOT_FALLBACKS] grew since the last line.
+func _log_shot_rewinds(delta: float) -> void:
+	if game == null or game.shot_rewind_log_sec <= 0.0:
+		return
+	_shot_log_since += delta
+	if _shot_log_since < game.shot_rewind_log_sec:
+		return
+	_shot_log_since = 0.0
+	for key: StringName in SHOT_FALLBACKS:
+		if int(game.shot_rewind_counts.get(key, 0)) > int(_shot_logged.get(key, 0)):
+			_shot_logged = game.shot_rewind_counts.duplicate()
+			log_warn("hitscan rewinds fell back", _shot_logged)
+			return

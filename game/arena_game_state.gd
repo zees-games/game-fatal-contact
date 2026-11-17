@@ -625,6 +625,31 @@ var shot_crouch_fn: Callable = Callable()
 ## or a projectile's rewind is not the click's.
 var _unlag_shot := false
 
+## `sv_shot_bracket_max_span`: the widest pair of snapshot ticks, shared or one target's own, a hitscan shot is blended across (or run ahead from); a wider one is refused, counted and logged, and the shot rewinds to the ring. 0: no limit.
+## 32 ticks holds a far target's quarter-rate samples (8 ticks) with two snapshots lost in a row; the ring keeps 128.
+var shot_bracket_max_span: int = 32
+## `sv_shot_ease_max`: the largest resume ease, in metres, a firing command may say it drew a target off its samples by (ArenaNetCommand.view_targets); a larger one is refused, counted and logged. 0: no limit.
+## 3 m: a body extrapolated the client's whole `max_extrapolation_sec` (0.25 s) at a full run (6 m/s) while it ran back the other way; no honest ease is larger (0.97 m measured, headless_hitreg_far), and the unlag window already lets a shot name any tick in it.
+var shot_ease_max: float = 3.0
+## `cl_shot_view_cone_deg`: a firing command names a target's own sample pair (ArenaNetCommand.view_targets) only for players within this many degrees of the aim; 0 names every one drawn off the shared pair.
+var shot_view_cone_deg: float = 10.0
+## `sv_shot_rewind_log_sec`: how often, in seconds, the server logs [member shot_rewind_counts] when a fallback or refusal grew since the last line; 0 never.
+var shot_rewind_log_sec: float = 30.0
+## How each hitscan rewind stood a target, by key: target (its own pair, blended), target_ahead (its own pair, run on past the newer), target_held (past the extrapolation limit, held at the newer), bracket (the shared pair), ring (the server's own tick),
+## eased (a target's own pair with the client's resume ease added), refused_ease (over [member shot_ease_max]), held (a repeated command: its pairs no longer name what was drawn), refused_span (over [member shot_bracket_max_span]), refused_view (the view tick outside the pair), unrecorded (no ring entry: not rewound, logged), bullet (a bullet's or projectile's rewind, the ring).
+var shot_rewind_counts: Dictionary = {}
+
+## Adds one to [member shot_rewind_counts] under [param key].
+func count_shot_rewind(key: StringName) -> void:
+	shot_rewind_counts[key] = int(shot_rewind_counts.get(key, 0)) + 1
+
+## Player [param id]'s feet in the rewind ring at [param view_tick], counted as a hitscan shot's ring or a bullet's; null, counted unrecorded, when the ring has none there
+## (a respawn or teleport since): the body is traced where it stands now, and the `sv_shot_rewind_log_sec` line says so.
+func ring_feet(id: int, view_tick: float) -> Variant:
+	var then: Variant = call(&"unlag_position_at", id, view_tick)
+	count_shot_rewind(&"unrecorded" if then == null else (&"ring" if _unlag_shot else &"bullet"))
+	return then
+
 ## Which pairs of players stop at each other (dot-team's `DotTeamBlockRules`: `mp_teamblock`,
 ## `mp_enemyblock`, `!block` / `!noblock`); null until [method make_noblock] or a client's
 ## `add_noblock` sets it. Feeds [member body_rules] `pair_fn`; the same answer on every machine,

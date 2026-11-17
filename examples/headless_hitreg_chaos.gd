@@ -215,7 +215,7 @@ func _judge(weapon_id: StringName, ping: int, c: Dictionary) -> void:
 			continue
 		errs.append(float(r["rewind_error"]))
 		var held: Vector2i = seen["bracket"]
-		if float(seen["time"]) <= float(seen["newest"]) and held.x >= 0 and held.y - held.x <= ArenaNetBridge.SHOT_BRACKET_MAX_SPAN \
+		if float(seen["time"]) <= float(seen["newest"]) and held.x >= 0 and held.y - held.x <= _server_game.shot_bracket_max_span \
 				and float(seen.get("eased", 0.0)) <= EASED_M and float(r["rewind_error"]) > worst_blend:
 			worst_blend = float(r["rewind_error"])
 			blend_at = int(r["tick"])

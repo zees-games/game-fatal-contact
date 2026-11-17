@@ -62,6 +62,13 @@ var view_span: int = 0
 const VIEW_BACK_BITS := 7
 const VIEW_SPAN_BITS := 5
 
+## Per target, on a firing command: `[net_id, back, span]` for each remote player the client drew between two samples of its OWN other than [member view_back]'s pair, or ahead of its newest (extrapolating): ticks back from this command's tick, and on to the newer. Empty for none.
+## Why the shared pair is not enough: in a full room the relevance rings (ArenaNetAoi) send a player 30 m out every fourth snapshot (every second inside the aim cone), a lost snapshot doubles that, and the client blends that player across its own samples 8 to 16 ticks apart or runs it ahead of the newest,
+## while [member view_back] names the room's pair two ticks apart: the server stood the far body up to a third of a metre off the one drawn (headless_hitreg_far; the owner's 46.8 m Marksman miss at 7:35.2). With the target's own pair the server blends, or runs ahead, as the client drew it (`ArenaNetBridge.shot_feet`). An entry may carry three more, `[..., x, y, z]` in millimetres: the resume ease the body was drawn off its samples by (DotNetInterpolator._ease_resume), judged by `sv_shot_ease_max`.
+var view_targets: Array = []
+## Millimetres to the metre for a view target's ease.
+const EASE_PER_M := 1000.0
+
 
 func _write(writer: DotNetWriter) -> void:
 	move.write(writer)
@@ -79,6 +86,18 @@ func _write(writer: DotNetWriter) -> void:
 		if bracketed:
 			writer.write_uint(clampi(view_back, 0, (1 << VIEW_BACK_BITS) - 1), VIEW_BACK_BITS)
 			writer.write_uint(clampi(view_span, 0, (1 << VIEW_SPAN_BITS) - 1), VIEW_SPAN_BITS)
+		# One bit on a lagged command that names no target of its own; only a firing command names any.
+		var targeted := fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK) and not view_targets.is_empty()
+		writer.write_bool(targeted)
+		if targeted:
+			writer.write_varint(view_targets.size() - 1)
+			for entry: Array in view_targets:
+				writer.write_varint(maxi(int(entry[0]), 0))
+				writer.write_varint(maxi(int(entry[1]), 0))
+				writer.write_varint(maxi(int(entry[2]), 0))
+				writer.write_bool(entry.size() == 6)
+				for i in range(3, entry.size()):
+					writer.write_svarint(int(entry[i]))
 
 
 func _read(reader: DotNetReader) -> void:
@@ -93,11 +112,26 @@ func _read(reader: DotNetReader) -> void:
 	view_lag_q = -1
 	view_back = -1
 	view_span = 0
+	view_targets = []
 	if reader.read_bool():
 		view_lag_q = reader.read_uint(VIEW_LAG_BITS)
 		if reader.read_bool():
 			view_back = reader.read_uint(VIEW_BACK_BITS)
 			view_span = reader.read_uint(VIEW_SPAN_BITS)
+		if reader.read_bool():
+			# Three varints of a byte or more each: a count the packet cannot hold is a malformed one, refused whole rather than read as far as it goes.
+			var count := reader.read_varint() + 1
+			if count > reader.bits_remaining() / 24:
+				reader.exhausted = true
+				return
+			for _i in count:
+				var entry := [reader.read_varint(), reader.read_varint(), reader.read_varint()]
+				if reader.read_bool():
+					entry.append_array([reader.read_svarint(), reader.read_svarint(), reader.read_svarint()])
+				if not reader.ok():
+					view_targets = []
+					return
+				view_targets.append(entry)
 
 
 ## Clamps what a client could exaggerate.
@@ -121,6 +155,13 @@ func _sanitise() -> void:
 	view_lag_q = clampi(view_lag_q, -1, MAX_VIEW_LAG_Q)
 	view_back = clampi(view_back, -1, (1 << VIEW_BACK_BITS) - 1)
 	view_span = clampi(view_span, 0, (1 << VIEW_SPAN_BITS) - 1)
+	# A target's pair is judged by the server's rewind (sv_shot_bracket_max_span, the ring's reach), not here; an entry that cannot be one is dropped.
+	if not view_targets.is_empty():
+		var kept: Array = []
+		for entry: Variant in view_targets:
+			if entry is Array and (entry as Array).size() in [3, 6] and int(entry[0]) > 0 and int(entry[1]) >= 0 and int(entry[2]) > 0:
+				kept.append(entry)
+		view_targets = kept
 
 
 ## Stands still and holds fire, looking where it looked (DotNetConfig.starved_input_hold_sec).
@@ -128,6 +169,16 @@ func _neutralise() -> void:
 	move.move = Vector2.ZERO
 	move.buttons = 0
 	fire.buttons = 0
+
+
+## [member view_targets] in absolute ticks: `{net_id: [Vector2i(older, newer), ease]}`, measured from this command's own tick; ease in metres, zero for none.
+func view_target_pairs() -> Dictionary:
+	var pairs := {}
+	for entry: Array in view_targets:
+		var older := tick - int(entry[1])
+		var ease := Vector3(entry[3], entry[4], entry[5]) / EASE_PER_M if entry.size() == 6 else Vector3.ZERO
+		pairs[int(entry[0])] = [Vector2i(older, older + int(entry[2])), ease]
+	return pairs
 
 
 ## The view lag in ticks, or -1 for none sent.
@@ -143,7 +194,7 @@ func _equals(other: DotNetInput) -> bool:
 		return false
 
 	return move.equals(them.move) and fire.equals(them.fire) and view_lag_q == them.view_lag_q \
-		and view_back == them.view_back and view_span == them.view_span
+		and view_back == them.view_back and view_span == them.view_span and view_targets == them.view_targets
 
 
 ## Bits one command costs, before dot-net's own framing.
@@ -158,4 +209,5 @@ func describe() -> Dictionary:
 		"fire": fire.describe(),
 		"view_lag_ticks": view_lag_ticks(),
 		"view_bracket": [view_back, view_span],
+		"view_targets": view_targets,
 	}

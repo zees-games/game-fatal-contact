@@ -201,6 +201,9 @@ var _lag_for_tick := -1
 var _lag_for_q := -1
 var _back_for := -1
 var _span_for := 0
+var _render_for := -1.0
+var _targets_tick := -1
+var _targets_for: Array = []
 
 
 ## The command for [param tick], the same whether [method client_tick] or [method encode_input] made
@@ -219,16 +222,99 @@ func _command_for(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> Are
 		_back_for = -1
 		_span_for = 0
 		var lag := game.collision_lag(float(_lag_for_q) * 0.25) if game != null and _lag_for_q >= 0 else -1.0
+		_render_for = float(tick) - lag if lag >= 0.0 else -1.0
 		if lag >= 0.0 and net.interpolator.has_method(&"bracket_at"):
-			var pair: Vector2i = net.interpolator.call(&"bracket_at", float(tick) - lag)
+			var pair: Vector2i = net.interpolator.call(&"bracket_at", _render_for)
 			if pair.x >= 0 and tick - pair.x < (1 << ArenaNetCommand.VIEW_BACK_BITS) and pair.y - pair.x < (1 << ArenaNetCommand.VIEW_SPAN_BITS):
 				_back_for = tick - pair.x
 				_span_for = pair.y - pair.x
 	command.view_lag_q = _lag_for_q
 	command.view_back = _back_for
 	command.view_span = _span_for
+	if _render_for >= 0.0 and fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK):
+		if _targets_tick != tick:
+			_targets_tick = tick
+			_targets_for = _view_targets(tick, _render_for, move)
+		command.view_targets = _targets_for
 	command.lag_always = game != null and game.body_rules.solid
 	return command
+
+
+## [member ArenaNetCommand.view_targets] for a firing command at [param tick] drawn at [param render]: each remote player within `cl_shot_view_cone_deg` of [param move]'s aim
+## that the interpolator drew across a sample pair of its own other than the room's ([member _back_for], [member _span_for]), or ran on past its newest sample.
+func _view_targets(tick: int, render: float, move: DotFpsCommand) -> Array:
+	var out: Array = []
+	var tracks: Variant = net.interpolator.get(&"_tracks") if net.interpolator != null else null
+	if not (tracks is Dictionary) or game == null:
+		return out
+	var room := Vector2i(tick - _back_for, tick - _back_for + _span_for) if _back_for >= 0 else Vector2i(-1, -1)
+	var yaw := deg_to_rad(move.yaw)
+	var pitch := deg_to_rad(move.pitch)
+	var aim := Vector3(-sin(yaw) * cos(pitch), sin(pitch), -cos(yaw) * cos(pitch))
+	var cone := cos(deg_to_rad(game.shot_view_cone_deg)) if game.shot_view_cone_deg > 0.0 else -2.0
+	var eye := _local_eye()
+	# The frame on screen was drawn before any snapshot read since: its samples, not newer ones.
+	var since := net.clock.received_tick() - _drawn_received
+	var fresh := _drawn_tick >= 0.0 and since >= 0 and since <= DRAWN_FRESH_TICKS
+	var newest := _drawn_newest if fresh else 1 << 62
+	for id: int in _behaviours:
+		var other: ArenaPlayerNet = _behaviours[id]
+		if other.identity == null or other.identity.is_predicted() or other.player == null or not other.player.is_alive():
+			continue
+		var to := other.player.global_position + Vector3.UP - eye
+		if eye != Vector3.INF and cone > -1.5 and to.length_squared() > 0.01 and aim.dot(to.normalized()) < cone:
+			continue
+		var track: Object = (tracks as Dictionary).get(other.identity.net_id)
+		var own := _own_pair(track.get(&"samples"), render, newest) if track != null else Vector2i(-1, -1)
+		var drawn: Variant = _drawn_feet.get(other.identity.net_id) if fresh and own.x >= 0 else null
+		var ease := _drawn_ease(drawn, track.get(&"samples"), own) if drawn is Vector3 else Vector3i.ZERO
+		if own.x >= 0 and (own != room or render >= float(own.y) or ease != Vector3i.ZERO):
+			var entry := [other.identity.net_id, tick - own.x, own.y - own.x]
+			if ease != Vector3i.ZERO:
+				entry.append_array([ease.x, ease.y, ease.z])
+			out.append(entry)
+	return out
+
+## How far, in millimetres, [param drawn] sits off the line through [param pair]'s samples at the drawn tick: the resume ease (DotNetInterpolator._ease_resume) the server cannot see.
+## Held at the newer past `max_extrapolation_sec`, as the interpolator holds it.
+func _drawn_ease(drawn: Vector3, samples: Array, pair: Vector2i) -> Vector3i:
+	var a: Variant = null
+	var b: Variant = null
+	for sample: Dictionary in samples:
+		if int(sample["tick"]) == pair.x:
+			a = (sample["values"] as Dictionary).get(&"net_position")
+		elif int(sample["tick"]) == pair.y:
+			b = (sample["values"] as Dictionary).get(&"net_position")
+	if not (a is Vector3 and b is Vector3):
+		return Vector3i.ZERO
+	var t := (_drawn_tick - float(pair.x)) / float(pair.y - pair.x)
+	if _drawn_tick - float(pair.y) > net.config.max_extrapolation_sec * float(net.config.tick_rate):
+		t = 1.0
+	var off := (drawn - (a as Vector3).lerp(b as Vector3, maxf(t, 0.0))) * ArenaNetCommand.EASE_PER_M
+	return Vector3i(roundi(off.x), roundi(off.y), roundi(off.z))
+
+## Where this client's own player's eye is, or [constant Vector3.INF] for none.
+func _local_eye() -> Vector3:
+	for id: int in _behaviours:
+		var mine: ArenaPlayerNet = _behaviours[id]
+		if mine.identity != null and mine.identity.is_predicted() and mine.player != null:
+			return mine.player.global_position + Vector3(0.0, ArenaPlayer.eye_height(), 0.0)
+	return Vector3.INF
+
+## The two samples of [param samples] (`{tick, ...}`, oldest first) the interpolator draws between at [param render] (DotNetInterpolator.sample), counting none past tick [param newest]:
+## the newest two when it is past the newest, (-1, -1) when it holds one.
+static func _own_pair(samples: Array, render: float, newest: int) -> Vector2i:
+	var n := samples.size()
+	while n > 0 and int(samples[n - 1]["tick"]) > newest:
+		n -= 1
+	if n < 2 or render <= float(samples[0]["tick"]):
+		return Vector2i(-1, -1)
+	if render >= float(samples[n - 1]["tick"]):
+		return Vector2i(int(samples[n - 2]["tick"]), int(samples[n - 1]["tick"]))
+	for i in range(n - 2, -1, -1):
+		if render > float(samples[i]["tick"]):
+			return Vector2i(int(samples[i]["tick"]), int(samples[i + 1]["tick"]))
+	return Vector2i(-1, -1)
 
 
 ## How far behind [param tick] this client is drawing everybody else, in quarter ticks:
@@ -258,6 +344,10 @@ const DRAWN_FRESH_TICKS := 4
 
 var _drawn_tick := -1.0
 var _drawn_received := -1
+## The newest snapshot tick the interpolator held when that frame was drawn.
+var _drawn_newest := -1
+## Where that frame drew each remote player, by net id: a snapshot read since moves `net_position` on, not the body on screen.
+var _drawn_feet: Dictionary = {}
 
 
 ## Draws the remote entities for this frame ([method DotNetManager.interpolate_frame]) and keeps
@@ -273,6 +363,13 @@ func draw_frame(alpha: float = -1.0) -> void:
 	if net.interpolator != null and net.clock.is_synced():
 		_drawn_received = net.clock.received_tick()
 		_drawn_tick = drawn_tick(alpha)
+		var timeline: Variant = net.interpolator.get(&"_timeline")
+		_drawn_newest = timeline[-1] if timeline is PackedInt32Array and not timeline.is_empty() else -1
+		_drawn_feet.clear()
+		for id: int in _behaviours:
+			var other: ArenaPlayerNet = _behaviours[id]
+			if other.identity != null and not other.identity.is_predicted():
+				_drawn_feet[other.identity.net_id] = other.net_position
 
 
 ## The render tick [method DotNetManager.interpolate_frame] draws remote entities at for
@@ -351,7 +448,7 @@ func _note_late_fires(peer_id: int, buffer: DotNetInput.Buffer, batch: Array) ->
 				buffer.late_count += 1
 			continue
 		var view := float(command.tick) - command.view_lag_ticks() if command.view_lag_q >= 0 else -1.0
-		(late_fires.get_or_add(peer_id, []) as Array).append([command.tick, view, command.view_back, command.view_span, command.move.yaw, command.move.pitch])
+		(late_fires.get_or_add(peer_id, []) as Array).append([command.tick, view, command.view_back, command.view_span, command.move.yaw, command.move.pitch, command.view_target_pairs()])
 	if seen.size() > 256:
 		for tick: int in seen.keys():
 			if tick < consumed - 128:
@@ -359,7 +456,7 @@ func _note_late_fires(peer_id: int, buffer: DotNetInput.Buffer, batch: Array) ->
 
 
 ## Puts the oldest late shot of [param peer_id] on [param command] (for [param tick]) when that command is not firing itself, with the view lag the shooter drew it at moved to this tick. Returns
-## [fire, lag, back, span] for the player to use, or an empty array. A late shot that waits too long behind firing commands is dropped and counted.
+## [fire, lag, back, span, yaw, pitch, targets] for the player to use, or an empty array. A late shot that waits too long behind firing commands is dropped and counted.
 func take_late_fire(peer_id: int, tick: int, command: ArenaNetCommand) -> Array:
 	var queue: Array = late_fires.get(peer_id, [])
 	while not queue.is_empty() and tick - int((queue[0] as Array)[0]) >= LATE_FIRE_MAX_TICKS:
@@ -375,7 +472,7 @@ func take_late_fire(peer_id: int, tick: int, command: ArenaNetCommand) -> Array:
 	var view: float = late[1]
 	var back: int = int(late[2])
 	return [fire, float(tick) - view if view >= 0.0 else command.view_lag_ticks(),
-		back + behind if back >= 0 else command.view_back, int(late[3]) if back >= 0 else command.view_span, float(late[4]), float(late[5])]
+		back + behind if back >= 0 else command.view_back, int(late[3]) if back >= 0 else command.view_span, float(late[4]), float(late[5]), late[6]]
 
 
 # --- Events and requests ---------------------------------------------------

@@ -484,7 +484,7 @@ func _physics_process(delta: float) -> void:
 		_since_bot_check = 0.0
 		_keep_bots()
 		_refresh_aoi()
-
+	_log_shot_rewinds(delta)
 	# The map clock and the vote clock, from the SIMULATED tick rather than from the frame: a server that stalls should not lose that time off its map, and a test must be able to run an hour of a map in a millisecond.
 	# [b]One clock, and it is the vote's when there is a vote.[/b] The map director's `DotMapTimeLimit` and the vote's `DotVoteClock` both ran here from boot and the first to expire won: the director's reached `_on_map_over`
 	# and opened a SECOND ballot over a winner already chosen. The map director's clock is the fallback for a server whose vote did not load, the only server that advances it.

@@ -1,6 +1,6 @@
 extends "arena_net_bridge_b1.gd"
 
-## The bridge's world events and score mirroring. Split out of arena_net_bridge_b2.gd for file size.
+## The bridge's world events, score mirroring and a hitscan rewind's per-target pieces. Split out of arena_net_bridge_b2.gd for file size.
 
 
 ## The events about the world (bullets, toys, drops, the jail and the rules), split from [method _on_event].
@@ -87,3 +87,40 @@ func _apply_scores(told: Dictionary) -> void:
 	for team in board.team_scores():
 		if not teams.has(team):
 			board.add_team_score(int(team), -board.team_score(int(team)))
+
+
+## How far, in ticks, a shot's view tick may sit outside its bracket and still be blended in it.
+const SHOT_BRACKET_SLACK := 0.2
+
+## The resume ease a firing command says it drew a target off its samples by, when within `sv_shot_ease_max`; a larger one is refused, counted and logged, and the samples stand alone.
+func _judged_ease(ease: Vector3, count: bool) -> Vector3:
+	if ease == Vector3.ZERO:
+		return ease
+	if game.shot_ease_max > 0.0 and ease.length() > game.shot_ease_max:
+		_count_shot(&"refused_ease", count)
+		return Vector3.ZERO
+	_count_shot(&"eased", count)
+	return ease
+
+## The source for a target's own sample pair [param pair] (absolute ticks), as the client's interpolator drew it at [param view_tick]: between the two, or past the newer by at most `max_extrapolation_sec`, then held there.
+func _target_source(pair: Vector2i, view_tick: float, max_span: int, count: bool) -> Array:
+	var span := pair.y - pair.x
+	if span <= 0 or (max_span > 0 and span > max_span):
+		_count_shot(&"refused_span", count)
+		return []
+	if view_tick < float(pair.x) - SHOT_BRACKET_SLACK:
+		_count_shot(&"refused_view", count)
+		return []
+	if view_tick <= float(pair.y) + SHOT_BRACKET_SLACK:
+		_count_shot(&"target", count)
+		return [&"target", pair.x, pair.y, clampf(view_tick, float(pair.x), float(pair.y))]
+	var max_ahead := net.config.max_extrapolation_sec * float(net.config.tick_rate) if net != null and net.config != null else 0.0
+	if view_tick - float(pair.y) > max_ahead:
+		_count_shot(&"target_held", count)
+		return [&"target_held", pair.x, pair.y, float(pair.y)]
+	_count_shot(&"target_ahead", count)
+	return [&"target_ahead", pair.x, pair.y, view_tick]
+
+func _count_shot(key: StringName, count: bool) -> void:
+	if count:
+		game.count_shot_rewind(key)
