@@ -729,7 +729,7 @@ func _on_prop_act(peer_id: int, body: Dictionary) -> void:
 	game.props.queue_act(session_id, int(body["act"]), DotFpsMotor.aim_for(float(body["yaw"]), float(body["pitch"])))
 
 
-## The client's own tick rate comes from the SERVER, and from nowhere else. [b]This is the largest measured error in this family's history.[/b] g2gfast's client took its rate from `Engine.physics_ticks_per_second`,
+## The client's own tick rate comes from the SERVER, and from nowhere else. [b]This is the largest measured error in this family's history.[/b] Airdrift's client took its rate from `Engine.physics_ticks_per_second`,
 ## which a browser shell never sets (60 against a 128-tick server): correction rate 0.96, prediction never converging, every replicated time wrong by the ratio of the rates. HELLO always carried the number; nothing read it back.
 ## All four copies move together, the engine's among them: the fraction a renderer interpolates at is a fraction through a PHYSICS frame, a fraction through a tick only while the two rates agree.
 func _adopt_tick_rate(rate: int, snapshot_rate: int = 0) -> void:

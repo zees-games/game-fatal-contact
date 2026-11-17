@@ -8,11 +8,11 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## because they are built to fight on rather than to time.
 ##
 ## [b]Discovered, never listed.[/b] A second list of map ids is the bug this family has
-## shipped four times, and the manifest already says what a map is for: g2gfast writes
+## shipped four times, and the manifest already says what a map is for: Airdrift writes
 ## `"kind": "arena"` into it (from its `maps/zones/<id>.json`) precisely so this game can
 ## find them. A map re-classified there is picked up or dropped here with nothing edited.
 ##
-## [b]The format is g2gfast's.[/b] `<root>/<id>/<id>.json` beside `<id>.bin`, a lightmap
+## [b]The format is Airdrift's.[/b] `<root>/<id>/<id>.json` beside `<id>.bin`, a lightmap
 ## and `textures/`, read by [FcBspMap]. The roots are `res://maps/imported` (the
 ## fc-surf-dm-maps repository, linked in by dot-bootstrap at the path its `.import`
 ## markers were written against) and `user://maps`, where a
@@ -27,7 +27,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## dot-cloud pack, mounted at `res://dot_cloud/<owner>/<id>/<version>/` with `<id>.json`
 ## and `<id>.bin` directly inside — the directory is named for the version, the files for
 ## the map, so a scan of `<root>/<name>/<name>.json` pointed at a mount silently finds
-## nothing (game-airdrift found the same thing and wrote `G2GMapCatalogue.at_directory`).
+## nothing (game-airdrift found the same thing and wrote `AirdriftMapCatalogue.at_directory`).
 ## [method add_mounted] takes the id and the directory, which the caller already has
 ## because it is the key it fetched. A mounted map is not in [method ids] — the catalogue
 ## offers it as delivered content, under its pack version, not as a local import — and it
@@ -191,7 +191,7 @@ static func manifest(id: StringName) -> Dictionary:
 ## only at the version the client also has, and a rotation cooldown and every record are
 ## about a map AT a version. A re-import that moved a brush is a different
 ## map; hashing the manifest (which carries every offset into the mesh) says so on both
-## ends without anybody remembering to bump anything — the rule g2gfast's packs follow.
+## ends without anybody remembering to bump anything — the rule Airdrift's packs follow.
 ##
 ## Of the root's copy, never a mount's: a delivered map's version is its pack version, which
 ## the def carries from the server's key (`FcMaps.delivered_def`).

@@ -14,7 +14,7 @@ The project and its assets are open source under the MIT license. Only the back-
 
 You fight on three built-in dev-textured maps (`dm_atrium`, `dm_pit`, `dm_box`), plus optional map packs:
 
-- **Combat surf maps** from [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps), imported through [game-g2gfast](https://github.com/zees-games/game-g2gfast)'s map format.
+- **Combat surf maps** from [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps), imported through [game-airdrift](https://github.com/zees-games/game-airdrift)'s map format.
 - **Deathmatch and gun game maps** from [fc-dm-maps](https://github.com/zees-games/fc-dm-maps).
 
 The game does not ship these maps. A server names them in its content configuration and each one is fetched as its own pack. On a surf map you get surf air control, so you can ride the ramps; on the built-in maps the normal air control applies.

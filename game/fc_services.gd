@@ -430,7 +430,7 @@ func _build_chat() -> DotResult:
 	# it — which is the half that is genuinely dot-server's job, because it holds the
 	# session.
 	# dot-chat makes the join and leave notices (`join_notice` in add_peer), so dot-server's
-	# would be a second one on a second path. hungario and playground do the same; while
+	# would be a second one on a second path. hungario and Playlot do the same; while
 	# the client drew dot-chat's notice as a bare name the duplicate went unnoticed.
 	if server.chat != null:
 		server.chat.announce_joins = false

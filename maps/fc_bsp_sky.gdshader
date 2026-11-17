@@ -1,11 +1,11 @@
 shader_type sky;
-// A copy of game-airdrift's g2g_sky.gdshader: keep the two in step.
+// A copy of game-airdrift's airdrift_sky.gdshader: keep the two in step.
 // An imported map's own 2D sky: six faces from its pakfile, in the map format's face layout.
 //
 // Faces rt, lf, bk, ft, up, dn are +X, -X, +Y, -Y, +Z and -Z in the map's own axes, and
 // within a face (s, t) in -1..1 maps to the direction rt (1, -s, t), lf (-1, s, t),
 // bk (s, 1, t), ft (-s, -1, t), up (-t, -s, 1), dn (t, -s, -1), with the texture's v
-// running down from t = 1. g2gfast's importer writes the faces (packed_sky_faces); a face
+// running down from t = 1. Airdrift's importer writes the faces (packed_sky_faces); a face
 // table that was wrong would show as a horizon broken at the seams, which is how it is
 // checked (tools/screenshot.sh <map>, looking round).
 

@@ -5,7 +5,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## Climbing a ladder the way the competitive shooters these maps were built for climb one,
 ## on the ladder volumes an imported map carries (world brushes with ladder contents).
 ##
-## [b]A copy of game-airdrift's `G2GLadderMode`, in metres[/b], for the reason
+## [b]A copy of game-airdrift's `AirdriftLadderMode`, in metres[/b], for the reason
 ## `fc_map_mechanics.gd` gives: a game cannot name another game's script, and a
 ## delivered pack cannot resolve a `class_name`. Not in dot-player-controller either,
 ## deliberately: a ladder the way this genre climbs one is the genre's.
@@ -20,7 +20,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## prediction the same answer the server had. [method update] is the game's once-a-tick
 ## call that puts a player on; [method _simulate] takes them off.
 ##
-## [b]One difference from g2gfast:[/b] the jump-off grace is counted on [member now], the
+## [b]One difference from Airdrift:[/b] the jump-off grace is counted on [member now], the
 ## game's tick, which `FcPlayer` writes before every simulated tick, rather than on
 ## `DotFpsState.tick`. That counter is not replicated, so after a rewind a client's copy
 ## keeps counting from its newest tick and a replayed tick would read a different gap from
@@ -136,7 +136,7 @@ func _simulate(state: DotFpsState, command: DotFpsCommand, delta: float, motor: 
 
 	# Down onto the floor at the foot: back to walking. Asked only while going down, and
 	# the mode put back if there is no floor: the motor's ground check writes AIR for
-	# anybody rising who was not on the ground, which is every climber, and g2gfast found
+	# anybody rising who was not on the ground, which is every climber, and Airdrift found
 	# that dropping them off the ladder on every tick of a climb bounced them up it at a
 	# quarter of the climb speed.
 	if v.y <= 0.0:

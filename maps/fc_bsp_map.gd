@@ -7,17 +7,17 @@ const FcLocalMaps := preload("fc_local_maps.gd")
 ## manifest it wrote: the drawn mesh, the baked lightmap, the brushes as convex hulls, the
 ## map's own spawn points and the teleport volumes that catch a player who falls.
 ##
-## [b]A copy of the half of `G2GBspMap` Fatal Contact needs, not a dependency on it, and not an
+## [b]A copy of the half of `AirdriftBspMap` Fatal Contact needs, not a dependency on it, and not an
 ## addon.[/b] Three ways were open and two are closed:
 ##
-## - [b]Naming g2gfast's script.[/b] A game cannot depend on another game — each is its own
+## - [b]Naming Airdrift's script.[/b] A game cannot depend on another game — each is its own
 ##   repository and its own delivered pack — and a delivered pack cannot resolve a
-##   `class_name` from anywhere (see the family's pack note), so `G2GBspMap` is not
+##   `class_name` from anywhere (see the family's pack note), so `AirdriftBspMap` is not
 ##   reachable from Fatal Contact at all, delivered or not.
 ## - [b]Lifting it into an addon.[/b] The right home in the long run, and the expensive one
 ##   now: an addon is in the client SHELL, so Fatal Contact's pack could not use it until the addon
 ##   is tagged and the shell rebuilt and published — and the reusable half is tangled with
-##   g2gfast's own (genre units as a class, its timer zones, its texture set and Kenney
+##   Airdrift's own (genre units as a class, its timer zones, its texture set and Kenney
 ##   stand-ins, its flashlight, dot-lighting). What Fatal Contact needs is about three hundred
 ##   lines with none of that.
 ## - [b]A copy, which is this file.[/b] The family's rule for anything shared between two
@@ -29,7 +29,7 @@ const FcLocalMaps := preload("fc_local_maps.gd")
 ## triangles; the manifest says where each block starts. [b]Genre units on the wire,
 ## metres in the scene, converted at one boundary — [constant METRES_PER_UNIT] — and no
 ## axis swap[/b]: the importer already wrote Godot's axes, so a manifest coordinate is
-## `(x, y up, z)` in units of 0.75 inch. When the format changes in g2gfast, this file has
+## `(x, y up, z)` in units of 0.75 inch. When the format changes in Airdrift, this file has
 ## to follow, and the suite that loads one of these maps is what says so.
 ##
 ## What it deliberately leaves out, and why that is safe for a deathmatch:
@@ -38,10 +38,10 @@ const FcLocalMaps := preload("fc_local_maps.gd")
 ##   definition (that is what its `"kind": "arena"` says); the only zones Fatal Contact reads are
 ##   the pits, which are a teleport.
 ## - [b]The map's sky, sun and fog.[/b] Not built here: `fc_map_lighting.gd` reads the
-##   manifest's `lighting` block through dot-lighting, as g2gfast does, packed sky faces
+##   manifest's `lighting` block through dot-lighting, as Airdrift does, packed sky faces
 ##   included. The surfaces are `unshaded` and lit by the baked lightmap alone, so the
 ##   world looks like the map; the lighting is the sun on the players, the fog and the sky.
-## - [b]Kenney stand-ins and g2gfast's prototype set[/b] for a texture the map did not
+## - [b]Kenney stand-ins and Airdrift's prototype set[/b] for a texture the map did not
 ##   carry. Fatal Contact's own generated grid ([method FcMap.dev_texture]) is drawn instead,
 ##   tinted the colour the map's compiler measured for that texture.
 ##
@@ -379,7 +379,7 @@ static func bounds_of(manifest: Dictionary) -> AABB:
 
 
 ## Where a player may appear: every spawn the map placed, facing the way its mapper faced
-## it. The yaw is already the motor's (the importer converted it, the fault g2gfast found
+## it. The yaw is already the motor's (the importer converted it, the fault Airdrift found
 ## the hard way); falls back to the manifest's one `spawn` when the list is empty.
 static func spawns_of(manifest: Dictionary) -> Array[Transform3D]:
 	var out: Array[Transform3D] = []
@@ -456,7 +456,7 @@ static func pits_of(manifest: Dictionary) -> Array[Dictionary]:
 ## would have two copies of every brush in one space.
 ##
 ## One instance per 256 surfaces because that is the engine's cap on one mesh; past it a
-## surface is refused with an engine error and simply not drawn (g2gfast lost 55 that way).
+## surface is refused with an engine error and simply not drawn (Airdrift lost 55 that way).
 ## Static props are drawn like the world; the 3D skybox is not drawn at all, because it is
 ## the map's backdrop scaled up far outside the play space and Fatal Contact has its own sky.
 static func build_visual(manifest: Dictionary, dir: String) -> Node3D:

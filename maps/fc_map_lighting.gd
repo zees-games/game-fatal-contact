@@ -11,8 +11,8 @@ extends RefCounted
 ##
 ## [b]An imported map is lit from its manifest's `lighting` block[/b], as game-airdrift
 ## lights it: the same [DotLightRig] over the sun, ambient, fog and sky the importer read
-## out of the compiled map, plus three decisions copied from g2gfast's `G2GLighting` and
-## `G2GBspMap` (duplicated on purpose; a game cannot name another game's script): a white
+## out of the compiled map, plus three decisions copied from Airdrift's `AirdriftLighting` and
+## `AirdriftBspMap` (duplicated on purpose; a game cannot name another game's script): a white
 ## ambient is the map editor's default and not a sky, so the zenith comes from the sky's
 ## name ([constant SKY_TOPS]); a sky named black is black all round; and a map that packed
 ## its own six sky faces draws them (`fc_bsp_sky.gdshader`). The surfaces keep their
@@ -157,7 +157,7 @@ static func imported_document(lighting: Dictionary) -> Dictionary:
 	return document
 
 
-## What this machine draws of an imported map: g2gfast's choice for the same maps.
+## What this machine draws of an imported map: Airdrift's choice for the same maps.
 ##
 ## [b]A browser drops the sun's shadows and keeps the glow[/b], a phone drops more (`for_platform()`): a
 ## surf map is a large open volume, so a shadow pass costs the whole canyon, while the glow
@@ -173,7 +173,7 @@ static func imported_profile() -> DotLightProfile:
 ## A clear day's zenith, for a sky [constant SKY_TOPS] does not know.
 const CLEAR_SKY := Color(0.36, 0.55, 0.82)
 
-## The top of a sky by the name a map gives it, for a map whose ambient cannot say. Lower case, without the `_hdr` suffix. A copy of g2gfast's `G2GLighting.SKY_TOPS`:
+## The top of a sky by the name a map gives it, for a map whose ambient cannot say. Lower case, without the `_hdr` suffix. A copy of Airdrift's `AirdriftLighting.SKY_TOPS`:
 ## the stock names are approximate zeniths picked by eye (the textures are not in any map), the custom ones the ambient another map set under the same sky name.
 const SKY_TOPS := {
 	"sky_day01_01": Color(0.37, 0.56, 0.82),
@@ -225,7 +225,7 @@ static func white_sky_replacement(lighting: Dictionary) -> Color:
 
 ## Whether a map's sky is black by name. A sky called black is a statement about the sky
 ## (a map built as lit lines on black), and the default daylight dome round it is the
-## brightest thing on screen wherever a wall is open. g2gfast's rule.
+## brightest thing on screen wherever a wall is open. Airdrift's rule.
 static func is_black_sky(lighting: Dictionary) -> bool:
 	return str(lighting.get("sky_name", "")).to_lower().contains("black")
 

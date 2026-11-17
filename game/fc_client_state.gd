@@ -46,7 +46,7 @@ const FcSpriteWeapon := preload("fc_sprite_weapon.gd")
 ##
 ## Until this existed, game-fatal-contact was the reference game with nothing to sit down at:
 ## `FcNetBridge` ran, `headless_net` drove it, and there was no camera rig, no input
-## sampling, no renderer and no sound. Everything here is modelled on `G2GClient`,
+## sampling, no renderer and no sound. Everything here is modelled on `AirdriftClient`,
 ## which is the one in this family proven over a real socket and in a browser.
 ##
 ## [codeblock]
@@ -195,7 +195,7 @@ var _awaiting_click := false
 ## polls the `InputMap` rather than reading events, and *everything below the
 ## `player == null` guard in `_unhandled_input` does not*. A client that connects,
 ## draws, shows a live HUD and walks around, with a dead mouse and a dead keyboard.
-## g2gfast shipped exactly that and a person had to report it.
+## Airdrift shipped exactly that and a person had to report it.
 var _watch_id: int = -1
 
 ## The spectator's free camera while roaming, and the mouse motion not yet turned into a look.

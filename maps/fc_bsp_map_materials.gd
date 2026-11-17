@@ -17,13 +17,13 @@ const ROLE_COLOURS := {
 	"FLOOR": Color(0.46, 0.48, 0.52),
 }
 
-## Lifts the baked darks so geometry stays readable. g2gfast's numbers were 0.10 and no gamma; rendered here on a real GPU, greatriver and dust2 (median lightmap texel about a
+## Lifts the baked darks so geometry stays readable. Airdrift's numbers were 0.10 and no gamma; rendered here on a real GPU, greatriver and dust2 (median lightmap texel about a
 ## fifth of full) came out near black under a bright sky, so the shade is lifted by a gamma of 0.55 (white stays white) and the floor raised to 0.20.
 const AMBIENT := 0.20
 const LIGHT_BOOST := 1.35
 const LIGHTMAP_LIFT := 0.55
-## Higher for a grid surface, which has no darks of its own to lose. See g2gfast's
-## `G2GBspMap.prototype_ambient`, which was chosen by rendering it.
+## Higher for a grid surface, which has no darks of its own to lose. See Airdrift's
+## `AirdriftBspMap.prototype_ambient`, which was chosen by rendering it.
 const PROTOTYPE_AMBIENT := 0.32
 
 ## The grid every untextured surface wears, built once per process.
@@ -31,14 +31,14 @@ static var _grid: Texture2D = null
 
 
 ## Whether a material name is water: its file name says `water` and it is not a
-## waterfall. game-airdrift's G2GBspMap.is_water_material; keep the two in step.
+## waterfall. game-airdrift's AirdriftBspMap.is_water_material; keep the two in step.
 static func is_water_material(material: String) -> bool:
 	var last := material.to_lower().get_file()
 	return last.contains("water") and not last.contains("waterfall")
 
 
 ## Water in the map's own colour where it measured one that is not grey, else the shader's
-## teal. See game-airdrift's G2GBspMap._water_material.
+## teal. See game-airdrift's AirdriftBspMap._water_material.
 static func _water_material(s: Dictionary, lightmap: Texture2D) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load(FcPaths.rebase("res://maps/fc_bsp_water.gdshader"))
@@ -58,7 +58,7 @@ static func _water_material(s: Dictionary, lightmap: Texture2D) -> ShaderMateria
 static func _material_for(s: Dictionary, dir: String, lightmap: Texture2D) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	# [b]Two shaders, and the opaque one is the default.[/b] Writing ALPHA at all is what puts a spatial shader in the transparent pass, where depth is not written and a map
-	# draws through itself (g2gfast shipped every imported map that way). Only a surface the map's own material called translucent gets the shader that writes it.
+	# draws through itself (Airdrift shipped every imported map that way). Only a surface the map's own material called translucent gets the shader that writes it.
 	mat.shader = load(FcPaths.rebase(
 		"res://maps/fc_bsp_translucent.gdshader" if bool(s.get("translucent", false))
 		else "res://maps/fc_bsp_lightmapped.gdshader"
@@ -108,7 +108,7 @@ static func _material_for(s: Dictionary, dir: String, lightmap: Texture2D) -> Sh
 	if colour is Array and (colour as Array).size() >= 3:
 		var measured := Color(float(colour[0]), float(colour[1]), float(colour[2]))
 
-		# [b]A measured black is trusted only when the name says black[/b] (g2gfast's rule,
+		# [b]A measured black is trusted only when the name says black[/b] (Airdrift's rule,
 		# learnt by rendering every map): a self-lit panel has no albedo for the compiler to
 		# measure, so it reads zero and would draw as a hole. A material named black IS black.
 		if measured.get_luminance() > 0.01 or str(s.get("material", "")).to_lower().contains("black"):

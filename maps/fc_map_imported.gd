@@ -318,7 +318,7 @@ func to_fps_body() -> DotFpsFlatBody:
 ## space, on the server and on every client alike. [b]That is still one backend at both
 ## ends[/b], which is the rule `FcClient`'s HEADLESS note is about: a predicting client
 ## must collide against what the server collides against, and here both query the same
-## convex hulls through the same solver. g2gfast predicts against exactly this.
+## convex hulls through the same solver. Airdrift predicts against exactly this.
 ##
 ## Unbound when the solid is not in the tree yet; the body then answers every query with
 ## nothing there, which is a player falling through a level, so the game builds the
@@ -341,7 +341,7 @@ func movement_body() -> DotFpsBody:
 ## Every one of `surf_10x_final`'s 48 is 44 units under the top of the brush they stand
 ## in, and the motor pushes a player out of solid at most a step a tick — so each spawn
 ## there was a player rising through the floor for a sixth of a second, visibly, and on a
-## floor any thicker one who never came out. g2gfast's notes name the answer and leave it
+## floor any thicker one who never came out. Airdrift's notes name the answer and leave it
 ## open: one shape query per spawn, at load, in the one place that knows about brushes and
 ## terrain alike. Up in 5 cm steps to [constant SPAWN_LIFT_MAX]; a spawn that is not clear
 ## by then is left where it was, because a spawn moved two metres is somewhere the mapper

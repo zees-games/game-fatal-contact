@@ -296,7 +296,7 @@ func _test_hud_fits_the_frame() -> void:
 	var frames := [Vector2(854, 480), Vector2(960, 720), Vector2(720, 1280), Vector2(1280, 720), Vector2(1600, 900)]
 	for frame: Vector2 in frames:
 		hud.fit_to_frame(frame)
-		hud.notice("Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playground, g2gfast (20s)")
+		hud.notice("Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playlot, Airdrift (20s)")
 		# The labels take their text's size on the next frame.
 		await get_tree().process_frame
 		var rects := hud.footprints()
@@ -362,7 +362,7 @@ func _check_crowded_frames(hud: FcHud) -> void:
 	var crowded := PackedStringArray()
 	for frame: Vector2 in [Vector2(854, 480), Vector2(960, 720), Vector2(1280, 720)]:
 		hud.fit_to_frame(frame)
-		hud.notice("Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playground, g2gfast (20s)")
+		hud.notice("Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playlot, Airdrift (20s)")
 		await get_tree().process_frame
 		var rects := hud.footprints()
 		var keys: Array = rects.keys()

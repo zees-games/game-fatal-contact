@@ -339,7 +339,7 @@ static func _def_for(id: StringName, map: FcMap) -> DotMapDef:
 	return def
 
 
-## The imported combat surf maps in the rotation when nothing says otherwise: every one. g2gfast marks them `"kind": "arena"` and keeps them out of its own rotation, so Fatal Contact is where they are played.
+## The imported combat surf maps in the rotation when nothing says otherwise: every one. Airdrift marks them `"kind": "arena"` and keeps them out of its own rotation, so Fatal Contact is where they are played.
 ## `fc_imported_rotation` narrows it (`all`, `none`, or ids separated by commas), read into [member imported_rotation].
 const IMPORTED_ROTATION_DEFAULT := "all"
 

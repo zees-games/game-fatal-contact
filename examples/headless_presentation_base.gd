@@ -248,7 +248,7 @@ static func _shrunk_bones(player: FcPlayer) -> int:
 ## A rendezvous that answers frames later is the shape the real one has.
 ##
 ## Ported from game-playlot's headless_presentation (d4ff040), on ports 38800-38860
-## rather than playground's 38700-38760 so the two suites can run at the same time.
+## rather than Playlot's 38700-38760 so the two suites can run at the same time.
 class RendezvousStub:
 	extends Node
 

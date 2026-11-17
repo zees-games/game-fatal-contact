@@ -324,7 +324,7 @@ func _play_glance_rest(game: FcGame, args: PackedStringArray, late: Array, strea
 		# What the server says in chat as the ballot opens, which this client centre-prints
 		# (`FcClient._on_said`, a system line). Staged late: the notice fades in 4 s.
 		var said := "Vote: Box, Atrium, Pit, Foundry, Canals, Spire (20s)" if _glance_map_ballot \
-			else "Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playground, g2gfast (20s)"
+			else "Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playlot, Airdrift (20s)"
 		late.append([10, func() -> void: _hud.notice(said)])
 
 	_shots = [{
@@ -387,7 +387,7 @@ func _stage_full_chat() -> void:
 	var window := FcPresentation.make_chat_window()
 	screen.add_child(window)
 	FcPresentation.fit_chat_screen(screen, root.get_visible_rect().size)
-	window.add_text("Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playground, g2gfast (20s)", Color(0.80, 0.82, 0.86))
+	window.add_text("Vote: Smash Copter, Hide & Seek, Dangerous Delivery, Playlot, Airdrift (20s)", Color(0.80, 0.82, 0.86))
 	for i in range(6):
 		window.add_said("Player %d" % (i + 1), "line %d of a full log" % (i + 1), Color(0.62, 0.78, 1.0))
 
@@ -438,8 +438,8 @@ func _stage_shell_ballot() -> void:
 			{"id": "smash", "label": "Smash Copter", "votes": 0.0},
 			{"id": "hideseek", "label": "Hide & Seek", "votes": 0.0},
 			{"id": "delivery", "label": "Dangerous Delivery", "votes": 0.0},
-			{"id": "playground", "label": "Playground", "votes": 0.0},
-			{"id": "g2gfast", "label": "g2gfast", "votes": 0.0},
+			{"id": "playlot", "label": "Playlot", "votes": 0.0},
+			{"id": "airdrift", "label": "Airdrift", "votes": 0.0},
 			{"id": "keep", "label": "Don't change", "votes": 0.0},
 		],
 		"voters": {}, "people": {},

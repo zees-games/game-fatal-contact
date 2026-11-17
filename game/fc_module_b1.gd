@@ -558,7 +558,7 @@ func _on_map_changed(map: DotMapDef) -> void:
 		vote.note_changed()
 
 	# [b]Every `return` point is a place on the map that just went.[/b] DotModTools keeps a stack of positions per player; without this `return Ada` after a change put her where she had stood on the previous map,
-	# inside whatever the new one has there (`[modtools-return-1]`; playground, hungario and the lobby do the same).
+	# inside whatever the new one has there (`[modtools-return-1]`; Playlot, hungario and the lobby do the same).
 	if services != null and services.mod_tools != null:
 		services.mod_tools.clear_history()
 
@@ -635,7 +635,7 @@ func _add_extra_commands() -> void:
 		)
 
 		# `map`, `maps` and `mapinfo` come from dot-map itself (dot-server's `map` changed the GAME, which is not what an operator typing `map` means); dot-server's game change is `changelevel`, `game` and `gamechange`.
-		# The map change is dot-map's `map` (CHANGEMAP, like g2gfast's): a map change ends every round in progress, which is about who may do it, not where they typed it. `sv_chat_commands 0` makes it console-only.
+		# The map change is dot-map's `map` (CHANGEMAP, like Airdrift's): a map change ends every round in progress, which is about who may do it, not where they typed it. `sv_chat_commands 0` makes it console-only.
 		# `allow_chat_change` stays at its default, ON: CHANGEMAP decides who may end a round in progress, wherever typed. A relayed website command arrives as `Source.CHAT`;
 		# `DotChatRelayConfig.command_source` can promote a relay to RCON. The SYNC HOST is the changer, not the session: `FcMapDirector.session` alone swaps the world in this process and tells nobody.
 		var map_commands := DotMapCommands.new()

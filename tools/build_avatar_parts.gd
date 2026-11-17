@@ -38,7 +38,7 @@ const HEAD_MESH := "head"
 
 ## Fatal Contact's own numbers. It is not a genre-units game -- its capsule is 1.8 m and its
 ## avatar mounts are absolute metres in `FcAvatars` -- so the figures that fit
-## g2gfast's 72-unit hull are wrong here by a third.
+## Airdrift's 72-unit hull are wrong here by a third.
 const HULL_HEIGHT := 1.8
 const BODY_MOUNT := 0.65
 
@@ -125,7 +125,7 @@ func _write(source: Node, letter: String, head_only: bool, scale: float) -> int:
 		root.free()
 		return 1
 
-	# Scale to the hull, then place the part relative to the mount [G2GRig] will put
+	# Scale to the hull, then place the part relative to the mount [AirdriftRig] will put
 	# it on.
 	#
 	# The head is centred on its mount, like the stock capsules. The BODY is not: it is

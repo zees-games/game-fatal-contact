@@ -1,6 +1,6 @@
 shader_type spatial;
 // An imported map's surface, lit by the lighting its own map compiler baked and by
-// nothing else. Ported from game-airdrift's `g2g_bsp_lightmapped.gdshader`, without the
+// nothing else. Ported from game-airdrift's `airdrift_bsp_lightmapped.gdshader`, without the
 // flashlight and the pixel-art stand-ins, which are that game's.
 //
 // `unshaded` on purpose: the lightmap IS the lighting, and running it through Godot's
@@ -9,7 +9,7 @@ shader_type spatial;
 // Opaque, and that is why there are two shaders. Godot puts a spatial shader in the
 // transparent pass when it WRITES `ALPHA`, whatever it writes, and in that pass depth is
 // not written and surfaces are sorted per surface rather than per pixel: a map drawn that
-// way draws through itself. g2gfast shipped every imported map like that until a person
+// way draws through itself. Airdrift shipped every imported map like that until a person
 // compared a frame with the original. `fc_bsp_translucent.gdshader` is this file plus
 // the ALPHA write, for the few surfaces the map's own material calls translucent.
 render_mode unshaded, cull_back;

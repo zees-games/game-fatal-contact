@@ -5,11 +5,11 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## What an imported combat surf map's brush entities DO to a player: its pushes, gravity
 ## volumes, conveyors, water, ladders and hurt volumes.
 ##
-## [b]A copy of game-airdrift's `G2GMapMechanics`, not a dependency.[/b] A game cannot name
+## [b]A copy of game-airdrift's `AirdriftMapMechanics`, not a dependency.[/b] A game cannot name
 ## another game's script and a delivered pack cannot resolve a `class_name`, so this is the
 ## half Fatal Contact needs, preloaded by path, in metres (the manifest's units through
 ## [constant FcBspMap.METRES_PER_UNIT], as the rest of the loader converts). The
-## importer's `tools/bsp_mechanics.py` in g2gfast writes the manifest's `mechanics` block;
+## importer's `tools/bsp_mechanics.py` in Airdrift writes the manifest's `mechanics` block;
 ## this reads it.
 ##
 ## Every volume is an [AABB] in metres and every question a box test against the player's
@@ -17,14 +17,14 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## step on the main loop, and a client replaying ten ticks of prediction cannot ask one
 ## where it WAS. A box list gives the server and the client's replay the same answer.
 ##
-## What it runs, and where it differs from g2gfast on purpose:
+## What it runs, and where it differs from Airdrift on purpose:
 ##
 ## - [b]A push[/b] (`trigger_push`) is the engine's base velocity: while the hull is inside,
 ##   the player is displaced by the push on top of their own velocity, which gravity and
 ##   friction never touch; on leaving, the push is added to the velocity, so a booster
 ##   sends you on at its speed. A "once" push is added on entering. An upward push lifts a
 ##   player off the ground.
-##   [b]Stateless, where g2gfast keeps a per-tick history.[/b] g2gfast remembers which
+##   [b]Stateless, where Airdrift keeps a per-tick history.[/b] Airdrift remembers which
 ##   pushes held a player in a dictionary keyed by `DotFpsState.tick`, and that counter
 ##   does not travel: after a rewind the client's copy keeps counting from its newest tick
 ##   while the position is the server's, so a history keyed by it reads the wrong tick on
@@ -37,7 +37,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## - [b]A conveyor[/b] (`func_conveyor`) carries a player standing on its top.
 ## - [b]Water[/b] and [b]ladders[/b] are lists handed to the player's [DotFpsSwimMode] and
 ##   ladder mode (`fc_ladder_mode.gd`).
-## - [b]Hurt[/b] (`trigger_hurt`) is REAL damage here, where g2gfast treats 100 or more as a
+## - [b]Hurt[/b] (`trigger_hurt`) is REAL damage here, where Airdrift treats 100 or more as a
 ##   death and ignores the rest because a timer run has no health. The engine these maps
 ##   come from reads `damage` as per second and deals it in half-second pulses; Fatal Contact does
 ##   the same through dot-combat as world damage, on the server, so the kill feed, the

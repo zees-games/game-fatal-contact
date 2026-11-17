@@ -9,7 +9,7 @@ extends "fc_events_scores.gd"
 ## mute that loaded back as a warning.
 ##
 ## [b]HELLO carries the tick rate, and the client is expected to adopt it.[/b] That
-## sentence is the largest measured error in this family's history: g2gfast's client
+## sentence is the largest measured error in this family's history: Airdrift's client
 ## took its rate from `Engine.physics_ticks_per_second`, which a browser shell never
 ## sets, and ran at 60 against a 128-tick server — correction rate 0.96, and every run
 ## time wrong by 128/60. Do not add a second source for this number.

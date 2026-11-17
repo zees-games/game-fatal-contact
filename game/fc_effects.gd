@@ -119,7 +119,7 @@ func _rules() -> DotEffectRules:
 ##
 ## [b]Built from the rate rather than exported at one.[/b] A server runs at
 ## `sv_tickrate` and a client at whatever it exported; an effect table with 640 written
-## into it is ten seconds on one and five on the other, which is g2gfast's
+## into it is ten seconds on one and five on the other, which is Airdrift's
 ## 128-against-60 bug in a different subsystem.
 ## How long `PROTECTED` lasts, from the mode rather than from a constant.
 ##
