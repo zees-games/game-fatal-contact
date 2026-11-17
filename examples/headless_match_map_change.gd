@@ -345,6 +345,18 @@ func _test_map_change() -> void:
 		"%d below it" % below
 	)
 
+	_test_map_change_box_trap()
+
+	# --- The mode gate, over a live rotation -------------------------------  [b]Last, because it
+	# moves the game into a team mode and back.[/b] Nothing below depends on the state this leaves,
+	# and nothing above should have to care. What is being checked is the hole `dm_pit` opened.
+	var team := _first_team_mode()
+
+	await _test_map_change_rest(director, team)
+
+
+## A box built where somebody is standing: the change must respawn them rather than carry them into it.
+func _test_map_change_box_trap() -> void:
 	# --- A box where somebody was standing -------------------------------  [b]The check above
 	# passes on the shipped maps by luck of layout.[/b] A map change used to keep every player's
 	# position and swap the geometry under them.
@@ -406,10 +418,3 @@ func _test_map_change() -> void:
 			"and after half a second of play nobody is inside a box or under the floor",
 			"%d under it, inside: %s" % [under, str(inside)]
 		)
-
-	# --- The mode gate, over a live rotation -------------------------------  [b]Last, because it
-	# moves the game into a team mode and back.[/b] Nothing below depends on the state this leaves,
-	# and nothing above should have to care. What is being checked is the hole `dm_pit` opened.
-	var team := _first_team_mode()
-
-	await _test_map_change_rest(director, team)

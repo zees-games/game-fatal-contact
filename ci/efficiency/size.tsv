@@ -13,7 +13,7 @@ examples/headless_match_atrium_and_loadout.gd::_test_atrium	603
 examples/headless_match_climb_routes.gd::_test_box_upper	420
 examples/headless_match_climb_routes.gd::_test_crate_climb	82
 examples/headless_match_horde_and_siege.gd::_test_horde	345
-examples/headless_match_map_change.gd::_test_map_change	406
+examples/headless_match_map_change.gd::_test_map_change	348
 examples/headless_match_modes_and_drops.gd::_test_effects	122
 examples/headless_match_modes_and_drops.gd::_test_pack_weapons	225
 examples/headless_match_modes_and_drops.gd::_test_team_deathmatch	90
