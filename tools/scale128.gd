@@ -51,14 +51,94 @@ func _sentinel(is_start: bool) -> void:
 		return
 	var now := Time.get_ticks_usec()
 	if is_start:
+		if _cellab > 0 and _count > 0 and _count % _cellab == 0:
+			_ab_flip()
 		_t0 = now
 		_count += 1
+		if _cellab > 0:
+			_ab_ticks[_ab_side] += 1
 	else:
 		_script_us.append(float(now - _t0))
+		if _cellab > 0:
+			_ab_script[_ab_side] += float(now - _t0)
 		_phys_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
 
 
 const _PlayerBody := preload("res://game/arena_player_body.gd")
+
+## --cellab N: an in-process A/B of dot-sim's binding cell (DotSimCell): every N ticks the run flips between the patched
+## cell (side 0, notify only waiters) and upstream's notify-on-every-drop (side 1); the report splits the sections by side.
+var _cellab := 0
+var _ab_side := 0
+var _ab_ticks := PackedInt64Array([0, 0])
+var _ab_script := PackedFloat64Array([0.0, 0.0])
+var _ab_snap := {}
+var _ab_acc: Array[Dictionary] = [{}, {}]
+var _ab_net: Object = null
+var _ab_net_snap := PackedInt64Array([0, 0])
+var _ab_net_acc := PackedInt64Array([0, 0, 0, 0])
+
+
+func _ab_begin() -> void:
+	if _cellab <= 0:
+		return
+	if not ClassDB.class_exists(&"DotSimCell"):
+		push_error("scale128: --cellab needs dot-sim's DotSimCell")
+		get_tree().quit(1)
+		return
+	_ab_side = 0
+	_ab_ticks = PackedInt64Array([0, 0])
+	_ab_script = PackedFloat64Array([0.0, 0.0])
+	_ab_acc = [{}, {}]
+	_ab_net_acc = PackedInt64Array([0, 0, 0, 0])
+	ClassDB.class_call_static(&"DotSimCell", &"set_notify_always", false)
+	_ab_take_snap()
+
+
+func _ab_take_snap() -> void:
+	_ab_snap.clear()
+	for k in ArenaFrameProbe._sections:
+		_ab_snap[k] = (ArenaFrameProbe._sections[k] as PackedInt64Array)[0]
+	if _ab_net != null:
+		var c: Dictionary = _ab_net.perf_counters()
+		_ab_net_snap = PackedInt64Array([int(c[&"server_sim_usec"]), int(c[&"server_ticks"])])
+
+
+## Adds the window just run to its side and switches the cell to the other side.
+func _ab_flush() -> void:
+	var acc := _ab_acc[_ab_side]
+	for k in ArenaFrameProbe._sections:
+		acc[k] = int(acc.get(k, 0)) + (ArenaFrameProbe._sections[k] as PackedInt64Array)[0] - int(_ab_snap.get(k, 0))
+	if _ab_net != null:
+		var c: Dictionary = _ab_net.perf_counters()
+		_ab_net_acc[_ab_side * 2] += int(c[&"server_sim_usec"]) - _ab_net_snap[0]
+		_ab_net_acc[_ab_side * 2 + 1] += int(c[&"server_ticks"]) - _ab_net_snap[1]
+
+
+func _ab_flip() -> void:
+	_ab_flush()
+	_ab_side = 1 - _ab_side
+	ClassDB.class_call_static(&"DotSimCell", &"set_notify_always", _ab_side == 1)
+	_ab_take_snap()
+
+
+func _ab_report() -> Dictionary:
+	if _cellab <= 0:
+		return {}
+	_ab_flush()
+	ClassDB.class_call_static(&"DotSimCell", &"set_notify_always", false)
+	var out := {}
+	for side in 2:
+		var n := maxi(1, _ab_ticks[side])
+		var sec := {}
+		for k in _ab_acc[side]:
+			sec[String(k)] = snappedf(int(_ab_acc[side][k]) / 1000.0 / n, 0.001)
+		out["patched" if side == 0 else "upstream"] = {
+			"ticks": _ab_ticks[side], "script_ms": snappedf(_ab_script[side] / 1000.0 / n, 0.001),
+			"net_sim_ms": snappedf(_ab_net_acc[side * 2] / 1000.0 / maxi(1, _ab_net_acc[side * 2 + 1]), 0.001),
+			"sections_ms": sec,
+		}
+	return {"cellab": out}
 
 
 func _ready() -> void:
@@ -98,6 +178,7 @@ func _ready() -> void:
 			"--motornative": DotFpsPhysicsBody.native_enabled = args[i + 1] != "0"
 			# --fine 1: ArenaFrameProbe.fine for the recording, so the sections split tick_players, bots and the world (laps).
 			"--fine": _fine = args[i + 1] != "0"
+			"--cellab": _cellab = int(args[i + 1])
 	DotLog.set_level(DotLog.Level.ERROR)
 	var _scratch := ArenaPresentation.use_scratch_settings("scale128_" + _role)
 	for is_start in [true, false]:
@@ -174,6 +255,7 @@ func _report(extra: Dictionary) -> void:
 	out["native_scan"] = DotBotWorld.native_available()
 	out["motor_native"] = DotFpsPhysicsBody.native_enabled and ClassDB.class_exists(&"DotSimFpsBody")
 	out.merge(extra)
+	out.merge(_ab_report())
 	if ArenaHullGrid.verify:
 		out["hull_verified"] = ArenaHullGrid.verified
 		out["hull_mismatches"] = ArenaHullGrid.mismatches
@@ -273,6 +355,7 @@ func _begin_record() -> void:
 	_phys_ms.clear()
 	_count = 0
 	_t_start = Time.get_ticks_usec()
+	_ab_begin()
 	_recording = true
 
 
@@ -323,6 +406,7 @@ func _serve() -> void:
 	await get_tree().create_timer(_settle).timeout
 	var net: DotNetManager = module.net
 	var before: Dictionary = net.perf_counters()
+	_ab_net = net
 	_begin_record()
 	_tally_on(game)
 	var t_end := Time.get_ticks_usec() + int(_seconds * 1.0e6)
