@@ -4,5 +4,5 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 map="${1:-dm_atrium}"
 shift || true
-exec timeout 300 xvfb-run -a godot --path . --resolution "${RESOLUTION:-1280x720}" \
+exec timeout "${SHOT_TIMEOUT:-1800}" xvfb-run -a godot --path . --resolution "${RESOLUTION:-1280x720}" \
   --script tools/knife_shot.gd -- --map "$map" "$@"

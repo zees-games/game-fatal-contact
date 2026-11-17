@@ -13,10 +13,21 @@ static func stage(host: Object, game: ArenaGame, late: Array) -> bool:
 	if args.has("--killcam"):
 		host._local.make_dead()
 		late.append([20, func() -> void: host._play_killview(game, 113)])
+	if args.has("--hitdir"):
+		late.append([8, func() -> void: _hit_directions(host)])
 	if args.has("--dropped"):
 		_dropped(host)
 		return true
 	return false
+
+
+## `--hitdir`: three hits at once from behind, from the left and from ahead on the right, to look at the damage direction chevrons.
+static func _hit_directions(host: Object) -> void:
+	var local = host._local
+	var basis: Basis = local.camera.global_transform.basis
+	var at: Vector3 = local.global_position
+	for offset: Vector3 in [Vector3(0, 0, 12), Vector3(-12, 0, 0), Vector3(8, 0, -8)]:
+		host._hud.damage_dirs.note_hit(at + basis * offset)
 
 
 ## The local player throws the weapon in hand, nobody picks it up, and a close frame is taken once it lies still.
