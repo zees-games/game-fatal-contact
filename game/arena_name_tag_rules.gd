@@ -38,10 +38,31 @@ static var team_colours: Dictionary = {}
 static var bar_colour_mode: StringName = &"team"
 ## Size of the bar and name against the original, and the metres above the feet the tag floats at.
 static var tag_scale: float = 0.7
+## What size a tag may take ON SCREEN, as a multiple of the size it has at [constant REFERENCE_DISTANCE]: a tag in the world
+## grows as you walk up to it (huge at arm's length) and shrinks to nothing far off. The world scale is eased so the picture stays
+## between these two. 0 on either side leaves that side unlimited (the tag then follows perspective alone).
+static var screen_scale_min: float = 0.4
+static var screen_scale_max: float = 1.5
+const REFERENCE_DISTANCE := 10.0
 static var tag_height: float = 2.0
 const ENEMY_COLOUR := Color(1.0, 0.25, 0.22)
 const FRIEND_COLOUR := Color(0.55, 1.0, 0.55)
 static var occluder_mask: int = 0  # physics layers that hide a body from the cursor; 0 skips the test
+
+
+## The world scale a tag of [param base] gets at [param distance] metres from the eye, so that its size on screen stays within
+## [member screen_scale_min] and [member screen_scale_max] times its size at [constant REFERENCE_DISTANCE]. On screen a tag is
+## `scale / distance`, so the multiple it would have is `REFERENCE_DISTANCE / distance`; outside the limits it is held at the limit.
+static func distance_scale(base: float, distance: float) -> float:
+	if distance <= 0.001:
+		return base
+	var multiple := REFERENCE_DISTANCE / distance
+	var held := multiple
+	if screen_scale_max > 0.0:
+		held = minf(held, screen_scale_max)
+	if screen_scale_min > 0.0:
+		held = maxf(held, screen_scale_min)
+	return base * held / multiple
 
 
 ## A mask from [param text] (a preset or tokens split on , + | space _), or -1 when anything in it is unknown.
@@ -118,6 +139,8 @@ static func ray_hits_body(from: Vector3, dir: Vector3, feet: Vector3, height: fl
 
 ## The two player settings, declared into the presentation schema.
 static func declare_settings(s: DotSettingsSchema) -> void:
+	s.add(DotSettingsDef.number(&"nametag_min_scale", screen_scale_min, 0.0, 10.0, &"video").with_description("Smallest a name tag may look on screen, against its size 10 m away. Far tags stop shrinking here. 0 is no limit."))
+	s.add(DotSettingsDef.number(&"nametag_max_scale", screen_scale_max, 0.0, 10.0, &"video").with_description("Largest a name tag may look on screen, against its size 10 m away. Close tags stop growing here. 0 is no limit."))
 	s.add(DotSettingsDef.choice(&"name_tags", &"team", [&"always", &"team", &"team_hover", &"hover", &"off"], &"video").with_description("Names over other players' heads: everybody, team-mates, team-mates and whoever your cursor is on, only the cursor, or none. A server may allow fewer (mp_nametags)."))
 	s.add(DotSettingsDef.choice(&"health_bar_colour", &"team", [&"team", &"health"], &"video").with_description("Health bar colour: team colours (enemies red, team-mates light green, a side's own colour with more than two sides) or by how much health is left."))
 	s.add(DotSettingsDef.choice(&"health_bars", &"smart", [&"always", &"smart", &"team", &"team_hover", &"hover", &"off"], &"video").with_description("Health bars over other players: smart is team-mates, whoever your cursor is on and anybody just hurt. A server may allow fewer (mp_hpbars)."))

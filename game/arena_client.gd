@@ -124,6 +124,8 @@ func _process(delta: float) -> void:
 	else:
 		ArenaTickBudget.shed_now = 0.0
 	_frame_at_usec = t
+	if hud != null:
+		hud.overlay_open = _menu_open()
 	if _touch != null:
 		_touch.call(&"sync", _menu_open() or presentation != null and presentation.swallows_input(), _gun_in_hand())
 	if game != null and game.knives != null:

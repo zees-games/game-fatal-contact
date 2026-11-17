@@ -217,6 +217,11 @@ func sync_name_tags(world_mask: int) -> void:
 	if settings != null:
 		TagRules.client_names = maxi(TagRules.parse(settings.get_string(&"name_tags", "team")), 0)
 		TagRules.client_bars = maxi(TagRules.parse(settings.get_string(&"health_bars", "smart")), 0)
+		TagRules.screen_scale_min = maxf(float(settings.get_float(&"nametag_min_scale", TagRules.screen_scale_min)), 0.0)
+		TagRules.screen_scale_max = maxf(float(settings.get_float(&"nametag_max_scale", TagRules.screen_scale_max)), 0.0)
+		if hud != null:
+			hud.hint_mode = StringName(str(settings.get_string(&"hud_key_hints", "first")))
+			hud.hint_seconds = float(settings.get_float(&"hud_key_hints_sec", 30.0))
 		TagRules.bar_colour_mode = &"health" if settings.get_string(&"health_bar_colour", "team") == "health" else &"team"
 	TagRules.server_names = int(game.rule("nametags"))
 	TagRules.server_bars = int(game.rule("hpbars"))

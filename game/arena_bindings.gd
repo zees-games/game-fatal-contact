@@ -85,8 +85,8 @@ static func make() -> DotMenuBindings:
 	keys.add(LAUNCH_PROPS, &"bind_launch_props", "Launch, in a props mode", "P", "Movement")
 
 	keys.add(FIRE, &"bind_fire", "Fire", "Mouse 1", "Weapons")
-	keys.add(AIM, &"bind_aim", "Aim (bashes with Right mouse aims off)", "Mouse 2", "Weapons")
-	keys.add(BASH, &"bind_bash", "Bash (freeze a prop in a props mode)", "X", "Weapons")
+	keys.add(AIM, &"bind_aim", "Aim (quick melee with Right mouse when aim is off)", "Mouse 2", "Weapons")
+	keys.add(BASH, &"bind_bash", "Quick melee (freezes a prop in a props mode)", "X", "Weapons")
 	keys.add(FLASHLIGHT, &"bind_flashlight", "Flashlight", "F", "Weapons")
 	keys.add(RELOAD, &"bind_reload", "Reload", "R", "Weapons")
 	keys.add(INSPECT, &"bind_inspect", "Inspect the weapon in hand", "L", "Weapons")

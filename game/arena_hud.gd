@@ -48,10 +48,15 @@ func build(p_game: ArenaGame) -> void:
 	slots.name = "Slots"
 	_place(slots, Control.PRESET_BOTTOM_RIGHT, Rect2(-170.0, -294.0, 160.0, 202.0))
 
-	# Bottom centre: the abilities, clear of the hands at the bottom right.
+	# Bottom left, above the health: the bottom centre is where the held weapon's viewmodel is drawn, and the icons covered it.
 	abilities = ArenaHudGlance.AbilityBar.new()
 	abilities.name = "Abilities"
-	_place(abilities, Control.PRESET_CENTER_BOTTOM, Rect2(-200.0, -98.0, 400.0, 90.0))
+	_place(abilities, Control.PRESET_CENTER_RIGHT, Rect2(-388.0, -45.0, 380.0, 90.0))
+
+	# Over the middle: chevrons toward whoever hurt you.
+	damage_dirs = ArenaHudDamageDirs.new()
+	damage_dirs.name = "DamageDirs"
+	_place(damage_dirs, Control.PRESET_FULL_RECT, Rect2(0.0, 0.0, 0.0, 0.0))
 
 	slide_label = DotKeyPrompt.new()
 	slide_label.name = "Prompt"
@@ -458,8 +463,9 @@ func present_gear() -> void:
 
 	var slot: DotWeaponSlot = player.arsenal.current() if live and player.arsenal != null else null
 	var fire_key := String(keys.get(&"fire_mode", ""))
-	if ammo != null and slot != null and (slot != _label_slot or slot.fire_mode() != _label_mode or fire_key != _label_key):
+	if ammo != null and slot != null and (slot != _label_slot or slot.def != _label_def or slot.fire_mode() != _label_mode or fire_key != _label_key):
 		_label_slot = slot
+		_label_def = slot.def
 		_label_mode = slot.fire_mode()
 		_label_key = fire_key
 		_weapon_label = mode_label(slot, fire_key)
@@ -493,13 +499,31 @@ func present_gear() -> void:
 
 	if hints != null:
 		# Keyboard keys mean nothing on a phone, and the list covers the view there.
-		hints.visible = live and not DotPlatform.has_touch()
+		hints.visible = live and not DotPlatform.has_touch() and _hints_wanted()
 		var shown_mode: Variant = game.displayed_mode() if game != null else null
 		var arms := shown_mode != null and bool(shown_mode.call(&"arms_players"))
 		var hint_sig := hash([key_sig, shown_mode == null, arms])
 		if hint_sig != _hints_sig:
 			_hints_sig = hint_sig
 			_present_hints(shown_mode == null or not arms)
+
+
+## The key list's setting (`hud_key_hints`): first, always or off, and how long "first" keeps it up (`hud_key_hints_sec`, 0 = forever).
+## Set by the client each frame: a menu, the Help page or another panel is open over the HUD.
+var overlay_open := false
+var damage_dirs: ArenaHudDamageDirs = null
+var hint_mode: StringName = &"first"
+var hint_seconds: float = 30.0
+var _hints_since_msec := -1
+
+func _hints_wanted() -> bool:
+	if hint_mode == &"off":
+		return false
+	if hint_mode == &"always":
+		return true
+	if _hints_since_msec < 0:
+		_hints_since_msec = Time.get_ticks_msec()
+	return hint_seconds <= 0.0 or float(Time.get_ticks_msec() - _hints_since_msec) / 1000.0 < hint_seconds
 
 
 ## The signatures of what the slot rows and the key hints last showed ([method present_gear]); -1 forces a rebuild.
@@ -643,6 +667,8 @@ func present_body() -> void:
 	medal_row.advance(delta)
 
 	if notice_label != null:
+		# A menu or the Help page is open over the notice: its text was drawn across the page's header.
+		notice_label.visible = not overlay_open
 		_notice_age += delta
 		notice_label.modulate.a = clampf((NOTICE_SEC - _notice_age) / 0.5, 0.0, 1.0)
 

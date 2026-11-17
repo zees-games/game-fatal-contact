@@ -193,6 +193,12 @@ static func _add_chat_and_comfort(s: DotSettingsSchema) -> void:
 	s.add(DotSettingsDef.integer(&"hud_safe_area", 16, 0, 120, &"hud")
 		.with_description("Pixels between the HUD and the edge of the screen."))
 
+	# The key list at the left: shown for the first seconds after the first spawn, always, or never.
+	s.add(DotSettingsDef.choice(&"hud_key_hints", &"first", [&"first", &"always", &"off"], &"hud")
+		.with_description("The key list at the left of the screen: for the first seconds of the match, all the time, or hidden (the Help page lists the keys)."))
+	s.add(DotSettingsDef.integer(&"hud_key_hints_sec", 30, 0, 3600, &"hud")
+		.with_description("Seconds the key list stays after your first spawn when it shows for the first seconds. 0 keeps it up."))
+
 	# How well the bots of a solo match play, saved with the player's other settings; the menu's
 	# General page has it, and `ArenaClient._bind_bot_console` applies it to `DotBotSettings`.
 	s.add(DotSettingsDef.choice(

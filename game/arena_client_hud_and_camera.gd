@@ -437,8 +437,23 @@ func _on_local_damaged(damage: DotDamage) -> void:
 		var held := player.weapons.current_def() if player.weapons != null else null
 		var scale := game.ads_rules.hit_flinch_for(held.id) if held != null and game != null else 1.0
 		_aim_break.note_hit(Time.get_ticks_msec() * 0.001, player.controller.tunables, damage.amount, scale)
+	_note_hit_direction(damage)
 	if presentation != null:
 		presentation.on_hurt(damage.amount, player != null and player.health != null and not player.health.alive)
+
+## Points the HUD at what hurt the local player: the attacker's body, else back along the shot. Fall and world damage have neither.
+func _note_hit_direction(damage: DotDamage) -> void:
+	if hud == null or hud.damage_dirs == null or player == null or damage.attacker == player.player_id:
+		return
+	var source: Vector3 = Vector3.INF
+	var shooter: ArenaPlayer = game.player_for(damage.attacker) if game != null and damage.attacker != 0 else null
+	if shooter != null and shooter != player:
+		source = shooter.global_position
+	elif damage.direction.length_squared() > 0.0001:
+		source = player.global_position - damage.direction.normalized() * 10.0
+	if source != Vector3.INF:
+		hud.damage_dirs.note_hit(source)
+
 
 func _on_local_died(_damage: DotDamage) -> void:
 	if presentation == null or player == null:
@@ -528,6 +543,8 @@ func _build_interface() -> void:
 	# [b]dot-menu's menu, and the client still owns the pointer.[/b] The menu is told not to manage
 	# it: pointer lock needs a click in a browser, which only this client knows about.
 	game_menu = ArenaMenus.build(self, presentation, browser if listed.ok else null)
+	# The help card lists the server's commands only when it knows it is on a server; _offline is set before this runs.
+	ArenaMenus.set_help_online(game_menu.help, not _offline)
 	# The HUD in the menu's theme and at the player's HUD size, switched live (dot-menu 7). By
 	# name, so a client shell older than that still runs the game in dot-ui's dark default.
 	if game_menu.has_method(&"follow_hud"):

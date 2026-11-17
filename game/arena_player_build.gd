@@ -804,12 +804,14 @@ func _present_health_tag(delta: float) -> void:
 
 	# Over the body as drawn, which an offline bot's is between ticks (`interpolate_body`).
 	var over := body_mesh.global_position if body_mesh != null else global_position
-	_place_health_tag(over + Vector3(0.0, TagRules.tag_height, 0.0), camera_now)
+	var tag_at := over + Vector3(0.0, TagRules.tag_height, 0.0)
+	_tag_draw_scale = TagRules.distance_scale(TagRules.tag_scale, camera_now.global_position.distance_to(tag_at) if camera_now != null else 0.0)
+	_place_health_tag(tag_at, camera_now)
 	var tone := TagRules.bar_tone(friend, team) if TagRules.bar_colour_mode == &"team" else Color(0, 0, 0, 0)
 	var frac := now / health.max_health
 	# Told again only when something it draws changed or its bar is still easing: the update writes four shader
 	# parameters and the label every call, which is the same picture frame after frame for a settled tag.
-	var tag_scale := TagRules.tag_scale
+	var tag_scale := _tag_draw_scale
 	var settled := (
 		_tag_told and frac == _tag_frac and bar == _tag_bar and named == _tag_named and friend == _tag_friend
 		and tag_scale == _tag_scale and tone == _tag_tone and display_name == _tag_name
@@ -818,7 +820,7 @@ func _present_health_tag(delta: float) -> void:
 	)
 	if settled:
 		return
-	_health_tag.update(frac, bar, named, display_name, friend, delta, tone, tag_scale)
+	_health_tag.update(frac, bar, named, display_name, friend, delta, tone, _tag_draw_scale)
 	_tag_told = true
 	_tag_frac = frac
 	_tag_bar = bar
@@ -845,8 +847,9 @@ func _place_health_tag(at: Vector3, camera_now: Camera3D) -> void:
 		_health_tag.global_position = at
 		_tag_placed = false
 		return
-	var up := Vector3.UP if Vector2(to_eye.x, to_eye.z).length_squared() > 1e-4 else Vector3.FORWARD
-	var xf := Transform3D(Basis.looking_at(to_eye, up, true).scaled_local(Vector3.ONE * _tag_scale), at)
+	# Parallel to the screen, not turned to face the eye: facing the eye slants a tag that is off to the side or
+	# above the camera (the owner's footage, "Hollow" skewed), and a tag the screen sees square cannot lean.
+	var xf := Transform3D(camera_now.global_basis.orthonormalized().scaled_local(Vector3.ONE * _tag_draw_scale), at)
 	_health_tag.global_transform = xf
 	_tag_xf = _health_tag.global_transform
 	_tag_eye = eye

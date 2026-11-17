@@ -104,6 +104,8 @@ static func add_pages(menu: DotMenu, browser: ArenaBrowser = null) -> void:
 	interface.section("HUD") \
 		.add(DotMenuRow.select(&"crosshair", "Crosshair", "Circle draws the cross for now.",
 			[[&"cross", "Cross"], [&"dot", "Dot"], [&"circle", "Circle"], [&"none", "None"]])) \
+		.add(DotMenuRow.select(&"hud_key_hints", "Key list", "The key list at the left of the screen. It covers name tags, so it shows for the first seconds by default.",
+			[[&"first", "First seconds"], [&"always", "Always"], [&"off", "Off"]])) \
 		.add(DotMenuRow.slider(&"hud_safe_area", "Edge margin", "Room between the HUD and the edge of the screen, for a television or a notch.")
 			.formatted(func(v: float) -> String: return "%d px" % roundi(v)))
 	menu.add_page(interface, &"video")
@@ -142,6 +144,10 @@ static func add_pages(menu: DotMenu, browser: ArenaBrowser = null) -> void:
 			.add(DotMenuRow.toggle(DotOwnBodySetting.KEY, "Show legs", "Show your own legs and body when you look down. Off hides them whatever the server or the choice above says."))
 		video.section("Players").add(DotMenuRow.select(&"name_tags", "Name tags", "Whose name floats over their head. The server may allow fewer.",
 				[[&"always", "Everybody"], [&"team", "Team-mates"], [&"team_hover", "Team-mates and under cursor"], [&"hover", "Under cursor"], [&"off", "Off"]])) \
+			.add(DotMenuRow.slider(&"nametag_min_scale", "Name tag, smallest", "Smallest a name tag looks, however far. 0 is no limit.")
+				.formatted(func(v: float) -> String: return "off" if v <= 0.0 else "x%.1f" % v)) \
+			.add(DotMenuRow.slider(&"nametag_max_scale", "Name tag, largest", "Largest a name tag looks, however close. 0 is no limit.")
+				.formatted(func(v: float) -> String: return "off" if v <= 0.0 else "x%.1f" % v)) \
 			.add(DotMenuRow.select(&"health_bar_colour", "Health bar colour", "Team: enemies red, team-mates light green, each side its own colour with more than two sides. Health: green to red by health left.",
 				[[&"team", "Team"], [&"health", "Health"]])) \
 			.add(DotMenuRow.select(&"health_bars", "Health bars", "Whose health bar floats over their head. Smart: team-mates, whoever the cursor is on, anybody just hurt. The server may allow fewer.",
@@ -200,6 +206,26 @@ static func _add_local_maps_row(menu: DotMenu, general: DotMenuPage) -> void:
 				return field))
 
 
+## The chat commands a player may type on a server, as the help screen's Commands card lists them (name without the prefix, then what it does).
+const SERVER_COMMANDS: Array = [
+	["rtv", "Vote to change the map now"],
+	["nominate", "Put a map on the next vote"],
+	["vote", "Open the vote menu"],
+	["nextmap", "What plays next"],
+	["timeleft", "How long this map has left"],
+	["score", "The scoreboard in chat"],
+	["stats", "Your own totals"],
+]
+
+
+## Tells the help screen whether this client is on a server: its Commands card says "You are playing offline" until it is told, in a match on a server too.
+static func set_help_online(help: DotMenuHelp, online: bool) -> void:
+	if help == null:
+		return
+	help.online = online
+	help.commands = SERVER_COMMANDS.duplicate(true)
+
+
 ## The help screen's goal and modes; the keys come from [ArenaBindings]. The modes are read
 ## from [ArenaModes], so a mode added there is on the help screen with nothing else edited.
 static func fill_help(help: DotMenuHelp) -> void:
@@ -210,7 +236,7 @@ static func fill_help(help: DotMenuHelp) -> void:
 	for mode in ArenaModes.all():
 		lines.append([mode.display_name, mode.description])
 	help.add_section("Modes", lines, &"plain")
-	help.add_text("Moving", "Duck while running to slide (C slides too), Shift dashes when the server turns fc_dash on, and E launches you. In a props mode E grabs a prop and X freezes it. F is the flashlight and X the quick melee.")
+	help.add_text("Moving", "Duck while running to slide (C slides too), Shift dashes when the server allows dashing, and E launches you. In a props mode E grabs a prop and X freezes it. F is the flashlight; outside a props mode X is the quick melee.")
 
 
 ## dot-browser's list as a page: a card of servers, each with a Join, and a Refresh.
