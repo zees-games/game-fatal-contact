@@ -6,7 +6,7 @@ const Bodies := preload("../game/arena_killcam_bodies.gd")
 const KillcamShots := preload("../game/arena_killcam_shots.gd")
 const KillPovView := preload("../game/arena_kill_pov_view.gd")
 
-const EXPECTED_CHECKS := 64
+const EXPECTED_CHECKS := 65
 
 ## The standalone game, as a player lives it: a bot kills the local player (the kill view of the
 ## killer plays), then a bot's kill ends the match (the final killcam plays its time, a skip key
@@ -337,6 +337,8 @@ func _check_lens(gm: Object, me: Object, killer: Object) -> void:
 	var origin: Vector3 = me.global_position + Vector3.UP * 1.2
 	var swept := 0
 	var inside := 0
+	var sunk := 0
+	var sunk_inside := 0
 	var wall_eye := Vector3.ZERO
 	var wall_dir := Vector3.ZERO
 	for i in 24:
@@ -350,11 +352,22 @@ func _check_lens(gm: Object, me: Object, killer: Object) -> void:
 			swept += 1
 			if DotCameraProbe.is_inside(space, placed, 0.05, mask):
 				inside += 1
+		# Sunk in the wall and looking along it (a recording that cut the corner): sideways and deeper than the sweep.
+		var along := dir.rotated(Vector3.UP, PI * 0.5)
+		for d in [0.05, 0.3, 0.8]:
+			var eye: Vector3 = (hit["position"] as Vector3) + dir * d
+			if not DotCameraProbe.is_inside(space, eye, 0.05, mask):
+				continue
+			var placed := KillPov.clear_eye(space, eye, along, mask)
+			sunk += 1
+			if DotCameraProbe.is_inside(space, placed, 0.05, mask) or placed.distance_to(eye) > KillPov.CLEAR_STEP_OUT + 0.01:
+				sunk_inside += 1
 		if wall_dir == Vector3.ZERO:
 			wall_eye = (hit["position"] as Vector3) - dir * 0.3
 			wall_dir = dir
 	_check(swept >= 20, "the sweep found walls to test the lens against", str(swept))
 	_check(inside == 0, "no replay lens ends inside a solid, over eyes at, beside and in walls", "%d of %d" % [inside, swept])
+	_check(sunk >= 10 and sunk_inside == 0, "an eye sunk in a wall, looking along it, steps out to the nearest clear spot", "%d of %d" % [sunk_inside, sunk])
 	var cam := Camera3D.new()
 	add_child(cam)
 	cam.look_at_from_position(wall_eye, wall_eye + wall_dir)

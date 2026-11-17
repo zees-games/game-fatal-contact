@@ -10,6 +10,9 @@ const REPLAY_META := &"arena_replay_camera"
 ## How far behind the eye the clearance sweep starts, and the lens sphere it sweeps.
 const CLEAR_BACK := 0.6
 const CLEAR_RADIUS := 0.12
+## How far out of a solid an eye sunk in it may be moved (metres), and the directions tried at each step.
+const CLEAR_STEP_OUT := 1.2
+const CLEAR_WAYS := 16
 
 ## Aux slots, in the order [DotKillViewRing] records them; SIZE is the contract with the ring's AUX.
 const WEAPON := 0
@@ -59,9 +62,36 @@ static func is_replay_camera(cam: Camera3D) -> bool:
 ## Where a replay eye may sit: [param eye] itself when a small sphere there is clear, else pulled back along
 ## [param forward] until it is, so the lens never ends inside a crate or against a wall the recording stood beside.
 static func clear_eye(space: PhysicsDirectSpaceState3D, eye: Vector3, forward: Vector3, mask: int) -> Vector3:
-	var back := eye - forward.normalized() * CLEAR_BACK
+	var f := forward.normalized()
+	var back := eye - f * CLEAR_BACK
 	var along := DotCameraProbe.clear_length(space, back, eye, CLEAR_RADIUS, mask)
-	return back + forward.normalized() * along
+	var placed := back + f * along
+	if not DotCameraProbe.is_inside(space, placed, CLEAR_RADIUS, mask):
+		return placed
+	return step_out(space, eye, f, mask, placed)
+
+
+## An eye sunk in a solid sideways or deeper than [constant CLEAR_BACK] (a recording that cut a corner, a body
+## pressed into a wall): the nearest clear spot around it, behind the eye first, then the sides, then above, out to
+## [constant CLEAR_STEP_OUT] metres; [param fallback] when nothing that near is clear. Only runs when the swept lens
+## is still inside, so a clear eye costs nothing more.
+static func step_out(space: PhysicsDirectSpaceState3D, eye: Vector3, forward: Vector3, mask: int, fallback: Vector3) -> Vector3:
+	var flat := Vector3(forward.x, 0.0, forward.z)
+	flat = flat.normalized() if flat.length() > 0.001 else Vector3.FORWARD
+	var ways: Array[Vector3] = []
+	for i in CLEAR_WAYS:
+		ways.append(-flat.rotated(Vector3.UP, TAU * float(i) / float(CLEAR_WAYS)))
+	# Behind the eye first: the side the killer stood on.
+	ways.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.dot(-flat) > b.dot(-flat))
+	ways.append(Vector3.UP)
+	var reach := CLEAR_RADIUS
+	while reach <= CLEAR_STEP_OUT + 0.001:
+		for way: Vector3 in ways:
+			var at := eye + way * reach
+			if not DotCameraProbe.is_inside(space, at, CLEAR_RADIUS, mask):
+				return at
+		reach += CLEAR_RADIUS
+	return fallback
 
 
 ## The twelve aux floats for [param p] (layout in [DotKillViewRing]): weapon, ads, fire count, reload, mag, reserve,

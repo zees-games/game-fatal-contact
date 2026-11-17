@@ -4,11 +4,11 @@ extends Node3D
 ## parent and empties itself once the knife stops (lying or stuck). Presentation only.
 
 ## How long a point of the streak lasts (seconds) and how wide it starts (metres).
-@export var life: float = 0.28
-@export var width: float = 0.07
+@export var life: float = 0.2
+@export var width: float = 0.1
 ## Below this speed (m/s) no new points are laid, so a knife lying, stuck or riding a running body lets its streak fade out.
 @export var min_speed: float = 10.0
-@export var color: Color = Color(1.0, 0.86, 0.6, 0.55)
+@export var color: Color = Color(1.0, 0.86, 0.6, 0.7)
 
 var _points: Array[Vector3] = []
 var _ages: PackedFloat32Array = PackedFloat32Array()
@@ -40,6 +40,15 @@ func _build() -> void:
 	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	_material.vertex_color_use_as_albedo = true
 	_material.no_depth_test = false
+	# Soft across its width (bright core, clear edges) so it reads as a streak of light, not a flat strip.
+	var across := Gradient.new()
+	across.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+	across.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 1), Color(1, 1, 1, 0)])
+	var soft := GradientTexture2D.new()
+	soft.gradient = across
+	soft.width = 64
+	soft.height = 1
+	_material.albedo_texture = soft
 	add_child(_drawn)
 
 
@@ -83,7 +92,9 @@ func _redraw() -> void:
 		var half := width * 0.5 * fresh
 		var c := Color(color, color.a * fresh * fresh)
 		_mesh.surface_set_color(c)
+		_mesh.surface_set_uv(Vector2(0.0, 0.5))
 		_mesh.surface_add_vertex(p - side * half)
 		_mesh.surface_set_color(c)
+		_mesh.surface_set_uv(Vector2(1.0, 0.5))
 		_mesh.surface_add_vertex(p + side * half)
 	_mesh.surface_end()
