@@ -235,8 +235,11 @@ func _sample(worst: Dictionary, seconds: float) -> void:
 			var w := pairs.find(pair)
 			if w < wrists.size() and (wrists[w] as Vector3).is_finite():
 				target = wrists[w]
-			if hand.distance_to(target) > worst.reach:
-				worst.reach = hand.distance_to(target)
+			# hand_min_depth keeps a wrist 0.1 m off the eye, so a grip nearer than that (a sniper aimed) is reached to within the shortfall.
+			var depth := -(camera.global_transform.affine_inverse() * target).z
+			var off := maxf(hand.distance_to(target) - maxf(ArenaViewArms.hand_min_depth - depth, 0.0), 0.0)
+			if off > worst.reach:
+				worst.reach = off
 				worst.hand = pair[0]
 				var side := (pair[0] as String).right(1)
 				var at := func(bone: String) -> Vector3: return skeleton.global_transform * skeleton.get_bone_global_pose(skeleton.find_bone(bone + side)).origin
