@@ -268,13 +268,35 @@ func _test_weapons_over_the_wire() -> void:
 	_check(fresh - drawn_before == 1, "a fresh predicted shot is drawn", str(fresh - drawn_before))
 
 	var _restored := own.player.weapons.restore(rewind)
+	# As the predictor's replay loop does (dot-net API 23).
+	own.set(&"net_replaying", true)
 	_check(own.is_replay(t), "the same tick again is known to be a replay")
 	own._net_apply_input(shoot, t)
 	own._net_simulate(t, 1.0 / float(TICK_RATE))
+	own.set(&"net_replaying", false)
 	_check(
 		uses.size() == fresh,
 		"and replaying it draws nothing — once per shot, not once per correction",
 		"%d uses after the replay" % uses.size()
+	)
+
+	# The clock snapping back: fresh ticks below the newest one simulated. Taken for
+	# replays, they held the rig and the weapon's signals until the clock caught up (the
+	# 2026-11-18 footage's thrown knife left in the hand).
+	_check(own.get(&"net_replaying") != null, "dot-net says which ticks are replays (API 23)")
+	for i in range(TICK_RATE):
+		t += 1
+		own._net_apply_input(idle, t)
+		own._net_simulate(t, 1.0 / float(TICK_RATE))
+	t -= TICK_RATE / 2
+	_check(not own.is_replay(t), "a fresh tick after the clock snaps back is not a replay")
+	var before_snap_shot := uses.size()
+	own._net_apply_input(shoot, t)
+	own._net_simulate(t, 1.0 / float(TICK_RATE))
+	_check(
+		uses.size() > before_snap_shot,
+		"and a shot on it is drawn",
+		"%d uses before, %d after" % [before_snap_shot, uses.size()]
 	)
 
 	_test_launch_flies_on_client(own)

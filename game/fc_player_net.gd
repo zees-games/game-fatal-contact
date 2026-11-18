@@ -362,8 +362,16 @@ func _net_simulate(tick: int, delta: float) -> void:
 ## its statistics. The wall moves found it, one wall run heard six times and one wall
 ## jump seven over 20% loss (`headless_lossy`); the slide's and the dash's signals and the
 ## jump count had the same fault with nothing listening closely enough to say.
+##
+## Which ticks are replays is the predictor's word (`net_replaying`, dot-net API 23), not
+## the tick's: after the clock snaps back (a lead given back, a re-anchored timeline) the
+## next fresh ticks are below the newest one simulated. Read off the tick, they were taken
+## for replays until the clock passed its old lead again, with the rig's presentation and
+## the weapon's signals held the whole while: the 2026-11-18 footage's knife that stayed in
+## the hand after its throw, under a HUD already reading PISTOL, until the next left click.
+## A dot-net without the flag still gets the old reading.
 func _predict(tick: int, delta: float) -> void:
-	var replaying := tick <= _newest_simulated
+	var replaying := is_replay(tick)
 	var controller := player.controller
 
 	if replaying:
@@ -411,8 +419,12 @@ static func _angle_code(degrees: float, bits: int) -> int:
 	return int(roundf(fposmod(degrees, 360.0) / 360.0 * float(mask))) & mask
 
 
-## Whether a tick would be simulated as a replay. For a suite.
+## Whether a tick simulated now is a replay: the predictor's flag where dot-net has one,
+## else whether [param tick] was simulated before.
 func is_replay(tick: int) -> bool:
+	var flag: Variant = get(&"net_replaying")
+	if flag != null:
+		return bool(flag)
 	return tick <= _newest_simulated
 
 
