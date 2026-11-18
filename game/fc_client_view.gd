@@ -125,7 +125,7 @@ func watch_map_drops() -> void:
 	_take_cmdline_drops.call_deferred(FcMapDrop.cmdline())
 
 
-## The shared drop intake (dot-map's DotMapDropIntake, API 26, FcMapDrop) every drop goes through, made on first use;
+## The shared drop intake (dot-map's DotMapDropIntake, API 30, FcMapDrop) every drop goes through, made on first use;
 ## null on an older dot-map, where a window drop goes to [method accept_drop] directly and the command line is not read.
 var map_drop: Node = null
 
@@ -148,7 +148,7 @@ func _take_cmdline_drops(args: PackedStringArray) -> String:
 	var intake := drop_intake()
 	if intake == null:
 		return ""
-	var paths := FcMapDrop.paths_in(intake, args)
+	var paths: PackedStringArray = intake.call(&"paths_in", args)
 	if paths.is_empty():
 		return ""
 	var said := await import_dropped(paths, "command line")

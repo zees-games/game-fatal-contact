@@ -1,6 +1,6 @@
 extends DotGameCheckSuite
 
-## Maps handed to Fatal Contact outside the window (FcMapDrop, dot-map's DotMapDropIntake, API 26): dropped on the
+## Maps handed to Fatal Contact outside the window (FcMapDrop, dot-map's DotMapDropIntake, API 30): dropped on the
 ## executable or named by `--map-path=`, through the same intake and the same on-screen answer as a window drop. A path
 ## that holds no converted map is refused out loud with what the game takes. Window drops: headless_local_maps.
 ## [codeblock] ./game.sh test headless_mapdrop [/codeblock]
@@ -45,27 +45,27 @@ func _test_args() -> void:
 	print("-- the command line: config options are not drops, --map-path and bare paths are")
 	var folder := ProjectSettings.globalize_path(SOURCE.path_join("args"))
 	DirAccess.make_dir_recursive_absolute(folder)
-	var kept := FcMapDrop.drop_args(PackedStringArray(["--arena-bots", folder, "--dot_net.port", folder,
-		"--arena-no-weapon-packs", folder, "--config=x", "--headless"]))
-	_check(kept == PackedStringArray([folder, "--config=x", "--headless"]),
-		"--arena-<key> and --<addon>.<key> values are not drops; a --arena-no- switch takes no value", str(kept))
 	var client := FcClient.new()
 	var intake := client.drop_intake()
 	if not _check(intake != null, "the client makes the shared intake"):
 		client.free()
 		return
+	var kept: PackedStringArray = intake.call(&"strip_config_args", PackedStringArray(["--arena-bots", folder, "--dot_net.port", folder,
+		"--arena-no-weapon-packs", folder, "--config=x", "--headless"]), intake.get(&"config_prefixes"), intake.get(&"option_takes_value"))
+	_check(kept == PackedStringArray([folder, "--config=x", "--headless"]),
+		"--arena-<key> and --<addon>.<key> values are not drops; a --arena-no- switch takes no value", str(kept))
 	_check(not bool(intake.get(&"watch_window")), "it leaves the window to the client's own handler (Importing… first)")
-	var paths := FcMapDrop.paths_in(intake, PackedStringArray(["--path", folder, "--map", folder, "--map-path=" + folder]))
+	var paths: PackedStringArray = intake.call(&"paths_in", PackedStringArray(["--path", folder, "--map", folder, "--map-path=" + folder]))
 	_check(paths == PackedStringArray([folder]), "--map-path= is a drop; --path and --map values are not", str(paths))
-	paths = FcMapDrop.paths_in(intake, PackedStringArray([folder, "--arena-port", folder]))
+	paths = intake.call(&"paths_in", PackedStringArray([folder, "--arena-port", folder]))
 	_check(paths == PackedStringArray([folder]), "a bare path is a drop (the executable's drop)", str(paths))
-	paths = FcMapDrop.paths_in(intake, PackedStringArray(["--map-path=/no/such/zz_headless_mapdrop"]))
+	paths = intake.call(&"paths_in", PackedStringArray(["--map-path=/no/such/zz_headless_mapdrop"]))
 	_check(paths == PackedStringArray(["/no/such/zz_headless_mapdrop"]), "a --map-path that does not exist is kept, to be refused", str(paths))
-	paths = FcMapDrop.paths_in(intake, PackedStringArray(["--headless", "res://examples/headless_mapdrop.tscn"]))
+	paths = intake.call(&"paths_in", PackedStringArray(["--headless", "res://examples/headless_mapdrop.tscn"]))
 	_check(paths.is_empty(), "no path on a plain start", str(paths))
-	paths = FcMapDrop.paths_in(intake, PackedStringArray(["wss://tmcdev.net:6100/", "ws://127.0.0.1:6100", "https://games.tmcdev.net/x", "tmcdev.net:6100", "--join", "wss://tmcdev.net:6100/"]))
+	paths = intake.call(&"paths_in", PackedStringArray(["wss://tmcdev.net:6100/", "ws://127.0.0.1:6100", "https://games.tmcdev.net/x", "tmcdev.net:6100", "--join", "wss://tmcdev.net:6100/"]))
 	_check(paths.is_empty(), "a connect URL or host:port is never a drop (the 'dropped maps play in solo only' toast)", str(paths))
-	paths = FcMapDrop.paths_in(intake, PackedStringArray(["wss://tmcdev.net:6100/", folder]))
+	paths = intake.call(&"paths_in", PackedStringArray(["wss://tmcdev.net:6100/", folder]))
 	_check(paths == PackedStringArray([folder]), "a real path beside a connect URL is still a drop", str(paths))
 	_check((intake.call(&"paths_in_args", PackedStringArray(["wss://tmcdev.net:6100/", "tmcdev.net:6100"])) as Dictionary)["missing"].is_empty(),
 		"dot-map's own intake skips URLs too")
