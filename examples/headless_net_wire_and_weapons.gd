@@ -242,6 +242,14 @@ func _test_weapons_over_the_wire() -> void:
 		"%d then %d" % [before, seen.player.mirror_fire_seq]
 	)
 
+	_test_replays_are_silent(own)
+	_test_launch_flies_on_client(own)
+	_done()
+
+
+## A replayed tick draws nothing; a fresh tick below the newest one simulated (the clock snapped back) is
+## no replay, and a shot on it is drawn.
+func _test_replays_are_silent(own: FcPlayerNet) -> void:
 	# A replay is silent. Put the rig back to before a firing tick and run that tick
 	# again through the behaviour, the way the predictor's reconcile does.
 	var uses: Array[DotWeaponOutcome] = []
@@ -298,9 +306,6 @@ func _test_weapons_over_the_wire() -> void:
 		"and a shot on it is drawn",
 		"%d uses before, %d after" % [before_snap_shot, uses.size()]
 	)
-
-	_test_launch_flies_on_client(own)
-	_done()
 
 
 ## A launch the server announces flies on a client, and hurts nobody there.

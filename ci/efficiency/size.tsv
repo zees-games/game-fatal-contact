@@ -17,7 +17,7 @@ examples/headless_match_map_change.gd::_test_map_change	348
 examples/headless_match_modes_and_drops.gd::_test_effects	122
 examples/headless_match_modes_and_drops.gd::_test_pack_weapons	225
 examples/headless_match_modes_and_drops.gd::_test_team_deathmatch	90
-examples/headless_match_pits_and_reach.gd::_test_pit	279
+examples/headless_match_pits_and_reach.gd::_test_pit	278
 examples/headless_match_pits_and_reach.gd::_test_survey	122
 examples/headless_match_progression.gd::_test_progression	179
 examples/headless_match_spectating_and_objectives.gd::_test_free_roam	81
@@ -32,7 +32,6 @@ examples/headless_match_toys_content_map.gd::_test_toys	119
 examples/headless_match_wall_rules_and_interface.gd::_test_interface	211
 examples/headless_net_budget_and_sync.gd::_test_map_sync_wire	166
 examples/headless_net_client_views.gd::_test_movement_rules_reach_clients	97
-examples/headless_net_wire_and_weapons.gd::_test_weapons_over_the_wire	92
 examples/headless_presentation.gd::_test_every_key_is_an_action	128
 examples/headless_presentation.gd::_test_party_over_http	95
 examples/headless_presentation_ballot_and_criticals.gd::_test_criticals_and_the_body	140
