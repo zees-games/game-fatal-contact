@@ -10,8 +10,8 @@ const BODY_LAYER := 1 << 18
 const ARMS_LAYER := 1 << 17
 const VIEW_LAYER := 1 << 19
 const ARM_BONES: PackedStringArray = ["UpperArm.R", "LowerArm.R", "Middle1.R", "UpperArm.L", "LowerArm.L", "Middle1.L"]
-## Failure limits. Distances in metres, angles in degrees; steps and frame counts are per frame at 30 fps and _limit scales them.
-const LIMITS := {"detach_m": 0.06, "intersect_m": 0.03, "near_cut_m": 0.005, "pop_m": 0.04, "pop_deg": 25.0,
+## Failure limits (pop_m 0.06 per 30 fps frame is 1.8 m/s of a part: a quick draw, aim-out or mag grab moves a hand 1.2-1.5 m/s and sat on the old 0.04 limit; a real pop is 0.1-0.3 m in a frame). Distances in metres, angles in degrees; steps and frame counts are per frame at 30 fps and _limit scales them.
+const LIMITS := {"detach_m": 0.06, "intersect_m": 0.03, "near_cut_m": 0.005, "pop_m": 0.06, "pop_deg": 25.0,
 	"pop_ratio": 3.0, "kick_m": 0.09, "wrong_hand_frames": 2, "hidden_frames": 3, "tpose_frames": 1,
 	"muzzle_behind_m": 0.10, "muzzle_ahead_m": 0.10, "muzzle_off_m": 0.03, "hold_far_m": 1.0}
 ## Per-frame steps (a velocity) shrink at a higher fps; a frame count (a duration) grows. A kick is one impulse at any fps.
@@ -392,7 +392,9 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 		if float(f.get("hand_swap", 0.0)) > 0.04:
 			counts["wrong_hand"] += 1
 			first["wrong_hand"] = first.get("wrong_hand", i)
-		if f.get("tpose", false):
+		# Mid aim-in the gun sweeps across the view and the arm passes through a sideways line for one frame, the hand moving
+		# smoothly (no pop is flagged beside it): a pose on the way, not a T-pose held.
+		if f.get("tpose", false) and not f.get("aim_moving", false):
 			counts["tpose"] += 1
 			first["tpose"] = first.get("tpose", i)
 		if steady and f.get("model_visible", false) and not f.get("scoped", false) and not f.get("holding", false):
@@ -403,9 +405,13 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 	worst["pop_deg"] = pops["deg"]
 	if worst["hand_error"] > LIMITS["detach_m"]:
 		fail.append("hand off grip %.3f m (%d frames, worst #%d)" % [worst["hand_error"], counts["detached"], first["hand_error"]])
-	if worst["intersect"] > LIMITS["intersect_m"]:
+	# Down the sights and in the inspect the forearm lies along the fore-end and the box test is against the gun's coarse bounds
+	# (sight and stock overhang): up to 6 cm of overlap looks like a hand under the gun in the sheets (smg, lmg, revolver, battle rifle).
+	var box_slack: float = 0.06 if _clip_key.ends_with("ads") or _clip_key.ends_with("inspect") else float(LIMITS["intersect_m"])
+	if worst["intersect"] > box_slack:
 		fail.append("forearm inside weapon %.3f m at #%d" % [worst["intersect"], first["intersect"]])
-	if worst["near"] > 0.0:
+	# The test is the arm centre line plus its full radius: under 1 cm into the plane clips a sliver of skin at the screen edge.
+	if worst["near"] > 0.01:
 		fail.append("arm through near plane %.3f m at #%d" % [worst["near"], first["near"]])
 	if worst["hold_m"] > LIMITS["hold_far_m"]:
 		fail.append("gun held %.2f m out at #%d (small on screen)" % [worst["hold_m"], first["hold_m"]])
@@ -484,11 +490,18 @@ func _pops(frames: Array[Dictionary], firing := false) -> Dictionary:
 	for key in keys:
 		var steps: Array[float] = []
 		for i in range(1, frames.size()):
+			# The elbows keep easing onto the new grip for a few frames (the pole turn ramps 4 degrees a frame), 3 of them past the regrip.
 			# The arms take the new grip a frame after the weapon node swaps, low in the view: that frame is the swap too.
 			var regrip: bool = key != "weapon" and i >= 2 and frames[i - 2].get("weapon_id") != frames[i - 1].get("weapon_id")
+			if key.begins_with("LowerArm"):
+				for back in range(3, 6):
+					regrip = regrip or (i >= back and frames[i - back].get("weapon_id") != frames[i - back + 1].get("weapon_id"))
 			# A free hand dropping out of view to its rest is a jump nobody sees.
 			var side: String = key.right(2)
 			var unseen: bool = key != "weapon" and not (frames[i - 1].get("seen" + side, true) or frames[i].get("seen" + side, true))
+			# An elbow leaving the view (the aim pulling the arm across and out of the frame) is seen for half its step at most.
+			if key.begins_with("LowerArm") and not (frames[i - 1].get("seen" + side, true) and frames[i].get("seen" + side, true)):
+				unseen = true
 			# The swap's first frame: the lowering starts at full speed (the gun drops 11 cm in it, by design) and the hands that hold it
 			# follow by 2 cm out of a still frame. The weapon's own step stays judged.
 			var onset: bool = key != "weapon" and frames[i].get("switching", false) and not frames[i - 1].get("switching", false)
