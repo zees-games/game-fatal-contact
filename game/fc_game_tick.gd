@@ -617,6 +617,11 @@ func _build_match() -> DotResult:
 
 	# Built here rather than left to dot-match, which would otherwise make an untagged
 	# `DotTeam.standard_pair()`. The tags are the whole point — see `FcMode.teams`.
+	# A map that tags no sides is cut into two halves that start apart before its spawn points are made (a map change
+	# comes through here as well as the first setup), so every map can host a team mode.
+	if mode.is_team_mode() and team_spawn_split:
+		var _split := map.split_spawns_for_teams()
+
 	if mode.is_team_mode():
 		var manager := DotTeamManager.new()
 		manager.name = "Teams"

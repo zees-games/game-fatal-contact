@@ -334,6 +334,7 @@ static func _def_for(id: StringName, map: FcMap) -> DotMapDef:
 		# Whether the map has tagged spawns, which decides if a team mode can be played on it. A ballot reads this to keep team deathmatch off a map where both sides would share one pool,
 		# the symptom of which ("the sides keep spawning in each other's base") reads as a spawn-selection bug.
 		"teams": _has_team_spawns(map),
+		"tagged": _has_tagged_sides(map),
 	}
 
 	return def
@@ -397,6 +398,7 @@ static func _imported_def_for(id: StringName, map: FcMap) -> DotMapDef:
 		"builder": "FcMap.by_id",
 		"spawns": map.spawns.size(),
 		"teams": _has_team_spawns(map),
+		"tagged": _has_tagged_sides(map),
 		"modes": Array(map.modes),
 		"imported": true,
 		"manifest": map.manifest_path,
@@ -410,8 +412,15 @@ static func _imported_def_for(id: StringName, map: FcMap) -> DotMapDef:
 static var _refused_keys: Dictionary = {}
 
 
-## Whether a map can host a team mode: some spawn is tagged.
-static func _has_team_spawns(map: FcMap) -> bool:
+## Whether a map can host a team mode. Every map can: one with tagged sides keeps them, and any other has its spawns split into two halves
+## apart from each other when the match is built ([method FcMap.split_spawns_for_teams], `fc_team_spawn_split`), so there is nothing a map has to be tagged with first.
+## A map with a single spawn still hosts the mode (both sides share that one spot; the match warns).
+static func _has_team_spawns(_map: FcMap) -> bool:
+	return true
+
+
+## Whether the map itself tags a side on some spawn (not the derived halves). A mode that lays an objective per side (capture the flag, king of the hill) wants the map's own.
+static func _has_tagged_sides(map: FcMap) -> bool:
 	for index in range(map.spawns.size()):
 		if map.spawn_tag(index) != &"":
 			return true
@@ -449,6 +458,9 @@ static func supports_mode(def: DotMapDef, mode: FcMode) -> bool:
 
 	if not mode.is_team_mode():
 		return true
+
+	if mode.objective_layout != &"" and not bool(def.meta.get("tagged", false)):
+		return false
 
 	return bool(def.meta.get("teams", false))
 

@@ -126,7 +126,7 @@ func change_to_map(map: DotMapDef) -> DotResult:
 		# as anybody is prepared to look at it.
 		return DotResult.fail(
 			DotError.CODE_INVALID,
-			"That map has no tagged spawns, so it cannot host a team mode.",
+			"That map does not list this mode, so it cannot host it.",
 			"%s / %s" % [String(map.id), String(playing.id)]
 		)
 

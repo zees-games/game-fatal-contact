@@ -98,8 +98,8 @@ func _test_pit() -> void:
 		return
 
 	_check(
-		not bool(def.meta.get("teams", true)),
-		"whose entry records that it has no team spawns"
+		bool(def.meta.get("teams", false)),
+		"whose entry records that it hosts a team mode: untagged spawns are split into two halves"
 	)
 
 	var ffa: FcMode = FcMode.free_for_all()
@@ -109,13 +109,12 @@ func _test_pit() -> void:
 
 	if _check(team != null, "this game has a team mode to test the refusal with"):
 		_check(
-			not FcMaps.supports_mode(def, team),
-			"and a team mode cannot -- the first map here that says so",
+			FcMaps.supports_mode(def, team),
+			"and a team mode can too: every map hosts one",
 			String(team.id)
 		)
 
-		# The other two maps must still say yes, or the filter below is passing for
-		# the wrong reason.
+		# The other two maps say yes as well.
 		_check(
 			FcMaps.supports_mode(catalogue.get_map(&"dm_box"), team)
 				and FcMaps.supports_mode(catalogue.get_map(&"dm_atrium"), team),

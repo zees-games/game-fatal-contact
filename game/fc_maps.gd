@@ -181,7 +181,7 @@ static func delivered_def(key: String) -> DotMapDef:
 		"imported": true,
 		"delivered": true,
 		"key": key,
-		"teams": false,
+		"teams": true,
 		"movement": "surf",
 	}
 	return def
@@ -271,7 +271,7 @@ static func mount_delivered(
 
 
 ## Fills a mounted delivered map's listing from its manifest, as `_imported_def_for` does for a linked one: the key alone
-## cannot say which modes the map lists or whether its spawns have sides, so until then only the free-for-all modes are offered.
+## cannot say which modes the map lists or whether it lays an objective, so until then only the modes about the players are offered (team deathmatch among them: every map hosts it).
 static func refresh_delivered_meta(def: DotMapDef) -> void:
 	var map: FcMap = FcMap.imported(def.id, true) if def != null else null
 
@@ -280,6 +280,7 @@ static func refresh_delivered_meta(def: DotMapDef) -> void:
 
 	def.meta["spawns"] = map.spawns.size()
 	def.meta["teams"] = _has_team_spawns(map)
+	def.meta["tagged"] = _has_tagged_sides(map)
 	def.meta["modes"] = Array(map.modes)
 	def.meta["movement"] = String(map.movement_profile)
 

@@ -146,7 +146,7 @@ func unavailable_reason(id: StringName) -> String:
 			return "%s cannot be played on %s: %s Choose a map that can host it first." % [
 				mode.display_name, here.name_or_id(),
 				"it is an imported map, with no layout to build it from." if bool(here.meta.get("imported", false)) and FcMaps.needs_built_world(mode)
-				else "it has no team spawns."]
+				else "that map does not list it."]
 		return "%s is not on offer here now. Open the list again." % mode.display_name
 	if text.begins_with(MAP_PREFIX):
 		var def := catalogue.get_map(StringName(text.substr(MAP_PREFIX.length()))) if catalogue != null else null
@@ -251,7 +251,7 @@ func _apply_mode(mode_id: StringName) -> DotResult:
 	if not FcMaps.supports_mode(director.current, mode):
 		return DotResult.fail(
 			DotError.CODE_INVALID,
-			"The map running has no tagged spawns, so it cannot host a team mode.",
+			"The map running does not list this mode, so it cannot host it.",
 			"%s / %s" % [String(director.current.id), String(mode_id)]
 		)
 

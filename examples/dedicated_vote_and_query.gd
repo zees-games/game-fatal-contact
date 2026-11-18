@@ -3,7 +3,9 @@ extends DotGameCheckSuite
 const FcBrowser := preload("../game/fc_browser.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
+const FcMaps := preload("../game/fc_maps.gd")
 const FcModule := preload("../game/fc_module.gd")
+const FcModes := preload("../game/fc_modes.gd")
 const FcTestPorts := preload("test_ports.gd")
 
 
@@ -250,10 +252,10 @@ func _test_maps_and_vote() -> void:
 	# only; nothing awaits in between, and the refusal changes nothing.
 	var director_here: DotMapDef = module.maps.current
 	module.maps.current = module.maps.session.catalogue.get_map(&"dm_pit")
-	var stale: Dictionary = await menu_half.call("choose", staff, &"mode:tdm")
+	var pit_def: DotMapDef = module.maps.current
 	module.maps.current = director_here
-	_check(not bool(stale.get("ok", true)) and str(stale.get("text", "")).contains("no team spawns"),
-		"a stale team-mode row on a map with no team spawns is refused with that reason", str(stale.get("text", "")))
+	_check(FcMaps.supports_mode(pit_def, FcModes.by_id(&"tdm")),
+		"a map with no team spawns of its own still hosts a team mode (its spawns are split into halves)")
 	for peer in sync_peers:
 		module.maps.sync.add_peer(int(peer))
 

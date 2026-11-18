@@ -19,9 +19,15 @@ func _ready() -> void:
 	_run.call_deferred()
 
 
+# Every map hosts a team mode now, so the refusal this file exercises is simulated: dm_pit's listing says it cannot (the filter reads that one property).
+func _pit_cannot_host_teams(catalogue: DotMapCatalogue) -> DotMapCatalogue:
+	catalogue.get_map(&"dm_pit").meta["teams"] = false
+	return catalogue
+
+
 func _run() -> void:
 	print("FC: per-map rotation profiles (mode and cvars)")
-	var catalogue := FcMaps.catalogue()
+	var catalogue := _pit_cannot_host_teams(FcMaps.catalogue())
 	var ffa := FcModes.by_id(&"ffa")
 	var tdm := FcModes.by_id(&"tdm")
 	var team_map: StringName = &""
@@ -54,7 +60,7 @@ func _run() -> void:
 	if not _check(started.ok and ready.ok, "the game and the map director set up"):
 		_report(CHECKS)
 		return
-	var defs := director.session.catalogue
+	var defs := _pit_cannot_host_teams(director.session.catalogue)
 
 	# A profile mode the map hosts: the change plays it.
 	defs.get_map(team_map).profile = {"value": "tdm", "mode": "tdm", "cfg_path": "", "values": {}}
@@ -90,7 +96,7 @@ func _run() -> void:
 	director.session.forget_profile_mode()
 	defs.get_map(&"dm_pit").profile = {}
 	director.restrict_rotation()
-	_check(not director.session.rotation.order.has(&"dm_pit"), "a team mode drops a map with no team spawns from the rotation")
+	_check(not director.session.rotation.order.has(&"dm_pit"), "a team mode drops a map that cannot host it from the rotation")
 	defs.get_map(&"dm_pit").profile = {"value": "ffa", "mode": "ffa", "cfg_path": "", "values": {}}
 	director.restrict_rotation()
 	_check(director.session.rotation.order.has(&"dm_pit"), "but keeps it when its profile names a mode it hosts")
