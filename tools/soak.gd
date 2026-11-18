@@ -33,6 +33,8 @@ const DEFAULT_MINUTES := 1.0
 const DEFAULT_BOTS := 8
 ## Never reached: a finished match would rotate the map under the soak.
 const SCORE_LIMIT := 1000000
+## Brain states that stand still by design when they have no move: a firefight, listening, a search, a peek or a vantage.
+const HOLD_STATES: Array[StringName] = [&"fight", &"listen", &"search", &"peek", &"vantage", &"retreat"]
 
 var _game: FcGame
 var _kills := 0
@@ -214,8 +216,14 @@ func _movers() -> Array:
 		if player.is_alive():
 			if _minds[player.player_id].ride != null:
 				_riding[player.controller.state.position] = true
-			out.append({"id": player.player_id, "position": player.controller.state.position, "kind": &"bot", "has_goal": true})
+			out.append({"id": player.player_id, "position": player.controller.state.position, "kind": &"bot", "has_goal": not _holding(_minds[player.player_id])})
 	return out
+
+
+## A bot that stands on purpose has no goal for the stuck watch: it fights, listens or searches with nowhere to walk, and the brain moves it when that ends. A bot that wants to walk, or has nowhere to go (roam, no move), still counts, and that one dot-bot's unstick reports as stranded.
+func _holding(mind: FcBots.Mind) -> bool:
+	var last: DotBotIntent = mind.brain.last if mind.brain != null else null
+	return last != null and last.move.length() <= 0.3 and HOLD_STATES.has(last.state)
 
 
 func _fail(why: String) -> void:
