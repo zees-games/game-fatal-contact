@@ -381,7 +381,7 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 			first["hold_m"] = i
 		if float(f.get("hand_error", 0.0)) > LIMITS["detach_m"]:
 			counts["detached"] += 1
-		if float(f.get("hand_swap", 0.0)) > 0.02:
+		if float(f.get("hand_swap", 0.0)) > 0.04:
 			counts["wrong_hand"] += 1
 			first["wrong_hand"] = first.get("wrong_hand", i)
 		if f.get("tpose", false):

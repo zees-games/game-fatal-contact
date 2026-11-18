@@ -51,7 +51,7 @@ Every frame is sampled just before it is drawn. Each clip's verdict, with every 
 | arm through near plane | any visible arm point closer than the near plane plus the arm's radius | the arms clipped open at the screen edge |
 | gun held far out | the settled weapon (no swap, deploy done) more than 1.0 m in front of the eye in camera space | the view model's `hands_depth_comp` giving a narrow `viewmodel_fov`'s size back as distance (`cl_fp_hold_depth`), so the gun draws small behind arms a quarter metre away |
 | weapon through near plane | the weapon cut more than 0.005 m by the near plane | a muzzle or stock poking through the camera |
-| wrong hand | the left hand nearer the main grip than the right for more than 2 frames | mirrored arms, a swapped grip |
+| wrong hand | the left hand nearer the main grip than the right by more than 4 cm for more than 2 frames (the left hand working a magwell beside the grip comes within 3 cm; mirrored arms are 15 cm or more apart) | mirrored arms, a swapped grip |
 | T-pose | the upper arm straight out sideways and level in a frame, for an arm with some of its forearm on screen (the free arm of a one-handed weapon hangs out of view) | IK not applied, a missing skeleton pose |
 | weapon drawn without arms | the model shown, not scoped, with no arms holding it, for more than 3 frames | the arms losing the weapon after a swap |
 | no draw / holster motion | the deploy fraction never goes below 0.9 in a draw or holster | an instant swap with no animation |
