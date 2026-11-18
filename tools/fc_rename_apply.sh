@@ -9,7 +9,7 @@
 #
 # Kept on purpose (phase 2, see docs/fc-rename-plan.md): the cfg game id dir,
 # content/pack ids, stat/award/leaderboard keys, input actions, effect and prop
-# ids, avatar part ids (they are file names), user:// settings, env vars, argv,
+# ids, user:// settings, env vars, argv,
 # RPC-visible node names, and the entry-point shims dot-server-deploy loads.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
@@ -30,9 +30,9 @@ SHIMS = {
 }
 # Paths whose names are data (ids built into file names) or other repos' ids:
 # never moved. Inside the cfg game dir only identifiers change (its templates are
-# generated from code); the avatar parts still get their res:// paths rewritten.
+# generated from code).
 KEEP_CONTENT = [re.compile(rf"^cfg/game/game-{O}/")]
-KEEP_PATH = KEEP_CONTENT + [re.compile(rf"^avatars/{O}_(body|head|crest)_")]
+KEEP_PATH = KEEP_CONTENT
 # Node names RPCs address by path: wire-visible, never renamed.
 NODE_NAMES = {OC + "Server", OC + "Client", OC + "SimServer"}
 

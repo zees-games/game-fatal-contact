@@ -2,7 +2,7 @@ extends "dedicated_module_and_bots.gd"
 
 
 const SECTIONS := 15
-const CHECKS := 195
+const CHECKS := 196
 
 
 func _ready() -> void:
@@ -26,7 +26,7 @@ func _run() -> void:
 	site_doc.set_part(&"face", &"skin-k")
 	var as_ours: DotAvatar = site_avatars.from_site(site_doc)
 	_check(
-		as_ours != null and site_avatars.schema().validate(as_ours).ok and as_ours.part_in(&"body") == &"arena_body_kenney_c" and as_ours.part_in(&"head") == &"arena_head_kenney_k",
+		as_ours != null and site_avatars.schema().validate(as_ours).ok and as_ours.part_in(&"body") == &"fc_body_kenney_c" and as_ours.part_in(&"head") == &"fc_head_kenney_k",
 		"a member's site avatar becomes this game's, and its schema accepts it",
 		str(as_ours.to_dict()) if as_ours != null else "null"
 	)
@@ -39,6 +39,8 @@ func _run() -> void:
 		site_avatars.from_site(unknown_skin) == null and site_avatars.from_site(not_site) == null,
 		"a skin this game does not draw, or a document that is not the site's, is stock"
 	)
+
+	_check_old_part_ids(site_avatars)
 
 	_cleanup()
 
@@ -192,3 +194,31 @@ func _line_with(text: String, needle: String) -> String:
 func _last_lines(text: String, count: int) -> String:
 	var lines := text.strip_edges().split("\n")
 	return "\n".join(lines.slice(maxi(0, lines.size() - count)))
+
+
+## A document stored before the part ids were renamed still loads: old ids read as the new ones,
+## and the schema keeps them through the avatar service's conform.
+func _check_old_part_ids(site_avatars: Variant) -> void:
+	var stored := DotAvatar.make(&"arena_stock")
+	stored.set_part(&"body", &"arena_body_kenney_c")
+	stored.set_part(&"head", &"arena_head_round")
+	stored.set_part(&"crest", &"arena_crest_fin")
+	var round_trip := DotAvatar.from_dict(stored.to_dict())
+	var kept: DotAvatar = round_trip.value if round_trip.ok else null
+	var conform_changes: Variant = site_avatars.schema().conform(kept, null) if kept != null else null
+	var read_back: DotAvatar = site_avatars.migrated(kept) if kept != null else null
+	var old_crest: Node3D = site_avatars.crest_of(kept) if kept != null else null
+	var crest_read := old_crest != null
+	if old_crest != null:
+		old_crest.free()
+	_check(
+		read_back != null and conform_changes != null and conform_changes.ok and conform_changes.value.is_empty()
+			and read_back.part_in(&"body") == &"fc_body_kenney_c" and read_back.part_in(&"head") == &"fc_head_round"
+			and read_back.part_in(&"crest") == &"fc_crest_fin" and kept.part_in(&"body") == &"arena_body_kenney_c"
+			and site_avatars.schema().validate(read_back).ok
+			and site_avatars.migrated(read_back) == read_back and site_avatars.current_id(&"fc_head_boxy") == &"fc_head_boxy"
+			and site_avatars.current_id(&"arena_head_nonesuch") == &"arena_head_nonesuch"
+			and crest_read,
+		"an avatar stored with the old arena_* part ids still loads: read as fc_*, kept by conform, the stored copy untouched",
+		str(read_back.to_dict()) if read_back != null else "null"
+	)

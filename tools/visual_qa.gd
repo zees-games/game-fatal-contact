@@ -36,7 +36,7 @@ var _lead_clip := ""
 func _items() -> PackedStringArray:
 	var out := KINDS.duplicate()
 	for part in FcAvatars.BODIES:
-		out.append(AVATAR_PREFIX + String(part).trim_prefix("arena_body_"))
+		out.append(AVATAR_PREFIX + String(part).trim_prefix("fc_body_"))
 	return out
 
 
@@ -51,9 +51,9 @@ func _stage_avatar(item: String, clip: String) -> DotResult:
 		var part := item.trim_prefix(AVATAR_PREFIX)
 		var key := StringName("arena-player-00000007")
 		var avatar := FcAvatars.stock_avatar(key)
-		avatar.set_part(FcAvatars.SLOT_BODY, StringName("arena_body_" + part))
+		avatar.set_part(FcAvatars.SLOT_BODY, StringName("fc_body_" + part))
 		if part.begins_with("kenney_"):
-			avatar.set_part(FcAvatars.SLOT_HEAD, StringName("arena_head_" + part))
+			avatar.set_part(FcAvatars.SLOT_HEAD, StringName("fc_head_" + part))
 		_fig = DotHumanoidFigure.new()
 		root.add_child(_fig)
 		_fig.build(FcAvatars.look_of(avatar, key), FcPlayerTunables.stand_height_m())

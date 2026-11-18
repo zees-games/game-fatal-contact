@@ -104,7 +104,7 @@ func _init() -> void:
 func _write(source: Node, letter: String, head_only: bool, scale: float) -> int:
 	var slot := "head" if head_only else "body"
 	var root := Node3D.new()
-	root.name = "arena_%s_kenney_%s" % [slot, letter]
+	root.name = "fc_%s_kenney_%s" % [slot, letter]
 
 	for mesh in _meshes(source):
 		var is_head := mesh.name.to_lower().contains(HEAD_MESH)
@@ -121,7 +121,7 @@ func _write(source: Node, letter: String, head_only: bool, scale: float) -> int:
 		root.add_child(copy)
 
 	if root.get_child_count() == 0:
-		printerr("arena_%s_kenney_%s has no meshes" % [slot, letter])
+		printerr("fc_%s_kenney_%s has no meshes" % [slot, letter])
 		root.free()
 		return 1
 
@@ -160,11 +160,11 @@ func _write(source: Node, letter: String, head_only: bool, scale: float) -> int:
 	var scene := PackedScene.new()
 	var packed := scene.pack(root)
 	if packed != OK:
-		printerr("could not pack arena_%s_kenney_%s" % [slot, letter])
+		printerr("could not pack fc_%s_kenney_%s" % [slot, letter])
 		root.free()
 		return 1
 
-	var path := "%s/arena_%s_kenney_%s.tscn" % [OUT_DIR, slot, letter]
+	var path := "%s/fc_%s_kenney_%s.tscn" % [OUT_DIR, slot, letter]
 	var saved := ResourceSaver.save(scene, path)
 	root.free()
 	if saved != OK:

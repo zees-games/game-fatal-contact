@@ -33,11 +33,19 @@ const SLOT_CREST := &"crest"
 ## first stay at the FRONT: `BODIES[0]` and `HEADS[0]` are the schema's defaults, so a
 ## deployment without the art directory still has a default part that exists and an
 ## avatar document written before the art arrived still resolves.
-const BODIES: Array[StringName] = [&"arena_body_trooper", &"arena_body_scout",
-	&"arena_body_kenney_a", &"arena_body_kenney_b", &"arena_body_kenney_c", &"arena_body_kenney_d", &"arena_body_kenney_e", &"arena_body_kenney_f", &"arena_body_kenney_g", &"arena_body_kenney_h", &"arena_body_kenney_i", &"arena_body_kenney_j", &"arena_body_kenney_k", &"arena_body_kenney_l", &"arena_body_kenney_m", &"arena_body_kenney_n", &"arena_body_kenney_o", &"arena_body_kenney_p", &"arena_body_kenney_q", &"arena_body_kenney_r"]
-const HEADS: Array[StringName] = [&"arena_head_round", &"arena_head_boxy",
-	&"arena_head_kenney_a", &"arena_head_kenney_b", &"arena_head_kenney_c", &"arena_head_kenney_d", &"arena_head_kenney_e", &"arena_head_kenney_f", &"arena_head_kenney_g", &"arena_head_kenney_h", &"arena_head_kenney_i", &"arena_head_kenney_j", &"arena_head_kenney_k", &"arena_head_kenney_l", &"arena_head_kenney_m", &"arena_head_kenney_n", &"arena_head_kenney_o", &"arena_head_kenney_p", &"arena_head_kenney_q", &"arena_head_kenney_r"]
-const CRESTS: Array[StringName] = [&"arena_crest_fin", &"arena_crest_ring"]
+const BODIES: Array[StringName] = [&"fc_body_trooper", &"fc_body_scout",
+	&"fc_body_kenney_a", &"fc_body_kenney_b", &"fc_body_kenney_c", &"fc_body_kenney_d", &"fc_body_kenney_e", &"fc_body_kenney_f", &"fc_body_kenney_g", &"fc_body_kenney_h", &"fc_body_kenney_i", &"fc_body_kenney_j", &"fc_body_kenney_k", &"fc_body_kenney_l", &"fc_body_kenney_m", &"fc_body_kenney_n", &"fc_body_kenney_o", &"fc_body_kenney_p", &"fc_body_kenney_q", &"fc_body_kenney_r"]
+const HEADS: Array[StringName] = [&"fc_head_round", &"fc_head_boxy",
+	&"fc_head_kenney_a", &"fc_head_kenney_b", &"fc_head_kenney_c", &"fc_head_kenney_d", &"fc_head_kenney_e", &"fc_head_kenney_f", &"fc_head_kenney_g", &"fc_head_kenney_h", &"fc_head_kenney_i", &"fc_head_kenney_j", &"fc_head_kenney_k", &"fc_head_kenney_l", &"fc_head_kenney_m", &"fc_head_kenney_n", &"fc_head_kenney_o", &"fc_head_kenney_p", &"fc_head_kenney_q", &"fc_head_kenney_r"]
+const CRESTS: Array[StringName] = [&"fc_crest_fin", &"fc_crest_ring"]
+
+## [b]The old part ids, which stored avatar documents still name.[/b] Parts were `arena_body_*`,
+## `arena_head_*` and `arena_crest_*` until the rename; the ids are now `fc_*` (a part's id is its
+## file name). A document written before that holds the old ids, so every place that reads one
+## runs it through [method migrated], and the schema lists the old ids as parts too
+## ([method schema]): the avatar service's `conform` runs on a stored document before the game
+## sees it and drops a part its schema does not know. Drop both after one release.
+const LEGACY_PREFIX := "arena_"
 
 ## Colours a stock character gets, chosen by hashing the player id.
 ##
@@ -91,6 +99,49 @@ static func schema() -> DotAvatarSchema:
 	for id in CRESTS:
 		out.parts.append(_part(id, SLOT_CREST))
 
+	# The old ids, kept so a stored document is not stripped of them before [method migrated].
+	for id in BODIES:
+		out.parts.append(_part(legacy_id(id), SLOT_BODY))
+
+	for id in HEADS:
+		out.parts.append(_part(legacy_id(id), SLOT_HEAD))
+
+	for id in CRESTS:
+		out.parts.append(_part(legacy_id(id), SLOT_CREST))
+
+	return out
+
+
+## The old id of a current part id (`fc_body_scout` is `arena_body_scout`).
+static func legacy_id(id: StringName) -> StringName:
+	return StringName(LEGACY_PREFIX + String(id).trim_prefix("fc_"))
+
+
+## The current id of a part id: an old one maps to its `fc_*` name, any other id comes back as it was.
+static func current_id(id: StringName) -> StringName:
+	var text := String(id)
+	if text.begins_with(LEGACY_PREFIX):
+		var mapped := StringName("fc_" + text.trim_prefix(LEGACY_PREFIX))
+		if BODIES.has(mapped) or HEADS.has(mapped) or CRESTS.has(mapped):
+			return mapped
+	return id
+
+
+## [param avatar] with every old part id read as its current one. The same document when it
+## names none (nothing is copied), else a copy: a stored or cached document is never edited.
+static func migrated(avatar: DotAvatar) -> DotAvatar:
+	if avatar == null or avatar.schema_id != SCHEMA_ID:
+		return avatar
+	var stale := false
+	for slot in avatar.filled_slots():
+		if current_id(avatar.part_in(slot)) != avatar.part_in(slot):
+			stale = true
+			break
+	if not stale:
+		return avatar
+	var out := avatar.duplicate_avatar()
+	for slot in out.filled_slots():
+		out.set_part(slot, current_id(out.part_in(slot)))
 	return out
 
 
@@ -98,7 +149,7 @@ static func _part(id: StringName, slot: StringName) -> DotAvatarPart:
 	var out := DotAvatarPart.new()
 	out.id = id
 	out.slot = slot
-	out.display_name = String(id).replace("arena_", "").capitalize()
+	out.display_name = String(id).replace("fc_", "").capitalize()
 	out.colour_channels = 1
 	# Free and shipped in this build: no content id, so the catalogue resolves it
 	# straight to res://avatars/<id>.tscn without asking dot-cloud for anything.
@@ -116,10 +167,10 @@ static func catalogue() -> DotAvatarCatalogue:
 ## The head a stock avatar never gets: Kenney's skin n is pure white (`ffffff`), and its
 ## first-person arms, bare to the elbow, filled a quarter of the screen as flat white (the
 ## solo player on the web drew it from their key). Chosen on the site, it is still worn.
-const STOCK_SKIPS_HEAD := &"arena_head_kenney_n"
+const STOCK_SKIPS_HEAD := &"fc_head_kenney_n"
 
 ## What a stock avatar wears in its place: a skin-toned face (the next one, o, is teal).
-const STOCK_INSTEAD_HEAD := &"arena_head_kenney_p"
+const STOCK_INSTEAD_HEAD := &"fc_head_kenney_p"
 
 
 ## An avatar for a player who has none. Deterministic in the id.
@@ -192,7 +243,7 @@ static func apply(
 	if avatar == null or rig == null or p_schema == null:
 		return DotResult.fail(DotError.CODE_INVALID, "Nothing to build.")
 
-	var document := avatar.duplicate_avatar()
+	var document := migrated(avatar).duplicate_avatar()
 	var conformed := p_schema.conform(document, null)
 
 	if not conformed.ok:
@@ -241,7 +292,8 @@ static func make_rig() -> Node3D:
 ## hair (and which of the four bodies); a primitive part takes the colour the document tints it,
 ## over a stock person seeded by [param player_key]. The crest is not part of the look: it is a
 ## model of its own, drawn on the person's crown by [method crest_of].
-static func look_of(avatar: DotAvatar, player_key: StringName) -> DotHumanoidLook:
+static func look_of(stored: DotAvatar, player_key: StringName) -> DotHumanoidLook:
+	var avatar := migrated(stored)
 	var look := DotHumanoidLook.stock(_mix(absi(hash(String(player_key)))))
 	if avatar == null or avatar.schema_id != SCHEMA_ID:
 		return look
@@ -262,7 +314,7 @@ static func look_of(avatar: DotAvatar, player_key: StringName) -> DotHumanoidLoo
 
 ## How far above the crown each crest's middle sits, so it stands on the hair rather than
 ## through it. Read off a rendered head: the crown mount is the top of the mesh.
-const CREST_LIFT := {&"arena_crest_fin": 0.09, &"arena_crest_ring": 0.08}
+const CREST_LIFT := {&"fc_crest_fin": 0.09, &"fc_crest_ring": 0.08}
 
 
 ## The avatar's crest as a model to hang on a person's crown mount (`attachment(&"crest")`),
@@ -272,7 +324,8 @@ const CREST_LIFT := {&"arena_crest_fin": 0.09, &"arena_crest_ring": 0.08}
 ## crest crouches, nods with the aim and shrinks with the head in first person. The rig's fixed
 ## `crest` node it was built into before the people stood at standing height whatever the body
 ## did, and once the people came in nothing drew the crest at all.
-static func crest_of(avatar: DotAvatar) -> Node3D:
+static func crest_of(stored: DotAvatar) -> Node3D:
+	var avatar := migrated(stored)
 	if avatar == null or avatar.schema_id != SCHEMA_ID or not avatar.has_slot(SLOT_CREST):
 		return null
 	var part := avatar.part_in(SLOT_CREST)
@@ -290,7 +343,7 @@ static func crest_of(avatar: DotAvatar) -> Node3D:
 	return crest
 
 
-## The skin letter of a `arena_<slot>_kenney_<letter>` part, or "".
+## The skin letter of a `fc_<slot>_kenney_<letter>` part, or "".
 static func _kenney_letter(part: StringName) -> String:
 	var text := String(part)
 	var at := text.find("_kenney_")
@@ -315,10 +368,10 @@ static func from_site(foreign: DotAvatar) -> DotAvatar:
 	var avatar := schema().default_avatar()
 
 	if top != "":
-		avatar.set_part(SLOT_BODY, StringName("arena_body_kenney_%s" % top))
+		avatar.set_part(SLOT_BODY, StringName("fc_body_kenney_%s" % top))
 
 	if face != "":
-		avatar.set_part(SLOT_HEAD, StringName("arena_head_kenney_%s" % face))
+		avatar.set_part(SLOT_HEAD, StringName("fc_head_kenney_%s" % face))
 
 	return avatar
 
