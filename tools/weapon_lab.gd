@@ -220,6 +220,30 @@ func _apply_view_args(me) -> void:
 		sampler.call(&"look_at_angles", float(sampler.get(&"yaw")), float(pitch))
 
 
+var _lab_windup_was := -1.0
+
+
+## The knife's charged throw: the aim key held for the meter to fill (wind-up), then let go (release and flight).
+func _fp_throw(me, id: StringName, def: DotWeaponDef, wdir: String, key: String, res: Dictionary) -> Dictionary:
+	await _ensure_in_hand(me, id, def)
+	if id != &"knife":
+		return {"status": "n/a", "why": "only the knife is thrown with a wind-up"}
+	await _clip(wdir, key, _f(90), func(i: int) -> void:
+		# The own body is hidden in first person, so the game never animates it: drive its arms from the same meter.
+		if me.figure != null:
+			me.figure.set_throw_charge(me.windup)
+			if _lab_windup_was >= 0.0 and me.windup < 0.0:
+				me.figure.throw_release()
+			me.figure.animate(0.0, 1.0 / 60.0)
+		_lab_windup_was = me.windup
+		if i == _f(4):
+			Input.action_press(&"arena_aim")
+		elif i == _f(40):
+			Input.action_release(&"arena_aim"), res)
+	Input.action_release(&"arena_aim")
+	return res
+
+
 func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: String, other_slot: int) -> Dictionary:
 	var key := "fp_" + a
 	var res := {"status": "ok"}
@@ -272,6 +296,8 @@ func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: Strin
 				elif i == _f(6):
 					Input.action_release(&"arena_bash"), res)
 			Input.action_release(&"arena_bash")
+		"throw":
+			res = await _fp_throw(me, id, def, wdir, key, res)
 		"sprint":
 			await _ensure_in_hand(me, id, def)
 			var view := _view_model(me)
