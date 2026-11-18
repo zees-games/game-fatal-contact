@@ -43,6 +43,11 @@ static var hold_depth_comp := 0.0
 static var max_lean_override := -1.0
 ## The arms' depth drawn at the gun's ([method drawn_depth]); off draws them in front of the whole gun, as before.
 static var draw_at_gun_depth := true
+## The support elbow's direction (the arms' frame, left arm): down under the fore-end, a little out and back. Mirroring the
+## firing elbow put it out to the left, and a two-hand gun's support forearm and sleeve crossed the view to its handguard.
+static var support_elbow_pole := Vector3(0.25, -1.5, -0.1)
+## The support forearm's girth (length kept): at full girth its sleeve, near the eye, filled a corner of the view.
+static var support_forearm_girth := 0.6
 
 var arms: DotPlayerViewArms = null
 var body: Node3D = null
@@ -80,6 +85,10 @@ static func mount(parent: Node, model: AwViewModel, body: Node3D, look: DotHuman
 	mounted.add_child(mounted.arms)
 	mounted.arms.build(look, 1.8)
 	mounted._own_lean = mounted.arms.max_lean
+	if &"support_elbow_pole" in mounted.arms:
+		mounted.arms.support_elbow_pole = support_elbow_pole
+	if &"support_forearm_girth" in mounted.arms:
+		mounted.arms.support_forearm_girth = support_forearm_girth
 	if &"hand_min_depth" in mounted.arms:
 		mounted.arms.hand_min_depth = hand_min_depth
 	mounted._look_override = mounted.arms.has_method(&"set_look_override")
