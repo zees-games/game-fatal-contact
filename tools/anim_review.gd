@@ -213,7 +213,14 @@ func _straight_out(to_cam: Transform3D, at: Dictionary, side: String) -> bool:
 	if upper.length() < 0.01:
 		return false
 	var dir: Vector3 = (to_cam.basis * upper).normalized()
-	return absf(dir.x) > 0.95 and absf(dir.y) < 0.2
+	if absf(dir.x) <= 0.95 or absf(dir.y) >= 0.2:
+		return false
+	# A whole arm out sideways is the rest pose; an elbow out with the forearm turned down or in is a reach (a reload's hand going to a pouch).
+	var fore: Vector3 = (at["Middle1" + side] as Vector3) - (at["LowerArm" + side] as Vector3)
+	if fore.length() < 0.01:
+		return true
+	var fdir: Vector3 = (to_cam.basis * fore).normalized()
+	return absf(fdir.x) > 0.9 and absf(fdir.y) < 0.3
 
 
 ## How far inside the near plane plus the arm's own radius any visible point of an arm reaches (positive is a cut).
