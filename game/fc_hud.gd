@@ -4,6 +4,7 @@ extends "fc_hud_labels.gd"
 const FcFlagView := preload("fc_flag_view.gd")
 const FcThrowMeter := preload("fc_throw_meter.gd")
 const FcHudAppPoints := preload("fc_hud_app_points.gd")
+const FcHudDamageDirs := preload("fc_hud_damage_dirs.gd")
 
 ## The knife throw's power bar under the crosshair: shown only while the aim key winds a throw up.
 var throw_bar: DotStatBar = null

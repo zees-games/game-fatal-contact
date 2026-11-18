@@ -1,4 +1,3 @@
-class_name FcHudDamageDirs
 extends Control
 ## Red chevrons around the crosshair that point at whoever hurt you, turning as you turn. The full-screen red edge says THAT you were
 ## hit; this says from where, which matters most when the shooter is behind or beside you and nothing on screen shows it.

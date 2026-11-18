@@ -92,7 +92,7 @@ An imported combat surf map has no box list and is the one exception; it keeps t
 
 ## Where it runs
 
-`game.yml` (`content_id: gamemann/game-arena`, `kind: pack`) is the descriptor that travels in the signed dot-cloud pack: `scenes/fc_server.tscn` on the server, `game/fc.tscn` on the client, `game/fc_module.gd` as the module. dot-server-deploy publishes it and runs it as one of its demo servers (`demo.sh`, server 5, at 64 ticks). Because it is delivered as a pack, nothing here declares a `class_name` ([family rule](../../../CLAUDE.md)): scripts preload each other by relative path and `res://` strings go through `FcPaths.rebase`.
+`game.yml` (`content_id: gamemann/game-fatal-contact`, `kind: pack`) is the descriptor that travels in the signed dot-cloud pack: `scenes/fc_server.tscn` on the server, `game/fc.tscn` on the client, `game/fc_module.gd` as the module. dot-server-deploy publishes it and runs it as one of its demo servers (`demo.sh`, server 5, at 64 ticks). Because it is delivered as a pack, nothing here declares a `class_name` ([family rule](../../../CLAUDE.md)): scripts preload each other by relative path and `res://` strings go through `FcPaths.rebase`.
 
 ## Where the code is
 

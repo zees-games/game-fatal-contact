@@ -40,5 +40,15 @@ while IFS= read -r f; do
         bad=1
     done < <(grep -nP "$OWN" "$f")
 done < <(git ls-files '*.gd')
-[ "$bad" = 0 ] && echo "check_pack_paths: every shipped res:// path is rebased"
+# A `class_name` in a shipped script is a global only where the editor's class list has it: a dev checkout
+# and a panel server (imported project) do, a browser shell mounting the pack does not. 0.1.70's
+# FcHudDamageDirs broke the web HUD and, through it, the whole client chain ("Could not find type").
+# Preload by relative path instead. Every shipped script counts here (publish.sh's exclusions only).
+SHIPPED='^(examples|tests|tools|docs|images|screenshots|shots_boot|ci|\.github|addons)/'
+while IFS=: read -r f n line; do
+    [[ "$f" =~ $SHIPPED ]] && continue
+    printf '%s:%s: a class_name in a pack (not a global on a web shell; preload by relative path):%s\n' "$f" "$n" "$line"
+    bad=1
+done < <(git grep -nE '^[[:space:]]*(@[a-z_]+[[:space:]]+)*class_name[[:space:]]' -- '*.gd')
+[ "$bad" = 0 ] && echo "check_pack_paths: every shipped res:// path is rebased and no shipped script declares a class_name"
 exit "$bad"

@@ -47,6 +47,23 @@ mkdir -p "$W/p"
 ln -s "$W/addons" "$W/p/addons"
 timeout 900 "$GODOT" --headless --path "$W/p" --import >"$W/import.log" 2>&1
 (cd "$W/p" && find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | sed 's|^\./||' > "$W/list")
+# The import registered the pack's own `class_name`s, which a browser shell never does: it mounts the pack under
+# res://dot_cloud/<owner>/<id>/<ver>/ and its class list is the shell's plus the addon overlay's. Keep only the
+# addons' entries so a script that leans on a pack-level global fails here as it does there (0.1.70:
+# "Could not find type FcHudDamageDirs", then every client script that extends through the HUD).
+CACHE="$W/p/.godot/global_script_class_cache.cfg"
+if [ -f "$CACHE" ]; then
+    awk '
+        /^(list=\[)?\{$/ { buf = ""; next }
+        /^\}(, \{|\])$/ { if (buf ~ /"path": "res:\/\/addons\//) keep[++k] = buf; buf = ""; next }
+        { buf = buf $0 "\n" }
+        END {
+            printf "list=["
+            for (i = 1; i <= k; i++) printf "%s{\n%s}", (i > 1 ? ", " : ""), keep[i]
+            print "]"
+        }
+    ' "$CACHE" > "$CACHE.addons" && mv "$CACHE.addons" "$CACHE"
+fi
 PARSE_LIST="$W/list" timeout 900 "$GODOT" --headless --path "$W/p" --script res://addons/dot_core/tools/dot_parse_all.gd >"$W/parse.log" 2>&1
 grep -aq '^PARSED ' "$W/parse.log" || { tail -20 "$W/parse.log" >&2; echo "check_shell_parse: the parse tool did not finish" >&2; exit 2; }
 fails="$(grep -aE -A1 'Parse Error' "$W/parse.log" | grep -aE 'Parse Error|at: ' | paste - - | sed 's/SCRIPT ERROR: //; s/ *at: GDScript::reload//' | sort -u)"
