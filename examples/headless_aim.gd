@@ -4,6 +4,7 @@ const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcBindings := preload("../game/fc_bindings.gd")
+const FcScopePrefs := preload("../game/fc_scope_prefs.gd")
 
 ## Hit registration end to end: a still target at 20, 40 and 80 m, the aim centred on its head, a scoped sniper
 ## fired. The shot must land on the head (a headshot, a confirmed hit), standing and crouched, on the first shot
@@ -15,7 +16,7 @@ const FcBindings := preload("../game/fc_bindings.gd")
 
 const TICK_RATE := 64
 const DISTANCES := [20.0, 40.0, 80.0]
-const EXPECTED_CHECKS := 42
+const EXPECTED_CHECKS := 45
 
 var _checks := 0
 var _failed := 0
@@ -129,6 +130,10 @@ func _trial(dist: float, crouch: bool, follow_up: bool) -> Dictionary:
 
 
 func _run() -> void:
+	# The browser's SubViewport lens draws flat grey (no light, no sRGB step), so the web build starts in the full-screen scope.
+	_check(FcScopePrefs.default_mode(true) == 2, "web: cl_scope_mode defaults to the full-screen scope (2)")
+	_check(FcScopePrefs.default_mode(false) == 1, "native: cl_scope_mode defaults to the lens (1)")
+	_check(FcScopePrefs.mode == FcScopePrefs.default_mode(OS.has_feature("web")), "cl_scope_mode starts at this platform's default")
 	await _boot()
 	var shooter := _game.player_for(1)
 	var give := shooter.arsenal.give(AwWeaponIds.SNIPER)
