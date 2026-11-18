@@ -504,7 +504,12 @@ func on_impact(at: Transform3D, on_player: bool, weapon_id: StringName = &"") ->
 			return
 		FcHoleSizes.fit(hole, weapon_id)
 	audio.play_at(&"impact", at.origin)
-	fx.spawn(&"impact_spark", at)
+	# On a moving body (a prop, a platform) the spark rides along; on the world it is a plain spawn.
+	# (spawn_on_surface is dot_fx level 11; a shell pinned lower keeps the plain spawn.)
+	if on_player or not fx.has_method(&"spawn_on_surface"):
+		var _plain := fx.spawn(&"impact_spark", at)
+	else:
+		var _spark := fx.spawn_on_surface(&"impact_spark", at)
 
 
 ## A map-vote cue from the server. Empty is silence, and an id this catalogue does not
