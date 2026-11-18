@@ -6,7 +6,7 @@ const Bodies := preload("../game/fc_killcam_bodies.gd")
 const KillcamShots := preload("../game/fc_killcam_shots.gd")
 const KillPovView := preload("../game/fc_kill_pov_view.gd")
 
-const EXPECTED_CHECKS := 65
+const EXPECTED_CHECKS := 70
 
 ## The standalone game, as a player lives it: a bot kills the local player (the kill view of the
 ## killer plays), then a bot's kill ends the match (the final killcam plays its time, a skip key
@@ -397,6 +397,7 @@ func _check_lens(gm: Object, me: Object, killer: Object) -> void:
 	view.present({})
 	_check(not KillPov.is_replay_camera(cam), "ending the replay unflags the camera")
 	await _check_rig_pool(view, cam, aux)
+	_check_arms_pool(view, cam, aux)
 	await _check_ghost_guns(view, cam, aux, wall_eye, wall_dir)
 	cam.queue_free()
 	view.queue_free()
@@ -424,6 +425,41 @@ func _check_rig_pool(view: KillPovView, cam: Camera3D, aux: PackedFloat32Array) 
 	view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
 	_check(view.hands != null and view.hands == parked_rig, "the next kill by that weapon takes the parked view model")
 	view.present({})
+
+
+## Owner's web profile: each kill view built the killer's arms (25-33 ms), and 0.5 s on a stock spare it then threw
+## away (25-27 ms more). Arm rigs park per killer: a repeat killer builds nothing, and no spare is built while arms show.
+func _check_arms_pool(view: KillPovView, cam: Camera3D, aux: PackedFloat32Array) -> void:
+	var was: Callable = view.killer_look_fn
+	# Lambdas capture by value: the killer is swapped inside a shared array.
+	var killer: Array = [["arena-player-00000001", DotHumanoidLook.stock(1)]]
+	view.killer_look_fn = func() -> Array: return killer[0]
+	view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
+	if view.arms == null:
+		view.present({})
+		view.killer_look_fn = was
+		print("SKIP arms pool: this build draws the view model's own sleeves")
+		return
+	var first: Node = view.arms
+	var before: Array = view.parked_arms()
+	view.prepare_spare()
+	_check(view.parked_arms() == before, "no spare arms are built while a kill view shows its own", "%s then %s" % [before, view.parked_arms()])
+	view.present({})
+	_check(view.parked_arms().has(killer[0][0]), "the ended kill view parks its arms under the killer", str(view.parked_arms()))
+	killer[0] = ["arena-player-00000002", DotHumanoidLook.stock(2)]
+	view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
+	_check(view.arms != null and view.arms != first, "another killer gets another rig", str(view.parked_arms()))
+	view.present({})
+	killer[0] = ["arena-player-00000001", DotHumanoidLook.stock(1)]
+	view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
+	_check(view.arms == first, "a repeat killer takes the rig parked with their look", str(view.parked_arms()))
+	view.present({})
+	for i in KillPovView.RIGS + 2:
+		killer[0] = ["arena-player-%08d" % (10 + i), DotHumanoidLook.stock(1)]
+		view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
+		view.present({})
+	_check(view.parked_arms().size() == KillPovView.RIGS, "past the pool's size the oldest arms go", str(view.parked_arms()))
+	view.killer_look_fn = was
 
 
 ## Owner video: small dark copies of the player's gun floated in the map, switching and reloading with it, up to one per kill-view rig. A rig parked hidden at a wall kept its wall pass (a CanvasLayer, which no hidden or stopped

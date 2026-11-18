@@ -30,9 +30,8 @@ var killer_look_fn: Callable = Callable()
 var rules: Object = null
 var _arm_set: Array = []
 var _boxes: Dictionary = {}
-## Whose look [member arms] and [member _spare_arms] were built with, so a kill by the same person reuses the rig.
+## Whose look [member arms] was built with; it parks under that key, so a kill by the same person reuses the rig.
 var _arms_key := ""
-var _spare_key := ""
 var crosshair: DotCrosshair = null
 var label: Label = null
 
@@ -42,7 +41,10 @@ const RIGS := 4
 ## View models parked under this layer, hidden and stopped: built in advance and kept after a kill with the
 ## weapon they drew, so a kill starts by moving nodes, not by making them (KillerHands and its weapon cost 100-430 ms).
 var _rigs: Array[AwViewModel] = []
-var _spare_arms: DotPlayerViewArms = null
+## Arm rigs parked outside the tree as [key, rig], oldest first, each built with one killer's look ("" a stock
+## spare): a kill by anyone parked moves nodes and builds nothing (an arms build was 25-33 ms of a web frame, at the
+## kill and again for the old stock spare 0.5 s on). Past [constant RIGS] the oldest goes.
+var _parked_arms: Array = []
 ## The flash pool, crosshair and ammo line of the last kill, parked for the next.
 var _spare_fx: AwShotFx = null
 var _spare_crosshair: DotCrosshair = null
@@ -222,10 +224,12 @@ func _new_hands() -> AwViewModel:
 
 
 func _exit_tree() -> void:
-	# The spare rig waits outside the tree, so nothing frees it with the view.
-	if _spare_arms != null and is_instance_valid(_spare_arms) and not _spare_arms.is_inside_tree():
-		_spare_arms.free()
-	_spare_arms = null
+	# Parked arm rigs wait outside the tree, so nothing frees them with the view.
+	for entry: Array in _parked_arms:
+		var rig: Variant = entry[1]
+		if rig != null and is_instance_valid(rig) and not (rig as Node).is_inside_tree():
+			(rig as Node).free()
+	_parked_arms.clear()
 
 
 ## An arm rig built with [param look], drawn as the server's arm set while one is on; [method _mount_arms] puts it under the replay camera.
@@ -290,9 +294,10 @@ func _prepare_spare() -> void:
 		var rig := _new_hands()
 		add_child(rig)
 		_park_rig(rig)
-	if not _live(_spare_arms) and _shares_arms(_rigs[0]):
-		_spare_arms = _new_arms(DotHumanoidLook.stock(1))
-		_spare_key = ""
+	_prune_arms()
+	# Only while no kill shows arms: those park at its end, so a stock spare built now is a build thrown away.
+	if _parked_arms.is_empty() and not _live(arms) and _shares_arms(_rigs[0]):
+		_parked_arms.append(["", _new_arms(DotHumanoidLook.stock(1))])
 	if not _live(_spare_fx) and flashes == null:
 		# In the tree once, so its light and mesh pools are built here and not under the kill's camera.
 		_spare_fx = _new_fx()
@@ -336,8 +341,9 @@ func warm(weapons: Array) -> Array:
 	for rig in _rigs:
 		if _live(rig):
 			DotRenderWarmup.collect(rig, out)
-	if _live(_spare_arms):
-		DotRenderWarmup.collect(_spare_arms, out)
+	for entry: Array in _parked_arms:
+		if _live(entry[1]):
+			DotRenderWarmup.collect(entry[1], out)
 	if _live(_spare_fx):
 		DotRenderWarmup.collect(_spare_fx, out)
 	return out
@@ -396,18 +402,20 @@ func _mount_arms(cam: Camera3D) -> void:
 	if not _shares_arms():
 		return
 	var who := _killer_look()
-	if _live(_spare_arms):
-		arms = _spare_arms
+	var key := String(who[0])
+	var pick := _arms_pick(key)
+	if pick >= 0:
+		arms = _parked_arms[pick][1]
+		var built_for: String = _parked_arms[pick][0]
+		_parked_arms.remove_at(pick)
 		if arms.has_method(&"set_look_override"):
 			arms.set_look_override(FcViewArms.arm_set_look(rules, _arm_set))
-		# The parked rig is the last killer's; another killer's arms cost a rebuild, not a new rig.
-		if _spare_key != String(who[0]):
+		# Another killer's parked rig: a rebuild with this look, not a new rig.
+		if built_for != key:
 			arms.build(who[1], 1.8)
 	else:
 		arms = _new_arms(who[1])
-	_arms_key = String(who[0])
-	_spare_arms = null
-	_spare_key = ""
+	_arms_key = key
 	arms.name = "KillerArms"
 	arms.visible = true
 	if arms.get_parent() != null:
@@ -415,6 +423,52 @@ func _mount_arms(cam: Camera3D) -> void:
 	cam.add_child(arms)
 	if not hands.hands_reached.is_connected(_on_hands):
 		hands.hands_reached.connect(_on_hands)
+
+
+## The parked arm rig a kill by [param key] takes: one built with that look; else the stock spare; else, the pool
+## full, the oldest (rebuilt); else -1 (a new rig, so the parked looks stay for their killers).
+func _arms_pick(key: String) -> int:
+	_prune_arms()
+	var stock := -1
+	for i in _parked_arms.size():
+		if _parked_arms[i][0] == key:
+			return i
+		if _parked_arms[i][0] == "" and stock < 0:
+			stock = i
+	if stock >= 0:
+		return stock
+	return 0 if _parked_arms.size() >= RIGS else -1
+
+
+## Drops parked arm rigs that are gone.
+func _prune_arms() -> void:
+	for i in range(_parked_arms.size() - 1, -1, -1):
+		if not _live(_parked_arms[i][1]):
+			_parked_arms.remove_at(i)
+
+
+## Parks [param rig], built with [param key]'s look, as the newest; another parked under that key, and past
+## [constant RIGS] the oldest, go.
+func _park_arms(key: String, rig: DotPlayerViewArms) -> void:
+	_prune_arms()
+	for i in range(_parked_arms.size() - 1, -1, -1):
+		if _parked_arms[i][0] == key and _parked_arms[i][1] != rig:
+			(_parked_arms[i][1] as Node).free()
+			_parked_arms.remove_at(i)
+	_parked_arms.append([key, rig])
+	while _parked_arms.size() > RIGS:
+		var old: Node = _parked_arms.pop_front()[1]
+		if _live(old):
+			old.free()
+
+
+## The killers whose arm rigs wait parked, oldest first ("" is the stock spare; tests, the load timeline).
+func parked_arms() -> Array:
+	_prune_arms()
+	var out: Array = []
+	for entry: Array in _parked_arms:
+		out.append(entry[0])
+	return out
 
 
 func _on_hands(anchor: Node3D, grip: Vector3, fore: Vector3, pose: StringName) -> void:
@@ -478,12 +532,8 @@ func _end() -> void:
 		# Outside the tree, as a spare rig waits ([method _exit_tree] frees it).
 		if arms.get_parent() != null:
 			arms.get_parent().remove_child(arms)
-		if _live(_spare_arms):
-			arms.queue_free()
-		else:
-			arms.visible = false
-			_spare_arms = arms
-			_spare_key = _arms_key
+		arms.visible = false
+		_park_arms(_arms_key, arms)
 	arms = null
 	_arms_key = ""
 	_grip = null
