@@ -23,8 +23,14 @@ const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
 var _fig: DotHumanoidFigure = null
 
+## Frames a moving clip is driven before frame 0, at negative times along the same path: a figure that animates from its body's motion
+## (`auto_animate`) stands in its idle for its first few frames, and foot_slide would judge that start-up as a foot dragging.
+const LEAD_IN_FRAMES := 30
+
 var _npc: Node3D = null
 var _kind := ""
+var _lead_left := 0
+var _lead_clip := ""
 
 
 func _items() -> PackedStringArray:
@@ -73,7 +79,26 @@ func _stage(item: String, clip: String) -> DotResult:
 		_kind = item
 	_npc.position = Vector3(0.0, 0.0, -CIRCLE_RADIUS)
 	_npc.rotation = Vector3.ZERO
+	_lead_left = LEAD_IN_FRAMES if float(PACE[clip]) > 0.0 else 0
+	_lead_clip = clip
+	if _lead_left > 0 and not root.get_tree().process_frame.is_connected(_lead_in):
+		root.get_tree().process_frame.connect(_lead_in)
 	return DotResult.success(clip)
+
+
+func _warmup_frames(item: String, clip: String) -> int:
+	if item.begins_with(AVATAR_PREFIX):
+		return 2
+	return LEAD_IN_FRAMES + 2 if float(PACE[clip]) > 0.0 else 2
+
+
+## One lead-in frame: the body already moving when the recording starts.
+func _lead_in() -> void:
+	if _lead_left <= 0:
+		root.get_tree().process_frame.disconnect(_lead_in)
+		return
+	_drive(_kind, _lead_clip, -float(_lead_left) / float(fps), 0)
+	_lead_left -= 1
 
 
 func _subject(item: String) -> Node3D:
@@ -116,7 +141,8 @@ func _drive(item: String, clip: String, t: float, _frame: int) -> void:
 		return
 	var angle := speed * t / CIRCLE_RADIUS
 	_npc.position = Vector3(sin(angle), 0.0, -cos(angle)) * CIRCLE_RADIUS
-	_npc.rotation.y = -angle
+	# Faces along the circle (its tangent), as a walker does: facing the centre would be a sidestep.
+	_npc.rotation.y = -angle - PI / 2.0
 
 
 ## The victim's eye at the circle's centre, looking at the monster.
