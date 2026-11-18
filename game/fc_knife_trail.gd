@@ -21,6 +21,14 @@ extends Node3D
 @export var glint_color: Color = Color(1.0, 0.97, 0.85, 1.0)
 ## The knife model's scale while it flies, eased back to 1 as it slows (1 leaves the model alone).
 @export var flight_scale: float = 1.6
+## Near the camera the flight look is wrong: a knife leaves the thrower's eye (the knives layer throws from the camera),
+## so its first frames drew the model, enlarged by [member flight_scale], filling the screen, and the streak as a pale
+## band across it. Closer than [member near_hide] metres the model and streak are not drawn (the view model shows the
+## throw); out to [member near_full] the enlargement grows in with the distance.
+@export var near_hide: float = 0.9
+@export var near_full: float = 3.0
+## Only for this long after the knife appears (seconds): a knife lying or stuck near the camera later is drawn as it is.
+@export var near_window: float = 0.5
 
 var _points: Array[Vector3] = []
 var _ages: PackedFloat32Array = PackedFloat32Array()
@@ -34,6 +42,11 @@ var _glint: MeshInstance3D = null
 var _flying: float = 0.0
 var _scaled: Node3D = null
 var _rest_scale := Vector3.ONE
+## [method _nearness] of the camera this frame, and whether the model is hidden for it.
+var _near: float = 0.0
+var _model_hidden: bool = false
+var _age: float = 0.0
+var _parent_layers: int = 1
 
 
 func _ready() -> void:
@@ -119,7 +132,12 @@ func _process(delta: float) -> void:
 		_points.remove_at(0)
 	var speed := (at - _last).length() / maxf(delta, 0.0001) if _has_last else 0.0
 	var flying := _has_last and speed >= min_speed
-	if flying:
+	var camera := get_viewport().get_camera_3d() if get_viewport() != null else null
+	_age += delta
+	var gap := camera.global_position.distance_to(at) if camera != null and _age < near_window else INF
+	_near = _nearness(gap)
+	_hide_model(parent, _near >= 1.0)
+	if flying and _near < 1.0:
 		_points.append(at)
 		_ages.append(0.0)
 	_last = at
@@ -140,7 +158,32 @@ func _show_flight(parent: Node3D, at: Vector3) -> void:
 	if _scaled != parent:
 		_scaled = parent
 		_rest_scale = parent.scale
-	parent.scale = _rest_scale * lerpf(1.0, flight_scale, _flying)
+	parent.scale = _rest_scale * lerpf(1.0, flight_scale, _flying * (1.0 - _near))
+
+
+## 1 at or inside [member near_hide] of the camera, 0 from [member near_full] out, straight between.
+func _nearness(distance: float) -> float:
+	if near_full <= near_hide:
+		return 1.0 if distance <= near_hide else 0.0
+	return clampf((near_full - distance) / (near_full - near_hide), 0.0, 1.0)
+
+
+## The model's meshes (every child of the knife model but this streak) off while [param hidden].
+func _hide_model(parent: Node3D, hidden: bool) -> void:
+	if hidden == _model_hidden:
+		return
+	_model_hidden = hidden
+	# A model that is itself the mesh: off its render layers, as hiding it would hide this streak too.
+	if parent is VisualInstance3D:
+		var mesh := parent as VisualInstance3D
+		if hidden:
+			_parent_layers = mesh.layers
+			mesh.layers = 0
+		else:
+			mesh.layers = _parent_layers
+	for child in parent.get_children():
+		if child != self and child is Node3D:
+			(child as Node3D).visible = not hidden
 
 
 func _redraw() -> void:
