@@ -155,6 +155,8 @@ class NavWorld:
 		if surf != null:
 			return surf.call(&"route_detail", from, to)
 		if _ladders != null and _nav != null and _nav.is_ready():
+			if not _nav.joined(from, to):
+				return {"points": PackedVector3Array(), "rides": PackedInt32Array()}
 			return _nav.route(from, to)
 		var points := route(from, to)
 		var rides := PackedInt32Array()
@@ -292,7 +294,8 @@ class NavWorld:
 	func _route(from: Vector3, to: Vector3) -> PackedVector3Array:
 		var nav := _nav_for_map()
 		if nav != null:
-			return nav.path(from, to)
+			# the server logs an error per query between islands; `joined` answers from the mesh
+			return nav.path(from, to) if nav.joined(from, to) else PackedVector3Array()
 		var graph := _graph_for_map()
 		if graph == null:
 			return PackedVector3Array()

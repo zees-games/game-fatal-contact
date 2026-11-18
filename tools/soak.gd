@@ -191,7 +191,10 @@ func _make_soak(cfg: DotBotSoakConfig, map: FcMap, world: FcBots.World) -> DotBo
 	var nav := world.nav_for_rides()
 	if nav != null and nav.is_ready():
 		watch.nav_distance_fn = func(at: Vector3) -> float: return 0.0 if _riding.has(at) else at.distance_to(nav.closest(at))
-		watch.reachable_fn = func(at: Vector3) -> bool: return not nav.route(at, _goal).get("points", PackedVector3Array()).is_empty()
+		# `joined` answers from the mesh's islands: a route query between two islands makes the navigation server
+		# log "not expect to not find the most reachable polygons" on every sample (nightly fuzz-nav-reachable-1).
+		watch.reachable_fn = func(at: Vector3) -> bool:
+			return nav.joined(at, _goal) and not nav.route(at, _goal).get("points", PackedVector3Array()).is_empty()
 		soak.players_fn = func() -> PackedVector3Array: return PackedVector3Array([_goal])
 	return soak
 
