@@ -10,6 +10,7 @@ const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcAvatars := preload("../game/fc_avatars.gd")
+const FigureBlend := preload("headless_figure_blend.gd")
 
 const RANGE_M := 65.0
 const WARMUP_TICKS := 40
@@ -68,6 +69,7 @@ func _run() -> void:
 			print("  %s %s: knee %.0f deg, head bone %.3f m (middle +%.3f), head zone %.3f m (zone - bone %+.3f)" % [key, case[0],
 				_pose.knee, _pose.head, _head_mid, _pose.zone, _pose.zone - _pose.head])
 			_check(misses.is_empty(), "%s %s: every shot at the drawn body lands in a zone" % [key, case[0]], str(misses))
+		await FigureBlend.new(self, _game).run(target, key)
 	_report()
 	get_tree().quit(0 if _failed == 0 else 1)
 

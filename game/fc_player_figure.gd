@@ -13,6 +13,8 @@ func _animate_figure(drawn: DotFpsState, delta: float) -> void:
 	motion["on_floor"] = drawn.mode == DotFpsState.Mode.GROUND
 	motion["vertical"] = v.y
 	motion["crouched"] = drawn.crouch_fraction > 0.5
+	# The figure lerps its own crouch amount toward this (render side only), so a remote's crouch and slide ease in and out.
+	motion["crouch"] = drawn.crouch_fraction
 	motion["sliding"] = _drawn_sliding(drawn)
 	motion["swimming"] = drawn.mode == swim.mode_id
 	motion["climbing"] = drawn.mode == ladder.mode_id
