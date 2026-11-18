@@ -162,6 +162,43 @@ func setup() -> DotResult:
 	director.self_advance = false
 	director.register_service = authoritative
 
+	_wire_director_callbacks()
+
+	add_child(director)
+
+	_wire_director_signals()
+
+	_bind_match()
+
+	# This game reports every round's end (see note_round_end), so a time limit can wait
+	# for the round in progress under `time_up: finish_round`.
+	director.round_based = true
+	# [b]Whether a round is being played, for `time_up: finish_round`.[/b] Warmup and the gap
+	# between rounds have nothing to play out, so a limit that runs out there changes at once
+	# instead of holding for `finish_round_max_sec`. Set by name and only where it exists: a
+	# delivered pack runs on the shell's dot-vote, and one older than API 3 has no such field
+	# (naming it would fail the pack's parse); there it holds, as it did before.
+	if "round_in_progress_fn" in director:
+		director.set(&"round_in_progress_fn", round_in_progress)
+
+	feed = DotVoteBallotFeed.of(director, func(state: Dictionary) -> void:
+		if ballot_fn.is_valid():
+			ballot_fn.call(state)
+	)
+	feed.title = "Vote for the next map"
+	feed.command = COMMAND_NAMES["vote"]
+	feed.people_fn = func(voter: StringName) -> Dictionary:
+		return people_fn.call(voter) if people_fn.is_valid() else {}
+
+	# The map the server booted on, so the clock starts and the cooldown history has
+	# something in it. Everything after this comes through `note_changed`.
+	director.begin(source.current_id())
+
+	return DotResult.success(self)
+
+
+## The host-facing callbacks the director polls: counts, voters, admin and spectator tests.
+func _wire_director_callbacks() -> void:
 	# How many players there are. Everything with a threshold in it — the rtv
 	# fraction, the quorum, `min_players_to_vote` — is a fraction of this, so a
 	# director without it refuses every vote and says only "too few players".
@@ -196,8 +233,9 @@ func setup() -> DotResult:
 		if announce_fn.is_valid():
 			announce_fn.call(line)
 
-	add_child(director)
 
+## Forwards the director's signals out of this node.
+func _wire_director_signals() -> void:
 	director.vote_opened.connect(
 		func(options: Array, seconds: float) -> void:
 			vote_opened.emit(options, seconds)
@@ -229,34 +267,6 @@ func setup() -> DotResult:
 	# A host that enforces its own score limit has to hear an extend, or the match ends on
 	# the old number with the vote believing it extended. dot-match is that host here.
 	director.score_limit_changed.connect(_on_score_limit_changed)
-
-	_bind_match()
-
-	# This game reports every round's end (see note_round_end), so a time limit can wait
-	# for the round in progress under `time_up: finish_round`.
-	director.round_based = true
-	# [b]Whether a round is being played, for `time_up: finish_round`.[/b] Warmup and the gap
-	# between rounds have nothing to play out, so a limit that runs out there changes at once
-	# instead of holding for `finish_round_max_sec`. Set by name and only where it exists: a
-	# delivered pack runs on the shell's dot-vote, and one older than API 3 has no such field
-	# (naming it would fail the pack's parse); there it holds, as it did before.
-	if "round_in_progress_fn" in director:
-		director.set(&"round_in_progress_fn", round_in_progress)
-
-	feed = DotVoteBallotFeed.of(director, func(state: Dictionary) -> void:
-		if ballot_fn.is_valid():
-			ballot_fn.call(state)
-	)
-	feed.title = "Vote for the next map"
-	feed.command = COMMAND_NAMES["vote"]
-	feed.people_fn = func(voter: StringName) -> Dictionary:
-		return people_fn.call(voter) if people_fn.is_valid() else {}
-
-	# The map the server booted on, so the clock starts and the cooldown history has
-	# something in it. Everything after this comes through `note_changed`.
-	director.begin(source.current_id())
-
-	return DotResult.success(self)
 
 
 ## [method _rules], with the server owner's layers over it. See [member config_path].

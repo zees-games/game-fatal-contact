@@ -377,6 +377,28 @@ func _build_chat() -> DotResult:
 	chat.install_default_channels = false
 	chat.handle_me_command = true
 
+	_wire_chat_callbacks()
+
+	add_child(chat)
+
+	var started := chat.start()
+
+	if not started.ok:
+		return started.wrap("Fatal Contact chat router could not start")
+
+	for channel in _channels():
+		var added := chat.add_channel(channel)
+
+		if not added.ok:
+			return added.wrap("A chat channel was refused")
+
+	_hook_chat_events()
+
+	return DotResult.success(chat)
+
+
+## The lookups the router calls: names, keys, teams, positions, admin and gag tests.
+func _wire_chat_callbacks() -> void:
 	chat.send_fn = _send_chat
 	chat.peers_fn = _playing_peers
 	chat.name_fn = func(peer: int) -> String:
@@ -409,19 +431,9 @@ func _build_chat() -> DotResult:
 		var session := server.session_of(peer)
 		return session != null and session.gagged
 
-	add_child(chat)
 
-	var started := chat.start()
-
-	if not started.ok:
-		return started.wrap("Fatal Contact chat router could not start")
-
-	for channel in _channels():
-		var added := chat.add_channel(channel)
-
-		if not added.ok:
-			return added.wrap("A chat channel was refused")
-
+## Connects the router to the game and intercepts dot-server's chat events.
+func _hook_chat_events() -> void:
 	chat.message_accepted.connect(_on_message_accepted)
 	chat.command_entered.connect(_on_command_entered)
 
@@ -455,8 +467,6 @@ func _build_chat() -> DotResult:
 		# is exactly the seam for this: the game gets first refusal, claims what it
 		# knows, and anything it does not claim carries on to the console as before.
 		server.events.hook_pre("player_command", _on_player_command)
-
-	return DotResult.success(chat)
 
 
 ## The four channels this server runs.

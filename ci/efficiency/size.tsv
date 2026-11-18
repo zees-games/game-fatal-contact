@@ -1,9 +1,9 @@
 # size
 # Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
-examples/dedicated_vote_and_query.gd::_test_browser	107
-examples/dedicated_vote_and_query.gd::_test_maps_and_vote	213
 examples/dedicated_module_and_bots.gd::_test_module_loaded	105
 examples/dedicated_module_and_bots.gd::_test_services	148
+examples/dedicated_vote_and_query.gd::_test_browser	107
+examples/dedicated_vote_and_query.gd::_test_maps_and_vote	213
 examples/headless_bots.gd::_play	81
 examples/headless_feel.gd::_test_moves	140
 examples/headless_imported.gd::_test_hurt	101
@@ -30,22 +30,20 @@ examples/headless_match_toys_content_map.gd::_test_map_look	109
 examples/headless_match_toys_content_map.gd::_test_pit_shelf_stair	243
 examples/headless_match_toys_content_map.gd::_test_toys	119
 examples/headless_match_wall_rules_and_interface.gd::_test_interface	211
+examples/headless_net_budget_and_sync.gd::_test_map_sync_wire	166
 examples/headless_net_client_views.gd::_test_movement_rules_reach_clients	97
 examples/headless_net_wire_and_weapons.gd::_test_weapons_over_the_wire	92
-examples/headless_net_budget_and_sync.gd::_test_map_sync_wire	166
 examples/headless_presentation.gd::_test_every_key_is_an_action	128
 examples/headless_presentation.gd::_test_party_over_http	95
-examples/headless_presentation_console_and_menus.gd::_test_the_escape_menu	101
 examples/headless_presentation_ballot_and_criticals.gd::_test_criticals_and_the_body	140
 examples/headless_presentation_bodies_and_map_menu.gd::_test_blind_and_beacon	88
 examples/headless_presentation_bodies_and_map_menu.gd::_test_bodies_fall	113
+examples/headless_presentation_console_and_menus.gd::_test_the_escape_menu	101
 examples/headless_stack.gd::_test_classes_and_spawns	91
 game/fc_awards.gd::catalogue	109
 game/fc_client.gd::_unhandled_input	86
 game/fc_client_session_events.gd::_build_netcode	100
 game/fc_game_setup.gd::change_map	98
-game/fc_services.gd::_build_chat	89
-game/fc_vote.gd::setup	120
 maps/fc_map_atrium.gd::dm_atrium	570
 maps/fc_map_imported.gd::dm_pit	270
 maps/fc_map_routes_and_dm_box.gd::dm_box	288
