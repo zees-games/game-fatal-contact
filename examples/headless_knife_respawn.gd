@@ -2,7 +2,7 @@ extends "lossy_base.gd"
 
 const FcAttach := preload("res://game/fc_attach.gd")
 const FcPlayerNet := preload("res://game/fc_player_net.gd")
-const EXPECTED_CHECKS := 23
+const EXPECTED_CHECKS := 26
 
 ## A knife thrown is out of the arsenal until picked up or caught; a death and respawn hands slot 1 back, on the SERVER and on
 ## the CLIENT's own predicted arsenal, over a real ENet link (as headless_net_attach). The owner's 2026-11-16 footage showed
@@ -32,7 +32,7 @@ func _run() -> void:
 		ok = await _body(a)
 	await _teardown()
 	DotPaths.remove_tree(DATA)
-	_report_sections(_entered, _completed, 7, EXPECTED_CHECKS)
+	_report_sections(_entered, _completed, 8, EXPECTED_CHECKS)
 
 
 func _teardown() -> void:
@@ -86,6 +86,8 @@ func _body(a: Dictionary) -> bool:
 		_check(def != null and own.player.arsenal.carries(def.id), "the weapon the client holds is one it carries", str(def.id if def != null else &""))
 		_done()
 
+	await _drawn_follows_throw(served, own, knife)
+
 	_section("a real throw, then a respawn while the knife is in the air")
 	var aim := Vector3(0.0, 0.0, -1.0)
 	var state := served.arsenal.drop_from_slot(AwWeaponIds.SLOT_MELEE)
@@ -120,3 +122,37 @@ func _body(a: Dictionary) -> bool:
 	_check(caught, "it curves back and both arsenals carry the knife again", "server %s client %s knives %d" % [served.arsenal.carries(knife), own.player.arsenal.carries(knife), _game.knives.count()])
 	_done()
 	return true
+
+
+## The armed client's drawn weapon after its knife leaves the hand: the 2026-11-18 footage kept the knife drawn while the HUD read PISTOL.
+func _drawn_follows_throw(served: FcPlayer, own: FcPlayerNet, knife: StringName) -> void:
+	_section("the client's drawn weapon follows a throw out of the hand")
+	# This bare client draws nothing; arm it as the game's client does on adoption, so its rig is the LOCAL one that equips.
+	var hands := AwViewModel.new()
+	hands.name = "Hands"
+	(own.player.camera if own.player.camera != null else own.player).add_child(hands)
+	own.player.arm_first_person(hands, false)
+	served.arsenal.bring_to_hand(AwWeaponIds.SLOT_MELEE)
+	own.player.arsenal.bring_to_hand(AwWeaponIds.SLOT_MELEE)
+	# This bare client sends no input, so nothing predicts: tick its player by hand as the predictor does, a fresh tick a frame.
+	var ticking := [true, 100000]
+	var drive := func() -> void:
+		while ticking[0]:
+			ticking[1] += 1
+			var _o: Variant = own.player.simulate_tick(int(ticking[1]), 1.0 / float(TICK_RATE), DotFpsCommand.new(), DotWeaponCommand.new())
+			await get_tree().physics_frame
+	drive.call()
+	var drawn_knife := await _until(func() -> bool: return StringName(own.player.weapons.get(&"_shown")) == knife, RELIABLE_SECONDS)
+	_check(drawn_knife, "the client draws the knife in hand", "shown %s role %s replaying %s last tick %s" % [own.player.weapons.get(&"_shown"), own.player.weapons.describe().get("role"), own.player.weapons.get(&"_replaying"), own.player.weapons.get(&"_last_tick")])
+	var _thrown := served.arsenal.drop_from_slot(AwWeaponIds.SLOT_MELEE)
+	var out_of_hand := await _until(func() -> bool: return not own.player.arsenal.carries(knife), RELIABLE_SECONDS)
+	for _i in range(20):
+		await get_tree().physics_frame
+	var held: DotWeaponDef = own.player.arsenal.current_def()
+	var held_id: StringName = held.id if held != null else &""
+	_check(out_of_hand and held_id != knife, "the client's arsenal holds the next weapon", str(held_id))
+	_check(StringName(own.player.weapons.get(&"_shown")) == held_id, "and its view model draws that weapon, not the thrown knife",
+		"shown %s held %s" % [own.player.weapons.get(&"_shown"), held_id])
+	ticking[0] = false
+	await get_tree().physics_frame
+	_done()
