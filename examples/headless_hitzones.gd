@@ -42,8 +42,8 @@ const STK_BOUNDS := {
 const STK_FAR_GROWTH := 2.0
 const STK_ARMOUR_GROWTH := 2.0
 
-const CHECKS := 10
-const SECTIONS := 4
+const CHECKS := 19
+const SECTIONS := 5
 
 var _entered := 0
 var _completed := 0
@@ -62,6 +62,7 @@ func _run() -> void:
 	FcBots.think_near = 0.0
 	await _boot()
 	await _table()
+	await _inside()
 	_shots_to_kill()
 	await _bots()
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
@@ -205,6 +206,61 @@ func _table() -> void:
 			print(line)
 		_check(dead_in_one.is_empty(), "no automatic or the pistol kills with one round (armour %.0f)" % armour, ",".join(dead_in_one))
 		_completed += 1
+
+
+## A muzzle inside the target's head box is a point-blank head hit. The hitbox rays are analytic and count a start
+## inside a box as a hit at distance zero (DotHitbox._ray_box/_ray_capsule/_ray_sphere); the physics world ray's
+## hit_from_inside = false is for walls only. Same code on the client and the server, no randomness: spread changes
+## the direction, and from inside the box every direction hits it.
+func _inside() -> void:
+	_section("a muzzle inside the target's head box hits the head; a normal head round is unchanged")
+	for weapon: StringName in [&"pistol", &"sniper", &"shotgun"]:
+		_place(3.0, weapon)
+		var health: DotHealth = _game.combat.health_of(TARGET)
+		health.health = 1.0e7
+		var shooter: FcPlayer = _game.player_for(ATTACKER)
+		var head := _head_box(TARGET)
+		if not _check(head != null, "the target has a head hitbox"):
+			return
+		# Teleport the shooter so its muzzle sits in the middle of the head box; one idle tick, then fire level.
+		var eye := shooter.muzzle_position() - shooter.controller.state.position
+		shooter.controller.teleport(head.global_position - eye, 0.0, 0.0)
+		var idle := DotFpsCommand.new()
+		_game.tick({ATTACKER: [idle, DotWeaponCommand.new()]})
+		var muzzle := shooter.muzzle_position()
+		var inside := head.overlaps_sphere(muzzle, 0.0)
+		_check(inside, "%s: the muzzle is inside the head box (the case under test)" % weapon,
+			"muzzle %s head %s" % [muzzle, head.global_position])
+		_hits.clear()
+		var w := DotWeaponCommand.new()
+		w.buttons = DotWeaponCommand.BUTTON_ATTACK
+		_game.tick({ATTACKER: [DotFpsCommand.new(), w]})
+		for _i in 3:
+			_game.tick({ATTACKER: [DotFpsCommand.new(), DotWeaponCommand.new()]})
+		await get_tree().physics_frame
+		var heads := 0
+		for d in _hits:
+			if d.hit_group == DotHitGroup.HEAD:
+				heads += 1
+		print("    %-8s muzzle in head: %d damage events, %d in the head" % [weapon, _hits.size(), heads])
+		if weapon != &"shotgun":
+			_check(inside and heads >= 1, "%s fired from inside the head box hits the head" % weapon,
+				"%d events, groups %s" % [_hits.size(), str(_hits.map(func(d: DotDamage) -> StringName: return d.hit_group))])
+	# Nothing else moved: the same pistol round at 10 m still lands in the head.
+	var normal: Array[DotDamage] = await _one_round(&"pistol", "head", 10.0, 0.0)
+	_check(normal.size() == 1 and normal[0].hit_group == DotHitGroup.HEAD, "a normal pistol head round at 10 m still hits the head",
+		str(normal.map(func(d: DotDamage) -> StringName: return d.hit_group)))
+	_completed += 1
+
+
+func _head_box(id: int) -> DotHitbox:
+	var set_node: DotHitboxSet = _game.combat.hitboxes_of(id)
+	if set_node == null:
+		return null
+	for box in set_node.hitboxes():
+		if box.effective_group() == DotHitGroup.HEAD:
+			return box
+	return null
 
 
 ## Shots to kill per weapon and body part, deterministic: every round lands where it is meant to, so the numbers are
