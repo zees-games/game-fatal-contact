@@ -10,7 +10,9 @@ const FcSurfRides := preload("../game/fc_surf_rides.gd")
 ## synthetically by driving the planned cache down one edge of a shipped map and keeping the commands, as a recording would;
 ## `-- --cost` prints the replay's price per tick against the harvest's slice budget. [codeblock] godot --headless --path .
 
-const TICK_RATE := 64
+## The rate the ride caches were planned at (FcContent.TICK_RATE): the planned cache stepped at another rate drifts off its
+## line, and since bbd7f76 replanned ski_2 for the 72-unit hull its edge 6 no longer lands at 64 Hz.
+const TICK_RATE := 66
 const RIDE_MAP := &"surf_ski_2"
 ## An edge that lands from the lip at rest (same as headless_imported's RECORD_EDGE).
 const EDGE := 6
