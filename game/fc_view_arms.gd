@@ -41,6 +41,8 @@ static var scope_arms_hide_override := -1.0
 static var hold_depth_comp := 0.0
 ## cl_fp_max_lean: cap on how far the arms lean to a hand target, for every weapon (-1: each weapon's own).
 static var max_lean_override := -1.0
+## The arms' depth drawn at the gun's ([method drawn_depth]); off draws them in front of the whole gun, as before.
+static var draw_at_gun_depth := true
 
 var arms: DotPlayerViewArms = null
 var body: Node3D = null
@@ -52,6 +54,8 @@ var _arm_set: Array = []
 ## [wear key, look] of the side's body the arms last wore ([method team_look]).
 var _team_set: Array = []
 var _boxes: Dictionary = {}
+## How many times further off than the hands frame the weapon is drawn ([method drawn_depth]); the arms draw their depth at it.
+var _depth := 1.0
 var _art_model := 0
 var _art: Array = []
 var _look_override := false
@@ -88,6 +92,7 @@ static func mount(parent: Node, model: AwViewModel, body: Node3D, look: DotHuman
 
 func _on_hands(anchor: Node3D, grip: Vector3, fore: Vector3, pose: StringName) -> void:
 	var one := pose in ONE_HAND
+	_depth = drawn_depth(anchor)
 	if _grip == null or _grip.anchor != anchor or _grip.is_two_hand() == one:
 		_grip = DotViewGrip.one_hand(anchor, grip) if one else DotViewGrip.two_hand(anchor, grip, fore)
 		arms.set_held(_grip)
@@ -118,6 +123,20 @@ static func hand_kind(pose: StringName, art: Resource) -> StringName:
 	if hand_kinds.has(id):
 		return hand_kinds[id]
 	return POSE_KINDS.get(pose, &"rifle")
+
+
+## How many times further off than [param anchor] the weapon is drawn: the hands frame is the drawn gun (its sibling
+## "Animated") shrunk about the eye to life size so life-size arms reach it, which put the arms at a third of the gun's
+## depth, in front of all of it: no finger wrapped behind a grip and the support palm and sleeve drew over the gun.
+## [member DotPlayerViewArms.draw_depth] draws the arms' depth that much further (same pixels). 1 for any other anchor.
+static func drawn_depth(anchor: Node3D) -> float:
+	if anchor == null or anchor.name != &"HandsFrame" or not anchor.is_inside_tree():
+		return 1.0
+	var animated := anchor.get_parent().get_node_or_null(^"Animated") as Node3D
+	if animated == null:
+		return 1.0
+	var s := animated.global_basis.y.length() / maxf(anchor.global_basis.y.length(), 0.000001)
+	return s if is_finite(s) and s >= 1.0 else 1.0
 
 
 ## The drawn weapon's box in the frame [signal AwViewModel.hands_reached] gives its points in, which the arms keep
@@ -180,6 +199,8 @@ func _process(delta: float) -> void:
 	global_rotation = Vector3(camera.global_rotation.x if holding() else 0.0, camera.global_rotation.y, 0.0)
 	if model != null:
 		model.hands_depth_comp = hold_depth_comp
+	if "draw_depth" in arms:
+		arms.draw_depth = _depth if draw_at_gun_depth else 1.0
 	visible = model != null and model.visible and not model.arms_hidden_by_scope() and body.is_alive()
 	if model != null:
 		var art := _art_of(model)
