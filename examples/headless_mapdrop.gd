@@ -63,6 +63,12 @@ func _test_args() -> void:
 	_check(paths == PackedStringArray(["/no/such/zz_headless_mapdrop"]), "a --map-path that does not exist is kept, to be refused", str(paths))
 	paths = FcMapDrop.paths_in(intake, PackedStringArray(["--headless", "res://examples/headless_mapdrop.tscn"]))
 	_check(paths.is_empty(), "no path on a plain start", str(paths))
+	paths = FcMapDrop.paths_in(intake, PackedStringArray(["wss://tmcdev.net:6100/", "ws://127.0.0.1:6100", "https://games.tmcdev.net/x", "tmcdev.net:6100", "--join", "wss://tmcdev.net:6100/"]))
+	_check(paths.is_empty(), "a connect URL or host:port is never a drop (the 'dropped maps play in solo only' toast)", str(paths))
+	paths = FcMapDrop.paths_in(intake, PackedStringArray(["wss://tmcdev.net:6100/", folder]))
+	_check(paths == PackedStringArray([folder]), "a real path beside a connect URL is still a drop", str(paths))
+	_check((intake.call(&"paths_in_args", PackedStringArray(["wss://tmcdev.net:6100/", "tmcdev.net:6100"])) as Dictionary)["missing"].is_empty(),
+		"dot-map's own intake skips URLs too")
 	client.free()
 
 
@@ -123,6 +129,13 @@ func _test_cmdline() -> void:
 		"the intake knows it came from the command line")
 	_check(DotMapLocalMaps.prefix_in("user://maps".path_join(MAP).path_join("convert")) != "",
 		"copied as user://maps/<map>/convert, as a window drop is")
+	said = await client._take_cmdline_drops(PackedStringArray(["wss://tmcdev.net:6100/"]))
+	_check(said == "", "a connect URL on the command line says nothing", said)
+	client.last_drop_said = ""
+	FcMaps.list_local = false
+	said = await client._take_cmdline_drops(PackedStringArray([ProjectSettings.globalize_path(SOURCE.path_join("notes.txt")), "wss://tmcdev.net:6100/"]))
+	_check(said == "" and client.last_drop_said == "", "a joined session never reads the command line", said)
+	FcMaps.list_local = true
 	_wipe("user://maps".path_join(MAP))
 	said = await client._take_cmdline_drops(PackedStringArray(["--headless", "res://examples/headless_mapdrop.tscn"]))
 	_check(said == "", "a start with no path imports nothing", said)

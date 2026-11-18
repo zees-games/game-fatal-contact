@@ -139,8 +139,12 @@ func drop_intake() -> Node:
 
 
 ## The paths in [param args] (a drop on the executable, `--map-path=<path>`), imported and said like a window drop; the
-## first map added is then played. Returns what was said, empty when the command line names no path.
+## first map added is then played. Returns what was said, empty when the command line names no path or this is a joined session.
 func _take_cmdline_drops(args: PackedStringArray) -> String:
+	# Offline only: a joined session (FcMaps.list_local off) takes no local map, and says nothing of what the command
+	# line holds (the connect address it was started with is not a dropped path).
+	if not FcMaps.list_local:
+		return ""
 	var intake := drop_intake()
 	if intake == null:
 		return ""

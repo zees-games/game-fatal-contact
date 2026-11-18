@@ -46,6 +46,17 @@ static func paths_in(intake: Node, args: PackedStringArray) -> PackedStringArray
 	return paths
 
 
+## True for a connect address or URL on the command line (`wss://host:6100/`, `host:6100`): never a dropped path.
+## (dot-map's DotMapDropIntake.is_url_arg since the same fix; kept here for an older dot-map.)
+static func is_url_arg(arg: String) -> bool:
+	if arg.contains("://"):
+		return not arg.to_lower().begins_with("file://")
+	var colon := arg.rfind(":")
+	if colon <= 0 or arg.contains("/") or arg.contains("\\"):
+		return false
+	return arg.substr(colon + 1).is_valid_int() and not arg.substr(0, colon).contains(":")
+
+
 ## [param args] without Fatal Contact's config options and their values: dot-core reads `--arena-<key> <value>`,
 ## `--<addon>.<key> <value>` and `--config <dir>`, and a value that happens to be a folder is not a dropped map.
 static func drop_args(args: PackedStringArray) -> PackedStringArray:
@@ -59,5 +70,6 @@ static func drop_args(args: PackedStringArray) -> PackedStringArray:
 			if not a.contains("=") and not a.begins_with("--arena-no-") and i < args.size() and not args[i].begins_with("--"):
 				i += 1
 			continue
-		out.append(a)
+		if not is_url_arg(a):
+			out.append(a)
 	return out
