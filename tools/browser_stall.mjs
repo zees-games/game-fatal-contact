@@ -19,6 +19,12 @@
 // the page ran (embed.html's __TMC_ENGINE__ threads|single, __TMC_NATIVES__ native|script) and
 // whether it was cross-origin isolated. Against a server with 63 bots that is the 64-player number
 // (docs/client.md, "A 64-player frame in the browser").
+//
+// --gl-count (needs --steady-s) wraps every WebGL2 call and prints one GL_COUNT line per run: GL calls and draw
+// calls per frame over the steady window and the ten busiest entry points (getParameter is the stall to watch).
+// --cpuprofile (needs --steady-s) records a CDP CPU profile over the same window and prints CPU_PROFILE: the top
+// self-time functions. Wasm frames show as wasm-function[N] because the web export strips names; map N with
+// wasm-objdump/`wasm-tools print` on a build that keeps its name section (the dlink threads engine's debug build).
 const pw = (await import(process.env.PLAYWRIGHT_CORE ?? '/home/christian/.local/share/mcp/playwright-mcp/node_modules/playwright-core/index.js')).default;
 const args = process.argv.slice(2);
 const num = (flag, dflt) => args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : dflt;
@@ -26,6 +32,8 @@ const budget = num('--budget-ms', 0);
 const runs = num('--runs', 1);
 const phases = args.includes('--phases');
 const steadyS = num('--steady-s', 0);
+const glCount = args.includes('--gl-count');
+const cpuProf = args.includes('--cpuprofile');
 if (!(steadyS >= 0)) { console.error('--steady-s needs seconds (0 is off)'); process.exit(2); }
 const pct = (d, q) => +d[Math.min(d.length - 1, Math.floor(q * d.length))].toFixed(2);
 const url = args.find(a => a.startsWith('http')) ?? 'http://127.0.0.1:8099/embed.html?server=ws://127.0.0.1:6174&cl_perf=5';
@@ -57,6 +65,13 @@ async function run(i) {
       const orig = WebAssembly[f]; if (!orig) continue;
       WebAssembly[f] = function (...a) { mark(`wasm ${f} begins`); const p = orig.apply(this, a); p.then(() => mark(`wasm ${f} done`), () => {}); return p; };
     }
+    if (glCount) {
+      window.__gl = { on: false, n: {} };
+      for (const C of [window.WebGL2RenderingContext, window.WebGLRenderingContext]) if (C) for (const k of Object.getOwnPropertyNames(C.prototype)) {
+        const d = Object.getOwnPropertyDescriptor(C.prototype, k); if (!d || typeof d.value !== 'function') continue;
+        const orig = d.value; C.prototype[k] = function (...a) { if (window.__gl.on) window.__gl.n[k] = (window.__gl.n[k] ?? 0) + 1; return orig.apply(this, a); };
+      }
+    }
     let printed = 0;
     for (const f of ['log', 'info']) { const orig = console[f]; console[f] = function (...a) { if (printed < 4) { printed++; mark(`console: ${String(a[0]).slice(0, 80)}`); } return orig.apply(this, a); }; }
   });
@@ -65,7 +80,15 @@ async function run(i) {
   for (let s = 0; s < 180 && open === null; s++) { await page.waitForTimeout(1000); open = await page.evaluate(() => window.dotWeb?.publishedAt?.arena_gate_open ?? null); }
   for (let s = 0; s < 12; s++) { await page.waitForTimeout(1000); if (await page.evaluate(() => window.dotWeb?.publishedAt?.arena_after_open != null)) break; }
   await page.waitForTimeout(1000);
+  let cdp = null, frames0 = 0;
+  if (open !== null && steadyS > 0 && (glCount || cpuProf)) {
+    frames0 = await page.evaluate(() => { if (window.__gl) { window.__gl.n = {}; window.__gl.on = true; } return window.__frames.length; });
+    if (cpuProf) { cdp = await context.newCDPSession(page); await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 1000 }); await cdp.send('Profiler.start'); }
+  }
   if (open !== null && steadyS > 0) await page.waitForTimeout(Math.max(0, open + 2000 + steadyS * 1000 - await page.evaluate(() => performance.now())));
+  let prof = null;
+  if (cdp) prof = (await cdp.send('Profiler.stop')).profile;
+  const gln = glCount ? await page.evaluate(() => { window.__gl.on = false; return { n: window.__gl.n, frames: window.__frames.length }; }) : null;
   const r = await page.evaluate(() => {
     const gl = document.createElement('canvas').getContext('webgl2');
     const packs = performance.getEntriesByType('resource').filter(e => /\.(pck|dot-pack|wasm)(\?|$)/.test(e.name));
@@ -80,6 +103,19 @@ async function run(i) {
       boot: [...performance.getEntriesByType('navigation').flatMap(n => [[n.requestStart, 'page request'], [n.responseEnd, 'page received'], [n.domContentLoadedEventEnd, 'page parsed']]), ...files, ...(window.__boot ?? [])], load: w.published.arena_load, loadAt: w.publishedAt.arena_load, after: w.published.arena_after_open, afterAt: w.publishedAt.arena_after_open };
   });
   await page.close();
+  if (gln) {
+    const fr = Math.max(1, gln.frames - frames0), tot = Object.values(gln.n).reduce((a, b) => a + b, 0);
+    const draws = Object.entries(gln.n).filter(([k]) => /^draw/.test(k)).reduce((a, [, v]) => a + v, 0);
+    const top = Object.entries(gln.n).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([k, v]) => `${k}=${(v / fr).toFixed(1)}`);
+    console.log('GL_COUNT', JSON.stringify({ run: i + 1, frames: fr, calls_per_frame: +(tot / fr).toFixed(0), draws_per_frame: +(draws / fr).toFixed(0), getParameter_per_frame: +((gln.n.getParameter ?? 0) / fr).toFixed(1), top }));
+  }
+  if (prof) {
+    const self = new Map(), byId = new Map(prof.nodes.map(n => [n.id, n]));
+    const dt = prof.timeDeltas; let total = 0;
+    prof.samples.forEach((id, k) => { const cf = byId.get(id).callFrame; const key = `${cf.functionName || '(anon)'} ${cf.url.split('/').pop()}:${cf.lineNumber}`; self.set(key, (self.get(key) ?? 0) + (dt[k] ?? 0)); total += dt[k] ?? 0; });
+    const top = [...self].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([k, v]) => `${(100 * v / Math.max(1, total)).toFixed(1)}% ${k}`);
+    console.log('CPU_PROFILE', JSON.stringify({ run: i + 1, total_ms: +(total / 1000).toFixed(0), top }));
+  }
   if (i === 0) console.log('gpu', r.gpu, 'url', url);
   if (open === null) { console.log(`run ${i + 1} FAIL the cover never dropped`); return null; }
   const marks = [...r.boot.map(([t, label]) => [t, 0, label]), ...pageMarks(r.load, r.loadAt), ...pageMarks(r.after, r.afterAt)].sort((a, b) => a[0] - b[0]);
