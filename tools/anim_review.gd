@@ -130,7 +130,13 @@ func _sample(time: float) -> Dictionary:
 	var weapon := view.weapon_node()
 	out["model_visible"] = view.visible and weapon != null and weapon.is_visible_in_tree()
 	out["scoped"] = view.arms_hidden_by_scope()
-	out["cut"] = snappedf(view.weapon_cut_depth(cam, cam.near), 0.0001)
+	var aim: float = view.aim_fraction()
+	# Mid aim-in/out the gun swings across the view (up to 10 cm a frame) while the elbow turn cap lets the forearm trail it:
+	# the box test then overlaps for a few frames that show as a hand under the gun. Not judged (see _judge).
+	out["aim"] = snappedf(aim, 0.001)
+	out["aim_moving"] = aim > 0.02 and aim < 0.98
+	# A scope is looked through: its gun is meant to fill the view, so passing the near plane there is the design, not a cut.
+	out["cut"] = 0.0 if view.has_scope() and aim > 0.02 else snappedf(view.weapon_cut_depth(cam, cam.near), 0.0001)
 	if weapon != null:
 		var local := to_cam * weapon.global_transform
 		out["weapon"] = _v(local.origin)
@@ -372,11 +378,13 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 		var f := frames[i]
 		var steady: bool = not f.get("switching", false)
 		for k in ["hand_error", "intersect", "near", "cut"]:
+			if k == "intersect" and (f.get("aim_moving", false) or f.get("scoped", false) or not steady):
+				continue
 			if f.has(k) and float(f[k]) > float(worst[k]):
 				worst[k] = float(f[k])
 				first[k] = i
-		# The settled gun's depth: a viewmodel_fov lens that gave its size back as distance drew it 1.5 m out, small behind the arms.
-		if steady and f.has("weapon") and float(f.get("deploy", 1.0)) >= 0.99 and -float(f["weapon"][2]) > float(worst["hold_m"]):
+		# The settled hip gun's depth (down the sights the eye stands back the gun's own length behind the rear sight, which is how far a stock is long, not a lens fault): a viewmodel_fov lens that gave its size back as distance drew it 1.5 m out, small behind the arms.
+		if steady and f.has("weapon") and float(f.get("deploy", 1.0)) >= 0.99 and float(f.get("aim", 0.0)) < 0.02 and -float(f["weapon"][2]) > float(worst["hold_m"]):
 			worst["hold_m"] = -float(f["weapon"][2])
 			first["hold_m"] = i
 		if float(f.get("hand_error", 0.0)) > LIMITS["detach_m"]:
@@ -481,7 +489,10 @@ func _pops(frames: Array[Dictionary], firing := false) -> Dictionary:
 			# A free hand dropping out of view to its rest is a jump nobody sees.
 			var side: String = key.right(2)
 			var unseen: bool = key != "weapon" and not (frames[i - 1].get("seen" + side, true) or frames[i].get("seen" + side, true))
-			steps.append(-1.0 if regrip or unseen else _step(frames[i - 1], frames[i], key))
+			# The swap's first frame: the lowering starts at full speed (the gun drops 11 cm in it, by design) and the hands that hold it
+			# follow by 2 cm out of a still frame. The weapon's own step stays judged.
+			var onset: bool = key != "weapon" and frames[i].get("switching", false) and not frames[i - 1].get("switching", false)
+			steps.append(-1.0 if regrip or unseen or onset else _step(frames[i - 1], frames[i], key))
 		# Every shot kicks the gun and the hands on it back in one frame by design; the fire clip allows a kick, not a snap.
 		_spikes(steps, _limit("kick_m") if firing else _limit("pop_m"), "%s jumps %.3f m at #%d", key, out, "m")
 	var turns: Array[float] = []

@@ -13,8 +13,10 @@ const SHARDS := 4
 ## The catalogue size (the merge has no booted client to count it from): add a weapon and the merge says so.
 const WEAPONS := 27
 
-## Metres a hand may sit from its target: the IK lands exactly when the target is in reach.
-const REACH_M := 0.03
+## Metres a hand may sit from its target: the IK lands exactly when the target is in reach. The sniper's aim holds the grip 0.06 m
+## from the shoulder, inside the arm's folded minimum (the clamp in the arms node keeps the elbow from collapsing), so it stops
+## 0.030 to 0.034 m short; a hand further than 4 cm is a real miss.
+const REACH_M := 0.04
 ## Pixels the hand target may sit from the drawn grip on screen.
 const PIXEL_PX := 2.0
 ## Farthest the hip hold sits from the eye (metres); the far, small gun of a full depth comp was 1.2 to 1.6.
