@@ -32,7 +32,14 @@ const CASES: Array = [
 	["aim up", Vector2(0, 1), false, 10.0, true],
 	["crouch", Vector2.ZERO, true, 0.0, false],
 	["crouch walk", Vector2(1, 0), true, 0.0, false],
+	# A run at the shooter, then crouch: the slide (leant back, legs forward) on the crouch hull. Only the ticks drawn
+	# sliding are sampled, after the clip's blend; the 2026-11-18 footage showed slide shots passing over the drawn body.
+	["slide", Vector2(0, 1), true, 0.0, false, true],
 ]
+## Ticks into a slide before it is sampled: the figure blends into the slide clip over these.
+const SLIDE_SETTLE_TICKS := 10
+## The fewest sampled slide ticks for the slide case to count (the run preset slides 0.9 s, 57 ticks).
+const SLIDE_MIN_SAMPLES := 24
 
 var _game: FcGame = null
 ## The last [method _measure]'s pose numbers: mean knee angle (degrees, 180 straight), drawn head bone and head zone
@@ -126,16 +133,28 @@ func _measure(target: FcPlayer, case: Array) -> Dictionary:
 	var knee_sum := 0.0
 	var head_sum := 0.0
 	var zone_sum := 0.0
+	var slide := case.size() > 5 and bool(case[5])
+	var sampled := 0
+	var slid := 0
 	for i in WARMUP_TICKS + SAMPLE_TICKS:
 		var cmd := DotFpsCommand.new()
 		cmd.move = case[1]
 		cmd.buttons = DotFpsCommand.BUTTON_CROUCH if case[2] else 0
+		if slide:
+			cmd.buttons = DotFpsCommand.BUTTON_SPRINT | (DotFpsCommand.BUTTON_CROUCH if i >= WARMUP_TICKS else 0)
 		cmd.pitch = case[3]
 		_game.tick({1: [DotFpsCommand.new(), DotWeaponCommand.new()], 2: [cmd, DotWeaponCommand.new()]})
 		target.present(1.0 / 64.0)
 		await get_tree().physics_frame
 		if i < WARMUP_TICKS:
 			continue
+		if slide:
+			if not target._drawn_sliding(target.controller.state):
+				continue
+			slid += 1
+			if slid <= SLIDE_SETTLE_TICKS:
+				continue
+		sampled += 1
 		var sk: Skeleton3D = target.figure.skeleton()
 		var boxes: Array = target.hitboxes.hitboxes()
 		var feet_y := target.global_position.y
@@ -162,10 +181,13 @@ func _measure(target: FcPlayer, case: Array) -> Dictionary:
 					break
 			if not hit:
 				missed[bone] = int(missed.get(bone, 0)) + 1
-	_pose = {"knee": knee_sum / SAMPLE_TICKS, "head": head_sum / SAMPLE_TICKS, "zone": zone_sum / SAMPLE_TICKS}
+	var n := maxi(sampled, 1)
+	_pose = {"knee": knee_sum / n, "head": head_sum / n, "zone": zone_sum / n}
 	var out := {}
+	if slide and sampled < SLIDE_MIN_SAMPLES:
+		out["slide"] = "only %d ticks drawn sliding" % sampled
 	for bone: String in missed:
-		out[bone] = "%d/%d" % [missed[bone], SAMPLE_TICKS]
+		out[bone] = "%d/%d" % [missed[bone], sampled]
 	return out
 
 
