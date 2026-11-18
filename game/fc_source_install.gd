@@ -1,11 +1,9 @@
 extends RefCounted
 
 ## The stock textures a dropped `<map>_orig` pack lacks, read from the player's OWN Source game install. LOCAL ONLY. A BSP carries only its author's custom textures; the game's own (most of a TF2 map) live in the game's VPK archives, which we may not redistribute, so a converted pack lists them in `original_textures.missing` and draws free stand-ins.
-## When the player has the game installed, [method fill] reads each missing material from their archives (`FcVpk`, `FcVtf`), caches it as a PNG under `user://source_cache` (the game-fatal-contact folder: `%APPDATA%` on Windows, `~/.local/share` on Linux), copies it into the pack's `textures/orig/` in `user://maps` and points the pack's surfaces
+## When the player has the game installed, [method fill] reads each missing material from their archives (`DotMapVpk`, `DotMapVtf`), caches it as a PNG under `user://source_cache` (the game-fatal-contact folder: `%APPDATA%` on Windows, `~/.local/share` on Linux), copies it into the pack's `textures/orig/` in `user://maps` and points the pack's surfaces
 ## at it. It refuses any pack outside `user://`: nothing read here may reach the repository or a published pack. Where the game is: the `source_game_path` setting (General > Local maps, or the console command of that name), else the usual Steam folders on Windows, Linux (also Flatpak and Snap) and macOS, and each Steam library they list.
 
-const Vpk := preload("fc_vpk.gd")
-const Vtf := preload("fc_vtf.gd")
 
 const SETTING := &"source_game_path"
 ## Decoded textures, per install: never inside the project.
@@ -18,7 +16,7 @@ const GAMES := ["Team Fortress 2"]
 const FOLDERS_FIRST := ["tf", "tf2", "hl2"]
 const MAX_SIDE := 512
 
-## Install folder -> the opened archives (an Array of `FcVpk`), read once per run.
+## Install folder -> the opened archives (an Array of `DotMapVpk`), read once per run.
 static var _opened: Dictionary = {}
 
 
@@ -113,20 +111,20 @@ static func _collect(dir: String, depth: int, out: PackedStringArray) -> void:
 ## The bytes of [param material]'s base texture (its VMT's `$basetexture`, through one patch `include`) from
 ## [param sets], first archive first; empty when no archive has it.
 static func material_vtf(sets: Array, material: String) -> PackedByteArray:
-	var path := Vtf.clean_material(material)
+	var path := DotMapVtf.clean_material(material)
 	var vmt := _read(sets, "materials/%s.vmt" % path)
 	if vmt.is_empty():
 		return _read(sets, "materials/%s.vtf" % path)
-	var keys := Vtf.vmt_keys(vmt.get_string_from_utf8())
+	var keys := DotMapVtf.vmt_keys(vmt.get_string_from_utf8())
 	if not keys.has("$basetexture") and keys.has("include"):
 		var included := _read(sets, str(keys["include"]).to_lower().replace("\\", "/").lstrip("/"))
-		keys = Vtf.vmt_keys(included.get_string_from_utf8()) if not included.is_empty() else keys
+		keys = DotMapVtf.vmt_keys(included.get_string_from_utf8()) if not included.is_empty() else keys
 	var basetexture := str(keys.get("$basetexture", "")).to_lower().replace("\\", "/").strip_edges().trim_suffix(".vtf")
 	return _read(sets, "materials/%s.vtf" % basetexture.lstrip("/")) if basetexture != "" else PackedByteArray()
 
 
 static func _read(sets: Array, path: String) -> PackedByteArray:
-	for vpk: Vpk in sets:
+	for vpk: DotMapVpk in sets:
 		if vpk.has(path):
 			var got := vpk.read(path)
 			if not got.is_empty():
@@ -140,7 +138,7 @@ static func open_install(install: String) -> Array:
 		return _opened[install]
 	var sets: Array = []
 	for path in archives(install):
-		var vpk := Vpk.new()
+		var vpk := DotMapVpk.new()
 		if vpk.open(path, PackedStringArray(["vmt", "vtf"])) and not vpk.entries.is_empty():
 			sets.append(vpk)
 	_opened[install] = sets
@@ -184,10 +182,10 @@ static func fill(prefix: String, install: String) -> Dictionary:
 	var left: Array = []
 	var by_material := {}
 	for m: Variant in missing:
-		var name := Vtf.safe_name(str(m))
+		var name := DotMapVtf.safe_name(str(m))
 		var cached := cache.path_join(name + ".png")
 		if not FileAccess.file_exists(cached):
-			var img := Vtf.image(material_vtf(sets, str(m)), MAX_SIDE)
+			var img := DotMapVtf.image(material_vtf(sets, str(m)), MAX_SIDE)
 			if img == null or img.save_png(cached) != OK:
 				left.append(m)
 				continue

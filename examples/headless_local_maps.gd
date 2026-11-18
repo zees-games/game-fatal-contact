@@ -7,8 +7,6 @@ const FcMaps := preload("../game/fc_maps.gd")
 const FcClient := preload("../game/fc_client.gd")
 const FcUserDir := preload("../game/fc_user_dir.gd")
 const FcVoteSource := preload("../game/fc_vote_source.gd")
-const FcVpk := preload("../game/fc_vpk.gd")
-const FcVtf := preload("../game/fc_vtf.gd")
 const FcSourceInstall := preload("../game/fc_source_install.gd")
 
 ## Maps copied in by hand (`FcLocalMaps`): a raw convert folder under `res://addons/maps/` or `user://maps/` is listed as `<name>_local` only while `FcMaps.list_local` is on (solo), and loads with spawns, a solid, movers and a drawn world. The fixture section runs everywhere; `-- --source=<a map's convert folder>` repeats it on a real conversion.
@@ -116,7 +114,7 @@ func _test_real_install(name: String) -> void:
 	var sets: Array = FcSourceInstall.open_install(_source_game)
 	var files := 0
 	for v: Variant in sets:
-		files += (v as FcVpk).entries.size()
+		files += (v as DotMapVpk).entries.size()
 	print("   %d archives, %d materials/textures listed in %d ms: %s" % [found.size(), files, Time.get_ticks_msec() - t, ", ".join(found)])
 	var src: Variant = JSON.parse_string(FileAccess.get_file_as_string(DotMapLocalMaps.prefix_in(_source) + ".json"))
 	var before: Array = ((src as Dictionary).get("original_textures", {}) as Dictionary).get("missing", []) if src is Dictionary else []
@@ -143,7 +141,7 @@ func _test_real_install(name: String) -> void:
 	_check(said.contains("%d filled from your game install" % filled.size()), "and the drop says so", said)
 	var drawn := 0
 	for m: Variant in filled:
-		if FileAccess.file_exists(prefix.get_base_dir().path_join("textures/orig/%s.png" % FcVtf.safe_name(str(m)))):
+		if FileAccess.file_exists(prefix.get_base_dir().path_join("textures/orig/%s.png" % DotMapVtf.safe_name(str(m)))):
 			drawn += 1
 	_check(drawn == filled.size(), "each filled one is a texture in the pack", "%d of %d" % [drawn, filled.size()])
 	local_maps.set(&"zip_cache", player_cache)
@@ -437,11 +435,11 @@ func _test_original() -> void:
 
 func _test_source_install() -> void:
 	print("-- an _orig pack's missing stock textures come from the player's own install, locally only")
-	_check(FcVpk.crc32("123456789".to_ascii_buffer()) == 0xCBF43926, "VPK CRC-32 is zlib's",
-		"%x" % FcVpk.crc32("123456789".to_ascii_buffer()))
-	_check(FcVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40") == "concrete_floor001", "a cubemap-patched name is its base",
-		FcVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40"))
-	var keys := FcVtf.vmt_keys("\"LightmappedGeneric\"\n{\n\t\"$baseTexture\" \"Concrete/Floor\" // a comment\n\t$surfaceprop concrete\n}")
+	_check(DotMapVpk.crc32("123456789".to_ascii_buffer()) == 0xCBF43926, "VPK CRC-32 is zlib's",
+		"%x" % DotMapVpk.crc32("123456789".to_ascii_buffer()))
+	_check(DotMapVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40") == "concrete_floor001", "a cubemap-patched name is its base",
+		DotMapVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40"))
+	var keys := DotMapVtf.vmt_keys("\"LightmappedGeneric\"\n{\n\t\"$baseTexture\" \"Concrete/Floor\" // a comment\n\t$surfaceprop concrete\n}")
 	_check(keys.get("$basetexture") == "Concrete/Floor" and keys.get("$surfaceprop") == "concrete", "a VMT's keys are read", str(keys))
 	_check(Array(FcSourceInstall.library_folders("\"libraryfolders\"\n{\n\t\"1\"\n\t{\n\t\t\"path\"\t\t\"D:\\\\SteamLibrary\"\n\t}\n}")) \
 		== ["D:/SteamLibrary"], "a Steam libraryfolders.vdf's libraries are read",
@@ -449,10 +447,10 @@ func _test_source_install() -> void:
 
 	# The fixture install: tf/tf2_textures_dir.vpk (VPK v2) and its part _000. A VMT stored in the dir names an RGBA8888
 	# VTF in the part (green, its smaller mips blue); a patch VMT includes a base naming a DXT1 VTF (red) partly preloaded.
-	var green := _vtf_rgba(4, 4, 3, Color8(20, 200, 30), Color8(0, 0, 255))
-	var red := _vtf_dxt1(8, 8, 0xF800)
+	var green := DotMapVpkWriter.vtf_rgba(4, 4, 3, Color8(20, 200, 30), Color8(0, 0, 255))
+	var red := DotMapVpkWriter.vtf_dxt1(8, 8, 0xF800)
 	var tf := SOURCE_GAME.path_join("tf")
-	_write_vpk(tf.path_join("tf2_textures"), {
+	DotMapVpkWriter.write_vpk(tf.path_join("tf2_textures"), {
 		"materials/concrete/concretefloor001.vmt": [("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"Concrete/ConcreteFloor001\"\n}"
 			).to_utf8_buffer(), -1, 0],
 		"materials/concrete/concretefloor001.vtf": [green, 0, 0],
@@ -519,22 +517,22 @@ func _test_source_install() -> void:
 
 ## The fixture VPK lists, reads and decodes its files, and refuses one that fails its CRC. False when it does not open.
 func _test_fixture_vpk(install: String, green: PackedByteArray, red: PackedByteArray) -> bool:
-	var vpk := FcVpk.new()
+	var vpk := DotMapVpk.new()
 	if not _check(vpk.open(install.path_join("tf/tf2_textures_dir.vpk")), "the fixture VPK opens", vpk.error):
 		return false
 	_check(vpk.entries.size() == 5 and vpk.has("Materials/Metal/MetalWall001.vmt"), "and lists its 5 files", str(vpk.entries.keys()))
 	_check(vpk.read("materials/metal/metalwall_red.vtf") == red, "a preloaded file reads whole from its part")
-	var img := FcVtf.image(vpk.read("materials/concrete/concretefloor001.vtf"))
+	var img := DotMapVtf.image(vpk.read("materials/concrete/concretefloor001.vtf"))
 	_check(img != null and img.get_size() == Vector2i(4, 4) and img.get_pixel(3, 3).to_rgba32() == Color8(20, 200, 30).to_rgba32(),
-		"an RGBA8888 VTF decodes its largest mip", FcVtf.error if img == null else str(img.get_pixel(3, 3)))
-	img = FcVtf.image(green, 2)
+		"an RGBA8888 VTF decodes its largest mip", DotMapVtf.error if img == null else str(img.get_pixel(3, 3)))
+	img = DotMapVtf.image(green, 2)
 	_check(img != null and img.get_size() == Vector2i(2, 2) and img.get_pixel(0, 0).to_rgba32() == Color8(0, 0, 255).to_rgba32(),
-		"and a smaller mip when it is too big", FcVtf.error if img == null else str(img.get_size()))
-	img = FcVtf.image(red)
+		"and a smaller mip when it is too big", DotMapVtf.error if img == null else str(img.get_size()))
+	img = DotMapVtf.image(red)
 	_check(img != null and img.get_size() == Vector2i(8, 8) and img.get_pixel(5, 6).r > 0.95 and img.get_pixel(5, 6).g < 0.05,
-		"a DXT1 VTF decodes", FcVtf.error if img == null else str(img.get_pixel(5, 6)))
-	var bad := FcVpk.new()
-	_write_vpk(SOURCE_GAME.path_join("broken/bad"), {"materials/x.vtf": [red, 0, 0]}, true)
+		"a DXT1 VTF decodes", DotMapVtf.error if img == null else str(img.get_pixel(5, 6)))
+	var bad := DotMapVpk.new()
+	DotMapVpkWriter.write_vpk(SOURCE_GAME.path_join("broken/bad"), {"materials/x.vtf": [red, 0, 0]}, 2, true)
 	_check(bad.open(SOURCE_GAME.path_join("broken/bad_dir.vpk")) and bad.read("materials/x.vtf").is_empty()
 		and bad.error.begins_with("crc mismatch"), "a file that fails its CRC is not read", bad.error)
 	DirAccess.remove_absolute(SOURCE_GAME.path_join("broken/bad_dir.vpk"))
@@ -574,104 +572,6 @@ func _valve_files(dir: String, found: PackedStringArray) -> void:
 			found.append(dir.path_join(f))
 	for d in DirAccess.get_directories_at(dir):
 		_valve_files(dir.path_join(d), found)
-
-
-## A VPK v2 at [param base]`_dir.vpk` (and `_000.vpk`) holding [param files]: path -> [bytes, part (-1 in the dir),
-## bytes preloaded in the tree]; each CRC is off by one when [param bad_crc].
-func _write_vpk(base: String, files: Dictionary, bad_crc := false) -> void:
-	var by_ext := {}
-	for path: String in files:
-		var folders: Dictionary = by_ext.get_or_add(path.get_extension(), {})
-		(folders.get_or_add(path.get_base_dir(), []) as Array).append(path)
-	var tree := PackedByteArray()
-	var in_dir := PackedByteArray()
-	var part := PackedByteArray()
-	for ext: String in by_ext:
-		tree.append_array(_cstr(ext))
-		for folder: String in by_ext[ext]:
-			tree.append_array(_cstr(folder))
-			for path: String in by_ext[ext][folder]:
-				var bytes: PackedByteArray = files[path][0]
-				var preloaded: int = files[path][2]
-				var body := bytes.slice(preloaded)
-				var stored := in_dir if int(files[path][1]) < 0 else part
-				var e := PackedByteArray()
-				e.resize(18)
-				e.encode_u32(0, FcVpk.crc32(bytes) ^ (1 if bad_crc else 0))
-				e.encode_u16(4, preloaded)
-				e.encode_u16(6, FcVpk.IN_DIR if int(files[path][1]) < 0 else 0)
-				e.encode_u32(8, stored.size())
-				e.encode_u32(12, body.size())
-				e.encode_u16(16, 0xFFFF)
-				tree.append_array(_cstr(path.get_file().get_basename()))
-				tree.append_array(e)
-				tree.append_array(bytes.slice(0, preloaded))
-				if int(files[path][1]) < 0:
-					in_dir.append_array(body)
-				else:
-					part.append_array(body)
-			tree.append(0)
-		tree.append(0)
-	tree.append(0)
-	var head := PackedByteArray()
-	head.resize(28)
-	head.encode_u32(0, FcVpk.SIG)
-	head.encode_u32(4, 2)
-	head.encode_u32(8, tree.size())
-	head.encode_u32(12, in_dir.size())
-	DirAccess.make_dir_recursive_absolute(base.get_base_dir())
-	var f := FileAccess.open(base + "_dir.vpk", FileAccess.WRITE)
-	f.store_buffer(head + tree + in_dir)
-	f.close()
-	f = FileAccess.open(base + "_000.vpk", FileAccess.WRITE)
-	f.store_buffer(part)
-	f.close()
-
-
-func _cstr(s: String) -> PackedByteArray:
-	var out := s.to_utf8_buffer()
-	out.append(0)
-	return out
-
-
-## A VTF 7.2 header (80 bytes, no thumbnail) for a [param w] x [param h] image of [param mips] in [param format].
-func _vtf_head(w: int, h: int, format: int, mips: int) -> PackedByteArray:
-	var out := PackedByteArray()
-	out.resize(80)
-	out.encode_u32(0, 0x00465456)  # "VTF\0"
-	out.encode_u32(4, 7)
-	out.encode_u32(8, 2)
-	out.encode_u32(12, 80)
-	out.encode_u16(16, w)
-	out.encode_u16(18, h)
-	out.encode_u16(24, 1)
-	out.encode_float(48, 1.0)
-	out.encode_s32(52, format)
-	out[56] = mips
-	out.encode_s32(57, -1)
-	out.encode_u16(63, 1)
-	return out
-
-
-## An RGBA8888 VTF: its largest mip [param top], the smaller ones [param rest] (stored smallest first).
-func _vtf_rgba(w: int, h: int, mips: int, top: Color, rest: Color) -> PackedByteArray:
-	var out := _vtf_head(w, h, 0, mips)
-	for m in range(mips - 1, -1, -1):
-		var c := top if m == 0 else rest
-		for _i in maxi(1, w >> m) * maxi(1, h >> m):
-			out.append_array(PackedByteArray([c.r8, c.g8, c.b8, c.a8]))
-	return out
-
-
-## A one-mip DXT1 VTF, every block colour0 [param rgb565].
-func _vtf_dxt1(w: int, h: int, rgb565: int) -> PackedByteArray:
-	var out := _vtf_head(w, h, 13, 1)
-	for _b in (w / 4) * (h / 4):
-		var block := PackedByteArray()
-		block.resize(8)
-		block.encode_u16(0, rgb565)
-		out.append_array(block)
-	return out
 
 
 func _zip_fixture(zip_path: String) -> bool:
