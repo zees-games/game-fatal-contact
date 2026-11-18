@@ -359,9 +359,11 @@ func _add_bot_think_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcBots.recoil_control = new_value.to_float())
 	_add_bot_engine_cvars()
+	_add_hull_and_pvs_cvars()
+	_add_tick_budget_cvars()
 
 
-## The native/threaded switches of the bot and motor engines, and the hull grid.
+## The native/threaded switches of the bot and motor engines.
 func _add_bot_engine_cvars() -> void:
 	add_cvar("bot_fast_sense", "1" if FcBotBrain.fast_sense else "0",
 		"1: bots scan candidates by squared distance and cone cosine (same result, cheaper); 0: dot-bot's stock scan",
@@ -408,6 +410,10 @@ func _add_bot_engine_cvars() -> void:
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			DotFpsMotor.native_full = new_value.to_float() >= 0.5)
+
+
+## The players' hull grid (its fast, native and batched gathers) and the bots' PVS sight pre-cull.
+func _add_hull_and_pvs_cvars() -> void:
 	add_cvar("fc_hull_grid", "1" if FcHullGrid.enabled else "0",
 		"1: players' standing hulls are found through a grid filed once per tick (same hulls, cheaper above 12 players); 0: scan the whole roster per bot",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
@@ -443,6 +449,10 @@ func _add_bot_engine_cvars() -> void:
 		0).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotPvs.verify = new_value.to_float() >= 0.5)
+
+
+## How many ticks one frame may run to catch up: solo (`fc_tick_max_steps`) and server (`sv_max_physics_steps`).
+func _add_tick_budget_cvars() -> void:
 	add_cvar("fc_tick_max_steps", str(FcTickBudget.max_steps),
 		"Solo: the most ticks a frame may run to catch up with wall-clock time. 8 (default) keeps real time while ticks are cheap; 1 draws more frames while the simulation runs slower; 0 = no limit (the 45 ms budget alone)",
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
