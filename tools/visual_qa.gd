@@ -27,9 +27,9 @@ func _stage(item: String, clip: String) -> DotResult:
 	if _npc == null or _kind != item:
 		if _npc != null:
 			_npc.queue_free()
-		var scene := load("res://npcs/arena_%s.tscn" % item) as PackedScene
+		var scene := load("res://npcs/fc_%s.tscn" % item) as PackedScene
 		if scene == null:
-			return DotResult.fail(DotError.CODE_INVALID, "no npcs/arena_%s.tscn" % item)
+			return DotResult.fail(DotError.CODE_INVALID, "no npcs/fc_%s.tscn" % item)
 		_npc = scene.instantiate() as Node3D
 		root.add_child(_npc)
 		_kind = item
