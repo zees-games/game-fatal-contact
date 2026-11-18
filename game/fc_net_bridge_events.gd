@@ -8,7 +8,7 @@ var _watched_projectiles: RefCounted = null
 ## The RPC surface, on both ends. Created by [method attach].
 var link: FcNetLink = null
 
-## The bridge's event sending and the projectile watch that feeds it (launches and grenade effects). Split out of fc_net_bridge_b1.gd for file size.
+## The bridge's event sending and the projectile watch that feeds it (launches and grenade effects). Split out of fc_net_bridge_players.gd for file size.
 
 
 func send_event(peer_id: int, kind: int, body: PackedByteArray) -> void:

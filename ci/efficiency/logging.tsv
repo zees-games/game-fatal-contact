@@ -3,7 +3,7 @@
 game/fc_demo_stats.gd::channel_silent	1
 game/fc_host_console.gd::channel_silent	1
 game/fc_kill_pov.gd::channel_silent	1
-game/fc_net_bridge_b1.gd::print	1
+game/fc_net_bridge_players.gd::print	1
 game/fc_player_stack.gd::print	1
 game/fc_sim_host.gd::channel_silent	1
 game/fc_sim_owner.gd::channel_silent	1

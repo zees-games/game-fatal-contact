@@ -1,6 +1,6 @@
-extends "fc_net_bridge_b1.gd"
+extends "fc_net_bridge_players.gd"
 
-## The bridge's world events, score mirroring and a hitscan rewind's per-target pieces. Split out of fc_net_bridge_b2.gd for file size.
+## The bridge's world events, score mirroring and a hitscan rewind's per-target pieces. Split out of fc_net_bridge_link.gd for file size.
 
 
 ## The events about the world (bullets, toys, drops, the jail and the rules), split from [method _on_event].

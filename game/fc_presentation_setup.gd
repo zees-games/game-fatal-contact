@@ -1,4 +1,4 @@
-extends "fc_presentation_b2a.gd"
+extends "fc_presentation_blast_sound.gd"
 
 const FcPaths := preload("fc_paths.gd")
 const FcAmbience := preload("fc_ambience.gd")

@@ -32,7 +32,7 @@ func _finish() -> void:
 ## Only the roots: load()ing all of res://game keeps ~1300 scripts alive past exit (a leak in game.sh).
 const CLIENT_ROOTS: Array[String] = [
 	"res://game/fc_client.gd", "res://game/fc_presentation.gd",
-	"res://game/fc_presentation_b1.gd", "res://game/fc_presentation_b2.gd",
+	"res://game/fc_presentation_vars_and_frame.gd", "res://game/fc_presentation_setup.gd",
 	"res://game/fc_menus.gd", "res://game/fc_bindings.gd",
 ]
 

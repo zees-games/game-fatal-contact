@@ -650,7 +650,7 @@ const SPACE_QUERY_FILES := {
 	"game/fc_kill_pov_view.gd": "client",
 	"game/fc_player.gd": "client",
 	"game/fc_player_build.gd": "client",
-	"game/fc_presentation_b1.gd": "client",
+	"game/fc_presentation_vars_and_frame.gd": "client",
 	"game/fc_touch.gd": "client",
 	"maps/fc_bsp_map.gd": "client",
 }
@@ -690,7 +690,7 @@ func _check_space_query_audit() -> void:
 const TICK_GATED_FILES := {
 	"game/fc_module.gd": "fc_restart",
 	"game/fc_module_b2.gd": "fc_mode",
-	"game/fc_net_bridge_b1.gd": "the gate opened at the top of server_tick",
+	"game/fc_net_bridge_players.gd": "the gate opened at the top of server_tick",
 	"game/fc_map_session.gd": "every map change: map, the vote, the rotation, host_change",
 	"game/fc_mod_tools.gd": "an admin respawn",
 	"game/fc_team_menu.gd": "a team menu choice that brings a player back",

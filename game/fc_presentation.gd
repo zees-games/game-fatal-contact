@@ -1,4 +1,4 @@
-extends "fc_presentation_b2.gd"
+extends "fc_presentation_setup.gd"
 
 
 # --- Settings ---------------------------------------------------------------

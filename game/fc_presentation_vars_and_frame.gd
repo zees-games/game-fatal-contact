@@ -1,4 +1,4 @@
-extends "fc_presentation_b0.gd"
+extends "fc_presentation_fields.gd"
 
 const FcScopePrefs := preload("fc_scope_prefs.gd")
 const FcScopeBody := preload("fc_scope_body.gd")

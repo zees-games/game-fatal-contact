@@ -1,4 +1,4 @@
-extends "fc_presentation_b1.gd"
+extends "fc_presentation_vars_and_frame.gd"
 
 # The cue ids only (FcVote.CUE_* are these): `fc_vote.gd` is server-side, and preloading it
 # here compiled the vote and dot-vote into every client.

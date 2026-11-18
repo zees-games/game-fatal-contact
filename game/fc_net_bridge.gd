@@ -1,4 +1,4 @@
-extends "fc_net_bridge_b2.gd"
+extends "fc_net_bridge_link.gd"
 
 const FcNetCommand := preload("fc_net_command.gd")
 

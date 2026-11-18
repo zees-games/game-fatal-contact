@@ -1,7 +1,7 @@
 extends DotGameCheckSuite
 
 const FcBspMap := preload("../maps/fc_bsp_map.gd")
-const FcPresentationB1 := preload("../game/fc_presentation_b1.gd")
+const FcPresentationFrame := preload("../game/fc_presentation_vars_and_frame.gd")
 
 const EXPECTED_CHECKS := 14
 
@@ -45,7 +45,7 @@ func _test_mixed_brush(root: Node3D, space: PhysicsDirectSpaceState3D) -> void:
 	var steep := space.intersect_ray(PhysicsRayQueryParameters3D.create(Vector3(40, 5, 0.3), Vector3(40.4, -5, 0.3), 0xFFFFFFFF ^ FcBspMap.SKY_BIT))
 	_check(not steep.is_empty() and FcBspMap.on_sky(space, steep.position, (Vector3(40.4, -5, 0.3) - Vector3(40, 5, 0.3)).normalized()), "a slanted shot at the cap reads as sky too")
 	var mixed_marks := [{"point": cap_hit.position, "normal": Vector3.UP}, {"point": brick_hit.position, "normal": Vector3.LEFT}]
-	var mixed_kept := FcPresentationB1.without_sky(space, mixed_marks, Vector3.DOWN)
+	var mixed_kept := FcPresentationFrame.without_sky(space, mixed_marks, Vector3.DOWN)
 	_check(mixed_kept.size() == 1 and mixed_kept[0] == mixed_marks[1], "the cap's decal is dropped, the brick wall's decal is made", str(mixed_kept.size()))
 	_check(brick.collision_layer & FcBspMap.SKY_BIT == 0, "the brick body is not on the sky layer, its wall still stops shots")
 
@@ -96,10 +96,10 @@ func _run() -> void:
 		{"entry": wall_hit.position, "entry_normal": Vector3.LEFT, "exit": wall_hit.position + Vector3(1, 0, 0), "exit_normal": Vector3.RIGHT},
 		{"entry": end, "entry_normal": Vector3.BACK, "exit": end + Vector3(0, 0, -1), "exit_normal": Vector3.FORWARD},
 	]
-	var kept := FcPresentationB1.without_sky(space, marks, Vector3.FORWARD)
+	var kept := FcPresentationFrame.without_sky(space, marks, Vector3.FORWARD)
 	_check(kept.size() == 1 and kept[0] == marks[0], "a penetration touching the sky is dropped, a wall's kept", str(kept.size()))
 	var bounces := [{"point": wall_hit.position, "normal": Vector3.LEFT}, {"point": end, "normal": Vector3.BACK}]
-	var kept_b := FcPresentationB1.without_sky(space, bounces, Vector3.FORWARD)
+	var kept_b := FcPresentationFrame.without_sky(space, bounces, Vector3.FORWARD)
 	_check(kept_b.size() == 1 and kept_b[0] == bounces[0], "a ricochet on the sky is dropped, a wall's kept", str(kept_b.size()))
 	_check(sky_body.collision_layer & FcBspMap.SKY_BIT == 0, "the sky body itself is not on the sky layer (shots unchanged)")
 
