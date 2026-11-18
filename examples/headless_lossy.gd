@@ -1,4 +1,4 @@
-extends "headless_lossy_b1.gd"
+extends "headless_lossy_stamina_and_teleport.gd"
 
 const SECTIONS := 15
 ## `-- --shard NAME` boots and connects its own server and plays one part, declaring [sections, checks]; `-- --merge LOG...`

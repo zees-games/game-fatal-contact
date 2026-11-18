@@ -39,7 +39,7 @@ A client's `game.mode` is whatever it was built with. The server puts the mode's
 - **It never shoots a team-mate or the dead.** `FcTouch.crosshair_kind` runs the name tags' own camera test (`TagRules.ray_hits_body`) over every player, takes the nearest body on the ray, holds fire when it is a team-mate or not alive, and fires on an opponent only when one physics ray (the tags' `occluder_mask`) finds no wall. `headless_touch` times it over 32 players at well under 0.1 ms.
 - **Aim assist** (`sv_aim_assist`, off by default) gets the chests of living opponents within 10 degrees and 80 m with no wall between; dot-mobile turns the look a little towards the nearest, before the command.
 - **Paused under a menu or the console**: the overlay hides and lifts its fingers. `touch_live` keeps auto-fire and aim assist off while dead, spectating or roaming.
-- The server's other cvars (`sv_mobile_touch`, `sv_mobile_schemes`, `sv_mobile_sens_*`, `sv_mobile_left_handed`, `sv_mobile_buttons`) are dot-mobile's; bound in `fc_module_b2.gd`, replicated, followed in `follow_server_cvars`.
+- The server's other cvars (`sv_mobile_touch`, `sv_mobile_schemes`, `sv_mobile_sens_*`, `sv_mobile_left_handed`, `sv_mobile_buttons`) are dot-mobile's; bound in `fc_module_build.gd`, replicated, followed in `follow_server_cvars`.
 - Not verified on a real phone: the layout at real DPI, gyro look (web only, iOS asks on the first touch), and pointer capture in a mobile browser, which `_read_fire` still requires.
 
 ## The camera is written in exactly one place

@@ -1,4 +1,4 @@
-extends "headless_net_b2.gd"
+extends "headless_net_wire_and_weapons.gd"
 
 ## A drawing client's event budget: a backlog past it waits for later frames, then lands whole and in order.
 func _test_event_budget() -> void:

@@ -1,4 +1,4 @@
-extends "dedicated_b1.gd"
+extends "dedicated_vote_and_query.gd"
 
 const FcAvatars := preload("../game/fc_avatars.gd")
 const FcServer := preload("../game/fc_server.gd")

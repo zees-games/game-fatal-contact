@@ -1,4 +1,4 @@
-extends "headless_presentation_b2.gd"
+extends "headless_presentation_ballot_and_criticals.gd"
 
 func _test_schema() -> void:
 	_section("What a player may change, and what a server may cap")

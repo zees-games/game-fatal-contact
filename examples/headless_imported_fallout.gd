@@ -1,9 +1,9 @@
-extends "headless_imported_b1.gd"
+extends "headless_imported_rides.gd"
 
 ## Set by `-- --fallout=<map id>`: the one map the walk-off check visits.
 var _fallout_only := ""
 
-## The imported-map suite's fall-out checks over every map. Split out of headless_imported_b2.gd for file size.
+## The imported-map suite's fall-out checks over every map. Split out of headless_imported_worlds.gd for file size.
 
 
 func _test_fallout_all_part2(sealed: Array[String], report: Array[String], player: FcPlayer) -> void:

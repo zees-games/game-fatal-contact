@@ -1,4 +1,4 @@
-extends "screenshot_b1.gd"
+extends "screenshot_glance.gd"
 
 
 ## Renders a map to a PNG so a person can look at it.

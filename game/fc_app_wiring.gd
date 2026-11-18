@@ -3,7 +3,7 @@ extends Node
 ## FC's per-app customisation from Gamespice, on the dedicated server: the app's avatars settings,
 ## the earn events that feed the app's points, the balance the HUD shows, and the store items a
 ## player equipped. Built by the module on the authority ([code]_build_app[/code] in
-## fc_module_b2.gd); a client never builds one and never holds a balance of its own.
+## fc_module_build.gd); a client never builds one and never holds a balance of its own.
 ##
 ## [b]Every part is off until its operator configures it, and off is quiet:[/b] one log line, no
 ## crash, nothing sent.

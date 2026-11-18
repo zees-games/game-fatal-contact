@@ -1,4 +1,4 @@
-extends "headless_presentation_b2a.gd"
+extends "headless_presentation_killcam_and_loadout.gd"
 
 ## The weapon slots under a ballot: this game's own map vote is seven rows (six maps and Extend),
 ## and the client shell draws it down the right-hand side to y 437 at 1280x720, over slots 1 and 2

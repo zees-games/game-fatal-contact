@@ -1,4 +1,4 @@
-extends "headless_imported_b2.gd"
+extends "headless_imported_worlds.gd"
 
 const FcContent := preload("../game/fc_content.gd")
 

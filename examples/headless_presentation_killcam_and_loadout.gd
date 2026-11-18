@@ -1,4 +1,4 @@
-extends "headless_presentation_b1.gd"
+extends "headless_presentation_console_and_menus.gd"
 
 const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 

@@ -1,4 +1,4 @@
-extends "fc_module_b2.gd"
+extends "fc_module_build.gd"
 
 
 const FcTeamMenu := preload("fc_team_menu.gd")

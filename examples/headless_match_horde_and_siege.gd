@@ -689,7 +689,7 @@ func _check_space_query_audit() -> void:
 ## (dot_tick_gate.gd; docs/sim-thread.md "Physics space queries"). A file that stops using it fails here.
 const TICK_GATED_FILES := {
 	"game/fc_module.gd": "fc_restart",
-	"game/fc_module_b2.gd": "fc_mode",
+	"game/fc_module_build.gd": "fc_mode",
 	"game/fc_net_bridge_players.gd": "the gate opened at the top of server_tick",
 	"game/fc_map_session.gd": "every map change: map, the vote, the rotation, host_change",
 	"game/fc_mod_tools.gd": "an admin respawn",

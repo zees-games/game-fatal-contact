@@ -1,4 +1,4 @@
-extends "headless_net_b1.gd"
+extends "headless_net_client_views.gd"
 
 func _test_command_wire() -> void:
 	print("")

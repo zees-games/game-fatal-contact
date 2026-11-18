@@ -1,4 +1,4 @@
-extends "dedicated_b2.gd"
+extends "dedicated_module_and_bots.gd"
 
 
 const SECTIONS := 15

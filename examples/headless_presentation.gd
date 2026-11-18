@@ -1,4 +1,4 @@
-extends "headless_presentation_b3.gd"
+extends "headless_presentation_bodies_and_map_menu.gd"
 
 const FcFlashlight := preload("../game/fc_flashlight.gd")
 const FcTeamBodies := preload("../game/fc_team_bodies.gd")

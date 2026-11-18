@@ -1,4 +1,4 @@
-extends "fc_module_b1.gd"
+extends "fc_module_players_and_commands.gd"
 
 const FcMap := preload("../maps/fc_map.gd")
 const FcMaps := preload("fc_maps.gd")

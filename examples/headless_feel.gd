@@ -1,4 +1,4 @@
-extends "headless_feel_b1.gd"
+extends "headless_feel_measure.gd"
 
 const FcPresentation := preload("../game/fc_presentation.gd")
 

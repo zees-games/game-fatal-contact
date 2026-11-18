@@ -1,4 +1,4 @@
-extends "headless_presentation_b3a.gd"
+extends "headless_presentation_audio.gd"
 
 ## A dead body falls as the server said: the death rides the KILL, the client builds a ragdoll from
 ## the figure it draws, the body lies on the floor rather than through it.

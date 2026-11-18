@@ -1,4 +1,4 @@
-extends "headless_imported_b0.gd"
+extends "headless_imported_surf_physics.gd"
 
 const FcBots := preload("../game/fc_bots.gd")
 
