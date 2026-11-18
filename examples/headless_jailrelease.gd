@@ -6,8 +6,7 @@ const FcMode := preload("../game/fc_mode.gd")
 const FcBspMap := preload("../maps/fc_bsp_map.gd")
 const FcBots := preload("../game/fc_bots.gd")
 
-## A surf map's jail through the global importer: a pad beside the jail is a release to the top of the
-## spawn, the cell's glass is one-way, and the use key on the button swings the jail doors.
+## A surf map's jail through the global importer: a pad beside the jail keeps its authored target, the cell's glass is one-way, and the use key on the button swings the jail doors.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_jailrelease.tscn
@@ -73,9 +72,10 @@ func _run() -> void:
 	_check(centre.distance_to(_at(manifest, "jail1")) < 3.0, "and it is where the falls land", str(centre))
 
 	var pad := _volume(manifest, 60)
-	var pad_to := _at(manifest, str(pad.get("target", "")))
-	_check(str(pad.get("retargeted_from", "")) == "outside_jail", "the pad by the ice post was aimed at the jail's doorstep")
-	_check(pad_to.y > centre.y + 10.0, "and now sends a player to the top of the spawn", str(pad["target"]))
+	# The converter reads the map as authored (release_pits is opt-in since its fidelity audit): the pad keeps the
+	# author wiring to the doorstep, and the record carries no retarget.
+	_check(not pad.has("retargeted_from"), "the pad by the ice post is not re-aimed by the converter")
+	_check(str(pad.get("target", "")) == "outside_jail", "and keeps the target its author wrote", str(pad.get("target", "")))
 	var exit := _volume(manifest, 94)
 	_check(str(exit.get("target", "")) == "jailbreak" and not exit.has("retargeted_from"), "while the jail's own exit still opens onto its doorstep")
 	var falls := 0

@@ -234,27 +234,23 @@ func _test_map_change_rest(director: FcMapDirector, team: FcMode) -> void:
 			director.restrict_rotation()
 
 			_check(
-				not director.session.rotation.order.has(&"dm_pit"),
-				"the rotation stops offering dm_pit while a team mode is played",
+				director.session.rotation.order.has(&"dm_pit"),
+				"every map hosts a team mode, so the rotation still offers dm_pit",
 				str(director.session.rotation.order)
 			)
 			_check(
 				director.session.rotation.order.has(&"dm_box")
 					and director.session.rotation.order.has(&"dm_atrium"),
-				"and still offers the two that can host it"
+				"and the two with tagged spawns"
 			)
 
-			# Asked for by name, which is what an admin typing `changelevel` does and what a
-			# rotation cannot be made to stop doing.
-			var refused: DotResult = await director.change_to(&"dm_pit")
+			# Asked for by name, which is what an admin typing changelevel does.
+			var moved: DotResult = await director.change_to(&"dm_pit")
 
+			_check(moved.ok, "and changing to it by name is accepted", str(moved.error))
 			_check(
-				not refused.ok,
-				"and changing to it by name is refused outright"
-			)
-			_check(
-				_game.map.id != &"dm_pit",
-				"with the game left on the map it was on",
+				_game.map.id == &"dm_pit",
+				"with the game now on dm_pit",
 				String(_game.map.id)
 			)
 
