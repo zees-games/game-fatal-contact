@@ -84,3 +84,7 @@ Read the first-person sheet left to right as a flip book, then the behind-right 
 - in the avatar clips, feet sliding over the floor, legs not moving while the body moves, the gun dropping out of the hands while running or jumping, or the camera passing through the body.
 
 Frame 0 of a third-person sheet can show the scene before the camera is placed; ignore it.
+
+## The horde monsters
+
+`tools/visual_qa.gd` (`tools/visual_qa_shot.sh`, a `DotGameVisualQaCapture`) records each monster kind in `npcs/` (grunt, gunner, brute, stalker) idling, walking and running a circle: the victim's eye, behind-right and the opponent view at 60 fps. Run it with dot-game's driver: `bash addons/dot_game/tools/dot_game_visual_qa.sh --shot tools/visual_qa_shot.sh --fresh grunt -- --only grunt`, then read the sheets against the same checklist.

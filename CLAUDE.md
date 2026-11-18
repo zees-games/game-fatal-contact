@@ -28,7 +28,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | `maps/` | the built-in maps as box lists (survey, paint, lighting); the combat surf maps' loader; `maps/imported` links fc-surf-dm-maps |
 | `npcs/`, `props/`, `avatars/`, `scenes/fx/`, `assets/` | monsters, props, avatar parts, effects, vendored base weapon art, Kenney's grid and medal icons |
 | `examples/` | the nine suites; `wall_route_driver.gd` drives a map's wall routes |
-| `tools/` | render tools (`screenshot.sh --glance`), avatar and icon builders, `audio_probe.sh`, `loudness_pilot.gd`. [client](docs/client.md#looking-at-it) |
+| `tools/` | `anim_review.sh` (weapons, arms, the player's locomotion) and `visual_qa_shot.sh` (the horde monsters): the visual QA loop, [anim-review](docs/anim-review.md); render tools (`screenshot.sh --glance`), avatar and icon builders, `audio_probe.sh`, `loudness_pilot.gd`. [client](docs/client.md#looking-at-it) |
 | `scenes/fc_server.tscn`, `game.yml` | the server scene and the descriptor that travels in the pack |
 
 ## Running and testing
@@ -38,6 +38,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - `headless_presentation` and `headless_feel` have a client, `headless_lossy` and `headless_feel` real ENet and loss; only `headless_feel` judges frames. [testing](docs/testing.md#the-suites)
 - Read every suite's stderr even when it exits 0; cap every run with `timeout`. [testing](docs/testing.md#traps-the-suites-have-hit)
 - A suite or tool that builds a presentation or client calls `FcPresentation.use_scratch_settings` first. [testing](docs/testing.md#traps-the-suites-have-hit)
+- **A change to a weapon, arm, avatar or monster is judged from 60 fps frames in first-person and outside views, never from suites alone**: run `tools/anim_review.sh` (weapons, avatar) or `tools/visual_qa_shot.sh` (monsters), read the sheets, ask "does this look like a real game?", fix the obvious defects and re-capture, without being asked. [anim-review](docs/anim-review.md)
 - **Look at it.** No check reaches the screen: `tools/` under `xvfb-run`; a camera change in `render_cameras.sh` (armed) and `render_views.gd`. [client](docs/client.md#looking-at-it)
 - Without the `maps/imported` link the built-in maps play and the imported checks skip; supported.
 
