@@ -39,10 +39,35 @@ def explore(m):
     ok = run(m, ["--explore"], f".godot/surf-rides/{m}.log", 2400)
     print("explored" if ok else "explore FAIL", m, flush=True)
 
+def recover(m, i, log):
+    """A job the fleet offloads to a box leaves its --out file there; the tool also prints it as a `[surf-out] ` line,
+    which is what comes back. Rebuild the file from the log's last such line (fail loudly when there is none)."""
+    part = f".godot/surf-rides/{m}-{i}.json"
+    if os.path.exists(part):
+        return True
+    text = None
+    with open(log, "rb") as f:
+        for line in f:
+            if line.startswith(b"[surf-out] "):
+                text = line[len(b"[surf-out] "):]
+    if text is None:
+        print("no result for", m, "edge", i, "(neither the file nor a [surf-out] line in", log + ")", flush=True)
+        return False
+    json.loads(text)
+    with open(part, "wb") as f:
+        f.write(text)
+    return True
+
 def plan(job):
     m, i = job
     out = f"res://.godot/surf-rides/{m}-{i}.json"
-    ok = run(m, ["--plan", str(i), "--out", out], f".godot/surf-rides/{m}.{i}.log", 5400)
+    log = f".godot/surf-rides/{m}.{i}.log"
+    for stale_file in (log, f".godot/surf-rides/{m}-{i}.json"):
+        if os.path.exists(stale_file):
+            os.remove(stale_file)
+    ok = run(m, ["--plan", str(i), "--out", out], log, 5400)
+    if ok:
+        ok = recover(m, i, log)
     print("planned" if ok else "plan FAIL", m, "edge", i, flush=True)
 
 def stale(m):

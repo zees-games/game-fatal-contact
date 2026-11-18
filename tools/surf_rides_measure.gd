@@ -222,15 +222,20 @@ static func _metres(row: Array) -> Vector3:
 	return Vector3(float(row[0]), float(row[1]), float(row[2])) * FcSurf.UNITS
 
 
-func _write(path: String, data: Dictionary) -> void:
+## [param echo] also prints the file's JSON on one `[surf-out] ` line: a job the fleet offloads to a box writes its file
+## there and does not bring it back, but its output does come back (surf_rides_all.py reads it from the log).
+func _write(path: String, data: Dictionary, echo: bool = false) -> void:
 	data["id"] = String(map_id)
 	data["units"] = FcSurf.UNITS
 	data["bake"] = FcSurf.bake_id(nav)
 	data["note"] = "Written by tools/surf_rides.gd: a combat surf map's ride edges (platform to platform, in genre units, Godot axes) and, per edge, every tick of every ride the planner found on the real motor as [x, y, z, vx, vy, vz, action]. Replan after a movement or collision change."
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	var f := FileAccess.open(path, FileAccess.WRITE)
-	f.store_string(JSON.stringify(data, "", false))
+	var text := JSON.stringify(data, "", false)
+	f.store_string(text)
 	f.close()
+	if echo:
+		print("[surf-out] " + text)
 	print("[surf] wrote %s" % path)
 
 

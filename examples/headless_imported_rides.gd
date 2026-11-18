@@ -79,7 +79,7 @@ const ROAM_SECONDS := 90.0
 ## The rotation's maps with planned rides, each ridden as [constant RIDE_MAP] is (one edge,
 ## [constant ROTATION_RIDE_STARTS] starts). Their rides are several flights long, which is why they were
 ## the last to get any; see docs/imported-maps.md, "Which maps have rides".
-const ROTATION_RIDE_MAPS: Array[StringName] = [&"surf_10x_reloaded_fixed", &"surf_snipers_island", &"surf_the_flow"]
+const ROTATION_RIDE_MAPS: Array[StringName] = [&"surf_10x_reloaded_fixed", &"surf_snipers_island", &"surf_the_flow", &"surf_grave_reloaded"]
 ## Their starts, and how many must land. Wider than [constant RIDE_STARTS] on purpose: 10x's
 ## edges are 10 s rides that land one start in four to eight.
 const ROTATION_RIDE_STARTS := 6
@@ -99,6 +99,9 @@ const SNIPERS_RIDE_LANDING: Array = [5, 5, 5]
 ## surf_the_flow's two edges go from each spawn platform (16 spawns on each) down to the floor island
 ## the teleports land on (3.2 to 3.5 s); 100% simulated and 95% to 100% live (`--measure`), so five of six.
 const FLOW_RIDE_LANDING: Array = [5, 5]
+## surf_grave_reloaded's first edge (seven planned): 62% of 40 simulated and 50% of 20 live landed when replanned for the
+## 72-unit hull (`--measure`), so two of six starts, with the budget's spare starts behind a bad draw.
+const GRAVE_RIDE_LANDING: Array = [2]
 
 
 ## Bots ride the ramps (`game/fc_surf.gd`): the edges are linked into the mesh, a route
@@ -379,6 +382,8 @@ func _test_rotation_rides() -> void:
 			need = SNIPERS_RIDE_LANDING
 		elif map_id == &"surf_the_flow":
 			need = FLOW_RIDE_LANDING
+		elif map_id == &"surf_grave_reloaded":
+			need = GRAVE_RIDE_LANDING
 		var rode := await _ride_on(map_id, tick, ROTATION_RIDE_STARTS, need)
 		tick = int(rode.get("tick", tick)) + 64
 

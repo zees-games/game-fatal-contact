@@ -132,7 +132,7 @@ func _run() -> void:
 			# Saved after every edge: an edge is twenty minutes, and a run cut short keeps them.
 			# `--out FILE` writes there instead, so edges planned in parallel processes can be merged (surf_rides_all.py).
 			var out_at := args.find("--out")
-			_write(ProjectSettings.globalize_path(args[out_at + 1]) if out_at >= 0 else path, data)
+			_write(ProjectSettings.globalize_path(args[out_at + 1]) if out_at >= 0 else path, data, out_at >= 0)
 	if args.has("--demos") or args.has("--harvest"):
 		var merged_at := args.find("--out")
 		await demos(args.has("--harvest"), ProjectSettings.globalize_path(args[merged_at + 1]) if merged_at >= 0 else path.replace(".surf.json", ".merged.surf.json"))
