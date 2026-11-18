@@ -39,7 +39,7 @@ const MAP_SCRIPT := "res://maps/fc_map.gd"
 
 
 static func _blank_map() -> RefCounted:
-	return (load(MAP_SCRIPT) as Script).new()
+	return (load(FcPaths.rebase(MAP_SCRIPT)) as Script).new()
 
 ## A level as a list of boxes, and the three things that list becomes. The boxes are declared once
 ## here and become a [MeshInstance3D] set to see, [StaticBody3D]s for physics, and analytic [AABB]s

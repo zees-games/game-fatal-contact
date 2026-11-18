@@ -510,7 +510,7 @@ func _thrown_knife_look(weapon: StringName) -> Node3D:
 	if model != null:
 		var trail := Node3D.new()
 		trail.name = "KnifeTrail"
-		trail.set_script(load("res://game/fc_knife_trail.gd"))
+		trail.set_script(load(FcPaths.rebase("res://game/fc_knife_trail.gd")))
 		model.add_child(trail)
 	return model
 

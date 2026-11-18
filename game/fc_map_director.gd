@@ -209,7 +209,7 @@ func load_rotation() -> DotResult:
 		})
 
 	var paths := PackedStringArray()
-	for candidate in ["res://maps.yml", found]:
+	for candidate in ["res://maps.yml", found]:  # pack-paths: host (the server install's own rotation file)
 		if candidate != "" and not paths.has(candidate) and FileAccess.file_exists(candidate):
 			paths.append(candidate)
 

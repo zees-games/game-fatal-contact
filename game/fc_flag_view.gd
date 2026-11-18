@@ -5,6 +5,7 @@ extends Node3D
 const FcGame := preload("fc_game.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const FcLoadTimeline := preload("fc_load_timeline.gd")
+const FcPaths := preload("fc_paths.gd")
 
 const POLE_HEIGHT := 3.4
 const BANNER_SIZE := Vector2(1.8, 1.2)
@@ -60,7 +61,7 @@ const _BUILD_PARTS: Array[StringName] = [&"_add_pole", &"_add_cloth", &"_add_ico
 static func warm(host: Node) -> void:
 	if DotPlatform.is_headless() or (_warm != null and is_instance_valid(_warm)):
 		return
-	var view: Node3D = load(_SELF_PATH).new()
+	var view: Node3D = load(FcPaths.rebase(_SELF_PATH)).new()
 	view.name = "FlagViewWarm"
 	view.position = Vector3(0.0, -10000.0, 0.0)
 	view.set_process(false)

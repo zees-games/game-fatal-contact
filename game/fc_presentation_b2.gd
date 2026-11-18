@@ -432,7 +432,7 @@ func _build_audio() -> DotResult:
 		DotLog.info(
 			CHANNEL,
 			"synthesised stand-ins baked for ids whose files this build lacks",
-			{"ids": _bake_ids.size(), "dir": SOUND_DIR}
+			{"ids": _bake_ids.size(), "dir": FcPaths.rebase(SOUND_DIR)}
 		)
 
 	return DotResult.success(null)

@@ -229,10 +229,21 @@ func _build_toys() -> void:
 
 ## Builds everything. Call after adding to the tree. One go: [method setup_begin] and every
 ## [method setup_step]; a client that draws runs the steps a frame apart (FcClient).
+##
+## A step that dies on a script error hands back null, not a [DotResult] (on a server that was a
+## script missing from the pack mount, 0.1.69): that is turned into a failure that names the step,
+## so the log says what broke instead of "Invalid access to property 'ok' on Nil".
 func setup(p_map: FcMap = null) -> DotResult:
-	var built := setup_begin(p_map)
-	while built.ok and not setup_done():
+	var step: StringName = &"begin"
+	var built: Variant = setup_begin(p_map)
+	while built is DotResult and (built as DotResult).ok and not setup_done():
+		step = setup_next_step()
 		built = setup_step()
+	if not (built is DotResult):
+		_setup_step = SETUP_STEPS.size()
+		var failed := DotResult.fail(DotError.CODE_STATE, "setup step %s died on a script error (see the SCRIPT ERROR above)" % step)
+		DotLog.error(CHANNEL, "the game would not build", {"step": String(step), "why": failed.error.message})
+		return failed
 	return built
 
 ## The parts of [method setup] after the mode and the map, in order, one [method setup_step] each. Split
@@ -267,6 +278,11 @@ func setup_begin(p_map: FcMap = null) -> DotResult:
 
 	if map == null:
 		map = FcMap.dm_box()
+	if map == null:
+		# A map script that is missing from the pack mount (0.1.69: an un-rebased res://maps path) is a SCRIPT
+		# ERROR above and a null here; every step after it would fail on the null instead of saying so.
+		_setup_step = SETUP_STEPS.size()
+		return DotResult.fail(DotError.CODE_STATE, "no map could be built (see the script error above)")
 
 	if mode.is_team_mode() and team_spawn_split:
 		var _tagged := map.split_spawns_for_teams()

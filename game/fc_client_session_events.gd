@@ -268,7 +268,7 @@ func _build_netcode() -> DotResult:
 	FcLoadTimeline.mark("netcode: messages sealed")
 
 	# The client halves, built here because each needs the bridge.
-	extras = (load(FC_CLIENT_EXTRAS) as GDScript).new()
+	extras = (load(FcPaths.rebase(FC_CLIENT_EXTRAS)) as GDScript).new()
 	extras.name = "Extras"
 	add_child(extras)
 

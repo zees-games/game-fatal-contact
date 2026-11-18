@@ -10,6 +10,8 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MAP_LINKS=(maps/imported maps/imported_dm worlds worlds_dm .stores)
 X=(); for d in examples tests tools docs images screenshots shots_boot ci .github addons "${MAP_LINKS[@]}"; do X+=(--exclude-dir "$d"); done
+# A delivered pack mounts under res://dot_cloud/<id>/<version>/: every path to its own files must be rebased.
+"$HERE/tools/check_pack_paths.sh" || { echo "publish: a shipped script loads a res:// path the pack mount does not have (tools/check_pack_paths.sh)" >&2; exit 1; }
 # The client shell carries its own pinned addons: a shipped script naming newer addon API does not compile there.
 # SHELL_PARSE=0 skips this (only for a pack no shell loads).
 [ "${SHELL_PARSE:-1}" = 0 ] || "$HERE/tools/check_shell_parse.sh" || { echo "publish: shipped scripts do not compile on the client shell (tools/check_shell_parse.sh)" >&2; exit 1; }

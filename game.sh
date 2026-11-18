@@ -287,10 +287,19 @@ do_test() {
     echo "importing"
     timeout 600 "$GODOT" --headless --path . --import >/dev/null 2>&1
 
+    if [ $# -eq 0 ]; then
+        # A delivered pack mounts under res://dot_cloud/: an un-rebased path to the game's own files works
+        # here and nowhere else (0.1.69 on the panel servers). Source-only, so it costs nothing.
+        if "$ROOT/tools/check_pack_paths.sh" >/dev/null; then
+            printf '  %sok%s   every shipped res:// path is rebased\n' "$GRN" "$OFF"
+        else
+            "$ROOT/tools/check_pack_paths.sh"; fails=$((fails + 1))
+        fi
+    fi
     if [ "$PARSE" = 1 ] && [ $# -eq 0 ]; then
         echo "parsing every script"
         parse_all
-        fails=$?
+        fails=$((fails + $?))
         [ "$fails" -eq 0 ] && printf '  %sok%s   every script parses\n' "$GRN" "$OFF"
     fi
 
