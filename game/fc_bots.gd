@@ -137,6 +137,17 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 	return []
 
 
+## dot-bot 0.1.32: a bot stuck on an island with no way off (a surf map with no ride cache) goes back to a spawn. The brain reports again every bot_stranded_sec if that did not free it. Returns whether it respawned.
+static func unstrand(game: Object, bot: FcPlayer, mind: Mind, intent: DotBotIntent) -> bool:
+	if intent == null or not intent.stranded or game == null or not game.has_method(&"respawn_player"):
+		return false
+	mind.ride = null
+	game.call(&"respawn_player", bot.player_id)
+	if mind.brain != null:
+		mind.brain.ride_ended(true)
+	return true
+
+
 ## The part of [method think] after the brain ran, on the main thread: the bot's commands from [member Mind.t_intent].
 static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float) -> Array:
 	var move := DotFpsCommand.new()
@@ -149,6 +160,7 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 	mind.t_intent = null
 	var t_after := Time.get_ticks_usec()
 	var t_lap := FcFrameProbe.lap_start()
+	unstrand(_game, bot, mind, intent)
 	var surf := world.surf_at(tick)
 	if surf != null:
 		surf.call(&"steer", bot, mind, intent, tick, tick_rate)

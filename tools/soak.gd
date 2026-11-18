@@ -18,6 +18,8 @@ const FcSimServer := preload("../game/fc_sim_server.gd")
 ##
 ## --seed N makes the run a pure function of N: bot count (4 to 12, unless --bots), difficulty preset and every bot's brain come from it. tools/fuzz.sh sweeps it.
 ##
+## --stranded-sec N sets dot-bot's bot_stranded_sec for the run (0 off; default the preset's 6).
+##
 ## --sections 1 prints where the ticks went (the sim host's SIM_HOST_SECTIONS line, plus soak_think for the brains
 ## and soak_tick for the game, and on a surf map the rides' SOAK_SURF counts), `2` adds the fine sub-spans. Off by default: each section costs two clock reads.
 ##
@@ -108,6 +110,8 @@ func _run() -> void:
 	_add_game()
 	if not difficulty.is_empty():
 		DotBotSettings.of(_game).set_difficulty(difficulty)
+	if not _arg("stranded-sec", "").is_empty():
+		DotBotSettings.of(_game).set_value("stranded_sec", _arg("stranded-sec", ""))
 	var res := _game.setup(map)
 	if not res.ok:
 		_fail("setup: %s" % res.error.message)

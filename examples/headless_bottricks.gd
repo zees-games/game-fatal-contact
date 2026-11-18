@@ -1,6 +1,7 @@
 extends DotGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 
@@ -24,8 +25,8 @@ const SEEDS: Array[Vector2i] = [Vector2i(7, 19), Vector2i(31, 43)]
 ## (fc bottricks flake, 1 in 12 on ph), so the extra runs lift the total well past the bar.
 const NIGHTMARE_SEEDS: Array[Vector2i] = [Vector2i(53, 67), Vector2i(71, 89)]
 
-const CHECKS := 41
-const SECTIONS := 14
+const CHECKS := 45
+const SECTIONS := 15
 
 var _entered := 0
 var _completed := 0
@@ -48,6 +49,7 @@ func _run() -> void:
 	_section("the air-jump stays unused where the game has it off")
 	var off := await _play(MAPS[0], "nightmare", false)
 	_check(int(off["launches"]) == 0 and int(off["air_jump"]) == 0, "no launch while launch_enabled is off", "%d launches" % off["launches"])
+	_test_unstrand()
 	_done()
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
@@ -197,3 +199,27 @@ func _section(title: String) -> void:
 
 func _done() -> void:
 	_completed += 1
+
+
+class StubGame:
+	var respawned: Array[int] = []
+
+	func respawn_player(id: int) -> void:
+		respawned.append(id)
+
+
+## dot-bot's DotBotIntent.stranded puts the bot back at a spawn through the game's respawn.
+func _test_unstrand() -> void:
+	_section("a stranded bot is respawned")
+	var game := StubGame.new()
+	var bot := FcPlayer.new()
+	bot.player_id = 7
+	var mind := FcBots.Mind.new()
+	var intent := DotBotIntent.new()
+	_check(not FcBots.unstrand(game, bot, mind, intent) and game.respawned.is_empty(), "an intent that is not stranded respawns nobody")
+	intent.stranded = true
+	_check(FcBots.unstrand(game, bot, mind, intent), "a stranded intent respawns")
+	_check(game.respawned == [7], "the bot's own id is respawned", str(game.respawned))
+	_check(not FcBots.unstrand(null, bot, mind, intent), "no game, no respawn, no crash")
+	bot.free()
+	_done()
