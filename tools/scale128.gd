@@ -77,6 +77,10 @@ var _ab_weap := false
 ## --leanab N: the same alternating A/B for the server's lean players' loop (FcPlayer.lean_tick): side 0 ("patched") lean,
 ## side 1 ("upstream") every per-player call the long way.
 var _ab_lean := false
+## --gateab N: the same alternating A/B for dot-weapon's idle gate (DotWeaponBehaviour.idle_gate): side 0 ("patched") 1,
+## the cached native rows reused while they provably hold; side 1 ("upstream") 0, every idle row re-read and re-checked.
+## --idlegate 2 runs the verify mode instead; the report counts its misses either way.
+var _ab_gate := false
 var _ab_side := 0
 var _ab_ticks := PackedInt64Array([0, 0])
 var _ab_script := PackedFloat64Array([0.0, 0.0])
@@ -91,7 +95,7 @@ func _ab_begin() -> void:
 	if _cellab <= 0:
 		return
 	var need := &"DotSimWeaponSpread" if _ab_weap else &"DotSimCell"
-	if not _ab_lean and not ClassDB.class_exists(need):
+	if not _ab_lean and not _ab_gate and not ClassDB.class_exists(need):
 		push_error("scale128: --%s needs dot-sim's %s" % ["weapab" if _ab_weap else "cellab", need])
 		get_tree().quit(1)
 		return
@@ -107,6 +111,8 @@ func _ab_begin() -> void:
 func _ab_set(side: int) -> void:
 	if _ab_lean:
 		FcPlayer.lean_tick = side == 0
+	elif _ab_gate:
+		DotWeaponBehaviour.idle_gate = 1 if side == 0 else 0
 	elif _ab_weap:
 		DotWeaponHitscan.native_tick = side == 0
 	else:
@@ -156,7 +162,8 @@ func _ab_report() -> Dictionary:
 			"net_sim_ms": snappedf(_ab_net_acc[side * 2] / 1000.0 / maxi(1, _ab_net_acc[side * 2 + 1]), 0.001),
 			"sections_ms": sec,
 		}
-	return {"leanab" if _ab_lean else ("weapab" if _ab_weap else "cellab"): out}
+	var key := "leanab" if _ab_lean else ("gateab" if _ab_gate else ("weapab" if _ab_weap else "cellab"))
+	return {key: out}
 
 
 func _ready() -> void:
@@ -207,6 +214,10 @@ func _ready() -> void:
 			"--leanab":
 				_cellab = int(args[i + 1])
 				_ab_lean = _cellab > 0
+			"--gateab":
+				_cellab = int(args[i + 1])
+				_ab_gate = _cellab > 0
+			"--idlegate": DotWeaponBehaviour.idle_gate = int(args[i + 1])
 	DotLog.set_level(DotLog.Level.ERROR)
 	var _scratch := FcPresentation.use_scratch_settings("scale128_" + _role)
 	for is_start in [true, false]:
@@ -284,6 +295,8 @@ func _report(extra: Dictionary) -> void:
 	out["motor_native"] = DotFpsPhysicsBody.native_enabled and ClassDB.class_exists(&"DotSimFpsBody")
 	out.merge(extra)
 	out.merge(_ab_report())
+	out["idle_gate"] = DotWeaponBehaviour.idle_gate
+	out["idle_gate_misses"] = DotWeaponBehaviour.idle_gate_misses
 	if FcHullGrid.verify:
 		out["hull_verified"] = FcHullGrid.verified
 		out["hull_mismatches"] = FcHullGrid.mismatches
