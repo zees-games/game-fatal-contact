@@ -309,10 +309,7 @@ func _link_teleports() -> void:
 
 
 ## A route that may ride or teleport (see [method DotBotNav.route]).
-## Empty when the islands are not joined: the server logs an error for a query between them.
 func route_detail(from: Vector3, to: Vector3) -> Dictionary:
-	if not nav.joined(from, to):
-		return {"points": PackedVector3Array(), "rides": PackedInt32Array()}
 	return nav.route(from, to)
 
 
