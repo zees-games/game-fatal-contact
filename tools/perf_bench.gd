@@ -181,6 +181,7 @@ func _first_use(_game: Object) -> void:
 		for s in String(args["first-use-only"]).split(",", false):
 			ids.append(StringName(s))
 	await _first_hit()
+	await _first_footsteps()
 	await _first_kill()
 	await _first_npcs()
 	var reloads := int(args.get("first-use-reload", 1)) != 0
@@ -233,6 +234,18 @@ func _first_hit() -> void:
 	var point := cam.origin - cam.basis.z * 3.0
 	var _row := await time_first_use("hit", func() -> void:
 		client.call(&"_on_hit", {"point": point, "victim_id": victim, "amount": 25.0, "headshot": false, "lethal": false}), Callable(), 0, 30)
+
+
+## Rows "footstep SURFACE": the first step sound of each surface through the client's audio manager (stream load and decode).
+func _first_footsteps() -> void:
+	var me: Variant = client.get("player")
+	var heard: Variant = client.get("presentation").audio if client.get("presentation") != null else null
+	if me == null or heard == null:
+		return
+	for surface: StringName in DotAudioStock.SURFACES:
+		var id := DotAudioStock.footstep_id(surface)
+		var _row := await time_first_use("footstep %s" % surface, func() -> void: heard.play_at(id, me.global_position), Callable(), 0, 20)
+		await wait(0.3)
 
 
 ## The bot nearest to the player (another seat), or null.

@@ -402,54 +402,17 @@ func _warm_flash_materials(body: Variant) -> bool:
 	warm.name = "FlashWarmup"
 	warm.budget_msec = float(gate.get(&"warm_budget_msec")) if &"warm_budget_msec" in gate else 100.0
 	warm.process_mode = Node.PROCESS_MODE_ALWAYS
+	warm.follow_camera = true
 	warm.add_items(items)
 	# A one-slot array, not a bool: the handler below writes into it (a bound scalar would be a copy).
 	var done: Array = [false]
 	warm.finished.connect(func(_count: int) -> void: done[0] = true, CONNECT_ONE_SHOT)
 	_warm.flash_warm = warm
 	_warm.flash_done = done
-	_warm_anchor_node().add_child(warm)
+	add_child(warm)
 	warm.start()
-	# Just past the near plane of the camera it follows (start() saw no camera above it).
-	var seen := get_viewport().get_camera_3d()
-	warm.position = Vector3(0.0, 0.0, -((seen if seen != null else body.camera as Camera3D).near + 0.01))
 	FcLoadTimeline.mark("prewarm: drawing %d flash materials and meshes" % warm.item_count())
 	return false
-
-## Where the warm-ups that must outlive a body draw: a node that takes the transform of whatever camera the viewport
-## uses every frame, so a warm-up begun in front of the first body's camera goes on in front of the next one. Freed
-## once the last warm-up on it is done.
-var _warm_anchor: Node3D = null
-
-func _warm_anchor_node() -> Node3D:
-	if not is_instance_valid(_warm_anchor):
-		_warm_anchor = Node3D.new()
-		_warm_anchor.name = "WarmAnchor"
-		_warm_anchor.top_level = true
-		_warm_anchor.process_mode = Node.PROCESS_MODE_ALWAYS
-		add_child(_warm_anchor)
-	if not get_tree().process_frame.is_connected(_follow_warm_anchor):
-		get_tree().process_frame.connect(_follow_warm_anchor)
-	var cam := get_viewport().get_camera_3d()
-	if cam != null:
-		_warm_anchor.global_transform = cam.global_transform
-	return _warm_anchor
-
-func _follow_warm_anchor() -> void:
-	var busy := false
-	if is_instance_valid(_warm_anchor):
-		for child in _warm_anchor.get_children():
-			busy = busy or not child.is_queued_for_deletion()
-	if not busy:
-		if get_tree().process_frame.is_connected(_follow_warm_anchor):
-			get_tree().process_frame.disconnect(_follow_warm_anchor)
-		if is_instance_valid(_warm_anchor):
-			_warm_anchor.queue_free()
-		_warm_anchor = null
-		return
-	var cam := get_viewport().get_camera_3d()
-	if cam != null:
-		_warm_anchor.global_transform = cam.global_transform
 
 ## Stamps warm-up item [param what] when its own work since [param began_usec] passed [constant STEP_MARK_MSEC].
 func _step_mark(what: String, began_usec: int) -> void:
@@ -522,7 +485,7 @@ func _prewarm_end() -> void:
 		(_warm.spare as Node).queue_free()
 	if is_instance_valid(_warm.get("rig")):
 		(_warm.rig as Node).queue_free()
-	# An unfinished flash warm-up is left to finish on the warm anchor, in front of whichever camera comes next.
+	# An unfinished flash warm-up is left to finish, following whichever camera comes next (DotRenderWarmup.follow_camera).
 	# An end before phase 1 (the body went) takes what the loader still holds, or those scenes outlive the run.
 	for path: Variant in _warm.get("flash_asked", []):
 		var _dropped := ResourceLoader.load_threaded_get(str(path))
@@ -545,6 +508,7 @@ func _prewarm_weapons(body: FcPlayer) -> void:
 		return
 	var spare := _spare_view(body.camera)
 	gate.hold(&"weapons", "Preparing weapons")
+	_prewarm_sounds()
 	# The loadout menu's weapon pictures, one a frame beside the view models below (they wait on the renderer, this on a frame each), so B finds them drawn.
 	if loadout_menu != null:
 		weapon_previews().warmed.connect(func() -> void: FcLoadTimeline.mark("prewarm: %d weapon pictures, own work %d ms" % [weapon_previews().cached_count(), int(weapon_previews().warm_msec())]), CONNECT_ONE_SHOT)
@@ -554,6 +518,29 @@ func _prewarm_weapons(body: FcPlayer) -> void:
 	# A tick on process_frame, not an await: a coroutine resumed after this client was freed is an
 	# engine error, while a connection to a method dies with the object.
 	get_tree().process_frame.connect(_prewarm_tick)
+
+## Loads and decodes the first-use sounds a fight plays: every variant of each gun class's fire, reload, dry, equip and far
+## report and of the bullet impacts (DotWeaponSound.warm), then footsteps and landings (DotAudioManager.warm), a slice a frame.
+## Reload, footstep and impact were the first-use hitches; a 0 pcm_warm_usec cvar is not needed, the slices wait for a free decoder.
+func _prewarm_sounds() -> void:
+	var classes: Array = []
+	for sound_class: Variant in AwWeaponPack.SOUND_CLASSES.values():
+		if not classes.has(sound_class):
+			classes.append(sound_class)
+	var streams := DotWeaponSound.warm(classes)
+	# Impacts are picked by stock name (AwShotFx.impact_stream): flesh, the generic one, and each surface's.
+	var impacts: Array = [&"impact", &"impact_flesh"]
+	impacts.append_array(AwShotFx.SURFACE_IMPACTS.values())
+	streams.append_array(DotWeaponSound.warm_sounds(impacts))
+	var queued := DotAudioSinkGodot.warm_streams(streams)
+	var ids: Array = []
+	for def in DotAudioStock.footstep_defs():
+		ids.append(def.id)
+	ids.append_array(DotAudioStock.LANDING_IDS)
+	var heard := presentation.audio if presentation != null else null
+	if heard != null:
+		queued += heard.warm(ids)
+	FcLoadTimeline.mark("prewarm: %d sound files queued (%d weapon streams)" % [queued, streams.size()])
 
 ## Reads every weapon's model file once, a few ms a frame under the loading cover (also headless: it is
 ## only file reads), so the first equip of each - a bot picking one up, a pickup, a drop - does not pay
