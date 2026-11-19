@@ -148,7 +148,8 @@ func _settings() -> void:
 	var client := FakeClient.new()
 	var w := _wiring(game, client)
 	_check(w.describe()["settings"], "a client with get_integration: settings on")
-	_check(not w.describe()["points"], "no pinned site key: points off (nothing granted)")
+	var follows := DotLoadoutSiteSource.new().has_method(&"key_mode")
+	_check(w.describe()["points"] == follows, "no site key: points follow the site's key list (off on a dot-loadout without one)")
 	client.body = {"appId": "1", "sections": {"avatars": {"version": 2, "values": {
 		"appOnly": true,
 		"slots": [

@@ -45,7 +45,7 @@ Relayed commands are off by default and audited either way: a line typed on a we
 |---|---|---|
 | Earn events | dot-achievements `DotPointsReporter` | `user://app_points.json`, `DOT_POINTS_*` env or `--points-*` argv: `app_id`, `server_id`, `private_key_path` (the key by path; never commit one) |
 | Avatars settings | dot-loadout `DotLoadoutSiteSettings` | the identity layer's backbone client |
-| Points on the HUD, store items | dot-loadout `DotLoadoutSiteSource` | `user://app_loadout.json`, `DOT_LOADOUT_*` or `--loadout-*`: `site_public_key_path`, `site_audience` |
+| Points on the HUD, store items | dot-loadout `DotLoadoutSiteSource` | `user://app_loadout.json`, `DOT_LOADOUT_*` or `--loadout-*`: nothing needed (follows the site's published key list, audience from the credential); `site_public_key_path` + `site_audience` is the strict pin |
 
 Earn events are reported by the server only, one per player per moment (count 1), with `meta` `{humans, vsBot}`. The game sends no amounts: the app's points rules price each key, cap it and decide whether play against bots counts. The keys (append, never rename):
 

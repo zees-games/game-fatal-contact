@@ -12,7 +12,7 @@ extends Node
 ##                                         (app_id, server_id, private_key_path)
 ## settings       DotLoadoutSiteSettings   a backbone client (dot_backbone_client)
 ## points, items  DotLoadoutSiteSource     user://app_loadout.json, DOT_LOADOUT_*, --loadout-*
-##                                         (site_public_key_path, site_audience)
+##                                         (no key: follows the site's list; site_public_key_path pins)
 ## [/codeblock]
 ##
 ## [b]No amounts here.[/b] The game names what happened ([constant EVENT_KEYS]); the app's points
@@ -346,7 +346,7 @@ func _setup_site(cfg: Object) -> void:
 		return
 	var made: DotResult = script.call(&"from_config", cfg, client)
 	if not made.ok:
-		_once(&"site_off", "app points on the HUD are off: no pinned site key (%s site_public_key_path, DOT_LOADOUT_*)" % LOADOUT_CONFIG_PATH,
+		_once(&"site_off", "app points on the HUD are off: site key config unusable (%s site_public_key_path, DOT_LOADOUT_*; clear the pin to follow the site's key list)" % LOADOUT_CONFIG_PATH,
 			{"why": made.error.message})
 		return
 	use_site(made.value)
