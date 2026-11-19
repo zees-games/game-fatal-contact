@@ -96,12 +96,12 @@ func _run() -> void:
 
 func _run_part2() -> void:
 	# `-- --rides`: only the recorded rides, for working on them (the suite's own totals then do not hold);
-	# `-- --record-edge=N` records surf_ski_2's edge N instead of RECORD_EDGES, `-- --ride-rate=N` rides at N Hz.
+	# `-- --record-edge=N[,M...]` records those surf_ski_2 edges instead of RECORD_EDGES, `-- --ride-rate=N` rides at N Hz.
 	if OS.get_cmdline_user_args().has("--rides"):
 		var only: Array = RECORD_EDGES
 		for arg in OS.get_cmdline_user_args():
 			if arg.begins_with("--record-edge="):
-				only = [int(arg.trim_prefix("--record-edge="))]
+				only = Array(arg.trim_prefix("--record-edge=").split(",")).map(func(n: String) -> int: return int(n))
 		# `-- --prior=a,b`: those sections run first, to find which one leaves state behind for the rides.
 		for arg in OS.get_cmdline_user_args():
 			if arg.begins_with("--prior="):

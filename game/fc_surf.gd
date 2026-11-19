@@ -227,7 +227,10 @@ static func landing_floor(p_nav: DotBotNav, island: int) -> PackedInt32Array:
 	out.append(island)
 	var all := p_nav.islands()
 	var box: AABB = all[island]["bounds"]
-	var near := box.grow(FLOOR_JOIN)
+	# FLOOR_JOIN across and FLOOR_STEP up or down: grown by FLOOR_JOIN all round, a flat island never met one
+	# 2 m below it, and ski_2's bottom stayed two floors (rim 9 and pit 3) to the recorder and the course.
+	var reach := Vector3(FLOOR_JOIN, FLOOR_STEP, FLOOR_JOIN)
+	var near := AABB(box.position - reach, box.size + reach * 2.0)
 	for other: Dictionary in all:
 		var i: int = other["index"]
 		var obox: AABB = other["bounds"]

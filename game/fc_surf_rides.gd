@@ -18,6 +18,11 @@ const KIND := "ride"
 
 ## A recorded ride shorter than this, metres, is a hop between neighbouring floors.
 const MIN_RIDE_METRES := 40.0
+## How long a rider stays on one island before the ride ends there, seconds; a rider crossing a ledge or
+## skidding over a rim on the way down is not there that long.
+const SETTLE_SECONDS := 0.3
+## Rising faster than this, m/s, off the ground is still in the air, however close a floor is.
+const AIRBORNE_RISE := 0.5
 
 ## A step further than this in one tick is a teleport, and ends the recording.
 const JUMPED := 6.0
@@ -51,6 +56,9 @@ class Track:
 	var pre_vel: Vector3 = Vector3.ZERO
 	var pre_state: DotFpsState = null
 	var ticks: int = 0
+	## The island the rider is coming to rest on and for how many ticks, while a ride ends.
+	var landing: int = -1
+	var settled: int = 0
 
 var game: Object = null
 var demo: DotBotDemoConfig = null
@@ -255,6 +263,8 @@ func after(id: int, player: Object, command: DotFpsCommand, tick: int) -> void:
 			t.from_island = t.island
 			t.from_pos = t.pre_pos
 			t.ticks = 0
+			t.landing = -1
+			t.settled = 0
 			begun += 1
 			_extend(id, t, state, command, tick, grounded, here)
 
@@ -272,11 +282,26 @@ func _extend(id: int, t: Track, state: DotFpsState, command: DotFpsCommand, tick
 	if lost:
 		_drop(id, t, "fell, pit or timed out")
 		return
-	# Standing, or nearly (the course's own rule): a slope the motor slides down is a landing too.
+	# Standing, or nearly (the course's own rule): a slope the motor slides down is a landing too. Unlike the
+	# course, which only asks about its landing, the recorder asks about every floor on the way, so it also
+	# wants the rider over the island seen from above (the nearest-polygon reach takes a rider on the ramp
+	# beside a ledge), not rising, and still there SETTLE_SECONDS on: ski_2's riders cross island 33 (a 1 m
+	# strip atop a ramp) on every line down, and skid over island 9's rim into the pit, island 3.
 	var down := nav.island_at(state.position, 0.6)
-	if down < 0 or not (grounded or state.velocity.y > -FcSurf.LANDED_FALL):
+	if down >= 0 and not nav.on_island(down, state.position, 0.6):
+		down = -1
+	if down < 0 or not (grounded or (state.velocity.y > -FcSurf.LANDED_FALL and state.velocity.y < AIRBORNE_RISE)):
+		t.settled = 0
 		return
 	var to := canonical(down)
+	if to != t.landing:
+		t.landing = to
+		t.settled = 0
+	t.settled += 1
+	if t.settled < ceili(SETTLE_SECONDS * tick_rate):
+		return
+	t.landing = -1
+	t.settled = 0
 	t.riding = false
 	if to == t.from_island or t.from_pos.distance_to(state.position) < MIN_RIDE_METRES:
 		recorder.cancel(id)

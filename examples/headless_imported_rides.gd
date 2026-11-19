@@ -64,9 +64,11 @@ func _test_bot_routes() -> void:
 const RIDE_STARTS := 3
 const RIDE_LANDING := 2
 ## The edges the recorded-ride check records, each its own section: ones whose live rides
-## land from the lip at rest, never "the first linked", which moves on every replan. Edges 0,
-## 1, 3 and 7 miss or fall and want a replan.
-const RECORD_EDGES := [6, 4]
+## land from the lip at rest, never "the first linked", which moves on every replan. Replanned
+## on the motor of 2026-11-17 (a wall jump no longer adds push to carried speed): edge 0 lands
+## in the pit; 1 lands on the rim's edge and slides off, 3 and 4 mostly fall, and 2, 5, 6 and 7
+## find no ride at all.
+const RECORD_EDGES := [0]
 ## The rate the ride caches were planned at (FcContent.TICK_RATE, the game's default), which the
 ## recorded rides are ridden at: a cache stepped at another rate drifts off its line and the ride dies.
 const RIDE_CACHE_RATE := 66
@@ -358,8 +360,8 @@ func _ride_as_player(player: FcPlayer, edge: FcSurf.Edge, surf: FcSurf, tick: in
 			if ticks % 32 == 0:
 				await get_tree().physics_frame
 		var st := player.controller.state
-		# A few ticks standing on the far platform, which is where a recorded ride ends.
-		for _s in range(8):
+		# A few ticks standing on the far platform, which is where a recorded ride ends once the player stays.
+		for _s in range(8 + ceili(FcSurfRides.SETTLE_SECONDS * _ride_rate)):
 			_game.tick({player.player_id: FcBots.think(_game, player, FcBots.Mind.new(), tick, float(_ride_rate))})
 			tick += 1
 		# `-- --ride-notes` says where each ride ended, for working on an edge that does not land.
