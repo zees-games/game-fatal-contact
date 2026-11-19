@@ -9,10 +9,11 @@ const FcNetContext := preload("../game/fc_net_context.gd")
 const ProcSplit := preload("proc_split.gd")
 # Loaded with this script, so its _static_init (native brain on) runs before --brain-native.
 const FcPlayerStack := preload("../game/fc_player_stack.gd")
+const FcNpcs := preload("../game/fc_npcs.gd")
 
 ## The 16v16 benchmark: dot-game's DotGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (DotSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (DotSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
 ## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (dot-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
-## `--first-use-only a,b` for some ids); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (dot-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms.
+## `--first-use-only a,b` for some ids; rows also: hit, kill, death, `reload ID` (`--first-use-reload 0` skips), a thrown weapon's shot over `--first-use-thrown-frames N` frames (default 240: the fuse and blast), `npc ID` and `npc kill ID` with a horde mode such as `--mode siege`); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (dot-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms.
 
 var _pilot := true
 var _motor_us := false
@@ -180,6 +181,10 @@ func _first_use(_game: Object) -> void:
 		for s in String(args["first-use-only"]).split(",", false):
 			ids.append(StringName(s))
 	await _first_hit()
+	await _first_kill()
+	await _first_npcs()
+	var reloads := int(args.get("first-use-reload", 1)) != 0
+	var thrown_frames := int(args.get("first-use-thrown-frames", 240))
 	for id in ids:
 		var def: DotWeaponDef = AwWeaponCatalogue.table().get(id)
 		var me: Variant = client.get("player")
@@ -197,11 +202,19 @@ func _first_use(_game: Object) -> void:
 			say("first use: %s did not equip" % id)
 			continue
 		await wait(0.8)
+		# A thrown weapon's window runs on to the blast (the fuse), so "shot frag" is the first grenade, throw and detonation.
+		var thrown := def.tags.has(&"thrown")
 		for row in ["shot", "shot2"]:
 			# Held ten frames, so a physics tick sees it at any frame rate; the window runs on to the impact and the shell.
 			var _shot := await time_first_use("%s %s" % [row, id], func() -> void: Input.action_press(&"arena_fire"),
-				func() -> void: Input.action_release(&"arena_fire"), 10, 45)
+				func() -> void: Input.action_release(&"arena_fire"), 10, thrown_frames if thrown else 45)
 			await wait(1.0)
+		# Two rounds gone, so the magazine has room: the first reload (its sequence, parts and sounds). `--first-use-reload 0` skips it.
+		if reloads and not thrown and def.magazine > 0:
+			var _reload := await time_first_use("reload %s" % id, func() -> void: Input.action_press(&"arena_reload"),
+				func() -> void: Input.action_release(&"arena_reload"), 10, 90)
+			await wait(float(def.reload_ticks) / float(maxi(def.authored_tick_rate, 66)) + 0.5)
+	await _first_death()
 
 
 ## Row "hit": the server's HIT event for a body in front of the player, before any shot, through the client's own handler
@@ -220,6 +233,83 @@ func _first_hit() -> void:
 	var point := cam.origin - cam.basis.z * 3.0
 	var _row := await time_first_use("hit", func() -> void:
 		client.call(&"_on_hit", {"point": point, "victim_id": victim, "amount": 25.0, "headshot": false, "lethal": false}), Callable(), 0, 30)
+
+
+## The bot nearest to the player (another seat), or null.
+func _other_player(me: Variant, game: Variant) -> Variant:
+	for p: Variant in game.players():
+		if p != me:
+			return p
+	return null
+
+
+## Lethal damage from [param attacker] to [param victim] through the game's own combat (feed, award, ragdoll, drop), protection off.
+func _kill(game: Variant, attacker: int, victim: int) -> void:
+	var health: DotHealth = game.combat.health_of(victim)
+	if health == null:
+		return
+	health.invulnerable = false
+	health.invulnerable_until_tick = -1
+	var type: DotDamageType = game.combat.damage_type(&"bullet")
+	var hit := DotDamage.make(attacker, victim, health.health + health.armour + 50.0, type)
+	hit.tick = game.current_tick()
+	hit.weapon_id = &"rifle"
+	game.combat.apply_damage(hit)
+
+
+## Row "kill": a bot put a few metres in front of the player and killed by them (kill feed, award, ragdoll, weapon drop).
+func _first_kill() -> void:
+	var me: Variant = client.get("player")
+	var game: Variant = client.get("game")
+	if me == null or game == null or me.camera == null:
+		return
+	var victim: Variant = _other_player(me, game)
+	if victim == null:
+		say("first use: kill skipped (no bot)")
+		return
+	var cam: Transform3D = me.camera.global_transform
+	victim.global_position = me.global_position - Vector3(cam.basis.z.x, 0.0, cam.basis.z.z).normalized() * 4.0
+	await wait(0.3)
+	var _row := await time_first_use("kill", func() -> void: _kill(game, int(me.player_id), int(victim.player_id)), Callable(), 0, 90)
+	await wait(1.0)
+
+
+## Rows "death" (the player killed by a bot: death view, killview, respawn screen) and "respawn". Last: the player is down after it.
+func _first_death() -> void:
+	var me: Variant = client.get("player")
+	var game: Variant = client.get("game")
+	if me == null or game == null:
+		return
+	var killer: Variant = _other_player(me, game)
+	me.health.invulnerable = false
+	var _row := await time_first_use("death", func() -> void: _kill(game, int(killer.player_id) if killer != null else 0, int(me.player_id)), Callable(), 0, 120)
+
+
+## Rows "npc ID" (a monster of each kind placed in sight) and "npc kill ID" (it killed by the player). Needs a mode with a horde
+## (`--mode siege`); other modes have no monsters and say so.
+func _first_npcs() -> void:
+	var me: Variant = client.get("player")
+	var game: Variant = client.get("game")
+	var horde: Variant = game.get("horde") if game != null else null
+	if me == null or horde == null or horde.nav == null or me.camera == null:
+		say("first use: npc rows skipped (no horde in mode %s)" % mode)
+		return
+	var cam: Transform3D = me.camera.global_transform
+	var want := cam.origin - cam.basis.z * 8.0
+	var at: Vector3 = horde.nav.points[0]
+	for point: Vector3 in horde.nav.points:
+		if point.distance_squared_to(want) < at.distance_squared_to(want):
+			at = point
+	for def: DotNpcDef in FcNpcs.catalogue().in_faction(FcNpcs.FACTION):
+		var held: Array = []
+		var _spawned := await time_first_use("npc %s" % def.id, func() -> void: held.append(horde.spawn_one(def.id, at)), Callable(), 0, 45)
+		await wait(0.5)
+		var npc: DotNpcInstance = held[0] if not held.is_empty() else null
+		if npc == null:
+			say("first use: npc %s did not spawn" % def.id)
+			continue
+		var _killed := await time_first_use("npc kill %s" % def.id, func() -> void: _kill(game, int(me.player_id), horde.entity_id_for(npc)), Callable(), 0, 90)
+		await wait(1.0)
 
 
 func _start_pilot(_game: Object) -> void:

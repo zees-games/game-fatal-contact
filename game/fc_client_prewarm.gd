@@ -385,9 +385,11 @@ func _take_flash_scenes() -> bool:
 
 ## Draws every flash scene's materials on tiny quads, rounds sized to the gate's warm budget, and
 ## true once done: drawn first as four whole flashes, their compiles were 200-540 ms frames.
+## Done means its [signal DotRenderWarmup.finished], not merely gone: freed with the first body's camera it had
+## drawn 1 of 13 items and the rest compiled on the first shots (staging02, 2026-11-18).
 func _warm_flash_materials(body: Variant) -> bool:
 	if _warm.has("flash_warm"):
-		return not is_instance_valid(_warm.flash_warm)
+		return bool((_warm.flash_done as Array)[0])
 	var items: Array = []
 	for path in _flash_scene_paths():
 		var scene := load(path) as PackedScene  # pinned: a cache hit
@@ -401,11 +403,53 @@ func _warm_flash_materials(body: Variant) -> bool:
 	warm.budget_msec = float(gate.get(&"warm_budget_msec")) if &"warm_budget_msec" in gate else 100.0
 	warm.process_mode = Node.PROCESS_MODE_ALWAYS
 	warm.add_items(items)
+	# A one-slot array, not a bool: the handler below writes into it (a bound scalar would be a copy).
+	var done: Array = [false]
+	warm.finished.connect(func(_count: int) -> void: done[0] = true, CONNECT_ONE_SHOT)
 	_warm.flash_warm = warm
-	body.camera.add_child(warm)
+	_warm.flash_done = done
+	_warm_anchor_node().add_child(warm)
 	warm.start()
+	# Just past the near plane of the camera it follows (start() saw no camera above it).
+	var seen := get_viewport().get_camera_3d()
+	warm.position = Vector3(0.0, 0.0, -((seen if seen != null else body.camera as Camera3D).near + 0.01))
 	FcLoadTimeline.mark("prewarm: drawing %d flash materials and meshes" % warm.item_count())
 	return false
+
+## Where the warm-ups that must outlive a body draw: a node that takes the transform of whatever camera the viewport
+## uses every frame, so a warm-up begun in front of the first body's camera goes on in front of the next one. Freed
+## once the last warm-up on it is done.
+var _warm_anchor: Node3D = null
+
+func _warm_anchor_node() -> Node3D:
+	if not is_instance_valid(_warm_anchor):
+		_warm_anchor = Node3D.new()
+		_warm_anchor.name = "WarmAnchor"
+		_warm_anchor.top_level = true
+		_warm_anchor.process_mode = Node.PROCESS_MODE_ALWAYS
+		add_child(_warm_anchor)
+	if not get_tree().process_frame.is_connected(_follow_warm_anchor):
+		get_tree().process_frame.connect(_follow_warm_anchor)
+	var cam := get_viewport().get_camera_3d()
+	if cam != null:
+		_warm_anchor.global_transform = cam.global_transform
+	return _warm_anchor
+
+func _follow_warm_anchor() -> void:
+	var busy := false
+	if is_instance_valid(_warm_anchor):
+		for child in _warm_anchor.get_children():
+			busy = busy or not child.is_queued_for_deletion()
+	if not busy:
+		if get_tree().process_frame.is_connected(_follow_warm_anchor):
+			get_tree().process_frame.disconnect(_follow_warm_anchor)
+		if is_instance_valid(_warm_anchor):
+			_warm_anchor.queue_free()
+		_warm_anchor = null
+		return
+	var cam := get_viewport().get_camera_3d()
+	if cam != null:
+		_warm_anchor.global_transform = cam.global_transform
 
 ## Stamps warm-up item [param what] when its own work since [param began_usec] passed [constant STEP_MARK_MSEC].
 func _step_mark(what: String, began_usec: int) -> void:
@@ -478,8 +522,7 @@ func _prewarm_end() -> void:
 		(_warm.spare as Node).queue_free()
 	if is_instance_valid(_warm.get("rig")):
 		(_warm.rig as Node).queue_free()
-	if is_instance_valid(_warm.get("flash_warm")):
-		(_warm.flash_warm as Node).queue_free()
+	# An unfinished flash warm-up is left to finish on the warm anchor, in front of whichever camera comes next.
 	# An end before phase 1 (the body went) takes what the loader still holds, or those scenes outlive the run.
 	for path: Variant in _warm.get("flash_asked", []):
 		var _dropped := ResourceLoader.load_threaded_get(str(path))

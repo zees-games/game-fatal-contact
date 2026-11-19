@@ -207,6 +207,8 @@ func setup() -> DotResult:
 	sounds.attach(spawner)
 	heat.persist = persist_heat and game.persist_npc_heat
 	add_child(spawner)
+	# Each kind's scene and brain now, while the map loads, not on its first spawn (dot-npc: about 30 ms a kind).
+	var _warmed := spawner.warm()
 
 	spawner.spawned.connect(_on_spawned)
 	spawner.removed.connect(_on_removed)
