@@ -420,22 +420,29 @@ func _build_audio() -> DotResult:
 	else:
 		ambience.set_map_bed(bed_for(&""))
 
-	# Only on a real sink, and only after setup: a headless server has nothing to bake for.
-	# Baked a few recipes a frame under the cover: all at once it is a 0.7 s frame here and
-	# several seconds in a browser.
-	var godot_sink := audio.sink as DotAudioSinkGodot
-	if godot_sink != null:
-		godot_sink.bank = {}
-		_bake_recipes = sound_recipes()
-		_bake_ids = _bake_recipes.keys()
-		_bake_hold(true)
-		DotLog.info(
-			CHANNEL,
-			"synthesised stand-ins baked for ids whose files this build lacks",
-			{"ids": _bake_ids.size(), "dir": FcPaths.rebase(SOUND_DIR)}
-		)
-
+	_start_bake()
 	return DotResult.success(null)
+
+
+# Only on a real sink, and only after setup: a headless server has nothing to bake for.
+# Baked a few recipes a frame under the cover: all at once it is a 0.7 s frame here and
+# several seconds in a browser.
+func _start_bake() -> void:
+	var godot_sink := audio.sink as DotAudioSinkGodot
+	if godot_sink == null:
+		return
+	godot_sink.bank = {}
+	_bake_recipes = sound_recipes()
+	var order := bake_order(audio.catalogue, _bake_recipes)
+	_bake_ids = order.ids
+	_bake_shadowed = int(order.shadowed)
+	if _bake_ids.size() > _bake_shadowed:
+		_bake_hold(true)
+	DotLog.info(
+		CHANNEL,
+		"synthesised stand-ins baked for ids whose files this build lacks",
+		{"ids": _bake_ids.size(), "behind_files": _bake_shadowed, "dir": FcPaths.rebase(SOUND_DIR)}
+	)
 
 
 static func fx_catalogue() -> DotFxCatalogue:

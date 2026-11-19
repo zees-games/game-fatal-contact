@@ -238,9 +238,13 @@ var browser: FcBrowser = null
 ## keyboard rather than to the match.
 var presentation: FcPresentation = null
 
-## Weapon model files still to read into AwModelCache under the gate (_prewarm_models); next < 0 until started.
+## Weapon model files still to read into AwModelCache, under the gate or after it (_prewarm_models); next < 0 until started.
 var _model_paths: Array = []
 var _model_paths_next := -1
+## How many of [member _model_paths] (the first) hold the cover; the rest are read after it drops.
+var _model_paths_cover := 0
+## Frames since the last deferred model read on the web ([method _models_late]).
+var _model_late_gap := 0
 ## Next weapon whose drop bodies are parked again after a map change ([method _repool_drops]); < 0 when idle.
 var _repool_next := -1
 var _frame_at_usec := 0

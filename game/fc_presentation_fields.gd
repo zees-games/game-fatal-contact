@@ -105,6 +105,36 @@ const BAKE_BUDGET_MSEC := 6
 
 var _bake_recipes: Dictionary = {}
 var _bake_ids: Array = []
+## How many of [member _bake_ids] (the first, baked last) are only fallbacks behind a file this build has: they wait until
+## the cover is down and the player is away ([method _bake_slice]), the rest (stand-ins that are heard) hold the cover.
+var _bake_shadowed := 0
+
+
+## The recipe ids of [param recipes] in bake order ([method bake_into] takes them from the end): first those whose sound
+## files are all there (the sink plays the file, so their stand-ins are only a fallback), then those a stand-in is heard
+## for. Returns {"ids": Array, "shadowed": int}. On staging02's web build all of them held the cover for 6 s (24.1-30.3 s).
+static func bake_order(catalogue: DotAudioCatalogue, recipes: Dictionary) -> Dictionary:
+	var shadowed: Array = []
+	var heard: Array = []
+	for id: Variant in recipes.keys():
+		var def := catalogue.find(StringName(id)) if catalogue != null else null
+		var paths: Array[String] = []
+		if def != null:
+			if not def.path.is_empty():
+				paths.append(def.path)
+			for v: Variant in def.variants:
+				if not String(v).is_empty():
+					paths.append(String(v))
+		var has_files := def == null or not paths.is_empty()
+		for path in paths:
+			if not (ResourceLoader.exists(path) or FileAccess.file_exists(path)):
+				has_files = false
+				break
+		if has_files:
+			shadowed.append(id)
+		else:
+			heard.append(id)
+	return {"ids": shadowed + heard, "shadowed": shadowed.size()}
 
 
 ## Bakes the recipes named by [param ids] (consumed from the end) into [param bank] until
@@ -118,7 +148,7 @@ static func bake_into(bank: Dictionary, catalogue: DotAudioCatalogue, recipes: D
 
 
 ## Calls [method bake_into] on the sink's bank until the frame's budget is spent, then lets the gate
-## open once none are left. A recipe is one stream (or one per variant), so a frame overruns
+## open once only the fallbacks behind a file are left (see [member _bake_shadowed]). A recipe is one stream (or one per variant), so a frame overruns
 ## by at most one of them.
 func _bake_slice() -> void:
 	var sink := audio.sink as DotAudioSinkGodot if audio != null else null
@@ -127,13 +157,20 @@ func _bake_slice() -> void:
 		_bake_hold(false)
 		return
 	var gate: Object = client.get(&"gate") if client != null else null
+	if _bake_ids.size() <= _bake_shadowed:
+		_bake_hold(false)
+		# A fallback recipe is one frame of up to ~100 ms in a browser: baked only with the cover down while the player is away.
+		var open := gate == null or not gate.has_method(&"is_open") or bool(gate.call(&"is_open"))
+		if not open or (client != null and client.has_method(&"player_away") and not bool(client.call(&"player_away"))):
+			return
 	var budget := int(gate.call(&"slice_msec", BAKE_BUDGET_MSEC)) if gate != null and gate.has_method(&"slice_msec") else BAKE_BUDGET_MSEC
 	bake_into(sink.bank, audio.catalogue, _bake_recipes, _bake_ids, budget)
-	if _bake_ids.is_empty():
+	_bake_shadowed = mini(_bake_shadowed, _bake_ids.size())
+	if _bake_ids.size() <= _bake_shadowed:
 		_bake_hold(false)
 
 
-## The load gate stays closed while sounds bake, so the cover only drops once they are all there.
+## The load gate stays closed while the heard stand-ins bake, so the cover only drops once they are all there.
 func _bake_hold(on: bool) -> void:
 	var gate: Object = client.get(&"gate") if client != null else null
 	if gate == null:

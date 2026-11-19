@@ -151,6 +151,7 @@ func _test_audio_is_a_firefight() -> void:
 	_check_recorded_sounds(cat, rifle, bank)
 
 	_check_sliced_bank(cat, recipes, bank)
+	_check_bake_order(cat, recipes)
 
 	p.queue_free()
 	_audio_firefight_rest()
@@ -199,6 +200,23 @@ func _check_sliced_bank(cat: DotAudioCatalogue, recipes: Dictionary, bank: Dicti
 	# inflates one call, not the bake): what this guards is the one 0.7 s frame, where one call is the whole bake.
 	_check(calls > 4 and (longest < 250 or longest * 4 < total),
 		"and it took %d calls, none over 250 ms or a quarter of the bake (longest %d ms of %d)" % [calls, longest, total])
+
+
+func _check_bake_order(cat: DotAudioCatalogue, recipes: Dictionary) -> void:
+	# The cover waits only for the stand-ins that are heard: an id whose recorded files exist is played from them, so its
+	# fallback recipe is queued first (bake_into consumes from the end, so it bakes last, after the cover).
+	var order := FcPresentation.bake_order(cat, recipes)
+	var ids: Array = order.ids
+	var shadowed := int(order.shadowed)
+	var misplaced: Array[String] = []
+	for id: StringName in FcPresentation.RECORDED:
+		var at := ids.find(id)
+		if at < 0:
+			at = ids.find(String(id))
+		if at >= shadowed:
+			misplaced.append(String(id))
+	_check(ids.size() == recipes.size() and shadowed > 0 and misplaced.is_empty(),
+		"the recipes behind a recorded file bake after the heard ones (%d of %d behind files; recorded ids not behind: %s)" % [shadowed, ids.size(), str(misplaced)])
 
 
 func _check_recorded_sounds(cat: DotAudioCatalogue, rifle: DotAudioDef, bank: Dictionary) -> void:

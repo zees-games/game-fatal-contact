@@ -14,6 +14,7 @@ const FcNpcs := preload("../game/fc_npcs.gd")
 ## The 16v16 benchmark: dot-game's DotGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (DotSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (DotSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
 ## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (dot-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
 ## `--first-use-only a,b` for some ids; rows also: hit, kill, death, `reload ID` (`--first-use-reload 0` skips), a thrown weapon's shot over `--first-use-thrown-frames N` frames (default 240: the fuse and blast), `npc ID` and `npc kill ID` with a horde mode such as `--mode siege`); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (dot-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms.
+## `--lazy-models 1`: the client defers the models of weapons nobody carries until after the cover, as the web build does (FcClient defer_models_everywhere), and the bench does not read them all ahead, so `--first-use 1` prices those first equips. `--warm-list 1`: after the first-use rows, a `WARM_LIST <path>` line for every script loaded so far that the cover warms anyway (DotCloudSliceLoader.cached_scripts; pack scripts and addon classes; tools/record_warm_list.sh turns them into warm.txt).
 
 var _pilot := true
 var _motor_us := false
@@ -34,6 +35,7 @@ var _sim_host := false
 var _sched0 := {}
 var _sched := {}
 var _proc_split: ProcSplit = null
+var _lazy_models := false
 
 
 func _configure() -> void:
@@ -54,6 +56,9 @@ func _ready() -> void:
 	_native_us = int(args.get("native-us", 0)) != 0 and ClassDB.class_exists(&"DotSimFpsBody")
 	_max_steps = int(args.get("max-steps", -1))
 	_fine = int(args.get("fine", 1)) != 0
+	_lazy_models = int(args.get("lazy-models", 0)) != 0
+	if _lazy_models:
+		preload("../game/fc_client_prewarm.gd").defer_models_everywhere = true
 	FcFrameProbe.fine_on_record = _fine
 	_tick = int(args.get("tick", 0))
 	if _max_steps > 0:
@@ -136,7 +141,8 @@ func _select(game: Object) -> void:
 		game.config.tick_rate = _tick
 		game.tick_rate = _tick
 		Engine.physics_ticks_per_second = _tick
-	var _warmed := AwModelCache.warm(AwWeaponArtTable.model_paths())
+	if not _lazy_models:
+		var _warmed := AwModelCache.warm(AwWeaponArtTable.model_paths())
 	var picked: DotResult = null
 	if String(game.get("map").id) != map:
 		picked = await client.call("change_from_menu", StringName("map:" + map), StringName("mode:" + mode))
@@ -154,7 +160,8 @@ func _select_hosted() -> void:
 		await wait(0.25)
 		t += 0.25
 	await wait_gate(120.0)
-	var _warmed := AwModelCache.warm(AwWeaponArtTable.model_paths())
+	if not _lazy_models:
+		var _warmed := AwModelCache.warm(AwWeaponArtTable.model_paths())
 	# Booted elsewhere (`--boot-map`, or a map the server could not mount): change to the map from the menu as a
 	# player would; the client's timeline reports the change ("map change map:ID to playable").
 	if String(client.get("game").get("map").id) != map:
@@ -180,6 +187,7 @@ func _first_use(_game: Object) -> void:
 		ids.clear()
 		for s in String(args["first-use-only"]).split(",", false):
 			ids.append(StringName(s))
+	var at_gate := DotCloudSliceLoader.cached_scripts("res://", DotCloudClient.WARM_SKIP_DIRS).size()
 	await _first_hit()
 	await _first_footsteps()
 	await _first_kill()
@@ -216,6 +224,20 @@ func _first_use(_game: Object) -> void:
 				func() -> void: Input.action_release(&"arena_reload"), 10, 90)
 			await wait(float(def.reload_ticks) / float(maxi(def.authored_tick_rate, 66)) + 0.5)
 	await _first_death()
+	if int(args.get("warm-list", 0)) != 0:
+		var scripts := DotCloudSliceLoader.cached_scripts("res://", DotCloudClient.WARM_SKIP_DIRS)
+		# Only what the cover warms anyway: the pack's own scripts and the addon classes. A listed script the cover's scan does not
+		# find (an addon script reached only through a preload) blocks it as well, and that only moves its compile from the gate
+		# to the cover: with them, warm.txt held the warm web cover 4 s longer (staging02, 2026-11-19).
+		var classes := {}
+		for entry: Dictionary in ProjectSettings.get_global_class_list():
+			classes[str(entry["path"]).trim_prefix("res://")] = true
+		var kept := 0
+		for path in scripts:
+			if not path.begins_with("addons/") or classes.has(path):
+				print("WARM_LIST " + path)
+				kept += 1
+		say("warm list: %d scripts loaded at the gate, %d after the first uses, %d listed" % [at_gate, scripts.size(), kept])
 
 
 ## Row "hit": the server's HIT event for a body in front of the player, before any shot, through the client's own handler
