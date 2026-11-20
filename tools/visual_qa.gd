@@ -2,7 +2,7 @@ extends DotGameVisualQaCapture
 
 ## FC's visual QA capture for the horde monsters (npcs/) and the 20 avatar bodies (`avatar_<part>`, the document's
 ## BODIES): each idles, walks and runs a circle on the default stage, seen from the victim's eye (an avatar: first
-## person free, the eye is a plain outside view), behind-right and the front, at 60 fps. The loop and the checklist are dot-game's
+## person free, the eye is a close front-left three-quarter view), behind-right and the front, at 60 fps. The loop and the checklist are dot-game's
 ## docs/visual-qa.md; the weapons and the player's own locomotion are tools/anim_review.gd (docs/anim-review.md).
 ## A monster's figure animates from how far its body moves (`auto_animate`), so a clip moves the body at that pace.
 ##   bash tools/visual_qa_shot.sh [--only grunt,brute] [--clips walk,run]
@@ -31,6 +31,15 @@ var _npc: Node3D = null
 var _kind := ""
 var _lead_left := 0
 var _lead_clip := ""
+## An avatar's jump: this long in the air, then as long standing, so each hop lands and the landing is judged.
+const JUMP_AIR := 0.6
+const JUMP_PERIOD := 1.2
+
+
+func _build() -> void:
+	super()
+	# Far enough back that the feet stay in the behind-right frame all round the circle.
+	views.behind_offset = Vector3(1.8, 1.6, 3.0)
 
 
 func _items() -> PackedStringArray:
@@ -62,7 +71,17 @@ func _stage_avatar(item: String, clip: String) -> DotResult:
 		_kind = item
 	_fig.position = Vector3(0.0, 0.0, -CIRCLE_RADIUS)
 	_fig.rotation = Vector3.ZERO
+	_start_lead_in(clip)
 	return DotResult.success(clip)
+
+
+## Drives the clip for [constant LEAD_IN_FRAMES] frames before frame 0, so frame 0 is already in the clip, not
+## blending out of the previous clip's last pose.
+func _start_lead_in(clip: String) -> void:
+	_lead_left = LEAD_IN_FRAMES
+	_lead_clip = clip
+	if not root.get_tree().process_frame.is_connected(_lead_in):
+		root.get_tree().process_frame.connect(_lead_in)
 
 
 func _stage(item: String, clip: String) -> DotResult:
@@ -88,7 +107,7 @@ func _stage(item: String, clip: String) -> DotResult:
 
 func _warmup_frames(item: String, clip: String) -> int:
 	if item.begins_with(AVATAR_PREFIX):
-		return 2
+		return LEAD_IN_FRAMES + 2
 	return LEAD_IN_FRAMES + 2 if float(PACE[clip]) > 0.0 else 2
 
 
@@ -122,14 +141,17 @@ func _drive_avatar(clip: String, t: float) -> void:
 	motion["speed"] = speed
 	motion["velocity"] = (_fig.position - from) * float(fps)
 	if clip == "jump":
-		_fig.position.y = maxf(0.0, 0.9 * sin(fposmod(t, 0.6) / 0.6 * PI))
-		motion["vertical"] = 3.0 if fposmod(t, 0.6) < 0.3 else -3.0
+		var phase := fposmod(t, JUMP_PERIOD)
+		var air := phase < JUMP_AIR
+		_fig.position.y = 0.9 * sin(phase / JUMP_AIR * PI) if air else 0.0
+		motion["on_floor"] = not air
+		motion["vertical"] = (3.0 if phase < JUMP_AIR * 0.5 else -3.0) if air else 0.0
 	_fig.set_motion(motion)
 	_fig.animate(speed, 1.0 / float(fps))
 
 
-func _grounded(item: String, clip: String, _t: float) -> bool:
-	return clip != "jump" or not item.begins_with(AVATAR_PREFIX)
+func _grounded(item: String, clip: String, t: float) -> bool:
+	return clip != "jump" or not item.begins_with(AVATAR_PREFIX) or fposmod(t, JUMP_PERIOD) >= JUMP_AIR
 
 
 func _drive(item: String, clip: String, t: float, _frame: int) -> void:
@@ -147,5 +169,11 @@ func _drive(item: String, clip: String, t: float, _frame: int) -> void:
 
 ## The victim's eye at the circle's centre, looking at the monster.
 func _place_first_person(item: String) -> void:
+	if item.begins_with(AVATAR_PREFIX):
+		# An avatar has no victim: a close front-left three-quarter view of the whole body (face, hands, grip).
+		var turn := Basis(Vector3.UP, _fig.global_rotation.y)
+		first_person.global_position = _fig.global_position + turn * Vector3(-0.9, 1.3, -2.0)
+		first_person.look_at(_fig.global_position + Vector3(0.0, 0.95, 0.0))
+		return
 	first_person.global_position = Vector3(0.0, 1.6, 0.0)
 	first_person.look_at(_subject(item).global_position + Vector3(0.0, 1.0, 0.0))
