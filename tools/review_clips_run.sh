@@ -4,7 +4,7 @@
 #   tools/review_clips_run.sh [weapon,weapon...]     # default: every weapon
 set -euo pipefail
 cd "$(dirname "$0")/.."
-only=${1:-}; fps=30
+only=${1:-}; fps=${REVIEW_FPS:-60}
 out=screenshots/review
 rm -rf "$out"; mkdir -p "$out"
 extra=(); [[ -n $only ]] && extra=(--only "$only")
@@ -13,9 +13,11 @@ timeout "${REVIEW_TIMEOUT:-900}" xvfb-run -a -s "-screen 0 1280x720x24" godot --
 grep -E "^(REVIEW_CLIP|review_clips|.*skipped|.*give failed)|SCRIPT ERROR" "$out/run.log" | head -n 80
 n=0
 while read -r _ id kind first count; do
-  # A loop-friendly clip: h264, no audio, even dimensions.
-  ffmpeg -v error -y -i "$out/all.avi" -vf "select=between(n\,$first\,$((first + count - 1))),setpts=N/(FRAME_RATE*TB),scale=960:-2" \
-    -an -c:v libx264 -pix_fmt yuv420p -crf 26 -preset fast -movflags +faststart "$out/${id}__${kind}.mp4"
+  # A loop-friendly clip: h264, no audio, even dimensions. Movie Maker frames are full-range JPEG: convert them to
+  # limited range (and tag it), or every player stretches them again and the clip looks washed out
+  # (dot-game docs/visual-qa-root-cause.md).
+  ffmpeg -v error -y -i "$out/all.avi" -vf "select=between(n\,$first\,$((first + count - 1))),setpts=N/(FRAME_RATE*TB),scale=1280:-2:in_range=pc:out_range=tv" \
+    -an -c:v libx264 -pix_fmt yuv420p -color_range tv -crf 18 -preset fast -movflags +faststart "$out/${id}__${kind}.mp4"
   n=$((n + 1))
 done < <(grep "^REVIEW_CLIP" "$out/run.log")
 rm -f "$out/all.avi"

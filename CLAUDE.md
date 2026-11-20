@@ -38,7 +38,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - `headless_presentation` and `headless_feel` have a client, `headless_lossy` and `headless_feel` real ENet and loss; only `headless_feel` judges frames. [testing](docs/testing.md#the-suites)
 - Read every suite's stderr even when it exits 0; cap every run with `timeout`. [testing](docs/testing.md#traps-the-suites-have-hit)
 - A suite or tool that builds a presentation or client calls `FcPresentation.use_scratch_settings` first. [testing](docs/testing.md#traps-the-suites-have-hit)
-- **A change to a weapon, arm, avatar or monster is judged from 60 fps frames in first-person and outside views, never from suites alone**: run `tools/anim_review.sh` (weapons, avatar) or `tools/visual_qa_shot.sh` (monsters), read the sheets, ask "does this look like a real game?", fix the obvious defects and re-capture, without being asked. [anim-review](docs/anim-review.md)
+- **A change to a weapon, arm, avatar or monster is judged from 60 fps frames in first-person and outside views, never from suites alone**: run `tools/anim_review.sh` (weapons, avatar) or `tools/visual_qa_shot.sh` (monsters), then run the fresh judge (`addons/dot_game/tools/dot_game_visual_judge.sh --clips screenshots/anim_review --only <weapon>`), fix its defects at the source and re-capture until it says production_ready, without being asked. A metric PASS or your own reading is never done. [anim-review](docs/anim-review.md)
 - **Look at it.** No check reaches the screen: `tools/` under `xvfb-run`; a camera change in `render_cameras.sh` (armed) and `render_views.gd`. [client](docs/client.md#looking-at-it)
 - Without the `maps/imported` link the built-in maps play and the imported checks skip; supported.
 
