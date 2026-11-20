@@ -1,0 +1,15 @@
+{
+	"format": 1,
+	"mirrors": [],
+	"origin": "https://tmcdevgames.net/content",
+	"packs": [
+		{
+			"id": "gamemann/game-fatal-contact",
+			"into": "",
+			"kind": "pack",
+			"manifest_sha256": "3dd668bf7716aba6a04bed202d14e50033817abf12058f2ed05c0d498e57fac6",
+			"optional": true,
+			"version": "0.1.73"
+		}
+	]
+}
