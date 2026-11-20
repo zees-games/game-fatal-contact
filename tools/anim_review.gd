@@ -54,6 +54,9 @@ func _build_lab() -> void:
 	_views = DotGameVisualQaViews.new()
 	_views.cull_mask = 0xFFFFF & ~VIEW_LAYER & ~ARMS_LAYER
 	_views.setup(root, root.world_3d, (client.get("player").camera as Camera3D).environment)
+	# Every drawn frame, not only the saved ones: the body's hold and the held gun then run from the lab's start, as an
+	# opponent's client steps them, so a clip does not open on the figure still blending in from no hold.
+	RenderingServer.frame_pre_draw.connect(_stage_between)
 	# With your own body off the client draws the figure whole and only hides it, which the staging undoes before the draw.
 	var presentation = client.get("presentation")
 	if presentation != null and presentation.settings != null:
@@ -108,8 +111,35 @@ func _stage_views() -> void:
 		body.global_rotation = Vector3(0.0, deg_to_rad(float(me.controller.state.yaw)), 0.0)
 		# The gun in the body's hands, as everyone else sees it; the first-person present hides it.
 		me._present_held()
+		_step_shown_body(me)
 		var _body := DotGameVisualQaViews.tag_layers(body, BODY_LAYER, cam)
 	_views.place(me.controller.state.position, deg_to_rad(float(me.controller.state.yaw)))
+
+
+func _stage_between() -> void:
+	var me: Variant = client.get("player") if client != null else null
+	if me is Node and is_instance_valid(me) and me.get(&"body_mesh") != null and me.get(&"camera") != null:
+		_stage_views()
+
+
+## The process frame [method _step_shown_body] last stepped, so a frame staged twice (frame 0) steps once.
+var _stepped_frame := -1
+
+
+## Your own body is hidden through the client's _process, so its figure was never stepped (no gun hold, carry, support
+## hand or reload arms: the gun hung from one hand) and the held gun banked its time (no reload, no magazine). An
+## opponent's client draws both shown: they are stepped here, shown, the way that client steps them.
+func _step_shown_body(me: Node) -> void:
+	var frame := Engine.get_process_frames()
+	if frame == _stepped_frame:
+		return
+	_stepped_frame = frame
+	var delta := me.get_process_delta_time()
+	var held: Variant = me.get(&"held")
+	if held is Node3D and (held as Node3D).visible and (held as Node3D).has_method(&"advance"):
+		held.call(&"advance", delta)
+	if me.has_method(&"_animate_figure"):
+		me.call(&"_animate_figure", me.controller.state, delta)
 
 
 ## One frame's raw numbers: where the hands and weapon are in camera space, and how the arms sit against the grip, the weapon and the near plane.
