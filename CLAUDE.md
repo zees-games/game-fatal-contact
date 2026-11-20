@@ -150,3 +150,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - One vote clock; voters keyed by bare session id. [services](docs/services.md#the-map-vote)
 - A private match reports nothing (`reporting_allowed()`), and does not migrate. [services](docs/services.md#a-private-match-files-nothing)
 - **Avatar library (`game/fc_avatar_library.gd`).** The one place Fatal Contact talks to the site's avatar library (dot-user-avatar's `DotAvatarLibraryClient`) and reads the app's `DotAvatarAppRules`. It sends the app id (cvar `sv_avatar_app_id`, 0 = unset, calls refused), honours the emote/pose/gesture and wearable switches and per-wearable rules, treats an equip cap of 0 as unlimited, and refuses (never trims) a list over it. The loadout limits are the cvars `sv_avatar_loadout_max_entries` and `sv_avatar_loadout_max_per_kind` (0 = unlimited). Suite: `headless_avatar_library`.
+
+## Visual quality
+
+A visual change (weapon, arms, avatar, effect, map look) is done only when a fresh judge says so: follow dot-game's brief, `../dot-game/docs/visual-judge-brief.md` (GPU capture, never llvmpipe; three consecutive zero-defect passes; `--audit` before you report). Your own reading of the sheets never counts.
