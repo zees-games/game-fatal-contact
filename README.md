@@ -1,10 +1,10 @@
-A fast first-person shooter for [Godot 4](https://godotengine.org/), built on the [Gamespice](https://gamespice.net) platform and addon collection. It is also the reference game for Gamespice: new games are started from a copy of it.
+A fast first-person shooter for [Godot 4](https://godotengine.org/), built on the [**GameSpice**](https://gamespice.net) platform and addon collection. It is also the reference game for GameSpice: new games are started from a copy of it.
 
 ![Preview](https://github.com/zees-games/game-fatal-contact/blob/main/images/preview.gif?raw=true)
 
 *Play on the test server [here](https://moddingcommunity.com/arena/s/arena01/play).*
 
-The project and its assets are open source under the MIT license. Only the back-end web infrastructure is not; if you use your own authentication back end instead of Gamespice, you build that part yourself.
+The project and its assets are open source under the MIT license. Only the back-end web infrastructure is not; if you use your own authentication back end instead of GameSpice, you build that part yourself.
 
 **Please treat this as partially tested.** It was built with Claude Code and has a headless test suite that passes, but little of it has been in front of real players. Please report anything you run into.
 
@@ -72,7 +72,7 @@ In Siege, **E** picks up and drops a prop, **X** freezes it, **G** punts it, and
 
 ## Getting started
 
-You need [Godot 4.7](https://godotengine.org/download). The game is built from Gamespice addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
+You need [Godot 4.7](https://godotengine.org/download). The game is built from GameSpice addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
 
 ```bash
 git clone https://github.com/gamespice-platform/bootstrap.git
