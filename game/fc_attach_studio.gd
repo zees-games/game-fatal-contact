@@ -6,6 +6,9 @@ extends "fc_attach_studio_state.gd"
 ## sends the request and calls [method show_fitting] with the server's answer.
 ## Everything but the 3D studio is drawn in two `_draw` passes: about ten nodes beside the model, nothing rebuilt per pick.
 
+const FcAttachIcons := preload("fc_attach_icons.gd")
+
+
 func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -572,6 +575,8 @@ func _draw_chip(o: Control, m: StringName, u: float, a: float) -> void:
 	var head := "%d  %s" % [i + 1, String(MOUNT_NAMES.get(m, String(m).capitalize())).to_upper()]
 	o.draw_string(_font_bold, rect.position + Vector2(12, 20) * u, head, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 20.0 * u, _px(11, u), Color(ACCENT if chosen else DIM, a))
 	var label := _name_of(on) if on != &"" else "Empty"
+	if on != &"" and FcAttachIcons.has(on):
+		FcAttachIcons.draw(o, on, Rect2(rect.end - Vector2(40.0, 36.0) * u, Vector2(30.0, 28.0) * u), Color(INK, a))
 	o.draw_string(_font_bold if on != &"" else _font, rect.position + Vector2(12, 42) * u, label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 20.0 * u, _px(16, u), Color(INK if on != &"" else FAINT, a))
 
 
@@ -598,7 +603,12 @@ func _draw_column(o: Control, u: float, a: float) -> void:
 			o.draw_rect(Rect2(rect.position + Vector2(0, 8.0 * u), Vector2(4.0 * u, rect.size.y - 16.0 * u)), Color(ACCENT, fade))
 			_rounded_outline(o, rect, Color(1, 1, 1, 0.18 * fade), 6.0 * u, 1.0 * u)
 		var label := _name_of(options[i])
-		o.draw_string(_font_bold if i == _row else _font, rect.position + Vector2(20.0 * u, rect.size.y * 0.5 + 7.0 * u), label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 150.0 * u, _px(19, u), Color(INK if i == _row or glow > 0.3 else DIM, fade))
+		var text_x := 20.0 * u
+		if FcAttachIcons.has(options[i]):
+			var lit := i == _row or glow > 0.3
+			FcAttachIcons.draw(o, options[i], Rect2(rect.position + Vector2(16.0, 6.0) * u, Vector2(44.0 * u, rect.size.y - 12.0 * u)), Color(INK if lit else DIM, fade))
+			text_x = 70.0 * u
+		o.draw_string(_font_bold if i == _row else _font, rect.position + Vector2(text_x, rect.size.y * 0.5 + 7.0 * u), label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 150.0 * u - (text_x - 20.0 * u), _px(19, u), Color(INK if i == _row or glow > 0.3 else DIM, fade))
 		var tag := ""
 		var tag_ink := ACCENT
 		if _pending.get(m, null) == options[i]:
