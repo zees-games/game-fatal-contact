@@ -1,3 +1,5 @@
+![Fatal Contact banner](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/banner.png)
+
 A fast first-person shooter for [Godot 4](https://godotengine.org/), built on the [**GameSpice**](https://gamespice.net) platform and addon collection. It is also the reference game for GameSpice: new games are started from a copy of it.
 
 ![Preview](https://github.com/zees-games/game-fatal-contact/blob/main/images/preview.gif?raw=true)
