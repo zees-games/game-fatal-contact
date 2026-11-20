@@ -1,0 +1,13 @@
+# duplication (cross-game)
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+examples/dedicated.gd	52
+examples/dedicated_vote_and_query.gd	34
+examples/headless_avatar_library.gd	125
+examples/headless_presentation_base.gd	32
+game/fc_avatar_library.gd	39
+game/fc_npc_net.gd	36
+game/fc_party.gd	36
+game/fc_services.gd	53
+game/fc_toy_net.gd	32
+tools/build_avatar_parts.gd	68
+tools/loudness_pilot.gd	34
