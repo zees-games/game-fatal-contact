@@ -1,5 +1,3 @@
-# Zee's Fatal Contact
-
 A fast first-person shooter for [Godot 4](https://godotengine.org/), built on the [Gamespice](https://gamespice.net) platform and addon collection. It is also the reference game for Gamespice: new games are started from a copy of it.
 
 ![Preview](https://github.com/zees-games/game-fatal-contact/blob/main/images/preview.gif?raw=true)
