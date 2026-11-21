@@ -391,15 +391,20 @@ func _killcam_frame() -> void:
 	killcam.hide_while_playing = [hud, view_model]
 	killcam.world_mask = _level_mask()
 	var t_cam := Time.get_ticks_usec()
-	# Recording is capped at cl_killcam_hz (cl_killcam_crowd_hz in a crowd); a replay playing (or about to re-pose) is stepped every frame.
+	# Recording is capped at cl_killcam_hz (cl_killcam_crowd_hz in a crowd); a replay playing is stepped every frame. A kill view
+	# keeps bodies posed (the host's `_again`): that re-pose is every frame, but the recording (33 state reads) stays on its rate
+	# (it ran every frame while a view played: 0.85 of the 0.95 ms a frame c_killcam cost at 32 bots).
 	var bodies := game.players()
 	var hz := FcKillcamBodies.hz_for(bodies.size())
 	var record_gap := int(1.0e6 / hz) if hz > 0.0 else 0
-	if record_gap == 0 or killcam.is_playing() or not (killcam.get(&"_again") as Array).is_empty() or t_cam - _killcam_recorded >= record_gap:
+	var again: Array = killcam.get(&"_again")
+	if record_gap == 0 or killcam.is_playing() or t_cam - _killcam_recorded >= record_gap:
 		_killcam_recorded = t_cam
 		if killcam_shots != null and not killcam.is_playing():
 			killcam_shots.record(float(killcam.now_fn.call()), bodies)
 		killcam.frame()
+	elif not again.is_empty():
+		var _posed: Dictionary = killcam.pose(again[0], again[1], again[2])
 	_fade_for_replay(get_process_delta_time())
 	FcFrameProbe.add(&"c_killcam", t_cam)
 	_restore_hud_if_orphaned()
