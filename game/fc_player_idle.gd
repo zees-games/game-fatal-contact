@@ -41,8 +41,33 @@ func _idle_still() -> bool:
 ## [method _idle_posture] as the packed row of [method AwWeaponRig.simulate_idle_row] ([code][speed, airborne, crouched,
 ## aiming, sliding, sprinting, wall_running, tick, hurt_tick][/code], aiming never set there), written into
 ## [member _posture_row], with [method _idle_still]'s answer returned: one read of the controller state for both.
-## Needs a controller (the caller checks).
+## Needs a controller (the caller checks). dot-sim's [code]DotSimPlayerPost[/code] answers it where the library has it
+## (bit for bit: [code]headless_posture_native_parity[/code]); [method _idle_row_script] is the fallback (web without the
+## library, [member posture_native] off).
 func _idle_row() -> bool:
+	if posture_native and _post_native():
+		var state := controller.state
+		_posture_row = _native_post.idle_row(state.velocity, state.mode, state.crouch_fraction, state.slide_time,
+				state.wall_run_time, state.sprinting, _posture_tick,
+				health.last_damage_tick if health != null else -1, arsenal.tick_rate if arsenal != null else 0)
+		return _posture_row[9] != 0.0
+	return _idle_row_script()
+
+
+## Whether [member _native_post] is there, made on first use (the library has [code]DotSimPlayerPost[/code]).
+func _post_native() -> bool:
+	if _native_post == null:
+		if not DotSim.has(&"players"):
+			return false
+		_native_post = ClassDB.instantiate(&"DotSimPlayerPost")
+		_native_post.configure(DotFpsState.Mode.GROUND, DotWeaponAccuracyClass.FLINCH_SEC)
+	return true
+
+
+## [method _idle_row] in script: the reference the native answer is held to, and the fallback.
+func _idle_row_script() -> bool:
+	if _posture_row.size() != 9:
+		_posture_row = PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 	var row := _posture_row
 	var state := controller.state
 	var speed := state.horizontal_speed()
@@ -75,7 +100,17 @@ func _idle_row() -> bool:
 var _posture_ctx := DotWeaponContext.new()
 
 
-## [method _idle_row]'s row, refilled each idle tick.
+## Cvar [code]fc_posture_native[/code]: 1 runs [method _idle_row] in dot-sim where its library has
+## [code]DotSimPlayerPost[/code] (bit for bit with the script); 0 runs the script (the reference and the A/B arm).
+static var posture_native := true
+
+
+## dot-sim's [code]DotSimPlayerPost[/code] for this player, or null before the first native [method _idle_row].
+var _native_post: Object = null
+
+
+## [method _idle_row]'s row, refilled each idle tick. The native lane hands back a new one of 10 floats (the still flag
+## last); the rig reads the first 9.
 var _posture_row := PackedFloat64Array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 
 

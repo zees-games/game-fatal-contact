@@ -444,6 +444,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotPvs.native = new_value.to_float() >= 0.5)
+	add_cvar("fc_posture_native", "1" if FcPlayer.posture_native else "0",
+		"1: an idle weapon tick's posture row and flinch check run in dot-sim where its library has DotSimPlayerPost (bit for bit with the script); 0: the script",
+		DotConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcPlayer.posture_native = new_value.to_float() >= 0.5)
 	add_cvar("fc_bot_pvs_verify", "1" if FcBotPvs.verify else "0",
 		"1: every sight the PVS rules out is cast anyway and every native ask is put to the script too, disagreements counted (a check, not for play)",
 		0).with_min(0.0).with_max(1.0).changed.connect(
