@@ -38,3 +38,7 @@ common/physics_ticks_per_second=66
 
 textures/canvas_textures/default_texture_filter=0
 textures/default_filters/anisotropic_filtering_level=4
+
+[gamespice]
+
+perf_game_id="fatal-contact"
