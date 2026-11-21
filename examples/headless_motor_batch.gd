@@ -24,7 +24,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 26
+const CHECKS := 27
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -95,6 +95,10 @@ func _run() -> void:
 		return
 
 	_section("a box of walkers: recorded, replayed through both loops")
+	# Every idle posture row the batched loop hands dot-sim is checked against the script's from the state.
+	FcPlayer.posture_verify = true
+	FcPlayer.posture_batched_rows = 0
+	FcPlayer.posture_misses = 0
 	var streams: Array = []
 	var thought := await _play(false, &"", BOTS, SECONDS, streams, true)
 	var off := await _play(false, &"", BOTS, SECONDS, streams, false)
@@ -112,6 +116,8 @@ func _run() -> void:
 	_check(long_way[0] == on[0], "the lean players' loop plays it to the bit as the long way (%s)" % _first_diff(long_way[0], on[0]))
 	_check(off[2] == 0, "and none with the cvar off")
 	_check(on[3] == 0 and live[3] == 0, "no player was changed by another's turn (%d, %d faults)" % [on[3], live[3]])
+	_check(not DotSim.has(&"players") or (FcPlayer.posture_batched_rows > 0 and FcPlayer.posture_misses == 0),
+			"the batched idle posture rows are the script's (%d rows, %d differ)" % [FcPlayer.posture_batched_rows, FcPlayer.posture_misses])
 	_done()
 
 	_section("a pit: players die and respawn in their own turn")

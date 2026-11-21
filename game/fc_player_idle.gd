@@ -59,9 +59,61 @@ func _post_native() -> bool:
 	if _native_post == null:
 		if not DotSim.has(&"players"):
 			return false
-		_native_post = ClassDB.instantiate(&"DotSimPlayerPost")
-		_native_post.configure(DotFpsState.Mode.GROUND, DotWeaponAccuracyClass.FLINCH_SEC)
+		_native_post = make_native_post()
 	return true
+
+
+## A configured dot-sim [code]DotSimPlayerPost[/code] (the library must have it: [code]DotSim.has(&"players")[/code]),
+## for one player's [method _idle_row] or for FcGame's batched loop, which fills every idle player's row in one call.
+static func make_native_post() -> Object:
+	var post: Object = ClassDB.instantiate(&"DotSimPlayerPost")
+	post.configure(DotFpsState.Mode.GROUND, DotWeaponAccuracyClass.FLINCH_SEC)
+	return post
+
+
+## The input row of [code]DotSimPlayerPost.run_rows[/code] for this player, 10 floats at [param at] in [param into],
+## after [method tick_post_head] answered true. [param batch] (a [DotFpsMotorBatch] with [code]post_row[/code], API 34, or
+## null) and [param row] are the batched loop's motor row: its
+## first 7 columns come from the batch's answer ([method DotFpsMotorBatch.post_row]) unless something after the motor
+## moved the state ([member _post_moved]); else from the state. With [member posture_verify] the row is checked here.
+func post_input(into: PackedFloat64Array, at: int, batch: Object, row: int) -> void:
+	var state := controller.state
+	if row < 0 or _post_moved or batch == null:
+		var v := state.velocity
+		into[at] = v.x
+		into[at + 1] = v.z
+		into[at + 2] = state.mode
+		into[at + 3] = state.crouch_fraction
+		into[at + 4] = state.slide_time
+		into[at + 5] = state.wall_run_time
+		into[at + 6] = 1.0 if state.sprinting else 0.0
+	else:
+		batch.post_row(row, into, at)
+	into[at + 7] = _posture_tick
+	into[at + 8] = health.last_damage_tick if health != null else -1
+	into[at + 9] = arsenal.tick_rate if arsenal != null else 0
+	if posture_verify:
+		_verify_input(into, at)
+
+
+# The script's row from the state now against the native answer to [param into]'s row: the batched loop's
+# input is the state's to the bit, or the deferred weapon tick would see another posture.
+func _verify_input(into: PackedFloat64Array, at: int) -> void:
+	posture_batched_rows += 1
+	var still := _idle_row_script()
+	var native: PackedFloat64Array = _verify_post().run_rows(into.slice(at, at + 10))
+	for k in range(9):
+		if native[k] != _posture_row[k]:
+			posture_misses += 1
+			return
+	if (native[9] != 0.0) != still:
+		posture_misses += 1
+
+
+static func _verify_post() -> Object:
+	if _verify_native == null:
+		_verify_native = make_native_post()
+	return _verify_native
 
 
 ## [method _idle_row] in script: the reference the native answer is held to, and the fallback.
@@ -103,6 +155,24 @@ var _posture_ctx := DotWeaponContext.new()
 ## Cvar [code]fc_posture_native[/code]: 1 runs [method _idle_row] in dot-sim where its library has
 ## [code]DotSimPlayerPost[/code] (bit for bit with the script); 0 runs the script (the reference and the A/B arm).
 static var posture_native := true
+
+
+## Checks every row FcGame's batched loop hands dot-sim against the script ([method post_input]), counting
+## [member posture_batched_rows] and [member posture_misses]. For the parity suites; off in play.
+static var posture_verify := false
+static var posture_batched_rows: int = 0
+static var posture_misses: int = 0
+static var _verify_native: Object = null
+
+
+## Set by [method tick_post_head] when the map's mechanics, a ladder, water or a teleport may have moved the state
+## after the motor: the batched loop then reads the post columns from the state, not the batch's answer.
+var _post_moved := false
+
+
+## Whether this tick's weapons would idle ([method tick_post_head]), and the muzzle it read, for [method tick_weapons].
+var _idle_now := false
+var _muzzle := Vector3.ZERO
 
 
 ## dot-sim's [code]DotSimPlayerPost[/code] for this player, or null before the first native [method _idle_row].

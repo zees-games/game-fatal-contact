@@ -627,8 +627,18 @@ func tick_pre(tick: int, movement_command: DotFpsCommand) -> void:
 
 ## [method simulate_tick] after the controller's tick: the map's mechanics, the health and the weapons.
 func tick_post(tick: int, delta: float, combat_command: DotWeaponCommand) -> DotWeaponOutcome:
+	if tick_post_head(tick, delta, combat_command):
+		var still := _idle_row()
+		return tick_idle_row(_posture_row, still)
+	return tick_weapons(tick)
+
+
+## [method tick_post] up to its weapons. True when they tick idle through the row lane: the caller then hands
+## [method tick_idle_row] the posture row (FcGame's batched loop fills every such player's in one dot-sim call).
+func tick_post_head(tick: int, delta: float, combat_command: DotWeaponCommand) -> bool:
 	var fine := FcFrameProbe.fine
 	var t_fine := Time.get_ticks_usec() if fine else 0
+	_post_moved = false
 	fit_hitboxes_to_stance()
 	if fine:
 		FcFrameProbe.add(&"p_hitbox", t_fine)
@@ -636,8 +646,6 @@ func tick_post(tick: int, delta: float, combat_command: DotWeaponCommand) -> Dot
 	_run_map_mechanics(_tick_start, delta)
 	_follow_map_volumes()
 	FcFrameProbe.add(&"p_mechanics", t_mech)
-	if fine:
-		t_fine = Time.get_ticks_usec()
 
 	var state := controller.state
 
@@ -658,46 +666,62 @@ func tick_post(tick: int, delta: float, combat_command: DotWeaponCommand) -> Dot
 	health.tick(tick, delta)
 
 	# Read once: it walks the view's global transform, and the combat origin and the weapon context want the same point.
-	var muzzle := muzzle_position()
+	_muzzle = muzzle_position()
 	if _combat != null:
-		_combat.set_authoritative_origin(player_id, muzzle)
+		_combat.set_authoritative_origin(player_id, _muzzle)
 
-	# A shooter with nothing pressed and nothing under way ticks the weapon in hand and no more: the rig
-	# builds its own posture then, so the context below (a dozen writes and an extra dictionary) is skipped.
-	var t_wp := Time.get_ticks_usec()
-	var out: DotWeaponOutcome
 	# The posture feeds the spread (running, air, slide and crouch change the cone): the arsenal asks
 	# [method _idle_posture] for the same fields the context below gets, so a moving player takes this path too.
 	_posture_tick = tick
-	if weapons.would_idle(_command):
-		if idle_row_lane and controller != null:
-			var still := _idle_row()
-			out = weapons.call(&"simulate_idle_row", _command, tick, _posture_row, still)
-		elif idle_tick:
-			out = weapons.simulate_idle(_command, tick)
-		else:
-			out = weapons.simulate_tick(_command, tick, null)
-		# The rig's idle tick asks the shared player bridge for the sprint, and this player has none of
-		# its controller nodes: without this the hands never go to the sprint carry on a plain run.
-		var hands := weapons.view_model()
-		if hands != null:
-			hands.set_sprinting(state.sprinting)
+	_idle_now = weapons.would_idle(_command)
+	return _idle_now and idle_row_lane and controller != null
+
+
+## The idle weapon tick of a [method tick_post_head] that answered true: [param row] is [method _idle_row]'s
+## (its first 9 floats), [param still] its still flag.
+func tick_idle_row(row: PackedFloat64Array, still: bool) -> DotWeaponOutcome:
+	var t_wp := Time.get_ticks_usec()
+	var out: DotWeaponOutcome = weapons.call(&"simulate_idle_row", _command, _posture_tick, row, still)
+	_idle_hands()
+	FcFrameProbe.add(&"p_weapons", t_wp)
+	if FcFrameProbe.fine:
+		FcFrameProbe.charge_weapon_phases()
+	return out
+
+
+## The weapon tick of a [method tick_post_head] that answered false.
+func tick_weapons(tick: int) -> DotWeaponOutcome:
+	var t_wp := Time.get_ticks_usec()
+	var out: DotWeaponOutcome
+	# A shooter with nothing pressed and nothing under way ticks the weapon in hand and no more: the rig
+	# builds its own posture then, so the context below (a dozen writes and an extra dictionary) is skipped.
+	if _idle_now:
+		out = weapons.simulate_idle(_command, tick) if idle_tick else weapons.simulate_tick(_command, tick, null)
+		_idle_hands()
 		FcFrameProbe.add(&"p_weapons", t_wp)
-		if fine:
+		if FcFrameProbe.fine:
 			FcFrameProbe.charge_weapon_phases()
 		return out
-	t_wp = Time.get_ticks_usec()
-	var ctx := _weapon_context(tick, muzzle, state)
-	if fine:
-		FcFrameProbe.add(&"p_wctx", t_fine)
+	var ctx := _weapon_context(tick, _muzzle, controller.state)
+	if FcFrameProbe.fine:
+		FcFrameProbe.add(&"p_wctx", t_wp)
+		t_wp = Time.get_ticks_usec()
 
 	# Through the rig, which runs the arsenal and then the bash. It keeps the previous
 	# command itself, for the same edge triggers the arsenal used to be handed it for.
 	out = weapons.simulate_tick(_command, tick, ctx)
 	FcFrameProbe.add(&"p_weapons", t_wp)
-	if fine:
+	if FcFrameProbe.fine:
 		FcFrameProbe.charge_weapon_phases()
 	return out
+
+
+# The rig's idle tick asks the shared player bridge for the sprint, and this player has none of
+# its controller nodes: without this the hands never go to the sprint carry on a plain run.
+func _idle_hands() -> void:
+	var hands := weapons.view_model()
+	if hands != null:
+		hands.set_sprinting(controller.state.sprinting)
 
 ## The weapon context of a tick that does more than idle.
 func _weapon_context(tick: int, muzzle: Vector3, state: DotFpsState) -> DotWeaponContext:

@@ -273,6 +273,12 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		player.ctl_usec = Time.get_ticks_usec() - t_ctl
 		if fine:
 			FcFrameProbe.add(&"pl_sim", t_fine)
+	# The idle players' posture rows in one dot-sim call (flushed before anything that could see their weapon ticks):
+	# the controller state is read in GDScript once per player instead of per field.
+	var post_lane := FcPlayer.posture_native and DotSim.has(&"players")
+	if post_lane and _post_native == null:
+		_post_native = FcPlayer.make_native_post()
+	var post_from: Object = _motor_batch if post_lane and _motor_batch.has_method(&"post_row") else null
 	for i in range(n):
 		var row := _batch_rows[i]
 		if row == -1:
@@ -286,7 +292,8 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 			if row >= 0:
 				_motor_batch.skip(row)
 			continue
-		_finish_batched_player(_batch_pairs[i], row, id, player, delta, hull_world, shots, fine)
+		_finish_batched_player(_batch_pairs[i], row, id, player, delta, hull_world, shots, fine, post_lane, post_from)
+	_flush_posts(shots)
 	FcHullGrid.batch_faults += _motor_batch.stale
 	FcHullGrid.batch_rows += _motor_batch.rows
 	_motor_batch.stale = 0
@@ -294,7 +301,8 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 
 
 ## The second half of one player's batched tick: the motor's answer, the rest of the player's tick and what it did.
-func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, delta: float, hull_world: Object, shots: Array[DotShot], fine: bool) -> void:
+func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, delta: float, hull_world: Object, shots: Array[DotShot],
+		fine: bool, post_lane: bool, post_from: Object) -> void:
 	var controller := player.controller
 	var t_fine := 0
 	if fine:
@@ -310,7 +318,22 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		controller.end_tick(_tick, player.body_d)
 	var rested := controller.state.position
 	FcFrameProbe.add(&"p_controller", t_ctl - player.ctl_usec)
-	var outcome := player.tick_post(_tick, delta, fire)
+	var outcome: DotWeaponOutcome = null
+	if not player.tick_post_head(_tick, delta, fire):
+		# A weapon tick that does more than idle can reach other players: the waiting idle ones tick first, in order.
+		_flush_posts(shots)
+		outcome = player.tick_weapons(_tick)
+	elif post_lane:
+		var k := _post_players.size()
+		if _post_in.size() < (k + 1) * 10:
+			_post_in.resize((k + 1) * 10)
+		player.post_input(_post_in, k * 10, post_from, row)
+		_post_players.append(player)
+		_post_ids.append(id)
+		_post_moves.append(move)
+	else:
+		var still := player._idle_row()
+		outcome = player.tick_idle_row(player._posture_row, still)
 	if fine:
 		FcFrameProbe.add(&"pl_sim", t_fine)
 		t_fine = Time.get_ticks_usec()
@@ -326,15 +349,40 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 	if row >= 0 and (feet != rested or not alive):
 		_motor_batch.moved_after(row)
 	if demo_stats != null:
+		# The demo's meddler may hurt or move anyone: the waiting weapon ticks come first, as one by one.
+		_flush_posts(shots)
 		demo_stats.call(&"after", id, player, move, fire, _tick)
+	if outcome != null:
+		_post_outcome(id, player, move, outcome, shots)
+	if fine:
+		FcFrameProbe.add(&"pl_post", t_fine)
+
+
+## What a player's weapon tick did, in roster order: its shots, its protection and the horde's and rockets' share.
+func _post_outcome(id: int, player: FcPlayer, move: DotFpsCommand, outcome: DotWeaponOutcome, shots: Array[DotShot]) -> void:
 	shots.append_array(outcome.shots)
 	_note_protected_action(id, player, move, not outcome.shots.is_empty())
 	if horde != null and (not outcome.shots.is_empty() or not outcome.spawns.is_empty()):
 		horde.note_fire(id, player.controller.state.position)
 	if projectiles != null:
 		projectiles.accept(outcome)
-	if fine:
-		FcFrameProbe.add(&"pl_post", t_fine)
+
+
+## The waiting idle players' posture rows in one dot-sim call, then each one's weapon tick and outcome in roster order.
+func _flush_posts(shots: Array[DotShot]) -> void:
+	var count := _post_players.size()
+	if count == 0:
+		return
+	var input := _post_in if _post_in.size() == count * 10 else _post_in.slice(0, count * 10)
+	var out: PackedFloat64Array = _post_native.run_rows(input)
+	for k in range(count):
+		var player: FcPlayer = _post_players[k]
+		var at := k * 10
+		var outcome := player.tick_idle_row(out.slice(at, at + 10), out[at + 9] != 0.0)
+		_post_outcome(_post_ids[k], player, _post_moves[k], outcome, shots)
+	_post_players.clear()
+	_post_ids.clear()
+	_post_moves.clear()
 
 
 func tick(commands: Dictionary = {}) -> void:

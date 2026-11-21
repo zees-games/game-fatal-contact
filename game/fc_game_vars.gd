@@ -88,6 +88,13 @@ var _hull_world_data := PackedFloat64Array()
 var _motor_batch: DotFpsMotorBatch = null
 var _batch_rows := PackedInt32Array()
 var _batch_pairs: Array = []
+## The batched loop's idle weapon ticks waiting on one dot-sim posture call ([method _flush_posts]): its
+## `DotSimPlayerPost`, the input rows (10 floats each) and each one's player, id and move command.
+var _post_native: Object = null
+var _post_in := PackedFloat64Array()
+var _post_players: Array = []
+var _post_ids := PackedInt64Array()
+var _post_moves: Array = []
 
 
 ## Rebuilds [member _roster] (the players in join order, and their ids) after a join or a leave.

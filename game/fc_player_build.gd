@@ -407,12 +407,14 @@ func _follow_map_volumes() -> void:
 	var pit := _map.pit_at(feet, _hull_tick)
 	if not pit.is_empty():
 		controller.teleport(pit["to"], float(pit["yaw"]), 0.0)
+		_post_moved = true
 		_forget_drawn()
 		return
 
 	if feet.y < _map.bounds.position.y - _fall_out_depth and not _map.spawns.is_empty():
 		var at: Transform3D = _map.spawns[0]
 		controller.teleport(at.origin, rad_to_deg(at.basis.get_euler().y), 0.0)
+		_post_moved = true
 		_forget_drawn()
 
 ## FcConfig's player numbers, given before the first spawn resets health to the maximum.
@@ -434,6 +436,8 @@ func _run_map_mechanics(start: Vector3, delta: float) -> void:
 		return
 
 	var state := controller.state
+	if _map.mechanics.acts() or not ladder.volumes.is_empty() or not swim.volumes.is_empty():
+		_post_moved = true
 	_map.mechanics.simulate(controller.motor, state, start, delta)
 
 	if not ladder.volumes.is_empty():

@@ -101,6 +101,11 @@ func is_empty() -> bool:
 		and gravity.is_empty() and hurt.is_empty() and conveyors.is_empty()
 
 
+## Whether [method simulate] can change a state: the map has pushes, gravity or conveyors.
+func acts() -> bool:
+	return not (pushes.is_empty() and gravity.is_empty() and conveyors.is_empty())
+
+
 ## The volume a player's hull is tested against: the standing (or crouched) hull, and two
 ## units under the feet as well. A trigger lying ON the floor (surf_fruits' pushes are
 ## 1-unit sheets) is touched by a player standing on it, and the hull alone only grazes it.
