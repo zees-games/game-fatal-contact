@@ -63,9 +63,9 @@ func _rounds(weapons: Array[StringName], ping: int) -> void:
 func _scoped_weapons() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for id in _hitscan_weapons():
-		var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(id)
-		var tuning := def.tuning as DotWeaponBallistics
-		if DotWeaponAccuracyClass.resolve(tuning.accuracy_class, def.tags, def.id) != "sniper":
+		var def: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(id)
+		var tuning := def.tuning as GSWeaponBallistics
+		if GSWeaponAccuracyClass.resolve(tuning.accuracy_class, def.tags, def.id) != "sniper":
 			continue
 		if tuning.accuracy("spread_aim", "sniper") == 0.0:
 			out.append(id)

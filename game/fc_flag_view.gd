@@ -1,6 +1,6 @@
 extends Node3D
 
-## Draws capture the flag's flags: a pole with a banner and a faint light in the team's colour, on its stand, on the floor where it was dropped, or in the carrier's hand ([code]fc_flag_carry.gd[/code]). Over each one a small see-through flag icon in the team's colour with its distance ("19.4m"), like Halo's CTF marker (`fc_ctf_indicator`, `fc_ctf_indicator_seethrough`, both on by default; no beam, no "RED FLAG" text). Built by [FcObjectives] when the game draws anything (not headless); it reads [DotObjectiveCtf] every frame, so a rebuilt layout (new map, new match) needs no wiring.
+## Draws capture the flag's flags: a pole with a banner and a faint light in the team's colour, on its stand, on the floor where it was dropped, or in the carrier's hand ([code]fc_flag_carry.gd[/code]). Over each one a small see-through flag icon in the team's colour with its distance ("19.4m"), like Halo's CTF marker (`fc_ctf_indicator`, `fc_ctf_indicator_seethrough`, both on by default; no beam, no "RED FLAG" text). Built by [FcObjectives] when the game draws anything (not headless); it reads [GSObjectiveCtf] every frame, so a rebuilt layout (new map, new match) needs no wiring.
 
 const FcGame := preload("fc_game.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
@@ -21,7 +21,7 @@ const NAMES := {1: "RED", 2: "BLUE", 3: "GREEN", 4: "YELLOW"}
 const COLORS := {1: Color(0.95, 0.18, 0.15), 2: Color(0.2, 0.42, 0.98), 3: Color(0.2, 0.8, 0.3), 4: Color(0.98, 0.85, 0.2)}
 
 var game: FcGame = null
-var ctf: DotObjectiveCtf = null
+var ctf: GSObjectiveCtf = null
 
 var _views := {}
 static var _icon_texture: ImageTexture = null
@@ -59,7 +59,7 @@ const _BUILD_PARTS: Array[StringName] = [&"_add_pole", &"_add_cloth", &"_add_ico
 ## part's materials at once (all in one frame it was a 163 ms frame on the bench), each drawn far below the world,
 ## then hides it. A second call, or a headless process, does nothing.
 static func warm(host: Node) -> void:
-	if DotPlatform.is_headless() or (_warm != null and is_instance_valid(_warm)):
+	if GSPlatform.is_headless() or (_warm != null and is_instance_valid(_warm)):
 		return
 	var view: Node3D = load(FcPaths.rebase(_SELF_PATH)).new()
 	view.name = "FlagViewWarm"
@@ -121,7 +121,7 @@ func refresh() -> void:
 		else:
 			view.position = target
 		_see(flag)
-		var carried := flag.state == DotObjectiveFlag.State.CARRIED
+		var carried := flag.state == GSObjectiveFlag.State.CARRIED
 		view.basis = Basis.from_scale(Vector3.ONE * (CARRIED_SCALE if carried else 1.0))
 		var parts: Array = _parts[team]
 		(parts[0] as Node3D).visible = not carried
@@ -207,7 +207,7 @@ static func icon_texture() -> ImageTexture:
 
 
 ## Raise [signal FcGameState.ctf_seen] when [param flag] changed state since the last frame (not for the first sight of it).
-func _see(flag: DotObjectiveFlag) -> void:
+func _see(flag: GSObjectiveFlag) -> void:
 	var team := flag.home_team()
 	var known: bool = _last_state.has(team)
 	var was_state: int = _last_state.get(team, -1)
@@ -219,19 +219,19 @@ func _see(flag: DotObjectiveFlag) -> void:
 	var by := int(was_carrier) if was_carrier.is_valid_int() else 0
 	var what := &""
 	match flag.state:
-		DotObjectiveFlag.State.CARRIED:
+		GSObjectiveFlag.State.CARRIED:
 			what = &"taken"
 			by = int(flag.carrier) if flag.carrier.is_valid_int() else 0
-		DotObjectiveFlag.State.DROPPED:
+		GSObjectiveFlag.State.DROPPED:
 			what = &"dropped"
-		DotObjectiveFlag.State.HOME:
-			what = &"captured" if was_state == DotObjectiveFlag.State.CARRIED else &"returned"
+		GSObjectiveFlag.State.HOME:
+			what = &"captured" if was_state == GSObjectiveFlag.State.CARRIED else &"returned"
 	if what != &"":
 		game.ctf_seen.emit(what, team, by)
 
 
-func _carrier_of(flag: DotObjectiveFlag) -> Node3D:
-	if flag.state == DotObjectiveFlag.State.CARRIED and game != null and flag.carrier.is_valid_int():
+func _carrier_of(flag: GSObjectiveFlag) -> Node3D:
+	if flag.state == GSObjectiveFlag.State.CARRIED and game != null and flag.carrier.is_valid_int():
 		var carrier := game.player_for(int(flag.carrier))
 		if carrier != null and is_instance_valid(carrier) and carrier.is_inside_tree():
 			return carrier
@@ -239,7 +239,7 @@ func _carrier_of(flag: DotObjectiveFlag) -> Node3D:
 
 
 ## Where [param flag]'s pole stands: by its carrier (the hand pose then places it), where it is in flight, where it fell, or on the floor under its stand (the stand's own point floats a metre up).
-func _place(flag: DotObjectiveFlag) -> Vector3:
+func _place(flag: GSObjectiveFlag) -> Vector3:
 	var carrier := _carrier_of(flag)
 	if carrier != null:
 		return carrier.global_position

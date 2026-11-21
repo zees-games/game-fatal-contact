@@ -13,15 +13,15 @@ const FcFrameProbe := preload("fc_frame_probe.gd")
 ## routes it by the receiver's node path relative to its `MultiplayerAPI` root. Using
 ## the same script on both ends makes the method-set checksum identical by
 ## construction; naming the node the same on both ends, and parenting it to a node that
-## is itself named the same — [DotServer] on one side and [DotClientLink] on the other,
+## is itself named the same — [GSServer] on one side and [GSClientLink] on the other,
 ## both called `Server` — is the whole of the routing.
 ##
 ## One extra `@rpc` method on one side makes **every** RPC between them fail, not just
 ## that one, including the handshake, whose only symptom is a timeout.
 ##
 ## [codeblock]
-## Server            <- DotServer, or DotClientLink named to match
-##   Chat            <- DotChatManager / DotClientChat
+## Server            <- GSServer, or GSClientLink named to match
+##   Chat            <- GSChatManager / GSClientChat
 ##   Fatal Contact           <- this, on both
 ## [/codeblock]
 
@@ -30,7 +30,7 @@ const CHANNEL := "arena.link"
 ## The node name both ends must use. It is the routing, so it is a constant.
 const NODE_NAME := &"Arena"
 
-## Everything here rides [constant DotTransport.Channel.STATE], which dot-server
+## Everything here rides [constant GSTransport.Channel.STATE], which dot-server
 ## reserves for exactly this and uses for nothing itself. Sharing chat's channel would
 ## make a burst of snapshots delay a chat line, and a chat line delay a snapshot.
 const CHANNEL_STATE := 1
@@ -47,14 +47,14 @@ const CHANNEL_STATE := 1
 ## below are declared `unreliable`, which is what voice wants: a lost frame is 20 ms of
 ## silence a jitter buffer conceals, and a resent one arrives after the frames either
 ## side of it have already played. What that becomes on the wire is
-## `DotTransportAuto`'s decision and it has exactly one sensible answer either way —
+## `GSTransportAuto`'s decision and it has exactly one sensible answer either way —
 ## ENet honours the unreliable channel as UDP; a browser has no UDP at all, so
 ## WebSocket delivers it reliably and in order over TCP whatever anybody asks for.
 ##
 ## So the platform rule falls out rather than being written: a desktop client's voice
 ## is unreliable UDP, a browser client's is TCP, and this file names neither. Trying to
 ## pick per platform here would mean a game naming a transport, which is the one thing
-## `DotTransport` exists to stop.
+## `GSTransport` exists to stop.
 const CHANNEL_VOICE := 2
 
 ## The bridge these calls are delivered to. Set by whoever creates this node.
@@ -111,7 +111,7 @@ var snapshots_coalesced: int = 0
 ## whatever the skipped ticks carried. Reliable events and map messages flush the held
 ## snapshots first, so the order between state and events is kept. On by default only in
 ## a browser; native clients (and every hit-reg suite) decode each snapshot as before.
-static var coalesce: bool = DotPlatform.is_web()
+static var coalesce: bool = GSPlatform.is_web()
 
 var _held: Array[PackedByteArray] = []
 
@@ -154,11 +154,11 @@ func _can_send() -> bool:
 
 	if _was_live == null or bool(_was_live) != live:
 		if not live:
-			DotLog.warn(CHANNEL, "sends are being dropped: there is no multiplayer peer", {
+			GSLog.warn(CHANNEL, "sends are being dropped: there is no multiplayer peer", {
 				"server": is_server,
 			})
 		elif _was_live != null:
-			DotLog.info(CHANNEL, "the link is live again", {
+			GSLog.info(CHANNEL, "the link is live again", {
 				"server": is_server, "dropped": dropped,
 			})
 
@@ -232,7 +232,7 @@ func send_request(payload: PackedByteArray) -> void:
 ## One encoded voice frame, server to one listener.
 ##
 ## [b]Never a broadcast, and the loop over listeners is deliberately not here.[/b]
-## [DotVoiceRouter] decides who hears a speaker — everybody, a team, or whoever is
+## [GSVoiceRouter] decides who hears a speaker — everybody, a team, or whoever is
 ## within range — and a `send(bytes, 0)` convention here would quietly deliver a
 ## proximity packet to the whole server. This family has shipped that exact bug once
 ## already, through a bot registered as peer 0.
@@ -347,7 +347,7 @@ func _flush_held() -> void:
 	ticks.resize(held.size())
 	var newest := -1
 	for i in held.size():
-		var reader := DotNetReader.new(held[i])
+		var reader := GSNetReader.new(held[i])
 		var tick := reader.read_uint(32) if held[i].size() >= 4 else -1
 		ticks[i] = tick
 		newest = maxi(newest, tick)

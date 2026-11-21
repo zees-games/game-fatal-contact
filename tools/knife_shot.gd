@@ -304,7 +304,7 @@ func _loop_spot(game, me) -> Dictionary:
 
 ## The loop the knives layer flies from [param eye] along [param dir], sampled every half metre.
 func _loop_points(game, eye: Vector3, dir: Vector3) -> PackedVector3Array:
-	var k := DotWeaponKnives.Knife.new()
+	var k := GSWeaponKnives.Knife.new()
 	k.at = eye
 	k.velocity = dir * float(game.knives.rules.get("speed", 40.0))
 	game.knives.set("_throw_power", 1.0)
@@ -335,7 +335,7 @@ func _fly_once(game, me, spot: Dictionary, shoot: Callable, name: String, frames
 		var now = client.get("player")
 		if now != null and is_instance_valid(now):
 			me = now
-		var live: bool = game.match_node == null or game.match_node.state == DotMatch.State.LIVE
+		var live: bool = game.match_node == null or game.match_node.state == GSMatch.State.LIVE
 		if live and not me.arsenal.disabled and not game.round_frozen():
 			break
 		await _wait(0.25)
@@ -361,7 +361,7 @@ func _fly_once(game, me, spot: Dictionary, shoot: Callable, name: String, frames
 	var n := 0
 	while frames_max <= 0 or n < frames_max:
 		k = game.knives.get_knife(id)
-		if k == null or k.phase != DotWeaponKnives.Phase.FLY:
+		if k == null or k.phase != GSWeaponKnives.Phase.FLY:
 			break
 		seen["along"] = maxf(seen["along"], (k.at - eye).dot(dir))
 		if k.leg == 2:

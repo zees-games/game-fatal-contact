@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## "Crosshair on his chest at 65 m and nothing": does the body the client draws stand inside the hit zones the server traces? For every stock avatar and each way a player moves (idle, walking away, strafing, walking at you, aiming up and down, crouched still, crouch walking), a shot from
 ## 65 m at the drawn skeleton's head, neck, torso, belly and hips (and arms when standing) must land in a zone, on every tick of the walk cycle. Only the hit zones' own fit is measured here; the netcode and the gun are headless_hitreg_ping's and headless_hitreg_scope's.
@@ -51,7 +51,7 @@ var _head_mid := 0.0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	Engine.physics_ticks_per_second = 64
 	_run.call_deferred()
 
@@ -139,13 +139,13 @@ func _measure(target: FcPlayer, case: Array) -> Dictionary:
 	var sampled := 0
 	var slid := 0
 	for i in WARMUP_TICKS + SAMPLE_TICKS:
-		var cmd := DotFpsCommand.new()
+		var cmd := GSFpsCommand.new()
 		cmd.move = case[1]
-		cmd.buttons = DotFpsCommand.BUTTON_CROUCH if case[2] else 0
+		cmd.buttons = GSFpsCommand.BUTTON_CROUCH if case[2] else 0
 		if slide:
-			cmd.buttons = DotFpsCommand.BUTTON_SPRINT | (DotFpsCommand.BUTTON_CROUCH if i >= WARMUP_TICKS else 0)
+			cmd.buttons = GSFpsCommand.BUTTON_SPRINT | (GSFpsCommand.BUTTON_CROUCH if i >= WARMUP_TICKS else 0)
 		cmd.pitch = case[3]
-		_game.tick({1: [DotFpsCommand.new(), DotWeaponCommand.new()], 2: [cmd, DotWeaponCommand.new()]})
+		_game.tick({1: [GSFpsCommand.new(), GSWeaponCommand.new()], 2: [cmd, GSWeaponCommand.new()]})
 		target.present(1.0 / 64.0)
 		await get_tree().physics_frame
 		if i < WARMUP_TICKS:
@@ -162,8 +162,8 @@ func _measure(target: FcPlayer, case: Array) -> Dictionary:
 		var feet_y := target.global_position.y
 		knee_sum += (_knee(sk, ".L") + _knee(sk, ".R")) * 0.5
 		head_sum += (sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Head")).origin).y - feet_y
-		for b: DotHitbox in boxes:
-			if b.group == DotHitGroup.HEAD:
+		for b: GSHitbox in boxes:
+			if b.group == GSHitGroup.HEAD:
 				zone_sum += b.global_position.y - feet_y
 				break
 		for bone in bones:
@@ -176,7 +176,7 @@ func _measure(target: FcPlayer, case: Array) -> Dictionary:
 				p += at.basis.y.normalized() * _head_mid
 			var dir := (p - eye).normalized()
 			var hit := false
-			for b: DotHitbox in boxes:
+			for b: GSHitbox in boxes:
 				var h = b.intersect_ray(eye, dir, RANGE_M * 2.0)
 				if h.hitbox != null:
 					hit = true

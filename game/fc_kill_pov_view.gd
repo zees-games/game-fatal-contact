@@ -21,9 +21,9 @@ var ads_rules: AwAdsRules = null
 var hands: AwViewModel = null
 var flashes: AwShotFx = null
 ## The killer's arms on dot-player-char's rig, as the live view draws them; null below its API 8.
-var arms: DotPlayerViewArms = null
+var arms: GSPlayerViewArms = null
 
-var _grip: DotViewGrip = null
+var _grip: GSViewGrip = null
 ## Returns [key, look] of the killer now playing; unset draws a stock person.
 var killer_look_fn: Callable = Callable()
 ## The game whose `fp_arms` rule may put one arm set on everybody (see FcViewArms.arm_set_look).
@@ -32,7 +32,7 @@ var _arm_set: Array = []
 var _boxes: Dictionary = {}
 ## Whose look [member arms] was built with; it parks under that key, so a kill by the same person reuses the rig.
 var _arms_key := ""
-var crosshair: DotCrosshair = null
+var crosshair: GSCrosshair = null
 var label: Label = null
 
 var _camera: Camera3D = null
@@ -47,7 +47,7 @@ var _rigs: Array[AwViewModel] = []
 var _parked_arms: Array = []
 ## The flash pool, crosshair and ammo line of the last kill, parked for the next.
 var _spare_fx: AwShotFx = null
-var _spare_crosshair: DotCrosshair = null
+var _spare_crosshair: GSCrosshair = null
 var _spare_label: Label = null
 var _warm_rig: AwViewModel = null
 var _push := Vector3.ZERO
@@ -67,8 +67,8 @@ func present(view: Dictionary) -> void:
 		return
 	var cam: Camera3D = view["camera"]
 	var aux: PackedFloat32Array = view["aux"]
-	if aux.size() < DotKillViewRing.AUX:
-		aux.resize(DotKillViewRing.AUX)
+	if aux.size() < GSKillViewRing.AUX:
+		aux.resize(GSKillViewRing.AUX)
 	var behind: bool = view.get("behind", false)
 	var own: Variant = view.get("crosshair")
 	if own is CanvasItem:
@@ -192,8 +192,8 @@ func _new_fx() -> AwShotFx:
 	return fx
 
 
-func _new_crosshair() -> DotCrosshair:
-	var cross := DotCrosshair.new()
+func _new_crosshair() -> GSCrosshair:
+	var cross := GSCrosshair.new()
 	cross.set_anchors_preset(Control.PRESET_FULL_RECT)
 	cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(cross)
@@ -233,8 +233,8 @@ func _exit_tree() -> void:
 
 
 ## An arm rig built with [param look], drawn as the server's arm set while one is on; [method _mount_arms] puts it under the replay camera.
-func _new_arms(look: DotHumanoidLook) -> DotPlayerViewArms:
-	var rig := DotPlayerViewArms.new()
+func _new_arms(look: GSHumanoidLook) -> GSPlayerViewArms:
+	var rig := GSPlayerViewArms.new()
 	if rig.has_method(&"set_look_override"):
 		rig.set_look_override(FcViewArms.arm_set_look(rules, _arm_set))
 	add_child(rig)
@@ -246,9 +246,9 @@ func _new_arms(look: DotHumanoidLook) -> DotPlayerViewArms:
 ## The killer's [key, look]: their avatar's person, or a stock one when nobody is known.
 func _killer_look() -> Array:
 	var got: Variant = killer_look_fn.call() if killer_look_fn.is_valid() else null
-	if got is Array and (got as Array).size() == 2 and got[1] is DotHumanoidLook:
+	if got is Array and (got as Array).size() == 2 and got[1] is GSHumanoidLook:
 		return got
-	return ["", DotHumanoidLook.stock(1)]
+	return ["", GSHumanoidLook.stock(1)]
 
 
 ## The kill's killer, read from the kill view (its describe) or the final killcam (its last kill); 0 when neither says.
@@ -273,7 +273,7 @@ static func killer_of(target: Object) -> int:
 static func look_for(game: Object, id: int) -> Array:
 	var key := StringName("arena-player-%08d" % id)
 	var player: Variant = game.call(&"player_for", id) if id != 0 and game != null and game.has_method(&"player_for") else null
-	var avatar: DotAvatar = (player as Object).get(&"avatar") as DotAvatar if player is Object else null
+	var avatar: GSAvatar = (player as Object).get(&"avatar") as GSAvatar if player is Object else null
 	# A team body is part of the key, so a killer who changed sides is a rebuild of the parked rig.
 	var team := int((player as Object).get(&"team")) if player is Object else -1
 	var wear := FcTeamBodies.wear_key(team)
@@ -297,7 +297,7 @@ func _prepare_spare() -> void:
 	_prune_arms()
 	# Only while no kill shows arms: those park at its end, so a stock spare built now is a build thrown away.
 	if _parked_arms.is_empty() and not _live(arms) and _shares_arms(_rigs[0]):
-		_parked_arms.append(["", _new_arms(DotHumanoidLook.stock(1))])
+		_parked_arms.append(["", _new_arms(GSHumanoidLook.stock(1))])
 	if not _live(_spare_fx) and flashes == null:
 		# In the tree once, so its light and mesh pools are built here and not under the kill's camera.
 		_spare_fx = _new_fx()
@@ -340,12 +340,12 @@ func warm(weapons: Array) -> Array:
 	var out: Array = []
 	for rig in _rigs:
 		if _live(rig):
-			DotRenderWarmup.collect(rig, out)
+			GSRenderWarmup.collect(rig, out)
 	for entry: Array in _parked_arms:
 		if _live(entry[1]):
-			DotRenderWarmup.collect(entry[1], out)
+			GSRenderWarmup.collect(entry[1], out)
 	if _live(_spare_fx):
-		DotRenderWarmup.collect(_spare_fx, out)
+		GSRenderWarmup.collect(_spare_fx, out)
 	return out
 
 
@@ -395,7 +395,7 @@ func parked() -> Array:
 ## Whether the shared arm rig draws the hands; the view model's own sleeves are then built off, not left drawn under the gun.
 func _shares_arms(model: AwViewModel = null) -> bool:
 	var m := model if model != null else hands
-	return DotAddonApi.build_level("dot_player_char") >= FcViewArms.NEEDS_LEVEL and m.has_signal(&"hands_reached")
+	return GSAddonApi.build_level("dot_player_char") >= FcViewArms.NEEDS_LEVEL and m.has_signal(&"hands_reached")
 
 
 func _mount_arms(cam: Camera3D) -> void:
@@ -449,7 +449,7 @@ func _prune_arms() -> void:
 
 ## Parks [param rig], built with [param key]'s look, as the newest; another parked under that key, and past
 ## [constant RIGS] the oldest, go.
-func _park_arms(key: String, rig: DotPlayerViewArms) -> void:
+func _park_arms(key: String, rig: GSPlayerViewArms) -> void:
 	_prune_arms()
 	for i in range(_parked_arms.size() - 1, -1, -1):
 		if _parked_arms[i][0] == key and _parked_arms[i][1] != rig:
@@ -476,7 +476,7 @@ func _on_hands(anchor: Node3D, grip: Vector3, fore: Vector3, pose: StringName) -
 		return
 	var one: bool = pose in FcViewArms.ONE_HAND
 	if _grip == null or _grip.anchor != anchor or _grip.is_two_hand() == one:
-		_grip = DotViewGrip.one_hand(anchor, grip) if one else DotViewGrip.two_hand(anchor, grip, fore)
+		_grip = GSViewGrip.one_hand(anchor, grip) if one else GSViewGrip.two_hand(anchor, grip, fore)
 		arms.set_held(_grip)
 	_grip.grip = grip
 	if not one:
@@ -504,7 +504,7 @@ func _move_hands(aux: PackedFloat32Array, cam: Camera3D) -> void:
 
 
 ## A round in the replay: its kick through the view model's spring and the camera's share, and the muzzle flash.
-func _fired(id: StringName, outcome: DotWeaponOutcome, cam: Camera3D) -> void:
+func _fired(id: StringName, outcome: GSWeaponOutcome, cam: Camera3D) -> void:
 	hands.on_used(outcome)
 	recoil.kick(outcome)
 	if flashes != null:
@@ -570,7 +570,7 @@ static func mount(parent: Node, game: Object, target: Object, label: String, def
 	view.ads_rules = game.get(&"ads_rules") as AwAdsRules
 	var feel: Variant = game.get(&"combat_feel")
 	if feel != null:
-		view.recoil.rules = feel.get(&"recoil") as DotWeaponRecoilRules
+		view.recoil.rules = feel.get(&"recoil") as GSWeaponRecoilRules
 	view.recoil.catalogue = FcPlayer.weapon_catalogue()
 	var rate: Variant = game.get(&"tick_rate")
 	if rate != null:

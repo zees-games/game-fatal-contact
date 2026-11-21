@@ -33,7 +33,7 @@ static var _types: Dictionary = {}
 
 
 static func supported() -> bool:
-	return DotAddonApi.build_level("fc_weapons") >= MIN_LEVEL and ResourceLoader.exists(RULES_PATH)
+	return GSAddonApi.build_level("fc_weapons") >= MIN_LEVEL and ResourceLoader.exists(RULES_PATH)
 
 
 ## A fresh `AwRocketRules` at its defaults, or null below level 27.
@@ -43,14 +43,14 @@ static func make_rules() -> RefCounted:
 	return (load(RULES_PATH) as Script).new() as RefCounted
 
 
-static func is_rocketjump(def: DotWeaponDef) -> bool:
+static func is_rocketjump(def: GSWeaponDef) -> bool:
 	return def != null and bool(def.params.get(PARAM, false))
 
 
 ## Puts [param rules] on every launcher def in [param catalogue] and the Rocketjump's damage cut on its
 ## attachment in [param attachments]. Run on bind and on every `sv_rocket_*` change; a weapon already fitted
 ## in somebody's hands keeps the numbers it was fitted with until it is fitted again (a respawn).
-static func apply_rules(rules: RefCounted, catalogue: DotWeaponCatalogue, attachments: DotWeaponAttachments) -> void:
+static func apply_rules(rules: RefCounted, catalogue: GSWeaponCatalogue, attachments: GSWeaponAttachments) -> void:
 	if rules == null:
 		return
 
@@ -67,15 +67,15 @@ static func apply_rules(rules: RefCounted, catalogue: DotWeaponCatalogue, attach
 
 ## [param base] with its self-damage scaled by [param scale]: what a Rocketjump blast hurts its shooter with.
 ## `sv_rocket_jump_self_damage_scale` 0 (the default) makes it 0, which dot-combat refuses outright.
-static func self_scaled_type(base: DotDamageType, scale: float) -> DotDamageType:
+static func self_scaled_type(base: GSDamageType, scale: float) -> GSDamageType:
 	if base == null:
 		return null
 
 	var key := "%d:%s" % [base.get_instance_id(), scale]
-	var held: DotDamageType = _types.get(key)
+	var held: GSDamageType = _types.get(key)
 
 	if held == null:
-		held = base.duplicate() as DotDamageType
+		held = base.duplicate() as GSDamageType
 		held.self_scale = base.self_scale * scale
 		_types[key] = held
 
@@ -83,7 +83,7 @@ static func self_scaled_type(base: DotDamageType, scale: float) -> DotDamageType
 
 
 ## The self-damage multiplier for a blast from [param def]: the cvar for a Rocketjump, 1 for anything else.
-static func self_damage_scale(def: DotWeaponDef, rules: RefCounted) -> float:
+static func self_damage_scale(def: GSWeaponDef, rules: RefCounted) -> float:
 	if rules == null or not is_rocketjump(def):
 		return 1.0
 	return float(rules.get(&"jump_self_damage_scale"))
@@ -91,17 +91,17 @@ static func self_damage_scale(def: DotWeaponDef, rules: RefCounted) -> float:
 
 ## Throws [param player] off their own blast at [param at]: `AwRocketJump.launch_velocity` with their body's
 ## middle, whether they stand on the floor, and their move input turned by their view. Returns whether it pushed.
-static func launch(player: Node, def: DotWeaponDef, rules: RefCounted, at: Vector3) -> bool:
+static func launch(player: Node, def: GSWeaponDef, rules: RefCounted, at: Vector3) -> bool:
 	if player == null or def == null or rules == null or not supported():
 		return false
 
-	var controller: DotFpsController = player.get(&"controller")
+	var controller: GSFpsController = player.get(&"controller")
 	if controller == null:
 		return false
 
 	var state := controller.state
 	var centre := state.position + Vector3.UP * float(player.call(&"eye_height")) * BODY_CENTRE
-	var on_floor := state.mode == DotFpsState.Mode.GROUND
+	var on_floor := state.mode == GSFpsState.Mode.GROUND
 	var after: Vector3 = _jump_script().call(
 		&"launch_velocity", def, rules, state.velocity, centre, at, on_floor, move_direction(controller)
 	)
@@ -114,12 +114,12 @@ static func launch(player: Node, def: DotWeaponDef, rules: RefCounted, at: Vecto
 
 
 ## The world direction [param controller]'s last command asked to move in (not normalised; zero standing still).
-static func move_direction(controller: DotFpsController) -> Vector3:
+static func move_direction(controller: GSFpsController) -> Vector3:
 	var command := controller.current_command
 	if command == null or command.move == Vector2.ZERO:
 		return Vector3.ZERO
 
-	var forward := DotFpsMotor.forward_for(controller.state.yaw)
+	var forward := GSFpsMotor.forward_for(controller.state.yaw)
 	var right := forward.cross(Vector3.UP)
 	return right * command.move.x + forward * command.move.y
 

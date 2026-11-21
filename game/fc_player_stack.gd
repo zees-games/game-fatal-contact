@@ -16,7 +16,7 @@ static func loadout_weapons() -> Dictionary:
 signal class_applied(id: int, class_id: StringName)
 
 ## The physics profile was applied or switched.
-signal physics_applied(profile: DotPhysicsProfile)
+signal physics_applied(profile: GSPhysicsProfile)
 
 @export var register_service: bool = true
 
@@ -29,9 +29,9 @@ signal physics_applied(profile: DotPhysicsProfile)
 @export var physics_preset: StringName = &"arcade_shooter"
 
 
-var classes: DotPlayerClassManager = null
-var spawns: DotSpawnDirector = null
-var spectate: DotTeamSpectate = null
+var classes: GSPlayerClassManager = null
+var spawns: GSSpawnDirector = null
+var spectate: GSTeamSpectate = null
 
 var _registered: bool = false
 
@@ -42,13 +42,13 @@ var _sites_from: FcMap = null
 ## Builds everything and binds it to [param p_game]. Returns a failure without having built anything
 ## when the game is not set up, because half a stack is worse than none: the roster would exist,
 ## nothing would feed it, and every consumer would read an empty scoreboard on a running server.
-func setup(p_game: Node) -> DotResult:
+func setup(p_game: Node) -> GSResult:
 	if p_game == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No game to bind to.")
+		return GSResult.fail(GSError.CODE_INVALID, "No game to bind to.")
 
 	if p_game.match_node == null:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"FcGame is not set up yet.",
 			"Call FcGame.setup() first; this reads its match, its spawn points and "
 			+ "its tick rate."
@@ -69,17 +69,17 @@ func setup(p_game: Node) -> DotResult:
 	_connect_game()
 
 	if register_service:
-		DotRegistry.register(SERVICE, self)
+		GSRegistry.register(SERVICE, self)
 		_registered = true
 
 	_print_dot_sim_status()
-	DotLog.info(CHANNEL, "player stack up", {
+	GSLog.info(CHANNEL, "player stack up", {
 		"tick_rate": game.tick_rate,
 		"classes": classes.catalogue.ids().size(),
 		"sites": spawns.sites().size(),
 	})
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 static var _dot_sim_status_printed: bool = false
@@ -87,22 +87,22 @@ static var _dot_sim_status_printed: bool = false
 
 # The addon's default is off. On at script load, so a solo client and a listen host run it too
 # (motor_native_tick exists only where FcModule loads), and that cvar can still turn it off.
-# dot-bot's native mind (DotSimBotMind) on too, as bot_native_brain's default says.
+# dot-bot's native mind (GSSimBotMind) on too, as bot_native_brain's default says.
 static func _static_init() -> void:
-	DotFpsMotor.native_tick = true
+	GSFpsMotor.native_tick = true
 	set_brain_native(true)
 
 
-## dot-bot's native mind (DotSimBotMind: aim, fight step, perception) on or off for brains made
+## dot-bot's native mind (GSSimBotMind: aim, fight step, perception) on or off for brains made
 ## from now on. By name: an older dot-bot has no such switches, and the set is then a no-op.
 static func set_brain_native(on: bool) -> void:
-	(DotBotAim as Script).set(&"native_enabled", on)
-	(DotBotBrain as Script).set(&"native_perceive", on)
+	(GSBotAim as Script).set(&"native_enabled", on)
+	(GSBotBrain as Script).set(&"native_perceive", on)
 
 
-## Whether new bot brains think in dot-sim (the switch is on and the library has DotSimBotMind).
+## Whether new bot brains think in dot-sim (the switch is on and the library has GSSimBotMind).
 static func brain_native() -> bool:
-	return (DotBotAim as Script).get(&"native_enabled") == true and ClassDB.class_exists(&"DotSimBotMind")
+	return (GSBotAim as Script).get(&"native_enabled") == true and ClassDB.class_exists(&"GSSimBotMind")
 
 
 ## One line per process saying whether dot-sim's library loaded and what runs in it, so a
@@ -117,7 +117,7 @@ static func _print_dot_sim_status() -> void:
 
 ## [code]dot-sim: native motor=on bots=on snapshot=on[/code], or that the library is not loaded.
 static func dot_sim_status() -> String:
-	var natives := {"motor": &"DotSimFpsBody", "bots": &"DotSimBotSenses", "snapshot": &"DotSimSnapshotCodec"}
+	var natives := {"motor": &"GSSimFpsBody", "bots": &"GSSimBotSenses", "snapshot": &"GSSimSnapshotCodec"}
 	var parts: PackedStringArray = []
 	var any := false
 	for module: String in natives:
@@ -125,11 +125,11 @@ static func dot_sim_status() -> String:
 		any = any or loaded
 		var used := loaded
 		if module == "motor":
-			used = loaded and DotFpsPhysicsBody.native_enabled
-			if used and DotFpsMotor.native_tick and DotFpsPhysicsBody.native_tick_available():
-				parts.append("motor_tick=%s" % ("full" if DotFpsMotor.native_full and DotFpsPhysicsBody.native_full_available() else "on"))
+			used = loaded and GSFpsPhysicsBody.native_enabled
+			if used and GSFpsMotor.native_tick and GSFpsPhysicsBody.native_tick_available():
+				parts.append("motor_tick=%s" % ("full" if GSFpsMotor.native_full and GSFpsPhysicsBody.native_full_available() else "on"))
 		elif module == "bots":
-			used = loaded and DotBotWorld.native_enabled
+			used = loaded and GSBotWorld.native_enabled
 		parts.append("%s=%s" % [module, ("on" if used else "off") if loaded else "missing"])
 	if not any:
 		return "dot-sim: native library not loaded, the GDScript twins run (bootstrap fetches it; web never has it)"
@@ -138,35 +138,35 @@ static func dot_sim_status() -> String:
 
 func _exit_tree() -> void:
 	if _registered:
-		DotRegistry.unregister_instance(SERVICE, self)
+		GSRegistry.unregister_instance(SERVICE, self)
 
 
 # --- Building ---------------------------------------------------------------
 
 ## Builds the physics node, and applies the engine half of it only where that is wanted.
-func _build_physics() -> DotResult:
-	physics = DotPhysicsWorld.new()
+func _build_physics() -> GSResult:
+	physics = GSPhysicsWorld.new()
 	physics.name = "Physics"
-	physics.profile = DotPhysicsProfile.preset(physics_preset)
+	physics.profile = GSPhysicsProfile.preset(physics_preset)
 
 	if physics.profile == null:
-		physics.profile = DotPhysicsProfile.arcade_shooter()
+		physics.profile = GSPhysicsProfile.arcade_shooter()
 
 	# The game's tick rate wins over the preset's.
 	physics.profile.tick_rate = game.tick_rate
 
-	physics.layout = DotPhysicsLayout.shooter_3d()
+	physics.layout = GSPhysicsLayout.shooter_3d()
 	# The map's loose toys (dot-props'): a ball or a barrel on `toy`, which the level, props and
 	# other toys stop and a person never does (they walk through and push it,
 	# `FcGame._advance_toys`).
-	physics.layout.layers.append(DotPhysicsLayer.make(
+	physics.layout.layers.append(GSPhysicsLayer.make(
 		&"toy", [&"world", &"prop", &"debris", &"toy"],
 		"A map's loose toy: a ball, a barrel, a tyre. People walk through it and push it."
 	))
-	physics.layout.layers.append(DotPhysicsLayer.make(
+	physics.layout.layers.append(GSPhysicsLayer.make(
 		&"footprint", [], "Where a fixed toy stands, for a walkable mesh's bake only."
 	))
-	physics.surfaces = DotPhysicsSurfaceSet.standard()
+	physics.surfaces = GSPhysicsSurfaceSet.standard()
 	physics.register_service = false
 	# A dedicated server has no inspector to read layer names in, and the write is
 	# pure cost there.
@@ -180,7 +180,7 @@ func _build_physics() -> DotResult:
 		return built.wrap("Fatal Contact's collision layout")
 
 	if not apply_physics:
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	var res := physics.setup()
 
@@ -192,7 +192,7 @@ func _build_physics() -> DotResult:
 
 ## The mask a player's movement sweeps against, out of the layout.
 ##
-## [b]`DotFpsTunables.collision_mask` defaults to 1 and no game here had ever set it.[/b]
+## [b]`GSFpsTunables.collision_mask` defaults to 1 and no game here had ever set it.[/b]
 ## One is correct only for as long as everything is on bit 0, which is exactly the state
 ## the layout exists to end — so the moment props moved to the prop bit, a mask of 1
 ## would have been a player who walks through every crate in the map.
@@ -204,12 +204,12 @@ func player_collision_mask() -> int:
 
 
 func _build_roster() -> void:
-	roster = DotPlayerRoster.new()
+	roster = GSPlayerRoster.new()
 	roster.name = "Roster"
 	roster.authoritative = game.is_authority
 	roster.register_service = false
 
-	var config := DotPlayerConfig.new()
+	var config := GSPlayerConfig.new()
 	config.tick_rate = game.tick_rate
 	config.max_players = 0  # unlimited; the server cvar sv_maxplayers is the limit
 	# Long enough to survive a map change, which is what a player reconnecting into an
@@ -221,12 +221,12 @@ func _build_roster() -> void:
 
 
 func _build_teams() -> void:
-	teams = DotTeamRoster.new()
+	teams = GSTeamRoster.new()
 	teams.name = "Teams"
 	teams.authoritative = game.is_authority
 	teams.register_service = false
-	teams.teams = DotTeamSet.standard_pair(&"blue", &"red")
-	teams.policy = DotTeamPolicy.competitive()
+	teams.teams = GSTeamSet.standard_pair(&"blue", &"red")
+	teams.policy = GSTeamPolicy.competitive()
 	teams.policy.tick_rate = game.tick_rate
 	teams.alive_fn = _alive_of_key
 	teams.joined_fn = _joined_tick_of_key
@@ -237,7 +237,7 @@ func _build_teams() -> void:
 	var res := teams.setup()
 
 	if not res.ok:
-		DotLog.error(CHANNEL, "team roster", {"why": res.error.message})
+		GSLog.error(CHANNEL, "team roster", {"why": res.error.message})
 		return
 
 	# [b]dot-match is the authority here, and dot-team mirrors it. That is the opposite
@@ -245,7 +245,7 @@ func _build_teams() -> void:
 	#
 	# dot-team can drive a match manager — `bind_match` exists and is the right shape
 	# for a lobby or a server whose sides outlive four map changes. Fatal Contact is not
-	# that: its sides are decided by `DotTeamManager.assign`, which reads a requested
+	# that: its sides are decided by `GSTeamManager.assign`, which reads a requested
 	# team, balances an uneven pair and refuses a full one, and its spawns are chosen
 	# from spawn points the MAP tagged per side. Driving that from outside would mean
 	# reimplementing the balance and the map tags, badly.
@@ -259,7 +259,7 @@ func _build_teams() -> void:
 
 
 func _build_classes() -> void:
-	classes = DotPlayerClassManager.new()
+	classes = GSPlayerClassManager.new()
 	classes.name = "Classes"
 	classes.authoritative = game.is_authority
 	classes.register_service = false
@@ -267,10 +267,10 @@ func _build_classes() -> void:
 	# One class. Fatal Contact is a deathmatch and everybody is the same, and a catalogue
 	# with one entry is how that is said without every consumer branching on whether
 	# classes exist at all. A mode that wants more replaces the catalogue.
-	classes.catalogue = DotPlayerClassCatalogue.single(100.0)
+	classes.catalogue = GSPlayerClassCatalogue.single(100.0)
 
 	# [b]The one class names its loadout, so the arsenal comes from the document rather
-	# than from a hardcoded pair.[/b] `DotWeaponPlayerBridge.give_class_loadout` reads
+	# than from a hardcoded pair.[/b] `GSWeaponPlayerBridge.give_class_loadout` reads
 	# `loadout_id` off a class and looks it up in a table the GAME owns — dot-weapon
 	# deliberately does not own the id space between a loadout and a weapon — and until
 	# this line neither half had a caller: every player got pistol-and-rifle written into
@@ -279,7 +279,7 @@ func _build_classes() -> void:
 	only.loadout_id = LOADOUT_STANDARD
 	var _rebuilt := classes.catalogue.build()
 
-	classes.rules = DotPlayerClassRules.instant()
+	classes.rules = GSPlayerClassRules.instant()
 	classes.team_fn = func(key: String) -> StringName: return teams.team_of(key)
 	classes.alive_fn = _alive_of_key
 	classes.live_fn = func() -> bool: return game.match_node.is_live()
@@ -288,7 +288,7 @@ func _build_classes() -> void:
 	var res := classes.setup()
 
 	if not res.ok:
-		DotLog.error(CHANNEL, "class manager", {"why": res.error.message})
+		GSLog.error(CHANNEL, "class manager", {"why": res.error.message})
 
 
 ## How a respawn picks its site, as the server owner set it (`fc_spawn_*` cvars):
@@ -308,11 +308,11 @@ const SPAWN_MODES := ["avoid", "weighted", "furthest", "random"]
 
 
 func _build_spawns() -> void:
-	spawns = DotSpawnDirector.new()
+	spawns = GSSpawnDirector.new()
 	spawns.name = "Spawns"
 	spawns.tick_rate = game.tick_rate
 	spawns.register_service = false
-	spawns.rules = DotSpawnRules.deathmatch()
+	spawns.rules = GSSpawnRules.deathmatch()
 	spawns.rules.seed_value = 0x4A5E4
 	spawns.enemies_fn = _enemy_positions
 	spawns.friends_fn = _friend_positions
@@ -329,9 +329,9 @@ func _build_spawns() -> void:
 ## Re-reads the mode's spawn protection into the director's rules.
 ##
 ## [b]One duration, three consumers, and they used to be two durations.[/b] Spawn
-## protection is enforced in three places here: [DotHealth]'s invulnerable window, the
+## protection is enforced in three places here: [GSHealth]'s invulnerable window, the
 ## `arena_protected` effect, and — since the director started choosing — dot-spawn's own
-## ledger. The mode sets `DotMatchRules.spawn_protection_sec` (1.5 s in a free-for-all,
+## ledger. The mode sets `GSMatchRules.spawn_protection_sec` (1.5 s in a free-for-all,
 ## 2.5 s in the horde) and the effect table carried a hardcoded two seconds, so a
 ## free-for-all player was protected for 1.5 s by one gate and 2.0 s by another. Which
 ## one a hit met depended on the order the two were asked in.
@@ -353,19 +353,19 @@ func refresh_spawn_rules() -> void:
 
 	match mode:
 		"scatter":
-			spawns.rules.mode = DotSpawnRules.Mode.RANDOM
+			spawns.rules.mode = GSSpawnRules.Mode.RANDOM
 			spawns.rules.minimum_enemy_distance = 0.0
 		"random":
-			spawns.rules.mode = DotSpawnRules.Mode.RANDOM
+			spawns.rules.mode = GSSpawnRules.Mode.RANDOM
 			spawns.rules.minimum_enemy_distance = 0.0
 		"furthest":
-			spawns.rules.mode = DotSpawnRules.Mode.FURTHEST
+			spawns.rules.mode = GSSpawnRules.Mode.FURTHEST
 			spawns.rules.minimum_enemy_distance = 0.0
 		"weighted":
-			spawns.rules.mode = DotSpawnRules.Mode.SAFEST
+			spawns.rules.mode = GSSpawnRules.Mode.SAFEST
 			spawns.rules.minimum_enemy_distance = 0.0
 		_:
-			spawns.rules.mode = DotSpawnRules.Mode.SAFEST
+			spawns.rules.mode = GSSpawnRules.Mode.SAFEST
 			spawns.rules.minimum_enemy_distance = maxf(float(spawn_settings.get("min_enemy", 10.0)), 0.0)
 
 	spawns.rules.visible_penalty = maxf(float(spawn_settings.get("sight_penalty", 500.0)), 0.0)
@@ -373,7 +373,7 @@ func refresh_spawn_rules() -> void:
 
 	# [b]Off, and not because breaking on attack is wrong.[/b] It is the behaviour a
 	# deathmatch wants — firing out of your own spawn should end the window. But only
-	# ONE of the three gates above can be revoked: [DotHealth] counts to a tick and the
+	# ONE of the three gates above can be revoked: [GSHealth] counts to a tick and the
 	# effect expires on its own, and neither has a "somebody shot" input. Revoking the
 	# ledger alone would make a player who fired stop being protected by the resolver
 	# and stay protected by the other two, which is worse than either answer.
@@ -385,8 +385,8 @@ func refresh_spawn_rules() -> void:
 ## Re-reads the game's spawn points into the director. Call after a map change.
 ##
 ## [b]dot-match's spawn points are the source, and are not replaced.[/b] A mapper
-## places a `DotSpawnPoint`, dot-match picks one for a respawn, and this reads the same
-## nodes into `DotSpawnSite` values so that the richer selector — conditions, occupancy,
+## places a `GSSpawnPoint`, dot-match picks one for a respawn, and this reads the same
+## nodes into `GSSpawnSite` values so that the richer selector — conditions, occupancy,
 ## visibility, protection — can be asked as well. Two systems reading one set of markers
 ## is fine; two systems owning two sets of markers is a map that spawns people in
 ## different places depending on which asked.
@@ -399,7 +399,7 @@ func refresh_spawns() -> void:
 
 	for point in game.match_node.spawn_points():
 		var at: Transform3D = point.spawn_transform()
-		var site := DotSpawnSite.point(
+		var site := GSSpawnSite.point(
 			StringName(point.name), at.origin, at.basis.get_euler().y
 		)
 		# dot-match calls it `weight` and means the same thing: which point is preferred
@@ -411,7 +411,7 @@ func refresh_spawns() -> void:
 		site.enabled = point.enabled
 		# [b]And the side it belongs to, which the copy used to leave out.[/b] The map
 		# tags a team's points and dot-match sends each side to its own through
-		# `DotTeam.spawn_tag`; a site with no team admits everybody, so once the director
+		# `GSTeam.spawn_tag`; a site with no team admits everybody, so once the director
 		# was the one choosing, a team mode spawned both sides out of one pool again —
 		# the thing the tags were written to stop. Found by the first check that looked
 		# at WHICH spawn a team player landed on (`[arena-mapchange-floor-1]`).
@@ -426,18 +426,18 @@ func refresh_spawns() -> void:
 		spawns.ensure_generated(String(game.map.id))
 		var applied := spawns.load_overrides(spawn_overrides, String(game.map.id))
 		if not applied.ok:
-			DotLog.warn(CHANNEL, "spawn overrides not read", {"why": applied.error.message})
+			GSLog.warn(CHANNEL, "spawn overrides not read", {"why": applied.error.message})
 
-	DotLog.debug(CHANNEL, "spawn sites", {"count": spawns.sites().size()})
+	GSLog.debug(CHANNEL, "spawn sites", {"count": spawns.sites().size()})
 
 
 ## The per-map spawn edits an admin authors in the workbench (`spawn` profile kind); [method refresh_spawns] applies them.
-var spawn_overrides: DotProfileSet = DotSpawnOverrides.make_set("arena")
+var spawn_overrides: GSProfileSet = GSSpawnOverrides.make_set("arena")
 
 
 ## Floor candidates for a map that ships too few spawn points, found with the map's own trace.
-func _generate_sites(count: int, clearance: float, _map_id: String) -> Array[DotSpawnSite]:
-	var trace: DotTrace = game.combat.trace if game != null and game.combat != null else null
+func _generate_sites(count: int, clearance: float, _map_id: String) -> Array[GSSpawnSite]:
+	var trace: GSTrace = game.combat.trace if game != null and game.combat != null else null
 	if trace == null or game.map == null:
 		return []
 	var ray := func(from: Vector3, to: Vector3) -> Dictionary:
@@ -447,20 +447,20 @@ func _generate_sites(count: int, clearance: float, _map_id: String) -> Array[Dot
 			return {}
 		var hit := trace.ray(from, span / length, length)
 		return {"position": hit.point, "normal": hit.normal} if hit.ok() else {}
-	return DotSpawnFloorSampler.sample(game.map.bounds, count, clearance, ray)
+	return GSSpawnFloorSampler.sample(game.map.bounds, count, clearance, ray)
 
 
 func _build_spectate() -> void:
-	spectate = DotTeamSpectate.new()
+	spectate = GSTeamSpectate.new()
 	spectate.name = "Spectate"
 	spectate.teams = teams
 	spectate.register_service = false
-	spectate.rules = DotTeamSpectateRules.competitive()
+	spectate.rules = GSTeamSpectateRules.competitive()
 	spectate.alive_fn = _alive_of_key
 	spectate.pose_fn = _pose_of_key
 	spectate.round_live_fn = func() -> bool: return game.match_node.is_live()
 
-	var sr := DotSpectatorRules.new()
+	var sr := GSSpectatorRules.new()
 	# Fatal Contact is a free-for-all, so there is no "own side" to be restricted to and a
 	# restriction would forbid everything.
 	sr.force_camera = 0
@@ -472,7 +472,7 @@ func _build_spectate() -> void:
 	var res := spectate.setup()
 
 	if not res.ok:
-		DotLog.error(CHANNEL, "team spectate", {"why": res.error.message})
+		GSLog.error(CHANNEL, "team spectate", {"why": res.error.message})
 
 
 func _connect_game() -> void:
@@ -492,7 +492,7 @@ func _on_player_added(player: FcPlayer) -> void:
 	var res := roster.join(key, player.display_name, player.player_id, game.current_tick())
 
 	if not res.ok:
-		DotLog.warn(CHANNEL, "player not added to the roster", {
+		GSLog.warn(CHANNEL, "player not added to the roster", {
 			"key": key, "why": res.error.message
 		})
 		return
@@ -529,7 +529,7 @@ func _on_player_spawned(player: FcPlayer) -> void:
 		spectate.end(key)
 
 
-func _on_player_killed(entry: DotKillFeed.Entry) -> void:
+func _on_player_killed(entry: GSKillFeed.Entry) -> void:
 	if not game.is_authority:
 		return
 
@@ -569,7 +569,7 @@ func _adopt_match_sides() -> void:
 			# No sides now, so nobody keeps the last mode's. A free-for-all whose roster still
 			# said blue and red was one where dot-team's `are_allies` called old team-mates
 			# friends, to dot-spectate and anything else that asks it.
-			var _cleared := teams.force_team(key, DotTeamSet.UNASSIGNED, &"match")
+			var _cleared := teams.force_team(key, GSTeamSet.UNASSIGNED, &"match")
 
 
 ## Drops a player from every record. Call from `FcGame.remove_player`.
@@ -618,7 +618,7 @@ func tick(current_tick: int) -> void:
 ## [b]Signal order, and it is not hypothetical.[/b] A map change emits `map_changed` and
 ## respawns everybody, and nothing orders this node's handler before the respawn. When it
 ## lost that race the director still held the previous map's points and answered — with a
-## real site, a real transform and a successful `DotResult` — a coordinate from a map
+## real site, a real transform and a successful `GSResult` — a coordinate from a map
 ## nobody was standing in. game-airdrift hit exactly this and its surf section found it as
 ## a bot that never left the ground; the only reason it is not already a bug here is that
 ## `_on_respawn_due` had never asked the director at all.
@@ -636,7 +636,7 @@ func _ensure_sites_current() -> void:
 ## dot-match's own choice and this was offered beside it — which meant the director was
 ## built, fed every site on the map, ticked every tick, and never asked anything. The
 ## visible half of that was harmless (dot-match picks a reasonable point). The invisible
-## half was not: [DotSpawnProtection] is granted inside [method DotSpawnDirector.choose]
+## half was not: [GSSpawnProtection] is granted inside [method GSSpawnDirector.choose]
 ## and nowhere else, so `spawns.protection.advance()` in [method tick] was draining a
 ## ledger that was always empty, for ever, while reading exactly like working spawn
 ## protection.
@@ -644,11 +644,11 @@ func _ensure_sites_current() -> void:
 ## dot-match's points are still the source — see [method refresh_spawns]. What this adds
 ## on top of picking one of them is the part dot-match has no model for: enemy distance,
 ## line of sight, occupancy, per-site cooldown, and the protection window.
-func choose_spawn(id: int) -> DotResult:
+func choose_spawn(id: int) -> GSResult:
 	_ensure_sites_current()
 
 	var key := str(id)
-	var request := DotSpawnRequest.make(
+	var request := GSSpawnRequest.make(
 		key, teams.team_of(key), classes.class_of(key), game.current_tick()
 	)
 	return spawns.choose(request)
@@ -656,7 +656,7 @@ func choose_spawn(id: int) -> DotResult:
 
 ## Writes the player's class numbers onto their health and their movement.
 ##
-## [b]The class document reached nothing at all before this.[/b] `DotPlayerClassDef`
+## [b]The class document reached nothing at all before this.[/b] `GSPlayerClassDef`
 ## carries `max_health`, `max_armour`, regeneration, a move-speed scale, a jump scale, a
 ## mass and a knockback scale; the manager decided who was what, emitted it, and every
 ## one of those numbers was read by nobody. A catalogue a server can validate is only
@@ -665,7 +665,7 @@ func choose_spawn(id: int) -> DotResult:
 ## [b]`base_tunables` is why this can run on every spawn.[/b] The scales multiply, so
 ## applying one to an object that already carries it compounds: 0.8 twice is 0.64, and a
 ## player who respawned four times would be at 0.41 of the speed with every number in the
-## inspector looking deliberate. `DotPlayerClassApply` reads the untouched base and writes
+## inspector looking deliberate. `GSPlayerClassApply` reads the untouched base and writes
 ## the product, which makes a respawn idempotent.
 ##
 ## Fatal Contact ships one class, so today this changes nothing visible — which is exactly when a
@@ -678,14 +678,14 @@ func apply_class_numbers(player: FcPlayer) -> void:
 	var def := classes.def_of(str(player.player_id))
 
 	# Before the null return: no class must clear what the last spawn wrote.
-	var _kinds := DotGameClassImmunity.apply(game.combat, def, player.player_id)
+	var _kinds := GSGameClassImmunity.apply(game.combat, def, player.player_id)
 
 	if def == null:
 		return
 
-	# Not reset to full here: `FcPlayer.spawn` already calls `DotHealth.reset`, and
+	# Not reset to full here: `FcPlayer.spawn` already calls `GSHealth.reset`, and
 	# two resets on one spawn is one of them undoing the other's protection window.
-	var _h := DotPlayerClassApply.to_health(def, player.health)
+	var _h := GSPlayerClassApply.to_health(def, player.health)
 	player.apply_class_movement(def)
 
 
@@ -703,12 +703,12 @@ func give_class_loadout(player: FcPlayer) -> bool:
 	if def == null:
 		return false
 
-	var res := DotWeaponPlayerBridge.give_class_loadout(
+	var res := GSWeaponPlayerBridge.give_class_loadout(
 		player.arsenal, def, loadout_weapons()
 	)
 
 	if not res.ok:
-		DotLog.debug(CHANNEL, "no class loadout", {
+		GSLog.debug(CHANNEL, "no class loadout", {
 			"key": str(player.player_id), "why": res.error.message
 		})
 		return false
@@ -719,9 +719,9 @@ func give_class_loadout(player: FcPlayer) -> bool:
 ## Whether spawn protection should stop [param attacker] hurting [param victim].
 ##
 ## Handed to the damage path through [FcEffects.adjust_damage], which owns
-## `DotDamageResolver.adjust`. Self damage is never blocked and world damage is not
+## `GSDamageResolver.adjust`. Self damage is never blocked and world damage is not
 ## either — a protected player who walks into a pit is meant to die in it — and both of
-## those decisions are [DotSpawnProtection]'s rather than this file's.
+## those decisions are [GSSpawnProtection]'s rather than this file's.
 func blocks_damage(
 	attacker_key: String, victim_key: String, tick: int, world_damage: bool = false
 ) -> bool:
@@ -737,7 +737,7 @@ func blocks_damage(
 ## [code]int[/code] and treats 0 as no team at all — two entities with no team are never
 ## team-mates, so a free-for-all cannot accidentally become a truce. The playing sides
 ## are numbered from 1 in the order the set declares them, which is the same rule
-## `DotTeamRoster._match_team_id` uses to push an assignment down into dot-match.
+## `GSTeamRoster._match_team_id` uses to push an assignment down into dot-match.
 ##
 ## Somebody unassigned, spectating, or not in the roster at all gets 0. That is the part
 ## a hardcoded `return 1` got wrong: a spectator read as a team-mate of everybody.

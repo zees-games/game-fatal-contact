@@ -8,7 +8,7 @@ const HURT_MAP := &"surf_xiv_v2a"
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -58,16 +58,16 @@ func _run() -> void:
 	_line("arena — imported combat surf maps")
 	_line("")
 
-	if DotGameShardArgs.is_merge():
+	if GSGameShardArgs.is_merge():
 		_merging = true
 		_section("the shards' logs")
-		var logs := DotGameShardArgs.merge_logs()
-		var missing := DotGameShardArgs.missing(logs)
+		var logs := GSGameShardArgs.merge_logs()
+		var missing := GSGameShardArgs.missing(logs)
 		_check(not logs.is_empty() and missing.is_empty(), "every shard's log is there (%d logs)" % logs.size(), "missing %s" % [missing])
 		_done()
 		_finish()
 		return
-	_shard = DotGameShardArgs.shard()
+	_shard = GSGameShardArgs.shard()
 
 	if FcMap.imported_ids().is_empty():
 		_line("no imported maps under %s — nothing to check" % FcImportedMaps.roots()[0])
@@ -192,9 +192,9 @@ func _test_shots() -> void:
 
 ## The bots' sight ray (one ray query: no Hit, no material lookup) answers as the trace's own line_of_sight,
 ## on 200 seeded rays around the spawn.
-func _check_sight_ray(trace: DotTrace, eye: Vector3) -> void:
+func _check_sight_ray(trace: GSTrace, eye: Vector3) -> void:
 	var world := FcBots.world_for(_game)
-	var fast := trace is DotTracePhysics and FcBots.World._plain_sight_trace(trace)
+	var fast := trace is GSTracePhysics and FcBots.World._plain_sight_trace(trace)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 0x5197
 	var same := 0
@@ -203,7 +203,7 @@ func _check_sight_ray(trace: DotTrace, eye: Vector3) -> void:
 		var from := eye + Vector3(rng.randf_range(-12.0, 12.0), rng.randf_range(-1.0, 2.0), rng.randf_range(-12.0, 12.0))
 		var to := eye + Vector3(rng.randf_range(-30.0, 30.0), rng.randf_range(-1.0, 3.0), rng.randf_range(-30.0, 30.0))
 		var want := trace.line_of_sight(from, to)
-		if fast and world._sight_ray(trace as DotTracePhysics, from, to) == want:
+		if fast and world._sight_ray(trace as GSTracePhysics, from, to) == want:
 			same += 1
 		if not want:
 			blocked += 1
@@ -228,9 +228,9 @@ func _test_mechanics() -> void:
 		return
 
 	var player := _fresh(4)
-	var probe := DotFpsPhysicsBody.for_node(_game.map.collision_root)
+	var probe := GSFpsPhysicsBody.for_node(_game.map.collision_root)
 	var tunables := player.controller.tunables
-	var idle := {4: [DotFpsCommand.new(), DotWeaponCommand.new()]}
+	var idle := {4: [GSFpsCommand.new(), GSWeaponCommand.new()]}
 
 	# A booster: the strongest sideways push lying on a floor. Stood on, it carries the
 	# player along it and, on leaving, throws them on at its speed.
@@ -284,9 +284,9 @@ func _test_mechanics() -> void:
 		"put in water to the chest, the player swims (mode %s)" % player.controller.motor.mode_name(player.controller.state.mode))
 	_check(sunk > 0.2 and sunk < 0.9 and sink_speed < 2.0,
 		"and pressing nothing sinks, slowly: %.2f m in half a second, %.2f m/s" % [sunk, sink_speed])
-	var jump := DotFpsCommand.new()
-	jump.set_button(DotFpsCommand.BUTTON_JUMP, true)
-	var held := {4: [jump, DotWeaponCommand.new()]}
+	var jump := GSFpsCommand.new()
+	jump.set_button(GSFpsCommand.BUTTON_JUMP, true)
+	var held := {4: [jump, GSWeaponCommand.new()]}
 	var out_at := -1
 	for i in range(TICK_RATE * 2):
 		_game.tick(held)
@@ -315,11 +315,11 @@ func _test_mechanics() -> void:
 				continue
 			tried += 1
 			player.controller.teleport(at, rad_to_deg(atan2(away.x, away.z)), 0.0)
-			var climb := DotFpsCommand.new()
+			var climb := GSFpsCommand.new()
 			climb.move = Vector2(0.0, 1.0)
 			climb.yaw = rad_to_deg(atan2(away.x, away.z))
 			climb.pitch = 40.0
-			var up := {4: [climb, DotWeaponCommand.new()]}
+			var up := {4: [climb, GSWeaponCommand.new()]}
 			var from := at.y
 			var on := 0
 			var high := from
@@ -345,7 +345,7 @@ func _test_mechanics() -> void:
 	var grabbed := false
 	if not best_climb.is_empty():
 		player.controller.teleport(best_at, 0.0, 0.0)
-		player.controller.state.mode = DotFpsState.Mode.AIR
+		player.controller.state.mode = GSFpsState.Mode.AIR
 		player.ladder._jumped_off_tick = player.ladder.now + 6
 		for _i in range(4):
 			_game.tick(best_climb)
@@ -380,17 +380,17 @@ func _test_hurt() -> void:
 	_game.freeze_sec = 0.0
 	_game.match_node.rules.countdown_sec = 0.0
 	var player := _fresh(5)
-	var idle := {5: [DotFpsCommand.new(), DotWeaponCommand.new()]}
+	var idle := {5: [GSFpsCommand.new(), GSWeaponCommand.new()]}
 	# Past the spawn protection the map change gave everybody: this is about the hurt.
 	await _ticks(_game.match_node.spawn_protection_ticks() + 2)
 
-	var dealt: Array[DotDamage] = []
-	var on_damage := func(d: DotDamage) -> void:
+	var dealt: Array[GSDamage] = []
+	var on_damage := func(d: GSDamage) -> void:
 		if d.victim == 5:
 			dealt.append(d)
 	_game.combat.damage_applied.connect(on_damage)
-	var feed: Array[DotKillFeed.Entry] = []
-	var on_kill := func(e: DotKillFeed.Entry) -> void:
+	var feed: Array[GSKillFeed.Entry] = []
+	var on_kill := func(e: GSKillFeed.Entry) -> void:
 		if e.victim_key == "5":
 			feed.append(e)
 	_game.player_killed.connect(on_kill)
@@ -483,7 +483,7 @@ func _test_every_map() -> void:
 		if solid.get_child_count() > 0:
 			built += 1
 
-		var body := map.movement_body() as DotFpsPhysicsBody
+		var body := map.movement_body() as GSFpsPhysicsBody
 		# Its own collision layer, and the body asks only that one. The game from the
 		# earlier sections still has its map loaded in this same physics world, and a
 		# spawn of the map under test standing where that map has a wall was counted
@@ -533,7 +533,7 @@ func _test_every_map() -> void:
 	_done()
 
 
-## dot-core's [DotCollisionAudit] over every imported map as a client draws it (the drawn brushes
+## dot-core's [GSCollisionAudit] over every imported map as a client draws it (the drawn brushes
 ## beside the collision the game builds): geometry with no shape near it is a wall a player
 ## walks into. Fails on any finding; what is meant to be walked through is opted out in
 ## `fc_bsp_map.gd` with the reason.
@@ -547,12 +547,12 @@ func _test_collision_audit() -> void:
 		world.add_child(map.to_collision())
 		add_child(world)
 
-		var res := DotCollisionAudit.audit(world, true)
+		var res := GSCollisionAudit.audit(world, true)
 		var found := 0
 		var examined := 0
 
 		if res.ok:
-			var report: DotCollisionAudit = res.value
+			var report: GSCollisionAudit = res.value
 			found = report.count()
 			examined = report.examined
 			_line("     %s: %d findings of %d examined" % [id, found, examined])

@@ -49,8 +49,8 @@ func _test_spectating() -> void:
 
 	var view := game.spectate.manager.view(str(victim))
 	_check(
-		view.mode == DotSpectatorView.Mode.DEATH_CAM,
-		"starting with the death camera", DotSpectatorView.Mode.keys()[view.mode]
+		view.mode == GSSpectatorView.Mode.DEATH_CAM,
+		"starting with the death camera", GSSpectatorView.Mode.keys()[view.mode]
 	)
 
 	# The whole chain, and the hand-over at the end of it.
@@ -58,10 +58,10 @@ func _test_spectating() -> void:
 		game.tick({})
 
 	_check(
-		view.mode == DotSpectatorView.Mode.FIRST_PERSON
-		or view.mode == DotSpectatorView.Mode.CHASE,
+		view.mode == GSSpectatorView.Mode.FIRST_PERSON
+		or view.mode == GSSpectatorView.Mode.CHASE,
 		"and ending on somebody alive rather than on their killer",
-		DotSpectatorView.Mode.keys()[view.mode]
+		GSSpectatorView.Mode.keys()[view.mode]
 	)
 	_check(view.target != "", "with a target", view.target)
 	_check(
@@ -92,7 +92,7 @@ func _test_spectating() -> void:
 	await get_tree().process_frame
 	_done()
 
-func _test_free_roam_rest(game: FcGame, victim: int, rules: DotSpectatorRules) -> void:
+func _test_free_roam_rest(game: FcGame, victim: int, rules: GSSpectatorRules) -> void:
 	_check(
 		not game.spectate.is_roaming(str(victim)),
 		"a restricted camera moves a roamer back onto a player"
@@ -161,15 +161,15 @@ func _ffa_spawn_scenario(game: FcGame, when: String) -> void:
 	var saved_mode := stack.spawns.rules.mode
 	# The default scatter strategy draws across the map; these checks score the map sites.
 	stack.spawns.rules.strategy = "map"
-	stack.spawns.rules.mode = DotSpawnRules.Mode.FURTHEST
+	stack.spawns.rules.mode = GSSpawnRules.Mode.FURTHEST
 	stack.spawns.clear_sites()
-	stack.spawns.add_site(DotSpawnSite.point(&"beside_the_friend", site_a))
-	stack.spawns.add_site(DotSpawnSite.point(&"twelve_from_enemies", site_b))
+	stack.spawns.add_site(GSSpawnSite.point(&"beside_the_friend", site_a))
+	stack.spawns.add_site(GSSpawnSite.point(&"twelve_from_enemies", site_b))
 
 	var chosen := stack.choose_spawn(respawner)
 	var picked := ""
 	if chosen.ok:
-		picked = String((chosen.value as DotSpawnChoice).site.id)
+		picked = String((chosen.value as GSSpawnChoice).site.id)
 
 	stack.spawns.rules.mode = saved_mode
 	stack.refresh_spawns()
@@ -181,7 +181,7 @@ func _ffa_spawn_scenario(game: FcGame, when: String) -> void:
 		"picked '%s' %s" % [picked, "" if chosen.ok else str(chosen.error)]
 	)
 
-func _sight_scenario_rest(chosen: DotResult, picked: String) -> void:
+func _sight_scenario_rest(chosen: GSResult, picked: String) -> void:
 	_check(
 		picked == "behind_the_wall",
 		"and of two sites as far from the enemy, the director picks the one it cannot see",
@@ -251,14 +251,14 @@ func _spawn_sight_scenario(game: FcGame) -> void:
 	var saved_mode := stack.spawns.rules.mode
 	var saved_floor := stack.spawns.rules.minimum_enemy_distance
 	stack.spawns.rules.strategy = "map"
-	stack.spawns.rules.mode = DotSpawnRules.Mode.SAFEST
+	stack.spawns.rules.mode = GSSpawnRules.Mode.SAFEST
 	stack.spawns.rules.minimum_enemy_distance = 0.0
 	stack.spawns.clear_sites()
 	# The open site first, so a tie would pick it: only the sight penalty separates them.
-	stack.spawns.add_site(DotSpawnSite.point(&"open", open))
-	stack.spawns.add_site(DotSpawnSite.point(&"behind_the_wall", hidden))
+	stack.spawns.add_site(GSSpawnSite.point(&"open", open))
+	stack.spawns.add_site(GSSpawnSite.point(&"behind_the_wall", hidden))
 	var chosen := stack.choose_spawn(900)
-	var picked := String((chosen.value as DotSpawnChoice).site.id) if chosen.ok else ""
+	var picked := String((chosen.value as GSSpawnChoice).site.id) if chosen.ok else ""
 	stack.spawns.rules.mode = saved_mode
 	stack.spawns.rules.minimum_enemy_distance = saved_floor
 	stack.refresh_spawns()
@@ -345,8 +345,8 @@ func _test_king_of_the_hill() -> void:
 	_check(game.objectives != null, "and has objectives")
 	_check(game.objectives.layout == &"koth", "the koth layout")
 
-	var hill := game.objectives.manager.objective(&"hill") as DotObjectiveCapture
-	var clock := game.objectives.manager.objective(&"koth_clock") as DotObjectiveHoldout
+	var hill := game.objectives.manager.objective(&"hill") as GSObjectiveCapture
+	var clock := game.objectives.manager.objective(&"koth_clock") as GSObjectiveHoldout
 	_check(hill != null and clock != null, "a point and a clock")
 	_check(clock.linked == hill, "and the clock reads the point's owner")
 
@@ -463,8 +463,8 @@ func _test_capture_the_flag() -> void:
 		return
 
 	game.start(0)
-	var red_flag := game.objectives.manager.objective(&"flag_1") as DotObjectiveFlag
-	var blue_flag := game.objectives.manager.objective(&"flag_2") as DotObjectiveFlag
+	var red_flag := game.objectives.manager.objective(&"flag_1") as GSObjectiveFlag
+	var blue_flag := game.objectives.manager.objective(&"flag_2") as GSObjectiveFlag
 	_check(red_flag != null and blue_flag != null, "there are two flags")
 	_check(
 		red_flag.home_team() != blue_flag.home_team(),
@@ -515,9 +515,9 @@ func _test_capture_the_flag() -> void:
 	_kill_through_combat(game, defender, thief)
 	game.tick({})
 	_check(
-		red_flag.state == DotObjectiveFlag.State.DROPPED,
+		red_flag.state == GSObjectiveFlag.State.DROPPED,
 		"and a carrier who dies drops it",
-		DotObjectiveFlag.State.keys()[red_flag.state]
+		GSObjectiveFlag.State.keys()[red_flag.state]
 	)
 
 	game.queue_free()
@@ -583,7 +583,7 @@ func _test_free_roam() -> void:
 		"seeded where the camera was, not at the origin"
 	)
 
-	var cam := DotSpectatorFreeCam.new()
+	var cam := GSSpectatorFreeCam.new()
 	cam.rules = rules
 	cam.seed_from(game.spectate.camera_for(str(victim)))
 	var moved := cam.step(Vector3(0.0, 0.0, 1.0), false, false, 1.0)

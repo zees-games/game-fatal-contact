@@ -1,12 +1,12 @@
 extends RefCounted
 
-## Every key this game reads, as one dot-menu [DotMenuBindings] table: the action, the
+## Every key this game reads, as one dot-menu [GSMenuBindings] table: the action, the
 ## setting that stores it, the words on the Controls page, the default and the card it
 ## goes on.
 ##
 ## [b]A table, because four things read it and they must never disagree:[/b] the InputMap,
 ## the settings document (one binding setting per row, declared by
-## [method DotMenuBindings.add_to_schema]), the menu's Controls page and its help screen.
+## [method GSMenuBindings.add_to_schema]), the menu's Controls page and its help screen.
 ## Before dot-menu this game had dot-ui's rebinder, which filtered the InputMap on two
 ## prefixes and saved to a file of its own beside the settings document.
 ##
@@ -58,14 +58,14 @@ const WEAPON_LAST := &"arena_weapon_last"
 const PUNT := &"arena_punt"
 const FIRE_MODE := &"arena_fire_mode"
 ## The attachments menu on the gun in hand (dot-weapon's action, so its menu closes on the same key).
-const ATTACH := DotWeaponAttachMenu.ACTION
+const ATTACH := GSWeaponAttachMenu.ACTION
 const WEAPON_DROP := &"arena_weapon_drop"
 const USE := &"arena_use"
 ## First or third person, where the server allows it (`mp_forceview`).
 const VIEW := &"arena_view"
 ## The spectator's free camera, on and off (`mp_freeroam`). Its flying keys are the movement keys.
 const ROAM := &"arena_roam"
-## dot-voice's action (DotVoiceManager.TALK_ACTION), so the talk key is one setting with every
+## dot-voice's action (GSVoiceManager.TALK_ACTION), so the talk key is one setting with every
 ## other game's; still stored as bind_voice.
 const VOICE := &"dot_voice_talk"
 const VOICE_GAG := &"voice_gag"
@@ -74,8 +74,8 @@ const VOICE_MUTE := &"voice_mute"
 
 ## The key table. The wheel rows are written by name ("Wheel up" / "Wheel down"): a pack
 ## asks for dot-ui 4 (requires.floor.json), and dot-ui names the wheel from level 2.
-static func make() -> DotMenuBindings:
-	var keys := DotMenuBindings.new()
+static func make() -> GSMenuBindings:
+	var keys := GSMenuBindings.new()
 	# Duck is also the slide: a slide IS a duck at a run. C is added beside it while the row
 	# is on its default and no other row has C ([method FcClient._add_slide_key]).
 	keys.add_movement("Movement", "Ctrl", "Duck / slide")
@@ -102,10 +102,10 @@ static func make() -> DotMenuBindings:
 	keys.add(FIRE_MODE, &"bind_fire_mode", "Cycle fire mode (semi / burst / auto)", "N", "Weapons")
 	keys.add(ATTACH, &"bind_attach", "Attachments on the weapon in hand", "I", "Weapons")
 
-	keys.add(CHAT, &"chat_open_key", "Chat", "Y", "Chat", DotSettingsDef.Scope.ACCOUNT)
-	keys.add(CHAT_TEAM, &"chat_team_key", "Team chat", "U", "Chat", DotSettingsDef.Scope.ACCOUNT)
+	keys.add(CHAT, &"chat_open_key", "Chat", "Y", "Chat", GSSettingsDef.Scope.ACCOUNT)
+	keys.add(CHAT_TEAM, &"chat_team_key", "Team chat", "U", "Chat", GSSettingsDef.Scope.ACCOUNT)
 	keys.add(VOICE, &"bind_voice", "Push to talk", "V", "Chat")
-	# Look at a player and press (dot-game's DotGameClient): G is the punt and H is help here.
+	# Look at a player and press (dot-game's GSGameClient): G is the punt and H is help here.
 	keys.add(VOICE_GAG, &"bind_voice_gag", "Look at a player: stop (or resume) hearing them", "J", "Chat")
 	keys.add(VOICE_MUTE, &"bind_voice_mute", "Look at a player: mute (or unmute) their voice and chat", "K", "Chat")
 	keys.add(SCOREBOARD, &"bind_scoreboard", "Scoreboard (hold)", "Tab", "Interface")
@@ -116,12 +116,12 @@ static func make() -> DotMenuBindings:
 	# M is the map menu, in every game of the family (dot-menu's `dot_menu_maps`).
 	var _m := keys.add_maps("Interface")
 	# B is the loadout menu (dot-menu's `dot_menu_loadout`), where the host has it (API 6).
-	if DotAddonApi.build_level("dot_menu") >= 21 and keys.has_method(&"add_modes"):
+	if GSAddonApi.build_level("dot_menu") >= 21 and keys.has_method(&"add_modes"):
 		var _g: Variant = keys.call(&"add_modes", "Interface")
-	if DotAddonApi.build_level("dot_menu") >= 6 and keys.has_method(&"add_loadout"):
+	if GSAddonApi.build_level("dot_menu") >= 6 and keys.has_method(&"add_loadout"):
 		var _l: Variant = keys.call(&"add_loadout", "Weapons")
 	# Period is the team menu (dot-menu API 17): the teams, or Play and Spectate in a free-for-all.
-	if DotAddonApi.build_level("dot_menu") >= 17 and keys.has_method(&"add_teams"):
+	if GSAddonApi.build_level("dot_menu") >= 17 and keys.has_method(&"add_teams"):
 		var _t: Variant = keys.call(&"add_teams", "Interface")
 	var _r := keys.renamed(&"bind_bash", ["F"]).renamed(&"bind_launch_props", ["X", "N"]).renamed(&"bind_fire_mode", ["L"])
 	return keys

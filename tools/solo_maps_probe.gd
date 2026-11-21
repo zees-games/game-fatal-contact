@@ -13,7 +13,7 @@ func _init() -> void:
 
 func _run() -> void:
 	var filter := OS.get_cmdline_user_args()[0] if OS.get_cmdline_user_args().size() > 0 else ""
-	var cloud := DotGameStandaloneContent.install(root)
+	var cloud := GSGameStandaloneContent.install(root)
 	if cloud == null:
 		print("FAIL no content client")
 		quit(1)
@@ -29,7 +29,7 @@ func _run() -> void:
 
 		total += 1
 		var def := FcMaps.delivered_def(key)
-		var res: DotResult = await FcMaps.mount_delivered(def, DotMapLoader.new(), null, true)
+		var res: GSResult = await FcMaps.mount_delivered(def, GSMapLoader.new(), null, true)
 
 		if not res.ok:
 			failed += 1

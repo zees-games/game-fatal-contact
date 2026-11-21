@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Maps copied in by hand: a raw convert folder under `res://addons/maps/<map>/` or `user://maps/<map>/`, listed by dot-map's [code]DotMapLocalMaps[/code] as `<name>_local`. Solo only: the catalogue lists them when [code]FcMaps.list_local[/code] is on
+## Maps copied in by hand: a raw convert folder under `res://addons/maps/<map>/` or `user://maps/<map>/`, listed by dot-map's [code]GSMapLocalMaps[/code] as `<name>_local`. Solo only: the catalogue lists them when [code]FcMaps.list_local[/code] is on
 ## (a solo client and its sim host), and no server rotation, vote or pack ever names one. The folder is dot-map's own mesh format, not the legacy manifest [code]FcImportedMaps[/code] reads, so the map's
 ## spawns, bounds and solid come from the mesh here and its drawing from [code]FcBspMap.world_prefix[/code], which answers a local id with its folder.
 
@@ -12,15 +12,15 @@ const DROP_LEVEL := 24
 static var _meshes: Dictionary = {}
 
 
-## Whether [param id] names a local copy (it ends in [code]DotMapLocalMaps.ID_SUFFIX[/code]).
+## Whether [param id] names a local copy (it ends in [code]GSMapLocalMaps.ID_SUFFIX[/code]).
 static func is_local(id: StringName) -> bool:
-	return String(id).ends_with(DotMapLocalMaps.ID_SUFFIX)
+	return String(id).ends_with(GSMapLocalMaps.ID_SUFFIX)
 
 
 ## Every local map found now, sorted by id.
 static func ids() -> Array[StringName]:
 	var out: Array[StringName] = []
-	for entry: Dictionary in DotMapLocalMaps.scan():
+	for entry: Dictionary in GSMapLocalMaps.scan():
 		out.append(StringName(str(entry["id"])))
 	return out
 
@@ -30,37 +30,37 @@ static func ids() -> Array[StringName]:
 static func is_original(id: StringName) -> bool:
 	if not is_local(id) or not can_drop():
 		return false
-	var local_maps: Object = DotMapLocalMaps  # API 24 by name: a call on the class itself does not parse
-	return bool(local_maps.call(&"is_original", {"name": String(id).trim_suffix(DotMapLocalMaps.ID_SUFFIX)}))
+	var local_maps: Object = GSMapLocalMaps  # API 24 by name: a call on the class itself does not parse
+	return bool(local_maps.call(&"is_original", {"name": String(id).trim_suffix(GSMapLocalMaps.ID_SUFFIX)}))
 
 
 ## Whether the host's dot-map has drops, zips and `_orig` (API 24). The live web shell pins dot-map 23 (fc-publish-blocked-1),
 ## so the floor stays 23 and the API 24 calls go through `call()`, which parses on an older host; remove when the oldest shell is 24.
 static func can_drop() -> bool:
-	return DotAddonApi.build_level("dot_map") >= DROP_LEVEL
+	return GSAddonApi.build_level("dot_map") >= DROP_LEVEL
 
 
 ## The entry for [param id], or empty.
 static func entry(id: StringName) -> Dictionary:
-	return DotMapLocalMaps.find(id) if is_local(id) else {}
+	return GSMapLocalMaps.find(id) if is_local(id) else {}
 
 
 ## The mesh prefix of local map [param id] when it lives in [param map_dir], else empty.
 static func prefix_in(id: String, map_dir: String) -> String:
 	if map_dir.is_empty() or not is_local(StringName(id)):
 		return ""
-	var prefix := map_dir.path_join(id.trim_suffix(DotMapLocalMaps.ID_SUFFIX))
+	var prefix := map_dir.path_join(id.trim_suffix(GSMapLocalMaps.ID_SUFFIX))
 	return prefix if FileAccess.file_exists(prefix + ".json") and FileAccess.file_exists(prefix + ".bin") else ""
 
 
 ## The read mesh of [param found], or null when it does not load (dot-map logs why).
-static func mesh(found: Dictionary) -> DotMapBspMesh:
+static func mesh(found: Dictionary) -> GSMapBspMesh:
 	var prefix := str(found.get("prefix", ""))
-	var version := DotMapLocalMaps.version_of(found)
+	var version := GSMapLocalMaps.version_of(found)
 	var cached: Dictionary = _meshes.get(prefix, {})
 	if not cached.is_empty() and str(cached["version"]) == version:
 		return cached["mesh"]
-	var opened := DotMapLocalMaps.open(found)
+	var opened := GSMapLocalMaps.open(found)
 	if not opened.ok:
 		return null
 	_meshes[prefix] = {"version": version, "mesh": opened.value}
@@ -68,11 +68,11 @@ static func mesh(found: Dictionary) -> DotMapBspMesh:
 
 
 ## The space the world's solid hulls fill, in metres.
-static func bounds_of(got: DotMapBspMesh) -> AABB:
+static func bounds_of(got: GSMapBspMesh) -> AABB:
 	var box := AABB()
 	var first := true
-	var origin := got.model_origin(DotMapBspMesh.WORLD)
-	for hull: Dictionary in got.hull_shapes(DotMapBspMesh.WORLD):
+	var origin := got.model_origin(GSMapBspMesh.WORLD)
+	for hull: Dictionary in got.hull_shapes(GSMapBspMesh.WORLD):
 		for p in (hull["shape"] as ConvexPolygonShape3D).points:
 			if first:
 				box = AABB(p + origin, Vector3.ZERO)
@@ -83,9 +83,9 @@ static func bounds_of(got: DotMapBspMesh) -> AABB:
 
 
 ## The start points as transforms with their tags: `{at, tag}` each, a tag of "" for a spot any side may use.
-static func spawns_of(got: DotMapBspMesh) -> Array[Dictionary]:
+static func spawns_of(got: GSMapBspMesh) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
-	for spot: Dictionary in DotMapLocalMaps.spawns(got):
+	for spot: Dictionary in GSMapLocalMaps.spawns(got):
 		var team := str(spot["team"])
 		out.append({
 			"at": Transform3D(Basis(Vector3.UP, deg_to_rad(float(spot["yaw"]))), spot["origin"]),
@@ -100,13 +100,13 @@ static func build_collision(prefix: String) -> StaticBody3D:
 	var body := StaticBody3D.new()
 	body.name = "ImportedSolid"
 	body.collision_mask = 0
-	var found := DotMapLocalMaps.entry_at(prefix.get_base_dir())
+	var found := GSMapLocalMaps.entry_at(prefix.get_base_dir())
 	var got := mesh(found) if not found.is_empty() else null
 	if got == null:
-		DotLog.error(CHANNEL, "a local map's solid is missing", {"prefix": prefix})
+		GSLog.error(CHANNEL, "a local map's solid is missing", {"prefix": prefix})
 		return body
-	var origin := got.model_origin(DotMapBspMesh.WORLD)
-	for hull: Dictionary in got.hull_shapes(DotMapBspMesh.WORLD):
+	var origin := got.model_origin(GSMapBspMesh.WORLD)
+	for hull: Dictionary in got.hull_shapes(GSMapBspMesh.WORLD):
 		var shape := CollisionShape3D.new()
 		shape.shape = hull["shape"]
 		shape.position = origin

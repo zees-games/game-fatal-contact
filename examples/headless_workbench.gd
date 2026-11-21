@@ -1,6 +1,6 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
-## Fatal Contact's config through the workbench: DotGameWorkbench over the binder's set, an edit, and the
+## Fatal Contact's config through the workbench: GSGameWorkbench over the binder's set, an edit, and the
 ## "Export changes as defaults" diff in the cfg/ layout.
 ##
 ## [codeblock]
@@ -14,7 +14,7 @@ const CHECKS := 12
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_run.call_deferred()
 
 
@@ -23,10 +23,10 @@ func _run() -> void:
 	var game := FcGame.new()
 	var binder := FcConfig.make_binder(game.config)
 	_check(binder.load_layers().ok, "defaults load")
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.panel_mode = 2
 	wb.config = {"enabled": false}
-	var set: DotProfileSet = binder.profile_sets()[0]
+	var set: GSProfileSet = binder.profile_sets()[0]
 	wb.add_set(set, "Game settings")
 	add_child(wb)
 	var started := wb.start()
@@ -36,7 +36,7 @@ func _run() -> void:
 	wb.open()
 	_check(wb.is_open(), "F9 or the command opens it")
 	_check(wb.console_command(PackedStringArray(["close"])) == "workbench closed", "the console command closes it")
-	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": set.rel_path, "id": binder.profile_id, "key": "horde_cap", "value": 12})
+	var res: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": set.rel_path, "id": binder.profile_id, "key": "horde_cap", "value": 12})
 	_check(res.ok and game.config.horde_cap == 12, "an edit in the window reaches the live config")
 	var files: Dictionary = wb.exporter.call("collect")
 	var text: String = files.get("cfg/game/game-arena/config_horde/game.yml", "")
@@ -59,7 +59,7 @@ func _run() -> void:
 	wb.permit_fn = func(actor: Variant, _flag: String) -> bool: return actor == "mod"
 	_check(wb.api.handle("mod", {"op": "set", "kind": set.rel_path, "id": binder.profile_id, "key": "horde_cap", "value": 14}).ok, "a permitted actor edits")
 	wb.free()
-	var lazy := DotGameWorkbench.new()
+	var lazy := GSGameWorkbench.new()
 	lazy.panel_mode = 2
 	lazy.lazy_panel = true
 	lazy.config = {"enabled": false}

@@ -2,7 +2,7 @@
 # Re-records warm.txt (the pack root's warm list: the scripts the web cover compiles before it drops, the rest after it; dot-cloud
 # `dot_cloud/warm/list_file`) from a play path: tools/perf_bench.sh windowed on a GPU box with `--first-use 1 --warm-list 1`, once in
 # ctf (menu to in-game, every weapon equipped, fired, reloaded, a grenade, a hit, a kill, a death) and once in siege (the NPC rows),
-# and the union of their WARM_LIST lines (DotCloudSliceLoader.cached_scripts) written to warm.txt. Run as gamedev, from a checkout:
+# and the union of their WARM_LIST lines (GSCloudSliceLoader.cached_scripts) written to warm.txt. Run as gamedev, from a checkout:
 #   tools/record_warm_list.sh [--box staging02] [--headless]
 # The pack does not ship one today (it made the warm web load 4 s slower, docs/testing.md); measure before committing it.
 # Re-run it when a change adds scripts the first seconds of play load; a script the list lacks still works (compiled after the

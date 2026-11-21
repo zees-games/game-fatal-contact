@@ -44,10 +44,10 @@ const BAD := Color(0.96, 0.36, 0.32)
 const PLATE := Color(0.07, 0.08, 0.1, 0.82)
 const PLATE_HI := Color(0.16, 0.17, 0.2, 0.92)
 
-var _catalogue: DotWeaponAttachments
-var _base: DotWeaponDef
-var _fitting: DotWeaponFitting
-var _peers: Array[DotWeaponDef] = []
+var _catalogue: GSWeaponAttachments
+var _base: GSWeaponDef
+var _fitting: GSWeaponFitting
+var _peers: Array[GSWeaponDef] = []
 var _choices: Dictionary = {}
 var _mounts: Array[StringName] = []
 var _slot := 0

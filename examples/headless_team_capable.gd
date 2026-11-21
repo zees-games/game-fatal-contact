@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -19,7 +19,7 @@ func _ok(cond: bool, label: String, detail: String = "") -> bool:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -28,7 +28,7 @@ func _run() -> void:
 	var tdm := FcMode.team_deathmatch()
 	var catalogue := FcMaps.catalogue()
 	var count := 0
-	for def: DotMapDef in catalogue.maps:
+	for def: GSMapDef in catalogue.maps:
 		count += 1
 		var map: FcMap = FcMap.by_id(def.id)
 		_ok(FcMaps.supports_mode(def, tdm), "%s can host Team Deathmatch" % def.id)

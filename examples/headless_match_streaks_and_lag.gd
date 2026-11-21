@@ -27,16 +27,16 @@ func _kill_through_combat(game: FcGame, killer: int, victim: int, weapon: String
 		return
 	var type := game.combat.damage_type(&"bullet")
 	if type == null:
-		type = DotDamageType.new()
+		type = GSDamageType.new()
 		type.id = &"bullet"
-	# Spawn protection off first: `DotHealth.apply` silently refuses everything while it holds, so a kill right after a spawn
+	# Spawn protection off first: `GSHealth.apply` silently refuses everything while it holds, so a kill right after a spawn
 	# kills nobody and every later check fails for a reason unrelated to its subject.
 	health.invulnerable_until_tick = -1
-	var damage := DotDamage.make(killer, victim, health.health + health.armour + 50.0, type)
+	var damage := GSDamage.make(killer, victim, health.health + health.armour + 50.0, type)
 	damage.tick = game.current_tick()
 	damage.weapon_id = weapon
 	if headshot:
-		damage.hit_group = DotHitGroup.HEAD
+		damage.hit_group = GSHitGroup.HEAD
 	var applied := health.apply(damage)
 	if applied != null and applied.lethal:
 		game.combat.entity_killed.emit(victim, applied)
@@ -276,7 +276,7 @@ func _test_medals_from_a_game() -> void:
 	var order: Array[String] = []
 	var hits: Array[Dictionary] = []
 	var awards: Array[Dictionary] = []
-	game.player_killed.connect(func(_e: DotKillFeed.Entry) -> void: order.append("kill"))
+	game.player_killed.connect(func(_e: GSKillFeed.Entry) -> void: order.append("kill"))
 	game.hit_confirmed.connect(func(a: int, v: int, amount: float, at: Vector3, head: bool, lethal: bool) -> void:
 		hits.append({"a": a, "v": v, "amount": amount, "head": head, "lethal": lethal}))
 	game.medals_awarded.connect(func(k: int, v: int, medals: Array, points: int, streak: int) -> void:
@@ -289,7 +289,7 @@ func _test_medals_from_a_game() -> void:
 	var health := game.combat.health_of(951)
 	health.invulnerable_until_tick = -1
 	var type := game.combat.damage_type(&"bullet")
-	var chip := DotDamage.make(950, 951, 20.0, type)
+	var chip := GSDamage.make(950, 951, 20.0, type)
 	chip.tick = game.current_tick()
 	chip.weapon_id = AwWeaponIds.RIFLE
 	var _c := game.combat.apply_damage(chip)
@@ -299,9 +299,9 @@ func _test_medals_from_a_game() -> void:
 	# Lethal, to the head, with a scoped weapon and the aim not held.
 	var killer := game.player_for(950)
 	killer.aiming = false
-	var shot := DotDamage.make(950, 951, 500.0, type)
+	var shot := GSDamage.make(950, 951, 500.0, type)
 	shot.tick = game.current_tick()
-	shot.hit_group = DotHitGroup.HEAD
+	shot.hit_group = GSHitGroup.HEAD
 	shot.weapon_id = AwWeaponIds.SNIPER
 	var _k := game.combat.apply_damage(shot)
 	_check(hits.size() == 2 and bool(hits[1]["lethal"]) and bool(hits[1]["head"]), "the killing hit is confirmed as lethal and to the head")
@@ -314,16 +314,16 @@ func _test_medals_from_a_game() -> void:
 		"with the kill's points and the killer's streak")
 
 	# The aim bit: the weapon command carries it, the simulation records it.
-	var ask := DotWeaponCommand.new()
+	var ask := GSWeaponCommand.new()
 	ask.set_button(FcPlayer.BUTTON_AIM, true)
-	var _o := killer.simulate_tick(game.current_tick() + 1, 1.0 / 64.0, DotFpsCommand.new(), ask)
+	var _o := killer.simulate_tick(game.current_tick() + 1, 1.0 / 64.0, GSFpsCommand.new(), ask)
 	_check(killer.aiming, "a command with the aim held is a player aiming, on the server")
 
 	# A world death is no medal and no hit confirmed to anybody.
 	var before := hits.size()
 	var awarded_before := awards.size()
 	var world := game.combat.health_of(950)
-	var fall := DotDamage.make(0, 950, 500.0, type)
+	var fall := GSDamage.make(0, 950, 500.0, type)
 	fall.tick = game.current_tick()
 	var _f := game.combat.apply_damage(fall)
 	_check(hits.size() == before and awards.size() == awarded_before, "the world killing somebody confirms no hit and awards nothing")
@@ -335,15 +335,15 @@ func _test_medals_from_a_game() -> void:
 
 ## Forward, jumping and firing: what a player does during a freeze.
 func _jump_and_fire(a: FcPlayer) -> Array:
-	var move := DotFpsCommand.new()
+	var move := GSFpsCommand.new()
 	move.move = Vector2(0.0, 1.0)
 	move.yaw = a.controller.state.yaw
-	move.set_button(DotFpsCommand.BUTTON_JUMP, true)
-	var fire := DotWeaponCommand.new()
+	move.set_button(GSFpsCommand.BUTTON_JUMP, true)
+	var fire := GSWeaponCommand.new()
 	fire.slot = 0
 	fire.yaw = move.yaw
 	fire.pitch = move.pitch
-	fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 	return [move, fire]
 
 ## The countdown before a round holds everybody still, unarmed and unhurtable, and lets go
@@ -357,7 +357,7 @@ func _test_freeze_countdown() -> void:
 		await get_tree().process_frame
 	var a := game.player_for(960)
 	var shots := [0]
-	a.used.connect(func(o: DotWeaponOutcome) -> void: shots[0] += o.shots.size())
+	a.used.connect(func(o: GSWeaponOutcome) -> void: shots[0] += o.shots.size())
 
 	var intent := func() -> Array: return _jump_and_fire(a)
 	for _k in range(TICK_RATE / 2):
@@ -376,10 +376,10 @@ func _test_freeze_countdown() -> void:
 	game.match_node.rules.warmup_sec = 0.0
 	game.start(game.current_tick())
 	var guard := 0
-	while game.match_node.state != DotMatch.State.COUNTDOWN and guard < TICK_RATE * 20:
+	while game.match_node.state != GSMatch.State.COUNTDOWN and guard < TICK_RATE * 20:
 		game.tick({})
 		guard += 1
-	_check(game.match_node.state == DotMatch.State.COUNTDOWN, "the match reaches its countdown")
+	_check(game.match_node.state == GSMatch.State.COUNTDOWN, "the match reaches its countdown")
 	game.tick({})
 	var spot := a.controller.state.position
 	for _k in range(TICK_RATE / 2):
@@ -389,10 +389,10 @@ func _test_freeze_countdown() -> void:
 	_check(shots[0] == 0, "nobody shoots while frozen", str(shots[0]))
 	_check(a.health.invulnerable and game.player_for(961).health.invulnerable, "nobody can be hurt while frozen")
 	guard = 0
-	while game.match_node.state == DotMatch.State.COUNTDOWN and guard < TICK_RATE * 5:
+	while game.match_node.state == GSMatch.State.COUNTDOWN and guard < TICK_RATE * 5:
 		game.tick(cmds)
 		guard += 1
-	_check(game.match_node.state == DotMatch.State.LIVE, "the countdown ends in a live round")
+	_check(game.match_node.state == GSMatch.State.LIVE, "the countdown ends in a live round")
 	for _i in range(6):
 		await get_tree().process_frame
 	# Neither presses a slot key, as a bot never does: spawned into the freeze, both hold the primary.
@@ -400,13 +400,13 @@ func _test_freeze_countdown() -> void:
 		"a spawn into the freeze holds the starting weapon, not the knife", "%d %d" % [a.arsenal.current_slot(), game.player_for(961).arsenal.current_slot()])
 	spot = a.controller.state.position
 	var released := {960: intent.call()}
-	(released[960][1] as DotWeaponCommand).slot = 3
+	(released[960][1] as GSWeaponCommand).slot = 3
 	for _k in range(TICK_RATE * 2):
 		game.tick(released)
-		(released[960][1] as DotWeaponCommand).slot = 0
+		(released[960][1] as GSWeaponCommand).slot = 0
 	_check(a.controller.state.position.distance_to(spot) > 0.5, "players move once the round is live")
 	_check(shots[0] > 0, "and shoot once live", "%d alive=%s dis=%s state=%d" % [shots[0], a.is_alive(), a.arsenal.disabled, game.match_node.state])
-	_check(not a.health.invulnerable and not DotFpsAdminModifiers.is_frozen(a.controller),
+	_check(not a.health.invulnerable and not GSFpsAdminModifiers.is_frozen(a.controller),
 		"and are released exactly: no god mode, no freeze left")
 
 	game.freeze_sec = 0.0
@@ -446,7 +446,7 @@ func _test_lag_compensation() -> void:
 
 	# A fires at where B WAS, as a client drawing B that far behind would.
 	var fire_at := func(view_tick: float) -> bool:
-		var shot := DotShot.make(&"rifle", 940, now, 0)
+		var shot := GSShot.make(&"rifle", 940, now, 0)
 		shot.origin = shooter.global_position + Vector3.UP * 1.5
 		var aim: Vector3 = ((then as Vector3) + Vector3.UP * 1.0) - shot.origin
 		shot.pellets = [aim.normalized()] as Array[Vector3]
@@ -458,7 +458,7 @@ func _test_lag_compensation() -> void:
 		var _r := game.combat.resolve_shot(shot, view_tick)
 		# The hit, not the health: what lag compensation decides is whether the trace met
 		# B. What the damage then does (armour, protection) is the rules' business.
-		for d: DotDamage in shot.damages:
+		for d: GSDamage in shot.damages:
 			if d.victim == 941:
 				return true
 		return false
@@ -523,7 +523,7 @@ func _test_launch_inside_team_mate() -> void:
 			spare = id
 
 	var gone: Array = []
-	game.projectiles.detonated.connect(func(at: Vector3, s: DotWeaponSpawn) -> void:
+	game.projectiles.detonated.connect(func(at: Vector3, s: GSWeaponSpawn) -> void:
 		gone.append([at, s])
 	)
 
@@ -544,8 +544,8 @@ func _test_launch_inside_team_mate() -> void:
 		game.projectiles.clear()
 		gone.clear()
 
-	var launch := func(fuse: int, toward: Vector3 = Vector3.FORWARD) -> DotWeaponSpawn:
-		var s := DotWeaponSpawn.new()
+	var launch := func(fuse: int, toward: Vector3 = Vector3.FORWARD) -> GSWeaponSpawn:
+		var s := GSWeaponSpawn.new()
 		s.id = AwWeaponIds.LAUNCHER if fuse <= 0 else AwWeaponIds.FRAG
 		s.origin = shooter.muzzle_position()
 		s.velocity = toward.normalized() * (44.0 if fuse <= 0 else 14.0)
@@ -579,7 +579,7 @@ func _test_launch_inside_team_mate() -> void:
 		_check(bool(mate_set.call(&"contains_point", muzzle)),
 			"the muzzle is inside the team-mate's hitboxes (the case under test)")
 	# At the enemy's chest, eight metres on.
-	var _rocket: DotWeaponSpawn = launch.call(0, ahead + Vector3.UP * 1.2 - muzzle)
+	var _rocket: GSWeaponSpawn = launch.call(0, ahead + Vector3.UP * 1.2 - muzzle)
 	fly.call()
 	var at: Vector3 = gone[0][0] if gone.size() == 1 else muzzle
 	_check(gone.size() == 1 and at.distance_to(muzzle) > 5.0,
@@ -594,7 +594,7 @@ func _test_launch_inside_team_mate() -> void:
 	# --- A grenade from inside a team-mate: it is thrown, not bounced back off the friend.
 	arrange.call({shooter_id: here, mate_id: here, enemy_id: aside, spare: aside + Vector3(2, 0, 0)})
 	muzzle = shooter.muzzle_position()
-	var _frag: DotWeaponSpawn = launch.call(TICK_RATE * 2)
+	var _frag: GSWeaponSpawn = launch.call(TICK_RATE * 2)
 	for _k in range(6):
 		game.tick({})
 	var frag: FcProjectiles.Flying = (
@@ -608,7 +608,7 @@ func _test_launch_inside_team_mate() -> void:
 	# --- An enemy holding the muzzle is still a point-blank hit.
 	arrange.call({shooter_id: here, enemy_id: here, mate_id: aside, spare: aside + Vector3(2, 0, 0)})
 	muzzle = shooter.muzzle_position()
-	var _point_blank: DotWeaponSpawn = launch.call(0)
+	var _point_blank: GSWeaponSpawn = launch.call(0)
 	fly.call()
 	at = gone[0][0] if gone.size() == 1 else Vector3.INF
 	_check(gone.size() == 1 and at.distance_to(muzzle) < 0.5,
@@ -623,11 +623,11 @@ func _test_launch_inside_team_mate() -> void:
 		rules.set(&"pass_through_team_mate_at_muzzle", false)
 		arrange.call({shooter_id: here, mate_id: here, enemy_id: ahead, spare: aside})
 		muzzle = shooter.muzzle_position()
-		var _off: DotWeaponSpawn = launch.call(0)
+		var _off: GSWeaponSpawn = launch.call(0)
 		fly.call()
 		at = gone[0][0] if gone.size() == 1 else Vector3.INF
 		_check(gone.size() == 1 and at.distance_to(muzzle) < 0.5,
-			"with DotDamageRules.pass_through_team_mate_at_muzzle off it goes off in the team-mate again",
+			"with GSDamageRules.pass_through_team_mate_at_muzzle off it goes off in the team-mate again",
 			"%.2f m from the muzzle" % at.distance_to(muzzle))
 		rules.set(&"pass_through_team_mate_at_muzzle", true)
 
@@ -636,7 +636,7 @@ func _test_launch_inside_team_mate() -> void:
 		var between := Vector3(0.0, floor_y, -4.0)
 		arrange.call({shooter_id: here, mate_id: between, enemy_id: ahead, spare: aside})
 		muzzle = shooter.muzzle_position()
-		var _blocked: DotWeaponSpawn = launch.call(0, ahead + Vector3.UP * 1.2 - muzzle)
+		var _blocked: GSWeaponSpawn = launch.call(0, ahead + Vector3.UP * 1.2 - muzzle)
 		fly.call()
 		at = gone[0][0] if gone.size() == 1 else Vector3.INF
 		_check(gone.size() == 1 and absf(at.z - between.z) < 1.0,
@@ -645,7 +645,7 @@ func _test_launch_inside_team_mate() -> void:
 		rules.set(&"pass_through_team_mates", true)
 		arrange.call({shooter_id: here, mate_id: between, enemy_id: ahead, spare: aside})
 		muzzle = shooter.muzzle_position()
-		var _through: DotWeaponSpawn = launch.call(0, ahead + Vector3.UP * 1.2 - muzzle)
+		var _through: GSWeaponSpawn = launch.call(0, ahead + Vector3.UP * 1.2 - muzzle)
 		fly.call()
 		at = gone[0][0] if gone.size() == 1 else Vector3.INF
 		_check(gone.size() == 1 and at.z < between.z - 2.0 and hp.call(enemy_id) < game.combat.health_of(enemy_id).max_health,
@@ -660,7 +660,7 @@ func _test_launch_inside_team_mate() -> void:
 func _carried(game: FcGame, id: int) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for slot in game.player_for(id).arsenal.slots():
-		var def: DotWeaponDef = game.player_for(id).arsenal.slot_at(slot).def
+		var def: GSWeaponDef = game.player_for(id).arsenal.slot_at(slot).def
 		out.append(def.id)
 	return out
 

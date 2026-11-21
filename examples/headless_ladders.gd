@@ -22,7 +22,7 @@ const NO_WALK_BACK: Array[Vector3] = [Vector3(228.02, 3.81, -0.08)]
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -62,7 +62,7 @@ func _test_map(id: StringName) -> int:
 	var _added := _game.add_player(4, "climber")
 	var player := _game.player_for(4)
 	_game.respawn_player(4)
-	var probe := DotFpsPhysicsBody.for_node(_game.map.collision_root)
+	var probe := GSFpsPhysicsBody.for_node(_game.map.collision_root)
 	var tunables := player.controller.tunables
 	var tall: Array[AABB] = []
 
@@ -114,7 +114,7 @@ func _test_map(id: StringName) -> int:
 
 
 ## Walk at the ladder from a clear side looking up, then from its top looking down.
-func _climb(player: FcPlayer, probe: DotFpsPhysicsBody, tunables: DotFpsTunables, rung: AABB) -> Dictionary:
+func _climb(player: FcPlayer, probe: GSFpsPhysicsBody, tunables: GSFpsTunables, rung: AABB) -> Dictionary:
 	var out := {"grabbed": false, "topped": false, "descended": false, "top": rung.end.y}
 	var thin_x := rung.size.x < rung.size.z
 
@@ -127,11 +127,11 @@ func _climb(player: FcPlayer, probe: DotFpsPhysicsBody, tunables: DotFpsTunables
 			continue
 
 		var yaw := rad_to_deg(atan2(away.x, away.z))
-		var cmd := DotFpsCommand.new()
+		var cmd := GSFpsCommand.new()
 		cmd.move = Vector2(0.0, 1.0)
 		cmd.yaw = yaw
 		cmd.pitch = 40.0
-		var up := {4: [cmd, DotWeaponCommand.new()]}
+		var up := {4: [cmd, GSWeaponCommand.new()]}
 		player.controller.teleport(at, yaw, 0.0)
 		var on_ticks := 0
 		var left_at := -1
@@ -139,7 +139,7 @@ func _climb(player: FcPlayer, probe: DotFpsPhysicsBody, tunables: DotFpsTunables
 
 		for i in range(TICK_RATE * 12):
 			_game.tick(up)
-			var s: DotFpsState = player.controller.state
+			var s: GSFpsState = player.controller.state
 			high = maxf(high, s.position.y)
 
 			if s.mode == player.ladder.mode_id:
@@ -152,40 +152,40 @@ func _climb(player: FcPlayer, probe: DotFpsPhysicsBody, tunables: DotFpsTunables
 		for _s in range(TICK_RATE / 8):
 			_game.tick(up)
 
-		var idle := {4: [DotFpsCommand.new(), DotWeaponCommand.new()]}
+		var idle := {4: [GSFpsCommand.new(), GSWeaponCommand.new()]}
 
 		for _s in range(TICK_RATE / 2):
 			_game.tick(idle)
 
-		var s2: DotFpsState = player.controller.state
+		var s2: GSFpsState = player.controller.state
 		out.grabbed = on_ticks > TICK_RATE / 4
 		# Stepped off: left the ladder, near its top, and came to rest standing there.
-		out.topped = out.grabbed and left_at >= 0 and s2.mode == DotFpsState.Mode.GROUND and s2.position.y >= rung.end.y - 1.0 and not _in_solid(probe, s2.position, tunables)
+		out.topped = out.grabbed and left_at >= 0 and s2.mode == GSFpsState.Mode.GROUND and s2.position.y >= rung.end.y - 1.0 and not _in_solid(probe, s2.position, tunables)
 
 		if not out.topped:
 			continue
 
 		# Walk back at the ladder from where it stepped off, looking down.
-		var down := DotFpsCommand.new()
+		var down := GSFpsCommand.new()
 		down.move = Vector2(0.0, 1.0)
 		down.yaw = yaw + 180.0
 		down.pitch = -50.0
 		player.controller.teleport(s2.position, yaw + 180.0, 0.0)
-		var stay := {4: [down, DotWeaponCommand.new()]}
+		var stay := {4: [down, GSWeaponCommand.new()]}
 		var was_on := false
 		var low := high
 
 		for _i in range(TICK_RATE * 12):
 			_game.tick(stay)
-			var s3: DotFpsState = player.controller.state
+			var s3: GSFpsState = player.controller.state
 			low = minf(low, s3.position.y)
 			was_on = was_on or s3.mode == player.ladder.mode_id
 
-			if was_on and s3.mode == DotFpsState.Mode.GROUND and s3.position.y <= rung.position.y + 0.6:
+			if was_on and s3.mode == GSFpsState.Mode.GROUND and s3.position.y <= rung.position.y + 0.6:
 				break
 
-		var s4: DotFpsState = player.controller.state
-		out.descended = was_on and s4.mode == DotFpsState.Mode.GROUND and s4.position.y <= rung.position.y + 0.6
+		var s4: GSFpsState = player.controller.state
+		out.descended = was_on and s4.mode == GSFpsState.Mode.GROUND and s4.position.y <= rung.position.y + 0.6
 		return out
 
 	return out
@@ -199,6 +199,6 @@ func _listed(list: Array[Vector3], at: Vector3) -> bool:
 	return false
 
 
-func _in_solid(body: DotFpsPhysicsBody, feet: Vector3, tunables: DotFpsTunables) -> bool:
+func _in_solid(body: GSFpsPhysicsBody, feet: Vector3, tunables: GSFpsTunables) -> bool:
 	var height := tunables.stand_height - 0.2
 	return body.overlaps(feet + Vector3.UP * (0.1 + height * 0.5), height, tunables.radius - 0.05)

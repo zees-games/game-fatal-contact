@@ -7,7 +7,7 @@ const _RenderQuality := preload("res://addons/dot_game/runtime/dot_game_render_q
 const _UserDir := preload("fc_user_dir.gd")
 
 func _web_render_defaults() -> void:
-	if DotPlatform.is_web() and float(_RenderQuality.values[&"r_sun_shadow_splits"]) < 0.0:
+	if GSPlatform.is_web() and float(_RenderQuality.values[&"r_sun_shadow_splits"]) < 0.0:
 		_RenderQuality.values[&"r_sun_shadow_splits"] = WEB_SUN_SHADOW_SPLITS
 
 func _ready() -> void:
@@ -56,7 +56,7 @@ func _ready() -> void:
 
 	FcLoadTimeline.mark("setup: game built")
 	if not built.ok:
-		DotLog.result(CHANNEL, "Fatal Contact could not be built", built)
+		GSLog.result(CHANNEL, "Fatal Contact could not be built", built)
 		_set_client_processing(true)
 		return
 
@@ -112,7 +112,7 @@ func _apply_launch_art() -> void:
 	# in that one frame (~66 ms of the 117 ms worst frame with 15 bots). Past ~4 ms a
 	# frame the rest wait for the next frames; presentation only, the shot never reads it.
 	# Set through the script so an fc-weapons before level 22 still parses.
-	if DotAddonApi.build_level("fc_weapons") >= 22:
+	if GSAddonApi.build_level("fc_weapons") >= 22:
 		(AwWorldModel as Script).set(&"equip_budget_usec", 4000)
 
 ## Part of [method _ready].
@@ -131,7 +131,7 @@ func _setup_pieces(timeline: FcLoadTimeline) -> void:
 	await _setup_frame()
 	_build_killview()
 	FcLoadTimeline.mark("setup: projectiles, ragdolls, killcam, kill view")
-	if not DotPlatform.is_headless():
+	if not GSPlatform.is_headless():
 		# The first draw with a game camera, then the frames to the level's first draw traced (ticks, setup steps, draws).
 		RenderingServer.frame_pre_draw.connect(func() -> void: FcLoadTimeline.mark("first draw begins"), CONNECT_ONE_SHOT)
 		RenderingServer.frame_post_draw.connect(func() -> void:
@@ -179,7 +179,7 @@ func _setup_interface_and_net() -> void:
 		_install_profiler_context()
 	else:
 		var netted := _build_netcode()
-		DotLog.result(CHANNEL, "netcode", netted)
+		GSLog.result(CHANNEL, "netcode", netted)
 		if netted.ok and link != null:
 			_start_remote_workbench()
 		if netted.ok and _sim_host != null:
@@ -198,14 +198,14 @@ func _setup_interface_and_net() -> void:
 func _setup_finish(timeline: FcLoadTimeline) -> void:
 	_grab_mouse()
 	platform.slide_settings = presentation.settings
-	var platform_up: DotResult = await _setup_platform()
-	DotLog.result(CHANNEL, "the platform", platform_up)
+	var platform_up: GSResult = await _setup_platform()
+	GSLog.result(CHANNEL, "the platform", platform_up)
 	_follow_render_quality()
 	# The starter set: the equipped list needs a credential the client does not hold (the server reads it).
-	DotLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
+	GSLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
 	_suspend_input(platform.is_input_blocked())
 	FcLoadTimeline.mark("setup: platform")
-	if not DotPlatform.is_headless():
+	if not GSPlatform.is_headless():
 		_set_client_processing(true)
 		# The first draw of the built level and HUD compiles their pipelines (672 ms on staging02): marked, so it is not mistaken for setup.
 		RenderingServer.frame_pre_draw.connect(func() -> void: FcLoadTimeline.mark("level draw begins"), CONNECT_ONE_SHOT)
@@ -216,7 +216,7 @@ func _setup_finish(timeline: FcLoadTimeline) -> void:
 ## [method FcGame.setup], one step a frame in a client that draws (the steps shared one 222 ms frame on
 ## staging02; combat and loadouts were most of it). The game does not process between steps, so nothing
 ## of it runs half built. Headless (suites, servers) builds in one go.
-func _setup_game(first: FcMap) -> DotResult:
+func _setup_game(first: FcMap) -> GSResult:
 	if not _builds_in_frames():
 		return game.setup(first)
 	var built := game.setup_begin(first)
@@ -252,9 +252,9 @@ func _warm_weapon_table() -> void:
 func _request_figures() -> void:
 	if not _builds_in_frames():
 		return
-	var paths: Array[String] = [DotHumanoidAssets.real_clips_path()]
-	for body: StringName in [DotHumanoidLook.stock(1).body, DotHumanoidAssets.CLIP_BODY]:
-		paths.append(DotHumanoidAssets.body_path(body))
+	var paths: Array[String] = [GSHumanoidAssets.real_clips_path()]
+	for body: StringName in [GSHumanoidLook.stock(1).body, GSHumanoidAssets.CLIP_BODY]:
+		paths.append(GSHumanoidAssets.body_path(body))
 	for path in paths:
 		if not _figure_loads.has(path) and ResourceLoader.exists(path) and ResourceLoader.load_threaded_request(path) == OK:
 			_figure_loads.append(path)
@@ -271,29 +271,29 @@ func _warm_figures() -> void:
 		var started := Time.get_ticks_usec()
 		held.append(ResourceLoader.load_threaded_get(path))
 		# The clip set's real clips are only held, so the build's own load of them (on a worker) finds them loaded.
-		if path != DotHumanoidAssets.real_clips_path():
-			var _scene := DotHumanoidAssets.scene(path)
+		if path != GSHumanoidAssets.real_clips_path():
+			var _scene := GSHumanoidAssets.scene(path)
 		FcLoadTimeline.mark("setup: figure model %s, %d ms" % [path.get_file(), (Time.get_ticks_usec() - started) / 1000])
 	_figure_loads.clear()
 	var started := Time.get_ticks_usec()
 	var frames := 0
-	DotHumanoidAssets.prepare_libraries([DotHumanoidLook.stock(1).body])
+	GSHumanoidAssets.prepare_libraries([GSHumanoidLook.stock(1).body])
 	# The models are instanced for their skeletons in that call, on this thread; the rest runs on a worker.
 	FcLoadTimeline.mark("setup: figure clips started, %d ms" % ((Time.get_ticks_usec() - started) / 1000))
-	while not DotHumanoidAssets.poll_libraries():
+	while not GSHumanoidAssets.poll_libraries():
 		frames += 1
 		await _setup_frame()
 	FcLoadTimeline.mark("setup: figure clips, %d ms over %d frames" % [(Time.get_ticks_usec() - started) / 1000, frames])
 
 ## The platform's setup one piece a frame in a client that draws (all of it was one ~200 ms frame on staging02).
 ## By name: a linked dot-game older than API 57 has no setup_stepped, and sets up in one go, as headless does.
-func _setup_platform() -> DotResult:
+func _setup_platform() -> GSResult:
 	if not _builds_in_frames() or not platform.has_method(&"setup_stepped"):
 		return platform.setup()
 	var between := func(piece: StringName) -> void:
 		_mark_platform_piece(piece)
 		await _setup_frame()
-	var stepped: DotResult = await platform.call(&"setup_stepped", between)
+	var stepped: GSResult = await platform.call(&"setup_stepped", between)
 	var usec: Dictionary = platform.get(&"setup_usec")
 	if not usec.is_empty():
 		_mark_platform_piece(usec.keys().back())
@@ -380,7 +380,7 @@ func _restore_hud_if_orphaned() -> void:
 		return
 	if winner_reveal != null and winner_reveal.is_active():
 		return
-	DotLog.warn(CHANNEL, "HUD was left hidden with no screen up; restored")
+	GSLog.warn(CHANNEL, "HUD was left hidden with no screen up; restored")
 	hud.visible = true
 
 ## Records the frame for the killcam, or draws the replay over it. Solo has no MATCH message,
@@ -412,7 +412,7 @@ func _killcam_frame() -> void:
 	FcFrameProbe.add(&"c_killcam", t_cam)
 	_restore_hud_if_orphaned()
 	var now := int(game.match_node.state) if game.match_node != null else -1
-	if _offline and now != _seen_match_state and now == DotMatch.State.MATCH_END:
+	if _offline and now != _seen_match_state and now == GSMatch.State.MATCH_END:
 		_begin_match_end()
 	_seen_match_state = now
 
@@ -456,7 +456,7 @@ static func _held(action: StringName) -> bool:
 const BOT_MOVE := &"bot_move"
 const BOT_FIRE := &"bot_fire"
 
-func _local_commands(move: DotFpsCommand) -> Dictionary:
+func _local_commands(move: GSFpsCommand) -> Dictionary:
 	var out: Dictionary = {}
 
 	if player != null:
@@ -466,8 +466,8 @@ func _local_commands(move: DotFpsCommand) -> Dictionary:
 	# bot every tick and thrown away (two objects a bot, ~150 us a tick at 31 bots on the web build).
 	for id in _bots:
 		var bot: FcPlayer = _bots[id]
-		var bot_move: Variant = bot.get_meta(BOT_MOVE) if bot.has_meta(BOT_MOVE) else DotFpsCommand.new()
-		var bot_fire: Variant = bot.get_meta(BOT_FIRE) if bot.has_meta(BOT_FIRE) else DotWeaponCommand.new()
+		var bot_move: Variant = bot.get_meta(BOT_MOVE) if bot.has_meta(BOT_MOVE) else GSFpsCommand.new()
+		var bot_fire: Variant = bot.get_meta(BOT_FIRE) if bot.has_meta(BOT_FIRE) else GSWeaponCommand.new()
 		out[int(id)] = [bot_move, bot_fire]
 
 	return out
@@ -512,13 +512,13 @@ func mouse_drives_view() -> bool:
 
 	return Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 
-## The fire command, from the keyboard and the mouse. [b]`DotWeaponCommand` is a button BITMASK, not
+## The fire command, from the keyboard and the mouse. [b]`GSWeaponCommand` is a button BITMASK, not
 ## a set of booleans.[/b] `set_button` is the accessor; assigning `.attack` creates nothing and
 ## errors at runtime with "Invalid assignment of property or key 'attack'".
-func _read_fire(move: DotFpsCommand) -> void:
+func _read_fire(move: GSFpsCommand) -> void:
 	var firing := mouse_drives_view() and ((_held(FcBindings.FIRE) and not _touch_on()) or _touch_held(&"fire"))
 
-	_fire.set_button(DotWeaponCommand.BUTTON_ATTACK, firing)
+	_fire.set_button(GSWeaponCommand.BUTTON_ATTACK, firing)
 	# The Aim key (right mouse) aims down the sights, by default; the Bash key (X) is the pack's
 	# alt-fire ("quick melee"). A player who would rather bash with the Aim key turns the
 	# `right_mouse_aims` setting off.
@@ -526,7 +526,7 @@ func _read_fire(move: DotFpsCommand) -> void:
 		and not _aim_break.blocked(Time.get_ticks_msec() * 0.001)
 	var aims := right_mouse_aims() and not props_on_e()
 	var bash := (right and not aims) or (not props_on_e() and mouse_drives_view() and _held(FcBindings.BASH))
-	_fire.set_button(DotWeaponCommand.BUTTON_ALT, bash)
+	_fire.set_button(GSWeaponCommand.BUTTON_ALT, bash)
 	_fire.set_button(FcFlashlight.BUTTON, _flash_ticks > 0)
 	_flash_ticks = maxi(_flash_ticks - 1, 0)
 	if player != null:
@@ -537,15 +537,15 @@ func _read_fire(move: DotFpsCommand) -> void:
 	_fire.set_button(FcPlayer.BUTTON_AIM, right and aims)
 	# And on the move command, where the motor slows an aimed player (sv_ads_speed_mult) the same in prediction and on the server.
 	move.set_button(FcPlayer.MOVE_BUTTON_AIM, right and aims and not is_roaming())
-	_fire.set_button(DotWeaponCommand.BUTTON_RELOAD, mouse_drives_view() and (_held(FcBindings.RELOAD) or _touch_held(&"reload")))
-	_fire.set_button(DotWeaponCommand.BUTTON_FIRE_MODE, mouse_drives_view() and _held(FcBindings.FIRE_MODE))
-	_fire.set_button(DotWeaponCommand.BUTTON_DROP, mouse_drives_view() and _held(FcBindings.WEAPON_DROP))
-	_fire.set_button(DotWeaponCommand.BUTTON_USE, mouse_drives_view() and _held(FcBindings.USE))
+	_fire.set_button(GSWeaponCommand.BUTTON_RELOAD, mouse_drives_view() and (_held(FcBindings.RELOAD) or _touch_held(&"reload")))
+	_fire.set_button(GSWeaponCommand.BUTTON_FIRE_MODE, mouse_drives_view() and _held(FcBindings.FIRE_MODE))
+	_fire.set_button(GSWeaponCommand.BUTTON_DROP, mouse_drives_view() and _held(FcBindings.WEAPON_DROP))
+	_fire.set_button(GSWeaponCommand.BUTTON_USE, mouse_drives_view() and _held(FcBindings.USE))
 	_note_held_slot()
 	_fire.yaw = move.yaw
 	_fire.pitch = move.pitch
 
-	# `DotArsenal` reads `command.slot > 0` as "switch to this" and 0 as "leave it alone", so this
+	# `GSArsenal` reads `command.slot > 0` as "switch to this" and 0 as "leave it alone", so this
 	# is a REQUEST that is cleared once made rather than a mirror of the current slot.
 	_fire.slot = _wanted_slot
 	_wanted_slot = 0
@@ -557,7 +557,7 @@ const KillPovRules := preload("fc_kill_pov.gd")
 var _jump_gate := FcJumpGate.new()
 
 ## `cl_respawn_jump_gate` (default 1): see [FcJumpGate].
-func _gate_jump_after_death(move: DotFpsCommand) -> void:
+func _gate_jump_after_death(move: GSFpsCommand) -> void:
 	var on := presentation == null or presentation.settings == null \
 		or presentation.settings.get_bool(&"respawn_jump_gate", true)
 	var away := player != null and (not player.is_alive() \
@@ -566,7 +566,7 @@ func _gate_jump_after_death(move: DotFpsCommand) -> void:
 	_jump_gate.filter(move, away, on and player != null)
 
 func _physics_step(delta: float) -> void:
-	var move := _sampler.sample(delta) if _sampler != null else DotFpsCommand.new()
+	var move := _sampler.sample(delta) if _sampler != null else GSFpsCommand.new()
 	_gate_jump_after_death(move)
 	if hud != null and presentation != null and presentation.bindings != null:
 		hud.launch_key_text = presentation.bindings.key_for(launch_action())
@@ -575,7 +575,7 @@ func _physics_step(delta: float) -> void:
 	# server's rules have the launch on. Same guard as the trigger, so typing in the chat
 	# box does not throw anybody into the air.
 	move.set_button(
-		DotFpsCommand.BUTTON_USER_0, mouse_drives_view() and _held(launch_action())
+		GSFpsCommand.BUTTON_USER_0, mouse_drives_view() and _held(launch_action())
 	)
 	if is_roaming():
 		# The roaming spectator flies a camera and does not walk the dead player about.

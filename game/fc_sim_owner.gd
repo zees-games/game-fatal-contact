@@ -6,11 +6,11 @@ const FcModule := preload("fc_module.gd")
 const FcMaps := preload("fc_maps.gd")
 const CHANNEL := "arena.sim_owner"
 
-var server: DotServer = null
+var server: GSServer = null
 var module: FcModule = null
 
 
-func setup(with_server: DotServer, with_module: FcModule) -> void:
+func setup(with_server: GSServer, with_module: FcModule) -> void:
 	server = with_server
 	module = with_module
 	module.bridge.host_line_fn = _on_line
@@ -20,7 +20,7 @@ func setup(with_server: DotServer, with_module: FcModule) -> void:
 		module.maps.session.time_limit.duration = 0.0
 	# The packs a solo menu lists, so a pick of one can be changed to (fetched on the change).
 	if module.maps != null and module.maps.session != null:
-		var catalogue: DotMapCatalogue = module.maps.session.catalogue
+		var catalogue: GSMapCatalogue = module.maps.session.catalogue
 		var _adopted := FcMaps.adopt_delivered(catalogue, FcMaps.standalone_keys(catalogue))
 
 
@@ -30,7 +30,7 @@ func _process(_delta: float) -> void:
 	if owner_peer() == 0:
 		return
 	set_process(false)
-	var quota: DotBotQuota = module.get("_bot_quota")
+	var quota: GSBotQuota = module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.quota_cvar.force_set(String.num_int64(quota.quota_cvar.get_int() + 1))
 		quota.mode_cvar.force_set("fill")
@@ -38,7 +38,7 @@ func _process(_delta: float) -> void:
 
 ## The first remote session: the client that started this process.
 func owner_peer() -> int:
-	for session: DotClientSession in server.sessions():
+	for session: GSClientSession in server.sessions():
 		if not session.local:
 			return session.peer_id
 	return 0
@@ -50,7 +50,7 @@ func _on_line(peer_id: int, seq: int, line: String) -> void:
 	var words := line.strip_edges().split(" ", false)
 	var verb := words[0].to_lower() if not words.is_empty() else ""
 	var answer := ""
-	var result := DotResult.success(null)
+	var result := GSResult.success(null)
 	match verb:
 		"host_change":
 			result = await _change(words[1] if words.size() > 1 else "-", words[2] if words.size() > 2 else "-")
@@ -65,7 +65,7 @@ func _on_line(peer_id: int, seq: int, line: String) -> void:
 				module.bridge.host_paused = words[1].to_int() != 0
 			answer = "%s at tick %d" % ["paused" if module.bridge.host_paused else "running", module.game.current_tick()]
 		_:
-			var ctx := DotCmdContext.console("", PackedStringArray())
+			var ctx := GSCmdContext.console("", PackedStringArray())
 			ctx.address = "owner"
 			ctx.reply_sink = func(text: String) -> void: module.bridge.send_host_reply(peer_id, seq, false, true, text)
 			result = server.console.execute(line, ctx)
@@ -75,34 +75,34 @@ func _on_line(peer_id: int, seq: int, line: String) -> void:
 
 
 ## The map first, then the mode on it: a mode the map cannot host is refused and the map stays changed.
-func _change(map_id: String, mode_id: String) -> DotResult:
+func _change(map_id: String, mode_id: String) -> GSResult:
 	var game: Object = module.game
 	if map_id != "-" and map_id != "":
 		# A map dropped onto the client's window after this process started is not in its catalogue yet.
-		var listed: DotMapCatalogue = module.maps.session.catalogue if module.maps != null and module.maps.session != null else null
+		var listed: GSMapCatalogue = module.maps.session.catalogue if module.maps != null and module.maps.session != null else null
 		if listed != null and not listed.has(StringName(map_id)):
 			var _local := FcMaps.add_local(listed, StringName(map_id))
-		var changed: DotResult = await module.maps.change_to(StringName(map_id))
+		var changed: GSResult = await module.maps.change_to(StringName(map_id))
 		if not changed.ok:
 			return changed
 	if mode_id != "-" and mode_id != "" and String(game.mode.id) != mode_id:
-		var _set: DotResult = server.console.execute("fc_mode %s" % mode_id)
+		var _set: GSResult = server.console.execute("fc_mode %s" % mode_id)
 		# The mode's map change runs at the top of the next tick (dot_tick_gate.gd); judge it after.
 		await game.tick_gate.reached()
 		if String(game.mode.id) != mode_id:
-			return DotResult.fail(DotError.CODE_STATE, "This map cannot play %s." % mode_id)
-	return DotResult.success(String(game.map.id))
+			return GSResult.fail(GSError.CODE_STATE, "This map cannot play %s." % mode_id)
+	return GSResult.success(String(game.map.id))
 
 
 ## Lists the dropped map [param map_id] (found in user://maps, shared with the client) in this process's catalogue, so the
 ## owner's M menu offers it at once; a map dropped again replaces its row. Answers with its title.
-func list_local(map_id: String) -> DotResult:
-	var listed: DotMapCatalogue = module.maps.session.catalogue if module.maps != null and module.maps.session != null else null
+func list_local(map_id: String) -> GSResult:
+	var listed: GSMapCatalogue = module.maps.session.catalogue if module.maps != null and module.maps.session != null else null
 	if listed == null:
-		return DotResult.fail(DotError.CODE_STATE, "no map catalogue")
+		return GSResult.fail(GSError.CODE_STATE, "no map catalogue")
 	if map_id == "" or not FcMaps.add_local(listed, StringName(map_id)):
-		return DotResult.fail(DotError.CODE_INVALID, "%s is not a local map here" % map_id)
-	return DotResult.success(listed.get_map(StringName(map_id)).name_or_id())
+		return GSResult.fail(GSError.CODE_INVALID, "%s is not a local map here" % map_id)
+	return GSResult.success(listed.get_map(StringName(map_id)).name_or_id())
 
 
 ## Every command and cvar name, a line of them at a time: what the owner's Tab and launch lines know.

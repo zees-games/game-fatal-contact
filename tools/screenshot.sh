@@ -24,7 +24,7 @@
 # every frame it saves is empty, which is worse than no screenshot because it looks like
 # one.
 set -euo pipefail
-# A short frame sequence beside each still (DotShotSeq), so Nightly -> Review can play and scrub it.
+# A short frame sequence beside each still (GSShotSeq), so Nightly -> Review can play and scrub it.
 export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-${DOT_SHOT_FRAMES:-16}} GS_SHOT_SECS=${GS_SHOT_SECS:-${DOT_SHOT_SECS:-2}}
 cd "$(dirname "$0")/.."
 # RENDERER picks the rendering method. The client shell runs gl_compatibility everywhere,

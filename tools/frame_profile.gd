@@ -8,7 +8,7 @@ const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 
 var rows: Array = []
 var _vp := RID()
-var _clock: DotMenuFrameClock = null
+var _clock: GSMenuFrameClock = null
 ## Probe nodes between every processing node, priorities renumbered in the engine's own order.
 var _marks := PackedInt64Array()
 var _owners: Array[String] = []
@@ -26,7 +26,7 @@ class Probe extends Node:
 		prof._marks[index] = Time.get_ticks_usec()
 
 
-func start(tree: SceneTree, clock: DotMenuFrameClock) -> void:
+func start(tree: SceneTree, clock: GSMenuFrameClock) -> void:
 	_clock = clock
 	_vp = tree.root.get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(_vp, true)

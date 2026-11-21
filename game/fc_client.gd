@@ -87,7 +87,7 @@ func _report_position(delta: float) -> void:
 	if _report_timer >= 1.0 and player != null:
 		_report_timer = 0.0
 		var st := player.controller.state
-		DotLog.debug(CHANNEL, "where the local player is", {
+		GSLog.debug(CHANNEL, "where the local player is", {
 			"position": st.position,
 			"node": player.global_position,
 			"camera": camera_position(),
@@ -174,7 +174,7 @@ func touch_next_weapon() -> void:
 func touch_live() -> bool:
 	return player != null and player.is_alive() and mouse_drives_view() and not is_roaming() and not _watching_other()
 
-func _gun_in_hand() -> DotWeaponDef:
+func _gun_in_hand() -> GSWeaponDef:
 	return player.arsenal.current_def() if player != null and player.arsenal != null else null
 
 ## Alt-tabbing away leaves a captured pointer on a window nobody is looking at; give the cursor

@@ -14,7 +14,7 @@ const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 ## [/codeblock]
 ##
 ## `--budget` and `--pps` override `per_client_budget` / `per_client_packet_rate` on the
-## server's DotNetConfig after boot, so a before/after is one flag. Prints one line a second
+## server's GSNetConfig after boot, so a before/after is one flag. Prints one line a second
 ## and a summary; it asserts nothing.
 
 const PORT := 27196
@@ -40,7 +40,7 @@ var _map_id := "dm_box"
 var _eyes: Array[Node3D] = []
 var _eye_on: Array[Node3D] = []
 var _eye_laps := 1
-## --workers N: DotNetConfig.snapshot_workers; unset keeps the server's own (sv_snapshot_workers' default).
+## --workers N: GSNetConfig.snapshot_workers; unset keeps the server's own (sv_snapshot_workers' default).
 var _workers := -2
 var _native := 1
 var _noshort := false
@@ -58,14 +58,14 @@ var _field_entities := {}
 var _wire_bits: Dictionary = {}
 var _distance_bands: Dictionary = {}
 var _field_snaps := 0
-var _server: DotServer = null
+var _server: GSServer = null
 var _game: FcGame = null
 var _module = null
-var _net: DotNetManager = null
+var _net: GSNetManager = null
 var _client: Node = null
-var _cnet: DotNetManager = null
-var _link: DotClientLink = null
-var _config: DotServerConfig = null
+var _cnet: GSNetManager = null
+var _link: GSClientLink = null
+var _config: GSServerConfig = null
 
 
 func _ready() -> void:
@@ -87,7 +87,7 @@ func _ready() -> void:
 	_fields = args.has("--fields")
 	if _port != PORT:
 		_data = "%s_%d" % [DATA, _port]
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	var _scratch := FcPresentation.use_scratch_settings("net_probe")
 	_run.call_deferred()
 
@@ -101,7 +101,7 @@ func _run() -> void:
 	await _measure_and_report()
 	_link.disconnect_from_server("done")
 	await get_tree().create_timer(0.3).timeout
-	DotPaths.remove_tree(_data)
+	GSPaths.remove_tree(_data)
 	get_tree().quit()
 
 
@@ -122,7 +122,7 @@ func _boot_server() -> void:
 	server_side.add_child(_game)
 	_setup_game()
 
-	_config = DotServerConfig.new()
+	_config = GSServerConfig.new()
 	_config.hostname = "net probe"
 	_config.port = _port
 	_config.max_players = 256
@@ -139,7 +139,7 @@ func _boot_server() -> void:
 	_config.enet_share_udp_port = false
 	_config.stdin_console_enabled = false
 	_config.log_level = "error"
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = _config
 	_server.config_file = ""
@@ -161,16 +161,16 @@ func _setup_game() -> void:
 
 func _tune_server() -> void:
 	_module = _server.modules.get_module("arena")
-	var quota: DotBotQuota = _module.get("_bot_quota")
+	var quota: GSBotQuota = _module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		# "off" is wanted = 0: the quota removes every bot a second later (arena-128-scale-1).
 		quota.mode_cvar.force_set("fixed")
 		quota.quota_cvar.force_set(str(_bots))
 		quota.empty_cvar.force_set("1")
 	_net = _module.net
-	if _game.match_node.state == DotMatch.State.IDLE:
+	if _game.match_node.state == GSMatch.State.IDLE:
 		_game.start(0)
-	DotNetBehaviour.native_encode_shortcuts = not _noshort
+	GSNetBehaviour.native_encode_shortcuts = not _noshort
 	if _workers >= -1:
 		_net.config.snapshot_workers = _workers
 	_net.config.native = _native != 0
@@ -186,7 +186,7 @@ func _tune_server() -> void:
 			get_tree().quit(2)
 			return
 		for k in _aoi.size():
-			(cv[keys[k]] as DotConVar).force_set(_aoi[k])
+			(cv[keys[k]] as GSConVar).force_set(_aoi[k])
 	elif not _aoi.is_empty():
 		push_error("net_probe: --aoi wants 5 to 7 fields, got %d" % _aoi.size())
 		get_tree().quit(2)
@@ -200,7 +200,7 @@ func _connect_client() -> void:
 	client_side.name = "ClientSide"
 	add_child(client_side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), client_side.get_path())
-	_link = DotClientLink.new()
+	_link = GSClientLink.new()
 	_link.name = "Server"
 	_link.player_name = "Probe"
 	_link.transport_preference = "udp"
@@ -219,7 +219,7 @@ func _connect_client() -> void:
 
 	var waited := 0.0
 	while waited < 40.0:
-		var cnet: DotNetManager = _client.get("net")
+		var cnet: GSNetManager = _client.get("net")
 		if cnet != null and cnet.clock.is_synced() and _client.get("player") != null:
 			break
 		await get_tree().create_timer(0.25).timeout
@@ -267,8 +267,8 @@ func _install_fakes() -> void:
 	_eye_laps = maxi(1, riders.size())
 	# An eye per fake peer: an identity the fake owns, with no state and a tag no peer is
 	# sent (radius 0), so the fake has an observer where its player stands and nothing else changes.
-	if net.interest is DotNetInterestDistance:
-		(net.interest as DotNetInterestDistance).radius_by_tag["probe_eye"] = 0.0
+	if net.interest is GSNetInterestDistance:
+		(net.interest as GSNetInterestDistance).radius_by_tag["probe_eye"] = 0.0
 	else:
 		push_warning("net_probe: the interest is not a distance interest; fakes see everything")
 	for i in _fake:
@@ -278,7 +278,7 @@ func _install_fakes() -> void:
 		fakes[fid] = true
 		var eye := Node3D.new()
 		eye.name = "ProbeEye%d" % i
-		var identity := DotNetIdentity.new()
+		var identity := GSNetIdentity.new()
 		identity.owner_peer_id = fid
 		identity.interest_tags = PackedStringArray(["probe_eye"])
 		eye.add_child(identity)
@@ -319,7 +319,7 @@ func _install_fakes() -> void:
 
 
 ## Counts the observer-visible properties that changed since the previous snapshot (--fields), with dot-net's own
-## [method DotNetVar.differs] and [method DotNetVar.estimated_bits] plus the 6-bit property index; an entity with any
+## [method GSNetVar.differs] and [method GSNetVar.estimated_bits] plus the 6-bit property index; an entity with any
 ## change adds its 36-bit header (id, behaviour count, property count) under "<script>.header".
 func _count_fields(_tick: int, _peers: int) -> void:
 	_field_snaps += 1
@@ -341,8 +341,8 @@ func _count_fields(_tick: int, _peers: int) -> void:
 			var last: Dictionary = _field_last.get(key, {})
 			var changed := false
 			var wire_changed := false
-			for v: DotNetVar in b.net_vars:
-				if v.audience == DotNetVar.Audience.OWNER:
+			for v: GSNetVar in b.net_vars:
+				if v.audience == GSNetVar.Audience.OWNER:
 					continue
 				var value: Variant = b.get(v.property)
 				if not last.has(v.property) or v.differs(last[v.property], value):

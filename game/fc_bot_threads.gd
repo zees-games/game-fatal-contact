@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## The bots' brains on worker threads (cvar `bot_threads`, 0 = off: the stock one-bot-at-a-time loop). A tick of bot commands is three steps (see [method FcBots.think_begin]): per bot on the main thread the snapshot and bookkeeping;
-## the brains' decisions, which read that snapshot and write one [DotBotIntent] each, split over [member threads] threads; per bot on the main thread the commands from the intent. The motor and weapons run after, from those commands.
+## the brains' decisions, which read that snapshot and write one [GSBotIntent] each, split over [member threads] threads; per bot on the main thread the commands from the intent. The motor and weapons run after, from those commands.
 ## The brains touch no node: sight and wall rays use queries of their own, routes and waypoints take the world's lock ([member FcBots.World.par]); a brain is only its bot's, so answers do not depend on which thread runs which bot.
 
 const FcBots := preload("fc_bots.gd")
@@ -31,9 +31,9 @@ const NATIVE_THREADS_MAX := 4
 ## single-threaded web engine, which always thinks on the main thread. The page's `?bot_threads=N`
 ## overrides the web count, so a browser measurement can compare counts from a URL.
 static func launch_default() -> int:
-	if not DotPlatform.is_web():
-		return native_default() if DotPlatform.has_threads() else 0
-	if not DotPlatform.has_threads():
+	if not GSPlatform.is_web():
+		return native_default() if GSPlatform.has_threads() else 0
+	if not GSPlatform.has_threads():
 		return 0
 	var asked := FcFrameProbe.launch_value("bot_threads")
 	if asked.is_valid_int():
@@ -57,7 +57,7 @@ var _lock := Mutex.new()
 
 ## Whether [param bot_count] bots go through [method think_all] this tick.
 static func active(bot_count: int) -> bool:
-	return threads > 0 and bot_count >= MIN_BOTS and DotPlatform.has_threads()
+	return threads > 0 and bot_count >= MIN_BOTS and GSPlatform.has_threads()
 
 
 ## [move, fire] per bot, in order, as [method FcBots.think] gives each one. [param players] and

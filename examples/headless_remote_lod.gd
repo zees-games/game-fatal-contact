@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcPlayer := preload("../game/fc_player.gd")
 const FcKillcamBodies := preload("../game/fc_killcam_bodies.gd")
@@ -17,7 +17,7 @@ var _cam: Camera3D = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	print("game-fatal-contact: remote players out of sight are thinned, in sight are not")
 	_run.call_deferred()
 
@@ -42,9 +42,9 @@ func _body(at: Vector3) -> FcPlayer:
 ## A remote body with a figure, a held gun and a crest, as far as [method FcPlayer.present_lod] needs one.
 func _armed_body(at: Vector3) -> FcPlayer:
 	var p := _body(at)
-	p.health = DotHealth.new()
+	p.health = GSHealth.new()
 	p.add_child(p.health)
-	p.figure = DotHumanoidFigure.new()
+	p.figure = GSHumanoidFigure.new()
 	p.add_child(p.figure)
 	p.held = AwWorldModel.new()
 	p.add_child(p.held)
@@ -73,24 +73,24 @@ func _passes(p: FcPlayer, frames: int) -> int:
 func _test_figure_draw_range() -> void:
 	_section("past the figure's draw range its gun and crest go with it (arena-vm-regress-1)")
 	# The figure's mesh stops drawing at its draw range (cl_figure_draw_range); a gun left on would float alone in the sky.
-	var armed := _armed_body(Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE - 20.0)))
+	var armed := _armed_body(Vector3(0, 0, -(GSHumanoidFigure.DRAW_RANGE - 20.0)))
 	var _n := _passes(armed, 1)
 	_check(armed.held.visible and _shown(armed.get("_crest")), "20 m inside the range: gun and crest drawn")
-	armed.global_position = Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE + 20.0))
+	armed.global_position = Vector3(0, 0, -(GSHumanoidFigure.DRAW_RANGE + 20.0))
 	_n = _passes(armed, 1)
 	_check(not armed.held.visible, "20 m past it: the gun is hidden")
 	_check(armed.get("_crest") != null and not _shown(armed.get("_crest")), "20 m past it: the crest is hidden")
 	armed.held.hide_while_switching = true
 	armed.call(&"_present_held", true)
 	_check(not armed.held.visible, "its present keeps the gun hidden (the model's own switch hook shows it otherwise)")
-	armed.global_position = Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE - 20.0))
+	armed.global_position = Vector3(0, 0, -(GSHumanoidFigure.DRAW_RANGE - 20.0))
 	_n = _passes(armed, 1)
 	_check(armed.held.visible and _shown(armed.get("_crest")), "back in range: both drawn again")
 	FcPlayer.figure_draw_range = 0.0
-	armed.global_position = Vector3(0, 0, -(DotHumanoidFigure.DRAW_RANGE + 20.0))
+	armed.global_position = Vector3(0, 0, -(GSHumanoidFigure.DRAW_RANGE + 20.0))
 	_n = _passes(armed, 1)
 	_check(armed.held.visible and _shown(armed.get("_crest")), "cl_figure_draw_range 0: drawn at every distance, gun and crest too")
-	FcPlayer.figure_draw_range = DotHumanoidFigure.DRAW_RANGE
+	FcPlayer.figure_draw_range = GSHumanoidFigure.DRAW_RANGE
 	_done()
 
 	_section("a figure whose skin is hidden draws no gun either (floatgun-ak-1)")
@@ -173,7 +173,7 @@ func _test_dead_joiner() -> void:
 	_section("a body built while its player is dead draws no gun (floatgun-ak-1)")
 	# A joiner builds every body at once; one whose player was dead hung its gun at the hand's rest until a present reached it.
 	var joined := _body(Vector3(0, 0, -10))
-	joined.health = DotHealth.new()
+	joined.health = GSHealth.new()
 	joined.add_child(joined.health)
 	joined.health.alive = false
 	joined.attach_body_mesh(Color.WHITE)
@@ -184,7 +184,7 @@ func _test_dead_joiner() -> void:
 	joined.health.alive = true
 	joined.call(&"_present_held", true)
 	_check(joined.held != null and joined.held.visible, "alive and presented: the gun is drawn")
-	joined.figure.state = DotPlayerAnimState.DEAD
+	joined.figure.state = GSPlayerAnimState.DEAD
 	joined.call(&"_present_held", true)
 	_check(joined.held != null and not joined.held.visible, "alive but still in the death pose: the gun is hidden")
 	_done()
@@ -266,7 +266,7 @@ func _test_anim_gate() -> void:
 	_done()
 
 	_section("in a browser a gated body steps its clip every second present (web-frame-1)")
-	var drawn := DotFpsState.new()
+	var drawn := GSFpsState.new()
 	var still_hz := FcPlayer.still_anim_hz
 	FcPlayer.still_anim_hz = 0.0
 	for every: int in [2, 1]:
@@ -291,10 +291,10 @@ func _test_still_gate() -> void:
 	_section("a body standing still steps its idle less often (figure-still-pose-skip-1)")
 	var still_hz := FcPlayer.still_anim_hz
 	FcPlayer.still_anim_hz = 10.0
-	var drawn := DotFpsState.new()
+	var drawn := GSFpsState.new()
 	var idle := _armed_body(Vector3(0, 0, -12))
 	idle.set("_anim_min_dt", FcPlayer.ANIM_GATE_DT)
-	var steps := func(p: FcPlayer, frames: int, state: DotFpsState) -> int:
+	var steps := func(p: FcPlayer, frames: int, state: GSFpsState) -> int:
 		var n := 0
 		for _i in frames:
 			p._present_rest(0.01, state)
@@ -304,7 +304,7 @@ func _test_still_gate() -> void:
 	var _settle: int = steps.call(idle, 50, drawn)  # past STILL_AFTER_SEC
 	var idle_n: int = steps.call(idle, 100, drawn)  # one second at 100 fps
 	_check(idle_n >= 9 and idle_n <= 11, "still for a second at 100 fps: about 10 steps, not 25", "%d" % idle_n)
-	var moving := DotFpsState.new()
+	var moving := GSFpsState.new()
 	moving.velocity = Vector3(3.0, 0.0, 0.0)
 	var woke: int = steps.call(idle, 4, moving)
 	_check(woke >= 1, "a move steps the clip within one 30 Hz period (the owed time carried)", "%d" % woke)

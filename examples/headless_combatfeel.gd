@@ -4,7 +4,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcModuleCvars := preload("../game/fc_module_cvars.gd")
 
-## What dot-game's DotGameCombatFeel does to a real FcPlayer: spread widens while moving, airborne and
+## What dot-game's GSGameCombatFeel does to a real FcPlayer: spread widens while moving, airborne and
 ## sliding and narrows crouched; the recoil pattern is the same every run; the cl_crosshair_* cvars restyle
 ## the crosshair through the console; the sprint rules are opt-in.
 ##
@@ -21,7 +21,7 @@ var _failed := 0
 var _entered := 0
 var _finished := 0
 var _tick := 1
-var _feel: DotGameCombatFeel = null
+var _feel: GSGameCombatFeel = null
 var last_slid := false
 
 
@@ -31,7 +31,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_feel = DotGameCombatFeel.new(true, false)
+	_feel = GSGameCombatFeel.new(true, false)
 	await _test_spread()
 	await _test_recoil()
 	_test_console()
@@ -61,18 +61,18 @@ func _player(id: int) -> FcPlayer:
 	return p
 
 
-static func _move(forward: float, buttons: int) -> DotFpsCommand:
-	var c := DotFpsCommand.new()
+static func _move(forward: float, buttons: int) -> GSFpsCommand:
+	var c := GSFpsCommand.new()
 	c.move = Vector2(0.0, forward)
 	c.yaw = -90.0
 	c.buttons = buttons
 	return c
 
 
-func _step(p: FcPlayer, move: DotFpsCommand, fire: bool = false) -> DotWeaponOutcome:
-	var w := DotWeaponCommand.new()
+func _step(p: FcPlayer, move: GSFpsCommand, fire: bool = false) -> GSWeaponOutcome:
+	var w := GSWeaponCommand.new()
 	if fire:
-		w.buttons = DotWeaponCommand.BUTTON_ATTACK
+		w.buttons = GSWeaponCommand.BUTTON_ATTACK
 	var out := p.simulate_tick(_tick, 1.0 / float(TICK_RATE), move, w)
 	_tick += 1
 	await get_tree().physics_frame
@@ -105,13 +105,13 @@ func _test_spread() -> void:
 	for _i in 80:
 		await _step(p, _move(0.0, 0))
 	still = p.arsenal.spread_now()
-	var run := await _widest(p, 60, func(_i: int) -> DotFpsCommand: return _move(1.0, 0))
-	var jump := await _widest(p, 40, func(i: int) -> DotFpsCommand: return _move(0.0, DotFpsCommand.BUTTON_JUMP if i < 3 else 0))
+	var run := await _widest(p, 60, func(_i: int) -> GSFpsCommand: return _move(1.0, 0))
+	var jump := await _widest(p, 40, func(i: int) -> GSFpsCommand: return _move(0.0, GSFpsCommand.BUTTON_JUMP if i < 3 else 0))
 	p.controller.teleport(Vector3(-16.0, 0.05, 6.0), -90.0, 0.0)
-	var slide := await _widest(p, 40, func(_i: int) -> DotFpsCommand: return _move(1.0, DotFpsCommand.BUTTON_CROUCH), func(_i: int) -> DotFpsCommand: return _move(1.0, 0))
+	var slide := await _widest(p, 40, func(_i: int) -> GSFpsCommand: return _move(1.0, GSFpsCommand.BUTTON_CROUCH), func(_i: int) -> GSFpsCommand: return _move(1.0, 0))
 	var slid := last_slid
 	p.controller.teleport(Vector3(-16.0, 0.05, 6.0), -90.0, 0.0)
-	var crouch_still := await _widest(p, 40, func(_i: int) -> DotFpsCommand: return _move(0.0, DotFpsCommand.BUTTON_CROUCH))
+	var crouch_still := await _widest(p, 40, func(_i: int) -> GSFpsCommand: return _move(0.0, GSFpsCommand.BUTTON_CROUCH))
 	print("    still %.3f  run %.3f  jump %.3f  slide %.3f  crouched %.3f degrees" % [still, run, jump, slide, crouch_still])
 	_check(still > 0.0, "a standing player has a cone", "%.3f" % still)
 	_check(run > still * 1.2, "running widens it", "%.3f vs %.3f" % [run, still])
@@ -135,7 +135,7 @@ func _burst(id: int, forward: float, crouch: bool) -> Array:
 	for _i in 40:
 		await _step(p, _move(0.0, 0))
 	var kicks: Array = []
-	var buttons := DotFpsCommand.BUTTON_CROUCH if crouch else 0
+	var buttons := GSFpsCommand.BUTTON_CROUCH if crouch else 0
 	for _i in 120:
 		var out := await _step(p, _move(forward, buttons), true)
 		if out != null and out.recoil != Vector2.ZERO:
@@ -169,9 +169,9 @@ func _test_console() -> void:
 	if _feel.crosshair_cvars == null:
 		_check(false, "dot-ui's crosshair cvars are present")
 		return
-	var cross := DotCrosshair.new()
+	var cross := GSCrosshair.new()
 	add_child(cross)
-	var console := DotConsoleLocal.new()
+	var console := GSConsoleLocal.new()
 	_check(_feel.bind_console(console, cross), "bind_console registers on a local source")
 	var listed := console.names()
 	_check(listed.has("cl_crosshair_size") and listed.has("cl_crosshair_gap") and listed.has("cl_crosshair_colour"), "the cvars are listed")
@@ -196,14 +196,14 @@ func _test_wiring() -> void:
 		return null)
 	_check(names.any(func(n: String) -> bool: return n.begins_with("sv_spread")) and names.any(func(n: String) -> bool: return n.begins_with("sv_recoil")), "sv_spread* and sv_recoil* register", str(names.size()))
 	_check(not names.any(func(n: String) -> bool: return n.begins_with("sv_sprint") or n.begins_with("sv_stamina")), "no sv_sprint* or sv_stamina* register")
-	var with_sprint := DotGameCombatFeel.new(true)
+	var with_sprint := GSGameCombatFeel.new(true)
 	_check(with_sprint.sprint != null, "the default opt-in loads the sprint rules")
-	var tun := DotFpsTunables.new()
+	var tun := GSFpsTunables.new()
 	with_sprint.track_tunables(tun)
 	with_sprint.sprint.call(&"set_cvar", "sv_sprintspeed", "2.25")
 	_check(is_equal_approx(tun.sprint_speed_scale, 2.25), "a sprint cvar change reaches a tracked player", str(tun.sprint_speed_scale))
 
-	var arena := DotGameCombatFeel.new(true, true)
+	var arena := GSGameCombatFeel.new(true, true)
 	arena.sprint_defaults(FcPlayer.fc_tunables())
 	var fc_tun := FcPlayer.fc_tunables()
 	arena.track_tunables(fc_tun)
@@ -216,7 +216,7 @@ func _test_wiring() -> void:
 	arena.sprint.call(&"set_cvar", "sv_sprint_shoot", "0")
 	arena.sprint.call(&"set_cvar", "sv_sprint_barrel", "0")
 	_check(not fc_tun.sprint_can_shoot and not fc_tun.sprint_shot_follows_barrel, "and reach a tracked player's tunables")
-	var fresh := DotFpsTunables.new()
+	var fresh := GSFpsTunables.new()
 	_check(fresh.sprint_can_shoot and fresh.sprint_shot_follows_barrel, "both default on: sprint-and-shoot allowed, along the barrel")
 	var launch_default := FcPlayer.fc_tunables().launch_velocity
 	_check(launch_default >= 12.0 * 1.25 and launch_default <= 12.0 * 1.35, "the launch defaults 25 to 35 percent above the old 12 m/s", str(launch_default))
@@ -225,11 +225,11 @@ func _test_wiring() -> void:
 	_check(speeds.max_speed < 6.0 and speeds.max_speed > 5.5, "Fatal Contact runs at 75 percent of the old 7.65 m/s", str(speeds.max_speed))
 	var run_before := speeds.speed_for(0)
 	speeds.speed_scale = 0.5
-	_check(is_equal_approx(speeds.speed_for(0), run_before * 0.5) and is_equal_approx(speeds.speed_for(DotFpsCommand.BUTTON_CROUCH), speeds.max_speed * speeds.crouch_speed_scale * 0.5), "speed_scale scales run and crouch alike")
+	_check(is_equal_approx(speeds.speed_for(0), run_before * 0.5) and is_equal_approx(speeds.speed_for(GSFpsCommand.BUTTON_CROUCH), speeds.max_speed * speeds.crouch_speed_scale * 0.5), "speed_scale scales run and crouch alike")
 	var fresh_speeds := FcPlayer.fc_tunables()
-	_check(is_equal_approx(fresh_speeds.speed_for(DotFpsCommand.BUTTON_SPRINT) / fresh_speeds.speed_for(0), fresh_speeds.sprint_speed_scale) and fresh_speeds.sprint_speed_scale > 1.2, "a held sprint is the configured ratio over a run", str(fresh_speeds.sprint_speed_scale))
+	_check(is_equal_approx(fresh_speeds.speed_for(GSFpsCommand.BUTTON_SPRINT) / fresh_speeds.speed_for(0), fresh_speeds.sprint_speed_scale) and fresh_speeds.sprint_speed_scale > 1.2, "a held sprint is the configured ratio over a run", str(fresh_speeds.sprint_speed_scale))
 	var run_speed := _ground_speed(fresh_speeds, 0)
-	var sprint_speed := _ground_speed(fresh_speeds, DotFpsCommand.BUTTON_SPRINT)
+	var sprint_speed := _ground_speed(fresh_speeds, GSFpsCommand.BUTTON_SPRINT)
 	_check(sprint_speed > run_speed * (1.0 + (fresh_speeds.sprint_speed_scale - 1.0) * 0.9) and run_speed > 5.0, "the motor moves a sprinting player faster than a running one (the client predicts the same motor)", "%.2f vs %.2f" % [sprint_speed, run_speed])
 	var speed_ok := true
 	for cvar in ["fc_speed_scale", "fc_run_speed", "fc_walk_scale", "fc_sprint_scale", "fc_crouch_scale"]:
@@ -239,13 +239,13 @@ func _test_wiring() -> void:
 
 
 ## Steady forward ground speed of the motor over a flat floor with [param buttons] held.
-func _ground_speed(t: DotFpsTunables, buttons: int) -> float:
-	var motor := DotFpsMotor.new(t, DotFpsFlatBody.with_floor(0.0))
-	var s := DotFpsState.new()
+func _ground_speed(t: GSFpsTunables, buttons: int) -> float:
+	var motor := GSFpsMotor.new(t, GSFpsFlatBody.with_floor(0.0))
+	var s := GSFpsState.new()
 	var tick := 1.0 / float(TICK_RATE)
 	for _i in 4:
-		motor.simulate(s, DotFpsCommand.new(), tick)
-	var c := DotFpsCommand.new()
+		motor.simulate(s, GSFpsCommand.new(), tick)
+	var c := GSFpsCommand.new()
 	c.move = Vector2(0.0, 1.0)
 	c.buttons = buttons
 	for _i in 160:

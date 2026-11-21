@@ -24,7 +24,7 @@ const TURN := 100.0
 
 var game: FcGame = null
 var bot: FcPlayer = null
-var nav: DotBotNav = null
+var nav: GSBotNav = null
 var map_id: StringName = &""
 
 
@@ -39,7 +39,7 @@ func measure(data: Dictionary, runs: int, live: int) -> void:
 		var to := _metres(row["to"])
 		var course := FcSurf.course_for(game.map, nav, from, to, float(row.get("reference_yaw", NAN)))
 		var sim := _simulator(course.event_at)
-		var pilot := DotBotSurfPilot.new()
+		var pilot := GSBotSurfPilot.new()
 		pilot.load_stage(row, FcSurf.UNITS)
 		pilot.sim = sim
 		pilot.score = course.score
@@ -55,7 +55,7 @@ func measure(data: Dictionary, runs: int, live: int) -> void:
 		for r in range(runs):
 			var res := pilot.ride(perturbed(from, course.reference_yaw(), rng), ride_sim, int(FcSurf.RIDE_SECONDS * TICK_RATE))
 			ridden += int(res["ticks"])
-			if int(res["event"]) == DotBotSurfCourse.EVENT_GOAL:
+			if int(res["event"]) == GSBotSurfCourse.EVENT_GOAL:
 				ok += 1
 		print("[surf] edge %d (%d entries): simulated %d of %d land (%.0f%%); lookahead %.2f and vetoes %.2f motor ticks a ridden tick, %.0f us of motor a ridden tick" % [
 			i, pilot.size(), ok, runs, 100.0 * ok / maxf(1.0, runs),
@@ -68,7 +68,7 @@ func measure(data: Dictionary, runs: int, live: int) -> void:
 ## Rides edge [param index] [param count] times in the game: Fatal Contact's own tick, its teleports,
 ## its pushes, with the view held on the map's middle while the legs surf. Times the steering
 ## (lookup, forecast and veto) and the bot's whole command.
-func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: int) -> void:
+func _ride_live(index: int, row: Dictionary, course: GSBotSurfCourse, count: int) -> void:
 	var surf := FcSurf.new()
 	surf.map = game.map
 	surf.nav = nav
@@ -77,7 +77,7 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 	edge.from = course.start
 	edge.to = course.goal_centre
 	edge.course = course
-	edge.cache = DotBotSurfPilot.new()
+	edge.cache = GSBotSurfPilot.new()
 	edge.cache.load_stage(row, FcSurf.UNITS)
 	edge.linked = true
 	surf.edges.append(edge)
@@ -112,7 +112,7 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 		if use_think:
 			think_mind = FcBots.Mind.new()
 			think_mind.seed = 77 + r
-			think_mind.ride = DotBotSurfRide.new().begin(surf_world.edges[index].cache, surf_world.edges[index].course, surf_world._sim_for(surf_world.edges[index], bot.controller), tick, float(TICK_RATE))
+			think_mind.ride = GSBotSurfRide.new().begin(surf_world.edges[index].cache, surf_world.edges[index].course, surf_world._sim_for(surf_world.edges[index], bot.controller), tick, float(TICK_RATE))
 		while use_think and ticks < int(FcSurf.RIDE_SECONDS * TICK_RATE) + 2:
 			var landed_before := surf_world.landed
 			game.tick({1: FcBots.think(game, bot, think_mind, tick, float(TICK_RATE))})
@@ -124,9 +124,9 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 				outcome = 1 if surf_world.landed > landed_before else 0
 				break
 		while not use_think and ticks < int(FcSurf.RIDE_SECONDS * TICK_RATE) + 2:
-			var intent := DotBotIntent.new()
+			var intent := GSBotIntent.new()
 			var eye := bot.controller.state.position + Vector3.UP * 1.6
-			var look := DotBotAim.angles_to(eye, aim_at)
+			var look := GSBotAim.angles_to(eye, aim_at)
 			intent.yaw = look.x
 			intent.pitch = look.y
 			intent.ride = 0 if first else -1
@@ -142,9 +142,9 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 			if surf.fell + surf.timed_out > fell_before:
 				outcome = 0
 				break
-			var move := DotFpsCommand.new()
+			var move := GSFpsCommand.new()
 			intent.write_move(move)
-			var fire := DotWeaponCommand.new()
+			var fire := GSWeaponCommand.new()
 			intent.write_fire(fire)
 			game.tick({1: [move, fire]})
 			tick += 1
@@ -152,7 +152,7 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 			if ticks % 32 == 0:
 				await get_tree().physics_frame
 		if r < 3:
-			var ride_now: DotBotSurfRide = mind.ride if mind.ride != null else last_ride[0]
+			var ride_now: GSBotSurfRide = mind.ride if mind.ride != null else last_ride[0]
 			if ride_now != null:
 				print("[surf]   ride %d: %s" % [r, str(ride_now.pilot.describe())])
 		if outcome == 1:
@@ -175,25 +175,25 @@ func _ride_live(index: int, row: Dictionary, course: DotBotSurfCourse, count: in
 class RideMind:
 	extends RefCounted
 	var ride: Variant = null
-	var brain: DotBotBrain = null
+	var brain: GSBotBrain = null
 
 
 ## A simulator of the bot's own movement over the map's brushes, [param oracle] its course.
-func _simulator(oracle: Callable) -> DotFpsSimulator:
+func _simulator(oracle: Callable) -> GSFpsSimulator:
 	var body := game.map.movement_body()
 	bot.controller.body.copy_filters_to(body)
 	var sim := bot.controller.simulator(body)
 	sim.oracle = oracle
 	if game.map.mechanics != null:
 		var mechanics := game.map.mechanics
-		sim.mechanics = func(state: DotFpsState, motor: DotFpsMotor, delta: float, start: Vector3) -> int:
+		sim.mechanics = func(state: GSFpsState, motor: GSFpsMotor, delta: float, start: Vector3) -> int:
 			mechanics.simulate(motor, state, start, delta)
-			return DotFpsSimulator.EVENT_NONE
+			return GSFpsSimulator.EVENT_NONE
 	return sim
 
 
 ## A state standing at [param at], facing [param yaw], at rest.
-func _standing_at(at: Vector3, yaw: float) -> DotFpsState:
+func _standing_at(at: Vector3, yaw: float) -> GSFpsState:
 	bot.controller.teleport(at, yaw, 0.0)
 	var s := bot.controller.state.duplicate_state()
 	s.velocity = Vector3.ZERO
@@ -203,13 +203,13 @@ func _standing_at(at: Vector3, yaw: float) -> DotFpsState:
 ## [param at] moved up to [constant SIDE] sideways and [constant ALONG] along, running at up to
 ## Fatal Contact's speed within [constant TURN] degrees of [param yaw]: how a bot whose route reached
 ## the edge arrives at it.
-func perturbed(at: Vector3, yaw: float, rng: RandomNumberGenerator) -> DotFpsState:
-	var forward := DotFpsMotor.forward_for(yaw)
+func perturbed(at: Vector3, yaw: float, rng: RandomNumberGenerator) -> GSFpsState:
+	var forward := GSFpsMotor.forward_for(yaw)
 	var side := Vector3(-forward.z, 0.0, forward.x)
 	var p := at + side * rng.randf_range(-SIDE, SIDE) + forward * rng.randf_range(-ALONG, ALONG)
 	var s := _standing_at(p, yaw)
 	var heading := yaw + rng.randf_range(-TURN, TURN)
-	s.velocity = DotFpsMotor.forward_for(heading) * rng.randf_range(0.0, bot.controller.tunables.max_speed)
+	s.velocity = GSFpsMotor.forward_for(heading) * rng.randf_range(0.0, bot.controller.tunables.max_speed)
 	return s
 
 

@@ -5,7 +5,7 @@ func _solid_hulls() -> Array:
 	return solid_hulls_fn.call(player_id, _hull_tick) if solid_hulls_fn.is_valid() else []
 
 ## The map's movement body, wrapped so the other players' hulls stop its sweeps.
-func _movement_body(of_map: FcMap) -> DotFpsBody:
+func _movement_body(of_map: FcMap) -> GSFpsBody:
 	return FcSolidBody.new().wrap(of_map.movement_body(), _solid_hulls)
 
 func _build_view() -> void:
@@ -28,7 +28,7 @@ static func stand_height() -> float:
 static func eye_height() -> float:
 	return FcPlayerTunables.eye_height_m()
 
-static func fc_tunables() -> DotFpsTunables:
+static func fc_tunables() -> GSFpsTunables:
 	return FcPlayerTunables.make()
 
 ## Hands the swim and ladder modes the map's water and ladders, or nothing. A player left
@@ -45,7 +45,7 @@ func _use_map_volumes() -> void:
 
 	if (mode_now == swim.mode_id and swim.volumes.is_empty()) \
 			or (mode_now == ladder.mode_id and ladder.volumes.is_empty()):
-		controller.motor.set_mode(controller.state, DotFpsState.Mode.AIR)
+		controller.motor.set_mode(controller.state, GSFpsState.Mode.AIR)
 
 func _build_controller() -> void:
 	var tunables := fc_tunables()
@@ -57,10 +57,10 @@ func _build_controller() -> void:
 		headless.flat_body = _movement_body(_map)
 		controller = headless
 	else:
-		controller = DotFpsController.new()
+		controller = GSFpsController.new()
 
 	controller.name = "Movement"
-	controller.drive = DotFpsController.Drive.EXTERNAL
+	controller.drive = GSFpsController.Drive.EXTERNAL
 	controller.tick_rate = _tick_rate
 	controller.tunables = tunables
 	controller.register_service = false
@@ -73,7 +73,7 @@ func _build_controller() -> void:
 	# wire: an admin's noclip or freeze is a modifier the owning client has to predict,
 	# and a client that had not registered it would read that index as something else.
 	controller.admin_abilities = true
-	controller.body_ref = DotNodeRef.of_path(NodePath(".."))
+	controller.body_ref = GSNodeRef.of_path(NodePath(".."))
 	# The genre's water, in the genre's numbers, because the maps were built for them: 200 u/s at
 	# most, and a player who presses nothing sinks at 60 u/s rather than floating, so a pit full of
 	# water is climbed out of by holding jump.
@@ -94,7 +94,7 @@ func is_alive() -> bool:
 	return health.alive
 
 ## The body flinches on a hit that leaves the player alive, so a third-person view shows it.
-func _on_damaged(_damage: DotDamage) -> void:
+func _on_damaged(_damage: GSDamage) -> void:
 	if figure != null and is_alive():
 		figure.flinch()
 
@@ -106,12 +106,12 @@ func make_dead() -> void:
 		hull_world.set_alive(hull_slot, false)
 
 
-## Files this player in [param world] (dot-sim's `DotSimHullWorld`) as roster slot [param slot] for this players' loop;
+## Files this player in [param world] (dot-sim's `GSSimHullWorld`) as roster slot [param slot] for this players' loop;
 ## with [param native] its movement body gathers its hulls from the world. Whether the body does.
 func use_hull_world(world: Object, slot: int, native: bool) -> bool:
 	hull_world = world
 	hull_slot = slot
-	var body: DotFpsBody = controller.body if native and controller != null else null
+	var body: GSFpsBody = controller.body if native and controller != null else null
 	if body != _hull_body or slot != _hull_body_slot:
 		if _hull_body != null and _hull_body != body:
 			var _off := _hull_body.set_hull_world(null, -1)
@@ -120,13 +120,13 @@ func use_hull_world(world: Object, slot: int, native: bool) -> bool:
 		_hull_body_ok = body != null and body.set_hull_world(world, slot)
 	return _hull_body_ok
 
-func _on_died(damage: DotDamage) -> void:
+func _on_died(damage: GSDamage) -> void:
 	if before_death.is_valid(): before_death.call()
 	make_dead()
 	died.emit(damage)
 
 func _build_health() -> void:
-	health = DotHealth.new()
+	health = GSHealth.new()
 	health.name = "Health"
 	health.max_health = _max_health
 	health.max_armour = _max_armour
@@ -139,7 +139,7 @@ func _build_health() -> void:
 	health.died.connect(_on_died)
 	health.damaged.connect(_on_damaged)
 
-static func _catalogue() -> DotWeaponCatalogue:
+static func _catalogue() -> GSWeaponCatalogue:
 	Roles.ensure()
 	_build_shared_catalogue()
 	if not _shared_warm:
@@ -178,7 +178,7 @@ static func warm_catalogue_step(step: int, held: Array) -> bool:
 	held.clear()
 	return false
 
-func _on_used(outcome: DotWeaponOutcome) -> void:
+func _on_used(outcome: GSWeaponOutcome) -> void:
 	if camera != null:
 		recoil_view.kick(outcome)
 	used.emit(outcome)
@@ -202,14 +202,14 @@ func _build_rig(role: AwWeaponRig.Role, authority: bool, view_model: Node3D) -> 
 	# The held weapon lowers at every brush that stops the player, clip and fences included, though shots pass them.
 	weapons.wall_extra_mask = controller.tunables.collision_mask if controller != null else 0
 	weapons.catalogue = _catalogue()
-	weapons.arsenal_ref = DotNodeRef.of_path(^"../Arsenal")
-	weapons.player_ref = DotNodeRef.of_path(^"..")
+	weapons.arsenal_ref = GSNodeRef.of_path(^"../Arsenal")
+	weapons.player_ref = GSNodeRef.of_path(^"..")
 	if ads_rules != null:
 		weapons.ads_rules = ads_rules
 
 	if view_model != null:
 		# In the tree by now: it hangs under this player's camera.
-		weapons.view_model_ref = DotNodeRef.of_path(view_model.get_path())
+		weapons.view_model_ref = GSNodeRef.of_path(view_model.get_path())
 
 	add_child(weapons)
 
@@ -223,7 +223,7 @@ func _build_rig(role: AwWeaponRig.Role, authority: bool, view_model: Node3D) -> 
 	weapons.used.connect(_on_used)
 
 func _build_arsenal() -> void:
-	arsenal = DotWeaponArsenal.new()
+	arsenal = GSWeaponArsenal.new()
 	arsenal.name = "Arsenal"
 	arsenal.tick_rate = _tick_rate
 	# One per pack slot: melee, sidearm, primary, heavy, thrown. `FcNetCommand`
@@ -259,13 +259,13 @@ func _build_arsenal() -> void:
 
 
 func _build_hitboxes() -> void:
-	var plan := DotPlayerHitboxes.new()
+	var plan := GSPlayerHitboxes.new()
 	plan.name = "HitboxPlan"
 	# The zones were drawn for a 1.8 m body; they follow the configured height.
 	var k := FcPlayerTunables.body_scale()
 	plan.height = FcPlayerTunables.stand_height_m()
 	plan.set_factory = func() -> Node3D:
-		var set_ := DotHitboxSet.new()
+		var set_ := GSHitboxSet.new()
 		set_.bounds_offset = Vector3(0.0, 0.9 * k, 0.0)
 		set_.bounds_radius = 1.6 * k
 		return set_
@@ -288,7 +288,7 @@ func _build_hitboxes() -> void:
 	if not built.ok:
 		push_error("arena hitboxes: " + built.error.message)
 	# The set's entity owner is its parent, so it hangs off the player, not off the plan.
-	hitboxes = plan.hitbox_set() as DotHitboxSet
+	hitboxes = plan.hitbox_set() as GSHitboxSet
 	plan.remove_child(hitboxes)
 	remove_child(plan)
 	plan.free()
@@ -307,7 +307,7 @@ func use_tick_rate(rate: int) -> void:
 		# The controller hands its rate to the motor once, when it readies.
 		if controller.motor != null:
 			controller.motor.set_tick_rate(_tick_rate)
-			DotFpsNetSync.set_tick_rate(_tick_rate)
+			GSFpsNetSync.set_tick_rate(_tick_rate)
 	if health != null:
 		health.set_tick_rate(_tick_rate)
 	if weapons != null:
@@ -334,7 +334,7 @@ func setup(p_mode: Mode, map: FcMap, id: int, name_text: String = "") -> void:
 	_build_arsenal()
 	_build_hitboxes()
 
-## The collision layers this player's movement sweeps against. [b]Not left at `DotFpsTunables`'
+## The collision layers this player's movement sweeps against. [b]Not left at `GSFpsTunables`'
 ## default of 1.[/b] One means bit 0, which is right only while every body in the game is on bit 0 —
 ## the state the layout exists to end.
 func use_collision_mask(mask: int) -> void:
@@ -346,21 +346,21 @@ func use_collision_mask(mask: int) -> void:
 		weapons.wall_extra_mask = mask
 
 ## The class profile's `look_down_back` attribute (metres your body trails back looking down), else the default.
-static func look_down_back_of(def: DotPlayerClassDef) -> float:
+static func look_down_back_of(def: GSPlayerClassDef) -> float:
 	var attrs: Variant = def.get("attributes") if def != null else null
 	if attrs is Dictionary and (attrs as Dictionary).has("look_down_back"):
 		return clampf(float((attrs as Dictionary)["look_down_back"]), 0.0, 2.0)
 	return 0.45
 
 ## Scales this player's movement by their class.
-func apply_class_movement(def: DotPlayerClassDef) -> void:
+func apply_class_movement(def: GSPlayerClassDef) -> void:
 	if controller == null or controller.tunables == null or def == null:
 		return
 
 	if _class_base == null:
 		_class_base = controller.tunables.duplicate()
 
-	var _n := DotPlayerClassApply.to_movement(def, controller.tunables, _class_base)
+	var _n := GSPlayerClassApply.to_movement(def, controller.tunables, _class_base)
 	FcPlayerTunables.apply_class_attributes(def, controller.tunables)
 	first_person_look_down_back = look_down_back_of(def)
 
@@ -459,7 +459,7 @@ func _apply_body_rules() -> void:
 	for key in _body_rules:
 		body_motion.set(key, _body_rules[key])
 
-static func _set_rule(tunables: DotFpsTunables, key: String, value: Variant) -> void:
+static func _set_rule(tunables: GSFpsTunables, key: String, value: Variant) -> void:
 	if key.ends_with("_enabled") or typeof(tunables.get(key)) == TYPE_BOOL:
 		tunables.set(key, float(value) != 0.0)
 	elif typeof(tunables.get(key)) == TYPE_INT:
@@ -488,17 +488,17 @@ func apply_movement_rules(rules: Dictionary) -> void:
 
 ## Poses [member body_mesh] from [param drawn]: its yaw, then the wall-run roll and turn.
 ## A body not on a wall has exactly the yaw it had, so this is every body's placement.
-func _pose_body(drawn: DotFpsState, yaw: float, delta: float) -> void:
+func _pose_body(drawn: GSFpsState, yaw: float, delta: float) -> void:
 	if body_mesh == null:
 		return
 	if body_motion == null:
-		body_motion = DotFpsViewMotion.new()
+		body_motion = GSFpsViewMotion.new()
 		body_motion.wall_run_body_roll = BODY_RULES.wall_run_body_roll
 		body_motion.wall_run_body_yaw = BODY_RULES.wall_run_body_yaw
 		_apply_body_rules()
 	# The wall is not replicated: a body drawn from the wire finds it with two rays.
 	if drawn.is_wall_running() and drawn.wall_normal == Vector3.ZERO and body_mesh.is_inside_tree():
-		drawn.wall_normal = DotFpsWallProbe.find(
+		drawn.wall_normal = GSFpsWallProbe.find(
 			body_mesh.get_world_3d().direct_space_state, drawn.position, drawn.velocity,
 			controller.tunables.collision_mask if controller != null else 1)
 	# Off a wall with the lean eased out, the advance only moves cues a body never reads (its roll and turn stay put).
@@ -522,7 +522,7 @@ func arm_first_person(view_model: Node3D, authority: bool) -> void:
 
 
 ## The shared weapon table, for anything else in the game that reads a definition.
-static func weapon_catalogue() -> DotWeaponCatalogue:
+static func weapon_catalogue() -> GSWeaponCatalogue:
 	return _catalogue()
 
 ## The map this player's collision was built against, which [method rebind_map] replaces.
@@ -547,7 +547,7 @@ func rebind_map(new_map: FcMap) -> void:
 	var rebuilt := controller.setup()
 
 	if not rebuilt.ok:
-		DotLog.warn(CHANNEL, "a player could not be re-bodied for the new map", {
+		GSLog.warn(CHANNEL, "a player could not be re-bodied for the new map", {
 			"player": player_id, "why": rebuilt.error.message
 		})
 
@@ -563,7 +563,7 @@ func muzzle_position() -> Vector3:
 
 ## Registers with the combat manager so this player can shoot and be shot. Both halves matter and
 ## they are separate calls in dot-combat: hitboxes make you hittable, health makes you damageable.
-func join_combat(combat: DotCombatManager) -> void:
+func join_combat(combat: GSCombatManager) -> void:
 	_combat = combat
 	hitboxes.register_with(combat, player_id)
 	combat.register_health(player_id, health)
@@ -591,7 +591,7 @@ func hold(slot: int) -> void:
 # --- Loadout ---------------------------------------------------------------
 
 ## Gives the weapons a resolved loadout names. [param entries] is what [method
-## DotLoadoutManager.resolve] returns: dictionaries of `slot`, `arsenal_slot`, `item` and `count`.
+## GSLoadoutManager.resolve] returns: dictionaries of `slot`, `arsenal_slot`, `item` and `count`.
 func give_loadout(entries: Array[Dictionary]) -> void:
 	arsenal.clear()
 
@@ -599,7 +599,7 @@ func give_loadout(entries: Array[Dictionary]) -> void:
 	var hand := 0
 
 	for entry in entries:
-		var item: DotItem = entry["item"]
+		var item: GSItem = entry["item"]
 
 		if not catalogue.has(item.id):
 			# An equipment item with no weapon behind it. Armour goes through here.
@@ -610,10 +610,10 @@ func give_loadout(entries: Array[Dictionary]) -> void:
 		var res := arsenal.give(item.id)
 
 		if not res.ok:
-			# [b]`DotLog`, not `push_warning`.[/b] A loadout entry the arsenal refused is a RUNTIME
+			# [b]`GSLog`, not `push_warning`.[/b] A loadout entry the arsenal refused is a RUNTIME
 			# condition an operator would want to see -- somebody spawned without the weapon they
 			# picked -- so it belongs in the log file, on a channel, with the item that caused it.
-			DotLog.warn(
+			GSLog.warn(
 				CHANNEL,
 				"a loadout item could not be given",
 				{
@@ -676,7 +676,7 @@ func spawn(at: Transform3D, tick: int, protection_ticks: int = 0) -> void:
 
 ## Builds a tag and frees it, so the loading screen's warm-up compiles the bar's shader before the first hit.
 static func warm_health_tag() -> void:
-	DotHealthTag.new().free()
+	GSHealthTag.new().free()
 
 ## The tag over a remote player's head: their name and a health bar, each drawn when the player's setting and
 ## the server's rule both allow it (see [code]fc_name_tag_rules.gd[/code]), facing the camera.
@@ -717,7 +717,7 @@ func _present_health_tag(delta: float) -> void:
 		return
 
 	if _health_tag == null:
-		_health_tag = DotHealthTag.new()
+		_health_tag = GSHealthTag.new()
 		add_child(_health_tag)
 
 	# Over the body as drawn, which an offline bot's is between ticks (`interpolate_body`).
@@ -749,7 +749,7 @@ func _present_health_tag(delta: float) -> void:
 	_tag_name = display_name
 
 
-## The tag at [param at], turned to [param camera_now] as [method DotHealthTag.face] turns it, in one transform write: a position
+## The tag at [param at], turned to [param camera_now] as [method GSHealthTag.face] turns it, in one transform write: a position
 ## then a look_at was three (position, transform, scale), each carried down to the bar and the label. Nothing is written when
 ## the tag is where it was left and the camera has not moved, which is the same picture.
 func _place_health_tag(at: Vector3, camera_now: Camera3D) -> void:

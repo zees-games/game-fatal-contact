@@ -9,7 +9,7 @@ const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
 
 ## Bot soak on the real Arena: N bots play a free-for-all on one map for M simulated minutes
-## through dot-bot's DotBotSoak, fed by dot-spawn's DotSpawnWatch and the game's kill stats.
+## through dot-bot's GSBotSoak, fed by dot-spawn's GSSpawnWatch and the game's kill stats.
 ##
 ## [codeblock]
 ## ./game.sh soak [map] [minutes]
@@ -23,7 +23,7 @@ const FcSimServer := preload("../game/fc_sim_server.gd")
 ## --sections 1 prints where the ticks went (the sim host's SIM_HOST_SECTIONS line, plus soak_think for the brains
 ## and soak_tick for the game, and on a surf map the rides' SOAK_SURF counts), `2` adds the fine sub-spans. Off by default: each section costs two clock reads.
 ##
-## Also takes the harness's own flags (--soak-max-stuck-sec and the rest of DotBotSoakConfig).
+## Also takes the harness's own flags (--soak-max-stuck-sec and the rest of GSBotSoakConfig).
 ## Writes .godot/test-logs/soak-<map>.json, prints the SOAK line, exits 1 when the run fails.
 
 const TICK_RATE := 64
@@ -50,7 +50,7 @@ var _goal := Vector3.ZERO
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -63,7 +63,7 @@ func _arg(name: String, fallback: String) -> String:
 
 
 ## Applies the command line to [param cfg]; returns the difficulty a `--seed` draws, or "".
-func _configure(cfg: DotBotSoakConfig) -> String:
+func _configure(cfg: GSBotSoakConfig) -> String:
 	cfg.minutes = DEFAULT_MINUTES
 	cfg.bots = DEFAULT_BOTS
 	cfg.apply_cli()
@@ -78,7 +78,7 @@ func _configure(cfg: DotBotSoakConfig) -> String:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = cfg.seed_value
 		var drawn_bots := rng.randi_range(4, 12)
-		difficulty = String(DotBotProfile.PRESETS[rng.randi() % DotBotProfile.PRESETS.size()])
+		difficulty = String(GSBotProfile.PRESETS[rng.randi() % GSBotProfile.PRESETS.size()])
 		if _arg("bots", "").is_empty():
 			cfg.bots = drawn_bots
 	return difficulty
@@ -102,7 +102,7 @@ func _run() -> void:
 		_fail("unknown map %s (is fc-surf-dm-maps linked?)" % map_id)
 		return
 
-	var cfg := DotBotSoakConfig.new()
+	var cfg := GSBotSoakConfig.new()
 	var difficulty := _configure(cfg)
 	var sections := _arg("sections", "0")
 	if sections == "1" or sections == "2":
@@ -111,9 +111,9 @@ func _run() -> void:
 
 	_add_game()
 	if not difficulty.is_empty():
-		DotBotSettings.of(_game).set_difficulty(difficulty)
+		GSBotSettings.of(_game).set_difficulty(difficulty)
 	if not _arg("stranded-sec", "").is_empty():
-		DotBotSettings.of(_game).set_value("stranded_sec", _arg("stranded-sec", ""))
+		GSBotSettings.of(_game).set_value("stranded_sec", _arg("stranded-sec", ""))
 	var res := _game.setup(map)
 	if not res.ok:
 		_fail("setup: %s" % res.error.message)
@@ -136,7 +136,7 @@ func _run() -> void:
 		await get_tree().process_frame
 		frames += 1
 
-	_game.player_killed.connect(func(_entry: DotKillFeed.Entry) -> void: _kills += 1)
+	_game.player_killed.connect(func(_entry: GSKillFeed.Entry) -> void: _kills += 1)
 	_game.hit_confirmed.connect(func(_a: int, _v: int, amount: float, _p: Vector3, _h: bool, lethal: bool) -> void:
 		_damage += amount
 		if lethal:
@@ -160,8 +160,8 @@ func _run() -> void:
 	report["map"] = String(map_id)
 	report["seed"] = cfg.seed_value
 	report["difficulty"] = difficulty
-	print(DotBotSoak.summary(report))
-	print(DotBotSoak.report_line(report))
+	print(GSBotSoak.summary(report))
+	print(GSBotSoak.report_line(report))
 	var tag := "%s-s%d" % [map_id, cfg.seed_value] if not difficulty.is_empty() else String(map_id)
 	var path := _arg("report", ProjectSettings.globalize_path("res://.godot/test-logs/soak-%s.json" % tag))
 	DirAccess.make_dir_recursive_absolute(path.get_base_dir())
@@ -171,10 +171,10 @@ func _run() -> void:
 
 
 ## The soak over the started game: its spawn watch, one mind per bot, and the route checks when the map has navigation.
-func _make_soak(cfg: DotBotSoakConfig, map: FcMap, world: FcBots.World) -> DotBotSoak:
+func _make_soak(cfg: GSBotSoakConfig, map: FcMap, world: FcBots.World) -> GSBotSoak:
 	if not map.spawns.is_empty():
 		_goal = map.spawns[0].origin
-	var watch := DotSpawnWatch.new()
+	var watch := GSSpawnWatch.new()
 	watch.rules.enabled = true
 	watch.rules.kill_y = map.bounds.position.y - 20.0
 	for player in _game.players():
@@ -182,7 +182,7 @@ func _make_soak(cfg: DotBotSoakConfig, map: FcMap, world: FcBots.World) -> DotBo
 		mind.seed = cfg.seed_value * 1000 + player.player_id
 		_minds[player.player_id] = mind
 
-	var soak := DotBotSoak.new(cfg)
+	var soak := GSBotSoak.new(cfg)
 	soak.watch = watch
 	soak.movers_fn = _movers
 	soak.stats_fn = func() -> Dictionary: return {"kills": _kills, "deaths": _deaths, "damage": _damage}
@@ -225,7 +225,7 @@ func _movers() -> Array:
 
 ## A bot that stands on purpose has no goal for the stuck watch: it fights, listens or searches with nowhere to walk, and the brain moves it when that ends. A bot that wants to walk, or has nowhere to go (roam, no move), still counts, and that one dot-bot's unstick reports as stranded.
 func _holding(mind: FcBots.Mind) -> bool:
-	var last: DotBotIntent = mind.brain.last if mind.brain != null else null
+	var last: GSBotIntent = mind.brain.last if mind.brain != null else null
 	return last != null and last.move.length() <= 0.3 and HOLD_STATES.has(last.state)
 
 

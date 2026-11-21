@@ -104,8 +104,8 @@ func _t(at_66: int) -> int:
 
 
 ## The command for the tick about to run, from the player's state as it stands.
-func next(state: DotFpsState) -> DotFpsCommand:
-	var c := DotFpsCommand.new()
+func next(state: GSFpsState) -> GSFpsCommand:
+	var c := GSFpsCommand.new()
 	c.yaw = yaw
 	c.move = Vector2(0.0, 1.0)
 
@@ -122,28 +122,28 @@ func next(state: DotFpsState) -> DotFpsCommand:
 	return c
 
 
-func _next_run(state: DotFpsState, c: DotFpsCommand) -> void:
+func _next_run(state: GSFpsState, c: GSFpsCommand) -> void:
 	var left := (_edge - state.position[_axis]) * _dir
 
 	if _jumped_at < 0:
 		# The slide: pressed a metre and a bit before the edge, so the boost is fresh
 		# when the jump comes; a slide bleeds about 9 m/s² and the run needs 9.5.
 		if (variant == &"walls" or variant == &"slide") and left < 1.2:
-			c.buttons |= DotFpsCommand.BUTTON_CROUCH
+			c.buttons |= GSFpsCommand.BUTTON_CROUCH
 		if variant == &"dash" and left < 3.0 and left > 2.0:
-			c.buttons |= DotFpsCommand.BUTTON_SPRINT
+			c.buttons |= GSFpsCommand.BUTTON_SPRINT
 		if left < 0.5 and state.is_grounded():
-			c.buttons |= DotFpsCommand.BUTTON_JUMP
+			c.buttons |= GSFpsCommand.BUTTON_JUMP
 			_jumped_at = _ticks
 	elif variant == &"jumpdash" and _ticks == _jumped_at + _t(3):
-		c.buttons |= DotFpsCommand.BUTTON_SPRINT
+		c.buttons |= GSFpsCommand.BUTTON_SPRINT
 
 
-func _next_jump(state: DotFpsState, c: DotFpsCommand) -> void:
+func _next_jump(state: GSFpsState, c: GSFpsCommand) -> void:
 	if _jumped_at < 0:
 		# Off the floor toward the near wall.
 		c.move = Vector2(_strafe, 1.0)
-		c.buttons |= DotFpsCommand.BUTTON_JUMP
+		c.buttons |= GSFpsCommand.BUTTON_JUMP
 		_jumped_at = _ticks
 		return
 
@@ -153,16 +153,16 @@ func _next_jump(state: DotFpsState, c: DotFpsCommand) -> void:
 		_ticks > _jumped_at + _t(6) and _ticks - _last_wall_jump > _t(6)
 		and not state.is_grounded() and _ticks % 2 == 0 and state.velocity.y < 2.0
 	):
-		c.buttons |= DotFpsCommand.BUTTON_JUMP
+		c.buttons |= GSFpsCommand.BUTTON_JUMP
 
 
 ## Whether the jump has been made and the player is down again, wherever that is.
-func finished(state: DotFpsState) -> bool:
+func finished(state: GSFpsState) -> bool:
 	return _jumped_at >= 0 and _ticks > _jumped_at + _t(3) and state.is_grounded()
 
 
 ## Whether the player stands on the route's end.
-func made(state: DotFpsState) -> bool:
+func made(state: GSFpsState) -> bool:
 	var to: AABB = route["to"]
 	var at := state.position
 	return (
@@ -172,6 +172,6 @@ func made(state: DotFpsState) -> bool:
 	)
 
 
-## The view yaw that looks along [param forward]: `DotFpsMotor.forward_for` inverted.
+## The view yaw that looks along [param forward]: `GSFpsMotor.forward_for` inverted.
 static func _yaw_of(forward: Vector3) -> float:
 	return rad_to_deg(atan2(-forward.x, -forward.z))

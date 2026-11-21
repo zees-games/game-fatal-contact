@@ -19,7 +19,7 @@ const PLAYER_TARGET_US := 70.0
 static var _begin_frame := 0
 
 
-## Registers the providers on [param profiler] (a DotProfiler); [param game] is the FcGame and [param bridge]
+## Registers the providers on [param profiler] (a GSProfiler); [param game] is the FcGame and [param bridge]
 ## the client's net bridge (its bots, when this process hosts them), both read when asked; [param presentation]
 ## is whatever holds the client's `audio` manager.
 static func install(profiler: Object, game: Object, bridge: Object = null, presentation: Object = null) -> void:
@@ -54,7 +54,7 @@ static func begin_fine() -> void:
 	if FcFrameProbe.fine_on_record:
 		FcFrameProbe.fine = true
 		AwWeaponRig.phase_timers = true
-		DotWeaponArsenal.phase_timers = true
+		GSWeaponArsenal.phase_timers = true
 
 
 ## Off again once the recording ended (a read while it runs, for the overlay, leaves them on).
@@ -63,7 +63,7 @@ static func end_fine(profiler: Object) -> Dictionary:
 	if FcFrameProbe.fine_on_record and profiler != null and profiler.has_method(&"is_recording") and not bool(profiler.call(&"is_recording")):
 		FcFrameProbe.fine = false
 		AwWeaponRig.phase_timers = false
-		DotWeaponArsenal.phase_timers = false
+		GSWeaponArsenal.phase_timers = false
 	return out
 
 
@@ -113,34 +113,34 @@ static func audio_context(presentation: Object) -> Dictionary:
 
 ## dot-sim: tag and platform from the bootstrap's stamp, the modules loaded, what runs, and the hull cvar.
 static func natives() -> Dictionary:
-	var out := {"loaded": ClassDB.class_exists(&"DotSimFpsBody")}
+	var out := {"loaded": ClassDB.class_exists(&"GSSimFpsBody")}
 	out["stamp"] = FileAccess.get_file_as_string(STAMP).strip_edges() if FileAccess.file_exists(STAMP) else "unknown"
 	out["status"] = FcPlayerStack.dot_sim_status()
 	out["hull_native"] = FcHullGrid.native
 	out["fc_hull_native"] = "1" if FcHullGrid.native else "0"
-	out["fc_bot_pvs"] = ("native" if FcBotPvs.native and DotSim.has(&"pvs") else "script") if FcBotPvs.enabled else "off"
+	out["fc_bot_pvs"] = ("native" if FcBotPvs.native and GSSim.has(&"pvs") else "script") if FcBotPvs.enabled else "off"
 	return out
 
 
 ## Starts dot-sim's per-call timers for the recording; a no-op where the library is missing.
 static func begin_native() -> void:
 	_begin_frame = Engine.get_process_frames()
-	if ClassDB.class_exists(&"DotSimFpsBody"):
-		ClassDB.class_call_static(&"DotSimFpsBody", &"reset_profile")
-		ClassDB.class_call_static(&"DotSimFpsBody", &"set_profile", true)
+	if ClassDB.class_exists(&"GSSimFpsBody"):
+		ClassDB.class_call_static(&"GSSimFpsBody", &"reset_profile")
+		ClassDB.class_call_static(&"GSSimFpsBody", &"set_profile", true)
 
 
 ## The timers per frame, in the shape of the bench sidecar's `native`: {slot: {per_frame, ms_per_frame, us_each}}.
 ## Read while recording (the overlay) leaves them running; read after it ends turns them off.
 static func end_native(profiler: Object) -> Dictionary:
-	if not ClassDB.class_exists(&"DotSimFpsBody"):
+	if not ClassDB.class_exists(&"GSSimFpsBody"):
 		return {}
-	var c: PackedInt64Array = ClassDB.class_call_static(&"DotSimFpsBody", &"profile_counters")
+	var c: PackedInt64Array = ClassDB.class_call_static(&"GSSimFpsBody", &"profile_counters")
 	var n := maxf(Engine.get_process_frames() - _begin_frame, 1)
 	var out := {}
 	for i in mini(SLOTS.size(), c.size() / 2):
 		out[SLOTS[i]] = {"per_frame": snappedf(float(c[i * 2]) / n, 0.01), "ms_per_frame": snappedf(c[i * 2 + 1] / 1000.0 / n, 0.001),
 			"us_each": snappedf(float(c[i * 2 + 1]) / maxf(c[i * 2], 1.0), 0.01)}
 	if profiler != null and profiler.has_method(&"is_recording") and not bool(profiler.call(&"is_recording")):
-		ClassDB.class_call_static(&"DotSimFpsBody", &"set_profile", false)
+		ClassDB.class_call_static(&"GSSimFpsBody", &"set_profile", false)
 	return out

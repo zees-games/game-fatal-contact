@@ -2,7 +2,7 @@ extends "fc_net_bridge_link.gd"
 
 const FcNetCommand := preload("fc_net_command.gd")
 
-## Bytes [method DotNetManager.encode_ack] produces, and the prefix of every input
+## Bytes [method GSNetManager.encode_ack] produces, and the prefix of every input
 ## packet. Fixed width, so the command that follows starts at a known offset.
 const ACK_BYTES := 4
 
@@ -12,18 +12,18 @@ var event_budget_usec := 0
 var _events_waiting: Array[PackedByteArray] = []
 var _event_frame := -1
 var _event_usec := 0
-## 1 when dot-net has DotNetManager.snapshot_due(), 0 when not, -1 before the first ask.
+## 1 when dot-net has GSNetManager.snapshot_due(), 0 when not, -1 before the first ask.
 var _snapshot_due_api := -1
 
 
 ## Whether the tick being simulated ends in a snapshot (and the history recorded with it):
-## dot-net 19's [code]DotNetManager.snapshot_due()[/code]. True on a shell's older dot-net, which
+## dot-net 19's [code]GSNetManager.snapshot_due()[/code]. True on a shell's older dot-net, which
 ## cannot say: every tick is then pulled, as before. Called by name, so an older dot-net parses.
 func snapshot_due() -> bool:
 	if net == null:
 		return true
 	if _snapshot_due_api < 0:
-		_snapshot_due_api = 1 if DotAddonApi.build_level("dot_net") >= 19 and net.has_method(&"snapshot_due") else 0
+		_snapshot_due_api = 1 if GSAddonApi.build_level("dot_net") >= 19 and net.has_method(&"snapshot_due") else 0
 	return _snapshot_due_api == 0 or bool(net.call(&"snapshot_due"))
 
 
@@ -45,7 +45,7 @@ func bot_ids() -> Array[int]:
 ## before predicting, because reconciliation replays that history — an input the
 ## buffer never saw is a tick the replay cannot reproduce, and the correction is then
 ## measured against a state the server never computed.
-func client_tick(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> void:
+func client_tick(tick: int, move: GSFpsCommand, fire: GSWeaponCommand) -> void:
 	_tick = tick
 
 	if net == null or net.is_server:
@@ -68,7 +68,7 @@ func client_tick(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> void
 
 	var t := Time.get_ticks_usec()
 	# The snapshots read since the last tick, reconciled once against the newest, before
-	# this tick predicts on top of them (DotNetConfig.reconcile_once_per_frame; by name for
+	# this tick predicts on top of them (GSNetConfig.reconcile_once_per_frame; by name for
 	# an older shell's dot-net, where each snapshot already reconciled as it came).
 	if net.has_method(&"flush_reconcile"):
 		var replays := probe_replays_before()
@@ -76,7 +76,7 @@ func client_tick(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> void
 		probe_replays_after(replays)
 		FcFrameProbe.add(&"reconcile", t)
 		t = Time.get_ticks_usec()
-	# [b]Through dot-net's predictor, not around it[/b] (`DotNetManager.predict_tick`, API 10).
+	# [b]Through dot-net's predictor, not around it[/b] (`GSNetManager.predict_tick`, API 10).
 	# Simulating the predicted behaviours here by hand predicted the same thing, but the
 	# predictor never saw these ticks: `skip_matching_replays` had nothing remembered to
 	# compare a snapshot with unless a replay had happened to cover its tick, so most snapshots
@@ -97,9 +97,9 @@ func client_tick(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> void
 		net.call(&"predict_tick", tick, command)
 	else:
 		# Same object as the one buffered above, so its replays run on the rounded one too.
-		var wire := DotNetWriter.new(32)
+		var wire := GSNetWriter.new(32)
 		command.write(wire)
-		command.read(DotNetReader.new(wire.to_bytes()))
+		command.read(GSNetReader.new(wire.to_bytes()))
 		var remember := net.predictor != null and net.predictor.has_method(&"_remember")
 		for identity in net.registry.predicted():
 			for behaviour in identity.behaviours:
@@ -113,18 +113,18 @@ func client_tick(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> void
 
 ## Applies a snapshot. Client side.
 ##
-## [b]Reconciliation is [DotNetManager]'s, not this file's.[/b]
-## [method DotNetManager.receive_snapshot] already routes a predicted entity's state to
-## [method DotNetPredictor.reconcile] rather than applying it — applying it directly would
+## [b]Reconciliation is [GSNetManager]'s, not this file's.[/b]
+## [method GSNetManager.receive_snapshot] already routes a predicted entity's state to
+## [method GSNetPredictor.reconcile] rather than applying it — applying it directly would
 ## undo everything predicted since — and acknowledges the inputs that state covers.
 ##
-## A second pass here once replayed inputs twice: [method DotNetPredictor.correction_rate] read
+## A second pass here once replayed inputs twice: [method GSNetPredictor.correction_rate] read
 ## [b]0.500[/b] with it and [b]0.032[/b] without, though the client still converged.
-func receive_snapshot(payload: PackedByteArray) -> DotResult:
+func receive_snapshot(payload: PackedByteArray) -> GSResult:
 	if net == null or net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only a client receives these.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only a client receives these.")
 
-	# The one place an RTT sample is written. `DotNetStats` has a median and a
+	# The one place an RTT sample is written. `GSNetStats` has a median and a
 	# mean-absolute-deviation behind it and `receive_snapshot` reads
 	# `rtt_percentile(0.5)` on every snapshot to feed the clock — and no caller
 	# anywhere in dot-net writes a sample, because dot-net never touches a transport.
@@ -180,7 +180,7 @@ func probe_replays_after(before: int) -> void:
 ## loses one, which is why nothing had seen it. The copies come out of the client's own
 ## replay history, so they are exactly what it predicted with, and the server skips the
 ## ones it has already simulated.
-func encode_input(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> PackedByteArray:
+func encode_input(tick: int, move: GSFpsCommand, fire: GSWeaponCommand) -> PackedByteArray:
 	var command := _command_for(tick, move, fire)
 
 	# The ones before this tick from the replay history; this one from the arguments,
@@ -189,8 +189,8 @@ func encode_input(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> Pac
 	batch = batch.slice(maxi(0, batch.size() - (INPUT_COPIES - 1)))
 	batch.append(command)
 
-	var writer := DotNetWriter.new()
-	DotNetInput.write_batch(writer, batch)
+	var writer := GSNetWriter.new()
+	GSNetInput.write_batch(writer, batch)
 
 	var out := net.encode_ack()
 	out.append_array(writer.to_bytes())
@@ -208,7 +208,7 @@ var _targets_for: Array = []
 
 ## The command for [param tick], the same whether [method client_tick] or [method encode_input] made
 ## it: the server keeps the first copy of a tick to arrive, which is usually the encoded one.
-func _command_for(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> FcNetCommand:
+func _command_for(tick: int, move: GSFpsCommand, fire: GSWeaponCommand) -> FcNetCommand:
 	var command := FcNetCommand.new()
 	command.tick = tick
 	command.delta = net.clock.tick_duration()
@@ -231,7 +231,7 @@ func _command_for(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> FcN
 	command.view_lag_q = _lag_for_q
 	command.view_back = _back_for
 	command.view_span = _span_for
-	if _render_for >= 0.0 and fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK):
+	if _render_for >= 0.0 and fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 		if _targets_tick != tick:
 			_targets_tick = tick
 			_targets_for = _view_targets(tick, _render_for, move)
@@ -242,7 +242,7 @@ func _command_for(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> FcN
 
 ## [member FcNetCommand.view_targets] for a firing command at [param tick] drawn at [param render]: each remote player within `cl_shot_view_cone_deg` of [param move]'s aim
 ## that the interpolator drew across a sample pair of its own other than the room's ([member _back_for], [member _span_for]), or ran on past its newest sample.
-func _view_targets(tick: int, render: float, move: DotFpsCommand) -> Array:
+func _view_targets(tick: int, render: float, move: GSFpsCommand) -> Array:
 	var out: Array = []
 	var tracks: Variant = net.interpolator.get(&"_tracks") if net.interpolator != null else null
 	if not (tracks is Dictionary) or game == null:
@@ -275,7 +275,7 @@ func _view_targets(tick: int, render: float, move: DotFpsCommand) -> Array:
 			out.append(entry)
 	return out
 
-## How far, in millimetres, [param drawn] sits off the line through [param pair]'s samples at the drawn tick: the resume ease (DotNetInterpolator._ease_resume) the server cannot see.
+## How far, in millimetres, [param drawn] sits off the line through [param pair]'s samples at the drawn tick: the resume ease (GSNetInterpolator._ease_resume) the server cannot see.
 ## Held at the newer past `max_extrapolation_sec`, as the interpolator holds it.
 func _drawn_ease(drawn: Vector3, samples: Array, pair: Vector2i) -> Vector3i:
 	var a: Variant = null
@@ -301,7 +301,7 @@ func _local_eye() -> Vector3:
 			return mine.player.global_position + Vector3(0.0, FcPlayer.eye_height(), 0.0)
 	return Vector3.INF
 
-## The two samples of [param samples] (`{tick, ...}`, oldest first) the interpolator draws between at [param render] (DotNetInterpolator.sample), counting none past tick [param newest]:
+## The two samples of [param samples] (`{tick, ...}`, oldest first) the interpolator draws between at [param render] (GSNetInterpolator.sample), counting none past tick [param newest]:
 ## the newest two when it is past the newest, (-1, -1) when it holds one.
 static func _own_pair(samples: Array, render: float, newest: int) -> Vector2i:
 	var n := samples.size()
@@ -321,7 +321,7 @@ static func _own_pair(samples: Array, render: float, newest: int) -> Vector2i:
 ## what the server rewinds the other players by when this tick's command fires.
 ##
 ## Remote players are drawn at the receive timeline less the interpolation delay
-## ([method DotNetManager.interpolate_frame]); this command is for [param tick], ahead of
+## ([method GSNetManager.interpolate_frame]); this command is for [param tick], ahead of
 ## the server by the input lead. A shot on it was aimed at players as they were drawn, so
 ## the difference is the whole of what the server has to undo: the lead, the flight time
 ## and the interpolation delay. -1 when there is nothing to measure against yet.
@@ -350,7 +350,7 @@ var _drawn_newest := -1
 var _drawn_feet: Dictionary = {}
 
 
-## Draws the remote entities for this frame ([method DotNetManager.interpolate_frame]) and keeps
+## Draws the remote entities for this frame ([method GSNetManager.interpolate_frame]) and keeps
 ## the render tick it drew at, which the next command's view lag is measured from. The client
 ## calls this instead of the manager's; [param alpha] as there.
 func draw_frame(alpha: float = -1.0) -> void:
@@ -372,7 +372,7 @@ func draw_frame(alpha: float = -1.0) -> void:
 				_drawn_feet[other.identity.net_id] = other.net_position
 
 
-## The render tick [method DotNetManager.interpolate_frame] draws remote entities at for
+## The render tick [method GSNetManager.interpolate_frame] draws remote entities at for
 ## [param alpha], the same arithmetic; -1 when it draws nothing.
 func drawn_tick(alpha: float) -> float:
 	if net == null or net.is_server or net.interpolator == null or not net.clock.is_synced():
@@ -386,23 +386,23 @@ func drawn_tick(alpha: float) -> float:
 ## The acknowledgement is applied even when the command is refused: they are
 ## independent claims, and a duplicate or late input says nothing about which
 ## snapshots arrived.
-func receive_input(peer_id: int, payload: PackedByteArray) -> DotResult:
+func receive_input(peer_id: int, payload: PackedByteArray) -> GSResult:
 	if net == null or not net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server takes input.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server takes input.")
 
 	if payload.size() <= ACK_BYTES:
-		return DotResult.fail(DotError.CODE_PARSE, "Input packet is too short.")
+		return GSResult.fail(GSError.CODE_PARSE, "Input packet is too short.")
 
 	net.receive_ack_payload(peer_id, payload.slice(0, ACK_BYTES))
 	inputs_from[peer_id] = int(inputs_from.get(peer_id, 0)) + 1
 
-	var batch := DotNetInput.read_batch(
-		DotNetReader.new(payload.slice(ACK_BYTES)),
-		func() -> DotNetInput: return FcNetCommand.new()
+	var batch := GSNetInput.read_batch(
+		GSNetReader.new(payload.slice(ACK_BYTES)),
+		func() -> GSNetInput: return FcNetCommand.new()
 	)
 
 	if batch.is_empty():
-		return DotResult.fail(DotError.CODE_PARSE, "Input packet carries no command.")
+		return GSResult.fail(GSError.CODE_PARSE, "Input packet carries no command.")
 
 	# One call a packet: the copies of ticks already simulated are skipped rather than counted
 	# late, and the arrival lead is measured on the packet's own command only. A resend seen
@@ -427,10 +427,10 @@ const LATE_FIRE_MAX_TICKS := 16
 
 ## Finds the shots in [param batch] whose command is new here but for a tick the server has simulated.
 ## Three lost packets and a late fourth left the only copy of a tap behind its tick, and
-## [method DotNetInput.Buffer.push_batch] skips such a copy without a count: the shooter saw the
+## [method GSNetInput.Buffer.push_batch] skips such a copy without a count: the shooter saw the
 ## shot and the server never fired it. It is queued to fire on the next command with the view
 ## the shooter drew ([method take_late_fire]); one too old is counted as late and dropped.
-func _note_late_fires(peer_id: int, buffer: DotNetInput.Buffer, batch: Array) -> void:
+func _note_late_fires(peer_id: int, buffer: GSNetInput.Buffer, batch: Array) -> void:
 	var seen: Dictionary = _seen_ticks.get_or_add(peer_id, {})
 	var consumed := buffer.last_consumed_tick()
 	for i in batch.size():
@@ -438,7 +438,7 @@ func _note_late_fires(peer_id: int, buffer: DotNetInput.Buffer, batch: Array) ->
 		if command == null or seen.has(command.tick):
 			continue
 		seen[command.tick] = true
-		if consumed < 0 or command.tick > consumed or not command.fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK):
+		if consumed < 0 or command.tick > consumed or not command.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 			continue
 		var age := consumed - command.tick
 		if age >= LATE_FIRE_MAX_TICKS:
@@ -462,12 +462,12 @@ func take_late_fire(peer_id: int, tick: int, command: FcNetCommand) -> Array:
 	while not queue.is_empty() and tick - int((queue[0] as Array)[0]) >= LATE_FIRE_MAX_TICKS:
 		queue.pop_front()
 		late_fire_dropped += 1
-	if queue.is_empty() or command.fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK):
+	if queue.is_empty() or command.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 		return []
 	var late: Array = queue.pop_front()
 	late_fire_honoured += 1
 	var fire := command.fire.duplicate_command()
-	fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 	var behind := tick - int(late[0])
 	var view: float = late[1]
 	var back: int = int(late[2])
@@ -489,7 +489,7 @@ func advance_latency(delta: float) -> void:
 
 
 ## Sends one input command to the server, through `cl_latency_baseline` when it is on (the link's RPC is not dot-net's send path).
-func send_input(tick: int, move: DotFpsCommand, fire: DotWeaponCommand) -> void:
+func send_input(tick: int, move: GSFpsCommand, fire: GSWeaponCommand) -> void:
 	if link != null:
 		_send_held(link.send_input, encode_input(tick, move, fire))
 
@@ -516,20 +516,20 @@ func note_score_limit_changed() -> void:
 
 ## An event arrived. Client side.
 ##
-## Through `DotNetManager.receive` rather than straight to the registry: that is where
+## Through `GSNetManager.receive` rather than straight to the registry: that is where
 ## the payload cap, the per-peer rate limit and the direction check live, and a bridge
 ## that decoded for itself would be a second entry point with none of them.
 ##
 ## With [member event_budget_usec] set, events past a frame's budget wait for the next frame, in
 ## arrival order (a join backlog of 32 players and the arming was one 300 ms frame on staging02).
-func receive_event(payload: PackedByteArray) -> DotResult:
+func receive_event(payload: PackedByteArray) -> GSResult:
 	if net == null:
-		return DotResult.fail(DotError.CODE_STATE, "No manager.")
+		return GSResult.fail(GSError.CODE_STATE, "No manager.")
 	if event_budget_usec <= 0:
 		return net.receive(payload, 1)
 	if not _events_waiting.is_empty() or _event_usec_this_frame() >= event_budget_usec:
 		_wait_event(payload)
-		return DotResult.success(0)
+		return GSResult.success(0)
 	return _receive_timed(payload)
 
 
@@ -542,7 +542,7 @@ func _event_usec_this_frame() -> int:
 	return _event_usec if _event_frame == Engine.get_process_frames() else 0
 
 
-func _receive_timed(payload: PackedByteArray) -> DotResult:
+func _receive_timed(payload: PackedByteArray) -> GSResult:
 	var frame := Engine.get_process_frames()
 	if _event_frame != frame:
 		_event_frame = frame
@@ -569,52 +569,52 @@ func _drain_events() -> void:
 
 
 ## A request arrived. Server side.
-func receive_request(peer_id: int, payload: PackedByteArray) -> DotResult:
+func receive_request(peer_id: int, payload: PackedByteArray) -> GSResult:
 	if net == null:
-		return DotResult.fail(DotError.CODE_STATE, "No manager.")
+		return GSResult.fail(GSError.CODE_STATE, "No manager.")
 
 	return net.receive(payload, peer_id)
 
 
 ## A relayed voice frame arrived. Client side.
-## Not through [DotNetManager]: a voice frame is an opaque codec blob, and the replication
+## Not through [GSNetManager]: a voice frame is an opaque codec blob, and the replication
 ## schema must not change with the codec. Handled by [member voice_in_fn].
-func receive_voice(payload: PackedByteArray) -> DotResult:
+func receive_voice(payload: PackedByteArray) -> GSResult:
 	if not voice_in_fn.is_valid():
-		return DotResult.fail(DotError.CODE_STATE, "Nothing here plays voice.")
+		return GSResult.fail(GSError.CODE_STATE, "Nothing here plays voice.")
 
 	voice_in_fn.call(payload)
-	return DotResult.success(payload.size())
+	return GSResult.success(payload.size())
 
 
 ## A client's captured audio arrived. Server side.
 ##
 ## The speaker is [param peer_id] as the transport reported it, never read from the payload,
 ## or a client could put words in anybody's mouth.
-func receive_voice_frame(peer_id: int, payload: PackedByteArray) -> DotResult:
+func receive_voice_frame(peer_id: int, payload: PackedByteArray) -> GSResult:
 	if not voice_relay_fn.is_valid():
-		return DotResult.fail(DotError.CODE_STATE, "This end does not relay voice.")
+		return GSResult.fail(GSError.CODE_STATE, "This end does not relay voice.")
 
 	voice_relay_fn.call(peer_id, payload)
-	return DotResult.success(payload.size())
+	return GSResult.success(payload.size())
 
 
 ## A dot-map announcement arrived. Client side.
-func receive_map(payload: Dictionary) -> DotResult:
+func receive_map(payload: Dictionary) -> GSResult:
 	if not map_in_fn.is_valid():
-		return DotResult.fail(DotError.CODE_STATE, "This end does not follow maps.")
+		return GSResult.fail(GSError.CODE_STATE, "This end does not follow maps.")
 
 	map_in_fn.call(payload)
-	return DotResult.success(payload.size())
+	return GSResult.success(payload.size())
 
 
 ## A client's map progress or readiness arrived. Server side.
-func receive_map_report(peer_id: int, payload: Dictionary) -> DotResult:
+func receive_map_report(peer_id: int, payload: Dictionary) -> GSResult:
 	if not map_report_fn.is_valid():
-		return DotResult.fail(DotError.CODE_STATE, "This end does not host maps.")
+		return GSResult.fail(GSError.CODE_STATE, "This end does not host maps.")
 
 	map_report_fn.call(peer_id, payload)
-	return DotResult.success(payload.size())
+	return GSResult.success(payload.size())
 
 
 func describe() -> Dictionary:

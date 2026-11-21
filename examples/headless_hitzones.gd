@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcContent := preload("../game/fc_content.gd")
@@ -48,11 +48,11 @@ const SECTIONS := 5
 var _entered := 0
 var _completed := 0
 var _game: FcGame = null
-var _hits: Array[DotDamage] = []
+var _hits: Array[GSDamage] = []
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -94,7 +94,7 @@ func _boot() -> void:
 	var _b := _game.add_player(TARGET, "Target")
 	_game.start(0)
 	_game.tick({})
-	_game.combat.damage_applied.connect(func(d: DotDamage) -> void:
+	_game.combat.damage_applied.connect(func(d: GSDamage) -> void:
 		if d.victim == TARGET:
 			_hits.append(d))
 	await get_tree().physics_frame
@@ -134,19 +134,19 @@ func _aim_at(height: float, press: bool) -> Array:
 	var target: FcPlayer = _game.player_for(TARGET)
 	var k := FcPlayerTunables.body_scale()
 	var aim := angles_to(shooter.muzzle_position(), target.global_position + Vector3.UP * height * k)
-	var m := DotFpsCommand.new()
+	var m := GSFpsCommand.new()
 	m.yaw = aim.x
 	m.pitch = aim.y
-	var w := DotWeaponCommand.new()
-	w.buttons = DotWeaponCommand.BUTTON_ATTACK if press else 0
+	var w := GSWeaponCommand.new()
+	w.buttons = GSWeaponCommand.BUTTON_ATTACK if press else 0
 	return [m, w]
 
 
 ## One trigger pull at [param zone] of a target that cannot die (so a lethal round does not respawn it), wearing
 ## [param armour] (a spawn wears none; armour comes from a loadout item or a streak); the damage events it caused.
-func _one_round(weapon: StringName, zone: String, dist: float, armour: float) -> Array[DotDamage]:
+func _one_round(weapon: StringName, zone: String, dist: float, armour: float) -> Array[GSDamage]:
 	_place(dist, weapon)
-	var health: DotHealth = _game.combat.health_of(TARGET)
+	var health: GSHealth = _game.combat.health_of(TARGET)
 	health.health = 1.0e7
 	health.armour = 0.0
 	health.max_armour = maxf(health.max_armour, armour)
@@ -158,13 +158,13 @@ func _one_round(weapon: StringName, zone: String, dist: float, armour: float) ->
 	for _i in 3:
 		_game.tick({ATTACKER: _aim_at(ZONES[zone], false)})
 	await get_tree().physics_frame
-	var out: Array[DotDamage] = []
+	var out: Array[GSDamage] = []
 	out.assign(_hits)
 	return out
 
 
 ## The most health one round took (a shotgun's pellets on one tick are one round, a burst's rounds are not).
-static func round_loss(got: Array[DotDamage]) -> float:
+static func round_loss(got: Array[GSDamage]) -> float:
 	var by_tick := {}
 	for d in got:
 		by_tick[d.tick] = by_tick.get(d.tick, 0.0) + d.health_lost
@@ -181,7 +181,7 @@ func _table() -> void:
 	print("")
 	print("    a spawn: health %.0f armour %.0f (max %.0f), head x%.2f neck x%.2f" % [
 		spawn_health, target.health.armour, target.health.max_armour, _head_mult(),
-		_game.combat.resolver.hit_groups.multiplier(DotHitGroup.NECK)])
+		_game.combat.resolver.hit_groups.multiplier(GSHitGroup.NECK)])
 	for armour in [0.0, 100.0]:
 		_section("one round of every firearm at 10 m, armour %.0f: raw / health lost / zone (! = one round kills)" % armour)
 		var dead_in_one := PackedStringArray()
@@ -192,7 +192,7 @@ func _table() -> void:
 		for id in FIREARMS:
 			var line := "    %-15s" % id
 			for zone: String in ZONES:
-				var got: Array[DotDamage] = await _one_round(StringName(id), zone, 10.0, armour)
+				var got: Array[GSDamage] = await _one_round(StringName(id), zone, 10.0, armour)
 				var amount := 0.0
 				var group := "-"
 				for d in got:
@@ -209,14 +209,14 @@ func _table() -> void:
 
 
 ## A muzzle inside the target's head box is a point-blank head hit. The hitbox rays are analytic and count a start
-## inside a box as a hit at distance zero (DotHitbox._ray_box/_ray_capsule/_ray_sphere); the physics world ray's
+## inside a box as a hit at distance zero (GSHitbox._ray_box/_ray_capsule/_ray_sphere); the physics world ray's
 ## hit_from_inside = false is for walls only. Same code on the client and the server, no randomness: spread changes
 ## the direction, and from inside the box every direction hits it.
 func _inside() -> void:
 	_section("a muzzle inside the target's head box hits the head; a normal head round is unchanged")
 	for weapon: StringName in [&"pistol", &"sniper", &"shotgun"]:
 		_place(3.0, weapon)
-		var health: DotHealth = _game.combat.health_of(TARGET)
+		var health: GSHealth = _game.combat.health_of(TARGET)
 		health.health = 1.0e7
 		var shooter: FcPlayer = _game.player_for(ATTACKER)
 		var head := _head_box(TARGET)
@@ -225,40 +225,40 @@ func _inside() -> void:
 		# Teleport the shooter so its muzzle sits in the middle of the head box; one idle tick, then fire level.
 		var eye := shooter.muzzle_position() - shooter.controller.state.position
 		shooter.controller.teleport(head.global_position - eye, 0.0, 0.0)
-		var idle := DotFpsCommand.new()
-		_game.tick({ATTACKER: [idle, DotWeaponCommand.new()]})
+		var idle := GSFpsCommand.new()
+		_game.tick({ATTACKER: [idle, GSWeaponCommand.new()]})
 		var muzzle := shooter.muzzle_position()
 		var inside := head.overlaps_sphere(muzzle, 0.0)
 		_check(inside, "%s: the muzzle is inside the head box (the case under test)" % weapon,
 			"muzzle %s head %s" % [muzzle, head.global_position])
 		_hits.clear()
-		var w := DotWeaponCommand.new()
-		w.buttons = DotWeaponCommand.BUTTON_ATTACK
-		_game.tick({ATTACKER: [DotFpsCommand.new(), w]})
+		var w := GSWeaponCommand.new()
+		w.buttons = GSWeaponCommand.BUTTON_ATTACK
+		_game.tick({ATTACKER: [GSFpsCommand.new(), w]})
 		for _i in 3:
-			_game.tick({ATTACKER: [DotFpsCommand.new(), DotWeaponCommand.new()]})
+			_game.tick({ATTACKER: [GSFpsCommand.new(), GSWeaponCommand.new()]})
 		await get_tree().physics_frame
 		var heads := 0
 		for d in _hits:
-			if d.hit_group == DotHitGroup.HEAD:
+			if d.hit_group == GSHitGroup.HEAD:
 				heads += 1
 		print("    %-8s muzzle in head: %d damage events, %d in the head" % [weapon, _hits.size(), heads])
 		if weapon != &"shotgun":
 			_check(inside and heads >= 1, "%s fired from inside the head box hits the head" % weapon,
-				"%d events, groups %s" % [_hits.size(), str(_hits.map(func(d: DotDamage) -> StringName: return d.hit_group))])
+				"%d events, groups %s" % [_hits.size(), str(_hits.map(func(d: GSDamage) -> StringName: return d.hit_group))])
 	# Nothing else moved: the same pistol round at 10 m still lands in the head.
-	var normal: Array[DotDamage] = await _one_round(&"pistol", "head", 10.0, 0.0)
-	_check(normal.size() == 1 and normal[0].hit_group == DotHitGroup.HEAD, "a normal pistol head round at 10 m still hits the head",
-		str(normal.map(func(d: DotDamage) -> StringName: return d.hit_group)))
+	var normal: Array[GSDamage] = await _one_round(&"pistol", "head", 10.0, 0.0)
+	_check(normal.size() == 1 and normal[0].hit_group == GSHitGroup.HEAD, "a normal pistol head round at 10 m still hits the head",
+		str(normal.map(func(d: GSDamage) -> StringName: return d.hit_group)))
 	_completed += 1
 
 
-func _head_box(id: int) -> DotHitbox:
-	var set_node: DotHitboxSet = _game.combat.hitboxes_of(id)
+func _head_box(id: int) -> GSHitbox:
+	var set_node: GSHitboxSet = _game.combat.hitboxes_of(id)
 	if set_node == null:
 		return null
 	for box in set_node.hitboxes():
-		if box.effective_group() == DotHitGroup.HEAD:
+		if box.effective_group() == GSHitGroup.HEAD:
 			return box
 	return null
 
@@ -270,7 +270,7 @@ func _head_box(id: int) -> DotHitbox:
 func _shots_to_kill() -> void:
 	var catalogue := FcPlayer.weapon_catalogue()
 	_section("shots to kill (TTK ms) per body part at 10 m, chest at 40 / 70 m and with armour 100; head x%.2f leg x%.2f" % [
-		_head_mult(), _game.combat.resolver.hit_groups.multiplier(DotHitGroup.LEG)])
+		_head_mult(), _game.combat.resolver.hit_groups.multiplier(GSHitGroup.LEG)])
 	print("    %-15s %-7s %-12s %-12s %-12s %-6s %-6s %-6s" % ["weapon", "damage", "head", "chest", "leg", "40 m", "70 m", "armour"])
 	var head_bad := PackedStringArray()
 	var chest_bad := PackedStringArray()
@@ -279,17 +279,17 @@ func _shots_to_kill() -> void:
 	var armour_bad := PackedStringArray()
 	for id: String in STK_BOUNDS:
 		var def := catalogue.get_def(StringName(id))
-		var b: DotWeaponBallistics = def.tuning as DotWeaponBallistics if def != null else null
+		var b: GSWeaponBallistics = def.tuning as GSWeaponBallistics if def != null else null
 		if b == null:
 			head_bad.append("%s: no hitscan ballistics" % id)
 			continue
 		var interval := def.ticks_at(def.use_interval_ticks, TICK_RATE)
-		var head := _rounds_to_kill(b, DotHitGroup.HEAD, 10.0, 0.0)
-		var chest := _rounds_to_kill(b, DotHitGroup.CHEST, 10.0, 0.0)
-		var leg := _rounds_to_kill(b, DotHitGroup.LEG, 10.0, 0.0)
-		var mid := _rounds_to_kill(b, DotHitGroup.CHEST, 40.0, 0.0)
-		var far := _rounds_to_kill(b, DotHitGroup.CHEST, 70.0, 0.0)
-		var armoured := _rounds_to_kill(b, DotHitGroup.CHEST, 10.0, 100.0)
+		var head := _rounds_to_kill(b, GSHitGroup.HEAD, 10.0, 0.0)
+		var chest := _rounds_to_kill(b, GSHitGroup.CHEST, 10.0, 0.0)
+		var leg := _rounds_to_kill(b, GSHitGroup.LEG, 10.0, 0.0)
+		var mid := _rounds_to_kill(b, GSHitGroup.CHEST, 40.0, 0.0)
+		var far := _rounds_to_kill(b, GSHitGroup.CHEST, 70.0, 0.0)
+		var armoured := _rounds_to_kill(b, GSHitGroup.CHEST, 10.0, 100.0)
 		var ttk := func(n: int) -> String: return "%d (%.0f)" % [n, 1000.0 * (n - 1) * interval / TICK_RATE]
 		var dmg := "%.0f" % b.damage if b.pellets == 1 else "%.0fx%d" % [b.damage, b.pellets]
 		print("    %-15s %-7s %-12s %-12s %-12s %-6d %-6d %-6d" % [id, dmg, ttk.call(head), ttk.call(chest), ttk.call(leg), mid, far, armoured])
@@ -313,12 +313,12 @@ func _shots_to_kill() -> void:
 
 
 ## Rounds of [param b] at [param group], [param dist] metres away, that kill a fresh player wearing [param armour],
-## through the live resolver and a fresh [DotHealth] built like the target's; 0 when a hundred rounds do not.
-func _rounds_to_kill(b: DotWeaponBallistics, group: StringName, dist: float, armour: float) -> int:
-	var combat: DotCombatManager = _game.combat
-	var type: DotDamageType = b.damage_type if b.damage_type != null else combat.damage_type(&"")
-	var live: DotHealth = combat.health_of(TARGET)
-	var health := DotHealth.new()
+## through the live resolver and a fresh [GSHealth] built like the target's; 0 when a hundred rounds do not.
+func _rounds_to_kill(b: GSWeaponBallistics, group: StringName, dist: float, armour: float) -> int:
+	var combat: GSCombatManager = _game.combat
+	var type: GSDamageType = b.damage_type if b.damage_type != null else combat.damage_type(&"")
+	var live: GSHealth = combat.health_of(TARGET)
+	var health := GSHealth.new()
 	health.max_health = live.max_health
 	health.max_armour = maxf(live.max_armour, armour)
 	health.reset(0)
@@ -328,7 +328,7 @@ func _rounds_to_kill(b: DotWeaponBallistics, group: StringName, dist: float, arm
 	while health.alive and rounds < 100:
 		rounds += 1
 		for _p in b.pellets:
-			var d := DotDamage.make(ATTACKER, TARGET, b.damage_at(1.0) * combat.config.damage_scale, type)
+			var d := GSDamage.make(ATTACKER, TARGET, b.damage_at(1.0) * combat.config.damage_scale, type)
 			d.hit_group = group
 			d.distance = dist
 			d.tick = tick + rounds
@@ -339,23 +339,23 @@ func _rounds_to_kill(b: DotWeaponBallistics, group: StringName, dist: float, arm
 
 
 func _head_mult() -> float:
-	return _game.combat.resolver.hit_groups.multiplier(DotHitGroup.HEAD)
+	return _game.combat.resolver.hit_groups.multiplier(GSHitGroup.HEAD)
 
 
 ## The real brain at each difficulty, with the rifle, against a still and a strafing target: the share of rounds
 ## that land, of those in the head, and the damage rate while the trigger is down.
 func _bots() -> void:
 	_section("bots by difficulty: rifle at %.0f m, %.0f s each" % [BOT_RANGE, BOT_SECONDS])
-	var settings := DotBotSettings.of(_game)
+	var settings := GSBotSettings.of(_game)
 	var shares := PackedFloat32Array()
-	for preset: String in DotBotProfile.PRESETS:
+	for preset: String in GSBotProfile.PRESETS:
 		shares.append(float(FcBots.RECOIL_CONTROL.get(preset, -1.0)))
 	var worst_head := 0.0
 	var rising := true
 	for i in range(1, shares.size()):
 		rising = rising and shares[i] > shares[i - 1] and shares[i] < 1.0
 	_check(rising, "bots hold recoil better as difficulty rises, and none perfectly", str(shares))
-	for preset: String in DotBotProfile.PRESETS:
+	for preset: String in GSBotProfile.PRESETS:
 		for strafing in [false, true]:
 			var _set := settings.set_difficulty(preset)
 			var mind := FcBots.Mind.new()
@@ -367,10 +367,10 @@ func _bots() -> void:
 			var ticks := int(BOT_SECONDS * TICK_RATE)
 			for i in ticks:
 				var tick: int = _game.current_tick()
-				var m := DotFpsCommand.new()
+				var m := GSFpsCommand.new()
 				if strafing:
 					m.move = Vector2(1.0 if (i / 24) % 2 == 0 else -1.0, 0.0)
-				_game.tick({ATTACKER: FcBots.think(_game, bot, mind, tick, float(TICK_RATE)), TARGET: [m, DotWeaponCommand.new()]})
+				_game.tick({ATTACKER: FcBots.think(_game, bot, mind, tick, float(TICK_RATE)), TARGET: [m, GSWeaponCommand.new()]})
 				_game.combat.health_of(TARGET).health = 1.0e7
 				if i % 16 == 0:
 					await get_tree().physics_frame
@@ -388,5 +388,5 @@ func _bots() -> void:
 				preset, "strafing" if strafing else "still", fired, 100.0 * _hits.size() / fired,
 				100.0 * heads / maxf(_hits.size(), 1.0), dealt / BOT_SECONDS])
 	_check(worst_head <= BOT_MAX_HEAD_SHARE, "no bot difficulty lands more than %.0f%% of its hits in the head" % (100.0 * BOT_MAX_HEAD_SHARE), "worst %.1f%%" % (100.0 * worst_head))
-	var _back := settings.set_difficulty(DotBotProfile.DEFAULT_PRESET)
+	var _back := settings.set_difficulty(GSBotProfile.DEFAULT_PRESET)
 	_completed += 1

@@ -94,14 +94,14 @@ func _test_horde() -> void:
 
 	_check(monster.brain != null, "and it got its brain from a path")
 	_check(
-		monster.brain is DotNpcAiBrain and (monster.brain as DotNpcAiBrain).tree != null,
+		monster.brain is GSNpcAiBrain and (monster.brain as GSNpcAiBrain).tree != null,
 		"which built a behaviour tree"
 	)
 
 	# The character is per NPC, seeded from the spawn. Twenty monsters sharing one preset's seed all
 	# take the same shot with the same error at the same moment, which reads as a firing squad
 	# rather than as a fight.
-	var brain := monster.brain as DotNpcAiBrain
+	var brain := monster.brain as GSNpcAiBrain
 	_check(
 		brain.character != null and monster.seed > 1 and brain.character.seed_value == monster.seed,
 		"and a character seeded from its own spawn",
@@ -129,7 +129,7 @@ func _test_horde() -> void:
 		horde.note_fire(shooter.player_id, monster.position() + Vector3(6.0, 0.0, 0.0))
 		horde.tick(1.0 / float(TICK_RATE))
 		_check(
-			brain.context.has_condition(DotNpcAiConditions.HEAR_COMBAT),
+			brain.context.has_condition(GSNpcAiConditions.HEAR_COMBAT),
 			"and it hears a player fire"
 		)
 	else:
@@ -141,7 +141,7 @@ func _test_horde() -> void:
 	for step in range(TICK_RATE / 2):
 		horde.tick(1.0 / float(TICK_RATE))
 	var gunner := horde.spawn_one(FcNpcs.GUNNER, nav.points[nav.point_count() / 3])
-	var gunner_brain := gunner.brain as DotNpcAiBrain if gunner != null else null
+	var gunner_brain := gunner.brain as GSNpcAiBrain if gunner != null else null
 	# Per spawn, not per preset: the second monster gets a seed of its own.
 	_check(
 		gunner != null and gunner.seed > 1 and gunner.seed != monster.seed,
@@ -185,11 +185,11 @@ func _test_horde() -> void:
 		(gunner.node as Node3D).global_position = body + placed * 4.0
 		var muzzle := gunner.position() + Vector3(0.0, 1.4, 0.0)
 		_game.combat.set_authoritative_origin(horde.entity_id_for(gunner), muzzle)
-		var shot: DotShot = horde.npc_shoot(gunner, muzzle, body + Vector3(0.0, 1.0, 0.0), 6.0)
+		var shot: GSShot = horde.npc_shoot(gunner, muzzle, body + Vector3(0.0, 1.0, 0.0), 6.0)
 		_check(shot != null and shot.hit_anyone(), "and its shot hits a player through dot-combat",
 			("impact %s, player state %s, hitboxes %s, damages %s" % [
 				str(shot.impacts), str(body), str(shooter.hitboxes.global_position),
-				str(shot.damages.map(func(d: DotDamage) -> String: return d.refusal if d.refused else "landed"))
+				str(shot.damages.map(func(d: GSDamage) -> String: return d.refusal if d.refused else "landed"))
 			]) if shot != null else "no shot")
 	else:
 		_check(false, "and its shot hits a player through dot-combat", "no gunner or no player")
@@ -202,10 +202,10 @@ func _test_horde() -> void:
 	_check(
 		FcHorde.is_npc_entity(entity),
 		"a monster's combat entity id says it names a monster",
-		DotEntity.describe_id(entity)
+		GSEntity.describe_id(entity)
 	)
 	_check(
-		DotEntity.is_kind(entity, DotEntity.KIND_NPC),
+		GSEntity.is_kind(entity, GSEntity.KIND_NPC),
 		"which is a kind carried in the id, not a range it falls in"
 	)
 
@@ -232,7 +232,7 @@ func _test_horde() -> void:
 			continue
 
 		if ids.has(other_entity):
-			duplicated.append(DotEntity.describe_id(other_entity))
+			duplicated.append(GSEntity.describe_id(other_entity))
 
 		ids[other_entity] = true
 
@@ -250,10 +250,10 @@ func _test_horde() -> void:
 
 	# --- Killing one ------------------------------------------------------  Through dot-combat,
 	# which is the only way a monster is supposed to die here: the resolver owns armour, the damage
-	# type and spawn protection, and a hit that went straight to DotHealth would skip all three.
+	# type and spawn protection, and a hit that went straight to GSHealth would skip all three.
 	var killed: Array[int] = []
 	horde.npc_killed.connect(
-		func(_npc: DotNpcInstance, killer: int) -> void: killed.append(killer)
+		func(_npc: GSNpcInstance, killer: int) -> void: killed.append(killer)
 	)
 
 	var shooter_id := _game.players()[0].player_id if not _game.players().is_empty() else 0
@@ -263,7 +263,7 @@ func _test_horde() -> void:
 	)
 
 	# Twice the grunt's health, so one blow is fatal whatever the falloff does.
-	_game.combat.apply_damage(DotDamage.make(
+	_game.combat.apply_damage(GSDamage.make(
 		shooter_id, entity, 500.0,
 		_game.combat.damage_type(FcContent.DAMAGE_BULLET)
 	))
@@ -274,7 +274,7 @@ func _test_horde() -> void:
 		_check(killed[0] == shooter_id, "and credits whoever shot it")
 
 	# The scoreboard must NOT have heard about it. A monster is not a player, and the
-	# handler used to hand its entity id straight to `DotMatch.report_kill` — which
+	# handler used to hand its entity id straight to `GSMatch.report_kill` — which
 	# creates a record keyed on a number no player has ever had.
 	_check(
 		not _game.match_node.scoreboard.has(str(entity)),
@@ -321,7 +321,7 @@ func _test_horde() -> void:
 	)
 
 	_check(
-		horde.heat.heatmap.cell_count(DotNpcAiHeatmap.TRAFFIC) > 0,
+		horde.heat.heatmap.cell_count(GSNpcAiHeatmap.TRAFFIC) > 0,
 		"and it learns where the players go while it runs"
 	)
 
@@ -358,7 +358,7 @@ func _commands_for(game: FcGame, tick: int) -> Dictionary:
 		if not player.is_alive():
 			continue
 
-		var move := DotFpsCommand.new()
+		var move := GSFpsCommand.new()
 		move.move = Vector2(
 			sin(float(tick) * 0.07 + float(player.player_id)),
 			cos(float(tick) * 0.05)
@@ -366,8 +366,8 @@ func _commands_for(game: FcGame, tick: int) -> Dictionary:
 		move.yaw = fmod(float(tick) * 1.7 + float(player.player_id) * 90.0, 360.0)
 		move.pitch = 0.0
 
-		var fire := DotWeaponCommand.new()
-		fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+		var fire := GSWeaponCommand.new()
+		fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 		fire.yaw = move.yaw
 		fire.pitch = move.pitch
 
@@ -707,7 +707,7 @@ func _check_tick_gate() -> void:
 
 	_check(ungated.is_empty(), "the server's off-tick respawns and map swaps go through the tick gate", str(ungated))
 
-	var gate := DotTickGate.new()
+	var gate := GSTickGate.new()
 	var ran: Array[int] = []
 	gate.run(func() -> void: ran.append(1))
 	_check(ran == [1] and gate.pending() == 0, "an unarmed tick gate (solo, a client) runs at once", str(ran))

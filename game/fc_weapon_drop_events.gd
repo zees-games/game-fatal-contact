@@ -4,8 +4,8 @@ extends RefCounted
 const _EXTENT := 4096.0
 
 
-static func _w() -> DotNetWriter:
-	return DotNetWriter.new()
+static func _w() -> GSNetWriter:
+	return GSNetWriter.new()
 
 
 static func write_weapon_drop(id: int, weapon_index: int, magazine: int, reserve: int, at: Transform3D, velocity: Vector3, seconds: float, rest: bool, team: int = 0) -> PackedByteArray:
@@ -23,7 +23,7 @@ static func write_weapon_drop(id: int, weapon_index: int, magazine: int, reserve
 	return w.to_bytes()
 
 
-static func read_weapon_drop(reader: DotNetReader) -> Dictionary:
+static func read_weapon_drop(reader: GSNetReader) -> Dictionary:
 	var out := {"id": reader.read_varint(), "weapon": reader.read_varint(), "magazine": reader.read_varint(), "reserve": reader.read_varint()}
 	var origin := reader.read_vector3_range(-_EXTENT, _EXTENT, 20)
 	out["at"] = Transform3D(Basis(reader.read_quaternion(9)), origin)
@@ -43,7 +43,7 @@ static func write_weapon_settled(id: int, at: Transform3D) -> PackedByteArray:
 	return w.to_bytes()
 
 
-static func read_weapon_settled(reader: DotNetReader) -> Dictionary:
+static func read_weapon_settled(reader: GSNetReader) -> Dictionary:
 	var out := {"id": reader.read_varint()}
 	var origin := reader.read_vector3_range(-_EXTENT, _EXTENT, 20)
 	out["at"] = Transform3D(Basis(reader.read_quaternion(9)), origin)

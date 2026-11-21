@@ -75,8 +75,8 @@ var _armed := false
 ## synchronously; making it a coroutine returns a signal object instead, which is truthy.
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 var _seq_active := false
 
 
@@ -243,28 +243,28 @@ func _play_glance() -> void:
 		var flat = FcSpriteWeapon.make(FcSpriteWeapon.Mode.VIEW)
 		_local.camera.add_child(flat)
 		flat.show_weapon(&"marksman")
-	var ask := DotWeaponCommand.new()
+	var ask := GSWeaponCommand.new()
 	ask.slot = AwWeaponIds.SLOT_PRIMARY
 	for tick in range(game.current_tick() + 1, game.current_tick() + 60):
-		var _o := _local.simulate_tick(tick, 1.0 / 64.0, DotFpsCommand.new(), ask)
-		ask = DotWeaponCommand.new()
+		var _o := _local.simulate_tick(tick, 1.0 / 64.0, GSFpsCommand.new(), ask)
+		ask = GSWeaponCommand.new()
 	_players.append(_local)
 
 	_hud = FcHud.new()
 	_hud.name = "Hud"
-	_hud.config = DotUiConfig.new()
+	_hud.config = GSUiConfig.new()
 	_hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(_hud)
 	_hud.build(game)
 	_hud.follow(_local)
 	var _caught := _hud.catch_up()
 	# `--theme <id>`: the HUD in one of dot-menu's themes, as the menu sets it
-	# (`DotMenu.follow_hud`); without it, dot-ui's default, which is the dark HUD.
+	# (`GSMenu.follow_hud`); without it, dot-ui's default, which is the dark HUD.
 	var args := OS.get_cmdline_user_args()
 	var theme_at := args.find("--theme")
 	if theme_at >= 0 and theme_at + 1 < args.size():
 		_glance_theme = args[theme_at + 1]
-		_hud.theme = DotMenuThemes.stock().named(StringName(_glance_theme)).hud_theme(FcHud.accent_theme())
+		_hud.theme = GSMenuThemes.stock().named(StringName(_glance_theme)).hud_theme(FcHud.accent_theme())
 	var scale_at := args.find("--hud-scale")
 	if scale_at >= 0 and scale_at + 1 < args.size():
 		_hud.user_scale = float(args[scale_at + 1])
@@ -348,11 +348,11 @@ func _play_glance_rest(game: FcGame, args: PackedStringArray, late: Array, strea
 
 
 ## `--killcam`: the kill view as a victim sees it, played from a clip of [param killer_id]'s eye swinging onto the local
-## player, advanced partway so the replay is still on screen. The real client plays the server's clip the same way (DotKillViewClient).
+## player, advanced partway so the replay is still on screen. The real client plays the server's clip the same way (GSKillViewClient).
 func _play_killview(game: FcGame, killer_id: int) -> void:
-	var rules := DotKillViewRules.new()
+	var rules := GSKillViewRules.new()
 	rules.enabled = true
-	var ring := DotKillViewRing.new(rules)
+	var ring := GSKillViewRing.new(rules)
 	var killer := game.player_for(killer_id)
 	var eye := killer.global_position + Vector3(0.0, 1.6, 0.0)
 	var aim := _local.global_position + Vector3(0.0, 1.2, 0.0)
@@ -363,7 +363,7 @@ func _play_killview(game: FcGame, killer_id: int) -> void:
 		var _r := ring.record(killer_id, t, Transform3D(swing * on_target, eye), 83.6, Vector2(0.5, 0.5))
 	var _n := ring.note_kill(killer_id, 112, 3.0, {"killer": killer.display_name, "weapon": "rifle"})
 	var clips := ring.collect(4.0)
-	var view := DotKillViewClient.new()
+	var view := GSKillViewClient.new()
 	view.name = "KillView"
 	root.add_child(view)
 	view.setup(rules)
@@ -403,7 +403,7 @@ func _stage_shell_ballot() -> void:
 	var canvas := Vector2(root.size) / fit
 	var overlay := Control.new()
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	overlay.theme = DotUiTheme.space().build()
+	overlay.theme = GSUiTheme.space().build()
 	layer.add_child(overlay)
 	overlay.scale = Vector2(fit, fit)
 	overlay.size = canvas
@@ -418,8 +418,8 @@ func _stage_shell_ballot() -> void:
 	column.offset_top = 110.0
 	column.offset_bottom = -16.0
 	overlay.add_child(column)
-	var ballot := DotBallotPanel.new()
-	ballot.ui_theme = DotUiTheme.space()
+	var ballot := GSBallotPanel.new()
+	ballot.ui_theme = GSUiTheme.space()
 	ballot.panel_width = width
 	column.add_child(ballot)
 	if _glance_map_ballot:
@@ -539,7 +539,7 @@ func _play_imported() -> void:
 		var commands := {}
 
 		for player in game.players():
-			var move := DotFpsCommand.new()
+			var move := GSFpsCommand.new()
 			# Each bot walks its own way, turning slowly, so they spread out of the
 			# spawn room the way players do, without a fight ending it in a second.
 			move.yaw = fmod(float(player.player_id) * 77.0 + float(tick) * 0.6, 360.0)
@@ -547,7 +547,7 @@ func _play_imported() -> void:
 			# frames have both somebody on a spawn's floor and somebody on a ramp.
 			move.move = Vector2(0.0, 1.0) if tick > 40 and player.player_id > 203 else Vector2.ZERO
 			move.sanitise()
-			commands[player.player_id] = [move, DotWeaponCommand.new()]
+			commands[player.player_id] = [move, GSWeaponCommand.new()]
 
 		game.tick(commands)
 
@@ -659,7 +659,7 @@ func _stage_mechanics(game: FcGame) -> Array[Dictionary]:
 	if mech == null or swimmer == null or rider == null:
 		return out
 
-	var probe := DotFpsPhysicsBody.for_node(_staged_map.collision_root)
+	var probe := GSFpsPhysicsBody.for_node(_staged_map.collision_root)
 	var tunables := swimmer.controller.tunables
 	var depth := swimmer.swim.waist + 0.3
 	var pool := AABB()
@@ -699,7 +699,7 @@ func _stage_mechanics(game: FcGame) -> Array[Dictionary]:
 	for _i in range(18):
 		var idle := {}
 		for player in game.players():
-			idle[player.player_id] = [DotFpsCommand.new(), DotWeaponCommand.new()]
+			idle[player.player_id] = [GSFpsCommand.new(), GSWeaponCommand.new()]
 		game.tick(idle)
 
 	if pool.size != Vector3.ZERO:

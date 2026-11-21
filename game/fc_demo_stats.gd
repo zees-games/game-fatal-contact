@@ -31,12 +31,12 @@ class Engagement:
 	var last_pitch: float = 0.0
 
 var game: Object = null
-var demo: DotBotDemoConfig = null
-var store: DotBotDemoStore = null
-var recorder: DotBotDemoRecorder = null
+var demo: GSBotDemoConfig = null
+var store: GSBotDemoStore = null
+var recorder: GSBotDemoRecorder = null
 var tick_rate: float = 64.0
-var heatmap: DotBotDemoHeatmap = null
-var stats: DotBotAimStats = null
+var heatmap: GSBotDemoHeatmap = null
+var stats: GSBotAimStats = null
 
 ## A place episode is cut at this many seconds so it reaches the store while the player lives.
 var place_span: float = 30.0
@@ -56,16 +56,16 @@ var _since_refresh: float = 0.0
 var _refreshing: bool = false
 
 
-static func place_schema() -> DotBotDemoSchema:
-	var s := DotBotDemoSchema.make(PLACE)
+static func place_schema() -> GSBotDemoSchema:
+	var s := GSBotDemoSchema.make(PLACE)
 	s.add_observation("position", 3, 100.0).add_observation("fight", 1, 1.0)
 	s.add_action("speed", 1, 20.0)
 	s.keep_outcomes = PackedStringArray(["span", "died", "left"])
 	return s
 
 
-static func engage_schema() -> DotBotDemoSchema:
-	var s := DotBotDemoSchema.make(ENGAGE)
+static func engage_schema() -> GSBotDemoSchema:
+	var s := GSBotDemoSchema.make(ENGAGE)
 	s.add_observation("error", 1, 30.0).add_observation("fired", 1, 1.0).add_observation("tracking", 1, 30.0)
 	s.add_action("turn", 2, 30.0)
 	s.keep_outcomes = PackedStringArray(["hit", "kill"])
@@ -73,12 +73,12 @@ static func engage_schema() -> DotBotDemoSchema:
 
 
 ## Builds the recorder over [param p_store] for [param p_game]; [param p_config] is the layered `bot_record_*` config.
-func setup(p_game: Object, p_config: DotBotDemoConfig, p_store: DotBotDemoStore, p_tick_rate: float) -> DotResult:
+func setup(p_game: Object, p_config: GSBotDemoConfig, p_store: GSBotDemoStore, p_tick_rate: float) -> GSResult:
 	game = p_game
 	demo = p_config
 	store = p_store
 	tick_rate = p_tick_rate
-	recorder = DotBotDemoRecorder.new(demo, store)
+	recorder = GSBotDemoRecorder.new(demo, store)
 	recorder.is_server = true
 	recorder.tick_rate = tick_rate
 	recorder.include_fn = func(subject: Variant) -> bool:
@@ -92,7 +92,7 @@ func setup(p_game: Object, p_config: DotBotDemoConfig, p_store: DotBotDemoStore,
 	if game.has_signal(&"hit_confirmed"):
 		game.connect(&"hit_confirmed", _on_hit)
 		_hooked = true
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 func release() -> void:
@@ -123,7 +123,7 @@ func process(delta: float) -> void:
 
 
 ## After [param player] simulated a tick with [param move] and [param fire].
-func after(id: int, player: Object, move: DotFpsCommand, fire: DotWeaponCommand, tick: int) -> void:
+func after(id: int, player: Object, move: GSFpsCommand, fire: GSWeaponCommand, tick: int) -> void:
 	if not is_on():
 		return
 	_sync_map()
@@ -132,7 +132,7 @@ func after(id: int, player: Object, move: DotFpsCommand, fire: DotWeaponCommand,
 	if not bool(player.call(&"is_alive")):
 		_lose(id, "died")
 		return
-	var state: DotFpsState = player.controller.state
+	var state: GSFpsState = player.controller.state
 	var fighting := _engaged.has(id) or tick < int(_fight_until.get(id, -1))
 	_place(id, player, state, fighting, tick)
 	_engage(id, player, state, move, fire, tick)
@@ -149,12 +149,12 @@ func weight_waypoints(points: PackedVector3Array) -> PackedVector3Array:
 
 
 ## Reloads the heatmap and aim statistics for the current map from the store.
-func refresh() -> DotResult:
+func refresh() -> GSResult:
 	if store == null or recorder == null:
-		return DotResult.fail(DotError.CODE_STATE, "Not set up.")
+		return GSResult.fail(GSError.CODE_STATE, "Not set up.")
 	var fresh_heat := _new_heatmap()
 	var fresh_stats := _new_stats()
-	var folded: DotResult = await fresh_heat.fold_store(store, recorder.map_id, recorder.map_version, ["all", "t1", "t2"])
+	var folded: GSResult = await fresh_heat.fold_store(store, recorder.map_id, recorder.map_version, ["all", "t1", "t2"])
 	if not folded.ok:
 		return folded
 	folded = await fresh_stats.fold_store(store, recorder.map_id, recorder.map_version, ["all"])
@@ -169,8 +169,8 @@ func refresh() -> DotResult:
 
 
 ## The suggested presets for one map version in [param p_store], as lines for a person to review; changes nothing.
-static func preset_lines(p_store: DotBotDemoStore, p_map_id: String, p_version: String, min_count: int = 0) -> PackedStringArray:
-	var counts: DotResult = p_store.counts(p_map_id, p_version, DotBotAimStats.KIND)
+static func preset_lines(p_store: GSBotDemoStore, p_map_id: String, p_version: String, min_count: int = 0) -> PackedStringArray:
+	var counts: GSResult = p_store.counts(p_map_id, p_version, GSBotAimStats.KIND)
 	if not counts.ok:
 		return PackedStringArray([str(counts.message)])
 	var aim := _new_stats()
@@ -178,7 +178,7 @@ static func preset_lines(p_store: DotBotDemoStore, p_map_id: String, p_version: 
 	aim.map_version = p_version
 	if min_count > 0:
 		aim.min_count = min_count
-	var folded: DotResult = await aim.fold_store(p_store, p_map_id, p_version, (counts.value as Dictionary).keys())
+	var folded: GSResult = await aim.fold_store(p_store, p_map_id, p_version, (counts.value as Dictionary).keys())
 	if not folded.ok:
 		return PackedStringArray([str(folded.message)])
 	return aim.describe_lines() + aim.suggest_lines()
@@ -199,14 +199,14 @@ func _fresh_folds() -> void:
 	_roam_cache = [0, PackedVector3Array()]
 
 
-static func _new_heatmap() -> DotBotDemoHeatmap:
-	var h := DotBotDemoHeatmap.new()
+static func _new_heatmap() -> GSBotDemoHeatmap:
+	var h := GSBotDemoHeatmap.new()
 	h.fight_index = 3
 	return h
 
 
-static func _new_stats() -> DotBotAimStats:
-	var a := DotBotAimStats.new()
+static func _new_stats() -> GSBotAimStats:
+	var a := GSBotAimStats.new()
 	a.track_index = 2
 	return a
 
@@ -242,7 +242,7 @@ func _sync_map() -> void:
 	_refresh_soon()
 
 
-func _place(id: int, player: Object, state: DotFpsState, fighting: bool, tick: int) -> void:
+func _place(id: int, player: Object, state: GSFpsState, fighting: bool, tick: int) -> void:
 	var subject := Vector2i(id, 0)
 	var started: int = int(_place_started.get(id, -1))
 	if started >= 0 and float(tick - started) / tick_rate >= place_span:
@@ -258,7 +258,7 @@ func _place(id: int, player: Object, state: DotFpsState, fighting: bool, tick: i
 	var _kept := recorder.sample(subject, frame, PackedFloat32Array([speed]), tick)
 
 
-func _engage(id: int, player: Object, state: DotFpsState, move: DotFpsCommand, fire: DotWeaponCommand, tick: int) -> void:
+func _engage(id: int, player: Object, state: GSFpsState, move: GSFpsCommand, fire: GSWeaponCommand, tick: int) -> void:
 	var subject := Vector2i(id, 1)
 	var eye := state.position + Vector3(0.0, FcPlayerTunables.eye_height_m(), 0.0)
 	var aim := Vector3.FORWARD
@@ -287,7 +287,7 @@ func _engage(id: int, player: Object, state: DotFpsState, move: DotFpsCommand, f
 	var to := foe_pos - eye
 	var seen := to.length() <= VIEW_RANGE and to.normalized().dot(aim) >= VIEW_COS and _sees(eye, foe_pos)
 	e.unseen = 0 if seen else e.unseen + 1
-	if fire != null and (fire.buttons & DotWeaponCommand.BUTTON_ATTACK) != 0:
+	if fire != null and (fire.buttons & GSWeaponCommand.BUTTON_ATTACK) != 0:
 		e.fired = true
 	var err := rad_to_deg(aim.angle_to(to.normalized()))
 	var moved := (foe_pos - e.last_target_pos).length() * tick_rate if e.last_target_pos != Vector3.ZERO else 0.0
@@ -326,7 +326,7 @@ func _enemy_in_view(player: Object, eye: Vector3, aim: Vector3) -> Object:
 func _sees(from: Vector3, to: Vector3) -> bool:
 	var combat: Variant = game.get("combat")
 	var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-	return (trace as DotTrace).line_of_sight(from, to) if trace is DotTrace else true
+	return (trace as GSTrace).line_of_sight(from, to) if trace is GSTrace else true
 
 
 func _on_hit(attacker: int, victim: int, _amount: float, _point: Vector3, _head: bool, lethal: bool) -> void:

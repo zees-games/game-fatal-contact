@@ -57,7 +57,7 @@ func _prewarm_tick() -> void:
 			_warm.frames += 1
 			# The shared flashes build a node a frame; a renderer that never finishes one must not hold the cover.
 			var flashes_drawn: bool = fx_pool == null or fx_pool.flashes_ready() or int(_warm.frames) > FX_POOL_FLASH_FRAMES
-			if _warm.frames >= 3 and DotWeaponMuzzle.warm_done() and flashes_drawn and not (_previews != null and _previews.is_warming()):
+			if _warm.frames >= 3 and GSWeaponMuzzle.warm_done() and flashes_drawn and not (_previews != null and _previews.is_warming()):
 				_prewarm_end()
 	# CPU time this phase spent in its own ticks (a slow frame with little of it is the renderer).
 	_warm_work_usec[phase_now] = int(_warm_work_usec.get(phase_now, 0)) + Time.get_ticks_usec() - tick_start
@@ -73,11 +73,11 @@ func _prewarm_phase3(tick_start: int) -> void:
 		var key := StringName("prewarm-%d" % int(_warm.get("figures", 0)))
 		var host := Node3D.new()
 		add_child(host)
-		var person := DotHumanoidFigure.new()
+		var person := GSHumanoidFigure.new()
 		host.add_child(person)
 		person.build(FcAvatars.look_of(FcAvatars.stock_avatar(key), key), 1.8)
 		# The skin arrays a death reads, read now so the first death per model is not the one that pays (8.1 to 2.6 ms).
-		DotSkinSurfaces.warm(person)
+		GSSkinSurfaces.warm(person)
 		host.queue_free()
 		_step_mark("figure %d" % int(_warm.get("figures", 0)), figure_began)
 		_warm.figures = int(_warm.get("figures", 0)) + 1
@@ -184,7 +184,7 @@ const LATE_VIEW_GAP := 2
 func _cover_arts(body: FcPlayer) -> Array:
 	var arts: Array = AwWeaponArtTable.table().values()
 	_late_views = {}
-	if not defer_views_on_web or not DotPlatform.is_web():
+	if not defer_views_on_web or not GSPlatform.is_web():
 		return arts
 	var wanted := _cover_weapon_ids(body, false)
 	var now: Array = []
@@ -240,7 +240,7 @@ func _late_views_tick() -> void:
 	for material: Variant in AwViewModel.prepared_materials():
 		if not (_late_views.drawn as Dictionary).has(material):
 			items.append(material)
-	var warm := DotRenderWarmup.new()
+	var warm := GSRenderWarmup.new()
 	warm.name = "LateViewWarmup"
 	warm.budget_msec = 8.0
 	warm.add_items(items)
@@ -250,7 +250,7 @@ func _late_views_tick() -> void:
 	var built := {"weapons": (_late_views.arts as Array).size(), "ms": (Time.get_ticks_usec() - int(_late_views.began)) / 1000,
 		"own_work_ms": int(_late_views.get("work", 0)) / 1000, "new_materials": items.size()}
 	FcLoadTimeline.mark("late views built", built)
-	DotLog.info("arena.load", "late weapon views built", built)
+	GSLog.info("arena.load", "late weapon views built", built)
 	_late_views_end()
 
 ## The weapon ids of [param arts] (weapon visuals).
@@ -301,12 +301,12 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 	var host: Node = player.weapons.call(&"shot_fx") if weapon_draws_shots() else self
 	if step == 0:
 		what = "flash scenes"
-		if DotMuzzleFlash.available() and not (_take_flash_scenes() and DotMuzzleFlash.pin_scenes(8) and _warm_flash_materials(body)):
+		if GSMuzzleFlash.available() and not (_take_flash_scenes() and GSMuzzleFlash.pin_scenes(8) and _warm_flash_materials(body)):
 			_step_mark(what, began)
 			return false
 	elif step == 1:
 		what = "flash draw"
-		var rig: Node3D = DotMuzzleFlash.prewarm(body.camera)
+		var rig: Node3D = GSMuzzleFlash.prewarm(body.camera)
 		if rig != null:
 			rig.position = Vector3(0.0, 0.0, -1.5)
 		_warm.rig = rig
@@ -315,7 +315,7 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 		var category := MUZZLE_CATEGORIES[(step - 2) / 2]
 		var fp := (step - 2) % 2 == 0
 		what = "muzzle %s %s" % [category, "view" if fp else "world"]
-		DotWeaponMuzzle.warm(host, category, null, fp)
+		GSWeaponMuzzle.warm(host, category, null, fp)
 	elif step == 10:
 		# The first layered shot builds dot-audio's manager, room and player (65 ms on the first knife swing): now, under the cover.
 		what = "layered shot"
@@ -340,20 +340,20 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 	_step_mark(what, began)
 	return true
 
-## Every muzzle flash scene's path, as [method DotMuzzleFlash.pin_scenes] loads them.
+## Every muzzle flash scene's path, as [method GSMuzzleFlash.pin_scenes] loads them.
 static func _flash_scene_paths() -> Array[String]:
 	var out: Array[String] = []
-	for s: int in DotMuzzleFlash.FOLDERS:
-		for v in range(1, DotMuzzleFlash.VARIANTS + 1):
-			out.append("%s%s%02d.tscn" % [DotMuzzleFlash.ROOT, DotMuzzleFlash.FOLDERS[s], v])
+	for s: int in GSMuzzleFlash.FOLDERS:
+		for v in range(1, GSMuzzleFlash.VARIANTS + 1):
+			out.append("%s%s%02d.tscn" % [GSMuzzleFlash.ROOT, GSMuzzleFlash.FOLDERS[s], v])
 	return out
 
 ## Starts reading the flash scenes on the loader's threads while phase 0 runs: read inline,
 ## one scene was a 205 ms frame on staging02.
 func _request_flash_scenes() -> void:
 	# No loader threads (the web build): a request reads inline, every scene in this one frame. Left to
-	# DotMuzzleFlash.pin_scenes instead, which reads them a slice at a time.
-	if not DotMuzzleFlash.available() or not DotPlatform.has_threads():
+	# GSMuzzleFlash.pin_scenes instead, which reads them a slice at a time.
+	if not GSMuzzleFlash.available() or not GSPlatform.has_threads():
 		return
 	var asked: Array[String] = []
 	for path in _flash_scene_paths():
@@ -377,7 +377,7 @@ func _take_flash_scenes() -> bool:
 
 ## Draws every flash scene's materials on tiny quads, rounds sized to the gate's warm budget, and
 ## true once done: drawn first as four whole flashes, their compiles were 200-540 ms frames.
-## Done means its [signal DotRenderWarmup.finished], not merely gone: freed with the first body's camera it had
+## Done means its [signal GSRenderWarmup.finished], not merely gone: freed with the first body's camera it had
 ## drawn 1 of 13 items and the rest compiled on the first shots (staging02, 2026-11-18).
 func _warm_flash_materials(body: Variant) -> bool:
 	if _warm.has("flash_warm"):
@@ -387,10 +387,10 @@ func _warm_flash_materials(body: Variant) -> bool:
 		var scene := load(path) as PackedScene  # pinned: a cache hit
 		if scene != null:
 			var node := scene.instantiate()
-			var _found := DotRenderWarmup.collect(node, items)
+			var _found := GSRenderWarmup.collect(node, items)
 			node.free()
 	_warm.flash_landed = []
-	var warm := DotRenderWarmup.new()
+	var warm := GSRenderWarmup.new()
 	warm.name = "FlashWarmup"
 	warm.budget_msec = float(gate.get(&"warm_budget_msec")) if &"warm_budget_msec" in gate else 100.0
 	warm.process_mode = Node.PROCESS_MODE_ALWAYS
@@ -445,7 +445,7 @@ func _warm_kill_meshes(until_msec: int) -> bool:
 ## Parks the drop bodies again after the game was rebuilt (a map or mode change frees the drop layer and its
 ## parked bodies with it, and the warm-up above runs once): under the new map's cover, a slice a frame.
 func _repool_drops() -> void:
-	if DotPlatform.is_headless() or gate == null or _repool_next >= 0:
+	if GSPlatform.is_headless() or gate == null or _repool_next >= 0:
 		return
 	# The old map's hands took their effects with them: top the pool up as well as the drop layer.
 	var fx_short := fx_pool != null and (fx_pool.spare_shots() < FX_POOL_SHOTS or fx_pool.spare_charges() < FX_POOL_CHARGES)
@@ -477,7 +477,7 @@ func _prewarm_end() -> void:
 		(_warm.spare as Node).queue_free()
 	if is_instance_valid(_warm.get("rig")):
 		(_warm.rig as Node).queue_free()
-	# An unfinished flash warm-up is left to finish, following whichever camera comes next (DotRenderWarmup.follow_camera).
+	# An unfinished flash warm-up is left to finish, following whichever camera comes next (GSRenderWarmup.follow_camera).
 	# An end before phase 1 (the body went) takes what the loader still holds, or those scenes outlive the run.
 	for path: Variant in _warm.get("flash_asked", []):
 		var _dropped := ResourceLoader.load_threaded_get(str(path))
@@ -496,7 +496,7 @@ func _prewarm_end() -> void:
 ## Builds every weapon's first-person view once on a spare view model, under the loading cover.
 func _prewarm_weapons(body: FcPlayer) -> void:
 	# Headless draws nothing, so the spare views only add nodes, memory and frames (perf smoke).
-	if not prewarm_weapons_enabled or DotPlatform.is_headless() or gate == null or gate.is_open() or body == null or body.camera == null or view_model == null:
+	if not prewarm_weapons_enabled or GSPlatform.is_headless() or gate == null or gate.is_open() or body == null or body.camera == null or view_model == null:
 		return
 	var spare := _spare_view(body.camera)
 	gate.hold(&"weapons", "Preparing weapons")
@@ -512,23 +512,23 @@ func _prewarm_weapons(body: FcPlayer) -> void:
 	get_tree().process_frame.connect(_prewarm_tick)
 
 ## Loads and decodes the first-use sounds a fight plays: every variant of each gun class's fire, reload, dry, equip and far
-## report and of the bullet impacts (DotWeaponSound.warm), then footsteps and landings (DotAudioManager.warm), a slice a frame.
+## report and of the bullet impacts (GSWeaponSound.warm), then footsteps and landings (GSAudioManager.warm), a slice a frame.
 ## Reload, footstep and impact were the first-use hitches; a 0 pcm_warm_usec cvar is not needed, the slices wait for a free decoder.
 func _prewarm_sounds() -> void:
 	var classes: Array = []
 	for sound_class: Variant in AwWeaponPack.SOUND_CLASSES.values():
 		if not classes.has(sound_class):
 			classes.append(sound_class)
-	var streams := DotWeaponSound.warm(classes)
+	var streams := GSWeaponSound.warm(classes)
 	# Impacts are picked by stock name (AwShotFx.impact_stream): flesh, the generic one, and each surface's.
 	var impacts: Array = [&"impact", &"impact_flesh"]
 	impacts.append_array(AwShotFx.SURFACE_IMPACTS.values())
-	streams.append_array(DotWeaponSound.warm_sounds(impacts))
-	var queued := DotAudioSinkGodot.warm_streams(streams)
+	streams.append_array(GSWeaponSound.warm_sounds(impacts))
+	var queued := GSAudioSinkGodot.warm_streams(streams)
 	var ids: Array = []
-	for def in DotAudioStock.footstep_defs():
+	for def in GSAudioStock.footstep_defs():
 		ids.append(def.id)
-	ids.append_array(DotAudioStock.LANDING_IDS)
+	ids.append_array(GSAudioStock.LANDING_IDS)
 	var heard := presentation.audio if presentation != null else null
 	if heard != null:
 		queued += heard.warm(ids)
@@ -549,7 +549,7 @@ func _prewarm_models() -> void:
 	if _model_paths_next >= 0 or gate == null or gate.is_open():
 		return
 	var wanted := _cover_weapon_ids(player if is_instance_valid(player) else null, true)
-	var defer := defer_models_everywhere or (defer_models_on_web and DotPlatform.is_web())
+	var defer := defer_models_everywhere or (defer_models_on_web and GSPlatform.is_web())
 	var now: Array = []
 	var late: Array = []
 	for art: Variant in AwWeaponArtTable.table().values():
@@ -579,7 +579,7 @@ func _prewarm_models() -> void:
 ## Whether the model reads run on the loader's threads (see [method _prewarm_models]). Not with [member defer_models_everywhere]:
 ## that stands in for the web build, whose reads are inline.
 static func _model_reads_threaded() -> bool:
-	return DisplayServer.get_name() != "headless" and DotPlatform.has_threads() and not defer_models_everywhere
+	return DisplayServer.get_name() != "headless" and GSPlatform.has_threads() and not defer_models_everywhere
 
 ## The weapon ids whose views or models are made under the cover where the rest wait for it to drop: the default loadout's,
 ## those [param body] carries and, with [param everyone] (models: their world models are built at once), those every other

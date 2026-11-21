@@ -1,7 +1,7 @@
-extends DotCameraTool
+extends GSCameraTool
 
 ## Fatal Contact's cameras against its real maps: the third-person view, and the spectator's
-## chase camera (the one the play test found inside a wall). See dot-core's DotCameraTool.
+## chase camera (the one the play test found inside a wall). See dot-core's GSCameraTool.
 ##
 ##   tools/render_cameras.sh [map]        # dm_box by default; frames in screenshots/cameras/
 ##   godot --headless --path . --script tools/render_cameras.gd -- --no-render --map dm_atrium
@@ -54,8 +54,8 @@ func _pivots() -> Array[Vector3]:
 	for spawn in _map_now().spawns:
 		var eye: Vector3 = spawn.origin + Vector3.UP * FcPlayer.eye_height()
 		# A spawn the game cannot clear (a mapper's spawn in a stair) leaves
-		# the eye in solid; DotCameraProbe wants a clear pivot, so that one is not a camera case.
-		if DotCameraProbe.is_inside(space, eye, 0.18, _level_mask()):
+		# the eye in solid; GSCameraProbe wants a clear pivot, so that one is not a camera case.
+		if GSCameraProbe.is_inside(space, eye, 0.18, _level_mask()):
 			skipped += 1
 			continue
 		out.append(eye)

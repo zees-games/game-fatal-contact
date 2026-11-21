@@ -10,26 +10,26 @@ const SHARDS := {"windows": [5, 59], "moves": [6, 37], "rest": [8, 40]}
 
 func _ready() -> void:
 	_verbose = "--verbose" in OS.get_cmdline_user_args()
-	DotLog.set_level(DotLog.Level.INFO if _verbose else DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.INFO if _verbose else GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _merge() -> void:
-	var logs := DotGameShardArgs.merge_logs()
-	var missing := DotGameShardArgs.missing(logs)
+	var logs := GSGameShardArgs.merge_logs()
+	var missing := GSGameShardArgs.missing(logs)
 	_check(logs.size() == SHARDS.size() and missing.is_empty(), "every shard's log is there (%d logs)" % logs.size(), "missing %s" % [missing])
-	var entered := DotGameShardArgs.sections_entered(logs)
+	var entered := GSGameShardArgs.sections_entered(logs)
 	_check(entered - SHARED_SECTIONS * (SHARDS.size() - 1) == SECTIONS, "the shards entered every section (%d, boot and connect counted once, of %d)" % [entered, SECTIONS])
 	_report_sections(1, 1, 1)
 
 
 func _run() -> void:
 	print("game-fatal-contact: a real server and real ENet clients through real packet loss")
-	if DotGameShardArgs.is_merge():
+	if GSGameShardArgs.is_merge():
 		_merge()
 		return
-	var shard := DotGameShardArgs.shard()
-	DotPaths.remove_tree(DATA)
+	var shard := GSGameShardArgs.shard()
+	GSPaths.remove_tree(DATA)
 	Engine.physics_ticks_per_second = TICK_RATE
 
 	if await _boot():
@@ -58,7 +58,7 @@ func _run() -> void:
 				await _test_leave()
 
 	await _teardown()
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 
 	if shard == "":
 		_report_sections(_entered, _completed, SECTIONS, CHECKS)
@@ -84,7 +84,7 @@ func _physics_process(delta: float) -> void:
 
 	for label in _clients:
 		var c: Dictionary = _clients[label]
-		var net: DotNetManager = c["net"]
+		var net: GSNetManager = c["net"]
 		var bridge: FcNetBridge = c["bridge"]
 		if net == null or not net.is_running():
 			continue
@@ -96,7 +96,7 @@ func _physics_process(delta: float) -> void:
 				continue
 			var tick := net.clock.input_tick() - (ticks - 1 - i)
 			var move := _command_a(tick) if label == "A" else _command_b(tick)
-			var fire := DotWeaponCommand.new()
+			var fire := GSWeaponCommand.new()
 			bridge.client_tick(tick, move, fire)
 			if bridge.link != null:
 				bridge.link.send_input(bridge.encode_input(tick, move, fire))
@@ -117,7 +117,7 @@ func _physics_process(delta: float) -> void:
 			var throttle_client := -1
 			var throttle_server := -1
 			var stat := ClassDB.class_get_integer_constant(&"ENetPacketPeer", &"PEER_PACKET_THROTTLE")
-			var cpeer: Object = (_clients["A"]["link"] as DotClientLink).multiplayer.multiplayer_peer
+			var cpeer: Object = (_clients["A"]["link"] as GSClientLink).multiplayer.multiplayer_peer
 			if cpeer != null and cpeer.has_method("get_peer"):
 				var p1: Object = cpeer.call("get_peer", 1)
 				if p1 != null:
@@ -142,16 +142,16 @@ func _physics_process(delta: float) -> void:
 
 func _physics_rest(server_tick: int) -> void:
 	if _clients.has("A") and _clients["A"].get("link") != null:
-		var hop_buffer := _module().net.input_buffer_for(int((_clients["A"]["link"] as DotClientLink).multiplayer.get_unique_id()))
+		var hop_buffer := _module().net.input_buffer_for(int((_clients["A"]["link"] as GSClientLink).multiplayer.get_unique_id()))
 		if hop_buffer != null and hop_buffer.starved_count != _hop_starved_seen:
 			# One entry per tick the server ran without a command: after a stall several run in one frame.
 			for k in range(mini(8, hop_buffer.starved_count - _hop_starved_seen)):
 				_hop_starved.append(server_tick - k)
 			_hop_starved_seen = hop_buffer.starved_count
 	if _hop_from >= 0:
-		var predictor: Object = (_clients["A"]["net"] as DotNetManager).predictor
+		var predictor: Object = (_clients["A"]["net"] as GSNetManager).predictor
 		var applied := int(predictor.get("_corrections_applied"))
-		var input_tick := (_clients["A"]["net"] as DotNetManager).clock.input_tick()
+		var input_tick := (_clients["A"]["net"] as GSNetManager).clock.input_tick()
 		if _hop_clock_seen >= 0 and input_tick != _hop_clock_seen + 1:
 			_hop_steps.append(Vector2i(server_tick - _hop_from, input_tick - _hop_clock_seen - 1))
 		_hop_clock_seen = input_tick
@@ -163,7 +163,7 @@ func _physics_rest(server_tick: int) -> void:
 		_sample_clock(server_tick)
 		# What the server will find for A on the tick it runs next: there, a hole in what
 		# arrived (lost, and not covered), or nothing that far yet (late).
-		var buffer: DotNetInput.Buffer = _w["buffer"]
+		var buffer: GSNetInput.Buffer = _w["buffer"]
 		var due := server_tick + 1
 		var newest := buffer.newest()
 		if _verbose:
@@ -185,14 +185,14 @@ func _process(_delta: float) -> void:
 		return
 
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
+	var net: GSNetManager = a["net"]
 	net.interpolate_frame()
 	_sample_render()
 
 
 ## A's clock: its own error, and its real lead over the server it shares a process with.
 func _sample_clock(server_tick: int) -> void:
-	var net: DotNetManager = _clients["A"]["net"]
+	var net: GSNetManager = _clients["A"]["net"]
 	var clock := net.clock
 	if not clock.is_synced():
 		return
@@ -220,7 +220,7 @@ func _sample_clock(server_tick: int) -> void:
 ## A's drawing of B, against where the server had B at that render time.
 func _sample_render() -> void:
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
+	var net: GSNetManager = a["net"]
 	var b_session := int(_clients["B"]["session"])
 	var seen := (a["game"] as FcGame).player_for(b_session)
 	var track: Dictionary = _server_track.get(b_session, {})
@@ -228,7 +228,7 @@ func _sample_render() -> void:
 		return
 
 	var drawn := seen.global_position
-	# Exactly what `DotNetManager.interpolate_frame` hands the interpolator: the clock's
+	# Exactly what `GSNetManager.interpolate_frame` hands the interpolator: the clock's
 	# render alpha and what the receive timeline moved by re-anchoring that the drawing has
 	# not followed yet, on a dot-net that has them (headless_feel says why).
 	var alpha := clampf(Engine.get_physics_interpolation_fraction(), 0.0, 1.0)
@@ -306,7 +306,7 @@ func _test_wall_moves() -> void:
 	_section("a wall run and a wall jump through loss")
 
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
+	var net: GSNetManager = a["net"]
 	var session := int(a["session"])
 	var server_a := _game.player_for(session)
 	var own: FcPlayer = (a["game"] as FcGame).player_for(session)
@@ -409,7 +409,7 @@ func _teardown() -> void:
 
 	for label in _clients:
 		var c: Dictionary = _clients[label]
-		var link: DotClientLink = c["link"]
+		var link: GSClientLink = c["link"]
 		if link != null and is_instance_valid(link):
 			link.disconnect_from_server("test over")
 
@@ -456,7 +456,7 @@ func _hop_section(title: String, pilot: bool, seconds: float) -> void:
 	_hop_pilot = pilot
 
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
+	var net: GSNetManager = a["net"]
 	var session := int(a["session"])
 	var server_a := _game.player_for(session)
 	var own: FcPlayer = (a["game"] as FcGame).player_for(session)
@@ -488,7 +488,7 @@ func _hop_section(title: String, pilot: bool, seconds: float) -> void:
 	# A correction that came down within a snapshot's trip of a hole on a changed command is the
 	# hole's: the server did not run what A predicted with. The others are held to the limits.
 	var hop_from := _hop_from
-	var holes := _edge_holes(hop_from, last, func(t: int) -> DotFpsCommand:
+	var holes := _edge_holes(hop_from, last, func(t: int) -> GSFpsCommand:
 		return _pilot_command(t - hop_from) if pilot else _hop_command(t - hop_from))
 	var skip := _excused(holes, net)
 	var track: Dictionary = _server_track.get(session, {})
@@ -530,7 +530,7 @@ func _hop_section_part2(pilot: bool, a: Dictionary, own: FcPlayer, replays, corr
 				var cmd := _pilot_command(tick - _hop_from)
 				print("      off by %.3f at tick %d (k %d): predicted %s, server %s, jump %s; server starved at %s" % [
 					(_predicted[tick] as Vector3).distance_to(at), tick, tick - _hop_from, _predicted[tick], at,
-					cmd.buttons & DotFpsCommand.BUTTON_JUMP != 0, _hop_starved.filter(func(t: int) -> bool: return absi(t - tick) < 40)])
+					cmd.buttons & GSFpsCommand.BUTTON_JUMP != 0, _hop_starved.filter(func(t: int) -> bool: return absi(t - tick) < 40)])
 			if at.x > 23.0:
 				pinned += 1
 			if low and at.y > 0.5:

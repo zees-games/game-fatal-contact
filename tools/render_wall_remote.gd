@@ -51,9 +51,9 @@ func _physics_process(_delta: float) -> bool:
 		_cam.global_position = Vector3(off.x, off.y, z + off.z)
 		_cam.look_at(Vector3(0.0, 1.2, z + 0.3 if off.z > 0.0 else z - 0.5), Vector3.UP)
 		_settle = 40
-	var cmd := DotFpsCommand.new()
+	var cmd := GSFpsCommand.new()
 	cmd.yaw = 180.0
-	var _a := _player.simulate_tick(_tick, 1.0 / 64.0, cmd, DotWeaponCommand.new())
+	var _a := _player.simulate_tick(_tick, 1.0 / 64.0, cmd, GSWeaponCommand.new())
 	_tick += 1
 	return false
 

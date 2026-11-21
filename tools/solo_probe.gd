@@ -22,7 +22,7 @@ func _ready() -> void:
 		match args[i]:
 			"--bots": _bots = int(args[i + 1])
 			"--seconds": _seconds = float(args[i + 1])
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	var _scratch := FcPresentation.use_scratch_settings("solo_probe")
 	_run.call_deferred()
 
@@ -38,7 +38,7 @@ func _run() -> void:
 		spin += 0.25
 		var g = client.get("game")
 		var p = client.get("player")
-		if g != null and p != null and p.is_alive() and g.match_node != null and g.match_node.state == DotMatch.State.LIVE:
+		if g != null and p != null and p.is_alive() and g.match_node != null and g.match_node.state == GSMatch.State.LIVE:
 			break
 	var g = client.get("game")
 	print("live after %.1fs with %d players" % [spin, g.players().size() if g != null else -1])

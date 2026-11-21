@@ -6,15 +6,15 @@ Almost every one of these parsed cleanly, produced no error, and passed the suit
 
 One line each; the detail is in [bugs-found.md](../../../docs/bugs-found.md) or the addon's own docs.
 
-- **dot-chat: a parser with a default for every field cannot refuse anything.** dot-server's chat payload parsed as a valid `DotChatMessage` with no text, and every line drew as `": "`. `m` is the discriminator now.
-- **dot-ui: `DotTableView` drew one column** (the rest zero-width) and the rebinder's rows came out in interned-pointer order. Found by `tools/screenshot_menus.sh`.
-- **dot-ui: `DotBindingsPanel.prefix` was one string**; Fatal Contact's chat keys are a second namespace. `also_prefixed` was added for it.
+- **dot-chat: a parser with a default for every field cannot refuse anything.** dot-server's chat payload parsed as a valid `GSChatMessage` with no text, and every line drew as `": "`. `m` is the discriminator now.
+- **dot-ui: `GSTableView` drew one column** (the rest zero-width) and the rebinder's rows came out in interned-pointer order. Found by `tools/screenshot_menus.sh`.
+- **dot-ui: `GSBindingsPanel.prefix` was one string**; Fatal Contact's chat keys are a second namespace. `also_prefixed` was added for it.
 - **dot-match: `refresh_spawns` walked `current_scene`** when no `spawns_ref` was set, so a second game in the process contributed its spawns. It also warned "no spawn points" on every code-built map; `announce_empty` was added.
 - **dot-weapon: a held trigger on an empty weapon restarted its reload for ever.** Seen as bots scoring a third of their usual kills.
 - **The rocket launcher never damaged anything** until dot-weapon's projectile spawn forced `FcProjectiles` into existence; then every rocket that went off more than 2.5 m from its owner exploded in the owner's face (dot-combat's origin correction re-traced the blast). Any explosive check asks the thrower's health.
-- **dot-net: `DotNetStats` reported half of every clean link lost** (it counted ticks; Fatal Contact snapshots every second tick), **the render timeline went backwards with every late packet**, and **the interpolation delay had the flight time taken out of it.** All found by `headless_lossy`.
-- **The engine passes `create_server`'s `max_channels` to ENet as the host's incoming bandwidth**, so every dot-server told every ENet client it could take six bytes a second, and the client throttled its commands to 1/32 for its first seconds. Fixed in dot-core's `DotTransportENet` by passing 0. A `throttle_configure` on the client does not help.
-- **dot-player-controller: `DotFpsFlatBody.rest_contact` pushed out along the deepest axis**, exposed when the world extent moved the quantisation step; a client slid 2.8 m along a wall during a straight-up launch. Fixed in v0.1.5, so Fatal Contact must not run on a client shell older than 20261009-1627.
+- **dot-net: `GSNetStats` reported half of every clean link lost** (it counted ticks; Fatal Contact snapshots every second tick), **the render timeline went backwards with every late packet**, and **the interpolation delay had the flight time taken out of it.** All found by `headless_lossy`.
+- **The engine passes `create_server`'s `max_channels` to ENet as the host's incoming bandwidth**, so every dot-server told every ENet client it could take six bytes a second, and the client throttled its commands to 1/32 for its first seconds. Fixed in dot-core's `GSTransportENet` by passing 0. A `throttle_configure` on the client does not help.
+- **dot-player-controller: `GSFpsFlatBody.rest_contact` pushed out along the deepest axis**, exposed when the world extent moved the quantisation step; a client slid 2.8 m along a wall during a straight-up launch. Fixed in v0.1.5, so Fatal Contact must not run on a client shell older than 20261009-1627.
 - **dot-player-controller's rewind kept the client's own launch cooldown and buttons**; they travel in `net_flags` now.
 - **dot-player-controller: a wall run ended four ticks in over the wire.** Jumping off the gallery's high ledge onto the north wall, the uncrouch after the slide dropped the feet past the ledge's top a hand beyond its end face, and the wall probe took the nearest wall, that face, whose speed "along" was nothing. Offline the driver's timing missed it by centimetres; one lost crouch press in `headless_net` shifted it a tick and both ends agreed on a run that ended. A run now keeps the wall beside its velocity (2026-10-10).
 - **dot-spawn: the spawning player was their own enemy**; a two-argument `enemies_fn` gets the spawning key.
@@ -57,7 +57,7 @@ The family's most repeated shape, found here many times:
 
 - `FcPlayer.team` was declared and assigned by nothing since the class was written; friendly fire, the scoreboard and the renderer all read it.
 - Spawn protection was three mechanisms with two durations; dot-spawn's ledger was drained every tick and filled by nothing, and `FcEffects.on_spawn` was called by nothing, so a player who died burning respawned burning.
-- `DotPlayerClassDef.loadout_id` reached nothing; everybody got a hardcoded pair.
+- `GSPlayerClassDef.loadout_id` reached nothing; everybody got a hardcoded pair.
 - The physics gun and gravity gun were built per player and reachable from nothing; the avatar documents were resolved and every player drew a capsule; the client's chat history was fed by nothing. Found by the unused-method grep.
 - `fx_catalogue()` named four effect scenes in a directory that did not exist, and the suite asserted the refusal as if it were correct. Found from mg-buses-from-hell, the first game to ship its effect scenes.
 - `sensitivity`, `invert_pitch` and `crosshair` were on the Settings screen and read by nothing. The crosshair measured spread through a hardcoded 75 degree lens.
@@ -66,9 +66,9 @@ The family's most repeated shape, found here many times:
 - The game's chat commands were behind a prefix check that returned before `player_chat`; `!rtv` and `!vote` looked alive because dot-server has commands of those names.
 - dot-vote's commands were never installed, two map clocks ran, and nothing called `note_score` or `note_round_end`.
 - `FcHud.notice` did not exist; the client had called it for chat lines and map-change notices since it was written. Found because the parser refused the same call inside the HUD's own file.
-- `DotFpsSampler.suspended` was documented "for a chat box" and never set, so typing walked the player.
+- `GSFpsSampler.suspended` was documented "for a chat box" and never set, so typing walked the player.
 - `FcGame.mode_id` was read once at setup: a game with five modes and one of them.
-- The Interface screen (dot-ui's `DotSettingsScreen` over a `DotUiConfig`) edited an object nothing saved and nothing read again after the HUD was built: scale, safe area, transition time and line counts all moved a slider and changed nothing. Found converting to dot-menu (2026-10-10); `hud_safe_area` is the one kept, as a real setting.
+- The Interface screen (dot-ui's `GSSettingsScreen` over a `GSUiConfig`) edited an object nothing saved and nothing read again after the HUD was built: scale, safe area, transition time and line counts all moved a slider and changed nothing. Found converting to dot-menu (2026-10-10); `hud_safe_area` is the one kept, as a real setting.
 
 ## Wiring the horde
 
@@ -91,7 +91,7 @@ The family's most repeated shape, found here many times:
 
 ## The wire
 
-- **A predicted replay re-emitted every movement signal.** `FcPlayerNet._predict` marked a replay for the weapon rig only, never for `DotFpsController`, so the slide's, the dash's and the launch's signals and the jump statistics repeated on every correction, and nothing listened closely enough to say. The wall moves' sounds did: one wall run heard six times and one wall jump seven, over 20% loss (`headless_lossy`, 2026-10-10). The controller is marked now; the rule is in [netcode](netcode.md#weapons-over-the-wire).
+- **A predicted replay re-emitted every movement signal.** `FcPlayerNet._predict` marked a replay for the weapon rig only, never for `GSFpsController`, so the slide's, the dash's and the launch's signals and the jump statistics repeated on every correction, and nothing listened closely enough to say. The wall moves' sounds did: one wall run heard six times and one wall jump seven, over 20% loss (`headless_lossy`, 2026-10-10). The controller is marked now; the rule is in [netcode](netcode.md#weapons-over-the-wire).
 
 - **The `mp_teammate_passthrough` checks waited 5 s for a reliable message through 20% loss** (`headless_lossy`, 2026-10-11). One run in 30 failed "and to 0" and then the map-change check: the 2 took past 5 s to land, and the 0 waited behind it in order on the channel, nine seconds in all. 60 changes measured 48 ms to 4.2 s, in steps that are ENet's resend backoff. Six runs after the waits went to 35 s saw one 2 land at 12.3 s and one change at 4.7 s, with the 0 behind the late 2 landing 100 ms after it, so it was always arriving. Nothing was lost, so nothing in the game changed: the waits are the suite's `RELIABLE_SECONDS`, and the map-change check is held to what the link holds, so one late message fails one check.
 
@@ -121,11 +121,11 @@ Measured by `headless_feel`, the first suite to judge what a frame shows rather 
 
 ## Camera motion (2026-10-11)
 
-Fatal Contact had none of the landing dip, strafe roll and speed widening dot-player-controller's own camera had, because it writes its camera itself and had copied only the wall-run lean. Measured first: the landing was a 4.9 cm a frame corner at 144 Hz. The addon's own dip turned out to be a snap (the full dip and a 6 degree pitch set on the landing frame), so the cues moved into `DotFpsViewMotion` there, the dip as a spring kicked in velocity, and Fatal Contact calls it. Two things only the frames showed: kicked when `landed` fired, the dip began a tick early, while the eye was still drawing the last of the fall (21 cm in two frames, then a stop); and the step-easing reset from `39e7d23` sat at the end of `_follow_map_volumes`, which runs every tick on an imported map, so stairs there were never eased and the frame two ticks back was always forgotten. It is `_forget_drawn` now, on a spawn and a teleport.
+Fatal Contact had none of the landing dip, strafe roll and speed widening dot-player-controller's own camera had, because it writes its camera itself and had copied only the wall-run lean. Measured first: the landing was a 4.9 cm a frame corner at 144 Hz. The addon's own dip turned out to be a snap (the full dip and a 6 degree pitch set on the landing frame), so the cues moved into `GSFpsViewMotion` there, the dip as a spring kicked in velocity, and Fatal Contact calls it. Two things only the frames showed: kicked when `landed` fired, the dip began a tick early, while the eye was still drawing the last of the fall (21 cm in two frames, then a stop); and the step-easing reset from `39e7d23` sat at the end of `_follow_map_volumes`, which runs every tick on an imported map, so stairs there were never eased and the frame two ticks back was always forgotten. It is `_forget_drawn` now, on a spawn and a teleport.
 
 ## Solo bots were the test fixture (2026-10-11)
 
-The first play test on Windows (bootstrap, solo) died twelve times in ninety seconds and was killed from 30 to 40 m within a second, again and again. Nothing was mistuned: `FcClient._drive_bots` was `headless_match`'s fixture, copied into the client to get kills on screen, and its own comment said so. It faced the nearest player through any wall at pitch 0 and held the trigger under 40 m. The brain a server ran (sight, reaction, aim error, range, strafing) was never met by anybody playing solo, because solo never ran it. Both run dot-bot's `DotBotBrain` now (`FcBots`), and `headless_bots` holds every preset to a K/D band in the real game. The lesson for any game here: a bot driver in the client is a second brain, and the one players meet first.
+The first play test on Windows (bootstrap, solo) died twelve times in ninety seconds and was killed from 30 to 40 m within a second, again and again. Nothing was mistuned: `FcClient._drive_bots` was `headless_match`'s fixture, copied into the client to get kills on screen, and its own comment said so. It faced the nearest player through any wall at pitch 0 and held the trigger under 40 m. The brain a server ran (sight, reaction, aim error, range, strafing) was never met by anybody playing solo, because solo never ran it. Both run dot-bot's `GSBotBrain` now (`FcBots`), and `headless_bots` holds every preset to a K/D band in the real game. The lesson for any game here: a bot driver in the client is a second brain, and the one players meet first.
 
 Building it found one dot-bot bug: a sound made on the same timestamp as a brain's last think was never heard (a time comparison), so a bot with its back to a shooter died without turning round. Sounds carry a sequence number now.
 

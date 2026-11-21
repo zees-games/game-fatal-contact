@@ -63,7 +63,7 @@ func _run() -> void:
 		await _wait(0.1)
 		var p: Object = client.get("player")
 		var g: Object = client.get("game")
-		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == DotMatch.State.LIVE:
+		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == GSMatch.State.LIVE:
 			break
 	await _wait(4.0)
 	var me = client.get("player")
@@ -115,7 +115,7 @@ func _run() -> void:
 
 ## Gives (full) and equips `id` on `bot`. False if the catalogue has no such weapon.
 func _hand(bot: Object, id: StringName) -> bool:
-	var def: DotWeaponDef = bot.arsenal.catalogue.get_def(id)
+	var def: GSWeaponDef = bot.arsenal.catalogue.get_def(id)
 	if def == null:
 		return false
 	var _given = bot.arsenal.give(id)

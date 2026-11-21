@@ -61,7 +61,7 @@ static func imported(map_id: StringName, light: bool = false) -> RefCounted:
 ## It has no pits, jail, mechanics or listed modes: a raw convert carries none of the legacy manifest's extras.
 static func local(map_id: StringName, light: bool = false) -> RefCounted:
 	var found := FcLocalMaps.entry(map_id)
-	var got: DotMapBspMesh = FcLocalMaps.mesh(found) if not found.is_empty() else null
+	var got: GSMapBspMesh = FcLocalMaps.mesh(found) if not found.is_empty() else null
 
 	if got == null:
 		return null
@@ -72,7 +72,7 @@ static func local(map_id: StringName, light: bool = false) -> RefCounted:
 	map.local_prefix = str(found["prefix"])
 	map.manifest_path = map.local_prefix + ".json"
 	map.source_kind = String(found["kind"])
-	map.movement_profile = &"surf" if found["kind"] == DotMapDef.KIND_SURF else &""
+	map.movement_profile = &"surf" if found["kind"] == GSMapDef.KIND_SURF else &""
 	map.bounds = FcLocalMaps.bounds_of(got)
 	map.floor_y = map.bounds.position.y
 	map.wall_height = map.bounds.size.y
@@ -140,7 +140,7 @@ static func imported_ids() -> Array[StringName]:
 ##
 ## An empty tag means "any team". Tagging SOME spawns and not others is legal and
 ## useful: the untagged ones are a shared pool both sides can fall back to when their
-## own are all on cooldown, which `DotSpawnSelector._fallback` will do rather than
+## own are all on cooldown, which `GSSpawnSelector._fallback` will do rather than
 ## refuse to spawn anybody.
 func add_spawn(at: Transform3D, tag: StringName = &"") -> RefCounted:
 	spawns.append(at)
@@ -302,8 +302,8 @@ func nav_source() -> Node3D:
 	return holder
 
 ## The movement backend for a headless server or a test.
-func to_fps_body() -> DotFpsFlatBody:
-	var body := DotFpsFlatBody.new()
+func to_fps_body() -> GSFpsFlatBody:
+	var body := GSFpsFlatBody.new()
 	body.floor_y = floor_y
 
 	for box in boxes:
@@ -314,7 +314,7 @@ func to_fps_body() -> DotFpsFlatBody:
 ## The movement backend the game hands every player on this map.
 ##
 ## [method to_fps_body] for a built-in map, unchanged. For an imported one, a
-## [DotFpsPhysicsBody] bound to [member collision_root] — the brushes in Godot's physics
+## [GSFpsPhysicsBody] bound to [member collision_root] — the brushes in Godot's physics
 ## space, on the server and on every client alike. [b]That is still one backend at both
 ## ends[/b], which is the rule `FcClient`'s HEADLESS note is about: a predicting client
 ## must collide against what the server collides against, and here both query the same
@@ -323,11 +323,11 @@ func to_fps_body() -> DotFpsFlatBody:
 ## Unbound when the solid is not in the tree yet; the body then answers every query with
 ## nothing there, which is a player falling through a level, so the game builds the
 ## solid first.
-func movement_body() -> DotFpsBody:
+func movement_body() -> GSFpsBody:
 	if not is_imported():
 		return to_fps_body()
 
-	var body := DotFpsPhysicsBody.new()
+	var body := GSFpsPhysicsBody.new()
 
 	if collision_root != null and collision_root.is_inside_tree():
 		var _bound := body.bind(collision_root)
@@ -346,7 +346,7 @@ func movement_body() -> DotFpsBody:
 ## terrain alike. Up in 5 cm steps to [constant SPAWN_LIFT_MAX]; a spawn that is not clear
 ## by then is left where it was, because a spawn moved two metres is somewhere the mapper
 ## never put one.
-func settle_spawns(body: DotFpsBody, tunables: DotFpsTunables) -> int:
+func settle_spawns(body: GSFpsBody, tunables: GSFpsTunables) -> int:
 	if not is_imported() or body == null:
 		return 0
 
@@ -385,8 +385,8 @@ func settle_spawns(body: DotFpsBody, tunables: DotFpsTunables) -> int:
 	return moved
 
 ## The shot-tracing backend for a headless server or a test.
-func to_trace() -> DotTraceFlat:
-	var trace := DotTraceFlat.with_floor(floor_y)
+func to_trace() -> GSTraceFlat:
+	var trace := GSTraceFlat.with_floor(floor_y)
 
 	for box in boxes:
 		trace.add_box(box)
@@ -394,13 +394,13 @@ func to_trace() -> DotTraceFlat:
 	return trace
 
 ## The shot-tracing backend for this map: [method to_trace], or the physics space.
-func shot_trace() -> DotTrace:
+func shot_trace() -> GSTrace:
 	if not is_imported():
 		return to_trace()
 
 	var trace := FcGlassTrace.new()
 	trace.glass = glass
-	trace.material_fn = DotPhysicsSurfaceSet.material_of
+	trace.material_fn = GSPhysicsSurfaceSet.material_of
 
 	if collision_root != null and collision_root.is_inside_tree():
 		trace.bind_from_node(collision_root)
@@ -409,7 +409,7 @@ func shot_trace() -> DotTrace:
 
 ## Whether this host's dot-lighting can lay a bake (API level 5).
 static func can_bake() -> bool:
-	return DotAddonApi.build_level("dot_lighting") >= 5 and ResourceLoader.exists(BAKE_SCRIPT) \
+	return GSAddonApi.build_level("dot_lighting") >= 5 and ResourceLoader.exists(BAKE_SCRIPT) \
 			and ResourceLoader.exists(SHEET_SCRIPT)
 
 ## What the bake must have been made from: the boxes, the floor and the sun, plus the versions of
@@ -430,7 +430,7 @@ func light_fingerprint() -> String:
 
 ## The map's bake laid over its level, if the game ships one made from these boxes.
 func _attach_bake(level: Node3D) -> void:
-	var res: DotResult = (load(BAKE_SCRIPT) as GDScript).call(
+	var res: GSResult = (load(BAKE_SCRIPT) as GDScript).call(
 		&"attach", level, FcPaths.rebase(BAKE_PATH % String(id)), light_fingerprint())
 
 	if res.ok:
@@ -441,7 +441,7 @@ func _attach_bake(level: Node3D) -> void:
 ## wall stood on the floor with no shade at its foot. One unshaded mesh, built once here.
 ## By path, behind the level, so a shell older than the helper draws the map without it.
 func _add_contact_shade(root: Node3D) -> void:
-	if DotAddonApi.build_level("dot_lighting") < 4 or not ResourceLoader.exists(CONTACT_SHADE_SCRIPT):
+	if GSAddonApi.build_level("dot_lighting") < 4 or not ResourceLoader.exists(CONTACT_SHADE_SCRIPT):
 		return
 	var shade_boxes: Array = []
 	var floor_box := AABB(
@@ -456,7 +456,7 @@ func _add_contact_shade(root: Node3D) -> void:
 	elif shade is Node:
 		(shade as Node).free()
 
-## A box as an [ArrayMesh] with the second UV set a lightmap needs ([DotLightmapSheet], the same
+## A box as an [ArrayMesh] with the second UV set a lightmap needs ([GSLightmapSheet], the same
 ## on every machine). The bottom face is left out when [param hide_bottom] (the box stands on the floor):
 ## nobody sees it and it would take as many texels as the top.
 static func lightmap_box(size: Vector3, hide_bottom: bool) -> ArrayMesh:
@@ -553,7 +553,7 @@ static func dm_pit() -> RefCounted:
 
 	# --- The two stairs ----------------------------------------------------
 	#
-	# Ten treads of 0.36, which is under `DotFpsTunables.step_height` (0.4) and so is
+	# Ten treads of 0.36, which is under `GSFpsTunables.step_height` (0.4) and so is
 	# walked rather than jumped. The number is `dm_atrium`'s, and it is 0.36 there
 	# because 0.6 was measured and a bot holding forward stopped dead against the
 	# first tread.

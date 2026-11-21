@@ -9,7 +9,7 @@ const FcSimHost := preload("fc_sim_host.gd")
 const SERVER_LINE := "SIM_HOST "
 
 
-## [param bridge] is the client's net bridge (its `net` is the DotNetManager), or anything else when there is none.
+## [param bridge] is the client's net bridge (its `net` is the GSNetManager), or anything else when there is none.
 static func describe(bridge: Object) -> Dictionary:
 	var host: Variant = FcSimHost.live
 	var hosted := host is Object and is_instance_valid(host) and bool((host as Object).get(&"up"))

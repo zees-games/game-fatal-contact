@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcPlayer := preload("../game/fc_player.gd")
 const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
@@ -13,22 +13,22 @@ const STEP := 1.0 / 60.0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 ## Runs an airborne player down a face of height [param top]; true when a wall run started.
-func _runs_beside(t: DotFpsTunables, top: float) -> bool:
-	var world := DotFpsFlatBody.with_floor(0.0)
+func _runs_beside(t: GSFpsTunables, top: float) -> bool:
+	var world := GSFpsFlatBody.with_floor(0.0)
 	world.add_box(AABB(Vector3(1.0, 0.0, -200.0), Vector3(0.5, top, 200.0)))
-	var motor := DotFpsMotor.new(t, world)
-	var s := DotFpsState.new()
-	s.mode = DotFpsState.Mode.AIR
+	var motor := GSFpsMotor.new(t, world)
+	var s := GSFpsState.new()
+	s.mode = GSFpsState.Mode.AIR
 	s.position = Vector3(1.0 - 0.35 - 0.05, maxf(top - 0.2, 0.3), -2.0)
 	s.velocity = Vector3(0.0, 0.0, -12.0)
 	s.time_since_grounded = 1.0
 	for _i in range(30):
-		var c := DotFpsCommand.new()
+		var c := GSFpsCommand.new()
 		c.move = Vector2(0.0, 1.0)
 		motor.simulate(s, c, STEP)
 	return motor.wall_runs > 0
@@ -58,21 +58,21 @@ func _run() -> void:
 	FcPlayer._set_rule(short, "wall_run_min_length", 500.0)
 	_check(not _runs_beside(short, 4.0), "a minimum length longer than the wall refuses the run")
 
-	var def := DotPlayerClassDef.new()
+	var def := GSPlayerClassDef.new()
 	def.attributes = {"wall_run_min_height": 0.0}
 	var classed := FcPlayer.fc_tunables()
 	_check(FcPlayerTunables.apply_class_attributes(def, classed) == 1 and _runs_beside(classed, 1.0),
 		"a class attribute overrides the height for its players")
 	var plain := FcPlayer.fc_tunables()
-	FcPlayerTunables.apply_class_attributes(DotPlayerClassDef.new(), plain)
+	FcPlayerTunables.apply_class_attributes(GSPlayerClassDef.new(), plain)
 	_check(plain.wall_run_min_height == t.wall_run_min_height, "a class that sets none keeps the server's value")
 
-	var tall_def := DotPlayerClassDef.new()
+	var tall_def := GSPlayerClassDef.new()
 	tall_def.attributes = {"look_down_back": 0.8}
-	_check(is_equal_approx(FcPlayer.look_down_back_of(tall_def), 0.8) and is_equal_approx(FcPlayer.look_down_back_of(DotPlayerClassDef.new()), 0.45),
+	_check(is_equal_approx(FcPlayer.look_down_back_of(tall_def), 0.8) and is_equal_approx(FcPlayer.look_down_back_of(GSPlayerClassDef.new()), 0.45),
 		"a class profile sets how far the own body trails back looking down; none keeps the default")
 
-	var st := DotFpsState.new()
+	var st := GSFpsState.new()
 	st.velocity = Vector3(3.0, 0.0, -5.0)
 	_check(is_equal_approx(FcPlayer.wall_shot_strafe(st), 3.0), "the wall shot's strafe is the sideways speed, right positive")
 	st.yaw = 90.0
@@ -103,7 +103,7 @@ func _test_clip_hulls() -> void:
 		_check(false, "a shot passes a clip hull")
 		root.free()
 		return
-	var layout := DotPhysicsLayout.shooter_3d()
+	var layout := GSPhysicsLayout.shooter_3d()
 	var pts := ((clip.get_child(0) as CollisionShape3D).shape as ConvexPolygonShape3D).points
 	var mid := Vector3.ZERO
 	for q in pts:

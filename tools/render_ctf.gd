@@ -9,9 +9,9 @@ var _events: Array[String] = []
 var _seen: Array[String] = []
 var _game: Node
 var _me: Node
-var _ctf: DotObjectiveCtf
-var _f_mine: DotObjectiveFlag
-var _f_enemy: DotObjectiveFlag
+var _ctf: GSObjectiveCtf
+var _f_mine: GSObjectiveFlag
+var _f_enemy: GSObjectiveFlag
 var _view: Node
 var _mine := 0
 var _enemy := 0
@@ -71,7 +71,7 @@ func _bring_up() -> bool:
 	print("render_ctf: %s" % _map_id)
 	await _wait_gate(60.0)
 	await _wait(4.0)
-	var picked: DotResult = await client.call("change_from_menu", &"map:%s" % _map_id, &"mode:ctf")
+	var picked: GSResult = await client.call("change_from_menu", &"map:%s" % _map_id, &"mode:ctf")
 	_check(picked.ok, "the M menu changes to %s in capture the flag (%s)" % [_map_id, str(picked.error) if not picked.ok else "ok"])
 	await _wait_gate(60.0)
 	await _wait(3.0)
@@ -85,7 +85,7 @@ func _bring_up() -> bool:
 	if objs == null or objs.ctf == null:
 		quit(1)
 		return false
-	var ctf: DotObjectiveCtf = objs.ctf
+	var ctf: GSObjectiveCtf = objs.ctf
 	_ctf = ctf
 	game.ctf_seen.connect(func(what: StringName, team: int, by: int) -> void: _seen.append("%d:%s:%d" % [team, what, by]))
 	ctf.flag_event.connect(func(team: int, what: StringName, data: Dictionary) -> void:
@@ -95,7 +95,7 @@ func _bring_up() -> bool:
 	game.match_node.rules.warmup_sec = 0.0
 	game.freeze_sec = 0.0
 	for i in 100:
-		if game.match_node.state == DotMatch.State.LIVE:
+		if game.match_node.state == GSMatch.State.LIVE:
 			break
 		await _wait(0.1)
 	var mine: int = game.team_of(me.player_id)
@@ -107,8 +107,8 @@ func _bring_up() -> bool:
 	var enemy: int = ids[0] if ids[1] == mine else ids[1]
 	_mine = mine
 	_enemy = enemy
-	var f_mine: DotObjectiveFlag = ctf.flag_of(mine)
-	var f_enemy: DotObjectiveFlag = ctf.flag_of(enemy)
+	var f_mine: GSObjectiveFlag = ctf.flag_of(mine)
+	var f_enemy: GSObjectiveFlag = ctf.flag_of(enemy)
 	_f_mine = f_mine
 	_f_enemy = f_enemy
 	print("  flags: mine at %s, enemy at %s" % [f_mine.at, f_enemy.at])
@@ -143,14 +143,14 @@ func _freeze_bots() -> void:
 ## Each flag from a short way off, then the far marker.
 func _stage_flags_in_view() -> void:
 	var game: Node = _game
-	var f_mine: DotObjectiveFlag = _f_mine
-	var f_enemy: DotObjectiveFlag = _f_enemy
+	var f_mine: GSObjectiveFlag = _f_mine
+	var f_enemy: GSObjectiveFlag = _f_enemy
 	var view = _view
 	var enemy: int = _enemy
 	var camera: Camera3D = _camera
 	# 1. Each flag from a short way off, looking at it.
 	for pair in [["own", f_mine, f_enemy], ["enemy", f_enemy, f_mine]]:
-		var flag: DotObjectiveFlag = pair[1]
+		var flag: GSObjectiveFlag = pair[1]
 		var spot := _stand_near(game, flag.at, pair[2].at, 6.0)
 		_put(spot, flag.at + Vector3.UP * 1.5)
 		await _wait(0.6)
@@ -171,8 +171,8 @@ func _stage_flags_in_view() -> void:
 ## Standing on my own flag's plate, nothing carried.
 func _stage_plate() -> void:
 	var game: Node = _game
-	var f_mine: DotObjectiveFlag = _f_mine
-	var f_enemy: DotObjectiveFlag = _f_enemy
+	var f_mine: GSObjectiveFlag = _f_mine
+	var f_enemy: GSObjectiveFlag = _f_enemy
 	# 2. Standing on my own flag's plate, nothing carried.
 	_plate = _stand_near(game, f_mine.at, f_enemy.at, 0.3)
 	_put(_plate, f_enemy.at, -15.0)
@@ -186,8 +186,8 @@ func _stage_plate() -> void:
 func _stage_pickup() -> void:
 	var game: Node = _game
 	var me: Node = _me
-	var f_mine: DotObjectiveFlag = _f_mine
-	var f_enemy: DotObjectiveFlag = _f_enemy
+	var f_mine: GSObjectiveFlag = _f_mine
+	var f_enemy: GSObjectiveFlag = _f_enemy
 	var view = _view
 	var enemy: int = _enemy
 	# 3. Walk onto the enemy flag.
@@ -195,9 +195,9 @@ func _stage_pickup() -> void:
 	_put(_enemy_spot, f_enemy.at + Vector3.UP * 1.5)
 	for i in 80:
 		await _wait(0.05)
-		if f_enemy.state == DotObjectiveFlag.State.CARRIED:
+		if f_enemy.state == GSObjectiveFlag.State.CARRIED:
 			break
-	_check(f_enemy.state == DotObjectiveFlag.State.CARRIED and f_enemy.carrier == str(me.player_id),
+	_check(f_enemy.state == GSObjectiveFlag.State.CARRIED and f_enemy.carrier == str(me.player_id),
 		"walking onto the enemy flag picks it up (state %s carrier %s)" % [f_enemy.state, f_enemy.carrier])
 	await _wait(0.5)
 	_check(view.view_position(enemy).distance_to(me.global_position) < 1.5, "the carried flag is drawn on me")
@@ -212,18 +212,18 @@ func _stage_pickup() -> void:
 ## Carry it home and capture on my own plate.
 func _stage_capture() -> void:
 	var game: Node = _game
-	var ctf: DotObjectiveCtf = _ctf
-	var f_mine: DotObjectiveFlag = _f_mine
-	var f_enemy: DotObjectiveFlag = _f_enemy
+	var ctf: GSObjectiveCtf = _ctf
+	var f_mine: GSObjectiveFlag = _f_mine
+	var f_enemy: GSObjectiveFlag = _f_enemy
 	var mine: int = _mine
 	# 4. Carry it home and capture on my own plate.
 	_put(_plate, f_enemy.at, -15.0)
 	for i in 100:
 		await _wait(0.05)
-		if f_enemy.state != DotObjectiveFlag.State.CARRIED:
+		if f_enemy.state != GSObjectiveFlag.State.CARRIED:
 			break
 	_check(int(ctf.scores.get(mine, 0)) >= 1, "standing on my plate with their flag captures it (scores %s)" % [ctf.scores])
-	_check(f_enemy.state == DotObjectiveFlag.State.HOME, "their flag is back at its stand after the capture")
+	_check(f_enemy.state == GSObjectiveFlag.State.HOME, "their flag is back at its stand after the capture")
 	_check(_hud_carry() == "", "the carry indicator is gone after the capture")
 	print("  HUD line after capture: '%s'" % _hud_line())
 	await _shot("after_capture")
@@ -233,22 +233,22 @@ func _stage_capture() -> void:
 func _stage_drop() -> void:
 	var game: Node = _game
 	var me: Node = _me
-	var f_mine: DotObjectiveFlag = _f_mine
-	var f_enemy: DotObjectiveFlag = _f_enemy
+	var f_mine: GSObjectiveFlag = _f_mine
+	var f_enemy: GSObjectiveFlag = _f_enemy
 	var view = _view
 	var enemy: int = _enemy
 	# 5. Drop.
 	_put(_enemy_spot, f_enemy.at + Vector3.UP * 1.5)
 	for i in 60:
 		await _wait(0.05)
-		if f_enemy.state == DotObjectiveFlag.State.CARRIED:
+		if f_enemy.state == GSObjectiveFlag.State.CARRIED:
 			break
 	var drop_at: Vector3 = _stand_near(game, f_enemy.at, f_mine.at, 8.0)
 	var dropped := f_enemy.drop(drop_at)
 	_check(dropped.ok, "the flag can be dropped")
 	_put(_stand_near(game, drop_at, f_mine.at, 7.0), drop_at + Vector3.UP, -5.0)
 	await _wait(0.5)
-	_check(f_enemy.state == DotObjectiveFlag.State.DROPPED and _near_home(view.view_position(enemy), drop_at), "a dropped flag is drawn where it fell")
+	_check(f_enemy.state == GSObjectiveFlag.State.DROPPED and _near_home(view.view_position(enemy), drop_at), "a dropped flag is drawn where it fell")
 	await _shot("dropped_flag")
 	print("  events: %s" % [_events])
 	_check(_events.has("%d:taken" % enemy) and _events.has("%d:captured" % enemy) and _events.has("%d:dropped" % enemy), "taken, captured and dropped were all raised")

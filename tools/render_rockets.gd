@@ -84,15 +84,15 @@ func _run() -> void:
 
 
 
-func _hold(me, id: StringName, warhead: bool) -> DotWeaponDef:
+func _hold(me, id: StringName, warhead: bool) -> GSWeaponDef:
 	var arsenal = me.arsenal
-	var _given: DotResult = arsenal.give(id)
-	var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(id)
+	var _given: GSResult = arsenal.give(id)
+	var def: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(id)
 	var _held: bool = arsenal.equip(def.slot)
-	var fitting := DotWeaponFitting.make(id)
+	var fitting := GSWeaponFitting.make(id)
 	if warhead:
 		fitting.fit(&"warhead", &"rocketjump")
-	var fitted: DotResult = arsenal.fit(def.slot, fitting)
+	var fitted: GSResult = arsenal.fit(def.slot, fitting)
 	_check(fitted.ok, "%s fitted%s" % [id, " with the Rocketjump" if warhead else ""])
 	return arsenal.current_def()
 

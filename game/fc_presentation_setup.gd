@@ -31,23 +31,23 @@ static var FX_DIR := FcPaths.rebase("res://scenes/fx")
 
 ## Every key a player can move: the InputMap, the settings document, the menu's Controls
 ## page and its help screen read this one table. See [FcBindings].
-var bindings: DotMenuBindings = FcBindings.make()
+var bindings: GSMenuBindings = FcBindings.make()
 
 
-## The connection overlay (`net_stat` at the console). See [method DotMenuNetStat.follow].
-var net_stat: DotMenuNetStat = null
+## The connection overlay (`net_stat` at the console). See [method GSMenuNetStat.follow].
+var net_stat: GSMenuNetStat = null
 
 
 ## Splinters, shards and the crack of whatever breaks; the panes and map props call `burst`.
-var break_fx: DotFxBreak = null
+var break_fx: GSFxBreak = null
 ## The client's own console source ([method _local_commands]), so the offline client can add
 ## what only a solo game has: the bot settings, which a server's console holds otherwise.
-var local_console: DotConsoleLocal = null
+var local_console: GSConsoleLocal = null
 
 
 ## What the look settings are written onto: the tunables the client's sampler reads.
 ## See [method bind_look].
-var _look: DotFpsTunables = null
+var _look: GSFpsTunables = null
 
 
 ## The player whose camera the motion settings move. See [method bind_camera_motion].
@@ -55,11 +55,11 @@ var _camera_player: Node = null
 
 
 ## The HUD's crosshair, and the arm length it was built with. See [method bind_crosshair].
-var _crosshair: DotCrosshair = null
+var _crosshair: GSCrosshair = null
 var _crosshair_length: float = 0.0
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	var settled := _build_settings()
 	if not settled.ok:
 		return settled
@@ -70,13 +70,13 @@ func setup() -> DotResult:
 	if not drawn.ok:
 		return drawn
 	# cl_fx_pool_idle: one shot fx pool per player, so trim each one's idle meshes.
-	_addon_static(DotFxMeshPool, &"max_idle", 0, fx_pool_idle)
+	_addon_static(GSFxMeshPool, &"max_idle", 0, fx_pool_idle)
 	_build_chat()
-	net_stat = DotMenuNetStat.follow(self, settings)
+	net_stat = GSMenuNetStat.follow(self, settings)
 
 	# Every value pushed once, after everything exists.
 	apply_all()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Pushes every current setting at whatever reads it.
@@ -85,57 +85,57 @@ func apply_all() -> void:
 		_on_setting_changed(key, settings.get_value(key), &"applied")
 
 
-static func schema() -> DotSettingsSchema:
-	var s := DotSettingsSchema.new()
+static func schema() -> GSSettingsSchema:
+	var s := GSSettingsSchema.new()
 	s.version = SCHEMA_VERSION
 
-	s.add(DotSettingsDef.number(&"master_volume", 0.8, 0.0, 1.0, &"audio"))
-	s.add(DotSettingsDef.number(&"sfx_volume", 1.0, 0.0, 1.0, &"audio"))
-	s.add(DotSettingsDef.number(&"voice_volume", 1.0, 0.0, 1.0, &"audio"))
-	DotGameClient.declare_slide_setting(s)
-	s.add(DotSettingsDef.boolean(&"push_to_talk", true, &"audio"))
-	s.add(DotSettingsDef.choice(&"first_person_body", &"auto", [&"auto", &"off", &"legs", &"body"], &"video").with_description("Your own body when you look down: the server's choice (mp_fp_body), none, legs and feet, or the whole body."))
-	var legs_def: Variant = DotOwnBodySetting.def()
+	s.add(GSSettingsDef.number(&"master_volume", 0.8, 0.0, 1.0, &"audio"))
+	s.add(GSSettingsDef.number(&"sfx_volume", 1.0, 0.0, 1.0, &"audio"))
+	s.add(GSSettingsDef.number(&"voice_volume", 1.0, 0.0, 1.0, &"audio"))
+	GSGameClient.declare_slide_setting(s)
+	s.add(GSSettingsDef.boolean(&"push_to_talk", true, &"audio"))
+	s.add(GSSettingsDef.choice(&"first_person_body", &"auto", [&"auto", &"off", &"legs", &"body"], &"video").with_description("Your own body when you look down: the server's choice (mp_fp_body), none, legs and feet, or the whole body."))
+	var legs_def: Variant = GSOwnBodySetting.def()
 	if legs_def != null:
 		s.add(legs_def)
 	FcNameTagRules.declare_settings(s)
-	s.add(DotSettingsDef.boolean(&"ambient", true, &"audio").with_description("Quiet sounds under the map."))
-	s.add(DotSettingsDef.number(&"ambient_volume", 1.0, 0.0, 1.0, &"audio"))
+	s.add(GSSettingsDef.boolean(&"ambient", true, &"audio").with_description("Quiet sounds under the map."))
+	s.add(GSSettingsDef.number(&"ambient_volume", 1.0, 0.0, 1.0, &"audio"))
 
 	# ACCOUNT scope: sensitivity is about the person's hand, not about this machine and
 	# not about this game. A player who has found their number should never type it twice.
-	s.add(DotSettingsDef.number(&"sensitivity", 2.5, 0.05, 20.0, &"controls").with_scope(
-		DotSettingsDef.Scope.ACCOUNT
+	s.add(GSSettingsDef.number(&"sensitivity", 2.5, 0.05, 20.0, &"controls").with_scope(
+		GSSettingsDef.Scope.ACCOUNT
 	))
-	s.add(DotSettingsDef.boolean(&"invert_pitch", false, &"controls").with_scope(
-		DotSettingsDef.Scope.ACCOUNT
+	s.add(GSSettingsDef.boolean(&"invert_pitch", false, &"controls").with_scope(
+		GSSettingsDef.Scope.ACCOUNT
 	))
 	# Hold the Aim key (right mouse) to aim down the sights (and look through a scope), or
 	# to bash with the weapon as the pack's alt-fire does. Aiming by default; the Bash key
 	# (X) bashes either way.
-	s.add(DotSettingsDef.boolean(&"right_mouse_aims", true, &"controls").with_scope(
-		DotSettingsDef.Scope.ACCOUNT
+	s.add(GSSettingsDef.boolean(&"right_mouse_aims", true, &"controls").with_scope(
+		GSSettingsDef.Scope.ACCOUNT
 	).with_description("Off: right mouse bashes with the weapon instead of aiming."))
-	s.add(DotSettingsDef.choice(
+	s.add(GSSettingsDef.choice(
 		&"crosshair",
 		&"cross",
 		[&"dot", &"cross", &"circle", &"none"] as Array[StringName],
 		&"controls"
-	).with_scope(DotSettingsDef.Scope.ACCOUNT))
+	).with_scope(GSSettingsDef.Scope.ACCOUNT))
 
 	# SERVER_CLAMPED, and this is the whole reason that scope exists.
-	s.add(DotSettingsDef.integer(&"field_of_view", 100, 70, 120, &"video").with_scope(
-		DotSettingsDef.Scope.SERVER_CLAMPED
+	s.add(GSSettingsDef.integer(&"field_of_view", 100, 70, 120, &"video").with_scope(
+		GSSettingsDef.Scope.SERVER_CLAMPED
 	))
-	s.add(DotSettingsDef.boolean(&"view_model", true, &"video").with_scope(
-		DotSettingsDef.Scope.SERVER_CLAMPED
+	s.add(GSSettingsDef.boolean(&"view_model", true, &"video").with_scope(
+		GSSettingsDef.Scope.SERVER_CLAMPED
 	))
 
-	s.add(DotSettingsDef.integer(&"fx_quality", 3, 0, 3, &"video").with_description(
+	s.add(GSSettingsDef.integer(&"fx_quality", 3, 0, 3, &"video").with_description(
 		"A lower tier is missing the most expensive effects, not running all of them badly."
 	))
 
-	s.add(DotSettingsDef.boolean(&"gore", true, &"video").with_description(
+	s.add(GSSettingsDef.boolean(&"gore", true, &"video").with_description(
 		"Blood when a player dies, and on the wall behind a body you hit. Bullet holes stay on either way."
 	))
 
@@ -148,60 +148,60 @@ static func schema() -> DotSettingsSchema:
 	# dot-menu's stock video and interface settings: the window, V-Sync, the frame cap, render
 	# scale, the theme, the frame-rate counter and net_stat. Keys already declared above keep this
 	# game's default (a field of view of 100, horizontal at 4:3).
-	return DotMenuStock.declare(s, [DotMenuStock.GROUP_VIDEO, DotMenuStock.GROUP_INTERFACE] as Array[StringName])
+	return GSMenuStock.declare(s, [GSMenuStock.GROUP_VIDEO, GSMenuStock.GROUP_INTERFACE] as Array[StringName])
 
 
 ## Chat, accessibility, camera motion, HUD inset and the solo bots, split from [method schema] for length.
-static func _add_chat_and_comfort(s: DotSettingsSchema) -> void:
+static func _add_chat_and_comfort(s: GSSettingsSchema) -> void:
 	# Chat. ACCOUNT scope for all three: which key opens chat and whether a player wants
 	# the box at all is about the person, not about this machine and not about this game.
-	s.add(DotSettingsDef.choice(
+	s.add(GSSettingsDef.choice(
 		&"chat_window",
 		&"auto",
 		[&"auto", &"on", &"off"] as Array[StringName],
 		&"chat"
-	).with_scope(DotSettingsDef.Scope.ACCOUNT).with_description(
+	).with_scope(GSSettingsDef.Scope.ACCOUNT).with_description(
 		"auto hides the box on a server that is already carrying chat somewhere the "
 		+ "player can see it; on always draws it; off never does."
 	))
-	s.add(DotSettingsDef.binding(&"chat_open_key", "Y", &"chat").with_scope(
-		DotSettingsDef.Scope.ACCOUNT
+	s.add(GSSettingsDef.binding(&"chat_open_key", "Y", &"chat").with_scope(
+		GSSettingsDef.Scope.ACCOUNT
 	))
-	s.add(DotSettingsDef.binding(&"chat_team_key", "U", &"chat").with_scope(
-		DotSettingsDef.Scope.ACCOUNT
+	s.add(GSSettingsDef.binding(&"chat_team_key", "U", &"chat").with_scope(
+		GSSettingsDef.Scope.ACCOUNT
 	))
 
-	s.add(DotSettingsDef.number(&"shake_scale", 1.0, 0.0, 2.0, &"accessibility")
+	s.add(GSSettingsDef.number(&"shake_scale", 1.0, 0.0, 2.0, &"accessibility")
 		.with_description("Zero turns camera shake off entirely."))
-	s.add(DotSettingsDef.boolean(&"allow_flashes", true, &"accessibility")
+	s.add(GSSettingsDef.boolean(&"allow_flashes", true, &"accessibility")
 		.with_description("Off draws no full-screen flashes at all."))
-	s.add(DotSettingsDef.boolean(&"penetration_decals", true, &"video")
+	s.add(GSSettingsDef.boolean(&"penetration_decals", true, &"video")
 		.with_description("Bullet marks on both faces of a wall a shot passed through, and where it ricocheted."))
-	s.add(DotSettingsDef.boolean(&"reduce_motion", false, &"accessibility").with_scope(DotSettingsDef.Scope.ACCOUNT)
+	s.add(GSSettingsDef.boolean(&"reduce_motion", false, &"accessibility").with_scope(GSSettingsDef.Scope.ACCOUNT)
 		.with_description("The end-of-match announcement appears at once, with nothing sliding, rising or bursting."))
 
 	# Camera motion, each 0 (off) to 2, 1 being the game's pick (`FcPlayer.camera_motion_picks`).
 	# ACCOUNT, like the sensitivity: whether motion makes somebody sick is about the person, not
 	# the machine. One each, because a player who cannot take the roll may still want the dip.
 	for key: StringName in CAMERA_MOTION_KEYS:
-		s.add(DotSettingsDef.number(key, 1.0, 0.0, 2.0, &"accessibility", 0.05).with_scope(
-			DotSettingsDef.Scope.ACCOUNT
+		s.add(GSSettingsDef.number(key, 1.0, 0.0, 2.0, &"accessibility", 0.05).with_scope(
+			GSSettingsDef.Scope.ACCOUNT
 		).with_description(CAMERA_MOTION_KEYS[key]))
 
 	# How far the HUD sits in from the edge of the screen, for a television's overscan or a
 	# phone's notch. DEVICE: it is about this screen. Applied live by `FcClient`.
-	s.add(DotSettingsDef.integer(&"hud_safe_area", 16, 0, 120, &"hud")
+	s.add(GSSettingsDef.integer(&"hud_safe_area", 16, 0, 120, &"hud")
 		.with_description("Pixels between the HUD and the edge of the screen."))
 
 	# The key list at the left: shown for the first seconds after the first spawn, always, or never.
-	s.add(DotSettingsDef.choice(&"hud_key_hints", &"first", [&"first", &"always", &"off"], &"hud")
+	s.add(GSSettingsDef.choice(&"hud_key_hints", &"first", [&"first", &"always", &"off"], &"hud")
 		.with_description("The key list at the left of the screen: for the first seconds of the match, all the time, or hidden (the Help page lists the keys)."))
-	s.add(DotSettingsDef.integer(&"hud_key_hints_sec", 30, 0, 3600, &"hud")
+	s.add(GSSettingsDef.integer(&"hud_key_hints_sec", 30, 0, 3600, &"hud")
 		.with_description("Seconds the key list stays after your first spawn when it shows for the first seconds. 0 keeps it up."))
 
 	# How well the bots of a solo match play, saved with the player's other settings; the menu's
-	# General page has it, and `FcClient._bind_bot_console` applies it to `DotBotSettings`.
-	s.add(DotSettingsDef.choice(
+	# General page has it, and `FcClient._bind_bot_console` applies it to `GSBotSettings`.
+	s.add(GSSettingsDef.choice(
 		&"solo_bot_difficulty",
 		&"medium",
 		[&"easy", &"medium", &"hard", &"nightmare"] as Array[StringName],
@@ -211,7 +211,7 @@ static func _add_chat_and_comfort(s: DotSettingsSchema) -> void:
 	# LOCAL ONLY: the player's own Source game (TF2) folder, read for the stock textures a dropped `<map>_orig` pack lacks
 	# (FcSourceInstall caches them in the user folder; they never ship). Empty: the usual Steam folders. A setting is its
 	# own console command, so `source_game_path <folder>` sets it too; General > Local maps has a field.
-	s.add(DotSettingsDef.text(&"source_game_path", "", &"gameplay")
+	s.add(GSSettingsDef.text(&"source_game_path", "", &"gameplay")
 		.with_description("Your own Source game (TF2) install folder, for the stock textures of a dropped _orig map. Empty: look in Steam's usual folders."))
 
 
@@ -225,11 +225,11 @@ const CAMERA_MOTION_KEYS := {
 }
 
 
-func _build_settings() -> DotResult:
-	settings = DotSettingsManager.new()
+func _build_settings() -> GSResult:
+	settings = GSSettingsManager.new()
 	settings.name = "Settings"
 	settings.schema = schema()
-	settings.local_store = DotSettingsStoreFile.new(settings_directory)
+	settings.local_store = GSSettingsStoreFile.new(settings_directory)
 	settings.app_namespace = &"game_arena"
 	settings.shared_namespace = &"tmc_account"
 	add_child(settings)
@@ -238,17 +238,17 @@ func _build_settings() -> DotResult:
 	if not res.ok:
 		return res.wrap("Fatal Contact's settings")
 	settings.changed.connect(_on_setting_changed)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Push to talk or an open microphone, on this player's voice (published by the client's
 ## extras as `dot_voice_client`). Also when the voice is published after the settings
 ## loaded, or a saved open microphone would wait for the switch to be touched.
 func _apply_push_to_talk() -> void:
-	var voice := DotRegistry.get_service(&"dot_voice_client")
+	var voice := GSRegistry.get_service(&"dot_voice_client")
 	if voice != null and voice.has_method(&"set_open_mic") and settings != null:
 		voice.call(&"set_open_mic", not settings.get_bool(&"push_to_talk", true))
-	var bus := DotRegistry.signals()
+	var bus := GSRegistry.signals()
 	if not bus.service_registered.is_connected(_on_service_registered):
 		bus.service_registered.connect(_on_service_registered)
 
@@ -333,7 +333,7 @@ static func look_degrees_per_count(sensitivity: float) -> float:
 ## Hands the crosshair setting a crosshair to shape, and shapes it. Like [method bind_look], and for
 ## the same reason: the `crosshair` choice was on the settings screen and nothing drew anything
 ## differently for any of its four answers.
-func bind_crosshair(crosshair: DotCrosshair) -> void:
+func bind_crosshair(crosshair: GSCrosshair) -> void:
 	_crosshair = crosshair
 	_crosshair_length = crosshair.length if crosshair != null else 0.0
 	_apply_crosshair()
@@ -350,17 +350,17 @@ func _apply_crosshair() -> void:
 	_crosshair.suppressed = style == &"none"
 	_crosshair.centre_dot = true
 
-	# **`circle` draws the cross**, because `DotCrosshair` has no ring to draw and a setting that
+	# **`circle` draws the cross**, because `GSCrosshair` has no ring to draw and a setting that
 	# drew nothing at all would be worse than one that draws the default.
 	_crosshair.length = 0.0 if style == &"dot" else _crosshair_length
 	_crosshair.queue_redraw()
 
 
-func _build_audio() -> DotResult:
+func _build_audio() -> GSResult:
 	audio = FcAudioManager.new()
 	audio.name = "Audio"
 	audio.catalogue = sound_catalogue()
-	audio.mixer = DotAudioMixer.new()
+	audio.mixer = GSAudioMixer.new()
 	audio.mixer.master = settings.get_float(&"master_volume", 0.8)
 	audio.mixer.sfx = settings.get_float(&"sfx_volume", 1.0)
 	audio.mixer.voice = settings.get_float(&"voice_volume", 1.0)
@@ -377,22 +377,22 @@ func _build_audio() -> DotResult:
 	if not res.ok:
 		return res.wrap("Fatal Contact's audio")
 
-	steps = DotAudioFootsteps.new()
+	steps = GSAudioFootsteps.new()
 	steps.name = "Footsteps"
 	steps.manager = audio
 	# The loudest stock step carries 32 m, and no rule here reads a step: a body past
 	# earshot costs no ground ray per tick (32 players made 31 of them).
 	steps.hear_distance = 36.0
 	add_child(steps)
-	ambience = DotAudioAmbience.new()
+	ambience = GSAudioAmbience.new()
 	ambience.name = "Ambience"
 	ambience.manager = audio
 	ambience.fallback_bed = &"amb_industrial"
 	add_child(ambience)
-	shot_enclosure = DotAudioEnclosure.new()
+	shot_enclosure = GSAudioEnclosure.new()
 	shot_enclosure.name = "ShotEnclosure"
 	add_child(shot_enclosure)
-	shots = DotShotPlayer.new()
+	shots = GSShotPlayer.new()
 	shots.name = "Shots"
 	shots.manager = audio
 	shots.enclosure = shot_enclosure
@@ -400,12 +400,12 @@ func _build_audio() -> DotResult:
 	# Every stock class, not only the local weapons': other players' guns play through this one player
 	# (`remote_shot`), so none of them builds a manager, a player and thirteen registrations (40 ms) on its first shot.
 	for weapon_class in AwShotLayers.STOCK_CLASSES:
-		var _registered := shots.register(DotAudioShotStock.shot(weapon_class))
+		var _registered := shots.register(GSAudioShotStock.shot(weapon_class))
 	for gun: StringName in AwWeaponPack.SOUND_CLASSES:
-		var own := AwShotLayers.gun_shot(gun) as DotShotDef
+		var own := AwShotLayers.gun_shot(gun) as GSShotDef
 		if own != null:
 			var _own_registered := shots.register(own)
-	ambient = DotAmbienceDirector.new()
+	ambient = GSAmbienceDirector.new()
 	ambient.name = "Ambient"
 	ambient.manager = audio
 	ambient.default_mood = &"industrial"
@@ -421,14 +421,14 @@ func _build_audio() -> DotResult:
 		ambience.set_map_bed(bed_for(&""))
 
 	_start_bake()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 # Only on a real sink, and only after setup: a headless server has nothing to bake for.
 # Baked a few recipes a frame under the cover: all at once it is a 0.7 s frame here and
 # several seconds in a browser.
 func _start_bake() -> void:
-	var godot_sink := audio.sink as DotAudioSinkGodot
+	var godot_sink := audio.sink as GSAudioSinkGodot
 	if godot_sink == null:
 		return
 	godot_sink.bank = {}
@@ -438,22 +438,22 @@ func _start_bake() -> void:
 	_bake_shadowed = int(order.shadowed)
 	if _bake_ids.size() > _bake_shadowed:
 		_bake_hold(true)
-	DotLog.info(
+	GSLog.info(
 		CHANNEL,
 		"synthesised stand-ins baked for ids whose files this build lacks",
 		{"ids": _bake_ids.size(), "behind_files": _bake_shadowed, "dir": FcPaths.rebase(SOUND_DIR)}
 	)
 
 
-static func fx_catalogue() -> DotFxCatalogue:
+static func fx_catalogue() -> GSFxCatalogue:
 	return FcFxCatalogue.make(FX_DIR, EXPLOSION)
 
 
-func _build_fx() -> DotResult:
-	fx = DotFxManager.new()
+func _build_fx() -> GSResult:
+	fx = GSFxManager.new()
 	fx.name = "Fx"
 	fx.catalogue = fx_catalogue()
-	fx.config = DotFxConfig.new()
+	fx.config = GSFxConfig.new()
 	fx.config.quality = settings.get_int(&"fx_quality", 3)
 	fx.config.shake_scale = settings.get_float(&"shake_scale", 1.0)
 	fx.config.allow_flashes = settings.get_bool(&"allow_flashes", true)
@@ -469,7 +469,7 @@ func _build_fx() -> DotResult:
 	add_child(blood)
 	blood.follow(settings)
 
-	break_fx = DotFxBreak.new()
+	break_fx = GSFxBreak.new()
 	add_child(break_fx)
 	break_fx.add_to_group(&"fc_break_fx")
 	break_fx.follow(settings)
@@ -479,17 +479,17 @@ func _build_fx() -> DotResult:
 	# this game was refused for it, with no suite noticing.
 	var missing := fx.catalogue.missing_scenes()
 	if not missing.is_empty():
-		DotLog.warn(CHANNEL, "effect scenes missing; those effects will not draw", {
+		GSLog.warn(CHANNEL, "effect scenes missing; those effects will not draw", {
 			"paths": ", ".join(missing),
 		})
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## dot-console's kit: `help`, `clear`, `settings`, every setting by its own name, the in-process
 ## server's console, and the panel on layer 128, registered with [param menu]. This game adds its
 ## own four.
-func build_console(menu: Object = null) -> DotResult:
-	console = DotConsoleKit.build(self, settings, menu)
+func build_console(menu: Object = null) -> GSResult:
+	console = GSConsoleKit.build(self, settings, menu)
 
 	var server_sources := console.sources().slice(1)
 	for s in server_sources:
@@ -499,8 +499,8 @@ func build_console(menu: Object = null) -> DotResult:
 	for s in server_sources:
 		console.add_source(s)
 
-	console_panel = get_node_or_null(^"ConsoleLayer/ConsolePanel") as DotConsolePanel
-	return DotResult.success(null)
+	console_panel = get_node_or_null(^"ConsoleLayer/ConsolePanel") as GSConsolePanel
+	return GSResult.success(null)
 
 
 ## The listener's roof, once a frame: under one the ambience crosses to its indoor mood.

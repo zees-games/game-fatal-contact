@@ -26,7 +26,7 @@ func _ready() -> void:
 			"--seconds": _seconds = float(args[i + 1])
 			"--window": _window = float(args[i + 1])
 			"--budget": _budget = float(args[i + 1])
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	var _scratch := FcPresentation.use_scratch_settings("load_stall")
 	Engine.max_fps = 0
 	_run.call_deferred()

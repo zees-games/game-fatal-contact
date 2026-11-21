@@ -43,14 +43,14 @@ const BALL := &"arena_ball"
 const PALLET := &"arena_pallet"
 
 ## A prop was spawned by somebody. Carries the player id, for a stat.
-signal prop_spawned(player_id: int, prop: DotPropInstance)
+signal prop_spawned(player_id: int, prop: GSPropInstance)
 
 ## A prop broke on the server; the net layer tells clients, and the break effect plays from this on every end.
 signal prop_broke(material: String, at: Vector3)
 
 const PropTarget := preload("fc_prop_target.gd")
 
-var prop_damage: DotPropDamage = null
+var prop_damage: GSPropDamage = null
 
 @export_group("Rules")
 
@@ -71,7 +71,7 @@ var prop_damage: DotPropDamage = null
 ## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
 var game: Node = null
 
-var spawner: DotPropSpawner = null
+var spawner: GSPropSpawner = null
 
 ## Grab, hold, rotate, freeze. One per player, because it holds what that player has.
 ##
@@ -88,7 +88,7 @@ var _grav_guns: Dictionary = {}
 var _world: Node3D = null
 var _collision: Node3D = null
 
-var _limits: DotPropLimits = null
+var _limits: GSPropLimits = null
 
 ## Prop intents that came off the wire between ticks, as [player_id, action, direction], answered at the top of [method tick].
 ## [b]A request handler never queries the physics space[/b]: packets are polled in the idle frame, and with physics on its own
@@ -105,10 +105,10 @@ static func _look_basis(direction: Vector3) -> Basis:
 
 
 ## Builds the spawner and puts the level into a physics space.
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if game == null or game.map == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The props layer needs a game with a map."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The props layer needs a game with a map."
 		)
 
 	_world = Node3D.new()
@@ -119,19 +119,19 @@ func setup() -> DotResult:
 
 	_limits = _make_limits()
 
-	spawner = DotPropSpawner.new()
+	spawner = GSPropSpawner.new()
 	spawner.name = "PropSpawner"
 	spawner.catalogue = catalogue()
 	spawner.limits = _limits
 	spawner.authoritative = game.is_authority
-	spawner.world_ref = DotNodeRef.of_path(NodePath("../Props"))
+	spawner.world_ref = GSNodeRef.of_path(NodePath("../Props"))
 	add_child(spawner)
 
 	spawner.spawned.connect(_on_spawned)
 
-	prop_damage = DotPropDamage.new()
+	prop_damage = GSPropDamage.new()
 	prop_damage.name = "PropDamage"
-	prop_damage.spawner_ref = DotNodeRef.of_path(NodePath("../PropSpawner"))
+	prop_damage.spawner_ref = GSNodeRef.of_path(NodePath("../PropSpawner"))
 	prop_damage.authoritative = game.is_authority
 	add_child(prop_damage)
 	prop_damage.broken.connect(_on_prop_broken)
@@ -142,7 +142,7 @@ func setup() -> DotResult:
 	if scatter_count > 0:
 		scatter(scatter_count)
 
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## Puts the level's static geometry into the physics space, or replaces what is there.
@@ -167,8 +167,8 @@ func _rebuild_collision() -> void:
 	_classify_level(_collision)
 
 
-func _make_limits() -> DotPropLimits:
-	var limits := DotPropLimits.new()
+func _make_limits() -> GSPropLimits:
+	var limits := GSPropLimits.new()
 
 	# Fatal Contact, not a sandbox. Twelve props is enough to build cover and far too few
 	# to wall a doorway shut, which is the failure mode of a budget set generously.
@@ -178,7 +178,7 @@ func _make_limits() -> DotPropLimits:
 	limits.world_budget = 96
 	limits.clean_up_on_leave = true
 	limits.undo_depth = 12
-	limits.max_size = DotPropDef.Size.LARGE
+	limits.max_size = GSPropDef.Size.LARGE
 
 	# Reach and mass, in this game's numbers. The map is 48 m across, so a 20 m grab
 	# range is "anything you can see down a lane" rather than "anything at all".
@@ -197,37 +197,37 @@ func _make_limits() -> DotPropLimits:
 ## was saved with, which is what makes one scene serve several entries — and this
 ## catalogue does exactly that: a crate and a pallet are the same script at different
 ## sizes, and the physics gun's mass limit is what tells them apart.
-static func catalogue() -> DotPropCatalogue:
-	var out := DotPropCatalogue.new()
+static func catalogue() -> GSPropCatalogue:
+	var out := GSPropCatalogue.new()
 	out.meta = {"game": "arena"}
 
 	for def in [_crate(), _barrel(), _ball(), _pallet()]:
 		var added := out.add(def)
 
 		if not added.ok:
-			DotLog.warn(CHANNEL, "a prop could not be catalogued", {
+			GSLog.warn(CHANNEL, "a prop could not be catalogued", {
 				"prop": String(def.id), "why": added.error.message
 			})
 
 	return out
 
 
-static func _crate() -> DotPropDef:
-	var def := DotPropDef.make(CRATE, FcPaths.rebase(FcPaths.rebase("res://props/fc_crate.tscn")))
+static func _crate() -> GSPropDef:
+	var def := GSPropDef.make(CRATE, FcPaths.rebase(FcPaths.rebase("res://props/fc_crate.tscn")))
 	def.display_name = "Crate"
 	def.category = &"cover"
-	def.size = DotPropDef.Size.SMALL
+	def.size = GSPropDef.Size.SMALL
 	def.mass = 35.0
 	def.cost = 1
 	def.max_health = 50.0
 	return def
 
 
-static func _barrel() -> DotPropDef:
-	var def := DotPropDef.make(BARREL, FcPaths.rebase(FcPaths.rebase("res://props/fc_barrel.tscn")))
+static func _barrel() -> GSPropDef:
+	var def := GSPropDef.make(BARREL, FcPaths.rebase(FcPaths.rebase("res://props/fc_barrel.tscn")))
 	def.display_name = "Barrel"
 	def.category = &"cover"
-	def.size = DotPropDef.Size.MEDIUM
+	def.size = GSPropDef.Size.MEDIUM
 	def.mass = 90.0
 	def.cost = 2
 	def.max_health = 80.0
@@ -235,11 +235,11 @@ static func _barrel() -> DotPropDef:
 	return def
 
 
-static func _ball() -> DotPropDef:
-	var def := DotPropDef.make(BALL, FcPaths.rebase(FcPaths.rebase("res://props/fc_ball.tscn")))
+static func _ball() -> GSPropDef:
+	var def := GSPropDef.make(BALL, FcPaths.rebase(FcPaths.rebase("res://props/fc_ball.tscn")))
 	def.display_name = "Ball"
 	def.category = &"toy"
-	def.size = DotPropDef.Size.SMALL
+	def.size = GSPropDef.Size.SMALL
 	# Light and round, so it is the one a gravity gun actually throws across the map.
 	def.mass = 12.0
 	def.cost = 1
@@ -249,11 +249,11 @@ static func _ball() -> DotPropDef:
 	return def
 
 
-static func _pallet() -> DotPropDef:
-	var def := DotPropDef.make(PALLET, FcPaths.rebase(FcPaths.rebase("res://props/fc_pallet.tscn")))
+static func _pallet() -> GSPropDef:
+	var def := GSPropDef.make(PALLET, FcPaths.rebase(FcPaths.rebase("res://props/fc_pallet.tscn")))
 	def.display_name = "Pallet"
 	def.category = &"cover"
-	def.size = DotPropDef.Size.LARGE
+	def.size = GSPropDef.Size.LARGE
 	# Above `grab_mass_limit`, deliberately. A physics gun refuses it and a player has
 	# to shoot it or push it — which is what makes the mass limit a rule somebody can
 	# feel rather than a number in a config.
@@ -278,7 +278,7 @@ func tick(delta: float) -> void:
 # --- Spawning --------------------------------------------------------------
 
 ## Spawns a prop for a player, subject to the budget and the interval.
-func spawn_for(player_id: int, prop_id: StringName, at: Vector3) -> DotPropInstance:
+func spawn_for(player_id: int, prop_id: StringName, at: Vector3) -> GSPropInstance:
 	if spawner == null:
 		return null
 
@@ -295,8 +295,8 @@ func spawn_for(player_id: int, prop_id: StringName, at: Vector3) -> DotPropInsta
 ## passed differently the second time it was run.
 ##
 ## [b]The map's furniture shares a player's budget, and that is dot-props' rule rather
-## than a bug here.[/b] [method DotPropSpawner.may_spawn] checks
-## [member DotPropLimits.per_player_budget] against the owner it is given, and the
+## than a bug here.[/b] [method GSPropSpawner.may_spawn] checks
+## [member GSPropLimits.per_player_budget] against the owner it is given, and the
 ## empty owner is an owner like any other — so eight props are eight props' worth of
 ## cost against twelve, not eight free ones. The first version of this scattered
 ## crates, barrels and pallets in rotation, which is 14 points for 8 props, and it
@@ -339,7 +339,7 @@ func scatter(count: int) -> int:
 			placed += 1
 
 	if placed < count:
-		DotLog.warn(CHANNEL, "the map placed less cover than it asked for", {
+		GSLog.warn(CHANNEL, "the map placed less cover than it asked for", {
 			"asked": count,
 			"placed": placed,
 			"budget": _limits.per_player_budget if _limits != null else 0,
@@ -351,9 +351,9 @@ func scatter(count: int) -> int:
 # --- Tools -----------------------------------------------------------------
 
 ## This player's physics gun, made on first use.
-func phys_gun(player_id: int) -> DotPhysGun:
+func phys_gun(player_id: int) -> GSPhysGun:
 	if not _phys_guns.has(player_id):
-		var gun := DotPhysGun.new()
+		var gun := GSPhysGun.new()
 		gun.spawner = spawner
 		gun.wielder = StringName(str(player_id))
 		_phys_guns[player_id] = gun
@@ -362,9 +362,9 @@ func phys_gun(player_id: int) -> DotPhysGun:
 
 
 ## This player's gravity gun, made on first use.
-func grav_gun(player_id: int) -> DotGravGun:
+func grav_gun(player_id: int) -> GSGravGun:
 	if not _grav_guns.has(player_id):
-		var gun := DotGravGun.new()
+		var gun := GSGravGun.new()
 		gun.spawner = spawner
 		gun.wielder = StringName(str(player_id))
 		_grav_guns[player_id] = gun
@@ -377,7 +377,7 @@ func grav_gun(player_id: int) -> DotGravGun:
 ## [b]Server side only, and every check is here rather than at the caller.[/b] A prop
 ## is server-authoritative and unpredicted because a contact solver is not reproducible
 ## across machines; the client sends what it wanted and this decides whether it
-## happened. `DotPropTool.may_act_on` is what enforces the range, the mass limit and
+## happened. `GSPropTool.may_act_on` is what enforces the range, the mass limit and
 ## whose prop it is — none of which a client is asked about.
 func act(player_id: int, action: int, origin: Vector3, direction: Vector3) -> bool:
 	if spawner == null or not spawner.authoritative:
@@ -394,7 +394,7 @@ func act(player_id: int, action: int, origin: Vector3, direction: Vector3) -> bo
 		# with nothing to trace against would grab whatever was last returned.
 		return false
 
-	# The player's view as a Basis, which `DotPhysGun` needs and the wire does not
+	# The player's view as a Basis, which `GSPhysGun` needs and the wire does not
 	# carry: it is derivable from the two angles it does carry, and a third
 	# representation of the same aim on the wire is a third thing that can disagree.
 	var view := _look_basis(direction)
@@ -439,12 +439,12 @@ func _answer_queued() -> void:
 
 ## Keeps every held prop where its holder is looking. Once per tick.
 ##
-## [b]Held props move every tick and a grab happens once.[/b] `DotPhysGun.hold` is what
+## [b]Held props move every tick and a grab happens once.[/b] `GSPhysGun.hold` is what
 ## carries one, and a layer that only called `grab` would give a player a prop that
 ## stayed exactly where it was picked up — which reads as the physics gun not working
 ## rather than as a missing call.
 ##
-## `held` is checked rather than an `is_holding()`: `DotPhysGun` exposes the instance
+## `held` is checked rather than an `is_holding()`: `GSPhysGun` exposes the instance
 ## and not a predicate, and a prop can be freed while it is held — an admin clearing
 ## the world, a map change — so the aliveness test is the one that matters.
 func _carry(delta: float) -> void:
@@ -452,7 +452,7 @@ func _carry(delta: float) -> void:
 		return
 
 	for id in _phys_guns.keys():
-		var gun: DotPhysGun = _phys_guns[id]
+		var gun: GSPhysGun = _phys_guns[id]
 
 		if gun.held == null or not gun.held.is_alive():
 			continue
@@ -472,7 +472,7 @@ func _carry(delta: float) -> void:
 		)
 
 	for id in _grav_guns.keys():
-		var gun: DotGravGun = _grav_guns[id]
+		var gun: GSGravGun = _grav_guns[id]
 
 		if not gun.is_carrying():
 			continue
@@ -488,7 +488,7 @@ func _carry(delta: float) -> void:
 
 ## The physics space the tools trace in, or null when there is none.
 ##
-## Typed [Variant] because `DotPropTool.target` takes one: the tools are written so
+## Typed [Variant] because `GSPropTool.target` takes one: the tools are written so
 ## they compile in a project that is not in a 3D scene at all, which is how they are
 ## tested headlessly.
 ##
@@ -515,11 +515,11 @@ func release_player(player_id: int) -> void:
 	_queued_acts = _queued_acts.filter(func(entry: Array) -> bool: return int(entry[0]) != player_id)
 
 	if _phys_guns.has(player_id):
-		(_phys_guns[player_id] as DotPhysGun).release()
+		(_phys_guns[player_id] as GSPhysGun).release()
 		_phys_guns.erase(player_id)
 
 	if _grav_guns.has(player_id):
-		(_grav_guns[player_id] as DotGravGun).drop()
+		(_grav_guns[player_id] as GSGravGun).drop()
 		_grav_guns.erase(player_id)
 
 	if spawner != null:
@@ -546,7 +546,7 @@ func clear_players() -> int:
 
 
 func clear_all() -> int:
-	return spawner.clear_all(DotPropSpawner.REASON_ADMIN) if spawner != null else 0
+	return spawner.clear_all(GSPropSpawner.REASON_ADMIN) if spawner != null else 0
 
 
 func count() -> int:
@@ -567,10 +567,10 @@ func _classify_level(root: Node) -> void:
 		return
 
 	var done: int = game.player_stack.classify_tree(root, &"world")
-	DotLog.debug(CHANNEL, "level classified", {"bodies": done})
+	GSLog.debug(CHANNEL, "level classified", {"bodies": done})
 
 
-func _on_spawned(prop: DotPropInstance) -> void:
+func _on_spawned(prop: GSPropInstance) -> void:
 	var owner_id := String(prop.owner_id).to_int()
 
 	# [b]On the prop layer, which is what makes props touch each other.[/b] A spawned
@@ -580,7 +580,7 @@ func _on_spawned(prop: DotPropInstance) -> void:
 	# the layout is [world, player, npc, prop, projectile, vehicle], which is what a
 	# player pushing a crate into another crate needs.
 	if game != null and game.player_stack != null and prop.node != null:
-		var _put: DotResult = game.player_stack.classify(prop.node, &"prop")
+		var _put: GSResult = game.player_stack.classify(prop.node, &"prop")
 
 	if prop.node is RigidBody3D and prop_damage != null and prop.def != null and prop.def.max_health > 0.0 and prop.node.get_script() == null:
 		prop.node.set_script(PropTarget)
@@ -593,7 +593,7 @@ func _on_spawned(prop: DotPropInstance) -> void:
 		game.progress.record(owner_id, FcStats.PROPS_SPAWNED)
 
 
-func _on_prop_broken(prop: DotPropInstance, at: Vector3, _by: StringName) -> void:
+func _on_prop_broken(prop: GSPropInstance, at: Vector3, _by: StringName) -> void:
 	prop_broke.emit(String(prop.def.material) if prop.def != null else "wood", at)
 
 
@@ -605,13 +605,13 @@ func _on_map_changed(_map: FcMap) -> void:
 	_queued_acts.clear()
 
 	if spawner != null:
-		spawner.clear_all(DotPropSpawner.REASON_CLEANUP)
+		spawner.clear_all(GSPropSpawner.REASON_CLEANUP)
 
 	for id in _phys_guns.keys():
-		(_phys_guns[id] as DotPhysGun).release()
+		(_phys_guns[id] as GSPhysGun).release()
 
 	for id in _grav_guns.keys():
-		(_grav_guns[id] as DotGravGun).drop()
+		(_grav_guns[id] as GSGravGun).drop()
 
 	_rebuild_collision()
 

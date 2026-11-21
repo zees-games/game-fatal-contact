@@ -14,17 +14,17 @@ extends "fc_bots_world.gd"
 ## 40 m, no reaction and no aim error. A first play test on Windows died twelve times in ninety
 ## seconds to it, killed from 30 to 40 m within a second, while the brain a server ran (sight,
 ## reaction, aim error, range, strafing) was never met by anybody playing solo. Both now ask
-## [DotBotBrain], so `bot_difficulty` means the same thing in both.
+## [GSBotBrain], so `bot_difficulty` means the same thing in both.
 ##
-## [b]What the brain is told[/b] ([World], a [DotBotWorld]): every player as a
-## [DotBotContact], the combat trace's line of sight, the map's spawns as places to roam, a
+## [b]What the brain is told[/b] ([World], a [GSBotWorld]): every player as a
+## [GSBotContact], the combat trace's line of sight, the map's spawns as places to roam, a
 ## route between them over the horde's navigation graph (built-in maps; an imported map has
 ## none, and is walked straight), how fast the held weapon's projectile flies (so a rocket
 ## is led), a sound for every shot fired (from [signal FcPlayer.used]) and who hit whom
 ## (from [signal FcGame.hit_confirmed]). Nothing else, so it cannot see through a wall.
 ##
 ## [b]A grenade is four commands, not a button.[/b] Fatal Contact has no throw key: a frag is slot 5,
-## drawn, held to cook and released. When the brain says [member DotBotIntent.throw], [Mind]
+## drawn, held to cook and released. When the brain says [member GSBotIntent.throw], [Mind]
 ## switches to the throwable, holds the trigger for [constant COOK_SEC], lets go along the
 ## view the brain chose, and switches back to what it held -- the same presses a person makes.
 ##
@@ -70,7 +70,7 @@ static func think(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate:
 ## of no game), else an empty array with [member Mind.t_me] and [member Mind.t_world] set for the brain.
 static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float) -> Array:
 	if game == null or bot == null:
-		return [DotFpsCommand.new(), DotWeaponCommand.new()]
+		return [GSFpsCommand.new(), GSWeaponCommand.new()]
 
 	var t_gate := FcFrameProbe.lap_start()
 	var world := world_for(game)
@@ -100,15 +100,15 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 		mind.brain = null
 	if mind.brain == null:
 		var bot_seed := mind.seed if mind.seed != 0 else bot.player_id
-		var base := DotBotSettings.of(game)
+		var base := GSBotSettings.of(game)
 		mind.persona = world.deal_persona(pool, bot.player_id) if pool != null else null
-		mind.settings = DotBotSettings.derived(base, mind.persona, bot_seed) if mind.persona != null else null
+		mind.settings = GSBotSettings.derived(base, mind.persona, bot_seed) if mind.persona != null else null
 		mind.persona_bias = mind.persona.role_bias() if mind.persona != null else Vector3.ZERO
 		mind.persona_epoch = world.persona_epoch
 		mind.brain = FcBotBrain.new(bot_seed, mind.settings if mind.settings != null else base)
 		# The bot's trick gates follow the motor: 1.18 times the minimum, as the old 6.5 was of 5.5.
 		var body_tunables: Variant = bot.controller.get("tunables") if bot.controller != null else null
-		if body_tunables is DotFpsTunables:
+		if body_tunables is GSFpsTunables:
 			mind.brain.tricks.slide_speed = body_tunables.slide_min_speed * 1.18
 			mind.brain.tricks.wall_run_speed = body_tunables.wall_run_min_speed * 1.17
 	world.brains[bot.player_id] = mind.brain
@@ -138,7 +138,7 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 
 
 ## dot-bot 0.1.32: a bot stuck on an island with no way off (a surf map with no ride cache) goes back to a spawn. The brain reports again every bot_stranded_sec if that did not free it. Returns whether it respawned.
-static func unstrand(game: Object, bot: FcPlayer, mind: Mind, intent: DotBotIntent) -> bool:
+static func unstrand(game: Object, bot: FcPlayer, mind: Mind, intent: GSBotIntent) -> bool:
 	if intent == null or not intent.stranded or game == null or not game.has_method(&"respawn_player"):
 		return false
 	mind.ride = null
@@ -150,11 +150,11 @@ static func unstrand(game: Object, bot: FcPlayer, mind: Mind, intent: DotBotInte
 
 ## The part of [method think] after the brain ran, on the main thread: the bot's commands from [member Mind.t_intent].
 static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float) -> Array:
-	var move := DotFpsCommand.new()
-	var fire := DotWeaponCommand.new()
+	var move := GSFpsCommand.new()
+	var fire := GSWeaponCommand.new()
 	var world: World = mind.t_world
-	var me: DotBotContact = mind.t_me
-	var intent: DotBotIntent = mind.t_intent
+	var me: GSBotContact = mind.t_me
+	var intent: GSBotIntent = mind.t_intent
 	mind.t_me = null
 	mind.t_world = null
 	mind.t_intent = null
@@ -223,8 +223,8 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 	return made
 
 
-## [param from] copied into [param into] (as [method DotFpsCommand.duplicate_command] copies it), or a copy when there is none yet.
-static func _keep_move(into: DotFpsCommand, from: DotFpsCommand) -> DotFpsCommand:
+## [param from] copied into [param into] (as [method GSFpsCommand.duplicate_command] copies it), or a copy when there is none yet.
+static func _keep_move(into: GSFpsCommand, from: GSFpsCommand) -> GSFpsCommand:
 	if into == null:
 		return from.duplicate_command()
 	into.move = from.move
@@ -234,8 +234,8 @@ static func _keep_move(into: DotFpsCommand, from: DotFpsCommand) -> DotFpsComman
 	return into
 
 
-## [param from] copied into [param into] (as [method DotWeaponCommand.duplicate_command] copies it), or a copy when there is none yet.
-static func _keep_fire(into: DotWeaponCommand, from: DotWeaponCommand) -> DotWeaponCommand:
+## [param from] copied into [param into] (as [method GSWeaponCommand.duplicate_command] copies it), or a copy when there is none yet.
+static func _keep_fire(into: GSWeaponCommand, from: GSWeaponCommand) -> GSWeaponCommand:
 	if into == null:
 		return from.duplicate_command()
 	into.slot = from.slot
@@ -245,31 +245,31 @@ static func _keep_fire(into: DotWeaponCommand, from: DotWeaponCommand) -> DotWea
 	return into
 
 
-## [method DotBotIntent.write_move] (air jump on BUTTON_USER_0) and [method DotBotIntent.write_fire] for this game's
+## [method GSBotIntent.write_move] (air jump on BUTTON_USER_0) and [method GSBotIntent.write_fire] for this game's
 ## own command classes, typed: the generic writers find each button's constant by name on the command's script, six
 ## dynamic lookups and calls per bot per tick (ba_write, half of bot_after). headless_bots checks both write the same.
-static func _write(intent: DotBotIntent, move: DotFpsCommand, fire: DotWeaponCommand) -> void:
+static func _write(intent: GSBotIntent, move: GSFpsCommand, fire: GSWeaponCommand) -> void:
 	move.yaw = intent.yaw
 	move.pitch = intent.pitch
 	move.move = intent.move.limit_length(1.0)
-	move.set_button(DotFpsCommand.BUTTON_CROUCH, intent.crouch)
-	move.set_button(DotFpsCommand.BUTTON_JUMP, intent.jump)
-	move.set_button(DotFpsCommand.BUTTON_WALK, intent.walk)
-	move.set_button(DotFpsCommand.BUTTON_USER_0, intent.air_jump)
+	move.set_button(GSFpsCommand.BUTTON_CROUCH, intent.crouch)
+	move.set_button(GSFpsCommand.BUTTON_JUMP, intent.jump)
+	move.set_button(GSFpsCommand.BUTTON_WALK, intent.walk)
+	move.set_button(GSFpsCommand.BUTTON_USER_0, intent.air_jump)
 	fire.yaw = intent.yaw
 	fire.pitch = intent.pitch
-	fire.set_button(DotWeaponCommand.BUTTON_USE, intent.use)
-	fire.set_button(DotWeaponCommand.BUTTON_ATTACK, intent.fire)
+	fire.set_button(GSWeaponCommand.BUTTON_USE, intent.use)
+	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, intent.fire)
 
 
 ## Off only for tests that measure the bots without the correction (headless_bot_hitreg).
 static var recoil_compensation := true
 
-## Whether the think tiers come from [code]DotBotThinkTier.schedule[/code] (dot-bot API 27) or, on a host's dot-bot 26
+## Whether the think tiers come from [code]GSBotThinkTier.schedule[/code] (dot-bot API 27) or, on a host's dot-bot 26
 ## (the live shell's pin), from period, until_beat and body_period, which answer the same. headless_botthreads plays both.
-static var tier_schedule := DotAddonApi.build_level("dot_bot") >= 27
-## Whether [code]DotBotBrain[/code] has phase timers (dot-bot API 29) for the sim host's SIM_HOST_PHASES line.
-static var brain_phases := DotAddonApi.build_level("dot_bot") >= 29
+static var tier_schedule := GSAddonApi.build_level("dot_bot") >= 27
+## Whether [code]GSBotBrain[/code] has phase timers (dot-bot API 29) for the sim host's SIM_HOST_PHASES line.
+static var brain_phases := GSAddonApi.build_level("dot_bot") >= 29
 
 ## bot_recoil_control: the share of the recoil a bot pulls its aim back against, 0..1; below 0 (the default, -1)
 ## by difficulty from [constant RECOIL_CONTROL]. A whole share made every bot's burst a laser no person matches.
@@ -281,10 +281,10 @@ const RECOIL_CONTROL := {"easy": 0.3, "medium": 0.55, "hard": 0.75, "nightmare":
 static func recoil_share(mind: Mind) -> float:
 	if recoil_control >= 0.0:
 		return clampf(recoil_control, 0.0, 1.0)
-	var preset := DotBotProfile.DEFAULT_PRESET
+	var preset := GSBotProfile.DEFAULT_PRESET
 	if mind != null and mind.brain != null and mind.brain.settings != null and mind.brain.settings.profile != null:
 		preset = mind.brain.settings.profile.preset_name
-	return float(RECOIL_CONTROL.get(preset, RECOIL_CONTROL[DotBotProfile.DEFAULT_PRESET]))
+	return float(RECOIL_CONTROL.get(preset, RECOIL_CONTROL[GSBotProfile.DEFAULT_PRESET]))
 
 
 ## The commands with the aim turned against the recoil the next shot will carry. The weapon offsets each bullet by
@@ -296,13 +296,13 @@ static func _recoil_comp(bot: FcPlayer, mind: Mind, cmds: Array, tick: int, tick
 	mind.recoil_comp = Vector2.ZERO
 	if not recoil_compensation:
 		return cmds
-	var fire: DotWeaponCommand = cmds[1]
-	if bot == null or bot.arsenal == null or not fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK):
+	var fire: GSWeaponCommand = cmds[1]
+	if bot == null or bot.arsenal == null or not fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 		return cmds
 	var offset := next_recoil_offset(bot, tick, tick_rate) * recoil_share(mind)
 	if offset == Vector2.ZERO:
 		return cmds
-	var move: DotFpsCommand = cmds[0]
+	var move: GSFpsCommand = cmds[0]
 	move.pitch -= offset.x
 	move.yaw -= offset.y
 	mind.recoil_comp = Vector2(offset.y, offset.x)
@@ -310,13 +310,13 @@ static func _recoil_comp(bot: FcPlayer, mind: Mind, cmds: Array, tick: int, tick
 
 
 ## Degrees (pitch up, yaw left) the next bullet of [param bot]'s weapon is turned off its aim by recoil, as
-## [method DotWeaponRecoilRules.apply] will work it out at [param tick]; zero with recoil patterns off.
+## [method GSWeaponRecoilRules.apply] will work it out at [param tick]; zero with recoil patterns off.
 static func next_recoil_offset(bot: FcPlayer, tick: int, tick_rate: float) -> Vector2:
-	var rr := DotWeaponRecoilRules.of(bot.arsenal)
-	var slot: DotWeaponSlot = bot.arsenal.current()
+	var rr := GSWeaponRecoilRules.of(bot.arsenal)
+	var slot: GSWeaponSlot = bot.arsenal.current()
 	if rr == null or slot == null or slot.behaviour == null or slot.behaviour.def == null:
 		return Vector2.ZERO
-	var b := slot.behaviour.def.tuning as DotWeaponBallistics
+	var b := slot.behaviour.def.tuning as GSWeaponBallistics
 	if b == null:
 		return Vector2.ZERO
 	var state: Dictionary = slot.behaviour.state
@@ -324,7 +324,7 @@ static func next_recoil_offset(bot: FcPlayer, tick: int, tick_rate: float) -> Ve
 	var n := int(state.get(&"recoil_n", 0)) if elapsed <= rr.reset else 0
 	var residual := Vector2(float(state.get(&"recoil_ax", 0.0)), float(state.get(&"recoil_ay", 0.0))) * exp(-b.recoil_recovery * rr.recovery * elapsed)
 	var grow := 1.0 + minf(b.recoil_build * rr.build * float(n), b.recoil_build_max * rr.build)
-	var kick := Vector2(b.recoil_pitch * rr.vertical * grow, b.recoil_yaw * rr.horizontal * grow * DotWeaponRecoilRules.drift(DotWeaponRecoilRules.seed_for(b, slot.behaviour.def.id), n))
+	var kick := Vector2(b.recoil_pitch * rr.vertical * grow, b.recoil_yaw * rr.horizontal * grow * GSWeaponRecoilRules.drift(GSWeaponRecoilRules.seed_for(b, slot.behaviour.def.id), n))
 	var share := b.recoil_camera if b.recoil_camera >= 0.0 else rr.punch
 	return (residual + kick) * (1.0 - share) + residual * share * rr.follow
 
@@ -347,18 +347,18 @@ static func _coast(mind: Mind, tick: int) -> Array:
 
 
 ## Whether a bot that just thought may sit out the next ticks: nothing in hand but a walk.
-static func _coastable(mind: Mind, intent: DotBotIntent, move: DotFpsCommand, fire: DotWeaponCommand) -> bool:
+static func _coastable(mind: Mind, intent: GSBotIntent, move: GSFpsCommand, fire: GSWeaponCommand) -> bool:
 	return mind.ride == null and mind.throw_stage == 0 and intent.target_id < 0 and intent.state != &"dead" \
 		and move.buttons == 0 and fire.buttons == 0
 
 
 ## Whether a tiered bot that just thought may sit out the next ticks: no ride or throw. Its edge buttons are not
 ## repeated (see [method think_finish]), so a fight or a jump may coast; a dead bot coasts with nothing pressed.
-static func _tier_coastable(mind: Mind, _intent: DotBotIntent) -> bool:
+static func _tier_coastable(mind: Mind, _intent: GSBotIntent) -> bool:
 	return mind.ride == null and mind.throw_stage == 0
 
 
-## A thought bot's think and body tiers: one [code]DotBotThinkTier.schedule[/code] (dot-bot API 27; native in dot-sim when
+## A thought bot's think and body tiers: one [code]GSBotThinkTier.schedule[/code] (dot-bot API 27; native in dot-sim when
 ## loaded), or on a host's dot-bot 26 the three calls it replaced, which answer the same (headless_botthreads plays both).
 static func _schedule_tiers(bot: FcPlayer, mind: Mind, at: Vector3, engaged: bool, idle: bool, tick: int, coastable: bool) -> void:
 	var floor_every := think_floor_engaged if engaged else think_floor
@@ -369,7 +369,7 @@ static func _schedule_tiers(bot: FcPlayer, mind: Mind, at: Vector3, engaged: boo
 		mind.coasting = plan.x > 1 and coastable
 		bot.body_every = plan.y
 	else:
-		mind.every = DotBotThinkTier.until_beat(tick, mind.seed, maxi(tiers.period(bot.player_id, at, engaged, idle), floor_every))
+		mind.every = GSBotThinkTier.until_beat(tick, mind.seed, maxi(tiers.period(bot.player_id, at, engaged, idle), floor_every))
 		mind.coasting = mind.every > 1 and coastable
 		bot.body_every = tiers.body_period(bot.player_id, at, engaged, idle) if mind.coasting else 1
 
@@ -384,7 +384,7 @@ static func _coasts(mind: Mind, tick: int, world: World, id: int) -> bool:
 
 
 ## Whether no live enemy of [param me] is within [member think_near] metres.
-static func _nobody_near(me: DotBotContact, world: World) -> bool:
+static func _nobody_near(me: GSBotContact, world: World) -> bool:
 	var near_sq := think_near * think_near
 	if world.near_cell > 0.0 and world.near_cell == think_near:
 		var cx := int(floorf(me.position.x / think_near)) + 4096
@@ -394,21 +394,21 @@ static func _nobody_near(me: DotBotContact, world: World) -> bool:
 				var cell: Variant = world.near_cells.get((cx + dx) * 8192 + cz + dz)
 				if cell == null:
 					continue
-				for item: DotBotContact in cell:
+				for item: GSBotContact in cell:
 					if item.id != me.id and me.is_enemy(item) and item.position.distance_squared_to(me.position) < near_sq:
 						return false
 		return true
-	for item: DotBotContact in world.contacts():
+	for item: GSBotContact in world.contacts():
 		if item.alive and item.id != me.id and me.is_enemy(item) and item.position.distance_squared_to(me.position) < near_sq:
 			return false
 	return true
 
 
-## Turns the brain's [member DotBotIntent.throw] into the presses a person makes: draw the
+## Turns the brain's [member GSBotIntent.throw] into the presses a person makes: draw the
 ## throwable, cook it, let go along the view the brain chose, and draw what was held before.
 ## While a throw is under way it owns the trigger, the slot and the view; the legs stay the
 ## brain's.
-static func _throw(bot: FcPlayer, mind: Mind, intent: DotBotIntent, move: DotFpsCommand, fire: DotWeaponCommand, tick: int, tick_rate: float) -> void:
+static func _throw(bot: FcPlayer, mind: Mind, intent: GSBotIntent, move: GSFpsCommand, fire: GSWeaponCommand, tick: int, tick_rate: float) -> void:
 	var arsenal := bot.arsenal
 	if arsenal == null or not bot.is_alive():
 		mind.throw_stage = 0
@@ -425,16 +425,16 @@ static func _throw(bot: FcPlayer, mind: Mind, intent: DotBotIntent, move: DotFps
 	if tick - mind.throw_at > int(THROW_GIVE_UP_SEC * tick_rate) and mind.throw_stage < THROW_RELEASE:
 		mind.throw_stage = THROW_RELEASE if mind.throw_stage == THROW_COOK else THROW_BACK
 
-	fire.set_button(DotWeaponCommand.BUTTON_ATTACK, false)
+	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, false)
 	match mind.throw_stage:
 		THROW_DRAW:
 			fire.slot = thrown
 			if arsenal.current_slot() == thrown and not arsenal.is_switching():
 				mind.throw_stage = THROW_COOK
 				mind.throw_cook_from = tick
-				fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+				fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 		THROW_COOK:
-			fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+			fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 			if tick - mind.throw_cook_from >= maxi(1, int(COOK_SEC * tick_rate)):
 				mind.throw_stage = THROW_RELEASE
 		THROW_RELEASE:
@@ -457,7 +457,7 @@ static func _throw(bot: FcPlayer, mind: Mind, intent: DotBotIntent, move: DotFps
 ## Draws the carried gun that suits the fight: one that reaches the target (`params.max_range`) and
 ## can still pay for a shot, the primary before the sidearm, the sidearm inside [constant GUN_CLOSE]
 ## when the primary is scoped. Only for a bot that drew a kit; checked one tick in [constant GUN_CHECK_EVERY].
-static func _choose_gun(bot: FcPlayer, mind: Mind, world: World, me: DotBotContact, intent: DotBotIntent, fire: DotWeaponCommand, tick: int) -> void:
+static func _choose_gun(bot: FcPlayer, mind: Mind, world: World, me: GSBotContact, intent: GSBotIntent, fire: GSWeaponCommand, tick: int) -> void:
 	if mind.throw_stage != 0 or fire.slot != 0 or (tick + mind.seed) % GUN_CHECK_EVERY != 0:
 		return
 	var arsenal := bot.arsenal
@@ -475,7 +475,7 @@ static func _choose_gun(bot: FcPlayer, mind: Mind, world: World, me: DotBotConta
 
 ## The slot of the gun to hold against a target [param dist] metres off (-1 for none), or 0 for no
 ## change: the held gun while it suits, else a suiting primary, a suiting sidearm, the longest reach.
-static func gun_for(arsenal: DotWeaponArsenal, dist: float) -> int:
+static func gun_for(arsenal: GSWeaponArsenal, dist: float) -> int:
 	var held := arsenal.current_slot()
 	# With nobody to shoot, a bot holding its sidearm goes back to the primary.
 	if _gun_suits(arsenal, held, dist) and (dist >= 0.0 or _gun_kind(held) != 2):
@@ -497,7 +497,7 @@ static func gun_for(arsenal: DotWeaponArsenal, dist: float) -> int:
 
 
 ## Whether the gun in [param slot] can shoot a target [param dist] metres off (-1 for none).
-static func _gun_suits(arsenal: DotWeaponArsenal, slot: int, dist: float) -> bool:
+static func _gun_suits(arsenal: GSWeaponArsenal, slot: int, dist: float) -> bool:
 	if _gun_kind(slot) == 0 or not _can_pay(arsenal, slot):
 		return false
 	if dist < 0.0:
@@ -516,7 +516,7 @@ static func _gun_kind(slot: int) -> int:
 
 
 ## How far the gun in [param slot] reaches, metres; unbounded when the weapon does not say.
-static func _gun_range(arsenal: DotWeaponArsenal, slot: int) -> float:
+static func _gun_range(arsenal: GSWeaponArsenal, slot: int) -> float:
 	var held := arsenal.slot_at(slot)
 	if held == null or held.def == null:
 		return 0.0
@@ -524,7 +524,7 @@ static func _gun_range(arsenal: DotWeaponArsenal, slot: int) -> float:
 
 
 ## Whether the weapon in [param slot] can pay for a shot, from its magazine or its reserve.
-static func _can_pay(arsenal: DotWeaponArsenal, slot: int) -> bool:
+static func _can_pay(arsenal: GSWeaponArsenal, slot: int) -> bool:
 	var held := arsenal.slot_at(slot)
 	if held == null or held.def == null:
 		return false
@@ -537,7 +537,7 @@ static func _can_pay(arsenal: DotWeaponArsenal, slot: int) -> bool:
 
 
 ## Whether [param arsenal] holds a throwable it can pay for.
-static func _has_throwable(arsenal: DotWeaponArsenal) -> bool:
+static func _has_throwable(arsenal: GSWeaponArsenal) -> bool:
 	var slot := arsenal.slot_at(AwWeaponIds.thrown_slot())
 	if slot == null or slot.def == null:
 		return false

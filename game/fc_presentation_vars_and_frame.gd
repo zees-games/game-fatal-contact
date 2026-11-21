@@ -5,8 +5,8 @@ const FcScopeBody := preload("fc_scope_body.gd")
 const FcNetLink := preload("fc_net_link.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 
-func _local_commands() -> DotConsoleLocal:
-	var local := DotConsoleLocal.new()
+func _local_commands() -> GSConsoleLocal:
+	var local := GSConsoleLocal.new()
 
 	local.add_command(&"quit", "Leave the match", func(_a: PackedStringArray) -> Variant:
 		get_tree().quit()
@@ -23,23 +23,23 @@ func _local_commands() -> DotConsoleLocal:
 		func(v: Variant) -> Variant:
 			var _set := settings.set_value(&"penetration_decals", str(v).strip_edges() != "0")
 			fx.config.penetration_decals = settings.get_bool(&"penetration_decals", true)
-			return DotResult.success(1 if fx.config.penetration_decals else 0)
+			return GSResult.success(1 if fx.config.penetration_decals else 0)
 	)
 	local.add_var(&"cl_respawn_jump_gate", "1 swallows Space after a death until it is released, so the key that skips the kill view does not jump on the respawn; 0 lets it through.",
 		func() -> Variant: return 1 if settings.get_bool(&"respawn_jump_gate", true) else 0,
 		func(v: Variant) -> Variant:
 			var _set := settings.set_value(&"respawn_jump_gate", str(v).strip_edges() != "0")
-			return DotResult.success(1 if settings.get_bool(&"respawn_jump_gate", true) else 0)
+			return GSResult.success(1 if settings.get_bool(&"respawn_jump_gate", true) else 0)
 	)
 	_add_perf_vars(local)
 	local.add_var(&"cl_def_cache", "1 keeps one weapon catalogue for watched hands' lookups; 0 builds it again on each (a reload start, a fitted code).",
 		func() -> Variant: return 1 if _addon_static(AwWeaponCatalogue, &"def_cache", false) else 0,
 		func(v: Variant) -> Variant:
-			return DotResult.success(1 if _addon_static(AwWeaponCatalogue, &"def_cache", false, str(v).strip_edges() != "0") else 0))
+			return GSResult.success(1 if _addon_static(AwWeaponCatalogue, &"def_cache", false, str(v).strip_edges() != "0") else 0))
 	local.add_var(&"cl_glove_cache", "1 remembers each gun texture's colour for the first-person glove contrast; 0 reads it back on every equip.",
 		func() -> Variant: return 1 if _addon_static(AwViewArms, &"albedo_cache", false) else 0,
 		func(v: Variant) -> Variant:
-			return DotResult.success(1 if _addon_static(AwViewArms, &"albedo_cache", false, str(v).strip_edges() != "0") else 0)
+			return GSResult.success(1 if _addon_static(AwViewArms, &"albedo_cache", false, str(v).strip_edges() != "0") else 0)
 	)
 	_add_remote_vars(local)
 	_add_killcam_vars(local)
@@ -47,7 +47,7 @@ func _local_commands() -> DotConsoleLocal:
 		func() -> Variant: return 1 if FcViewArms.debug_pose else 0,
 		func(v: Variant) -> Variant:
 			FcViewArms.debug_pose = str(v).strip_edges() == "1"
-			return DotResult.success(1 if FcViewArms.debug_pose else 0)
+			return GSResult.success(1 if FcViewArms.debug_pose else 0)
 	)
 	_add_arm_vars(local)
 	FcFlagCarry.bind_console(local, settings)
@@ -76,270 +76,270 @@ func _local_commands() -> DotConsoleLocal:
 
 
 ## Kill-cam recording rate and pose LOD.
-func _add_killcam_vars(local: DotConsoleLocal) -> void:
+func _add_killcam_vars(local: GSConsoleLocal) -> void:
 	local.add_var(&"cl_killcam_crowd", "Above this many players the kill-cam records at cl_killcam_crowd_hz instead of cl_killcam_hz (0: never; 32 is the default).",
 		func() -> Variant: return FcKillcamBodies.crowd_players,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_int() or text.to_int() < 0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_killcam_crowd takes a whole number of players, 0 or more")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_killcam_crowd takes a whole number of players, 0 or more")
 			FcKillcamBodies.crowd_players = text.to_int()
-			return DotResult.success(FcKillcamBodies.crowd_players)
+			return GSResult.success(FcKillcamBodies.crowd_players)
 	)
 	local.add_var(&"cl_killcam_crowd_hz", "Most times a second the kill-cam records every body above cl_killcam_crowd players (0: every frame; 15 is the default).",
 		func() -> Variant: return FcKillcamBodies.crowd_hz,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_float() or text.to_float() < 0.0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_killcam_crowd_hz takes a number, 0 or more")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_killcam_crowd_hz takes a number, 0 or more")
 			FcKillcamBodies.crowd_hz = text.to_float()
-			return DotResult.success(FcKillcamBodies.crowd_hz)
+			return GSResult.success(FcKillcamBodies.crowd_hz)
 	)
 	local.add_var(&"cl_killcam_hz", "Most times a second the kill-cam records every body while no replay plays (0: every frame; 30 is the default).",
 		func() -> Variant: return FcKillcamBodies.record_hz,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_float():
-				return DotResult.fail(DotError.CODE_INVALID, "cl_killcam_hz takes a number")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_killcam_hz takes a number")
 			FcKillcamBodies.record_hz = maxf(text.to_float(), 0.0)
-			return DotResult.success(FcKillcamBodies.record_hz)
+			return GSResult.success(FcKillcamBodies.record_hz)
 	)
 	local.add_var(&"cl_killcam_pose_lod", "1 keeps a far or unseen body's last kill-cam pose while its animation LOD has not moved it, instead of reading every bone again; 0 reads every body each pose (1 is the default).",
 		func() -> Variant: return 1 if FcKillcamBodies.pose_lod else 0,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if text != "0" and text != "1":
-				return DotResult.fail(DotError.CODE_INVALID, "cl_killcam_pose_lod takes 0 or 1")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_killcam_pose_lod takes 0 or 1")
 			FcKillcamBodies.pose_lod = text == "1"
-			return DotResult.success(1 if FcKillcamBodies.pose_lod else 0)
+			return GSResult.success(1 if FcKillcamBodies.pose_lod else 0)
 	)
 
 
 ## Frame-report and per-frame build limits.
-func _add_perf_vars(local: DotConsoleLocal) -> void:
+func _add_perf_vars(local: GSConsoleLocal) -> void:
 	local.add_var(&"cl_perf", "Seconds between frame reports in the log (arena.perf); 0 is off.",
 		func() -> Variant: return FcFrameProbe.interval,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_float():
-				return DotResult.fail(DotError.CODE_INVALID, "cl_perf takes a number of seconds")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_perf takes a number of seconds")
 			FcFrameProbe.set_interval(text.to_float())
-			return DotResult.success(FcFrameProbe.interval)
+			return GSResult.success(FcFrameProbe.interval)
 	)
 	local.add_var(&"cl_perf_split", "1 splits p_controller in the cl_perf report into the controller's phases (ctl_*) and the native motor's engine queries (mt_*); 0 is off.",
 		func() -> Variant: return 1 if FcFrameProbe.split else 0,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_int():
-				return DotResult.fail(DotError.CODE_INVALID, "cl_perf_split takes 0 or 1")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_perf_split takes 0 or 1")
 			FcFrameProbe.set_split(text.to_int() != 0)
-			return DotResult.success(1 if FcFrameProbe.split else 0)
+			return GSResult.success(1 if FcFrameProbe.split else 0)
 	)
 	local.add_var(&"cl_held_equips", "Most remote bodies that build a newly held gun in one frame; the rest wait a frame (0: no limit; 2 is the default).",
 		func() -> Variant: return FcPlayer.held_equips_per_frame,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_int():
-				return DotResult.fail(DotError.CODE_INVALID, "cl_held_equips takes a whole number")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_held_equips takes a whole number")
 			FcPlayer.held_equips_per_frame = clampi(text.to_int(), 0, 64)
-			return DotResult.success(FcPlayer.held_equips_per_frame)
+			return GSResult.success(FcPlayer.held_equips_per_frame)
 	)
 	local.add_var(&"cl_portrait_builds", "Most scoreboard portraits rendered in one frame (0: no limit; 1 is the default).",
 		func() -> Variant: return FcHud.FcHudGlance.PortraitCache.builds_per_frame,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_int():
-				return DotResult.fail(DotError.CODE_INVALID, "cl_portrait_builds takes a whole number")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_portrait_builds takes a whole number")
 			FcHud.FcHudGlance.PortraitCache.builds_per_frame = clampi(text.to_int(), 0, 64)
-			return DotResult.success(FcHud.FcHudGlance.PortraitCache.builds_per_frame)
+			return GSResult.success(FcHud.FcHudGlance.PortraitCache.builds_per_frame)
 	)
 	local.add_var(&"cl_portrait_keep", "Portraits kept for players who drop out of the ranked row, so rank changes do not re-render them (24 is the default).",
 		func() -> Variant: return FcHud.FcHudGlance.PortraitCache.keep_extra,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_int():
-				return DotResult.fail(DotError.CODE_INVALID, "cl_portrait_keep takes a whole number")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_portrait_keep takes a whole number")
 			FcHud.FcHudGlance.PortraitCache.keep_extra = clampi(text.to_int(), 0, 128)
-			return DotResult.success(FcHud.FcHudGlance.PortraitCache.keep_extra)
+			return GSResult.success(FcHud.FcHudGlance.PortraitCache.keep_extra)
 	)
 	local.add_var(&"cl_fx_pool_idle", "Most idle meshes each player's shot effects keep for reuse; a release past it frees the mesh (-1: keep all; 8 is the default).",
-		func() -> Variant: return _addon_static(DotFxMeshPool, &"max_idle", -1),
+		func() -> Variant: return _addon_static(GSFxMeshPool, &"max_idle", -1),
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_int():
-				return DotResult.fail(DotError.CODE_INVALID, "cl_fx_pool_idle takes a whole number")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_fx_pool_idle takes a whole number")
 			fx_pool_idle = clampi(text.to_int(), -1, 256)
-			return DotResult.success(_addon_static(DotFxMeshPool, &"max_idle", -1, fx_pool_idle))
+			return GSResult.success(_addon_static(GSFxMeshPool, &"max_idle", -1, fx_pool_idle))
 	)
 
 
 ## How far recoil turns the views, and the weapon sprite switch.
-func _add_view_vars(local: DotConsoleLocal) -> void:
+func _add_view_vars(local: GSConsoleLocal) -> void:
 	local.add_var(&"cl_recoil_view", "How far each shot's recoil turns your view: 0 keeps the crosshair still (bullets still climb), 1 as tuned, up to 5.",
 		func() -> Variant: return FcRecoilView.scale,
 		func(v: Variant) -> Variant:
 			FcRecoilView.scale = clampf(float(str(v).strip_edges()), 0.0, 5.0)
-			return DotResult.success(FcRecoilView.scale)
+			return GSResult.success(FcRecoilView.scale)
 	)
 	local.add_var(&"cl_killcam_recoil", "How far the killer's recoil turns the killcam view: 0 holds it still, 1 as they saw it (default), up to 5.",
 		func() -> Variant: return FcKillPovRecoil.scale,
 		func(v: Variant) -> Variant:
 			FcKillPovRecoil.scale = clampf(float(str(v).strip_edges()), 0.0, 5.0)
-			return DotResult.success(FcKillPovRecoil.scale)
+			return GSResult.success(FcKillPovRecoil.scale)
 	)
 	local.add_var(&"cl_weapon_sprites", "1 draws the held weapon as a flat sprite (view model and held), 0 the 3D models.",
 		func() -> Variant: return 1 if FcWeaponIcons.shared.sprites else 0,
 		func(v: Variant) -> Variant:
 			FcWeaponIcons.shared.sprites = str(v).strip_edges() == "1"
-			return DotResult.success(1 if FcWeaponIcons.shared.sprites else 0)
+			return GSResult.success(1 if FcWeaponIcons.shared.sprites else 0)
 	)
 
 
 ## The remote-body thinning variables (FcPlayer.present_lod).
-func _add_remote_lod_vars(local: DotConsoleLocal) -> void:
+func _add_remote_lod_vars(local: GSConsoleLocal) -> void:
 	local.add_var(&"cl_remote_occlusion", "1 treats a remote player behind the level's walls (nothing of it in line of sight) as out of sight, 0 only by the view frustum.",
 		func() -> Variant: return 1 if FcPlayer.occlusion_enabled else 0,
 		func(v: Variant) -> Variant:
 			FcPlayer.occlusion_enabled = str(v).strip_edges() != "0"
-			return DotResult.success(1 if FcPlayer.occlusion_enabled else 0)
+			return GSResult.success(1 if FcPlayer.occlusion_enabled else 0)
 	)
 	local.add_var(&"cl_remote_lod_every", "Frames between updates of a remote player out of sight (1 or more; 1 turns it off; 4 is the default, 8 in a browser).",
 		func() -> Variant: return FcPlayer.lod_off_every,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_int() or text.to_int() < 1:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_every takes a whole number of frames, 1 or more")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_remote_lod_every takes a whole number of frames, 1 or more")
 			FcPlayer.lod_off_every = text.to_int()
-			return DotResult.success(FcPlayer.lod_off_every)
+			return GSResult.success(FcPlayer.lod_off_every)
 	)
 	local.add_var(&"cl_remote_lod_scale", "Factor on the remote-body LOD distances (anim gate 8/20 m, every 2nd/4th frame 45/90 m); under 1 thins nearer bodies (1 is the default).",
 		func() -> Variant: return FcPlayer.lod_scale,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_float() or text.to_float() <= 0.0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_scale takes a number above 0")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_remote_lod_scale takes a number above 0")
 			FcPlayer.lod_scale = text.to_float()
-			return DotResult.success(FcPlayer.lod_scale)
+			return GSResult.success(FcPlayer.lod_scale)
 	)
 	local.add_var(&"cl_remote_lod_crowd", "Above this many players the remote-body LOD distances are also times cl_remote_lod_crowd_scale (0: never; 32 is the default).",
 		func() -> Variant: return FcPlayer.lod_crowd_players,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_int() or text.to_int() < 0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_crowd takes a whole number of players, 0 or more")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_remote_lod_crowd takes a whole number of players, 0 or more")
 			FcPlayer.lod_crowd_players = text.to_int()
-			return DotResult.success(FcPlayer.lod_crowd_players)
+			return GSResult.success(FcPlayer.lod_crowd_players)
 	)
 	local.add_var(&"cl_remote_lod_crowd_scale", "Factor on the remote-body LOD distances above cl_remote_lod_crowd players (1: as in a small game; 0.67 is the default).",
 		func() -> Variant: return FcPlayer.lod_crowd_scale,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_float() or text.to_float() <= 0.0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_lod_crowd_scale takes a number above 0")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_remote_lod_crowd_scale takes a number above 0")
 			FcPlayer.lod_crowd_scale = text.to_float()
-			return DotResult.success(FcPlayer.lod_crowd_scale)
+			return GSResult.success(FcPlayer.lod_crowd_scale)
 	)
 
 
-func _add_remote_vars(local: DotConsoleLocal) -> void:
+func _add_remote_vars(local: GSConsoleLocal) -> void:
 	local.add_var(&"cl_remote_lod", "1 draws remote players nobody can see (off screen, far away) less often; 0 presents every remote player every frame.",
 		func() -> Variant: return 1 if FcPlayer.present_lod_enabled else 0,
 		func(v: Variant) -> Variant:
 			FcPlayer.present_lod_enabled = str(v).strip_edges() != "0"
-			return DotResult.success(1 if FcPlayer.present_lod_enabled else 0)
+			return GSResult.success(1 if FcPlayer.present_lod_enabled else 0)
 	)
 	local.add_var(&"cl_remote_lod_frustum", "1 judges a remote player out of sight by the camera's real view frustum, 0 by a wide cone round the view axis.",
 		func() -> Variant: return 1 if FcPlayer.lod_frustum else 0,
 		func(v: Variant) -> Variant:
 			FcPlayer.lod_frustum = str(v).strip_edges() != "0"
-			return DotResult.success(1 if FcPlayer.lod_frustum else 0)
+			return GSResult.success(1 if FcPlayer.lod_frustum else 0)
 	)
 	local.add_var(&"cl_remote_anim_gate", "1 also thins remote bodies by game time (clip at most 30 Hz past 8 m, 20 Hz past 20 m, off-sight at most 10 Hz); matters above ~100 fps.",
 		func() -> Variant: return 1 if FcPlayer.anim_gate_enabled else 0,
 		func(v: Variant) -> Variant:
 			FcPlayer.anim_gate_enabled = str(v).strip_edges() != "0"
-			return DotResult.success(1 if FcPlayer.anim_gate_enabled else 0)
+			return GSResult.success(1 if FcPlayer.anim_gate_enabled else 0)
 	)
 	local.add_var(&"cl_remote_still_anim_hz", "Most clip steps a second for a remote body standing still past 8 m (its idle; 0: off, 10 is the default). Any move, turn or shot wakes it at once.",
 		func() -> Variant: return FcPlayer.still_anim_hz,
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_float() or text.to_float() < 0.0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_remote_still_anim_hz takes a number of steps a second, 0 (off) or more")
+				return GSResult.fail(GSError.CODE_INVALID, "cl_remote_still_anim_hz takes a number of steps a second, 0 (off) or more")
 			FcPlayer.still_anim_hz = text.to_float()
-			return DotResult.success(FcPlayer.still_anim_hz)
+			return GSResult.success(FcPlayer.still_anim_hz)
 	)
 	local.add_var(&"cl_remote_pose_skip", "1 leaves a remote body's placement alone while its drawn turn and lean are unchanged, 0 writes it every frame.",
 		func() -> Variant: return 1 if FcPlayer.pose_skip_enabled else 0,
 		func(v: Variant) -> Variant:
 			FcPlayer.pose_skip_enabled = str(v).strip_edges() != "0"
-			return DotResult.success(1 if FcPlayer.pose_skip_enabled else 0)
+			return GSResult.success(1 if FcPlayer.pose_skip_enabled else 0)
 	)
 	local.add_var(&"cl_snapshot_coalesce", "1 decodes only the newest snapshot a network poll brings and drops older ones as lost (on in a browser), 0 decodes every one.",
 		func() -> Variant: return 1 if FcNetLink.coalesce else 0,
 		func(v: Variant) -> Variant:
 			FcNetLink.coalesce = str(v).strip_edges() != "0"
-			return DotResult.success(1 if FcNetLink.coalesce else 0)
+			return GSResult.success(1 if FcNetLink.coalesce else 0)
 	)
 	local.add_var(&"cl_shed_slow_frames", "1 drops distant one-shot sounds (past 12 m, beyond 2 a frame) while a client's frames run longer than 4 ticks (on in a browser), 0 plays them all.",
 		func() -> Variant: return 1 if FcTickBudget.shed_slow_frames else 0,
 		func(v: Variant) -> Variant:
 			FcTickBudget.shed_slow_frames = str(v).strip_edges() != "0"
-			return DotResult.success(1 if FcTickBudget.shed_slow_frames else 0)
+			return GSResult.success(1 if FcTickBudget.shed_slow_frames else 0)
 	)
 	_add_remote_lod_vars(local)
 	_add_figure_vars(local)
 
 
 ## The remote figures' own ranges (dot-player-char 27 reads them live; an older addon keeps its constants and refuses).
-func _add_figure_vars(local: DotConsoleLocal) -> void:
-	var _lift: Variant = _addon_static(DotHumanoidFigure, &"lift_range", 0.0, FcPlayer.figure_lift_range)
+func _add_figure_vars(local: GSConsoleLocal) -> void:
+	var _lift: Variant = _addon_static(GSHumanoidFigure, &"lift_range", 0.0, FcPlayer.figure_lift_range)
 	for row: Array in [
-		[&"cl_figure_shadow_range", &"shadow_range", DotHumanoidFigure.SHADOW_RANGE, "Metres past which a remote body casts no shadow (0: at every distance; 28 is the default)."],
-		[&"cl_figure_draw_range", &"draw_range", DotHumanoidFigure.DRAW_RANGE, "Metres past which a remote body and its gun are not drawn (0: at every distance; 140 is the default)."],
+		[&"cl_figure_shadow_range", &"shadow_range", GSHumanoidFigure.SHADOW_RANGE, "Metres past which a remote body casts no shadow (0: at every distance; 28 is the default)."],
+		[&"cl_figure_draw_range", &"draw_range", GSHumanoidFigure.DRAW_RANGE, "Metres past which a remote body and its gun are not drawn (0: at every distance; 140 is the default)."],
 		[&"cl_figure_lift_range", &"lift_range", 0.0, "Metres past which (or out of view) a remote body stands on the floor only on the frames its clip steps (0: every frame; 22 is the default)."],
-		[&"cl_figure_lod_bias", &"lod_bias", DotHumanoidFigure.LOD_BIAS, "The body mesh's LOD bias: under 1 its simpler levels come nearer (above 0; 0.4 is the default)."],
+		[&"cl_figure_lod_bias", &"lod_bias", GSHumanoidFigure.LOD_BIAS, "The body mesh's LOD bias: under 1 its simpler levels come nearer (above 0; 0.4 is the default)."],
 	]:
 		var cvar: StringName = row[0]
 		var field: StringName = row[1]
 		var fallback: float = row[2]
 		local.add_var(cvar, row[3],
-			func() -> Variant: return _addon_static(DotHumanoidFigure, field, fallback),
+			func() -> Variant: return _addon_static(GSHumanoidFigure, field, fallback),
 			func(v: Variant) -> Variant:
 				var text := str(v).strip_edges()
 				var least := 0.0 if field != &"lod_bias" else 1e-6
 				if not text.is_valid_float() or not is_finite(text.to_float()) or text.to_float() < least:
-					return DotResult.fail(DotError.CODE_INVALID, "%s takes a number, %s" % [cvar, "above 0" if least > 0.0 else "0 or more"])
-				var have: Variant = _addon_static(DotHumanoidFigure, field, null, text.to_float())
+					return GSResult.fail(GSError.CODE_INVALID, "%s takes a number, %s" % [cvar, "above 0" if least > 0.0 else "0 or more"])
+				var have: Variant = _addon_static(GSHumanoidFigure, field, null, text.to_float())
 				if have == null:
-					return DotResult.fail(DotError.CODE_UNSUPPORTED, "%s needs dot-player-char 27" % cvar)
+					return GSResult.fail(GSError.CODE_UNSUPPORTED, "%s needs dot-player-char 27" % cvar)
 				if field == &"draw_range":
 					FcPlayer.figure_draw_range = have
 				elif field == &"lift_range":
 					FcPlayer.figure_lift_range = have
-				return DotResult.success(have)
+				return GSResult.success(have)
 		)
 
 
 ## The first-person arm tuning variables.
-func _add_arm_vars(local: DotConsoleLocal):
+func _add_arm_vars(local: GSConsoleLocal):
 	local.add_var(&"cl_fp_hand_scale", "Multiplier on the first-person hand size of every weapon (1: as the weapon's profile says).",
 		func() -> Variant: return FcViewArms.hand_scale_mult,
 		func(v: Variant) -> Variant:
 			FcViewArms.hand_scale_mult = clampf(str(v).to_float(), 0.1, 3.0)
-			return DotResult.success(FcViewArms.hand_scale_mult)
+			return GSResult.success(FcViewArms.hand_scale_mult)
 	)
 	local.add_var(&"cl_fp_forearm_scale", "Multiplier on the first-person forearm size of every weapon (1: as the weapon's profile says).",
 		func() -> Variant: return FcViewArms.forearm_scale_mult,
 		func(v: Variant) -> Variant:
 			FcViewArms.forearm_scale_mult = clampf(str(v).to_float(), 0.2, 3.0)
-			return DotResult.success(FcViewArms.forearm_scale_mult)
+			return GSResult.success(FcViewArms.forearm_scale_mult)
 	)
 	local.add_var(&"cl_fp_scope_arms_hide", "Aim fraction (0 to 1) at which a scoped weapon's first-person arms hide (-1: each weapon's own, 0.6 by default).",
 		func() -> Variant: return FcViewArms.scope_arms_hide_override,
 		func(v: Variant) -> Variant:
 			FcViewArms.scope_arms_hide_override = clampf(str(v).to_float(), -1.0, 1.0)
-			return DotResult.success(FcViewArms.scope_arms_hide_override)
+			return GSResult.success(FcViewArms.scope_arms_hide_override)
 	)
 	FcScopePrefs.bind_cvars(local)
 	FcScopeBody.bind_cvars(local)
@@ -348,21 +348,21 @@ func _add_arm_vars(local: DotConsoleLocal):
 		func(v: Variant) -> Variant:
 			var depth := str(v).to_float()
 			if not str(v).is_valid_float() or depth < 0.0 or depth > 1.0:
-				return DotResult.fail(DotError.CODE_INVALID, "cl_fp_hold_depth takes 0 to 1, not %s." % str(v))
+				return GSResult.fail(GSError.CODE_INVALID, "cl_fp_hold_depth takes 0 to 1, not %s." % str(v))
 			FcViewArms.hold_depth_comp = depth
-			return DotResult.success(depth)
+			return GSResult.success(depth)
 	)
 	local.add_var(&"cl_fp_max_lean", "Most the first-person arms lean toward a hand out of reach (-1: each weapon's own, 0.4 by default; 0 is no lean).",
 		func() -> Variant: return FcViewArms.max_lean_override,
 		func(v: Variant) -> Variant:
 			FcViewArms.max_lean_override = clampf(str(v).to_float(), -1.0, 3.0)
-			return DotResult.success(FcViewArms.max_lean_override)
+			return GSResult.success(FcViewArms.max_lean_override)
 	)
 	local.add_var(&"cl_fp_look_down_back", "Metres your own body trails back as the view tips fully down (-1: the player's own setting, 0.45 by default).",
 		func() -> Variant: return FcPlayer.look_down_back_override,
 		func(v: Variant) -> Variant:
 			FcPlayer.look_down_back_override = clampf(str(v).to_float(), -1.0, 2.0)
-			return DotResult.success(FcPlayer.look_down_back_override)
+			return GSResult.success(FcPlayer.look_down_back_override)
 	)
 
 
@@ -411,7 +411,7 @@ static func facing(at: Vector3, direction: Vector3) -> Transform3D:
 ## One tick of the local player's weapon use: a flash per shot, a spark and a hole per impact, and
 ## the hit marker. [b]The flash is pushed out in front of the eye.[/b] A shot starts at the view,
 ## and a flash drawn there is drawn around the camera.
-func on_used(outcome: DotWeaponOutcome, weapon_draws: bool = false) -> void:
+func on_used(outcome: GSWeaponOutcome, weapon_draws: bool = false) -> void:
 	if outcome == null or not outcome.used:
 		return
 
@@ -583,7 +583,7 @@ func on_flag_event(what: StringName, flag_team: int, by_me: bool, my_team: int) 
 ## The grunt scales with the damage (a graze is quieter and higher than a heavy hit) and is left to
 ## the death cry when the damage was lethal, so the two do not stack into one muddy noise.
 func on_hurt(amount: float, lethal: bool = false) -> void:
-	var _grunt := DotHurtSound.play(audio, &"hurt", amount, lethal)
+	var _grunt := GSHurtSound.play(audio, &"hurt", amount, lethal)
 	fx.flash(&"hurt_flash")
 	fx.spawn(&"hurt_shake", Transform3D.IDENTITY)
 
@@ -624,7 +624,7 @@ func on_pickup(at: Vector3) -> void:
 	audio.play_at(&"pickup", at)
 
 
-## The local player started or ended a wall run (`DotFpsController.wall_run_changed`,
+## The local player started or ended a wall run (`GSFpsController.wall_run_changed`,
 ## never emitted during a replay). Only the start makes a noise; returns the voice, 0 for
 ## none.
 func on_wall_run(running: bool) -> int:
@@ -633,7 +633,7 @@ func on_wall_run(running: bool) -> int:
 	return audio.play(WALL_RUN_SOUND)
 
 
-## The local player jumped off a wall (`DotFpsController.wall_jumped`).
+## The local player jumped off a wall (`GSFpsController.wall_jumped`).
 func on_wall_jumped() -> int:
 	if audio == null:
 		return 0
@@ -678,16 +678,16 @@ func keep_walkers(bodies: Array) -> void:
 		steps.keep(bodies)
 
 
-## Which stock shot (dot-audio `DotAudioShotStock`) each weapon plays; a weapon not listed keeps its single `fire_*` sound.
+## Which stock shot (dot-audio `GSAudioShotStock`) each weapon plays; a weapon not listed keeps its single `fire_*` sound.
 const SHOT_CLASS := {&"rifle": &"rifle", &"shotgun": &"shotgun", &"rail": &"sniper"}
 
 
 ## The layered shot player and the enclosure probe it reads (dot-audio); `use_shot_rules` hands both the server's cvars.
-var shots: DotShotPlayer = null
-var shot_enclosure: DotAudioEnclosure = null
+var shots: GSShotPlayer = null
+var shot_enclosure: GSAudioEnclosure = null
 
 
-func use_shot_rules(rules: DotShotRules) -> void:
+func use_shot_rules(rules: GSShotRules) -> void:
 	if shots != null:
 		shots.rules = rules
 	if shot_enclosure != null:
@@ -707,12 +707,12 @@ func _remote_shot(id: StringName, kind: StringName, at: Vector3) -> bool:
 	if shots == null or audio == null:
 		return false
 	var weapon_class := AwWeaponSound.class_for(id, kind)
-	var shot_id := AwShotLayers.gun_shot_id(id) if kind == DotWeaponOutcome.KIND_SHOT else &""
+	var shot_id := AwShotLayers.gun_shot_id(id) if kind == GSWeaponOutcome.KIND_SHOT else &""
 	if not shots.has_shot(shot_id):
 		var stock_class := AwShotLayers.shot_class(weapon_class)
 		if stock_class == &"":
 			return false
-		shot_id = DotAudioShotStock.id_of(stock_class)
+		shot_id = GSAudioShotStock.id_of(stock_class)
 	var res := shots.fire(shot_id, at, weapon_class == AwWeaponSound.SUPPRESSED)
 	return res.ok and int(res.value_or(0)) > 0
 
@@ -731,7 +731,7 @@ func _share_shots_with(child: Node) -> void:
 
 
 ## The roof probe the weapon's shot sounds read (`AwShotFx.roof`): roofed means a room tail follows a shot.
-var shot_roof := DotAmbienceRoof.new()
+var shot_roof := GSAmbienceRoof.new()
 
 
 func describe_lines() -> PackedStringArray:

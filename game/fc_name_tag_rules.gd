@@ -138,9 +138,9 @@ static func ray_hits_body(from: Vector3, dir: Vector3, feet: Vector3, height: fl
 
 
 ## The two player settings, declared into the presentation schema.
-static func declare_settings(s: DotSettingsSchema) -> void:
-	s.add(DotSettingsDef.number(&"nametag_min_scale", screen_scale_min, 0.0, 10.0, &"video").with_description("Smallest a name tag may look on screen, against its size 10 m away. Far tags stop shrinking here. 0 is no limit."))
-	s.add(DotSettingsDef.number(&"nametag_max_scale", screen_scale_max, 0.0, 10.0, &"video").with_description("Largest a name tag may look on screen, against its size 10 m away. Close tags stop growing here. 0 is no limit."))
-	s.add(DotSettingsDef.choice(&"name_tags", &"team", [&"always", &"team", &"team_hover", &"hover", &"off"], &"video").with_description("Names over other players' heads: everybody, team-mates, team-mates and whoever your cursor is on, only the cursor, or none. A server may allow fewer (mp_nametags)."))
-	s.add(DotSettingsDef.choice(&"health_bar_colour", &"team", [&"team", &"health"], &"video").with_description("Health bar colour: team colours (enemies red, team-mates light green, a side's own colour with more than two sides) or by how much health is left."))
-	s.add(DotSettingsDef.choice(&"health_bars", &"smart", [&"always", &"smart", &"team", &"team_hover", &"hover", &"off"], &"video").with_description("Health bars over other players: smart is team-mates, whoever your cursor is on and anybody just hurt. A server may allow fewer (mp_hpbars)."))
+static func declare_settings(s: GSSettingsSchema) -> void:
+	s.add(GSSettingsDef.number(&"nametag_min_scale", screen_scale_min, 0.0, 10.0, &"video").with_description("Smallest a name tag may look on screen, against its size 10 m away. Far tags stop shrinking here. 0 is no limit."))
+	s.add(GSSettingsDef.number(&"nametag_max_scale", screen_scale_max, 0.0, 10.0, &"video").with_description("Largest a name tag may look on screen, against its size 10 m away. Close tags stop growing here. 0 is no limit."))
+	s.add(GSSettingsDef.choice(&"name_tags", &"team", [&"always", &"team", &"team_hover", &"hover", &"off"], &"video").with_description("Names over other players' heads: everybody, team-mates, team-mates and whoever your cursor is on, only the cursor, or none. A server may allow fewer (mp_nametags)."))
+	s.add(GSSettingsDef.choice(&"health_bar_colour", &"team", [&"team", &"health"], &"video").with_description("Health bar colour: team colours (enemies red, team-mates light green, a side's own colour with more than two sides) or by how much health is left."))
+	s.add(GSSettingsDef.choice(&"health_bars", &"smart", [&"always", &"smart", &"team", &"team_hover", &"hover", &"off"], &"video").with_description("Health bars over other players: smart is team-mates, whoever your cursor is on and anybody just hurt. A server may allow fewer (mp_hpbars)."))

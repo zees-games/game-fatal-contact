@@ -27,7 +27,7 @@ func _noblock_side(id: Variant) -> Variant:
 func addon_groups() -> Dictionary:
 	var ids: Array = []
 
-	for def: DotWeaponDef in _Content.weapons():
+	for def: GSWeaponDef in _Content.weapons():
 		ids.append(def.id)
 
 	return {"fc_weapons": weapon_groups(ids)}
@@ -36,7 +36,7 @@ func addon_groups() -> Dictionary:
 ## The fc-weapons groups that hold [param ids]' art, or `["*"]` (everything) when that cannot be known for sure:
 ## an fc-weapons older than API 14, or a weapon that is not fc-weapons' own (another pack's, whose art this list cannot name).
 static func weapon_groups(ids: Array) -> Array:
-	if DotAddonApi.build_level("fc_weapons") < 14 or not ResourceLoader.exists(WEAPON_GROUPS_SCRIPT):
+	if GSAddonApi.build_level("fc_weapons") < 14 or not ResourceLoader.exists(WEAPON_GROUPS_SCRIPT):
 		return ["*"]
 
 	var groups: Script = load(WEAPON_GROUPS_SCRIPT)
@@ -69,34 +69,34 @@ func _build_optional() -> void:
 	# Everything below this line is optional in the sense that the game runs without it. None of it
 	# is optional in the sense that matters: a server with no chat, no rotation and no vote is a
 	# server nobody stays on.
-	var identified: DotResult = await _build_identity()
-	DotLog.result(CHANNEL, "the identity layer", identified)
+	var identified: GSResult = await _build_identity()
+	GSLog.result(CHANNEL, "the identity layer", identified)
 
-	var serviced: DotResult = await _build_services()
-	DotLog.result(CHANNEL, "chat, voice and moderation", serviced)
+	var serviced: GSResult = await _build_services()
+	GSLog.result(CHANNEL, "chat, voice and moderation", serviced)
 
 	if serviced.ok:
 		_build_mod_commands()
 
-	DotLog.result(CHANNEL, "the app customisation", _build_app())
+	GSLog.result(CHANNEL, "the app customisation", _build_app())
 
 	var mapped := _build_maps()
-	DotLog.result(CHANNEL, "the map director", mapped)
+	GSLog.result(CHANNEL, "the map director", mapped)
 
 	if mapped.ok:
 		var voted := _build_vote()
-		DotLog.result(CHANNEL, "the vote", voted)
+		GSLog.result(CHANNEL, "the vote", voted)
 
 
-func _module_load() -> DotResult:
-	game = DotRegistry.get_node_service(FcGame.SERVICE) as FcGame
+func _module_load() -> GSResult:
+	game = GSRegistry.get_node_service(FcGame.SERVICE) as FcGame
 
 	if game == null:
 		# Refusing to load is right: a module that loaded and then did nothing would
 		# leave a server that accepts players into a match that does not exist, and
 		# the symptom is players who connect and never spawn.
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"No FcGame is registered. Create one and call setup() before loading "
 			+ "this module."
 		)
@@ -124,11 +124,11 @@ func _module_load() -> DotResult:
 	# [b]How many players before a round starts, and it has to be an operator's choice.[/b] The
 	# default is 2, which is right for a deathmatch and makes a public demonstration server look
 	# broken: one person connects, the match sits in WARMUP for ever, nobody spawns.
-	_bot_quota = DotBotQuota.install(self, game.config.bot_quota)
+	_bot_quota = GSBotQuota.install(self, game.config.bot_quota)
 
 	# [b]How the bots play[/b]: dot-bot's `bot_difficulty` (easy, medium, hard, nightmare; medium by
 	# default) and every `bot_*` setting it bundles, each overridable.
-	var _bot_cvars := DotBotSettings.of(game).bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY, add_command)
+	var _bot_cvars := GSBotSettings.of(game).bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY, add_command)
 
 	# Through `game.min_players` like the other match cvars (`_add_match_cvars`): written to
 	# the live match alone, it was back to the mode's 2 after the first map change, and a
@@ -161,7 +161,7 @@ func _module_load() -> DotResult:
 		_attach_visibility(game.map)
 
 	log_info("arena loaded", {"map": game.map.display_name})
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## The hook, the commands and the match, rule and rate cvars.
@@ -169,13 +169,13 @@ func _bind_commands_and_cvars() -> void:
 	hook_post("client_spawn", _on_client_spawn)
 
 	add_command(
-		"fc_status", _cmd_status, "Show the match state", DotAdminFlags.GENERIC
+		"fc_status", _cmd_status, "Show the match state", GSAdminFlags.GENERIC
 	)
 	add_command(
 		"fc_score", _cmd_score, "Show the scoreboard", ""
 	)
 	add_command(
-		"fc_restart", _cmd_restart, "Restart the match", DotAdminFlags.CHANGEMAP
+		"fc_restart", _cmd_restart, "Restart the match", GSAdminFlags.CHANGEMAP
 	)
 	add_command(
 		"fc_maps", _cmd_maps, "List the maps this server can boot", ""
@@ -184,7 +184,7 @@ func _bind_commands_and_cvars() -> void:
 	_add_match_cvars()
 
 	# B, the loadout menu: `/loadout` and its notice, and the owner's mp_loadout_menu,
-	# mp_loadout_allow and mp_loadout_fixed and the mp_loadout_random* dice (dot-loadout's DotLoadoutCommand). Absent on a host
+	# mp_loadout_allow and mp_loadout_fixed and the mp_loadout_random* dice (dot-loadout's GSLoadoutCommand). Absent on a host
 	# whose dot-loadout predates it, and then B says the server did not answer.
 	if game.loadout_command != null:
 		game.loadout_command.call(&"bind", self)
@@ -210,18 +210,18 @@ func _bind_commands_and_cvars() -> void:
 	_add_avatar_library_cvars()
 	_add_bot_think_cvars()
 	_add_grenade_cvars()
-	var _glass_cvars := game.glass_rules.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
+	var _glass_cvars := game.glass_rules.bind_cvars(add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY)
 	_add_rate_cvar()
 	_add_snapshot_rate_cvar()
 	_add_snapshot_workers_cvar()
 	_add_tick_rate_cvars()
 	_add_aoi_cvars()
 	if game.config_binder != null:
-		game.config_binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+		game.config_binder.bind_cvars(add_cvar, GSConVar.FLAG_ARCHIVE, console.has_name)
 		game.config_binder.bind_commands(add_command)
 	var _fl := game.flashlight_conf()
 	if game.flashlight_binder != null:
-		var _fl_cvars := game.flashlight_binder.bind_cvars(add_cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+		var _fl_cvars := game.flashlight_binder.bind_cvars(add_cvar, GSConVar.FLAG_ARCHIVE, console.has_name)
 		game.flashlight_binder.bind_commands(add_command)
 	var _rides := game.start_ride_recording(add_cvar)
 
@@ -233,7 +233,7 @@ func _bind_streak_and_loadout_signals() -> void:
 	add_cvar(
 		"fc_streak_rewards", "",
 		"Kill streak rewards, as streak:reward pairs (heal, armour, haste, empowered, e.g. 3:heal,5:haste,7:empowered); empty (the default) for none",
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			game.streak_rewards = FcGame.parse_streak_rewards(new_value)
@@ -260,18 +260,18 @@ func _bind_npc_and_rule_cvars() -> void:
 	# npc_skill, npc_reaction_scale, npc_reaction_min. Registered whether or not this mode has
 	# monsters, so a config that sets them does not fail on a deathmatch map and then not apply when
 	# the rotation reaches a horde one.
-	game.npc_skill.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
+	game.npc_skill.bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY)
 
 	# Whether shots pass through team-mates: `mp_teammate_passthrough` 0 never, 1 a team-mate
 	# holding the muzzle (the default), 2 every team-mate in the line.
 	if game.combat != null and game.combat.has_method(&"bind_cvars"):
 		var bound: Variant = game.combat.call(
 			&"bind_cvars", add_cvar,
-			DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+			GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
 		)
 		_combat_cvars = bound as Array if bound is Array else []
 		for cv in _combat_cvars:
-			(cv as DotConVar).changed.connect(_reapply_combat_cvars.unbind(2))
+			(cv as GSConVar).changed.connect(_reapply_combat_cvars.unbind(2))
 		game.map_changed.connect(_reapply_combat_cvars.unbind(1))
 
 	_bind_rule_cvars()
@@ -289,7 +289,7 @@ func _bind_mode_cvars() -> void:
 		"fc_minplayers",
 		str(game.match_node.rules.min_players),
 		"Players needed before a round starts",
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	).with_min(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			game.min_players = maxi(new_value.to_int(), 1)
@@ -306,7 +306,7 @@ func _bind_mode_cvars() -> void:
 		"fc_mode",
 		String(game.mode.id),
 		"What is being played: %s" % ", ".join(_mode_ids()),
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	).with_validator(_validate_mode).changed.connect(
 		func(old_value: String, new_value: String) -> void:
 			_change_mode(old_value, new_value)
@@ -324,7 +324,7 @@ func _bind_mode_cvars() -> void:
 # --- Commands --------------------------------------------------------------
 
 
-func _cmd_restart(ctx: DotCmdContext) -> void:
+func _cmd_restart(ctx: GSCmdContext) -> void:
 	# Everybody respawns, so on a server it happens at the top of the next tick (dot_tick_gate.gd).
 	game.tick_gate.run(func() -> void: game.start(game.current_tick()))
 	ctx.reply("Match restarted.")

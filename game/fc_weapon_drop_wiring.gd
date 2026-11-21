@@ -8,12 +8,12 @@ const KillPovRules := preload("fc_kill_pov.gd")
 
 ## The weapon layer, on both sides: the server simulates it, a client draws what it is told.
 static func build(game) -> void:
-	var layer := DotWeaponDrops.new()
+	var layer := GSWeaponDrops.new()
 	layer.name = "WeaponDrops"
 	layer.rules = game.weapon_drop_rules
 	layer.is_authority = game.is_authority
 	# `game.headless` is the collision backend and is true on every client; a screen decides drawing.
-	layer.draws = not DotPlatform.is_headless()
+	layer.draws = not GSPlatform.is_headless()
 	layer.collision_mask = game.ragdoll_rules.collision_mask
 	layer.keep_slots = [AwWeaponIds.SLOT_MELEE]
 	layer.team_of = func(pid: int) -> int: return game.team_of(pid) if not game.teams().is_empty() else 0
@@ -67,21 +67,21 @@ static func warm_looks(ids: Array, from: int, until_msec: int, into: Array) -> i
 	if from == 0:
 		# The charge ball a watcher sees is built on the first charge (r_held_hooks 346 ms in the owner's profile).
 		var ball: Node = CHARGE_FX.new()
-		DotRenderWarmup.collect(ball, into)
+		GSRenderWarmup.collect(ball, into)
 		ball.free()
 	while next < ids.size() and Time.get_ticks_msec() < until_msec:
 		var model := look(ids[next])
 		if model != null:
 			# The watcher's reload splits the magazine out of the gun on its first frame; the cut is cached by model.
 			model.on_reloading(true)
-			DotRenderWarmup.collect(model, into)
+			GSRenderWarmup.collect(model, into)
 			model.free()
 		next += 1
 	return next
 
 
 ## Parks a body per weapon on a layer that draws nothing, a few ms a frame, so the first throw of each only takes one. Ends when the layer leaves the tree.
-static func warm_server(layer: DotWeaponDrops, slice_msec: int = 4) -> void:
+static func warm_server(layer: GSWeaponDrops, slice_msec: int = 4) -> void:
 	var ids := prewarm_ids()
 	var next := 0
 	while next < ids.size():
@@ -111,10 +111,10 @@ static func input(game, id: int, player, pair: Array) -> void:
 	if not game.is_authority or pair.size() < 2 or pair[1] == null:
 		return
 	# The shot hooks are put on once a tick by the game's tick ([method hook_shots]), not here once per player.
-	var held: bool = (pair[1] as DotWeaponCommand).is_pressed(DotWeaponCommand.BUTTON_DROP)
+	var held: bool = (pair[1] as GSWeaponCommand).is_pressed(GSWeaponCommand.BUTTON_DROP)
 	var was: bool = game.drop_held.get(id, false)
 	game.drop_held[id] = held
-	var use_now: bool = (pair[1] as DotWeaponCommand).is_pressed(DotWeaponCommand.BUTTON_USE)
+	var use_now: bool = (pair[1] as GSWeaponCommand).is_pressed(GSWeaponCommand.BUTTON_USE)
 	var used: bool = game.use_held.get(id, false)
 	game.use_held[id] = use_now
 	# A flag carrier's drop key lets go of the flag, not the gun. An id is only swallowed while its key is held (set on a
@@ -132,7 +132,7 @@ static func input(game, id: int, player, pair: Array) -> void:
 		return
 	if game.weapon_drops == null:
 		return
-	# `auto_pickup` is a server rule, not a class one (not in DotWeaponDropRules.CLASS_KEYS), so it is read off the rules as they are: `resolve(def)` builds a fresh rules object per call, and this ran for every idle player every tick while any drop lay on the floor.
+	# `auto_pickup` is a server rule, not a class one (not in GSWeaponDropRules.CLASS_KEYS), so it is read off the rules as they are: `resolve(def)` builds a fresh rules object per call, and this ran for every idle player every tick while any drop lay on the floor.
 	var auto_pickup: bool = game.weapon_drops.rules.auto_pickup
 	# Nobody touched a key this tick or last, and nothing here acts without one (the auto pickup needs a drop and its rule on): the use key's hold has nothing to cancel and the prompt query is skipped. This was ~60 us per player per tick at 64 players.
 	if not held and not was and not use_now and not used \
@@ -155,14 +155,14 @@ static func input(game, id: int, player, pair: Array) -> void:
 static func update_panel(client, pressed: bool, delta: float) -> void:
 	var game = client.game
 	var player = client.player
-	var view: DotWeaponPickupView = client.get_meta(&"pickup_view") if client.has_meta(&"pickup_view") else null
-	var hold: DotWeaponUseHold = client.get_meta(&"pickup_hold") if client.has_meta(&"pickup_hold") else null
+	var view: GSWeaponPickupView = client.get_meta(&"pickup_view") if client.has_meta(&"pickup_view") else null
+	var hold: GSWeaponUseHold = client.get_meta(&"pickup_hold") if client.has_meta(&"pickup_hold") else null
 	if view == null:
-		view = DotWeaponPickupView.new()
+		view = GSWeaponPickupView.new()
 		view.name = "PickupView"
 		view.visible = false
 		game.add_child(view)
-		hold = DotWeaponUseHold.new()
+		hold = GSWeaponUseHold.new()
 		client.set_meta(&"pickup_view", view)
 		client.set_meta(&"pickup_hold", hold)
 	var info := {}
@@ -187,12 +187,12 @@ static func update_panel(client, pressed: bool, delta: float) -> void:
 ## Lets every traced shot and splash push a dropped weapon (a splash not through a wall); idempotent, as the trace is built
 ## later than the layer. The server's tick calls it once a tick, before any player's input.
 static func hook_shots(game) -> void:
-	if game.weapon_drops == null or game.combat == null or not game.combat.trace is DotTrace:
+	if game.weapon_drops == null or game.combat == null or not game.combat.trace is GSTrace:
 		return
-	var trace: DotTrace = game.combat.trace
+	var trace: GSTrace = game.combat.trace
 	if trace.ray_observer.is_valid():
 		return
-	var drops: DotWeaponDrops = game.weapon_drops
+	var drops: GSWeaponDrops = game.weapon_drops
 	drops.can_see = trace.line_of_sight
 	trace.ray_observer = func(from: Vector3, dir: Vector3, dist: float) -> void:
 		if drops.count() == 0:
@@ -206,12 +206,12 @@ static func hook_shots(game) -> void:
 
 
 ## The player's drop key: a press throws at once, or after `sv_weapon_drop_key_hold` seconds held.
-static func _drop_key(game, id: int) -> DotWeaponDropKey:
+static func _drop_key(game, id: int) -> GSWeaponDropKey:
 	var keys: Dictionary = game.get_meta(&"drop_keys", {})
 	game.set_meta(&"drop_keys", keys)
-	var key: DotWeaponDropKey = keys.get(id)
+	var key: GSWeaponDropKey = keys.get(id)
 	if key == null:
-		key = DotWeaponDropKey.new()
+		key = GSWeaponDropKey.new()
 		keys[id] = key
 	return key
 
@@ -220,7 +220,7 @@ static func _drop_key(game, id: int) -> DotWeaponDropKey:
 static func reset_drop_key(game, id: int) -> void:
 	var keys: Dictionary = game.get_meta(&"drop_keys", {})
 	if keys.has(id):
-		(keys[id] as DotWeaponDropKey).reset()
+		(keys[id] as GSWeaponDropKey).reset()
 	if game.has_meta(SWALLOWED):
 		(game.get_meta(SWALLOWED) as Dictionary).erase(id)
 
@@ -232,19 +232,19 @@ static func _swallowed(game) -> Dictionary:
 	return game.get_meta(SWALLOWED)
 
 
-## The use key on a dropped weapon: the shared rules in [DotWeaponUseKey].
-static func _use_hold(game, id: int, player, def: DotPlayerClassDef, pressed: bool) -> bool:
+## The use key on a dropped weapon: the shared rules in [GSWeaponUseKey].
+static func _use_hold(game, id: int, player, def: GSPlayerClassDef, pressed: bool) -> bool:
 	var keys: Dictionary = game.get_meta(&"use_keys", {})
 	game.set_meta(&"use_keys", keys)
-	var key: DotWeaponUseKey = keys.get(id)
+	var key: GSWeaponUseKey = keys.get(id)
 	if key == null:
-		key = DotWeaponUseKey.new()
+		key = GSWeaponUseKey.new()
 		keys[id] = key
 	return key.step(game.weapon_drops, player.arsenal, player.muzzle_position(), player.aim_direction(), id, pressed,
 		game.get_physics_process_delta_time(), def, game.team_of(id) if not game.teams().is_empty() else 0)
 
 
-static func class_def_of(game, id: int) -> DotPlayerClassDef:
+static func class_def_of(game, id: int) -> GSPlayerClassDef:
 	if game.player_stack == null or game.player_stack.classes == null:
 		return null
 	return game.player_stack.classes.def_of(str(id))

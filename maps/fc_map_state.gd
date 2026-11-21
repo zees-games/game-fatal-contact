@@ -43,7 +43,7 @@ static func _blank_map() -> RefCounted:
 
 ## A level as a list of boxes, and the three things that list becomes. The boxes are declared once
 ## here and become a [MeshInstance3D] set to see, [StaticBody3D]s for physics, and analytic [AABB]s
-## for [DotFpsFlatBody] and [DotTraceFlat] (a headless server has no physics space).
+## for [GSFpsFlatBody] and [GSTraceFlat] (a headless server has no physics space).
 
 # No `CHANNEL`: a map is content and says nothing at runtime — it is built, turned into
 # three representations, and checked in `headless_match`. The session that loads it logs.
@@ -60,14 +60,14 @@ var extent: float = 24.0
 ## Wall height.
 var wall_height: float = 8.0
 
-## Where players appear. Fed into [DotMatch]'s spawn points.
+## Where players appear. Fed into [GSMatch]'s spawn points.
 var spawns: Array[Transform3D] = []
 
 ## What each spawn belongs to, parallel to [member spawns]. Empty means every spawn is untagged and
 ## any player may use any of them, which is what a free-for-all wants.
 var spawn_tags: PackedStringArray = PackedStringArray()
 
-## What [method by_id] answers to, and what a [DotMapDef] is keyed on.
+## What [method by_id] answers to, and what a [GSMapDef] is keyed on.
 var id: StringName = &"dm_box"
 
 var display_name: String = "dm_box"
@@ -98,7 +98,7 @@ var out_of_reach: Array[AABB] = []
 ## repaint is never a new map. See `fc_map_paint.gd` for how a box's colour is chosen.
 var paint_zones: Array[Dictionary] = []
 
-## How this map is lit: a dot-lighting document (`DotLightDocument.from_dictionary`).
+## How this map is lit: a dot-lighting document (`GSLightDocument.from_dictionary`).
 ##
 ## Carried by the map so it changes with the map; `fc_map_lighting.gd` applies it.
 var lighting: Dictionary = DAYLIGHT.duplicate(true)
@@ -107,7 +107,7 @@ var lighting: Dictionary = DAYLIGHT.duplicate(true)
 ## far walls.
 ##
 ## [b]The sun angles are in dot-lighting's source convention[/b] (a negative pitch is a sun
-## in the sky; `DotLightRig.sun_rotation` converts the direction, not the angles). The
+## in the sky; `GSLightRig.sun_rotation` converts the direction, not the angles). The
 ## brightness is what the rig divides by its reference (200) and square-roots, so 380 is an
 ## energy of about 1.4. The ambient colour is the light in the shade: a pale cool grey, not
 ## a sky blue, because at the ambient's strength a saturated blue turns every shaded face
@@ -202,7 +202,7 @@ var collision_root: Node3D = null
 var prebuilt_collision: Node3D = null
 
 ## The jail glass rule of the game that built this map's solid, when the map has a cell. Set by [FcGame].
-var glass: DotMapGlassSight = null
+var glass: GSMapGlassSight = null
 
 ## The bake laid over the level by [method to_scene], or null.
 var baked: LightmapGI = null
@@ -280,7 +280,7 @@ class Climb:
 #
 # [b]The numbers every gap on every map here is sized against.[/b] The arithmetic
 # itself — the climb limit and the reach of a jump landing higher than it left — is
-# `DotFpsTunables`' own (`climb_limit`, `jump_reach`), asked of the very tunables
+# `GSFpsTunables`' own (`climb_limit`, `jump_reach`), asked of the very tunables
 # `FcPlayer.fc_tunables()` hands the server, so there is one formula and one set
 # of numbers. A map is content: `by_id` is called from a tool and from a catalogue
 # listing with no player anywhere in the tree, which is why that is the STATIC builder
@@ -288,25 +288,25 @@ class Climb:
 # preloads this one. The constants below stay because the survey and the suite read
 # them directly, and `headless_match` asserts they agree with the tunables.
 
-## Ground speed, m/s. `DotFpsTunables.max_speed`.
+## Ground speed, m/s. `GSFpsTunables.max_speed`.
 const MOVE_SPEED := 5.74
 
-## Metres. `DotFpsTunables.jump_height`, which is the PEAK of a standing jump and not
+## Metres. `GSFpsTunables.jump_height`, which is the PEAK of a standing jump and not
 ## the height of something a player can climb onto by walking at it.
 const JUMP_HEIGHT := 1.25
 
-## m/s². `DotFpsTunables.gravity`. Not Godot's project default, which is 9.8.
+## m/s². `GSFpsTunables.gravity`. Not Godot's project default, which is 9.8.
 const MOVE_GRAVITY := 22.0
 
-## Metres. `DotFpsTunables.step_height`: a rise under this is WALKED, not jumped.
+## Metres. `GSFpsTunables.step_height`: a rise under this is WALKED, not jumped.
 const STEP_HEIGHT := 0.4
 
-## How much of the jump has to be left over at the top: `DotFpsTunables.CLIMB_MARGIN`,
+## How much of the jump has to be left over at the top: `GSFpsTunables.CLIMB_MARGIN`,
 ## which says why nine tenths.
-const CLIMB_MARGIN := DotFpsTunables.CLIMB_MARGIN
+const CLIMB_MARGIN := GSFpsTunables.CLIMB_MARGIN
 
 ## The tunables Fatal Contact plays with, built once; see the note above [constant MOVE_SPEED].
-static var _tunables: DotFpsTunables = null
+static var _tunables: GSFpsTunables = null
 
 ## The furthest [method settle_spawns] lifts a spawn, metres.
 const SPAWN_LIFT_MAX := 2.0

@@ -56,7 +56,7 @@ func _follow() -> void:
 
 func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
-	DotBotSettings.of(client.get("game")).set_difficulty(_difficulty)
+	GSBotSettings.of(client.get("game")).set_difficulty(_difficulty)
 
 	# Warmup, countdown and everybody placed.
 	await _wait(32.0)
@@ -80,7 +80,7 @@ func _run() -> void:
 		await process_frame
 		var path := ProjectSettings.globalize_path("%s/bots_%s_%02d.png" % [OUT_DIR, _difficulty, i])
 		root.get_texture().get_image().save_png(path)
-		var brain: DotBotBrain = minds[_subject.player_id].brain if minds.has(_subject.player_id) else null
+		var brain: GSBotBrain = minds[_subject.player_id].brain if minds.has(_subject.player_id) else null
 		var line := "%02d %s alive=%s" % [i, _subject.display_name, _subject.is_alive()]
 		var st = _subject.controller.state
 		line += " slide=%.2f wall=%.2f air=%s" % [st.slide_time, st.wall_run_time, st.mode != 0]

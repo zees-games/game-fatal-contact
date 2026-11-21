@@ -9,7 +9,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 ## marker, cull distances, concurrency caps, a priority order — and every path in it named
 ## an `.ogg` nobody had produced. `examples/headless_presentation.tscn` checks the
 ## catalogue, the culling and the caps, and it cannot check any of this: a headless run has
-## no audio device, so [DotAudioManager] correctly builds a [DotAudioSinkNull] and the one
+## no audio device, so [GSAudioManager] correctly builds a [GSAudioSinkNull] and the one
 ## question worth asking here never comes up.
 ##
 ## So this is the audio half of what `tools/screenshot.sh` is for the interface. It is the
@@ -29,7 +29,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 ## wrong there — the probe was asking before the engine could answer.
 ##
 ## Run through `tools/audio_probe.sh`. [b]Not `--headless`[/b]: `AudioServer` reports
-## `Dummy` there. See [method DotAudioSink.device_present] — the driver name is the only
+## `Dummy` there. See [method GSAudioSink.device_present] — the driver name is the only
 ## honest question to ask about audio, and everything else the engine reports about it is
 ## plausible on a machine with no sound at all.
 
@@ -46,7 +46,7 @@ var _failed := 0
 
 
 func _initialize() -> void:
-	DotLog.set_level(DotLog.Level.WARN)
+	GSLog.set_level(GSLog.Level.WARN)
 	# A scratch settings document, never this machine's real one (see
 	# `FcPresentation.use_scratch_settings`): a render must not save into a player's file,
 	# and must draw from the defaults rather than whatever the last run left there.
@@ -60,7 +60,7 @@ func _process(_delta: float) -> bool:
 	if _frame < SETTLE:
 		return false
 
-	if not DotAudioSink.device_present():
+	if not GSAudioSink.device_present():
 		print("")
 		print("No audio device. Run this through tools/audio_probe.sh, which uses xvfb-run;")
 		print("--headless gives a Dummy driver and this probe cannot say anything.")
@@ -78,7 +78,7 @@ func _build() -> bool:
 	p.name = "AudioProbe"
 	root.add_child(p)
 
-	var ready: DotResult = p.setup()
+	var ready: GSResult = p.setup()
 
 	if not ready.ok:
 		print("the presentation did not set up: %s" % ready.error.message)
@@ -87,7 +87,7 @@ func _build() -> bool:
 
 	_presentation = p
 
-	var sink := p.audio.sink as DotAudioSinkGodot
+	var sink := p.audio.sink as GSAudioSinkGodot
 
 	print("sink:    %s" % p.audio.sink.sink_name())
 
@@ -113,7 +113,7 @@ func _build() -> bool:
 
 func _sound() -> bool:
 	var p := _presentation
-	var sink := p.audio.sink as DotAudioSinkGodot
+	var sink := p.audio.sink as GSAudioSinkGodot
 
 	for id in PROBES:
 		# Through the MANAGER, not the sink: the limits, the culling and the mixer are the

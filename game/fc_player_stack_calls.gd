@@ -14,9 +14,9 @@ const FcBspMap := preload("../maps/fc_bsp_map.gd")
 var game: Node = null
 
 
-var physics: DotPhysicsWorld = null
-var roster: DotPlayerRoster = null
-var teams: DotTeamRoster = null
+var physics: GSPhysicsWorld = null
+var roster: GSPlayerRoster = null
+var teams: GSTeamRoster = null
 
 
 ## The dot-team side for one of dot-match's team ids. [b]An id, not an index[/b]: dot-match's `standard_pair()` is Red `1` and Blue `2`, a spectator team `31`; treating `team_of()`'s answer as a position would put team 1 on dot-team's first side by luck and a spectator nowhere.
@@ -26,7 +26,7 @@ func _side_of_id(team_id: int) -> StringName:
 		return &""
 
 	var playing := teams.teams.playing_ids()
-	var listed: Array[DotTeam] = game.teams()
+	var listed: Array[GSTeam] = game.teams()
 
 	for i in range(listed.size()):
 		if listed[i] != null and listed[i].id == team_id:
@@ -59,7 +59,7 @@ func _joined_tick_of_key(key: String) -> int:
 
 
 func _score_of_key(key: String) -> float:
-	var score: DotPlayerScore = game.match_node.scoreboard.find(key)
+	var score: GSPlayerScore = game.match_node.scoreboard.find(key)
 	return float(score.score) if score != null else 0.0
 
 
@@ -115,7 +115,7 @@ func _friend_positions(team: StringName, key: String = "") -> Array:
 func _can_see_site(from: Vector3, to: Vector3) -> bool:
 	var eye := from + Vector3(0, FcPlayer.eye_height(), 0)
 	var head := to + Vector3(0, FcPlayer.eye_height(), 0)
-	var trace: DotTrace = game.combat.trace if game != null and game.combat != null else null
+	var trace: GSTrace = game.combat.trace if game != null and game.combat != null else null
 
 	if trace != null:
 		var span := head - eye
@@ -132,9 +132,9 @@ func _can_see_site(from: Vector3, to: Vector3) -> bool:
 
 
 ## Puts [param node] on the layout's [param layer_id] layer, with that layer's mask.
-func classify(node: Node, layer_id: StringName) -> DotResult:
+func classify(node: Node, layer_id: StringName) -> GSResult:
 	if physics == null or physics.layout == null:
-		return DotResult.fail(DotError.CODE_STATE, "No collision layout.")
+		return GSResult.fail(GSError.CODE_STATE, "No collision layout.")
 
 	return physics.classify(node, layer_id)
 
@@ -149,7 +149,7 @@ func classify_tree(root: Node, layer_id: StringName) -> int:
 	var done := 0
 
 	# Importer hull bodies (clip, fence, glass) and the sky mark keep their layers, or shots and sight could not tell them from a wall.
-	if DotMapGlassSight.is_exempt(root) or root.is_in_group(FcBspMap.SKY_GROUP):
+	if GSMapGlassSight.is_exempt(root) or root.is_in_group(FcBspMap.SKY_GROUP):
 		return 0
 
 	if root is CollisionObject3D or root is CollisionObject2D:

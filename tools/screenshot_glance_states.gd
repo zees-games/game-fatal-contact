@@ -33,7 +33,7 @@ static func _hit_directions(host: Object) -> void:
 ## The local player throws the weapon in hand, nobody picks it up, and a close frame is taken once it lies still.
 static func _dropped(host: Object) -> void:
 	var local = host._local
-	var layer: DotWeaponDrops = host._glance_game.weapon_drops
+	var layer: GSWeaponDrops = host._glance_game.weapon_drops
 	host._glance_game.weapon_drop_rules.pickup_radius = 0.0
 	layer.draws = true
 	var thrown: int = layer.throw(local.arsenal, local.muzzle_position(), local.aim_direction(), 112)
@@ -59,7 +59,7 @@ static func stage_flashlight(local: FcPlayer, game: FcGame) -> void:
 		env.ambient_light_energy = 1.0
 	for node in local.get_tree().root.find_children("*", "DirectionalLight3D", true, false):
 		(node as DirectionalLight3D).visible = false
-	var beam := DotFlashlight.new()
+	var beam := GSFlashlight.new()
 	beam.name = "Flashlight"
 	beam.config = game.flashlight_conf()
 	beam.handle_input = false

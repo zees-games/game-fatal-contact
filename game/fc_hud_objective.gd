@@ -5,7 +5,7 @@ extends "fc_hud_base.gd"
 
 
 ## One line about the objectives, or nothing at all. Reads the mirroring manager on a client and the real one on a listen server, which
-## is the same object either way: `FcObjectives` holds a `DotObjectiveManager` whose `authoritative` decides whether it simulates, and a HUD asking it for a fraction does
+## is the same object either way: `FcObjectives` holds a `GSObjectiveManager` whose `authoritative` decides whether it simulates, and a HUD asking it for a fraction does
 ## not care which.
 func _objective_line() -> String:
 	if game.objectives == null or game.objectives.manager == null:
@@ -26,8 +26,8 @@ func _objective_line() -> String:
 		var label := objective.def.label if objective.def.label != "" \
 			else String(objective.id())
 
-		if objective is DotObjectiveHoldout:
-			var holdout := objective as DotObjectiveHoldout
+		if objective is GSObjectiveHoldout:
+			var holdout := objective as GSObjectiveHoldout
 			var lead := holdout.leader()
 			if lead <= 0:
 				parts.append("%s --" % label)
@@ -40,12 +40,12 @@ func _objective_line() -> String:
 						(left / game.tick_rate) % 60,
 					]
 				)
-		elif objective is DotObjectiveFlag:
-			var flag := objective as DotObjectiveFlag
+		elif objective is GSObjectiveFlag:
+			var flag := objective as GSObjectiveFlag
 			parts.append(
 				"%s %s" % [
 					label,
-					DotObjectiveFlag.State.keys()[flag.state].substr(0, 4),
+					GSObjectiveFlag.State.keys()[flag.state].substr(0, 4),
 				]
 			)
 		elif objective.owner_team > 0:

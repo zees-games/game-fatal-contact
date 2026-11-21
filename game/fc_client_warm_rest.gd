@@ -4,7 +4,7 @@ extends "fc_client_hud_and_camera.gd"
 const GATE_WARM_BUDGET_MSEC := 100.0
 ## The art ids every spawn carries; the other models load after the cover lifts ([method _warm_rest_tick]).
 const SPAWN_ARTS: Array[StringName] = [&"pistol", &"knife"]
-## The load gate's give-up time in a browser (DotLoadGate's default is 20 s); see setup's use.
+## The load gate's give-up time in a browser (GSLoadGate's default is 20 s); see setup's use.
 const WEB_GATE_TIMEOUT_SEC := 60.0
 var _rest_paths: Array[String] = []
 
@@ -64,7 +64,7 @@ func _weapon_warm_items() -> Array:
 ## [code]use_settings[/code] and [code]use_console[/code], because the settings document is [FcPresentation]'s plain manager with a menu built round it by [FcMenus] (the Servers page, the camera rows) and the console must be built after that menu; [code]capture_pointer[/code], because Escape releases and then opens, and "Click to play"
 ## is Fatal Contact's ([method _unhandled_input]); the Tab board, because [FcMenus].Board merges dot-match's records with the roster.
 func _build_platform() -> void:
-	platform = DotGameClient.new()
+	platform = GSGameClient.new()
 	platform.name = "Platform"
 	# A solo game hosted beside this process is joined like any server, whatever asked for offline.
 	platform.force_offline = force_offline and _sim_host == null
@@ -81,7 +81,7 @@ func _build_platform() -> void:
 	gate = platform.gate
 	# A browser's first start compiles every shader while the weapons warm (slow frames of 0.3 to 3 s): the
 	# "weapons" hold, progressing all along, ended 19.9 s after the gate closed, past the 20 s default.
-	if DotPlatform.is_web():
+	if GSPlatform.is_web():
 		gate.timeout_sec = maxf(gate.timeout_sec, WEB_GATE_TIMEOUT_SEC)
 		# The gate's warm-up keeps to the handed-in weapon and effect items: quad copies of the level's
 		# own materials are variants the real draw never uses. On staging02 a return visit went from
@@ -97,13 +97,13 @@ func _build_platform() -> void:
 	gate.ready_to_show.connect(func() -> void: ready_to_show.emit())
 	gate.hold(&"map", "Loading the map")
 	# Headless draws nothing: loading every weapon model to warm its materials is 38 MB for no frame.
-	if not DotPlatform.is_headless():
+	if not GSPlatform.is_headless():
 		gate.warm_up(_weapon_warm_items())
 		gate.opened.connect(_begin_warm_rest, CONNECT_ONE_SHOT)
 		gate.opened.connect(_prebuild_catalogue, CONNECT_ONE_SHOT)
-	if FcFrameProbe.on() and DotWeb.available():
+	if FcFrameProbe.on() and GSWeb.available():
 		# Lets a page script split its own frame log at the cover (window.dotWeb.publishedAt.arena_gate_open, ms).
-		gate.opened.connect(func() -> void: DotWeb.publish("arena_gate_open", "1"))
+		gate.opened.connect(func() -> void: GSWeb.publish("arena_gate_open", "1"))
 	# The chat box and console have the keyboard, and so does the menu: the platform polls
 	# this every frame, so there is no signal to forward from each of them.
 	platform.busy_fn = _input_busy

@@ -12,32 +12,32 @@ const ANSWER_SEC := 30.0
 signal answered(seq: int, good: bool, text: String)
 
 var bridge: Node = null
-var console: DotConsoleController = null
+var console: GSConsoleController = null
 var local: Object = null
 ## Claims whatever no local command did, so `bot_quota 8` typed solo reaches the server process.
-var source := DotConsoleRemote.new("solo server")
+var source := GSConsoleRemote.new("solo server")
 
 var _seq := 0
 var _open: Dictionary = {}
 
 
-func attach(with_bridge: Node, with_console: DotConsoleController, local_console: Object) -> void:
+func attach(with_bridge: Node, with_console: GSConsoleController, local_console: Object) -> void:
 	bridge = with_bridge
 	console = with_console
 	local = local_console
 	bridge.host_replied.connect(_on_replied)
 	source.send_fn = func(line: String) -> void:
-		var _answer: DotResult = await ask(line, true)
+		var _answer: GSResult = await ask(line, true)
 	if console != null:
 		console.add_source(source)
-	var names: DotResult = await ask("host_names")
+	var names: GSResult = await ask("host_names")
 	if names.ok:
 		source.learn_names(str(names.value).replace("\n", " ").split(" ", false))
 
 
 ## Sends one line and waits for its answer: the text on success, the server's refusal otherwise.
 ## [param echo] prints each answered line in the console as it comes.
-func ask(line: String, echo: bool = false) -> DotResult:
+func ask(line: String, echo: bool = false) -> GSResult:
 	_seq = (_seq + 1) % (1 << FcHostWire.SEQ_BITS)
 	var seq := _seq
 	# An Array: a packed array read out of a Dictionary is a copy, and the lines would be lost.
@@ -48,8 +48,8 @@ func ask(line: String, echo: bool = false) -> DotResult:
 	while true:
 		var got: Array = await answered
 		if int(got[0]) == seq:
-			return DotResult.success(got[2]) if bool(got[1]) else DotResult.fail(DotError.CODE_STATE, str(got[2]))
-	return DotResult.fail(DotError.CODE_STATE, "unreachable")
+			return GSResult.success(got[2]) if bool(got[1]) else GSResult.fail(GSError.CODE_STATE, str(got[2]))
+	return GSResult.fail(GSError.CODE_STATE, "unreachable")
 
 
 ## True for a name this console or the server process answers: what a `+name value` launch line waits for.
@@ -57,7 +57,7 @@ func claims(command: String) -> bool:
 	return (local != null and bool(local.call(&"claims", command))) or source.names().has(command.to_lower())
 
 
-func execute(line: String) -> DotResult:
+func execute(line: String) -> GSResult:
 	if local != null and bool(local.call(&"claims", line.get_slice(" ", 0))):
 		return local.call(&"execute", line)
 	return source.execute(line)
@@ -79,7 +79,7 @@ func _on_replied(seq: int, done: bool, good: bool, text: String) -> void:
 		return
 	var entry: Dictionary = _open[seq]
 	if text != "" and bool(entry["echo"]) and console != null:
-		console.print_line(text, DotConsoleBuffer.Level.INFO if good else DotConsoleBuffer.Level.ERROR)
+		console.print_line(text, GSConsoleBuffer.Level.INFO if good else GSConsoleBuffer.Level.ERROR)
 	if not done:
 		(entry["lines"] as Array).append(text)
 		return

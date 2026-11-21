@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcTickBudget := preload("../game/fc_tick_budget.gd")
 const FcAudioManager := preload("../game/fc_audio_manager.gd")
@@ -15,7 +15,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	print("game-fatal-contact: solo ticks keep wall-clock time")
 	await _run()
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)

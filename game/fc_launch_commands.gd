@@ -74,7 +74,7 @@ func _any_claimed() -> bool:
 
 func _give_up() -> void:
 	for line: String in _pending:
-		DotLog.warn(CHANNEL, "launch command '+%s' names nothing the console knows; dropped" % line)
+		GSLog.warn(CHANNEL, "launch command '+%s' names nothing the console knows; dropped" % line)
 	_pending.clear()
 
 
@@ -92,10 +92,10 @@ func _run_ready() -> void:
 		if not bool(console.call(&"claims", key)):
 			left.append(line)
 			continue
-		var result: DotResult = console.call(&"execute", line)
+		var result: GSResult = console.call(&"execute", line)
 		if result != null and result.ok:
-			DotLog.info(CHANNEL, "launch command: %s" % line)
+			GSLog.info(CHANNEL, "launch command: %s" % line)
 		else:
-			DotLog.warn(CHANNEL, "launch command '%s' failed: %s" % [line, result.error if result != null else "no result"])
+			GSLog.warn(CHANNEL, "launch command '%s' failed: %s" % [line, result.error if result != null else "no result"])
 	_pending = left
 	set_process(not _pending.is_empty() and _waited < WAIT_SECONDS)

@@ -8,13 +8,13 @@ const SEQ_BITS := 8
 
 
 static func write_line(seq: int, line: String) -> PackedByteArray:
-	var w := DotNetWriter.new()
+	var w := GSNetWriter.new()
 	w.write_uint(seq, SEQ_BITS)
 	w.write_string(line, TEXT_BYTES)
 	return w.to_bytes()
 
 
-static func read_line(reader: DotNetReader) -> Dictionary:
+static func read_line(reader: GSNetReader) -> Dictionary:
 	var out := {"seq": reader.read_uint(SEQ_BITS), "line": reader.read_string(TEXT_BYTES)}
 	out["ok"] = reader.ok()
 	return out
@@ -22,7 +22,7 @@ static func read_line(reader: DotNetReader) -> Dictionary:
 
 ## [param done] ends the answer to [param seq] and carries whether the line worked; before it, each is a line to print.
 static func write_reply(seq: int, done: bool, ok: bool, text: String) -> PackedByteArray:
-	var w := DotNetWriter.new()
+	var w := GSNetWriter.new()
 	w.write_varint(FcKnifeEvents.More.HOST)
 	w.write_uint(seq, SEQ_BITS)
 	w.write_bool(done)
@@ -32,7 +32,7 @@ static func write_reply(seq: int, done: bool, ok: bool, text: String) -> PackedB
 
 
 ## Read after the sub-kind.
-static func read_reply(reader: DotNetReader) -> Dictionary:
+static func read_reply(reader: GSNetReader) -> Dictionary:
 	var out := {"seq": reader.read_uint(SEQ_BITS), "done": reader.read_bool(), "good": reader.read_bool(),
 		"text": reader.read_string(TEXT_BYTES)}
 	out["ok"] = reader.ok()

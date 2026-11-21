@@ -51,7 +51,7 @@ func _test_atrium() -> void:
 	var start := Vector3(-22.0, 0.5, -2.0)
 	walker.controller.teleport(start)
 
-	var command := DotFpsCommand.new()
+	var command := GSFpsCommand.new()
 	# +X, which is up the stair. Held rather than re-aimed: a bot that steers is a bot
 	# whose failure to arrive tells you nothing about the geometry.
 	command.yaw = 0.0
@@ -164,7 +164,7 @@ func _test_atrium() -> void:
 	# has climbed it. Driven north (-Z at yaw 0) from the back of the yard.
 	walker.controller.teleport(Vector3(-8.0, 0.5, 28.0))
 
-	var north := DotFpsCommand.new()
+	var north := GSFpsCommand.new()
 	north.yaw = 0.0
 	north.move = Vector2(0.0, 1.0)
 
@@ -197,7 +197,7 @@ func _test_atrium() -> void:
 	# bot that starts inside the bunker, holds east, and comes out the far end.
 	walker.controller.teleport(Vector3(-18.0, 0.5, 15.5))
 
-	var east := DotFpsCommand.new()
+	var east := GSFpsCommand.new()
 	east.yaw = 0.0
 	east.move = Vector2(1.0, 0.0)
 
@@ -266,7 +266,7 @@ func _test_atrium() -> void:
 	var keep_end_z := -4.35
 	walker.controller.teleport(keep_start)
 
-	var south := DotFpsCommand.new()
+	var south := GSFpsCommand.new()
 	south.yaw = 0.0
 	south.move = Vector2(0.0, -1.0)
 
@@ -313,7 +313,7 @@ func _test_atrium() -> void:
 	var arm_start := Vector3(-2.0, 4.7, -8.0)
 	walker.controller.teleport(arm_start)
 
-	var west := DotFpsCommand.new()
+	var west := GSFpsCommand.new()
 	west.yaw = 0.0
 	west.move = Vector2(-1.0, 0.0)
 
@@ -330,7 +330,7 @@ func _test_atrium() -> void:
 			takeoff_speed = Vector2(v.x, v.z).length()
 			takeoff_x = at.x
 
-		west.set_button(DotFpsCommand.BUTTON_JUMP, jumping)
+		west.set_button(GSFpsCommand.BUTTON_JUMP, jumping)
 		walker.controller.apply_command(west)
 		walker.controller.simulate_tick(tick_rate * 24 + tick, delta)
 
@@ -402,7 +402,7 @@ func _test_atrium() -> void:
 	var east_peak := 0.0
 
 	for tick in range(tick_rate * 3):
-		var step := DotFpsCommand.new()
+		var step := GSFpsCommand.new()
 		step.yaw = 180.0
 		step.move = Vector2(0.0, 1.0)
 		walker.controller.apply_command(step)
@@ -504,7 +504,7 @@ func _test_atrium() -> void:
 	# the walkway's top on the way.
 	walker.controller.teleport(Vector3(-15.25, 5.6, -13.5))
 
-	var along := DotFpsCommand.new()
+	var along := GSFpsCommand.new()
 	along.yaw = 0.0
 	along.move = Vector2(1.0, 0.0)
 
@@ -552,7 +552,7 @@ func _test_atrium() -> void:
 	# pressed once it is within a stride of the perch's face. Grounded on the perch.
 	walker.controller.teleport(Vector3(18.5, rampart.end.y + 0.1, -14.7))
 
-	var hop := DotFpsCommand.new()
+	var hop := GSFpsCommand.new()
 	hop.yaw = 0.0
 	hop.move = Vector2(0.0, -1.0)
 
@@ -560,7 +560,7 @@ func _test_atrium() -> void:
 
 	for tick in range(tick_rate * 2):
 		var at: Vector3 = walker.controller.state.position
-		hop.set_button(DotFpsCommand.BUTTON_JUMP, at.z >= -12.8)
+		hop.set_button(GSFpsCommand.BUTTON_JUMP, at.z >= -12.8)
 		walker.controller.apply_command(hop)
 		walker.controller.simulate_tick(tick_rate * 48 + tick, delta)
 
@@ -606,7 +606,7 @@ func _test_atrium() -> void:
 	await get_tree().process_frame
 	_done()
 
-## The instant weapon change after a spawn (dot-loadout's DotLoadoutInstantSwap): at once when
+## The instant weapon change after a spawn (dot-loadout's GSLoadoutInstantSwap): at once when
 ## nobody is near and nobody fired, and the reasons it is refused.
 func _test_instant_loadout() -> void:
 	_section("instant loadout after spawn")

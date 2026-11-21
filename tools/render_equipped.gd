@@ -31,7 +31,7 @@ func _run() -> void:
 		await _wait(0.1)
 		var p: Object = client.get("player")
 		var g: Object = client.get("game")
-		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == DotMatch.State.LIVE:
+		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == GSMatch.State.LIVE:
 			break
 
 	await _wait(4.0)
@@ -68,8 +68,8 @@ func _run() -> void:
 	quit()
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _grab(path: String) -> void:

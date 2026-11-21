@@ -3,24 +3,24 @@ extends RefCounted
 ## Bots ride the ramps of a combat surf map: ride edges between the platforms in the bots'
 ## routes, and the surf pilot on the legs while a bot rides one.
 ##
-## [b]Why a combat surf map needs this.[/b] [DotBotNav] bakes what a body can stand on, and a
+## [b]Why a combat surf map needs this.[/b] [GSBotNav] bakes what a body can stand on, and a
 ## ramp steeper than the slope limit is never ground, so an imported surf map bakes as islands:
 ## the spawn platforms, the landings at the foot of each ramp, the jail. A bot's route to another
 ## platform ended at the edge of its own and it walked straight off. A ride edge is a navigation
 ## link from one platform to another that the map's ramps carry a player across; a route may
-## cross it, and when the brain reaches its start ([member DotBotIntent.ride]) the legs are
-## dot-bot's [DotBotSurfPilot]'s until it lands, while the brain keeps aiming and shooting.
+## cross it, and when the brain reaches its start ([member GSBotIntent.ride]) the legs are
+## dot-bot's [GSBotSurfPilot]'s until it lands, while the brain keeps aiming and shooting.
 ##
 ## [b]Learned offline, from the map alone.[/b] `tools/surf_rides.tscn` finds the edges (a search
 ## from each platform for a ride that lands on another), and plans each on the real motor with
-## dot-bot's [DotBotSurfPlanner]: rides from perturbed starts, then repair rounds from wherever
+## dot-bot's [GSBotSurfPlanner]: rides from perturbed starts, then repair rounds from wherever
 ## the pilot fails. The result is `maps/surf/<id>.surf.json`; nothing is planned at map load.
 ## The map's teleports are pits on every ride, and walkable links in the routes (a bot at the
 ## foot of a ramp walks into the teleport that takes it back up). Reasoning and numbers:
 ## docs/imported-maps.md, "Bots ride the ramps".
 ##
 ## [b]Loaded by path, and only on a shell that has it.[/b] This file names dot-bot's level 4 and
-## dot-player-controller's level 3 ([DotBotSurfRide], [DotFpsSimulator]); `fc_bots.gd` loads
+## dot-player-controller's level 3 ([GSBotSurfRide], [GSFpsSimulator]); `fc_bots.gd` loads
 ## it only when both are there, so an older shell's bots walk as they did.
 
 const CHANNEL := "arena.surf"
@@ -49,9 +49,9 @@ const FALL_OUT_DEPTH := 10.0
 ## A ride's course on a combat surf map: arriving is standing on the landing platform; a pit is
 ## any of the map's teleports, and falling out under the map.
 class EdgeCourse:
-	extends DotBotSurfCourse
+	extends GSBotSurfCourse
 
-	var nav: DotBotNav = null
+	var nav: GSBotNav = null
 	var landing_island: int = -1
 	## The landing island and its neighbours at its height: a floor a kerb splits is two islands
 	## to the mesh and one floor to a rider (surf_ski_2's bottom, 2026-10-13).
@@ -83,16 +83,16 @@ class Edge:
 	var from: Vector3 = Vector3.ZERO
 	var to: Vector3 = Vector3.ZERO
 	var course: EdgeCourse = null
-	var cache: DotBotSurfPilot = null
+	var cache: GSBotSurfPilot = null
 	## Built from the first bot that rides it, with the course as its oracle.
-	var sim: DotFpsSimulator = null
+	var sim: GSFpsSimulator = null
 	var veto: bool = true
 	## Whether it is in the mesh: planned, and landing on an island of this bake.
 	var linked: bool = false
 
 
 var map: Object = null
-var nav: DotBotNav = null
+var nav: GSBotNav = null
 var edges: Array[Edge] = []
 ## Recorded rides ([code]fc_surf_rides.gd[/code]): an edge with a verified recording rides one of them.
 var rides: RefCounted = null
@@ -106,7 +106,7 @@ var fell: int = 0
 var timed_out: int = 0
 var steer_usec: int = 0
 var steer_ticks: int = 0
-## The pilots' own counts (DotBotSurfPilot.describe: simulated look-ahead and veto ticks, checks, vetoes, resyncs) summed over ended rides, and how many rode a recording instead.
+## The pilots' own counts (GSBotSurfPilot.describe: simulated look-ahead and veto ticks, checks, vetoes, resyncs) summed over ended rides, and how many rode a recording instead.
 var pilot_totals: Dictionary = {}
 
 
@@ -117,13 +117,13 @@ static func path_for(id: StringName) -> String:
 
 ## The rides of [param p_map] on [param p_nav] (baked and ready), linked into it, or null when
 ## the map has no cache.
-static func load_for(p_map: Object, p_nav: DotBotNav) -> RefCounted:
+static func load_for(p_map: Object, p_nav: GSBotNav) -> RefCounted:
 	var path := path_for(p_map.get("id"))
 	if not FileAccess.file_exists(path):
 		return null
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if not (parsed is Dictionary):
-		DotLog.warn(CHANNEL, "a surf cache that does not read", {"path": path})
+		GSLog.warn(CHANNEL, "a surf cache that does not read", {"path": path})
 		return null
 	var made: RefCounted = (load(FcPaths.rebase("res://game/fc_surf.gd")) as GDScript).new()
 	made.call(&"attach", p_map, p_nav, parsed)
@@ -131,7 +131,7 @@ static func load_for(p_map: Object, p_nav: DotBotNav) -> RefCounted:
 
 
 ## A short hash of [param p_nav]'s mesh (vertices to 5 cm, polygons), so a cache can tell which bake it was planned on.
-static func bake_id(p_nav: DotBotNav) -> String:
+static func bake_id(p_nav: GSBotNav) -> String:
 	var mesh := p_nav.mesh
 	if mesh == null:
 		return ""
@@ -150,14 +150,14 @@ static func bake_id(p_nav: DotBotNav) -> String:
 
 
 ## Builds the edges from [param data] and links them, and the map's teleports, into the mesh.
-func attach(p_map: Object, p_nav: DotBotNav, data: Dictionary) -> void:
+func attach(p_map: Object, p_nav: GSBotNav, data: Dictionary) -> void:
 	map = p_map
 	nav = p_nav
 	var units := float(data.get("units", UNITS))
 	var recorded := str(data.get("bake", ""))
 	if recorded != "" and recorded != bake_id(nav):
 		# Edges were planned on other polygons: their landings no longer match this mesh.
-		DotLog.warn(CHANNEL, "a surf cache planned on another nav bake, rides skipped; replan with tools/surf_rides_all.py --replan",
+		GSLog.warn(CHANNEL, "a surf cache planned on another nav bake, rides skipped; replan with tools/surf_rides_all.py --replan",
 			{"map": str(map.get("id")), "cached": recorded, "bake": bake_id(nav)})
 		_link_teleports()
 		return
@@ -171,25 +171,25 @@ func attach(p_map: Object, p_nav: DotBotNav, data: Dictionary) -> void:
 		edge.to = to
 		edge.veto = bool(row.get("veto", true))
 		edge.course = course_for(map, nav, from, to, float(row.get("reference_yaw", NAN)))
-		edge.cache = DotBotSurfPilot.new()
+		edge.cache = GSBotSurfPilot.new()
 		edge.cache.load_stage(row, units)
 		edges.append(edge)
 		if edge.cache.size() == 0:
 			# Found and not planned yet: not ridden, and not routed over.
 			continue
 		if edge.course.landing_island < 0:
-			DotLog.warn(CHANNEL, "a ride edge that lands nowhere on this mesh", {"map": str(map.get("id")), "edge": edge.id})
+			GSLog.warn(CHANNEL, "a ride edge that lands nowhere on this mesh", {"map": str(map.get("id")), "edge": edge.id})
 			continue
 		nav.add_ride(from, to, edge.id, RIDE_COST)
 		edge.linked = true
 	nav.end_batch()
 	_link_teleports()
-	DotLog.info(CHANNEL, "ride edges linked", {"map": str(map.get("id")), "edges": edges.size(), "teleports": teleports.size()})
+	GSLog.info(CHANNEL, "ride edges linked", {"map": str(map.get("id")), "edges": edges.size(), "teleports": teleports.size()})
 
 
 ## The course of a ride from [param from] to the platform under [param to] on [param p_map]:
 ## the tool plans on it and the game rides on it, so both are this one function.
-static func course_for(p_map: Object, p_nav: DotBotNav, from: Vector3, to: Vector3, yaw: float = NAN) -> EdgeCourse:
+static func course_for(p_map: Object, p_nav: GSBotNav, from: Vector3, to: Vector3, yaw: float = NAN) -> EdgeCourse:
 	var course := EdgeCourse.new()
 	course.nav = p_nav
 	course.start = from
@@ -210,7 +210,7 @@ static func course_for(p_map: Object, p_nav: DotBotNav, from: Vector3, to: Vecto
 
 
 ## The island under [param to], or the one at the nearest mesh point within [constant LANDING_SNAP]: a bake with a bigger hull leaves a cached landing a hand's breadth outside the platform.
-static func landing_island_at(p_nav: DotBotNav, to: Vector3) -> int:
+static func landing_island_at(p_nav: GSBotNav, to: Vector3) -> int:
 	var island := p_nav.island_at(to, 1.0)
 	if island >= 0:
 		return island
@@ -220,7 +220,7 @@ static func landing_island_at(p_nav: DotBotNav, to: Vector3) -> int:
 
 ## [param island] and every island whose outline comes within [constant FLOOR_JOIN] metres of
 ## its and whose height is within [constant FLOOR_STEP]: one floor, however the bake split it.
-static func landing_floor(p_nav: DotBotNav, island: int) -> PackedInt32Array:
+static func landing_floor(p_nav: GSBotNav, island: int) -> PackedInt32Array:
 	var out := PackedInt32Array()
 	if island < 0:
 		return out
@@ -250,7 +250,7 @@ const FLOOR_STEP := 3.0
 
 
 ## `func(state) -> bool`: nothing but the map's floor under the state within a long fall. What
-## keeps the planner's beam on the ramps (see [member DotBotSurfCourse.unsupported_fn]).
+## keeps the planner's beam on the ramps (see [member GSBotSurfCourse.unsupported_fn]).
 static func unsupported_test(p_map: Object) -> Callable:
 	var root: Node3D = p_map.get("collision_root")
 	var bounds: AABB = p_map.get("bounds")
@@ -311,7 +311,7 @@ func _link_teleports() -> void:
 	nav.end_batch()
 
 
-## A route that may ride or teleport (see [method DotBotNav.route]).
+## A route that may ride or teleport (see [method GSBotNav.route]).
 func route_detail(from: Vector3, to: Vector3) -> Dictionary:
 	return nav.route(from, to)
 
@@ -344,19 +344,19 @@ func landing_points() -> PackedVector3Array:
 
 ## The legs of [param bot] this tick, when its route reached a ride edge or it is riding one:
 ## [param intent] (the brain's) gets the pilot's move and jump for its own view.
-func steer(bot: Object, mind: Object, intent: DotBotIntent, tick: int, tick_rate: float) -> void:
-	var ride: DotBotSurfRide = mind.get(&"ride")
-	var state: DotFpsState = null
+func steer(bot: Object, mind: Object, intent: GSBotIntent, tick: int, tick_rate: float) -> void:
+	var ride: GSBotSurfRide = mind.get(&"ride")
+	var state: GSFpsState = null
 	var controller: Variant = bot.get(&"controller")
-	if controller is DotFpsController:
-		state = (controller as DotFpsController).state
+	if controller is GSFpsController:
+		state = (controller as GSFpsController).state
 	if ride == null:
 		var id := intent.ride
 		if id < 0 or id >= edges.size() or not edges[id].linked or state == null or not bool(bot.call(&"is_alive")):
 			return
 		var edge := edges[id]
-		var sim := _sim_for(edge, controller as DotFpsController) if edge.veto else null
-		ride = DotBotSurfRide.new().begin(edge.cache, edge.course, sim, tick, tick_rate, RIDE_SECONDS)
+		var sim := _sim_for(edge, controller as GSFpsController) if edge.veto else null
+		ride = GSBotSurfRide.new().begin(edge.cache, edge.course, sim, tick, tick_rate, RIDE_SECONDS)
 		# A recording starts at the takeoff fc_surf_rides.gd saw (airborne above no island), so the pilot runs up and the recording takes over there.
 		var recorded: Dictionary = rides.call(&"pick", edge.id) if rides != null else {}
 		if not recorded.is_empty():
@@ -370,38 +370,38 @@ func steer(bot: Object, mind: Object, intent: DotBotIntent, tick: int, tick_rate
 		ride.recorded = entry["data"]
 		ride.decode = Callable(rides, &"decode")
 		ride.ticks = 1
-	var status := DotBotSurfRide.FELL
+	var status := GSBotSurfRide.FELL
 	if state != null and bool(bot.call(&"is_alive")):
 		var began := Time.get_ticks_usec()
 		status = ride.steer(state, intent, tick)
 		steer_usec += Time.get_ticks_usec() - began
-		DotFrameCost.add_usec(&"surf_pilot", Time.get_ticks_usec() - began, "bot steer, ride %d" % intent.ride)
+		GSFrameCost.add_usec(&"surf_pilot", Time.get_ticks_usec() - began, "bot steer, ride %d" % intent.ride)
 		steer_ticks += 1
-	if status == DotBotSurfRide.RIDING:
+	if status == GSBotSurfRide.RIDING:
 		return
 	match status:
-		DotBotSurfRide.LANDED:
+		GSBotSurfRide.LANDED:
 			landed += 1
-		DotBotSurfRide.TIMED_OUT:
+		GSBotSurfRide.TIMED_OUT:
 			timed_out += 1
 		_:
 			fell += 1
 	_tally(ride)
 	mind.set(&"ride", null)
 	var brain: Variant = mind.get(&"brain")
-	if brain is DotBotBrain:
-		(brain as DotBotBrain).ride_ended(status == DotBotSurfRide.LANDED)
+	if brain is GSBotBrain:
+		(brain as GSBotBrain).ride_ended(status == GSBotSurfRide.LANDED)
 
 
 ## The simulator a ride's veto runs on: the riding player's own motor over the map's brushes
 ## (never its solid-players wrapper: the others' hulls would stand still in a forecast), the
 ## map's pushes as its mechanics, the edge's course as its oracle.
-func _sim_for(edge: Edge, controller: DotFpsController) -> DotFpsSimulator:
+func _sim_for(edge: Edge, controller: GSFpsController) -> GSFpsSimulator:
 	# Rebuilt when the rider steps at another rate than the one it was built for: a forecast
 	# stepped at a stale rate vetoes rides that would land and passes ones that fall.
 	if edge.sim != null and is_equal_approx(edge.sim.delta, 1.0 / float(maxi(controller.tick_rate, 1))):
 		return edge.sim
-	var body: DotFpsBody = map.call(&"movement_body")
+	var body: GSFpsBody = map.call(&"movement_body")
 	if body == null:
 		return null
 	controller.body.copy_filters_to(body)
@@ -411,9 +411,9 @@ func _sim_for(edge: Edge, controller: DotFpsController) -> DotFpsSimulator:
 	sim.oracle = edge.course.event_at
 	var mechanics: Variant = map.get(&"mechanics")
 	if mechanics != null:
-		sim.mechanics = func(state: DotFpsState, motor: DotFpsMotor, delta: float, start: Vector3) -> int:
+		sim.mechanics = func(state: GSFpsState, motor: GSFpsMotor, delta: float, start: Vector3) -> int:
 			mechanics.call(&"simulate", motor, state, start, delta)
-			return DotFpsSimulator.EVENT_NONE
+			return GSFpsSimulator.EVENT_NONE
 	edge.sim = sim
 	return sim
 
@@ -430,7 +430,7 @@ func describe() -> Dictionary:
 		"steer_ticks": steer_ticks, "pilot": pilot_totals}
 
 
-func _tally(ride: DotBotSurfRide) -> void:
+func _tally(ride: GSBotSurfRide) -> void:
 	if not ride.recorded.is_empty():
 		pilot_totals["recorded"] = int(pilot_totals.get("recorded", 0)) + 1
 		return

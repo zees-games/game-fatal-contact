@@ -1,4 +1,4 @@
-extends DotNetInput
+extends GSNetInput
 
 const FcNetCommand := preload("fc_net_command.gd")
 const FcPlayer := preload("fc_player.gd")
@@ -10,14 +10,14 @@ const FcPlayer := preload("fc_player.gd")
 ## position, and dot-net's whole security model rests on the distinction.
 ##
 ## Fatal Contact player has two commands, because two addons that do not know about each
-## other each define one: [DotFpsCommand] for movement and [DotWeaponCommand] for
+## other each define one: [GSFpsCommand] for movement and [GSWeaponCommand] for
 ## the weapon. Both already know how to write themselves through a duck-typed
-## [code]Variant[/code] writer, for the same reason [DotFpsNetSync] never mentions
-## [code]DotNetVar[/code] — an addon that named a dot-net class would fail to parse
+## [code]Variant[/code] writer, for the same reason [GSFpsNetSync] never mentions
+## [code]GSNetVar[/code] — an addon that named a dot-net class would fail to parse
 ## without dot-net installed. Composing them here costs nothing and keeps the
 ## quantisation decisions in the addon that owns them.
 ##
-## [b]The view angles travel once, not twice.[/b] [DotWeaponCommand] carries its own
+## [b]The view angles travel once, not twice.[/b] [GSWeaponCommand] carries its own
 ## yaw and pitch, and sending them again would be 21 wasted bits per tick — and worse
 ## than wasted: two copies can disagree, and then the shot leaves at an angle the
 ## player was not looking along. [FcPlayer.simulate_tick] already overwrites the
@@ -25,10 +25,10 @@ const FcPlayer := preload("fc_player.gd")
 ## command's copy is the only one that was ever read.
 
 ## Movement: the move vector, the view angles, jump and crouch.
-var move: DotFpsCommand = DotFpsCommand.new()
+var move: GSFpsCommand = GSFpsCommand.new()
 
 ## Weapons: the selected slot, attack, reload, and the rest of the buttons.
-var fire: DotWeaponCommand = DotWeaponCommand.new()
+var fire: GSWeaponCommand = GSWeaponCommand.new()
 
 ## How far behind this command's tick the client was drawing everybody else, in quarter ticks: the tick a shot fired on this command was aimed at, as the server rewinds to it
 ## for lag compensation (`FcGame._rewind_to`). Sent only when a button is down -- a command that cannot fire costs one bit for it -- and capped by the server, never
@@ -64,17 +64,17 @@ const VIEW_SPAN_BITS := 5
 
 ## Per target, on a firing command: `[net_id, back, span]` for each remote player the client drew between two samples of its OWN other than [member view_back]'s pair, or ahead of its newest (extrapolating): ticks back from this command's tick, and on to the newer. Empty for none.
 ## Why the shared pair is not enough: in a full room the relevance rings (FcNetAoi) send a player 30 m out every fourth snapshot (every second inside the aim cone), a lost snapshot doubles that, and the client blends that player across its own samples 8 to 16 ticks apart or runs it ahead of the newest,
-## while [member view_back] names the room's pair two ticks apart: the server stood the far body up to a third of a metre off the one drawn (headless_hitreg_far; the owner's 46.8 m Marksman miss at 7:35.2). With the target's own pair the server blends, or runs ahead, as the client drew it (`FcNetBridge.shot_feet`). An entry may carry three more, `[..., x, y, z]` in millimetres: the resume ease the body was drawn off its samples by (DotNetInterpolator._ease_resume), judged by `sv_shot_ease_max`.
+## while [member view_back] names the room's pair two ticks apart: the server stood the far body up to a third of a metre off the one drawn (headless_hitreg_far; the owner's 46.8 m Marksman miss at 7:35.2). With the target's own pair the server blends, or runs ahead, as the client drew it (`FcNetBridge.shot_feet`). An entry may carry three more, `[..., x, y, z]` in millimetres: the resume ease the body was drawn off its samples by (GSNetInterpolator._ease_resume), judged by `sv_shot_ease_max`.
 var view_targets: Array = []
 ## Millimetres to the metre for a view target's ease.
 const EASE_PER_M := 1000.0
 
 
-func _write(writer: DotNetWriter) -> void:
+func _write(writer: GSNetWriter) -> void:
 	move.write(writer)
 	# Slot and buttons only. The angles come from `move`; see the class notes.
 	writer.write_uint(clampi(fire.slot, 0, 15), 4)
-	writer.write_uint(fire.buttons, DotWeaponCommand.BUTTON_BITS)
+	writer.write_uint(fire.buttons, GSWeaponCommand.BUTTON_BITS)
 	var lagged := (fire.buttons != 0 or lag_always) and view_lag_q >= 0
 	writer.write_bool(lagged)
 	if lagged:
@@ -87,7 +87,7 @@ func _write(writer: DotNetWriter) -> void:
 			writer.write_uint(clampi(view_back, 0, (1 << VIEW_BACK_BITS) - 1), VIEW_BACK_BITS)
 			writer.write_uint(clampi(view_span, 0, (1 << VIEW_SPAN_BITS) - 1), VIEW_SPAN_BITS)
 		# One bit on a lagged command that names no target of its own; only a firing command names any.
-		var targeted := fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK) and not view_targets.is_empty()
+		var targeted := fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK) and not view_targets.is_empty()
 		writer.write_bool(targeted)
 		if targeted:
 			writer.write_varint(view_targets.size() - 1)
@@ -100,13 +100,13 @@ func _write(writer: DotNetWriter) -> void:
 					writer.write_svarint(int(entry[i]))
 
 
-func _read(reader: DotNetReader) -> void:
-	move = DotFpsCommand.new()
+func _read(reader: GSNetReader) -> void:
+	move = GSFpsCommand.new()
 	move.read(reader)
 
-	fire = DotWeaponCommand.new()
+	fire = GSWeaponCommand.new()
 	fire.slot = reader.read_uint(4)
-	fire.buttons = reader.read_uint(DotWeaponCommand.BUTTON_BITS)
+	fire.buttons = reader.read_uint(GSWeaponCommand.BUTTON_BITS)
 	fire.yaw = move.yaw
 	fire.pitch = move.pitch
 	view_lag_q = -1
@@ -139,7 +139,7 @@ func _read(reader: DotNetReader) -> void:
 ## [b]Not optional, and not redundant with quantisation.[/b] Quantisation bounds each
 ## field on its own; it cannot bound the relationship between them. A move vector of
 ## (1, 1) is two legal components and a length of 1.41, which is 41% more speed than
-## anyone else — [method DotFpsCommand.sanitise] is what clamps the length.
+## anyone else — [method GSFpsCommand.sanitise] is what clamps the length.
 func _sanitise() -> void:
 	move.sanitise()
 	# `max_slots` matches FcPlayer's arsenal: the pack's five. A slot outside it cannot
@@ -164,7 +164,7 @@ func _sanitise() -> void:
 		view_targets = kept
 
 
-## Stands still and holds fire, looking where it looked (DotNetConfig.starved_input_hold_sec).
+## Stands still and holds fire, looking where it looked (GSNetConfig.starved_input_hold_sec).
 func _neutralise() -> void:
 	move.move = Vector2.ZERO
 	move.buttons = 0
@@ -187,7 +187,7 @@ func view_lag_ticks() -> float:
 
 
 ## Whether two inputs are identical, so a held-still player costs less.
-func _equals(other: DotNetInput) -> bool:
+func _equals(other: GSNetInput) -> bool:
 	var them := other as FcNetCommand
 
 	if them == null:
@@ -199,7 +199,7 @@ func _equals(other: DotNetInput) -> bool:
 
 ## Bits one command costs, before dot-net's own framing.
 static func estimated_bits() -> int:
-	return DotFpsCommand.estimated_bits() + 4 + DotWeaponCommand.BUTTON_BITS + 1
+	return GSFpsCommand.estimated_bits() + 4 + GSWeaponCommand.BUTTON_BITS + 1
 
 
 func describe() -> Dictionary:

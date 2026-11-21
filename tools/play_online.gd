@@ -41,7 +41,7 @@ func _ready() -> void:
 			"--vote-at": _vote_at = float(args[i + 1])
 			"--map": _map = args[i + 1]
 			"--profile": _profile = args[i + 1] == "1"
-	DotLog.set_level(DotLog.Level.WARN)
+	GSLog.set_level(GSLog.Level.WARN)
 	var _scratch := FcPresentation.use_scratch_settings("play_online_" + _role)
 	if _role == "server":
 		_serve.call_deferred()
@@ -81,7 +81,7 @@ func _serve() -> void:
 		print("SERVER ", " | ".join(module.game.describe_lines()).substr(0, 600))
 	if module.vote != null:
 		module.vote.director.rules.min_players_to_vote = 0
-		var r := module.vote.director.open_vote(DotVoteClock.REASON_MANUAL)
+		var r := module.vote.director.open_vote(GSVoteClock.REASON_MANUAL)
 		print("play_online server: open_vote ok=", r.ok if r != null else "null")
 
 
@@ -116,14 +116,14 @@ var _profile_ok := false
 
 ## `--profile 1`: with the client connected to the dedicated server, the profiler's overlay, a recording and its report path
 ## must work, and the menu's Performance card must show (frame saved to screenshots/online/profiler_online.png).
-func _check_profiler(link: DotClientLink) -> void:
-	var prof: Object = DotRegistry.get_service(&"dot_profiler")
+func _check_profiler(link: GSClientLink) -> void:
+	var prof: Object = GSRegistry.get_service(&"dot_profiler")
 	var menu: Object = _client.get(&"game_menu")
 	if prof == null:
 		print("PROFILE FAIL: no dot_profiler service")
 		return
 	prof.call(&"set_overlay_visible", true)
-	var started: DotResult = prof.call(&"start_recording", 3.0)
+	var started: GSResult = prof.call(&"start_recording", 3.0)
 	await get_tree().create_timer(1.0).timeout
 	var overlay_lines := str(prof.call(&"top_costs", 3))
 	var st: Dictionary = prof.call(&"status")
@@ -160,7 +160,7 @@ func _run() -> void:
 		"--score", str(_score), "--vote-at", str(_vote_at), "--map", _map])
 	_server_pid = OS.create_process(OS.get_executable_path(), args)
 	await get_tree().create_timer(8.0).timeout
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Looker"
 	link.transport_preference = "udp"

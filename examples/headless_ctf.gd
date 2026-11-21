@@ -8,7 +8,7 @@ const FcFlagView := preload("res://game/fc_flag_view.gd")
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -65,7 +65,7 @@ func _team_ids(game: FcGame, team: int) -> Array[int]:
 	return out
 
 
-func _flag(game: FcGame, team: int) -> DotObjectiveFlag:
+func _flag(game: FcGame, team: int) -> GSObjectiveFlag:
 	return game.objectives.ctf.flag_of(team)
 
 
@@ -111,7 +111,7 @@ func _test_flow() -> void:
 
 func _test_drop_and_return() -> void:
 	_section("ctf: a dead carrier drops, a team-mate returns")
-	var game := _ctf_game(func(r: DotObjectiveCtfRules) -> void:
+	var game := _ctf_game(func(r: GSObjectiveCtfRules) -> void:
 		r.return_sec = 4
 		r.drop_sec = 1)
 	if game == null:
@@ -129,7 +129,7 @@ func _test_drop_and_return() -> void:
 	_kill_through_combat(game, two[0], thief)
 	game.tick({})
 	var flag := _flag(game, 2)
-	_check(flag.state == DotObjectiveFlag.State.DROPPED, "the carrier's death drops the flag")
+	_check(flag.state == GSObjectiveFlag.State.DROPPED, "the carrier's death drops the flag")
 	_check(not announced.is_empty(), "and the server announces it", str(announced))
 	_go(game, two[1], flag.at)
 	_check(flag.is_home(), "its own team touching it returns it")
@@ -146,7 +146,7 @@ func _test_drop_and_return() -> void:
 
 func _test_limits() -> void:
 	_section("ctf: capture limit and time limit end the match")
-	var game := _ctf_game(func(r: DotObjectiveCtfRules) -> void: r.capture_limit = 2)
+	var game := _ctf_game(func(r: GSObjectiveCtfRules) -> void: r.capture_limit = 2)
 	if game == null:
 		return
 	game.apply_match_limits()
@@ -163,7 +163,7 @@ func _test_limits() -> void:
 	_check(not game.match_node.is_live(), "and the match is over")
 	await _free(game)
 
-	var timed := _ctf_game(func(r: DotObjectiveCtfRules) -> void:
+	var timed := _ctf_game(func(r: GSObjectiveCtfRules) -> void:
 		r.capture_limit = 0
 		r.time_limit_sec = 5)
 	if timed == null:
@@ -179,7 +179,7 @@ func _test_limits() -> void:
 
 func _test_three_teams() -> void:
 	_section("ctf: three teams")
-	var edit := func(r: DotObjectiveCtfRules) -> void: r.team_count = 3
+	var edit := func(r: GSObjectiveCtfRules) -> void: r.team_count = 3
 	var game := _ctf_game(edit, null, [910, 911, 912])
 	if game == null:
 		return
@@ -208,16 +208,16 @@ func _test_bases() -> void:
 	var game := _ctf_game()
 	if game == null:
 		return
-	var sites: Array[DotSpawnSite] = game.player_stack.spawns.sites()
-	var stand := DotSpawnSite.point(&"auth_flag", Vector3(7, 1, 7), 0.0, &"1")
-	stand.meta[DotSpawnPointDef.META_KIND] = "flag"
+	var sites: Array[GSSpawnSite] = game.player_stack.spawns.sites()
+	var stand := GSSpawnSite.point(&"auth_flag", Vector3(7, 1, 7), 0.0, &"1")
+	stand.meta[GSSpawnPointDef.META_KIND] = "flag"
 	game.player_stack.spawns.add_site(stand)
 	_check(sites.size() > 2, "the map has spawn sites")
 	var bases := game.objectives.ctf_bases()
 	_check(bases[1] == Vector3(7, 1, 7), "a flag spawn placed for team 1 is where team 1's stand goes")
 	_check(bases[2] != bases[1], "and team 2 keeps the middle of its own spawns")
-	var hit := game.player_stack.spawns.choose(DotSpawnRequest.make("910", &"", &"", game.current_tick(), {"kind": "player"}))
-	_check(not hit.ok or (hit.value as DotSpawnChoice).site.id != &"auth_flag", "nobody respawns on a flag stand")
+	var hit := game.player_stack.spawns.choose(GSSpawnRequest.make("910", &"", &"", game.current_tick(), {"kind": "player"}))
+	_check(not hit.ok or (hit.value as GSSpawnChoice).site.id != &"auth_flag", "nobody respawns on a flag stand")
 	await _free(game)
 
 	var box := _ctf_game(Callable(), FcMap.dm_box())
@@ -254,7 +254,7 @@ func _test_replication() -> void:
 	_check(text != "", "the server has state to send")
 	client.objectives.apply_ctf_text(text)
 	var mirrored := client.objectives.ctf.flag_of(2)
-	_check(mirrored.state == DotObjectiveFlag.State.CARRIED and mirrored.carrier == str(one[0]), "the client sees the carrier")
+	_check(mirrored.state == GSObjectiveFlag.State.CARRIED and mirrored.carrier == str(one[0]), "the client sees the carrier")
 	_check(is_equal_approx(client.objectives.speed_scale(one[0]), server.ctf_rules.carrier_speed), "and applies the same slowdown")
 	var before := mirrored.state
 	var clock := client.objectives.ctf.live_ticks
@@ -281,7 +281,7 @@ func _test_replication() -> void:
 	real.set_movement_rules({"mode_index": FcModes.ids().find(&"ctf")})
 	_check(real.objectives != null and real.objectives.ctf != null, "and builds it the moment the server says capture the flag")
 	real.objectives.apply_ctf_text(text)
-	_check(real.objectives.ctf.flag_of(2).state == DotObjectiveFlag.State.CARRIED, "and then mirrors the server's flags")
+	_check(real.objectives.ctf.flag_of(2).state == GSObjectiveFlag.State.CARRIED, "and then mirrors the server's flags")
 	await _free(real)
 	await _free(client)
 	await _free(server)
@@ -292,9 +292,9 @@ func _test_cvars() -> void:
 	_section("ctf: every number is a cvar")
 	var module_keys := FcModule.CTF_CVARS.keys()
 	for key: String in FcModule.CTF_CVARS:
-		_check(DotObjectiveCtfRules.new().get(FcModule.CTF_CVARS[key][0]) != null, "%s names a rule" % key)
+		_check(GSObjectiveCtfRules.new().get(FcModule.CTF_CVARS[key][0]) != null, "%s names a rule" % key)
 	_check(module_keys.size() == 8, "capture limit, time limit, return, drop, carrier speed, friendly return, flag at home and teams")
-	var rules := DotObjectiveCtfRules.new()
+	var rules := GSObjectiveCtfRules.new()
 	_check(rules.validate().ok and rules.team_count == 2 and rules.capture_limit == 3, "the defaults are two teams and three captures")
 	_done()
 

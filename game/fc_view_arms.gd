@@ -1,12 +1,12 @@
 extends Node3D
 
-## Your own arms on dot-player-char's DotPlayerViewArms, holding the weapon where AwViewModel
+## Your own arms on dot-player-char's GSPlayerViewArms, holding the weapon where AwViewModel
 ## measured its grip. Absent below API 8: the view model draws its own hands then.
 
 const NEEDS_LEVEL := 8
 ## Poses held with the firing hand alone.
 const ONE_HAND: Array[StringName] = [&"melee", &"thrown", &"fists"]
-## The hand pose (DotViewGrip.kind, dot-player-char's DotViewHandPoses) each weapon art pose closes into.
+## The hand pose (GSViewGrip.kind, dot-player-char's GSViewHandPoses) each weapon art pose closes into.
 const POSE_KINDS := {&"rifle": &"rifle", &"pistol": &"pistol", &"heavy": &"launcher", &"melee": &"knife",
 	&"thrown": &"grenade", &"fists": &"fists"}
 ## Weapons whose hands differ from their art pose's (a pump's fore-end, a scoped stock); edit or add ids.
@@ -17,12 +17,12 @@ const HANDS_MIN_DISTANCE := 0.3
 ## Added to it with real hands (dot-player-char 28), whose wrist sits this far behind the grip the fingers close on:
 ## at 0.3 alone an aimed revolver's wrist came 0.041 m from the eye, inside the camera's near plane (0.04 still 0.048).
 static var real_hand_setback := 0.06
-## Nearest a hand's wrist comes to the eye along the view (metres, dot-player-char 30's DotPlayerViewArms.hand_min_depth):
+## Nearest a hand's wrist comes to the eye along the view (metres, dot-player-char 30's GSPlayerViewArms.hand_min_depth):
 ## a reload that pulls the launcher to the chest, or a wall that pushes the gun back, slides the hand out along the gun
 ## instead of into the camera's near plane (0.05); at 0 a launcher reload's support fingers came 0.012 m from the eye.
 ## 0 is off.
 static var hand_min_depth := 0.1
-## DotPlayerViewArms' own hand size, for a weapon whose profile does not say.
+## GSPlayerViewArms' own hand size, for a weapon whose profile does not say.
 const DEFAULT_HAND_SCALE := 0.5
 const FcTeamBodies := preload("fc_team_bodies.gd")
 ## The kit bones a team body's first-person arms keep (by prefix, both sides): [method not_arm].
@@ -49,9 +49,9 @@ static var support_elbow_pole := Vector3(0.25, -1.5, -0.1)
 ## The support forearm's girth (length kept): at full girth its sleeve, near the eye, filled a corner of the view.
 static var support_forearm_girth := 0.6
 
-var arms: DotPlayerViewArms = null
+var arms: GSPlayerViewArms = null
 var body: Node3D = null
-var _grip: DotViewGrip = null
+var _grip: GSViewGrip = null
 var _own_lean := 0.4
 ## The game whose `fp_arms` rule (fc_fp_arms) may put one arm set on everybody; null keeps the player's own.
 var rules: Object = null
@@ -67,11 +67,11 @@ var _look_override := false
 
 
 static func available() -> bool:
-	return DotAddonApi.build_level("dot_player_char") >= NEEDS_LEVEL
+	return GSAddonApi.build_level("dot_player_char") >= NEEDS_LEVEL
 
 
 ## Puts a view model's hands on [param body]'s camera: AwViewModel's own when there is no API, else these arms under [param parent].
-static func mount(parent: Node, model: AwViewModel, body: Node3D, look: DotHumanoidLook, p_rules: Object = null) -> Node3D:
+static func mount(parent: Node, model: AwViewModel, body: Node3D, look: GSHumanoidLook, p_rules: Object = null) -> Node3D:
 	if not available() or not model.has_signal(&"hands_reached"):
 		return null
 	model.show_arms = false
@@ -80,7 +80,7 @@ static func mount(parent: Node, model: AwViewModel, body: Node3D, look: DotHuman
 	mounted.body = body
 	mounted.rules = p_rules
 	parent.add_child(mounted)
-	mounted.arms = DotPlayerViewArms.new()
+	mounted.arms = GSPlayerViewArms.new()
 	mounted.arms.name = "ViewArms"
 	mounted.add_child(mounted.arms)
 	mounted.arms.build(look, 1.8)
@@ -103,7 +103,7 @@ func _on_hands(anchor: Node3D, grip: Vector3, fore: Vector3, pose: StringName) -
 	var one := pose in ONE_HAND
 	_depth = drawn_depth(anchor)
 	if _grip == null or _grip.anchor != anchor or _grip.is_two_hand() == one:
-		_grip = DotViewGrip.one_hand(anchor, grip) if one else DotViewGrip.two_hand(anchor, grip, fore)
+		_grip = GSViewGrip.one_hand(anchor, grip) if one else GSViewGrip.two_hand(anchor, grip, fore)
 		arms.set_held(_grip)
 	_grip.grip = grip
 	if not one:
@@ -137,7 +137,7 @@ static func hand_kind(pose: StringName, art: Resource) -> StringName:
 ## How many times further off than [param anchor] the weapon is drawn: the hands frame is the drawn gun (its sibling
 ## "Animated") shrunk about the eye to life size so life-size arms reach it, which put the arms at a third of the gun's
 ## depth, in front of all of it: no finger wrapped behind a grip and the support palm and sleeve drew over the gun.
-## [member DotPlayerViewArms.draw_depth] draws the arms' depth that much further (same pixels). 1 for any other anchor.
+## [member GSPlayerViewArms.draw_depth] draws the arms' depth that much further (same pixels). 1 for any other anchor.
 static func drawn_depth(anchor: Node3D) -> float:
 	if anchor == null or anchor.name != &"HandsFrame" or not anchor.is_inside_tree():
 		return 1.0
@@ -164,7 +164,7 @@ static func weapon_bounds(model: AwViewModel, boxes: Dictionary) -> AABB:
 	if not boxes.has(key):
 		if boxes.size() > 32:
 			boxes.clear()
-		boxes[key] = DotViewGrip.one_hand(weapon, Vector3.ZERO).bounds_local()
+		boxes[key] = GSViewGrip.one_hand(weapon, Vector3.ZERO).bounds_local()
 	var box: AABB = boxes[key]
 	if not box.has_volume():
 		return AABB()
@@ -173,18 +173,18 @@ static func weapon_bounds(model: AwViewModel, boxes: Dictionary) -> AABB:
 
 ## The look the server's `fp_arms` rule draws on every player's arms (a stock set, seeded by its value); null for
 ## each player's own. [param memo] keeps it one object, since the rig rebuilds whenever the drawn look is a new one.
-static func arm_set_look(p_rules: Object, memo: Array) -> DotHumanoidLook:
+static func arm_set_look(p_rules: Object, memo: Array) -> GSHumanoidLook:
 	var set_id := int(p_rules.call(&"rule", "fp_arms")) if p_rules != null and p_rules.has_method(&"rule") else 0
 	if set_id <= 0:
 		return null
 	if memo.size() != 2 or int(memo[0]) != set_id:
-		memo.assign([set_id, DotHumanoidLook.stock(set_id)])
-	return memo[1] as DotHumanoidLook
+		memo.assign([set_id, GSHumanoidLook.stock(set_id)])
+	return memo[1] as GSHumanoidLook
 
 
 ## The side's body [param p_body] wears in a team mode (fc_team_bodies.gd), so the arms in view are the
 ## body's sleeves in its colour; null off a team mode or without a body. [param memo] keeps it one object.
-static func team_look(p_body: Object, memo: Array) -> DotHumanoidLook:
+static func team_look(p_body: Object, memo: Array) -> GSHumanoidLook:
 	if p_body == null:
 		return null
 	var team := int(p_body.get(&"team"))
@@ -193,8 +193,8 @@ static func team_look(p_body: Object, memo: Array) -> DotHumanoidLook:
 		return null
 	if memo.size() != 2 or String(memo[0]) != wear:
 		var key := FcTeamBodies.look_key(int(p_body.get(&"player_id")))
-		memo.assign([wear, FcTeamBodies.look_of(p_body.get(&"avatar") as DotAvatar, key, team)])
-	return memo[1] as DotHumanoidLook
+		memo.assign([wear, FcTeamBodies.look_of(p_body.get(&"avatar") as GSAvatar, key, team)])
+	return memo[1] as GSHumanoidLook
 
 
 ## Holding, follows the whole look like the drawn weapon, so pitch never takes the grip out of reach; empty-handed
@@ -243,7 +243,7 @@ func _process(delta: float) -> void:
 	arms.tick(Vector2(v.x, v.z).length(), delta)
 
 
-## [member DotPlayerViewArms.hide_vertex_fn] for a team body: true for a vertex mostly on any bone but the
+## [member GSPlayerViewArms.hide_vertex_fn] for a team body: true for a vertex mostly on any bone but the
 ## shoulders, arms, hands and fingers.
 static func not_arm(bone: StringName, _rest: Vector3) -> bool:
 	var name := String(bone)

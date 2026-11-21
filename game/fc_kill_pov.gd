@@ -14,7 +14,7 @@ const CLEAR_RADIUS := 0.12
 const CLEAR_STEP_OUT := 1.2
 const CLEAR_WAYS := 16
 
-## Aux slots, in the order [DotKillViewRing] records them; SIZE is the contract with the ring's AUX.
+## Aux slots, in the order [GSKillViewRing] records them; SIZE is the contract with the ring's AUX.
 const WEAPON := 0
 const ADS := 1
 const FIRE_SEQ := 2
@@ -66,9 +66,9 @@ static func is_replay_camera(cam: Camera3D) -> bool:
 static func clear_eye(space: PhysicsDirectSpaceState3D, eye: Vector3, forward: Vector3, mask: int) -> Vector3:
 	var f := forward.normalized()
 	var back := eye - f * CLEAR_BACK
-	var along := DotCameraProbe.clear_length(space, back, eye, CLEAR_RADIUS, mask)
+	var along := GSCameraProbe.clear_length(space, back, eye, CLEAR_RADIUS, mask)
 	var placed := back + f * along
-	if not DotCameraProbe.is_inside(space, placed, CLEAR_RADIUS, mask):
+	if not GSCameraProbe.is_inside(space, placed, CLEAR_RADIUS, mask):
 		return placed
 	return step_out(space, eye, f, mask, placed)
 
@@ -90,16 +90,16 @@ static func step_out(space: PhysicsDirectSpaceState3D, eye: Vector3, forward: Ve
 	while reach <= CLEAR_STEP_OUT + 0.001:
 		for way: Vector3 in ways:
 			var at := eye + way * reach
-			if not DotCameraProbe.is_inside(space, at, CLEAR_RADIUS, mask):
+			if not GSCameraProbe.is_inside(space, at, CLEAR_RADIUS, mask):
 				return at
 		reach += CLEAR_RADIUS
 	return fallback
 
 
-## The twelve aux floats for [param p] (layout in [DotKillViewRing]): weapon, ads, fire count, reload, mag, reserve,
+## The twelve aux floats for [param p] (layout in [GSKillViewRing]): weapon, ads, fire count, reload, mag, reserve,
 ## spread, hits, the last shot's recoil pitch and yaw (0 when this end never saw the outcome), flags, ground speed.
 ## [param size] is the ring's AUX; a shorter ring (an older dot-replay) gets the slots it has, never an out-of-range write.
-static func aux_of(p: Object, size: int = DotKillViewRing.AUX) -> PackedFloat32Array:
+static func aux_of(p: Object, size: int = GSKillViewRing.AUX) -> PackedFloat32Array:
 	var full := _aux_full(p)
 	full.resize(size)
 	return full
@@ -107,7 +107,7 @@ static func aux_of(p: Object, size: int = DotKillViewRing.AUX) -> PackedFloat32A
 
 ## [method aux_of], read at most once per physics tick per player: the kill view's eye list reads it fresh ([param fresh], every game tick, however many a physics frame runs) and keeps it; the killcam's body recording
 ## (every drawn frame) reuses that reading, as the aux only changes inside a tick. The returned array is shared until the next tick: copy it before writing to it.
-static func aux_of_tick(p: Object, size: int = DotKillViewRing.AUX, fresh := false) -> PackedFloat32Array:
+static func aux_of_tick(p: Object, size: int = GSKillViewRing.AUX, fresh := false) -> PackedFloat32Array:
 	if p == null or size != SIZE:
 		return aux_of(p, size)
 	var frame := Engine.get_physics_frames()
@@ -157,8 +157,8 @@ static func _aux_full(p: Object) -> PackedFloat32Array:
 		out[FLAGS] = SIGNED if kick.z > 0.0 else 0
 	out[HITS] = float(int(p.get_meta(HITS_META, 0)) % 4096)
 	var controller: Variant = p.get(&"controller")
-	if controller is DotFpsController and (controller as DotFpsController).state != null:
-		var st := (controller as DotFpsController).state
+	if controller is GSFpsController and (controller as GSFpsController).state != null:
+		var st := (controller as GSFpsController).state
 		out[FLAGS] += (GROUNDED if st.is_grounded() else 0) + (CROUCHED if st.is_crouched() else 0)
 		out[SPEED] = st.horizontal_speed()
 	return out

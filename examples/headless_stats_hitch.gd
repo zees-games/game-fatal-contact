@@ -1,7 +1,7 @@
 extends Node
 
 ## The timed stats flush writes the stats file once, not once per player. This flushes 24 players
-## through the addon's write-behind `DotStatsStoreFile` and a write-through one (`write_behind = false`), and
+## through the addon's write-behind `GSStatsStoreFile` and a write-through one (`write_behind = false`), and
 ## asserts no file write on the flush's own frame (none on the main thread per player), one write per flush, the same file, and
 ## nothing lost; the achievement autosave gets the same checks.
 
@@ -22,7 +22,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -43,12 +43,12 @@ func _seed(path: String) -> void:
 	var rows := {}
 	for i in OLD_ROWS:
 		rows["old%d" % i] = {"name": "Old %d" % i, "values": {String(FcStats.KILLS): float(i), String(FcStats.DEATHS): float(i * 2)}, "cells": {}}
-	var written := DotPaths.write_json(path, rows, true, true)
+	var written := GSPaths.write_json(path, rows, true, true)
 	_check(written.ok, "the seed file was written", path)
 
 
-func _tracker(store: DotStatsStoreFile) -> DotStatsTracker:
-	var stats := DotStatsTracker.new()
+func _tracker(store: GSStatsStoreFile) -> GSStatsTracker:
+	var stats := GSStatsTracker.new()
 	stats.schema = FcStats.schema()
 	stats.report_interval = 0.0
 	stats.store = store
@@ -60,7 +60,7 @@ func _tracker(store: DotStatsStoreFile) -> DotStatsTracker:
 	return stats
 
 
-func _play(stats: DotStatsTracker, round: int) -> void:
+func _play(stats: GSStatsTracker, round: int) -> void:
 	for i in PLAYERS:
 		var id := StringName("p%d" % i)
 		stats.record(id, FcStats.KILLS, float(1 + (i + round) % 3))
@@ -69,14 +69,14 @@ func _play(stats: DotStatsTracker, round: int) -> void:
 
 
 func _read(path: String) -> Dictionary:
-	var read := DotPaths.read_json(path)
+	var read := GSPaths.read_json(path)
 	if not read.ok or not (read.value is Dictionary):
 		return {}
 	return read.value as Dictionary
 
 
-func _award_tracker(store: DotAchievementStoreFile) -> DotAchievementTracker:
-	var tracker := DotAchievementTracker.new()
+func _award_tracker(store: GSAchievementStoreFile) -> GSAchievementTracker:
+	var tracker := GSAchievementTracker.new()
 	tracker.catalogue = FcAwards.catalogue()
 	tracker.autosave_interval = 0.0
 	# An unlock saves at once; off here so that a flush is the only thing that saves.
@@ -88,18 +88,18 @@ func _award_tracker(store: DotAchievementStoreFile) -> DotAchievementTracker:
 	return tracker
 
 
-func _same_files(store_a: DotAchievementStoreFile, store_b: DotAchievementStoreFile) -> int:
+func _same_files(store_a: GSAchievementStoreFile, store_b: GSAchievementStoreFile) -> int:
 	var same := 0
 	for i in PLAYERS:
 		var a := _read(store_a.path_for("p%d" % i))
-		if not a.is_empty() and DotValue.same_dictionary(a, _read(store_b.path_for("p%d" % i))):
+		if not a.is_empty() and GSValue.same_dictionary(a, _read(store_b.path_for("p%d" % i))):
 			same += 1
 	return same
 
 
 func _awards() -> void:
-	var store: DotAchievementStoreFile = FcAwardStore.new(AWARDS_BATCHED)
-	var plain_store := DotAchievementStoreFile.new(AWARDS_PLAIN)
+	var store: GSAchievementStoreFile = FcAwardStore.new(AWARDS_BATCHED)
+	var plain_store := GSAchievementStoreFile.new(AWARDS_PLAIN)
 	var batched := _award_tracker(store)
 	var plain := _award_tracker(plain_store)
 	for i in PLAYERS:
@@ -113,7 +113,7 @@ func _awards() -> void:
 			plain.record("p%d" % i, FcStats.KILLS, float(1 + i + round))
 		var before: int = store.writes
 		var t0 := Time.get_ticks_usec()
-		var saved: DotResult = await batched.flush()
+		var saved: GSResult = await batched.flush()
 		worst_batched = maxf(worst_batched, (Time.get_ticks_usec() - t0) / 1000.0)
 		_check(saved.ok and int(saved.value) == PLAYERS, "awards round %d: the autosave saved every dirty player" % round, str(saved.value) if saved.ok else "failed")
 		_check(int(store.writes) == before, "awards round %d: the autosave's own frame wrote no file" % round)
@@ -122,9 +122,9 @@ func _awards() -> void:
 		worst_plain = maxf(worst_plain, (Time.get_ticks_usec() - t0) / 1000.0)
 		if round == 0:
 			# A player back before the write has landed gets what was saved, not the old file.
-			var early: DotResult = await store.load_progress("p3")
+			var early: GSResult = await store.load_progress("p3")
 			var want := plain.progress_of("p3")
-			_check(early.ok and DotValue.same_dictionary((early.value as DotAchievementProgress).to_dictionary(), want.to_dictionary()),
+			_check(early.ok and GSValue.same_dictionary((early.value as GSAchievementProgress).to_dictionary(), want.to_dictionary()),
 				"a load before the write lands returns the saved progress")
 		var waited := 0
 		while int(store.writes) - before < PLAYERS and waited < 600:
@@ -155,8 +155,8 @@ func _awards() -> void:
 func _run() -> void:
 	_seed(BATCHED)
 	_seed(PLAIN)
-	var store := DotStatsStoreFile.new(BATCHED)
-	var plain_file := DotStatsStoreFile.new(PLAIN)
+	var store := GSStatsStoreFile.new(BATCHED)
+	var plain_file := GSStatsStoreFile.new(PLAIN)
 	plain_file.write_behind = false
 	var batched := _tracker(store)
 	var plain := _tracker(plain_file)
@@ -169,7 +169,7 @@ func _run() -> void:
 		_play(plain, round)
 		var before: int = store.writes
 		var t0 := Time.get_ticks_usec()
-		var flushed: DotResult = await batched.flush()
+		var flushed: GSResult = await batched.flush()
 		worst_batched = maxf(worst_batched, (Time.get_ticks_usec() - t0) / 1000.0)
 		_check(flushed.ok, "round %d: the flush succeeded" % round)
 		_check(batched.store_pending() == 0, "round %d: every player's delta was merged" % round, str(batched.store_pending()))
@@ -187,7 +187,7 @@ func _run() -> void:
 		var a := _read(BATCHED)
 		var b := _read(PLAIN)
 		_check(a.size() == OLD_ROWS + PLAYERS, "round %d: the file holds every row" % round, str(a.size()))
-		_check(DotValue.same_dictionary(a, b), "round %d: and is the file the addon's store writes" % round)
+		_check(GSValue.same_dictionary(a, b), "round %d: and is the file the addon's store writes" % round)
 
 	# Shutdown: a flush with no frame after it. `FcProgress._exit_tree` calls finish() for this.
 	_play(batched, 3)
@@ -195,7 +195,7 @@ func _run() -> void:
 	await batched.flush()
 	await plain.flush()
 	store.finish()
-	_check(DotValue.same_dictionary(_read(BATCHED), _read(PLAIN)), "finish() writes the last flush without waiting for a frame")
+	_check(GSValue.same_dictionary(_read(BATCHED), _read(PLAIN)), "finish() writes the last flush without waiting for a frame")
 
 	# And the real order at quit: the tracker leaves the tree with a delta unflushed and merges it there, then its owner calls finish().
 	_play(batched, 4)
@@ -203,13 +203,13 @@ func _run() -> void:
 	remove_child(batched)
 	remove_child(plain)
 	store.finish()
-	_check(DotValue.same_dictionary(_read(BATCHED), _read(PLAIN)), "a tracker leaving the tree mid-interval loses nothing")
+	_check(GSValue.same_dictionary(_read(BATCHED), _read(PLAIN)), "a tracker leaving the tree mid-interval loses nothing")
 
-	var again := DotStatsStoreFile.new(BATCHED)
+	var again := GSStatsStoreFile.new(BATCHED)
 	again.schema = FcStats.schema()
-	var kept: DotResult = await again.values_for(&"p0")
-	_check(kept.ok and (kept.value as DotStatsValues).get_value(FcStats.DEATHS) == 5.0, "the written file reads back a player's totals",
-		str((kept.value as DotStatsValues).get_value(FcStats.DEATHS)) if kept.ok else "unreadable")
+	var kept: GSResult = await again.values_for(&"p0")
+	_check(kept.ok and (kept.value as GSStatsValues).get_value(FcStats.DEATHS) == 5.0, "the written file reads back a player's totals",
+		str((kept.value as GSStatsValues).get_value(FcStats.DEATHS)) if kept.ok else "unreadable")
 
 	print("  worst flush frame: %.2f ms batched, %.2f ms per-player writes (%d players, %d rows)" % [worst_batched, worst_plain, PLAYERS, OLD_ROWS + PLAYERS])
 	_check(worst_batched < worst_plain, "the batched flush frame is cheaper than per-player writes", "%.2f vs %.2f ms" % [worst_batched, worst_plain])

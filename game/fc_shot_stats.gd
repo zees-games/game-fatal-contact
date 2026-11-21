@@ -50,19 +50,19 @@ func row(attacker: int) -> Dictionary:
 	return by_shooter[attacker]
 
 
-func _on_refused(shot: DotShot, reason: String) -> void:
+func _on_refused(shot: GSShot, reason: String) -> void:
 	var r := row(shot.attacker)
 	r["fired"] += 1
 	r["refused"] += 1
 	refusals["shot: " + reason] = int(refusals.get("shot: " + reason, 0)) + 1
 
 
-func _on_resolved(shot: DotShot) -> void:
+func _on_resolved(shot: GSShot) -> void:
 	var r := row(shot.attacker)
 	r["fired"] += 1
 	var applied := false
 	var prevented := false
-	for damage: DotDamage in shot.damages:
+	for damage: GSDamage in shot.damages:
 		if damage.refused:
 			prevented = true
 			var key := "damage: " + str(damage.refusal)
@@ -78,7 +78,7 @@ func _on_resolved(shot: DotShot) -> void:
 
 
 ## Why a shot that touched nobody touched nobody: aimed off, stopped by the level, or (the bug class) on line.
-func _classify_miss(shot: DotShot, r: Dictionary) -> void:
+func _classify_miss(shot: GSShot, r: Dictionary) -> void:
 	var dir: Vector3 = shot.direction
 	var impact_t := INF
 	if not shot.impacts.is_empty():

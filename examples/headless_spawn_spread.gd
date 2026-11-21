@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -11,7 +11,7 @@ const DEFAULT_MAPS: Array[StringName] = [&"crackhouse", &"blackhawkdown", &"dm-m
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -72,7 +72,7 @@ func _one(id: StringName) -> void:
 		var batch := {}
 		for b in PLAYERS:
 			var _r := game.respawn_player(b + 1)
-			var ch: DotSpawnChoice = game.player_stack.spawns.last_choice()
+			var ch: GSSpawnChoice = game.player_stack.spawns.last_choice()
 			if ch == null:
 				continue
 			var sid := String(ch.site_id())

@@ -10,7 +10,7 @@ const FcBotPvs := preload("fc_bot_pvs.gd")
 
 
 ## The behaviour of a weapon whose shot flies (a rocket, a bolt); every other one is led as
-## hitscan. A path, because the pack names behaviours by path (see [DotWeaponDef]).
+## hitscan. A path, because the pack names behaviours by path (see [GSWeaponDef]).
 const PROJECTILE_BEHAVIOUR := "dot_weapon_projectile.gd"
 
 
@@ -22,7 +22,7 @@ const HILL := &"hill"
 
 ## A bot looks at which gun to hold one tick in this many (see `FcBots._choose_gun`).
 const GUN_CHECK_EVERY := 8
-## The play style class (dot-bot's [DotBotStyle] table) of each FC weapon id; a pack's other weapons go by their tags
+## The play style class (dot-bot's [GSBotStyle] table) of each FC weapon id; a pack's other weapons go by their tags
 ## in [method World._class_of]. Kept to dot-bot's class names, so the shipped table and `bot_style_weights` apply.
 const STYLE_CLASS := {
 	&"knife": &"melee",
@@ -33,7 +33,7 @@ const STYLE_CLASS := {
 	&"grenade_launcher": &"launcher", &"beamer": &"heavy", &"charge_rifle": &"sniper",
 	&"frag": &"throw", &"sticky": &"throw", &"flash": &"throw", &"smoke": &"throw", &"incendiary": &"throw",
 }
-## dot-bot API level of [code]DotBotContact.weapon_class[/code] and [code]magazine[/code] (weapon play styles). Below it the
+## dot-bot API level of [code]GSBotContact.weapon_class[/code] and [code]magazine[/code] (weapon play styles). Below it the
 ## contact has neither and the bot plays the generic style, so [code]requires.floor.json[/code] keeps dot_bot at 26.
 const STYLE_LEVEL := 32
 ## Metres inside which a scoped gun gives way to the sidearm.
@@ -67,14 +67,14 @@ static func eye_height() -> float:
 ## One bot's memory between ticks. Kept by the caller, one per bot.
 class Mind:
 	extends RefCounted
-	var brain: DotBotBrain = null
+	var brain: GSBotBrain = null
 	var seed: int = 0
 	## The throw in hand: 0 none, then [constant THROW_DRAW], [constant THROW_COOK],
 	## [constant THROW_RELEASE], [constant THROW_BACK].
 	var throw_stage: int = 0
 	## The character dealt to this bot and its own settings derived from the game's, or null with `bot_personas off`.
-	var persona: DotBotPersona = null
-	var settings: DotBotSettings = null
+	var persona: GSBotPersona = null
+	var settings: GSBotSettings = null
 	var persona_bias: Vector3 = Vector3.ZERO
 	## [member World.persona_epoch] when the brain was made: a `bot_personas` change deals again.
 	var persona_epoch: int = -1
@@ -82,14 +82,14 @@ class Mind:
 	var throw_back: int = 0
 	var throw_at: int = 0
 	var throw_cook_from: int = 0
-	## The ride under way (dot-bot's DotBotSurfRide, untyped so an older shell still compiles
+	## The ride under way (dot-bot's GSBotSurfRide, untyped so an older shell still compiles
 	## this), or null.
 	var ride: Variant = null
 	## Where the bot was last tick, to see a teleport.
 	var last_position: Vector3 = Vector3.INF
 	## The commands of the last tick the brain thought, repeated on the ticks it coasts (see [constant THINK_EVERY]).
-	var last_move: DotFpsCommand = null
-	var last_fire: DotWeaponCommand = null
+	var last_move: GSFpsCommand = null
+	var last_fire: GSWeaponCommand = null
 	## Whether nobody was within [member think_near] metres at the last think.
 	var far: bool = false
 	## The view the last think moved from and to, which the coast ticks walk along.
@@ -104,9 +104,9 @@ class Mind:
 	## The tick of the last think, so a think that follows a coast knows its brain turned for several ticks at once.
 	var last_think_tick: int = -1
 	## Between [method think_begin] and [method think_finish] (see FcBotThreads): the body's contact, the world and what the brain decided.
-	var t_me: DotBotContact = null
+	var t_me: GSBotContact = null
 	var t_world: Object = null
-	var t_intent: DotBotIntent = null
+	var t_intent: GSBotIntent = null
 
 
 ## Ticks between rebuilds of a contact's loadout (see [method World._loadout_of]).
@@ -121,11 +121,11 @@ const AUTO_STAGGER_ABOVE := 16
 ## The stagger in force this tick (1 = none): `think_every`, or what auto picks for the player count.
 static var _every: int = 1
 static var think_near: float = 30.0
-## Sight LOD (cvars `bot_sight_far`, `bot_sight_far_reuse`; dot-bot's DotBotWorld.sight_far): a body farther than this that a
+## Sight LOD (cvars `bot_sight_far`, `bot_sight_far_reuse`; dot-bot's GSBotWorld.sight_far): a body farther than this that a
 ## bot did not see stays unseen for `sight_far_reuse` s before the next ray; never its target, never a "seen". 0 is off; 20 m (A/B on staging02, 31 bots: bot_los -45%, bot_brain -26%).
 static var sight_far: float = 20.0
 static var sight_far_reuse: float = 0.15
-## 1 when a native bot mind (dot_sim's DotSimBotMind) holds sight without the sight LOD (no `sight_cached_far`), 0 when not; -1 unknown.
+## 1 when a native bot mind (dot_sim's GSSimBotMind) holds sight without the sight LOD (no `sight_cached_far`), 0 when not; -1 unknown.
 static var _sight_lod_split := -1
 
 
@@ -135,18 +135,18 @@ static var _sight_lod_split := -1
 ## two would see different bots and play a different match (dm-morpheus at 16 bots, threads 0 vs 4, 2026-11-17).
 static func sight_far_now() -> float:
 	if _sight_lod_split < 0:
-		_sight_lod_split = 1 if ClassDB.class_exists(&"DotSimBotMind") and not ClassDB.class_has_method(&"DotSimBotMind", &"sight_cached_far") else 0
-	if _sight_lod_split == 1 and DotBotAim.native_enabled:
+		_sight_lod_split = 1 if ClassDB.class_exists(&"GSSimBotMind") and not ClassDB.class_has_method(&"GSSimBotMind", &"sight_cached_far") else 0
+	if _sight_lod_split == 1 and GSBotAim.native_enabled:
 		return 0.0
 	return sight_far
 
 
-## Think-rate tiers (cvars `bot_tier_*`): above [member DotBotThinkTier.above] players a bot that fights a person,
+## Think-rate tiers (cvars `bot_tier_*`): above [member GSBotThinkTier.above] players a bot that fights a person,
 ## was hurt by one, is near or in view of one, or is among the nearest to one thinks every tick; the rest every 2-4
 ## ticks and coast between, fighting included. Server-side commands only: the motor and prediction are untouched.
 static var tiers := _make_tiers()
-static func _make_tiers() -> DotBotThinkTier:
-	var t := DotBotThinkTier.new()
+static func _make_tiers() -> GSBotThinkTier:
+	var t := GSBotThinkTier.new()
 	# A bot fighting a person beyond 25 m and out of every view cone thinks every other tick.
 	t.engaged_far_every = 2
 	return t
@@ -166,8 +166,8 @@ const PERSONAS_OFF := "off"
 
 ## Whether tiers decide this tick (else the `bot_think_every` stagger does).
 static var _tier_on: bool = false
-const _COAST_FIRE := DotWeaponCommand.BUTTON_ATTACK | DotWeaponCommand.BUTTON_AIM
-const _COAST_MOVE := DotFpsCommand.BUTTON_CROUCH | DotFpsCommand.BUTTON_WALK | DotFpsCommand.BUTTON_SPRINT
+const _COAST_FIRE := GSWeaponCommand.BUTTON_ATTACK | GSWeaponCommand.BUTTON_AIM
+const _COAST_MOVE := GSFpsCommand.BUTTON_CROUCH | GSFpsCommand.BUTTON_WALK | GSFpsCommand.BUTTON_SPRINT
 
 
 ## Further than this in one tick is a teleport, metres (a fall at the 3500 u/s limit is under 1).
@@ -189,22 +189,22 @@ class World:
 	## [constant STYLE_CLASS] by weapon definition, so a contact's class is one lookup a tick.
 	var _classes: Dictionary = {}
 	## Whether this build's dot-bot has play styles ([constant STYLE_LEVEL]); asked once per world, not per contact.
-	var _styled: bool = DotAddonApi.build_level("dot_bot") >= STYLE_LEVEL
+	var _styled: bool = GSAddonApi.build_level("dot_bot") >= STYLE_LEVEL
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
 	var _contacts: Array = []
 	## The contacts by id, kept from tick to tick and rewritten whole by [method refresh] (a brain keeps ids, never a contact).
 	var _by_id: Dictionary = {}
 	var _players: Dictionary = {}
-	## Weapon ratings (def -> [method DotBotArms.rate]) of this tick: every loadout and drop list rates the same few definitions.
+	## Weapon ratings (def -> [method GSBotArms.rate]) of this tick: every loadout and drop list rates the same few definitions.
 	var _rated: Dictionary = {}
 	## The tick [method player_count] counted on, and its count.
 	var _count_tick: int = -1
 	var _count: int = 0
-	## [method DotBotArms.rate] once a tick per definition (over [member _rated]), for every loadout and drop list here.
+	## [method GSBotArms.rate] once a tick per definition (over [member _rated]), for every loadout and drop list here.
 	var _rater: Callable = Callable()
 	## The body tunables of this tick, looked up once for all contacts (the lookup walks every player).
-	var _tunables: DotFpsTunables = null
+	var _tunables: GSFpsTunables = null
 	## The live contacts filed by cell of [member FcBots.think_near] metres (key -> contacts), for [method FcBots._nobody_near]; empty cell size: not built.
 	var near_cells: Dictionary = {}
 	var near_cell: float = 0.0
@@ -213,10 +213,10 @@ class World:
 	## Bots a person hurt since their last think: they think next tick whatever their tier.
 	var woken: Dictionary = {}
 	## [member FcBots.tiers], set by the thinking bot before [method refresh].
-	var tiers: DotBotThinkTier = null
+	var tiers: GSBotThinkTier = null
 	## The personas bots are dealt from ([method personas_for]), the `bot_personas` text it was set for, and a count
 	## bumped when that changes so every bot is dealt again.
-	var _personas: DotBotPersonaPool = null
+	var _personas: GSBotPersonaPool = null
 	var _personas_text: String = ""
 	var persona_epoch: int = 0
 	var _persona_rng := RandomNumberGenerator.new()
@@ -231,7 +231,7 @@ class World:
 
 	## The pool for `bot_personas` [param mode], or null for "off". Loaded once from the `bot` profiles; a changed
 	## mode sets the override, forgets who had what and bumps [member persona_epoch].
-	func personas_for(mode: String) -> DotBotPersonaPool:
+	func personas_for(mode: String) -> GSBotPersonaPool:
 		if mode != _personas_text:
 			_personas_text = mode
 			persona_epoch += 1
@@ -241,15 +241,15 @@ class World:
 		if mode == PERSONAS_OFF:
 			return null
 		if _personas == null:
-			_personas = DotBotPersonaPool.new()
+			_personas = GSBotPersonaPool.new()
 			_persona_rng.seed = 0x5eed
-			var n := _personas.load_from(DotProfileSet.create("dot-bot", "game-arena", DotBotPersona.KIND, DotBotPersona.schema()))
+			var n := _personas.load_from(GSProfileSet.create("dot-bot", "game-arena", GSBotPersona.KIND, GSBotPersona.schema()))
 			_personas.set_override(mode)
-			DotLog.info(CHANNEL, "bot personas loaded", {"personas": n, "override": mode})
+			GSLog.info(CHANNEL, "bot personas loaded", {"personas": n, "override": mode})
 		return _personas
 
 	## The persona [param id] is dealt from [param pool].
-	func deal_persona(pool: DotBotPersonaPool, id: int) -> DotBotPersona:
+	func deal_persona(pool: GSBotPersonaPool, id: int) -> GSBotPersona:
 		return pool.deal(StringName(str(id)), _persona_rng)
 
 	func _init(p_game: Object) -> void:
@@ -267,10 +267,10 @@ class World:
 		_rater = func(def: Object) -> float:
 			var held: Variant = rated.get(def)
 			if held == null:
-				held = DotBotArms.rate(def)
+				held = GSBotArms.rate(def)
 				rated[def] = held
 			return held
-		DotBotArms.wire(self, func() -> Variant: return p_game.get("weapon_drops"), func() -> Object: return box[0] if box[0] != null else _any_arsenal(p_game), _rater)
+		GSBotArms.wire(self, func() -> Variant: return p_game.get("weapon_drops"), func() -> Object: return box[0] if box[0] != null else _any_arsenal(p_game), _rater)
 
 	## Players in the game on [param tick], counted once a tick however many bots ask.
 	func player_count(tick: int) -> int:
@@ -297,9 +297,9 @@ class World:
 		var aim := CHEST * FcPlayer.stand_height() / 1.8
 		for p: FcPlayer in game.call("players"):
 			# Last tick's contact, every field written again: as a fresh one, without a new object per player per tick.
-			var c: DotBotContact = _by_id.get(p.player_id)
+			var c: GSBotContact = _by_id.get(p.player_id)
 			if c == null:
-				c = DotBotContact.new()
+				c = GSBotContact.new()
 				c.id = p.player_id
 				_by_id[c.id] = c
 			c.eye_height = eye
@@ -330,7 +330,7 @@ class World:
 		if _by_id.size() != _contacts.size():
 			# Someone left: only this tick's players have a contact.
 			_by_id.clear()
-			for c: DotBotContact in _contacts:
+			for c: GSBotContact in _contacts:
 				_by_id[c.id] = c
 		_objective_refresh(teams)
 		t_lap = FcFrameProbe.lap(&"br_contacts", t_lap)
@@ -343,7 +343,7 @@ class World:
 		near_cell = 0.0
 		if FcHullGrid.enabled and near_reach > 0.0 and _contacts.size() > 16:
 			near_cell = near_reach
-			for c: DotBotContact in _contacts:
+			for c: GSBotContact in _contacts:
 				if c.alive:
 					var k := near_key(c.position.x, c.position.z, near_cell)
 					var cell: Variant = near_cells.get(k)
@@ -353,23 +353,23 @@ class World:
 						(cell as Array).append(c)
 		FcFrameProbe.lap(&"br_near", t_lap)
 
-	## The flags as the HUD shows them, or the hill, into [member DotBotWorld.objective], for the bots' team jobs (defend,
+	## The flags as the HUD shows them, or the hill, into [member GSBotWorld.objective], for the bots' team jobs (defend,
 	## attack, support). Outside those modes the objective is empty and every bot roams as in a free-for-all.
 	func _objective_refresh(teams: bool) -> void:
 		var objectives: Variant = game.get("objectives") if teams else null
 		var ctf: Variant = objectives.get("ctf") if objectives is Object else null
-		if not (ctf is DotObjectiveCtf):
+		if not (ctf is GSObjectiveCtf):
 			var hill := _hill_of(objectives)
 			if hill != null:
 				if objective == null:
-					objective = DotBotObjective.new()
+					objective = GSBotObjective.new()
 				objective.set_point(hill.def.area.centre, hill.def.area.radius, hill.owner_team)
 			elif objective != null:
 				objective.clear_flags()
 			return
 		if objective == null:
-			objective = DotBotObjective.new()
-		var flags: Array[DotObjectiveFlag] = (ctf as DotObjectiveCtf).flags()
+			objective = GSBotObjective.new()
+		var flags: Array[GSObjectiveFlag] = (ctf as GSObjectiveCtf).flags()
 		for flag in flags:
 			if flag == null or flag.def == null or flag.def.area == null:
 				continue
@@ -382,16 +382,16 @@ class World:
 						capture = area.centre
 					break
 			var carrier := -1
-			if flag.state == DotObjectiveFlag.State.CARRIED and flag.carrier.is_valid_int():
+			if flag.state == GSObjectiveFlag.State.CARRIED and flag.carrier.is_valid_int():
 				carrier = flag.carrier.to_int()
 			objective.set_flag(team, flag.def.area.centre, flag.position(), carrier, int(flag.state), capture)
 
 	## The hill of a hill mode, or null.
-	func _hill_of(objectives: Variant) -> DotObjective:
+	func _hill_of(objectives: Variant) -> GSObjective:
 		var manager: Variant = objectives.get("manager") if objectives is Object else null
-		if not (manager is DotObjectiveManager):
+		if not (manager is GSObjectiveManager):
 			return null
-		var hill := (manager as DotObjectiveManager).objective(HILL)
+		var hill := (manager as GSObjectiveManager).objective(HILL)
 		return hill if hill != null and hill.def != null and hill.def.area != null else null
 
 	## Hands the tiers the live people's eyes and views and the bots' positions (a person is a contact with no brain).
@@ -400,14 +400,14 @@ class World:
 		var looks := PackedVector3Array()
 		var ids := PackedInt32Array()
 		var at := PackedVector3Array()
-		for c: DotBotContact in _contacts:
+		for c: GSBotContact in _contacts:
 			if brains.has(c.id):
 				if c.alive:
 					ids.append(c.id)
 					at.append(c.position)
 			elif c.alive:
 				eyes.append(c.eye())
-				looks.append(DotBotIntent.direction(c.view_yaw, c.view_pitch))
+				looks.append(GSBotIntent.direction(c.view_yaw, c.view_pitch))
 		tiers.begin(_contacts.size(), eyes, looks, ids, at)
 
 	static func near_key(x: float, z: float, cell: float) -> int:
@@ -420,16 +420,16 @@ class World:
 		var held: Variant = _loadouts.get(p.player_id)
 		if held is Array and (tick + p.player_id) % LOADOUT_EVERY != 0 and tick >= (held as Array)[0] and tick - (held as Array)[0] < LOADOUT_EVERY:
 			return (held as Array)[1]
-		var made := DotBotArms.loadout_of(p.arsenal, _rater)
+		var made := GSBotArms.loadout_of(p.arsenal, _rater)
 		_loadouts[p.player_id] = [tick, made]
 		return made
 
 	## The class of the weapon in hand and how full its magazine is, for the bot's play style.
 	## Set by name: the fields exist from dot-bot [constant STYLE_LEVEL], and a host below it still parses this file.
-	func _weapon_of(c: DotBotContact, p: FcPlayer) -> void:
+	func _weapon_of(c: GSBotContact, p: FcPlayer) -> void:
 		if not _styled:
 			return
-		var slot: DotWeaponSlot = p.arsenal.current() if p.arsenal != null else null
+		var slot: GSWeaponSlot = p.arsenal.current() if p.arsenal != null else null
 		if slot == null or slot.def == null:
 			c.set(&"weapon_class", &"")
 			c.set(&"magazine", -1.0)
@@ -443,7 +443,7 @@ class World:
 		c.set(&"magazine", float(slot.magazine) / float(def.magazine) if def.magazine > 0 else -1.0)
 
 	## A weapon's style class: its id (with or without a pack's `aw_` prefix) in [constant STYLE_CLASS], else its tags.
-	static func _class_of(def: DotWeaponDef) -> StringName:
+	static func _class_of(def: GSWeaponDef) -> StringName:
 		var id := String(def.id)
 		var known: Variant = STYLE_CLASS.get(StringName(id.trim_prefix("aw_")))
 		if known != null:
@@ -463,8 +463,8 @@ class World:
 		return null
 
 	## What the bot's body is doing, and whether the game would honour an air-jump press now.
-	func _motion_of(c: DotBotContact, state: DotFpsState) -> void:
-		c.grounded = state.mode == DotFpsState.Mode.GROUND
+	func _motion_of(c: GSBotContact, state: GSFpsState) -> void:
+		c.grounded = state.mode == GSFpsState.Mode.GROUND
 		c.sliding = state.slide_time >= 0.0
 		c.wall_running = state.wall_run_time >= 0.0
 		if _tunables == null:
@@ -478,16 +478,16 @@ class World:
 	func par_begin() -> bool:
 		var combat: Variant = game.get("combat")
 		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		if not trace is DotTrace:
+		if not trace is GSTrace:
 			return false
-		_par_trace = trace as DotTrace
+		_par_trace = trace as GSTrace
 		_par_observe = _par_trace.ray_observer.is_valid()
 		_par_job.clear()
 		_par_rays.clear()
 		_par_arsenal[0] = _any_arsenal(game)
 		_par_physics = false
 		_par_space = null
-		if trace is DotTracePhysics:
+		if trace is GSTracePhysics:
 			var bound: Variant = (trace as Object).get("_world")
 			if not bound is World3D:
 				return false
@@ -495,12 +495,12 @@ class World:
 			if _par_space == null:
 				return false
 			_par_physics = true
-		elif not trace is DotTraceFlat:
+		elif not trace is GSTraceFlat:
 			return false
 		# The jail glass rule applies on a map with a collision root, as _line_of_sight has it.
 		_par_glass = false
 		var rules: Variant = game.get("glass_rules")
-		if rules is DotMapGlassSight and (rules as DotMapGlassSight).block_sight:
+		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
 			var map: Variant = game.get("map")
 			var root: Variant = (map as Object).get("collision_root") if map is Object else null
 			if root is Node3D and (root as Node3D).is_inside_tree():
@@ -520,7 +520,7 @@ class World:
 		var rules: Variant = game.get("glass_rules")
 		if _par_glass:
 			_ray_lock.lock()
-			var shut := (rules as DotMapGlassSight).blocks(_par_space, from, to)
+			var shut := (rules as GSMapGlassSight).blocks(_par_space, from, to)
 			_ray_lock.unlock()
 			if shut:
 				return false
@@ -536,14 +536,14 @@ class World:
 	func now() -> float:
 		return float(maxi(_tick, 0)) / tick_rate
 
-	func contact(id: int) -> DotBotContact:
+	func contact(id: int) -> GSBotContact:
 		return _by_id.get(id)
 
 	func contacts() -> Array:
 		return _contacts
 
-	func contact_of(all: Array, id: int) -> DotBotContact:
-		return _by_id.get(id) if is_same(all, _contacts) else DotBotWorld.find(all, id)
+	func contact_of(all: Array, id: int) -> GSBotContact:
+		return _by_id.get(id) if is_same(all, _contacts) else GSBotWorld.find(all, id)
 
 	func line_of_sight(from: Vector3, to: Vector3) -> bool:
 		if par:
@@ -568,19 +568,19 @@ class World:
 		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
 		var rules: Variant = game.get("glass_rules")
 		# Bots inside the jail cell cannot see out through its glass; the trace itself ignores that layer for sight.
-		if rules is DotMapGlassSight and (rules as DotMapGlassSight).block_sight:
+		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
 			var map: Variant = game.get("map")
 			var root: Variant = (map as Object).get("collision_root") if map is Object else null
 			if root is Node3D and (root as Node3D).is_inside_tree() \
-					and (rules as DotMapGlassSight).blocks((root as Node3D).get_world_3d().direct_space_state, from, to):
+					and (rules as GSMapGlassSight).blocks((root as Node3D).get_world_3d().direct_space_state, from, to):
 				return false
-		if trace is DotTracePhysics and _plain_sight_trace(trace as Object):
-			return _sight_ray(trace as DotTracePhysics, from, to)
-		if trace is DotTrace:
-			return (trace as DotTrace).line_of_sight(from, to)
+		if trace is GSTracePhysics and _plain_sight_trace(trace as Object):
+			return _sight_ray(trace as GSTracePhysics, from, to)
+		if trace is GSTrace:
+			return (trace as GSTrace).line_of_sight(from, to)
 		return true
 
-	## The trace's own line_of_sight is a [DotHitbox.Hit] world ray: two Hit objects and, on a hit, the surface's
+	## The trace's own line_of_sight is a [GSHitbox.Hit] world ray: two Hit objects and, on a hit, the surface's
 	## material looked up, all of which a yes/no sight drops. Only the plain physics trace and the glass one (whose
 	## sight ray leaves the glass layer out) take this path; any other trace keeps its own rules.
 	const _GLASS_TRACE := preload("fc_glass_trace.gd")
@@ -588,11 +588,11 @@ class World:
 
 	static func _plain_sight_trace(trace: Object) -> bool:
 		var script: Variant = trace.get_script()
-		return script == _GLASS_TRACE or script == DotTracePhysics
+		return script == _GLASS_TRACE or script == GSTracePhysics
 
-	## [method DotTrace.line_of_sight] on a [DotTracePhysics] (and [code]fc_glass_trace.gd[/code]'s sight mask), the
+	## [method GSTrace.line_of_sight] on a [GSTracePhysics] (and [code]fc_glass_trace.gd[/code]'s sight mask), the
 	## same answer from one ray query; headless_bots checks both agree.
-	func _sight_ray(trace: DotTracePhysics, from: Vector3, to: Vector3) -> bool:
+	func _sight_ray(trace: GSTracePhysics, from: Vector3, to: Vector3) -> bool:
 		var offset := to - from
 		var distance := offset.length()
 		if distance <= 0.0001:
@@ -605,8 +605,8 @@ class World:
 			return true
 		var mask: int = trace.collision_mask
 		var glass: Variant = trace.get("glass")
-		if glass is DotMapGlassSight and (glass as DotMapGlassSight).glass_mask != 0:
-			mask &= ~(glass as DotMapGlassSight).glass_mask
+		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
+			mask &= ~(glass as GSMapGlassSight).glass_mask
 		if _sight_query == null:
 			_sight_query = PhysicsRayQueryParameters3D.new()
 			_sight_query.collide_with_areas = false
@@ -618,10 +618,10 @@ class World:
 		_sight_query.exclude = trace.exclude_rids
 		return space.intersect_ray(_sight_query).is_empty()
 
-	## Whether a native mind may ask sight of dot-sim's [code]DotSimSightRay[/code] (when loaded) in place of
+	## Whether a native mind may ask sight of dot-sim's [code]GSSimSightRay[/code] (when loaded) in place of
 	## [method line_of_sight]; off: every ray goes through script (scale128 [code]--native-sight 0[/code]).
 	static var native_sight: bool = true
-	## The native ray (a DotSimSightRay), made once when the class is loaded; null: script only.
+	## The native ray (a GSSimSightRay), made once when the class is loaded; null: script only.
 	var _sight_native: Object = null
 	var _sight_tried: bool = false
 	## [method sight_callable]'s answer while a tick's brains think on workers, bound by [method par_begin].
@@ -648,36 +648,36 @@ class World:
 			return script_sight
 		if not _sight_tried:
 			_sight_tried = true
-			if ClassDB.class_exists(&"DotSimSightRay"):
-				_sight_native = ClassDB.instantiate(&"DotSimSightRay")
+			if ClassDB.class_exists(&"GSSimSightRay"):
+				_sight_native = ClassDB.instantiate(&"GSSimSightRay")
 		if _sight_native == null:
 			return script_sight
 		# The jail glass rule, as _line_of_sight (main thread: the collision root's space) and _los_par
 		# (par_begin's space) ask it: the native ray asks it too, for rays from inside the cell.
-		var cell: DotMapGlassSight = null
+		var cell: GSMapGlassSight = null
 		var cell_space: PhysicsDirectSpaceState3D = null
 		var rules: Variant = game.get("glass_rules")
-		if rules is DotMapGlassSight and (rules as DotMapGlassSight).block_sight:
+		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
 			var map: Variant = game.get("map")
 			var root: Variant = (map as Object).get("collision_root") if map is Object else null
 			if root is Node3D and (root as Node3D).is_inside_tree():
-				cell = rules as DotMapGlassSight
+				cell = rules as GSMapGlassSight
 				cell_space = _par_space if for_par else (root as Node3D).get_world_3d().direct_space_state
 		var combat: Variant = game.get("combat")
 		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		if not (trace is DotTracePhysics and _plain_sight_trace(trace as Object)):
+		if not (trace is GSTracePhysics and _plain_sight_trace(trace as Object)):
 			return script_sight
 		var bound: Variant = (trace as Object).get("_world")
 		var space: PhysicsDirectSpaceState3D = (bound as World3D).direct_space_state if bound is World3D else null
-		var mask: int = (trace as DotTracePhysics).collision_mask
+		var mask: int = (trace as GSTracePhysics).collision_mask
 		var glass: Variant = (trace as Object).get("glass")
-		if glass is DotMapGlassSight and (glass as DotMapGlassSight).glass_mask != 0:
-			mask &= ~(glass as DotMapGlassSight).glass_mask
+		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
+			mask &= ~(glass as GSMapGlassSight).glass_mask
 		if cell != null:
-			_sight_native.call(&"bind", space, mask, (trace as DotTracePhysics).exclude_rids, _ray_lock,
+			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
 					cell_space, cell.glass_mask, cell.centre, cell.radius, cell.radius + cell.margin)
 		else:
-			_sight_native.call(&"bind", space, mask, (trace as DotTracePhysics).exclude_rids, _ray_lock,
+			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
 					null, 0, Vector3.ZERO, 0.0, 0.0)
 		return Callable(_sight_native, &"clear")
 
@@ -701,7 +701,7 @@ class World:
 		return points
 
 	func _waypoints() -> PackedVector3Array:
-		# Every replan asks (DotBotGoal's spots too); spawns and landings are gathered once per tick, the weighting keeps its own cache.
+		# Every replan asks (GSBotGoal's spots too); spawns and landings are gathered once per tick, the weighting keeps its own cache.
 		if _waypoints_tick != _tick or _tick < 0:
 			_waypoints_held = _places()
 			_waypoints_tick = _tick
@@ -735,7 +735,7 @@ class World:
 		return _nav.is_baking() or ((_joining or _nav.is_ready()) and not warm())
 
 	## How fast the held weapon's shot flies, m/s; 0 for hitscan, a swing or a throw.
-	func projectile_speed(shooter: DotBotContact) -> float:
+	func projectile_speed(shooter: GSBotContact) -> float:
 		if par:
 			_par_lock.lock()
 			var held := _projectile_speed(shooter)
@@ -746,12 +746,12 @@ class World:
 		FcFrameProbe.lap(&"bot_proj_speed", t_lap)
 		return speed
 
-	func _projectile_speed(shooter: DotBotContact) -> float:
+	func _projectile_speed(shooter: GSBotContact) -> float:
 		var p: FcPlayer = _players.get(shooter.id) if shooter != null else null
-		var def: DotWeaponDef = p.arsenal.current_def() if p != null and p.arsenal != null else null
-		if def == null or not def.behaviour_path.ends_with(PROJECTILE_BEHAVIOUR) or not (def.tuning is DotWeaponBallistics):
+		var def: GSWeaponDef = p.arsenal.current_def() if p != null and p.arsenal != null else null
+		if def == null or not def.behaviour_path.ends_with(PROJECTILE_BEHAVIOUR) or not (def.tuning is GSWeaponBallistics):
 			return 0.0
-		return (def.tuning as DotWeaponBallistics).speed
+		return (def.tuning as GSWeaponBallistics).speed
 
 	func _team_mode() -> bool:
 		var mode: Variant = game.get("mode")
@@ -763,7 +763,7 @@ class World:
 			return
 		p.set_meta(&"fc_bot_heard", true)
 		var body := p as FcPlayer
-		body.used.connect(func(outcome: DotWeaponOutcome) -> void:
+		body.used.connect(func(outcome: GSWeaponOutcome) -> void:
 			if outcome == null or not outcome.used:
 				return
 			var loud := 1.0 if not outcome.shots.is_empty() or not outcome.spawns.is_empty() else 0.3
@@ -771,7 +771,7 @@ class World:
 		)
 
 	func _on_hit(attacker: int, victim: int, _amount: float, _point: Vector3, _headshot: bool, _lethal: bool) -> void:
-		var brain: DotBotBrain = brains.get(victim)
+		var brain: GSBotBrain = brains.get(victim)
 		if brain == null:
 			return
 		if not brains.has(attacker):

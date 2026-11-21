@@ -22,15 +22,15 @@ const OUT_DIR := "res://screenshots"
 const SETTLE := 3
 
 class _StoreFake extends RefCounted:
-	func get_integration(_path: String, _query: Dictionary = {}) -> DotResult:
-		return DotResult.success({"items": [{"key": "a", "name": "Gold skin", "kind": "AVATAR"}, {"key": "b", "name": "Launcher pack", "kind": "ITEM"}]})
+	func get_integration(_path: String, _query: Dictionary = {}) -> GSResult:
+		return GSResult.success({"items": [{"key": "a", "name": "Gold skin", "kind": "AVATAR"}, {"key": "b", "name": "Launcher pack", "kind": "ITEM"}]})
 
 
-var _menu: DotMenu = null
+var _menu: GSMenu = null
 var _board: FcMenus.Board = null
 var _browser: FcBrowser = null
 var _hud: FcHud = null
-var _chat: DotChatWindow = null
+var _chat: GSChatWindow = null
 var _presentation: FcPresentation = null
 var _shots: Array[Dictionary] = []
 var _at := 0
@@ -39,7 +39,7 @@ var _done := false
 
 
 func _initialize() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	# A scratch settings document, never this machine's real one (see
 	# `FcPresentation.use_scratch_settings`): a render must not save into a player's file,
 	# and must draw from the defaults rather than whatever the last run left there.
@@ -65,7 +65,7 @@ func _initialize() -> void:
 		# health and armour, and at the default inset it draws its log through both.
 		{"id": &"", "file": "hud_chat.png"},
 		# The console, open over the HUD: the real `FcPresentation`, so the panel is the
-		# one `DotConsoleKit` builds, registered with the menu as the client registers it.
+		# one `GSConsoleKit` builds, registered with the menu as the client registers it.
 		{"id": &"console", "file": "hud_console.png"},
 	]
 
@@ -78,7 +78,7 @@ func _build() -> void:
 	_presentation = FcPresentation.new()
 	_presentation.name = "Presentation"
 	root.add_child(_presentation)
-	DotLog.result("screenshot", "the presentation", _presentation.setup())
+	GSLog.result("screenshot", "the presentation", _presentation.setup())
 
 	# The menu the client builds (dot-menu's, through FcMenus), over this game's own
 	# settings document and key table, with a browser holding two servers as a list
@@ -97,8 +97,8 @@ func _build() -> void:
 	for f in fixtures:
 		var added := _browser.add(str(f[0]))
 		if added.ok:
-			var entry := added.value as DotBrowserEntry
-			entry.status = DotBrowserEntry.Status.ONLINE
+			var entry := added.value as GSBrowserEntry
+			entry.status = GSBrowserEntry.Status.ONLINE
 			entry.name = str(f[1])
 			entry.map = str(f[2])
 			entry.players = int(f[3])
@@ -106,12 +106,12 @@ func _build() -> void:
 			entry.ping_ms = int(f[5])
 	_menu = FcMenus.build(root, _presentation, _browser)
 	# The site-store page the client adds through dot-game, over a canned entitlements read.
-	DotGameStorePanel.add_to_menu(_menu, func() -> String: return "p1", func() -> Object: return _StoreFake.new())
+	GSGameStorePanel.add_to_menu(_menu, func() -> String: return "p1", func() -> Object: return _StoreFake.new())
 
 	# A scoreboard with names of the length a real one has, and a row that is the local
 	# player, because a highlight that reads at "bo" and not at a real handle is the kind
 	# of thing only a picture shows.
-	var records := DotScoreboard.new()
+	var records := GSScoreboard.new()
 	var names := ["gamemann", "a_very_long_display_name", "bo", "quiet_one", "newcomer"]
 	for i in names.size():
 		var key := "p%d" % (i + 1)
@@ -129,14 +129,14 @@ func _build() -> void:
 func _build_hud() -> void:
 	_hud = FcHud.new()
 	_hud.name = "Hud"
-	# Assigned rather than left to `DotHud._ready` to fill in: nothing added during
+	# Assigned rather than left to `GSHud._ready` to fill in: nothing added during
 	# `SceneTree._initialize` is inside the tree yet, so no `_ready` has run and
 	# `FcHud.build` would read `config.feed_lines` off a null.
-	_hud.config = DotUiConfig.new()
+	_hud.config = GSUiConfig.new()
 	root.add_child(_hud)
 	_hud.build(null)
 
-	_chat = DotChatWindow.new()
+	_chat = GSChatWindow.new()
 	_chat.name = "Chat"
 	_chat.register_actions = false
 	# Nothing expires in a screenshot: under software rendering a frame takes the better
@@ -161,8 +161,8 @@ func _build_hud() -> void:
 	_chat.open(&"team")
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 var _seq_active := false
 
 

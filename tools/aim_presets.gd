@@ -23,7 +23,7 @@ func _init() -> void:
 			print(sub)
 		quit(0)
 		return
-	var store := DotBotDemoStoreJson.new(args[0])
+	var store := GSBotDemoStoreJson.new(args[0])
 	var stats_script: GDScript = load("res://game/fc_demo_stats.gd")
 	var lines: PackedStringArray = await stats_script.call("preset_lines", store, args[1], args[2], int(args[3]) if args.size() > 3 else 0)
 	for line in lines:

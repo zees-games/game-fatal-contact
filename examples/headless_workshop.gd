@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcMode := preload("../game/fc_mode.gd")
 const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
@@ -9,7 +9,7 @@ const FcModes := preload("../game/fc_modes.gd")
 const FcVoteSource := preload("../game/fc_vote_source.gd")
 
 ## What a subscribed map pack does to this game's lists, against a fixture
-## [DotContentIndex] and never the process's shared one.
+## [GSContentIndex] and never the process's shared one.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_workshop.tscn
@@ -38,7 +38,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -83,8 +83,8 @@ func _write(file: String, text: String) -> void:
 
 ## A pack with an arena map, a surf-run map the game does not accept, and a map that claims
 ## the id of a built-in, then three documents that are not maps.
-func _index(session: StringName) -> DotContentIndex:
-	var index := DotContentIndex.new()
+func _index(session: StringName) -> GSContentIndex:
+	var index := GSContentIndex.new()
 	index.set_session(session)
 	var added := index.add_pack({
 		"content_id": "fixture/hills", "version": "1.0.0", "prefix": DIR,
@@ -112,7 +112,7 @@ func _names(rows: Array) -> PackedStringArray:
 	return out
 
 
-func _ballot_labels(catalogue: DotMapCatalogue) -> PackedStringArray:
+func _ballot_labels(catalogue: GSMapCatalogue) -> PackedStringArray:
 	var out := PackedStringArray()
 	# A game with a mode, because a ballot offers a map only for a mode that can be played on it.
 	var game := FcGame.new()
@@ -141,7 +141,7 @@ func _test_solo() -> void:
 	_entered += 1
 	print("")
 	print("solo")
-	var catalogue := FcMaps.catalogue(_index(DotContentIndex.SESSION_SOLO))
+	var catalogue := FcMaps.catalogue(_index(GSContentIndex.SESSION_SOLO))
 	var def := catalogue.get_map(MAP)
 	_check(def != null, "the accepted map is in the catalogue")
 	_check(def != null and def.label() == "Fixture Hill [Fixture Pack]", "its label names the pack")
@@ -161,17 +161,17 @@ func _test_online() -> void:
 	_entered += 1
 	print("")
 	print("online")
-	var index := _index(DotContentIndex.SESSION_SOLO)
+	var index := _index(GSContentIndex.SESSION_SOLO)
 	var catalogue := FcMaps.catalogue(index)
 	_check(catalogue.get_map(MAP) != null, "listed while the index is solo")
-	index.set_session(DotContentIndex.SESSION_ONLINE)
+	index.set_session(GSContentIndex.SESSION_ONLINE)
 	_check(catalogue.get_map(MAP) == null, "gone from the same catalogue when the session turns online")
 	_check(not _names(FcMaps.menu_rows(catalogue, &"dm_box", null, FcModes.all())).has("Fixture Hill [Fixture Pack]"),
 		"gone from the map menu")
 	_check(not _ballot_labels(catalogue).has("Fixture Hill [Fixture Pack]"), "gone from the ballot")
 	# Built while the index is already online, from a pack that was only ever mounted solo.
-	var late := _index(DotContentIndex.SESSION_SOLO)
-	late.set_session(DotContentIndex.SESSION_ONLINE)
+	var late := _index(GSContentIndex.SESSION_SOLO)
+	late.set_session(GSContentIndex.SESSION_ONLINE)
 	_check(FcMaps.catalogue(late).get_map(MAP) == null, "a catalogue built online never lists it")
 	_completed += 1
 
@@ -180,7 +180,7 @@ func _test_ids() -> void:
 	_entered += 1
 	print("")
 	print("the game's own ids")
-	var catalogue := FcMaps.catalogue(_index(DotContentIndex.SESSION_SOLO))
+	var catalogue := FcMaps.catalogue(_index(GSContentIndex.SESSION_SOLO))
 	var box := catalogue.get_map(&"dm_box")
 	_check(box != null and box.pack_title == "" and box.name_or_id() != "Not The Box",
 		"a pack map claiming dm_box does not replace the built-in")
@@ -191,7 +191,7 @@ func _test_play() -> void:
 	_entered += 1
 	print("")
 	print("playing a pack map in solo")
-	var catalogue := FcMaps.catalogue(_index(DotContentIndex.SESSION_SOLO))
+	var catalogue := FcMaps.catalogue(_index(GSContentIndex.SESSION_SOLO))
 	var def := catalogue.get_map(MAP)
 	var built := FcMaps.build_workshop(def)
 	_check(built.ok, "the document builds a map", str(built.error) if not built.ok else "")
@@ -229,7 +229,7 @@ func _test_bad() -> void:
 	_entered += 1
 	print("")
 	print("a bad document")
-	var catalogue := FcMaps.catalogue(_index(DotContentIndex.SESSION_SOLO))
+	var catalogue := FcMaps.catalogue(_index(GSContentIndex.SESSION_SOLO))
 	for id: StringName in [BAD_DOC, BAD_ID, NO_SPAWN]:
 		_check(catalogue.get_map(id) == null, "%s is refused and not in the catalogue" % id)
 	var names := _names(FcMaps.menu_rows(catalogue, &"dm_box", null, FcModes.all()))
@@ -237,10 +237,10 @@ func _test_bad() -> void:
 		_check(not names.has(label), "%s is not on the map menu" % label)
 	_check(names.has("Fixture Hill [Fixture Pack]"), "while the good map beside them is")
 	# The catalogue re-adds its followed rows on a session turn, so the menu checks again.
-	var index := _index(DotContentIndex.SESSION_SOLO)
+	var index := _index(GSContentIndex.SESSION_SOLO)
 	var live := FcMaps.catalogue(index)
-	index.set_session(DotContentIndex.SESSION_ONLINE)
-	index.set_session(DotContentIndex.SESSION_SOLO)
+	index.set_session(GSContentIndex.SESSION_ONLINE)
+	index.set_session(GSContentIndex.SESSION_SOLO)
 	var bad_def := live.get_map(BAD_DOC)
 	_check(bad_def == null or not FcMaps.supports_mode(bad_def, FcModes.by_id(&"ffa")),
 		"and stays refused after the catalogue refreshes")
@@ -275,7 +275,7 @@ func _test_imported() -> void:
 	_entered += 1
 	print("")
 	print("an imported map pack (dash document id, underscore entry id)")
-	var catalogue := FcMaps.catalogue(_index(DotContentIndex.SESSION_SOLO))
+	var catalogue := FcMaps.catalogue(_index(GSContentIndex.SESSION_SOLO))
 	var def := catalogue.get_map(IMPORTED_ENTRY)
 	_check(def != null, "the entry is in the catalogue though its id differs from the document's")
 	_check(catalogue.get_map(IMPORTED_OTHER) == null, "one whose document names another map is refused")

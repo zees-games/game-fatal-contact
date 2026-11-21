@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcPlayer := preload("../game/fc_player.gd")
@@ -34,7 +34,7 @@ var _results: Dictionary = {}
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -58,7 +58,7 @@ func _play(map_id: StringName, preset: String, launch: bool, seeds: Vector2i = S
 	if launch:
 		_section("%s on %s (seeds %d/%d)" % [preset, map_id, seeds.x, seeds.y])
 	var game := _make_game(map_id, preset, seeds)
-	var settings := DotBotSettings.of(game)
+	var settings := GSBotSettings.of(game)
 	var _d := settings.set_difficulty(preset)
 	var _a := game.add_player(BOT, "Wren")
 	var _b := game.add_player(OTHER, "Other")
@@ -88,22 +88,22 @@ func _play(map_id: StringName, preset: String, launch: bool, seeds: Vector2i = S
 		var commands := {}
 		for id in [BOT, OTHER]:
 			commands[id] = FcBots.think(game, game.player_for(id), minds[id], tick, float(TICK_RATE))
-		var move: DotFpsCommand = commands[BOT][0]
-		if game.player_for(BOT).is_alive() and move.is_pressed(DotFpsCommand.BUTTON_CROUCH):
+		var move: GSFpsCommand = commands[BOT][0]
+		if game.player_for(BOT).is_alive() and move.is_pressed(GSFpsCommand.BUTTON_CROUCH):
 			ducks += 1
 		game.tick(commands)
 		var bot_player: Object = game.player_for(BOT)
 		var flags: int = bot_player.move_flags()
-		if flags & DotFpsState.Move.CROUCH: seen_crouch += 1
-		if flags & DotFpsState.Move.SLIDE: seen_slide += 1
+		if flags & GSFpsState.Move.CROUCH: seen_crouch += 1
+		if flags & GSFpsState.Move.SLIDE: seen_slide += 1
 		if i % 8 == 0:
 			# What a remote client rebuilds from net_flags must read the same crouch and slide.
-			var remote := DotFpsState.new()
-			DotFpsNetSync.unpack_flags(remote, DotFpsNetSync.pack_flags(bot_player.controller.state))
+			var remote := GSFpsState.new()
+			GSFpsNetSync.unpack_flags(remote, GSFpsNetSync.pack_flags(bot_player.controller.state))
 			remote.crouch_fraction = bot_player.controller.state.crouch_fraction
-			var mask: int = DotFpsState.Move.SLIDE | DotFpsState.Move.WALL_RUN
+			var mask: int = GSFpsState.Move.SLIDE | GSFpsState.Move.WALL_RUN
 			wire_ok = wire_ok and (remote.move_flags() & mask) == (flags & mask)
-			if (flags & DotFpsState.Move.SLIDE) != 0 and bot_player.controller.state.mode == DotFpsState.Mode.GROUND:
+			if (flags & GSFpsState.Move.SLIDE) != 0 and bot_player.controller.state.mode == GSFpsState.Mode.GROUND:
 				remote_slides += 1
 				drawn_ok = drawn_ok and bot_player._drawn_sliding(remote)
 		if i % 4 == 0:
@@ -111,7 +111,7 @@ func _play(map_id: StringName, preset: String, launch: bool, seeds: Vector2i = S
 
 	var motor: Variant = game.player_for(BOT).controller.motor
 	var counts: Dictionary = minds[BOT].brain.tricks.counts
-	var gate_tun: DotFpsTunables = game.player_for(BOT).controller.tunables
+	var gate_tun: GSFpsTunables = game.player_for(BOT).controller.tunables
 	var tricks: Object = minds[BOT].brain.tricks
 	var gates_ok: bool = is_equal_approx(tricks.slide_speed, gate_tun.slide_min_speed * 1.18) \
 			and is_equal_approx(tricks.wall_run_speed, gate_tun.wall_run_min_speed * 1.17) \
@@ -208,14 +208,14 @@ class StubGame:
 		respawned.append(id)
 
 
-## dot-bot's DotBotIntent.stranded puts the bot back at a spawn through the game's respawn.
+## dot-bot's GSBotIntent.stranded puts the bot back at a spawn through the game's respawn.
 func _test_unstrand() -> void:
 	_section("a stranded bot is respawned")
 	var game := StubGame.new()
 	var bot := FcPlayer.new()
 	bot.player_id = 7
 	var mind := FcBots.Mind.new()
-	var intent := DotBotIntent.new()
+	var intent := GSBotIntent.new()
 	_check(not FcBots.unstrand(game, bot, mind, intent) and game.respawned.is_empty(), "an intent that is not stranded respawns nobody")
 	intent.stranded = true
 	_check(FcBots.unstrand(game, bot, mind, intent), "a stranded intent respawns")

@@ -1,7 +1,7 @@
 extends SceneTree
 
-## Frame sequence after the still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after the still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 ## Renders the loadout screen over three saved loadouts, saved through Fatal Contact's own store.
 ##
@@ -18,7 +18,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	DotPaths.remove_tree(DIR)
+	GSPaths.remove_tree(DIR)
 	var game := FcGame.new()
 	root.add_child(game)
 	game._build_loadouts()
@@ -27,12 +27,12 @@ func _run() -> void:
 	for pick: Array in picks:
 		var l := game.loadouts.schema.default_loadout()
 		l.set_item(&"primary", pick[1])
-		var saved: DotResult = await game.loadouts.save_as(KEY, l, pick[0])
+		var saved: GSResult = await game.loadouts.save_as(KEY, l, pick[0])
 		if not saved.ok:
 			print("save failed: ", saved.error)
-	var _s: DotResult = await game.loadouts.select(KEY, 1)
+	var _s: GSResult = await game.loadouts.select(KEY, 1)
 
-	var menu := DotMenu.new()
+	var menu := GSMenu.new()
 	menu.manage_pointer = false
 	root.add_child(menu)
 	var res := menu.setup()
@@ -49,5 +49,5 @@ func _run() -> void:
 	root.get_texture().get_image().save_png("screenshots/loadout_saved.png")
 	await _seq.record(self, "screenshots/loadout_saved.png")
 	print("saved: ", game.loadouts.saved_list(KEY).size())
-	DotPaths.remove_tree(DIR)
+	GSPaths.remove_tree(DIR)
 	quit(0)

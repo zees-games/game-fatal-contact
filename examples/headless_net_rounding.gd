@@ -42,7 +42,7 @@ func _f32(v: float) -> float:
 	return PackedFloat32Array([v])[0]
 
 
-func _load_state(state: DotFpsState) -> void:
+func _load_state(state: GSFpsState) -> void:
 	state.position = _awkward()
 	state.velocity = Vector3(4.4 + 1e-9, 0.0, -5.5 - 1e-9)
 	state.stamina = 77.7 + 1e-9

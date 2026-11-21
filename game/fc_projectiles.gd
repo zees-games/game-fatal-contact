@@ -5,13 +5,13 @@ const FcRocketJump := preload("fc_rocket_jump.gd")
 ## Rockets and grenades in flight, and what happens where they land.
 ##
 ## [b]This is new, and the reason it is new is a bug.[/b] The rocket launcher used to be
-## a `DotWeapon` with `delivery = PROJECTILE`, and dot-combat resolved one by recording
+## a `GSWeapon` with `delivery = PROJECTILE`, and dot-combat resolved one by recording
 ## an impact at `origin + direction * max_range` and applying the splash there. Max
 ## range was 220 metres, so every rocket in this game has detonated 220 metres away in
 ## the sky, through walls, hitting nobody. Nothing errored, no check failed, and the
 ## weapon simply did nothing for its whole life.
 ##
-## dot-weapon returns a [DotWeaponSpawn] instead of pretending a rocket is a shot,
+## dot-weapon returns a [GSWeaponSpawn] instead of pretending a rocket is a shot,
 ## which is what forced this file into existence. A spawn is an entity with a lifetime;
 ## somebody has to fly it.
 ##
@@ -32,7 +32,7 @@ const FcRocketJump := preload("fc_rocket_jump.gd")
 
 ## One projectile, mid-air, rolling, or stuck to something.
 class Flying extends RefCounted:
-	var spawn: DotWeaponSpawn = null
+	var spawn: GSWeaponSpawn = null
 	var position: Vector3 = Vector3.ZERO
 	var velocity: Vector3 = Vector3.ZERO
 	var age_ticks: int = 0
@@ -54,7 +54,7 @@ class Flying extends RefCounted:
 	var pass_all: bool = false
 	## The fitted def that fired it, on the authority ([member FcProjectiles.def_of]); null elsewhere.
 	## What says a missile carries the Rocketjump warhead.
-	var def: DotWeaponDef = null
+	var def: GSWeaponDef = null
 
 
 ## How much speed a fused grenade keeps off a bounce, into the surface and along it, when there are no
@@ -87,14 +87,14 @@ const IMPACT_LIFT := 0.05
 
 
 var _live: Array[Flying] = []
-var _combat: DotCombatManager = null
+var _combat: GSCombatManager = null
 var _gravity: float = 20.0
 ## Seconds a tick lasts, as the last [method tick] was given it.
 var _tick_seconds: float = 1.0 / 66.0
 
 ## What the [code]sticks[/code] param is read from: a spawn carries the weapon's id and
 ## the definition carries the rule. Null leaves every fused spawn a bouncer.
-var catalogue: DotWeaponCatalogue = null
+var catalogue: GSWeaponCatalogue = null
 
 ## Where an entity's shots really start, or null: the game's answer, for
 ## [method _detonate]. See there for why a projectile layer has to ask.
@@ -107,7 +107,7 @@ var grenade_rules: AwGrenadeRules = null
 ## `sv_rocket_*` (`AwRocketRules`, level 27), or null: the Rocketjump's self-damage and launch.
 var rocket_rules: RefCounted = null
 
-## The fitted def an entity is firing, `func(spawn) -> DotWeaponDef`, or invalid: read once at launch on the
+## The fitted def an entity is firing, `func(spawn) -> GSWeaponDef`, or invalid: read once at launch on the
 ## authority, so a missile knows it carries the Rocketjump warhead.
 var def_of: Callable = Callable()
 
@@ -116,24 +116,24 @@ var def_of: Callable = Callable()
 var launch_owner: Callable = Callable()
 
 ## Emitted where a projectile went off, for an effect and a sound.
-signal detonated(at: Vector3, spawn: DotWeaponSpawn)
+signal detonated(at: Vector3, spawn: GSWeaponSpawn)
 
 ## Emitted when one is launched, for whoever tells clients about it.
-signal launched(spawn: DotWeaponSpawn)
+signal launched(spawn: GSWeaponSpawn)
 
 
-func setup(combat: DotCombatManager, gravity: float = 20.0) -> void:
+func setup(combat: GSCombatManager, gravity: float = 20.0) -> void:
 	_combat = combat
 	_gravity = gravity
 
 
 ## Takes everything a tick of weapon use produced.
-func accept(outcome: DotWeaponOutcome) -> void:
+func accept(outcome: GSWeaponOutcome) -> void:
 	for spawn in outcome.spawns:
 		launch(spawn)
 
 
-func launch(spawn: DotWeaponSpawn) -> void:
+func launch(spawn: GSWeaponSpawn) -> void:
 	var f := Flying.new()
 	f.spawn = spawn
 	f.position = spawn.origin
@@ -149,7 +149,7 @@ func launch(spawn: DotWeaponSpawn) -> void:
 
 
 ## Whether the rules say a shot passes through every team-mate in its line
-## ([code]DotDamageRules.pass_through_team_mates[/code], `mp_teammate_passthrough 2`). Then
+## ([code]GSDamageRules.pass_through_team_mates[/code], `mp_teammate_passthrough 2`). Then
 ## [method _passes_at_launch] already holds every team-mate's body, and the sweep keeps them
 ## out for the whole flight instead of dropping each once the projectile has left it, so a
 ## rocket goes on past a friend down the corridor as a bullet does. Its splash is not a
@@ -171,29 +171,29 @@ func _passes_every_team_mate() -> bool:
 ## place, and the launch point is then inside the friend's hitboxes. A ray that starts
 ## inside a hitbox hits it at 0 m: every rocket fired from there went off in the friend at
 ## the muzzle, with its splash back on the shooter, and a grenade bounced off them. dot-combat
-## leaves such a team-mate out of a gun's trace ([code]DotCombatManager.pass_through_sets[/code],
-## governed by [code]DotDamageRules.pass_through_team_mate_at_muzzle[/code] and
+## leaves such a team-mate out of a gun's trace ([code]GSCombatManager.pass_through_sets[/code],
+## governed by [code]GSDamageRules.pass_through_team_mate_at_muzzle[/code] and
 ## [code]pass_through_fn[/code]); the flight sweep below is a trace of its own and has to ask
 ## the same question. An enemy holding the launch point is not in the answer, so it is
 ## still hit at 0 m.
 ##
 ## Called by name because a delivered pack runs on the host's dot-combat, and one older
 ## than the method must still load this file; there it is the old behaviour.
-func _passes_at_launch(spawn: DotWeaponSpawn) -> Array:
+func _passes_at_launch(spawn: GSWeaponSpawn) -> Array:
 	if _combat == null or not _combat.has_method(&"pass_through_sets"):
 		return []
 
-	var shot := DotShot.make(spawn.id, spawn.owner_entity, spawn.tick, 0)
+	var shot := GSShot.make(spawn.id, spawn.owner_entity, spawn.tick, 0)
 	shot.origin = spawn.origin
 	return Array(_combat.call(&"pass_through_sets", shot))
 
 
-func _explodes(spawn: DotWeaponSpawn) -> bool:
+func _explodes(spawn: GSWeaponSpawn) -> bool:
 	var def := catalogue.get_def(spawn.id) if catalogue != null else null
 	return def != null and bool(def.params.get(&"explode_on_impact", false))
 
 
-func _sticks(spawn: DotWeaponSpawn) -> bool:
+func _sticks(spawn: GSWeaponSpawn) -> bool:
 	if spawn.meta.has(&"sticks"):
 		return bool(spawn.meta[&"sticks"])
 
@@ -281,7 +281,7 @@ func tick(delta: float) -> void:
 ## [b]A rocket into the floor hurt nobody.[/b] Splash needs a line of sight from the blast to each body, and a ray
 ## that starts exactly on the floor is blocked by that floor: a missile at somebody's feet did no splash at all,
 ## the shooter's included. Found by the first check that fired one at the floor and asked the health.
-func _off_surface(hit: DotHitbox.Hit) -> Vector3:
+func _off_surface(hit: GSHitbox.Hit) -> Vector3:
 	if hit.normal == Vector3.ZERO:
 		return hit.point
 	return hit.point + hit.normal.normalized() * IMPACT_LIFT
@@ -300,7 +300,7 @@ func _due(f: Flying) -> bool:
 
 
 ## A fused projectile met something: stick to it or bounce off it.
-func _touch(f: Flying, hit: DotHitbox.Hit) -> void:
+func _touch(f: Flying, hit: GSHitbox.Hit) -> void:
 	var normal := hit.normal
 
 	if normal.length_squared() < 0.0001:
@@ -348,7 +348,7 @@ static var _grenade_script: Script = null
 
 ## Whether the bounce comes from [member grenade_rules] through `AwGrenade`'s helpers (level 27).
 func _bounce_helpers() -> bool:
-	if grenade_rules == null or DotAddonApi.build_level("fc_weapons") < FcRocketJump.MIN_LEVEL:
+	if grenade_rules == null or GSAddonApi.build_level("fc_weapons") < FcRocketJump.MIN_LEVEL:
 		return false
 	if _grenade_script == null:
 		_grenade_script = load("res://addons/fc_weapons/aw_grenade.gd") as Script
@@ -368,7 +368,7 @@ func _follow(f: Flying) -> void:
 
 
 ## The node a hit belongs to, if it was a hitbox rather than the world.
-func _body_of(hit: DotHitbox.Hit) -> Node3D:
+func _body_of(hit: GSHitbox.Hit) -> Node3D:
 	if hit.blocked or hit.hitbox == null:
 		return null
 
@@ -382,7 +382,7 @@ func _body_of(hit: DotHitbox.Hit) -> Node3D:
 ## tick at 64 Hz, and a wall is thinner than that: testing only the end point lets a
 ## rocket pass through geometry roughly one time in three, which presents as the weapon
 ## being unreliable rather than as a bug in a trace.
-func _sweep(f: Flying, step: Vector3) -> DotHitbox.Hit:
+func _sweep(f: Flying, step: Vector3) -> GSHitbox.Hit:
 	if _combat == null or _combat.trace == null:
 		return null
 
@@ -420,11 +420,11 @@ func _sweep(f: Flying, step: Vector3) -> DotHitbox.Hit:
 	return hit if hit.ok() else null
 
 
-## Turns an arrival into an ordinary [DotShot] with a splash, and lets dot-combat do
+## Turns an arrival into an ordinary [GSShot] with a splash, and lets dot-combat do
 ## the rest — the same falloff, friendly fire and armour rules as every other hit.
 func _detonate(f: Flying, at: Vector3) -> void:
 	if _combat != null and _combat.is_authority:
-		var shot := DotShot.make(f.spawn.id, f.spawn.owner_entity, f.spawn.tick, 0)
+		var shot := GSShot.make(f.spawn.id, f.spawn.owner_entity, f.spawn.tick, 0)
 		shot.origin = at
 		shot.direction = f.velocity.normalized() if f.velocity != Vector3.ZERO else Vector3.DOWN
 		shot.damage = 0.0
@@ -434,7 +434,7 @@ func _detonate(f: Flying, at: Vector3) -> void:
 
 		# The Rocketjump's own blast hurts its shooter by `sv_rocket_jump_self_damage_scale` of the usual.
 		if rocketjump:
-			var base: DotDamageType = shot.splash_type if shot.splash_type != null else _combat.damage_type(&"")
+			var base: GSDamageType = shot.splash_type if shot.splash_type != null else _combat.damage_type(&"")
 			shot.splash_type = FcRocketJump.self_scaled_type(
 				base, FcRocketJump.self_damage_scale(f.def, rocket_rules)
 			)

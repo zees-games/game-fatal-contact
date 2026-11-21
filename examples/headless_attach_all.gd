@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 ## Every attachment on every gun it fits, through the attachments menu of a real offline client: each one is
 ## hovered (its live preview and stat bars), picked, drawn on the view model, aimed down and fired, then taken off;
 ## last, every mount of the gun is filled at once. The engine must report no error and the process must live
@@ -25,8 +25,8 @@ var _shot := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
-	if DotGameShardArgs.is_merge():
+	GSLog.set_level(GSLog.Level.ERROR)
+	if GSGameShardArgs.is_merge():
 		_merge.call_deferred()
 		return
 	var args := OS.get_cmdline_user_args()
@@ -47,10 +47,10 @@ func _ready() -> void:
 
 
 func _merge() -> void:
-	var logs := DotGameShardArgs.merge_logs()
-	var missing := DotGameShardArgs.missing(logs)
+	var logs := GSGameShardArgs.merge_logs()
+	var missing := GSGameShardArgs.missing(logs)
 	_check(logs.size() == SHARDS and missing.is_empty(), "every shard's log is there (%d logs)" % logs.size(), "missing %s" % [missing])
-	var entered := DotGameShardArgs.sections_entered(logs)
+	var entered := GSGameShardArgs.sections_entered(logs)
 	_check(entered == GUNS, "the shards entered one section per gun with attachments (%d of %d)" % [entered, GUNS])
 	_report_sections(1, 1, 1)
 
@@ -68,18 +68,18 @@ func _run() -> void:
 	var cat := FcAttach.catalogue()
 	var ids: Array = []
 	for id: StringName in AwWeaponCatalogue.table().keys():
-		var base: DotWeaponDef = me.arsenal.catalogue.get_def(id)
+		var base: GSWeaponDef = me.arsenal.catalogue.get_def(id)
 		if base != null and not cat.choices_for(base).is_empty():
 			ids.append(id)
 	ids.sort()
 	print("guns with attachments: %d %s" % [ids.size(), ids])
-	if DotGameShardArgs.shard() == "" and _only.is_empty():
+	if GSGameShardArgs.shard() == "" and _only.is_empty():
 		_check(ids.size() == GUNS, "%d guns take attachments (GUNS says %d)" % [ids.size(), GUNS])
 	var play: Array = []
 	for i in ids.size():
 		if not _only.is_empty() and not _only.has(String(ids[i])):
 			continue
-		if DotGameShardArgs.shard() == "" or DotGameShardArgs.shard() == "w%d" % (i % SHARDS):
+		if GSGameShardArgs.shard() == "" or GSGameShardArgs.shard() == "w%d" % (i % SHARDS):
 			play.append(ids[i])
 	_sections = play.size()
 	for id: StringName in play:
@@ -104,7 +104,7 @@ func _gun(me: Node, id: StringName) -> void:
 		_finished += 1
 		return
 	var panel: Node = _client.get("attach_panel")
-	var base: DotWeaponDef = me.arsenal.catalogue.get_def(id)
+	var base: GSWeaponDef = me.arsenal.catalogue.get_def(id)
 	var choices: Dictionary = FcAttach.catalogue().choices_for(base)
 	var before := _errors.seen().size()
 	for mount: StringName in choices:

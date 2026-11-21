@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcPlayerStack := preload("../game/fc_player_stack.gd")
@@ -33,7 +33,7 @@ var _game: FcGame = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run()
 
 
@@ -196,7 +196,7 @@ func _test_sides() -> void:
 	)
 	_check(not teams.are_enemies("1", "1"), "and nobody is their own enemy")
 	_check(
-		teams.teams.has_team(DotTeamSet.SPECTATOR),
+		teams.teams.has_team(GSTeamSet.SPECTATOR),
 		"a spectator side exists, which dot-match has no notion of at all"
 	)
 
@@ -204,7 +204,7 @@ func _test_sides() -> void:
 	_check(spectate != null, "and the spectate bridge is up")
 	_check(spectate.team_index(&"blue") == 1, "with the named sides mapped to numbers")
 	_check(
-		spectate.team_index(DotTeamSet.SPECTATOR) == 0,
+		spectate.team_index(GSTeamSet.SPECTATOR) == 0,
 		"and the spectator side to zero, which is what dot-spectate means by no team"
 	)
 	_check(not spectate.is_spectating("1"), "and nobody is watching while alive")
@@ -250,7 +250,7 @@ func _test_life_and_death() -> void:
 	var attacker := _enemy_of(1)
 	_check(attacker > 0, "with somebody on the other side to do it")
 
-	var damage := DotDamage.make(attacker, 1, 1000.0, DotDamageType.make(&"generic"))
+	var damage := GSDamage.make(attacker, 1, 1000.0, GSDamageType.make(&"generic"))
 	damage.tick = _game.current_tick()
 	var _applied := _game.combat.apply_damage(damage)
 	_game.tick({})
@@ -306,11 +306,11 @@ func _test_classes_and_spawns() -> void:
 	var choice := _stack().choose_spawn(1)
 	_check(choice.ok, "and the richer selector can be asked for a place")
 	_check(
-		(choice.value as DotSpawnChoice).site != null,
+		(choice.value as GSSpawnChoice).site != null,
 		"and answers with a site"
 	)
 	_check(
-		not (choice.value as DotSpawnChoice).fell_back,
+		not (choice.value as GSSpawnChoice).fell_back,
 		"without having to compromise, which would mean the map's conditions and the "
 		+ "mode's rules disagree"
 	)
@@ -332,14 +332,14 @@ func _test_classes_and_spawns() -> void:
 				friend = p
 
 	var points: Array = spawns.sites()
-	var camped: Vector3 = (points[0] as DotSpawnSite).position
+	var camped: Vector3 = (points[0] as GSSpawnSite).position
 	enemy.controller.state.position = camped
 	var furthest := 0.0
 
-	for site: DotSpawnSite in points:
+	for site: GSSpawnSite in points:
 		furthest = maxf(furthest, site.position.distance_to(camped))
 
-	var picked := (stack.choose_spawn(1).value as DotSpawnChoice).site.position
+	var picked := (stack.choose_spawn(1).value as GSSpawnChoice).site.position
 	var floor_m := minf(float(stack.spawn_settings["min_enemy"]), furthest)
 	_check(picked.distance_to(camped) >= floor_m - 0.01, "an enemy on a spawn point pushes the spawn away from them (%.1f m, floor %.1f)" % [picked.distance_to(camped), floor_m])
 	var listed: Array = stack._enemy_positions(mine, "1")
@@ -354,7 +354,7 @@ func _test_classes_and_spawns() -> void:
 	_check(listed.has(camped), "and the other side does")
 	stack.spawn_settings["mode"] = "random"
 	stack.refresh_spawn_rules()
-	_check(stack.spawns.rules.mode == DotSpawnRules.Mode.RANDOM, "and a server can put it back to random")
+	_check(stack.spawns.rules.mode == GSSpawnRules.Mode.RANDOM, "and a server can put it back to random")
 	stack.spawn_settings["mode"] = "scatter"
 	stack.refresh_spawn_rules()
 	# Players stand on most points here; occupancy vetoes and enemy damping would funnel every pick to the free ones.
@@ -362,15 +362,15 @@ func _test_classes_and_spawns() -> void:
 	_test_classes_rest(classes, spawns, stack)
 
 
-func _test_classes_rest(classes: DotPlayerClassManager, spawns: DotSpawnDirector, stack: FcPlayerStack) -> void:
+func _test_classes_rest(classes: GSPlayerClassManager, spawns: GSSpawnDirector, stack: FcPlayerStack) -> void:
 	for cond in stack.spawns.conditions:
 		cond.enabled = false
 	var counts := {}
 	for i in 150:
 		# The draw is seeded by the tick, so a live game varies it and a test must too.
-		var c := stack.spawns.choose(DotSpawnRequest.make("1", stack.teams.team_of("1"), stack.classes.class_of("1"), 1000 + i))
-		if c.ok and (c.value as DotSpawnChoice).site != null:
-			var sid := String((c.value as DotSpawnChoice).site.id)
+		var c := stack.spawns.choose(GSSpawnRequest.make("1", stack.teams.team_of("1"), stack.classes.class_of("1"), 1000 + i))
+		if c.ok and (c.value as GSSpawnChoice).site != null:
+			var sid := String((c.value as GSSpawnChoice).site.id)
 			counts[sid] = int(counts.get(sid, 0)) + 1
 	var top := 0
 	for sid: String in counts:
@@ -391,7 +391,7 @@ func _test_class_immunity() -> void:
 
 	var stack := _stack()
 	var cat := stack.classes.catalogue
-	var hardy := DotPlayerClassDef.make(&"hardy", 100.0, 1.0)
+	var hardy := GSPlayerClassDef.make(&"hardy", 100.0, 1.0)
 	hardy.immune_to = [&"fall"]
 	cat.classes.append(hardy)
 	var _rebuilt := cat.build()
@@ -404,26 +404,26 @@ func _test_class_immunity() -> void:
 
 	var _f := stack.classes.force(key, &"hardy")
 	stack.apply_class_numbers(player)
-	var imm := DotGameClassImmunity.ensure(_game.combat, false)
+	var imm := GSGameClassImmunity.ensure(_game.combat, false)
 	_check(imm.is_immune(id, &"fall"), "the class's immune_to reaches the resolver at spawn")
-	var hit := DotDamage.make(0, id, 10.0, fall)
+	var hit := GSDamage.make(0, id, 10.0, fall)
 	_check(_game.combat.resolver.resolve(hit).refused, "an immune class takes no fall damage")
 
 	_f = stack.classes.force(key, &"default")
 	stack.apply_class_numbers(player)
-	hit = DotDamage.make(0, id, 10.0, fall)
+	hit = GSDamage.make(0, id, 10.0, fall)
 	# The resolver is not asked here: a fresh spawn is also invulnerable, which refuses too.
 	_check(not imm.is_immune(id, &"fall"), "respawning as the plain class clears it")
 
 	var other = _game.players()[1]
-	hit = DotDamage.make(0, other.player_id, 10.0, fall)
+	hit = GSDamage.make(0, other.player_id, 10.0, fall)
 	_check(not _game.combat.resolver.resolve(hit).refused, "and a plain class is unchanged by another's immunity")
 
 	_f = stack.classes.force(key, &"hardy")
 	stack.apply_class_numbers(player)
-	hit = DotDamage.make(0, id, 10.0, fall)
+	hit = GSDamage.make(0, id, 10.0, fall)
 	_check(_game.combat.resolver.resolve(hit).refused, "and it comes back with the class")
-	hit = DotDamage.make(id, other.player_id, 10.0, _game.combat.damage_type(&"bullet"))
+	hit = GSDamage.make(id, other.player_id, 10.0, _game.combat.damage_type(&"bullet"))
 	_check(not _game.combat.resolver.resolve(hit).refused, "immunity is per kind: bullets still land")
 
 	_f = stack.classes.force(key, &"default")

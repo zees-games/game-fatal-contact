@@ -26,7 +26,7 @@ func _test_stamina_under_loss() -> void:
 	_section("sprint stamina and a wall run through loss")
 
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
+	var net: GSNetManager = a["net"]
 	var session := int(a["session"])
 	var server_a := _game.player_for(session)
 	var own: FcPlayer = (a["game"] as FcGame).player_for(session)
@@ -34,7 +34,7 @@ func _test_stamina_under_loss() -> void:
 		_done()
 		return
 
-	for t: DotFpsTunables in [server_a.controller.tunables, own.controller.tunables]:
+	for t: GSFpsTunables in [server_a.controller.tunables, own.controller.tunables]:
 		t.stamina_enabled = true
 		t.stamina_drain = 0.8
 		t.stamina_recover = 0.5
@@ -88,7 +88,7 @@ func _test_stamina_under_loss() -> void:
 	_wall_hold_sprint = false
 	_wall_idle = false
 	_wall_from = -1
-	for t: DotFpsTunables in [server_a.controller.tunables, own.controller.tunables]:
+	for t: GSFpsTunables in [server_a.controller.tunables, own.controller.tunables]:
 		t.stamina_enabled = false
 	var _dash_off := _server.console.set_cvar("fc_dash", "0")
 	var _auto_on := _server.console.set_cvar("fc_wall_run_auto", "1")
@@ -96,7 +96,7 @@ func _test_stamina_under_loss() -> void:
 
 
 ## The wall script with sprint held through the run, so stamina and the wall-run cooldown both move.
-func _stamina_wall_run(server_a: FcPlayer, session: int, net: DotNetManager) -> void:
+func _stamina_wall_run(server_a: FcPlayer, session: int, net: GSNetManager) -> void:
 	var replays := 0
 	var corrections := 0
 	var from := 0
@@ -142,7 +142,7 @@ func _test_teleport_under_loss() -> void:
 	_section("a server teleport of a moving player through loss")
 
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
+	var net: GSNetManager = a["net"]
 	var session := int(a["session"])
 	var server_a := _game.player_for(session)
 	var own: FcPlayer = (a["game"] as FcGame).player_for(session)
@@ -212,17 +212,17 @@ func _test_loading_cover() -> void:
 		return
 
 	var id := int(c["session"])
-	var roster: DotGameRoster = _module().loading
+	var roster: GSGameRoster = _module().loading
 	var victim: FcPlayer = _game.player_for(id)
 	_check(victim != null and roster != null and roster.is_loading(id) and not _game.can_be_harmed(id),
 		"the server holds C as loading from its spawn", str(roster.describe()) if roster != null else "no roster")
 
-	var type: DotDamageType = _game.combat.damage_type(FcContent.DAMAGE_WORLD)
+	var type: GSDamageType = _game.combat.damage_type(FcContent.DAMAGE_WORLD)
 	var before := victim.health.health if victim != null else 0.0
-	var world_hit := DotDamage.make(0, id, 10.0, type)
+	var world_hit := GSDamage.make(0, id, 10.0, type)
 	world_hit.tick = _game.current_tick()
 	var _dealt_world := _game.combat.apply_damage(world_hit)
-	var hit := DotDamage.make(_peer_session("A"), id, 10.0, type)
+	var hit := GSDamage.make(_peer_session("A"), id, 10.0, type)
 	hit.tick = _game.current_tick()
 	var _dealt_hit := _game.combat.apply_damage(hit)
 	_check(victim != null and victim.health.health == before and victim.is_alive(),
@@ -231,12 +231,12 @@ func _test_loading_cover() -> void:
 
 	# Spawn protection exempts world damage, so the world hit landing after the lift (and not
 	# before) is what shows the cover, not protection, was the veto.
-	DotGameClient.report_cover(c["link"], false)
+	GSGameClient.report_cover(c["link"], false)
 	var lifted := await _until(func() -> bool: return not roster.is_loading(id), RELIABLE_SECONDS)
 	_check(lifted and _game.can_be_harmed(id), "its cover report crosses the wire and ends the loading state")
 
 	var after_lift := victim.health.health if victim != null else 0.0
-	var late_hit := DotDamage.make(0, id, 10.0, type)
+	var late_hit := GSDamage.make(0, id, 10.0, type)
 	late_hit.tick = _game.current_tick()
 	var _dealt_late := _game.combat.apply_damage(late_hit)
 	_check(victim != null and victim.health.health < after_lift,
@@ -250,8 +250,8 @@ func _test_loading_cover() -> void:
 	_check(_game.can_be_harmed(id), "a game with no loading_fn (offline) harms everyone")
 	_game.loading_fn = roster.is_loading
 
-	(c["link"] as DotClientLink).disconnect_from_server("done")
-	(c["net"] as DotNetManager).stop()
+	(c["link"] as GSClientLink).disconnect_from_server("done")
+	(c["net"] as GSNetManager).stop()
 	var gone := await _until(func() -> bool: return _game.player_for(id) == null, RELIABLE_SECONDS)
 	_check(gone and not roster.is_loading(id), "C leaves and the roster forgets it")
 	_done()
@@ -267,8 +267,8 @@ func _test_leave() -> void:
 	var b: Dictionary = _clients["B"]
 	var b_session := int(b["session"])
 	var a_game: FcGame = _clients["A"]["game"]
-	(b["link"] as DotClientLink).disconnect_from_server("done")
-	var b_net: DotNetManager = b["net"]
+	(b["link"] as GSClientLink).disconnect_from_server("done")
+	var b_net: GSNetManager = b["net"]
 	b_net.stop()
 
 	# RELIABLE_SECONDS: the link is at 5% loss after the windows. Ten failed a CI

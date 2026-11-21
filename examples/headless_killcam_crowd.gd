@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcContent := preload("../game/fc_content.gd")
 const FcKillcamBodies := preload("../game/fc_killcam_bodies.gd")
@@ -33,7 +33,7 @@ var _posed: Array = []
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	# Last in the frame, after the client presented the bodies and the killcam posed them: what is drawn.
 	# (Checked earlier, the physics ticks have already moved the players the posed meshes hang under.)
 	process_priority = 1 << 29
@@ -65,7 +65,7 @@ func _process(_delta: float) -> void:
 	_times.append(now)
 	_row_start.append(_row_ids.size())
 	for p: Node in _game.players():
-		var controller: DotFpsController = p.get(&"controller")
+		var controller: GSFpsController = p.get(&"controller")
 		if controller != null and bool(p.call(&"is_alive")):
 			_row_ids.append(int(p.get(&"player_id")))
 			_row_pos.append(controller.state.position)
@@ -99,8 +99,8 @@ func _truth(id: int, t: float) -> Vector3:
 	return a.lerp(b, alpha)
 
 
-func _lethal(killer: Object, me: Object) -> DotDamage:
-	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, _game.combat.damage_type(FcContent.DAMAGE_BULLET))
+func _lethal(killer: Object, me: Object) -> GSDamage:
+	var damage := GSDamage.make(killer.player_id, me.player_id, 1000.0, _game.combat.damage_type(FcContent.DAMAGE_BULLET))
 	damage.weapon_id = &"smg"
 	damage.tick = _game.current_tick()
 	return damage
@@ -122,7 +122,7 @@ func _run() -> void:
 	_game.match_node.rules.time_limit_sec = 0.0
 	var live := await _until(func() -> bool:
 		var me: Object = _client.get("player")
-		return me != null and me.is_alive() and _game.match_node.state == DotMatch.State.LIVE, 120.0)
+		return me != null and me.is_alive() and _game.match_node.state == GSMatch.State.LIVE, 120.0)
 	if not _check(live, "the offline match goes live"):
 		_report(EXPECTED_CHECKS)
 		return
@@ -136,7 +136,7 @@ func _test_crowd(crowd: int) -> void:
 	_client.call("_keep_offline_bots", crowd)
 	var bots: Dictionary = _client.get("_bots")
 	_check(bots.size() == crowd, "%d bots play" % crowd, str(bots.size()))
-	var buffer: DotKillcamBuffer = _host.buffer
+	var buffer: GSKillcamBuffer = _host.buffer
 	_check(buffer.max_events >= _game.players().size() * 4,
 		"the killcam keeps kill events for every player, not dot-replay's 64", "%d for %d players" % [buffer.max_events, _game.players().size()])
 	# Long enough for the new bots to spread out and run.
@@ -233,7 +233,7 @@ func _compare_posed(out: Array) -> void:
 
 
 ## Every row recorded since [param since] against the authoritative positions: [rows, off, worst, which].
-func _sweep(buffer: DotKillcamBuffer, since: float) -> Array:
+func _sweep(buffer: GSKillcamBuffer, since: float) -> Array:
 	var me: Object = _client.get("player")
 	var rows := 0
 	var off := 0

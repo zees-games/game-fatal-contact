@@ -100,7 +100,7 @@ func _next_scenario() -> void:
 	if route["kind"] == &"run":
 		# Four and a half metres from the edge at a run, rather than ten from a standstill,
 		# so the 1.9 s recorded are the run and not the run-up.
-		var forward := DotFpsMotor.forward_for(_driver.yaw)
+		var forward := GSFpsMotor.forward_for(_driver.yaw)
 		start = Vector3(start.x, start.y, start.z) + forward * 5.5
 
 	_player.controller.teleport(start, _driver.yaw, 0.0)
@@ -108,7 +108,7 @@ func _next_scenario() -> void:
 	_player.controller.tunables.wall_run_min_speed = 99.0 if _scenario == "jumprun" else FcPlayer.fc_tunables().wall_run_min_speed
 	_player.controller.tunables.wall_run_on_jump = _scenario == "jumprun" or FcPlayer.fc_tunables().wall_run_on_jump
 	if route["kind"] == &"run":
-		_player.controller.state.velocity = DotFpsMotor.forward_for(_driver.yaw) * 9.0
+		_player.controller.state.velocity = GSFpsMotor.forward_for(_driver.yaw) * 9.0
 	_settle = 0 if route["kind"] == &"run" else 24
 	_driven = -1
 	_kicked = false
@@ -121,7 +121,7 @@ func _physics_process(_delta: float) -> bool:
 	if _scenario == "":
 		return true
 
-	var command := DotFpsCommand.new()
+	var command := GSFpsCommand.new()
 	command.yaw = _driver.yaw
 
 	if _settle > 0:
@@ -135,13 +135,13 @@ func _physics_process(_delta: float) -> bool:
 		# `runjump`: a jump off the wall half a second into the run.
 		var state := _player.controller.state
 		if _scenario == "runjump" and not _kicked and state.is_wall_running() and state.wall_run_time >= 0.5:
-			command.buttons |= DotFpsCommand.BUTTON_JUMP
+			command.buttons |= GSFpsCommand.BUTTON_JUMP
 			_kicked = true
 
 	var air := _player.controller.state
-	if _scenario == "jumprun" and _driven >= 0 and air.mode == DotFpsState.Mode.AIR and not air.is_wall_running() and _tick % 2 == 0:
-		command.buttons |= DotFpsCommand.BUTTON_JUMP
-	var _outcome := _player.simulate_tick(_tick, 1.0 / float(TICK_RATE), command, DotWeaponCommand.new())
+	if _scenario == "jumprun" and _driven >= 0 and air.mode == GSFpsState.Mode.AIR and not air.is_wall_running() and _tick % 2 == 0:
+		command.buttons |= GSFpsCommand.BUTTON_JUMP
+	var _outcome := _player.simulate_tick(_tick, 1.0 / float(TICK_RATE), command, GSWeaponCommand.new())
 	_tick += 1
 	return false
 

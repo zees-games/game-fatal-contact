@@ -4,7 +4,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 
-## The spread crosshair through DotGameCombatFeel.drive in each posture, one frame each to look at:
+## The spread crosshair through GSGameCombatFeel.drive in each posture, one frame each to look at:
 ## screenshots/crosshair/<phase>.png, each with the cone it was drawn at in its name's log line.
 ## An argument names the weapon to hold (tools/render_crosshair.sh lmg). Run through tools/render_crosshair.sh (needs a display; --headless saves empty frames).
 
@@ -15,15 +15,15 @@ const FILES := ["still.png", "moving.png", "crouched.png", "crouched_firing.png"
 const TICK_RATE := 64
 
 var _player: FcPlayer = null
-var _cross: DotCrosshair = null
-var _feel: DotGameCombatFeel = null
+var _cross: GSCrosshair = null
+var _feel: GSGameCombatFeel = null
 var _tick := 1
 var _phase := 0
 var _frames := 0
 var _move := Vector2.ZERO
 var _buttons := 0
 var _attack := false
-var _clip := DotShotSeq.new()  # GS_SHOT_FRAMES: a clip of each posture, held while the scene keeps running
+var _clip := GSShotSeq.new()  # GS_SHOT_FRAMES: a clip of each posture, held while the scene keeps running
 var _after_clip := false
 
 
@@ -33,7 +33,7 @@ func _initialize() -> void:
 	var map: FcMap = FcMap.dm_box()
 	root.add_child(map.to_scene())
 	root.add_child(FcMapLighting.build(map))
-	_feel = DotGameCombatFeel.new(true, false)
+	_feel = GSGameCombatFeel.new(true, false)
 	_player = FcPlayer.new()
 	_player.setup(FcPlayer.Mode.HEADLESS, map, 7, "You")
 	root.add_child(_player)
@@ -49,19 +49,19 @@ func _initialize() -> void:
 	_feel.attach(_player.arsenal)
 	var layer := CanvasLayer.new()
 	root.add_child(layer)
-	_cross = DotCrosshair.new()
+	_cross = GSCrosshair.new()
 	_cross.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_cross.base_gap = 6.0
 	layer.add_child(_cross)
 
 
 func _physics_process(_delta: float) -> bool:
-	var cmd := DotFpsCommand.new()
+	var cmd := GSFpsCommand.new()
 	cmd.move = _move
 	cmd.yaw = -90.0
 	cmd.buttons = _buttons
-	var fire := DotWeaponCommand.new()
-	fire.set_button(DotWeaponCommand.BUTTON_ATTACK, _attack)
+	var fire := GSWeaponCommand.new()
+	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, _attack)
 	var _out := _player.simulate_tick(_tick, 1.0 / float(TICK_RATE), cmd, fire)
 	_tick += 1
 	return false
@@ -94,8 +94,8 @@ func _next_phase() -> bool:
 		return true
 	var phase: String = NAMES[_phase]
 	_move = Vector2(0.0, 1.0) if phase in ["moving", "air"] else Vector2.ZERO
-	_buttons = DotFpsCommand.BUTTON_CROUCH if phase.begins_with("crouched") else 0
+	_buttons = GSFpsCommand.BUTTON_CROUCH if phase.begins_with("crouched") else 0
 	if phase == "air":
-		_buttons = DotFpsCommand.BUTTON_JUMP
+		_buttons = GSFpsCommand.BUTTON_JUMP
 	_attack = phase.ends_with("firing")
 	return false

@@ -37,7 +37,7 @@ func _run() -> void:
 			continue
 		var parts := String(combo).split(":")
 		var fov := int(parts[0])
-		var vm := int(parts[1]) if parts.size() > 1 else DotMenuStock.VIEWMODEL_FOV
+		var vm := int(parts[1]) if parts.size() > 1 else GSMenuStock.VIEWMODEL_FOV
 		var _r1 = settings.set_value(&"field_of_view", fov)
 		var _r2 = settings.set_value(&"viewmodel_fov", vm)
 		# The carry weight would refuse a heavy gun on top of the spawn loadout and leave the last one in hand.
@@ -67,8 +67,8 @@ func _weapons() -> Array:
 	return [&"sniper", &"rifle"]
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _wait(sec: float) -> void:

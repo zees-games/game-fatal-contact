@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -13,7 +13,7 @@ const ROUNDS := 12
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -157,10 +157,10 @@ func _protection() -> void:
 	var spawned := game.current_tick()
 	var rate := game.tick_rate
 	var first_hurt := -1
-	var type := DotDamageType.make(&"generic")
+	var type := GSDamageType.make(&"generic")
 	# Player 2 (the other side) shoots player 1 every tick; player 1 is hit back by 2 after both spawned.
 	for step in range(rate * 4):
-		var hit := DotDamage.make(2, 1, 0.01, type)
+		var hit := GSDamage.make(2, 1, 0.01, type)
 		hit.tick = game.current_tick()
 		var done := game.combat.apply_damage(hit)
 		if first_hurt < 0 and done.health_lost > 0.0:
@@ -171,38 +171,38 @@ func _protection() -> void:
 		and not game.player_stack.spawns.protection.is_protected("1", game.current_tick()), "and all three records have ended")
 	# The attacker's own protection does not stop it hurting somebody unprotected.
 	var _r2 := game.respawn_player(2)
-	var hit2 := DotDamage.make(2, 1, 1.0, type)
+	var hit2 := GSDamage.make(2, 1, 1.0, type)
 	hit2.tick = game.current_tick()
 	_check(game.combat.apply_damage(hit2).health_lost > 0.0, "a protected shooter still hurts an unprotected target")
-	var hit3 := DotDamage.make(1, 2, 1.0, type)
+	var hit3 := GSDamage.make(1, 2, 1.0, type)
 	hit3.tick = game.current_tick()
 	_check(game.combat.apply_damage(hit3).health_lost <= 0.0, "but the one just spawned is not hurt back")
 	# Breaks.
 	game.config.spawn_protection_break = 2
 	var _r3 := game.respawn_player(3)
 	_check(game.player_for(3).health.is_protected(game.current_tick()), "freshly spawned is protected")
-	var walk := DotFpsCommand.new()
+	var walk := GSFpsCommand.new()
 	walk.move = Vector2(0.0, 1.0)
-	game.tick({3: [walk, DotWeaponCommand.new()]})
+	game.tick({3: [walk, GSWeaponCommand.new()]})
 	_check(not game.player_for(3).health.is_protected(game.current_tick()) and not game.effects.has(FcEffects.PROTECTED, 3), "the first move ends it when the cvar says move")
 	game.config.spawn_protection_break = 0
 	var _r4 := game.respawn_player(3)
-	game.tick({3: [walk, DotWeaponCommand.new()]})
+	game.tick({3: [walk, GSWeaponCommand.new()]})
 	_check(game.player_for(3).health.is_protected(game.current_tick()), "and a move does not with the cvar at 0")
 	game.config.spawn_protection_break = 1
 	var _r5 := game.respawn_player(3)
-	game.tick({3: [walk, DotWeaponCommand.new()]})
+	game.tick({3: [walk, GSWeaponCommand.new()]})
 	_check(game.player_for(3).health.is_protected(game.current_tick()), "a move does not end it when the cvar says shot")
-	var fire := DotWeaponCommand.new()
-	fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
-	game.tick({3: [DotFpsCommand.new(), fire]})
+	var fire := GSWeaponCommand.new()
+	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
+	game.tick({3: [GSFpsCommand.new(), fire]})
 	_check(not game.player_for(3).health.is_protected(game.current_tick()), "the first shot ends it when the cvar says shot")
 	_check(not game.player_for(3).protected_view, "and the bubble goes with it")
 	_protection_distance(game, walk)
 
 
 ## Spawn protection by distance walked, the bubble cvar and a 0.5 s window; frees [param game].
-func _protection_distance(game: FcGame, walk: DotFpsCommand) -> void:
+func _protection_distance(game: FcGame, walk: GSFpsCommand) -> void:
 	var rate := game.tick_rate
 	# Distance: with the shot/move bits off, travel past spawn_protection_move_feet (2 ft = 0.61 m) ends it.
 	game.config.spawn_protection_break = 0
@@ -214,7 +214,7 @@ func _protection_distance(game: FcGame, walk: DotFpsCommand) -> void:
 	var start := game.player_for(3).global_position
 	var steps := 0
 	while game.player_for(3).health.is_protected(game.current_tick()) and steps < rate * 2:
-		game.tick({3: [walk, DotWeaponCommand.new()]})
+		game.tick({3: [walk, GSWeaponCommand.new()]})
 		steps += 1
 	var travelled := game.player_for(3).global_position.distance_to(start)
 	_check(steps < rate and travelled >= 0.55 and travelled < 1.6, "walking ends protection after about two feet", "ended after %d ticks at %.2f m" % [steps, travelled])
@@ -222,10 +222,10 @@ func _protection_distance(game: FcGame, walk: DotFpsCommand) -> void:
 	game.config.spawn_protection_move_feet = 0.0
 	var _r7 := game.respawn_player(3)
 	for _i in 40:
-		game.tick({3: [walk, DotWeaponCommand.new()]})
+		game.tick({3: [walk, GSWeaponCommand.new()]})
 	_check(game.player_for(3).health.is_protected(game.current_tick()), "feet 0 turns the distance check off")
 	game.config.spawn_protection_bubble = false
-	game.tick({3: [walk, DotWeaponCommand.new()]})
+	game.tick({3: [walk, GSWeaponCommand.new()]})
 	_check(not game.player_for(3).protected_view, "bubble cvar off hides the bubble")
 	game.config.spawn_protection_move_feet = 2.0
 	game.config.spawn_protection_bubble = true
@@ -244,26 +244,26 @@ func _protection_distance(game: FcGame, walk: DotFpsCommand) -> void:
 func _jump_gate() -> void:
 	var Gate := preload("../game/fc_jump_gate.gd")
 	var gate := Gate.new()
-	var held := DotFpsCommand.new()
-	held.set_button(DotFpsCommand.BUTTON_JUMP, true)
+	var held := GSFpsCommand.new()
+	held.set_button(GSFpsCommand.BUTTON_JUMP, true)
 	gate.filter(held, true)
-	var spawn_cmd := DotFpsCommand.new()
-	spawn_cmd.set_button(DotFpsCommand.BUTTON_JUMP, true)
+	var spawn_cmd := GSFpsCommand.new()
+	spawn_cmd.set_button(GSFpsCommand.BUTTON_JUMP, true)
 	gate.filter(spawn_cmd, false)
-	_check(not spawn_cmd.is_pressed(DotFpsCommand.BUTTON_JUMP), "space still held on the first spawned frame does not jump")
-	var again := DotFpsCommand.new()
-	again.set_button(DotFpsCommand.BUTTON_JUMP, true)
+	_check(not spawn_cmd.is_pressed(GSFpsCommand.BUTTON_JUMP), "space still held on the first spawned frame does not jump")
+	var again := GSFpsCommand.new()
+	again.set_button(GSFpsCommand.BUTTON_JUMP, true)
 	gate.filter(again, false)
-	_check(not again.is_pressed(DotFpsCommand.BUTTON_JUMP), "nor while it stays held")
-	var up := DotFpsCommand.new()
+	_check(not again.is_pressed(GSFpsCommand.BUTTON_JUMP), "nor while it stays held")
+	var up := GSFpsCommand.new()
 	gate.filter(up, false)
-	var next := DotFpsCommand.new()
-	next.set_button(DotFpsCommand.BUTTON_JUMP, true)
+	var next := GSFpsCommand.new()
+	next.set_button(GSFpsCommand.BUTTON_JUMP, true)
 	gate.filter(next, false)
-	_check(next.is_pressed(DotFpsCommand.BUTTON_JUMP), "after a release, jump works again")
+	_check(next.is_pressed(GSFpsCommand.BUTTON_JUMP), "after a release, jump works again")
 	var off := Gate.new()
-	var c := DotFpsCommand.new()
-	c.set_button(DotFpsCommand.BUTTON_JUMP, true)
+	var c := GSFpsCommand.new()
+	c.set_button(GSFpsCommand.BUTTON_JUMP, true)
 	off.filter(c, true, false)
 	off.filter(c, false, false)
-	_check(c.is_pressed(DotFpsCommand.BUTTON_JUMP), "with cl_respawn_jump_gate 0 nothing is swallowed")
+	_check(c.is_pressed(GSFpsCommand.BUTTON_JUMP), "with cl_respawn_jump_gate 0 nothing is swallowed")

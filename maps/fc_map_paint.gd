@@ -64,7 +64,7 @@ const SLAB_PALE := 0.3
 ## one colour drowns the rest.
 const WALL_PALE := 0.12
 
-## Photographic surfaces (ambientCG, CC0) by role, from dot-map's `DotMapSurfaces`, vendored into
+## Photographic surfaces (ambientCG, CC0) by role, from dot-map's `GSMapSurfaces`, vendored into
 ## `assets/surfaces` (client-only in `sides.json`). The zone colour still says where a thing is:
 ## it multiplies the photograph, paled toward white by `PHOTO_PALE` because the colours were
 ## chosen against a light grid and a photograph under a full pastel went muddy. A build without
@@ -208,7 +208,7 @@ class Painter:
 		if lib != null:
 			var pale := colour.lerp(Color.WHITE, pale_by) * gain
 			pale.a = 1.0
-			var res: DotResult = lib.try_material(kind, pale)
+			var res: GSResult = lib.try_material(kind, pale)
 			if res.ok:
 				made = res.value
 		if made == null:

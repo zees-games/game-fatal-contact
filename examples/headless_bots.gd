@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcContent := preload("../game/fc_content.gd")
 const FcBots := preload("../game/fc_bots.gd")
@@ -96,7 +96,7 @@ var _fastest := 0.0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -110,12 +110,12 @@ func _run() -> void:
 	# The K/D bands are per bot_difficulty: one shared preset, no persona's scale or spread on top.
 	FcBots.personas_mode = FcBots.PERSONAS_OFF
 
-	var shard := DotGameShardArgs.shard()
+	var shard := GSGameShardArgs.shard()
 
-	if DotGameShardArgs.is_merge():
+	if GSGameShardArgs.is_merge():
 		# The shards' presets, read back from their logs: the order between them is all that is left to hold.
 		_section("the shards' logs")
-		_load_results(DotGameShardArgs.merge_logs())
+		_load_results(GSGameShardArgs.merge_logs())
 		_done()
 		_test_order()
 		_report_sections(_entered, _completed, 2, ORDER_CHECKS + 1)
@@ -125,7 +125,7 @@ func _run() -> void:
 		_report_sections(_entered, _completed, 1, PRESET_CHECKS)
 		return
 
-	for preset in DotBotProfile.PRESETS:
+	for preset in GSBotProfile.PRESETS:
 		await _play(preset)
 
 	_test_order()
@@ -151,7 +151,7 @@ func _load_results(paths: PackedStringArray) -> void:
 					if row.get(key) == null:
 						row[key] = NAN
 				_results[str(parsed["preset"])] = row
-	_check(_results.size() == DotBotProfile.PRESETS.size(), "every preset's shard log is there", "%d of %d" % [_results.size(), DotBotProfile.PRESETS.size()])
+	_check(_results.size() == GSBotProfile.PRESETS.size(), "every preset's shard log is there", "%d of %d" % [_results.size(), GSBotProfile.PRESETS.size()])
 
 
 func _play(preset: String) -> void:
@@ -166,8 +166,8 @@ func _play(preset: String) -> void:
 	_fastest = 0.0
 	var per_seed := []
 	var game: FcGame
-	var settings: DotBotSettings
-	var trace: DotTrace
+	var settings: GSBotSettings
+	var trace: GSTrace
 	for seed_pair: Array in SEEDS:
 		if game != null:
 			remove_child(game)
@@ -176,15 +176,15 @@ func _play(preset: String) -> void:
 		var before := kills.duplicate()
 		game = _new_game(preset)
 
-		settings = DotBotSettings.of(game)
+		settings = GSBotSettings.of(game)
 		trace = game.combat.trace
 		_check(settings.set_difficulty(preset).ok, "bot_difficulty %s" % preset)
 
-		var reference := DotBotSettings.new()
+		var reference := GSBotSettings.new()
 		for field: String in REFERENCE_PROFILE:
 			var _set := reference.set_value(field, str(REFERENCE_PROFILE[field]))
 
-		game.player_killed.connect(func(entry: DotKillFeed.Entry) -> void:
+		game.player_killed.connect(func(entry: GSKillFeed.Entry) -> void:
 			if entry.killer_key == str(BOT) and entry.victim_key == str(REFERENCE):
 				kills[0] += 1
 			elif entry.killer_key == str(REFERENCE) and entry.victim_key == str(BOT):
@@ -200,11 +200,11 @@ func _play(preset: String) -> void:
 		var bot_mind := FcBots.Mind.new()
 		bot_mind.seed = int(seed_pair[0])
 		var ref_mind := FcBots.Mind.new()
-		ref_mind.brain = DotBotBrain.new(int(seed_pair[1]), reference)
+		ref_mind.brain = GSBotBrain.new(int(seed_pair[1]), reference)
 
 		# Grenades the bot let go of: a throw is not a shot (a frag lobbed at where a target went
 		# behind cover is meant to be blind), so it is counted here and not judged by sight.
-		game.player_for(BOT).used.connect(func(outcome: DotWeaponOutcome) -> void:
+		game.player_for(BOT).used.connect(func(outcome: GSWeaponOutcome) -> void:
 			if outcome != null and outcome.used and not outcome.spawns.is_empty() and game.player_for(BOT).arsenal.current_slot() == AwWeaponIds.thrown_slot():
 				thrown[0] += 1
 		)
@@ -254,7 +254,7 @@ func _new_game(preset: String) -> FcGame:
 	return game
 
 
-func _judge_preset(preset: String, kills: Array[int], thrown: Array[int], p: DotBotProfile, kd: float, reaction: float) -> void:
+func _judge_preset(preset: String, kills: Array[int], thrown: Array[int], p: GSBotProfile, kd: float, reaction: float) -> void:
 	var band: Array = KD_BANDS[preset]
 	_check(kills[0] + kills[1] >= 4, "%s: the two actually fight (%d deaths in %d s)" % [preset, kills[0] + kills[1], int(SECONDS)])
 	_check(kd >= float(band[0]) and kd <= float(band[1]), "%s: K/D %.2f inside %.2f..%.2f" % [preset, kd, band[0], band[1]])
@@ -269,7 +269,7 @@ func _judge_preset(preset: String, kills: Array[int], thrown: Array[int], p: Dot
 
 
 ## Plays one seed's match tick by tick, judging the bot from outside its brain.
-func _play_ticks(game: FcGame, trace: DotTrace, bot_mind: FcBots.Mind, ref_mind: FcBots.Mind) -> void:
+func _play_ticks(game: FcGame, trace: GSTrace, bot_mind: FcBots.Mind, ref_mind: FcBots.Mind) -> void:
 	var last_first_shot := NAN
 	var last_seen_tick := {}
 	var ticks := int(SECONDS * TICK_RATE)
@@ -285,8 +285,8 @@ func _play_ticks(game: FcGame, trace: DotTrace, bot_mind: FcBots.Mind, ref_mind:
 
 		# What the bot did this tick, judged from outside the brain.
 		var brain := bot_mind.brain
-		var fire: DotWeaponCommand = commands[BOT][1]
-		var move: DotFpsCommand = commands[BOT][0]
+		var fire: GSWeaponCommand = commands[BOT][1]
+		var move: GSFpsCommand = commands[BOT][0]
 		# Sight is sampled every tick, not only on shots: the brain's cached answer can be up to SIGHT_REUSE old when it fires.
 		if bot.is_alive() and ref.is_alive() and _sighted(trace, bot, ref):
 			last_seen_tick[REFERENCE] = tick
@@ -295,14 +295,14 @@ func _play_ticks(game: FcGame, trace: DotTrace, bot_mind: FcBots.Mind, ref_mind:
 			# spawn turns the view too, and that is the map's doing, not the bot's.
 			# The brain's own turn: the view it steers from and aims at both carry the recoil correction, which is not a turn of its choosing.
 			_fastest = maxf(_fastest, absf(wrapf((move.yaw + bot_mind.recoil_comp.x) - (bot.controller.state.yaw + comp_before.x), -180.0, 180.0)) * TICK_RATE)
-			if fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK) and bot_mind.throw_stage == 0:
+			if fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK) and bot_mind.throw_stage == 0:
 				_shots += 1
 				var target := game.player_for(brain.last.target_id) if brain.last.target_id >= 0 else null
 				# Sight as the brain judges it (its eye to the target's chest or head) or from the muzzle: a corner can block one and not the other.
 				var chest := target.global_position + Vector3.UP * FcBots.chest_height() if target != null else Vector3.ZERO
 				var seen := _sighted(trace, bot, target)
-				# The brain reuses a sight answer for DotBotBrain.SIGHT_REUSE, so a shot within it of the target leaving sight is still sighted.
-				var stale_ticks := int(ceil(DotBotBrain.SIGHT_REUSE * TICK_RATE)) + 1
+				# The brain reuses a sight answer for GSBotBrain.SIGHT_REUSE, so a shot within it of the target leaving sight is still sighted.
+				var stale_ticks := int(ceil(GSBotBrain.SIGHT_REUSE * TICK_RATE)) + 1
 				if not seen and (target == null or tick - int(last_seen_tick.get(brain.last.target_id, -1000)) > stale_ticks):
 					_blind_shots += 1
 
@@ -318,7 +318,7 @@ func _play_ticks(game: FcGame, trace: DotTrace, bot_mind: FcBots.Mind, ref_mind:
 			await get_tree().process_frame
 
 
-func _play_rest(preset: String, game: FcGame, trace: DotTrace, world: FcBots.World, a: Vector3, b: Vector3, route: PackedVector3Array, clear: bool) -> void:
+func _play_rest(preset: String, game: FcGame, trace: GSTrace, world: FcBots.World, a: Vector3, b: Vector3, route: PackedVector3Array, clear: bool) -> void:
 	var from := a
 	for corner in route:
 		clear = clear and trace.line_of_sight(from + Vector3.UP * 0.5, corner + Vector3.UP * 0.5)
@@ -352,7 +352,7 @@ func _test_order() -> void:
 	_check(_results["easy"]["reaction"] > _results["medium"]["reaction"] and _results["medium"]["reaction"] > _results["hard"]["reaction"],
 		"reaction quickens easy to medium to hard")
 	_check(_results["medium"]["kd"] < 1.8, "the default (medium) is not the bot that killed a person twelve times in ninety seconds")
-	_check(DotBotSettings.new().difficulty() == "medium", "and medium is the default")
+	_check(GSBotSettings.new().difficulty() == "medium", "and medium is the default")
 	_check_typed_write()
 	_done()
 
@@ -363,7 +363,7 @@ func _check_typed_write() -> void:
 	rng.seed = 0xb07
 	var same := 0
 	for i in 64:
-		var intent := DotBotIntent.new()
+		var intent := GSBotIntent.new()
 		intent.yaw = rng.randf_range(-400.0, 400.0)
 		intent.pitch = rng.randf_range(-95.0, 95.0)
 		intent.move = Vector2(rng.randf_range(-2.0, 2.0), rng.randf_range(-2.0, 2.0))
@@ -373,12 +373,12 @@ func _check_typed_write() -> void:
 		intent.air_jump = rng.randi() % 2 == 0
 		intent.use = rng.randi() % 2 == 0
 		intent.fire = rng.randi() % 2 == 0
-		var move_a := DotFpsCommand.new()
-		var fire_a := DotWeaponCommand.new()
+		var move_a := GSFpsCommand.new()
+		var fire_a := GSWeaponCommand.new()
 		intent.write_move(move_a, "BUTTON_USER_0")
 		intent.write_fire(fire_a)
-		var move_b := DotFpsCommand.new()
-		var fire_b := DotWeaponCommand.new()
+		var move_b := GSFpsCommand.new()
+		var fire_b := GSWeaponCommand.new()
 		FcBots._write(intent, move_b, fire_b)
 		if move_a.yaw == move_b.yaw and move_a.pitch == move_b.pitch and move_a.move == move_b.move and move_a.buttons == move_b.buttons \
 				and fire_a.yaw == fire_b.yaw and fire_a.pitch == fire_b.pitch and fire_a.buttons == fire_b.buttons and fire_a.slot == fire_b.slot:
@@ -386,7 +386,7 @@ func _check_typed_write() -> void:
 	_check(same == 64, "the bots' typed command writer matches dot-bot's write_move/write_fire", "%d of 64 the same" % same)
 
 
-func _sighted(trace: DotTrace, bot: Node3D, target: Node3D) -> bool:
+func _sighted(trace: GSTrace, bot: Node3D, target: Node3D) -> bool:
 	if target == null:
 		return false
 	# Sight as the brain judges it (its eye to the target's chest or head) or from the muzzle: a corner can block one and not the other.

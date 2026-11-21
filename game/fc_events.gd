@@ -76,7 +76,7 @@ enum Kind {
 	## After TOYS, for the reason VOTE gives.
 	JAIL,
 	## A simulated bullet left a muzzle (`sv_ballistics` on): its id, owner, weapon, origin and velocity.
-	## The client flies the same path with DotWeaponTrajectory to draw a tracer; no position follows.
+	## The client flies the same path with GSWeaponTrajectory to draw a tracer; no position follows.
 	BULLET,
 	## A bullet hit or expired on the server: its id. The client's copy ends there rather than at its own range.
 	BULLET_END,
@@ -218,7 +218,7 @@ static func write_hello(
 	return writer.to_bytes()
 
 
-static func read_hello(reader: DotNetReader) -> Dictionary:
+static func read_hello(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"tick_rate": reader.read_uint(8),
 		"session_id": reader.read_varint(),
@@ -241,7 +241,7 @@ static func write_leave(session_id: int) -> PackedByteArray:
 	return writer.to_bytes()
 
 
-static func read_leave(reader: DotNetReader) -> Dictionary:
+static func read_leave(reader: GSNetReader) -> Dictionary:
 	var out := {"session_id": reader.read_varint()}
 	out["ok"] = reader.ok()
 	return out
@@ -255,7 +255,7 @@ static func read_leave(reader: DotNetReader) -> Dictionary:
 ## where a player is — it simulated them — and a client that could name its own origin
 ## could grab a prop from across the map. The direction it cannot know, because a
 ## player's view between two ticks is theirs; so the direction is a claim, the origin
-## is a fact, and `DotPropTool.target` is handed one of each.
+## is a fact, and `GSPropTool.target` is handed one of each.
 ##
 ## The direction is quantised the same way an aim is everywhere else here: two angles
 ## rather than three components, because a unit vector sent as three floats is three
@@ -279,12 +279,12 @@ static func write_fov(degrees: float) -> PackedByteArray:
 
 
 ## The degrees a [constant Ask.FOV] body names, or 0 when it is short.
-static func read_fov(reader: DotNetReader) -> float:
+static func read_fov(reader: GSNetReader) -> float:
 	var degrees := reader.read_uint(8)
 	return float(degrees) if reader.ok() else 0.0
 
 
-static func read_prop_act(reader: DotNetReader) -> Dictionary:
+static func read_prop_act(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"act": reader.read_uint(PROP_ACT_BITS),
 		"yaw": reader.read_angle(12),
@@ -304,13 +304,13 @@ static func read_prop_act(reader: DotNetReader) -> Dictionary:
 ## [param critical] is last and optional on the wire, like MATCH's score limit: a reader
 ## that finds the message ends before it reads a kill that was not one.
 ##
-## [param death] (dot-player-char's [DotPlayerDeath]: the reaction the server picked, its
+## [param death] (dot-player-char's [GSPlayerDeath]: the reaction the server picked, its
 ## seed, the shot's direction and damage) comes after it and is optional the same way, so
 ## every client builds the same fall and an older client reads the kill without it. About
-## seven bytes, in dot-player-char's own form (`DotPlayerDeath.write_to`).
+## seven bytes, in dot-player-char's own form (`GSPlayerDeath.write_to`).
 static func write_kill(
 	killer_id: int, victim_id: int, weapon: String, headshot: bool, critical: bool = false,
-	death: DotPlayerDeath = null
+	death: GSPlayerDeath = null
 ) -> PackedByteArray:
 	var writer := _w()
 	writer.write_varint(killer_id)
@@ -323,7 +323,7 @@ static func write_kill(
 	return writer.to_bytes()
 
 
-static func read_kill(reader: DotNetReader) -> Dictionary:
+static func read_kill(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"killer_id": reader.read_varint(),
 		"victim_id": reader.read_varint(),
@@ -333,7 +333,7 @@ static func read_kill(reader: DotNetReader) -> Dictionary:
 	out["critical"] = reader.read_bool() if reader.bits_remaining() >= 1 else false
 	# A byte's worth or more left is the death; less is the padding to the last byte.
 	if reader.bits_remaining() >= 8:
-		var death := DotPlayerDeath.read_from(reader).to_dict()
+		var death := GSPlayerDeath.read_from(reader).to_dict()
 		# `headshot` is the kill's own field, read above; the death's copy is the same fact.
 		death.erase("headshot")
 		out.merge(death)
@@ -363,7 +363,7 @@ static func write_match(
 	return writer.to_bytes()
 
 
-static func read_match(reader: DotNetReader) -> Dictionary:
+static func read_match(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"state": reader.read_uint(4),
 		"remaining_ticks": reader.read_svarint(),
@@ -378,7 +378,7 @@ static func read_match(reader: DotNetReader) -> Dictionary:
 # --- SCORE -----------------------------------------------------------------
 
 ## A record's objective count (flag captures, hill holds): the sum of its mode counters, which on a client is the one SCORE carried.
-static func objectives_of(record: DotPlayerScore) -> int:
+static func objectives_of(record: GSPlayerScore) -> int:
 	var total := 0
 	for counter in record.extra:
 		total += int(record.extra[counter])
@@ -386,12 +386,12 @@ static func objectives_of(record: DotPlayerScore) -> int:
 
 
 ## [param board]'s records best first by objectives (captures), then kills, fewest deaths, then key, so every machine agrees.
-static func ranked_by_objectives(board: DotScoreboard) -> Array[DotPlayerScore]:
+static func ranked_by_objectives(board: GSScoreboard) -> Array[GSPlayerScore]:
 	var out := board.players()
 	var counts := {}
 	for record in out:
 		counts[record.key] = objectives_of(record)
-	out.sort_custom(func(a: DotPlayerScore, b: DotPlayerScore) -> bool:
+	out.sort_custom(func(a: GSPlayerScore, b: GSPlayerScore) -> bool:
 		if counts[a.key] != counts[b.key]:
 			return counts[a.key] > counts[b.key]
 		if a.kills != b.kills:
@@ -432,7 +432,7 @@ static func write_notice(text: String) -> PackedByteArray:
 	return writer.to_bytes()
 
 
-static func read_notice(reader: DotNetReader) -> Dictionary:
+static func read_notice(reader: GSNetReader) -> Dictionary:
 	var out := {"text": reader.read_string(TEXT_BYTES)}
 	out["ok"] = reader.ok()
 	return out
@@ -456,7 +456,7 @@ static func write_vote(cue: String, seconds_left: int, runoff: bool) -> PackedBy
 	return writer.to_bytes()
 
 
-static func read_vote(reader: DotNetReader) -> Dictionary:
+static func read_vote(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"cue": reader.read_string(CUE_BYTES),
 		"seconds_left": reader.read_uint(8),
@@ -474,7 +474,7 @@ static func write_name(display_name: String) -> PackedByteArray:
 	return writer.to_bytes()
 
 
-static func read_name(reader: DotNetReader) -> Dictionary:
+static func read_name(reader: GSNetReader) -> Dictionary:
 	var out := {"display_name": reader.read_string(NAME_BYTES)}
 	out["ok"] = reader.ok()
 	return out
@@ -496,7 +496,7 @@ static func write_npc(net_id: int, kind_id: StringName, at: Vector3) -> PackedBy
 	return writer.to_bytes()
 
 
-static func read_npc(reader: DotNetReader) -> Dictionary:
+static func read_npc(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"net_id": reader.read_varint(),
 		"kind_id": StringName(reader.read_string(NPC_ID_BYTES)),
@@ -512,7 +512,7 @@ static func write_npc_gone(net_id: int) -> PackedByteArray:
 	return writer.to_bytes()
 
 
-static func read_npc_gone(reader: DotNetReader) -> Dictionary:
+static func read_npc_gone(reader: GSNetReader) -> Dictionary:
 	var out := {"net_id": reader.read_varint()}
 	out["ok"] = reader.ok()
 	return out
@@ -549,7 +549,7 @@ static func write_rules(rules: Dictionary) -> PackedByteArray:
 	return writer.to_bytes()
 
 
-static func read_rules(reader: DotNetReader) -> Dictionary:
+static func read_rules(reader: GSNetReader) -> Dictionary:
 	var rules := {}
 	# No key cap: the count is whatever the server sent, and a short or
 	# corrupt packet stops at the first failed read instead of a fixed limit.
@@ -574,7 +574,7 @@ static func write_jail(enabled: bool, open_ticks: int, cooldown_ticks: int, open
 	return writer.to_bytes()
 
 
-static func read_jail(reader: DotNetReader) -> Dictionary:
+static func read_jail(reader: GSNetReader) -> Dictionary:
 	var out := {"enabled": reader.read_uint(1) == 1, "open_ticks": reader.read_varint(), "cooldown_ticks": reader.read_varint()}
 	out["opened_at"] = reader.read_varint() - 1
 	out["ok"] = reader.ok()
@@ -593,7 +593,7 @@ static func write_drop(id: int, kind: int, value: int, from: Vector3, at: Vector
 	return writer.to_bytes()
 
 
-static func read_drop(reader: DotNetReader) -> Dictionary:
+static func read_drop(reader: GSNetReader) -> Dictionary:
 	var out := {"id": reader.read_varint(), "kind": reader.read_uint(4), "value": reader.read_uint(16)}
 	out["from"] = Vector3(reader.read_float32(), reader.read_float32(), reader.read_float32())
 	out["at"] = Vector3(reader.read_float32(), reader.read_float32(), reader.read_float32())
@@ -608,13 +608,13 @@ static func write_taken(id: int, taker: int) -> PackedByteArray:
 	return writer.to_bytes()
 
 
-static func read_taken(reader: DotNetReader) -> Dictionary:
+static func read_taken(reader: GSNetReader) -> Dictionary:
 	var out := {"id": reader.read_varint(), "taker": reader.read_varint()}
 	out["ok"] = reader.ok()
 	return out
 
 
-static func write_launch(spawn: DotWeaponSpawn, weapon_index: int) -> PackedByteArray:
+static func write_launch(spawn: GSWeaponSpawn, weapon_index: int) -> PackedByteArray:
 	var writer := _w()
 	writer.write_varint(maxi(0, spawn.owner_entity))
 	writer.write_varint(maxi(0, weapon_index))
@@ -627,7 +627,7 @@ static func write_launch(spawn: DotWeaponSpawn, weapon_index: int) -> PackedByte
 	return writer.to_bytes()
 
 
-static func read_launch(reader: DotNetReader) -> Dictionary:
+static func read_launch(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"owner": reader.read_varint(),
 		"weapon": reader.read_varint(),
@@ -643,8 +643,8 @@ static func read_launch(reader: DotNetReader) -> Dictionary:
 
 
 ## A spawn rebuilt from a read LAUNCH, with [param id] the weapon it came from.
-static func spawn_from_launch(launch: Dictionary, id: StringName) -> DotWeaponSpawn:
-	var spawn := DotWeaponSpawn.make(
+static func spawn_from_launch(launch: Dictionary, id: StringName) -> GSWeaponSpawn:
+	var spawn := GSWeaponSpawn.make(
 		id, launch["origin"], launch["velocity"], int(launch["owner"])
 	)
 	spawn.gravity_scale = float(launch["gravity"])
@@ -670,7 +670,7 @@ static func write_bullet(id: int, owner: int, weapon_index: int, origin: Vector3
 	return writer.to_bytes()
 
 
-static func read_bullet(reader: DotNetReader) -> Dictionary:
+static func read_bullet(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"id": reader.read_varint(),
 		"owner": reader.read_varint(),
@@ -688,7 +688,7 @@ static func write_bullet_end(id: int) -> PackedByteArray:
 	return writer.to_bytes()
 
 
-static func read_bullet_end(reader: DotNetReader) -> Dictionary:
+static func read_bullet_end(reader: GSNetReader) -> Dictionary:
 	var out := {"id": reader.read_varint()}
 	out["ok"] = reader.ok()
 	return out
@@ -696,7 +696,7 @@ static func read_bullet_end(reader: DotNetReader) -> Dictionary:
 
 # --- HIT -------------------------------------------------------------------
 
-## Hit points a HIT can carry. A rocket is 400 at most (`DotDamageRules.maximum`).
+## Hit points a HIT can carry. A rocket is 400 at most (`GSDamageRules.maximum`).
 const HIT_MAX := 4095
 
 ## One victim's share of a tick's damage, for the player who dealt it.
@@ -715,7 +715,7 @@ static func write_hit(
 	return writer.to_bytes()
 
 
-static func read_hit(reader: DotNetReader) -> Dictionary:
+static func read_hit(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"victim_id": reader.read_varint(),
 		"amount": reader.read_uint(12),
@@ -740,7 +740,7 @@ static func write_stomp(
 	return writer.to_bytes()
 
 
-static func read_stomp(reader: DotNetReader) -> Dictionary:
+static func read_stomp(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"attacker_id": reader.read_varint(),
 		"victim_id": reader.read_varint(),
@@ -765,7 +765,7 @@ static func write_grenade_fx(fx: int, point: Vector3, radius: float, seconds: fl
 	return w.to_bytes()
 
 
-static func read_grenade_fx(reader: DotNetReader) -> Dictionary:
+static func read_grenade_fx(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"fx": reader.read_uint(2),
 		"position": reader.read_vector3_range(-NPC_EXTENT, NPC_EXTENT, 20),

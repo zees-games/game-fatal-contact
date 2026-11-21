@@ -79,7 +79,7 @@ func _run() -> void:
 	await _wait(2.0)
 	var _began: bool = game.match_node.begin_round_now()
 	for i in range(60):
-		if game.match_node.state == DotMatch.State.LIVE:
+		if game.match_node.state == GSMatch.State.LIVE:
 			break
 		await _wait(0.25)
 	print("match state %d" % int(game.match_node.state))
@@ -135,9 +135,9 @@ func _render_death(game: Object, killer: Object, me: Object, at: Vector3, facing
 	me.controller.teleport(at, facing, 0.0)
 	game.killview_rules.enabled = true
 	var kc: Object = client.get("killcam")
-	var ring := DotKillViewRing.new(game.killview_rules)
+	var ring := GSKillViewRing.new(game.killview_rules)
 	var record := func() -> void:
-		var st: DotFpsState = killer.controller.state
+		var st: GSFpsState = killer.controller.state
 		var eye: Transform3D = Transform3D(Basis.from_euler(Vector3(deg_to_rad(st.pitch), deg_to_rad(st.yaw), 0.0)), killer.controller.motor.eye_position(st))
 		var _r := ring.record(killer.player_id, kc.now_fn.call(), eye, 75.0)
 	var until: float = kc.now_fn.call() + 3.6
@@ -146,7 +146,7 @@ func _render_death(game: Object, killer: Object, me: Object, at: Vector3, facing
 		record.call()
 	me.health.invulnerable = false
 	me.health.invulnerable_until_tick = -1
-	var damage := DotDamage.make(killer.player_id, me.player_id, me.health.health + me.health.armour + 50.0, game.combat.damage_type(&""))
+	var damage := GSDamage.make(killer.player_id, me.player_id, me.health.health + me.health.armour + 50.0, game.combat.damage_type(&""))
 	damage.weapon_id = &"rifle"
 	damage.tick = game.current_tick()
 	var applied = me.health.apply(damage)
@@ -178,10 +178,10 @@ func _hold_fire(game: Object, killer: Object, victim: Object) -> Object:
 	# The killer holds the trigger on the victim (who cannot die yet), so the recording holds shots.
 	for b: Object in [killer, victim]:
 		b.set_meta(&"bot_scripted", true)
-		b.set_meta(&"bot_move", DotFpsCommand.new())
-	victim.set_meta(&"bot_fire", DotWeaponCommand.new())
-	var fire := DotWeaponCommand.new()
-	fire.buttons = DotWeaponCommand.BUTTON_ATTACK
+		b.set_meta(&"bot_move", GSFpsCommand.new())
+	victim.set_meta(&"bot_fire", GSWeaponCommand.new())
+	var fire := GSWeaponCommand.new()
+	fire.buttons = GSWeaponCommand.BUTTON_ATTACK
 	fire.yaw = killer.controller.state.yaw
 	fire.pitch = killer.controller.state.pitch
 	killer.set_meta(&"bot_fire", fire)
@@ -196,12 +196,12 @@ func _hold_fire(game: Object, killer: Object, victim: Object) -> Object:
 
 ## The last point: the victim loses everything at once and the match ends on it.
 func _kill(game: Object, killer: Object, victim: Object) -> void:
-	var mine: DotPlayerScore = game.match_node.scoreboard.find(str(killer.player_id))
+	var mine: GSPlayerScore = game.match_node.scoreboard.find(str(killer.player_id))
 	game.match_node.rules.score_limit = (mine.score if mine != null else 0) + 1
 	victim.health.invulnerable = false
 	victim.health.invulnerable_until_tick = -1
 	var type = game.combat.damage_type(&"")
-	var damage := DotDamage.make(killer.player_id, victim.player_id, victim.health.health + victim.health.armour + 50.0, type)
+	var damage := GSDamage.make(killer.player_id, victim.player_id, victim.health.health + victim.health.armour + 50.0, type)
 	damage.weapon_id = &"rifle"
 	damage.tick = game.current_tick()
 	var applied = victim.health.apply(damage)

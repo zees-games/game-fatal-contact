@@ -89,23 +89,23 @@ static func world_prefix(id: String, map_dir: String = "") -> String:
 ## and scale); collision, spawns and mechanics stay the manifest's. False leaves the legacy meshes.
 static func draw_world(drawn: Node3D, id: String, map_dir: String = "") -> bool:
 	var prefix := _draw_prefix(id, map_dir)
-	var plan := {} if prefix.is_empty() else _draw_plan(drawn, id, DotMapBspMesh.load_prefix(prefix))
+	var plan := {} if prefix.is_empty() else _draw_plan(drawn, id, GSMapBspMesh.load_prefix(prefix))
 	if plan.is_empty():
 		return false
 	(plan.script as GDScript).call("attach", drawn, plan.mesh, plan.options)
 	return true
 
 
-## [method draw_world] in slices: the pack is read on a worker ([method DotMapBspMesh.load_prefix_async]) and the build
+## [method draw_world] in slices: the pack is read on a worker ([method GSMapBspMesh.load_prefix_async]) and the build
 ## awaits [param slice] between batches, so the cover never freezes on one frame.
-static func draw_world_async(drawn: Node3D, id: String, map_dir: String, slice: DotFrameSlice) -> bool:
+static func draw_world_async(drawn: Node3D, id: String, map_dir: String, slice: GSFrameSlice) -> bool:
 	var prefix := _draw_prefix(id, map_dir)
 	if prefix.is_empty():
 		return false
 	# The drawn-world script and the addon scripts behind it compile on a loader thread
 	# while the pack is read: a plain load() of them was a 40 to 110 ms frame.
 	var threaded := ResourceLoader.load_threaded_request(DRAWN_WORLD) == OK
-	var got: DotResult = await DotMapBspMesh.load_prefix_async(prefix)
+	var got: GSResult = await GSMapBspMesh.load_prefix_async(prefix)
 	FcLoadTimeline.mark("world: pack read")
 	var tree := Engine.get_main_loop() as SceneTree
 	while threaded and tree != null and ResourceLoader.load_threaded_get_status(DRAWN_WORLD) == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
@@ -128,9 +128,9 @@ static func _draw_prefix(id: String, map_dir: String) -> String:
 	return world_prefix(id, map_dir) if ResourceLoader.exists(DRAWN_WORLD) else ""
 
 
-static func _draw_plan(drawn: Node3D, id: String, got: DotResult) -> Dictionary:
+static func _draw_plan(drawn: Node3D, id: String, got: GSResult) -> Dictionary:
 	if not got.ok:
-		DotLog.warn("arena.maps", "a map's world would not read; its legacy meshes are drawn", {"map": id, "why": got.error.message})
+		GSLog.warn("arena.maps", "a map's world would not read; its legacy meshes are drawn", {"map": id, "why": got.error.message})
 		return {}
 	for child in drawn.get_children():
 		drawn.remove_child(child)
@@ -141,17 +141,17 @@ static func _draw_plan(drawn: Node3D, id: String, got: DotResult) -> Dictionary:
 		"mark": func(label: String) -> void: FcLoadTimeline.mark(label),
 		# A local `<map>_orig` pack only (dot-map 24); every shipped and delivered map keeps the free textures.
 		"original_textures": FcLocalMaps.is_original(StringName(id)),
-		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else DotMapSurfaces.DEFAULT_ROOT,
+		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else GSMapSurfaces.DEFAULT_ROOT,
 	}}
 
 
-## Replaces the solid hulls of the world's breakable glass with [DotMapGlass] panes, so a window can be shot out and seen
+## Replaces the solid hulls of the world's breakable glass with [GSMapGlass] panes, so a window can be shot out and seen
 ## through. The legacy hulls carry no owner, so a hull is the pane's when its box matches one of the pane's hulls.
 static func _swap_glass(body: StaticBody3D, id: String, dir: String) -> void:
 	var prefix := world_prefix(id, dir)
 	if prefix.is_empty():
 		return
-	var got: DotMapBspMesh = DotMapBspMesh.load_prefix(prefix).value
+	var got: GSMapBspMesh = GSMapBspMesh.load_prefix(prefix).value
 	if got == null:
 		return
 	var solids: Array[CollisionShape3D] = []
@@ -165,9 +165,9 @@ static func _swap_glass(body: StaticBody3D, id: String, dir: String) -> void:
 		var kind := str(rec.get("glass", "")) if rec.get("glass") != null else ""
 		if kind.is_empty():
 			var mi := int(rec.get("material", 1))
-			kind = DotMapBreakable.MATERIALS[mi] if mi >= 0 and mi < DotMapBreakable.MATERIALS.size() else "wood"
+			kind = GSMapBreakable.MATERIALS[mi] if mi >= 0 and mi < GSMapBreakable.MATERIALS.size() else "wood"
 		var model := int(rec["model"])
-		var pane := DotMapGlass.new()
+		var pane := GSMapGlass.new()
 		pane.name = "breakable_%d" % model
 		pane.model = model
 		pane.kind = StringName(kind)
@@ -188,10 +188,10 @@ static func _swap_glass(body: StaticBody3D, id: String, dir: String) -> void:
 			pane.add_child(cs)
 		body.add_child(pane)
 		swapped += 1
-	DotLog.debug("arena.maps", "glass swapped for breakable panes", {"map": id, "panes": swapped})
+	GSLog.debug("arena.maps", "glass swapped for breakable panes", {"map": id, "panes": swapped})
 
 
-## Collision bit the jail glass is on besides player_clip: a body still stops on it, and a shot sees it only when its mask asks (`DotMapGlassSight`).
+## Collision bit the jail glass is on besides player_clip: a body still stops on it, and a shot sees it only when its mask asks (`GSMapGlassSight`).
 const GLASS_BIT := 1 << 20
 const GLASS_META := &"glass_sight"
 
@@ -216,7 +216,7 @@ static func _mark_sky(body: StaticBody3D, id: String, dir: String, info: Diction
 				sky.append(shape)
 	else:
 		var prefix := world_prefix(id, dir)
-		var got: DotMapBspMesh = DotMapBspMesh.load_prefix(prefix).value if not prefix.is_empty() else null
+		var got: GSMapBspMesh = GSMapBspMesh.load_prefix(prefix).value if not prefix.is_empty() else null
 		if got == null:
 			return
 		# Matched on a scratch body of the same shapes: re-adding a hull to the world body would reorder its shape
@@ -257,7 +257,7 @@ static func _mark_sky(body: StaticBody3D, id: String, dir: String, info: Diction
 		mark.shape = face
 		area.add_child(mark)
 	body.add_child(area)
-	DotLog.debug("arena.maps", "sky hulls marked for the effects", {"map": id, "hulls": sky.size(), "faces": faces.size(), "by_index": kinds is Dictionary})
+	GSLog.debug("arena.maps", "sky hulls marked for the effects", {"map": id, "hulls": sky.size(), "faces": faces.size(), "by_index": kinds is Dictionary})
 
 
 ## How far behind a sky face its mark reaches, in metres: more than the 5 cm [method on_sky] looks past a hit, little enough that a hit on the
@@ -317,20 +317,20 @@ static func on_sky(space: PhysicsDirectSpaceState3D, at: Vector3, direction: Vec
 
 
 ## Moves the legacy player-clip, fence, grate, vent and glass hulls off the shot layer: they still stop a body, and a shot passes.
-## Glass goes on [constant GLASS_BIT] as well, and a jail cell gets a `DotMapGlassSight` stored as [constant GLASS_META] on [param body].
+## Glass goes on [constant GLASS_BIT] as well, and a jail cell gets a `GSMapGlassSight` stored as [constant GLASS_META] on [param body].
 static func _split_fences(body: StaticBody3D, id: String, dir: String) -> void:
 	var prefix := world_prefix(id, dir)
 	if prefix.is_empty():
 		return
-	var got: DotMapBspMesh = DotMapBspMesh.load_prefix(prefix).value
+	var got: GSMapBspMesh = GSMapBspMesh.load_prefix(prefix).value
 	if got == null:
 		return
-	var layout := DotPhysicsLayout.shooter_3d()
-	var rules := DotMapGlassSight.install(got, body, layout.mask_of([&"player_clip"]), GLASS_BIT,
+	var layout := GSPhysicsLayout.shooter_3d()
+	var rules := GSMapGlassSight.install(got, body, layout.mask_of([&"player_clip"]), GLASS_BIT,
 		layout.mask_of([&"world"]), layout.mask_of([&"world", &"player_clip"]))
 	if rules != null:
 		body.set_meta(GLASS_META, rules)
-	DotLog.debug("arena.maps", "clip, fence and glass hulls moved off the shot layer", {"map": id, "glass": rules != null})
+	GSLog.debug("arena.maps", "clip, fence and glass hulls moved off the shot layer", {"map": id, "glass": rules != null})
 
 
 static func _box_of(points: PackedVector3Array, origin: Vector3) -> AABB:
@@ -467,7 +467,7 @@ static func build_visual(manifest: Dictionary, dir: String) -> Node3D:
 	var blob := FileAccess.get_file_as_bytes(dir.path_join("%s.bin" % id))
 
 	if blob.is_empty():
-		DotLog.error("arena.maps", "an imported map's mesh is missing", {
+		GSLog.error("arena.maps", "an imported map's mesh is missing", {
 			"map": id, "dir": dir
 		})
 		return root
@@ -547,7 +547,7 @@ static func build_collision(manifest: Dictionary, dir: String) -> StaticBody3D:
 	var info: Dictionary = manifest.get("collision", {})
 
 	if blob.is_empty():
-		DotLog.error("arena.maps", "an imported map's collision is missing", {
+		GSLog.error("arena.maps", "an imported map's collision is missing", {
 			"map": id, "dir": dir
 		})
 		return body
@@ -575,7 +575,7 @@ const COLLISION_HULLS_PER_STEP := 64
 ## [method build_collision] a few hundred hulls a frame, for a client changing map behind its cover: the
 ## same body, built in the same order, so the solid the game is handed is the one the one-shot build makes.
 ## A map with no hull table takes the one-shot build.
-static func build_collision_async(manifest: Dictionary, dir: String, slice: DotFrameSlice) -> StaticBody3D:
+static func build_collision_async(manifest: Dictionary, dir: String, slice: GSFrameSlice) -> StaticBody3D:
 	var id := str(manifest.get("id", ""))
 	var info: Dictionary = manifest.get("collision", {})
 	var blob := FileAccess.get_file_as_bytes(dir.path_join("%s.bin" % id))

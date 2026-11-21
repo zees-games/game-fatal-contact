@@ -4,7 +4,7 @@ const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 
 
 ## Records 9.5 s of the killer running down +x with the victim standing down its aim, and a kill at 8 s.
-func _record_kill_run(kc: DotKillcamHost, killer: FcPlayer, victim: FcPlayer, clock: Array, at: Callable) -> void:
+func _record_kill_run(kc: GSKillcamHost, killer: FcPlayer, victim: FcPlayer, clock: Array, at: Callable) -> void:
 	var step := 1.0 / 60.0
 	var start := killer.controller.state.position
 	killer.controller.state.pitch = 0.0
@@ -21,8 +21,8 @@ func _record_kill_run(kc: DotKillcamHost, killer: FcPlayer, victim: FcPlayer, cl
 
 
 ## A killcam host over [param players] and the game's rules, driven by hand from [param clock].
-func _killcam_host(g: FcGame, players: Array, clock: Array) -> DotKillcamHost:
-	var kc := DotKillcamHost.new()
+func _killcam_host(g: FcGame, players: Array, clock: Array) -> GSKillcamHost:
+	var kc := GSKillcamHost.new()
 	FcKillcamBodies.configure(kc)
 	kc.players_fn = func() -> Array: return players
 	kc.player_for_fn = g.player_for
@@ -33,7 +33,7 @@ func _killcam_host(g: FcGame, players: Array, clock: Array) -> DotKillcamHost:
 	return kc
 
 
-func _check_banner_icon(kc: DotKillcamHost) -> void:
+func _check_banner_icon(kc: GSKillcamHost) -> void:
 	var icon_tex := ImageTexture.create_from_image(Image.create(4, 4, false, Image.FORMAT_RGBA8))
 	kc.weapon_icon_fn = func(id: String) -> Texture2D: return icon_tex if id == "rifle" else null
 	kc.killcam.banner.present({"killer": "Killer", "weapon": "Rifle", "weapon_id": "rifle"})
@@ -50,9 +50,9 @@ func _test_the_loadout_menu() -> void:
 	add_child(client)
 	for _i in 6:
 		await get_tree().process_frame
-	var menu: DotMenu = client.game_menu
-	var keys: DotMenuBindings = menu.bindings if menu != null else null
-	_check(keys != null and keys.key_for(DotMenuBindings.LOADOUT_ACTION) == "B" and keys.defaults_on("B").size() == 1,
+	var menu: GSMenu = client.game_menu
+	var keys: GSMenuBindings = menu.bindings if menu != null else null
+	_check(keys != null and keys.key_for(GSMenuBindings.LOADOUT_ACTION) == "B" and keys.defaults_on("B").size() == 1,
 		"the loadout menu is on B, and nothing else in the table is",
 		str(keys.defaults_on("B").map(func(r: Dictionary) -> String: return str(r["label"]))) if keys != null else "no menu")
 	await _check_loadout_accounts(client)
@@ -82,12 +82,12 @@ func _test_the_loadout_menu() -> void:
 		"and opens the loadout screen on the five slots")
 	menu.loadout_screen.cancel()
 
-	game.match_node.state = DotMatch.State.WARMUP
+	game.match_node.state = GSMatch.State.WARMUP
 	var now: Dictionary = await client.choose_loadout({"primary": "marksman", "thrown": "sticky"})
 	_check(bool(now.get("ok", false)) and bool(now.get("now", false)) and me.arsenal.carries(&"marksman") and me.arsenal.carries(&"sticky"),
 		"in warmup a choice is in the player's hands at once", str(now))
 
-	game.match_node.state = DotMatch.State.LIVE
+	game.match_node.state = GSMatch.State.LIVE
 	me.health.spawn_protection_ticks = 0
 	me.health.invulnerable_until_tick = -1
 	var later: Dictionary = await client.choose_loadout({"primary": "carbine"})
@@ -108,17 +108,17 @@ func _test_the_loadout_menu() -> void:
 
 
 func _check_loadout_rules(client: FcClient, me, game: FcGame) -> void:
-	var snipers: DotResult = game.loadout_command.call(&"apply_strings", true, "primary=tag:scoped", "")
+	var snipers: GSResult = game.loadout_command.call(&"apply_strings", true, "primary=tag:scoped", "")
 	var limited: Dictionary = await client.loadout_offer()
 	var primaries: Array = ((limited["slots"] as Array)[0]["choices"] as Array).map(func(c: Dictionary) -> String: return str(c["id"]))
 	_check(snipers.ok and not primaries.is_empty() and not primaries.has("rifle") and primaries.has("marksman"),
 		"an owner's 'snipers only' is what the menu offers", str(primaries))
 	var refused: Dictionary = await client.choose_loadout({"primary": "rifle"})
 	_check(not bool(refused.get("ok", true)), "and a rifle is refused by the game, not only hidden", str(refused))
-	var active: DotResult = await game.loadouts.active_for(FcGame.storage_key(me.player_id))
-	_check(primaries.has(str((active.value as DotLoadout).item_in(&"primary"))),
-		"a saved carbine spawns as a scoped gun while the rule is on", str((active.value as DotLoadout).item_in(&"primary")))
-	var locked: DotResult = game.loadout_command.call(&"apply_strings", false, "", "primary=sniper")
+	var active: GSResult = await game.loadouts.active_for(FcGame.storage_key(me.player_id))
+	_check(primaries.has(str((active.value as GSLoadout).item_in(&"primary"))),
+		"a saved carbine spawns as a scoped gun while the rule is on", str((active.value as GSLoadout).item_in(&"primary")))
+	var locked: GSResult = game.loadout_command.call(&"apply_strings", false, "", "primary=sniper")
 	var fixed_offer: Dictionary = await client.loadout_offer()
 	_check(locked.ok and fixed_offer["choose"] == false and str((fixed_offer["slots"] as Array)[0]["current"]) == "sniper",
 		"an owner can lock the loadout: nothing to choose, and the fixed slot is what everybody gets")
@@ -141,13 +141,13 @@ func _test_the_hud_follows_the_theme() -> void:
 	add_child(client)
 	for _i in 6:
 		await get_tree().process_frame
-	var menu: DotMenu = client.game_menu
+	var menu: GSMenu = client.game_menu
 	var hud: FcHud = client.hud
-	var piece: DotHudPiece = null
+	var piece: GSHudPiece = null
 	# The kill feed: one of the pieces Fatal Contact keeps, drawn with its own `Ink`.
 	var own: Control = hud.feed
 	for n in hud.find_children("*", "Control", true, false):
-		if n is DotHudPiece:
+		if n is GSHudPiece:
 			piece = n
 			break
 	_check(menu != null and piece != null and own != null and menu.followed_huds().has(hud), "the client hands the menu its HUD",
@@ -208,7 +208,7 @@ func _test_the_final_killcam() -> void:
 		"the end of the match waits the killcam's 7 s on top of the mode's")
 	var clock := [0.0]
 	var kc := _killcam_host(g, [killer, victim], clock)
-	kc.camera_mode_fn = func() -> int: return DotKillViewRules.Camera.BEHIND
+	kc.camera_mode_fn = func() -> int: return GSKillViewRules.Camera.BEHIND
 	var ended: Array = []
 	kc.over.connect(func(skipped: bool) -> void: ended.append(skipped))
 	var start := killer.controller.state.position
@@ -247,7 +247,7 @@ func _test_the_final_killcam() -> void:
 	_check(ended == [false] and n * step < 7.0, "it ends by itself inside the budget (%.2f s)" % (n * step))
 	_check(killer.body_mesh == null or not killer.body_mesh.visible, "a body attached only for the replay goes back hidden")
 
-	kc.camera_mode_fn = func() -> int: return DotKillViewRules.Camera.EYE
+	kc.camera_mode_fn = func() -> int: return GSKillViewRules.Camera.EYE
 	drawn.clear()
 	ended.clear()
 	var _again := kc.match_ended()
@@ -275,7 +275,7 @@ func _test_hud_fits_the_frame() -> void:
 	_section("No piece of the HUD lies over another, from a phone to a desktop frame")
 
 	var hud := FcHud.new()
-	hud.config = DotUiConfig.new()
+	hud.config = GSUiConfig.new()
 	add_child(hud)
 	hud.build(null)
 	# Nothing reads a player here: the pieces draw what they are handed, and `_process`
@@ -380,11 +380,11 @@ func _check_crowded_frames(hud: FcHud) -> void:
 	hud.strip.show_scores(1, 2, "RED", "BLUE", Color.RED, Color.BLUE)
 	_check(hud.strip.teams.is_empty() and hud.strip.left_score == 1 and hud.strip.right_score == 2,
 		"two sides go back to the plain two plates")
-	# The clock is dot-ui's `DotScoreStrip.clock_text`, which rounds up: a clock never says
+	# The clock is dot-ui's `GSScoreStrip.clock_text`, which rounds up: a clock never says
 	# 0:00 with time left. Fatal Contact's own rounded down (9:37.4 read 9:37).
-	_check(DotScoreStrip.clock_text(577.4) == "9:38" and DotScoreStrip.clock_text(0.3) == "0:01"
-			and DotScoreStrip.clock_text(0.0) == "0:00" and DotScoreStrip.clock_text(600.0) == "10:00",
-		"the clock rounds the seconds left up (%s, %s)" % [DotScoreStrip.clock_text(577.4), DotScoreStrip.clock_text(0.3)])
+	_check(GSScoreStrip.clock_text(577.4) == "9:38" and GSScoreStrip.clock_text(0.3) == "0:01"
+			and GSScoreStrip.clock_text(0.0) == "0:00" and GSScoreStrip.clock_text(600.0) == "10:00",
+		"the clock rounds the seconds left up (%s, %s)" % [GSScoreStrip.clock_text(577.4), GSScoreStrip.clock_text(0.3)])
 
 
 ## Every piece of the HUD at its busiest.
@@ -432,11 +432,11 @@ func _test_chat_box() -> void:
 		return
 
 	_check(
-		DotInputBinding.describe_action(window.open_action) == "Y",
+		GSInputBinding.describe_action(window.open_action) == "Y",
 		"opened by Y, which is where this genre has put it for twenty-five years"
 	)
 	_check(
-		DotInputBinding.describe_action(window.team_action) == "U",
+		GSInputBinding.describe_action(window.team_action) == "U",
 		"and team chat by U"
 	)
 	_check(window.enabled, "drawn by default, on a server that said nothing")
@@ -485,12 +485,12 @@ func _test_chat_box() -> void:
 	_completed += 1
 
 
-func _check_rebind(p: FcPresentation, window: DotChatWindow) -> void:
+func _check_rebind(p: FcPresentation, window: GSChatWindow) -> void:
 	# The binding is a setting, so changing the setting has to move the key — and move
 	# it, not add a second one.
 	p.settings.set_value(&"chat_open_key", "T")
 	_check(
-		DotInputBinding.describe_action(window.open_action) == "T",
+		GSInputBinding.describe_action(window.open_action) == "T",
 		"rebinding through the settings document moves the key"
 	)
 	_check(
@@ -501,16 +501,16 @@ func _check_rebind(p: FcPresentation, window: DotChatWindow) -> void:
 	# A field somebody cleared must not unbind chat with no way back from inside the game.
 	p.settings.set_value(&"chat_open_key", "")
 	_check(
-		DotInputBinding.describe_action(window.open_action) == "T",
+		GSInputBinding.describe_action(window.open_action) == "T",
 		"an empty binding in the document is ignored rather than applied"
 	)
 
 
-func _check_join_notice(p: FcPresentation, window: DotChatWindow) -> void:
+func _check_join_notice(p: FcPresentation, window: GSChatWindow) -> void:
 	# A join notice is a name and NO text (dot-chat's `_presence`). Drawn as name and text it was a
 	# bare "Guest 435:" in the box, which read as a chat command echoed with its text stripped.
 	var extras_script := preload("../game/fc_client_extras.gd")
-	var join := DotChatMessage.make(DotChatMessage.Kind.JOIN, &"all", "k2", "Guest 435", "")
+	var join := GSChatMessage.make(GSChatMessage.Kind.JOIN, &"all", "k2", "Guest 435", "")
 	var said_client := FcClient.new()
 	said_client.presentation = p
 	said_client._on_said(extras_script.speaker_of(join), extras_script.text_of(join), join.kind_name())
@@ -526,11 +526,11 @@ func _check_join_notice(p: FcPresentation, window: DotChatWindow) -> void:
 	said_client.free()
 
 
-func _check_log_over_streak(window: DotChatWindow) -> void:
+func _check_log_over_streak(window: GSChatWindow) -> void:
 	# A full log, at the frame the client shell always draws on, must stay under the
 	# killstreak meter's words: at a 250-tall meter the sixth line wrote over them.
 	var hud := FcHud.new()
-	hud.config = DotUiConfig.new()
+	hud.config = GSUiConfig.new()
 	add_child(hud)
 	hud.build(null)
 	hud._build_feedback()

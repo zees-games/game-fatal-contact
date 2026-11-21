@@ -3,7 +3,7 @@ extends Node3D
 ## What comes out of a body on a critical kill: points, and maybe a health pack.
 ##
 ## [b]Server-authoritative and drawn everywhere.[/b] On the authority this holds real
-## [DotPickup]s in a [DotPickupField], ticked with the game and swept against every live
+## [GSPickup]s in a [GSPickupField], ticked with the game and swept against every live
 ## player's simulated position; a client holds only drawn copies, created by DROP and
 ## removed by TAKEN, because a client that took its own pickups would be one that decides
 ## what it has. The same class on both ends so the two cannot disagree about what a drop is.
@@ -65,15 +65,15 @@ var draws: bool = false
 ## player id -> points collected this match.
 var points: Dictionary = {}
 
-var field: DotPickupField = null
+var field: GSPickupField = null
 var _tick_rate: int = FcContent.TICK_RATE
 var _next_id: int = 1
 
-## id -> {"pickup": DotPickup, "kind": int, "value": int, "expires": int}. Authority side.
+## id -> {"pickup": GSPickup, "kind": int, "value": int, "expires": int}. Authority side.
 var _live: Dictionary = {}
 
-## One per map pack spot: {"pickup": DotPickup, "kind": int, "id": int, "at": Vector3}. Kept for
-## the life of the layer, unlike a kill's drop: the family's [DotPickup] does the respawn.
+## One per map pack spot: {"pickup": GSPickup, "kind": int, "id": int, "at": Vector3}. Kept for
+## the life of the layer, unlike a kill's drop: the family's [GSPickup] does the respawn.
 ## Authority side.
 var _packs: Array[Dictionary] = []
 
@@ -91,7 +91,7 @@ var position_of: Callable = Callable()
 
 func setup(tick_rate: int) -> void:
 	_tick_rate = maxi(tick_rate, 1)
-	field = DotPickupField.new()
+	field = GSPickupField.new()
 	field.name = "Field"
 	field.tick_rate = _tick_rate
 	field.is_authority = is_authority
@@ -102,7 +102,7 @@ func setup(tick_rate: int) -> void:
 ## already out, so a rule change or a map change is one call. Authority side.
 func set_packs(spots: Array, tick: int) -> void:
 	for pack in _packs:
-		var old: DotPickup = pack["pickup"]
+		var old: GSPickup = pack["pickup"]
 		if is_instance_valid(old):
 			field.remove_child(old)
 			old.queue_free()
@@ -118,7 +118,7 @@ func set_packs(spots: Array, tick: int) -> void:
 	for index in range(spots.size()):
 		var spot: Dictionary = spots[index]
 		var kind := int(spot["kind"])
-		var pickup := DotPickup.new()
+		var pickup := GSPickup.new()
 		pickup.name = "Pack%d" % index
 		pickup.item_id = &"ammo_pack" if kind == Kind.AMMO else &"health"
 		pickup.count = int(pack_health) if kind == Kind.HEALTH else 0
@@ -144,7 +144,7 @@ func set_packs(spots: Array, tick: int) -> void:
 func packs_out() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for pack in _packs:
-		if (pack["pickup"] as DotPickup).available:
+		if (pack["pickup"] as GSPickup).available:
 			out.append({
 				"id": pack["id"], "kind": pack["kind"], "at": pack["at"],
 				"value": int(pack_health) if int(pack["kind"]) == Kind.HEALTH else 0,
@@ -197,7 +197,7 @@ func _spawn(kind: int, value: int, from: Vector3, at: Vector3, tick: int) -> voi
 	var id := _next_id
 	_next_id += 1
 
-	var pickup := DotPickup.new()
+	var pickup := GSPickup.new()
 	pickup.name = "Drop%d" % id
 	pickup.item_id = &"point" if kind == Kind.POINT else &"health"
 	pickup.count = value
@@ -230,7 +230,7 @@ func tick(tick: int, players: Dictionary) -> void:
 	# Respawns first, so a pack that comes back this tick can be taken this tick.
 	var _back := field.tick(tick)
 
-	field.wants_fn = func(taker: int, pickup: DotPickup) -> bool:
+	field.wants_fn = func(taker: int, pickup: GSPickup) -> bool:
 		if pickup.item_id == &"health":
 			return bool(_filled(players.get(taker, {})).get("hurt", false))
 		if pickup.item_id == &"ammo_pack":
@@ -287,7 +287,7 @@ func _forget(id: int, taker: int) -> void:
 		return
 
 	_live.erase(id)
-	var pickup: DotPickup = entry["pickup"]
+	var pickup: GSPickup = entry["pickup"]
 	if is_instance_valid(pickup):
 		# Out of the field NOW, not at the end of the frame: a server runs several ticks
 		# in one frame, and a pickup still in the field's list after queue_free is swept

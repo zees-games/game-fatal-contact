@@ -25,7 +25,7 @@ const FcModTools := preload("fc_mod_tools.gd")
 ##
 ## [b]dot-chat and dot-server's own chat are not two chat systems here.[/b] They would
 ## be if both delivered lines, so exactly one does: the `player_chat` event is hooked
-## and [b]cancelled[/b], the text goes to [DotChatRouter] instead, and the router's
+## and [b]cancelled[/b], the text goes to [GSChatRouter] instead, and the router's
 ## `send_fn` hands each recipient's line back to dot-server's manager to put on the
 ## wire. What that buys is everything dot-server's chat does not have — a radius
 ## channel, a whisper, markup and invisible-character stripping, per-channel history, a
@@ -56,7 +56,7 @@ const CH_NEAR := &"near"
 const CH_WHISPER := &"whisper"
 
 ## A player said something the router accepted.
-signal said(peer: int, message: DotChatMessage)
+signal said(peer: int, message: GSChatMessage)
 
 ## A player typed a `!command`. The module claims the ones it knows.
 signal command_entered(peer: int, command: String, args: PackedStringArray)
@@ -81,7 +81,7 @@ signal command_entered(peer: int, command: String, args: PackedStringArray)
 ## Off is the right default for the same reason `pg_arena` is: a relay carries what your
 ## players type to a web page and back, and that is an operator's decision rather than a
 ## consequence of installing an addon.
-@export var relay_config: DotChatRelayConfig = null
+@export var relay_config: GSChatRelayConfig = null
 
 @export_group("Voice")
 
@@ -91,25 +91,25 @@ signal command_entered(peer: int, command: String, args: PackedStringArray)
 ## Metres a proximity packet carries.
 @export_range(0.0, 500.0, 1.0) var voice_range: float = 40.0
 
-var server: DotServer = null
+var server: GSServer = null
 var game: FcGame = null
 var link: FcNetLink = null
 
-var chat: DotChatRouter = null
-var voice: DotVoiceRouter = null
-var moderation: DotModerationManager = null
+var chat: GSChatRouter = null
+var voice: GSVoiceRouter = null
+var moderation: GSModerationManager = null
 
 ## dot-moderation's live tools — noclip, god, slay, bring and the rest — with this game's
 ## handlers in them. [FcModule] puts their commands on the console.
-var mod_tools: DotModTools = null
+var mod_tools: GSModTools = null
 
 ## The website chat relay, when one is configured. See [method _build_relay].
-var relay: DotChatRelay = null
+var relay: GSChatRelay = null
 
 ## The backbone client the relay posts through. Assigned by the module BEFORE
 ## [method setup], because [FcIdentity] is what owns one and is built first.
 ##
-## [b]An [Object], not a [DotBackboneClient].[/b] Same reasoning as dot-chat's own: this
+## [b]An [Object], not a [GSBackboneClient].[/b] Same reasoning as dot-chat's own: this
 ## file is happy to name the type and the relay is not, and keeping one spelling across
 ## the seam means the duck-typed contract is the only contract.
 var backbone: Object = null
@@ -121,13 +121,13 @@ var _command_claimed: bool = false
 
 
 ## Builds all three. Call from the module's load, after the game is found.
-func setup(p_server: DotServer, p_game: FcGame, p_link: FcNetLink) -> DotResult:
+func setup(p_server: GSServer, p_game: FcGame, p_link: FcNetLink) -> GSResult:
 	if _started:
-		return DotResult.fail(DotError.CODE_STATE, "Already set up.")
+		return GSResult.fail(GSError.CODE_STATE, "Already set up.")
 
 	if p_server == null or p_game == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "Services need a server and a game."
+		return GSResult.fail(
+			GSError.CODE_STATE, "Services need a server and a game."
 		)
 
 	server = p_server
@@ -138,7 +138,7 @@ func setup(p_server: DotServer, p_game: FcGame, p_link: FcNetLink) -> DotResult:
 	# on `_ready`, and both routers below look that name up when they start — a chat
 	# router that started first would find nothing, warn once, and then enforce no gag
 	# for the life of the server.
-	var moderated: DotResult = await _build_moderation()
+	var moderated: GSResult = await _build_moderation()
 
 	if not moderated.ok:
 		return moderated
@@ -154,7 +154,7 @@ func setup(p_server: DotServer, p_game: FcGame, p_link: FcNetLink) -> DotResult:
 	# After chat, because it needs the router; not fatal, because a relay that cannot
 	# start is a server that still runs a perfectly good match.
 	var relayed := _build_relay()
-	DotLog.result(CHANNEL, "the website chat relay", relayed)
+	GSLog.result(CHANNEL, "the website chat relay", relayed)
 
 	if voice_enabled:
 		var voiced := _build_voice()
@@ -163,7 +163,7 @@ func setup(p_server: DotServer, p_game: FcGame, p_link: FcNetLink) -> DotResult:
 			return voiced
 
 	_started = true
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 # --- The website relay -----------------------------------------------------
@@ -178,11 +178,11 @@ func setup(p_server: DotServer, p_game: FcGame, p_link: FcNetLink) -> DotResult:
 ##
 ## Nothing here is a new policy. A relayed command is checked against the same file, by
 ## the same flags, as the same person typing it in game.
-func _build_relay() -> DotResult:
+func _build_relay() -> GSResult:
 	if relay_config == null:
-		relay_config = DotChatRelayConfig.new()
+		relay_config = GSChatRelayConfig.new()
 
-		# LAYERED, and it was not. A `DotConfig` is exported defaults, then a JSON file,
+		# LAYERED, and it was not. A `GSConfig` is exported defaults, then a JSON file,
 		# then the environment, then the command line -- and a config that is merely `new()`d
 		# has only the first of those, so `GS_CHAT_RELAY_ENABLED=1` and
 		# `--chat-relay-enabled` both did nothing. The relay could be turned on only by a
@@ -195,22 +195,22 @@ func _build_relay() -> DotResult:
 		# variable somebody set for a different server.
 		var layered := relay_config.load_layered(RELAY_CONFIG_PATH)
 		if not layered.ok:
-			DotLog.warn(CHANNEL, "the chat relay configuration is not usable", {
+			GSLog.warn(CHANNEL, "the chat relay configuration is not usable", {
 				"why": str(layered.error),
 			})
-			return DotResult.success(null)
+			return GSResult.success(null)
 
 	if not relay_config.enabled:
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	if backbone == null:
 		# **Found, not handed over.** A backbone client is built by whatever owns the
 		# server's credential — dot-server-deploy's `TmcReport`, or this game's own
 		# identity layer — and a relay built during module load exists before any host
-		# could assign one. `DotBackboneClient` publishes itself under this name for
+		# could assign one. `GSBackboneClient` publishes itself under this name for
 		# exactly that reason; the ordering trap is the one that left dot-server's audit
 		# log unopened in every default configuration.
-		backbone = DotRegistry.get_service(&"dot_backbone_client")
+		backbone = GSRegistry.get_service(&"dot_backbone_client")
 
 	if backbone == null:
 		# Info and success, not a failure, and the difference matters now that the relay
@@ -220,14 +220,14 @@ func _build_relay() -> DotResult:
 		# family's own "a warning that reads like a setting nobody filled in", which is how
 		# a real one stops being read. The line names what to do, which is the only part an
 		# operator can act on.
-		DotLog.info(
+		GSLog.info(
 			CHANNEL,
 			"the chat relay is on but there is no backbone client, so it will not start",
 			{"fix": "put a server-scoped integration token in the listing configuration"}
 		)
-		return DotResult.success(null)
+		return GSResult.success(null)
 
-	relay = DotChatRelay.new()
+	relay = GSChatRelay.new()
 	relay.name = "ChatRelay"
 	relay.router = chat
 	relay.config = relay_config
@@ -256,7 +256,7 @@ func _build_relay() -> DotResult:
 	if server != null and server.chat != null:
 		server.chat.watch_relay(relay)
 
-	return DotResult.success(relay)
+	return GSResult.success(relay)
 
 
 func _uid_has_permission(uid: String, flag: String) -> bool:
@@ -271,7 +271,7 @@ func _uid_has_permission(uid: String, flag: String) -> bool:
 ## exactly this and the glue is identical in all of them — a context built by hand, the
 ## uid's own flags on it, the console asked. Five copies of that is the shape this tree
 ## has shipped in four shell scripts and three vendoring lists, so it lives in
-## `DotServer.run_command_as_uid` and this is the call.
+## `GSServer.run_command_as_uid` and this is the call.
 func _run_relayed_command(
 	uid: String, command: String, args: PackedStringArray, source: int
 ) -> void:
@@ -279,7 +279,7 @@ func _run_relayed_command(
 		return
 
 	for reply in server.run_command_as_uid(uid, command, args, source):
-		DotLog.info(CHANNEL, "relayed command reply", {"uid": uid, "line": reply})
+		GSLog.info(CHANNEL, "relayed command reply", {"uid": uid, "line": reply})
 
 
 func _on_site_command(uid: String, command: String, allowed: bool) -> void:
@@ -293,15 +293,15 @@ func _on_site_command(uid: String, command: String, allowed: bool) -> void:
 
 # --- Moderation ------------------------------------------------------------
 
-func _build_moderation() -> DotResult:
-	moderation = DotModerationManager.new()
+func _build_moderation() -> GSResult:
+	moderation = GSModerationManager.new()
 	moderation.name = "Moderation"
 	moderation.server_scope = server_scope
 	moderation.register_mute_source = true
 	moderation.register_ban_source = true
 
 	if punishments_file != "":
-		var file_store := DotPunishmentStoreFile.new()
+		var file_store := GSPunishmentStoreFile.new()
 		file_store.path = punishments_file
 		moderation.store = file_store
 
@@ -314,7 +314,7 @@ func _build_moderation() -> DotResult:
 		if session == null:
 			return ""
 
-		return DotPunishmentSubject.for_uid(str(session.userid))
+		return GSPunishmentSubject.for_uid(str(session.userid))
 
 	add_child(moderation)
 
@@ -322,24 +322,24 @@ func _build_moderation() -> DotResult:
 	# notes insist on: a punishment store may be a shared database behind a
 	# community's four servers, and an un-awaited coroutine returns at its first
 	# suspension — so the branch below would be reading a Signal.
-	var loaded: DotResult = await moderation.load_all()
+	var loaded: GSResult = await moderation.load_all()
 
 	if not loaded.ok:
 		# Not fatal, and loudly not silent. A server whose punishment store could not
 		# be read is a server enforcing nothing, and the operator has to know that
 		# rather than find out when a banned player walks back in.
-		DotLog.warn(CHANNEL, "the punishment store could not be read", {
+		GSLog.warn(CHANNEL, "the punishment store could not be read", {
 			"why": loaded.error.message
 		})
 
-	return DotResult.success(moderation)
+	return GSResult.success(moderation)
 
 
 # --- Chat ------------------------------------------------------------------
 
 ## The live tools, with this game's verbs. See `FcModTools` for what each one does.
 func _build_mod_tools() -> void:
-	mod_tools = DotModTools.new()
+	mod_tools = GSModTools.new()
 	mod_tools.name = "ModTools"
 	# Two servers in one process — a test, a listen server — must not fight over one
 	# registry name, and nothing looks the tools up by it.
@@ -368,8 +368,8 @@ func _build_mod_tools() -> void:
 	add_child(mod_tools)
 
 
-func _build_chat() -> DotResult:
-	chat = DotChatRouter.new()
+func _build_chat() -> GSResult:
+	chat = GSChatRouter.new()
 	chat.name = "Chat"
 	chat.rules = _chat_rules()
 	# The defaults are everyone/team/direct. This game wants a radius channel as well,
@@ -394,7 +394,7 @@ func _build_chat() -> DotResult:
 
 	_hook_chat_events()
 
-	return DotResult.success(chat)
+	return GSResult.success(chat)
 
 
 ## The lookups the router calls: names, keys, teams, positions, admin and gag tests.
@@ -421,7 +421,7 @@ func _wire_chat_callbacks() -> void:
 
 	chat.is_admin_fn = func(peer: int) -> bool:
 		var session := server.session_of(peer)
-		return session != null and session.permissions.has(DotAdminFlags.CHAT)
+		return session != null and session.permissions.has(GSAdminFlags.CHAT)
 
 	# Consulted only when no `dot_mute_source` is registered. dot-moderation registers
 	# one above, so this is the fallback for a build without it — and it reads
@@ -454,9 +454,9 @@ func _hook_chat_events() -> void:
 		# exist.** dot-server's chat manager checks for a command prefix BEFORE it
 		# fires `player_chat`, and `_handle_command` returns on every path — including
 		# the unknown-command one, which is silently ignored. Its prefixes are `["!",
-		# "/"]`, identical to `DotChatRules`'.
+		# "/"]`, identical to `GSChatRules`'.
 		#
-		# So a line beginning with `!` never reached `DotChatRouter` at all, and
+		# So a line beginning with `!` never reached `GSChatRouter` at all, and
 		# `command_entered` — which this game connects, and which `_on_chat_command`
 		# below switches on — **could not fire.** `!nominate`, `!timeleft`, `!score`
 		# and `!stats` have no console equivalent and therefore did nothing whatever;
@@ -474,32 +474,32 @@ func _hook_chat_events() -> void:
 ## [b]A radius channel on a deathmatch server is not a novelty.[/b] It is the only one
 ## of the four whose audience the players can change by moving, which makes it the only
 ## one that is part of the game rather than beside it.
-func _channels() -> Array[DotChatChannel]:
-	var out: Array[DotChatChannel] = []
+func _channels() -> Array[GSChatChannel]:
+	var out: Array[GSChatChannel] = []
 
-	var everyone := DotChatChannel.everyone()
+	var everyone := GSChatChannel.everyone()
 	everyone.id = CH_ALL
 	out.append(everyone)
 
-	var team := DotChatChannel.team()
+	var team := GSChatChannel.team()
 	team.id = CH_TEAM
 	out.append(team)
 
-	var near := DotChatChannel.make(CH_NEAR, "Nearby", DotChatChannel.Scope.RADIUS)
+	var near := GSChatChannel.make(CH_NEAR, "Nearby", GSChatChannel.Scope.RADIUS)
 	near.prefix = "(near)"
 	near.radius = 30.0
 	near.colour = Color(0.75, 0.85, 0.70)
 	out.append(near)
 
-	var whisper := DotChatChannel.direct()
+	var whisper := GSChatChannel.direct()
 	whisper.id = CH_WHISPER
 	out.append(whisper)
 
 	return out
 
 
-func _chat_rules() -> DotChatRules:
-	var rules := DotChatRules.new()
+func _chat_rules() -> GSChatRules:
+	var rules := GSChatRules.new()
 
 	rules.max_length = 200
 	rules.refuse_over_length = false
@@ -529,7 +529,7 @@ func _chat_rules() -> DotChatRules:
 ## contract is that a cancelled message is refused and the player told why; here the
 ## message is not refused at all, it is delivered by somebody else — so a reason would
 ## put "Message blocked" in front of a player whose line went out perfectly.
-func _on_player_chat(event: DotEvent) -> void:
+func _on_player_chat(event: GSEvent) -> void:
 	var session := server.session_by_userid(event.get_int("userid"))
 
 	if session == null:
@@ -560,11 +560,11 @@ func _on_player_chat(event: DotEvent) -> void:
 ## [b]The router's own wire, unflattened.[/b] This used to be `describe()` handed to
 ## `send_system_to`, which made every line a player typed a SYSTEM line whose text happened
 ## to start with their name — drawn as "[Server]: WhoZ: hello", and pushed onto the HUD's
-## centre notice with the server's announcements. The client's `DotChatClient.receive` reads
+## centre notice with the server's announcements. The client's `GSChatClient.receive` reads
 ## this form and keeps the speaker apart from the text; dot-server's own payload is only its
 ## fallback, for a server running without dot-chat.
 func _send_chat(wire: Dictionary, recipients: PackedInt32Array) -> void:
-	if not DotChatMessage.from_dictionary(wire).ok:
+	if not GSChatMessage.from_dictionary(wire).ok:
 		return
 
 	for peer in recipients:
@@ -573,17 +573,17 @@ func _send_chat(wire: Dictionary, recipients: PackedInt32Array) -> void:
 
 ## One dot-chat line to one session, if it can still be reached.
 ##
-## The same reachability test as `DotChatManager._can_reach`: a session the server has not
+## The same reachability test as `GSChatManager._can_reach`: a session the server has not
 ## yet noticed leaving is still active, and an RPC at a peer that is gone prints an engine
 ## error per line.
-func _send_wire(session: DotClientSession, wire: Dictionary) -> void:
+func _send_wire(session: GSClientSession, wire: Dictionary) -> void:
 	if session == null or not session.is_active():
 		return
 	var mp := server.multiplayer
 	if mp == null or mp.multiplayer_peer == null or not Array(mp.get_peers()).has(session.peer_id):
 		return
 
-	server.send_kind(session.peer_id, DotEnvelope.CHAT_LINE, wire, DotEnvelope.Lane.EVENT)
+	server.send_kind(session.peer_id, GSEnvelope.CHAT_LINE, wire, GSEnvelope.Lane.EVENT)
 
 
 func _playing_peers() -> PackedInt32Array:
@@ -596,7 +596,7 @@ func _playing_peers() -> PackedInt32Array:
 
 
 func _on_message_accepted(
-	message: DotChatMessage, _recipients: PackedInt32Array
+	message: GSChatMessage, _recipients: PackedInt32Array
 ) -> void:
 	said.emit(message.sender_peer, message)
 
@@ -620,7 +620,7 @@ func claim_command() -> void:
 
 
 ## A `!command` from dot-server's chat manager, before it reaches the console.
-func _on_player_command(event: DotEvent) -> void:
+func _on_player_command(event: GSEvent) -> void:
 	var session := event.get_session()
 
 	if session == null:
@@ -657,11 +657,11 @@ func notice(peer: int, text: String) -> void:
 
 # --- Voice -----------------------------------------------------------------
 
-func _build_voice() -> DotResult:
-	voice = DotVoiceRouter.new()
+func _build_voice() -> GSResult:
+	voice = GSVoiceRouter.new()
 	voice.name = "Voice"
-	voice.config = DotVoiceConfig.new()
-	voice.default_channel = DotVoiceRouter.Channel.PROXIMITY
+	voice.config = GSVoiceConfig.new()
+	voice.default_channel = GSVoiceRouter.Channel.PROXIMITY
 	voice.proximity_range = voice_range
 	voice.max_bytes_per_second = 6144
 
@@ -680,7 +680,7 @@ func _build_voice() -> DotResult:
 
 	add_child(voice)
 
-	return DotResult.success(voice)
+	return GSResult.success(voice)
 
 
 ## Where a client's captured audio arrives. Pointed at by the bridge.
@@ -705,7 +705,7 @@ func add_peer(peer: int) -> void:
 
 	if session != null:
 		for row in chat.backlog_for(peer):
-			if row is Dictionary and DotChatMessage.from_dictionary(row).ok:
+			if row is Dictionary and GSChatMessage.from_dictionary(row).ok:
 				_send_wire(session, row)
 
 	chat.join_notice(peer, CH_ALL)
@@ -729,9 +729,9 @@ func remove_peer(peer: int) -> void:
 ## Both halves: the person and the address. A ban on an address that the person can
 ## walk round by reconnecting is not a ban, and one on a person who can change address
 ## is not either.
-func check_admission(session: DotClientSession) -> DotResult:
+func check_admission(session: GSClientSession) -> GSResult:
 	if moderation == null or session == null:
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	return moderation.check_admission(str(session.userid), session.address)
 
@@ -782,4 +782,4 @@ func describe_lines() -> PackedStringArray:
 func _relay_command_document() -> Array[Dictionary]:
 	if server == null or server.console == null:
 		return []
-	return server.console.command_document(relay_config.command_source as DotCmdContext.Source)
+	return server.console.command_document(relay_config.command_source as GSCmdContext.Source)

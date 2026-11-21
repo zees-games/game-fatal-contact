@@ -24,7 +24,7 @@ func launch_action() -> StringName:
 func _hud_keys() -> void:
 	if hud == null or presentation == null or presentation.bindings == null:
 		return
-	var table: DotMenuBindings = presentation.bindings
+	var table: GSMenuBindings = presentation.bindings
 	hud.keys[&"jump"] = table.key_for(&"dot_fps_jump")
 	hud.keys[&"dash"] = table.key_for(FcBindings.DASH)
 	hud.keys[&"chat"] = table.key_for(FcBindings.CHAT)
@@ -32,7 +32,7 @@ func _hud_keys() -> void:
 	hud.keys[&"reload"] = table.key_for(FcBindings.RELOAD)
 	hud.keys[&"fire_mode"] = table.key_for(FcBindings.FIRE_MODE)
 	hud.keys[&"use"] = table.key_for(FcBindings.USE)
-	hud.keys[&"help"] = table.key_for(DotMenuBindings.HELP_ACTION)
+	hud.keys[&"help"] = table.key_for(GSMenuBindings.HELP_ACTION)
 	hud.keys[&"maps"] = table.key_for(&"dot_menu_maps")
 	hud.keys[&"loadout"] = table.key_for(&"dot_menu_loadout") if loadout_menu != null else ""
 	hud.keys[&"launch"] = table.key_for(launch_action())
@@ -80,28 +80,28 @@ func _build_interface_rest() -> void:
 
 ## Solo: a map (`map:<id>`) or a mode on this map (`mode:<id>`), now. The game changes and the
 ## level is rebuilt as a server's change would have it rebuilt ([method _on_map_changed]).
-func change_from_menu(id: StringName, picked_mode: StringName = &"") -> DotResult:
+func change_from_menu(id: StringName, picked_mode: StringName = &"") -> GSResult:
 	if host_console == null and not _offline:
-		return DotResult.fail(DotError.CODE_STATE, "The server changes the map.")
+		return GSResult.fail(GSError.CODE_STATE, "The server changes the map.")
 	var timeline := get_node_or_null(^"LoadTimeline") as FcLoadTimeline
 	if timeline != null:
 		timeline.rearm("map change %s to playable" % String(id))
 	if host_console != null:
-		_trace_hosted_change = timeline != null and not DotPlatform.is_headless()
-		var hosted: DotResult = await _change_on_host(String(id), String(picked_mode))
+		_trace_hosted_change = timeline != null and not GSPlatform.is_headless()
+		var hosted: GSResult = await _change_on_host(String(id), String(picked_mode))
 		FcLoadTimeline.mark("change: host answered")
 		if not hosted.ok:
 			_trace_hosted_change = false
 		return hosted
 	if timeline != null:
-		if not DotPlatform.is_headless():
+		if not GSPlatform.is_headless():
 			timeline.trace_frames(CHANGE_TRACE_FRAMES)
 	# The cover goes up before any of the work, under a reason of its own: the fetch and the level each hold and
 	# release &"map", and a gap between them would draw the half-changed game for a frame.
 	gate.hold(&"change", "Loading the map")
 	_changing = true
 	Engine.max_physics_steps_per_frame = 1
-	var changed: DotResult = await _change_covered(id, picked_mode)
+	var changed: GSResult = await _change_covered(id, picked_mode)
 	_changing = false
 	gate.release(&"change")
 	return changed
@@ -109,7 +109,7 @@ func change_from_menu(id: StringName, picked_mode: StringName = &"") -> DotResul
 
 ## [method change_from_menu] behind its cover, one heavy step a frame: the menu's map list, the game's
 ## [code]change_map[/code], then the level in slices ([method _on_map_changed]).
-func _change_covered(id: StringName, picked_mode: StringName) -> DotResult:
+func _change_covered(id: StringName, picked_mode: StringName) -> GSResult:
 	var text := String(id)
 	var map := game.map
 	var mode: FcMode = null
@@ -130,15 +130,15 @@ func _change_covered(id: StringName, picked_mode: StringName) -> DotResult:
 	elif text.begins_with("mode:"):
 		mode = FcModes.by_id(StringName(text.substr(5)))
 		if mode == null:
-			return DotResult.fail(DotError.CODE_INVALID, "There is no mode called '%s'." % text.substr(5))
+			return GSResult.fail(GSError.CODE_INVALID, "There is no mode called '%s'." % text.substr(5))
 		var rebuilt := _build_map(game.map.id)
 		if not rebuilt.ok:
 			return rebuilt
 		map = rebuilt.value
 	if map == null:
-		return DotResult.fail(DotError.CODE_INVALID, "There is no map called '%s'." % text)
+		return GSResult.fail(GSError.CODE_INVALID, "There is no map called '%s'." % text)
 	# The imported solid in slices first: built inside change_map it was 40-70 ms of the swap frame.
-	await map.to_collision_async(DotFrameSlice.new(LEVEL_SLICE_MS))
+	await map.to_collision_async(GSFrameSlice.new(LEVEL_SLICE_MS))
 	FcLoadTimeline.mark("change: solid built")
 	# The flag views' first build, in a frame of its own: built in the swap frame it was 143 ms of it.
 	var played := mode if mode != null else game.displayed_mode()
@@ -155,7 +155,7 @@ func _change_covered(id: StringName, picked_mode: StringName) -> DotResult:
 	if def != null:
 		await get_tree().process_frame
 		await _on_map_changed(def)
-	return DotResult.success(id)
+	return GSResult.success(id)
 
 ## The cursor, from one place. A screen that wants the mouse gets it; otherwise the game does, subject to the
 ## browser having been clicked at least once.
@@ -237,7 +237,7 @@ func _on_killview(clip: Dictionary, info: Dictionary) -> void:
 	shown["killer"] = String(info.get("killer", ""))
 	shown["victim_id"] = player.player_id if player != null else 0
 	var weapon := String(info.get("weapon", ""))
-	var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(StringName(weapon)) if weapon != "" else null
+	var def: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(StringName(weapon)) if weapon != "" else null
 	shown["weapon"] = def.display_name if def != null and def.display_name != "" else weapon.capitalize()
 	var _started := killview.play(clip, shown)
 
@@ -280,7 +280,7 @@ func _replay_lens() -> Camera3D:
 ## The camera fade follows the camera on screen. It hangs off the player's camera, which a dead player's death camera keeps moving while a replay plays: left to itself it faded whoever the
 ## replay had posed near that unseen camera (a figure gone see-through mid-replay) and nothing at the replay's own lens (a torso filling the screen). Called after the replay has posed the bodies.
 func _fade_for_replay(delta: float) -> void:
-	var fade := player.camera.get_node_or_null(^"Fade") as DotCameraFade if player != null and player.camera != null else null
+	var fade := player.camera.get_node_or_null(^"Fade") as GSCameraFade if player != null and player.camera != null else null
 	if fade == null:
 		return
 	var lens := _replay_lens()
@@ -297,7 +297,7 @@ func _set_third_person(on: bool) -> void:
 	if player == null:
 		return
 	player.third_person = on
-	var fade := player.camera.get_node_or_null(^"Fade") as DotCameraFade if player.camera != null else null
+	var fade := player.camera.get_node_or_null(^"Fade") as GSCameraFade if player.camera != null else null
 	if fade != null:
 		fade.focus = player.view if on else null
 
@@ -316,7 +316,7 @@ func _guard_camera(p: FcPlayer) -> void:
 	if p.avatar == null:
 		p.rewear(FcAvatars.stock_avatar(StringName(FcGame.storage_key(p.player_id))))
 	if p.camera.get_node_or_null(^"Fade") == null:
-		var fade := DotCameraFade.new()
+		var fade := GSCameraFade.new()
 		fade.name = "Fade"
 		fade.bodies_fn = _other_figures
 		p.camera.add_child(fade)
@@ -405,7 +405,7 @@ func _set_client_processing(on: bool) -> void:
 
 ## Whether setup is spread over frames: in a client that draws, and not headless (see `_setup_frame`).
 func _builds_in_frames() -> bool:
-	return not DotPlatform.is_headless() and is_inside_tree()
+	return not GSPlatform.is_headless() and is_inside_tree()
 
 func _prewarm_weapons_next_frame() -> void:
 	_prewarm_weapons(player)
@@ -414,7 +414,7 @@ func _prewarm_weapons_next_frame() -> void:
 ## One tick of weapon use, predicted. An outcome rather than a shot, because a use is
 ## not always one: a rocket produces a spawn and no shot at all, and a burst produces
 ## several shots that are all one trigger pull.
-func _on_local_used(outcome: DotWeaponOutcome) -> void:
+func _on_local_used(outcome: GSWeaponOutcome) -> void:
 	if presentation == null or outcome == null or not outcome.used:
 		return
 
@@ -432,7 +432,7 @@ func _on_local_wall_jumped() -> void:
 	if presentation != null:
 		var _voice := presentation.on_wall_jumped()
 
-func _on_local_damaged(damage: DotDamage) -> void:
+func _on_local_damaged(damage: GSDamage) -> void:
 	if player != null and player.controller != null:
 		var held := player.weapons.current_def() if player.weapons != null else null
 		var scale := game.ads_rules.hit_flinch_for(held.id) if held != null and game != null else 1.0
@@ -442,7 +442,7 @@ func _on_local_damaged(damage: DotDamage) -> void:
 		presentation.on_hurt(damage.amount, player != null and player.health != null and not player.health.alive)
 
 ## Points the HUD at what hurt the local player: the attacker's body, else back along the shot. Fall and world damage have neither.
-func _note_hit_direction(damage: DotDamage) -> void:
+func _note_hit_direction(damage: GSDamage) -> void:
 	if hud == null or hud.damage_dirs == null or player == null or damage.attacker == player.player_id:
 		return
 	var source: Vector3 = Vector3.INF
@@ -455,7 +455,7 @@ func _note_hit_direction(damage: DotDamage) -> void:
 		hud.damage_dirs.note_hit(source)
 
 
-func _on_local_died(_damage: DotDamage) -> void:
+func _on_local_died(_damage: GSDamage) -> void:
 	if presentation == null or player == null:
 		return
 	var where := Transform3D.IDENTITY
@@ -537,7 +537,7 @@ func _build_interface() -> void:
 	browser.name = "Browser"
 	add_child(browser)
 	var listed := browser.setup()
-	DotLog.result(CHANNEL, "the server browser", listed)
+	GSLog.result(CHANNEL, "the server browser", listed)
 	browser.join_requested.connect(_on_join_requested)
 
 	# [b]dot-menu's menu, and the client still owns the pointer.[/b] The menu is told not to manage
@@ -550,7 +550,7 @@ func _build_interface() -> void:
 	if game_menu.has_method(&"follow_hud"):
 		game_menu.call(&"follow_hud", hud, FcHud.accent_theme())
 	_touch = FcTouch.build(self, hud, _sampler, game.mobile_rules, game_menu.menu_button)
-	if DotPlatform.has_touch() and _touch.get(&"buttons") != null and platform.has_method(&"fit_touch_buttons"):
+	if GSPlatform.has_touch() and _touch.get(&"buttons") != null and platform.has_method(&"fit_touch_buttons"):
 		platform.call(&"fit_touch_buttons", _touch.buttons, FcTouch.LAYOUT)
 	# M: the maps and the modes (dot-menu's map menu).
 	if game_menu.has_method(&"use_maps"):
@@ -575,7 +575,7 @@ func _build_interface() -> void:
 		if teams is Object:
 			_link_menu(teams as Object)
 	platform.add_store_panel(game_menu, func() -> String:
-		var key := loadout_account_key(DotRegistry.get_node_service(AUTH_SERVICE))
+		var key := loadout_account_key(GSRegistry.get_node_service(AUTH_SERVICE))
 		return "" if key == "local" else key)
 	game_menu.action_requested.connect(func(id: StringName) -> void:
 		if id != FcMenus.LEAVE:
@@ -598,13 +598,13 @@ func _build_interface_part2() -> void:
 	)
 
 	if presentation != null:
-		applier = DotMenuApplier.new()
+		applier = GSMenuApplier.new()
 		applier.name = "Applier"
 		applier.settings = presentation.settings
 		add_child(applier)
 		applier.bind_audio(presentation.audio)
 		applier.bind_fx(presentation.fx)
-		DotLog.result(CHANNEL, "the settings applier", applier.setup())
+		GSLog.result(CHANNEL, "the settings applier", applier.setup())
 		presentation.settings.changed.connect(func(key: StringName, value: Variant, _w: StringName) -> void:
 			if key == &"hud_safe_area" and hud != null:
 				hud.set_safe_area(float(value))
@@ -623,7 +623,7 @@ func _ragdoll_sound(id: StringName, at: Vector3, volume: float) -> void:
 ## The dead bodies' yard: the game's ragdoll rules, the world's collision layers, and the
 ## presentation's sound. Built once; cleared on a map change.
 func _build_ragdolls() -> void:
-	ragdolls = DotPlayerRagdolls.new()
+	ragdolls = GSPlayerRagdolls.new()
 	ragdolls.name = "Ragdolls"
 	ragdolls.rules = game.ragdoll_rules
 	var stack := game.player_stack
@@ -639,19 +639,19 @@ func _build_ragdolls() -> void:
 
 ## The profiler's game context and native timers, now if it is up and when it arrives if not.
 func _install_profiler_context() -> void:
-	var prof: Object = DotRegistry.get_service(&"dot_profiler")
+	var prof: Object = GSRegistry.get_service(&"dot_profiler")
 	if prof != null:
 		FcProfilerContext.install(prof, game, _bot_host(), presentation)
 		return
 	# Not one-shot: that would spend the connection on whichever service registers next, usually not the profiler.
-	if not DotRegistry.signals().service_registered.is_connected(_on_profiler_registered):
-		var _c := DotRegistry.signals().service_registered.connect(_on_profiler_registered)
+	if not GSRegistry.signals().service_registered.is_connected(_on_profiler_registered):
+		var _c := GSRegistry.signals().service_registered.connect(_on_profiler_registered)
 
 
 func _on_profiler_registered(svc_name: StringName, inst: Object) -> void:
 	if svc_name != &"dot_profiler":
 		return
-	DotRegistry.signals().service_registered.disconnect(_on_profiler_registered)
+	GSRegistry.signals().service_registered.disconnect(_on_profiler_registered)
 	FcProfilerContext.install(inst, game, _bot_host(), presentation)
 
 
@@ -663,7 +663,7 @@ func open_attachments() -> bool:
 	if attach_panel == null:
 		attach_panel = FcAttachPanel.new()
 		attach_panel.name = "AttachPanel"
-		attach_panel.arsenal_fn = func() -> DotWeaponArsenal:
+		attach_panel.arsenal_fn = func() -> GSWeaponArsenal:
 			return player.arsenal if player != null and player.is_alive() else null
 		attach_panel.send_fn = func(body: PackedByteArray) -> void:
 			if bridge != null and not _offline:
@@ -694,8 +694,8 @@ func _fetch_solo_start_map() -> void:
 		return
 	if not FcMaps.is_delivered(_catalogue().get_map(start)):
 		return
-	var fetched: DotResult = await _fetch_picked(start)
-	DotLog.result(CHANNEL, "solo start map %s fetched before the first map" % start, fetched)
+	var fetched: GSResult = await _fetch_picked(start)
+	GSLog.result(CHANNEL, "solo start map %s fetched before the first map" % start, fetched)
 
 
 ## A solo start map this build does not hold is a delivered pack: once the first level is up, it
@@ -706,6 +706,6 @@ func _start_on_solo_map() -> void:
 	if not _offline or start == &"" or game == null or (game.map != null and game.map.id == start):
 		return
 	if _catalogue().get_map(start) == null:
-		DotLog.warn(CHANNEL, "the solo start map is not a map this game lists", {"map": start})
+		GSLog.warn(CHANNEL, "the solo start map is not a map this game lists", {"map": start})
 		return
-	DotLog.result(CHANNEL, "solo start map %s" % start, await change_from_menu(StringName("map:%s" % start)))
+	GSLog.result(CHANNEL, "solo start map %s" % start, await change_from_menu(StringName("map:%s" % start)))

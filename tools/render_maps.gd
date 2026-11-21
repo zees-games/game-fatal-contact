@@ -49,8 +49,8 @@ func _check(ok: bool, what: String) -> void:
 		_failed += 1
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _shot(file: String) -> void:
@@ -64,7 +64,7 @@ func _shot(file: String) -> void:
 
 ## Polls the client's load gate until it is open (capped): a fixed wait shows the cover on a loaded box.
 func _wait_gate(cap: float) -> void:
-	var gate: DotLoadGate = client.get("gate")
+	var gate: GSLoadGate = client.get("gate")
 	var waited := 0.0
 	while (gate == null or not gate.is_open()) and waited < cap:
 		await _wait(0.25)

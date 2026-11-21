@@ -26,7 +26,7 @@ var _worst_tag := ""
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -42,7 +42,7 @@ func _wait_live(client: Node) -> bool:
 		await get_tree().process_frame
 		var p: FcPlayer = client.get("player")
 		var g: FcGame = client.get("game")
-		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == DotMatch.State.LIVE:
+		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == GSMatch.State.LIVE:
 			for o in g.players():
 				if o != p and o.is_alive():
 					return true
@@ -101,8 +101,8 @@ func _run() -> void:
 	for id in bots:
 		var b: FcPlayer = bots[id]
 		b.set_meta(&"bot_scripted", true)
-		b.set_meta(&"bot_move", DotFpsCommand.new())
-		b.set_meta(&"bot_fire", DotWeaponCommand.new())
+		b.set_meta(&"bot_move", GSFpsCommand.new())
+		b.set_meta(&"bot_fire", GSWeaponCommand.new())
 	for act in [FcBindings.FIRE, FcBindings.AIM, FcBindings.DUCK]:
 		if not InputMap.has_action(act):
 			InputMap.add_action(act)
@@ -113,10 +113,10 @@ func _run() -> void:
 	g.hit_confirmed.connect(func(a: int, v: int, _amt: float, _pt: Vector3, _h: bool, _l: bool) -> void:
 		if a == me.player_id and v == bot.player_id:
 			hits.append(1))
-	me.arsenal.used.connect(func(outcome: DotWeaponOutcome) -> void:
+	me.arsenal.used.connect(func(outcome: GSWeaponOutcome) -> void:
 		if outcome.shots.is_empty():
 			return
-		var s: DotShot = outcome.shots[0]
+		var s: GSShot = outcome.shots[0]
 		var cam := me.camera
 		var cdir := -cam.global_transform.basis.z
 		_shots.append({

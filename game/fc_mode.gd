@@ -15,7 +15,7 @@ extends Resource
 ## The line where that stops holding is real and worth naming: a mode that changes what
 ## HAPPENS on an event, rather than what an event is worth, needs code. Gun game — where
 ## a kill replaces your weapon — is the first one that does, and it subclasses
-## [DotMatchRules] and hangs it here. Everything up to that point is this resource.
+## [GSMatchRules] and hangs it here. Everything up to that point is this resource.
 ##
 ## [codeblock]
 ## var mode := FcModes.by_id(&"tdm")
@@ -39,8 +39,8 @@ extends Resource
 ## handing dot-match the catalogue's own object, because a `Resource` is a reference in
 ## GDScript and a server that adjusted a score limit at runtime would otherwise be
 ## editing the mode every later match reads. This family has shipped that exact aliasing
-## four times — see `DotLeaderboardDef.scoped()` in the tree's notes.
-@export var rules: DotMatchRules = null
+## four times — see `GSLeaderboardDef.scoped()` in the tree's notes.
+@export var rules: GSMatchRules = null
 
 @export_group("Sides")
 
@@ -120,7 +120,7 @@ extends Resource
 ## derived from the MAP's own extent — see [method FcObjectives.build] — so a mode
 ## carrying the definitions would carry `dm_atrium`'s flag positions into every map it
 ## was ever played on. `ffa`, `tdm` and `siege` leave it empty and are scored on kills,
-## which is what [DotMatch] alone has always been enough for.
+## which is what [GSMatch] alone has always been enough for.
 @export var objective_layout: StringName = &""
 
 ## How this mode picks a respawn site: "avoid", "weighted", "furthest" or "random"
@@ -173,7 +173,7 @@ func arms_players() -> bool:
 ## The weapon ids [member weapon_pool] names, against [param catalogue]: ids it has, and
 ## every id carrying a `tag:` named. In catalogue order, so a random pick is the same on
 ## every machine given the same seed.
-func pool_ids(catalogue: DotWeaponCatalogue) -> Array[StringName]:
+func pool_ids(catalogue: GSWeaponCatalogue) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for entry in weapon_pool:
 		if entry.begins_with("tag:"):
@@ -196,7 +196,7 @@ static func free_for_all(limit: int = 25) -> Resource:
 	mode.self_damage = true
 	mode.preferred_map = &"dm_atrium"
 
-	var rules := DotMatchRules.deathmatch(limit)
+	var rules := GSMatchRules.deathmatch(limit)
 	rules.display_name = "Free-For-All"
 	rules.respawn_delay_sec = 2.0
 	rules.spawn_protection_sec = 1.5
@@ -235,7 +235,7 @@ static func siege(limit: int = 20) -> Resource:
 	mode.scatter_props = 8
 	mode.preferred_map = &"dm_box"
 
-	var rules := DotMatchRules.deathmatch(limit)
+	var rules := GSMatchRules.deathmatch(limit)
 	rules.display_name = "Siege"
 	# Shorter than free-for-all's. Dying to a monster is not the same as losing a
 	# duel, and a long wait after one is a punishment for the wrong thing.
@@ -266,7 +266,7 @@ static func team_deathmatch(limit: int = 75) -> Resource:
 	mode.self_damage = true
 	mode.preferred_map = &"dm_atrium"
 
-	var rules := DotMatchRules.team_deathmatch(limit)
+	var rules := GSMatchRules.team_deathmatch(limit)
 	rules.display_name = "Team Deathmatch"
 	rules.respawn_delay_sec = 3.0
 	rules.spawn_protection_sec = 2.0
@@ -285,7 +285,7 @@ static func team_deathmatch(limit: int = 75) -> Resource:
 ## King of the hill: one point, two clocks, and the clock that runs is the owner's.
 ##
 ## [b]The mode that made this game need dot-objective.[/b] Everything before it is
-## scored on kills, so [DotMatch] alone was enough; this one is scored on **holding a
+## scored on kills, so [GSMatch] alone was enough; this one is scored on **holding a
 ## place**, and the difference is not a score limit — it is a capture curve where the
 ## second player is worth half a player, a block that pauses rather than undoes, a
 ## partial capture that decays over a minute, and a clock that FREEZES rather than
@@ -304,7 +304,7 @@ static func king_of_the_hill() -> Resource:
 
 	# One point wins it. The objective IS the score, so a kill limit on top would be a
 	# second way to end a round that nobody is playing for.
-	var rules := DotMatchRules.team_deathmatch(1)
+	var rules := GSMatchRules.team_deathmatch(1)
 	rules.display_name = "King of the Hill"
 	rules.respawn_delay_sec = 5.0
 	rules.spawn_protection_sec = 2.0
@@ -336,7 +336,7 @@ static func capture_the_flag(limit: int = 3) -> Resource:
 	mode.objective_layout = &"ctf"
 	mode.preferred_map = &"dm_atrium"
 
-	var rules := DotMatchRules.team_deathmatch(limit)
+	var rules := GSMatchRules.team_deathmatch(limit)
 	rules.display_name = "Capture the Flag"
 	rules.respawn_delay_sec = 5.0
 	rules.spawn_protection_sec = 2.0
@@ -363,20 +363,20 @@ static func capture_the_flag(limit: int = 3) -> Resource:
 	return mode
 
 
-## The sides this mode plays with, ready to hand to a [DotTeamManager].
+## The sides this mode plays with, ready to hand to a [GSTeamManager].
 ##
-## [b]The spawn tags are the point.[/b] `DotTeam.spawn_tag` is what sends a side to its
-## own end of the map, and it is read by `DotMatch._spawn_for`; a team mode whose teams
+## [b]The spawn tags are the point.[/b] `GSTeam.spawn_tag` is what sends a side to its
+## own end of the map, and it is read by `GSMatch._spawn_for`; a team mode whose teams
 ## have no tag spawns both sides out of one pool, which on a symmetric map means each
 ## side spawning in the other's base about half the time. The tags here are the ones
 ## `FcMap` writes — see [member FcMap.spawn_tags].
-func teams() -> Array[DotTeam]:
-	var out: Array[DotTeam] = []
+func teams() -> Array[GSTeam]:
+	var out: Array[GSTeam] = []
 
 	if team_count <= 1:
 		return out
 
-	var pair := DotTeam.standard_pair()
+	var pair := GSTeam.standard_pair()
 	pair[0].spawn_tag = &"red"
 	pair[1].spawn_tag = &"blue"
 	out.append_array(pair)
@@ -384,7 +384,7 @@ func teams() -> Array[DotTeam]:
 	# Sides past the pair have no end of the map of their own (spawn_tag empty: the shared pool);
 	# fc_team_menu.gd names and colours them.
 	for index in range(2, mini(team_count, 8)):
-		out.append(DotTeam.make(index + 1, "Team %d" % (index + 1)))
+		out.append(GSTeam.make(index + 1, "Team %d" % (index + 1)))
 
 	out.resize(mini(team_count, 8))
 
@@ -395,13 +395,13 @@ func is_team_mode() -> bool:
 	return team_count >= 2
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if id == &"":
-		return DotResult.fail(DotError.CODE_INVALID, "A mode needs an id.")
+		return GSResult.fail(GSError.CODE_INVALID, "A mode needs an id.")
 
 	if rules == null:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Mode '%s' has no rules." % id
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Mode '%s' has no rules." % id
 		)
 
 	# A mode's two halves have to agree, and nothing else checks it. `team_based` is
@@ -410,8 +410,8 @@ func validate() -> DotResult:
 	# them individually while calling itself Team Deathmatch — correct at every point
 	# inside dot-match, and wrong.
 	if is_team_mode() != rules.team_based:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			(
 				"Mode '%s' has team_count %d but rules.team_based is %s."
 				% [id, team_count, str(rules.team_based)]
@@ -419,8 +419,8 @@ func validate() -> DotResult:
 		)
 
 	if not gun_game.is_empty() and rules.score_limit != gun_game.size():
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"Mode '%s' is gun game over %d weapons but its score limit is %d." % [
 				id, gun_game.size(), rules.score_limit
 			]

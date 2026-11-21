@@ -56,7 +56,7 @@ func _ready() -> void:
 	# Top level, so the world's position is the only one: a parent that moved would carry
 	# every grenade in the air with it.
 	top_level = true
-	if DotAddonApi.build_level("fc_weapons") >= MISSILE_LEVEL:
+	if GSAddonApi.build_level("fc_weapons") >= MISSILE_LEVEL:
 		_missile_art = load(MISSILE_ART) as Script
 
 
@@ -149,7 +149,7 @@ func _make(f: FcProjectiles.Flying) -> Node3D:
 ## fc-weapons' `AwMissileArt` model for [param weapon_id], or null: below level 27, for a weapon without a
 ## missile of its own, or when its model is not loaded. Reached by path; FC's floor is below 27.
 func _missile(weapon_id: StringName) -> Node3D:
-	if DotAddonApi.build_level("fc_weapons") < MISSILE_LEVEL:
+	if GSAddonApi.build_level("fc_weapons") < MISSILE_LEVEL:
 		return null
 	if _missile_art == null or _missile_failed.has(weapon_id) or not bool(_missile_art.call(&"has_missile", weapon_id)):
 		return null
@@ -194,7 +194,7 @@ func _fuse_light() -> OmniLight3D:
 	return light
 
 
-## The round's mesh and material, built now for a draw under the loading cover (DotLoadGate.warm_up): the first
+## The round's mesh and material, built now for a draw under the loading cover (GSLoadGate.warm_up): the first
 ## launcher shot compiled them, 34 ms and 4 pipelines on a GPU box.
 func warm() -> Array:
 	_round_assets()

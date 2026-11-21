@@ -7,8 +7,8 @@ extends Node3D
 ## exact, needing no physics space, and giving the same answer on a client replaying a
 ## tick and a server that ran it. An NPC on Godot physics would be a second solver in
 ## a game that deliberately has none, and on a headless dedicated server it would have
-## no space to be solved in. [method DotNpcBrain.steer_toward] handles a plain
-## [Node3D] for exactly this case, and [DotNpcNavGraph] is what keeps one out of the
+## no space to be solved in. [method GSNpcBrain.steer_toward] handles a plain
+## [Node3D] for exactly this case, and [GSNpcNavGraph] is what keeps one out of the
 ## walls.
 ##
 ## [b]Extended by nothing and referenced by PATH.[/b] A `class_name` here would be a
@@ -83,16 +83,16 @@ func _ready() -> void:
 	add_child(snout)
 
 
-## One of the family's animated people (dot-player-char's `DotHumanoidFigure`), the person
+## One of the family's animated people (dot-player-char's `GSHumanoidFigure`), the person
 ## the kit's skin letter names, its top pulled toward the kind's tint so the four kinds are told
 ## apart at range, [member body_height] tall. It animates from how far its body moves
 ## (`auto_animate`): the horde's brain moves the body, and nothing here knows a speed. False
 ## when the art is not in this build, so the capsule draws.
 func _build_figure() -> bool:
-	var look := DotHumanoidLook.from_letter(skin)
+	var look := GSHumanoidLook.from_letter(skin)
 	if look == null:
 		return false
-	var person := DotHumanoidFigure.new()
+	var person := GSHumanoidFigure.new()
 	person.name = "Figure"
 	add_child(person)
 	person.build(look.with_side(tint, 0.5), body_height)

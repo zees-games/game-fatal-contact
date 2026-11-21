@@ -28,10 +28,10 @@ func _run() -> void:
 ## A command pair for [param id]: looking along its yaw, level, with [param fire] built by [param edit].
 func _pair(game: FcGame, id: int, edit: Callable = Callable()) -> Array:
 	var p := game.player_for(id)
-	var move := DotFpsCommand.new()
+	var move := GSFpsCommand.new()
 	move.yaw = p.controller.state.yaw
 	move.pitch = 0.0
-	var fire := DotWeaponCommand.new()
+	var fire := GSWeaponCommand.new()
 	fire.yaw = move.yaw
 	fire.pitch = move.pitch
 	if edit.is_valid():
@@ -70,18 +70,18 @@ func _test_one_hand() -> void:
 	_ticks(game, TICK_RATE, func() -> Dictionary: return {thief: _pair(game, thief)})
 	var allowed := FcFlagCarry.allowed_slots()
 	_check(allowed.has(p.arsenal.current_slot()), "a two-handed gun in hand is put away for a one-handed item", str(p.arsenal.current_slot()))
-	_ticks(game, TICK_RATE, func() -> Dictionary: return {thief: _pair(game, thief, func(f: DotWeaponCommand) -> void: f.slot = AwWeaponIds.SLOT_PRIMARY)})
+	_ticks(game, TICK_RATE, func() -> Dictionary: return {thief: _pair(game, thief, func(f: GSWeaponCommand) -> void: f.slot = AwWeaponIds.SLOT_PRIMARY)})
 	_check(allowed.has(p.arsenal.current_slot()), "the primary's key does nothing while carrying", str(p.arsenal.current_slot()))
 	var seen := {}
 	for i in 6:
-		_ticks(game, 1, func() -> Dictionary: return {thief: _pair(game, thief, func(f: DotWeaponCommand) -> void: f.set_button(DotWeaponCommand.BUTTON_NEXT, true))})
+		_ticks(game, 1, func() -> Dictionary: return {thief: _pair(game, thief, func(f: GSWeaponCommand) -> void: f.set_button(GSWeaponCommand.BUTTON_NEXT, true))})
 		_ticks(game, TICK_RATE / 2, func() -> Dictionary: return {thief: _pair(game, thief)})
 		seen[p.arsenal.current_slot()] = true
 	var only_allowed := seen.keys().all(func(s: int) -> bool: return allowed.has(s))
 	_check(only_allowed and seen.size() >= 2, "next weapon cycles through the one-handed items only", str(seen.keys()))
 	_go(game, thief, _stand_of(game, 1))
 	_check(not p.flag_one_hand, "a capture ends the rule")
-	_ticks(game, TICK_RATE, func() -> Dictionary: return {thief: _pair(game, thief, func(f: DotWeaponCommand) -> void: f.slot = AwWeaponIds.SLOT_PRIMARY)})
+	_ticks(game, TICK_RATE, func() -> Dictionary: return {thief: _pair(game, thief, func(f: GSWeaponCommand) -> void: f.slot = AwWeaponIds.SLOT_PRIMARY)})
 	_check(p.arsenal.current_slot() == AwWeaponIds.SLOT_PRIMARY, "and the primary comes back", str(p.arsenal.current_slot()))
 	await _free(game)
 	_done()
@@ -102,9 +102,9 @@ func _test_drop_key() -> void:
 	var aim := p.aim_direction()
 	aim.y = 0.0
 	aim = aim.normalized()
-	game.tick({thief: _pair(game, thief, func(f: DotWeaponCommand) -> void: f.set_button(DotWeaponCommand.BUTTON_DROP, true))})
+	game.tick({thief: _pair(game, thief, func(f: GSWeaponCommand) -> void: f.set_button(GSWeaponCommand.BUTTON_DROP, true))})
 	var flag := _flag(game, 2)
-	_check(flag.state == DotObjectiveFlag.State.DROPPED, "the drop key drops the flag", str(flag.state))
+	_check(flag.state == GSObjectiveFlag.State.DROPPED, "the drop key drops the flag", str(flag.state))
 	_check((flag.at - feet).dot(aim) > 0.4, "ahead of where the carrier aims", str(flag.at - feet))
 	_check(p.arsenal.current_slot() == slot and (game.weapon_drops == null or game.weapon_drops.count() == drops), "and the weapon stays in hand")
 	_check(FcFlagCarry.flying(game, 2), "the flag is in flight")
@@ -119,7 +119,7 @@ func _test_drop_key() -> void:
 	_check(absf(flag.at.y - feet.y) < 0.1, "on the floor", "%.2f against %.2f" % [flag.at.y, feet.y])
 	var flat := Vector3(flag.at.x - feet.x, 0.0, flag.at.z - feet.z)
 	_check(flat.dot(aim) > FcFlagCarry.REACH, "having slid on past the hand", str(flat))
-	_check(flag.state == DotObjectiveFlag.State.DROPPED, "the dropper does not take it straight back", str(flag.carrier))
+	_check(flag.state == GSObjectiveFlag.State.DROPPED, "the dropper does not take it straight back", str(flag.carrier))
 	await _free(game)
 	_done()
 
@@ -139,9 +139,9 @@ func _test_carry_cvars() -> void:
 	var game: FcGame = got[0]
 	var thief: int = got[1]
 	var feet := game.player_for(thief).controller.state.position
-	game.tick({thief: _pair(game, thief, func(f: DotWeaponCommand) -> void: f.set_button(DotWeaponCommand.BUTTON_DROP, true))})
+	game.tick({thief: _pair(game, thief, func(f: GSWeaponCommand) -> void: f.set_button(GSWeaponCommand.BUTTON_DROP, true))})
 	var flag := _flag(game, 2)
-	_check(flag.state == DotObjectiveFlag.State.DROPPED and not FcFlagCarry.flying(game, 2), "physics off: the flag drops without flying")
+	_check(flag.state == GSObjectiveFlag.State.DROPPED and not FcFlagCarry.flying(game, 2), "physics off: the flag drops without flying")
 	_check(absf(flag.at.y - feet.y) < 0.1, "straight onto the floor", "%.2f against %.2f" % [flag.at.y, feet.y])
 	FcFlagCarry.set_setting("physics", "1")
 	await _free(game)
@@ -157,9 +157,9 @@ func _test_carry_cvars() -> void:
 	thief = got[1]
 	var p := game.player_for(thief)
 	_check(not p.flag_one_hand, "one-hand off: the carrier keeps any gun")
-	_ticks(game, TICK_RATE, func() -> Dictionary: return {thief: _pair(game, thief, func(f: DotWeaponCommand) -> void: f.slot = AwWeaponIds.SLOT_PRIMARY)})
+	_ticks(game, TICK_RATE, func() -> Dictionary: return {thief: _pair(game, thief, func(f: GSWeaponCommand) -> void: f.slot = AwWeaponIds.SLOT_PRIMARY)})
 	_check(p.arsenal.current_slot() == AwWeaponIds.SLOT_PRIMARY, "even the primary", str(p.arsenal.current_slot()))
-	game.tick({thief: _pair(game, thief, func(f: DotWeaponCommand) -> void: f.set_button(DotWeaponCommand.BUTTON_DROP, true))})
+	game.tick({thief: _pair(game, thief, func(f: GSWeaponCommand) -> void: f.set_button(GSWeaponCommand.BUTTON_DROP, true))})
 	_check(_flag(game, 2).carrier == str(thief), "drop key off: the key does not drop the flag")
 	FcFlagCarry.set_setting("drop_key", "1")
 	FcFlagCarry.set_setting("one_hand", "1")
@@ -174,7 +174,7 @@ func _test_carry_wire() -> void:
 		return
 	var server: FcGame = got[0]
 	var thief: int = got[1]
-	server.tick({thief: _pair(server, thief, func(f: DotWeaponCommand) -> void: f.set_button(DotWeaponCommand.BUTTON_DROP, true))})
+	server.tick({thief: _pair(server, thief, func(f: GSWeaponCommand) -> void: f.set_button(GSWeaponCommand.BUTTON_DROP, true))})
 	var wire: Dictionary = JSON.parse_string(server.objectives.ctf_wire_text(server.current_tick(), true))
 	_check(wire.has("fc") and int(wire["fc"]["oh"]) == 1, "the wire carries the one-hand rule", str(wire.get("fc")))
 	_check((wire["fc"]["mv"] as Array).has(2.0) or (wire["fc"]["mv"] as Array).has(2), "and which flag flies")
@@ -245,16 +245,16 @@ func _test_bot_roles() -> void:
 	if objective == null:
 		await _free(game)
 		return
-	_check(objective.carrier_of(2) == thief and objective.state_of(2) == DotBotObjective.CARRIED, "and who carries one", str(objective.carrier_of(2)))
+	_check(objective.carrier_of(2) == thief and objective.state_of(2) == GSBotObjective.CARRIED, "and who carries one", str(objective.carrier_of(2)))
 	_check(objective.capture_for(1).distance_to(_stand_of(game, 1)) < 0.01, "a carrier scores on its own stand", str(objective.capture_for(1)))
 	var red := objective.roles_in(1)
 	var blue := objective.roles_in(2)
-	_check(red[DotBotObjective.ATTACK] == 1 and red[DotBotObjective.DEFEND] == 1, "two bots on a side: one attacks, one defends", str(red))
-	_check(blue[DotBotObjective.ATTACK] == 1 and blue[DotBotObjective.DEFEND] == 1, "on both sides", str(blue))
-	var goal: DotBotGoal = (minds[thief] as FcBots.Mind).brain.goal
+	_check(red[GSBotObjective.ATTACK] == 1 and red[GSBotObjective.DEFEND] == 1, "two bots on a side: one attacks, one defends", str(red))
+	_check(blue[GSBotObjective.ATTACK] == 1 and blue[GSBotObjective.DEFEND] == 1, "on both sides", str(blue))
+	var goal: GSBotGoal = (minds[thief] as FcBots.Mind).brain.goal
 	_check(goal.kind == &"capture" and goal.urgent, "the carrier's job is to run it home", "%s %s" % [goal.kind, goal.urgent])
 	FcBots.forget(game, thief)
-	_check(objective.role_of(thief) == DotBotObjective.ROAM, "a bot that left gives its job up")
+	_check(objective.role_of(thief) == GSBotObjective.ROAM, "a bot that left gives its job up")
 	FcBots.personas_mode = ""
 	await _free(game)
 	_done()
@@ -276,7 +276,7 @@ func _test_bot_personas() -> void:
 				cmds[id] = FcBots.think(game, game.player_for(id), minds[id], game.current_tick() + 1, float(TICK_RATE))
 			game.tick(cmds)
 	think_all.call()
-	var base := DotBotSettings.of(game)
+	var base := GSBotSettings.of(game)
 	var ids := {}
 	var own := true
 	var no_faster := true

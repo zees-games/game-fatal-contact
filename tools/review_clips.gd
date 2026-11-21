@@ -48,7 +48,7 @@ func _run() -> void:
 	var done := 0
 	for id_s in ids:
 		var id := StringName(id_s)
-		var def: DotWeaponDef = AwWeaponCatalogue.table().get(id)
+		var def: GSWeaponDef = AwWeaponCatalogue.table().get(id)
 		if def == null:
 			print("%s: unknown weapon, skipped" % id)
 			continue
@@ -60,12 +60,12 @@ func _run() -> void:
 			await process_frame
 		if me.arsenal.carry != null:
 			me.arsenal.carry.enabled = false
-		var given: DotResult = me.arsenal.give(id)
+		var given: GSResult = me.arsenal.give(id)
 		if not given.ok:
 			print("%s: give failed: %s" % [id, given.message])
 		me.arsenal.equip(def.slot)
 		await _wait(1.4)
-		var slot: DotWeaponSlot = me.arsenal.current()
+		var slot: GSWeaponSlot = me.arsenal.current()
 		if slot == null or slot.def.id != id:
 			print("%s: not in hand, skipped" % id)
 			continue

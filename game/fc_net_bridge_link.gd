@@ -8,7 +8,7 @@ const FcLinkRtt := preload("fc_link_rtt.gd")
 const FcNpcs := preload("fc_npcs.gd")
 const FcRequest := preload("fc_request.gd")
 
-## Joins [FcGame] to a [DotNetManager]. The netcode seam, and the only file in game-fatal-contact that
+## Joins [FcGame] to a [GSNetManager]. The netcode seam, and the only file in game-fatal-contact that
 ## names both.
 
 
@@ -27,23 +27,23 @@ static var solid_trace := false
 
 
 ## [code]func(bytes: PackedByteArray) -> void[/code]. Where a received voice frame goes on a client.
-## [FcClient] points it at `DotVoiceManager.receive`.
+## [FcClient] points it at `GSVoiceManager.receive`.
 var voice_in_fn: Callable = Callable()
 
 
 ## [code]func(speaker_peer: int, bytes: PackedByteArray) -> void[/code]. Where a
 ## client's captured audio goes on a server. [FcServices] points it at
-## `DotVoiceRouter.relay`.
+## `GSVoiceRouter.relay`.
 var voice_relay_fn: Callable = Callable()
 
 
 ## [code]func(payload: Dictionary) -> void[/code]. A map-change announcement, client
-## side. [FcClient] points it at `DotMapSyncClient.handle`.
+## side. [FcClient] points it at `GSMapSyncClient.handle`.
 var map_in_fn: Callable = Callable()
 
 
 ## [code]func(peer: int, payload: Dictionary) -> void[/code]. A client's map progress
-## or readiness, server side. [FcModule] points it at `DotMapSyncHost.handle`.
+## or readiness, server side. [FcModule] points it at `GSMapSyncHost.handle`.
 var map_report_fn: Callable = Callable()
 
 
@@ -88,7 +88,7 @@ signal match_received(info: Dictionary)
 signal hit_received(info: Dictionary)
 
 
-## Emitted on a client when the server sent the replay of its killer's view: [method DotKillViewClip.unpack].
+## Emitted on a client when the server sent the replay of its killer's view: [method GSKillViewClip.unpack].
 signal killview_received(clip: Dictionary, info: Dictionary)
 
 
@@ -105,14 +105,14 @@ signal grenade_fx_received(info: Dictionary)
 
 
 ## Binds a game and a manager to each other.
-func attach(p_game: FcGame, p_net: DotNetManager) -> DotResult:
+func attach(p_game: FcGame, p_net: GSNetManager) -> GSResult:
 	if p_game == null or p_net == null:
-		return DotResult.fail(DotError.CODE_INVALID, "A bridge needs both halves.")
+		return GSResult.fail(GSError.CODE_INVALID, "A bridge needs both halves.")
 
 	if p_game.is_authority != p_net.is_server:
 		# Silent and unplayable either way: a client that resolves its own hits, or a server that resolves none.
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"The game and the manager disagree about who is authoritative.",
 			"game.is_authority=%s, net.is_server=%s"
 				% [p_game.is_authority, p_net.is_server]
@@ -127,8 +127,8 @@ func attach(p_game: FcGame, p_net: DotNetManager) -> DotResult:
 	var event := net.messages.register(
 		FcEvent.NAME,
 		FcEvent,
-		DotNetMessage.Delivery.RELIABLE,
-		DotNetMessage.Direction.TO_CLIENT
+		GSNetMessage.Delivery.RELIABLE,
+		GSNetMessage.Direction.TO_CLIENT
 	)
 
 	if not event.ok:
@@ -137,8 +137,8 @@ func attach(p_game: FcGame, p_net: DotNetManager) -> DotResult:
 	var request := net.messages.register(
 		FcRequest.NAME,
 		FcRequest,
-		DotNetMessage.Delivery.RELIABLE,
-		DotNetMessage.Direction.TO_SERVER
+		GSNetMessage.Delivery.RELIABLE,
+		GSNetMessage.Direction.TO_SERVER
 	)
 
 	if not request.ok:
@@ -171,17 +171,17 @@ func attach(p_game: FcGame, p_net: DotNetManager) -> DotResult:
 		game.medals_awarded.connect(_on_medals_awarded)
 		game.stomped.connect(_on_stomped)
 
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
-## Creates the RPC surface under [param parent]. Separate from [method attach] because the parent differs by end and deployment: on a server the [DotServer] node, on a client the [DotClientLink],
+## Creates the RPC surface under [param parent]. Separate from [method attach] because the parent differs by end and deployment: on a server the [GSServer] node, on a client the [GSClientLink],
 ## in the headless suite a bare [Node] with a loopback in place of a socket. All three must be NAMED the same, because the name is the routing.
 func open_link(parent: Node) -> FcNetLink:
 	link = FcNetLink.attached_to(parent, self, net != null and net.is_server)
-	# Through DotGameLink, not a bare add_child: the link sits under the server node (the
+	# Through GSGameLink, not a bare add_child: the link sits under the server node (the
 	# route is by path), so nothing frees it when this bridge's module unloads, and the next
 	# load's link would be renamed `@Node@n` and every RPC to a client lost.
-	DotGameLink.attach(link, parent, self, FcNetLink.NODE_NAME)
+	GSGameLink.attach(link, parent, self, FcNetLink.NODE_NAME)
 	return link
 
 
@@ -201,7 +201,7 @@ func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
 			unready_held += 1
 			return
 
-	if delivery == DotNetMessage.Delivery.UNRELIABLE:
+	if delivery == GSNetMessage.Delivery.UNRELIABLE:
 		link.send_snapshot(peer_id, payload)
 	elif net.is_server:
 		link.send_event(peer_id, payload)
@@ -213,7 +213,7 @@ func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
 
 ## Tells everybody who somebody is now: a profile that arrived after they were seated, a new avatar, an operator's rename. Server side. [b]Through JOIN, which a client already applies to a player it has[/b];
 ## a second message for "this person changed" would be one more thing a late joiner has to be told. An empty [param display_name] keeps the one they have.
-func refresh_player(session_id: int, display_name: String, avatar: DotAvatar) -> bool:
+func refresh_player(session_id: int, display_name: String, avatar: GSAvatar) -> bool:
 	if net == null or not net.is_server or not _behaviours.has(session_id):
 		return false
 
@@ -233,12 +233,12 @@ func mirror_player(
 	peer_id: int,
 	session_id: int,
 	display_name: String
-) -> DotResult:
+) -> GSResult:
 	if net == null or net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only a client mirrors.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only a client mirrors.")
 
 	if _behaviours.has(session_id):
-		return DotResult.success(_behaviours[session_id])
+		return GSResult.success(_behaviours[session_id])
 
 	var added := game.add_player(session_id, display_name)
 
@@ -253,7 +253,7 @@ func mirror_player(
 		return registered
 
 	_players_by_peer[peer_id] = session_id
-	return DotResult.success(identity)
+	return GSResult.success(identity)
 
 
 ## Whether [method remote_feet] can answer anything but now for [param mover_id]'s movement: it has sent a view lag and compensation is on (or the trace is, which prints each answer).
@@ -270,7 +270,7 @@ func remote_feet(other_id: int, mover_id: int, tick: int) -> Variant:
 	var mover: FcPlayerNet = _behaviours.get(mover_id)
 	if mover == null or game == null:
 		return null
-	# A command repeated over a lost packet keeps its view LAG: the client's receive timeline walks with its clock (`DotNetClock.advance`), so the tick the packet was lost for measured the same lag one tick on.
+	# A command repeated over a lost packet keeps its view LAG: the client's receive timeline walks with its clock (`GSNetClock.advance`), so the tick the packet was lost for measured the same lag one tick on.
 	# What does not move on is the snapshot bracket, which names two recorded ticks: it is aged by the ticks since, then stepped to the pair the view has reached (holding its offset blended between two ticks the client never held).
 	var lag := game.collision_lag(mover.last_view_lag)
 	var at: Variant = null
@@ -309,7 +309,7 @@ func shot_feet(other_id: int, shooter_id: int, view_tick: float) -> Variant:
 	if wire.is_valid():
 		a = wire.call(a)
 		b = wire.call(b)
-	# The client's extrapolation (DotNetInterpolator._continue): the line through its two newest samples of this target.
+	# The client's extrapolation (GSNetInterpolator._continue): the line through its two newest samples of this target.
 	return (b as Vector3) + ((b as Vector3) - (a as Vector3)) / float(newer - older) * (float(source[3]) - float(newer)) + ease
 
 ## [param other_id]'s crouch as [method shot_feet] stands the feet (the client blends the crouch between the same two samples, and holds the newer's when it runs ahead); -1, for the ring, when [method shot_feet] gives null.
@@ -382,7 +382,7 @@ func remove_bot(session_id: int) -> void:
 
 	if net != null and net.is_server:
 		send_event(0, FcEvents.Kind.LEAVE, FcEvents.write_leave(session_id))
-		var identity := behaviour.player.get_node_or_null(^"Identity") as DotNetIdentity if behaviour != null and behaviour.player != null else null
+		var identity := behaviour.player.get_node_or_null(^"Identity") as GSNetIdentity if behaviour != null and behaviour.player != null else null
 		if identity != null and identity.net_id > 0:
 			net.registry.unregister(identity.net_id)
 
@@ -390,8 +390,8 @@ func remove_bot(session_id: int) -> void:
 
 
 ## Mirrors whatever a [method join_payload] described. Client side.
-func apply_join(payload: PackedByteArray) -> DotResult:
-	var reader := DotNetReader.new(payload)
+func apply_join(payload: PackedByteArray) -> GSResult:
+	var reader := GSNetReader.new(payload)
 	var net_id := reader.read_varint()
 	var peer_id := reader.read_varint()
 	var session_id := reader.read_varint()
@@ -399,17 +399,17 @@ func apply_join(payload: PackedByteArray) -> DotResult:
 	var avatar_text := reader.read_string(AVATAR_BYTES)
 
 	if not reader.ok():
-		return DotResult.fail(DotError.CODE_PARSE, "Truncated join.")
+		return GSResult.fail(GSError.CODE_PARSE, "Truncated join.")
 
 	# A document that does not parse is the stock figure, not a refused join: an avatar
 	# is cosmetic, and somebody who cannot be drawn as themselves can still be drawn.
-	var avatar: DotAvatar = null
+	var avatar: GSAvatar = null
 
 	if avatar_text != "":
 		var parsed: Variant = JSON.parse_string(avatar_text)
 
 		if parsed is Dictionary:
-			var built := DotAvatar.from_dict(parsed)
+			var built := GSAvatar.from_dict(parsed)
 
 			if built.ok:
 				avatar = built.value
@@ -419,7 +419,7 @@ func apply_join(payload: PackedByteArray) -> DotResult:
 		var known: FcPlayerNet = _behaviours[session_id]
 		known.player.display_name = display_name
 		known.player.rewear(avatar)
-		return DotResult.success(known)
+		return GSResult.success(known)
 
 	var mirrored := mirror_player(net_id, peer_id, session_id, display_name)
 
@@ -450,7 +450,7 @@ func send_request(kind: int, body: PackedByteArray = PackedByteArray()) -> void:
 	if net == null or net.is_server or link == null:
 		return
 
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	var wrote := net.messages.encode(FcRequest.new(kind, body), writer)
 
 	if not wrote.ok:
@@ -489,13 +489,13 @@ func _mirror_monster(info: Dictionary) -> void:
 	var def := FcNpcs.catalogue().get_npc(info["kind_id"])
 
 	if def == null:
-		DotLog.debug(CHANNEL, "a monster this build does not have", {"id": str(info["kind_id"])})
+		GSLog.debug(CHANNEL, "a monster this build does not have", {"id": str(info["kind_id"])})
 		return
 
 	var scene: Variant = load(def.scene_path) if ResourceLoader.exists(def.scene_path) else null
 
 	if not (scene is PackedScene):
-		DotLog.warn(CHANNEL, "a monster's scene would not load", {"path": def.scene_path})
+		GSLog.warn(CHANNEL, "a monster's scene would not load", {"path": def.scene_path})
 		return
 
 	var body := (scene as PackedScene).instantiate() as Node3D
@@ -516,16 +516,16 @@ func _mirror_monster(info: Dictionary) -> void:
 	behaviour.body = body
 	body.add_child(behaviour)
 
-	var identity := DotNetIdentity.new()
+	var identity := GSNetIdentity.new()
 	identity.name = "Identity"
 	identity.owner_peer_id = 0
-	identity.authority = DotNetIdentity.Authority.SERVER
+	identity.authority = GSNetIdentity.Authority.SERVER
 	body.add_child(identity)
 
 	var registered := net.registry.register(identity, net_id, net.clock.tick, net.config)
 
 	if not registered.ok:
-		DotLog.warn(CHANNEL, "could not mirror a monster", {"error": str(registered.error)})
+		GSLog.warn(CHANNEL, "could not mirror a monster", {"error": str(registered.error)})
 		body.queue_free()
 		return
 
@@ -550,13 +550,13 @@ func _on_match_state_changed(_from: int, _to: int) -> void:
 	_send_match_state(0)
 
 
-func _on_player_killed(entry: DotKillFeed.Entry) -> void:
+func _on_player_killed(entry: GSKillFeed.Entry) -> void:
 	if killview != null and net != null and String(entry.killer_key).is_valid_int() and String(entry.victim_key).is_valid_int():
 		var named: FcPlayer = game.player_for(int(entry.killer_key))
 		var res := killview.note_kill(int(entry.killer_key), int(entry.victim_key), float(game.current_tick()) / float(game.tick_rate), {
 			"killer": named.display_name if named != null else "", "weapon": String(entry.cause)})
 		if not res.ok:
-			DotLog.trace(CHANNEL, "no kill view", {"why": res.error.message})
+			GSLog.trace(CHANNEL, "no kill view", {"why": res.error.message})
 	# The killer key is a string here and 0-means-the-world on the wire. dot-match
 	# reads an empty killer key as "the world"; this game never writes "0" for it,
 	# because that would create a scoreboard record for a player who does not exist.
@@ -569,7 +569,7 @@ func _on_player_killed(entry: DotKillFeed.Entry) -> void:
 		entry.headshot,
 		bool(entry.get_meta(&"critical", false)),
 		# The fall the server picked (FcGame.decide_death), so every client draws the same.
-		entry.get_meta(&"death", null) as DotPlayerDeath
+		entry.get_meta(&"death", null) as GSPlayerDeath
 	))
 
 
@@ -596,7 +596,7 @@ func _on_medals_awarded(killer: int, victim: int, medals: Array, points: int, st
 	send_event(0, FcEvents.Kind.AWARD, FcEvents.write_award(killer, victim, points, streak, medals))
 
 
-func _on_event(message: DotNetMessage) -> void:
+func _on_event(message: GSNetMessage) -> void:
 	var event := message as FcEvent
 
 	if event == null or game == null or net == null or net.is_server:
@@ -667,21 +667,21 @@ func _on_event(message: DotNetMessage) -> void:
 			if bool(burst["ok"]):
 				grenade_fx_received.emit(burst)
 		FcEvents.Kind.KILLVIEW:
-			var view := DotKillViewClip.unpack(event.body)
+			var view := GSKillViewClip.unpack(event.body)
 			if bool(view["ok"]):
 				killview_received.emit(view["clip"], view["info"])
 		_:
 			_on_world_event(event, reader)
 
 
-func _on_request(message: DotNetMessage) -> void:
+func _on_request(message: GSNetMessage) -> void:
 	var request := message as FcRequest
 
 	if request == null or net == null or not net.is_server:
 		return
 
 	# The sender the TRANSPORT reported, carried onto the message by
-	# `DotNetManager.receive`. Never a peer id out of the body: that would be a claim.
+	# `GSNetManager.receive`. Never a peer id out of the body: that would be a claim.
 	var peer_id := request.sender_peer_id
 
 	if peer_id <= 0:
@@ -710,7 +710,7 @@ func _on_request(message: DotNetMessage) -> void:
 
 ## A client asked to do something with a prop, answered in the next tick. [b]The origin comes from the simulation and only the direction comes off the wire[/b]: the server knows where the player is, and a client naming its own origin could grab a prop from anywhere.
 ## What it cannot know is where they were looking between two ticks, so that is the one thing the payload carries, and a claim.
-## The tool decides whether it reaches: `DotPropTool.may_act_on` enforces the range, the mass limit and whose prop it is.
+## The tool decides whether it reaches: `GSPropTool.may_act_on` enforces the range, the mass limit and whose prop it is.
 func _on_prop_act(peer_id: int, body: Dictionary) -> void:
 	if not bool(body.get("ok", false)) or game == null or game.props == null:
 		return
@@ -726,7 +726,7 @@ func _on_prop_act(peer_id: int, body: Dictionary) -> void:
 		return
 
 	# Queued: a grab, punt or pull traces the physics space, so it runs in the next tick (`FcProps.queue_act`).
-	game.props.queue_act(session_id, int(body["act"]), DotFpsMotor.aim_for(float(body["yaw"]), float(body["pitch"])))
+	game.props.queue_act(session_id, int(body["act"]), GSFpsMotor.aim_for(float(body["yaw"]), float(body["pitch"])))
 
 
 ## The client's own tick rate comes from the SERVER, and from nowhere else. [b]This is the largest measured error in this family's history.[/b] Airdrift's client took its rate from `Engine.physics_ticks_per_second`,
@@ -746,10 +746,10 @@ func _adopt_tick_rate(rate: int, snapshot_rate: int = 0) -> void:
 	net.clock.tick_rate = rate
 	if game.spectate != null:
 		game.spectate.retime()
-	# dot-net API 7 has DotNetClock.adopt_tick_rate(), which also raises the engine's step cap to a quarter second of ticks (a client under 16 fps ran fewer ticks than the server at 128 Hz).
+	# dot-net API 7 has GSNetClock.adopt_tick_rate(), which also raises the engine's step cap to a quarter second of ticks (a client under 16 fps ran fewer ticks than the server at 128 Hz).
 	# A shell built before it gets the same rule here, as game-airdrift does; remove this branch when the oldest shell is API 7.
-	if DotAddonApi.build_level("dot_net") >= 7:
-		DotNetClock.adopt_tick_rate(rate)
+	if GSAddonApi.build_level("dot_net") >= 7:
+		GSNetClock.adopt_tick_rate(rate)
 	else:
 		Engine.max_physics_steps_per_frame = maxi(Engine.max_physics_steps_per_frame, ceili(0.25 * float(rate)))
 		Engine.physics_ticks_per_second = rate

@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcContent := preload("../game/fc_content.gd")
 const KillPov := preload("../game/fc_kill_pov.gd")
@@ -15,7 +15,7 @@ var _client: Node = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -33,8 +33,8 @@ func _until(cond: Callable, limit: float) -> bool:
 	return cond.call()
 
 
-func _lethal(game: Object, killer: Object, me: Object) -> DotDamage:
-	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, game.combat.damage_type(FcContent.DAMAGE_BULLET))
+func _lethal(game: Object, killer: Object, me: Object) -> GSDamage:
+	var damage := GSDamage.make(killer.player_id, me.player_id, 1000.0, game.combat.damage_type(FcContent.DAMAGE_BULLET))
 	damage.weapon_id = &"smg"
 	damage.tick = game.current_tick()
 	return damage
@@ -65,7 +65,7 @@ func _run() -> void:
 	for i in 1200:
 		await _wait(0.1)
 		me = _client.get("player")
-		if me != null and me.is_alive() and gm.match_node.state == DotMatch.State.LIVE:
+		if me != null and me.is_alive() and gm.match_node.state == GSMatch.State.LIVE:
 			live = true
 			break
 	if not _check(live, "the offline match goes live"):
@@ -75,11 +75,11 @@ func _run() -> void:
 	for id in bots:
 		bots[id].set_meta(&"bot_scripted", true)
 		# The last move the AI wrote stays in force once it is skipped; a bot that walks on is a moving target.
-		bots[id].set_meta(&"bot_move", DotFpsCommand.new())
-		bots[id].set_meta(&"bot_fire", DotWeaponCommand.new())
+		bots[id].set_meta(&"bot_move", GSFpsCommand.new())
+		bots[id].set_meta(&"bot_fire", GSWeaponCommand.new())
 	await _wait(4.0)
 	var killer: Object = bots.values()[0]
-	var hurt := DotDamage.make(me.player_id, killer.player_id, 5.0, gm.combat.damage_type(FcContent.DAMAGE_BULLET))
+	var hurt := GSDamage.make(me.player_id, killer.player_id, 5.0, gm.combat.damage_type(FcContent.DAMAGE_BULLET))
 	hurt.weapon_id = &"smg"
 	hurt.tick = gm.current_tick()
 	gm.combat.apply_damage(hurt)
@@ -99,7 +99,7 @@ func _run() -> void:
 	# The clip is complete when it arrives: the first replay frame is drawn at once, never after a wait
 	# that leaves the live death scene under the banner.
 	await _wait(0.15)
-	_check(kv.kv.killcam.state == DotKillcam.State.PLAYING, "the replay is drawing within 0.2 s of the death view starting, not waiting under the banner")
+	_check(kv.kv.killcam.state == GSKillcam.State.PLAYING, "the replay is drawing within 0.2 s of the death view starting, not waiting under the banner")
 	_check(kv.camera.current, "the replay camera is the current one by then")
 	await _wait(1.05)
 	_check(KillPov.is_replay_camera(kv.camera), "the kill view's camera is flagged as a replay")
@@ -175,7 +175,7 @@ func _check_recoil(screen: Node, killer: Object) -> void:
 	add_child(cam)
 	var base := Transform3D(Basis.IDENTITY, Vector3(0.0, 50.0, 0.0))
 	var aux := KillPov.aux_of(killer)
-	_check(aux.size() == DotKillViewRing.AUX and KillPov.SIZE == DotKillViewRing.AUX, "the aux layout is the twelve floats the ring records")
+	_check(aux.size() == GSKillViewRing.AUX and KillPov.SIZE == GSKillViewRing.AUX, "the aux layout is the twelve floats the ring records")
 	_check(KillPov.aux_of(killer, 8).size() == 8 and KillPov.aux_of(null, 20).size() == 20, "a ring of another size gets that many slots, never an out-of-range write")
 	var floor_json: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://requires.floor.json"))
 	_check(int(floor_json["addons"]["dot_replay"]) >= 9, "the pack requires the dot-replay that records twelve aux floats and the event hook")
@@ -260,7 +260,7 @@ func _check_events(killer: Object, me: Object) -> void:
 		for f: Node in get_tree().root.find_children("*", "AwShotFx", true, false):
 			n += (f as AwShotFx).live_count()
 		return n
-	var yard: DotPlayerRagdolls = _client.get("ragdolls")
+	var yard: GSPlayerRagdolls = _client.get("ragdolls")
 	var body: Node3D = bot.body_mesh
 	var shown := body.visible
 	body.visible = true
@@ -282,7 +282,7 @@ func _check_events(killer: Object, me: Object) -> void:
 
 ## A shot is recorded when a body's fire count moves, kept within a cap, and the replay draws that recorded shot
 ## (flash and tracer) once, from where the gun stood.
-func _check_shots(bot: Object, row: Callable, yard: DotPlayerRagdolls) -> void:
+func _check_shots(bot: Object, row: Callable, yard: GSPlayerRagdolls) -> void:
 	_check(_client.get("killcam_shots") != null, "the client records killcam shots beside the bodies")
 	var shots := KillcamShots.new()
 	shots.parent = _client
@@ -350,17 +350,17 @@ func _check_lens(gm: Object, me: Object, killer: Object) -> void:
 			var eye: Vector3 = (hit["position"] as Vector3) - dir * d
 			var placed := KillPov.clear_eye(space, eye, dir, mask)
 			swept += 1
-			if DotCameraProbe.is_inside(space, placed, 0.05, mask):
+			if GSCameraProbe.is_inside(space, placed, 0.05, mask):
 				inside += 1
 		# Sunk in the wall and looking along it (a recording that cut the corner): sideways and deeper than the sweep.
 		var along := dir.rotated(Vector3.UP, PI * 0.5)
 		for d in [0.05, 0.3, 0.8]:
 			var eye: Vector3 = (hit["position"] as Vector3) + dir * d
-			if not DotCameraProbe.is_inside(space, eye, 0.05, mask):
+			if not GSCameraProbe.is_inside(space, eye, 0.05, mask):
 				continue
 			var placed := KillPov.clear_eye(space, eye, along, mask)
 			sunk += 1
-			if DotCameraProbe.is_inside(space, placed, 0.05, mask) or placed.distance_to(eye) > KillPov.CLEAR_STEP_OUT + 0.01:
+			if GSCameraProbe.is_inside(space, placed, 0.05, mask) or placed.distance_to(eye) > KillPov.CLEAR_STEP_OUT + 0.01:
 				sunk_inside += 1
 		if wall_dir == Vector3.ZERO:
 			wall_eye = (hit["position"] as Vector3) - dir * 0.3
@@ -432,7 +432,7 @@ func _check_rig_pool(view: KillPovView, cam: Camera3D, aux: PackedFloat32Array) 
 func _check_arms_pool(view: KillPovView, cam: Camera3D, aux: PackedFloat32Array) -> void:
 	var was: Callable = view.killer_look_fn
 	# Lambdas capture by value: the killer is swapped inside a shared array.
-	var killer: Array = [["arena-player-00000001", DotHumanoidLook.stock(1)]]
+	var killer: Array = [["arena-player-00000001", GSHumanoidLook.stock(1)]]
 	view.killer_look_fn = func() -> Array: return killer[0]
 	view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
 	if view.arms == null:
@@ -446,16 +446,16 @@ func _check_arms_pool(view: KillPovView, cam: Camera3D, aux: PackedFloat32Array)
 	_check(view.parked_arms() == before, "no spare arms are built while a kill view shows its own", "%s then %s" % [before, view.parked_arms()])
 	view.present({})
 	_check(view.parked_arms().has(killer[0][0]), "the ended kill view parks its arms under the killer", str(view.parked_arms()))
-	killer[0] = ["arena-player-00000002", DotHumanoidLook.stock(2)]
+	killer[0] = ["arena-player-00000002", GSHumanoidLook.stock(2)]
 	view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
 	_check(view.arms != null and view.arms != first, "another killer gets another rig", str(view.parked_arms()))
 	view.present({})
-	killer[0] = ["arena-player-00000001", DotHumanoidLook.stock(1)]
+	killer[0] = ["arena-player-00000001", GSHumanoidLook.stock(1)]
 	view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
 	_check(view.arms == first, "a repeat killer takes the rig parked with their look", str(view.parked_arms()))
 	view.present({})
 	for i in KillPovView.RIGS + 2:
-		killer[0] = ["arena-player-%08d" % (10 + i), DotHumanoidLook.stock(1)]
+		killer[0] = ["arena-player-%08d" % (10 + i), GSHumanoidLook.stock(1)]
 		view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
 		view.present({})
 	_check(view.parked_arms().size() == KillPovView.RIGS, "past the pool's size the oldest arms go", str(view.parked_arms()))

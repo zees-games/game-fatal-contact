@@ -103,7 +103,7 @@ func _test_progression() -> void:
 	)
 
 	# Achievements: First Blood is one kill and the match produced six, so this would pass even if dot-stats and
-	# dot-achievements were wired straight through (the bug DotAchievementStatsLink prevents); it proves they connect at all.
+	# dot-achievements were wired straight through (the bug GSAchievementStatsLink prevents); it proves they connect at all.
 	var unlocked_any := false
 
 	for player in _game.players():
@@ -156,23 +156,23 @@ func _test_progression() -> void:
 
 	if leaver_kills > 0.0:
 		_check(
-			entry.ok and entry.value is DotLeaderboardEntry,
+			entry.ok and entry.value is GSLeaderboardEntry,
 			"a player who leaves lands on the kills board"
 		)
 
-		if entry.ok and entry.value is DotLeaderboardEntry:
+		if entry.ok and entry.value is GSLeaderboardEntry:
 			_check(
-				absf((entry.value as DotLeaderboardEntry).value - leaver_kills) < 0.001,
+				absf((entry.value as GSLeaderboardEntry).value - leaver_kills) < 0.001,
 				"with the number they actually scored",
 				"board %s, session %d" % [
-					str((entry.value as DotLeaderboardEntry).value), int(leaver_kills)
+					str((entry.value as GSLeaderboardEntry).value), int(leaver_kills)
 				]
 			)
 	else:
 		# A zero is deliberately NOT filed: a SCORE board of zeroes is noise and a
 		# zero on the PENALTY board would hold first place for ever.
 		_check(
-			not (entry.ok and entry.value is DotLeaderboardEntry),
+			not (entry.ok and entry.value is GSLeaderboardEntry),
 			"a player who scored nothing is not put on a board"
 		)
 
@@ -245,7 +245,7 @@ func _test_map_change_rest(director: FcMapDirector, team: FcMode) -> void:
 			)
 
 			# Asked for by name, which is what an admin typing changelevel does.
-			var moved: DotResult = await director.change_to(&"dm_pit")
+			var moved: GSResult = await director.change_to(&"dm_pit")
 
 			_check(moved.ok, "and changing to it by name is accepted", str(moved.error))
 			_check(
@@ -348,13 +348,13 @@ func _test_lag_compensation_stance() -> void:
 	var crouched := _stance_hold(game, true, 40)
 	_check(game.player_for(943).controller.state.crouch_fraction > 0.99, "B crouches in place")
 	var group: StringName = _stance_shot(game, standing)
-	_check(group == DotHitGroup.HEAD, "a shot at B's drawn standing head, rewound to then, is a headshot",
+	_check(group == GSHitGroup.HEAD, "a shot at B's drawn standing head, rewound to then, is a headshot",
 		"met %s" % [group if group != &"" else &"nothing"])
 	_check(absf(_stance_head(game).y - (crouched[1] as Vector3).y) < 0.01, "and B's zones are put back at the crouch",
 		"head %.3f, crouched %.3f" % [_stance_head(game).y, (crouched[1] as Vector3).y])
 	var _up := _stance_hold(game, false, 40)
 	group = _stance_shot(game, crouched)
-	_check(group == DotHitGroup.HEAD, "a shot at B's drawn crouched head, B standing since, is a headshot",
+	_check(group == GSHitGroup.HEAD, "a shot at B's drawn crouched head, B standing since, is a headshot",
 		"met %s" % [group if group != &"" else &"nothing"])
 	_check(absf(_stance_head(game).y - (standing[1] as Vector3).y) < 0.01, "and B's zones are put back standing",
 		"head %.3f, standing %.3f" % [_stance_head(game).y, (standing[1] as Vector3).y])
@@ -373,20 +373,20 @@ func _stance_hold(game: FcGame, crouch: bool, ticks: int) -> Array:
 		for id: int in [942, 943]:
 			_stand(game, id, a_at if id == 942 else b_at)
 			game.player_for(id).controller.state.velocity = Vector3.ZERO
-		var move := DotFpsCommand.new()
-		move.buttons = DotFpsCommand.BUTTON_CROUCH if crouch else 0
-		game.tick({943: [move, DotWeaponCommand.new()]})
+		var move := GSFpsCommand.new()
+		move.buttons = GSFpsCommand.BUTTON_CROUCH if crouch else 0
+		game.tick({943: [move, GSWeaponCommand.new()]})
 	return [game.current_tick(), _stance_head(game)]
 
 func _stance_head(game: FcGame) -> Vector3:
-	for box: DotHitbox in game.player_for(943).hitboxes.hitboxes():
-		if box.group == DotHitGroup.HEAD:
+	for box: GSHitbox in game.player_for(943).hitboxes.hitboxes():
+		if box.group == GSHitGroup.HEAD:
 			return box.global_position
 	return Vector3.INF
 
 ## A's rifle at where [param seen] drew B's head, rewound to that tick: the zone group it met on B, or empty.
 func _stance_shot(game: FcGame, seen: Array) -> StringName:
-	var shot := DotShot.make(&"rifle", 942, game.current_tick(), 0)
+	var shot := GSShot.make(&"rifle", 942, game.current_tick(), 0)
 	shot.origin = game.player_for(942).global_position + Vector3.UP * 1.5
 	var aim: Vector3 = (seen[1] as Vector3) - shot.origin
 	shot.pellets = [aim.normalized()] as Array[Vector3]
@@ -396,7 +396,7 @@ func _stance_shot(game: FcGame, seen: Array) -> StringName:
 	shot.max_range = 100.0
 	game._unlag_shooter = 942
 	var _r := game.combat.resolve_shot(shot, float(seen[0]))
-	for d: DotDamage in shot.damages:
+	for d: GSDamage in shot.damages:
 		if d.victim == 943:
 			return d.hit_group
 	return &""

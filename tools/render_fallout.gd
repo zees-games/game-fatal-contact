@@ -106,8 +106,8 @@ func _photograph(game, me, id: String, rank: int) -> void:
 		await _seq.record(self, path)
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _wait(sec: float) -> void:

@@ -37,7 +37,7 @@ static var shed_now := 0.0
 
 ## Cvar `cl_shed_slow_frames`: a client of a server sheds the same distant one-shots while its frames run longer than [constant SLOW_FRAME_TICKS] ticks. Its simulation is the server's and keeps wall-clock time, so it
 ## is never "behind" the way a solo game is, yet a long frame then gathers every far shot and footstep of the ticks it spans. On by default only in a browser, where joined frames run that long.
-static var shed_slow_frames := DotPlatform.is_web()
+static var shed_slow_frames := GSPlatform.is_web()
 const SLOW_FRAME_TICKS := 4.0
 
 ## Cvar `sv_max_physics_steps`: the most ticks a server-only process's frame runs to catch up (the engine's 8 by
@@ -80,7 +80,7 @@ func cost() -> float:
 	return _cost_sec
 
 
-## How much to stretch the bots' think periods (DotBotThinkTier.load_scale) for the cost measured so far:
+## How much to stretch the bots' think periods (GSBotThinkTier.load_scale) for the cost measured so far:
 ## 1 while a tick fits in [constant LOAD_HEADROOM] of its [param period_sec], else the overshoot, so a tick that
 ## costs 1.5 periods asks the thinning bots for 1.5 times the periods. Capped at [constant MAX_LOAD_SCALE].
 func load_scale(period_sec: float) -> float:
@@ -104,7 +104,7 @@ func note_frame(frame_sec: float, period_sec: float, cap: int) -> float:
 	# Loud once per spell: the game is running slower than the clock, and only a cheaper tick or a higher cap ends it.
 	if _shed >= SHED_ON and not _said_behind:
 		_said_behind = true
-		DotLog.warn(CHANNEL, "solo game behind real time: frames drop owed ticks, so it runs slower than the clock",
+		GSLog.warn(CHANNEL, "solo game behind real time: frames drop owed ticks, so it runs slower than the clock",
 			{"tick_ms": snappedf(_cost_sec * 1000.0, 0.01), "period_ms": snappedf(period_sec * 1000.0, 0.01),
 				"cap": cap, "fc_tick_max_steps": max_steps})
 	elif _shed <= 0.0:

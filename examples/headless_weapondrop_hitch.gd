@@ -12,7 +12,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = 64
 	_run.call_deferred()
 
@@ -37,8 +37,8 @@ func _floor(root: Node3D) -> void:
 	body.position = Vector3(0, -0.5, 0)
 
 
-func _layer(world: Node3D, draws: bool) -> DotWeaponDrops:
-	var layer := DotWeaponDrops.new()
+func _layer(world: Node3D, draws: bool) -> GSWeaponDrops:
+	var layer := GSWeaponDrops.new()
 	layer.is_authority = true
 	layer.draws = draws
 	layer.look_of = Wiring.look
@@ -48,7 +48,7 @@ func _layer(world: Node3D, draws: bool) -> DotWeaponDrops:
 	return layer
 
 
-func _spawn(layer: DotWeaponDrops, weapon: StringName, at: Vector3) -> float:
+func _spawn(layer: GSWeaponDrops, weapon: StringName, at: Vector3) -> float:
 	var t0 := Time.get_ticks_usec()
 	var _id := layer.spawn({"id": weapon, "magazine": 1, "reserve": 1}, at, Vector3(5, 2, -3), 0)
 	return (Time.get_ticks_usec() - t0) / 1000.0

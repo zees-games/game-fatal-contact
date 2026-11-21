@@ -5,7 +5,7 @@ const FcContentGroups := preload("fc_content_groups.gd")
 const CHANGE_TRACE_FRAMES := 40
 ## Milliseconds of level building between frames while the map loads ([method _enter_level]).
 const LEVEL_SLICE_MS := 10
-## Most proxies one warm-up round places (each a material and vertex format): [member DotRenderWarmup.batch_size].
+## Most proxies one warm-up round places (each a material and vertex format): [member GSRenderWarmup.batch_size].
 const LEVEL_WARM_BATCH := 4
 ## Milliseconds a round of the new level's warm-up may cost its frame ([method _warm_level]): a map change's bare
 ## frame is about 18 ms on staging02, so a round leaves room for a compile or two and stays near 33 ms.
@@ -20,13 +20,13 @@ func _classify_level() -> void:
 		return
 
 	var done := game.player_stack.classify_tree(_level, &"world")
-	DotLog.debug(CHANNEL, "level classified", {"bodies": done})
+	GSLog.debug(CHANNEL, "level classified", {"bodies": done})
 
 
 ## The world and prop shader warm-up of [method _enter_level]; sets `done` in [param state] when both finished.
 func _warm_boot_shaders(state: Dictionary) -> void:
-	await DotMapSurfaces.warm_shaders_async(get_tree())
-	await DotMapBspMesh.warm_prop_shaders_async(get_tree())
+	await GSMapSurfaces.warm_shaders_async(get_tree())
+	await GSMapBspMesh.warm_prop_shaders_async(get_tree())
 	FcLoadTimeline.mark("world shaders warmed")
 	state["done"] = true
 
@@ -36,11 +36,11 @@ func _enter_level(release: bool) -> void:
 	_level_busy = true
 	# 10 ms between yields, not the 40 ms default: the cover is up, but bots and the
 	# network keep ticking behind it, and a 40 ms build frame is a hitch they feel.
-	var slice := DotFrameSlice.new(LEVEL_SLICE_MS)
+	var slice := GSFrameSlice.new(LEVEL_SLICE_MS)
 	# The converted worlds' and their props' shaders compile under the boot cover, one per frame: compiled at a later map change, the first world material held one frame for 85 ms on staging02 and the first textured prop 89 ms. They run
 	# beside the map-io build (their frames are mostly waits on loader threads, ~130 ms of wall time in series) and are joined before the level is drawn.
 	var warm := {"done": true}
-	if _level == null and not DotPlatform.is_headless():
+	if _level == null and not GSPlatform.is_headless():
 		warm["done"] = false
 		_warm_boot_shaders(warm)
 	await game.build_map_io_async(slice)
@@ -79,13 +79,13 @@ func _enter_level(release: bool) -> void:
 ## but with the match ticking behind it. Meshes only: each is drawn as one triangle per (material, vertex format), the variants the level's draw uses; a material alone would be drawn on a quad, a format the level never has.
 func _warm_level(made: Node3D) -> void:
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
-	if cam == null or DotPlatform.is_headless():
+	if cam == null or GSPlatform.is_headless():
 		return
 	var meshes: Array = []
-	for item: Variant in DotRenderWarmup.collect(made):
+	for item: Variant in GSRenderWarmup.collect(made):
 		if item is Mesh:
 			meshes.append(item)
-	var warm := DotRenderWarmup.new()
+	var warm := GSRenderWarmup.new()
 	warm.name = "LevelWarmup"
 	warm.budget_msec = LEVEL_WARM_BUDGET_MSEC
 	# Few per round: a round's first draw also uploads its props' textures, and the warm-up's first 16 were 34 pipelines
@@ -106,7 +106,7 @@ func _warm_level(made: Node3D) -> void:
 
 
 ## The world was replaced under this client.
-func _on_map_changed(map: DotMapDef) -> void:
+func _on_map_changed(map: GSMapDef) -> void:
 	# Cover and stop the frozen body until the new level is in (released below).
 	gate.hold(&"map", "Loading the map")
 	if _trace_hosted_change:
@@ -117,7 +117,7 @@ func _on_map_changed(map: DotMapDef) -> void:
 	while _level_busy:
 		await get_tree().process_frame
 	# The new map's own files (its bake, its rides) are a download group of their own; fetch them first.
-	var _topped: DotResult = await FcContentGroups.top_up(map.id)
+	var _topped: GSResult = await FcContentGroups.top_up(map.id)
 	FcLoadTimeline.mark("change: groups topped up")
 	# **The client has to ADOPT the map it was handed, and this is where that was missing.**
 	# `FcGame.map` is assigned in exactly three places — `setup`, the module's mode change, and
@@ -137,7 +137,7 @@ func _on_map_changed(map: DotMapDef) -> void:
 		# A delivered map this build has no geometry for. The level cannot be drawn,
 		# and drawing the OLD one is what this whole comment is about — so say so
 		# rather than silently showing a world that is not there.
-		DotLog.warn(CHANNEL, "the announced map has no local geometry", {
+		GSLog.warn(CHANNEL, "the announced map has no local geometry", {
 			"map": String(map.id),
 		})
 

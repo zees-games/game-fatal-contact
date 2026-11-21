@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcGame := preload("../game/fc_game.gd")
@@ -24,7 +24,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -90,14 +90,14 @@ func _play() -> Array:
 	# Both matches seed it alike, so the only difference left between them is the pull mode.
 	game.weapon_drops.seed_rng(0x5eed)
 
-	var net := DotNetManager.new()
+	var net := GSNetManager.new()
 	net.name = "Net_%s" % game.name
 	net.is_server = true
 	net.service_scope = &"server"
 	net.local_peer_id = 1
 	net.auto_tick = false
 	net.config_file = ""
-	net.config = DotNetConfig.new()
+	net.config = GSNetConfig.new()
 	net.config.tick_rate = TICK_RATE
 	net.config.snapshot_rate = SNAPSHOT_RATE
 	net.config.world_extent = FcGame.NET_WORLD_EXTENT
@@ -131,10 +131,10 @@ func _play() -> Array:
 			if b == null or b.player == null:
 				sim.append("-")
 				continue
-			var state: DotFpsState = b.player.controller.state
+			var state: GSFpsState = b.player.controller.state
 			sim.append("%d:%.5f,%.5f,%.5f,%.5f,%.5f,%.3f" % [id, state.position.x, state.position.y, state.position.z, state.yaw, state.pitch, b.player.health.health])
 			if snapshot:
-				for declaration: DotNetVar in b.net_vars:
+				for declaration: GSNetVar in b.net_vars:
 					# As a receiver decodes it: FcPlayerNet.hold_subquantum keeps a raw value that quantises the same.
 					props.append(var_to_str(declaration.wire_value(b.get(declaration.property))))
 				props.append(str(b.identity.always_relevant))

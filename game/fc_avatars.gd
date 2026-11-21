@@ -12,7 +12,7 @@ const FcPaths := preload("fc_paths.gd")
 ##
 ## [b]One schema, two sources of parts.[/b] The six parts here ship in this build under
 ## `res://avatars/`; a delivered part names dot-cloud content instead, and
-## [DotAvatarBuilder] does not care which it got. A player with none of their own gets
+## [GSAvatarBuilder] does not care which it got. A player with none of their own gets
 ## [method stock_avatar], which is a real document over the same schema rather than a
 ## special case — so a server that has never spoken to a backbone draws everybody, and
 ## the day it does, nothing about how a player is drawn changes.
@@ -59,12 +59,12 @@ const PALETTE: Array[Color] = [
 ]
 
 
-static func schema() -> DotAvatarSchema:
-	var out := DotAvatarSchema.new()
+static func schema() -> GSAvatarSchema:
+	var out := GSAvatarSchema.new()
 	out.id = SCHEMA_ID
 	out.version = 1
 
-	var body := DotAvatarSlot.new()
+	var body := GSAvatarSlot.new()
 	body.id = SLOT_BODY
 	body.display_name = "Body"
 	body.required = true
@@ -72,7 +72,7 @@ static func schema() -> DotAvatarSchema:
 	body.layer = 10
 	out.slots.append(body)
 
-	var head := DotAvatarSlot.new()
+	var head := GSAvatarSlot.new()
 	head.id = SLOT_HEAD
 	head.display_name = "Head"
 	head.required = true
@@ -83,7 +83,7 @@ static func schema() -> DotAvatarSchema:
 	# Not required. A slot that every avatar must fill is a slot with no "none"
 	# option, and a crowd where everybody has a crest looks like a uniform rather than
 	# like a set of people.
-	var crest := DotAvatarSlot.new()
+	var crest := GSAvatarSlot.new()
 	crest.id = SLOT_CREST
 	crest.display_name = "Crest"
 	crest.required = false
@@ -129,7 +129,7 @@ static func current_id(id: StringName) -> StringName:
 
 ## [param avatar] with every old part id read as its current one. The same document when it
 ## names none (nothing is copied), else a copy: a stored or cached document is never edited.
-static func migrated(avatar: DotAvatar) -> DotAvatar:
+static func migrated(avatar: GSAvatar) -> GSAvatar:
 	if avatar == null or avatar.schema_id != SCHEMA_ID:
 		return avatar
 	var stale := false
@@ -145,8 +145,8 @@ static func migrated(avatar: DotAvatar) -> DotAvatar:
 	return out
 
 
-static func _part(id: StringName, slot: StringName) -> DotAvatarPart:
-	var out := DotAvatarPart.new()
+static func _part(id: StringName, slot: StringName) -> GSAvatarPart:
+	var out := GSAvatarPart.new()
 	out.id = id
 	out.slot = slot
 	out.display_name = String(id).replace("fc_", "").capitalize()
@@ -157,8 +157,8 @@ static func _part(id: StringName, slot: StringName) -> DotAvatarPart:
 	return out
 
 
-static func catalogue() -> DotAvatarCatalogue:
-	var out := DotAvatarCatalogue.new()
+static func catalogue() -> GSAvatarCatalogue:
+	var out := GSAvatarCatalogue.new()
 	out.builtin_prefix = FcPaths.rebase(FcPaths.rebase("res://avatars/"))
 	out.builtin_suffix = ".tscn"
 	return out
@@ -182,9 +182,9 @@ const STOCK_INSTEAD_HEAD := &"fc_head_kenney_p"
 ## consecutive (bots, a busy evening), so dividing that hash and taking a remainder gave
 ## players 112..118 one head between them: a row of the same face in the world and in the
 ## HUD's portraits. `headless_presentation` checks 16 consecutive ids.
-static func stock_avatar(player_key: StringName) -> DotAvatar:
+static func stock_avatar(player_key: StringName) -> GSAvatar:
 	var seed_value := absi(hash(String(player_key)))
-	var avatar := DotAvatar.make(SCHEMA_ID)
+	var avatar := GSAvatar.make(SCHEMA_ID)
 
 	avatar.set_part(SLOT_BODY, BODIES[_pick(seed_value, 1, BODIES.size())])
 	var head := HEADS[_pick(seed_value, 2, HEADS.size())]
@@ -235,13 +235,13 @@ static func _mix(value: int) -> int:
 ## A part from a newer client is dropped rather than refused: nobody is invisible
 ## because their crest is from the future.
 static func apply(
-	avatar: DotAvatar,
+	avatar: GSAvatar,
 	rig: Node3D,
-	p_schema: DotAvatarSchema,
-	p_catalogue: DotAvatarCatalogue
-) -> DotResult:
+	p_schema: GSAvatarSchema,
+	p_catalogue: GSAvatarCatalogue
+) -> GSResult:
 	if avatar == null or rig == null or p_schema == null:
-		return DotResult.fail(DotError.CODE_INVALID, "Nothing to build.")
+		return GSResult.fail(GSError.CODE_INVALID, "Nothing to build.")
 
 	var document := migrated(avatar).duplicate_avatar()
 	var conformed := p_schema.conform(document, null)
@@ -249,15 +249,15 @@ static func apply(
 	if not conformed.ok:
 		return conformed.wrap("The avatar could not be conformed to the schema.")
 
-	var steps := DotAvatarBuilder.plan(document, p_schema, p_catalogue)
+	var steps := GSAvatarBuilder.plan(document, p_schema, p_catalogue)
 
-	return DotAvatarBuilder.apply(steps, rig, null)
+	return GSAvatarBuilder.apply(steps, rig, null)
 
 
 ## The attachment nodes an avatar is built into, one per slot.
 ##
 ## [b]Named for the slots, because that is the whole contract between a schema and a
-## rig.[/b] [DotAvatarBuilder] looks for a child named after each slot and puts the
+## rig.[/b] [GSAvatarBuilder] looks for a child named after each slot and puts the
 ## part there; a rig with a node called `Head` and a schema with a slot called `head`
 ## is a rig that draws bodies and nothing else, silently.
 static func make_rig() -> Node3D:
@@ -292,23 +292,23 @@ static func make_rig() -> Node3D:
 ## hair (and which of the four bodies); a primitive part takes the colour the document tints it,
 ## over a stock person seeded by [param player_key]. The crest is not part of the look: it is a
 ## model of its own, drawn on the person's crown by [method crest_of].
-static func look_of(stored: DotAvatar, player_key: StringName) -> DotHumanoidLook:
+static func look_of(stored: GSAvatar, player_key: StringName) -> GSHumanoidLook:
 	var avatar := migrated(stored)
-	var look := DotHumanoidLook.stock(_mix(absi(hash(String(player_key)))))
+	var look := GSHumanoidLook.stock(_mix(absi(hash(String(player_key)))))
 	if avatar == null or avatar.schema_id != SCHEMA_ID:
 		return look
 
 	var body := _kenney_letter(avatar.part_in(SLOT_BODY))
 	var head := _kenney_letter(avatar.part_in(SLOT_HEAD))
 	if body != "":
-		look.top = Color(DotHumanoidLook.SITE_SKINS[body][2])
-		look.bottom = Color(DotHumanoidLook.SITE_SKINS[body][3])
+		look.top = Color(GSHumanoidLook.SITE_SKINS[body][2])
+		look.bottom = Color(GSHumanoidLook.SITE_SKINS[body][3])
 	elif avatar.has_slot(SLOT_BODY):
 		look.top = avatar.colour_of(SLOT_BODY, 0)
 	if head != "":
-		look.skin = Color(DotHumanoidLook.SITE_SKINS[head][0])
-		look.hair = Color(DotHumanoidLook.SITE_SKINS[head][1])
-		look.body = DotHumanoidLook.BODIES["abcdefghijklmnopqr".find(head) % DotHumanoidLook.BODIES.size()]
+		look.skin = Color(GSHumanoidLook.SITE_SKINS[head][0])
+		look.hair = Color(GSHumanoidLook.SITE_SKINS[head][1])
+		look.body = GSHumanoidLook.BODIES["abcdefghijklmnopqr".find(head) % GSHumanoidLook.BODIES.size()]
 	return look
 
 
@@ -324,7 +324,7 @@ const CREST_LIFT := {&"fc_crest_fin": 0.09, &"fc_crest_ring": 0.08}
 ## crest crouches, nods with the aim and shrinks with the head in first person. The rig's fixed
 ## `crest` node it was built into before the people stood at standing height whatever the body
 ## did, and once the people came in nothing drew the crest at all.
-static func crest_of(stored: DotAvatar) -> Node3D:
+static func crest_of(stored: GSAvatar) -> Node3D:
 	var avatar := migrated(stored)
 	if avatar == null or avatar.schema_id != SCHEMA_ID or not avatar.has_slot(SLOT_CREST):
 		return null
@@ -350,15 +350,15 @@ static func _kenney_letter(part: StringName) -> String:
 	if at < 0:
 		return ""
 	var letter := text.substr(at + 8)
-	return letter if DotHumanoidLook.SITE_SKINS.has(letter) else ""
+	return letter if GSHumanoidLook.SITE_SKINS.has(letter) else ""
 
 
 ## A member's site avatar as Fatal Contact figure: their top's skin is the body, their face's
-## skin the head. See `DotPlatformIdentity.avatar_translate_fn`.
+## skin the head. See `GSPlatformIdentity.avatar_translate_fn`.
 ##
 ## Null when the document is not the site's, so the member wears their stock figure
 ## rather than a guess. The crest is Fatal Contact's own and the site has none, so it is left off.
-static func from_site(foreign: DotAvatar) -> DotAvatar:
+static func from_site(foreign: GSAvatar) -> GSAvatar:
 	var top := _site_skin(foreign, &"top")
 	var face := _site_skin(foreign, &"face")
 
@@ -380,7 +380,7 @@ static func from_site(foreign: DotAvatar) -> DotAvatar:
 ##
 ## The site's avatar is the Kenney kit's eighteen painted skins, `skin-a` to `skin-r`,
 ## chosen per face, top and legs — the same atlases this game draws, spelt the site's way.
-static func _site_skin(foreign: DotAvatar, slot: StringName) -> String:
+static func _site_skin(foreign: GSAvatar, slot: StringName) -> String:
 	if foreign == null or foreign.schema_id != &"builtin":
 		return ""
 

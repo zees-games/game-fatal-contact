@@ -15,14 +15,14 @@ const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 ## (BAKE_DYNAMIC) because it stays live; the fill is left out (BAKE_DISABLED), being already
 ## "more sky". Changing any of that changes what a bake means: bump FcMap.BAKE_VERSION.
 
-## Per map: LightmapGI settings for DotLightBake.prepare, over "default".
+## Per map: LightmapGI settings for GSLightBake.prepare, over "default".
 const SETTINGS := {
 	"default": {"quality": LightmapGI.BAKE_QUALITY_HIGH, "bounces": 3, "texel_scale": 1.0, "ambient_gain": 1.0, "bounce_energy": 1.0},
 }
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.WARN)
+	GSLog.set_level(GSLog.Level.WARN)
 	_run.call_deferred()
 
 
@@ -97,10 +97,10 @@ func _bake_scene(map: FcMap) -> Node3D:
 
 	for node in lighting.get_children():
 		if node is DirectionalLight3D:
-			# The sun first (DotLightRig adds it before the fill).
+			# The sun first (GSLightRig adds it before the fill).
 			node.light_bake_mode = Light3D.BAKE_DYNAMIC if node == lighting.get_child(0) else Light3D.BAKE_DISABLED
 
-	var gi := DotLightBake.prepare(root, map.light_fingerprint(), FcMap.BAKE_PATH % String(map.id), settings)
+	var gi := GSLightBake.prepare(root, map.light_fingerprint(), FcMap.BAKE_PATH % String(map.id), settings)
 	gi.bounce_indirect_energy = float(settings.get("bounce_energy", 1.0))
 	var world := lighting.get_node_or_null("Lighting") as WorldEnvironment
 

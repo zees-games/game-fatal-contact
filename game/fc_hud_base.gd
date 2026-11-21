@@ -1,5 +1,5 @@
 @tool
-extends DotHud
+extends GSHud
 
 const FcGame := preload("fc_game.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
@@ -25,17 +25,17 @@ var player: FcPlayer = null
 var game: FcGame = null
 
 
-var crosshair: DotCrosshair = null
-## Whether the host's DotCrosshair fades while aiming (dot-ui API 5).
-var _crosshair_fades: bool = DotAddonApi.build_level("dot_ui") >= 5
-## Whether DotCrosshair hides itself while the viewer is dead (dot-ui API 14).
-var _crosshair_hides: bool = DotAddonApi.build_level("dot_ui") >= 14
+var crosshair: GSCrosshair = null
+## Whether the host's GSCrosshair fades while aiming (dot-ui API 5).
+var _crosshair_fades: bool = GSAddonApi.build_level("dot_ui") >= 5
+## Whether GSCrosshair hides itself while the viewer is dead (dot-ui API 14).
+var _crosshair_hides: bool = GSAddonApi.build_level("dot_ui") >= 14
 
 
 ## Bottom left: health as a bar with its number, armour as a thin bar under it.
-var vitals: DotVitals = null
+var vitals: GSVitals = null
 ## `magazine | reserve` under the weapon's name, bottom right.
-var ammo: DotAmmoCounter = null
+var ammo: GSAmmoCounter = null
 ## The carried weapons up the right edge.
 var slots: FcHudGlance.WeaponSlots = null
 ## Top right: killer, weapon silhouette, victim.
@@ -48,7 +48,7 @@ var portrait_cache: FcHudGlance.PortraitCache = null
 ## Bottom centre: slide, launch, dash and the wall jump, with keys and cooldowns.
 var abilities: FcHudGlance.AbilityBar = null
 ## The right edge: the keys worth knowing.
-var hints: DotKeyHints = null
+var hints: GSKeyHints = null
 
 
 ## Seconds left, when something other than this game's own match knows. NAN means
@@ -57,8 +57,8 @@ var remaining_override: float = NAN
 
 
 var _weapon_label := ""
-var _label_slot: DotWeaponSlot = null
-var _label_def: DotWeaponDef = null
+var _label_slot: GSWeaponSlot = null
+var _label_def: GSWeaponDef = null
 var _label_mode := -1
 var _label_key := ""
 const SLOT_KEYS: Array[StringName] = [&"slot_0", &"slot_1", &"slot_2", &"slot_3", &"slot_4", &"slot_5", &"slot_6", &"slot_7", &"slot_8", &"slot_9"]
@@ -146,7 +146,7 @@ var launch_key_text: String:
 
 ## The prompt for what can be done now: "Cancel slide [C]" while sliding, "Reload [R]" on
 ## an empty magazine.
-var slide_label: DotKeyPrompt = null
+var slide_label: GSKeyPrompt = null
 
 
 ## The points this player has collected this match, from the drops layer.
@@ -172,11 +172,11 @@ const STREAK_FULL := 10
 
 ## The hit marker: four ticks round the crosshair on every hit the server confirmed, red
 ## on a kill. See [method note_hit].
-var hit_marker: DotHitMarker = null
+var hit_marker: GSHitMarker = null
 
 
 ## Numbers rising off whatever was hit, gold for a headshot.
-var damage_numbers: DotDamageNumbers = null
+var damage_numbers: GSDamageNumbers = null
 
 
 ## The medals of the followed player's last kills: icon, name, scale in, hold, fade.
@@ -197,7 +197,7 @@ const GOLD := Color(1.0, 0.8, 0.22)
 ## Centred, the line clears that column only when its half-width is under the distance from the middle to the column, so the width follows the frame: `notice_width`.
 func notice(text: String) -> void:
 	# The ballot already says it, with the time left and the counts: see `is_ballot_line`.
-	if is_ballot_line(text) and DotHudPiece.covered_rect(self).has_area():
+	if is_ballot_line(text) and GSHudPiece.covered_rect(self).has_area():
 		return
 	if notice_label == null:
 		# Under the portraits and the medal row: `notice_top`.
@@ -230,10 +230,10 @@ static func is_ballot_line(text: String) -> bool:
 
 
 ## [b]Keeps the HUD out from under the client shell's ballots[/b], every frame. The shell draws every ballot down the right-hand side, over whatever the game drew, and cannot reach into a delivered game, so the game looks:
-## `DotHudPiece.covered_rect` is every visible member of the `dot_hud_cover` group, merged, in this HUD's own coordinates; dot-ui's pieces each dim themselves under one.
+## `GSHudPiece.covered_rect` is every visible member of the `dot_hud_cover` group, merged, in this HUD's own coordinates; dot-ui's pieces each dim themselves under one.
 ## The weapon slots up the right edge tighten, then show only the rows around the current one, to end above a ballot (a seven-row map ballot reaches slot 1 at 1280x720); the vote's centre line goes while its ballot is drawn.
 func make_room() -> void:
-	var cover := DotHudPiece.covered_rect(self)
+	var cover := GSHudPiece.covered_rect(self)
 	if slots != null:
 		var bottom := -INF
 		if cover.has_area():
@@ -266,11 +266,11 @@ static func notice_top(frame_height: float) -> float:
 
 
 ## The ammo line's name for [param slot]: the weapon, then its fire mode and the key when it has a choice.
-static func mode_label(slot: DotWeaponSlot, key: String) -> String:
+static func mode_label(slot: GSWeaponSlot, key: String) -> String:
 	var name := slot.def.display_name
 	if slot.def.allowed_fire_modes().size() < 2:
 		return name
-	var mode := String(DotWeaponDef.Fire.keys()[slot.fire_mode()])
+	var mode := String(GSWeaponDef.Fire.keys()[slot.fire_mode()])
 	return "".join([name, "  ", mode, "".join([" [", key, "]"]) if key != "" else ""])
 
 
@@ -402,12 +402,12 @@ func note_award(info: Dictionary, own_id: int, victim_name: String, killer_name:
 func _build_feedback() -> void:
 	if hit_marker != null:
 		return
-	damage_numbers = DotDamageNumbers.new()
+	damage_numbers = GSDamageNumbers.new()
 	damage_numbers.name = "DamageNumbers"
 	damage_numbers.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	damage_numbers.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(damage_numbers)
-	hit_marker = DotHitMarker.new()
+	hit_marker = GSHitMarker.new()
 	hit_marker.name = "HitMarker"
 	hit_marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hit_marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -431,23 +431,23 @@ const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
 
 ## Builds every widget. Call after adding to the tree.
 ## How far in from the screen's edge the HUD sits, in pixels: the `hud_safe_area` setting,
-## applied live. dot-ui's `DotHud` reads its config's margin once, when it enters the tree.
+## applied live. dot-ui's `GSHud` reads its config's margin once, when it enters the tree.
 func set_safe_area(pixels: float) -> void:
 	if config == null:
-		config = DotUiConfig.new()
+		config = GSUiConfig.new()
 	config.safe_area = maxf(pixels, 0.0)
 	_apply_safe_area()
 	_fit_feed()
 
 
-## The frame the HUD is drawn for ([member DotHud.fit_design]): below it the whole HUD is scaled down by `DotHud.fit_scale`, never laid out again. [b]On a smaller frame its pieces ran into each other[/b]
+## The frame the HUD is drawn for ([member GSHud.fit_design]): below it the whole HUD is scaled down by `GSHud.fit_scale`, never laid out again. [b]On a smaller frame its pieces ran into each other[/b]
 ## (at 854x480 the challenge ran over the scores, the ability bar over the health; at 960x720 the scores reached the kill feed). The shell never shows a game such a frame (canvas 1280x720, stretched), so this is the same answer for the game on its own.
 ## Never larger: on a bigger frame the pieces keep their size and the map gets the room. dot-ui took it over (`fit_design`, `fit_scale`, `fit_to_frame`, API 4); below half size (`fit_min`) a frame gets overlap, not dust.
 const DESIGN_FRAME := Vector2(1280.0, 720.0)
 
 
 func _init() -> void:
-	# Before `_ready`, which is where `DotHud` decides between anchoring and fitting, and
+	# Before `_ready`, which is where `GSHud` decides between anchoring and fitting, and
 	# follows the viewport's size from then on.
 	fit_design = DESIGN_FRAME
 	# The strip, the portraits and the text lines change a few times a second, not per frame: a timer, so the work (strings, rows) is off the frame path.
@@ -471,7 +471,7 @@ func _present_slow() -> void:
 ## so Paper and High contrast can change it; `FcClient` hands this to dot-menu's `follow_hud` with the HUD.
 static func accent_theme() -> Theme:
 	var t := Theme.new()
-	t.set_color(&"highlight", &"DotHudPiece", GOLD)
+	t.set_color(&"highlight", &"GSHudPiece", GOLD)
 	return t
 
 
@@ -531,7 +531,7 @@ func _build_overlays() -> void:
 	blind_overlay = ColorRect.new()
 	blind_overlay.name = "Blind"
 	blind_overlay.color = BLIND_COLOUR
-	# Not anchored to this HUD's rect: `DotHud` insets itself by the safe area, and a blind the size
+	# Not anchored to this HUD's rect: `GSHud` insets itself by the safe area, and a blind the size
 	# of the HUD left a 16-pixel frame of the world visible round the edge of the first rendered.
 	blind_overlay.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	blind_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE

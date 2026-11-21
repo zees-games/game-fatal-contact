@@ -15,12 +15,12 @@ const FcBrowser := preload("fc_browser.gd")
 ## taste.[/b] dot-browser speaks DQP over UDP for a desktop client, DQP as JSON over a
 ## WebSocket for a browser build — which cannot open a UDP socket at all — and A2S for
 ## the twenty years of trackers and tooling that speak nothing else.
-## [constant DotBrowserTarget.Protocol.AUTO] picks, and it picks by asking
-## [DotPlatform] what this build can do rather than by asking what platform it is on.
+## [constant GSBrowserTarget.Protocol.AUTO] picks, and it picks by asking
+## [GSPlatform] what this build can do rather than by asking what platform it is on.
 ##
 ## [b]Filtering is local, and that is a rule rather than an optimisation.[/b] A server
 ## does not get to decide whether it appears in your list; you queried it, you hold the
-## answer, and `DotBrowserFilter` runs over what you hold. A filter the server applied
+## answer, and `GSBrowserFilter` runs over what you hold. A filter the server applied
 ## would be a filter the server could lie about.
 ##
 ## [codeblock]
@@ -37,7 +37,7 @@ const CHANNEL := "arena.browser"
 signal listing_changed()
 
 ## The player asked to join one.
-signal join_requested(entry: DotBrowserEntry)
+signal join_requested(entry: GSBrowserEntry)
 
 @export_group("Querying")
 
@@ -51,17 +51,17 @@ signal join_requested(entry: DotBrowserEntry)
 ## Where favourites and history live. Empty keeps them in memory only.
 @export var favourites_path: String = "user://arena/servers.json"
 
-var browser: DotBrowser = null
-var filter: DotBrowserFilter = null
+var browser: GSBrowser = null
+var filter: GSBrowserFilter = null
 
 var _started: bool = false
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if _started:
-		return DotResult.success(self)
+		return GSResult.success(self)
 
-	browser = DotBrowser.new()
+	browser = GSBrowser.new()
 	browser.name = "Browser"
 	browser.concurrency = concurrency
 	browser.timeout_ms = timeout_ms
@@ -80,7 +80,7 @@ func setup() -> DotResult:
 	browser.sections = PackedStringArray(["info", "players", "game"])
 	browser.conditional = true
 	browser.favourites_path = favourites_path
-	browser.register_as = DotBrowser.SERVICE
+	browser.register_as = GSBrowser.SERVICE
 	add_child(browser)
 
 	var started := browser.start()
@@ -88,9 +88,9 @@ func setup() -> DotResult:
 	if not started.ok:
 		return started.wrap("The server browser could not start")
 
-	filter = DotBrowserFilter.new()
+	filter = GSBrowserFilter.new()
 	filter.online_only = true
-	filter.sort = DotBrowserFilter.Sort.PLAYERS
+	filter.sort = GSBrowserFilter.Sort.PLAYERS
 	filter.favourites_first = true
 	browser.filter = filter
 
@@ -98,23 +98,23 @@ func setup() -> DotResult:
 		func(_online: int, _total: int) -> void: listing_changed.emit()
 	)
 	browser.entry_updated.connect(
-		func(_entry: DotBrowserEntry) -> void: listing_changed.emit()
+		func(_entry: GSBrowserEntry) -> void: listing_changed.emit()
 	)
 
 	# Whatever the player kept last time. Loaded rather than assumed empty, because a
 	# browser that forgot your favourites every launch is one nobody uses twice.
 	var loaded := browser.load_favourites()
 
-	DotLog.info(CHANNEL, "the server browser is up", {"favourites": loaded})
+	GSLog.info(CHANNEL, "the server browser is up", {"favourites": loaded})
 
 	_started = true
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## Adds a server by address: `host`, `host:port`, or an IPv6 `[::1]:27015`.
 ##
 ## [b]The query port is a separate argument and not a third field in the string.[/b]
-## `DotBrowserTarget.parse` takes `host:port` and a three-part string parses as a
+## `GSBrowserTarget.parse` takes `host:port` and a three-part string parses as a
 ## malformed IPv6 address — which fails at `connect_to_host` with "Invalid IPv6
 ## address", several layers below anything that could say what was wrong.
 ##
@@ -122,16 +122,16 @@ func setup() -> DotResult:
 ## listener does. dot-server's default moves it, so a caller that knows both passes
 ## both: a browser asking the game port of a server whose queries are elsewhere gets
 ## no answer, and reports it as offline.
-func add(address: String, query_port: int = 0) -> DotResult:
+func add(address: String, query_port: int = 0) -> GSResult:
 	if browser == null:
-		return DotResult.fail(DotError.CODE_STATE, "The browser is not up.")
+		return GSResult.fail(GSError.CODE_STATE, "The browser is not up.")
 
-	var parsed := DotBrowserTarget.parse(address, FcBrowser.default_port())
+	var parsed := GSBrowserTarget.parse(address, FcBrowser.default_port())
 
 	if not parsed.ok:
 		return parsed
 
-	var target := parsed.value as DotBrowserTarget
+	var target := parsed.value as GSBrowserTarget
 
 	if query_port > 0:
 		target.query_port = query_port
@@ -139,7 +139,7 @@ func add(address: String, query_port: int = 0) -> DotResult:
 	var entry := browser.add_target(target)
 	listing_changed.emit()
 
-	return DotResult.success(entry)
+	return GSResult.success(entry)
 
 
 ## The port a bare host is assumed to be on.
@@ -151,16 +151,16 @@ static func default_port() -> int:
 	return 27015
 
 
-func refresh() -> DotResult:
+func refresh() -> GSResult:
 	if browser == null:
-		return DotResult.fail(DotError.CODE_STATE, "The browser is not up.")
+		return GSResult.fail(GSError.CODE_STATE, "The browser is not up.")
 
-	var res: DotResult = await browser.refresh()
+	var res: GSResult = await browser.refresh()
 	return res
 
 
 ## What the list should show, filtered and sorted the way the player asked.
-func listing() -> Array[DotBrowserEntry]:
+func listing() -> Array[GSBrowserEntry]:
 	return browser.filtered() if browser != null else []
 
 
@@ -188,7 +188,7 @@ func note_connected(key: String) -> void:
 ## of the loaded game" and is empty on a server that has never switched games. The map
 ## a player wants to read is the game's own, and it arrives nested so it cannot
 ## overwrite the other.
-static func game_field(entry: DotBrowserEntry, key: String, fallback: String = "") -> String:
+static func game_field(entry: GSBrowserEntry, key: String, fallback: String = "") -> String:
 	if entry == null:
 		return fallback
 

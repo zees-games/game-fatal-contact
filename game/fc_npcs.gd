@@ -41,15 +41,15 @@ const FACTION := &"monster"
 static var BRAIN_PATH := FcPaths.rebase(FcPaths.rebase("res://game/fc_npc_brain.gd"))
 
 
-static func catalogue() -> DotNpcCatalogue:
-	var out := DotNpcCatalogue.new()
+static func catalogue() -> GSNpcCatalogue:
+	var out := GSNpcCatalogue.new()
 	out.meta = {"game": "arena"}
 
 	for def in [_grunt(), _brute(), _stalker(), _gunner()]:
 		var added := out.add(def)
 
 		if not added.ok:
-			DotLog.warn(CHANNEL, "an NPC could not be catalogued", {
+			GSLog.warn(CHANNEL, "an NPC could not be catalogued", {
 				"npc": String(def.id), "why": added.error.message
 			})
 
@@ -57,8 +57,8 @@ static func catalogue() -> DotNpcCatalogue:
 
 
 ## The population budget and pacing a horde runs under.
-static func limits() -> DotNpcLimits:
-	var out := DotNpcLimits.new()
+static func limits() -> GSNpcLimits:
+	var out := GSNpcLimits.new()
 
 	# Well under dot-npc's default of 96. Fatal Contact is a room, not a campaign level,
 	# and forty monsters in a forty-metre square is already a wall of them.
@@ -93,13 +93,13 @@ static func limits() -> DotNpcLimits:
 ## is the one that makes the room's geometry matter, and it is what dot-npc-ai's squad
 ## roles are for: a gunner pinning you while another walks round you is the encounter the
 ## tactical shooters built their reputations on.
-static func _gunner() -> DotNpcDef:
-	var def := DotNpcDef.make(GUNNER, FcPaths.rebase(FcPaths.rebase("res://npcs/fc_gunner.tscn")))
+static func _gunner() -> GSNpcDef:
+	var def := GSNpcDef.make(GUNNER, FcPaths.rebase(FcPaths.rebase("res://npcs/fc_gunner.tscn")))
 	def.display_name = "Gunner"
 	def.category = &"monster"
 	def.faction = FACTION
 	def.brain_script_path = BRAIN_PATH
-	def.weight = DotNpcDef.Weight.NORMAL
+	def.weight = GSNpcDef.Weight.NORMAL
 	def.cost = 3
 	def.max_health = 55.0
 	def.move_speed = 3.8
@@ -118,13 +118,13 @@ static func _gunner() -> DotNpcDef:
 	return def
 
 
-static func _grunt() -> DotNpcDef:
-	var def := DotNpcDef.make(GRUNT, FcPaths.rebase(FcPaths.rebase("res://npcs/fc_grunt.tscn")))
+static func _grunt() -> GSNpcDef:
+	var def := GSNpcDef.make(GRUNT, FcPaths.rebase(FcPaths.rebase("res://npcs/fc_grunt.tscn")))
 	def.display_name = "Grunt"
 	def.category = &"monster"
 	def.faction = FACTION
 	def.brain_script_path = BRAIN_PATH
-	def.weight = DotNpcDef.Weight.NORMAL
+	def.weight = GSNpcDef.Weight.NORMAL
 	def.cost = 1
 	def.max_health = 60.0
 	def.move_speed = 4.2
@@ -136,13 +136,13 @@ static func _grunt() -> DotNpcDef:
 	return def
 
 
-static func _brute() -> DotNpcDef:
-	var def := DotNpcDef.make(BRUTE, FcPaths.rebase(FcPaths.rebase("res://npcs/fc_brute.tscn")))
+static func _brute() -> GSNpcDef:
+	var def := GSNpcDef.make(BRUTE, FcPaths.rebase(FcPaths.rebase("res://npcs/fc_brute.tscn")))
 	def.display_name = "Brute"
 	def.category = &"monster"
 	def.faction = FACTION
 	def.brain_script_path = BRAIN_PATH
-	def.weight = DotNpcDef.Weight.HEAVY
+	def.weight = GSNpcDef.Weight.HEAVY
 	# Five, so the world budget of 40 is eight brutes rather than forty. `cost` is
 	# what makes a population budget mean "how much" rather than "how many", and a
 	# heavy that cost 1 would let a director fill Fatal Contact with them.
@@ -157,13 +157,13 @@ static func _brute() -> DotNpcDef:
 	return def
 
 
-static func _stalker() -> DotNpcDef:
-	var def := DotNpcDef.make(STALKER, FcPaths.rebase(FcPaths.rebase("res://npcs/fc_stalker.tscn")))
+static func _stalker() -> GSNpcDef:
+	var def := GSNpcDef.make(STALKER, FcPaths.rebase(FcPaths.rebase("res://npcs/fc_stalker.tscn")))
 	def.display_name = "Stalker"
 	def.category = &"monster"
 	def.faction = FACTION
 	def.brain_script_path = BRAIN_PATH
-	def.weight = DotNpcDef.Weight.LIGHT
+	def.weight = GSNpcDef.Weight.LIGHT
 	def.cost = 2
 	def.max_health = 40.0
 	def.move_speed = 7.5
@@ -191,19 +191,19 @@ static func _stalker() -> DotNpcDef:
 ##
 ## [b]Built on the calling thread, on purpose.[/b] The built-in maps take 2 to 9 ms
 ## (dm_pit 113 points, dm_box 436, dm_atrium 680; measured), under a frame, so the
-## resumable build ([method DotNpcNavBuilder.begin] / [method DotNpcNavBuilder.step], worker
+## resumable build ([method GSNpcNavBuilder.begin] / [method GSNpcNavBuilder.step], worker
 ## tasks) that zombie-zone uses for a minute-long graph (`zz_nav_threads`, `zz_nav_budget_ms`)
 ## would only add a window in which the horde has no ground. Imported maps route through
 ## dot-bot's own background bake (`FcBots.World._nav_for_map`). Revisit if a map's extent
 ## grows past about 100 m.
 ##
-## [b]The digest is not decoration.[/b] [method DotNpcNavData.matches] is how a runtime
+## [b]The digest is not decoration.[/b] [method GSNpcNavData.matches] is how a runtime
 ## tells "this graph was built for this map" from "this graph was built for a map with
 ## the same name", and the second one is a graph whose NPCs walk through the walls
 ## somebody added since. It is computed from the geometry rather than from the id for
 ## that reason.
-static func nav_for(map: FcMap, spacing: float = 2.0) -> DotNpcNavData:
-	var builder := DotNpcNavBuilder.new()
+static func nav_for(map: FcMap, spacing: float = 2.0) -> GSNpcNavData:
+	var builder := GSNpcNavBuilder.new()
 	builder.spacing = spacing
 	builder.point_radius = spacing
 	# Half a body width past the geometry, so a monster standing on the last legal
@@ -223,7 +223,7 @@ static func nav_for(map: FcMap, spacing: float = 2.0) -> DotNpcNavData:
 	return builder.build(map.id, digest_of(map))
 
 
-## A fingerprint of a map's geometry, for [method DotNpcNavData.matches].
+## A fingerprint of a map's geometry, for [method GSNpcNavData.matches].
 ##
 ## Every box, the extent and the floor height. A map whose id is unchanged and whose
 ## geometry moved produces a different digest, which is the case the check exists for.
@@ -234,4 +234,4 @@ static func digest_of(map: FcMap) -> String:
 		parts.append(box.position)
 		parts.append(box.size)
 
-	return DotNpcNavData.digest_of(parts)
+	return GSNpcNavData.digest_of(parts)

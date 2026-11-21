@@ -1,4 +1,4 @@
-extends DotGameNetchaosServer
+extends GSGameNetchaosServer
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -6,7 +6,7 @@ const FcModule := preload("../game/fc_module.gd")
 const FcNetBridge := preload("../game/fc_net_bridge.gd")
 const FcPresentation := preload("../game/fc_presentation.gd")
 
-## Fatal Contact's side of `tools/netchaos.sh` (dot-game's DotGameNetchaosServer): no bots, no limits.
+## Fatal Contact's side of `tools/netchaos.sh` (dot-game's GSGameNetchaosServer): no bots, no limits.
 
 var _game: FcGame = null
 
@@ -34,18 +34,18 @@ func _boot_world() -> void:
 	var _set := _game.setup(map if map != null else FcMap.dm_box())
 	if not (await boot_server()).ok:
 		return
-	var loaded: DotResult = await server.modules.load_module("res://game/fc_module.gd")
+	var loaded: GSResult = await server.modules.load_module("res://game/fc_module.gd")
 	if not loaded.ok:
 		printerr("netchaos server: ", loaded.error)
 		return
 	module = server.modules.get_module("arena") as FcModule
-	var quota: DotBotQuota = module.get("_bot_quota")
+	var quota: GSBotQuota = module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("off")
 	if solid != "":
 		# NC_SOLID=0 on netchaos.sh: players pass through each other, which attributes the
 		# corrections a bump causes (the client predicts against interpolated hulls).
-		var cv: DotConVar = server.console.find_cvar("mp_solidplayers")
+		var cv: GSConVar = server.console.find_cvar("mp_solidplayers")
 		if cv != null:
 			cv.force_set(solid)
 	_game.start(0)

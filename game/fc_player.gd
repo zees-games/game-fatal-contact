@@ -4,7 +4,7 @@ extends "fc_player_render_state.gd"
 ## Draws this player at where they are BETWEEN ticks. Called once per rendered frame.
 ##
 ## [b]Nothing in this family rendered between ticks until it was measured.[/b]
-## `DotFpsController.render_state` has interpolated between the last two ticks since the
+## `GSFpsController.render_state` has interpolated between the last two ticks since the
 ## controller was written and is documented as the cure for exactly this stutter; its
 ## guard was `if drive != Drive.LOCAL: return state`, and `LOCAL` is the drive no
 ## networked game uses. Measured at 60 frames against a 128-tick server, drawing at the
@@ -136,7 +136,7 @@ func _present_rest(delta: float, drawn) -> void:
 
 ## Whether this remote body has stood still for [constant STILL_AFTER_SEC]: no speed, alive, and the same yaw, pitch,
 ## crouch, mode and shot count as at its last present. Any change restarts the count, so the very present it moves is full rate.
-func _still(drawn: DotFpsState, delta: float) -> bool:
+func _still(drawn: GSFpsState, delta: float) -> bool:
 	var seq := mirror_fire_seq if mirrored else (weapons.fire_seq if weapons != null else 0)
 	var key := Vector4(drawn.yaw, drawn.pitch, drawn.crouch_fraction, float(drawn.mode))
 	if key != _still_key or seq != _still_seq or windup >= 0.0 or drawn.velocity.length_squared() > STILL_SPEED2 or not is_alive():
@@ -148,7 +148,7 @@ func _still(drawn: DotFpsState, delta: float) -> bool:
 	return _still_for >= STILL_AFTER_SEC
 
 ## Probe only: the remote half of [method present] with the parts [member present_ablate] names left out.
-func _ablated_present(drawn: DotFpsState, delta: float) -> void:
+func _ablated_present(drawn: GSFpsState, delta: float) -> void:
 	if held != null and (present_ablate & 4) != 0:
 		held.set_process(false)
 	if (present_ablate & 8) == 0:
@@ -271,8 +271,8 @@ func wall_roll() -> float:
 ## - **Bound**: the three together never past 7 degrees.
 ## - **Widening**: none at or under the 5.74 m/s run, 4 degrees (vertical; about 5 at 4:3)
 ##   by 15 m/s, 2 more while sliding, 1 more on a wall; easing at 4 a second.
-static func camera_motion_picks() -> DotFpsViewMotion:
-	var m := DotFpsViewMotion.new()
+static func camera_motion_picks() -> GSFpsViewMotion:
+	var m := GSFpsViewMotion.new()
 	m.landing_dip = 0.06
 	m.landing_reference_speed = 16.0
 	m.landing_min_speed = 8.0
@@ -396,7 +396,7 @@ func attach_camera(horizontal_fov_at_4_3: float = 100.0) -> Camera3D:
 ## they changed. Nothing is rebuilt for the same document, a player whose body has not
 ## been built yet keeps the document for when it is, and null keeps what is drawn — the
 ## stock figure for anybody who never had one.
-func rewear(next: DotAvatar) -> void:
+func rewear(next: GSAvatar) -> void:
 	var before := avatar.digest() if avatar != null else ""
 	avatar = next
 
@@ -420,11 +420,11 @@ func spread_degrees() -> float:
 
 	var slot := arsenal.current()
 
-	if slot == null or not (slot.def.tuning is DotWeaponBallistics):
+	if slot == null or not (slot.def.tuning is GSWeaponBallistics):
 		return 0.0
 
 	var state := controller.state
-	var b: DotWeaponBallistics = slot.def.tuning
+	var b: GSWeaponBallistics = slot.def.tuning
 
 	return b.spread_for(
 		state.horizontal_speed(), not state.is_grounded(), state.is_crouched()

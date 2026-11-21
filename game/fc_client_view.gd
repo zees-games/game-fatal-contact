@@ -51,11 +51,11 @@ func _light() -> void:
 ## Fatal Contact's noclip is an administrator's modifier (`noclip` at the console or in chat; the
 ## motor ignores the bit unless the server granted it). The role is taken off before the
 ## defaults are registered, so `dot_fps_noclip` is never created on V and V does one thing.
-static func make_sampler() -> DotFpsSampler:
+static func make_sampler() -> GSFpsSampler:
 	var tunables := FcPlayer.fc_tunables()
-	var sampler: DotFpsSampler = DotFpsTouchSampler.new(tunables) if DotPlatform.has_touch() else DotFpsSampler.new(tunables)
+	var sampler: GSFpsSampler = GSFpsTouchSampler.new(tunables) if GSPlatform.has_touch() else GSFpsSampler.new(tunables)
 	sampler.actions["noclip"] = &""
-	var _registered := DotFpsSampler.register_default_actions(sampler)
+	var _registered := GSFpsSampler.register_default_actions(sampler)
 	return sampler
 
 
@@ -63,7 +63,7 @@ static func make_sampler() -> DotFpsSampler:
 func _slide_on_c() -> bool:
 	if presentation == null or presentation.settings == null or presentation.bindings == null:
 		return true
-	var table: DotMenuBindings = presentation.bindings
+	var table: GSMenuBindings = presentation.bindings
 	var duck := table.row_for_action(FcBindings.DUCK)
 	if duck.is_empty() or table.stored(duck, presentation.settings) != str(duck["default"]):
 		return false
@@ -73,14 +73,14 @@ func _slide_on_c() -> bool:
 ## A fresh map by id: the game's own, else a subscribed pack's from the catalogue the menu
 ## lists (so only a solo, accepted, valid one). Null value with ok is not returned: an unknown
 ## id is a failure here, as the menu's own refusal.
-func _build_map(id: StringName) -> DotResult:
+func _build_map(id: StringName) -> GSResult:
 	var own: FcMap = FcMap.by_id(id)
 	if own != null:
-		return DotResult.success(own)
+		return GSResult.success(own)
 	var def := _catalogue().get_map(id)
 	if FcMaps.is_workshop(def):
 		return FcMaps.build_workshop(def)
-	return DotResult.fail(DotError.CODE_INVALID, "There is no map called '%s'." % id)
+	return GSResult.fail(GSError.CODE_INVALID, "There is no map called '%s'." % id)
 
 
 # --- Offline ---------------------------------------------------------------
@@ -90,26 +90,26 @@ func _build_map(id: StringName) -> DotResult:
 
 
 ## Built once: making the catalogue builds every map, the imported ones included.
-var _menu_catalogue: DotMapCatalogue = null
+var _menu_catalogue: GSMapCatalogue = null
 var _catalogue_building := false
 const CATALOGUE_SLICE_MS := 8
 
 
 ## The menu's catalogue. Solo, the suggested packs this machine has no link for are listed too
 ## (fetched when picked, [method _fetch_picked]), as a server lists the ones it names.
-func _catalogue() -> DotMapCatalogue:
+func _catalogue() -> GSMapCatalogue:
 	if _menu_catalogue == null:
 		_adopt_catalogue(FcMaps.catalogue())
 	return _menu_catalogue
 
 
-func _adopt_catalogue(built: DotMapCatalogue) -> void:
+func _adopt_catalogue(built: GSMapCatalogue) -> void:
 	_menu_catalogue = built
 	if _offline or _sim_host != null:
 		var _adopted := FcMaps.adopt_delivered(_menu_catalogue, FcMaps.standalone_keys(_menu_catalogue))
 
 
-## Solo: a converted map folder or `.zip` dragged onto the window (`DotMapLocalMaps.watch_drops`) is copied into
+## Solo: a converted map folder or `.zip` dragged onto the window (`GSMapLocalMaps.watch_drops`) is copied into
 ## `user://maps` and offered in M as "<title> (local)"; a `<map>_orig` pack draws with its own textures. Never on a
 ## client of a public server: a local map exists on this machine alone.
 ## Every drop is answered on screen, on the menu's layer so an open Esc menu does not hide it: "Importing <map>…" while it
@@ -125,7 +125,7 @@ func watch_map_drops() -> void:
 	_take_cmdline_drops.call_deferred(FcMapDrop.cmdline())
 
 
-## The shared drop intake (dot-map's DotMapDropIntake, API 30, FcMapDrop) every drop goes through, made on first use;
+## The shared drop intake (dot-map's GSMapDropIntake, API 30, FcMapDrop) every drop goes through, made on first use;
 ## null on an older dot-map, where a window drop goes to [method accept_drop] directly and the command line is not read.
 var map_drop: Node = null
 
@@ -154,19 +154,19 @@ func _take_cmdline_drops(args: PackedStringArray) -> String:
 	var said := await import_dropped(paths, "command line")
 	var added: Array = (intake.get(&"last_result") as Dictionary).get("added", [])
 	if not added.is_empty() and FcMaps.list_local and is_inside_tree():
-		var played: DotResult = await call(&"change_from_menu", StringName(str((added[0] as Dictionary)["id"])))
+		var played: GSResult = await call(&"change_from_menu", StringName(str((added[0] as Dictionary)["id"])))
 		if not played.ok:
 			said = _drop_say("%s\nCould not start it: %s" % [said, played.error.message])
 	return said
 
 
-## The intake's acceptor: [method accept_drop] for a folder holding a converted map ([member DotMapDropIntake.search_depth]
+## The intake's acceptor: [method accept_drop] for a folder holding a converted map ([member GSMapDropIntake.search_depth]
 ## folders down, 0 = no limit), a `.zip`, or a `.json`/`.bin`; `{}` for anything else, which the intake refuses out loud.
 func _claim_drop(path: String, into: String) -> Dictionary:
 	var depth := int(map_drop.get(&"search_depth")) if map_drop != null else 3
 	var ext := path.get_extension().to_lower()
 	if DirAccess.dir_exists_absolute(path):
-		if _pack_dir_under(DotMapLocalMaps, path.replace("\\", "/").rstrip("/"), depth if depth > 0 else -1) == "":
+		if _pack_dir_under(GSMapLocalMaps, path.replace("\\", "/").rstrip("/"), depth if depth > 0 else -1) == "":
 			return {}
 	elif ext != "zip" and ext != "json" and ext != "bin":
 		return {}
@@ -219,7 +219,7 @@ func import_dropped(files: PackedStringArray, source: String = "window") -> Stri
 	var names := ", ".join(shown)
 	if not FcMaps.list_local:
 		return _drop_say("%s: dropped maps play in solo only. Leave this server, start a solo game and drop it again." % names)
-	var level := DotAddonApi.build_level("dot_map")
+	var level := GSAddonApi.build_level("dot_map")
 	if level < MAP_DROP_LEVEL:
 		return _drop_say("Cannot import %s: this build's dot-map is API %d, importing a dropped map needs %d. Update the game." % [
 			names, level, MAP_DROP_LEVEL])
@@ -254,7 +254,7 @@ func import_dropped(files: PackedStringArray, source: String = "window") -> Stri
 	if host_console != null:
 		var unlisted := PackedStringArray()
 		for entry: Dictionary in added:
-			var told: DotResult = await host_console.ask("host_local %s" % str(entry["id"]))
+			var told: GSResult = await host_console.ask("host_local %s" % str(entry["id"]))
 			if not told.ok:
 				unlisted.append("%s (%s)" % [str(entry.get("title", entry["id"])), told.error.message])
 		if not unlisted.is_empty():
@@ -268,12 +268,12 @@ func import_dropped(files: PackedStringArray, source: String = "window") -> Stri
 ## [param depth] folders down (a whole download; 0 = no limit), the `<map>_orig` pack with the map's own textures before the
 ## free one beside it, and a folder named `convert`, copied as `<map>/convert` so another map's `convert` does not replace it.
 func accept_drop(path: String, into: String = "user://maps", depth: int = 3) -> Dictionary:
-	var local_maps: Object = DotMapLocalMaps  # API 24 by name: a call on the class itself does not parse on older hosts
+	var local_maps: Object = GSMapLocalMaps  # API 24 by name: a call on the class itself does not parse on older hosts
 	path = path.replace("\\", "/").simplify_path().rstrip("/")
 	if DirAccess.dir_exists_absolute(path):
 		var pack := _pack_dir_under(local_maps, path, depth if depth > 0 else -1)
 		if pack.get_file().to_lower().ends_with(ORIG_MARK):
-			path = pack  # copied as user://maps/<map>_orig: drawn with its own textures (DotMapLocalMaps.is_original)
+			path = pack  # copied as user://maps/<map>_orig: drawn with its own textures (GSMapLocalMaps.is_original)
 		elif pack != "" and pack.get_file() == "convert":
 			var map_name := str(local_maps.call(&"prefix_in", pack)).get_file()
 			into = into.path_join(map_name)
@@ -329,7 +329,7 @@ static func _remove_tree(dir: String) -> void:
 	var _removed := DirAccess.remove_absolute(dir)
 
 
-## The name end of an original-textures pack (DotMapLocalMaps.ORIG_MARK, not reachable on older hosts).
+## The name end of an original-textures pack (GSMapLocalMaps.ORIG_MARK, not reachable on older hosts).
 const ORIG_MARK := "_orig"
 ## Missing texture names a drop's answer lists before "and N more".
 const LOOKS_LIST := 16
@@ -409,7 +409,7 @@ func on_maps_dropped(result: Dictionary) -> String:
 		lines.append("Could not import %s" % "; ".join(errors))
 	var text := "\n".join(lines)
 	for line in errors:
-		DotLog.warn(CHANNEL, "a dropped path is not a map", {"why": line})
+		GSLog.warn(CHANNEL, "a dropped path is not a map", {"why": line})
 	return text
 
 
@@ -419,14 +419,14 @@ func _prebuild_catalogue() -> void:
 	if _menu_catalogue != null or _catalogue_building:
 		return
 	_catalogue_building = true
-	var built := await FcMaps.catalogue_async(DotFrameSlice.new(CATALOGUE_SLICE_MS))
+	var built := await FcMaps.catalogue_async(GSFrameSlice.new(CATALOGUE_SLICE_MS))
 	_catalogue_building = false
 	if _menu_catalogue == null:
 		_adopt_catalogue(built)
 
 
 ## [method _catalogue] without the one-frame build: awaits [method _prebuild_catalogue], starting it if need be.
-func _catalogue_sliced() -> DotMapCatalogue:
+func _catalogue_sliced() -> GSMapCatalogue:
 	_prebuild_catalogue()
 	while _menu_catalogue == null:
 		await get_tree().process_frame
@@ -435,11 +435,11 @@ func _catalogue_sliced() -> DotMapCatalogue:
 
 ## A picked map whose pack is not on this machine: fetched through dot-cloud under the load cover
 ## with its progress, then mounted so [code]FcMap.by_id[/code] builds it. Success when nothing was needed.
-func _fetch_picked(id: StringName) -> DotResult:
+func _fetch_picked(id: StringName) -> GSResult:
 	var def := _catalogue().get_map(id)
 	if not FcMaps.is_delivered(def) or FcMap.by_id(id) != null:
-		return DotResult.success(null)
-	var cloud := DotRegistry.get_service(DotMapLoader.CLOUD_SERVICE)
+		return GSResult.success(null)
+	var cloud := GSRegistry.get_service(GSMapLoader.CLOUD_SERVICE)
 	var text := "Downloading %s" % def.label()
 	gate.hold(&"map", text)
 	gate.set_progress(0.0, text)
@@ -447,15 +447,15 @@ func _fetch_picked(id: StringName) -> DotResult:
 		gate.set_progress(float(p.get("fraction", 0.0)), "%s  %d%%" % [text, int(float(p.get("fraction", 0.0)) * 100.0)])
 	if cloud != null and cloud.has_signal(&"progress_changed"):
 		cloud.connect(&"progress_changed", on_progress)
-	var mounted := await FcMaps.mount_delivered(def, DotMapLoader.new(), _menu_catalogue, true)
+	var mounted := await FcMaps.mount_delivered(def, GSMapLoader.new(), _menu_catalogue, true)
 	if cloud != null and cloud.has_signal(&"progress_changed"):
 		cloud.disconnect(&"progress_changed", on_progress)
 	gate.set_progress(-1.0)
 	gate.release(&"map")
 	if mounted.ok and FcMap.by_id(id) == null:
-		return DotResult.fail(DotError.CODE_STATE, "%s was fetched but this game cannot build it." % def.label())
+		return GSResult.fail(GSError.CODE_STATE, "%s was fetched but this game cannot build it." % def.label())
 	if not mounted.ok and cloud == null:
-		return DotResult.fail(DotError.CODE_STATE, "%s is not on this machine and there is no dot-cloud client to fetch it." % def.label())
+		return GSResult.fail(GSError.CODE_STATE, "%s is not on this machine and there is no dot-cloud client to fetch it." % def.label())
 	return mounted
 
 
@@ -485,7 +485,7 @@ static func _startup_map() -> FcMap:
 	var map: FcMap = FcMap.by_id(StringName(args[index + 1]))
 
 	if map == null:
-		DotLog.warn(CHANNEL, "no such map, playing dm_box", {
+		GSLog.warn(CHANNEL, "no such map, playing dm_box", {
 			"asked": args[index + 1],
 			"known": FcMap.ids() + FcMap.imported_ids(),
 		})
@@ -503,12 +503,12 @@ static func _solo_start_map() -> String:
 ## solo game; the noblock rules come from their own layers.
 func _load_solo_config() -> void:
 	_solo_binder = FcConfig.make_binder(game.config, "user://cfg/arena.json")
-	DotLog.result(CHANNEL, "solo config", _solo_binder.load_layers())
+	GSLog.result(CHANNEL, "solo config", _solo_binder.load_layers())
 	game.config_binder = _solo_binder
 	# The engine steps once per tick in solo, so it takes the same rate the game declares.
 	game.tick_rate = game.config.tick_rate
 	Engine.physics_ticks_per_second = game.tick_rate
-	DotLog.result(CHANNEL, "solo noblock", game.make_noblock())
+	GSLog.result(CHANNEL, "solo noblock", game.make_noblock())
 
 
 func _say_ready() -> void:
@@ -522,7 +522,7 @@ func _say_ready() -> void:
 ##
 ## The HUD is the whole chat window this game has, which is a level of ambition rather
 ## than an oversight: a scrolling window with an input field is a screen, and a screen
-## is [DotScreenStack]'s. [DotChatClient] is holding the history the moment somebody
+## is [GSScreenStack]'s. [GSChatClient] is holding the history the moment somebody
 ## writes one.
 # --- Chat ------------------------------------------------------------------
 
@@ -610,7 +610,7 @@ func _on_said(speaker: String, text: String, kind: String) -> void:
 	presentation.chat_window.add_said(speaker, text, speaker_colour)
 
 
-func _on_map_changing(map: DotMapDef) -> void:
+func _on_map_changing(map: GSMapDef) -> void:
 	if hud != null:
 		hud.notice("Changing map to %s…" % map.name_or_id())
 
@@ -621,7 +621,7 @@ func _on_map_changing(map: DotMapDef) -> void:
 ## already knows where this player is — it simulated them — and a client that could
 ## name its own origin could grab a prop from across the map. What it cannot know is
 ## where they were looking between two ticks, so that is the claim, and
-## `DotPropTool.may_act_on` is what decides whether it reaches.
+## `GSPropTool.may_act_on` is what decides whether it reaches.
 func _ask_prop(action: int) -> void:
 	last_prop_asked = action
 	if _offline or bridge == null or player == null:
@@ -642,14 +642,14 @@ func _ask_prop(action: int) -> void:
 ## through dot-server's signon again — which is a launcher's job, and this game is
 ## loaded BY one. What this does is note the visit, so the server lands in the
 ## player's history, and say where to go.
-func _on_join_requested(entry: DotBrowserEntry) -> void:
+func _on_join_requested(entry: GSBrowserEntry) -> void:
 	if browser != null:
 		browser.note_connected(entry.key())
 
 	if hud != null:
 		hud.notice("Join %s at %s" % [entry.name, entry.join_address()])
 
-	DotLog.info(CHANNEL, "the player picked a server", {
+	GSLog.info(CHANNEL, "the player picked a server", {
 		"name": entry.name, "address": entry.join_address()
 	})
 
@@ -675,12 +675,12 @@ func _on_vote(info: Dictionary) -> void:
 
 func _on_kill(info: Dictionary) -> void:
 	# The feed is dot-ui's and takes an entry, not a dictionary. Rebuilt here rather
-	# than replicated as one, because a `DotKillFeed.Entry` has ten fields and three of
+	# than replicated as one, because a `GSKillFeed.Entry` has ten fields and three of
 	# them are only meaningful on the server that scored it.
 	if hud == null or game == null:
 		return
 
-	var entry := DotKillFeed.Entry.new()
+	var entry := GSKillFeed.Entry.new()
 	entry.killer_key = str(int(info["killer_id"])) if int(info["killer_id"]) != 0 else ""
 	entry.victim_key = str(int(info["victim_id"]))
 	entry.cause = StringName(String(info["weapon"]))
@@ -733,7 +733,7 @@ func _on_kill(info: Dictionary) -> void:
 			int(info["victim_id"]) * 7919 + int(info["killer_id"]),
 			bool(info.get("critical", false))
 		)
-		var death := DotPlayerDeath.from_dict(info)
+		var death := GSPlayerDeath.from_dict(info)
 		if death.direction == Vector3.ZERO and away != Vector3.ZERO:
 			# An older server sent no direction: away from the killer is the honest guess.
 			death.direction = away.normalized()
@@ -742,7 +742,7 @@ func _on_kill(info: Dictionary) -> void:
 
 ## A kill in a solo game: the same fall a connected client draws from the KILL message, from
 ## the death [method FcGame.decide_death] put on the entry.
-func _on_solo_kill(entry: DotKillFeed.Entry) -> void:
+func _on_solo_kill(entry: GSKillFeed.Entry) -> void:
 	if game == null or not String(entry.victim_key).is_valid_int():
 		return
 	if killcam != null and String(entry.killer_key).is_valid_int():
@@ -752,9 +752,9 @@ func _on_solo_kill(entry: DotKillFeed.Entry) -> void:
 		var noted := solo_killview.note_kill(int(entry.killer_key), int(entry.victim_key), {
 			"killer": named.display_name if named != null else "", "weapon": String(entry.cause)})
 		if not noted.ok:
-			DotLog.trace(CHANNEL, "no kill view", {"why": noted.error.message})
+			GSLog.trace(CHANNEL, "no kill view", {"why": noted.error.message})
 	var victim := game.player_for(int(entry.victim_key))
 	if victim == null or victim == player:
 		return
-	var death: DotPlayerDeath = entry.get_meta(&"death", null)
-	var _fell := victim.fall_body(ragdolls, death if death != null else DotPlayerDeath.new(), not game.drops_weapon_on_death())
+	var death: GSPlayerDeath = entry.get_meta(&"death", null)
+	var _fell := victim.fall_body(ragdolls, death if death != null else GSPlayerDeath.new(), not game.drops_weapon_on_death())

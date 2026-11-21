@@ -40,7 +40,7 @@ class Kit extends RefCounted:
 ## What a draw gave: the kit and the loadout built from it, already conformed to the owner's rules.
 class Draw extends RefCounted:
 	var kit: Kit = null
-	var loadout: DotLoadout = null
+	var loadout: GSLoadout = null
 
 
 var kits: Array[Kit] = []
@@ -53,32 +53,32 @@ var _lives: Dictionary = {}
 ## The profile schema.
 static func schema() -> Array:
 	return [
-		DotProfileSet.field("name", "string", ""),
-		DotProfileSet.field("primary", "string", ""),
-		DotProfileSet.field("secondary", "string", ""),
-		DotProfileSet.field("melee", "string", ""),
-		DotProfileSet.field("thrown", "string", ""),
-		DotProfileSet.field("gear", "string", ""),
-		DotProfileSet.field("attachments", "dict", {}),
-		DotProfileSet.field("weight", "float", 1.0, {"min": 0.0}),
-		DotProfileSet.field("difficulty", "any", []),
-		DotProfileSet.field("tags", "list", []),
-		DotProfileSet.field("enabled", "bool", true),
+		GSProfileSet.field("name", "string", ""),
+		GSProfileSet.field("primary", "string", ""),
+		GSProfileSet.field("secondary", "string", ""),
+		GSProfileSet.field("melee", "string", ""),
+		GSProfileSet.field("thrown", "string", ""),
+		GSProfileSet.field("gear", "string", ""),
+		GSProfileSet.field("attachments", "dict", {}),
+		GSProfileSet.field("weight", "float", 1.0, {"min": 0.0}),
+		GSProfileSet.field("difficulty", "any", []),
+		GSProfileSet.field("tags", "list", []),
+		GSProfileSet.field("enabled", "bool", true),
 	]
 
 
 ## Loads every enabled profile of [param profiles] (the game's when null). Returns how many loaded.
-func load_from(profiles: DotProfileSet = null) -> int:
+func load_from(profiles: GSProfileSet = null) -> int:
 	if profiles == null:
-		profiles = DotProfileSet.create("", "game-arena", KIND, schema())
+		profiles = GSProfileSet.create("", "game-arena", KIND, schema())
 	kits.clear()
 	_override_text = "\u0001"
 	for id in profiles.list_ids():
 		var res := profiles.load_profile(id)
 		if not res.ok:
-			DotLog.warn(CHANNEL, "a bot loadout profile did not load", {"id": id, "error": str(res.error)})
+			GSLog.warn(CHANNEL, "a bot loadout profile did not load", {"id": id, "error": str(res.error)})
 			continue
-		var v: Dictionary = (res.value as DotProfile).values
+		var v: Dictionary = (res.value as GSProfile).values
 		if not bool(v.get("enabled", true)):
 			continue
 		var kit := Kit.new()
@@ -165,7 +165,7 @@ func draw_kit(bot_id: int, difficulty: String = "") -> Kit:
 
 
 ## Draws the next kit and builds its loadout against [param manager]; null when there is none.
-func draw(manager: DotLoadoutManager, key: String, bot_id: int, difficulty: String = "") -> Draw:
+func draw(manager: GSLoadoutManager, key: String, bot_id: int, difficulty: String = "") -> Draw:
 	if manager == null or manager.schema == null:
 		return null
 	var kit := draw_kit(bot_id, difficulty)
@@ -179,16 +179,16 @@ func draw(manager: DotLoadoutManager, key: String, bot_id: int, difficulty: Stri
 
 ## [param kit] over the default loadout, conformed to [param manager]'s schema, the owner's rules and
 ## [param key]'s entitlements: an unknown or forbidden item falls back to its slot's default.
-static func build(kit: Kit, manager: DotLoadoutManager, key: String) -> DotLoadout:
-	var loadout := DotLoadout.empty(manager.schema.id)
+static func build(kit: Kit, manager: GSLoadoutManager, key: String) -> GSLoadout:
+	var loadout := GSLoadout.empty(manager.schema.id)
 	var defaults := FcContent.default_loadout()
 	for i in DEFAULT_SLOTS.size():
 		loadout.set_item(DEFAULT_SLOTS[i], defaults[i])
 	for slot: StringName in kit.items:
 		loadout.set_item(slot, kit.items[slot])
-	for c in DotLoadoutValidator.conform(loadout, manager.schema, manager.entitlements_for(key), manager.rules):
+	for c in GSLoadoutValidator.conform(loadout, manager.schema, manager.entitlements_for(key), manager.rules):
 		if c.was != &"":
-			DotLog.debug(CHANNEL, "a bot loadout item was replaced", {"kit": String(kit.id), "change": str(c)})
+			GSLog.debug(CHANNEL, "a bot loadout item was replaced", {"kit": String(kit.id), "change": str(c)})
 	return loadout
 
 
@@ -207,7 +207,7 @@ func _refresh_override() -> void:
 		for kit in kits:
 			found = found or kit.id == id
 		if not found:
-			DotLog.warn(CHANNEL, "sv_bot_loadouts names a loadout that does not exist", {"id": String(id)})
+			GSLog.warn(CHANNEL, "sv_bot_loadouts names a loadout that does not exist", {"id": String(id)})
 
 
 static func _words(v: Variant) -> PackedStringArray:

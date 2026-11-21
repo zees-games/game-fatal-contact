@@ -13,7 +13,7 @@ func _test_owner_only() -> void:
 
 	var declaration := own.find_var(&"net_magazine")
 	_check(
-		declaration != null and declaration.audience == DotNetVar.Audience.OWNER,
+		declaration != null and declaration.audience == GSNetVar.Audience.OWNER,
 		"ammunition is declared owner-only"
 	)
 	_check(
@@ -51,7 +51,7 @@ func _test_client_death_camera() -> void:
 
 	var health := _server_game.combat.health_of(victim)
 	health.invulnerable_until_tick = -1
-	var damage := DotDamage.make(killer, victim, health.health + health.armour + 50.0, _server_game.combat.damage_type(&""))
+	var damage := GSDamage.make(killer, victim, health.health + health.armour + 50.0, _server_game.combat.damage_type(&""))
 	damage.tick = _server_game.current_tick()
 	var applied := health.apply(damage)
 	_server_game.combat.entity_killed.emit(victim, applied)
@@ -61,7 +61,7 @@ func _test_client_death_camera() -> void:
 
 	# The KILL event, encoded by the server's registry and received by the client's the way
 	# a link delivers it. The harness carries snapshots and not events.
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	var _enc := _server_net.messages.encode(
 		FcEvent.new(FcEvents.Kind.KILL, FcEvents.write_kill(killer, victim, "rifle", false)),
 		writer
@@ -79,11 +79,11 @@ func _test_client_death_camera() -> void:
 	)
 
 	_pump(TICK_RATE * 3)
-	var view := client_game.spectate.manager.view(str(victim)) if client_game.spectate != null else DotSpectatorView.new()
+	var view := client_game.spectate.manager.view(str(victim)) if client_game.spectate != null else GSSpectatorView.new()
 	_check(
-		view.mode == DotSpectatorView.Mode.FIRST_PERSON or view.mode == DotSpectatorView.Mode.CHASE,
+		view.mode == GSSpectatorView.Mode.FIRST_PERSON or view.mode == GSSpectatorView.Mode.CHASE,
 		"and the chain hands over on the client rather than holding the death camera",
-		DotSpectatorView.Mode.keys()[view.mode]
+		GSSpectatorView.Mode.keys()[view.mode]
 	)
 	_check(view.target == str(killer), "to the one other player", view.target)
 	_check(
@@ -138,12 +138,12 @@ func _test_hits_and_medals_reach_clients() -> void:
 	health.invulnerable_until_tick = -1
 	var type := _server_game.combat.damage_type(&"")
 	for amount in [10.0, 12.0]:
-		var pellet := DotDamage.make(killer, victim, amount, type)
+		var pellet := GSDamage.make(killer, victim, amount, type)
 		pellet.tick = _server_game.current_tick()
 		var _p := _server_game.combat.apply_damage(pellet)
-	var shot := DotDamage.make(killer, victim, 500.0, type)
+	var shot := GSDamage.make(killer, victim, 500.0, type)
 	shot.tick = _server_game.current_tick()
-	shot.hit_group = DotHitGroup.HEAD
+	shot.hit_group = GSHitGroup.HEAD
 	var _s := _server_game.combat.apply_damage(shot)
 	_server_bridge.server_tick(_server_game.current_tick() + 1)
 
@@ -152,7 +152,7 @@ func _test_hits_and_medals_reach_clients() -> void:
 		var targets: Array = _clients.keys() if int(item[0]) == 0 else [int(item[0])]
 		for peer in targets:
 			if _clients.has(peer):
-				var _r: DotResult = _clients[peer]["bridge"].receive_event(item[1])
+				var _r: GSResult = _clients[peer]["bridge"].receive_event(item[1])
 
 	var to_killer: Array = heard[killer_peer]["hits"]
 	var to_victim: Array = heard[2]["hits"]
@@ -193,7 +193,7 @@ func _test_bullets_reach_a_client() -> void:
 	var shooter := _server_game.player_for(11)
 	shooter.give_default_loadout()
 	var weapon_id := shooter.arsenal.current_def().id
-	var tuning := FcPlayer.weapon_catalogue().get_def(weapon_id).tuning as DotWeaponBallistics
+	var tuning := FcPlayer.weapon_catalogue().get_def(weapon_id).tuning as GSWeaponBallistics
 	var was := [tuning.muzzle_velocity, tuning.max_range, tuning.tracer_interval, tuning.pellets]
 	_tune(tuning, [40.0, 30.0, 1, 1])
 	_pump(2)
@@ -203,7 +203,7 @@ func _test_bullets_reach_a_client() -> void:
 	var kinds := func(kind: int) -> Array:
 		var out: Array = []
 		for item in sent:
-			var decoded: DotResult = _clients[2]["net"].messages.decode(DotNetReader.new(item[1]), 1, false)
+			var decoded: GSResult = _clients[2]["net"].messages.decode(GSNetReader.new(item[1]), 1, false)
 			var event := decoded.value as FcEvent if decoded.ok else null
 			if event != null and event.kind == kind:
 				out.append(item)
@@ -211,7 +211,7 @@ func _test_bullets_reach_a_client() -> void:
 	var deliver := func() -> void:
 		for item in sent:
 			if int(item[0]) == 2:
-				var _r: DotResult = _clients[2]["bridge"].receive_event(item[1])
+				var _r: GSResult = _clients[2]["bridge"].receive_event(item[1])
 		sent.clear()
 
 	_check(not _server_game.combat_feel.ballistics.enabled, "sv_ballistics is off by default")
@@ -226,7 +226,7 @@ func _test_bullets_reach_a_client() -> void:
 	fire.call()
 	var spawned: Array = kinds.call(FcEvents.Kind.BULLET)
 	_check(spawned.size() >= 1 and int(spawned[0][0]) == 2, "on: a BULLET goes to the ready client", str(spawned.size()))
-	var read := FcEvents.read_bullet(DotNetReader.new(FcEvents.write_bullet(7, 11, FcContent.weapon_index(weapon_id), Vector3(1.0, 8.0, -2.0), Vector3(10.0, 5.0, -30.0))))
+	var read := FcEvents.read_bullet(GSNetReader.new(FcEvents.write_bullet(7, 11, FcContent.weapon_index(weapon_id), Vector3(1.0, 8.0, -2.0), Vector3(10.0, 5.0, -30.0))))
 	_check(bool(read["ok"]) and int(read["id"]) == 7 and FcContent.weapon_at(int(read["weapon"])) == weapon_id
 		and (read["velocity"] as Vector3).distance_to(Vector3(10.0, 5.0, -30.0)) < 0.1, "a BULLET round-trips")
 	deliver.call()
@@ -289,7 +289,7 @@ func _test_killview_reaches_the_victim() -> void:
 	var usual_delay := _server_game.match_node.rules.respawn_delay_sec
 	_server_game.match_node.rules.respawn_delay_sec = 2.0
 	_server_game.combat.health_of(victim).invulnerable_until_tick = -1
-	var kill := DotDamage.make(bot, victim, 5000.0, _server_game.combat.damage_type(&""))
+	var kill := GSDamage.make(bot, victim, 5000.0, _server_game.combat.damage_type(&""))
 	kill.tick = _server_game.current_tick()
 	var _applied := _server_game.combat.apply_damage(kill)
 	var died_at := _server_game.current_tick()
@@ -299,15 +299,15 @@ func _test_killview_reaches_the_victim() -> void:
 
 	var views: Array = []
 	for item in sent:
-		var decoded: DotResult = _clients[2]["net"].messages.decode(DotNetReader.new(item[1]), 1, false)
+		var decoded: GSResult = _clients[2]["net"].messages.decode(GSNetReader.new(item[1]), 1, false)
 		var event := decoded.value as FcEvent if decoded.ok else null
 		if event != null and event.kind == FcEvents.Kind.KILLVIEW:
 			views.append(item)
 	_check(views.size() == 1 and int(views[0][0]) == 2, "one KILLVIEW goes out, to the victim's peer alone", str(views.size()))
 	for item in views:
-		var _r: DotResult = _clients[2]["bridge"].receive_event(item[1])
+		var _r: GSResult = _clients[2]["bridge"].receive_event(item[1])
 	_check(heard.size() == 1 and other_heard.is_empty(), "the victim's client hears the clip and nobody else does")
-	var made := DotKillViewClip.to_buffer(heard[0][0]) if not heard.is_empty() else DotResult.fail(DotError.CODE_STATE, "none")
+	var made := GSKillViewClip.to_buffer(heard[0][0]) if not heard.is_empty() else GSResult.fail(GSError.CODE_STATE, "none")
 	_check(made.ok and String(heard[0][1].get("killer", "")) == "Bolt", "the clip is a usable view of the killer", str(heard[0][1] if not heard.is_empty() else {}))
 	_check(heard.size() == 1 and heard[0][0]["f"].size() <= FcEvents.KILLVIEW_BYTES / 4, "and fits one event")
 	var respawns := _server_game.match_node.respawns
@@ -316,7 +316,7 @@ func _test_killview_reaches_the_victim() -> void:
 		"the respawn is held past the usual delay while the clip plays", "%d, usual %d" % [respawns.ready_tick(str(victim)), normal])
 
 	# Space: the client's respawn request, taken only from a victim being held.
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	var _wrote := _server_net.messages.encode(FcRequest.new(FcEvents.Ask.RESPAWN), writer)
 	var _asked := _server_bridge.receive_request(2, writer.to_bytes())
 	_pump(2)
@@ -335,7 +335,7 @@ func _test_killview_reaches_the_victim() -> void:
 ## The killer's field of view: a client's setting reaches the server and its kill view is drawn with it.
 func _check_killer_fov(target: FcPlayer, victim: int, bot: int) -> void:
 	# The killer's own field of view: a client's setting reaches the server, a bot is drawn with the default.
-	var fov_writer := DotNetWriter.new()
+	var fov_writer := GSNetWriter.new()
 	var _fov_wrote := _server_net.messages.encode(FcRequest.new(FcEvents.Ask.FOV, FcEvents.write_fov(110.0)), fov_writer)
 	var _fov_asked := _server_bridge.receive_request(2, fov_writer.to_bytes())
 	var want_fov := KillPov.degrees_to_vertical(110.0)
@@ -413,12 +413,12 @@ func _test_toys_reach_a_client() -> void:
 	var server_other := _server_game.toys.toy(1)
 	var client_other := client_game.toys.toy(1)
 	var o0 := client_other.body.global_position
-	var shot := DotShot.new()
+	var shot := GSShot.new()
 	shot.origin = server_other.body.global_position + Vector3(0, 0, 5)
 	shot.direction = Vector3(0, 0, -1)
 	shot.damage = 25.0
 	shot.max_range = 30.0
-	_server_game._shoot_toys([shot] as Array[DotShot])
+	_server_game._shoot_toys([shot] as Array[GSShot])
 	for _i in range(40):
 		_pump(1)
 		await get_tree().physics_frame
@@ -464,15 +464,15 @@ func _test_monsters_reach_a_client() -> void:
 	# heading: how many ticks the run took before here decides whether it is mid-turn.
 	var steady := 0
 	for _i in range(160):
-		var was := DotNpcNetSync.yaw_of(monster)
+		var was := GSNpcNetSync.yaw_of(monster)
 		_pump(1)
-		steady = steady + 1 if absf(angle_difference(was, DotNpcNetSync.yaw_of(monster))) < 0.01 else 0
+		steady = steady + 1 if absf(angle_difference(was, GSNpcNetSync.yaw_of(monster))) < 0.01 else 0
 		if steady >= 12:
 			break
 	var mirror: Node3D = client_bridge.get("_monster_mirrors")[net_id].body
 	_check_monster_mirror(mirror, monster, client_bridge, server_net, net_id)
 
-	horde.spawner.remove(monster.instance_id, DotNpcSpawner.REASON_ADMIN)
+	horde.spawner.remove(monster.instance_id, GSNpcSpawner.REASON_ADMIN)
 	_check(not _server_bridge.get("_monster_nets").has(monster.instance_id), "the server lets it go")
 	_deliver_event(2, FcEvents.Kind.NPC_GONE, FcEvents.write_npc_gone(net_id))
 	_check(client_bridge.monster_count() == 0, "and so does the client")
@@ -499,15 +499,15 @@ func _test_forced_noclip_is_predicted() -> void:
 		"the client may not noclip on its own"
 	)
 
-	var on := DotFpsAdminModifiers.set_noclip(server_player.controller, true)
+	var on := GSFpsAdminModifiers.set_noclip(server_player.controller, true)
 	_check(on.ok, "the server holds player %d in noclip" % session, str(on.error))
 
 	var start_y: float = server_player.controller.state.position.y
-	var shipped := _flight_window(2, 64, DotFpsCommand.BUTTON_JUMP)
+	var shipped := _flight_window(2, 64, GSFpsCommand.BUTTON_JUMP)
 
 	_check(
-		DotFpsAdminModifiers.is_noclipped(client_player.controller)
-		and client_player.controller.state.mode == DotFpsState.Mode.NOCLIP,
+		GSFpsAdminModifiers.is_noclipped(client_player.controller)
+		and client_player.controller.state.mode == GSFpsState.Mode.NOCLIP,
 		"the client learned it from the snapshots and is flying too"
 	)
 	_check(
@@ -527,15 +527,15 @@ func _test_forced_noclip_is_predicted() -> void:
 	)
 
 	# Back to the ground, and then the version that does NOT work, for contrast.
-	var _off := DotFpsAdminModifiers.set_noclip(server_player.controller, false)
+	var _off := GSFpsAdminModifiers.set_noclip(server_player.controller, false)
 	server_player.controller.teleport(Vector3(0.0, 0.1, 18.0))
 	var _settle := _flight_window(0, 24, 0)
 
 	server_player.controller.allow_noclip = true
 	server_player.controller.tunables.can_noclip = true
-	server_player.controller.state.mode = DotFpsState.Mode.NOCLIP
+	server_player.controller.state.mode = GSFpsState.Mode.NOCLIP
 
-	var naive := _flight_window(2, 64, DotFpsCommand.BUTTON_JUMP)
+	var naive := _flight_window(2, 64, GSFpsCommand.BUTTON_JUMP)
 	print("  measured: shipped %d ticks out of noclip, worst %.2f m; naive %d ticks, worst %.2f m" % [int(shipped["grounded_ticks"]), float(shipped["worst_gap"]), int(naive["grounded_ticks"]), float(naive["worst_gap"])])
 
 	_check(
@@ -547,7 +547,7 @@ func _test_forced_noclip_is_predicted() -> void:
 
 	server_player.controller.allow_noclip = false
 	server_player.controller.tunables.can_noclip = false
-	server_player.controller.state.mode = DotFpsState.Mode.AIR
+	server_player.controller.state.mode = GSFpsState.Mode.AIR
 	server_player.controller.teleport(Vector3(0.0, 0.1, 18.0))
 	var _land := _flight_window(0, 24, 0)
 	_done()
@@ -577,7 +577,7 @@ func _test_movement_rules_reach_clients() -> void:
 	var relay := func(rules: Dictionary) -> void:
 		var bytes := _server_bridge.encode_event(FcEvents.Kind.RULES, FcEvents.write_rules(rules))
 		for peer_id in _clients:
-			var _r: DotResult = _clients[peer_id]["bridge"].receive_event(bytes)
+			var _r: GSResult = _clients[peer_id]["bridge"].receive_event(bytes)
 	_server_game.movement_rules_changed.connect(relay)
 
 	_server_game.set_movement_rules({"launch_velocity": 14.0, "slide_boost": 2.0})
@@ -618,20 +618,20 @@ func _test_movement_rules_reach_clients() -> void:
 	var start_y: float = server_player.controller.state.position.y
 	var peak := [start_y]
 	server_player.controller.simulated.connect(
-		func(_t: int, s: DotFpsState) -> void: peak[0] = maxf(peak[0], s.position.y)
+		func(_t: int, s: GSFpsState) -> void: peak[0] = maxf(peak[0], s.position.y)
 	)
 	# Default E must do nothing: hold it for a window and the player stays near the ground.
 	var idle_peak := [start_y]
-	var idle_sub := func(_t: int, s: DotFpsState) -> void: idle_peak[0] = maxf(idle_peak[0], s.position.y)
+	var idle_sub := func(_t: int, s: GSFpsState) -> void: idle_peak[0] = maxf(idle_peak[0], s.position.y)
 	server_player.controller.simulated.connect(idle_sub)
-	var _idle := _flight_window(2, 32, DotFpsCommand.BUTTON_USER_0)
+	var _idle := _flight_window(2, 32, GSFpsCommand.BUTTON_USER_0)
 	server_player.controller.simulated.disconnect(idle_sub)
 	_check(float(idle_peak[0]) - start_y < 1.0, "E with the default rules does not throw the player into the air",
 		"rose %.2f m" % (float(idle_peak[0]) - start_y))
 	_server_game.set_movement_rules({"launch_enabled": true})
 	var _arm := _flight_window(0, 8, 0)
 	peak[0] = start_y
-	var launch := _flight_window(2, 64, DotFpsCommand.BUTTON_USER_0)
+	var launch := _flight_window(2, 64, GSFpsCommand.BUTTON_USER_0)
 	print("  measured: launch peak %.2f m, worst gap %.2f m (%s)" % [float(peak[0]) - start_y, float(launch["worst_gap"]), launch["worst_at"]])
 	_check(float(peak[0]) - start_y > 3.0, "E throws the server's player into the air (from %s)" % open_sky,
 		"%.2f m" % (float(peak[0]) - start_y))
@@ -667,7 +667,7 @@ func _test_wall_moves_predicted() -> void:
 	var client_game: FcGame = entry["game"]
 	var server_player: FcPlayer = _server_bridge.behaviour_for(session).player
 	var client_player: FcPlayer = (entry["bridge"] as FcNetBridge).behaviour_for(session).player
-	var net: DotNetManager = entry["net"]
+	var net: GSNetManager = entry["net"]
 
 	_check(
 		_server_game.map.id == &"dm_atrium" and client_game.map.id == &"dm_atrium",
@@ -726,20 +726,20 @@ func _test_blind_and_beacon() -> void:
 	_section("[an admin's blind and beacon: who is told]")
 
 	var handlers := FcModTools.handlers(_server_game)
-	var blind: Callable = handlers[DotModTools.ACTION_BLIND]
-	var beacon: Callable = handlers[DotModTools.ACTION_BEACON]
+	var blind: Callable = handlers[GSModTools.ACTION_BLIND]
+	var beacon: Callable = handlers[GSModTools.ACTION_BEACON]
 
 	var owner: FcNetBridge = _clients[2]["bridge"]
 	var watcher: FcNetBridge = _clients[3]["bridge"]
 
 	_check(
-		owner.behaviour_for(11).find_var(&"net_blind").audience == DotNetVar.Audience.OWNER
-		and owner.behaviour_for(11).find_var(&"net_beacon").audience == DotNetVar.Audience.EVERYONE,
+		owner.behaviour_for(11).find_var(&"net_blind").audience == GSNetVar.Audience.OWNER
+		and owner.behaviour_for(11).find_var(&"net_beacon").audience == GSNetVar.Audience.EVERYONE,
 		"the blind is declared owner-only and the beacon for everybody"
 	)
 
-	var on_blind: DotResult = blind.call(&"11", {"on": true, "actor": "1"})
-	var on_beacon: DotResult = beacon.call(&"11", {"on": true, "actor": "1"})
+	var on_blind: GSResult = blind.call(&"11", {"on": true, "actor": "1"})
+	var on_beacon: GSResult = beacon.call(&"11", {"on": true, "actor": "1"})
 	_check(on_blind.ok and on_beacon.ok, "the server blinds and beacons player 11")
 
 	# Long enough for several snapshots through one-in-five loss.
@@ -769,8 +769,8 @@ func _test_blind_and_beacon() -> void:
 		"a beaconed player is relevant to every peer, however far away"
 	)
 
-	var _off_blind: DotResult = blind.call(&"11", {"on": false, "actor": "1"})
-	var _off_beacon: DotResult = beacon.call(&"11", {"on": false, "actor": "1"})
+	var _off_blind: GSResult = blind.call(&"11", {"on": false, "actor": "1"})
+	var _off_beacon: GSResult = beacon.call(&"11", {"on": false, "actor": "1"})
 	_window = _flight_window(0, 24, 0)
 
 	_check(

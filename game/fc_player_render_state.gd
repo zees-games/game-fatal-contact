@@ -3,10 +3,10 @@ extends "fc_player_body.gd"
 
 const LN2 := log(2.0)
 
-## The controller's state as drawn at [param alpha] through its last tick, from -1 to 2. `DotFpsController.render_state` blends the last two ticks, 0 to 1. A connected client's alpha leaves that range for a fifth of a second after a physics frame that ran no tick or
-## two (`DotNetClock.render_alpha` keeps the drawing where it was and takes the slip up slowly), and clamped there the eye stood still or jumped a tick, which is what the slip handling is for. Past 1 it goes on along the last tick's step; below 0 it is between the
+## The controller's state as drawn at [param alpha] through its last tick, from -1 to 2. `GSFpsController.render_state` blends the last two ticks, 0 to 1. A connected client's alpha leaves that range for a fifth of a second after a physics frame that ran no tick or
+## two (`GSNetClock.render_alpha` keeps the drawing where it was and takes the slip up slowly), and clamped there the eye stood still or jumped a tick, which is what the slip handling is for. Past 1 it goes on along the last tick's step; below 0 it is between the
 ## two ticks before, from [member _position_two_back].
-func _render_state(alpha: float) -> DotFpsState:
+func _render_state(alpha: float) -> GSFpsState:
 	if is_nan(alpha):
 		return controller.render_state()
 	if alpha >= 0.0 and alpha <= 1.0:
@@ -31,7 +31,7 @@ func _render_position(alpha: float) -> Vector3:
 	if alpha >= 0.0 and alpha <= 1.0:
 		return controller.render_position(alpha)
 	var pos: Vector3 = controller.render_position(1.0 if alpha > 1.0 else 0.0)
-	if controller.drive == DotFpsController.Drive.REMOTE or controller.tick_rate <= 0:
+	if controller.drive == GSFpsController.Drive.REMOTE or controller.tick_rate <= 0:
 		return pos
 	if alpha > 1.0:
 		return pos + (pos - controller.previous_position()) * minf(alpha - 1.0, 1.0)
@@ -66,14 +66,14 @@ func _absorb_step(alpha: float, delta: float) -> float:
 	)
 	_step_offset += through * _step_rise - _step_drawn
 	_step_drawn = through * _step_rise
-	_step_offset = DotCameraSmoothing.damp(_step_offset, 0.0, step_smooth_time * LN2, delta)
+	_step_offset = GSCameraSmoothing.damp(_step_offset, 0.0, step_smooth_time * LN2, delta)
 	if absf(_step_offset) < 0.0005:
 		_step_offset = 0.0
 	return _step_offset
 
 ## Kicks a held landing once [param drawn] is on the floor the landing tick left the player
 ## on, or a tick later at the latest.
-func _kick_landing(drawn: DotFpsState) -> void:
+func _kick_landing(drawn: GSFpsState) -> void:
 	if _landing_impact <= 0.0:
 		return
 	if drawn.position.y > controller.state.position.y + 0.005 and controller.state.tick <= _landing_tick + 1:
@@ -83,7 +83,7 @@ func _kick_landing(drawn: DotFpsState) -> void:
 
 ## Sway, bob and the aim, for the hands under the camera. The pose's own camera punch (`view_punch`) is not added to the camera: the camera's recoil is
 ## FcRecoilView's, exactly the bullet's offset, so the crosshair is where the shots go (fc-hitreg-vertical-1).
-func _present_view_model(drawn: DotFpsState) -> void:
+func _present_view_model(drawn: GSFpsState) -> void:
 	_aim_fov_scale = 1.0
 	_view_fov_scale = 1.0
 	if weapons == null or weapons.view_model() == null:
@@ -113,7 +113,7 @@ func _present_view_model(drawn: DotFpsState) -> void:
 		_view_fov_scale = hands.view_fov_scale()
 
 
-## The process frame the last [DotSpawnBubble3D] was made on: [method _present_bubble] makes one a frame.
+## The process frame the last [GSSpawnBubble3D] was made on: [method _present_bubble] makes one a frame.
 static var _bubble_made_frame := -1
 
 ## Draws [member protected_view] as a bubble round the body. Not on your own camera (inside it you would
@@ -130,7 +130,7 @@ func _present_bubble(at: Vector3) -> void:
 		if Engine.get_process_frames() == _bubble_made_frame:
 			return
 		_bubble_made_frame = Engine.get_process_frames()
-		protection_bubble = DotSpawnBubble3D.new()
+		protection_bubble = GSSpawnBubble3D.new()
 		protection_bubble.name = "SpawnBubble"
 		protection_bubble.top_level = true
 		add_child(protection_bubble)
@@ -140,7 +140,7 @@ func _present_bubble(at: Vector3) -> void:
 
 ## Draws [member beacon], and says when it pings. [b]Only while alive.[/b] The flag outlives a death — dot-moderation re-applies it on the
 ## respawn — but a ring round a corpse that is about to vanish marks nothing, and a column over a spectating player's last position points everybody at an empty floor.
-## Placed at the DRAWN position, which is the render state on the local player and the interpolated one on a remote player, for the reason [DotFxBeacon] is top level.
+## Placed at the DRAWN position, which is the render state on the local player and the interpolated one on a remote player, for the reason [GSFxBeacon] is top level.
 func _present_beacon(delta: float, at: Vector3) -> void:
 	if not beacon or not is_alive():
 		if beacon_marker != null:
@@ -149,7 +149,7 @@ func _present_beacon(delta: float, at: Vector3) -> void:
 		return
 
 	if beacon_marker == null:
-		beacon_marker = DotFxBeacon.new()
+		beacon_marker = GSFxBeacon.new()
 		beacon_marker.name = "Beacon"
 		# Red-orange, the colour nothing else in a dev-textured Fatal Contact is. Ping off: the game
 		# plays its own catalogue ping (BEACON_SOUND) from advance()'s return, so the node's

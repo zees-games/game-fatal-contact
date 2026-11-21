@@ -23,7 +23,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## supported state it is: the three built-in maps still play.
 ##
 ## [b]A delivered map is registered by its directory, not found under a root.[/b] A map the
-## SERVER names (`<owner>/<id>@<version>` in [member DotGameDescriptor.maps]) is its own
+## SERVER names (`<owner>/<id>@<version>` in [member GSGameDescriptor.maps]) is its own
 ## dot-cloud pack, mounted at `res://dot_cloud/<owner>/<id>/<version>/` with `<id>.json`
 ## and `<id>.bin` directly inside — the directory is named for the version, the files for
 ## the map, so a scan of `<root>/<name>/<name>.json` pointed at a mount silently finds
@@ -118,29 +118,29 @@ static func manifest_path(id: StringName) -> String:
 ## directory has no `<id>.json` and `<id>.bin`, or when the manifest's kind is not
 ## [constant KIND]: a pack the server names is still only an arena map if it says so,
 ## which is the same rule the roots are scanned by.
-static func add_mounted(id: StringName, dir: String) -> DotResult:
+static func add_mounted(id: StringName, dir: String) -> GSResult:
 	var key := String(id)
 	var base := dir.rstrip("/")
 	var path := base.path_join("%s.json" % key)
 
 	if not FileAccess.file_exists(path):
-		return DotResult.fail(DotError.CODE_IO, "The delivered map has no manifest.", path)
+		return GSResult.fail(GSError.CODE_IO, "The delivered map has no manifest.", path)
 
 	if not FileAccess.file_exists(base.path_join("%s.bin" % key)):
-		return DotResult.fail(DotError.CODE_IO, "The delivered map has no mesh.", base)
+		return GSResult.fail(GSError.CODE_IO, "The delivered map has no mesh.", base)
 
 	var parsed := FcBspMap.read_manifest(path)
 
 	if str(parsed.get("kind", "")) != KIND:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The delivered map is not an arena map.",
 			"%s says kind \"%s\"" % [path, str(parsed.get("kind", ""))]
 		)
 
 	_mounted[key] = base
 	_manifests[key] = parsed
-	return DotResult.success(base)
+	return GSResult.success(base)
 
 
 ## Forgets a delivered map's directory, so the id falls back to a root's copy, if any.

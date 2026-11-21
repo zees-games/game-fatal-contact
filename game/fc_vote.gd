@@ -6,8 +6,8 @@ const FcVoteSource := preload("fc_vote_source.gd")
 
 ## The players decide what plays next.
 ##
-## Wraps [DotVoteDirector] over [FcVoteSource], and the wrapping is four callables
-## and one rule about who calls [method DotVoteDirector.begin]. Everything else — the
+## Wraps [GSVoteDirector] over [FcVoteSource], and the wrapping is four callables
+## and one rule about who calls [method GSVoteDirector.begin]. Everything else — the
 ## ballot, the counting method, the tie-breaks, the quorum, nominations, rock the vote,
 ## the cooldowns, the extensions — is dot-vote's fifty-five settings and none of it is
 ## restated here.
@@ -50,7 +50,7 @@ signal score_limit_raised(limit: int)
 signal vote_opened(options: Array, seconds: float)
 
 ## A ballot closed. Carries the whole result, including why.
-signal vote_closed(result: DotVoteResult)
+signal vote_closed(result: GSVoteResult)
 
 ## Somebody rocked the vote.
 signal rocked(voter: StringName, votes: int, needed: int)
@@ -61,28 +61,28 @@ signal rocked(voter: StringName, votes: int, needed: int)
 signal cue_due(cue: StringName, seconds_left: int, runoff: bool)
 
 ## What is going to happen, once the delay or the round is over.
-signal change_due(id: StringName, choice: DotVoteChoice)
+signal change_due(id: StringName, choice: GSVoteChoice)
 
 @export_group("Wiring")
 
 ## Whether this instance decides anything.
 ##
 ## Off on a client, which mirrors a vote so it can draw the ballot and must never
-## apply a result. That is exactly what [member DotVoteDirector.auto_apply] is for,
+## apply a result. That is exactly what [member GSVoteDirector.auto_apply] is for,
 ## and a client that left it on would try to change its own map.
 @export var authoritative: bool = true
 
 ## The file a server owner configures this game's map vote in. Empty skips it.
 ##
 ## [b]The rules in [method _rules] are this game's DEFAULTS, not its configuration.[/b]
-## They layer the way every [DotConfig] in the family does, so an owner changes a
+## They layer the way every [GSConfig] in the family does, so an owner changes a
 ## number without touching code:
 ##
 ## [codeblock]
 ## _rules()  <  game.yml metadata: map_vote:  <  this file  <  DOT_VOTE_*  <  --vote-*
 ## [/codeblock]
 ##
-## The file is JSON, keyed exactly as [DotVoteRules] is, enums by name. The end-of-map
+## The file is JSON, keyed exactly as [GSVoteRules] is, enums by name. The end-of-map
 ## vote and its extend option, which is what an owner usually wants to change:
 ##
 ## [codeblock]
@@ -100,9 +100,9 @@ signal change_due(id: StringName, choice: DotVoteChoice)
 var game: FcGame = null
 var maps: FcMapDirector = null
 
-var director: DotVoteDirector = null
+var director: GSVoteDirector = null
 var source: FcVoteSource = null
-var commands: DotVoteCommands = null
+var commands: GSVoteCommands = null
 
 ## `() -> Dictionary`: maps.yml's `commands:` block, so an operator renames the vote commands
 ## without this game naming any. The module points it at the rotation file.
@@ -124,7 +124,7 @@ var ballot_fn: Callable = Callable()
 var people_fn: Callable = Callable()
 
 ## What [member ballot_fn] is fed from. Polled once per [method advance].
-var feed: DotVoteBallotFeed = null
+var feed: GSVoteBallotFeed = null
 
 ## What dot-vote's commands are called here. `vote` rather than dot-vote's `votefor`,
 ## because `!vote 2` is what this game's players have always typed.
@@ -132,25 +132,25 @@ const COMMAND_NAMES := {"vote": "vote"}
 
 ## The match whose score and rounds the vote is told about. Replaced on every map change,
 ## because a map change builds a new match; see [method _bind_match].
-var _match: DotMatch = null
+var _match: GSMatch = null
 
 
 
 ## Builds the director over the game's maps and modes.
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if game == null or maps == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The vote needs a game and a map director."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The vote needs a game and a map director."
 		)
 
 	source = FcVoteSource.of(maps.session.catalogue, maps, game) as FcVoteSource
 
 	if not source.is_usable():
-		return DotResult.fail(
-			DotError.CODE_STATE, "There is nothing to vote for."
+		return GSResult.fail(
+			GSError.CODE_STATE, "There is nothing to vote for."
 		)
 
-	director = DotVoteDirector.new()
+	director = GSVoteDirector.new()
 	director.name = "VoteDirector"
 	director.rules = configured_rules()
 	director.source = source
@@ -181,7 +181,7 @@ func setup() -> DotResult:
 	if "round_in_progress_fn" in director:
 		director.set(&"round_in_progress_fn", round_in_progress)
 
-	feed = DotVoteBallotFeed.of(director, func(state: Dictionary) -> void:
+	feed = GSVoteBallotFeed.of(director, func(state: Dictionary) -> void:
 		if ballot_fn.is_valid():
 			ballot_fn.call(state)
 	)
@@ -194,7 +194,7 @@ func setup() -> DotResult:
 	# something in it. Everything after this comes through `note_changed`.
 	director.begin(source.current_id())
 
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## The host-facing callbacks the director polls: counts, voters, admin and spectator tests.
@@ -241,14 +241,14 @@ func _wire_director_signals() -> void:
 			vote_opened.emit(options, seconds)
 	)
 	director.vote_closed.connect(
-		func(result: DotVoteResult) -> void: vote_closed.emit(result)
+		func(result: GSVoteResult) -> void: vote_closed.emit(result)
 	)
 	director.rocked.connect(
 		func(voter: StringName, votes: int, needed: int) -> void:
 			rocked.emit(voter, votes, needed)
 	)
 	director.change_due.connect(
-		func(id: StringName, choice: DotVoteChoice) -> void:
+		func(id: StringName, choice: GSVoteChoice) -> void:
 			change_due.emit(id, choice)
 	)
 
@@ -270,17 +270,17 @@ func _wire_director_signals() -> void:
 
 
 ## [method _rules], with the server owner's layers over it. See [member config_path].
-func configured_rules() -> DotVoteRules:
+func configured_rules() -> GSVoteRules:
 	var rules := _rules()
 	var layered := rules.layer_over_defaults(
-		config_path, DotVoteGameSource.running_game_metadata(METADATA_KEY)
+		config_path, GSVoteGameSource.running_game_metadata(METADATA_KEY)
 	)
 
 	if not layered.ok:
 		# Loud and not fatal. A server that refused to start over its vote file would be
 		# a server an operator cannot get back; this one runs on its tested defaults and
 		# says exactly what was wrong.
-		DotLog.error(CHANNEL, "the map vote configuration is not usable; using the defaults", {
+		GSLog.error(CHANNEL, "the map vote configuration is not usable; using the defaults", {
 			"path": config_path,
 			"why": layered.error.message,
 			"detail": layered.error.detail,
@@ -295,18 +295,18 @@ func configured_rules() -> DotVoteRules:
 ## about.[/b] A six-option map vote decided by plurality is regularly won by something
 ## a fifth of the server wanted, because the other four fifths split four ways. Every
 ## timer and Fatal Contact community that has run a map vote for long enough has ended up here.
-func _rules() -> DotVoteRules:
-	var rules := DotVoteRules.new()
+func _rules() -> GSVoteRules:
+	var rules := GSVoteRules.new()
 
-	rules.trigger = DotVoteRules.Trigger.TIME_LIMIT
+	rules.trigger = GSVoteRules.Trigger.TIME_LIMIT
 	# Two and a half minutes before a forty-five-minute map: room for the countdown, the
 	# ballot, a runoff and the result, so a decided map waits for the clock rather than
 	# the other way round. A match is ten minutes; a map is several of them.
 	rules.vote_lead_sec = 150.0
 	rules.duration_sec = 2700.0
 	rules.vote_duration_sec = 25.0
-	rules.method = DotVoteRules.Method.INSTANT_RUNOFF
-	rules.tie_break = DotVoteRules.TieBreak.RANDOM
+	rules.method = GSVoteRules.Method.INSTANT_RUNOFF
+	rules.tie_break = GSVoteRules.TieBreak.RANDOM
 	rules.max_options = 6
 
 	# Extending is real here: Fatal Contact match that is one round from a decision should
@@ -326,7 +326,7 @@ func _rules() -> DotVoteRules:
 
 	# Applied at the end of a round rather than immediately: a map that changes under
 	# a fight in progress is a fight nobody got to finish.
-	rules.apply = DotVoteRules.Apply.END_OF_ROUND
+	rules.apply = GSVoteRules.Apply.END_OF_ROUND
 	rules.apply_delay_sec = 5.0
 
 	# Ten seconds' warning, counted down on every client, before a ballot opens over a
@@ -427,7 +427,7 @@ func _report_score() -> void:
 ## Follows the game onto its current match. A map change builds a new one and frees the
 ## old, and a connection to a freed match would simply never fire again.
 func _bind_match() -> void:
-	var node: DotMatch = game.match_node if game != null else null
+	var node: GSMatch = game.match_node if game != null else null
 
 	if node == _match:
 		return
@@ -448,11 +448,11 @@ func _bind_match() -> void:
 ## every call, because a map change builds the match anew. No match is "cannot tell", which
 ## holds a finish_round change as dot-vote always did.
 func round_in_progress() -> bool:
-	var node: DotMatch = game.match_node if game != null else null
+	var node: GSMatch = game.match_node if game != null else null
 	return node == null or node.is_live()
 
 
-func _on_round_ended(_round: int, _winner: int, _outcome: DotMatchRules.Outcome) -> void:
+func _on_round_ended(_round: int, _winner: int, _outcome: GSMatchRules.Outcome) -> void:
 	note_round_end()
 
 
@@ -467,7 +467,7 @@ func _on_score_limit_changed(limit: int) -> void:
 		_match.rules.score_limit = limit
 		score_limit_raised.emit(limit)
 
-		DotLog.info(CHANNEL, "an extend raised the match's score limit", {"limit": limit})
+		GSLog.info(CHANNEL, "an extend raised the match's score limit", {"limit": limit})
 
 
 ## dot-vote's commands, on [param host] — the module, so they go when it does.
@@ -478,12 +478,12 @@ func _on_score_limit_changed(limit: int) -> void:
 ## `forcertv`, `votereload` — existed here at all. dot-vote's are registered on the
 ## console with `.with_chat()`, so a `!rtv` the chat handler does not claim reaches them;
 ## two handlers for one name is the collision [code]TmcVote[/code] documents, where
-## [DotConsole] keeps the first registration and the second is silently dead.
-func install_commands(host: Object) -> DotResult:
+## [GSConsole] keeps the first registration and the second is silently dead.
+func install_commands(host: Object) -> GSResult:
 	if director == null:
-		return DotResult.fail(DotError.CODE_STATE, "There is no vote to command.")
+		return GSResult.fail(GSError.CODE_STATE, "There is no vote to command.")
 
-	commands = DotVoteCommands.new()
+	commands = GSVoteCommands.new()
 	commands.director = director
 	commands.names = COMMAND_NAMES
 	commands.spec_fn = commands_spec_fn
@@ -513,9 +513,9 @@ func install_commands(host: Object) -> DotResult:
 				row["mode"] = "Mode" if str(row["id"]).begins_with(FcVoteSource.MODE_PREFIX) else "Map"
 			return rows)
 		# A map and a mode picked on the two tabs arrive together (`/mapmenu map:x mode:y`).
-		(menu_half as Object).set(&"mode_fn", func(_id: StringName, mode: StringName) -> DotResult:
+		(menu_half as Object).set(&"mode_fn", func(_id: StringName, mode: StringName) -> GSResult:
 			_menu_mode = mode
-			return DotResult.success(mode))
+			return GSResult.success(mode))
 		(menu_half as Object).set(&"change_fn", _menu_change)
 
 	if feed != null:
@@ -528,10 +528,10 @@ func install_commands(host: Object) -> DotResult:
 var _menu_mode: StringName = &""
 
 
-func _menu_change(id: StringName) -> DotResult:
+func _menu_change(id: StringName) -> GSResult:
 	var picked := _menu_mode
 	_menu_mode = &""
-	var result: DotResult
+	var result: GSResult
 	if picked != &"":
 		result = await source.apply_with_mode(id, picked)
 	else:
@@ -543,24 +543,24 @@ func _menu_change(id: StringName) -> DotResult:
 
 # --- What a player does ----------------------------------------------------
 
-func rock_the_vote(voter: StringName) -> DotResult:
+func rock_the_vote(voter: StringName) -> GSResult:
 	return (
 		director.rock_the_vote(voter) if director != null
-		else DotResult.fail(DotError.CODE_STATE, "No vote is running.")
+		else GSResult.fail(GSError.CODE_STATE, "No vote is running.")
 	)
 
 
-func nominate(voter: StringName, id: StringName) -> DotResult:
+func nominate(voter: StringName, id: StringName) -> GSResult:
 	return (
 		director.nominate(voter, _qualify(id)) if director != null
-		else DotResult.fail(DotError.CODE_STATE, "No vote is running.")
+		else GSResult.fail(GSError.CODE_STATE, "No vote is running.")
 	)
 
 
-func cast_one(voter: StringName, choice: StringName) -> DotResult:
+func cast_one(voter: StringName, choice: StringName) -> GSResult:
 	return (
 		director.cast_one(voter, _qualify(choice)) if director != null
-		else DotResult.fail(DotError.CODE_STATE, "No vote is running.")
+		else GSResult.fail(GSError.CODE_STATE, "No vote is running.")
 	)
 
 

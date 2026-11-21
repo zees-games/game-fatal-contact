@@ -32,24 +32,24 @@ Every join between two addons is a few lines, and each is a few lines because th
 | projectiles → clients | `FcProjectiles.launched` → `FcEvents.Kind.LAUNCH` → a copy flown by `client_tick` |
 | combat → match | `FcGame._on_entity_killed`, `entity_killed` → `report_kill` |
 | match → loadout | `FcGame._on_respawn_due` → `_apply_loadout_deferred` |
-| movement → combat | `arsenal.movement/airborne/crouched` pushed from `DotFpsState` |
-| match → ui | `FcHud._on_kill`, a `DotKillFeed.Entry` → coloured fragments |
+| movement → combat | `arsenal.movement/airborne/crouched` pushed from `GSFpsState` |
+| match → ui | `FcHud._on_kill`, a `GSKillFeed.Entry` → coloured fragments |
 | game → server | `FcModule` and `FcServices`, the two files that name dot-server |
 | combat → stats | `FcProgress._on_shot_resolved` / `_on_killed` |
-| stats → achievements | `DotAchievementStatsLink`, which differences rather than connecting ([services](services.md#progression)) |
+| stats → achievements | `GSAchievementStatsLink`, which differences rather than connecting ([services](services.md#progression)) |
 | stats → leaderboard | `FcBoards.submit_session`, once per session rather than per kill |
 | map → game | `FcMapSession.change_to_map` → `FcGame.change_map` |
-| map → clients | `DotMapSyncHost.send_fn` → `FcNetLink.send_map` |
+| map → clients | `GSMapSyncHost.send_fn` → `FcNetLink.send_map` |
 | vote → map | `FcVoteSource.apply`, routed on a `map:` / `mode:` prefix |
 | match → vote | `FcVote.leading_score` polled each tick; dot-match's `round_ended` → `note_round_end` |
 | vote → clients | `FcVote.cue_due` → `FcEvents.Kind.VOTE` → `FcPresentation.on_vote_cue` and the HUD's notice line |
-| vote → console | `FcVote.install_commands`, dot-vote's `DotVoteCommands` on the module |
+| vote → console | `FcVote.install_commands`, dot-vote's `GSVoteCommands` on the module |
 | npc → combat | `FcHorde._register_combat`, hitboxes and health under one entity id |
-| npc → game | the brain reaches `FcHorde` through `DotRegistry`, never by name |
+| npc → game | the brain reaches `FcHorde` through `GSRegistry`, never by name |
 | chat → server | `FcServices._on_player_chat`, which cancels dot-server's own |
 | voice → wire | `FcNetLink.send_voice`, on a channel of its own |
 | moderation → everything | two registry names nobody imports: `dot_mute_source`, `dot_ban_source` |
-| moderation → the world | `FcModTools.handlers`, one callable per admin ability; `DotModToolCommands` on the module |
+| moderation → the world | `FcModTools.handlers`, one callable per admin ability; `GSModToolCommands` on the module |
 
 Three small decisions in those joins:
 
@@ -62,8 +62,8 @@ Three small decisions in those joins:
 `FcPlayer.player_id` is the scoreboard key, the combat entity id, the damage attribution and the loadout key, and dot-server's `session.userid` feeds it.
 
 - **Use the session id, never the peer id.** A peer id is reassigned the moment somebody reconnects, and everything downstream would be handed to the next player to join. `FcModule._add` says so at the point it matters.
-- The loadout key is `"arena-player-%08d"`, not `str(id)`. `DotLoadoutKey.is_usable` has a minimum length so a malformed key can never reach a filesystem path, and a bare `"7"` is refused. Padding is right; loosening the check is not.
-- Monsters are in a different id space, allocated by `DotEntityTable` ([horde](horde.md#a-monsters-entity-id)). The player half is deliberately not converted; the reason is there.
+- The loadout key is `"arena-player-%08d"`, not `str(id)`. `GSLoadoutKey.is_usable` has a minimum length so a malformed key can never reach a filesystem path, and a bare `"7"` is refused. Padding is right; loosening the check is not.
+- Monsters are in a different id space, allocated by `GSEntityTable` ([horde](horde.md#a-monsters-entity-id)). The player half is deliberately not converted; the reason is there.
 - Server bots are players with session ids from `FcNetBridge.BOT_SESSION_BASE` (900,000,000 + n), above any userid and below the entity table's ids ([netcode](netcode.md#bots)).
 
 ## Order inside a tick
@@ -80,11 +80,11 @@ Inside a player's tick, the map's own mechanics run after the controller's move 
 
 ## Nobody is harmed behind a loading cover
 
-A client behind its `DotLoadGate` cover froze itself and cannot see. `FcModule` is not on `DotGameModule`, so it borrows dot-game's `DotGameRoster` for the bookkeeping alone (`FcModule.loading`): a seat is loading from the spawn event until the client's `game.cover` report says the cover lifted, and again from every map change (`mark_reloading`). `FcGame.loading_fn` asks it by player id, and `FcEffects.adjust_damage`, the one hook every damage path runs through (weapons, monsters, map hurt volumes, falls), refuses a hit on a loading seat, after the administrator's slay, which is never vetoed. Nobody dies behind a cover, so no round loses a player who never saw it begin. Bots and offline play have no `loading_fn` and are never loading. `headless_lossy` checks it over a real socket.
+A client behind its `GSLoadGate` cover froze itself and cannot see. `FcModule` is not on `GSGameModule`, so it borrows dot-game's `GSGameRoster` for the bookkeeping alone (`FcModule.loading`): a seat is loading from the spawn event until the client's `game.cover` report says the cover lifted, and again from every map change (`mark_reloading`). `FcGame.loading_fn` asks it by player id, and `FcEffects.adjust_damage`, the one hook every damage path runs through (weapons, monsters, map hurt volumes, falls), refuses a hit on a loading seat, after the administrator's slay, which is never vetoed. Nobody dies behind a cover, so no round loses a player who never saw it begin. Bots and offline play have no `loading_fn` and are never loading. `headless_lossy` checks it over a real socket.
 
 ## One description, three representations
 
-`FcMap` holds a list of `AABB`s. `to_scene()` makes meshes and static bodies, `to_fps_body()` makes a `DotFpsFlatBody`, `to_trace()` makes a `DotTraceFlat`. Building those independently is the obvious approach and it is wrong in a way nothing reports: the server's idea of a wall moves a metre and shots start passing through something clients can see. The self-test asserts all three have the same box count and that a shot at the perimeter stops at it.
+`FcMap` holds a list of `AABB`s. `to_scene()` makes meshes and static bodies, `to_fps_body()` makes a `GSFpsFlatBody`, `to_trace()` makes a `GSTraceFlat`. Building those independently is the obvious approach and it is wrong in a way nothing reports: the server's idea of a wall moves a metre and shots start passing through something clients can see. The self-test asserts all three have the same box count and that a shot at the perimeter stops at it.
 
 It is also why a dev-textured game is easy to reason about: the geometry is the gameplay, and there is no separate art pass that could disagree with it. The texture is Kenney's prototype grid tinted per zone ([maps](maps.md#colour-and-light)) and triplanar-mapped, because a `BoxMesh` UV-maps every face to the same 0..1 square; without triplanar a two-metre box and a forty-metre wall show the same number of grid squares and the texture stops telling you about scale, which is its only job.
 
@@ -107,7 +107,7 @@ Everything is flat under `game/` and `maps/`, grouped here by what it is for.
 | `game/fc_net_*.gd`, `fc_player_net.gd`, `fc_npc_net.gd`, `fc_events.gd`, `fc_event.gd`, `fc_request.gd` | the dot-net bridge, link, commands, per-entity net state, events and requests |
 | `game/fc_client.gd`, `fc_client_extras.gd`, `fc_hud.gd`, `fc_menus.gd`, `fc_bindings.gd`, `fc_hud_glance.gd`, `fc_presentation.gd`, `fc_browser.gd`, `fc_party.gd`, `fc_avatars.gd`, `fc_projectile_view.gd`, `fc.tscn` | the client: never loaded by a dedicated server |
 | `game/fc_stats.gd`, `fc_awards.gd`, `fc_boards.gd`, `fc_progress.gd`, `fc_identity.gd` | progression and identity |
-| `fc_award_store.gd` | the achievement files written once per save, off the frame (the addon's file store writes per player in the saving frame; `FcProgress._exit_tree` calls `finish()`). The stats file is dot-stats' own `DotStatsStoreFile` (write-behind, one write per flush) |
+| `fc_award_store.gd` | the achievement files written once per save, off the frame (the addon's file store writes per player in the saving frame; `FcProgress._exit_tree` calls `finish()`). The stats file is dot-stats' own `GSStatsStoreFile` (write-behind, one write per flush) |
 | `game/fc_paths.gd` | `rebase` for every `res://` path (pack delivery) |
 | `game/fc_content_groups.gd`, `groups.json` | each map's own files are the download group `map-<id>`; a client fetches the group of the map it plays and tops up on a map change |
 | `assets/surfaces/*/*.jpg.import` | `compress/mode=1` (lossy WebP), not 2 (VRAM): the headless import behind a publish writes only the desktop `bptc` variant, 1.4 MiB a texture, 25 MB of the 38 MB pack and unusable where a browser lacks BPTC; lossy is 0.26 MiB each and the pack is 15 MiB |

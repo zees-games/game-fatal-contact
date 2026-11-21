@@ -7,7 +7,7 @@ func _test_hud_makes_room_for_a_ballot() -> void:
 	_section("The weapon slots and the centre line make room for a ballot")
 
 	var hud := FcHud.new()
-	hud.config = DotUiConfig.new()
+	hud.config = GSUiConfig.new()
 	add_child(hud)
 	hud.build(null)
 	hud.set_process(false)
@@ -89,7 +89,7 @@ func _test_vote_is_heard() -> void:
 	_section("The map vote is heard: every cue its rules name is a sound here")
 
 	var p := _make()
-	var sink := p.audio.sink as DotAudioSinkNull
+	var sink := p.audio.sink as GSAudioSinkNull
 
 	# The rules this game votes by, as the server builds them. dot-vote ships every cue
 	# empty, so a cue id the rules name and the catalogue lacks is a sound that is
@@ -149,8 +149,8 @@ func _test_criticals_and_the_body() -> void:
 	player.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 18.0)), 0)
 	player.attach_body_mesh(Color.WHITE, FcAvatars.stock_avatar(&"broken"))
 
-	var rules := DotPlayerBreakRules.new()
-	rules.mode = DotPlayerBreakRules.Mode.LIMBS
+	var rules := GSPlayerBreakRules.new()
+	rules.mode = GSPlayerBreakRules.Mode.LIMBS
 	rules.limbs = 1
 	rules.criticals_only = true
 	# The body is a skinned person (dot-player-char's people): a limb is baked off the skin and
@@ -174,7 +174,7 @@ func _test_criticals_and_the_body() -> void:
 	_check_tag_rules(player)
 
 	var hud := FcHud.new()
-	hud.config = DotUiConfig.new()
+	hud.config = GSUiConfig.new()
 	add_child(hud)
 	hud.build(null)
 	hud.follow(player)
@@ -217,11 +217,11 @@ func _test_criticals_and_the_body() -> void:
 		"and a KILL alone draws no points, no hit marker and no medal: the client decides none of them")
 
 	# The achievement the player is nearest to (still sent to the client).
-	var awards: DotAchievementCatalogue = load("res://game/fc_awards.gd").catalogue()
-	var progress := DotAchievementProgress.new()
+	var awards: GSAchievementCatalogue = load("res://game/fc_awards.gd").catalogue()
+	var progress := GSAchievementProgress.new()
 	progress.set_value(&"arena.kills", 11.0)
 	var picked: Array = load("res://game/fc_progress.gd").challenge_for(awards, progress)
-	var picked_def: DotAchievement = awards.achievements[int(picked[0])] if int(picked[0]) >= 0 else null
+	var picked_def: GSAchievement = awards.achievements[int(picked[0])] if int(picked[0]) >= 0 else null
 	_check(picked_def != null and int(picked[1]) == 11 and picked_def.requirements[0].stat == &"arena.kills",
 		"a challenge is the goal a player is furthest along (%s)" % (picked_def.display_name if picked_def != null else "none"))
 	for i in range(3):
@@ -271,7 +271,7 @@ func _test_criticals_and_the_body() -> void:
 	var client := FcClient.new()
 	client.game = summary_game
 	client.hud = hud
-	client._on_match({"state": DotMatch.State.MATCH_END, "round": 1, "remaining_ticks": 0})
+	client._on_match({"state": GSMatch.State.MATCH_END, "round": 1, "remaining_ticks": 0})
 	_check(hud.notice_label.text.begins_with("MVP: Broken") and hud.notice_label.text.contains("3 kills"),
 		"the end of the match names the MVP (%s)" % hud.notice_label.text)
 	client.free()

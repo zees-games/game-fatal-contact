@@ -2,8 +2,8 @@ extends SceneTree
 
 ## The offline client's B menu and its crosshair down the sights: a frame of each, and a line
 ## saying what the client did. The check behind the loadout menu (dot-menu's
-## `DotMenuLoadoutScreen`, dot-loadout's offer) and the crosshair's fade (dot-ui's
-## `DotCrosshair.aim_source`), which no headless suite can look at.
+## `GSMenuLoadoutScreen`, dot-loadout's offer) and the crosshair's fade (dot-ui's
+## `GSCrosshair.aim_source`), which no headless suite can look at.
 ##
 ##   xvfb-run -a godot --path . --resolution 1920x1080 --script tools/render_loadout.gd
 ##   xvfb-run -a godot --path . --resolution 1920x1080 --script tools/render_loadout.gd -- --costed
@@ -34,11 +34,11 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 	await _wait_gate(120.0)
 	var me = client.get("player")
-	var menu: DotMenu = client.get("game_menu")
+	var menu: GSMenu = client.get("game_menu")
 	me.health.invulnerable = true
 	var suffix := "_costed" if _costed else "_free"
 	if _costed:
-		var schema: DotLoadoutSchema = client.get("game").loadouts.schema
+		var schema: GSLoadoutSchema = client.get("game").loadouts.schema
 		for id: StringName in [&"minigun", &"battle_rifle", &"sniper", &"rocket_launcher", &"revolver"]:
 			var priced := schema.catalogue.find(id)
 			if priced != null:
@@ -47,8 +47,8 @@ func _run() -> void:
 
 	if _locked:
 		# The launcher is owned by default here; owning nothing locks it, so the store button shows.
-		client.get("game").loadouts.entitlement_source = func(_key: String) -> DotLoadoutEntitlements:
-			return DotLoadoutEntitlements.of([])
+		client.get("game").loadouts.entitlement_source = func(_key: String) -> GSLoadoutEntitlements:
+			return GSLoadoutEntitlements.of([])
 	# The menu, on B as a player presses it.
 	var b := InputEventKey.new()
 	b.physical_keycode = KEY_B
@@ -91,7 +91,7 @@ func _run() -> void:
 	await _run_rest(me, hud)
 
 
-func _costed_or_free(screen: Variant, menu: DotMenu, suffix: String) -> void:
+func _costed_or_free(screen: Variant, menu: GSMenu, suffix: String) -> void:
 	if _costed:
 		for i in screen.choices().size():
 			if str((screen.choices()[i] as Dictionary)["id"]) == "minigun":
@@ -165,8 +165,8 @@ func _check(ok: bool, what: String) -> void:
 		_failed += 1
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _shot(file: String) -> void:
@@ -180,7 +180,7 @@ func _shot(file: String) -> void:
 
 ## Polls the client's load gate until it is open (capped): a fixed wait shows the cover on a loaded box.
 func _wait_gate(cap: float) -> void:
-	var gate: DotLoadGate = client.get("gate")
+	var gate: GSLoadGate = client.get("gate")
 	var waited := 0.0
 	while (gate == null or not gate.is_open()) and waited < cap:
 		await _wait(0.25)

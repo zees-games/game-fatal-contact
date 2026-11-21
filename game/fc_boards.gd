@@ -7,7 +7,7 @@ const FcStats := preload("fc_stats.gd")
 ## [b]A board is one number per player, ordered. A stat is many numbers per player,
 ## accumulated.[/b] dot-leaderboard says so in its own notes and the distinction is
 ## the whole reason both addons are here: [FcStats] counts, and these order what was
-## counted. [method DotLeaderboardManager.publish_stat] is the bridge — it reads the
+## counted. [method GSLeaderboardManager.publish_stat] is the bridge — it reads the
 ## total out of the store rather than taking a value, so a board built this way can
 ## never disagree with the counter it came from.
 ##
@@ -15,8 +15,8 @@ const FcStats := preload("fc_stats.gd")
 ## Kills in a team deathmatch and kills in a free-for-all are not the same achievement:
 ## one has half the map shooting at you and the other has all of it. A single "most
 ## kills" board over both is a board whose top is decided by which mode a player
-## happened to play. [method DotLeaderboardDef.scoped] cuts one definition into the
-## per-mode boards, and [method DotLeaderboardDef.scope_key] sorts the scope's keys so
+## happened to play. [method GSLeaderboardDef.scoped] cuts one definition into the
+## per-mode boards, and [method GSLeaderboardDef.scope_key] sorts the scope's keys so
 ## two callers who built the same dictionary in different orders address one board
 ## rather than two holding half the entries each.
 
@@ -42,15 +42,15 @@ const DEATHS := &"arena.deaths"
 
 
 ## Every board this game defines, unscoped. [method scope_for] cuts them.
-static func definitions() -> Array[DotLeaderboardDef]:
-	var out: Array[DotLeaderboardDef] = []
+static func definitions() -> Array[GSLeaderboardDef]:
+	var out: Array[GSLeaderboardDef] = []
 
-	out.append(_board(KILLS, DotLeaderboardDef.Kind.SCORE, "Most kills", "kills", 0))
-	out.append(_board(STREAK, DotLeaderboardDef.Kind.SCORE, "Best streak", "kills", 0))
-	out.append(_board(RATIO, DotLeaderboardDef.Kind.POINTS, "Kill/death", "", 2))
-	out.append(_board(WINS, DotLeaderboardDef.Kind.SCORE, "Rounds won", "rounds", 0))
-	out.append(_board(DAMAGE, DotLeaderboardDef.Kind.SCORE, "Damage dealt", "hp", 0))
-	out.append(_board(DEATHS, DotLeaderboardDef.Kind.PENALTY, "Fewest deaths", "deaths", 0))
+	out.append(_board(KILLS, GSLeaderboardDef.Kind.SCORE, "Most kills", "kills", 0))
+	out.append(_board(STREAK, GSLeaderboardDef.Kind.SCORE, "Best streak", "kills", 0))
+	out.append(_board(RATIO, GSLeaderboardDef.Kind.POINTS, "Kill/death", "", 2))
+	out.append(_board(WINS, GSLeaderboardDef.Kind.SCORE, "Rounds won", "rounds", 0))
+	out.append(_board(DAMAGE, GSLeaderboardDef.Kind.SCORE, "Damage dealt", "hp", 0))
+	out.append(_board(DEATHS, GSLeaderboardDef.Kind.PENALTY, "Fewest deaths", "deaths", 0))
 
 	return out
 
@@ -76,11 +76,11 @@ static func scope_for(mode_id: StringName) -> Dictionary:
 ## [FcStats]' reason: a stored quotient is a third number that can disagree with the
 ## two it came from.
 static func submit_session(
-	manager: DotLeaderboardManager,
+	manager: GSLeaderboardManager,
 	mode_id: StringName,
 	player_id: StringName,
 	player_name: String,
-	values: DotStatsValues
+	values: GSStatsValues
 ) -> void:
 	# Awaited per board: a remote store suspends, and the memory store never does, so the
 	# default behaviour is the synchronous one. Callers do not await this (see FcProgress).
@@ -111,7 +111,7 @@ static func submit_session(
 
 
 static func _submit(
-	manager: DotLeaderboardManager,
+	manager: GSLeaderboardManager,
 	board_id: StringName,
 	scope: Dictionary,
 	player_id: StringName,
@@ -126,19 +126,19 @@ static func _submit(
 	var res := await manager.submit_async(board_id, scope, player_id, player_name, value)
 
 	if not res.ok:
-		DotLog.debug(CHANNEL, "a board submission was refused", {
+		GSLog.debug(CHANNEL, "a board submission was refused", {
 			"board": String(board_id), "why": res.error.message
 		})
 
 
 static func _board(
 	id: StringName,
-	kind: DotLeaderboardDef.Kind,
+	kind: GSLeaderboardDef.Kind,
 	display: String,
 	unit: String,
 	decimals: int
-) -> DotLeaderboardDef:
-	var board := DotLeaderboardDef.make(id, kind)
+) -> GSLeaderboardDef:
+	var board := GSLeaderboardDef.make(id, kind)
 	board.display_name = display
 	board.unit = unit
 	board.decimals = decimals

@@ -1,6 +1,6 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
-## FcConfig through DotGameConfigBinder: fields, cvars, the horde reading them, strict refusal, the diff.
+## FcConfig through GSGameConfigBinder: fields, cvars, the horde reading them, strict refusal, the diff.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_config.tscn
@@ -24,7 +24,7 @@ var _finished := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_run.call_deferred()
 
 
@@ -45,19 +45,19 @@ func _run() -> void:
 	binder.strict = true
 	_check(binder.load_layers().ok, "defaults load")
 	_check(binder.schema().size() == 56 and binder.diff().is_empty(), "56 fields, no diff at the code defaults")
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	binder.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE, console.has_name)
 	_check(console.get_int("fc_horde_cap") == 36, "cvar starts at the default")
 	console.set_cvar("fc_horde_cap", "12")
 	_check(game.config.horde_cap == 12 and binder.source_of("horde_cap") == "cvar", "cvar writes the field")
 	var horde := FcHorde.new()
 	horde.game = game
-	var rules: DotNpcDirectorRules = horde._rules()
+	var rules: GSNpcDirectorRules = horde._rules()
 	_check(rules.absolute_cap == 12 and rules.spawn_burst == 3, "the horde's rules read the config")
 	_check(binder.diff_yaml().contains("horde_cap: 12"), "the diff names the edit")
 	console.set_cvar("fc_surf_volume", "1.5")
-	var surf := DotAudioSurfRules.new()
+	var surf := GSAudioSurfRules.new()
 	_check(surf.apply_values(game.config.surf_values()) == 7 and is_equal_approx(surf.volume, 1.5), "the surf profile keys reach the rules")
 	_check(FcConfig.new().surf_values()["volume"] == 0.6 and surf.mute_steps, "surf defaults match dot-audio's")
 	game.config.horde_spawn_max_distance = 5.0
@@ -99,11 +99,11 @@ func _run() -> void:
 func _falls(game: FcGame) -> void:
 	_begin()
 	var faller := game.player_for(1)
-	var fall := faller.get_node_or_null("FallDamage") as DotFallDamage
+	var fall := faller.get_node_or_null("FallDamage") as GSFallDamage
 	_check(game.fall_rules.enabled and fall != null, "fall damage is on, a component per player")
 	faller.controller.landed.emit(game.fall_rules.threshold + 5.0)
 	_check(faller.health.health == 150.0, "warmup or intermission: the landing is absorbed")
-	game.match_node.state = DotMatch.State.LIVE
+	game.match_node.state = GSMatch.State.LIVE
 	faller.controller.landed.emit(game.fall_rules.threshold - 1.0)
 	_check(faller.health.health == 150.0, "a landing under the threshold costs nothing")
 	faller.controller.landed.emit(game.fall_rules.threshold + 5.0)
@@ -137,10 +137,10 @@ func _stats_keys(game: FcGame) -> void:
 		return
 	var file := ROOT + "_stats.key"
 	p.stats_keys.scope_key_file = file
-	var who := DotClientSession.new()
+	var who := GSClientSession.new()
 	who.userid = 2
 	who.identity = _Member.new()
-	p.session_fn = func(_id: int) -> DotClientSession: return who
+	p.session_fn = func(_id: int) -> GSClientSession: return who
 	var key := p._key_of(2)
 	_check(key.length() == 22 and not key.begins_with("backbone:"), "a member is filed under a scoped pseudonym", key)
 	_check(p._id_from_key(key) == 2, "and the key maps back to the player")
@@ -156,9 +156,9 @@ func _probe() -> void:
 	binder.strict = true
 	binder.roots = PackedStringArray([ProjectSettings.globalize_path(ROOT)])
 	var loaded := binder.load_layers()
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	binder.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, console.has_name)
+	binder.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE, console.has_name)
 	print("PROBE ok=%s cap=%s cap_src=%s health=%s health_src=%s cvar=%s nem=%s nem_src=%s resp=%s resp_src=%s" % [
 		loaded.ok, config.horde_cap, binder.source_of("horde_cap"), config.player_health, binder.source_of("player_health"),
 		console.find_cvar("fc_player_health").get_string(), config.award_nemesis_at, binder.source_of("award_nemesis_at"),
@@ -202,7 +202,7 @@ func _layers() -> void:
 
 
 ## The shipped cfg files hold every key, in step with FcConfig, and change nothing as they are.
-func _templates(binder: DotGameConfigBinder) -> void:
+func _templates(binder: GSGameConfigBinder) -> void:
 	_begin()
 	var files := binder.template_files()
 	_check(files.size() == 5, "five shipped cfg files: " + str(files.size()))
@@ -215,23 +215,23 @@ func _templates(binder: DotGameConfigBinder) -> void:
 
 
 ## Every key is listed by the workbench, an edit lands in the right file, and the ambience cvars are a set.
-func _workbench(binder: DotGameConfigBinder, game: Node) -> void:
+func _workbench(binder: GSGameConfigBinder, game: Node) -> void:
 	_begin()
 	var keys := PackedStringArray()
 	for e: Dictionary in binder.schema():
 		keys.append(e["key"])
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.panel_mode = 1
 	wb.config = {"enabled": false}
 	wb.thread_cvars = false
-	for set: DotProfileSet in binder.profile_sets():
+	for set: GSProfileSet in binder.profile_sets():
 		wb.add_set(set, set.rel_path)
 	add_child(wb)
 	_check(wb.start().ok, "the workbench starts")
 	binder.attach(wb.api.runtime)
 	var listed := PackedStringArray()
 	for kind: String in wb.api.kinds():
-		var got: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "get", "kind": kind, "id": binder.profile_id})
+		var got: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "get", "kind": kind, "id": binder.profile_id})
 		if got.ok:
 			listed.append_array(PackedStringArray((got.value as Dictionary).get("values", {}).keys()))
 	var missing := PackedStringArray()
@@ -239,19 +239,19 @@ func _workbench(binder: DotGameConfigBinder, game: Node) -> void:
 		if not listed.has(k):
 			missing.append(k)
 	_check(missing.is_empty() and binder.profile_sets().size() == 5, "the workbench lists all %d keys over %d files: %s" % [keys.size(), binder.profile_sets().size(), ",".join(missing)])
-	var res: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_awards", "id": binder.profile_id, "key": "award_kill_points", "value": 150})
+	var res: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_awards", "id": binder.profile_id, "key": "award_kill_points", "value": 150})
 	_check(res.ok and game.config.award_kill_points == 150, "a workbench edit reaches the live config")
 	var files: Dictionary = wb.exporter.call("collect")
 	var text: String = files.get("cfg/game/game-arena/config_awards/game.yml", "")
 	_check(text.contains("award_kill_points: 150"), "the export holds the edit in the right file")
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	var _bound: Variant = game.ambient_rules.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE, DotConVar.FLAG_ARCHIVE)
-	var ambient := DotGameWorkbench.cvar_set(console, FcAmbience.cvar_types(), "ambience")
+	var _bound: Variant = game.ambient_rules.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE, GSConVar.FLAG_ARCHIVE)
+	var ambient := GSGameWorkbench.cvar_set(console, FcAmbience.cvar_types(), "ambience")
 	_check(ambient != null and ambient.schema.size() >= 4, "the fc_ambient* cvars make a workbench set")
 	wb.api.add_set(ambient)
-	DotGameWorkbench.bind_cvar_set(ambient, wb.api.runtime, console)
-	var amb: DotResult = wb.api.handle(DotGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": DotGameWorkbench.CVAR_SET_ID, "key": "fc_ambient_volume", "value": 0.2})
+	GSGameWorkbench.bind_cvar_set(ambient, wb.api.runtime, console)
+	var amb: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "ambience", "id": GSGameWorkbench.CVAR_SET_ID, "key": "fc_ambient_volume", "value": 0.2})
 	_check(amb.ok and is_equal_approx(console.get_float("fc_ambient_volume"), 0.2), "an edit of the ambience set moves the cvar")
 	wb.free()
 	console.free()

@@ -67,6 +67,6 @@ func _run() -> void:
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
-	DotLog.signals().record.connect(_on_log_record)
+	GSLog.set_level(GSLog.Level.ERROR)
+	GSLog.signals().record.connect(_on_log_record)
 	_run.call_deferred()

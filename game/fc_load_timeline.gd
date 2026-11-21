@@ -11,7 +11,7 @@ static var _marks: Array = []
 static var tracing := false
 const SLOW_SECTION_USEC := 20000
 
-var gate: DotLoadGate = null
+var gate: GSLoadGate = null
 var _holds: Array = []
 var _state := -1
 var _worst_ms := 0
@@ -49,10 +49,10 @@ var _settle_from := 0
 var _settle_worst := 0
 var _settle_slow := 0
 ## `?cl_load_trace=1` on the page (`--cl_load_trace 1` on a desktop): every frame under the cover and through the settle window traced as by [method trace_frames], so a slow frame splits into its setup step, the nodes' pass and
-## the draw. `cl_load_trace=items` also makes every [DotRenderWarmup] draw one item a round (far slower, but each slow draw names its one material).
+## the draw. `cl_load_trace=items` also makes every [GSRenderWarmup] draw one item a round (far slower, but each slow draw names its one material).
 var _trace_load := false
 var _trace_items := false
-## Under that trace, what each [DotRenderWarmup] round put up, stamped with a slow draw.
+## Under that trace, what each [GSRenderWarmup] round put up, stamped with a slow draw.
 var _warm_new: Array[String] = []
 var _drawn_usec := 0
 const WARM_ITEM_MARK_MS := 100
@@ -197,10 +197,10 @@ func _on_drawn() -> void:
 
 ## The load trace's warm-up attribution: every warm-up draws one item a round, each named with its draw.
 func _on_node_added(node: Node) -> void:
-	if node is DotRenderWarmup:
+	if node is GSRenderWarmup:
 		if _trace_items:
-			(node as DotRenderWarmup).batch_size = 1
-	elif node is GeometryInstance3D and node.get_parent() is DotRenderWarmup:
+			(node as GSRenderWarmup).batch_size = 1
+	elif node is GeometryInstance3D and node.get_parent() is GSRenderWarmup:
 		_warm_new.append(_describe_item(node))
 
 
@@ -294,16 +294,16 @@ func _settle() -> void:
 ## The settle's marks up to [param end], stamped by the frame that closed it at [param now].
 func _report_settle(now: int, end: int) -> void:
 	var rows := _rows(_marks.slice(_settle_from, end))
-	DotLog.info(CHANNEL, "after open, engine ms (+gap, frame): " + "; ".join(rows[0]), {"worst_frame_ms": _settle_worst, "slow_frames": _settle_slow})
-	if DotWeb.available():
-		DotWeb.publish("arena_after_open", JSON.stringify({"marks": rows[1], "worst_frame_ms": _settle_worst, "slow_frames": _settle_slow, "now_ms": now}))
+	GSLog.info(CHANNEL, "after open, engine ms (+gap, frame): " + "; ".join(rows[0]), {"worst_frame_ms": _settle_worst, "slow_frames": _settle_slow})
+	if GSWeb.available():
+		GSWeb.publish("arena_after_open", JSON.stringify({"marks": rows[1], "worst_frame_ms": _settle_worst, "slow_frames": _settle_slow, "now_ms": now}))
 
 
 func _report() -> void:
 	var rows := _rows(_marks)
-	DotLog.info(CHANNEL, _title + ", engine ms (+gap, frame): " + "; ".join(rows[0]), {"worst_frame_ms": _worst_ms, "slow_frames": _slow_frames})
-	if DotWeb.available():
-		DotWeb.publish("arena_load", JSON.stringify({"marks": rows[1], "worst_frame_ms": _worst_ms, "slow_frames": _slow_frames, "now_ms": Time.get_ticks_msec()}))
+	GSLog.info(CHANNEL, _title + ", engine ms (+gap, frame): " + "; ".join(rows[0]), {"worst_frame_ms": _worst_ms, "slow_frames": _slow_frames})
+	if GSWeb.available():
+		GSWeb.publish("arena_load", JSON.stringify({"marks": rows[1], "worst_frame_ms": _worst_ms, "slow_frames": _slow_frames, "now_ms": Time.get_ticks_msec()}))
 
 
 ## [param list]'s stamps worded: the log rows and the published [ms, frame, label] triples.

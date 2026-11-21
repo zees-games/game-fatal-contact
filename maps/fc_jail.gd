@@ -18,7 +18,7 @@ extends RefCounted
 ## [b]Pure functions of the tick and of one number, [member opened_at].[/b] The game's tick
 ## (`FcPlayer.game_tick`) asks [method resolve] on the server and on the owning client's
 ## prediction alike, and the one fact that is not in the map (when the gate was last opened, on
-## that same tick) is sent to clients (JAIL). Never `DotFpsState.tick`: that counts one machine's
+## that same tick) is sent to clients (JAIL). Never `GSFpsState.tick`: that counts one machine's
 ## motor steps, is not replicated, stops while a player is dead and grows with every replay, so
 ## the server compared players on different clocks and a client predicted the gate on its own
 ## (jail-sim-tick-1).

@@ -16,13 +16,13 @@ const APP_URL := "arena"
 
 
 func _cleanup() -> void:
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 
 
 func _build() -> bool:
 	print("booting")
 
-	# The game first, and registered: FcModule finds it through DotRegistry rather
+	# The game first, and registered: FcModule finds it through GSRegistry rather
 	# than being handed it, which is what makes `load_module(path)` work at all —
 	# dot-server loads a module from a script path and has nowhere to pass an argument.
 	_game = FcGame.new()
@@ -39,11 +39,11 @@ func _build() -> bool:
 		return false
 
 	_check(
-		DotRegistry.get_node_service(FcGame.SERVICE) == _game,
+		GSRegistry.get_node_service(FcGame.SERVICE) == _game,
 		"and registers itself so a module can find it"
 	)
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.hostname = "arena dedicated"
 	config.port = PORT
 	config.bind_address = "127.0.0.1"
@@ -65,7 +65,7 @@ func _build() -> bool:
 	# longer reads a pipe unless `stdin_console_pipes` is on; a terminal is still read.
 	config.stdin_console_enabled = false
 
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
@@ -74,13 +74,13 @@ func _build() -> bool:
 
 	# A server only answers queries if the query responder is plugged in, and `_test_browser`
 	# asks over a real UDP socket, so without it that section fails rather than skipping.
-	var query_host := DotQueryHost.new()
+	var query_host := GSQueryHost.new()
 	query_host.name = "QueryHost"
 	query_host.app_url = APP_URL
-	query_host.server_ref = DotNodeRef.of_path(NodePath("../Server"))
+	query_host.server_ref = GSNodeRef.of_path(NodePath("../Server"))
 	add_child(query_host)
 
-	var booted: DotResult = await _server.boot()
+	var booted: GSResult = await _server.boot()
 
 	if not _check(booted.ok, "the server boots and listens on %d" % PORT, str(booted.error)):
 		return false
@@ -89,7 +89,7 @@ func _build() -> bool:
 	# line every run wrote an hour-long gag into the store a real server enforces.
 	FcModule.punishments_file = "%s/punishments.json" % SERVER_DIR
 
-	var loaded: DotResult = await _server.modules.load_module(
+	var loaded: GSResult = await _server.modules.load_module(
 		"res://game/fc_module.gd"
 	)
 
@@ -163,7 +163,7 @@ func _test_module_loaded() -> void:
 		str(_game.combat.rules.describe())
 	)
 	_check(
-		_server.console.find_cvar("mp_teammate_passthrough").has_flag(DotConVar.FLAG_REPLICATED)
+		_server.console.find_cvar("mp_teammate_passthrough").has_flag(GSConVar.FLAG_REPLICATED)
 			and _server.console.replicated_values().get("mp_teammate_passthrough", "") == "2",
 		"and it is replicated: every client is sent the server's level",
 		str(_server.console.replicated_values())
@@ -210,7 +210,7 @@ func _test_module_loaded() -> void:
 	var map_command := _server.console.find_command("map")
 	_check(
 		map_command != null
-			and map_command.permission == DotAdminFlags.CHANGEMAP
+			and map_command.permission == GSAdminFlags.CHANGEMAP
 			and map_command.allows_chat(_server.console.chat_commands_are_open()),
 		"and changing the map is typable in chat by whoever holds changemap, and nobody else"
 	)
@@ -218,7 +218,7 @@ func _test_module_loaded() -> void:
 
 
 ## Chat, voice, moderation and the identity chain, on a real server: all five addons up in one
-## process on one [DotServer], with dot-moderation before the two routers that look up its
+## process on one [GSServer], with dot-moderation before the two routers that look up its
 ## `dot_mute_source` (a router that starts first enforces no gag).
 func _test_services() -> void:
 	_begin()
@@ -237,8 +237,8 @@ func _test_services() -> void:
 
 	# The operator's switch: registered by the module, replicated so clients hide their key,
 	# and enforced on the router.
-	var voice_cvar: DotConVar = _server.console.find_cvar("sv_voice_enable")
-	_check(voice_cvar != null and DotConsole.is_replicated(voice_cvar),
+	var voice_cvar: GSConVar = _server.console.find_cvar("sv_voice_enable")
+	_check(voice_cvar != null and GSConsole.is_replicated(voice_cvar),
 		"sv_voice_enable is registered and replicated to clients")
 	var off_enabled := true
 	if voice_cvar != null and services.voice != null:
@@ -252,11 +252,11 @@ func _test_services() -> void:
 	# one another. dot-moderation publishes both; dot-chat's router and dot-voice's
 	# router each look one of them up.
 	_check(
-		DotRegistry.get_service(DotModerationManager.MUTE_SERVICE) != null,
+		GSRegistry.get_service(GSModerationManager.MUTE_SERVICE) != null,
 		"and it published a mute source for the two routers to find"
 	)
 	_check(
-		DotRegistry.get_service(DotModerationManager.BAN_SERVICE) != null,
+		GSRegistry.get_service(GSModerationManager.BAN_SERVICE) != null,
 		"and a ban source for the admission check"
 	)
 
@@ -275,7 +275,7 @@ func _test_services() -> void:
 
 	var near := services.chat.channel(FcServices.CH_NEAR)
 	_check(
-		near != null and near.scope == DotChatChannel.Scope.RADIUS,
+		near != null and near.scope == GSChatChannel.Scope.RADIUS,
 		"which really is scoped by distance"
 	)
 
@@ -285,7 +285,7 @@ func _test_services() -> void:
 	_check(services.chat.rules.escape_markup, "markup is escaped")
 	_check(services.chat.rules.strip_invisible, "and invisible characters stripped")
 
-	var dirty := DotChatFilter.sanitise(
+	var dirty := GSChatFilter.sanitise(
 		"[color=red]server[/color]: free stuff", services.chat.rules
 	)
 	_check(
@@ -296,7 +296,7 @@ func _test_services() -> void:
 
 	# --- Moderation: dot-server's mute is two booleans that die with the connection, so a muted
 	# player reconnects and talks. A punishment is a record. ---
-	var subject := DotPunishmentSubject.for_uid("4242")
+	var subject := GSPunishmentSubject.for_uid("4242")
 
 	# [b]The store, and that it is empty before this run writes to it.[/b] The gag below is
 	# an hour long against a fixed uid, so a suite that carried its store between runs would
@@ -312,8 +312,8 @@ func _test_services() -> void:
 	# Awaited, and typed. A punishment store may be a shared database behind a
 	# community's four servers — the whole reason both halves of the interface are
 	# allowed to be coroutines — and an un-awaited one returns at its first suspension.
-	var issued: DotResult = await services.moderation.issue(
-		DotPunishment.Kind.GAG, subject, "testing", "suite", 3600
+	var issued: GSResult = await services.moderation.issue(
+		GSPunishment.Kind.GAG, subject, "testing", "suite", 3600
 	)
 
 	_check(issued.ok, "a gag can be issued", str(issued.error))
@@ -331,11 +331,11 @@ func _test_services() -> void:
 
 	# Revoked by ID, not by subject: one person may hold a gag, a mute and a ban at
 	# once, and "lift the punishment on this person" is not a question with one answer.
-	var record: DotPunishment = issued.value if issued.ok else null
-	var lifted: DotResult = (
+	var record: GSPunishment = issued.value if issued.ok else null
+	var lifted: GSResult = (
 		await services.moderation.revoke(record.id, "suite", "over")
 		if record != null
-		else DotResult.fail(DotError.CODE_STATE, "nothing was issued")
+		else GSResult.fail(GSError.CODE_STATE, "nothing was issued")
 	)
 	_check(lifted.ok, "and it can be lifted again", str(lifted.error))
 	_check(
@@ -348,7 +348,7 @@ func _test_services() -> void:
 	if _check(module.identity != null, "the identity layer is up"):
 		_check(module.identity.platform != null, "with a platform hub")
 		_check(
-			DotRegistry.get_node_service(DotPlatformHub.SERVICE) != null,
+			GSRegistry.get_node_service(GSPlatformHub.SERVICE) != null,
 			"registered, which is how dot-platform's module finds it"
 		)
 		_check(
@@ -384,7 +384,7 @@ func _test_map_rotation_file() -> void:
 
 	var maps := module.maps
 	var catalogue := maps.session.catalogue
-	var built := DotMapRotationFile.from_trees([{"defaults": {
+	var built := GSMapRotationFile.from_trees([{"defaults": {
 		"rotation": "two",
 		"rotations": {
 			"two": {"mode": "cycle", "cooldown": 0, "maps": ["dm_box", "dm_atrium"]},
@@ -410,7 +410,7 @@ func _test_map_rotation_file() -> void:
 	_check_rotation_draws(maps)
 
 	# the ballot and nominations
-	var ids := module.vote.source.choices().map(func(c: DotVoteChoice) -> StringName: return c.id)
+	var ids := module.vote.source.choices().map(func(c: GSVoteChoice) -> StringName: return c.id)
 	_check(not ids.has(&"map:dm_pit"), "a map outside the rotation is not on the ballot")
 	_check(ids.has(&"map:dm_box") or ids.has(&"map:dm_atrium"), "the maps inside it are")
 	var nominated := module.vote.nominate(&"77", &"dm_pit")
@@ -427,7 +427,7 @@ func _test_map_rotation_file() -> void:
 		if chosen != null and chosen.id != &"dm_pit":
 			drew_box = true
 	_check(not drew_box, "and the next map is drawn from the new one")
-	ids = module.vote.source.choices().map(func(c: DotVoteChoice) -> StringName: return c.id)
+	ids = module.vote.source.choices().map(func(c: GSVoteChoice) -> StringName: return c.id)
 	_check(not ids.has(&"map:dm_box"), "and the ballot follows it")
 	_check(not maps.rotation_file.switch(maps.session.rotation, "nope").ok, "an unknown rotation is refused")
 
@@ -446,7 +446,7 @@ func _test_map_rotation_file() -> void:
 
 func _check_renamed_rtv(module: FcModule) -> void:
 	# a renamed command
-	var rtv := DotVoteCommands.new()
+	var rtv := GSVoteCommands.new()
 	rtv.director = module.vote.director
 	rtv.spec_fn = module._rotation_commands
 	rtv.with_map_menu = false
@@ -458,7 +458,7 @@ func _check_renamed_rtv(module: FcModule) -> void:
 	if _check(session != null, "the adopted player is still here"):
 		var replies := PackedStringArray()
 		var ctx := session.make_context(
-			"rockthevote", PackedStringArray(), DotCmdContext.Source.CHAT,
+			"rockthevote", PackedStringArray(), GSCmdContext.Source.CHAT,
 			func(line: String) -> void: replies.append(line)
 		)
 		_server.console.execute("rockthevote", ctx)
@@ -500,7 +500,7 @@ func _test_loadout_command() -> void:
 
 	var say := func(line: String) -> Dictionary:
 		var words := line.split(" ", false)
-		var ctx := session.make_context("loadout", words.slice(1), DotCmdContext.Source.CHAT, func(_l: String) -> void: pass)
+		var ctx := session.make_context("loadout", words.slice(1), GSCmdContext.Source.CHAT, func(_l: String) -> void: pass)
 		var _r := _server.console.execute(line, ctx)
 		return cmd.get(&"last_result")
 
@@ -509,8 +509,8 @@ func _test_loadout_command() -> void:
 	_check(snipers.ok and not bool(rifle.get("ok", true)),
 		"with mp_loadout_allow primary=tag:scoped, a player's rifle is refused by the server", str(rifle))
 	var marksman: Dictionary = say.call("loadout primary=marksman")
-	var active: DotResult = await _game.loadouts.active_for(FcGame.storage_key(77))
-	_check(bool(marksman.get("ok", false)) and active.ok and (active.value as DotLoadout).item_in(&"primary") == &"marksman",
+	var active: GSResult = await _game.loadouts.active_for(FcGame.storage_key(77))
+	_check(bool(marksman.get("ok", false)) and active.ok and (active.value as GSLoadout).item_in(&"primary") == &"marksman",
 		"and a scoped gun is taken and is what they spawn with", str(marksman))
 
 	var typo := _server.console.execute("mp_loadout_allow barrel=rifle")
@@ -521,8 +521,8 @@ func _test_loadout_command() -> void:
 	var _fixed := _server.console.execute("mp_loadout_fixed primary=sniper")
 	var _off := _server.console.execute("mp_loadout_menu 0")
 	var locked: Dictionary = say.call("loadout primary=marksman")
-	var spawned: DotResult = await _game.loadouts.active_for(FcGame.storage_key(77))
-	_check(not bool(locked.get("ok", true)) and (spawned.value as DotLoadout).item_in(&"primary") == &"sniper",
+	var spawned: GSResult = await _game.loadouts.active_for(FcGame.storage_key(77))
+	_check(not bool(locked.get("ok", true)) and (spawned.value as GSLoadout).item_in(&"primary") == &"sniper",
 		"locked by the owner, nobody chooses and everybody spawns with the fixed slot", str(locked))
 
 	await _test_loadout_command_part2(cmd, say)
@@ -547,8 +547,8 @@ func _test_loadout_command_part2(cmd: Object, say: Callable) -> void:
 		var rk := FcGame.storage_key(9100 + i)
 		var r: Dictionary = await cmd.call(&"choose_random", null, rk)
 		rolled_ok = rolled_ok and bool(r.get("ok", false))
-		var got: DotResult = await _game.loadouts.active_for(rk)
-		seen[str((got.value as DotLoadout).item_in(&"primary")) + "/" + str((got.value as DotLoadout).item_in(&"secondary"))] = true
+		var got: GSResult = await _game.loadouts.active_for(rk)
+		seen[str((got.value as GSLoadout).item_in(&"primary")) + "/" + str((got.value as GSLoadout).item_in(&"secondary"))] = true
 	_check(rolled_ok and seen.size() > 1, "a random roll is taken and is not the same loadout every time", str(seen.keys()))
 	var _r_off := _server.console.set_cvar("mp_loadout_random", "0")
 	var offer_off: Dictionary = cmd.call(&"offer", FcGame.storage_key(77))
@@ -558,11 +558,11 @@ func _test_loadout_command_part2(cmd: Object, say: Callable) -> void:
 	var _r_on := _server.console.set_cvar("mp_loadout_random", "1")
 	var _r_slots := _server.console.set_cvar("mp_loadout_random_slots", "primary")
 	var sk := FcGame.storage_key(9200)
-	var before: DotResult = await _game.loadouts.active_for(sk)
-	var sec_before := (before.value as DotLoadout).item_in(&"secondary")
+	var before: GSResult = await _game.loadouts.active_for(sk)
+	var sec_before := (before.value as GSLoadout).item_in(&"secondary")
 	var only: Dictionary = await cmd.call(&"choose_random", null, sk)
-	var after: DotResult = await _game.loadouts.active_for(sk)
-	_check(bool(only.get("ok", false)) and (after.value as DotLoadout).item_in(&"secondary") == sec_before,
+	var after: GSResult = await _game.loadouts.active_for(sk)
+	_check(bool(only.get("ok", false)) and (after.value as GSLoadout).item_in(&"secondary") == sec_before,
 		"mp_loadout_random_slots primary leaves the other slots as they were", str(only))
 	var _r_clear := _server.console.set_cvar("mp_loadout_random_slots", "")
 	_end()
@@ -628,7 +628,7 @@ func _test_bots_fill(module: FcModule) -> Array:
 
 ## A person joining takes a bot's place and leaving gives it back.
 func _test_bots_swap(module: FcModule, bots: Array) -> void:
-	var session := DotClientSession.new()
+	var session := GSClientSession.new()
 	session.peer_id = 4343
 	session.userid = 78
 	session.display_name = "Bea"
@@ -652,24 +652,24 @@ func _test_bots_fight(module: FcModule) -> void:
 	# A pressed trigger is not a shot (no weapon ready fires nothing): count real shots.
 	var shots := [0]
 	for id in module.bridge.bot_ids():
-		_game.player_for(id).used.connect(func(outcome: DotWeaponOutcome) -> void:
+		_game.player_for(id).used.connect(func(outcome: GSWeaponOutcome) -> void:
 			if outcome != null and outcome.used:
 				shots[0] += 1)
 	for _i in int(6.0 * Engine.physics_ticks_per_second):
 		await get_tree().physics_frame
 		for id in module.bridge.bot_ids():
 			var behaviour := module.bridge.behaviour_for(id)
-			if behaviour != null and behaviour.last_fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK):
+			if behaviour != null and behaviour.last_fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 				fired = true
 		if fired:
 			break
 	_check(fired, "the bots fight")
 	# The warmup and the frozen countdown come first: nobody shoots in them, by design.
 	var waited := 0.0
-	while _game.match_node.state != DotMatch.State.LIVE and waited < 40.0:
+	while _game.match_node.state != GSMatch.State.LIVE and waited < 40.0:
 		await _wait_ticks(1.0)
 		waited += 1.0
-	_check(_game.match_node.state == DotMatch.State.LIVE, "the first round of a fresh server goes live", "%.0f s" % waited)
+	_check(_game.match_node.state == GSMatch.State.LIVE, "the first round of a fresh server goes live", "%.0f s" % waited)
 	shots[0] = 0
 	for _i in int(10.0 * Engine.physics_ticks_per_second):
 		if shots[0] > 0:
@@ -703,7 +703,7 @@ func _test_unload() -> void:
 	_check(not _server.modules.has_module("arena"), "and is no longer listed")
 
 	# Reloading has to work, because that is what a live configuration change does.
-	var again: DotResult = await _server.modules.load_module(
+	var again: GSResult = await _server.modules.load_module(
 		"res://game/fc_module.gd"
 	)
 	_check(again.ok, "and it loads again cleanly", str(again.error))
@@ -715,7 +715,7 @@ func _test_unload() -> void:
 
 
 ## The one line that leaked a game's whole script graph at exit: a script that `extends
-## DotNetMessage` and preloads ITSELF, loaded by a running [DotServer]'s module. Asserted on
+## GSNetMessage` and preloads ITSELF, loaded by a running [GSServer]'s module. Asserted on
 ## the source (every message script in `game/`), as the engine reports the leak after `quit()`.
 func _test_no_message_preloads_itself() -> void:
 	_begin()
@@ -763,7 +763,7 @@ func _test_no_message_preloads_itself() -> void:
 func _extends_message(source: String) -> bool:
 	for line in source.split("\n"):
 		if line.begins_with("extends "):
-			return line.contains("DotNetMessage") or line.contains("dot_net_message.gd")
+			return line.contains("GSNetMessage") or line.contains("dot_net_message.gd")
 	return false
 
 

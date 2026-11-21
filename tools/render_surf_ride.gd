@@ -93,7 +93,7 @@ func _run() -> void:
 	_subject.controller.teleport(edge.from, edge.course.reference_yaw(), 0.0)
 	var mind = minds[_subject.player_id]
 	var sim = surf.call(&"_sim_for", edge, _subject.controller)
-	mind.ride = DotBotSurfRide.new().begin(edge.cache, edge.course, sim, int(game.get("_tick")), float(game.tick_rate))
+	mind.ride = GSBotSurfRide.new().begin(edge.cache, edge.course, sim, int(game.get("_tick")), float(game.tick_rate))
 	surf.set(&"begun", int(surf.get(&"begun")) + 1)
 
 	_camera = Camera3D.new()
@@ -107,7 +107,7 @@ func _run() -> void:
 		var path := ProjectSettings.globalize_path("%s/surf_ride_%s_%02d.png" % [OUT_DIR, _map, i])
 		root.get_texture().get_image().save_png(path)
 		var state = _subject.controller.state
-		var brain: DotBotBrain = mind.brain
+		var brain: GSBotBrain = mind.brain
 		print("%02d at %s %.1f m/s %s ride=%s state=%s target=%d yaw=%.0f heading=%.0f" % [i, str(state.position.round()),
 			state.velocity.length(), "ground" if state.is_grounded() else "air",
 			"riding" if mind.ride != null else "done", brain.last.state if brain != null and brain.last != null else "-",

@@ -6,10 +6,10 @@ const FcMaps := preload("fc_maps.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 
-## What a [DotServer] loads as its game scene. Never a client.
+## What a [GSServer] loads as its game scene. Never a client.
 ##
 ## [b]Small on purpose.[/b] Everything a dedicated server does is in [FcModule];
-## this exists because `DotGameManager` loads a SCENE and the game needs one, and
+## this exists because `GSGameManager` loads a SCENE and the game needs one, and
 ## because [method FcGame.setup] is explicit — it takes a map, it can fail, and a
 ## game that built itself in `_ready` would have no way to report that it had not.
 ##
@@ -23,7 +23,7 @@ const FcTickBudget := preload("fc_tick_budget.gd")
 ## scene's script in `game/`; this one now does too.
 ##
 ## The order matters and is the only interesting thing here: the game registers itself
-## in [DotRegistry] under [constant FcGame.SERVICE] during `setup`, and
+## in [GSRegistry] under [constant FcGame.SERVICE] during `setup`, and
 ## `FcModule._module_load` refuses to load if it cannot find it. dot-server loads the
 ## scene before the module for exactly that reason.
 
@@ -41,8 +41,8 @@ var deferred_map: StringName = &""
 
 var _startup_id: StringName = &""
 var _startup_running := false
-var _startup_result: DotResult = null
-signal _startup_done(result: DotResult)
+var _startup_result: GSResult = null
+signal _startup_done(result: GSResult)
 
 
 func _ready() -> void:
@@ -67,9 +67,9 @@ func _ready() -> void:
 		loaded = binder.check_map(asked_map(), built_ids + delivered_ids())
 		if loaded.ok and asked_map() != "" and not built_ids.has(StringName(asked_map())):
 			deferred_map = StringName(asked_map())
-			DotLog.info(CHANNEL, "the asked map is a delivered pack: booting the default, the map director fetches it", {"map": asked_map()})
+			GSLog.info(CHANNEL, "the asked map is a delivered pack: booting the default, the map director fetches it", {"map": asked_map()})
 	if not loaded.ok:
-		DotGameConfigBinder.fail_boot(get_tree(), loaded)
+		GSGameConfigBinder.fail_boot(get_tree(), loaded)
 		return
 	game.config_binder = binder
 	add_child(game)
@@ -77,7 +77,7 @@ func _ready() -> void:
 
 	var built := game.setup(FcMap.dm_box() if deferred_map != &"" else startup_map())
 
-	DotLog.result(CHANNEL, "Fatal Contact was built", built)
+	GSLog.result(CHANNEL, "Fatal Contact was built", built)
 
 	if built.ok:
 		game.start(0)
@@ -101,7 +101,7 @@ static func host_tick_rate() -> int:
 	var rate := maxi(1, Engine.physics_ticks_per_second)
 	var clamped := clampi(rate, FcGame.MIN_TICK_RATE, FcGame.MAX_TICK_RATE)
 	if clamped != rate:
-		DotLog.error(CHANNEL, "sv_tickrate is outside the structural range the sim is tuned for; running at the nearest bound", {
+		GSLog.error(CHANNEL, "sv_tickrate is outside the structural range the sim is tuned for; running at the nearest bound", {
 			"rate": rate, "used": clamped, "min": FcGame.MIN_TICK_RATE, "max": FcGame.MAX_TICK_RATE})
 		Engine.physics_ticks_per_second = clamped
 	return clamped
@@ -124,7 +124,7 @@ static func startup_map() -> FcMap:
 	var map: FcMap = FcMap.by_id(id)
 
 	if map == null:
-		DotLog.warn(CHANNEL, "no such map, booting the default instead", {
+		GSLog.warn(CHANNEL, "no such map, booting the default instead", {
 			"asked": String(id),
 			"known": FcMap.ids() + FcMap.imported_ids(),
 		})
@@ -134,14 +134,14 @@ static func startup_map() -> FcMap:
 
 
 ## dot-workbench: the F9 panel in the editor and debug builds, the loopback page when `workbench.enabled` is set in cfg/server.yml.
-func _start_workbench(binder: DotGameConfigBinder) -> void:
-	var wb := DotGameWorkbench.new()
+func _start_workbench(binder: GSGameConfigBinder) -> void:
+	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.dedicated = DisplayServer.get_name() == "headless"
-	for set: DotProfileSet in binder.profile_sets():
+	for set: GSProfileSet in binder.profile_sets():
 		wb.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
 	var _fl := game.flashlight_conf()
-	for set: DotProfileSet in game.flashlight_binder.profile_sets():
+	for set: GSProfileSet in game.flashlight_binder.profile_sets():
 		wb.add_set(set, "Flashlight")
 	add_child(wb)
 	# Started by FcModule once the fc_ambient* cvars exist, so they are a set beside the config.
@@ -149,7 +149,7 @@ func _start_workbench(binder: DotGameConfigBinder) -> void:
 
 
 
-## Ids of the delivered packs the server's map list names (`DotGameManager.current_maps`, from cfg/content.yml): known
+## Ids of the delivered packs the server's map list names (`GSGameManager.current_maps`, from cfg/content.yml): known
 ## to `--map` though not on the disk yet. Empty outside a dot-server host.
 func delivered_ids() -> Array[StringName]:
 	var out: Array[StringName] = []
@@ -192,9 +192,9 @@ var current: Object:
 
 
 ## Changes the map through the module's director. Fails (it does not wait) before the module has attached it.
-func change_to(id: StringName) -> DotResult:
+func change_to(id: StringName) -> GSResult:
 	if maps == null:
-		return DotResult.fail(DotError.CODE_STATE, "The game has no map director yet (its module is not loaded).")
+		return GSResult.fail(GSError.CODE_STATE, "The game has no map director yet (its module is not loaded).")
 	# The host asking for the startup map before the deferred call got to it: that call is this change.
 	if id != &"" and id == deferred_map and maps != null:
 		await _change_to_deferred()
@@ -211,21 +211,21 @@ func change_to(id: StringName) -> DotResult:
 
 
 ## [method change_to] for a def in hand.
-func change_to_map(map: DotMapDef) -> DotResult:
+func change_to_map(map: GSMapDef) -> GSResult:
 	if maps == null:
-		return DotResult.fail(DotError.CODE_STATE, "The game has no map director yet (its module is not loaded).")
+		return GSResult.fail(GSError.CODE_STATE, "The game has no map director yet (its module is not loaded).")
 	return await maps.call(&"change_to_map", map)
 
 
 ## The host's fetch step: FC's session fetches a delivered map when it is changed to, so this only says whether
 ## the catalogue holds [param id] (so the host does not mount the pack a second way).
-func ensure_map_content(id: StringName) -> DotResult:
+func ensure_map_content(id: StringName) -> GSResult:
 	var cat := catalogue
 	if cat == null:
-		return DotResult.fail(DotError.CODE_STATE, "The game has no map director yet (its module is not loaded).")
+		return GSResult.fail(GSError.CODE_STATE, "The game has no map director yet (its module is not loaded).")
 	if cat.call(&"get_map", id) == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No map '%s' in this server's catalogue." % String(id))
-	return DotResult.success(id)
+		return GSResult.fail(GSError.CODE_INVALID, "No map '%s' in this server's catalogue." % String(id))
+	return GSResult.success(id)
 
 
 func _change_to_deferred() -> void:
@@ -234,11 +234,11 @@ func _change_to_deferred() -> void:
 	_startup_id = deferred_map
 	deferred_map = &""
 	_startup_running = true
-	var r: DotResult = await maps.call(&"change_to", _startup_id)
+	var r: GSResult = await maps.call(&"change_to", _startup_id)
 	_startup_running = false
 	_startup_result = r
 	if r.ok:
-		DotLog.info(CHANNEL, "started on the map --map asked for", {"map": String(_startup_id)})
+		GSLog.info(CHANNEL, "started on the map --map asked for", {"map": String(_startup_id)})
 	else:
-		DotLog.error(CHANNEL, "could not start on the map --map asked for", {"map": String(_startup_id), "why": r.error.message})
+		GSLog.error(CHANNEL, "could not start on the map --map asked for", {"map": String(_startup_id), "why": r.error.message})
 	_startup_done.emit(r)

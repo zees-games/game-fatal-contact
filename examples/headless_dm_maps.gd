@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcMap := preload("../maps/fc_map.gd")
 const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
@@ -25,7 +25,7 @@ const LINKED_FIXED_CHECKS := 2
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -94,7 +94,7 @@ func _run() -> void:
 func _test_solo() -> void:
 	print("arena — the deathmatch and gun game maps")
 	print("-- solo play with no server lists the published maps")
-	var solo := DotMapCatalogue.new()
+	var solo := GSMapCatalogue.new()
 	var keys := FcMaps.standalone_keys(solo)
 	var _first := FcMaps.adopt_delivered(solo, keys)
 	var _again := FcMaps.adopt_delivered(solo, FcMaps.standalone_keys(solo))
@@ -116,7 +116,7 @@ func _test_solo() -> void:
 		"cp-orange-x3 is a suggested pack")
 	_check(solo_detail.get("map:crackhouse", "") == "Deathmatch map", "crackhouse reads 'Deathmatch map'")
 	_check(solo_detail.get("map:gg-garage", "") == "Gun game map", "gg-garage reads 'Gun game map'")
-	var pick := await FcMaps.mount_delivered(solo.get_map(&"crackhouse"), DotMapLoader.new(), solo)
+	var pick := await FcMaps.mount_delivered(solo.get_map(&"crackhouse"), GSMapLoader.new(), solo)
 	_check(not pick.ok, "picking an unfetched pack with no cloud client fails")
 	_check(solo.get_map(&"gg-garage") != null, "the failed pick leaves the catalogue usable")
 	var surf := solo.get_map(&"surf_thriller")
@@ -124,9 +124,9 @@ func _test_solo() -> void:
 
 	print("-- a pack the origin does not have (HTTP 404) says so and leaves the solo list")
 	var fake := _Missing404.new()
-	DotRegistry.register(DotMapLoader.CLOUD_SERVICE, fake)
-	var missing := await FcMaps.mount_delivered(solo.get_map(&"crackhouse"), DotMapLoader.new(), solo)
-	DotRegistry.unregister(DotMapLoader.CLOUD_SERVICE)
+	GSRegistry.register(GSMapLoader.CLOUD_SERVICE, fake)
+	var missing := await FcMaps.mount_delivered(solo.get_map(&"crackhouse"), GSMapLoader.new(), solo)
+	GSRegistry.unregister(GSMapLoader.CLOUD_SERVICE)
 	_check(not missing.ok and missing.error.http_status == 404, "a 404 pack fails keeping the status")
 	_check(missing.ok or missing.error.message.contains("could not fetch the map crackhouse"), "outer sentence names the map")
 	_check(missing.ok or missing.error.detail.contains("not published"), "the cause says it is not published (%s)" % missing.error.detail)
@@ -136,49 +136,49 @@ func _test_solo() -> void:
 	FcMaps.clear_dead()
 
 	print("-- a pack already mounted at another version (the Workshop's) is named and fetched at that version")
-	var index := DotContentIndex.new()
+	var index := GSContentIndex.new()
 	var _p := index.add_pack({"content_id": "gamemann/crackhouse", "version": "9.9.9", "provides": {}, "session": "solo"})
-	var swapped := FcMaps.standalone_keys(DotMapCatalogue.new(), index)
+	var swapped := FcMaps.standalone_keys(GSMapCatalogue.new(), index)
 	_check(swapped.has("gamemann/crackhouse@9.9.9") and not swapped.has("gamemann/crackhouse@1.0.5"),
 		"the mounted version replaces the pinned one")
-	var mounted_cat := DotMapCatalogue.new()
+	var mounted_cat := GSMapCatalogue.new()
 	var _m := FcMaps.adopt_delivered(mounted_cat, swapped)
 	var only := _OnlyVersion.new()
-	DotRegistry.register(DotMapLoader.CLOUD_SERVICE, only)
-	var got := await FcMaps.mount_delivered(mounted_cat.get_map(&"crackhouse"), DotMapLoader.new(), mounted_cat)
-	DotRegistry.unregister(DotMapLoader.CLOUD_SERVICE)
+	GSRegistry.register(GSMapLoader.CLOUD_SERVICE, only)
+	var got := await FcMaps.mount_delivered(mounted_cat.get_map(&"crackhouse"), GSMapLoader.new(), mounted_cat)
+	GSRegistry.unregister(GSMapLoader.CLOUD_SERVICE)
 	_check(only.asked == PackedStringArray(["gamemann/crackhouse@9.9.9"]), "the pick asks for the mounted version (%s)" % ", ".join(only.asked))
 	_check(got.ok or not got.error.message.contains("could not fetch"), "and the fetch is not what fails")
 
 	await _test_solo_part2(solo, only)
 
 
-func _test_solo_part2(solo: DotMapCatalogue, only: _OnlyVersion) -> void:
+func _test_solo_part2(solo: GSMapCatalogue, only: _OnlyVersion) -> void:
 	print("-- solo: a pinned pack that 404s falls back to its latest; online (no allow_latest) keeps the exact version")
 	FcMaps.clear_dead()
 	var lat := _Latest.new()
 	lat.have = ["1.0.9"]
 	lat.latest = "1.0.9"
-	var lcat := DotMapCatalogue.new()
+	var lcat := GSMapCatalogue.new()
 	var _l := FcMaps.adopt_delivered(lcat, PackedStringArray(["gamemann/crackhouse@1.0.5"]))
-	DotRegistry.register(DotMapLoader.CLOUD_SERVICE, lat)
-	var online := await FcMaps.mount_delivered(lcat.get_map(&"crackhouse"), DotMapLoader.new(), lcat)
+	GSRegistry.register(GSMapLoader.CLOUD_SERVICE, lat)
+	var online := await FcMaps.mount_delivered(lcat.get_map(&"crackhouse"), GSMapLoader.new(), lcat)
 	_check(not online.ok and lat.asked == PackedStringArray(["gamemann/crackhouse@1.0.5"]), "online asks only the exact version (%s)" % ", ".join(lat.asked))
 	FcMaps.clear_dead()
-	lcat = DotMapCatalogue.new()
+	lcat = GSMapCatalogue.new()
 	var _l2 := FcMaps.adopt_delivered(lcat, PackedStringArray(["gamemann/crackhouse@1.0.5"]))
 	lat.asked = PackedStringArray()
 	var lm := lcat.get_map(&"crackhouse")
-	var fell := await FcMaps.mount_delivered(lm, DotMapLoader.new(), lcat, true)
+	var fell := await FcMaps.mount_delivered(lm, GSMapLoader.new(), lcat, true)
 	_check(lat.asked == PackedStringArray(["gamemann/crackhouse@1.0.5", "gamemann/crackhouse@1.0.9"]), "solo retries at latest (%s)" % ", ".join(lat.asked))
 	_check(fell.ok or not fell.error.message.contains("could not fetch"), "the latest fetch is not what fails")
 	_check(lm != null and lm.effective_content_version() == "1.0.9" and lm.scene_path.contains("/1.0.9/"), "the map now points at the latest")
 	lat.have = []
 	FcMaps.clear_dead()
-	lcat = DotMapCatalogue.new()
+	lcat = GSMapCatalogue.new()
 	var _l3 := FcMaps.adopt_delivered(lcat, PackedStringArray(["gamemann/crackhouse@1.0.5"]))
-	var none := await FcMaps.mount_delivered(lcat.get_map(&"crackhouse"), DotMapLoader.new(), lcat, true)
-	DotRegistry.unregister(DotMapLoader.CLOUD_SERVICE)
+	var none := await FcMaps.mount_delivered(lcat.get_map(&"crackhouse"), GSMapLoader.new(), lcat, true)
+	GSRegistry.unregister(GSMapLoader.CLOUD_SERVICE)
 	_check(not none.ok and lcat.get_map(&"crackhouse") == null, "neither pinned nor latest published: dropped from the list")
 
 	var ffa: FcMode = FcModes.by_id(&"ffa")
@@ -191,7 +191,7 @@ func _test_solo_part2(solo: DotMapCatalogue, only: _OnlyVersion) -> void:
 		gg_ids[str(each["id"])] = true
 	var both := true
 	for each in solo.maps:
-		var def: DotMapDef = each
+		var def: GSMapDef = each
 		var id := "map:%s" % def.id
 		both = both and FcMaps.supports_mode(def, ffa) and FcMaps.supports_mode(def, gungame) \
 			and ffa_ids.has(id) and gg_ids.has(id)
@@ -206,33 +206,33 @@ func _test_dead_maps() -> void:
 	FcMaps.clear_dead()
 	var hollow_dir := "res://dot_cloud/gamemann/dm-hollowtest/0.0.1"
 	_write_hollow_pack(hollow_dir)
-	var cat := DotMapCatalogue.new()
+	var cat := GSMapCatalogue.new()
 	var keys := FcMaps.standalone_keys(cat)
 	keys.append("gamemann/dm-hollowtest@0.0.1")
 	var _a := FcMaps.adopt_delivered(cat, keys)
 	var cdn := _FakeCdn.new()
-	DotRegistry.register(DotMapLoader.CLOUD_SERVICE, cdn)
+	GSRegistry.register(GSMapLoader.CLOUD_SERVICE, cdn)
 	var before := cat.maps.size()
 
 	for id in [&"crackhouse", &"aim-forts", &"gg-garage", &"dm-hollowtest"]:
 		var def := cat.get_map(id)
 		_check(def != null, "%s is listed before the pick" % id)
-		var r := await FcMaps.mount_delivered(def, DotMapLoader.new(), cat, true)
+		var r := await FcMaps.mount_delivered(def, GSMapLoader.new(), cat, true)
 		_check(not r.ok and r.error.message.contains("could not "), "%s fails with a one-line message (%s)" % [id, r.error.message if not r.ok else "ok"])
 		_check(cat.get_map(id) == null, "%s leaves the list after its failure" % id)
 
 	_check(cat.maps.size() == before - 4, "only the four dead maps left the list (%d of %d)" % [cat.maps.size(), before])
 	_check(not FcImportedMaps.is_mounted(&"dm-hollowtest"), "the hollow pack is not left mounted")
 	var asked := cdn.asked.size()
-	var again := DotMapCatalogue.new()
+	var again := GSMapCatalogue.new()
 	var _b := FcMaps.adopt_delivered(again, keys)
 	_check(again.get_map(&"aim-forts") == null and again.get_map(&"crackhouse") == null and again.get_map(&"surf_10x_final") != null,
 		"a re-adopted list does not bring the dead keys back")
 	var ghost := FcMaps.delivered_def("gamemann/aim-forts@1.0.5")
-	var retry := await FcMaps.mount_delivered(ghost, DotMapLoader.new(), again)
+	var retry := await FcMaps.mount_delivered(ghost, GSMapLoader.new(), again)
 	_check(not retry.ok and retry.error.message.contains("not retried") and cdn.asked.size() == asked,
 		"a dead key is refused without asking the CDN again")
-	DotRegistry.unregister(DotMapLoader.CLOUD_SERVICE)
+	GSRegistry.unregister(GSMapLoader.CLOUD_SERVICE)
 	_remove_dir(hollow_dir)
 	FcMaps.clear_dead()
 
@@ -264,9 +264,9 @@ func _resolve(link: String) -> String:
 
 ## A dot-cloud stand-in whose origin answers 404 for every pack.
 class _Missing404 extends RefCounted:
-	func ensure(_id: StringName, _version: String, _groups: Variant = null, _url: String = "") -> DotResult:
-		var e := DotError.from_http(404)
-		return DotResult.failure(e).wrap("Could not download the content manifest.")
+	func ensure(_id: StringName, _version: String, _groups: Variant = null, _url: String = "") -> GSResult:
+		var e := GSError.from_http(404)
+		return GSResult.failure(e).wrap("Could not download the content manifest.")
 
 
 ## A dot-cloud stand-in that has the versions in `have`, and names `latest` as the newest.
@@ -278,22 +278,22 @@ class _Latest extends RefCounted:
 	func latest_version(_id: String) -> String:
 		return latest
 
-	func ensure(id: StringName, version: String, _groups: Variant = null, _url: String = "") -> DotResult:
+	func ensure(id: StringName, version: String, _groups: Variant = null, _url: String = "") -> GSResult:
 		asked.append("%s@%s" % [id, version])
 		if have.has(version):
-			return DotResult.success("res://dot_cloud/%s/%s" % [id, version])
-		return DotResult.failure(DotError.from_http(404))
+			return GSResult.success("res://dot_cloud/%s/%s" % [id, version])
+		return GSResult.failure(GSError.from_http(404))
 
 
 ## A dot-cloud stand-in that has only 9.9.9 (as if mounted) and answers 404 for any other version.
 class _OnlyVersion extends RefCounted:
 	var asked := PackedStringArray()
 
-	func ensure(id: StringName, version: String, _groups: Variant = null, _url: String = "") -> DotResult:
+	func ensure(id: StringName, version: String, _groups: Variant = null, _url: String = "") -> GSResult:
 		asked.append("%s@%s" % [id, version])
 		if version == "9.9.9":
-			return DotResult.success("res://dot_cloud/%s/%s" % [id, version])
-		return DotResult.failure(DotError.from_http(404))
+			return GSResult.success("res://dot_cloud/%s/%s" % [id, version])
+		return GSResult.failure(GSError.from_http(404))
 
 
 ## Per-key origin: 404 / opaque (status 0) / 500 / hollow (success, pack written by the test).
@@ -303,13 +303,13 @@ class _FakeCdn extends RefCounted:
 	func latest_version(_id: String) -> String:
 		return ""
 
-	func ensure(id: StringName, version: String, _groups: Variant = null, _url: String = "") -> DotResult:
+	func ensure(id: StringName, version: String, _groups: Variant = null, _url: String = "") -> GSResult:
 		asked.append("%s@%s" % [id, version])
 		match String(id).get_file():
 			"crackhouse":
-				return DotResult.failure(DotError.from_http(404)).wrap("Could not download the content manifest.")
+				return GSResult.failure(GSError.from_http(404)).wrap("Could not download the content manifest.")
 			"aim-forts":
-				return DotResult.fail(DotError.CODE_IO, "Failed to fetch")
+				return GSResult.fail(GSError.CODE_IO, "Failed to fetch")
 			"gg-garage":
-				return DotResult.failure(DotError.from_http(500)).wrap("Could not download the content manifest.")
-		return DotResult.success("res://dot_cloud/%s/%s" % [id, version])
+				return GSResult.failure(GSError.from_http(500)).wrap("Could not download the content manifest.")
+		return GSResult.success("res://dot_cloud/%s/%s" % [id, version])

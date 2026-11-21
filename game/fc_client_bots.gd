@@ -98,14 +98,14 @@ func _launch_bots() -> int:
 ## `bot_quota` too, counted the server's way (people + bots). `-- --bot_difficulty hard` at
 ## launch picks the preset before the first bot thinks.
 func _bind_bot_console() -> void:
-	var settings := DotBotSettings.of(game)
+	var settings := GSBotSettings.of(game)
 	var args := OS.get_cmdline_user_args()
 	var index := args.find("--bot_difficulty")
 	if index >= 0 and index + 1 < args.size():
-		DotLog.result(CHANNEL, "bot difficulty from the command line", settings.set_difficulty(args[index + 1]))
+		GSLog.result(CHANNEL, "bot difficulty from the command line", settings.set_difficulty(args[index + 1]))
 	elif presentation != null and presentation.settings != null:
 		# The menu's saved pick (General, Solo bots), and again whenever it is changed there.
-		DotLog.result(CHANNEL, "bot difficulty from the settings", settings.set_difficulty(presentation.settings.get_string(&"solo_bot_difficulty", "medium")))
+		GSLog.result(CHANNEL, "bot difficulty from the settings", settings.set_difficulty(presentation.settings.get_string(&"solo_bot_difficulty", "medium")))
 	if presentation != null and presentation.settings != null and not presentation.settings.changed.is_connected(_on_solo_bot_setting):
 		presentation.settings.changed.connect(_on_solo_bot_setting)
 
@@ -119,9 +119,9 @@ func _bind_bot_console() -> void:
 		func(v: Variant) -> Variant:
 			var text := str(v).strip_edges()
 			if not text.is_valid_int():
-				return DotResult.fail(DotError.CODE_INVALID, "bot_quota takes a number")
-			_keep_offline_bots(DotBotRoster.solo_wanted(maxi(0, text.to_int())))
-			return DotResult.success(_bots.size() + 1)
+				return GSResult.fail(GSError.CODE_INVALID, "bot_quota takes a number")
+			_keep_offline_bots(GSBotRoster.solo_wanted(maxi(0, text.to_int())))
+			return GSResult.success(_bots.size() + 1)
 	)
 
 
@@ -130,7 +130,7 @@ func _bind_bot_console() -> void:
 func _run_launch_commands() -> void:
 	# Said once per solo start: an exported build that lost its library runs the script
 	# twins without a word, and that is a different thing to measure.
-	DotLog.info(CHANNEL, "GS sim native modules: %s" % [DotSim.loaded()])
+	GSLog.info(CHANNEL, "GS sim native modules: %s" % [GSSim.loaded()])
 	if presentation == null or presentation.local_console == null:
 		return
 	var lines := FcLaunchCommands.parse(OS.get_cmdline_user_args())
@@ -145,9 +145,9 @@ func _run_launch_commands() -> void:
 ## The menu's Bot difficulty (General, Solo bots) onto this match's bots, as it is changed.
 ## A method rather than a lambda, so the connection goes when the client does.
 func _on_solo_bot_setting(key: StringName, value: Variant, _why: StringName) -> void:
-	var settings := DotBotSettings.of(game) if game != null else null
+	var settings := GSBotSettings.of(game) if game != null else null
 	if key == &"solo_bot_difficulty" and settings != null and str(value) != settings.difficulty():
-		DotLog.result(CHANNEL, "bot difficulty from the menu", settings.set_difficulty(str(value)))
+		GSLog.result(CHANNEL, "bot difficulty from the menu", settings.set_difficulty(str(value)))
 
 
 ## Solo on the server process (FcSimHost): what [method _bind_bot_console] and the launch lines
@@ -169,7 +169,7 @@ func _bind_host_console() -> void:
 	var difficulty := args[index + 1] if index >= 0 and index + 1 < args.size() else (
 		str(settings.call(&"get_string", &"solo_bot_difficulty", "medium")) if settings != null else "")
 	if difficulty != "":
-		DotLog.result(CHANNEL, "bot difficulty to the solo server", await host_console.ask("bot_difficulty %s" % difficulty))
+		GSLog.result(CHANNEL, "bot difficulty to the solo server", await host_console.ask("bot_difficulty %s" % difficulty))
 	if settings != null and not settings.changed.is_connected(_on_host_bot_setting):
 		settings.changed.connect(_on_host_bot_setting)
 	host_console.run_launch_commands(args)
@@ -177,16 +177,16 @@ func _bind_host_console() -> void:
 
 func _on_host_bot_setting(key: StringName, value: Variant, _why: StringName) -> void:
 	if key == &"solo_bot_difficulty" and host_console != null:
-		DotLog.result(CHANNEL, "bot difficulty from the menu", await host_console.ask("bot_difficulty %s" % str(value)))
+		GSLog.result(CHANNEL, "bot difficulty from the menu", await host_console.ask("bot_difficulty %s" % str(value)))
 
 
 ## M under the server process: the pack fetched here first (one user:// for both), then the change asked for.
-func _change_on_host(id: String, picked_mode: String) -> DotResult:
+func _change_on_host(id: String, picked_mode: String) -> GSResult:
 	var map_id := id.substr(4) if id.begins_with("map:") else "-"
 	var mode_id := id.substr(5) if id.begins_with("mode:") else (picked_mode.substr(5) if picked_mode.begins_with("mode:") else "-")
 	if map_id != "-" and _catalogue().get_map(StringName(map_id)) != null:
-		var fetched: DotResult = await _fetch_picked(StringName(map_id))
+		var fetched: GSResult = await _fetch_picked(StringName(map_id))
 		if not fetched.ok:
 			return fetched
-	var changed: DotResult = await host_console.ask("host_change %s %s" % [map_id, mode_id])
-	return DotResult.success(StringName(id)) if changed.ok else changed
+	var changed: GSResult = await host_console.ask("host_change %s %s" % [map_id, mode_id])
+	return GSResult.success(StringName(id)) if changed.ok else changed

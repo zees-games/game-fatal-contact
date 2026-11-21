@@ -6,7 +6,7 @@ extends RefCounted
 const SEAT_PREFIX := "arena-player-"
 const STORE_DIR := "user://loadouts"
 
-var feed: DotGameStatsFeed = DotGameStatsFeed.new()
+var feed: GSGameStatsFeed = GSGameStatsFeed.new()
 var _key_of: Dictionary = {}
 var _id_of: Dictionary = {}
 
@@ -16,8 +16,8 @@ func _init() -> void:
 
 
 ## The durable store: files for stable keys, memory for seat keys.
-static func make_store(dir: String = STORE_DIR) -> DotLoadoutStore:
-	return DotLoadoutStoreTiered.of(DotLoadoutStoreLocal.at(dir), is_durable)
+static func make_store(dir: String = STORE_DIR) -> GSLoadoutStore:
+	return GSLoadoutStoreTiered.of(GSLoadoutStoreLocal.at(dir), is_durable)
 
 
 ## The per-session key of player [param id]; FcGame.storage_key is this.
@@ -31,9 +31,9 @@ static func is_durable(key: String) -> bool:
 
 
 ## Binds [param session]'s player to a stable key when it has a usable one (not a bare seat).
-func bind(session: DotClientSession) -> String:
+func bind(session: GSClientSession) -> String:
 	var key := String(feed.key_for(session))
-	var seat_only := key == "u%d" % session.userid or not DotLoadoutKey.is_usable(key)
+	var seat_only := key == "u%d" % session.userid or not GSLoadoutKey.is_usable(key)
 	if seat_only:
 		return ""
 	_key_of[session.userid] = key

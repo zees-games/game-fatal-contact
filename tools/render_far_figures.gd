@@ -25,7 +25,7 @@ func _run() -> void:
 	game.match_node.rules.warmup_sec = 0.0
 	game.freeze_sec = 0.0
 	for i in 100:
-		if game.match_node.state == DotMatch.State.LIVE:
+		if game.match_node.state == GSMatch.State.LIVE:
 			break
 		await _wait(0.1)
 	me.health.invulnerable = true
@@ -66,7 +66,7 @@ func _run() -> void:
 	var camera := root.get_viewport().get_camera_3d()
 	for pass_lift: float in [22.0, 0.0]:
 		FcPlayer.figure_lift_range = pass_lift
-		(DotHumanoidFigure as Script).set(&"lift_range", pass_lift)
+		(GSHumanoidFigure as Script).set(&"lift_range", pass_lift)
 		await _wait(0.8)
 		var name := "lift%d" % int(pass_lift)
 		await _shot(name)

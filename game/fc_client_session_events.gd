@@ -68,7 +68,7 @@ func _adopt(candidate: FcPlayer) -> void:
 			presentation.bind_look(_sampler.tunables)
 
 		# [b]A spawn faces the way its mapper faced it, and the look is the sampler's.[/b]
-		# `DotFpsController.teleport` turns the controller's OWN sampler, and this client samples
+		# `GSFpsController.teleport` turns the controller's OWN sampler, and this client samples
 		# with its own.
 		player.spawned.connect(func(at: Transform3D) -> void:
 			if _sampler != null:
@@ -82,7 +82,7 @@ func _adopt(candidate: FcPlayer) -> void:
 
 	# Logged because this is the moment everything a person can see comes into existence — the
 	# camera, the HUD's subject and every key below the `player == null` guard.
-	DotLog.info(CHANNEL, "following the local player", {
+	GSLog.info(CHANNEL, "following the local player", {
 		"id": player.player_id,
 		"name": player.display_name,
 		"health": player.health.health if player.health != null else -1.0,
@@ -103,13 +103,13 @@ func _on_hello(info: Dictionary) -> void:
 		hud.notice("Connected to %s" % String(info["map_name"]))
 
 func _in_match_end() -> bool:
-	return game != null and game.match_node != null and game.match_node.state == DotMatch.State.MATCH_END
+	return game != null and game.match_node != null and game.match_node.state == GSMatch.State.MATCH_END
 
 ## The scoreboard up, and the MVP named: best score, then kills. Client side.
 func _show_match_summary() -> void:
 	var ranked := game.match_node.scoreboard.ranked() if game.match_node.scoreboard != null else []
 	if hud != null and not ranked.is_empty():
-		var best: DotPlayerScore = ranked[0]
+		var best: GSPlayerScore = ranked[0]
 		hud.notice(FcMatchText.mvp_notice(best))
 	if game_menu != null and not game_menu.any_open():
 		game_menu.scoreboard.open()
@@ -127,7 +127,7 @@ func _on_reveal_finished(_skipped: bool) -> void:
 func _ensure_winner_reveal() -> void:
 	if winner_reveal != null:
 		return
-	winner_reveal = DotWinnerReveal.new()
+	winner_reveal = GSWinnerReveal.new()
 	winner_reveal.name = "WinnerReveal"
 	winner_reveal.skip_actions = FcKillcamBodies.SKIP_ACTIONS
 	if not winner_reveal.finished.is_connected(_on_reveal_finished):
@@ -167,11 +167,11 @@ func _begin_match_end() -> void:
 	if killcam == null:
 		_reveal_winner()
 	elif killcam.match_ended():
-		DotLog.debug(CHANNEL, "the summary waits for the final killcam")
+		GSLog.debug(CHANNEL, "the summary waits for the final killcam")
 
 ## The server's match state, put where the HUD already reads it.
 ##
-## [b]The client's own `DotMatch` never runs.[/b] Nothing ticks it, it has no spawn
+## [b]The client's own `GSMatch` never runs.[/b] Nothing ticks it, it has no spawn
 ## points and its scoreboard is fed by replication, so every value on it is whatever it
 ## was constructed with — and `FcHud` reads `match_node.state` and
 ## `seconds_remaining()` directly. Before this, a connected browser client showed
@@ -186,21 +186,21 @@ func _on_match(info: Dictionary) -> void:
 		return
 
 	var was := game.match_node.state
-	game.match_node.state = int(info["state"]) as DotMatch.State
+	game.match_node.state = int(info["state"]) as GSMatch.State
 	game.match_node.round_number = int(info["round"])
 
 	# The end of the match: the scoreboard comes up by itself, and the notice line names
 	# the most valuable player, which is the summary the genre shows between matches.
-	if game.match_node.state == DotMatch.State.MATCH_END and was != DotMatch.State.MATCH_END:
+	if game.match_node.state == GSMatch.State.MATCH_END and was != GSMatch.State.MATCH_END:
 		_begin_match_end()
-	elif was == DotMatch.State.MATCH_END and game.match_node.state != DotMatch.State.MATCH_END:
+	elif was == GSMatch.State.MATCH_END and game.match_node.state != GSMatch.State.MATCH_END:
 		if killcam != null:
 			killcam.skip()
 		if winner_reveal != null:
 			winner_reveal.skip()
 	# The summary board came up by itself, so nothing is holding Tab to close it: it goes
 	# when the next match begins, else it covers the whole of the next round.
-	if was == DotMatch.State.MATCH_END and game.match_node.state != DotMatch.State.MATCH_END and _summary_board_open:
+	if was == GSMatch.State.MATCH_END and game.match_node.state != GSMatch.State.MATCH_END and _summary_board_open:
 		_summary_board_open = false
 		if game_menu != null:
 			game_menu.scoreboard.close()
@@ -223,15 +223,15 @@ func _on_match(info: Dictionary) -> void:
 
 # --- Offline ---------------------------------------------------------------
 
-func _build_netcode() -> DotResult:
+func _build_netcode() -> GSResult:
 	# The server's `mp_teammate_passthrough` through the link (FcGame.follow_server_cvars).
 	if link != null:
 		var _following := game.follow_server_cvars(link)
 		platform.map_config_game = "game-arena"
-		DotLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "block_side")))
+		GSLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "block_side")))
 		game.noblock = platform.noblock
 
-	net = DotNetManager.new()
+	net = GSNetManager.new()
 	net.name = "Net"
 	net.is_server = false
 	net.local_peer_id = multiplayer.get_unique_id() if multiplayer != null else 2
@@ -259,11 +259,11 @@ func _build_netcode() -> DotResult:
 	# Under the link, and NAMED the same as the server's — the name is the routing.
 	bridge.open_link(link)
 	# Before the seal and in the server's order (after the bridge), or the actions stay local.
-	DotLog.result(CHANNEL, "avatar action message", DotGameAvatarActionMessage.register(net))
+	GSLog.result(CHANNEL, "avatar action message", GSGameAvatarActionMessage.register(net))
 	# The server's order again (after the avatar frame): the remote workbench's frame and the profile rows.
-	_workbench_remote = DotGameWorkbenchRemoteClient.attach(net)
-	_profile_runtime = DotProfileRuntime.new()
-	_profile_link = DotNetProfileLink.attach(net, _profile_runtime)
+	_workbench_remote = GSGameWorkbenchRemoteClient.attach(net)
+	_profile_runtime = GSProfileRuntime.new()
+	_profile_link = GSNetProfileLink.attach(net, _profile_runtime)
 	net.messages.seal()
 	FcLoadTimeline.mark("netcode: messages sealed")
 
@@ -272,8 +272,8 @@ func _build_netcode() -> DotResult:
 	extras.name = "Extras"
 	add_child(extras)
 
-	var extra: DotResult = extras.attach(bridge, game)
-	DotLog.result(CHANNEL, "the client's chat, voice and map layers", extra)
+	var extra: GSResult = extras.attach(bridge, game)
+	GSLog.result(CHANNEL, "the client's chat, voice and map layers", extra)
 	FcLoadTimeline.mark("netcode: extras attached")
 	_install_profiler_context()
 	platform.look_voice = extras.voice
@@ -285,7 +285,7 @@ func _build_netcode() -> DotResult:
 
 	# A map that cannot be had must not leave the cover up forever: let the hold go.
 	if extras.maps != null:
-		extras.maps.fetch_failed.connect(func(_map: DotMapDef, _error: DotError) -> void:
+		extras.maps.fetch_failed.connect(func(_map: GSMapDef, _error: GSError) -> void:
 			gate.release(&"map"))
 		extras.maps.change_aborted.connect(func(_id: StringName, _reason: String) -> void:
 			gate.release(&"map"))
@@ -302,8 +302,8 @@ func _build_netcode() -> DotResult:
 			presentation.set_chat_relayed(relayed)
 	)
 
-	# Chat arrives on `DotClientLink.chat_received`, not on anything dot-chat owns; unconnected
-	# the client's DotChatClient is a history nothing feeds.
+	# Chat arrives on `GSClientLink.chat_received`, not on anything dot-chat owns; unconnected
+	# the client's GSChatClient is a history nothing feeds.
 	if link != null and link.has_signal("chat_received"):
 		link.connect("chat_received", extras.receive_wire)
 	extras.map_changing.connect(_on_map_changing)
@@ -326,8 +326,8 @@ func _build_netcode() -> DotResult:
 
 
 ## The client's netcode settings: the server's rates, prediction on, rewinding left to the server.
-func _client_net_config() -> DotNetConfig:
-	var config := DotNetConfig.new()
+func _client_net_config() -> GSNetConfig:
+	var config := GSNetConfig.new()
 	config.tick_rate = game.tick_rate
 	config.snapshot_rate = FcGame.snapshot_rate_for(game.tick_rate)
 	config.interpolation_buffer = FcGame.client_interp_buffer(config.snapshot_rate)
@@ -377,7 +377,7 @@ func send_field_of_view() -> void:
 		bridge.send_request(FcEvents.Ask.FOV, FcEvents.write_fov(_field_of_view()))
 
 func _build_killview() -> void:
-	killview = DotKillViewClient.new()
+	killview = GSKillViewClient.new()
 	killview.name = "KillView"
 	add_child(killview)
 	killview.setup(game.killview_rules)
@@ -390,13 +390,13 @@ func _build_killview() -> void:
 		elif solo_killview != null:
 			var _skipped := solo_killview.skip())
 	if _offline and game.killview_rules.enabled:
-		solo_killview = DotKillViewSolo.new(game.make_killview_server())
+		solo_killview = GSKillViewSolo.new(game.make_killview_server())
 		solo_killview.local_id_fn = func() -> Variant: return player.player_id if player != null else null
 		solo_killview.tick_fn = game.current_tick
 		solo_killview.deliver_fn = _on_killview
 
 func _build_killcam() -> void:
-	killcam = DotKillcamHost.new()
+	killcam = GSKillcamHost.new()
 	killcam_shots = FcKillcamShots.new()
 	killcam_shots.parent = self
 	FcKillcamBodies.configure(killcam, func() -> Variant: return ragdolls, killcam_shots)
@@ -405,9 +405,9 @@ func _build_killcam() -> void:
 	killcam.players_fn = func() -> Array: return game.players() if game != null else []
 	killcam.player_for_fn = func(id: int) -> Variant: return game.player_for(id) if game != null else null
 	killcam.seconds_fn = func() -> float: return game.rule("killcam") if game != null else 0.0
-	killcam.camera_mode_fn = func() -> int: return game.killview_rules.camera if game != null else DotKillViewRules.Camera.EYE
+	killcam.camera_mode_fn = func() -> int: return game.killview_rules.camera if game != null else GSKillViewRules.Camera.EYE
 	killcam.weapon_name_fn = func(id: String) -> String:
-		var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(StringName(id)) if id != "" else null
+		var def: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(StringName(id)) if id != "" else null
 		return def.display_name if def != null and def.display_name != "" else id.capitalize()
 	killcam.weapon_icon_fn = func(id: String) -> Texture2D:
 		return FcWeaponIcons.shared.menu_texture(StringName(id))
@@ -483,7 +483,7 @@ func _queue_body(added: FcPlayer) -> void:
 
 ## Drains [member _bodies_due], at most [constant BODY_BUDGET_MS] of bodies a frame.
 func _build_due_bodies() -> void:
-	var slice := DotFrameSlice.new(BODY_BUDGET_MS)
+	var slice := GSFrameSlice.new(BODY_BUDGET_MS)
 	await slice.pause()
 	while not _bodies_due.is_empty():
 		var next: FcPlayer = _bodies_due.pop_front()
@@ -518,13 +518,13 @@ func _attach_stock_body(added: FcPlayer) -> void:
 ## Joins the chat box to the two things it needs: a way out, and a way to stop the player.
 ##
 ## [b]The sampler is the half that is easy to forget.[/b] `swallows_input` keeps typed keys
-## out of `_unhandled_input`, but movement here is POLLED — `DotFpsSampler.sample` reads
+## out of `_unhandled_input`, but movement here is POLLED — `GSFpsSampler.sample` reads
 ## the device every physics frame and does not care what consumed an event. Without
 ## `suspended`, typing "sw" walks you backwards off whatever you were standing on.
-## `DotFpsSampler.suspended` is documented "for a chat box or a menu" and until now
+## `GSFpsSampler.suspended` is documented "for a chat box or a menu" and until now
 ## nothing in this game had ever set it.
 func _wire_chat_window() -> void:
-	var window: DotChatWindow = presentation.chat_window if presentation != null else null
+	var window: GSChatWindow = presentation.chat_window if presentation != null else null
 
 	if window == null:
 		return
@@ -537,7 +537,7 @@ func _build_presentation() -> void:
 	presentation.name = "Presentation"
 	presentation.client = self
 	add_child(presentation)
-	DotLog.result(CHANNEL, "the presentation layer", presentation.setup())
+	GSLog.result(CHANNEL, "the presentation layer", presentation.setup())
 	if presentation.blood != null and game != null:
 		presentation.blood.mask = game.ragdoll_rules.collision_mask
 	# on_map(id) alone then finds a map definition's `meta.ambient` (or `meta.doc`).
@@ -564,7 +564,7 @@ func _build_presentation() -> void:
 ## Asks a browser for the cursor rather than telling it. Pointer lock needs **transient user
 ## activation** — a real click — and `_ready()` is the one moment guaranteed not to have one.
 func _grab_mouse() -> void:
-	if not DotPlatform.is_web():
+	if not GSPlatform.is_web():
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		return
 
@@ -579,13 +579,13 @@ func _grab_mouse() -> void:
 func _start_remote_workbench() -> void:
 	if _workbench_remote == null:
 		return
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.remote_client = _workbench_remote
 	wb.remote_fn = func() -> bool: return true
 	add_child(wb)
 	var started := wb.start(_profile_runtime)
-	DotLog.result(CHANNEL, "the remote workbench", started)
+	GSLog.result(CHANNEL, "the remote workbench", started)
 	if not started.ok:
 		wb.queue_free()
 		return
@@ -601,20 +601,20 @@ func _start_remote_workbench() -> void:
 
 ## Solo: F9 opens dot-workbench over the config and noblock sets (nothing without the addon).
 func _start_solo_workbench() -> void:
-	var wb := DotGameWorkbench.new()
+	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
 	wb.lazy_panel = true
 	wb.listen_host_fn = func() -> bool: return true
-	for set: DotProfileSet in _solo_binder.profile_sets():
+	for set: GSProfileSet in _solo_binder.profile_sets():
 		wb.add_set(set, "Game settings: %s" % set.rel_path.trim_prefix("config_"))
 	if game.noblock != null:
 		wb.add_set(game.noblock.binder.profile_set(), "Noblock")
 	var _fl := game.flashlight_conf()
-	for set: DotProfileSet in game.flashlight_binder.profile_sets():
+	for set: GSProfileSet in game.flashlight_binder.profile_sets():
 		wb.add_set(set, "Flashlight")
 	add_child(wb)
 	var started := wb.start()
-	DotLog.result(CHANNEL, "the workbench", started)
+	GSLog.result(CHANNEL, "the workbench", started)
 	if not started.ok or wb.api == null:
 		return
 	_solo_binder.attach(wb.api.runtime)
@@ -638,8 +638,8 @@ func _start_sim_host() -> void:
 	var host := FcSimHost.new()
 	host.name = "SimHost"
 	add_child(host)
-	var started: DotResult = await host.start(_launch_bots())
-	DotLog.result(CHANNEL, "sim host", started)
+	var started: GSResult = await host.start(_launch_bots())
+	GSLog.result(CHANNEL, "sim host", started)
 	if started.ok:
 		_sim_host = host
 	else:
@@ -678,7 +678,7 @@ func _start_offline() -> void:
 				"points": points, "streak": streak,
 			})
 	)
-	game.player_killed.connect(func(entry: DotKillFeed.Entry) -> void:
+	game.player_killed.connect(func(entry: GSKillFeed.Entry) -> void:
 		if hud != null:
 			hud.note_kill(
 				{
@@ -719,7 +719,7 @@ func _start_offline() -> void:
 
 	# The line tools/browser_solo_overlay_check.mjs looks for: the start map (a built-in one writes no
 	# "map changed") is built and the player is in it.
-	DotLog.info(CHANNEL, "map loaded", {"map": String(game.map.id) if game.map != null else ""})
+	GSLog.info(CHANNEL, "map loaded", {"map": String(game.map.id) if game.map != null else ""})
 
 	_bind_bot_console()
 	await _launch_offline_bots(_launch_bots())
@@ -733,7 +733,7 @@ func _launch_offline_bots(count: int) -> void:
 		return
 	var started := Time.get_ticks_usec()
 	var frames := 0
-	var slice := DotFrameSlice.new(OFFLINE_BOT_BUDGET_MS)
+	var slice := GSFrameSlice.new(OFFLINE_BOT_BUDGET_MS)
 	for wanted in range(1, count + 1):
 		var before := _bots.size()
 		_keep_offline_bots(wanted)
@@ -742,7 +742,7 @@ func _launch_offline_bots(count: int) -> void:
 		if slice.due() and wanted < count:
 			await _setup_frame()
 			frames += 1
-			slice = DotFrameSlice.new(OFFLINE_BOT_BUDGET_MS)
+			slice = GSFrameSlice.new(OFFLINE_BOT_BUDGET_MS)
 	FcLoadTimeline.mark(
 		"offline: %d bots, %d ms over %d frames"
 		% [_bots.size(), (Time.get_ticks_usec() - started) / 1000, frames + 1]

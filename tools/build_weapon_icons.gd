@@ -34,7 +34,7 @@ var _written := 0
 
 func _initialize() -> void:
 	preload("../game/fc_weapon_roles.gd").ensure()
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUT_DIR))
 
 	_viewport = SubViewport.new()

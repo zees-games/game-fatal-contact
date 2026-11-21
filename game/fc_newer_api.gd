@@ -3,7 +3,7 @@ extends RefCounted
 ## The web shell carries its own addons (dot-server-deploy's addons.lock tags), usually some levels behind the linked
 ## heads. A script that names a newer static function, constant or class directly does not compile there, and every
 ## script that depends on it fails with it: on 2026-11-16 the bot brain and the HUD failed that way on Gamespice
-## and bots stood still. Callers check `DotAddonApi.build_level(...)` first and reach the newer API through these.
+## and bots stood still. Callers check `GSAddonApi.build_level(...)` first and reach the newer API through these.
 
 static var _scripts: Dictionary = {}
 

@@ -7,7 +7,7 @@ var armed := false
 
 
 ## Call once per sampled command. [param away]: the local player is dead or a kill view/killcam plays.
-func filter(command: DotFpsCommand, away: bool, enabled: bool = true) -> void:
+func filter(command: GSFpsCommand, away: bool, enabled: bool = true) -> void:
 	if not enabled:
 		armed = false
 		return
@@ -15,7 +15,7 @@ func filter(command: DotFpsCommand, away: bool, enabled: bool = true) -> void:
 		armed = true
 	if not armed:
 		return
-	if command.is_pressed(DotFpsCommand.BUTTON_JUMP):
-		command.set_button(DotFpsCommand.BUTTON_JUMP, false)
+	if command.is_pressed(GSFpsCommand.BUTTON_JUMP):
+		command.set_button(GSFpsCommand.BUTTON_JUMP, false)
 	elif not away:
 		armed = false

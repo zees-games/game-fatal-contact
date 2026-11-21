@@ -53,10 +53,10 @@ func _test_pit() -> void:
 	var look_tick := 0
 
 	for step in range(64 * 4):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 270.0
 		command.move = Vector2(0.0, 1.0)
-		command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+		command.set_button(GSFpsCommand.BUTTON_JUMP, true)
 		lookout_climber.controller.apply_command(command)
 		lookout_climber.controller.simulate_tick(look_tick, 1.0 / 64.0)
 		look_tick += 1
@@ -130,12 +130,12 @@ func _test_pit() -> void:
 	var bot := FcPlayer.HeadlessController.new()
 	bot.name = "Movement"
 	bot.flat_body = map.to_fps_body()
-	bot.drive = DotFpsController.Drive.EXTERNAL
+	bot.drive = GSFpsController.Drive.EXTERNAL
 	bot.tick_rate = TICK_RATE
 	bot.tunables = FcPlayer.fc_tunables()
 	bot.register_service = false
 	bot.register_default_actions = false
-	bot.body_ref = DotNodeRef.of_path(NodePath(".."))
+	bot.body_ref = GSNodeRef.of_path(NodePath(".."))
 	holder.add_child(bot)
 
 	# At the bottom of the stair, facing west along it. Yaw 90 is -X in Godot's
@@ -146,7 +146,7 @@ func _test_pit() -> void:
 	var highest := bot.state.position.y
 
 	for tick in range(int(TICK_RATE * 4)):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 90.0
 		command.pitch = 0.0
 		command.move = Vector2(0.0, 1.0)
@@ -175,7 +175,7 @@ func _test_pit() -> void:
 	var crossed := false
 
 	for tick in range(int(TICK_RATE * 4)):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 180.0
 		command.pitch = 0.0
 		command.move = Vector2(0.0, 1.0)
@@ -199,7 +199,7 @@ func _test_pit() -> void:
 	var gantried := false
 
 	for tick in range(int(TICK_RATE * 4)):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		# -90 is +X in Godot's -Z-forward convention, which is the way this one runs.
 		command.yaw = -90.0
 		command.pitch = 0.0
@@ -283,18 +283,18 @@ func _test_pit() -> void:
 ## The highest horizontal speed [param bot] reaches in two seconds of holding forward, driven east
 ## over 30 m of flat south of `dm_atrium`'s yard (the first half second is discarded).
 func _top_speed(
-	bot: DotFpsController, jumping: bool, delta: float, tick_base: int
+	bot: GSFpsController, jumping: bool, delta: float, tick_base: int
 ) -> float:
 	bot.teleport(Vector3(0.0, 0.2, 24.0), 0.0, 0.0)
 
 	var speed := 0.0
 
 	for tick in range(TICK_RATE * 2):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 0.0
 		command.pitch = 0.0
 		command.move = Vector2(1.0, 0.0)
-		command.set_button(DotFpsCommand.BUTTON_JUMP, jumping)
+		command.set_button(GSFpsCommand.BUTTON_JUMP, jumping)
 		bot.apply_command(command)
 		bot.simulate_tick(tick_base + tick, delta)
 
@@ -319,12 +319,12 @@ func _test_bot_ground_speed() -> void:
 	var bot := FcPlayer.HeadlessController.new()
 	bot.name = "Movement"
 	bot.flat_body = map.to_fps_body()
-	bot.drive = DotFpsController.Drive.EXTERNAL
+	bot.drive = GSFpsController.Drive.EXTERNAL
 	bot.tick_rate = TICK_RATE
 	bot.tunables = tunables
 	bot.register_service = false
 	bot.register_default_actions = false
-	bot.body_ref = DotNodeRef.of_path(NodePath(".."))
+	bot.body_ref = GSNodeRef.of_path(NodePath(".."))
 	holder.add_child(bot)
 
 	var delta := 1.0 / float(TICK_RATE)
@@ -422,7 +422,7 @@ func _test_reach() -> void:
 	)
 	_done()
 
-## dot-core's [DotCollisionAudit] over every built-in map as a client draws it: drawn geometry with
+## dot-core's [GSCollisionAudit] over every built-in map as a client draws it: drawn geometry with
 ## no shape near it is a wall a player walks into.
 func _test_collision_audit() -> void:
 	_section("every map: nothing drawn is walked through")
@@ -434,12 +434,12 @@ func _test_collision_audit() -> void:
 		world.add_child(map.to_collision())
 		add_child(world)
 
-		var res := DotCollisionAudit.audit(world, true)
+		var res := GSCollisionAudit.audit(world, true)
 		var found := 0
 		var examined := 0
 
 		if res.ok:
-			var report: DotCollisionAudit = res.value
+			var report: GSCollisionAudit = res.value
 			found = report.count()
 			examined = report.examined
 			print("  %s: %d findings of %d examined" % [id, found, examined])

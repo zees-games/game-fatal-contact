@@ -11,7 +11,7 @@ const FcSurfRides := preload("../game/fc_surf_rides.gd")
 ##     godot --headless --path . tools/surf_rides.tscn -- surf_10x_reloaded_fixed --plan 0 --starts 6 --repairs 32 --rounds 3
 ##
 ## [b]--explore[/b] bakes the bots' mesh as the game does and, from every platform that holds a spawn
-## or a teleport's landing, searches (dot-bot's [DotBotSurfPlanner]) for a ride that ends standing on
+## or a teleport's landing, searches (dot-bot's [GSBotSurfPlanner]) for a ride that ends standing on
 ## another platform at least [constant MIN_RIDE_METRES] away (not a teleport's floor, lowest first).
 ## Each one found is an edge, and its landing is explored in turn (`--platforms N` caps how many).
 ## Edges are rewritten as each is found, so a run its timeout cuts short keeps what it found.
@@ -47,8 +47,8 @@ const MAX_PLATFORMS := 12
 
 ## A course for exploring: arriving is standing on any platform but the start's.
 class ExploreCourse:
-	extends DotBotSurfCourse
-	var nav: DotBotNav = null
+	extends GSBotSurfCourse
+	var nav: GSBotNav = null
 	var targets: PackedInt32Array = PackedInt32Array()
 	var pit_boxes: Array[AABB] = []
 	## Progress toward the goal (true), or distance from the start (false).
@@ -75,7 +75,7 @@ class ExploreCourse:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -168,7 +168,7 @@ func _load() -> bool:
 	bot = game.player_for(1)
 	await get_tree().physics_frame
 	var tunables := bot.controller.tunables
-	nav = DotBotNav.new()
+	nav = GSBotNav.new()
 	var source := game.map.nav_source()
 	var baked := nav.bake(source if source != null else game.map.collision_root, {"radius": tunables.radius, "height": tunables.stand_height, "climb": tunables.step_height})
 	if source != null:
@@ -201,7 +201,7 @@ func hold(args: PackedStringArray) -> void:
 	var action := _opt(args, "--action", -1)
 	while t < 10 * TICK_RATE and event == 0:
 		if action >= 0:
-			var c: DotFpsCommand = DotBotSurfPilot.command_for(sim, action, s, yaw)
+			var c: GSFpsCommand = GSBotSurfPilot.command_for(sim, action, s, yaw)
 			if t < 3 or t % 64 == 0:
 				print("[surf]   t %d yaw %.1f move %s v %s" % [t, c.yaw, str(c.move), str(s.velocity.snapped(Vector3.ONE * 0.1))])
 			event = sim.step(s, c)
@@ -233,7 +233,7 @@ func wander(width: int) -> Array:
 		if not starts.has(key):
 			starts[key] = [to, float(pit["yaw"])]
 	print("[surf] wandering from %d teleport landings" % starts.size())
-	var planner := DotBotSurfPlanner.new()
+	var planner := GSBotSurfPlanner.new()
 	planner.seconds = FcSurf.RIDE_SECONDS
 	planner.width = width
 	var edges: Array = []
@@ -254,7 +254,7 @@ func wander(width: int) -> Array:
 		for t in targets:
 			if t != from_island:
 				course.targets.append(t)
-		course.goal_centre = to + DotFpsMotor.forward_for(yaw) * 10.0
+		course.goal_centre = to + GSFpsMotor.forward_for(yaw) * 10.0
 		var _settled := course.settle()
 		var sim := _simulator(course.event_at)
 		var start := _standing_at(to, yaw)
@@ -308,7 +308,7 @@ func search_from(args: PackedStringArray, path: String) -> void:
 	var sim := _simulator(course.event_at)
 	var s := _standing_at(course.start, course.reference_yaw())
 	s.velocity = Vector3(float(v[0]), float(v[1]), float(v[2]))
-	var planner := DotBotSurfPlanner.new()
+	var planner := GSBotSurfPlanner.new()
 	planner.seconds = FcSurf.RIDE_SECONDS
 	planner.width = _opt(args, "--width", planner.width)
 	planner.seconds = float(_opt(args, "--seconds", int(planner.seconds)))
@@ -316,13 +316,13 @@ func search_from(args: PackedStringArray, path: String) -> void:
 	if args.has("--trace"):
 		planner.trace = func(depth: int, best: Dictionary) -> void:
 			if depth % 4 == 0:
-				var st: DotFpsState = best["state"]
+				var st: GSFpsState = best["state"]
 				print("[surf]   %.1f s best %s v %s score %.1f%s" % [(depth + 1) * planner.hold / float(TICK_RATE), str(st.position.round()), str(st.velocity.round()), float(best["score"]), " unsupported" if course.unsupported_fn.call(st) else ""])
 	var found := planner.search(s, course, sim)
 	print("[surf] search to %d: %s %s, %d ticks, %.1f s, %d motor ticks (%.0f us each)" % [target, found["found"], found["why"], found["ticks"],
 		(Time.get_ticks_msec() - began) / 1000.0, sim.steps, sim.tick_usec()])
 	if bool(found["found"]):
-		var ride := DotBotSurfPlanner.trajectory(s, found["actions"], planner.hold, course, sim)
+		var ride := GSBotSurfPlanner.trajectory(s, found["actions"], planner.hold, course, sim)
 		var e: PackedFloat32Array = ride["entries"]
 		var points: Array[String] = []
 		for i in range(0, e.size() / 7, 32):
@@ -540,7 +540,7 @@ func explore(platforms: int, progress: Callable) -> Array:
 			landings.append(t)
 	print("[surf] exploring from %d platforms toward %d landings" % [queue.size(), landings.size()])
 	var edges: Array = []
-	var planner := DotBotSurfPlanner.new()
+	var planner := GSBotSurfPlanner.new()
 	planner.seconds = FcSurf.RIDE_SECONDS
 	var explored := 0
 	while not queue.is_empty() and edges.size() < MAX_EDGES and explored < platforms:
@@ -621,12 +621,12 @@ func _in_pit(island: Dictionary) -> bool:
 	return false
 
 
-func _replay_end(start: DotFpsState, actions: PackedByteArray, course: DotBotSurfCourse, sim: DotFpsSimulator) -> Vector3:
+func _replay_end(start: GSFpsState, actions: PackedByteArray, course: GSBotSurfCourse, sim: GSFpsSimulator) -> Vector3:
 	var s := start.duplicate_state()
 	var reference := course.reference_yaw()
 	for action: int in actions:
 		for _t in range(8):
-			if sim.step(s, DotBotSurfPilot.command_for(sim, action, s, reference)) != DotFpsSimulator.EVENT_NONE:
+			if sim.step(s, GSBotSurfPilot.command_for(sim, action, s, reference)) != GSFpsSimulator.EVENT_NONE:
 				return s.position
 	return s.position
 
@@ -652,7 +652,7 @@ func plan(index: int, edge: Dictionary, starts: int, repairs: int, rounds: int) 
 	var repair_starts: Array = []
 	for i in range(repairs):
 		repair_starts.append(perturbed(from, course.reference_yaw(), repair_rng))
-	var planner := DotBotSurfPlanner.new()
+	var planner := GSBotSurfPlanner.new()
 	planner.seconds = FcSurf.RIDE_SECONDS
 	planner.repair_back = TICK_RATE
 	var started := Time.get_ticks_msec()
@@ -668,20 +668,20 @@ func plan(index: int, edge: Dictionary, starts: int, repairs: int, rounds: int) 
 	edge["rides"] = built["seconds"]
 	edge["planned"] = {"starts": starts, "repairs": repairs, "rounds": built["rounds"], "searches": built["searches"],
 		"seconds": snappedf(spent, 0.1), "motor_ticks": sim.steps + repair_sim.steps, "tick_rate": TICK_RATE}
-	edge["entries"] = DotBotSurfPilot.entries_to_rows(built["rides"], FcSurf.UNITS)
+	edge["entries"] = GSBotSurfPilot.entries_to_rows(built["rides"], FcSurf.UNITS)
 
 
 # --- Recorded rides ------------------------------------------------------------------
 
 ## Lists the recorded rides of the map per edge and, with [param verify], replays the unchecked ones.
 func demos(verify: bool, merged_path: String = "") -> void:
-	var cfg := DotBotDemoConfig.new()
+	var cfg := GSBotDemoConfig.new()
 	var layered := cfg.load_layered("")
-	var made := DotBotDemoStore.from_config(cfg, null) if layered.ok else layered
+	var made := GSBotDemoStore.from_config(cfg, null) if layered.ok else layered
 	if not made.ok or made.value == null:
 		print("[surf] no ride store: %s" % ("off" if made.ok else made.error.message))
 		return
-	var store: DotBotDemoStore = made.value
+	var store: GSBotDemoStore = made.value
 	var _opened := store.open()
 	var rides := FcSurfRides.new()
 	var ready := rides.setup(game, cfg, store, float(TICK_RATE))
@@ -689,7 +689,7 @@ func demos(verify: bool, merged_path: String = "") -> void:
 		print("[surf] %s" % ready.error.message)
 		return
 	rides.set_map(game.map, nav)
-	var counts: DotResult = await store.counts(rides.recorder.map_id, rides.recorder.map_version, FcSurfRides.KIND)
+	var counts: GSResult = await store.counts(rides.recorder.map_id, rides.recorder.map_version, FcSurfRides.KIND)
 	if not counts.ok:
 		print("[surf] the store did not answer: %s" % counts.error.message)
 		return
@@ -707,13 +707,13 @@ func demos(verify: bool, merged_path: String = "") -> void:
 			print("[surf] no simulator to replay on")
 			return
 		for key: String in counts.value:
-			var done: DotResult = await harvest.harvest(store, rides.recorder.map_id, rides.recorder.map_version, FcSurfRides.KIND, key)
+			var done: GSResult = await harvest.harvest(store, rides.recorder.map_id, rides.recorder.map_version, FcSurfRides.KIND, key)
 			print("[surf] edge %s: %s" % [key, "%d verified now" % done.value if done.ok else done.error.message])
 		for line in harvest.describe_lines():
 			print("[surf] %s" % line)
 		print("[surf] %d of the replays ridden by the pilot (piloted %s)" % [harvest.describe()["piloted_replays"], str(harvest.is_piloted())])
 	for key: String in counts.value:
-		var _loaded: DotResult = await rides.book.load_edge(store, FcSurfRides.KIND, key, rides.schema, float(TICK_RATE), rides.reference_yaw_for(key))
+		var _loaded: GSResult = await rides.book.load_edge(store, FcSurfRides.KIND, key, rides.schema, float(TICK_RATE), rides.reference_yaw_for(key))
 	for line in rides.book.describe_lines():
 		print("[surf] %s" % line)
 	if verify and surf != null and merged_path != "":
@@ -733,9 +733,9 @@ func _write_merged(rides: FcSurfRides, surf: FcSurf, path: String) -> void:
 		var lengths: Array = row.get("lengths", [])
 		for ride: Dictionary in rides.book.ranked(rides.edge_key(edge)):
 			var cache: Variant = (ride["data"] as Dictionary).get("cache") if ride["data"] is Dictionary else null
-			if ride["source"] != DotBotRideBook.RECORDED or not (cache is PackedFloat32Array):
+			if ride["source"] != GSBotRideBook.RECORDED or not (cache is PackedFloat32Array):
 				continue
-			var rows := DotBotSurfPilot.entries_to_rows(cache, FcSurf.UNITS)
+			var rows := GSBotSurfPilot.entries_to_rows(cache, FcSurf.UNITS)
 			entries.append_array(rows)
 			lengths.append(rows.size())
 			added += 1

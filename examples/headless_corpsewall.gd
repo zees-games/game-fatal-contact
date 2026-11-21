@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcMap := preload("../maps/fc_map.gd")
 
@@ -11,7 +11,7 @@ var _client: Node = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -43,7 +43,7 @@ func _wall(feet: Vector3, skip: Array) -> Dictionary:
 	return best
 
 
-func _parts(body: DotPlayerRagdoll) -> Array:
+func _parts(body: GSPlayerRagdoll) -> Array:
 	var out: Array = []
 	for n in body.part_nodes():
 		if n is RigidBody3D:
@@ -52,16 +52,16 @@ func _parts(body: DotPlayerRagdoll) -> Array:
 
 
 ## Drops the local player's body against [param wall] and returns the parts behind a surface.
-func _fall(me: Object, yard: DotPlayerRagdolls, wall: Dictionary, out_body: Array) -> int:
+func _fall(me: Object, yard: GSPlayerRagdolls, wall: Dictionary, out_body: Array) -> int:
 	var n: Vector3 = wall.normal
 	me.controller.state.position = (wall.position as Vector3) + n * 0.05 - Vector3.UP * 0.9
 	me.controller.state.velocity = -n * 30.0
-	var death := DotPlayerDeath.new()
-	death.reaction = DotPlayerDeathReactions.LIMP
+	var death := GSPlayerDeath.new()
+	death.reaction = GSPlayerDeathReactions.LIMP
 	death.direction = -n
 	death.damage = 100.0
 	me.set("_fell", false)
-	var body: DotPlayerRagdoll = me.fall_body(yard, death, false)
+	var body: GSPlayerRagdoll = me.fall_body(yard, death, false)
 	out_body.append(body)
 	if body == null:
 		return -1
@@ -69,7 +69,7 @@ func _fall(me: Object, yard: DotPlayerRagdolls, wall: Dictionary, out_body: Arra
 	var behind := 0
 	for p: RigidBody3D in _parts(body):
 		var anchor: Vector3 = body._anchor
-		if not DotPlayerRagdoll.crossing(_space(), anchor, p.global_position, 0xFFFFFFFF).is_empty():
+		if not GSPlayerRagdoll.crossing(_space(), anchor, p.global_position, 0xFFFFFFFF).is_empty():
 			behind += 1
 	return behind
 
@@ -99,7 +99,7 @@ func _run() -> void:
 	for i in 1200:
 		await _wait(0.1)
 		me = _client.get("player")
-		if me != null and me.is_alive() and gm.match_node.state == DotMatch.State.LIVE and gm.map != null and gm.map.id == &"crackhouse":
+		if me != null and me.is_alive() and gm.match_node.state == GSMatch.State.LIVE and gm.map != null and gm.map.id == &"crackhouse":
 			live = true
 			break
 	if not _check(live, "the offline match is live on crackhouse"):
@@ -109,7 +109,7 @@ func _run() -> void:
 	for id in bots:
 		bots[id].set_meta(&"bot_scripted", true)
 	await _wait(2.0)
-	var yard: DotPlayerRagdolls = _client.get("ragdolls")
+	var yard: GSPlayerRagdolls = _client.get("ragdolls")
 	_check(yard != null and yard.rules != null, "the client has a body yard")
 	var home: Vector3 = me.controller.state.position
 	var walls: Array = []
@@ -141,7 +141,7 @@ func _run() -> void:
 	_check(off_total >= 0 and off_bodies.size() == walls.size(), "the unguarded run dropped a body at every wall", "%d parts behind" % off_total)
 	_check(on_total == 0, "with the guard no part is behind a wall", "%d parts" % on_total)
 
-	var body: DotPlayerRagdoll = on_bodies.back() if not on_bodies.is_empty() else null
+	var body: GSPlayerRagdoll = on_bodies.back() if not on_bodies.is_empty() else null
 	if not _check(body != null, "a body lies against the last wall"):
 		_report(EXPECTED_CHECKS)
 		return

@@ -6,7 +6,7 @@ const CHECKS := 196
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -21,19 +21,19 @@ func _run() -> void:
 	# A member's site avatar, translated into this game's schema. The site's document is the
 	# Kenney skins spelt `skin-c`; without a translation every member is stock here.
 	var site_avatars = preload("res://game/fc_avatars.gd")
-	var site_doc := DotAvatar.make(&"builtin")
+	var site_doc := GSAvatar.make(&"builtin")
 	site_doc.set_part(&"top", &"skin-c")
 	site_doc.set_part(&"face", &"skin-k")
-	var as_ours: DotAvatar = site_avatars.from_site(site_doc)
+	var as_ours: GSAvatar = site_avatars.from_site(site_doc)
 	_check(
 		as_ours != null and site_avatars.schema().validate(as_ours).ok and as_ours.part_in(&"body") == &"fc_body_kenney_c" and as_ours.part_in(&"head") == &"fc_head_kenney_k",
 		"a member's site avatar becomes this game's, and its schema accepts it",
 		str(as_ours.to_dict()) if as_ours != null else "null"
 	)
-	var unknown_skin := DotAvatar.make(&"builtin")
+	var unknown_skin := GSAvatar.make(&"builtin")
 	unknown_skin.set_part(&"top", &"skin-z")
 	unknown_skin.set_part(&"face", &"skin-z")
-	var not_site := DotAvatar.make(&"elsewhere")
+	var not_site := GSAvatar.make(&"elsewhere")
 	not_site.set_part(&"top", &"skin-c")
 	_check(
 		site_avatars.from_site(unknown_skin) == null and site_avatars.from_site(not_site) == null,
@@ -199,14 +199,14 @@ func _last_lines(text: String, count: int) -> String:
 ## A document stored before the part ids were renamed still loads: old ids read as the new ones,
 ## and the schema keeps them through the avatar service's conform.
 func _check_old_part_ids(site_avatars: Variant) -> void:
-	var stored := DotAvatar.make(&"arena_stock")
+	var stored := GSAvatar.make(&"arena_stock")
 	stored.set_part(&"body", &"arena_body_kenney_c")
 	stored.set_part(&"head", &"arena_head_round")
 	stored.set_part(&"crest", &"arena_crest_fin")
-	var round_trip := DotAvatar.from_dict(stored.to_dict())
-	var kept: DotAvatar = round_trip.value if round_trip.ok else null
+	var round_trip := GSAvatar.from_dict(stored.to_dict())
+	var kept: GSAvatar = round_trip.value if round_trip.ok else null
 	var conform_changes: Variant = site_avatars.schema().conform(kept, null) if kept != null else null
-	var read_back: DotAvatar = site_avatars.migrated(kept) if kept != null else null
+	var read_back: GSAvatar = site_avatars.migrated(kept) if kept != null else null
 	var old_crest: Node3D = site_avatars.crest_of(kept) if kept != null else null
 	var crest_read := old_crest != null
 	if old_crest != null:

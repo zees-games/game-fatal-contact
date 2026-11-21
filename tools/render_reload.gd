@@ -51,16 +51,16 @@ func _run() -> void:
 	if match_node == null:
 		print("render_reload: no match node found, not waiting for LIVE")
 	for i in 600:
-		if match_node == null or int(match_node.get("state")) == DotMatch.State.LIVE:
+		if match_node == null or int(match_node.get("state")) == GSMatch.State.LIVE:
 			break
 		await _wait(0.5)
 	if match_node != null:
-		print("render_reload: match state %d (LIVE %d) after the wait" % [int(match_node.get("state")), DotMatch.State.LIVE])
+		print("render_reload: match state %d (LIVE %d) after the wait" % [int(match_node.get("state")), GSMatch.State.LIVE])
 	await _wait(1.0)
 
 	var ids: Array = []
 	for id: StringName in AwWeaponCatalogue.table():
-		var def: DotWeaponDef = AwWeaponCatalogue.table()[id]
+		var def: GSWeaponDef = AwWeaponCatalogue.table()[id]
 		if def.uses_magazine():
 			ids.append(str(id))
 	FcViewArms.debug_pose = args.has("--pose-debug")
@@ -89,7 +89,7 @@ func _run_rest(frames: int, left: int, ids: Array, tp: bool = false) -> void:
 		await _wait(0.5)
 	for id_s in ids:
 		var id := StringName(id_s)
-		var def: DotWeaponDef = AwWeaponCatalogue.table().get(id)
+		var def: GSWeaponDef = AwWeaponCatalogue.table().get(id)
 		if def == null:
 			continue
 		var me = client.get("player")
@@ -117,7 +117,7 @@ func _run_rest(frames: int, left: int, ids: Array, tp: bool = false) -> void:
 			if view != null:
 				await ReloadShots.wait_for(self, progress, due_at[f])
 			if not me.arsenal.is_reloading():
-				var cur: DotWeaponSlot = me.arsenal.current()
+				var cur: GSWeaponSlot = me.arsenal.current()
 				print("%s frame %d: the reload ended first at fraction %.2f (last seen %.2f), magazine %d/%d, reserve %d, current %s" % [id, f, float(view.get(&"_reload_fraction")) if view != null else -1.0, last_seen, cur.magazine if cur != null else -1, def.magazine, me.arsenal._ammo.count(def.ammo_type) if def.ammo_type != &"" else -1, cur.def.id if cur != null else &"none"])
 				break
 			last_seen = float(view.get(&"_reload_fraction")) if view != null else 0.0
@@ -147,7 +147,7 @@ func _run_rest(frames: int, left: int, ids: Array, tp: bool = false) -> void:
 		_save_sheet(id, tiles)
 		await _wait(0.6)
 		print("%s: reload %.2f s (started %s), %d frames, arm sets drawn per frame %d..%d, most magazines in sight %d (none in %d frames), magazine %d/%d" % [id, seconds, started, frames, least, worst, mags_most, mags_none, me.arsenal.current().magazine, def.magazine])
-		var held_now: DotWeaponSlot = me.arsenal.current()
+		var held_now: GSWeaponSlot = me.arsenal.current()
 		if frames_taken < frames:
 			var swapped := held_now != null and held_now.def.id != id
 			print("%s: only %d of %d frames captured: %s (the reload itself is %.2f s, %d captures cost more than a frame gap)" % [id, frames_taken, frames, "the game swapped the gun for %s mid-reload (a loadout re-applied), not a short reload" % held_now.def.id if swapped else "the reload ended", seconds, slow_captures])
@@ -195,7 +195,7 @@ func _reload_view(me: Variant, id: StringName) -> Node:
 
 
 ## Gives and equips [param id], waits out the previous reload and presses reload; the reload's length in seconds, or -1 when it never reached the hand.
-func _arm_reload(me: Variant, id: StringName, def: DotWeaponDef, left: int) -> float:
+func _arm_reload(me: Variant, id: StringName, def: GSWeaponDef, left: int) -> float:
 	me.health.invulnerable = true
 	# The previous weapon's reload must be over, or this one's press is swallowed or reads the old view model.
 	for _w in 120:
@@ -205,12 +205,12 @@ func _arm_reload(me: Variant, id: StringName, def: DotWeaponDef, left: int) -> f
 	# Carry weight refuses a heavy gun on top of the earlier ones, which read as "not in hand".
 	if me.arsenal.carry != null:
 		me.arsenal.carry.enabled = false
-	var given: DotResult = me.arsenal.give(id)
+	var given: GSResult = me.arsenal.give(id)
 	if not given.ok:
 		print("%s: give failed: %s" % [id, given.message])
 	me.arsenal.equip(def.slot)
 	await _wait(2.5)
-	var slot: DotWeaponSlot = me.arsenal.current()
+	var slot: GSWeaponSlot = me.arsenal.current()
 	if slot == null or slot.def.id != id:
 		print("%s: not in hand, skipped" % id)
 		return -1.0
@@ -253,7 +253,7 @@ func _probe(ids: Array) -> void:
 	var cam: Camera3D = rig[2]
 	for id_s in ids:
 		var id := StringName(id_s)
-		var def: DotWeaponDef = AwWeaponCatalogue.table().get(id)
+		var def: GSWeaponDef = AwWeaponCatalogue.table().get(id)
 		if def == null:
 			continue
 		var me = client.get("player")
@@ -378,17 +378,17 @@ func _holds(args: PackedStringArray) -> void:
 	if only != "":
 		ids = Array(only.split(",")).map(func(s: String) -> StringName: return StringName(s))
 	for id: StringName in ids:
-		var def: DotWeaponDef = AwWeaponCatalogue.table()[id]
+		var def: GSWeaponDef = AwWeaponCatalogue.table()[id]
 		var me = client.get("player")
 		me.health.invulnerable = true
 		if me.arsenal.carry != null:
 			me.arsenal.carry.enabled = false
-		var given: DotResult = me.arsenal.give(id)
+		var given: GSResult = me.arsenal.give(id)
 		if not given.ok:
 			print("%s: give failed: %s" % [id, given.message])
 		me.arsenal.equip(def.slot)
 		await _wait(1.4)
-		var slot: DotWeaponSlot = me.arsenal.current()
+		var slot: GSWeaponSlot = me.arsenal.current()
 		if slot == null or slot.def.id != id:
 			print("%s: not in hand, skipped" % id)
 			continue
@@ -405,7 +405,7 @@ func _holds(args: PackedStringArray) -> void:
 
 
 ## The whole reload as the arsenal times it: the opening and every round for a per-round reload.
-func _reload_seconds(arsenal: DotWeaponArsenal, def: DotWeaponDef) -> float:
+func _reload_seconds(arsenal: GSWeaponArsenal, def: GSWeaponDef) -> float:
 	var tps := float(Engine.physics_ticks_per_second)
 	if def.reload_per_round:
 		var rounds := def.magazine - int(arsenal.current().magazine)
@@ -436,7 +436,7 @@ func _arm_owners(me: Node) -> Array:
 	for node in client.find_children("*", "Node3D", true, false):
 		var script: Script = node.get_script()
 		var named := str(script.get_global_name()) if script != null else ""
-		if not named in ["AwViewArms", "DotPlayerViewArms", "DotHumanoidFigure"] or not (node as Node3D).is_visible_in_tree():
+		if not named in ["AwViewArms", "GSPlayerViewArms", "GSHumanoidFigure"] or not (node as Node3D).is_visible_in_tree():
 			continue
 		if (node as Node3D).global_position.distance_to(camera.global_position) < 2.0:
 			out.append(node)
@@ -470,8 +470,8 @@ func _hand_gaps() -> String:
 	var mounts := client.find_children("ViewArms", "Node3D", true, false).filter(func(n: Node) -> bool: return n.get(&"_grip") != null)
 	if mounts.is_empty():
 		return "-"
-	var grip: DotViewGrip = mounts[0].get(&"_grip")
-	var figure := (mounts[0].get(&"arms") as DotPlayerViewArms).arms() as DotHumanoidFigure
+	var grip: GSViewGrip = mounts[0].get(&"_grip")
+	var figure := (mounts[0].get(&"arms") as GSPlayerViewArms).arms() as GSHumanoidFigure
 	var skeleton := figure.skeleton() if figure != null else null
 	if skeleton == null:
 		return "-"
@@ -493,8 +493,8 @@ func _arg(args: PackedStringArray, key: String, fallback: String) -> String:
 	return args[i + 1] if i >= 0 and i + 1 < args.size() else fallback
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _shot(file: String) -> Image:

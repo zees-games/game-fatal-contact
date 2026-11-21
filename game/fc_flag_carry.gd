@@ -53,7 +53,7 @@ static func set_setting(key: String, text: String) -> void:
 
 
 ## The flag [param id] carries, or null.
-static func carried(game, id: int) -> DotObjectiveFlag:
+static func carried(game, id: int) -> GSObjectiveFlag:
 	var objectives = game.objectives if game != null else null
 	if objectives == null or objectives.ctf == null:
 		return null
@@ -66,10 +66,10 @@ static func allowed_slots() -> Array[int]:
 
 
 ## Both ends, before the arsenal runs: a carrier's slot keys only reach one-handed items, and a two-handed one in hand is put away.
-static func filter_command(player, cmd: DotWeaponCommand) -> void:
+static func filter_command(player, cmd: GSWeaponCommand) -> void:
 	if not player.flag_one_hand or player.arsenal == null:
 		return
-	var arsenal: DotWeaponArsenal = player.arsenal
+	var arsenal: GSWeaponArsenal = player.arsenal
 	var owned: Array[int] = []
 	for s in allowed_slots():
 		if arsenal.has_slot(s):
@@ -77,10 +77,10 @@ static func filter_command(player, cmd: DotWeaponCommand) -> void:
 	if cmd.slot > 0 and not owned.has(cmd.slot):
 		cmd.slot = 0
 	var cur := arsenal.current_slot()
-	var step := 1 if cmd.is_pressed(DotWeaponCommand.BUTTON_NEXT) else (-1 if cmd.is_pressed(DotWeaponCommand.BUTTON_PREVIOUS) else 0)
-	cmd.set_button(DotWeaponCommand.BUTTON_NEXT, false)
-	cmd.set_button(DotWeaponCommand.BUTTON_PREVIOUS, false)
-	cmd.set_button(DotWeaponCommand.BUTTON_LAST, false)
+	var step := 1 if cmd.is_pressed(GSWeaponCommand.BUTTON_NEXT) else (-1 if cmd.is_pressed(GSWeaponCommand.BUTTON_PREVIOUS) else 0)
+	cmd.set_button(GSWeaponCommand.BUTTON_NEXT, false)
+	cmd.set_button(GSWeaponCommand.BUTTON_PREVIOUS, false)
+	cmd.set_button(GSWeaponCommand.BUTTON_LAST, false)
 	if owned.is_empty():
 		cmd.slot = 0
 		return
@@ -96,12 +96,12 @@ static func filter_command(player, cmd: DotWeaponCommand) -> void:
 ## Both ends, each tick: who carries, for [method filter_command] (the server's rule; a client has it from the wire).
 static func mark_carriers(objectives) -> void:
 	var game = objectives.game
-	var ctf: DotObjectiveCtf = objectives.ctf
+	var ctf: GSObjectiveCtf = objectives.ctf
 	# One flags() pass a tick instead of one carried_by (a new flags() array) per player.
 	var carriers := {}
 	if one_hand and ctf != null:
 		for f in ctf.flags():
-			if f.state == DotObjectiveFlag.State.CARRIED:
+			if f.state == GSObjectiveFlag.State.CARRIED:
 				carriers[f.carrier] = true
 	for id in game.player_ids():
 		var player = game.player_for(id)
@@ -121,7 +121,7 @@ static func try_drop(game, id: int, player) -> bool:
 	var at := eye + aim * REACH
 	var trace = _trace(game)
 	if trace != null:
-		var hit: DotHitbox.Hit = trace._world_ray(eye, aim, REACH + RADIUS)
+		var hit: GSHitbox.Hit = trace._world_ray(eye, aim, REACH + RADIUS)
 		if hit.ok():
 			at = eye + aim * maxf(hit.distance - RADIUS, 0.0)
 	at += Vector3.DOWN * BODY_UP
@@ -140,9 +140,9 @@ static func step(objectives, delta: float) -> void:
 	var motion: Dictionary = objectives.flag_motion
 	var game = objectives.game
 	var trace = _trace(game)
-	for flag: DotObjectiveFlag in objectives.ctf.flags():
+	for flag: GSObjectiveFlag in objectives.ctf.flags():
 		var team: int = flag.home_team()
-		if flag.state != DotObjectiveFlag.State.DROPPED:
+		if flag.state != GSObjectiveFlag.State.DROPPED:
 			motion.erase(team)
 			continue
 		if not motion.has(team):
@@ -158,7 +158,7 @@ static func step(objectives, delta: float) -> void:
 		flag.at = out[0]
 		motion[team] = Vector3.INF if out[2] else out[1]
 		if (out[1] as Vector3).y < -LOST_SPEED:
-			var _home: DotResult = flag.send_home("")
+			var _home: GSResult = flag.send_home("")
 			motion.erase(team)
 
 
@@ -168,7 +168,7 @@ static func fly(trace, at: Vector3, vel: Vector3, delta: float) -> Array:
 	var flat := Vector3(vel.x, 0.0, vel.z) * delta
 	if flat.length() > 0.0001:
 		var dir := flat.normalized()
-		var wall: DotHitbox.Hit = trace._world_ray(at + Vector3.UP * BODY_UP, dir, flat.length() + RADIUS)
+		var wall: GSHitbox.Hit = trace._world_ray(at + Vector3.UP * BODY_UP, dir, flat.length() + RADIUS)
 		if wall.ok():
 			var n := Vector3(wall.normal.x, 0.0, wall.normal.z)
 			var side := Vector3(vel.x, 0.0, vel.z)
@@ -181,7 +181,7 @@ static func fly(trace, at: Vector3, vel: Vector3, delta: float) -> Array:
 	var grounded := false
 	var fall := vel.y * delta
 	if fall <= 0.0:
-		var floor_hit: DotHitbox.Hit = trace._world_ray(at + Vector3.UP * BODY_UP, Vector3.DOWN, BODY_UP - fall + 0.02)
+		var floor_hit: GSHitbox.Hit = trace._world_ray(at + Vector3.UP * BODY_UP, Vector3.DOWN, BODY_UP - fall + 0.02)
 		if floor_hit.ok():
 			at.y = floor_hit.point.y
 			grounded = true
@@ -189,7 +189,7 @@ static func fly(trace, at: Vector3, vel: Vector3, delta: float) -> Array:
 		else:
 			at.y += fall
 	else:
-		var roof: DotHitbox.Hit = trace._world_ray(at + Vector3.UP * BODY_UP, Vector3.UP, fall + 0.2)
+		var roof: GSHitbox.Hit = trace._world_ray(at + Vector3.UP * BODY_UP, Vector3.UP, fall + 0.2)
 		if roof.ok():
 			vel.y = 0.0
 		else:
@@ -296,7 +296,7 @@ static func release_arm(carrier: Node3D) -> void:
 
 
 ## Client console: cl_lefthand, kept in the client settings.
-static func bind_console(local: DotConsoleLocal, settings) -> void:
+static func bind_console(local: GSConsoleLocal, settings) -> void:
 	if settings != null:
 		left_handed = settings.get_bool(&"lefthand", false)
 	local.add_var(&"cl_lefthand", "1 holds your carried flag in the right hand, 0 in the left (the default).",
@@ -305,7 +305,7 @@ static func bind_console(local: DotConsoleLocal, settings) -> void:
 			left_handed = str(v).strip_edges() != "0"
 			if settings != null:
 				var _set: Variant = settings.set_value(&"lefthand", left_handed)
-			return DotResult.success(1 if left_handed else 0)
+			return GSResult.success(1 if left_handed else 0)
 	)
 
 
@@ -318,5 +318,5 @@ static func _trace(game):
 static func _floor_below(trace, at: Vector3) -> Vector3:
 	if trace == null:
 		return at
-	var hit: DotHitbox.Hit = trace._world_ray(at + Vector3.UP * BODY_UP, Vector3.DOWN, 50.0)
+	var hit: GSHitbox.Hit = trace._world_ray(at + Vector3.UP * BODY_UP, Vector3.DOWN, 50.0)
 	return Vector3(at.x, hit.point.y, at.z) if hit.ok() else at

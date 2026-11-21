@@ -11,9 +11,9 @@ const FcTestPorts := preload("test_ports.gd")
 ## godot --headless --path . res://examples/headless_admin.tscn
 ## [/codeblock]
 ##
-## A real [DotServer] listening on a port, [FcModule] loaded into it by path, three
+## A real [GSServer] listening on a port, [FcModule] loaded into it by path, three
 ## sessions adopted the way dot-server documents for a test — an administrator, a
-## moderator and a player — and every command sent through [method DotConsole.execute]
+## moderator and a player — and every command sent through [method GSConsole.execute]
 ## with a CHAT context built from the speaker's own session, which is exactly what
 ## `!noclip` in the chat box becomes. So the permission flag, the chat gate, the target
 ## resolution, the immunity rule, the audit line and the game's own handler all run, and
@@ -38,21 +38,21 @@ const CHECKS := 45
 
 
 
-var _admin: DotClientSession = null
-var _moderator: DotClientSession = null
-var _player: DotClientSession = null
+var _admin: GSClientSession = null
+var _moderator: GSClientSession = null
+var _player: GSClientSession = null
 
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("game-fatal-contact — an administrator's live tools on a dedicated server")
 
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 
 	if await _build():
 		await _test_who_may()
@@ -67,7 +67,7 @@ func _run() -> void:
 		await _test_reporting()
 
 	_teardown()
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
@@ -89,8 +89,8 @@ func _build() -> bool:
 
 
 ## Runs [param ticks] server ticks with Ada holding [param move].
-func _step(ticks: int, move: DotFpsCommand = null) -> void:
-	var command := move if move != null else DotFpsCommand.new()
+func _step(ticks: int, move: GSFpsCommand = null) -> void:
+	var command := move if move != null else GSFpsCommand.new()
 	var behaviour := _module.bridge.behaviour_for(73)
 
 	for _i in range(ticks):
@@ -100,8 +100,8 @@ func _step(ticks: int, move: DotFpsCommand = null) -> void:
 		_module.bridge.server_tick(_tick)
 
 
-func _move(forward: float, buttons: int = 0, yaw: float = 0.0) -> DotFpsCommand:
-	var command := DotFpsCommand.new()
+func _move(forward: float, buttons: int = 0, yaw: float = 0.0) -> GSFpsCommand:
+	var command := GSFpsCommand.new()
 	command.move = Vector2(0.0, forward)
 	command.yaw = yaw
 	command.buttons = buttons
@@ -130,7 +130,7 @@ func _test_who_may() -> void:
 	var refused := await _say(_player, "!noclip")
 	_check(
 		" ".join(refused).contains("permission")
-		and not DotFpsAdminModifiers.is_noclipped(_ada().controller),
+		and not GSFpsAdminModifiers.is_noclipped(_ada().controller),
 		"a player with no flags is refused, and stays on the ground",
 		" / ".join(refused)
 	)
@@ -138,19 +138,19 @@ func _test_who_may() -> void:
 	var moderated := await _say(_moderator, "!noclip Ada")
 	_check(
 		" ".join(moderated).contains("permission")
-		and not DotFpsAdminModifiers.is_noclipped(_ada().controller),
+		and not GSFpsAdminModifiers.is_noclipped(_ada().controller),
 		"a moderator cannot noclip anybody: that is cheats, and the group does not have it",
 		" / ".join(moderated)
 	)
 
 	var frozen := await _say(_moderator, "!freeze Ada")
 	_check(
-		DotFpsAdminModifiers.is_frozen(_ada().controller),
+		GSFpsAdminModifiers.is_frozen(_ada().controller),
 		"but may freeze a griefer, which is slay", " / ".join(frozen)
 	)
 
 	var _unfrozen := await _say(_moderator, "!unfreeze Ada")
-	_check(not DotFpsAdminModifiers.is_frozen(_ada().controller), "and let them go again")
+	_check(not GSFpsAdminModifiers.is_frozen(_ada().controller), "and let them go again")
 	_done()
 
 
@@ -173,7 +173,7 @@ func _test_noclip() -> void:
 	_put_ada_on_the_floor()
 	var replies := await _say(_admin, "!noclip Ada")
 	_check(
-		DotFpsAdminModifiers.is_noclipped(_ada().controller),
+		GSFpsAdminModifiers.is_noclipped(_ada().controller),
 		"an admin's !noclip Ada puts her in noclip", " / ".join(replies)
 	)
 
@@ -186,13 +186,13 @@ func _test_noclip() -> void:
 	)
 
 	_ada().controller.teleport(standing)
-	_step(TICK_RATE, _move(0.0, DotFpsCommand.BUTTON_CROUCH))
+	_step(TICK_RATE, _move(0.0, GSFpsCommand.BUTTON_CROUCH))
 	_check(
 		_ada().controller.state.position.y < -1.5,
 		"and down through the floor", "y %.2f" % _ada().controller.state.position.y
 	)
 
-	_step(TICK_RATE * 2, _move(0.0, DotFpsCommand.BUTTON_JUMP))
+	_step(TICK_RATE * 2, _move(0.0, GSFpsCommand.BUTTON_JUMP))
 	_check(
 		_ada().controller.state.position.y > 3.0,
 		"and up into the air, where she stays", "y %.2f" % _ada().controller.state.position.y
@@ -201,7 +201,7 @@ func _test_noclip() -> void:
 	var _off := await _say(_admin, "!noclip Ada off")
 	_step(2)
 	_check(
-		_ada().controller.state.mode != DotFpsState.Mode.NOCLIP,
+		_ada().controller.state.mode != GSFpsState.Mode.NOCLIP,
 		"!noclip Ada off lands her"
 	)
 	_done()
@@ -213,7 +213,7 @@ func _test_god() -> void:
 	_put_ada_on_the_floor()
 	var _on := await _say(_admin, "!god Ada")
 	var before := _ada().health.health
-	var hit := DotDamage.make(71, 73, 50.0, _game.combat.damage_type(&""))
+	var hit := GSDamage.make(71, 73, 50.0, _game.combat.damage_type(&""))
 	hit.tick = _game.current_tick()
 	_game.combat.apply_damage(hit)
 
@@ -224,7 +224,7 @@ func _test_god() -> void:
 	)
 
 	var _off := await _say(_admin, "!god Ada off")
-	var landed := DotDamage.make(71, 73, 30.0, _game.combat.damage_type(&""))
+	var landed := GSDamage.make(71, 73, 30.0, _game.combat.damage_type(&""))
 	landed.tick = _game.current_tick()
 	_game.combat.apply_damage(landed)
 	_check(
@@ -234,7 +234,7 @@ func _test_god() -> void:
 	)
 
 	var _buddha := await _say(_admin, "!buddha Ada")
-	var fatal := DotDamage.make(71, 73, 5000.0, _game.combat.damage_type(&""))
+	var fatal := GSDamage.make(71, 73, 5000.0, _game.combat.damage_type(&""))
 	fatal.tick = _game.current_tick()
 	_game.combat.apply_damage(fatal)
 	_check(
@@ -255,7 +255,7 @@ func _test_freeze() -> void:
 	var _on := await _say(_admin, "!freeze Ada")
 	var at := _ada().controller.state.position
 
-	_step(TICK_RATE * 2, _move(1.0, DotFpsCommand.BUTTON_JUMP))
+	_step(TICK_RATE * 2, _move(1.0, GSFpsCommand.BUTTON_JUMP))
 	var moved := _ada().controller.state.position.distance_to(at)
 	_check(moved < 0.05, "a frozen player holding forward and jump does not move",
 		"%.3f m" % moved)
@@ -270,7 +270,7 @@ func _test_freeze() -> void:
 
 	var _fast := await _say(_admin, "!speed Ada 2")
 	_check(
-		is_equal_approx(DotFpsAdminModifiers.speed_of(_ada().controller), 2.0),
+		is_equal_approx(GSFpsAdminModifiers.speed_of(_ada().controller), 2.0),
 		"!speed Ada 2 is a modifier the client will predict"
 	)
 	var _normal := await _say(_admin, "!speed Ada 1")
@@ -313,13 +313,13 @@ func _test_respawn_clears() -> void:
 	var brought := await _say(_admin, "!respawn Ada")
 	_check(_ada().is_alive(), "!respawn Ada brings her back", " / ".join(brought))
 	_check(
-		not DotFpsAdminModifiers.is_frozen(_ada().controller)
-		and not DotFpsAdminModifiers.is_noclipped(_ada().controller),
+		not GSFpsAdminModifiers.is_frozen(_ada().controller)
+		and not GSFpsAdminModifiers.is_noclipped(_ada().controller),
 		"without the freeze or the noclip she died with"
 	)
 	_check(
 		_ada().health.invulnerable
-		and _module.services.mod_tools.is_active(&"73", DotModTools.ACTION_GOD),
+		and _module.services.mod_tools.is_active(&"73", GSModTools.ACTION_GOD),
 		"but still godded, because god outlives a death on purpose"
 	)
 	var _off := await _say(_admin, "!god Ada off")
@@ -337,7 +337,7 @@ func _test_immunity_and_self() -> void:
 
 	var _mine := await _say(_admin, "!noclip")
 	_check(
-		DotFpsAdminModifiers.is_noclipped(_game.player_for(71).controller),
+		GSFpsAdminModifiers.is_noclipped(_game.player_for(71).controller),
 		"a bare !noclip is the admin's own, and their own immunity does not refuse it"
 	)
 	var _mine_off := await _say(_admin, "!noclip off")
@@ -372,7 +372,7 @@ func _test_blind_and_beacon() -> void:
 	var lit := await _say(_moderator, "!beacon Ada")
 	_check(_ada().beacon, "a moderator may !beacon Ada", " / ".join(lit))
 	_step(2)
-	var identity: DotNetIdentity = (_module.bridge.behaviour_for(73) as DotNetBehaviour).identity
+	var identity: GSNetIdentity = (_module.bridge.behaviour_for(73) as GSNetBehaviour).identity
 	_check(
 		identity != null and identity.always_relevant,
 		"and a beaconed player is relevant to everybody, however far away"
@@ -403,8 +403,8 @@ func _test_blind_and_beacon() -> void:
 		"!beacon Ada off puts her back under the ordinary interest rules"
 	)
 	_check(
-		not _module.services.mod_tools.is_active(&"73", DotModTools.ACTION_BEACON)
-		and not _module.services.mod_tools.is_active(&"73", DotModTools.ACTION_BLIND),
+		not _module.services.mod_tools.is_active(&"73", GSModTools.ACTION_BEACON)
+		and not _module.services.mod_tools.is_active(&"73", GSModTools.ACTION_BLIND),
 		"and the tools' record agrees with the world"
 	)
 	_done()
@@ -432,10 +432,10 @@ func _test_reporting() -> void:
 
 	# Under the subject the tools file against — the moderation manager's own peer
 	# mapping, a person rather than a userid that restarts at 1 every boot.
-	var target_session: DotClientSession = _server.session_by_userid(73)
+	var target_session: GSClientSession = _server.session_by_userid(73)
 	var subject := _module.services.moderation.subject_for_peer(target_session.peer_id) \
 		if target_session != null else "73"
-	var history: Array[DotPunishment] = _module.services.moderation.history_for(subject)
+	var history: Array[GSPunishment] = _module.services.moderation.history_for(subject)
 	var slapped := false
 	for record in history:
 		if record.evidence.get("action", "") == "slap":
@@ -460,7 +460,7 @@ func _test_return_after_a_map_change() -> void:
 	# host for every peer to load the map, and a session adopted here has no peer, so
 	# it never completes. What is under test is the module's answer to a change,
 	# which is exactly what the signal reaches. The swap itself is headless_match's.
-	var def := DotMapDef.new()
+	var def := GSMapDef.new()
 	def.id = &"dm_atrium"
 	_module.maps.map_changed.emit(def)
 

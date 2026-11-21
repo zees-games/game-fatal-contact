@@ -9,28 +9,28 @@ const FcPaths := preload("fc_paths.gd")
 const FcContent := preload("fc_content.gd")
 
 ## The host's clock source and the client's mirror of it.
-var world: DotMapWorld = null
-var use: DotMapUse = null
-var transport: DotMapStateTransport = DotMapStateTransport.new()
+var world: GSMapWorld = null
+var use: GSMapUse = null
+var transport: GSMapStateTransport = GSMapStateTransport.new()
 var is_authority := true
 var game = null
 
 
 ## The world for the game's current map, or null when the map is built in, has no converted world, or has no movers.
-## [param use_rules] is the game's one DotMapUse (its cvars outlive the map).
-static func build(game, use_rules: DotMapUse):
+## [param use_rules] is the game's one GSMapUse (its cvars outlive the map).
+static func build(game, use_rules: GSMapUse):
 	var plan := _plan(game)
 	if plan.is_empty():
 		return null
-	return _finish(plan, game, use_rules, DotMapWorld.build(plan.mesh, plan.hooks, plan.options))
+	return _finish(plan, game, use_rules, GSMapWorld.build(plan.mesh, plan.hooks, plan.options))
 
 
 ## [method build] in slices behind the loading cover: awaits [param slice] so no frame carries the whole world.
-static func build_async(game, use_rules: DotMapUse, slice: DotFrameSlice):
+static func build_async(game, use_rules: GSMapUse, slice: GSFrameSlice):
 	var plan := _plan(game)
 	if plan.is_empty():
 		return null
-	var made: DotResult = await DotMapWorld.build_async(plan.mesh, plan.hooks, plan.options, slice)
+	var made: GSResult = await GSMapWorld.build_async(plan.mesh, plan.hooks, plan.options, slice)
 	return _finish(plan, game, use_rules, made)
 
 
@@ -41,10 +41,10 @@ static func _plan(game) -> Dictionary:
 	var prefix := FcBspMap.world_prefix(String(map.id), map.manifest_path.get_base_dir())
 	if prefix.is_empty():
 		return {}
-	var got: DotResult = DotMapBspMesh.load_prefix(prefix)
+	var got: GSResult = GSMapBspMesh.load_prefix(prefix)
 	if not got.ok:
 		return {}
-	var mesh: DotMapBspMesh = got.value
+	var mesh: GSMapBspMesh = got.value
 	if (mesh.manifest.get("movers", []) as Array).is_empty():
 		return {}
 	var node = load(FcPaths.rebase("res://game/fc_map_io.gd")).new()
@@ -56,16 +56,16 @@ static func _plan(game) -> Dictionary:
 	var surfaces := FcPaths.rebase("res://assets/surfaces")
 	return {"node": node, "mesh": mesh, "hooks": hooks, "options": {
 		"movers_only": true, "environment": false, "props": false, "sounds": false,
-		"draw": not DotPlatform.is_headless(), "authoritative": game.is_authority,
+		"draw": not GSPlatform.is_headless(), "authoritative": game.is_authority,
 		"rate": game.tick_rate, "map_id": String(map.id),
-		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else DotMapSurfaces.DEFAULT_ROOT,
+		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else GSMapSurfaces.DEFAULT_ROOT,
 	}}
 
 
-static func _finish(plan: Dictionary, game, use_rules: DotMapUse, made: DotResult):
+static func _finish(plan: Dictionary, game, use_rules: GSMapUse, made: GSResult):
 	var node = plan.node
 	if not made.ok:
-		DotLog.warn(CHANNEL, "a map's movers would not build", {"map": String(game.map.id), "why": made.error.message})
+		GSLog.warn(CHANNEL, "a map's movers would not build", {"map": String(game.map.id), "why": made.error.message})
 		node.free()
 		return null
 	node.game = game
@@ -76,7 +76,7 @@ static func _finish(plan: Dictionary, game, use_rules: DotMapUse, made: DotResul
 	node.transport.flush_on(node.world.io)
 	use_rules.attach(node.world)
 	node.use = use_rules
-	DotLog.debug(CHANNEL, "movers built", {"map": String(game.map.id), "authority": game.is_authority})
+	GSLog.debug(CHANNEL, "movers built", {"map": String(game.map.id), "authority": game.is_authority})
 	return node
 
 
@@ -110,7 +110,7 @@ func _damage(body, amount: float, _kind: String, _attacker) -> void:
 	var p = game.player_for(int(body)) if game != null else null
 	if p == null or game.combat == null or not p.is_alive():
 		return
-	var damage := DotDamage.make(0, int(body), amount, game.combat.damage_type(FcContent.DAMAGE_WORLD))
+	var damage := GSDamage.make(0, int(body), amount, game.combat.damage_type(FcContent.DAMAGE_WORLD))
 	damage.tick = game._tick
 	game.combat.apply_damage(damage)
 
@@ -135,7 +135,7 @@ func remove_peer(peer: int) -> void:
 func receive(payload: Dictionary) -> void:
 	if is_authority or world == null:
 		return
-	var list: Array = payload.get("messages", [payload]) if str(payload.get("type", "")) == DotMapStateTransport.TYPE_BATCH else [payload]
+	var list: Array = payload.get("messages", [payload]) if str(payload.get("type", "")) == GSMapStateTransport.TYPE_BATCH else [payload]
 	for m in list:
 		if m is Dictionary:
 			var tick := int(m.get("tick", 0))

@@ -25,15 +25,15 @@ const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
 ## transit and snapshot age, and a line per freeze. [code]--ping-rtt[/code] puts a defect
 ## back as a control: it feeds the clock the heartbeat's round trip instead of ENet's (see
 ## [method FcNetBridge.link_rtt_ms]), and it fails checks. (`--stock-enet` was the other
-## until dot-core's DotTransportENet stopped advertising six bytes a second; its own
+## until dot-core's GSTransportENet stopped advertising six bytes a second; its own
 ## `dual_transport_selftest` holds that one now.)
 ##
 ## [b]What only this can see.[/b] `headless_net` drops one packet in five, but in its own
 ## loopback: in order, instantly, never twice, and never a reliable one. A browser's
 ## "unreliable" is TCP. So until a server listened on ENet as well, nothing here had ever
 ## had a datagram arrive late, out of order, twice, or not at all -- and a reliable event
-## had never been retransmitted. This puts dot-net's relay between a real `DotClientLink`
-## on ENet and a real `DotServer` running `FcModule`, and plays.
+## had never been retransmitted. This puts dot-net's relay between a real `GSClientLink`
+## on ENet and a real `GSServer` running `FcModule`, and plays.
 ##
 ## Two clients. **A** goes through the relay and is the one measured: it runs, strafes and
 ## turns, so its prediction has something to get wrong. **B** connects straight to the
@@ -47,7 +47,7 @@ const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
 ## smooth A's drawing of B is (the longest freeze while B moved, the largest jump beyond
 ## B's own motion, how far the drawing is from where the server had B at that render
 ## time, extrapolated frames); how far A's prediction is from the server's A, tick for
-## tick, and what the predictor corrected; the loss DotNetStats reports against what the
+## tick, and what the predictor corrected; the loss GSNetStats reports against what the
 ## relay injected; and that every reliable event -- a numbered notice, a kill, a chat line
 ## either way, a join and a leave -- arrived exactly once and in order.
 
@@ -96,7 +96,7 @@ var CHECKS := OTHER_CHECKS + WINDOW_CHECKS * WINDOWS.size()
 var _verbose := false
 
 var _server_side: Node = null
-var _server: DotServer = null
+var _server: GSServer = null
 var _relay = null
 
 ## name -> client record, see [method _connect_client].
@@ -178,7 +178,7 @@ func _exit_tree() -> void:
 
 ## The client's ENet packet throttle towards the server, out of 32; -1 off ENet.
 func _throttle_of(label: String) -> int:
-	var mp: Object = (_clients[label]["link"] as DotClientLink).multiplayer.multiplayer_peer
+	var mp: Object = (_clients[label]["link"] as GSClientLink).multiplayer.multiplayer_peer
 	var server_peer: Object = mp.call("get_peer", 1) if mp != null and mp.has_method("get_peer") else null
 	if server_peer == null or not server_peer.has_method("get_statistic"):
 		return -1
@@ -187,7 +187,7 @@ func _throttle_of(label: String) -> int:
 
 
 func _peer_of(label: String) -> int:
-	return (_clients[label]["link"] as DotClientLink).multiplayer.get_unique_id()
+	return (_clients[label]["link"] as GSClientLink).multiplayer.get_unique_id()
 
 
 func _module() -> FcModule:
@@ -197,8 +197,8 @@ func _module() -> FcModule:
 # --- Boot -------------------------------------------------------------------
 
 ## The dual-stack config: its own UDP port, no query listener, no console.
-func _server_config() -> DotServerConfig:
-	var config := DotServerConfig.new()
+func _server_config() -> GSServerConfig:
+	var config := GSServerConfig.new()
 	config.hostname = "arena lossy"
 	config.port = PORT
 	config.bind_address = "127.0.0.1"
@@ -246,24 +246,24 @@ func _boot() -> bool:
 
 	var config := _server_config()
 
-	# The server's ENet is dot-core's own: DotTransportENet no longer advertises the engine's
+	# The server's ENet is dot-core's own: GSTransportENet no longer advertises the engine's
 	# channel count as its incoming bandwidth (which throttled every client's commands to
 	# 1/32 for its first seconds; see docs/history.md), so nothing is built by hand.
 
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
 	_server.auto_boot = false
 	_server_side.add_child(_server)
 
-	var booted: DotResult = await _server.boot()
+	var booted: GSResult = await _server.boot()
 	if not _check(booted.ok, "the server boots, WebSocket and ENet on %d" % PORT, str(booted.error)):
 		_done()
 		return false
 
 	FcModule.punishments_file = "%s/punishments.json" % DATA
-	var loaded: DotResult = await _server.modules.load_module("res://game/fc_module.gd")
+	var loaded: GSResult = await _server.modules.load_module("res://game/fc_module.gd")
 	if not _check(loaded.ok, "Fatal Contact module loads", str(loaded.error)):
 		_done()
 		return false
@@ -275,7 +275,7 @@ func _boot() -> bool:
 	# the wall clock: 0.9 to 1.3 m worst on a desk, p95 0.59 m and 2.1 m on a CI runner
 	# (v0.1.11's release). This suite measures the link; players against players is
 	# headless_net's.
-	var quota: DotBotQuota = _module().get("_bot_quota")
+	var quota: GSBotQuota = _module().get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("off")
 
@@ -284,7 +284,7 @@ func _boot() -> bool:
 	var w: Array = WINDOWS[0]
 	_relay.up.configure(float(w[1]), float(w[2]), float(w[3]))
 	_relay.down.configure(float(w[1]), float(w[2]), float(w[3]))
-	var relayed: DotResult = _relay.start(0, "127.0.0.1", config.effective_enet_port())
+	var relayed: GSResult = _relay.start(0, "127.0.0.1", config.effective_enet_port())
 	_check(relayed.ok, "the relay listens in front of UDP %d" % config.effective_enet_port(),
 		str(relayed.error))
 	_done()
@@ -292,7 +292,7 @@ func _boot() -> bool:
 
 
 ## What `FcClient._build_netcode` builds, minus everything that draws; fills `record`.
-func _client_netcode(record: Dictionary, side: Node, link: DotClientLink, label: String) -> DotNetManager:
+func _client_netcode(record: Dictionary, side: Node, link: GSClientLink, label: String) -> GSNetManager:
 	var game := FcGame.new()
 	game.name = "Game"
 	game.is_authority = false
@@ -303,14 +303,14 @@ func _client_netcode(record: Dictionary, side: Node, link: DotClientLink, label:
 	# What `FcClient._build_netcode` does: the server's replicated cvars, through the link.
 	var _following := game.follow_server_cvars(link)
 
-	var net := DotNetManager.new()
+	var net := GSNetManager.new()
 	net.name = "Net"
 	net.is_server = false
 	net.service_scope = StringName("lossy_%s" % label)
 	net.local_peer_id = side.multiplayer.get_unique_id()
 	net.auto_tick = false
 	net.config_file = ""
-	var cfg := DotNetConfig.new()
+	var cfg := GSNetConfig.new()
 	cfg.tick_rate = game.tick_rate
 	cfg.snapshot_rate = FcGame.NET_SNAPSHOT_RATE
 	cfg.enable_prediction = true
@@ -346,7 +346,7 @@ func _client_netcode(record: Dictionary, side: Node, link: DotClientLink, label:
 	return net
 
 
-## A client: a DotClientLink on ENet only, and the netcode `FcClient._build_netcode`
+## A client: a GSClientLink on ENet only, and the netcode `FcClient._build_netcode`
 ## builds, minus everything that draws.
 func _connect_client(label: String, udp_port: int, lift_cover: bool = true) -> Dictionary:
 	var side := Node.new()
@@ -354,7 +354,7 @@ func _connect_client(label: String, udp_port: int, lift_cover: bool = true) -> D
 	add_child(side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
 
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Runner %s" % label
 	link.transport_preference = "udp"
@@ -376,7 +376,7 @@ func _connect_client(label: String, udp_port: int, lift_cover: bool = true) -> D
 
 	await _until(func() -> bool:
 		return record["spawned"][0] or record["gone"][0] != "" \
-			or link.phase == DotClientLink.Phase.FAILED, 30.0)
+			or link.phase == GSClientLink.Phase.FAILED, 30.0)
 	if link.last_error != null and not record["spawned"][0]:
 		record["error"] = str(link.last_error)
 		return record
@@ -384,12 +384,12 @@ func _connect_client(label: String, udp_port: int, lift_cover: bool = true) -> D
 		record["error"] = "never spawned: %s" % record["gone"][0]
 		return record
 
-	# What DotGameClient does when its gate opens. A client that never says so is held
+	# What GSGameClient does when its gate opens. A client that never says so is held
 	# unharmable by the server for its load timeout, which would change every other section.
 	if lift_cover:
-		DotGameClient.report_cover(link, false)
+		GSGameClient.report_cover(link, false)
 
-	var net: DotNetManager = _client_netcode(record, side, link, label)
+	var net: GSNetManager = _client_netcode(record, side, link, label)
 	await _until(func() -> bool: return int(record["session"]) != 0 and net.clock.is_synced(), 20.0)
 	return record
 
@@ -399,7 +399,7 @@ func _connect_client(label: String, udp_port: int, lift_cover: bool = true) -> D
 func _test_server_cvars_reach_the_client() -> void:
 	_section("the server's mp_teammate_passthrough reaches a client's world, live")
 	var a: Dictionary = _clients["A"]
-	var link: DotClientLink = a["link"]
+	var link: GSClientLink = a["link"]
 	var a_game: FcGame = a["game"]
 	_check(link.replicated_cvar("mp_teammate_passthrough") == "1" and a_game.combat.rules.pass_through_level() == 1,
 		"the join carried the server's level and A's world is on it",
@@ -451,10 +451,10 @@ func _test_server_cvars_reach_the_client() -> void:
 func _test_ambient_cvars_reach_the_client() -> void:
 	_section("the server's fc_ambient* reaches a client's ambience director, live")
 	var a: Dictionary = _clients["A"]
-	var link: DotClientLink = a["link"]
+	var link: GSClientLink = a["link"]
 	var a_game: FcGame = a["game"]
-	var director := DotAmbienceDirector.new()
-	director.ambient = DotAmbience.new()
+	var director := GSAmbienceDirector.new()
+	director.ambient = GSAmbience.new()
 	director.follow_settings(null, a_game.ambient_rules)
 	_check(link.replicated_cvar("fc_ambient_volume", "") != "" and link.replicated_cvar("fc_ambient_dir", "x") == "x",
 		"the join carried fc_ambient_volume, and the machine-local fc_ambient_dir stayed home", str(link.replicated_cvars))
@@ -482,7 +482,7 @@ func _test_view_feel_and_packs_reach_the_client() -> void:
 	_section("the server's mp_vm_* and the map's packs reach a client")
 	var a: Dictionary = _clients["A"]
 	var a_game: FcGame = a["game"]
-	var link: DotClientLink = a["link"]
+	var link: GSClientLink = a["link"]
 	var held := link.replicated_cvar("mp_vm_sway", "")
 	_check(held != "" and is_equal_approx(a_game.feel_rules.sway, held.to_float()),
 		"the join carried mp_vm_sway and A's view model feel is on it", "held '%s', sway %s" % [held, a_game.feel_rules.sway])
@@ -518,7 +518,7 @@ func _listen_as_a(a: Dictionary) -> void:
 	(a["bridge"] as FcNetBridge).kill_received.connect(func(info: Dictionary) -> void:
 		_got_kills.append("%d>%d" % [int(info["killer_id"]), int(info["victim_id"])])
 	)
-	(a["link"] as DotClientLink).chat_received.connect(func(payload: Dictionary) -> void:
+	(a["link"] as GSClientLink).chat_received.connect(func(payload: Dictionary) -> void:
 		# dot-server's own line carries `text`; one routed through dot-chat carries `m`.
 		var text := str(payload.get("text", payload.get("m", "")))
 		if text.begins_with("chat-"):
@@ -530,7 +530,7 @@ func _listen_as_a(a: Dictionary) -> void:
 			print("    (A got chat %s)" % payload)
 	)
 
-	(a["net"] as DotNetManager).snapshot_applied.connect(func(tick: int) -> void:
+	(a["net"] as GSNetManager).snapshot_applied.connect(func(tick: int) -> void:
 		if _verbose and not _w.is_empty():
 			_w["down_ticks"] = _w.get("down_ticks", []) + [_game.current_tick() - tick]
 	)
@@ -573,8 +573,8 @@ func _drop_client(label: String) -> void:
 	var session := int(c["session"])
 	_driving = false
 	var _erased := _clients.erase(label)
-	(c["link"] as DotClientLink).disconnect_from_server("again")
-	(c["net"] as DotNetManager).stop()
+	(c["link"] as GSClientLink).disconnect_from_server("again")
+	(c["net"] as GSNetManager).stop()
 	var _gone := await _until(func() -> bool: return _game.player_for(session) == null, RELIABLE_SECONDS)
 	var side: Node = c["side"]
 	remove_child(side)
@@ -623,8 +623,8 @@ func _connect_everyone() -> bool:
 		_done()
 		return false
 
-	_check((a["link"] as DotClientLink).transport_used == "enet", "on ENet, not WebSocket",
-		(a["link"] as DotClientLink).transport_used)
+	_check((a["link"] as GSClientLink).transport_used == "enet", "on ENet, not WebSocket",
+		(a["link"] as GSClientLink).transport_used)
 
 	print("    A's ENet packet throttle: %d/32" % _throttle_of("A"))
 
@@ -644,7 +644,7 @@ func _connect_everyone() -> bool:
 	# The dummy the kill feed is about, added on the server alone.
 	var dummy := _game.add_player(DUMMY_ID, "Dummy")
 	_check(dummy.ok, "the server seats a dummy to slay", str(dummy.error))
-	_game.player_killed.connect(func(entry: DotKillFeed.Entry) -> void:
+	_game.player_killed.connect(func(entry: GSKillFeed.Entry) -> void:
 		var killer := int(entry.killer_key) if String(entry.killer_key).is_valid_int() else 0
 		var victim := int(entry.victim_key) if String(entry.victim_key).is_valid_int() else 0
 		_sent_kills.append("%d>%d" % [killer, victim])
@@ -684,12 +684,12 @@ func _check_box_pace(first: Dictionary, a: Dictionary, first_in_time: float) -> 
 		# Every try had the runner stalled for over two ticks: the share says what the box did.
 		print("    INCONCLUSIVE: in A's first %d seconds the server had A's command for %.1f%% of %d ticks, but the runner stalled this process for %d ms in all %d tries; physics gaps %s, round trip %d ms" % [
 			int(FIRST_SECONDS), first_in_time * 100.0, int(first["ticks"]), int(first["stalled"]), FIRST_TRIES,
-			first["gaps"], int((a["net"] as DotNetManager).clock.rtt_ms())])
+			first["gaps"], int((a["net"] as GSNetManager).clock.rtt_ms())])
 		return true
 	_check(first_in_time >= FIRST_IN_TIME,
 		"in A's first %d seconds the server had its command for %.1f%% of %d ticks, %d late" % [
 			int(FIRST_SECONDS), first_in_time * 100.0, int(first["ticks"]), int(first["late"])],
 		"its clock's round trip %d ms; longest stall %d ms (limit %d), physics gaps as (tick, ms) %s" % [
-			int((a["net"] as DotNetManager).clock.rtt_ms()), int(first["stalled"]), _stall_limit_ms(), first["gaps"]])
+			int((a["net"] as GSNetManager).clock.rtt_ms()), int(first["stalled"]), _stall_limit_ms(), first["gaps"]])
 	return true
 

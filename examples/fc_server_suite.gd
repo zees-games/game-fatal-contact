@@ -1,17 +1,17 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcModule := preload("../game/fc_module.gd")
 
-## The part every live-server suite repeats: a real [DotServer] on a free loopback port with
+## The part every live-server suite repeats: a real [GSServer] on a free loopback port with
 ## [FcModule] loaded by path, sessions adopted without a socket, ticks driven by the suite.
 ## [method _boot_server] is the bring-up; the rest is plumbing a check calls.
 
 var _entered := 0
 var _completed := 0
 
-var _server: DotServer = null
+var _server: GSServer = null
 var _game: FcGame = null
 var _module: FcModule = null
 var _tick := 0
@@ -55,7 +55,7 @@ func _boot_server(hostname: String, port: int, dir: String, tick_rate: int) -> b
 	_game.match_node.rules.countdown_sec = 0.0
 	_game.match_node.rules.min_players = 1
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.hostname = hostname
 	config.port = port
 	config.bind_address = "127.0.0.1"
@@ -68,14 +68,14 @@ func _boot_server(hostname: String, port: int, dir: String, tick_rate: int) -> b
 	config.autoexec_config = ""
 	config.query_enabled = false
 
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
 	_server.auto_boot = false
 	add_child(_server)
 
-	var booted: DotResult = await _server.boot()
+	var booted: GSResult = await _server.boot()
 
 	if not booted.ok:
 		print("  the server would not boot: %s" % str(booted.error))
@@ -85,7 +85,7 @@ func _boot_server(hostname: String, port: int, dir: String, tick_rate: int) -> b
 	# unset the module falls back to the one a real server enforces, and every run filed
 	# its slaps and blinds against userid 73 there — and then read them back.
 	FcModule.punishments_file = "%s/punishments.json" % dir
-	var loaded: DotResult = await _server.modules.load_module("res://game/fc_module.gd")
+	var loaded: GSResult = await _server.modules.load_module("res://game/fc_module.gd")
 
 	if not loaded.ok:
 		print("  the module would not load: %s" % str(loaded.error))
@@ -115,8 +115,8 @@ func _boot_server(hostname: String, port: int, dir: String, tick_rate: int) -> b
 
 func _adopt(
 	peer: int, userid: int, display_name: String, flags: Array, immunity: int
-) -> DotClientSession:
-	var session := DotClientSession.new()
+) -> GSClientSession:
+	var session := GSClientSession.new()
 	session.peer_id = peer
 	session.userid = userid
 	session.display_name = display_name
@@ -128,7 +128,7 @@ func _adopt(
 
 
 func _cmd(line: String) -> void:
-	var ctx := DotCmdContext.console("", PackedStringArray())
+	var ctx := GSCmdContext.console("", PackedStringArray())
 	var _r := _server.console.execute(line, ctx)
 
 
@@ -144,12 +144,12 @@ func _teardown() -> void:
 
 
 ## Types a `!command` into chat as [param speaker], and waits for the reply: what
-## `DotChatManager._handle_command` does minus the socket. `player_command` fires, then the
+## `GSChatManager._handle_command` does minus the socket. `player_command` fires, then the
 ## line goes to the console with a CHAT context; the reply sink is a list instead of an RPC.
-func _say(speaker: DotClientSession, line: String) -> PackedStringArray:
+func _say(speaker: GSClientSession, line: String) -> PackedStringArray:
 	_replies.clear()
 	var trimmed := line.trim_prefix("!").strip_edges()
-	var tokens := DotConsole.tokenize(trimmed)
+	var tokens := GSConsole.tokenize(trimmed)
 
 	var event := _server.events.fire("player_command", {
 		"userid": speaker.userid,
@@ -166,7 +166,7 @@ func _say(speaker: DotClientSession, line: String) -> PackedStringArray:
 	var sink := func(text: String) -> void: _replies.append(text)
 	var ctx := speaker.make_context(
 		tokens[0].to_lower(), PackedStringArray(Array(tokens).slice(1)),
-		DotCmdContext.Source.CHAT, sink
+		GSCmdContext.Source.CHAT, sink
 	)
 	var _ran := _server.console.execute(trimmed, ctx)
 

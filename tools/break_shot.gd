@@ -8,10 +8,10 @@ const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 const FcPresentation := preload("../game/fc_presentation.gd")
 
 var _cam: Camera3D
-## Frame sequence after the "after" still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
-var _combat := DotCombatManager.new()
-var _trace := DotTracePhysics.new()
+## Frame sequence after the "after" still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
+var _combat := GSCombatManager.new()
+var _trace := GSTracePhysics.new()
 
 
 func _initialize() -> void:
@@ -26,7 +26,7 @@ func _initialize() -> void:
 	root.add_child(body)
 	_combat.trace = _trace
 	root.add_child(_combat)
-	var fx := DotFxBreak.new()
+	var fx := GSFxBreak.new()
 	fx.add_to_group(&"fc_break_fx")
 	root.add_child(fx)
 	_cam = Camera3D.new()
@@ -35,7 +35,7 @@ func _initialize() -> void:
 	_run.call_deferred(body, fx, id)
 
 
-func _run(body: Node, fx: DotFxBreak, id: String) -> void:
+func _run(body: Node, fx: GSFxBreak, id: String) -> void:
 	for _i in 4:
 		await process_frame
 	_trace.bind_from_node(body)
@@ -64,7 +64,7 @@ func _run(body: Node, fx: DotFxBreak, id: String) -> void:
 		for _i in 6:
 			await process_frame
 		_save("screenshots/%s_break_%s_before.png" % [id, want])
-		var shot := DotShot.new()
+		var shot := GSShot.new()
 		shot.origin = eye
 		shot.direction = (box.get_center() - eye).normalized()
 		shot.pellets = [shot.direction]

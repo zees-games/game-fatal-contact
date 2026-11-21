@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcMapConfig := preload("../game/fc_map_config.gd")
 
@@ -14,17 +14,17 @@ const CHECKS := 8
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("FC: per-map cvars from cfg/game/game-arena/dot_map/map")
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	console.cvar("fc_surf", "0", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("fc_surf_airaccelerate", "90", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("fc_other", "5", "", DotConVar.FLAG_ARCHIVE)
+	console.cvar("fc_surf", "0", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("fc_surf_airaccelerate", "90", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("fc_other", "5", "", GSConVar.FLAG_ARCHIVE)
 	var cfg := FcMapConfig.build(console)
 
 	var got := cfg.apply("surf_beginner")

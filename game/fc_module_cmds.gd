@@ -4,12 +4,12 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcMaps := preload("fc_maps.gd")
 const FcModes := preload("fc_modes.gd")
 
-func _cmd_modes(ctx: DotCmdContext) -> void:
+func _cmd_modes(ctx: GSCmdContext) -> void:
 	ctx.reply_lines(PackedStringArray(FcModes.describe_lines()))
 	ctx.reply("Playing: %s" % String(game.mode.id))
 
 
-func _cmd_net(ctx: DotCmdContext) -> void:
+func _cmd_net(ctx: GSCmdContext) -> void:
 	if net == null:
 		ctx.reply("The netcode is not running.")
 		return
@@ -21,7 +21,7 @@ func _cmd_net(ctx: DotCmdContext) -> void:
 		ctx.reply(str(bridge.describe()))
 
 
-func _cmd_status(ctx: DotCmdContext) -> void:
+func _cmd_status(ctx: GSCmdContext) -> void:
 	for line in game.describe_lines():
 		ctx.reply(line)
 
@@ -29,7 +29,7 @@ func _cmd_status(ctx: DotCmdContext) -> void:
 ## What `fc_maps` prints. [b]It lists and does not change.[/b] `FcGame.setup` is not re-entrant (it builds the combat trace, the match node and every spawn point as children in one pass),
 ## so a `changelevel` that called it twice would leave two matches and two sets of spawns in one tree; doing it properly means tearing that down and telling every client.
 ## Until then an operator restarts with `-- --map <id>`, and this is how they find out what to type.
-func _cmd_maps(ctx: DotCmdContext) -> void:
+func _cmd_maps(ctx: GSCmdContext) -> void:
 	var current := game.map.display_name if game.map != null else "?"
 
 	for id in FcMap.ids():
@@ -74,14 +74,14 @@ func _in_rotation(id: StringName) -> bool:
 	return def != null and def.in_rotation
 
 
-func _cmd_score(ctx: DotCmdContext) -> void:
+func _cmd_score(ctx: GSCmdContext) -> void:
 	for line in game.match_node.scoreboard.describe_lines():
 		ctx.reply(line)
 
 
 ## Disconnects a peer whose message schema this server cannot play with, with dot-net's
 ## sentence as the reason. See `peer_schema_refused` above.
-func _refuse_peer(peer_id: int, error: DotError) -> void:
-	var session: DotClientSession = server.session_of(peer_id) if server != null else null
+func _refuse_peer(peer_id: int, error: GSError) -> void:
+	var session: GSClientSession = server.session_of(peer_id) if server != null else null
 	if session != null:
 		server.kick(session, error.message, error)

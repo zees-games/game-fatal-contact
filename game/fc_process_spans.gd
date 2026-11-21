@@ -2,7 +2,7 @@ extends Node
 
 const FcFrameProbe := preload("fc_frame_probe.gd")
 
-## Splits a recorded frame's process phase into spans the dot profiler's tree can place, so "process scripts (no span)" names where it went. While [member DotFrameCost.trace] is on: - `arena.pf_head`: from SceneTree.process_frame to the first node's `_process` (message queue, transforms). - `arena.pf_nodes`: from the first node's `_process` to the last one's. Every timed section (`arena.present`, `arena.audio`, ...) nests inside it, so its self time is the nodes nobody times: other `_process` scripts and
+## Splits a recorded frame's process phase into spans the dot profiler's tree can place, so "process scripts (no span)" names where it went. While [member GSFrameCost.trace] is on: - `arena.pf_head`: from SceneTree.process_frame to the first node's `_process` (message queue, transforms). - `arena.pf_nodes`: from the first node's `_process` to the last one's. Every timed section (`arena.present`, `arena.audio`, ...) nests inside it, so its self time is the nodes nobody times: other `_process` scripts and
 ## the engine's internal process (AnimationMixer/AnimationTree, particles, ...). - `arena.pf_tail`: from the last node's `_process` to RenderingServer.frame_pre_draw: deferred calls (skeleton updates), transform notifications, timers, tweens and the engine work before the draw. This node runs first by process_priority and its child last; outside a trace each pays a call and a test a frame. `--pf_split N` (a bench's `-- --pf_split 3`) splits `arena.pf_nodes` further for one recording: a marker node goes
 ## before each node down to depth N from the root, and each marker opens a span `arena.pn.<parent kind>/<kind>` that the next marker closes. Kinds are script file or class names, so 31 players' nodes sum into one row. Diagnostic only: the markers stay until the scene changes.
 
@@ -56,16 +56,16 @@ func _exit_tree() -> void:
 
 
 func _on_process_frame() -> void:
-	_frame_usec = Time.get_ticks_usec() if DotFrameCost.trace else 0
+	_frame_usec = Time.get_ticks_usec() if GSFrameCost.trace else 0
 
 
 func _process(_delta: float) -> void:
-	if not DotFrameCost.trace:
+	if not GSFrameCost.trace:
 		_first_usec = 0
 		return
 	var now := Time.get_ticks_usec()
 	if _frame_usec > 0:
-		DotFrameCost.span(PF_HEAD, _frame_usec, now - _frame_usec)
+		GSFrameCost.span(PF_HEAD, _frame_usec, now - _frame_usec)
 	_first_usec = now
 	if split_depth > 0 and not _split_done:
 		_split_done = true
@@ -73,19 +73,19 @@ func _process(_delta: float) -> void:
 
 
 func reach_last() -> void:
-	if not DotFrameCost.trace:
+	if not GSFrameCost.trace:
 		_last_usec = 0
 		return
 	var now := Time.get_ticks_usec()
 	_close_split(now)
 	if _first_usec > 0:
-		DotFrameCost.span(PF_NODES, _first_usec, now - _first_usec)
+		GSFrameCost.span(PF_NODES, _first_usec, now - _first_usec)
 	_last_usec = now
 
 
 ## From a split marker: closes the open split span and opens [param span_name].
 func split_mark(span_name: StringName) -> void:
-	if not DotFrameCost.trace:
+	if not GSFrameCost.trace:
 		return
 	var now := Time.get_ticks_usec()
 	_close_split(now)
@@ -95,14 +95,14 @@ func split_mark(span_name: StringName) -> void:
 
 func _close_split(now: int) -> void:
 	if _open_usec > 0:
-		DotFrameCost.span(_open_name, _open_usec, now - _open_usec)
+		GSFrameCost.span(_open_name, _open_usec, now - _open_usec)
 	_open_usec = 0
 
 
 func _put_markers() -> void:
 	var count := [0]
 	_mark_under(get_tree().root, 1, count)
-	DotLog.info(FcFrameProbe.CHANNEL, "process split markers", {"depth": split_depth, "markers": count[0]})
+	GSLog.info(FcFrameProbe.CHANNEL, "process split markers", {"depth": split_depth, "markers": count[0]})
 
 
 func _mark_under(parent: Node, depth: int, count: Array) -> void:
@@ -131,13 +131,13 @@ static func _kind(n: Node) -> String:
 
 
 func _on_pre_draw() -> void:
-	if _last_usec <= 0 or not DotFrameCost.trace:
+	if _last_usec <= 0 or not GSFrameCost.trace:
 		return
 	# A microsecond short: a span ending past the profiler's own pre-draw stamp would sit beside the process
 	# phase instead of inside it.
 	var now := Time.get_ticks_usec() - 1
 	if now > _last_usec:
-		DotFrameCost.span(PF_TAIL, _last_usec, now - _last_usec)
+		GSFrameCost.span(PF_TAIL, _last_usec, now - _last_usec)
 	_last_usec = 0
 
 

@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBspMap := preload("../maps/fc_bsp_map.gd")
 const FcPresentationFrame := preload("../game/fc_presentation_vars_and_frame.gd")
@@ -10,7 +10,7 @@ const EXPECTED_CHECKS := 14
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 

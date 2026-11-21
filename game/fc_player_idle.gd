@@ -1,10 +1,10 @@
 @tool
 extends "fc_player_state.gd"
 
-## The arsenal's [member DotWeaponArsenal.idle_posture] (set in [method _build_arsenal]): the posture fields
+## The arsenal's [member GSWeaponArsenal.idle_posture] (set in [method _build_arsenal]): the posture fields
 ## of the full context [method simulate_tick] builds, from the same simulated state, so an idle tick's
 ## spread state matches a full tick's.
-func _idle_posture() -> DotWeaponContext:
+func _idle_posture() -> GSWeaponContext:
 	var ctx := _posture_ctx
 	ctx.tick = _posture_tick
 	ctx.authority = arsenal.authority if arsenal != null else false
@@ -21,7 +21,7 @@ func _idle_posture() -> DotWeaponContext:
 	return ctx
 
 
-## The arsenal's [member DotWeaponArsenal.idle_still]: whether [method _idle_posture] is the settled one
+## The arsenal's [member GSWeaponArsenal.idle_still]: whether [method _idle_posture] is the settled one
 ## (still, grounded, standing, no flinch left), so a weapon with nothing to recover skips its tick.
 ## Erring towards false only costs a tick.
 func _idle_still() -> bool:
@@ -35,13 +35,13 @@ func _idle_still() -> bool:
 	if hurt < 0 or _posture_tick < hurt:
 		return true
 	var rate := maxi(arsenal.tick_rate, 64) if arsenal != null else 64
-	return _posture_tick - hurt > ceili(DotWeaponAccuracyClass.FLINCH_SEC * float(rate))
+	return _posture_tick - hurt > ceili(GSWeaponAccuracyClass.FLINCH_SEC * float(rate))
 
 
 ## [method _idle_posture] as the packed row of [method AwWeaponRig.simulate_idle_row] ([code][speed, airborne, crouched,
 ## aiming, sliding, sprinting, wall_running, tick, hurt_tick][/code], aiming never set there), written into
 ## [member _posture_row], with [method _idle_still]'s answer returned: one read of the controller state for both.
-## Needs a controller (the caller checks). dot-sim's [code]DotSimPlayerPost[/code] answers it where the library has it
+## Needs a controller (the caller checks). dot-sim's [code]GSSimPlayerPost[/code] answers it where the library has it
 ## (bit for bit: [code]headless_posture_native_parity[/code]); [method _idle_row_script] is the fallback (web without the
 ## library, [member posture_native] off).
 func _idle_row() -> bool:
@@ -54,27 +54,27 @@ func _idle_row() -> bool:
 	return _idle_row_script()
 
 
-## Whether [member _native_post] is there, made on first use (the library has [code]DotSimPlayerPost[/code]).
+## Whether [member _native_post] is there, made on first use (the library has [code]GSSimPlayerPost[/code]).
 func _post_native() -> bool:
 	if _native_post == null:
-		if not DotSim.has(&"players"):
+		if not GSSim.has(&"players"):
 			return false
 		_native_post = make_native_post()
 	return true
 
 
-## A configured dot-sim [code]DotSimPlayerPost[/code] (the library must have it: [code]DotSim.has(&"players")[/code]),
+## A configured dot-sim [code]GSSimPlayerPost[/code] (the library must have it: [code]GSSim.has(&"players")[/code]),
 ## for one player's [method _idle_row] or for FcGame's batched loop, which fills every idle player's row in one call.
 static func make_native_post() -> Object:
-	var post: Object = ClassDB.instantiate(&"DotSimPlayerPost")
-	post.configure(DotFpsState.Mode.GROUND, DotWeaponAccuracyClass.FLINCH_SEC)
+	var post: Object = ClassDB.instantiate(&"GSSimPlayerPost")
+	post.configure(GSFpsState.Mode.GROUND, GSWeaponAccuracyClass.FLINCH_SEC)
 	return post
 
 
-## The input row of [code]DotSimPlayerPost.run_rows[/code] for this player, 10 floats at [param at] in [param into],
-## after [method tick_post_head] answered true. [param batch] (a [DotFpsMotorBatch] with [code]post_row[/code], API 34, or
+## The input row of [code]GSSimPlayerPost.run_rows[/code] for this player, 10 floats at [param at] in [param into],
+## after [method tick_post_head] answered true. [param batch] (a [GSFpsMotorBatch] with [code]post_row[/code], API 34, or
 ## null) and [param row] are the batched loop's motor row: its
-## first 7 columns come from the batch's answer ([method DotFpsMotorBatch.post_row]) unless something after the motor
+## first 7 columns come from the batch's answer ([method GSFpsMotorBatch.post_row]) unless something after the motor
 ## moved the state ([member _post_moved]); else from the state. With [member posture_verify] the row is checked here.
 func post_input(into: PackedFloat64Array, at: int, batch: Object, row: int) -> void:
 	var state := controller.state
@@ -144,16 +144,16 @@ func _idle_row_script() -> bool:
 	if hurt < 0 or _posture_tick < hurt:
 		return true
 	var rate := maxi(arsenal.tick_rate, 64) if arsenal != null else 64
-	return _posture_tick - hurt > ceili(DotWeaponAccuracyClass.FLINCH_SEC * float(rate))
+	return _posture_tick - hurt > ceili(GSWeaponAccuracyClass.FLINCH_SEC * float(rate))
 
 
 ## [method _idle_posture]'s context, refilled each idle tick: a new one per idle player per tick cost
 ## an allocation of 21 fields and a dictionary. A behaviour's tick only reads it.
-var _posture_ctx := DotWeaponContext.new()
+var _posture_ctx := GSWeaponContext.new()
 
 
 ## Cvar [code]fc_posture_native[/code]: 1 runs [method _idle_row] in dot-sim where its library has
-## [code]DotSimPlayerPost[/code] (bit for bit with the script); 0 runs the script (the reference and the A/B arm).
+## [code]GSSimPlayerPost[/code] (bit for bit with the script); 0 runs the script (the reference and the A/B arm).
 static var posture_native := true
 
 
@@ -175,7 +175,7 @@ var _idle_now := false
 var _muzzle := Vector3.ZERO
 
 
-## dot-sim's [code]DotSimPlayerPost[/code] for this player, or null before the first native [method _idle_row].
+## dot-sim's [code]GSSimPlayerPost[/code] for this player, or null before the first native [method _idle_row].
 var _native_post: Object = null
 
 

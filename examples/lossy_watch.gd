@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 ## Shared state, the harness and the boot of headless_lossy, split out for the file size gate.
 
 const FcGame := preload("../game/fc_game.gd")

@@ -1,10 +1,10 @@
 extends RefCounted
 ## The map's PVS before a bot's sight ray (cvar `fc_bot_pvs`), as the Source engine asks it before its own trace
 ## (`CCSBot::IsVisible`): a cluster pair that no position can see between needs no ray. The PVS is the one dot-net
-## already holds for snapshot interest (`DotNetVisibility`, attached by the module on a converted map with vis data).
+## already holds for snapshot interest (`GSNetVisibility`, attached by the module on a converted map with vis data).
 ## [b]Same answers:[/b] the set only says "no" where the map's world brushes block every line between the two clusters
 ## (doors count as open), so the ray it saves would have come back blocked; `fc_bot_pvs_verify` (scale128 `--pvsverify`)
-## casts it anyway and counts every disagreement. dot-sim's `DotSimPvs` asks the same set natively (cvar
+## casts it anyway and counts every disagreement. dot-sim's `GSSimPvs` asks the same set natively (cvar
 ## `fc_bot_pvs_native`, bit for bit with the script). Without the library no set is asked: the script set costs more
 ## than the rays it saves (scale128 A/B, blackhawkdown 32 bots: bot_los 0.50 ms off, 0.36 native, 0.65 script), so it
 ## answers only when `fc_bot_pvs_native` is 0 (the reference and the A/B arm).
@@ -15,7 +15,7 @@ const META := &"fc_bot_pvs_set"
 
 ## Cvar `fc_bot_pvs`: 0 casts every sight ray.
 static var enabled := true
-## Cvar `fc_bot_pvs_native`: 0 asks the script set even where dot-sim has `DotSimPvs` (slower than no set).
+## Cvar `fc_bot_pvs_native`: 0 asks the script set even where dot-sim has `GSSimPvs` (slower than no set).
 static var native := true
 ## Cvar `fc_bot_pvs_verify`: every pair the set rules out is also cast, and with the native set every ask is also
 ## put to the script set; [member stats] counts what disagreed. The ray's answer is the one used.
@@ -26,7 +26,7 @@ static var counting := false
 static var stats := PackedInt64Array([0, 0, 0, 0])
 static var _lock := Mutex.new()
 
-## The script set ([code]DotNetVisibility[/code]) of the map in play, or null.
+## The script set ([code]GSNetVisibility[/code]) of the map in play, or null.
 var script_set: Object = null
 ## The set [method open] asks: the native one, the script one or null (no PVS: every ray is cast).
 var active: Object = null
@@ -58,10 +58,10 @@ func bind(game: Object) -> void:
 	if not native:
 		active = vis
 		return
-	if not DotSim.has(&"pvs"):
+	if not GSSim.has(&"pvs"):
 		return
 	if _native == null:
-		_native = ClassDB.instantiate(&"DotSimPvs")
+		_native = ClassDB.instantiate(&"GSSimPvs")
 	if int(_native.call(&"serial")) != int(script_set.get("serial")):
 		if not bool(_native.call(&"load", script_set.call(&"native_dict"))):
 			return

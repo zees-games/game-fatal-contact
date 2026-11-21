@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcTestToys := preload("fc_test_toys.gd")
 const HeadlessNetSteps := preload("headless_net_steps.gd")
@@ -71,7 +71,7 @@ var _entered := 0
 var _completed := 0
 
 var _server_game: FcGame = null
-var _server_net: DotNetManager = null
+var _server_net: GSNetManager = null
 var _server_bridge: FcNetBridge = null
 
 ## peer id -> {game, net, bridge}
@@ -101,18 +101,18 @@ func _wire_remote(remote, state: Dictionary, flags: Dictionary) -> void:
 	remote.connected_fn = func(_p: int) -> bool: return true
 	remote.permit_uid_fn = func(uid: String, flag: String) -> bool: return (flags.get(uid, []) as Array).has(flag)
 	remote.now_fn = func() -> int: return state["now"]
-	remote.limiter = DotRateLimiter.new(1000.0, 1000.0)
+	remote.limiter = GSRateLimiter.new(1000.0, 1000.0)
 
 
 ## A guest, a flagless player, a revoked admin and the cvar switched off are all refused.
 func _workbench_revocations(c: Dictionary) -> void:
 	var state: Dictionary = c["state"]
 	var flags: Dictionary = c["flags"]
-	var cremote: DotGameWorkbenchRemoteClient = c["cremote"]
+	var cremote: GSGameWorkbenchRemoteClient = c["cremote"]
 	var remote = c["remote"]
 	var edit: Dictionary = c["edit"]
 	var sgame: FcGame = c["sgame"]
-	var cwb: DotGameWorkbench = c["cwb"]
+	var cwb: GSGameWorkbench = c["cwb"]
 	state["uid"] = ""
 	var _q2 := cremote.request(edit.merged({"value": 12}))
 	_check(sgame.config.horde_cap == 11, "a guest's forged edit is refused")
@@ -164,15 +164,15 @@ func _make_game(authority: bool) -> FcGame:
 	return game
 
 
-func _make_manager(is_server: bool, scope: StringName, peer_id: int) -> DotNetManager:
-	var net := DotNetManager.new()
+func _make_manager(is_server: bool, scope: StringName, peer_id: int) -> GSNetManager:
+	var net := GSNetManager.new()
 	net.name = "Net%s" % scope
 	net.is_server = is_server
 	net.service_scope = scope
 	net.local_peer_id = peer_id
 	net.auto_tick = false
 	net.config_file = ""
-	net.config = DotNetConfig.new()
+	net.config = GSNetConfig.new()
 	net.config.tick_rate = TICK_RATE
 	net.config.snapshot_rate = SNAPSHOT_RATE
 	# These ticks are driven by hand, as fast as the host runs them: the adaptive buffer would
@@ -187,7 +187,7 @@ func _make_manager(is_server: bool, scope: StringName, peer_id: int) -> DotNetMa
 
 	_check(net.setup().ok, "%s manager sets up" % scope)
 
-	# NOT started here. `DotNetManager.start` seals the message registry, and
+	# NOT started here. `GSNetManager.start` seals the message registry, and
 	# `FcNetBridge.attach` registers this game's two message types — registering
 	# after the seal fails, because ids are on the wire and adding a type would
 	# renumber every id above it and silently reinterpret every message. So the order
@@ -197,7 +197,7 @@ func _make_manager(is_server: bool, scope: StringName, peer_id: int) -> DotNetMa
 
 
 ## Seals the message registry and starts a manager. Called AFTER its bridge attached.
-func _start(net: DotNetManager) -> void:
+func _start(net: GSNetManager) -> void:
 	net.messages.seal()
 	net.start()
 
@@ -265,12 +265,12 @@ func _join_everyone() -> void:
 	print("[joins]")
 
 	# What the identity layer resolved for peer 2: a member's site avatar, translated.
-	var site_doc := DotAvatar.make(&"builtin")
+	var site_doc := GSAvatar.make(&"builtin")
 	site_doc.set_part(&"top", &"top.skin-c")
 	site_doc.set_part(&"face", &"face.skin-k")
-	var dressed: DotAvatar = preload("../game/fc_avatars.gd").from_site(site_doc)
+	var dressed: GSAvatar = preload("../game/fc_avatars.gd").from_site(site_doc)
 	var dressed_session := int(_clients[2]["session"])
-	_server_bridge.avatar_fn = func(session_id: int) -> DotAvatar:
+	_server_bridge.avatar_fn = func(session_id: int) -> GSAvatar:
 		return dressed if session_id == dressed_session else null
 
 	for peer_id in _clients:
@@ -299,7 +299,7 @@ func _join_everyone() -> void:
 		_deliver_event(peer_id, FcEvents.Kind.TOYS, _server_bridge.get("_toys_body"))
 		_quiet_client_toys(peer_id)
 
-		var net: DotNetManager = _clients[peer_id]["net"]
+		var net: GSNetManager = _clients[peer_id]["net"]
 		_check(net.registry.count() == 2 + toys and bridge.toy_count() == toys, "client %d knows both players, and the toys" % peer_id)
 
 		var mine := net.registry.owned_by(peer_id)
@@ -325,9 +325,9 @@ func _join_everyone() -> void:
 
 	# The profile arrives after seating: the server re-describes them, and a client that
 	# already has them takes the new name and figure.
-	var later_doc := DotAvatar.make(&"builtin")
+	var later_doc := GSAvatar.make(&"builtin")
 	later_doc.set_part(&"top", &"skin-e")
-	var later: DotAvatar = preload("../game/fc_avatars.gd").from_site(later_doc)
+	var later: GSAvatar = preload("../game/fc_avatars.gd").from_site(later_doc)
 	_check(
 		_server_bridge.refresh_player(dressed_session, "Ada", later),
 		"the server re-describes a seated player"
@@ -342,17 +342,17 @@ func _join_everyone() -> void:
 # --- Running ---------------------------------------------------------------
 
 func _commands_for(peer_id: int, tick: int) -> Array:
-	var move := DotFpsCommand.new()
+	var move := GSFpsCommand.new()
 	# Peer 2 runs one way and peer 3 the other, so a client that received only its
 	# own entity's updates would still fail the convergence check below.
 	move.move = Vector2(0.0, 1.0 if peer_id == 2 else -1.0)
 	move.yaw = 0.0 if peer_id == 2 else 180.0
 
-	var fire := DotWeaponCommand.new()
+	var fire := GSWeaponCommand.new()
 	fire.slot = 2
 
 	if tick % 8 == 0:
-		fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+		fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 
 	return [move, fire]
 
@@ -401,10 +401,10 @@ func _run_ticks() -> void:
 ## its spawns stand 190 m from the origin, past the 128 m `NET_WORLD_EXTENT` was until
 ## this map, where every position the server sent was clamped to the edge of the quantiser.
 func _follow_onto_imported(
-	host: DotMapSyncHost, client_game: FcGame, client_entry: Dictionary, peer: int,
+	host: GSMapSyncHost, client_game: FcGame, client_entry: Dictionary, peer: int,
 	back_to: StringName
 ) -> void:
-	var changed: DotResult = await host.change_to(IMPORTED_MAP)
+	var changed: GSResult = await host.change_to(IMPORTED_MAP)
 	_check(changed.ok and _server_game.map.id == IMPORTED_MAP and client_game.map.id == IMPORTED_MAP,
 		"the server changes to an imported combat surf map and the client follows",
 		str(changed.error) if not changed.ok else String(client_game.map.id))
@@ -440,9 +440,9 @@ func _follow_onto_imported(
 
 	var start_y := on_server.controller.state.position.y
 	var peak := [start_y]
-	var watch := func(_t: int, state: DotFpsState) -> void: peak[0] = maxf(peak[0], state.position.y)
+	var watch := func(_t: int, state: GSFpsState) -> void: peak[0] = maxf(peak[0], state.position.y)
 	on_server.controller.simulated.connect(watch)
-	var hop := _flight_window(peer, 64, DotFpsCommand.BUTTON_JUMP)
+	var hop := _flight_window(peer, 64, GSFpsCommand.BUTTON_JUMP)
 	on_server.controller.simulated.disconnect(watch)
 	print("  measured: imported map, jump peak %.2f m, worst gap %.2f m (%s)" % [
 		float(peak[0]) - start_y, float(hop["worst_gap"]), hop["worst_at"]
@@ -477,7 +477,7 @@ func _follow_onto_imported(
 		"worst %.3f m against the server's same tick, %.2f m at the same moment" % [
 			float(boosted["worst_aligned"]), float(boosted["worst_gap"])])
 
-	var back: DotResult = await host.change_to(back_to)
+	var back: GSResult = await host.change_to(back_to)
 	_check(back.ok and client_game.map.id == back_to and client_game.map.collision_root == null,
 		"and back to %s, with the imported solid gone from the client too" % back_to,
 		str(back.error) if not back.ok else "")
@@ -523,7 +523,7 @@ func _capture_link(sent: Array) -> FcNetLink:
 
 
 ## Sets a ballistic tuning's [muzzle_velocity, max_range, tracer_interval, pellets].
-func _tune(tuning: DotWeaponBallistics, v: Array) -> void:
+func _tune(tuning: GSWeaponBallistics, v: Array) -> void:
 	tuning.muzzle_velocity = v[0]
 	tuning.max_range = v[1]
 	tuning.tracer_interval = v[2]
@@ -531,8 +531,8 @@ func _tune(tuning: DotWeaponBallistics, v: Array) -> void:
 
 
 ## One deferred shot from player 11 at a fixed origin, resolved through the bullet bridge.
-func _fire_test_shot(weapon_id: StringName, tuning: DotWeaponBallistics) -> void:
-	var shot := DotShot.new()
+func _fire_test_shot(weapon_id: StringName, tuning: GSWeaponBallistics) -> void:
+	var shot := GSShot.new()
 	shot.attacker = 11
 	shot.weapon_id = weapon_id
 	shot.tick = _server_game.current_tick()
@@ -562,19 +562,19 @@ func _quiet_client_toys(peer_id: int) -> void:
 
 
 func _deliver_event(peer_id: int, kind: int, body: PackedByteArray) -> void:
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	var _wrote := _server_net.messages.encode(FcEvent.new(kind, body), writer)
-	var _received: DotResult = _clients[peer_id]["bridge"].receive_event(writer.to_bytes())
+	var _received: GSResult = _clients[peer_id]["bridge"].receive_event(writer.to_bytes())
 
 
 ## The client's copy of a monster is where the server has it and faces the same way.
 func _check_monster_mirror(mirror: Node3D, monster, client_bridge: FcNetBridge, server_net: Object, net_id: int) -> void:
 	var gap := mirror.global_position.distance_to(monster.position())
 	_check(gap < 1.0, "and draws it where the server has it", "%.2f m apart" % gap)
-	_check(absf(angle_difference(mirror.rotation.y, DotNpcNetSync.yaw_of(monster))) < 0.3,
+	_check(absf(angle_difference(mirror.rotation.y, GSNpcNetSync.yaw_of(monster))) < 0.3,
 		"facing the way the server's faces",
 		"client %.2f, server %.2f rad; client faces %s, server faces %s" % [
-			mirror.rotation.y, DotNpcNetSync.yaw_of(monster),
+			mirror.rotation.y, GSNpcNetSync.yaw_of(monster),
 			str((-mirror.global_basis.z).snapped(Vector3(0.01, 0.01, 0.01))),
 			str(monster.facing().snapped(Vector3(0.01, 0.01, 0.01))),
 		] + " | mirror net (%.2f,%.2f,%.2f) yaw %d, server net (%.2f,%.2f,%.2f) yaw %d" % [
@@ -622,7 +622,7 @@ func _driven_window(peer: int, driver: WallRouteDriver, ticks: int) -> Dictionar
 		for peer_id in _clients:
 			var pair := _commands_for(peer_id, tick)
 			if peer_id == peer:
-				pair = [driver.next(predicted.controller.state), DotWeaponCommand.new()]
+				pair = [driver.next(predicted.controller.state), GSWeaponCommand.new()]
 			made[peer_id] = pair
 
 			var packet: PackedByteArray = _clients[peer_id]["bridge"].encode_input(
@@ -709,7 +709,7 @@ func _lag_repeat_gap(peer: int, tick: int) -> float:
 ## (0 for nobody), and reports how far that peer's prediction of itself strayed from the
 ## server's simulation of it: `{worst_gap, grounded_ticks}`, the second counting ticks the
 ## client predicted it out of noclip.
-## [param moves] overrides a peer's command for the whole window (peer -> DotFpsCommand), and
+## [param moves] overrides a peer's command for the whole window (peer -> GSFpsCommand), and
 ## `closest` is the nearest the server ever had the two clients' players on the ground plane.
 func _flight_window(peer: int, ticks: int, buttons: int, moves: Dictionary = {}) -> Dictionary:
 	var first := _server_game.current_tick() + 1
@@ -731,11 +731,11 @@ func _flight_window(peer: int, ticks: int, buttons: int, moves: Dictionary = {})
 		for peer_id in _clients:
 			var pair := _commands_for(peer_id, tick)
 			if peer_id == peer:
-				var held := DotFpsCommand.new()
+				var held := GSFpsCommand.new()
 				held.buttons = buttons
-				pair = [held, DotWeaponCommand.new()]
+				pair = [held, GSWeaponCommand.new()]
 			if moves.has(peer_id):
-				pair = [moves[peer_id], DotWeaponCommand.new()]
+				pair = [moves[peer_id], GSWeaponCommand.new()]
 			made[peer_id] = pair
 
 			var packet: PackedByteArray = _clients[peer_id]["bridge"].encode_input(
@@ -777,7 +777,7 @@ func _flight_window(peer: int, ticks: int, buttons: int, moves: Dictionary = {})
 				]
 			worst = maxf(worst, gap)
 			worst_aligned = worst
-			if predicted.controller.state.mode != DotFpsState.Mode.NOCLIP:
+			if predicted.controller.state.mode != GSFpsState.Mode.NOCLIP:
 				grounded += 1
 
 		for entry_down in _downstream:

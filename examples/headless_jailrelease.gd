@@ -23,7 +23,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -47,8 +47,8 @@ func _at(manifest: Dictionary, name: String) -> Vector3:
 	return Vector3(float(a[0]), float(a[1]), float(a[2]))
 
 
-func _door_pose(world: DotMapWorld) -> Transform3D:
-	var e: DotMapEntity = world.io.entity_of(DOOR)
+func _door_pose(world: GSMapWorld) -> Transform3D:
+	var e: GSMapEntity = world.io.entity_of(DOOR)
 	return e.node.global_transform if e.node != null else Transform3D.IDENTITY
 
 
@@ -59,14 +59,14 @@ func _run() -> void:
 		get_tree().quit(0)
 		return
 	var prefix := FcBspMap.world_prefix(String(MAP), map.manifest_path.get_base_dir())
-	var got: DotResult = DotMapBspMesh.load_prefix(prefix)
+	var got: GSResult = GSMapBspMesh.load_prefix(prefix)
 	_check(got.ok, "the converted world reads", str(got.error))
 	if not got.ok:
 		get_tree().quit(1)
 		return
-	var manifest: Dictionary = (got.value as DotMapBspMesh).manifest
+	var manifest: Dictionary = (got.value as GSMapBspMesh).manifest
 
-	var cell := DotMapOneWayGlass.cell_of(manifest)
+	var cell := GSMapOneWayGlass.cell_of(manifest)
 	_check(not cell.is_empty(), "the jail cell is found by shape")
 	var centre: Vector3 = cell.get("centre", Vector3.ZERO)
 	_check(centre.distance_to(_at(manifest, "jail1")) < 3.0, "and it is where the falls land", str(centre))
@@ -83,11 +83,11 @@ func _run() -> void:
 		falls += 1 if str((v as Dictionary).get("target", "")) == "jail1" else 0
 	_check(falls >= 3, "and the falls still land in the cell", str(falls))
 
-	var hook := DotMapOneWayGlass.hook(centre, float(cell["radius"]))
+	var hook := GSMapOneWayGlass.hook(centre, float(cell["radius"]))
 	var made: Variant = hook.call({"glass": "glass", "tint": []})
 	_check(made is ShaderMaterial, "clear glass takes the one-way material")
 	_check(hook.call({"glass": "bars", "tint": []}) == null, "while bars keep their own look")
-	_check(DotMapOneWayGlass.sees_solid(centre, centre, float(cell["radius"])) and not DotMapOneWayGlass.sees_solid(centre + Vector3(0, 0, 30), centre, float(cell["radius"])), "the glass is solid from inside the cell and clear from outside")
+	_check(GSMapOneWayGlass.sees_solid(centre, centre, float(cell["radius"])) and not GSMapOneWayGlass.sees_solid(centre + Vector3(0, 0, 30), centre, float(cell["radius"])), "the glass is solid from inside the cell and clear from outside")
 
 	var game := FcGame.new()
 	game.name = "G"
@@ -106,9 +106,9 @@ func _run() -> void:
 		_check(false, "the map builds a mover world")
 		get_tree().quit(1)
 		return
-	var world: DotMapWorld = mio.world
+	var world: GSMapWorld = mio.world
 	var before := _door_pose(world)
-	var button: DotMapEntity = world.io.entity_of(BUTTON)
+	var button: GSMapEntity = world.io.entity_of(BUTTON)
 	var player := game.player_for(21)
 	var eye: Vector3 = button.origin(world.io) + Vector3(0.0, 1.0, 0.0)
 	player.controller.state.position = eye - Vector3(0.0, 1.6, 0.0)
@@ -130,7 +130,7 @@ func _run() -> void:
 ## The jail glass as a rule for gameplay: a bot inside cannot see out, a shot from inside stops at the glass, a shooter
 ## outside reaches in, and a camera (plain world-layer ray) is unaffected.
 func _check_glass_sight(game: FcGame, centre: Vector3) -> void:
-	var rules: DotMapGlassSight = game.glass_rules
+	var rules: GSMapGlassSight = game.glass_rules
 	_check(rules.glass_mask != 0 and rules.centre.distance_to(centre) < 0.01, "the game's glass rule has the cell and the glass layer", str(rules.glass_mask))
 	_check(rules.problem() == "" and rules.world_mask != 0 and rules.glass_mask & rules.world_mask == 0, "the glass has its own bit, apart from the world's", rules.problem())
 	var root := game.map.collision_root
@@ -180,7 +180,7 @@ func _check_glass_sight(game: FcGame, centre: Vector3) -> void:
 	rules.centre = origin
 	var beyond := edge + dir * 3.0
 	var far := origin + dir * (rules.radius + 4.0)
-	var trace: DotTrace = game.combat.trace
+	var trace: GSTrace = game.combat.trace
 	var bots := FcBots.world_for(game)
 	_check(not bots.line_of_sight(origin, beyond), "a bot inside cannot see out through the glass")
 	rules.block_sight = false

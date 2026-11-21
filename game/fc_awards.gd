@@ -8,21 +8,21 @@ const FcStats := preload("fc_stats.gd")
 ## Every rule reads an id from [FcStats] and nothing else. That is the whole
 ## integration: dot-achievements never hears about a kill, a weapon or a round — it
 ## hears that a number moved, which is what makes the catalogue a thing an operator
-## could edit into a JSON file without a rebuild ([method DotAchievementCatalogue.save_json_file]
-## writes exactly the shape [method DotAchievementCatalogue.from_json_file] reads).
+## could edit into a JSON file without a rebuild ([method GSAchievementCatalogue.save_json_file]
+## writes exactly the shape [method GSAchievementCatalogue.from_json_file] reads).
 ##
 ## [b]One stat may be read with only one merge rule across the whole catalogue.[/b]
-## dot-achievements refuses a catalogue that breaks it, at [method DotAchievementCatalogue.validate]
+## dot-achievements refuses a catalogue that breaks it, at [method GSAchievementCatalogue.validate]
 ## rather than at the first reading, and the reason is worth restating: one number
 ## cannot be both a running total and a personal best. So every rule over
 ## [constant FcStats.BEST_STREAK] and [constant FcStats.BEST_ROUND_KILLS] uses
-## [constant DotAchievementRule.Merge.HIGHEST] and everything else uses
-## [constant DotAchievementRule.Merge.SUM]. The helpers below are the only reason that
+## [constant GSAchievementRule.Merge.HIGHEST] and everything else uses
+## [constant GSAchievementRule.Merge.SUM]. The helpers below are the only reason that
 ## cannot be got wrong one entry at a time.
 ##
 ## The counterpart of that rule lives in [FcProgress]: dot-stats' `recorded` signal
 ## carries a session total and an achievement is about a lifetime, so
-## [DotAchievementStatsLink] differences SUM stats and passes the rest through. A
+## [GSAchievementStatsLink] differences SUM stats and passes the rest through. A
 ## HIGHEST stat here is therefore an absolute in both systems, which is the only way
 ## "best streak" means the same thing on both sides.
 
@@ -238,8 +238,8 @@ class MedalBook:
 		return out
 
 
-static func catalogue() -> DotAchievementCatalogue:
-	var out: Array[DotAchievement] = []
+static func catalogue() -> GSAchievementCatalogue:
+	var out: Array[GSAchievement] = []
 
 	# --- Kills: the spine, three tiers ------------------------------------
 	out.append(_sum(
@@ -314,11 +314,11 @@ static func catalogue() -> DotAchievementCatalogue:
 	# rules rather than a derived percentage. Accuracy is deliberately NOT a stat —
 	# see FcStats.accuracy_of — because a stored percentage is a third number that
 	# can disagree with the two it came from.
-	var sharp: Array[DotAchievementRule] = [
-		DotAchievementRule.make(FcStats.SHOTS_HIT, 5000.0),
-		DotAchievementRule.make(FcStats.ROUNDS_PLAYED, 100.0),
+	var sharp: Array[GSAchievementRule] = [
+		GSAchievementRule.make(FcStats.SHOTS_HIT, 5000.0),
+		GSAchievementRule.make(FcStats.ROUNDS_PLAYED, 100.0),
 	]
-	var sharp_entry := DotAchievement.make(&"arena.sharpshooter", "Sharpshooter", sharp)
+	var sharp_entry := GSAchievement.make(&"arena.sharpshooter", "Sharpshooter", sharp)
 	sharp_entry.description = "Five thousand shots landed over a hundred rounds."
 	sharp_entry.category = CAT_SKILL
 	sharp_entry.points = 50
@@ -346,7 +346,7 @@ static func catalogue() -> DotAchievementCatalogue:
 	clumsy.secret = true
 	out.append(clumsy)
 
-	return DotAchievementCatalogue.of(out)
+	return GSAchievementCatalogue.of(out)
 
 
 static func _sum(
@@ -359,9 +359,9 @@ static func _sum(
 	points: int,
 	series: StringName = &"",
 	tier: int = 0
-) -> DotAchievement:
+) -> GSAchievement:
 	return _entry(
-		id, display, stat, threshold, DotAchievementRule.Merge.SUM,
+		id, display, stat, threshold, GSAchievementRule.Merge.SUM,
 		description, category, points, series, tier
 	)
 
@@ -376,9 +376,9 @@ static func _best(
 	points: int,
 	series: StringName = &"",
 	tier: int = 0
-) -> DotAchievement:
+) -> GSAchievement:
 	return _entry(
-		id, display, stat, threshold, DotAchievementRule.Merge.HIGHEST,
+		id, display, stat, threshold, GSAchievementRule.Merge.HIGHEST,
 		description, category, points, series, tier
 	)
 
@@ -388,17 +388,17 @@ static func _entry(
 	display: String,
 	stat: StringName,
 	threshold: float,
-	merge: DotAchievementRule.Merge,
+	merge: GSAchievementRule.Merge,
 	description: String,
 	category: StringName,
 	points: int,
 	series: StringName,
 	tier: int
-) -> DotAchievement:
-	var rules: Array[DotAchievementRule] = [
-		DotAchievementRule.make(stat, threshold, DotAchievementRule.Op.AT_LEAST, merge)
+) -> GSAchievement:
+	var rules: Array[GSAchievementRule] = [
+		GSAchievementRule.make(stat, threshold, GSAchievementRule.Op.AT_LEAST, merge)
 	]
-	var out := DotAchievement.make(id, display, rules)
+	var out := GSAchievement.make(id, display, rules)
 	out.description = description
 	out.category = category
 	out.points = points

@@ -15,7 +15,7 @@ var _added: Array[String] = []
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -38,21 +38,21 @@ func _frames(n: int) -> void:
 
 ## The client's own warm-up for flashes (FcClient._prewarm_tick, phase 1), without the gate.
 func _warm(cam: Camera3D, host: AwShotFx) -> void:
-	DotMuzzleFlash.pin_scenes(1 << 30)
+	GSMuzzleFlash.pin_scenes(1 << 30)
 	# Wait on the pools being built, not on the clock: the game's 4 s give-up (and a frame cap, which runs out in
 	# milliseconds of wall time on a headless box) opened this gate on a loaded machine with the pools unbuilt, and
 	# every flash after it then built nodes.
-	var old_timeout := DotWeaponMuzzle.warm_timeout_msec
-	DotWeaponMuzzle.warm_timeout_msec = 120000
-	var rig: Node3D = DotMuzzleFlash.prewarm(cam)
+	var old_timeout := GSWeaponMuzzle.warm_timeout_msec
+	GSWeaponMuzzle.warm_timeout_msec = 120000
+	var rig: Node3D = GSMuzzleFlash.prewarm(cam)
 	for category in ["pistol", "smg", "rifle", "shotgun"]:
 		for fp in [true, false]:
-			DotWeaponMuzzle.warm(host, category, null, fp)
+			GSWeaponMuzzle.warm(host, category, null, fp)
 	var deadline := Time.get_ticks_msec() + 120000
-	while not DotWeaponMuzzle.warm_done() and Time.get_ticks_msec() < deadline:
+	while not GSWeaponMuzzle.warm_done() and Time.get_ticks_msec() < deadline:
 		await get_tree().process_frame
-	_check(DotWeaponMuzzle.warm_done(), "the flash pools were built before the shots")
-	DotWeaponMuzzle.warm_timeout_msec = old_timeout
+	_check(GSWeaponMuzzle.warm_done(), "the flash pools were built before the shots")
+	GSWeaponMuzzle.warm_timeout_msec = old_timeout
 	await _frames(4)
 	if rig != null:
 		rig.queue_free()
@@ -60,7 +60,7 @@ func _warm(cam: Camera3D, host: AwShotFx) -> void:
 
 
 func _run() -> void:
-	DotMuzzleFlash.force_available = true
+	GSMuzzleFlash.force_available = true
 	var world := Node3D.new()
 	add_child(world)
 	var cam := Camera3D.new()
@@ -100,10 +100,10 @@ func _run() -> void:
 
 ## A death's first body: the yard's prewarm makes and drops one stock body (no signal, no sound, none left), and a real spawn after it builds the same nodes.
 func _ragdoll() -> void:
-	var yard := DotPlayerRagdolls.new()
+	var yard := GSPlayerRagdolls.new()
 	add_child(yard)
 	var spawned := [0]
-	var _c := yard.spawned.connect(func(_r: DotPlayerRagdoll) -> void: spawned[0] += 1)
+	var _c := yard.spawned.connect(func(_r: GSPlayerRagdoll) -> void: spawned[0] += 1)
 	var t0 := Time.get_ticks_usec()
 	yard.prewarm()
 	var ms := (Time.get_ticks_usec() - t0) / 1000.0

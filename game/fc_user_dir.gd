@@ -39,7 +39,7 @@ static func migrate() -> int:
 	var copied := -1
 	if DirAccess.dir_exists_absolute(from) and from.simplify_path() != to.simplify_path():
 		copied = copy_tree(from, to)
-		DotLog.info(CHANNEL, "copied the old user folder into the new one (the old folder is kept)", {"files": copied, "from": from, "to": to})
+		GSLog.info(CHANNEL, "copied the old user folder into the new one (the old folder is kept)", {"files": copied, "from": from, "to": to})
 	var f := FileAccess.open(MARKER, FileAccess.WRITE)
 	if f != null:
 		f.store_string("%s\n%d\n" % [from, copied])
@@ -62,7 +62,7 @@ static func copy_tree(from: String, to: String, top: bool = true) -> int:
 		if DirAccess.copy_absolute(src, dst) == OK:
 			count += 1
 		else:
-			DotLog.warn(CHANNEL, "could not copy a file into the new user folder", {"file": src})
+			GSLog.warn(CHANNEL, "could not copy a file into the new user folder", {"file": src})
 	for d in dir.get_directories():
 		if (top and SKIP.has(d)) or dir.is_link(d):
 			continue

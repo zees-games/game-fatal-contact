@@ -8,9 +8,9 @@ const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcMapDoc := preload("../maps/fc_map_doc.gd")
 const FcMode := preload("fc_mode.gd")
 
-## This game's maps as dot-map content. [b]The awkward part:[/b] dot-map treats a map as content (id, version, scene path) and [FcMap] builds these in code on purpose ("the headless test and the played game must get the same map"), so [member DotMapDef.scene_path] names [b]the script that produces the map[/b] and [code]meta.builder[/code] says so.
-## That is the seam: rotation, cooldowns, nominations, ballots and the announce/ready/load protocol work on id and version and never open the scene; only [DotMapLoader] reads `scene_path`, and [FcMapDirector] calls [method FcMap.by_id] for a built-in.
-## A [b]delivered[/b] map (see [method delivered_def]) sets [member DotMapDef.content_id] and points at the manifest in its pack. The path is a real file, not a `code://` sentinel, so a validator can check it.
+## This game's maps as dot-map content. [b]The awkward part:[/b] dot-map treats a map as content (id, version, scene path) and [FcMap] builds these in code on purpose ("the headless test and the played game must get the same map"), so [member GSMapDef.scene_path] names [b]the script that produces the map[/b] and [code]meta.builder[/code] says so.
+## That is the seam: rotation, cooldowns, nominations, ballots and the announce/ready/load protocol work on id and version and never open the scene; only [GSMapLoader] reads `scene_path`, and [FcMapDirector] calls [method FcMap.by_id] for a built-in.
+## A [b]delivered[/b] map (see [method delivered_def]) sets [member GSMapDef.content_id] and points at the manifest in its pack. The path is a real file, not a `code://` sentinel, so a validator can check it.
 
 
 const CHANNEL := "arena.maps"
@@ -47,8 +47,8 @@ const MAP_VERSIONS := {
 ## Every built-in map, as dot-map content, built from [method FcMap.ids] rather than listed here. [b]A second list of the maps is the bug this family has shipped four times[/b]:
 ## `setup.sh`, `tools/check.sh`, `tools/package_check.sh` and bootstrap all carried one and all went stale.
 ## The fix is to read it from the one place that cannot, the code that makes the maps.
-static func catalogue(content: DotContentIndex = null) -> DotMapCatalogue:
-	var out := DotMapCatalogue.new()
+static func catalogue(content: GSContentIndex = null) -> GSMapCatalogue:
+	var out := GSMapCatalogue.new()
 	out.meta = {"game": "arena"}
 
 	# The built-ins, then every imported combat surf map that was found — discovered by
@@ -62,8 +62,8 @@ static func catalogue(content: DotContentIndex = null) -> DotMapCatalogue:
 
 
 ## [method catalogue] a few maps a frame: reading 100-odd manifests at once was a 156 ms frame on staging02.
-static func catalogue_async(slice: DotFrameSlice, content: DotContentIndex = null) -> DotMapCatalogue:
-	var out := DotMapCatalogue.new()
+static func catalogue_async(slice: GSFrameSlice, content: GSContentIndex = null) -> GSMapCatalogue:
+	var out := GSMapCatalogue.new()
 	out.meta = {"game": "arena"}
 	for id in FcMap.ids() + FcMap.imported_ids():
 		if slice.due():
@@ -79,7 +79,7 @@ static func catalogue_async(slice: DotFrameSlice, content: DotContentIndex = nul
 static var list_local := false
 
 
-static func _list_local(out: DotMapCatalogue) -> void:
+static func _list_local(out: GSMapCatalogue) -> void:
 	if not list_local:
 		return
 	for id in FcMap.FcLocalMaps.ids():
@@ -89,14 +89,14 @@ static func _list_local(out: DotMapCatalogue) -> void:
 ## Puts local map [param id] in [param out] (solo only: [member list_local] off adds nothing), replacing an older row of the
 ## same id, so a map dropped onto the window or re-converted while the game runs can be picked without rebuilding the
 ## catalogue. False when there is no such local map, it does not load, or the add is refused.
-static func add_local(out: DotMapCatalogue, id: StringName) -> bool:
+static func add_local(out: GSMapCatalogue, id: StringName) -> bool:
 	if not list_local or out == null or not FcMap.FcLocalMaps.is_local(id):
 		return false
 	var map: FcMap = FcMap.local(id, true)
 	if map == null:
 		return false
 	var def := _imported_def_for(id, map)
-	def.version = DotMapLocalMaps.version_of(FcMap.FcLocalMaps.entry(id))
+	def.version = GSMapLocalMaps.version_of(FcMap.FcLocalMaps.entry(id))
 	# Enabled: the solo menu lists available maps only, and nothing but this machine ever sees the row.
 	def.enabled = true
 	def.author = "local"
@@ -106,11 +106,11 @@ static func add_local(out: DotMapCatalogue, id: StringName) -> bool:
 		var _gone := out.remove(id)
 	var added := out.add(def)
 	if not added.ok:
-		DotLog.warn(CHANNEL, "a local map could not be catalogued", {"map": String(id), "why": added.error.message})
+		GSLog.warn(CHANNEL, "a local map could not be catalogued", {"map": String(id), "why": added.error.message})
 	return added.ok
 
 
-static func _list(out: DotMapCatalogue, id: StringName) -> void:
+static func _list(out: GSMapCatalogue, id: StringName) -> void:
 	var map: FcMap = FcMap.listing_by_id(id)
 
 	if map == null:
@@ -119,7 +119,7 @@ static func _list(out: DotMapCatalogue, id: StringName) -> void:
 	if map.id != id:
 		# `ids()` is kept beside `by_id` deliberately: a map in one and not the other cannot be listed or cannot be loaded, and this is the third statement of that id.
 		# A mismatch means a catalogue entry addressed by a name the builder does not answer to, which fails at the change rather than at the boot.
-		DotLog.warn(CHANNEL, "a map's own id disagrees with the one it is listed under", {
+		GSLog.warn(CHANNEL, "a map's own id disagrees with the one it is listed under", {
 			"listed": String(id), "built": String(map.id)
 		})
 		return
@@ -127,16 +127,16 @@ static func _list(out: DotMapCatalogue, id: StringName) -> void:
 	var added := out.add(_def_for(id, map))
 
 	if not added.ok:
-		DotLog.warn(CHANNEL, "a map could not be catalogued", {
+		GSLog.warn(CHANNEL, "a map could not be catalogued", {
 			"map": String(id), "why": added.error.message
 		})
 
 
-static func _follow_content(out: DotMapCatalogue, content: DotContentIndex) -> void:
+static func _follow_content(out: GSMapCatalogue, content: GSContentIndex) -> void:
 	# The Workshop's maps, after the game's own so that an id of ours always wins. The index
 	# is solo or online as its host set it, so an online session lists none of them; the
 	# catalogue is built the same way on a server, which is what keeps that one rule.
-	out.follow_content(content if content != null else DotContentIndex.shared(), accepted_map_kinds())
+	out.follow_content(content if content != null else GSContentIndex.shared(), accepted_map_kinds())
 
 	# A pack's map whose document is bad is refused and not listed. Dropped here for the
 	# list as built; [method supports_mode] and [method menu_rows] check again, because the
@@ -173,17 +173,17 @@ static func accepted_map_kinds() -> PackedStringArray:
 
 
 ## Whether [param def] came from a subscribed pack rather than from this game.
-static func is_workshop(def: DotMapDef) -> bool:
+static func is_workshop(def: GSMapDef) -> bool:
 	return def != null and def.entry_key != ""
 
 
 ## The map a subscribed pack's [param def] describes. Its `scene` is a box-list map document (`maps/fc_map_doc.gd`) or an imported map's manifest (`"kind": "arena"`, mesh `.bin` beside it), mounted through [method FcImportedMaps.add_mounted].
 ## A fresh [FcMap] each call, like [method FcMap.by_id]; a refusal is logged once per entry. The entry's id and the document's id may differ in `-` against `_` (`dm_morpheus` against `dm-morpheus`): either is accepted.
 ## A box list keeps the entry's id; an imported map is canonically its document's id (its files, world and lightmap are named by it), so the map built answers to [method workshop_map_id], not always to `def.id`.
-static func build_workshop(def: DotMapDef) -> DotResult:
+static func build_workshop(def: GSMapDef) -> GSResult:
 	if not is_workshop(def):
-		return DotResult.fail(DotError.CODE_INVALID, "not a Workshop map", String(def.id) if def != null else "")
-	var built: DotResult
+		return GSResult.fail(GSError.CODE_INVALID, "not a Workshop map", String(def.id) if def != null else "")
+	var built: GSResult
 	var imported_id := _imported_doc_id(def.scene_path)
 	if imported_id != "":
 		built = _build_workshop_imported(def, imported_id)
@@ -192,7 +192,7 @@ static func build_workshop(def: DotMapDef) -> DotResult:
 		built = FcMapDoc.build(text, def.id)
 	if not built.ok and not _refused_keys.has(def.entry_key):
 		_refused_keys[def.entry_key] = true
-		DotLog.warn(CHANNEL, "a Workshop map was refused", {
+		GSLog.warn(CHANNEL, "a Workshop map was refused", {
 			"entry": def.entry_key, "why": built.error.message,
 		})
 	return built
@@ -200,7 +200,7 @@ static func build_workshop(def: DotMapDef) -> DotResult:
 
 ## The id [param def]'s map is played under: the document's own for an imported map (see
 ## [method build_workshop]), else the entry's.
-static func workshop_map_id(def: DotMapDef) -> StringName:
+static func workshop_map_id(def: GSMapDef) -> StringName:
 	if not is_workshop(def):
 		return def.id if def != null else &""
 	var imported_id := _imported_doc_id(def.scene_path)
@@ -236,14 +236,14 @@ static func _imported_doc_id(path: String) -> String:
 	return id
 
 
-static func _build_workshop_imported(def: DotMapDef, doc_id: String) -> DotResult:
+static func _build_workshop_imported(def: GSMapDef, doc_id: String) -> GSResult:
 	if not same_map_id(doc_id, String(def.id)):
-		return DotResult.fail(DotError.CODE_INVALID, "the document's id is not the entry's id",
+		return GSResult.fail(GSError.CODE_INVALID, "the document's id is not the entry's id",
 			"%s vs %s" % [doc_id, def.id])
 	var dir := def.scene_path.get_base_dir()
 	# add_mounted finds the manifest as <id>.json, so the file must be named for the document.
 	if def.scene_path.get_file() != "%s.json" % doc_id:
-		return DotResult.fail(DotError.CODE_INVALID, "the manifest is not named for its map", def.scene_path)
+		return GSResult.fail(GSError.CODE_INVALID, "the manifest is not named for its map", def.scene_path)
 	var key := StringName(doc_id)
 	# A copy mounted already (a server-named version, or this call's last) stays: a second
 	# registration would only re-parse the manifest, or move a mount a delivered map owns.
@@ -253,18 +253,18 @@ static func _build_workshop_imported(def: DotMapDef, doc_id: String) -> DotResul
 			return added
 	var map: FcMap = FcMap.imported(key)
 	if map == null:
-		return DotResult.fail(DotError.CODE_INVALID, "the manifest cannot be built into a map", def.scene_path)
+		return GSResult.fail(GSError.CODE_INVALID, "the manifest cannot be built into a map", def.scene_path)
 	if map.spawns.is_empty():
-		return DotResult.fail(DotError.CODE_INVALID, "the map has no spawn", def.scene_path)
+		return GSResult.fail(GSError.CODE_INVALID, "the map has no spawn", def.scene_path)
 	map.display_name = def.display_name if def.display_name != "" else doc_id
-	return DotResult.success(map)
+	return GSResult.success(map)
 
 
 ## The rows of the solo map menu (M), in the ballot's ids so a server's list reads the same:
 ## every map that can host [param mode] (`map:<id>`), then every mode [param here] can host
 ## (`mode:<id>`) from [param modes] (passed in: `fc_modes.gd` preloads this file). A pack's map is named with its pack, "Name [Pack]".
 static func menu_rows(
-	catalogue: DotMapCatalogue, here: StringName, mode: FcMode, modes: Array
+	catalogue: GSMapCatalogue, here: StringName, mode: FcMode, modes: Array
 ) -> Array:
 	var out: Array = []
 	var surf: Array = []
@@ -306,15 +306,15 @@ static func imported_label(id: StringName) -> String:
 	return "Deathmatch map"
 
 
-static func _def_for(id: StringName, map: FcMap) -> DotMapDef:
+static func _def_for(id: StringName, map: FcMap) -> GSMapDef:
 	if map.is_imported():
 		return _imported_def_for(id, map)
 
-	var def := DotMapDef.new()
+	var def := GSMapDef.new()
 	def.id = id
 	def.version = MAP_VERSIONS.get(id, MAP_VERSION)
 	def.display_name = map.display_name
-	def.kind = DotMapDef.KIND_ARENA
+	def.kind = GSMapDef.KIND_ARENA
 	def.scene_path = BUILDER_PATH
 	def.author = "dot"
 	def.enabled = true
@@ -346,7 +346,7 @@ const IMPORTED_ROTATION_DEFAULT := "all"
 
 
 ## Which imported maps the rotation, the vote and nominations may offer: `all`, `none` (or empty), or a comma-separated list of ids. See [constant IMPORTED_ROTATION_DEFAULT].
-## A map left out is [member DotMapDef.enabled] false (the field dot-map's rotation pool, dot-vote's ballot and nominations read) and stays in the catalogue,
+## A map left out is [member GSMapDef.enabled] false (the field dot-map's rotation pool, dot-vote's ballot and nominations read) and stays in the catalogue,
 ## so a change to it by name still works and a client still recognises it when a server plays it.
 static var imported_rotation: String = IMPORTED_ROTATION_DEFAULT
 
@@ -370,7 +370,7 @@ static func in_rotation(id: StringName) -> bool:
 
 ## Puts [member imported_rotation] onto an existing catalogue, for a setting changed on a
 ## running server. In place, because a rotation holds its catalogue by reference.
-static func apply_rotation(catalogue: DotMapCatalogue) -> void:
+static func apply_rotation(catalogue: GSMapCatalogue) -> void:
 	if catalogue == null:
 		return
 
@@ -381,12 +381,12 @@ static func apply_rotation(catalogue: DotMapCatalogue) -> void:
 
 ## An imported map as dot-map content. [b]Local, not delivered[/b] (no `content_id`): on every machine that has it the map is files in this build's tree (the linked fc-surf-dm-maps) that `FcMap.by_id` builds, like a built-in.
 ## The version is its manifest's hash (`FcImportedMaps.version_of`), so a server and a client holding different imports of one map disagree at the announce instead of colliding against different brushes.
-static func _imported_def_for(id: StringName, map: FcMap) -> DotMapDef:
-	var def := DotMapDef.new()
+static func _imported_def_for(id: StringName, map: FcMap) -> GSMapDef:
+	var def := GSMapDef.new()
 	def.id = id
 	def.version = FcImportedMaps.version_of(id)
 	def.display_name = map.display_name
-	def.kind = DotMapDef.KIND_ARENA
+	def.kind = GSMapDef.KIND_ARENA
 	def.scene_path = BUILDER_PATH
 	def.author = map.author if map.author != "" else "unknown"
 	def.enabled = in_rotation(id)
@@ -430,7 +430,7 @@ static func _has_tagged_sides(map: FcMap) -> bool:
 
 ## Whether [param def] can host [param mode], by that one property. Used by [FcVote] to build a ballot and by [FcMapDirector] to pick the next map.
 ## A free-for-all runs anywhere; a team mode needs somewhere to put the sides.
-static func supports_mode(def: DotMapDef, mode: FcMode) -> bool:
+static func supports_mode(def: GSMapDef, mode: FcMode) -> bool:
 	if def == null or mode == null:
 		return false
 

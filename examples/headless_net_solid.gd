@@ -7,8 +7,8 @@ func _solid_walk_checks(c: Dictionary) -> void:
 	var server_b: FcPlayer = c.server_b
 	var client_game: FcGame = c.client_game
 	var place: Callable = c.place
-	var walk: DotFpsCommand = c.walk
-	var idle: DotFpsCommand = c.idle
+	var walk: GSFpsCommand = c.walk
+	var idle: GSFpsCommand = c.idle
 	var lane_x: float = c.lane_x
 	var two_radii: float = c.two_radii
 	place.call()
@@ -44,11 +44,11 @@ func _solid_walk_checks(c: Dictionary) -> void:
 	# A leg is seven ticks at 66 Hz; slower rates need more ticks to cover the same ground.
 	var leg_ticks := maxi(7, ceili(7.0 * 66.0 / float(TICK_RATE)))
 	for leg in range(14):
-		var strafe := DotFpsCommand.new()
+		var strafe := GSFpsCommand.new()
 		strafe.move = Vector2(1.0 if leg % 2 == 0 else -1.0, 0.0)
 		strafe.yaw = 0.0
-		strafe.buttons = DotFpsCommand.BUTTON_JUMP if leg % 3 == 1 else 0
-		var lean := DotFpsCommand.new()
+		strafe.buttons = GSFpsCommand.BUTTON_JUMP if leg % 3 == 1 else 0
+		var lean := GSFpsCommand.new()
 		lean.move = Vector2(0.0, 1.0)
 		lean.yaw = 0.0
 		var window := _flight_window(2, leg_ticks, 0, {2: lean, 3: strafe})
@@ -77,8 +77,8 @@ func _solid_lag_checks(c: Dictionary) -> void:
 	var server_b: FcPlayer = c.server_b
 	var client_game: FcGame = c.client_game
 	var place: Callable = c.place
-	var walk: DotFpsCommand = c.walk
-	var idle: DotFpsCommand = c.idle
+	var walk: GSFpsCommand = c.walk
+	var idle: GSFpsCommand = c.idle
 	var session_a: int = c.session_a
 	# The newest command in each packet is the encoded one, and the server keeps the first copy.
 	var walker_lag := _server_bridge.behaviour_for(session_a).last_view_lag
@@ -96,7 +96,7 @@ func _solid_lag_checks(c: Dictionary) -> void:
 	var relay := func(rules: Dictionary) -> void:
 		var bytes := _server_bridge.encode_event(FcEvents.Kind.RULES, FcEvents.write_rules(rules))
 		for peer_id in _clients:
-			var _r: DotResult = _clients[peer_id]["bridge"].receive_event(bytes)
+			var _r: GSResult = _clients[peer_id]["bridge"].receive_event(bytes)
 	_server_game.movement_rules_changed.connect(relay)
 	_server_game.max_unlag_ms = 0.0
 	_check(
@@ -125,8 +125,8 @@ func _solid_off_checks(c: Dictionary) -> void:
 	var server_b: FcPlayer = c.server_b
 	var client_game: FcGame = c.client_game
 	var place: Callable = c.place
-	var walk: DotFpsCommand = c.walk
-	var idle: DotFpsCommand = c.idle
+	var walk: GSFpsCommand = c.walk
+	var idle: GSFpsCommand = c.idle
 	_server_game.body_rules.solid = false
 	client_game.body_rules.solid = false
 	for peer_id in _clients:
@@ -156,8 +156,8 @@ func _solid_team_checks(c: Dictionary) -> void:
 	var server_b: FcPlayer = c.server_b
 	var client_game: FcGame = c.client_game
 	var place: Callable = c.place
-	var walk: DotFpsCommand = c.walk
-	var idle: DotFpsCommand = c.idle
+	var walk: GSFpsCommand = c.walk
+	var idle: GSFpsCommand = c.idle
 	# Teams: teammates pass through each other by default (mp_teamblock 0), predicted so on the
 	# walker's client; enemies still stop; a player's !block / !noblock request travels as the
 	# mp_blockstate string and flips the pair on both ends.
@@ -195,7 +195,7 @@ func _solid_team_checks(c: Dictionary) -> void:
 	_check(server_a.controller.state.position.z > server_b.controller.state.position.z
 		and float(forced["worst_aligned"]) < 0.03, "mp_teamblock 1 makes teammates stop, predicted")
 
-	_check(_server_game.block_rules.request(ids[0], [DotTeamBlockRules.Relation.TEAM], 0).ok,
+	_check(_server_game.block_rules.request(ids[0], [GSTeamBlockRules.Relation.TEAM], 0).ok,
 		"a !noblock request is accepted")
 	for g in games:
 		if g != _server_game:

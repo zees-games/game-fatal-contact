@@ -29,7 +29,7 @@ var _finished := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -42,8 +42,8 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 
 
 ## An incendiary dropped from 1.5 m over [param here] with a fuse far longer than its fall.
-func _incendiary_spawn(game: FcGame, here: Vector3, thrower: int) -> DotWeaponSpawn:
-	var spawn := DotWeaponSpawn.new()
+func _incendiary_spawn(game: FcGame, here: Vector3, thrower: int) -> GSWeaponSpawn:
+	var spawn := GSWeaponSpawn.new()
 	spawn.id = &"incendiary"
 	spawn.origin = here + Vector3(0.0, 1.5, 0.0)
 	spawn.velocity = Vector3(0.0, -6.0, 0.0)
@@ -78,7 +78,7 @@ func _gather(game: FcGame, ids: Array, together: Array, here: Vector3) -> void:
 
 
 func _run() -> void:
-	_check(FcGrenades.supported(), "fc_weapons is at the level the glue needs", str(DotAddonApi.build_level("fc_weapons")))
+	_check(FcGrenades.supported(), "fc_weapons is at the level the glue needs", str(GSAddonApi.build_level("fc_weapons")))
 	_test_wire()
 
 	var game := FcGame.new()
@@ -117,7 +117,7 @@ func _run() -> void:
 
 	var spawn := _incendiary_spawn(game, here, thrower)
 	var went_off: Array = []
-	game.projectiles.detonated.connect(func(at: Vector3, _s: DotWeaponSpawn) -> void: went_off.append(at))
+	game.projectiles.detonated.connect(func(at: Vector3, _s: GSWeaponSpawn) -> void: went_off.append(at))
 	game.projectiles.launch(spawn)
 	for _k in TICK_RATE:
 		game.tick({})
@@ -163,11 +163,11 @@ func _test_loadout(game: FcGame) -> void:
 	var cat := FcContent.catalogue()
 	var flash := cat.find(&"flash")
 	_check(flash != null and not flash.free, "the flash is not a free item")
-	var off: DotLoadoutEntitlements = game.loadouts.entitlement_source.call("k")
+	var off: GSLoadoutEntitlements = game.loadouts.entitlement_source.call("k")
 	_check(not off.allows(flash), "sv_grenade_utility 0: the flash is refused")
 	_check(off.allows(cat.find(&"frag")), "and the frag grenade stays free")
 	game.utility_grenades = true
-	var on: DotLoadoutEntitlements = game.loadouts.entitlement_source.call("k")
+	var on: GSLoadoutEntitlements = game.loadouts.entitlement_source.call("k")
 	_check(on.allows(flash) and on.allows(cat.find(&"smoke")) and on.allows(cat.find(&"incendiary")), "sv_grenade_utility 1: flash, smoke and incendiary are allowed")
 	game.utility_grenades = false
 	_finished += 1
@@ -181,10 +181,10 @@ func _test_flash_and_smoke(game: FcGame, thrower: int, enemy: int, here: Vector3
 	game.tick({})
 	var eye := victim.muzzle_position()
 	var bots := FcBots.world_for(game)
-	var brain := DotBotBrain.new(enemy, DotBotSettings.new())
+	var brain := GSBotBrain.new(enemy, GSBotSettings.new())
 	bots.brains[enemy] = brain
 	for kind in [&"flash", &"smoke"]:
-		var s := DotWeaponSpawn.new()
+		var s := GSWeaponSpawn.new()
 		s.id = kind
 		s.origin = eye + victim.aim_direction() * 2.0
 		s.velocity = Vector3.ZERO
@@ -232,7 +232,7 @@ func _test_monsters(game: FcGame, thrower: int, here: Vector3) -> void:
 	here = at_near
 	horde.spawner.limits.spawn_interval = 0.0
 	var near := horde.spawn_one(FcNpcs.GRUNT, at_near)
-	var far: DotNpcInstance = null
+	var far: GSNpcInstance = null
 	var at_far := at_near
 	for pt: Vector3 in pts:
 		if pt.distance_to(at_near) < 25.0:
@@ -249,7 +249,7 @@ func _test_monsters(game: FcGame, thrower: int, here: Vector3) -> void:
 	_check(near.blind_until <= now and not horde.senses.sight_blocked(here, here + Vector3(10.0, 0.0, 0.0)), "neither is blind and nothing blocks sight beforehand")
 
 	for kind in [&"flash", &"smoke"]:
-		var s := DotWeaponSpawn.new()
+		var s := GSWeaponSpawn.new()
 		s.id = kind
 		s.origin = here + Vector3(0.0, 1.0, 0.0)
 		s.velocity = Vector3.ZERO
@@ -279,12 +279,12 @@ func _test_monsters(game: FcGame, thrower: int, here: Vector3) -> void:
 func _test_wire() -> void:
 	_entered += 1
 	var bytes := FcEvents.write_grenade_fx(FcGrenades.Fx.BLIND, Vector3(12.5, 1.0, -30.0), 0.0, 3.5, 7)
-	var back := FcEvents.read_grenade_fx(DotNetReader.new(bytes))
+	var back := FcEvents.read_grenade_fx(GSNetReader.new(bytes))
 	_check(bool(back["ok"]) and int(back["fx"]) == FcGrenades.Fx.BLIND and int(back["victim"]) == 7, "GRENADE_FX round-trips its kind and victim")
 	_check(absf(float(back["seconds"]) - 3.5) < 0.1 and (back["position"] as Vector3).distance_to(Vector3(12.5, 1.0, -30.0)) < 0.5, "and its seconds and position")
-	var smoke := FcEvents.read_grenade_fx(DotNetReader.new(FcEvents.write_grenade_fx(FcGrenades.Fx.SMOKE, Vector3.ZERO, 6.0, 14.0, 0)))
+	var smoke := FcEvents.read_grenade_fx(GSNetReader.new(FcEvents.write_grenade_fx(FcGrenades.Fx.SMOKE, Vector3.ZERO, 6.0, 14.0, 0)))
 	_check(absf(float(smoke["radius"]) - 6.0) < 0.3 and absf(float(smoke["seconds"]) - 14.0) < 0.6, "a cloud keeps its radius and duration")
-	var soft := FcEvents.read_grenade_fx(DotNetReader.new(FcEvents.write_grenade_fx(FcGrenades.Fx.BLIND, Vector3.ZERO, 0.0, 3.0, 7, 0.4)))
+	var soft := FcEvents.read_grenade_fx(GSNetReader.new(FcEvents.write_grenade_fx(FcGrenades.Fx.BLIND, Vector3.ZERO, 0.0, 3.0, 7, 0.4)))
 	_check(absf(float(soft["strength"]) - 0.4) < 0.04 and absf(float(back["strength"]) - 1.0) < 0.001, "GRENADE_FX carries the flash strength, full by default")
 	_check(FcEvents.Kind.GRENADE_FX == FcEvents.Kind.STOMP + 1, "the kind is appended right after STOMP")
 	_finished += 1

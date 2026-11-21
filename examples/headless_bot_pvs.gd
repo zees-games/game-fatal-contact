@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcMap := preload("../maps/fc_map.gd")
 const FcBspMap := preload("../maps/fc_bsp_map.gd")
@@ -6,7 +6,7 @@ const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcBotPvs := preload("../game/fc_bot_pvs.gd")
 
 ## The bots' PVS pre-cull (FcBotPvs, cvar `fc_bot_pvs`): on converted maps with vis data, dot-sim's native
-## `DotSimPvs` gives the same cluster and the same answer as dot-net's script `DotNetVisibility` for seeded points
+## `GSSimPvs` gives the same cluster and the same answer as dot-net's script `GSNetVisibility` for seeded points
 ## (around the spawns and anywhere in the map's box, with and without bounds), `visible_many` agrees pair for pair, and
 ## the wrapper in verify mode counts no disagreement. Skips (exit 0, says so) a map that is not linked; without the
 ## library only the script set is exercised. The rays a ruled-out pair saves are checked live by scale128 `--pvsverify 1`
@@ -18,13 +18,13 @@ const SEED := 1117
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("FC — bot PVS: native and script sets agree")
-	var native := DotSim.has(&"pvs")
+	var native := GSSim.has(&"pvs")
 	if not native:
 		print("dot-sim has no pvs module: only the script set is exercised")
 	var tried := 0
@@ -34,7 +34,7 @@ func _run() -> void:
 			continue
 		var map: FcMap = FcMap.by_id(id)
 		var prefix := FcBspMap.world_prefix(String(map.id), String(map.manifest_path).get_base_dir())
-		var got: DotResult = DotMapBspMesh.load_prefix(prefix)
+		var got: GSResult = GSMapBspMesh.load_prefix(prefix)
 		if not _check(got != null and got.ok, "%s: the converted world loads" % id):
 			continue
 		var box := AABB(map.spawns[0].origin, Vector3.ZERO) if map.spawns.size() > 0 else AABB()
@@ -42,7 +42,7 @@ func _run() -> void:
 			box = box.expand(s.origin)
 		box = box.grow(24.0)
 		for bounds in [AABB(), box.grow(-12.0)]:
-			var vis: DotNetVisibility = DotNetVisibility.from_dot_map_mesh(got.value, bounds)
+			var vis: GSNetVisibility = GSNetVisibility.from_dot_map_mesh(got.value, bounds)
 			if not _check(vis != null and vis.is_ready(), "%s: the map has a PVS" % id):
 				break
 			tried += 1
@@ -51,7 +51,7 @@ func _run() -> void:
 	_report(-1)
 
 
-func _compare(id: StringName, map: FcMap, vis: DotNetVisibility, box: AABB, native: bool, bounded: bool) -> void:
+func _compare(id: StringName, map: FcMap, vis: GSNetVisibility, box: AABB, native: bool, bounded: bool) -> void:
 	var tag := "%s%s" % [id, " (bounded)" if bounded else ""]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
@@ -71,9 +71,9 @@ func _compare(id: StringName, map: FcMap, vis: DotNetVisibility, box: AABB, nati
 	_check(blocked < PAIRS, "%s: the set does not rule out every pair" % tag)
 	if not native:
 		return
-	var set: Object = ClassDB.instantiate(&"DotSimPvs")
+	var set: Object = ClassDB.instantiate(&"GSSimPvs")
 	_check(bool(set.call(&"load", vis.native_dict())) and bool(set.call(&"is_ready")) and int(set.call(&"serial")) == vis.serial,
-		"%s: DotSimPvs loads the set" % tag)
+		"%s: GSSimPvs loads the set" % tag)
 	var cluster_diff := 0
 	for p in points:
 		if int(set.call(&"cluster_of", p)) != vis.cluster_of(p):

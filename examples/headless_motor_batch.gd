@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcGame := preload("../game/fc_game.gd")
@@ -78,7 +78,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -86,7 +86,7 @@ func _run() -> void:
 	print("game-fatal-contact: fc_motor_batch plays the same match")
 	FcBots.tiers.above = -1
 	var was := FcHullGrid.batch
-	if not DotFpsMotorBatch.available() or not ClassDB.class_exists(&"DotSimHullWorld"):
+	if not GSFpsMotorBatch.available() or not ClassDB.class_exists(&"GSSimHullWorld"):
 		# Natives older than the batch: the cvar changes nothing and there is nothing to compare.
 		print("skip: the loaded dot-sim has no motor batch")
 		for i in CHECKS:
@@ -116,7 +116,7 @@ func _run() -> void:
 	_check(long_way[0] == on[0], "the lean players' loop plays it to the bit as the long way (%s)" % _first_diff(long_way[0], on[0]))
 	_check(off[2] == 0, "and none with the cvar off")
 	_check(on[3] == 0 and live[3] == 0, "no player was changed by another's turn (%d, %d faults)" % [on[3], live[3]])
-	_check(not DotSim.has(&"players") or (FcPlayer.posture_batched_rows > 0 and FcPlayer.posture_misses == 0),
+	_check(not GSSim.has(&"players") or (FcPlayer.posture_batched_rows > 0 and FcPlayer.posture_misses == 0),
 			"the batched idle posture rows are the script's (%d rows, %d differ)" % [FcPlayer.posture_batched_rows, FcPlayer.posture_misses])
 	_done()
 
@@ -257,7 +257,7 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 	FcHullGrid.batch_faults = 0
 	var game := _new_game(batched, think, map_id)
 	var kills := [0]
-	game.player_killed.connect(func(_entry: DotKillFeed.Entry) -> void: kills[0] += 1)
+	game.player_killed.connect(func(_entry: GSKillFeed.Entry) -> void: kills[0] += 1)
 	var hits: Array = []
 	var counts := [0, 0]
 	game.hit_confirmed.connect(func(attacker: int, victim: int, amount: float, point: Vector3, headshot: bool, lethal: bool) -> void:
@@ -359,16 +359,16 @@ func _commands_for(game: FcGame, players: Array, minds: Array, streams: Array, t
 		var tick := game.current_tick()
 		for i in players.size():
 			var pair: Array = FcBots.think(game, players[i], minds[i], tick, float(TICK_RATE))
-			var move: DotFpsCommand = pair[0]
-			var fire: DotWeaponCommand = pair[1]
+			var move: GSFpsCommand = pair[0]
+			var fire: GSWeaponCommand = pair[1]
 			commands[players[i].player_id] = pair
 			recorded[players[i].player_id] = [move.duplicate_command(), fire.duplicate_command(), players[i].body_every]
 		streams.append(recorded)
 	else:
 		var recorded: Dictionary = streams[tick_index]
 		for id: int in recorded:
-			var move: DotFpsCommand = recorded[id][0]
-			var fire: DotWeaponCommand = recorded[id][1]
+			var move: GSFpsCommand = recorded[id][0]
+			var fire: GSWeaponCommand = recorded[id][1]
 			commands[id] = [move.duplicate_command(), fire.duplicate_command()]
 			# The motor period the bot's think chose (body tiers); 1 when it was not recorded.
 			var body: Object = game.player_for(id)
@@ -383,7 +383,7 @@ func _commands_for(game: FcGame, players: Array, minds: Array, streams: Array, t
 func _players_chunk(game: FcGame, players: Array, lagging: bool, now: int, counts: Array) -> PackedByteArray:
 	var chunk := PackedByteArray()
 	for player: Object in players:
-		var state: DotFpsState = player.controller.state if player.controller != null else null
+		var state: GSFpsState = player.controller.state if player.controller != null else null
 		if state != null:
 			chunk.append_array(var_to_bytes([state.position, state.velocity, state.mode, state.move_flags(), state.ground_id != 0,
 				state.yaw, state.pitch, player.health.health, player.health.alive]))

@@ -1,4 +1,4 @@
-extends DotGameVisualQaCapture
+extends GSGameVisualQaCapture
 
 ## FC's visual QA capture for the horde monsters (npcs/) and the 20 avatar bodies (`avatar_<part>`, the document's
 ## BODIES): each idles, walks and runs a circle on the default stage, seen from the victim's eye (an avatar: first
@@ -21,7 +21,7 @@ const AVATAR_CLIPS := {
 const FcAvatars := preload("../game/fc_avatars.gd")
 const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
-var _fig: DotHumanoidFigure = null
+var _fig: GSHumanoidFigure = null
 
 ## Frames a moving clip is driven before frame 0, at negative times along the same path: a figure that animates from its body's motion
 ## (`auto_animate`) stands in its idle for its first few frames, and foot_slide would judge that start-up as a foot dragging.
@@ -53,7 +53,7 @@ func _clips(item: String) -> PackedStringArray:
 	return PackedStringArray(AVATAR_CLIPS.keys() if item.begins_with(AVATAR_PREFIX) else PACE.keys())
 
 
-func _stage_avatar(item: String, clip: String) -> DotResult:
+func _stage_avatar(item: String, clip: String) -> GSResult:
 	if _kind != item:
 		if _fig != null:
 			_fig.queue_free()
@@ -63,7 +63,7 @@ func _stage_avatar(item: String, clip: String) -> DotResult:
 		avatar.set_part(FcAvatars.SLOT_BODY, StringName("fc_body_" + part))
 		if part.begins_with("kenney_"):
 			avatar.set_part(FcAvatars.SLOT_HEAD, StringName("fc_head_" + part))
-		_fig = DotHumanoidFigure.new()
+		_fig = GSHumanoidFigure.new()
 		root.add_child(_fig)
 		_fig.build(FcAvatars.look_of(avatar, key), FcPlayerTunables.stand_height_m())
 		_fig.set_run_speeds(4.2, 3.4)
@@ -72,7 +72,7 @@ func _stage_avatar(item: String, clip: String) -> DotResult:
 	_fig.position = Vector3(0.0, 0.0, -CIRCLE_RADIUS)
 	_fig.rotation = Vector3.ZERO
 	_start_lead_in(clip)
-	return DotResult.success(clip)
+	return GSResult.success(clip)
 
 
 ## Drives the clip for [constant LEAD_IN_FRAMES] frames before frame 0, so frame 0 is already in the clip, not
@@ -84,7 +84,7 @@ func _start_lead_in(clip: String) -> void:
 		root.get_tree().process_frame.connect(_lead_in)
 
 
-func _stage(item: String, clip: String) -> DotResult:
+func _stage(item: String, clip: String) -> GSResult:
 	if item.begins_with(AVATAR_PREFIX):
 		return _stage_avatar(item, clip)
 	if _npc == null or _kind != item:
@@ -92,7 +92,7 @@ func _stage(item: String, clip: String) -> DotResult:
 			_npc.queue_free()
 		var scene := load("res://npcs/fc_%s.tscn" % item) as PackedScene
 		if scene == null:
-			return DotResult.fail(DotError.CODE_INVALID, "no npcs/fc_%s.tscn" % item)
+			return GSResult.fail(GSError.CODE_INVALID, "no npcs/fc_%s.tscn" % item)
 		_npc = scene.instantiate() as Node3D
 		root.add_child(_npc)
 		_kind = item
@@ -102,7 +102,7 @@ func _stage(item: String, clip: String) -> DotResult:
 	_lead_clip = clip
 	if _lead_left > 0 and not root.get_tree().process_frame.is_connected(_lead_in):
 		root.get_tree().process_frame.connect(_lead_in)
-	return DotResult.success(clip)
+	return GSResult.success(clip)
 
 
 func _warmup_frames(item: String, clip: String) -> int:

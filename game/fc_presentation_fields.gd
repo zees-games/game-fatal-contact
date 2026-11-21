@@ -60,32 +60,32 @@ const EXPLOSION_SHAKE := 0.6
 const MUZZLE_OFFSET := Vector3(0.12, -0.14, -0.55)
 
 
-var settings: DotSettingsManager = null
+var settings: GSSettingsManager = null
 
 
-var audio: DotAudioManager = null
+var audio: GSAudioManager = null
 
 
 ## Everybody's footsteps by surface and a bed per map: dot-audio's stock (Kenney's footsteps
 ## and generated beds, CC0; the addon's stock/CREDITS.md).
-var steps: DotAudioFootsteps = null
-var ambience: DotAudioAmbience = null
+var steps: GSAudioFootsteps = null
+var ambience: GSAudioAmbience = null
 
 
 ## Quiet moods under the map (dot-audio's stock set); the bed above plays only when none loaded.
-var ambient: DotAmbienceDirector = null
-var fx: DotFxManager = null
+var ambient: GSAmbienceDirector = null
+var fx: GSFxManager = null
 ## Blood behind a body the local player hit; drawn only while `gore` is on.
 var blood: FcBlood = null
 
 
 ## The player's console, built by [method build_console] once the client has a menu.
-var console: DotConsoleController = null
-var console_panel: DotConsolePanel = null
+var console: GSConsoleController = null
+var console_panel: GSConsolePanel = null
 
 
 ## The in-game chat box. See [method _build_chat].
-var chat_window: DotChatWindow = null
+var chat_window: GSChatWindow = null
 
 
 ## The client, for the commands that ask it questions.
@@ -113,7 +113,7 @@ var _bake_shadowed := 0
 ## The recipe ids of [param recipes] in bake order ([method bake_into] takes them from the end): first those whose sound
 ## files are all there (the sink plays the file, so their stand-ins are only a fallback), then those a stand-in is heard
 ## for. Returns {"ids": Array, "shadowed": int}. On staging02's web build all of them held the cover for 6 s (24.1-30.3 s).
-static func bake_order(catalogue: DotAudioCatalogue, recipes: Dictionary) -> Dictionary:
+static func bake_order(catalogue: GSAudioCatalogue, recipes: Dictionary) -> Dictionary:
 	var shadowed: Array = []
 	var heard: Array = []
 	for id: Variant in recipes.keys():
@@ -140,18 +140,18 @@ static func bake_order(catalogue: DotAudioCatalogue, recipes: Dictionary) -> Dic
 ## Bakes the recipes named by [param ids] (consumed from the end) into [param bank] until
 ## [param budget_msec] is spent; one recipe is never split, so the call overruns by at most one.
 ## Stock voices (dot_audio stock/voices, self-synthesised) replace the sine-sweep stand-ins for shot, hit, hurt, die, impact, boom.
-static func bake_into(bank: Dictionary, catalogue: DotAudioCatalogue, recipes: Dictionary, ids: Array, budget_msec: int) -> void:
+static func bake_into(bank: Dictionary, catalogue: GSAudioCatalogue, recipes: Dictionary, ids: Array, budget_msec: int) -> void:
 	var until := Time.get_ticks_msec() + budget_msec
 	while not ids.is_empty() and Time.get_ticks_msec() < until:
 		var id: Variant = ids.pop_back()
-		bank.merge(DotAudioSynth.bank(catalogue, {id: recipes[id]}, true))
+		bank.merge(GSAudioSynth.bank(catalogue, {id: recipes[id]}, true))
 
 
 ## Calls [method bake_into] on the sink's bank until the frame's budget is spent, then lets the gate
 ## open once only the fallbacks behind a file are left (see [member _bake_shadowed]). A recipe is one stream (or one per variant), so a frame overruns
 ## by at most one of them.
 func _bake_slice() -> void:
-	var sink := audio.sink as DotAudioSinkGodot if audio != null else null
+	var sink := audio.sink as GSAudioSinkGodot if audio != null else null
 	if sink == null:
 		_bake_ids.clear()
 		_bake_hold(false)
@@ -182,7 +182,7 @@ func _bake_hold(on: bool) -> void:
 
 
 ## The box a player types in, and the three settings that decide it. A HUD widget, not a
-## [DotScreenStack] screen: it is eight lines in a corner that leave the game visible.
+## [GSScreenStack] screen: it is eight lines in a corner that leave the game visible.
 func _build_chat() -> void:
 	_chat_layer = CanvasLayer.new()
 	_chat_layer.name = "ChatLayer"
@@ -202,8 +202,8 @@ func _build_chat() -> void:
 
 ## The box as this game configures it; [method _build_chat] and the screenshot tool's
 ## `--glance --chat` both draw this one.
-static func make_chat_window() -> DotChatWindow:
-	var chat_window := DotChatWindow.new()
+static func make_chat_window() -> GSChatWindow:
+	var chat_window := GSChatWindow.new()
 	chat_window.name = "ChatWindow"
 	chat_window.open_action = &"arena_chat"
 	chat_window.team_action = &"arena_chat_team"
@@ -268,10 +268,10 @@ func _bind_chat(action: StringName, text: String) -> void:
 	if action == &"" or text.strip_edges() == "":
 		return
 
-	var bound := DotInputBinding.apply(action, text)
+	var bound := GSInputBinding.apply(action, text)
 
 	if bound == "":
-		DotLog.warn(CHANNEL, "a chat key was not understood", {
+		GSLog.warn(CHANNEL, "a chat key was not understood", {
 			"action": String(action), "binding": text
 		})
 

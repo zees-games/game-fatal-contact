@@ -49,14 +49,14 @@ func _on_prop_broke(material: String, at: Vector3) -> void:
 
 
 ## Client: a prop the server broke.
-func _apply_prop_broken(reader: DotNetReader) -> void:
+func _apply_prop_broken(reader: GSNetReader) -> void:
 	var told := FcEvents.read_npc(reader)
 	if bool(told["ok"]) and is_inside_tree():
 		_burst_at(String(told["kind_id"]), told["position"])
 
 
 func _burst_at(material: String, at: Vector3) -> void:
-	var fx := get_tree().get_first_node_in_group(&"fc_break_fx") as DotFxBreak
+	var fx := get_tree().get_first_node_in_group(&"fc_break_fx") as GSFxBreak
 	if fx != null:
 		var _n := fx.burst(material, at, Vector3.UP, 1.0)
 
@@ -71,7 +71,7 @@ func _send_panes_signon(peer_id: int) -> void:
 
 
 ## Client: the host's word that a pane broke. This end never decides, so it stops deciding.
-func _apply_pane_broken(reader: DotNetReader) -> void:
+func _apply_pane_broken(reader: GSNetReader) -> void:
 	var told := FcEvents.read_taken(reader)
 	if not bool(told["ok"]) or not is_inside_tree():
 		return
@@ -85,7 +85,7 @@ func _apply_pane_broken(reader: DotNetReader) -> void:
 
 ## Glass shards and the crack, from dot-fx; the pane's own bare quads are switched off for them.
 func _pane_fx(pane: Node, at: Vector3) -> void:
-	var fx := get_tree().get_first_node_in_group(&"fc_break_fx") as DotFxBreak if is_inside_tree() else null
+	var fx := get_tree().get_first_node_in_group(&"fc_break_fx") as GSFxBreak if is_inside_tree() else null
 	if fx == null:
 		return
 	fx.burst(String(pane.get(&"kind")), at, Vector3.UP, 1.0)

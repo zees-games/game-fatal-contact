@@ -18,8 +18,8 @@ func _init() -> void:
 		return
 	var body := Bsp.build_collision(manifest, dir)
 	root.add_child(body)
-	var combat := DotCombatManager.new()
-	var trace := DotTracePhysics.new()
+	var combat := GSCombatManager.new()
+	var trace := GSTracePhysics.new()
 	combat.trace = trace
 	root.add_child(combat)
 	await physics_frame
@@ -59,12 +59,12 @@ func _init() -> void:
 			print("skip ", pane.name, " hit ", hit.collider if hit.ok() else "nothing")
 			continue  # something else in front of this pane
 		tried += 1
-		var shot := DotShot.new()
+		var shot := GSShot.new()
 		shot.origin = origin
 		shot.pellets = [dir_v]
 		shot.damage = 100.0
 		shot.max_range = 10.0
-		var type := DotDamageType.new()
+		var type := GSDamageType.new()
 		combat._trace_pellet(shot, 0, type, null, [])
 		var broke: bool = pane.is_broken()
 		var end: Vector3 = shot.impacts[shot.impacts.size() - 1] if shot.impacts.size() > 0 else origin

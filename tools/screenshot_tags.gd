@@ -12,7 +12,7 @@ const CHEST := 1.1
 
 var client: Node = null
 var _bots: Array = []
-var _seq := DotShotSeq.new()
+var _seq := GSShotSeq.new()
 
 
 func _initialize() -> void:
@@ -51,8 +51,8 @@ func _stage() -> float:
 	for id in bots:
 		var bot = bots[id]
 		bot.set_meta(&"bot_scripted", true)
-		bot.set_meta(&"bot_move", DotFpsCommand.new())
-		bot.set_meta(&"bot_fire", DotWeaponCommand.new())
+		bot.set_meta(&"bot_move", GSFpsCommand.new())
+		bot.set_meta(&"bot_fire", GSWeaponCommand.new())
 		bot.health.invulnerable = true
 		if _bots.size() < 3 and bot.is_alive():
 			_bots.append(bot)

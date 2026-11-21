@@ -27,10 +27,10 @@ const FcRecoilView := preload("fc_recoil_view.gd")
 const CHANNEL := "arena.player"
 
 ## Died. Carries the damage, so a caller has the killer and the weapon.
-signal died(damage: DotDamage)
+signal died(damage: GSDamage)
 
 ## Fired a shot. Before it is resolved, so a client can draw a tracer immediately.
-signal used(outcome: DotWeaponOutcome)
+signal used(outcome: GSWeaponOutcome)
 
 ## A beacon on this player sent out a ripple: once a second while it is on, and once the
 ## moment it comes on. Client side, from [method present]; the client plays the ping here.
@@ -62,8 +62,8 @@ enum Mode {
 
 var mode: Mode = Mode.HEADLESS
 
-var controller: DotFpsController = null
-var arsenal: DotWeaponArsenal = null
+var controller: GSFpsController = null
+var arsenal: GSWeaponArsenal = null
 ## Run as the player dies, while the arsenal still gives up its weapon; the game sets it.
 var before_death: Callable = Callable()
 
@@ -93,19 +93,19 @@ var mirror_charge: float = 0.0
 var windup: float = -1.0
 var _windup_was: float = -1.0
 var mirror_reloading: bool = false
-## The held gun's fitting as `net_fitted` carries it (`DotWeaponAttachments.encode`), 0 for none.
+## The held gun's fitting as `net_fitted` carries it (`GSWeaponAttachments.encode`), 0 for none.
 var mirror_fitted: int = 0
 ## The fitting code [member held] last drew, and whether it had a suppressor on (-1: not drawn yet).
 var _held_fitted: int = -1
 var _held_suppressed: bool = false
 ## [method _held_code_cached]'s last answer and the held slot, definition and attachments catalogue it was for.
 var _held_code: int = 0
-var _held_code_slot: DotWeaponSlot = null
-var _held_code_def: DotWeaponDef = null
-var _held_code_cat: DotWeaponAttachments = null
+var _held_code_slot: GSWeaponSlot = null
+var _held_code_def: GSWeaponDef = null
+var _held_code_cat: GSWeaponAttachments = null
 var _mode_click_audio: AudioStreamPlayer3D = null
-var health: DotHealth = null
-var hitboxes: DotHitboxSet = null
+var health: GSHealth = null
+var hitboxes: GSHitboxSet = null
 
 ## Where the eyes are, and where shots start.
 var view: Node3D = null
@@ -117,18 +117,18 @@ var camera: Camera3D = null
 var recoil_view := FcRecoilView.new()
 
 ## The view to draw this frame, (yaw, pitch) in degrees, or null for the simulated state's. Set
-## every frame by the client from `DotFpsSampler.look_now()`. A frame with no tick in it would not
+## every frame by the client from `GSFpsSampler.look_now()`. A frame with no tick in it would not
 ## turn: at 144 Hz against 64 ticks most frames have none (`headless_view`).
 var view_now: Variant = null
 
 ## Added to where the local player is drawn this frame: what is left of the last
-## prediction corrections, easing to zero (`DotNetPredictor.visual_offset`). Without it a
+## prediction corrections, easing to zero (`GSNetPredictor.visual_offset`). Without it a
 ## correction moves the eye in one frame.
 var drawn_offset: Vector3 = Vector3.ZERO
 
 ## How far through the current tick this frame is drawn (usually 0..1, -1 to 2 just after a slip),
 ## or NAN for the engine's physics fraction. Set every frame by a connected client from dot-net's
-## `DotNetClock.render_alpha`.
+## `GSNetClock.render_alpha`.
 var drawn_alpha: float = NAN
 
 ## Whether [method present] draws this body between its ticks: a player this machine simulates and
@@ -149,10 +149,10 @@ var _position_two_back: Vector3 = Vector3(NAN, NAN, NAN)
 ## the view model eases the weapon up and the camera zooms; nothing the server simulates.
 var aim_held: bool = false
 
-## The aim, as the weapon command carries it to the server: [constant DotWeaponCommand.BUTTON_USER_0],
+## The aim, as the weapon command carries it to the server: [constant GSWeaponCommand.BUTTON_USER_0],
 ## which no addon reads. The client sets it beside [member aim_held]; it changes nothing
 ## the simulation does and exists for one medal, No Scope ([member aiming]).
-const BUTTON_AIM := DotWeaponCommand.BUTTON_USER_0
+const BUTTON_AIM := GSWeaponCommand.BUTTON_USER_0
 
 ## The aim on the movement command (the launch has its first user bit): the motor's
 ## [code]aim_button[/code], so an aimed player walks at [code]sv_ads_speed_mult[/code] on both ends.
@@ -165,7 +165,7 @@ var aiming: bool = false
 
 ## A bar over somebody else's head for a few seconds after they are hurt, the way the
 ## genre shows that a shot landed. Client side; built on first need.
-var _health_tag: DotHealthTag = null
+var _health_tag: GSHealthTag = null
 var _last_health: float = -1.0
 var _hurt_age: float = 999.0
 ## What the tag was last given ([method _present_health_tag]); an unchanged, settled tag is not told again.
@@ -206,8 +206,8 @@ var _down_seen_dead: bool = true
 const DOWN_GRACE_MS := 1500
 
 ## Draws a box avatar's own body in first person ([method present_own_body]).
-var _first_person: DotPlayerFirstPersonBody = null
-## How much of your own body shows in first person (DotPlayerViewRules.BODY_*), from the client.
+var _first_person: GSPlayerFirstPersonBody = null
+## How much of your own body shows in first person (GSPlayerViewRules.BODY_*), from the client.
 var own_body_mode: int = 0
 
 ## Third person: the camera behind and over the shoulder of the eye, kept out of the level by
@@ -218,7 +218,7 @@ var third_person: bool = false
 ## Layers the third-person camera stops against (the level and props). Set by the client.
 var third_person_mask: int = 1
 
-var _tp_probe: DotCameraProbe = null
+var _tp_probe: GSCameraProbe = null
 
 ## The third-person camera's place behind the eye, in the view's own axes: right, up, back.
 const THIRD_PERSON_OFFSET := Vector3(0.45, 0.35, 2.6)
@@ -233,7 +233,7 @@ var camera_roll: float = 0.0
 
 ## The camera's motion cues: the landing dip, the strafe and slide roll, the wall-run lean and the
 ## widening with speed.
-var camera_motion: DotFpsViewMotion = null
+var camera_motion: GSFpsViewMotion = null
 
 ## The aim's zoom this frame, from the view model: [method present] multiplies the lens by it.
 var _aim_fov_scale: float = 1.0
@@ -246,12 +246,12 @@ var body_mesh: Node3D = null
 ## The person drawn in [member body_mesh]: dot-player-char's people, the family's one style for
 ## players, bots and NPCs, coloured from [member avatar] by `FcAvatars.look_of`. Null on a
 ## server, and for the capsule a build without the people's art falls back to.
-var figure: DotHumanoidFigure = null
+var figure: GSHumanoidFigure = null
 
 ## What this player looks like, as a dot-user-avatar document; null is the stock figure. Set on a
 ## server from the identity layer and carried to every client in JOIN, so a member who dressed on
 ## the site is that figure on every screen.
-var avatar: DotAvatar = null
+var avatar: GSAvatar = null
 
 ## An administrator's `blind`: this player's own screen is blacked out. [b]Set on the server and
 ## replicated to the OWNER ONLY[/b] (`FcPlayerNet.net_blind`).
@@ -279,11 +279,11 @@ var beacon: bool = false
 var protected_view: bool = false
 
 ## The bubble node while one is drawn. See [method _present_bubble].
-var protection_bubble: DotSpawnBubble3D = null
+var protection_bubble: GSSpawnBubble3D = null
 
 ## The marker [member beacon] draws, while it does. Client side; built and freed by
 ## [method present].
-var beacon_marker: DotFxBeacon = null
+var beacon_marker: GSFxBeacon = null
 
 ## Whether this player's flashlight is on. The server decides it ([method switch_flashlight]) and
 ## replicates it ([member FcPlayerNet.net_flashlight]); everyone draws the beam from it.
@@ -293,16 +293,16 @@ var flashlight_ready: bool = false
 var flashlight_charge: float = 1.0
 var _flashlight_held: bool = false
 ## The flashlight config the switch obeys; set only where the game decides (offline, the server).
-var flashlight_cfg: DotFlashlightConfig = null
+var flashlight_cfg: GSFlashlightConfig = null
 var flashlight_map: String = ""
 
 ## The movement this player was built with, before any class scaled it. See [method
 ## apply_class_movement]. Captured on the first application rather than at build time, so a game
 ## that never uses classes never duplicates a tunables object.
-var _class_base: DotFpsTunables = null
+var _class_base: GSFpsTunables = null
 
 ## Swimming, in an imported map's water.
-var swim := DotFpsSwimMode.new()
+var swim := GSFpsSwimMode.new()
 
 ## Climbing, on an imported map's ladders. Registered beside [member swim], after it, in
 ## that order everywhere: the order is the id.
@@ -311,21 +311,21 @@ var ladder := FcLadderMode.new()
 var _map: FcMap = null
 ## The crouch scale the hitboxes were last fitted to (-1: refit); the fit is a pure function of it.
 var _fit_k := -1.0
-var _combat: DotCombatManager = null
+var _combat: GSCombatManager = null
 var _hand: Node3D = null
 var _seen_fire_seq: int = 0
-var _command := DotWeaponCommand.new()
+var _command := GSWeaponCommand.new()
 ## A late shot's own aim (yaw, pitch), used for one tick in place of the current view; NAN x means none.
 var late_fire_aim := Vector2(NAN, 0.0)
 var _tick_rate: int = FcContent.TICK_RATE
 
-## A [DotFpsController] that collides against analytic geometry rather than physics. `_make_body` is
+## A [GSFpsController] that collides against analytic geometry rather than physics. `_make_body` is
 ## dot-player-controller's documented seam for exactly this, and using it is what lets the same
 ## [FcPlayer] run on a dedicated server with no physics space and in a client with one.
-class HeadlessController extends DotFpsController:
-	var flat_body: DotFpsBody = null
+class HeadlessController extends GSFpsController:
+	var flat_body: GSFpsBody = null
 
-	func _make_body() -> DotFpsBody:
+	func _make_body() -> GSFpsBody:
 		return flat_body
 
 ## The other players' standing hulls this player's sweeps stop at (`Array[AABB]`, its own left out;
@@ -339,7 +339,7 @@ var solid_hulls_fn: Callable = Callable()
 var _hull_tick: int = -1
 
 ## The game tick this player was last simulated on, -1 before the first: the server's tick, and on a
-## predicting client the same number, replays included. Unlike [code]DotFpsState.tick[/code] (per
+## predicting client the same number, replays included. Unlike [code]GSFpsState.tick[/code] (per
 ## machine, not replicated) it is equal on both ends, so the jail's gate is asked on it.
 func game_tick() -> int:
 	return _hull_tick
@@ -348,7 +348,7 @@ func game_tick() -> int:
 var hull_world: Object = null
 var hull_slot: int = -1
 ## The movement body [member hull_world] was last given to, its slot, and whether the body took it.
-var _hull_body: DotFpsBody = null
+var _hull_body: GSFpsBody = null
 var _hull_body_slot: int = -1
 var _hull_body_ok := false
 
@@ -371,8 +371,8 @@ const GENRE_UNIT := 0.01905
 var _body_rules: Dictionary = {}
 
 ## Poses every drawn body (the person's own in third person, and everyone else's) while it wall
-## runs: a [DotFpsViewMotion] used only for [method DotFpsViewMotion.body_roll] and `body_yaw`.
-var body_motion: DotFpsViewMotion = null
+## runs: a [GSFpsViewMotion] used only for [method GSFpsViewMotion.body_roll] and `body_yaw`.
+var body_motion: GSFpsViewMotion = null
 
 ## How many arsenal slots a player has: the pack's five.
 const MAX_SLOTS := AwWeaponIds.SLOT_THROWN ## the highest slot either layout uses
@@ -380,7 +380,7 @@ const MAX_SLOTS := AwWeaponIds.SLOT_THROWN ## the highest slot either layout use
 ## The shared weapon table, built once for the whole process. Validated on first use rather than per
 ## player, and loudly: a catalogue with a duplicate id hands somebody the wrong weapon and nothing
 ## reports it.
-static var _shared_catalogue: DotWeaponCatalogue = null
+static var _shared_catalogue: GSWeaponCatalogue = null
 static var _shared_generation := -1
 ## Whether every behaviour script of [member _shared_catalogue] is loaded (see [method warm_catalogue_step]).
 static var _shared_warm := false
@@ -436,14 +436,14 @@ static func held_equip_allowed() -> bool:
 ## [constant WEB_HELD_DRAW_RANGE]: there a gun is a few pixels, and each one is several draw calls a frame
 ## (body, parts, attachments), which a browser's WebGL pays for far more than a native driver does.
 const WEB_HELD_DRAW_RANGE := 30.0
-static var held_draw_range: float = WEB_HELD_DRAW_RANGE if DotPlatform.is_web() else 0.0
+static var held_draw_range: float = WEB_HELD_DRAW_RANGE if GSPlatform.is_web() else 0.0
 ## Whether a held gun casts a shadow. Not in a browser: the sun's shadow pass draws every gun a second time,
 ## and the body holding it still casts its own.
-static var held_shadows: bool = not DotPlatform.is_web()
+static var held_shadows: bool = not GSPlatform.is_web()
 
 ## `cl_figure_draw_range`: the figure's draw range (dot-player-char 27 reads it live), mirrored here for the per-frame
 ## test that hides a gun and crest past it. 0: drawn at every distance.
-static var figure_draw_range: float = DotHumanoidFigure.DRAW_RANGE
+static var figure_draw_range: float = GSHumanoidFigure.DRAW_RANGE
 ## `cl_figure_lift_range`'s default: past it, or out of view, a remote body stands on the floor only on the frames its
 ## clip steps (a 64-player crowd cast a floor ray per body per frame).
 const FIGURE_LIFT_RANGE := 22.0
@@ -464,7 +464,7 @@ var _occlusion_next_msec: int = 0
 ## `cl_remote_lod_every`: frames between presents of a body out of sight (1 turns the off-screen thinning off).
 ## In a browser [constant WEB_LOD_OFF_EVERY]: an unseen body's pose matters only to the killcam and a glance back.
 const WEB_LOD_OFF_EVERY := 8
-static var lod_off_every: int = WEB_LOD_OFF_EVERY if DotPlatform.is_web() else 4
+static var lod_off_every: int = WEB_LOD_OFF_EVERY if GSPlatform.is_web() else 4
 
 ## A remote body nearer than this (metres) is always drawn in full.
 const LOD_NEAR := 6.0
@@ -496,7 +496,7 @@ const LOD_OFF_DT := 1.0 / 30.0
 ## the frame is longer than [constant ANIM_GATE_DT] already, so the time gate alone never skips, and each step re-skins the
 ## body, which WebGL pays for heavily. Native keeps 1 (the time gate alone).
 const WEB_ANIM_GATE_EVERY := 2
-static var anim_gate_every: int = WEB_ANIM_GATE_EVERY if DotPlatform.is_web() else 1
+static var anim_gate_every: int = WEB_ANIM_GATE_EVERY if GSPlatform.is_web() else 1
 const LOD_FAR_DT := 1.0 / 45.0
 const LOD_FARTHEST_DT := 1.0 / 30.0
 
@@ -558,7 +558,7 @@ var _held_thin: bool = false
 var _still_key: Vector4 = Vector4(NAN, NAN, NAN, NAN)
 var _still_seq: int = -1
 var _still_for: float = 0.0
-## A remote body past [constant DotHumanoidFigure.DRAW_RANGE] from the eye: its figure is culled there, so
+## A remote body past [constant GSHumanoidFigure.DRAW_RANGE] from the eye: its figure is culled there, so
 ## what hangs off it (gun, held sprite, crest, spawn bubble) is hidden too rather than floating alone.
 var beyond_figure: bool = false
 var _crest: Node3D = null
@@ -571,7 +571,7 @@ var _figure_hold_id: StringName = &""
 var _figure_hold_kind: int = -1
 
 ## How a stair tread's rise reaches the eye: the time constant of an exponential, seconds.
-## The step is the simulation's at once; only the view eases (as `DotFpsView.smooth_step_up` does in
+## The step is the simulation's at once; only the view eases (as `GSFpsView.smooth_step_up` does in
 ## dot-player-controller's camera; this game writes its own in `present`). `headless_feel` measures it.
 var step_smooth_time: float = 0.05
 

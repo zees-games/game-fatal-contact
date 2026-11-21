@@ -29,19 +29,19 @@ var _attempts := 0
 
 func _ready() -> void:
 	_legacy = "--legacy" in OS.get_cmdline_user_args()
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("game-fatal-contact: cl_latency_baseline over real ENet, against a real server")
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	Engine.physics_ticks_per_second = TICK_RATE
 	if await _boot() and await _connect_one():
-		var _followed := (_clients["A"]["net"] as DotNetManager).latency.follow_cvars(_clients["A"]["link"])
+		var _followed := (_clients["A"]["net"] as GSNetManager).latency.follow_cvars(_clients["A"]["link"])
 		await _measured(_measure_all)
 	await _teardown()
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	_report_sections(_entered, _completed, SECTIONS, _passed + _failed)
 
 
@@ -57,7 +57,7 @@ func _connect_one() -> bool:
 
 func _measure_all() -> void:
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
+	var net: GSNetManager = a["net"]
 	# Taken again after a stall, this starts from the request the last attempt left; the first has the default.
 	if _attempts > 0:
 		var _zero := net.latency.set_cvar("cl_latency_baseline", "0")
@@ -102,7 +102,7 @@ func _measure_all() -> void:
 ## Plays SETTLE seconds, waits for the process to keep up, then samples SAMPLE seconds; medians in ms.
 ## All of it in game time: a window counted on the wall clock holds as few ticks as the box had time for.
 func _window(a: Dictionary) -> Dictionary:
-	var net: DotNetManager = a["net"]
+	var net: GSNetManager = a["net"]
 	await _wait_game(SETTLE)
 	await _quiet()
 	_up_ms.clear()
@@ -160,7 +160,7 @@ func _physics_process(delta: float) -> void:
 	if not _driving:
 		return
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
+	var net: GSNetManager = a["net"]
 	var bridge: FcNetBridge = a["bridge"]
 	if net == null or not net.is_running():
 		return
@@ -173,7 +173,7 @@ func _physics_process(delta: float) -> void:
 			continue
 		var tick := net.clock.input_tick() - (ticks - 1 - i)
 		var move := _command_a(tick)
-		var fire := DotWeaponCommand.new()
+		var fire := GSWeaponCommand.new()
 		bridge.client_tick(tick, move, fire)
 		_sent_at[tick] = Time.get_ticks_usec()
 		if _legacy:
@@ -194,7 +194,7 @@ func _physics_process(delta: float) -> void:
 
 func _teardown() -> void:
 	_driving = false
-	var link: DotClientLink = _clients["A"]["link"] if _clients.has("A") else null
+	var link: GSClientLink = _clients["A"]["link"] if _clients.has("A") else null
 	if link != null and is_instance_valid(link):
 		link.disconnect_from_server("test over")
 	await get_tree().process_frame

@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 ## The first-person arms hold the gun as it is drawn: for every weapon, at the hip, down the sights, looking up and
 ## down, running into a wall and through every reload frame, each hand reaches its grip point (within REACH_M of the
 ## arms' own palm offset), that point lands on the drawn grip's pixel, and exactly one set of arms is shown.
@@ -35,8 +35,8 @@ var _scratch_dir := ""
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
-	if DotGameShardArgs.is_merge():
+	GSLog.set_level(GSLog.Level.ERROR)
+	if GSGameShardArgs.is_merge():
 		_merge.call_deferred()
 		return
 	# One settings directory per process: user:// is shared by every run on this machine, and a second run wiping or
@@ -50,11 +50,11 @@ func _ready() -> void:
 
 
 func _merge() -> void:
-	var logs := DotGameShardArgs.merge_logs()
-	var missing := DotGameShardArgs.missing(logs)
+	var logs := GSGameShardArgs.merge_logs()
+	var missing := GSGameShardArgs.missing(logs)
 	_check(logs.size() == SHARDS and missing.is_empty(), "every shard's log is there (%d logs)" % logs.size(), "missing %s" % [missing])
 	var weapons := WEAPONS
-	var entered := DotGameShardArgs.sections_entered(logs)
+	var entered := GSGameShardArgs.sections_entered(logs)
 	_check(entered == weapons, "the shards entered one section per weapon (%d of %d)" % [entered, weapons])
 	_report_sections(1, 1, 1)
 
@@ -76,7 +76,7 @@ func _run() -> void:
 	me.health.invulnerable = true
 	var ids: Array = AwWeaponCatalogue.table().keys()
 	ids.sort()
-	var shard := DotGameShardArgs.shard()
+	var shard := GSGameShardArgs.shard()
 	var play: Array = []
 	for i in ids.size():
 		if shard == "" or shard == "w%d" % (i % SHARDS):
@@ -110,7 +110,7 @@ func _weapon(me: Node, id: StringName) -> void:
 	_entered += 1
 	print("")
 	print(id)
-	var def: DotWeaponDef = AwWeaponCatalogue.table()[id]
+	var def: GSWeaponDef = AwWeaponCatalogue.table()[id]
 	var _given = me.arsenal.give(id)
 	me.arsenal.equip(me.arsenal.catalogue.get_def(id).slot)  # the game's slot (the railgun is pinned to primary)
 	var held := await _until(func() -> bool: return me.arsenal.current() != null and me.arsenal.current().def.id == id and _holding(), 3.0)
@@ -119,7 +119,7 @@ func _weapon(me: Node, id: StringName) -> void:
 		return
 	await _seconds(1.0)
 	_check_hold_depth(id)
-	var sampler: DotFpsSampler = _client.get("_sampler")
+	var sampler: GSFpsSampler = _client.get("_sampler")
 	var yaw: float = sampler.yaw
 	var hip_x := 0.0
 	for phase: String in PHASES:
@@ -217,9 +217,9 @@ func _sample(worst: Dictionary, seconds: float) -> void:
 		worst.n += 1
 		worst.wall = maxf(worst.wall, float(vm.get(&"_wall").get(&"amount")))
 		worst.sprint = maxf(worst.sprint, float(vm.get(&"_sprint")))
-		var grip: DotViewGrip = arms.get(&"_grip")
-		var held: DotPlayerViewArms = arms.get(&"arms")
-		var skeleton := (held.arms() as DotHumanoidFigure).skeleton()
+		var grip: GSViewGrip = arms.get(&"_grip")
+		var held: GSPlayerViewArms = arms.get(&"arms")
+		var skeleton := (held.arms() as GSHumanoidFigure).skeleton()
 		var camera: Camera3D = _client.get("player").camera
 		var animated: Node3D = vm.get(&"_animated")
 		var pairs := [["Middle1.R", grip.grip_world(), grip.grip, held.palm_offset]]
@@ -262,7 +262,7 @@ func _arm_sets(camera: Camera3D) -> int:
 	for node in _client.find_children("*", "Node3D", true, false):
 		var script: Script = node.get_script()
 		var named := str(script.get_global_name()) if script != null else ""
-		if named in ["AwViewArms", "DotPlayerViewArms"] and (node as Node3D).is_visible_in_tree() and (node as Node3D).global_position.distance_to(camera.global_position) < 2.0:
+		if named in ["AwViewArms", "GSPlayerViewArms"] and (node as Node3D).is_visible_in_tree() and (node as Node3D).global_position.distance_to(camera.global_position) < 2.0:
 			found.append(node)
 	return found.size()
 

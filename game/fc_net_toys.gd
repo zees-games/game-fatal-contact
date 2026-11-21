@@ -8,7 +8,7 @@ const FcGame := preload("fc_game.gd")
 const FcToyNet := preload("fc_toy_net.gd")
 
 var game: FcGame = null
-var net: DotNetManager = null
+var net: GSNetManager = null
 
 # --- Both ends: the map's toys ---------------------------------------------------
 
@@ -45,7 +45,7 @@ func _register_toys() -> void:
 ## A toy's behaviour and identity under [param parent], registered under [param net_id] (0
 ## allocates: the server); null when the registry refused it. The behaviour before the
 ## identity, which collects behaviours in its `_ready`.
-func _toy_entity(toy: DotPropBody, parent: Node, net_id: int) -> FcToyNet:
+func _toy_entity(toy: GSPropBody, parent: Node, net_id: int) -> FcToyNet:
 	var behaviour := FcToyNet.new()
 	behaviour.name = "Net"
 	behaviour.toy = toy
@@ -57,14 +57,14 @@ func _toy_entity(toy: DotPropBody, parent: Node, net_id: int) -> FcToyNet:
 	at.add_child(behaviour)
 	if net.is_server:
 		behaviour.pull()
-	var identity := DotNetIdentity.new()
+	var identity := GSNetIdentity.new()
 	identity.name = "Identity"
 	identity.owner_peer_id = 0
-	identity.authority = DotNetIdentity.Authority.SERVER
+	identity.authority = GSNetIdentity.Authority.SERVER
 	at.add_child(identity)
 	var registered := net.registry.register(identity, net_id, net.clock.tick, net.config)
 	if not registered.ok:
-		DotLog.warn(CHANNEL, "could not replicate a toy", {"toy": _toy_nets.size(), "error": str(registered.error)})
+		GSLog.warn(CHANNEL, "could not replicate a toy", {"toy": _toy_nets.size(), "error": str(registered.error)})
 		at.remove_child(behaviour)
 		at.remove_child(identity)
 		behaviour.queue_free()
@@ -124,7 +124,7 @@ func _pair_pending_toys() -> void:
 		return
 	var box := game.toys if game.toys != null and game.map != null and game.map.id == _toys_map else null
 	if box != null and box.count() != _toy_nets.size():
-		DotLog.warn(CHANNEL, "the server's map has a different number of toys", {"server": _toy_nets.size(), "here": box.count()})
+		GSLog.warn(CHANNEL, "the server's map has a different number of toys", {"server": _toy_nets.size(), "here": box.count()})
 	for i in range(_toy_nets.size()):
 		var behaviour: FcToyNet = _toy_nets[i]
 		behaviour.toy = box.toy(i) if box != null else null

@@ -62,11 +62,11 @@ func _build_world_collision() -> void:
 	glass_rules.glass_mask = 0
 	map.glass = null
 	var cell: Variant = _world_collision.get_meta(&"glass_sight") if _world_collision.has_meta(&"glass_sight") else null
-	if cell is DotMapGlassSight:
-		glass_rules.centre = (cell as DotMapGlassSight).centre
-		glass_rules.radius = (cell as DotMapGlassSight).radius
-		glass_rules.glass_mask = (cell as DotMapGlassSight).glass_mask
-		glass_rules.world_mask = DotPhysicsLayout.shooter_3d().mask_of([&"world", &"player_clip"])
+	if cell is GSMapGlassSight:
+		glass_rules.centre = (cell as GSMapGlassSight).centre
+		glass_rules.radius = (cell as GSMapGlassSight).radius
+		glass_rules.glass_mask = (cell as GSMapGlassSight).glass_mask
+		glass_rules.world_mask = GSPhysicsLayout.shooter_3d().mask_of([&"world", &"player_clip"])
 		map.glass = glass_rules
 
 	# Before `_build_match` turns the spawns into spawn points: a mapper's spawn inside the
@@ -78,7 +78,7 @@ func _build_world_collision() -> void:
 			add_child(map_io)
 
 	if lifted > 0:
-		DotLog.debug(CHANNEL, "spawns lifted out of an imported map's solid", {
+		GSLog.debug(CHANNEL, "spawns lifted out of an imported map's solid", {
 			"map": String(map.id), "lifted": lifted, "of": map.spawns.size()
 		})
 
@@ -101,7 +101,7 @@ func apply_match_limits() -> void:
 		return
 	# From the mode again, so setting an export back to zero restores the mode's number
 	# rather than keeping the last override.
-	var from_mode: DotMatchRules = mode.rules
+	var from_mode: GSMatchRules = mode.rules
 	match_node.rules.score_limit = from_mode.score_limit
 	match_node.rules.time_limit_sec = from_mode.time_limit_sec
 	match_node.rules.warmup_sec = from_mode.warmup_sec
@@ -181,7 +181,7 @@ func _clear_toys() -> void:
 		_toy_level.queue_free()
 	_toy_level = null
 
-func _on_detonated_near_toys(at: Vector3, spawn: DotWeaponSpawn) -> void:
+func _on_detonated_near_toys(at: Vector3, spawn: GSWeaponSpawn) -> void:
 	if toys != null and is_authority and spawn != null:
 		var _thrown := toys.blast(at, maxf(spawn.splash_radius, 2.0), TOY_BLAST_SPEED)
 
@@ -193,7 +193,7 @@ func _build_toys() -> void:
 	_clear_toys()
 	if map == null:
 		return
-	var layout: DotPhysicsLayout = player_stack.physics.layout if player_stack != null and player_stack.physics != null else null
+	var layout: GSPhysicsLayout = player_stack.physics.layout if player_stack != null and player_stack.physics != null else null
 
 	if is_authority and headless and not map.is_imported() and not map.toys.is_empty():
 		_toy_level = map.to_collision()
@@ -202,7 +202,7 @@ func _build_toys() -> void:
 		if player_stack != null:
 			var _n := player_stack.classify_tree(_toy_level, &"world")
 
-	toys = DotPropBodyBox.new()
+	toys = GSPropBodyBox.new()
 	toys.name = "Toys"
 	toys.authoritative = is_authority
 	toys.draw = not headless
@@ -219,7 +219,7 @@ func _build_toys() -> void:
 	add_child(toys)
 	var built := toys.build(map.toys)
 	if not built.ok:
-		DotLog.warn(CHANNEL, "a map's toys would not build", {"map": String(map.id), "why": built.error.message})
+		GSLog.warn(CHANNEL, "a map's toys would not build", {"map": String(map.id), "why": built.error.message})
 	var _sounds := toys.sound.connect(func(id: StringName, at: Vector3, strength: float) -> void: toy_sound.emit(id, at, strength))
 
 	if projectiles != null and is_authority and not projectiles.detonated.is_connected(_on_detonated_near_toys):
@@ -230,19 +230,19 @@ func _build_toys() -> void:
 ## Builds everything. Call after adding to the tree. One go: [method setup_begin] and every
 ## [method setup_step]; a client that draws runs the steps a frame apart (FcClient).
 ##
-## A step that dies on a script error hands back null, not a [DotResult] (on a server that was a
+## A step that dies on a script error hands back null, not a [GSResult] (on a server that was a
 ## script missing from the pack mount, 0.1.69): that is turned into a failure that names the step,
 ## so the log says what broke instead of "Invalid access to property 'ok' on Nil".
-func setup(p_map: FcMap = null) -> DotResult:
+func setup(p_map: FcMap = null) -> GSResult:
 	var step: StringName = &"begin"
 	var built: Variant = setup_begin(p_map)
-	while built is DotResult and (built as DotResult).ok and not setup_done():
+	while built is GSResult and (built as GSResult).ok and not setup_done():
 		step = setup_next_step()
 		built = setup_step()
-	if not (built is DotResult):
+	if not (built is GSResult):
 		_setup_step = SETUP_STEPS.size()
-		var failed := DotResult.fail(DotError.CODE_STATE, "setup step %s died on a script error (see the SCRIPT ERROR above)" % step)
-		DotLog.error(CHANNEL, "the game would not build", {"step": String(step), "why": failed.error.message})
+		var failed := GSResult.fail(GSError.CODE_STATE, "setup step %s died on a script error (see the SCRIPT ERROR above)" % step)
+		GSLog.error(CHANNEL, "the game would not build", {"step": String(step), "why": failed.error.message})
 		return failed
 	return built
 
@@ -254,7 +254,7 @@ const SETUP_STEPS: Array[StringName] = [&"collision", &"combat", &"match", &"loa
 var _setup_step := 0
 
 ## The mode and the map; then [method setup_step] until [method setup_done]. Not re-entrant, like setup.
-func setup_begin(p_map: FcMap = null) -> DotResult:
+func setup_begin(p_map: FcMap = null) -> GSResult:
 	_setup_step = 0
 	# The mode first: the map default, the damage rules and the match rules all come
 	# out of it, so resolving it after any of them would build them from the old one.
@@ -282,19 +282,19 @@ func setup_begin(p_map: FcMap = null) -> DotResult:
 		# A map script that is missing from the pack mount (0.1.69: an un-rebased res://maps path) is a SCRIPT
 		# ERROR above and a null here; every step after it would fail on the null instead of saying so.
 		_setup_step = SETUP_STEPS.size()
-		return DotResult.fail(DotError.CODE_STATE, "no map could be built (see the script error above)")
+		return GSResult.fail(GSError.CODE_STATE, "no map could be built (see the script error above)")
 
 	if mode.is_team_mode() and team_spawn_split:
 		var _tagged := map.split_spawns_for_teams()
 
 	if mode.is_team_mode() and Array(map.spawn_tags).count("") == map.spawns.size():
 		# Not fatal: dot-match falls back to the shared pool and everyone still spawns.
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"a team mode on a map with no tagged spawns; both sides share one pool",
 			{"mode": str(mode.id), "map": map.display_name}
 		)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 func setup_done() -> bool:
 	return _setup_step >= SETUP_STEPS.size()
@@ -304,12 +304,12 @@ func setup_next_step() -> StringName:
 	return SETUP_STEPS[_setup_step] if not setup_done() else &""
 
 ## Runs the next of [constant SETUP_STEPS]. A failed step ends the setup, as it did in one go.
-func setup_step() -> DotResult:
+func setup_step() -> GSResult:
 	if setup_done():
-		return DotResult.success(null)
+		return GSResult.success(null)
 	var step := SETUP_STEPS[_setup_step]
 	_setup_step += 1
-	var result := DotResult.success(null)
+	var result := GSResult.success(null)
 	match step:
 		&"collision":
 			# Before the combat manager and before any player: both bind to it.
@@ -336,18 +336,18 @@ func setup_step() -> DotResult:
 			_build_toys()
 			if register_service:
 				_registered_name = (
-					DotRegistry.scoped_name(SERVICE, service_scope)
+					GSRegistry.scoped_name(SERVICE, service_scope)
 					if service_scope != &""
 					else SERVICE
 				)
-				DotRegistry.register(_registered_name, self)
+				GSRegistry.register(_registered_name, self)
 			_announce_mode()
 	if not result.ok:
 		_setup_step = SETUP_STEPS.size()
 	return result
 
 ## Keeps this world's combat manager on the server's replicated cvars (dot-combat's
-## `mp_teammate_passthrough`), as [param source] reports them: the client's `DotClientLink`.
+## `mp_teammate_passthrough`), as [param source] reports them: the client's `GSClientLink`.
 ## Remembered, because a map change builds a new manager. True when it is following.
 func follow_server_cvars(source: Object) -> bool:
 	_cvar_source = source
@@ -394,25 +394,25 @@ func _mirror_cast(from: Vector3, to: Vector3, owner_id: int) -> Dictionary:
 ## A bullet the server announced (BULLET): flies the same path here for a tracer. False when
 ## ballistics is off here, the weapon is unknown, or the mirror is full. Client side.
 func mirror_bullet(server_id: int, weapon_id: StringName, origin: Vector3, velocity: Vector3, owner_id: int = 0) -> bool:
-	var rules := combat_feel.ballistics as DotWeaponBallisticsRules
+	var rules := combat_feel.ballistics as GSWeaponBallisticsRules
 	var catalogue := FcPlayer.weapon_catalogue()
 	if is_authority or rules == null or combat == null or not catalogue.has(weapon_id) or velocity.length() < 0.001:
 		return false
-	var tuning := catalogue.get_def(weapon_id).tuning as DotWeaponBallistics
+	var tuning := catalogue.get_def(weapon_id).tuning as GSWeaponBallistics
 	if tuning == null:
 		return false
 	if bullet_mirrors == null:
-		bullet_mirrors = DotWeaponBullets.new()
+		bullet_mirrors = GSWeaponBullets.new()
 		bullet_mirrors.name = "BulletMirrors"
 		bullet_mirrors.tick_rate = tick_rate
 		bullet_mirrors.cast_fn = _mirror_cast
 		bullet_mirrors.expired.connect(func(id: int) -> void: _forget_mirror(id))
-		bullet_mirrors.hit.connect(func(id: int, _o: int, _i: Dictionary, _d: float, _m: float, _t: DotWeaponBallistics) -> void:
+		bullet_mirrors.hit.connect(func(id: int, _o: int, _i: Dictionary, _d: float, _m: float, _t: GSWeaponBallistics) -> void:
 			_forget_mirror(id))
 		add_child(bullet_mirrors)
 	bullet_mirrors.rules = rules
 	if tracers == null:
-		tracers = DotWeaponTracers.new()
+		tracers = GSWeaponTracers.new()
 		tracers.name = "Tracers"
 		add_child(tracers)
 		tracers.follow(bullet_mirrors)
@@ -533,7 +533,7 @@ func _teardown_world() -> void:
 
 	_spawn_points.clear()
 
-## One [DotFallDamage] per player, rebuilt when the combat manager is (a map change).
+## One [GSFallDamage] per player, rebuilt when the combat manager is (a map change).
 func _add_fall_damage(player: FcPlayer) -> void:
 	var old := player.get_node_or_null("FallDamage")
 
@@ -544,30 +544,30 @@ func _add_fall_damage(player: FcPlayer) -> void:
 	if combat == null or player.controller == null:
 		return
 
-	var fall := DotFallDamage.new()
+	var fall := GSFallDamage.new()
 	fall.name = "FallDamage"
 	fall.rules = fall_rules
 	fall.victim = player.player_id
-	fall.controller = DotNodeRef.of_path(player.controller.get_path())
-	fall.controller.mode = DotNodeRef.Mode.ABSOLUTE
-	fall.combat = DotNodeRef.of_path(combat.get_path())
-	fall.combat.mode = DotNodeRef.Mode.ABSOLUTE
+	fall.controller = GSNodeRef.of_path(player.controller.get_path())
+	fall.controller.mode = GSNodeRef.Mode.ABSOLUTE
+	fall.combat = GSNodeRef.of_path(combat.get_path())
+	fall.combat.mode = GSNodeRef.Mode.ABSOLUTE
 	fall.context_checks[&"protected"] = func() -> bool:
 		if map != null and map.movement_profile == &"surf":
 			return true
-		return match_node != null and match_node.state != DotMatch.State.LIVE
+		return match_node != null and match_node.state != GSMatch.State.LIVE
 	player.add_child(fall)
 
 # --- Changing the map ------------------------------------------------------
 
 ## Replaces the world under the players who are standing in it.
-func change_map(new_map: FcMap, new_mode: FcMode = null) -> DotResult:
+func change_map(new_map: FcMap, new_mode: FcMode = null) -> GSResult:
 	if new_map == null:
-		return DotResult.fail(DotError.CODE_INVALID, "There is no map to change to.")
+		return GSResult.fail(GSError.CODE_INVALID, "There is no map to change to.")
 
 	if map == null or match_node == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The game has not been set up, so there is nothing to change."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The game has not been set up, so there is nothing to change."
 		)
 
 	if new_mode != null:
@@ -626,7 +626,7 @@ func change_map(new_map: FcMap, new_mode: FcMode = null) -> DotResult:
 		var added := match_node.add_player(str(id), String(row["name"]), _tick, 0)
 
 		if not added.ok:
-			DotLog.warn(CHANNEL, "a player could not rejoin after the map change", {
+			GSLog.warn(CHANNEL, "a player could not rejoin after the map change", {
 				"player": id, "why": added.error.message
 			})
 			continue
@@ -646,7 +646,7 @@ func change_map(new_map: FcMap, new_mode: FcMode = null) -> DotResult:
 	# Whatever state the last match ended in, the new one starts from the beginning.
 	match_node.start(_tick)
 
-	DotLog.info(CHANNEL, "map changed", {
+	GSLog.info(CHANNEL, "map changed", {
 		"map": map.display_name, "mode": String(mode.id), "players": _players.size()
 	})
 
@@ -658,10 +658,10 @@ func change_map(new_map: FcMap, new_mode: FcMode = null) -> DotResult:
 	# first spawn on the new map asks it anything.
 	_respawn_for_new_map()
 
-	return DotResult.success(map)
+	return GSResult.success(map)
 
 ## Builds the movers [member defer_map_io] left out, a slice at a time. Call it after setup or change_map.
-func build_map_io_async(slice: DotFrameSlice) -> void:
+func build_map_io_async(slice: GSFrameSlice) -> void:
 	if map_io != null or map == null:
 		return
 	var built = await FcMapIo.build_async(self, map_use, slice)
@@ -709,9 +709,9 @@ func remove_player(id: int) -> void:
 	player.queue_free()
 
 ## The flashlight config, made (with its cfg layers) on first use so a suite that builds a game by hand has one.
-func flashlight_conf() -> DotFlashlightConfig:
+func flashlight_conf() -> GSFlashlightConfig:
 	if flashlight_config == null:
 		flashlight_config = FcFlashlight.make_config()
 		flashlight_binder = FcFlashlight.make_binder(flashlight_config)
-		DotLog.result(CHANNEL, "flashlight config", flashlight_binder.load_layers())
+		GSLog.result(CHANNEL, "flashlight config", flashlight_binder.load_layers())
 	return flashlight_config

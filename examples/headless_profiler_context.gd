@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcProfilerContext := preload("../game/fc_profiler_context.gd")
 
@@ -18,7 +18,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -49,14 +49,14 @@ func _test_natives() -> void:
 		_check(n.has(key), "natives has %s" % key)
 	_check(str(n.status).begins_with("dot-sim:"), "the status is dot_sim_status()", str(n.status))
 	_check(n.fc_hull_native == ("1" if n.hull_native else "0"), "the hull cvar matches the flag")
-	_check(n.loaded == ClassDB.class_exists(&"DotSimFpsBody"), "loaded follows the class")
+	_check(n.loaded == ClassDB.class_exists(&"GSSimFpsBody"), "loaded follows the class")
 	_done()
 
 
 func _test_report() -> void:
 	_section("a recording's report carries the game and the natives")
-	var prof := DotProfiler.new()
-	prof.config = DotProfilerConfig.new()
+	var prof := GSProfiler.new()
+	prof.config = GSProfilerConfig.new()
 	prof.config.record_dir = "user://profiles_ctx_test"
 	add_child(prof)
 	FcProfilerContext.install(prof, null, null)
@@ -75,7 +75,7 @@ func _test_report() -> void:
 	_check(report.context.get("launch") is Array, "context.launch has the launch arguments")
 	_check(report.context.get("machine", {}).has("os") and report.context.machine.has("cpu"), "context.machine has os and cpu")
 	var native: Variant = report.get("extras", {}).get("native", {})
-	if ClassDB.class_exists(&"DotSimFpsBody"):
+	if ClassDB.class_exists(&"GSSimFpsBody"):
 		_check(native is Dictionary and native.has("tick") and native.tick.has("us_each"), "extras.native has the tick timer")
 	else:
 		_check(native is Dictionary and (native as Dictionary).is_empty(), "no library: extras.native is empty")
@@ -97,7 +97,7 @@ func _test_degrades() -> void:
 	plain.free()
 	_check(true, "install on nothing returns")
 	_check(FcProfilerContext.game_context(null).get("game") == "arena", "no game still names the game")
-	if not ClassDB.class_exists(&"DotSimFpsBody"):
+	if not ClassDB.class_exists(&"GSSimFpsBody"):
 		FcProfilerContext.begin_native()
 		_check(FcProfilerContext.end_native(null).is_empty(), "the timer hook reports nothing without the library")
 	else:
@@ -143,8 +143,8 @@ func _test_roster() -> void:
 func _test_audio() -> void:
 	_section("sound is a span and a line of context")
 	var manager := FcAudioManager.new()
-	manager.catalogue = DotAudioCatalogue.new()
-	manager.mixer = DotAudioMixer.new()
+	manager.catalogue = GSAudioCatalogue.new()
+	manager.mixer = GSAudioMixer.new()
 	add_child(manager)
 	_check(manager.setup().ok, "Fatal Contact's manager sets up")
 	var holder := _Holder.new()
@@ -156,15 +156,15 @@ func _test_audio() -> void:
 	# The profiler freed above turns the cost table off as it leaves: let it go first.
 	await get_tree().process_frame
 	await get_tree().process_frame
-	var was := DotFrameCost.enabled
-	DotFrameCost.reset()
-	DotFrameCost.enabled = true
+	var was := GSFrameCost.enabled
+	GSFrameCost.reset()
+	GSFrameCost.enabled = true
 	var _h := manager.play(&"nothing_by_this_name")
 	manager._process(0.0)
-	var cost: Dictionary = DotFrameCost.take().get(&"arena.audio", {})
+	var cost: Dictionary = GSFrameCost.take().get(&"arena.audio", {})
 	var seen := int(cost.get("calls", 0)) == 2
-	DotFrameCost.enabled = was
-	DotFrameCost.reset()
+	GSFrameCost.enabled = was
+	GSFrameCost.reset()
 	_check(seen, "a played sound and the reap are charged to arena.audio")
 	manager.queue_free()
 	_done()

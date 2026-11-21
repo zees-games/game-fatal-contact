@@ -20,17 +20,17 @@ const CHECKS := 19
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("game-fatal-contact: bot_quota spawns exactly N bots")
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	if await _build():
 		await _test_counts()
 	_teardown()
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 

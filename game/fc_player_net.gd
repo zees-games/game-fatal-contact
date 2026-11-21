@@ -1,4 +1,4 @@
-extends DotNetBehaviour
+extends GSNetBehaviour
 
 const FcContent := preload("fc_content.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
@@ -12,7 +12,7 @@ const FcPlayer := preload("fc_player.gd")
 ## references it down with it, so dot-player-controller has to compile with dot-core
 ## alone. What each addon ships instead is a [code]*NetSync[/code] class describing
 ## what to replicate as data — property names, and type names as strings. Resolving
-## those strings against [code]DotNetVar.Type[/code] is this file's job, and it is the
+## those strings against [code]GSNetVar.Type[/code] is this file's job, and it is the
 ## only place in game-fatal-contact where the two halves meet.
 ##
 ## One behaviour rather than two, because one entity is one player: a second behaviour
@@ -39,8 +39,8 @@ static var skip_idle_pull := true
 ## the repeat. Only the observer's copy is held: the owner rewinds from [member net_exact], and the lag-comp
 ## history records the node, not these properties. Position is never held: the server reads it back.
 static var hold_subquantum := true
-## dot-net API 22's DotNetIdentity.interest_aim, looked up once (older dot-net has no aim cone).
-static var _has_interest_aim: bool = _script_has(DotNetIdentity, &"interest_aim")
+## dot-net API 22's GSNetIdentity.interest_aim, looked up once (older dot-net has no aim cone).
+static var _has_interest_aim: bool = _script_has(GSNetIdentity, &"interest_aim")
 
 
 static func _script_has(script: Script, property: StringName) -> bool:
@@ -49,7 +49,7 @@ static func _script_has(script: Script, property: StringName) -> bool:
 			return true
 	return false
 
-# --- Movement, from DotFpsNetSync.state_specs() ---
+# --- Movement, from GSFpsNetSync.state_specs() ---
 var net_position: Vector3 = Vector3.ZERO
 var net_velocity: Vector3 = Vector3.ZERO
 var net_yaw: float = 0.0
@@ -59,7 +59,7 @@ var net_flags: int = 0
 var net_modifiers: int = 0
 
 ## Slide, slide cooldown and wall-run timers in 1/7680 s, to the owner alone: above 66 Hz the coarse
-## net_flags fields round a rewind half a code off ([method DotFpsNetSync.rewind_specs2], API 24).
+## net_flags fields round a rewind half a code off ([method GSFpsNetSync.rewind_specs2], API 24).
 var net_timers2: int = 0
 
 ## The owner's own movement exactly: position, velocity and crouch as float32, to the
@@ -85,14 +85,14 @@ var net_exact: PackedFloat32Array = PackedFloat32Array()
 
 const EXACT_FLOATS := 14
 
-# --- Health from DotCombatNetSync, weapons from DotWeaponNetSync ---
+# --- Health from GSCombatNetSync, weapons from GSWeaponNetSync ---
 var net_health: int = 0
 var net_armour: int = 0
 var net_alive: bool = false
 var net_slot: int = 0
 ## The held weapon's selector mode, for everyone so a remote click can be heard.
 var net_fire_mode: int = 0
-## The held gun's attachments (`DotWeaponNetSync.fitting_specs`): everybody's, so a watcher sees the suppressor.
+## The held gun's attachments (`GSWeaponNetSync.fitting_specs`): everybody's, so a watcher sees the suppressor.
 var net_fitted: int = 0
 var net_magazine: int = 0
 var net_reserve: int = 0
@@ -149,12 +149,12 @@ var net_flashlight: bool = false
 ## [b]Retained rather than cleared, and that is the documented behaviour of a starved
 ## tick.[/b] A player whose input packet was lost should keep moving in a straight
 ## line rather than stopping dead and jerking forward when the next one arrives.
-## [DotFpsController.simulate_tick] says the same thing about its own
+## [GSFpsController.simulate_tick] says the same thing about its own
 ## [code]current_command[/code]; holding it here means a netted player gets that
 ## behaviour through [method FcGame.tick], which substitutes a zeroed command for a
 ## player with no entry.
-var last_move: DotFpsCommand = DotFpsCommand.new()
-var last_fire: DotWeaponCommand = DotWeaponCommand.new()
+var last_move: GSFpsCommand = GSFpsCommand.new()
+var last_fire: GSWeaponCommand = GSWeaponCommand.new()
 
 ## The newest command's view lag in ticks, or -1; see [member FcNetCommand.view_lag_q].
 var last_view_lag: float = -1.0
@@ -182,14 +182,14 @@ var last_state_tick: int = -1
 var _newest_simulated: int = -1
 
 ## The declarations [member hold_subquantum] compares through, kept by [method _register_net_vars].
-var _velocity_var: DotNetVar = null
-var _yaw_var: DotNetVar = null
-var _pitch_var: DotNetVar = null
+var _velocity_var: GSNetVar = null
+var _yaw_var: GSNetVar = null
+var _pitch_var: GSNetVar = null
 
 
 func _register_net_vars() -> void:
-	for spec in DotFpsNetSync.state_specs():
-		var declaration := replicate(spec["property"], DotNetVar.Type[spec["type"]])
+	for spec in GSFpsNetSync.state_specs():
+		var declaration := replicate(spec["property"], GSNetVar.Type[spec["type"]])
 
 		if int(spec["bits"]) > 0:
 			declaration.bits(int(spec["bits"]))
@@ -198,7 +198,7 @@ func _register_net_vars() -> void:
 			declaration.interpolated()
 
 		if spec["property"] == &"net_crouch":
-			# DotNetVar's default quantisation range is -1..1 and the crouch fraction is 0..1, so half the codes
+			# GSNetVar's default quantisation range is -1..1 and the crouch fraction is 0..1, so half the codes
 			# would encode a value the property cannot hold. Six bits over the real range is the ~1.5% the spec's
 			# comment claims; over the default range it would be 3%.
 			declaration.range_of(0.0, 1.0)
@@ -211,15 +211,15 @@ func _register_net_vars() -> void:
 			&"net_pitch":
 				_pitch_var = declaration
 
-	# Owner-only exact slide / wall-run timers: DotFpsNetSync.pull writes and push prefers it when declared.
-	for spec in DotFpsNetSync.rewind_specs2():
-		replicate(spec["property"], DotNetVar.Type[spec["type"]]).bits(int(spec["bits"])).to_owner_only()
+	# Owner-only exact slide / wall-run timers: GSFpsNetSync.pull writes and push prefers it when declared.
+	for spec in GSFpsNetSync.rewind_specs2():
+		replicate(spec["property"], GSNetVar.Type[spec["type"]]).bits(int(spec["bits"])).to_owner_only()
 
 	# The pack's `all_specs()` is dot-weapon's three plus its own four, and is the one call
 	# its README asks a game to make: concatenating the halves by hand is how a game forgets
 	# the second one and has weapons that are silent for everybody but their owner.
-	for spec in DotCombatNetSync.specs() + AwWeaponNet.all_specs() + AwWeaponNet.charge_specs() + DotWeaponNetSync.fire_mode_specs(false) + DotWeaponNetSync.fitting_specs():
-		var declaration := replicate(spec["property"], DotNetVar.Type[spec["type"]])
+	for spec in GSCombatNetSync.specs() + AwWeaponNet.all_specs() + AwWeaponNet.charge_specs() + GSWeaponNetSync.fire_mode_specs(false) + GSWeaponNetSync.fitting_specs():
+		var declaration := replicate(spec["property"], GSNetVar.Type[spec["type"]])
 
 		if int(spec["bits"]) > 0:
 			declaration.bits(int(spec["bits"]))
@@ -243,7 +243,7 @@ func _register_net_vars() -> void:
 	# The owner's exact movement, to rewind from (see [member net_exact]).
 	# PACKED_FLOAT32 (dot_net 20): the same bits as the custom codec it replaced, a whole-array
 	# flag then the floats, and dot-sim's snapshot codec reads them natively.
-	replicate(&"net_exact", DotNetVar.Type.PACKED_FLOAT32).of_length(EXACT_FLOATS).to_owner_only()
+	replicate(&"net_exact", GSNetVar.Type.PACKED_FLOAT32).of_length(EXACT_FLOATS).to_owner_only()
 
 	# [b]Per-player state rather than an event, and that is what makes both of these
 	# survive what an event does not.[/b] A client that joins after the admin typed
@@ -254,19 +254,19 @@ func _register_net_vars() -> void:
 	# The blind goes to its owner alone. Nobody else's screen changes, and an opponent who
 	# received it would know the moment somebody could not see them — the same reason the
 	# ammunition above is the owner's.
-	replicate(&"net_blind", DotNetVar.Type.BOOL).to_owner_only()
-	replicate(&"net_challenge", DotNetVar.Type.UINT).bits(7).to_owner_only()
+	replicate(&"net_blind", GSNetVar.Type.BOOL).to_owner_only()
+	replicate(&"net_challenge", GSNetVar.Type.UINT).bits(7).to_owner_only()
 	# Server-driven: achievement progress, which the owner's simulation never computes.
-	replicate(&"net_challenge_value", DotNetVar.Type.UINT).bits(16).to_owner_only().server_driven()
-	replicate(&"net_beacon", DotNetVar.Type.BOOL)
-	replicate(&"net_flashlight", DotNetVar.Type.BOOL)
-	replicate(&"net_protected", DotNetVar.Type.BOOL)
+	replicate(&"net_challenge_value", GSNetVar.Type.UINT).bits(16).to_owner_only().server_driven()
+	replicate(&"net_beacon", GSNetVar.Type.BOOL)
+	replicate(&"net_flashlight", GSNetVar.Type.BOOL)
+	replicate(&"net_protected", GSNetVar.Type.BOOL)
 
-	replicate(&"net_weapon", DotNetVar.Type.UINT).bits(FcContent.WEAPON_INDEX_BITS)
-	replicate(&"net_carry", DotNetVar.Type.UINT).bits(FcContent.carry_bits()).to_owner_only()
+	replicate(&"net_weapon", GSNetVar.Type.UINT).bits(FcContent.WEAPON_INDEX_BITS)
+	replicate(&"net_carry", GSNetVar.Type.UINT).bits(FcContent.carry_bits()).to_owner_only()
 	# Appended last, so every var above keeps its place. VARINT: a balance has no ceiling here.
-	replicate(&"net_app_points_on", DotNetVar.Type.BOOL).to_owner_only().server_driven()
-	replicate(&"net_app_points", DotNetVar.Type.VARINT).to_owner_only().server_driven()
+	replicate(&"net_app_points_on", GSNetVar.Type.BOOL).to_owner_only().server_driven()
+	replicate(&"net_app_points", GSNetVar.Type.VARINT).to_owner_only().server_driven()
 
 
 # --- Input -----------------------------------------------------------------
@@ -274,10 +274,10 @@ func _register_net_vars() -> void:
 ## Takes one tick of a peer's intent. Server side, and the replay half of
 ## reconciliation.
 ##
-## Already sanitised: [method DotNetManager._apply_input] calls
-## [method DotNetInput.sanitise] before this runs, on the server, because everything
+## Already sanitised: [method GSNetManager._apply_input] calls
+## [method GSNetInput.sanitise] before this runs, on the server, because everything
 ## in it came from a client.
-func _net_apply_input(input: DotNetInput, _tick: int) -> void:
+func _net_apply_input(input: GSNetInput, _tick: int) -> void:
 	var command := input as FcNetCommand
 
 	if command == null:
@@ -357,7 +357,7 @@ func _net_simulate(tick: int, delta: float) -> void:
 ## a second of latency is several times per shot. `AwWeaponRig.begin_replay` is the
 ## pack's switch for exactly this: the simulation re-runs and the drawing does not.
 ##
-## The movement is marked too (`DotFpsController.begin_replay`), and it was not until
+## The movement is marked too (`GSFpsController.begin_replay`), and it was not until
 ## 2026-10-10: every replayed tick re-emitted the controller's own signals and re-counted
 ## its statistics. The wall moves found it, one wall run heard six times and one wall
 ## jump seven over 20% loss (`headless_lossy`); the slide's and the dash's signals and the
@@ -393,7 +393,7 @@ func _predict(tick: int, delta: float) -> void:
 
 ## Whether a replay would simulate anything: not while dead, when `simulate_tick` returns
 ## at once and the server's word is all there is. dot-net then keeps the rewind and skips
-## the replay (`DotNetBehaviour._net_predicts`, API 10), where it used to replay the whole
+## the replay (`GSNetBehaviour._net_predicts`, API 10), where it used to replay the whole
 ## lead on every snapshot of a death, because the server's body moves and the client's
 ## does not, so none of them matched.
 func _net_predicts() -> bool:
@@ -411,8 +411,8 @@ func _hold_subquantum(velocity: Vector3, yaw: float, pitch: float) -> void:
 		net_pitch = pitch
 
 
-## The code [method DotNetWriter.write_angle] puts on the wire for [param degrees], with its arithmetic.
-## [method DotNetVar.wire_value] gives the same answer for an ANGLE through a writer and a reader built per call,
+## The code [method GSNetWriter.write_angle] puts on the wire for [param degrees], with its arithmetic.
+## [method GSNetVar.wire_value] gives the same answer for an ANGLE through a writer and a reader built per call,
 ## which is two allocations per property per player per snapshot for a comparison of two integers.
 static func _angle_code(degrees: float, bits: int) -> int:
 	var mask := (1 << bits) - 1
@@ -437,20 +437,20 @@ func pull() -> void:
 	var held_velocity := net_velocity
 	var held_yaw := net_yaw
 	var held_pitch := net_pitch
-	DotFpsNetSync.pull(player.controller.state, self)
+	GSFpsNetSync.pull(player.controller.state, self)
 	if hold_subquantum:
 		_hold_subquantum(held_velocity, held_yaw, held_pitch)
 	lap = FcFrameProbe.lap(&"np_fps", lap)
 	_pull_exact(player.controller.state)
 	lap = FcFrameProbe.lap(&"np_exact", lap)
-	DotCombatNetSync.pull(player.health, self)
+	GSCombatNetSync.pull(player.health, self)
 	lap = FcFrameProbe.lap(&"np_combat", lap)
 
 	# The rig's pull is dot-weapon's three and the pack's four.
 	if player.weapons != null:
 		AwWeaponNet.pull(player.weapons, self)
 	else:
-		DotWeaponNetSync.pull(player.arsenal, self)
+		GSWeaponNetSync.pull(player.arsenal, self)
 	# The knife throw's wind-up rides the charge draw: at least 1 while winding, so 0 still means not winding.
 	if player.windup >= 0.0:
 		net_charge = maxi(1, roundi(clampf(player.windup, 0.0, 1.0) * AwWeaponNet.CHARGE_MAX))
@@ -492,7 +492,7 @@ func _server_owned() -> bool:
 
 
 ## Fills [member net_exact] from the simulation; every end, every tick it pulls.
-func _pull_exact(state: DotFpsState) -> void:
+func _pull_exact(state: GSFpsState) -> void:
 	# The server's own (a bot's): the copy goes to its owner alone and nobody predicts it, so
 	# neither the 14 floats nor their encoding are worth a tick, 32 times a tick.
 	if _server_owned():
@@ -526,24 +526,24 @@ func _pull_exact(state: DotFpsState) -> void:
 		_push_exact(state)
 
 
-## [method DotFpsNetSync.push] for this behaviour, which declares net_timers2 and neither net_timers nor
+## [method GSFpsNetSync.push] for this behaviour, which declares net_timers2 and neither net_timers nor
 ## net_stamina: the same writes in the same order, read as properties rather than through `get`, and the
 ## modifier list left alone when it is empty and the mask is zero (the usual case).
-func _push_fps(state: DotFpsState) -> void:
+func _push_fps(state: GSFpsState) -> void:
 	state.position = net_position
 	state.velocity = net_velocity
 	state.yaw = net_yaw
 	state.pitch = net_pitch
 	state.crouch_fraction = net_crouch
-	DotFpsNetSync.unpack_flags(state, net_flags)
+	GSFpsNetSync.unpack_flags(state, net_flags)
 	if net_modifiers != 0 or not state.modifiers.is_empty():
-		DotFpsNetSync.unpack_modifiers(state, net_modifiers)
-	DotFpsNetSync.unpack_timers2(state, net_timers2)
+		GSFpsNetSync.unpack_modifiers(state, net_modifiers)
+	GSFpsNetSync.unpack_timers2(state, net_timers2)
 
 
-## Puts the exact copy over what [method DotFpsNetSync.push] restored from the quantised one.
+## Puts the exact copy over what [method GSFpsNetSync.push] restored from the quantised one.
 ## Empty on everybody but the owner (and before the first snapshot), which keeps the push.
-func _push_exact(state: DotFpsState) -> void:
+func _push_exact(state: GSFpsState) -> void:
 	if net_exact.size() != EXACT_FLOATS:
 		return
 	state.position = Vector3(net_exact[0], net_exact[1], net_exact[2])
@@ -562,9 +562,9 @@ func _push_exact(state: DotFpsState) -> void:
 ##
 ## Runs for a remote player, where it is the only thing that moves them, and for the
 ## owning client, where it is the rewind half of reconciliation — the server's answer
-## is adopted wholesale and [DotNetPredictor] replays every unacknowledged command on
+## is adopted wholesale and [GSNetPredictor] replays every unacknowledged command on
 ## top of it. Everything the simulation reads has to be restored, which is why
-## [DotFpsNetSync.push] takes the whole [DotFpsState] rather than a position.
+## [GSFpsNetSync.push] takes the whole [GSFpsState] rather than a position.
 func _net_state_applied(tick: int) -> void:
 	if player == null:
 		return
@@ -573,7 +573,7 @@ func _net_state_applied(tick: int) -> void:
 
 	_push_fps(player.controller.state)
 	_push_exact(player.controller.state)
-	DotCombatNetSync.push(self, player.health)
+	GSCombatNetSync.push(self, player.health)
 	_push_weapons()
 
 	player.blinded = net_blind
@@ -591,8 +591,8 @@ func _net_state_applied(tick: int) -> void:
 	# where it spawned.
 	#
 	# [b]But NOT on a predicted entity, which is the local player.[/b]
-	# `DotNetManager.receive_snapshot` calls `read_state` — and therefore this — BEFORE
-	# `DotNetPredictor.reconcile`, and the first thing reconcile does is read the node
+	# `GSNetManager.receive_snapshot` calls `read_state` — and therefore this — BEFORE
+	# `GSNetPredictor.reconcile`, and the first thing reconcile does is read the node
 	# as "what the client is showing" so it can measure the correction. Writing the
 	# server's position here first makes that measurement the entire replay distance:
 	# every reconciliation logs a snap, `correction_rate()` reads near 1.0, and the
@@ -637,15 +637,15 @@ func _push_weapons() -> void:
 	# mode can change, which is every remote player on a client that gives them no guns.
 	var idle: bool = not owned and arsenal.current() == null and (net_slot <= 0 or not arsenal.has_slot(net_slot))
 	var unchanged: bool = idle or (not owned and _remote_push_unchanged())
-	var clicks: bool = not owned and not unchanged and DotWeaponNetSync.fire_mode_will_change(self, arsenal)
+	var clicks: bool = not owned and not unchanged and GSWeaponNetSync.fire_mode_will_change(self, arsenal)
 	if not unchanged:
-		DotWeaponNetSync.push(self, arsenal, not owned)
+		GSWeaponNetSync.push(self, arsenal, not owned)
 		if not owned:
 			_remote_push_note()
 
 	if owned:
-		DotWeaponNetSync.correct_ammo(self, player.arsenal)
-		DotWeaponNetSync.correct_fire_mode(self, player.arsenal)
+		GSWeaponNetSync.correct_ammo(self, player.arsenal)
+		GSWeaponNetSync.correct_fire_mode(self, player.arsenal)
 		player.mirrored = false
 		return
 
@@ -680,7 +680,7 @@ func _follow_empty_hand(carry_changed: bool) -> void:
 		var _emptied: bool = arsenal.call(&"empty_hand")
 
 
-## What [method DotWeaponNetSync.push] reads and writes on a remote arsenal, as of the last push: the snapshot's
+## What [method GSWeaponNetSync.push] reads and writes on a remote arsenal, as of the last push: the snapshot's
 ## slot, mode and fitting code, and the held slot, its mode and its fitting by identity. [member _pushed_held]
 ## is 0 when the push could not land (a slot the arsenal lacks), so that case is always pushed again.
 var _pushed_held := 0

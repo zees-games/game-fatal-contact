@@ -1,9 +1,9 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcPlayerIdle := preload("../game/fc_player_idle.gd")
 
 ## An idle weapon tick's posture row and flinch check (FcPlayerIdle._idle_row, cvar `fc_posture_native`): dot-sim's
-## `DotSimPlayerPost` gives the script's row and still flag to the bit over seeded controller states (moving, air,
+## `GSSimPlayerPost` gives the script's row and still flag to the bit over seeded controller states (moving, air,
 ## crouch edges, slide, wall run, sprint, hurt ticks around the flinch window, arsenal rates and none, no health),
 ## one player at a time and as packed rows (`run_rows`). Without the library only the script lane runs, and the suite
 ## says so.
@@ -12,24 +12,24 @@ const STATES := 20000
 const SEED := 4242
 
 var _body: FcPlayerIdle
-var _controller: DotFpsController
-var _health: DotHealth
-var _arsenal: DotWeaponArsenal
+var _controller: GSFpsController
+var _health: GSHealth
+var _arsenal: GSWeaponArsenal
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("FC — idle posture row: native and script agree")
 	_body = FcPlayerIdle.new()
-	_controller = DotFpsController.new()
-	_health = DotHealth.new()
-	_arsenal = DotWeaponArsenal.new()
+	_controller = GSFpsController.new()
+	_health = GSHealth.new()
+	_arsenal = GSWeaponArsenal.new()
 	_body.controller = _controller
-	var native := DotSim.has(&"players")
+	var native := GSSim.has(&"players")
 	if not native:
 		print("dot-sim has no players module: only the script lane is exercised")
 	var rng := RandomNumberGenerator.new()
@@ -75,8 +75,8 @@ func _run() -> void:
 		_check(row_diff == 0, "native rows equal the script's to the bit", "%d differ; %s" % [row_diff, first])
 		_check(still_diff == 0, "native still flags equal the script's", "%d differ; %s" % [still_diff, first])
 		_check(lane_diff == 0, "the still flag is the row's tenth float")
-		var post: Object = ClassDB.instantiate(&"DotSimPlayerPost")
-		post.configure(DotFpsState.Mode.GROUND, DotWeaponAccuracyClass.FLINCH_SEC)
+		var post: Object = ClassDB.instantiate(&"GSSimPlayerPost")
+		post.configure(GSFpsState.Mode.GROUND, GSWeaponAccuracyClass.FLINCH_SEC)
 		var rows: PackedFloat64Array = post.run_rows(input)
 		_check(rows.to_byte_array() == want.to_byte_array(), "run_rows over the packed columns equals the script, row for row",
 				"%d floats, want %d" % [rows.size(), want.size()])
@@ -95,7 +95,7 @@ func _randomize(rng: RandomNumberGenerator) -> int:
 			if moving else Vector3(0.0, rng.randf_range(-1.0, 1.0) if rng.randf() < 0.2 else 0.0, 0.0)
 	if rng.randf() < 0.05:
 		state.velocity.x = 1e-30 * rng.randf()
-	state.mode = DotFpsState.Mode.GROUND if rng.randf() < 0.8 else rng.randi_range(0, 2)
+	state.mode = GSFpsState.Mode.GROUND if rng.randf() < 0.8 else rng.randi_range(0, 2)
 	state.crouch_fraction = ([0.0, 0.0, 0.0, 0.0, 0.001, 0.0011, rng.randf()] as Array[float])[rng.randi_range(0, 6)]
 	state.slide_time = -1.0 if rng.randf() < 0.85 else ([0.0, rng.randf()] as Array[float])[rng.randi_range(0, 1)]
 	state.wall_run_time = -1.0 if rng.randf() < 0.85 else ([0.0, rng.randf()] as Array[float])[rng.randi_range(0, 1)]

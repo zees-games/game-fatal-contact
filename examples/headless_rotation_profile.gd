@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -7,7 +7,7 @@ const FcModes := preload("../game/fc_modes.gd")
 const FcMapDirector := preload("../game/fc_map_director.gd")
 const FcMapConfig := preload("../game/fc_map_config.gd")
 
-## A maps.yml entry's profile (`DotMapDef.profile`, dot-map's `mode:`/`cfg:`): its mode on the map change when the map can host it, the server's mode back on the next map, its cvars for that map only, and the rotation filter.
+## A maps.yml entry's profile (`GSMapDef.profile`, dot-map's `mode:`/`cfg:`): its mode on the map change when the map can host it, the server's mode back on the next map, its cvars for that map only, and the rotation filter.
 ## [codeblock] godot --headless --path . res://examples/headless_rotation_profile.tscn
 ## [/codeblock]
 
@@ -15,12 +15,12 @@ const CHECKS := 15
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 # Every map hosts a team mode now, so the refusal this file exercises is simulated: dm_pit's listing says it cannot (the filter reads that one property).
-func _pit_cannot_host_teams(catalogue: DotMapCatalogue) -> DotMapCatalogue:
+func _pit_cannot_host_teams(catalogue: GSMapCatalogue) -> GSMapCatalogue:
 	catalogue.get_map(&"dm_pit").meta["teams"] = false
 	return catalogue
 
@@ -64,7 +64,7 @@ func _run() -> void:
 
 	# A profile mode the map hosts: the change plays it.
 	defs.get_map(team_map).profile = {"value": "tdm", "mode": "tdm", "cfg_path": "", "values": {}}
-	var changed: DotResult = await director.change_to(team_map)
+	var changed: GSResult = await director.change_to(team_map)
 	_check(changed.ok and game.map.id == team_map, "the profile map is built", str(changed.error))
 	_check(game.mode.id == &"tdm", "in its profile's mode", String(game.mode.id))
 
@@ -108,18 +108,18 @@ func _run() -> void:
 
 func _check_profile_cvars() -> void:
 	# The profile's cvars, for one map only.
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
-	console.cvar("fc_profile_a", "1", "", DotConVar.FLAG_ARCHIVE)
-	console.cvar("fc_mode", "ffa", "", DotConVar.FLAG_ARCHIVE)
+	console.cvar("fc_profile_a", "1", "", GSConVar.FLAG_ARCHIVE)
+	console.cvar("fc_mode", "ffa", "", GSConVar.FLAG_ARCHIVE)
 	var applier := FcMapConfig.build_profile(console)
-	var with := DotMapDef.new()
+	var with := GSMapDef.new()
 	with.id = &"p_with"
 	with.profile = {"value": "x", "mode": "", "cfg_path": "/x.yml", "values": {"fc_profile_a": 5, "fc_mode": "ctf", "no_such_cvar": 2}}
 	var got := FcMapConfig.apply_profile(applier, console, with)
 	_check(console.find_cvar("fc_profile_a").get_int() == 5 and got.size() == 1, "a profile's cvar is set for its map", str(got))
 	_check(console.find_cvar("fc_mode").get_string() == "ffa", "a profile cannot set fc_mode through its cvars")
-	var plain := DotMapDef.new()
+	var plain := GSMapDef.new()
 	plain.id = &"p_plain"
 	FcMapConfig.apply_profile(applier, console, plain)
 	_check(console.find_cvar("fc_profile_a").get_int() == 1, "the next map has the server's value back")

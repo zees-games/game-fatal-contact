@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcBotThreads := preload("../game/fc_bot_threads.gd")
@@ -28,7 +28,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -127,7 +127,7 @@ func _play(count: int, map_id: StringName = &"") -> Array:
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0
 	var kills := [0]
-	game.player_killed.connect(func(_entry: DotKillFeed.Entry) -> void: kills[0] += 1)
+	game.player_killed.connect(func(_entry: GSKillFeed.Entry) -> void: kills[0] += 1)
 	var players: Array = []
 	var minds: Array = []
 	for i in BOTS if map_id == &"" else IMPORTED_BOTS:
@@ -166,11 +166,11 @@ func _play(count: int, map_id: StringName = &"") -> Array:
 		var commands := {}
 		for i in players.size():
 			var pair: Array = made[i]
-			var move: DotFpsCommand = pair[0]
-			var fire: DotWeaponCommand = pair[1]
+			var move: GSFpsCommand = pair[0]
+			var fire: GSWeaponCommand = pair[1]
 			commands[players[i].player_id] = pair
 			window.append("%d:%.4f,%.4f,%d,%d" % [i, move.yaw, move.pitch, move.buttons, fire.buttons])
-			var state: DotFpsState = players[i].controller.state if players[i].controller != null else null
+			var state: GSFpsState = players[i].controller.state if players[i].controller != null else null
 			if state != null:
 				window.append("%.4f,%.4f,%.4f" % [state.position.x, state.position.y, state.position.z])
 		game.tick(commands)
@@ -197,7 +197,7 @@ func _older_api() -> void:
 	var was := [tiers.above, tiers.body_above, FcBots.tier_schedule]
 	tiers.above = 0
 	tiers.body_above = 0
-	var current_bot := DotAddonApi.build_level("dot_bot") >= 27
+	var current_bot := GSAddonApi.build_level("dot_bot") >= 27
 	var body_before := _sum(tiers.body_counts)
 	FcBots.tier_schedule = current_bot
 	var now := await _play(0)
@@ -208,17 +208,17 @@ func _older_api() -> void:
 	tiers.above = was[0]
 	tiers.body_above = was[1]
 	FcBots.tier_schedule = was[2]
-	print("dot-bot %d: body tier answers above 1 %d current, %d older path" % [DotAddonApi.build_level("dot_bot"), body_now, body_old])
+	print("dot-bot %d: body tier answers above 1 %d current, %d older path" % [GSAddonApi.build_level("dot_bot"), body_now, body_old])
 	_check(body_now > 0 and body_old > 0, "bots coasted on body tiers both ways (%d, %d)" % [body_now, body_old])
 	_check(now[0].size() > 10 and now[0] == old[0], "dot-bot 26's period/until_beat/body_period play the match schedule plays (%d kills, %d)" % [now[1], old[1]])
-	_check(current_bot == FcBots.tier_schedule, "the guard follows the build's dot-bot level (%d)" % DotAddonApi.build_level("dot_bot"))
+	_check(current_bot == FcBots.tier_schedule, "the guard follows the build's dot-bot level (%d)" % GSAddonApi.build_level("dot_bot"))
 	var phases := FcBots.brain_phases
 	FcBots.brain_phases = false
 	var line_old := FcSimServer.phases_line(1)
 	FcBots.brain_phases = phases
 	var line_now := FcSimServer.phases_line(1)
 	_check(line_old.begins_with("SIM_HOST_PHASES") and not line_old.contains("bb_"), "the sim host's phase line leaves out the brain on dot-bot 26: " + line_old)
-	_check(line_now.contains("bb_setup") == (DotAddonApi.build_level("dot_bot") >= 29), "and has the brain's phases from dot-bot 29: " + line_now)
+	_check(line_now.contains("bb_setup") == (GSAddonApi.build_level("dot_bot") >= 29), "and has the brain's phases from dot-bot 29: " + line_now)
 
 
 ## The tier's answers above 1 so far, the native tier's included (flushed by name: not every dot-bot level has it).

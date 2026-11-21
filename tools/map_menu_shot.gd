@@ -25,7 +25,7 @@ func _run() -> void:
 		await process_frame
 		if f % 60 == 0:
 			print("map_menu_shot: frame ", f)
-	var menu: DotMenu = client.get(&"game_menu")
+	var menu: GSMenu = client.get(&"game_menu")
 	var _o := menu.handle_event(_key(KEY_M))
 	for page in 4:
 		for f in 6:

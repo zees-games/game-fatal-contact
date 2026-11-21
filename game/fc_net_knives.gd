@@ -31,7 +31,7 @@ func _send_knives_signon(peer_id: int) -> void:
 ## One knife event with the boomerang curve (glide and turn) the layer holds for it.
 func _knife_body(id: int, owner: int, phase: int, victim: int, at: Vector3, motion: Vector3) -> PackedByteArray:
 	var layer: Node = game.knives
-	if DotAddonApi.build_level("dot_weapon") < FcKnifeEvents.GLIDE_LEVEL:
+	if GSAddonApi.build_level("dot_weapon") < FcKnifeEvents.GLIDE_LEVEL:
 		return FcKnifeEvents.write_knife(id, owner, phase, victim, at, motion)
 	return FcKnifeEvents.write_knife(id, owner, phase, victim, at, motion, layer.glides(id), layer.turn_of(id))
 
@@ -41,12 +41,12 @@ func _on_knife_changed(id: int, owner: int, phase: int, victim: int, at: Vector3
 
 
 ## Client side: one MORE event; a sub-kind this build does not know is skipped.
-func _apply_more_event(reader: DotNetReader) -> void:
+func _apply_more_event(reader: GSNetReader) -> void:
 	match FcKnifeEvents.read_more(reader):
 		FcKnifeEvents.More.KNIFE:
 			var k := FcKnifeEvents.read_knife(reader)
 			if bool(k["ok"]) and game != null and game.knives != null:
-				if DotAddonApi.build_level("dot_weapon") >= FcKnifeEvents.GLIDE_LEVEL:
+				if GSAddonApi.build_level("dot_weapon") >= FcKnifeEvents.GLIDE_LEVEL:
 					game.knives.call(
 						&"mirror", int(k["id"]), int(k["owner"]), int(k["phase"]), int(k["victim"]), k["at"], k["motion"],
 						bool(k.get("glide", false)), k.get("turn", Vector3.ZERO)

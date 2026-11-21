@@ -3,7 +3,7 @@ extends RefCounted
 ## Every per-player number this game counts, declared in one place.
 ##
 ## [b]The ids are the contract, and they are the contract three ways.[/b] The same
-## strings name a stat in [DotStatsSchema], a requirement in [FcAwards]' achievement
+## strings name a stat in [GSStatsSchema], a requirement in [FcAwards]' achievement
 ## rules, and a board's source in [FcBoards]. Three subsystems that never import
 ## each other agree because they all read the constants below, which is the only reason
 ## a rename cannot leave two of them counting different things under one name.
@@ -15,7 +15,7 @@ extends RefCounted
 ## it lives in [FcBoards].
 ##
 ## [codeblock]
-## var tracker := DotStatsTracker.new()
+## var tracker := GSStatsTracker.new()
 ## tracker.schema = FcStats.schema()
 ## add_child(tracker)
 ## tracker.begin(&"7", "Someone")
@@ -60,9 +60,9 @@ const NPC_KILLS := &"arena.npc_kills"
 ## Head stomps landed on another player.
 const STOMPS := &"arena.stomps"
 
-## Lifetime points, fed by DotStatsPoints (kills, headshots, streaks, assists, pickups).
+## Lifetime points, fed by GSStatsPoints (kills, headshots, streaks, assists, pickups).
 const POINTS := &"arena.points"
-## The published skill figure the site orders by (dot-stats' DotStatsRank).
+## The published skill figure the site orders by (dot-stats' GSStatsRank).
 const RANK_SCORE := &"rank_score"
 
 
@@ -82,7 +82,7 @@ static func ids() -> Array[StringName]:
 	]
 
 
-## The schema a [DotStatsTracker] is given.
+## The schema a [GSStatsTracker] is given.
 ##
 ## [b]`publish` is off on everything except the eight figures a player page would
 ## show.[/b] dot-stats defaults it off per stat deliberately — a server's counters are
@@ -90,8 +90,8 @@ static func ids() -> Array[StringName]:
 ## here are inputs to an achievement rather than a number anybody reads: shots fired
 ## and shots hit exist so "hit 60% of your shots" is checkable, and publishing two
 ## six-figure counters to say one percentage is a worse trade every time.
-static func schema() -> DotStatsSchema:
-	var schema := DotStatsSchema.new()
+static func schema() -> GSStatsSchema:
+	var schema := GSStatsSchema.new()
 
 	_counter(schema, KILLS, "Kills", "kills", true)
 	_limit(schema, KILLS, 100000.0, 120.0)
@@ -107,14 +107,14 @@ static func schema() -> DotStatsSchema:
 	_limit(schema, DAMAGE_TAKEN, 100000000.0, 30000.0)
 
 	_counter(schema, STOMPS, "Stomps", "kills", false)
-	DotStatsPoints.declare(schema, POINTS, "Points")
-	DotStatsRank.declare(schema, RANK_SCORE, "Rank score")
-	DotStatsPenetration.declare(schema)
-	DotStatsPenetration.declare_walls(schema)
-	DotStatsHitzones.declare(schema)
+	GSStatsPoints.declare(schema, POINTS, "Points")
+	GSStatsRank.declare(schema, RANK_SCORE, "Rank score")
+	GSStatsPenetration.declare(schema)
+	GSStatsPenetration.declare_walls(schema)
+	GSStatsHitzones.declare(schema)
 	# The shared accuracy pair (`shots`, `hits`): published, so the site derives Accuracy. The unpublished
-	# arena.shots_* below stay for the achievement rules; DotStatsDamage.report_shot_outcome fills these.
-	DotStatsShots.declare(schema)
+	# arena.shots_* below stay for the achievement rules; GSStatsDamage.report_shot_outcome fills these.
+	GSStatsShots.declare(schema)
 	_counter(schema, SHOTS_FIRED, "Shots fired", "shots", false)
 	_counter(schema, SHOTS_HIT, "Shots landed", "shots", false)
 
@@ -126,7 +126,7 @@ static func schema() -> DotStatsSchema:
 	_counter(schema, MATCHES_PLAYED, "Matches played", "matches", false)
 	_counter(schema, MATCHES_WON, "Matches won", "matches", true)
 
-	var time := DotStatsDef.make(PLAYTIME_SEC, DotStatsDef.Kind.COUNTER, "Time played")
+	var time := GSStatsDef.make(PLAYTIME_SEC, GSStatsDef.Kind.COUNTER, "Time played")
 	time.unit = "s"
 	time.decimals = 0
 	time.publish = true
@@ -144,7 +144,7 @@ static func schema() -> DotStatsSchema:
 ## the two counters it came from, and this family has shipped that disagreement (the
 ## merge rule duplicated between dot-stats and the backbone) often enough to know what
 ## it costs.
-static func accuracy_of(values: DotStatsValues) -> float:
+static func accuracy_of(values: GSStatsValues) -> float:
 	var fired := values.get_value(SHOTS_FIRED, 0.0)
 
 	if fired <= 0.0:
@@ -154,14 +154,14 @@ static func accuracy_of(values: DotStatsValues) -> float:
 
 
 ## Kills per death, counting a death-less player as their kill count.
-static func ratio_of(values: DotStatsValues) -> float:
+static func ratio_of(values: GSStatsValues) -> float:
 	var deaths := values.get_value(DEATHS, 0.0)
 	var kills := values.get_value(KILLS, 0.0)
 	return kills if deaths <= 0.0 else kills / deaths
 
 
 ## Bounds the held value at [param ceiling] (never below 0) and its growth at [param per_minute]; the tracker refuses a reading outside them.
-static func _limit(schema: DotStatsSchema, id: StringName, ceiling: float, per_minute: float) -> void:
+static func _limit(schema: GSStatsSchema, id: StringName, ceiling: float, per_minute: float) -> void:
 	var def := schema.find(id)
 	def.has_min = true
 	def.min_value = 0.0
@@ -171,26 +171,26 @@ static func _limit(schema: DotStatsSchema, id: StringName, ceiling: float, per_m
 
 
 static func _counter(
-	schema: DotStatsSchema,
+	schema: GSStatsSchema,
 	id: StringName,
 	display: String,
 	unit: String,
 	publish: bool
 ) -> void:
-	var def := DotStatsDef.make(id, DotStatsDef.Kind.COUNTER, display)
+	var def := GSStatsDef.make(id, GSStatsDef.Kind.COUNTER, display)
 	def.unit = unit
 	def.publish = publish
 	schema.stats.append(def)
 
 
 static func _best(
-	schema: DotStatsSchema,
+	schema: GSStatsSchema,
 	id: StringName,
 	display: String,
 	unit: String,
 	publish: bool
 ) -> void:
-	var def := DotStatsDef.make(id, DotStatsDef.Kind.BEST, display)
+	var def := GSStatsDef.make(id, GSStatsDef.Kind.BEST, display)
 	def.unit = unit
 	def.publish = publish
 	schema.stats.append(def)

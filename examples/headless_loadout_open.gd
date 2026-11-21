@@ -14,7 +14,7 @@ var _client: Node = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	var _scratch := FcPresentation.use_scratch_settings("headless_loadout_open")
 	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
@@ -73,7 +73,7 @@ func _run() -> void:
 		get_tree().quit(1)
 		return
 	var menu: Object = _client.get("loadout_menu")
-	var gm: DotMenu = _client.get("game_menu")
+	var gm: GSMenu = _client.get("game_menu")
 	var previews: AwWeaponPreview = _client.call(&"weapon_previews")
 	var ids := _art_ids()
 	_check(ids.size() >= 20, "the arsenal has weapons with art to draw", str(ids.size()))
@@ -104,7 +104,7 @@ func _run() -> void:
 	await menu.call(&"open")
 	await _frames(2)
 	get_tree().node_added.disconnect(count_first)
-	var screen: DotMenuLoadoutScreen = gm.loadout_screen
+	var screen: GSMenuLoadoutScreen = gm.loadout_screen
 	_check(screen != null and screen.is_open(), "B opens the loadout screen")
 	_check(previews.ports_made() == ports_before, "the first open renders no weapon", "%d new" % (previews.ports_made() - ports_before))
 	_check(_viewports(get_tree().root) == views_before, "the first open makes no viewport", "%d -> %d" % [views_before, _viewports(get_tree().root)])

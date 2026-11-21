@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcLaunchCommands := preload("../game/fc_launch_commands.gd")
 
@@ -9,7 +9,7 @@ const CHECKS := 11
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -28,12 +28,12 @@ func _run() -> void:
 	var negative := FcLaunchCommands.parse(PackedStringArray(["+sens", "-5", "+2"]))
 	_check(negative.size() == 1 and negative[0] == "sens -5 +2", "a signed number is a value, not a name (%s)" % [negative])
 
-	var local := DotConsoleLocal.new()
+	var local := GSConsoleLocal.new()
 	var quota: Array[int] = [1]
 	local.add_var(&"bot_quota", "test", func() -> Variant: return quota[0],
 		func(v: Variant) -> Variant:
 			quota[0] = str(v).to_int()
-			return DotResult.success(quota[0])
+			return GSResult.success(quota[0])
 	)
 	var runner := FcLaunchCommands.new()
 	add_child(runner)
@@ -45,7 +45,7 @@ func _run() -> void:
 	local.add_var(&"late_one", "test", func() -> Variant: return late[0],
 		func(v: Variant) -> Variant:
 			late[0] = str(v).to_int()
-			return DotResult.success(late[0])
+			return GSResult.success(late[0])
 	)
 	await get_tree().process_frame
 	await get_tree().process_frame

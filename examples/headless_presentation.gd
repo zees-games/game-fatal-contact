@@ -10,9 +10,9 @@ func _ready() -> void:
 	# goes to a scratch directory emptied first, never this machine's real one.
 	_player_file_was = _player_file_stamp()
 	var _scratch := FcPresentation.use_scratch_settings("headless_presentation")
-	DotLog.set_level(
-		DotLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
-		else DotLog.Level.ERROR
+	GSLog.set_level(
+		GSLog.Level.DEBUG if "--verbose" in OS.get_cmdline_user_args()
+		else GSLog.Level.ERROR
 	)
 	_run.call_deferred()
 
@@ -68,7 +68,7 @@ func _run() -> void:
 
 ## The levels of the addons the live shell ships, `requires.pins.json` (refresh it when a shell ships; same shape as requires.floor.json), so a floor is judged against what the shell has, not the linked head. Where dot-server-deploy's addons.lock is reachable it must pin at least these levels, or the file claims more than any shell will have.
 func _pinned_levels() -> Dictionary:
-	var read := DotAddonApi.parse(FileAccess.get_file_as_string("res://requires.pins.json"), "requires.pins.json")
+	var read := GSAddonApi.parse(FileAccess.get_file_as_string("res://requires.pins.json"), "requires.pins.json")
 	return read.value as Dictionary if read.ok else {}
 
 
@@ -76,7 +76,7 @@ func _lock_covers(pins: Dictionary) -> String:
 	for root in [(OS.get_environment("GS_REPOS_ROOT") if OS.has_environment("GS_REPOS_ROOT") else OS.get_environment("DOT_REPOS_ROOT")), "/home/gamedev/godot", "/home/gamedev/projects/godot"]:
 		var lock := str(root).path_join("dot-server-deploy/addons.lock")
 		if str(root) != "" and FileAccess.file_exists(lock):
-			var locked := DotAddonApi.pinned_levels(lock, str(root))
+			var locked := GSAddonApi.pinned_levels(lock, str(root))
 			for addon in pins:
 				if locked.has(addon) and int(locked[addon]) < int(pins[addon]):
 					return "%s is %d in requires.pins.json, %d in addons.lock" % [addon, pins[addon], locked[addon]]
@@ -100,8 +100,8 @@ func _test_every_key_is_an_action() -> void:
 	var wrong: Array[String] = []
 	for action: StringName in expected:
 		if p.bindings.row_for_action(action).is_empty() \
-				or DotInputBinding.describe_action(action) != str(expected[action]):
-			wrong.append("%s=%s" % [action, DotInputBinding.describe_action(action)])
+				or GSInputBinding.describe_action(action) != str(expected[action]):
+			wrong.append("%s=%s" % [action, GSInputBinding.describe_action(action)])
 	_check(wrong.is_empty(), "each is a row and on its default key in the InputMap", str(wrong))
 
 	_check_mode_label()
@@ -140,34 +140,34 @@ func _test_every_key_is_an_action() -> void:
 	# Fire, moved to K: K fires and Mouse 1 no longer does.
 	var res := p.bindings.rebind(p.bindings.row_for_action(&"arena_fire"), "K", p.settings)
 	_check(res.ok and p.settings.get_string(&"bind_fire") == "K", "Fire rebinds to K and is stored", str(res))
-	_press(DotInputBinding.from_text("K"), true)
-	client._read_fire(DotFpsCommand.new())
-	var k_fires := client._fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK)
-	_press(DotInputBinding.from_text("K"), false)
-	_press(DotInputBinding.from_text("Mouse 1"), true)
-	client._read_fire(DotFpsCommand.new())
-	var mouse_fires := client._fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK)
-	_press(DotInputBinding.from_text("Mouse 1"), false)
+	_press(GSInputBinding.from_text("K"), true)
+	client._read_fire(GSFpsCommand.new())
+	var k_fires := client._fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK)
+	_press(GSInputBinding.from_text("K"), false)
+	_press(GSInputBinding.from_text("Mouse 1"), true)
+	client._read_fire(GSFpsCommand.new())
+	var mouse_fires := client._fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK)
+	_press(GSInputBinding.from_text("Mouse 1"), false)
 	_check(k_fires and not mouse_fires, "then K pulls the trigger and Mouse 1 does not",
 		"K %s, Mouse 1 %s" % [k_fires, mouse_fires])
 
 	# Reload, through the same polling path.
 	res = p.bindings.rebind(p.bindings.row_for_action(&"arena_reload"), "Z", p.settings)
-	_press(DotInputBinding.from_text("Z"), true)
-	client._read_fire(DotFpsCommand.new())
-	var z_reloads := client._fire.is_pressed(DotWeaponCommand.BUTTON_RELOAD)
-	_press(DotInputBinding.from_text("Z"), false)
+	_press(GSInputBinding.from_text("Z"), true)
+	client._read_fire(GSFpsCommand.new())
+	var z_reloads := client._fire.is_pressed(GSWeaponCommand.BUTTON_RELOAD)
+	_press(GSInputBinding.from_text("Z"), false)
 	_check(res.ok and z_reloads, "Reload rebound to Z reloads on Z")
 
 	# F is the flashlight and X the melee, through the same polling path.
 	client._unhandled_input(_key_event("F", true))
-	client._read_fire(DotFpsCommand.new())
+	client._read_fire(GSFpsCommand.new())
 	var f_lights := client._fire.is_pressed(FcFlashlight.BUTTON)
 	client._flash_ticks = 0
-	_press(DotInputBinding.from_text("X"), true)
-	client._read_fire(DotFpsCommand.new())
-	var x_bashes := client._fire.is_pressed(DotWeaponCommand.BUTTON_ALT)
-	_press(DotInputBinding.from_text("X"), false)
+	_press(GSInputBinding.from_text("X"), true)
+	client._read_fire(GSFpsCommand.new())
+	var x_bashes := client._fire.is_pressed(GSWeaponCommand.BUTTON_ALT)
+	_press(GSInputBinding.from_text("X"), false)
 	_check(f_lights and x_bashes, "F sends the flashlight button and X the melee",
 		"F %s, X %s" % [f_lights, x_bashes])
 
@@ -218,9 +218,9 @@ func _test_every_key_is_an_action() -> void:
 ## requires.floor.json and requires.pins.json are sound, and what a pack asks a shell for.
 func _check_floors() -> void:
 	# A branch only matters if an older shell gets to run it.
-	var floors := DotAddonApi.parse(FileAccess.get_file_as_string("res://" + DotAddonApi.FLOOR_FILE), DotAddonApi.FLOOR_FILE)
-	var derived := DotAddonApi.derive()
-	var unsound := DotAddonApi.floor_audit(floors.value if floors.ok else {}, derived, DotAddonApi.guarded(), {}, _pinned_levels()) \
+	var floors := GSAddonApi.parse(FileAccess.get_file_as_string("res://" + GSAddonApi.FLOOR_FILE), GSAddonApi.FLOOR_FILE)
+	var derived := GSAddonApi.derive()
+	var unsound := GSAddonApi.floor_audit(floors.value if floors.ok else {}, derived, GSAddonApi.guarded(), {}, _pinned_levels()) \
 		if floors.ok else PackedStringArray([str(floors.error)])
 	_check(unsound.is_empty(), "requires.floor.json is sound: every floor has a guard behind it", str(unsound))
 	var pins := _pinned_levels()
@@ -233,7 +233,7 @@ func _check_floors() -> void:
 		if not pins.has(addon):
 			unpinned.append(str(addon))
 	_check(unpinned.is_empty(), "every floored addon has the shell's level in requires.pins.json", str(unpinned))
-	var asked := DotAddonApi.apply_floors(derived, floors.value if floors.ok else {})
+	var asked := GSAddonApi.apply_floors(derived, floors.value if floors.ok else {})
 	_check(
 		asked.get("dot_ui") == 23 and asked.get("dot_lighting") == derived.get("dot_lighting") \
 			and int(asked.get("dot_lighting", 0)) >= 3,
@@ -243,14 +243,14 @@ func _check_floors() -> void:
 
 ## The ammo line names the fire mode and its key only on a gun with a selector.
 func _check_mode_label() -> void:
-	var two := DotWeaponDef.new()
+	var two := GSWeaponDef.new()
 	two.display_name = "Rifle"
-	two.fire_modes = DotWeaponDef.selector_modes(DotWeaponDef.Fire.AUTO, true)
-	var one := DotWeaponDef.new()
+	two.fire_modes = GSWeaponDef.selector_modes(GSWeaponDef.Fire.AUTO, true)
+	var one := GSWeaponDef.new()
 	one.display_name = "Pistol"
-	var two_slot := DotWeaponSlot.new()
+	var two_slot := GSWeaponSlot.new()
 	two_slot.def = two
-	var one_slot := DotWeaponSlot.new()
+	var one_slot := GSWeaponSlot.new()
 	one_slot.def = one
 	_check(
 		FcHud.mode_label(two_slot, "N") == "Rifle  AUTO [N]" and FcHud.mode_label(one_slot, "N") == "Pistol",
@@ -265,18 +265,18 @@ func _test_every_key_rest(p: FcPresentation, client: FcClient, stand_in: FcPlaye
 	# Kept: what was rebound is in the document, and a new presentation reading it puts it back on
 	# the InputMap. The InputMap is put on the default first, so only the load can have moved it.
 	var flushed := p.settings.flush()
-	DotInputBinding.apply(&"arena_reload", "R")
+	GSInputBinding.apply(&"arena_reload", "R")
 	var p2 := _make(false)
 	_check(
 		flushed.ok and p2.settings.get_string(&"bind_reload") == "Z"
-			and DotInputBinding.describe_action(&"arena_reload") == "Z",
+			and GSInputBinding.describe_action(&"arena_reload") == "Z",
 		"a saved binding is read back and applied by the next start",
-		"stored %s, bound %s" % [p2.settings.get_string(&"bind_reload"), DotInputBinding.describe_action(&"arena_reload")]
+		"stored %s, bound %s" % [p2.settings.get_string(&"bind_reload"), GSInputBinding.describe_action(&"arena_reload")]
 	)
 
 	p2.bindings.reset_all(p2.settings)
 	var _flushed := p2.settings.flush()
-	_check(DotInputBinding.describe_action(&"arena_fire") == "Mouse 1", "and Reset puts Fire back on Mouse 1")
+	_check(GSInputBinding.describe_action(&"arena_fire") == "Mouse 1", "and Reset puts Fire back on Mouse 1")
 
 	client.player = null
 	client.presentation = null
@@ -290,7 +290,7 @@ func _test_every_key_rest(p: FcPresentation, client: FcClient, stand_in: FcPlaye
 func _test_party_is_sandboxed() -> void:
 	_section("A private match files nothing anywhere")
 
-	DotP2PSignallerLoopback.reset_all()
+	GSP2PSignallerLoopback.reset_all()
 
 	var party := FcParty.new()
 	party.name = "Party"
@@ -300,7 +300,7 @@ func _test_party_is_sandboxed() -> void:
 	# The decision this game makes and the lobby does not: Fatal Contact reports to dot-stats, unlocks dot-
 	# achievements and files to dot-leaderboard.
 	_check(
-		party.session.config.trust == DotP2PConfig.Trust.SANDBOXED,
+		party.session.config.trust == GSP2PConfig.Trust.SANDBOXED,
 		"a private arena match is sandboxed, because a host who can cheat and a "
 		+ "leaderboard are one exploit rather than two features"
 	)
@@ -324,7 +324,7 @@ func _test_party_is_sandboxed() -> void:
 
 
 ## `[p2p-await-games]`: a private match over the HTTP rendezvous, host and join, each awaited end to
-## end — through `FcParty`, `DotP2PSession` and `DotP2PSignallerHttp` to a socket and back.
+## end — through `FcParty`, `GSP2PSession` and `GSP2PSignallerHttp` to a socket and back.
 func _test_party_over_http() -> void:
 	_section("A private match that meets over HTTP waits for the answer")
 
@@ -351,8 +351,8 @@ func _test_party_over_http() -> void:
 
 	_check(
 		ada.setup().ok and bob.setup().ok
-			and ada.session.signaller is DotP2PSignallerHttp
-			and bob.session.signaller is DotP2PSignallerHttp,
+			and ada.session.signaller is GSP2PSignallerHttp
+			and bob.session.signaller is GSP2PSignallerHttp,
 		"two parties set up with a URL, and both meet over HTTP rather than the loopback"
 	)
 
@@ -360,12 +360,12 @@ func _test_party_over_http() -> void:
 	ada.open.connect(func(code: String) -> void: opened.append(code))
 
 	var before := Engine.get_process_frames()
-	var hosted: DotResult = await ada.host("Ada")
+	var hosted: GSResult = await ada.host("Ada")
 	var took := Engine.get_process_frames() - before
 	var code := str(hosted.value) if hosted != null and hosted.ok else ""
 
 	_check(
-		hosted != null and hosted.ok and DotP2PLobby.is_code_shaped(code, ada.session.config.code_length),
+		hosted != null and hosted.ok and GSP2PLobby.is_code_shaped(code, ada.session.config.code_length),
 		"host() hands back a join code",
 		str(hosted.error.message) if hosted != null and not hosted.ok else "null"
 	)
@@ -385,7 +385,7 @@ func _test_party_over_http() -> void:
 		"and a private match that met over a real rendezvous files nothing either")
 
 	before = Engine.get_process_frames()
-	var joined: DotResult = await bob.join(code.to_lower(), "Bob")
+	var joined: GSResult = await bob.join(code.to_lower(), "Bob")
 	took = Engine.get_process_frames() - before
 
 	_check(joined != null and joined.ok and took >= stub.delay,
@@ -411,7 +411,7 @@ func _test_party_over_http() -> void:
 	add_child(carol)
 	var _set := carol.setup()
 	stub.refuse = 403
-	var refused: DotResult = await carol.host("Carol")
+	var refused: GSResult = await carol.host("Carol")
 	_check(refused != null and not refused.ok and not carol.active(),
 		"and a rendezvous that refuses leaves the match closed with a reason",
 		"null" if refused == null else ("ok" if refused.ok else refused.error.message))
@@ -435,7 +435,7 @@ func _test_team_bodies_fall_back() -> void:
 		"%s/%s vs %s/%s" % [worn.body, worn.top, own.body, own.top])
 	var _reset := FcTeamBodies.register("", "")
 	if FcTeamBodies.has_bodies():
-		var assets := FcNewerApi.script_of(&"DotHumanoidAssets")
+		var assets := FcNewerApi.script_of(&"GSHumanoidAssets")
 		var was: Variant = assets.get(&"team_tint")
 		assets.set(&"team_tint", 0.5)
 		_check(is_equal_approx(float(assets.get(&"team_tint")), 0.5), "dot-player-char's team tint is set through its class found by name", str(assets.get(&"team_tint")))

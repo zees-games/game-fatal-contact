@@ -10,27 +10,27 @@ const TeamMenuServer := preload("res://addons/dot_team/runtime/dot_team_menu_ser
 ## dot-team's menu rules; the adapters below are what make it arena's.
 var server: RefCounted = TeamMenuServer.new()
 var game: FcGame = null
-var names_cvar: DotConVar = null
-var colours_cvar: DotConVar = null
-var max_cvar: DotConVar = null
+var names_cvar: GSConVar = null
+var colours_cvar: GSConVar = null
+var max_cvar: GSConVar = null
 
 
 ## Binds `mp_teamswitch_*` and the team layout cvars (`mp_team_names`, `mp_team_colours`, `mp_team_max`), then wires the server to [param p_game].
 func bind(p_game: FcGame, add: Callable, host: Object) -> void:
 	game = p_game
-	var flags := DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+	var flags := GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	var _switch: Variant = server.bind_cvars(add, flags)
 	names_cvar = add.call("mp_team_names", "", "Team names, comma separated (Red,Blue,Green); more names than the mode has teams adds teams, no limit", flags)
 	colours_cvar = add.call("mp_team_colours", "", "Team colours as #rrggbb, comma separated, in the same order as mp_team_names", flags)
 	max_cvar = add.call("mp_team_max", "0", "Most players on one team (0 for no limit)", flags)
-	for cv: DotConVar in [names_cvar, colours_cvar, max_cvar]:
+	for cv: GSConVar in [names_cvar, colours_cvar, max_cvar]:
 		if cv != null:
 			cv.changed.connect(apply_layout.unbind(2))
 	server.teams_fn = rows
 	server.state_fn = state
 	server.join_fn = join
-	server.spectate_fn = func(key: Variant) -> DotResult: return set_spectating(int(key), true)
-	server.play_fn = func(key: Variant) -> DotResult: return set_spectating(int(key), false)
+	server.spectate_fn = func(key: Variant) -> GSResult: return set_spectating(int(key), true)
+	server.play_fn = func(key: Variant) -> GSResult: return set_spectating(int(key), false)
 	server.window_fn = func(_key: Variant) -> bool:
 		return game.match_node == null or not game.match_node.is_live()
 	server.clock_fn = func() -> float: return float(game._tick) / maxf(1.0, float(game.tick_rate))
@@ -38,18 +38,18 @@ func bind(p_game: FcGame, add: Callable, host: Object) -> void:
 	apply_layout()
 
 
-## Offline: the same rules with their default values and no console; returns the offer and choose callables for [method DotMenu.use_teams], keyed to [param local_id_fn].
+## Offline: the same rules with their default values and no console; returns the offer and choose callables for [method GSMenu.use_teams], keyed to [param local_id_fn].
 func bind_local(p_game: FcGame, local_id_fn: Callable) -> Array[Callable]:
 	var none := func(_n: String, _v: Variant, _d: String, _f: int) -> Variant: return null
 	bind(p_game, none, null)
 	var offer := func() -> Dictionary: return server.menu_for(local_id_fn.call())
-	var choose := func(id: String) -> DotResult: return server.request(local_id_fn.call(), id)
+	var choose := func(id: String) -> GSResult: return server.request(local_id_fn.call(), id)
 	return [offer, choose]
 
 
 ## Drops the callables that point back at this object, so the menu and its server can be freed.
 func release() -> void:
-	for cv: DotConVar in [names_cvar, colours_cvar, max_cvar]:
+	for cv: GSConVar in [names_cvar, colours_cvar, max_cvar]:
 		if cv != null and cv.changed.is_connected(apply_layout.unbind(2)):
 			cv.changed.disconnect(apply_layout.unbind(2))
 	server.release()
@@ -60,14 +60,14 @@ func release() -> void:
 func apply_layout() -> void:
 	if game == null or game.match_node == null or game.match_node.teams == null:
 		return
-	var manager: DotTeamManager = game.match_node.teams
+	var manager: GSTeamManager = game.match_node.teams
 	var wanted: PackedStringArray = _list(names_cvar)
 	var colours: PackedStringArray = _list(colours_cvar)
 	var count := maxi(manager.teams.size(), wanted.size())
 	var limit := int(max_cvar.get_string()) if max_cvar != null and max_cvar.get_string().is_valid_int() else 0
 	while manager.teams.size() < count:
 		var index := manager.teams.size()
-		manager.teams.append(DotTeam.make(index + 1, _default_name(index), _default_colour(index)))
+		manager.teams.append(GSTeam.make(index + 1, _default_name(index), _default_colour(index)))
 	for index in manager.teams.size():
 		var team := manager.teams[index]
 		if team.is_spectator:
@@ -90,7 +90,7 @@ static func _default_colour(index: int) -> Color:
 	return Color.from_hsv(fmod(index * 0.618034, 1.0), 0.65, 0.9)
 
 
-static func _list(cv: DotConVar) -> PackedStringArray:
+static func _list(cv: GSConVar) -> PackedStringArray:
 	var out := PackedStringArray()
 	if cv == null or cv.get_string().strip_edges() == "":
 		return out
@@ -104,7 +104,7 @@ func rows() -> Array:
 	var out: Array = []
 	if game == null or game.match_node == null or game.match_node.teams == null:
 		return out
-	var manager: DotTeamManager = game.match_node.teams
+	var manager: GSTeamManager = game.match_node.teams
 	for team in manager.teams:
 		if team.is_spectator:
 			continue
@@ -119,12 +119,12 @@ func state(key: Variant) -> Dictionary:
 
 
 ## Moves [param key] to [param team_id] (a player who was spectating comes back in); [param kill] also kills a living player, which scores nothing.
-func join(key: Variant, team_id: int, kill: bool) -> DotResult:
+func join(key: Variant, team_id: int, kill: bool) -> GSResult:
 	var id := int(key)
 	var player := game.player_for(id)
 	if player == null:
-		return DotResult.fail(DotError.CODE_INVALID, "Player %d is not in the match." % id)
-	var manager: DotTeamManager = game.match_node.teams
+		return GSResult.fail(GSError.CODE_INVALID, "Player %d is not in the match." % id)
+	var manager: GSTeamManager = game.match_node.teams
 	var was_out := bool(state(key)["spectating"])
 	# The menu server already applied the imbalance rule; the manager's own would refuse a second time.
 	var kept := manager.max_difference
@@ -139,39 +139,39 @@ func join(key: Variant, team_id: int, kill: bool) -> DotResult:
 		return _bring_back(id)
 	if kill and player.is_alive():
 		_silent_kill(id)
-	return DotResult.success(team_id)
+	return GSResult.success(team_id)
 
 
 ## Takes [param id] out of play (on) or back in (off), in any mode; a free-for-all player and a team member alike.
-func set_spectating(id: int, on: bool) -> DotResult:
+func set_spectating(id: int, on: bool) -> GSResult:
 	var player := game.player_for(id)
 	if player == null:
-		return DotResult.fail(DotError.CODE_INVALID, "Player %d is not in the match." % id)
+		return GSResult.fail(GSError.CODE_INVALID, "Player %d is not in the match." % id)
 	var record := game.match_node.scoreboard.record_for(str(id))
 	if on:
 		record.spectating = true
 		game.match_node.respawns.cancel(str(id))
 		if player.is_alive():
 			_silent_kill(id)
-		DotLog.debug(CHANNEL, "spectating", {"id": id})
-		return DotResult.success(id)
+		GSLog.debug(CHANNEL, "spectating", {"id": id})
+		return GSResult.success(id)
 	record.spectating = false
 	return _bring_back(id)
 
 
 ## The respawn's spawn sight queries the physics space, so on a server it waits for the next tick (dot_tick_gate.gd).
-func _bring_back(id: int) -> DotResult:
+func _bring_back(id: int) -> GSResult:
 	if game.player_for(id) == null:
-		return DotResult.fail(DotError.CODE_INVALID, "Player %d is not in the match." % id)
+		return GSResult.fail(GSError.CODE_INVALID, "Player %d is not in the match." % id)
 	game.tick_gate.run(game.respawn_player.bind(id))
-	return DotResult.success(id)
+	return GSResult.success(id)
 
 
 ## A lethal hit from the world that leaves no death, streak or feed line behind: choosing a side is not a mistake to be scored.
 func _silent_kill(id: int) -> void:
 	var record := game.match_node.scoreboard.record_for(str(id))
 	var deaths := record.deaths
-	var damage := DotDamage.make(0, id, 100000.0, game.combat.damage_type(&"world"))
+	var damage := GSDamage.make(0, id, 100000.0, game.combat.damage_type(&"world"))
 	damage.tick = game._tick
 	var _dealt := game.combat.apply_damage(damage)
 	record.deaths = deaths

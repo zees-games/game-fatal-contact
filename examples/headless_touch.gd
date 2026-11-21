@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcTouch := preload("../game/fc_touch.gd")
 const TagRules := preload("../game/fc_name_tag_rules.gd")
@@ -10,7 +10,7 @@ const CHECKS := 27
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -28,7 +28,7 @@ func _run() -> void:
 			smallest = minf(smallest, float(b["radius"]))
 		_check(smallest * 2.0 >= 44.0, "%s: every button is thumb size (44 px or more)" % label, str(smallest * 2.0))
 		for size: Vector2 in [Vector2(844, 390), Vector2(667, 375), Vector2(932, 430)]:
-			var buttons := DotTouchButtons.new()
+			var buttons := GSTouchButtons.new()
 			buttons.size = size
 			buttons.set_buttons(layout)
 			add_child(buttons)
@@ -43,8 +43,8 @@ func _run() -> void:
 			buttons.free()
 	# A phone: 844x390 stretched to a 720-unit canvas, 0.54 real px per unit, so a 72-unit button is 39 px.
 	var canvas := Vector2(1556, 720)
-	var fit := DotGameScreenFit.button_scale_for(FcTouch.LAYOUT, 390.0 / 720.0, DotGameScreenFit.target_px_for(400.0), canvas)
-	var fitted := DotTouchButtons.new()
+	var fit := GSGameScreenFit.button_scale_for(FcTouch.LAYOUT, 390.0 / 720.0, GSGameScreenFit.target_px_for(400.0), canvas)
+	var fitted := GSTouchButtons.new()
 	fitted.size = canvas
 	fitted.set_buttons(FcTouch.LAYOUT)
 	fitted.button_scale = fit
@@ -53,19 +53,19 @@ func _run() -> void:
 	_check(36.0 * 2.0 * fit * 390.0 / 720.0 >= 44.0 - 0.01, "phone fit: the smallest button is 44 real px across", str(fit))
 	_check(Rect2(Vector2.ZERO, canvas).encloses(fitted.footprint()), "phone fit: the grown cluster still fits the canvas", str(fitted.footprint()))
 	fitted.free()
-	DotPlatform.touch_override = 0
-	var off := DotTouchButtons.new()
+	GSPlatform.touch_override = 0
+	var off := GSTouchButtons.new()
 	add_child(off)
 	_check(not off.visible, "no touch: the buttons are hidden")
 	off.free()
-	DotPlatform.touch_override = -1
+	GSPlatform.touch_override = -1
 	var client_methods: Array = []
 	for m: Dictionary in load("res://game/fc_client.gd").get_script_method_list():
 		client_methods.append(m["name"])
 	_check("touch_next_weapon" in client_methods and "_touch_held" in client_methods, "the split client carries the touch wiring")
 	var drag := InputEventScreenDrag.new()
 	drag.relative = Vector2(NAN, 3.0)
-	var sampler := DotFpsTouchSampler.new(DotFpsTunables.new())
+	var sampler := GSFpsTouchSampler.new(GSFpsTunables.new())
 	sampler.handle_event(drag)
 	var turned := sampler.sample(1.0 / 60.0)
 	_check(is_finite(turned.yaw) and is_finite(turned.pitch), "a NaN touch drag leaves the look finite")
@@ -89,17 +89,17 @@ class Body extends Node3D:
 
 
 func _overlay() -> void:
-	var rules: DotMobileRules = (load("res://game/fc_game_state.gd") as GDScript).call(&"_make_mobile_rules")
-	var prefs := DotMobilePrefs.new()
+	var rules: GSMobileRules = (load("res://game/fc_game_state.gd") as GDScript).call(&"_make_mobile_rules")
+	var prefs := GSMobilePrefs.new()
 	_check(rules.resolve(prefs, true).autofire, "auto-fire is on for a touch player by default")
 	_check(not rules.resolve(prefs, false).autofire, "and off for keyboard and mouse")
-	DotPlatform.touch_override = 1
+	GSPlatform.touch_override = 1
 	var host := Control.new()
 	host.size = Vector2(844, 390)
 	add_child(host)
-	var sampler := DotFpsTouchSampler.new(DotFpsTunables.new())
+	var sampler := GSFpsTouchSampler.new(GSFpsTunables.new())
 	var touch: RefCounted = FcTouch.build(self, host, sampler, rules)
-	var controls: DotMobileControls = touch.get(&"controls")
+	var controls: GSMobileControls = touch.get(&"controls")
 	_check(controls != null and controls.touch and controls.sampler == sampler, "the overlay drives the client's own sampler", str(touch.call(&"describe")))
 	var tap := InputEventScreenTouch.new()
 	tap.pressed = true
@@ -111,7 +111,7 @@ func _overlay() -> void:
 	touch.call(&"sync", false, null)
 	_check(bool(touch.call(&"active")), "and closing the menu brings it back")
 	host.free()
-	DotPlatform.touch_override = -1
+	GSPlatform.touch_override = -1
 
 
 func _crosshair() -> void:
@@ -121,9 +121,9 @@ func _crosshair() -> void:
 	var enemy := _body(7, 3, Vector3(0, 0, -10))
 	var eye := Vector3(0, 1.6, 0)
 	var ahead := Vector3(0, 0, -1)
-	var none := DotMobileAutoFire.TARGET_NONE
-	var foe := DotMobileAutoFire.TARGET_ENEMY
-	var friend := DotMobileAutoFire.TARGET_FRIEND
+	var none := GSMobileAutoFire.TARGET_NONE
+	var foe := GSMobileAutoFire.TARGET_ENEMY
+	var friend := GSMobileAutoFire.TARGET_FRIEND
 	_check(FcTouch.crosshair_kind(eye, ahead, me, [me, enemy], null, 0) == foe, "the crosshair on a living opponent is an enemy")
 	_check(FcTouch.crosshair_kind(eye, Vector3(1, 0, 0), me, [me, enemy], null, 0) == none, "looking away is nothing")
 	var mate := _body(4, 2, Vector3(0, 0, -5))

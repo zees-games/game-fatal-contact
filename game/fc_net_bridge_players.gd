@@ -20,7 +20,7 @@ signal player_announced(payload: PackedByteArray)
 const AVATAR_BYTES := 1024
 
 
-## `func(session_id: int) -> DotAvatar`: what a player looks like, asked as they are
+## `func(session_id: int) -> GSAvatar`: what a player looks like, asked as they are
 ## seated and whenever the module re-announces them. Set by the module, which has the
 ## identity layer; unset or null is the stock figure, which every client derives alike.
 var avatar_fn: Callable = Callable()
@@ -58,7 +58,7 @@ var _tick_asks: Array = []
 
 
 ## Server: records every view and cuts the victims' clips (null until the first tick).
-var killview: DotKillViewServer = null
+var killview: GSKillViewServer = null
 ## When the kill view last recorded the eyes; the ring keeps one row per 1/record_hz, so the eyes are only gathered when one is due.
 var _killview_recorded_at := -1.0e9
 
@@ -70,9 +70,9 @@ var _pending_hits: Dictionary = {}
 
 ## Adds a player and makes them a replicated entity. Server side. [param session_id] is the id everything downstream uses: the scoreboard key, combat entity id, damage attribution and loadout key.
 ## [b]It is not the peer id[/b]: a peer id is reassigned when someone reconnects, and everything keyed by one would go to the next player to join.
-func add_player(peer_id: int, session_id: int, display_name: String) -> DotResult:
+func add_player(peer_id: int, session_id: int, display_name: String) -> GSResult:
 	if net == null or not net.is_server:
-		return DotResult.fail(DotError.CODE_FORBIDDEN, "Only the server adds players.")
+		return GSResult.fail(GSError.CODE_FORBIDDEN, "Only the server adds players.")
 
 	var added := game.add_player(session_id, display_name)
 
@@ -96,7 +96,7 @@ func add_player(peer_id: int, session_id: int, display_name: String) -> DotResul
 
 	if player.avatar == null and avatar_fn.is_valid():
 		var avatar: Variant = avatar_fn.call(session_id)
-		player.avatar = avatar as DotAvatar if avatar is DotAvatar else null
+		player.avatar = avatar as GSAvatar if avatar is GSAvatar else null
 
 	var payload := join_payload(session_id)
 	player_announced.emit(payload)
@@ -109,25 +109,25 @@ func add_player(peer_id: int, session_id: int, display_name: String) -> DotResul
 		_ready_unseated.erase(peer_id)
 		mark_ready(peer_id)
 
-	return DotResult.success(identity)
+	return GSResult.success(identity)
 
 
-## Builds the identity and behaviour that make an [FcPlayer] replicate. The behaviour is added before the identity on purpose: [DotNetIdentity] collects its behaviours in [code]_ready[/code] by walking the entity's subtree,
+## Builds the identity and behaviour that make an [FcPlayer] replicate. The behaviour is added before the identity on purpose: [GSNetIdentity] collects its behaviours in [code]_ready[/code] by walking the entity's subtree,
 ## and one added afterwards would never be found, so the entity would register with nothing to replicate and never move on any other machine.
-func _build_identity(player: FcPlayer, peer_id: int) -> DotNetIdentity:
+func _build_identity(player: FcPlayer, peer_id: int) -> GSNetIdentity:
 	var behaviour := FcPlayerNet.new()
 	behaviour.name = "Net"
 	behaviour.player = player
 	behaviour.bridge = self
 	player.add_child(behaviour)
 
-	var identity := DotNetIdentity.new()
+	var identity := GSNetIdentity.new()
 	identity.name = "Identity"
 	identity.owner_peer_id = peer_id
 	# SHARED, not SERVER: the server stays authoritative and corrects, and the owning client predicts.
-	# `DotNetIdentity.is_predicted()` is false for any other authority, so SERVER would mean a client that
+	# `GSNetIdentity.is_predicted()` is false for any other authority, so SERVER would mean a client that
 	# sees its own movement a full round trip late — noticeable at 80 ms and unplayable at 150.
-	identity.authority = DotNetIdentity.Authority.SHARED
+	identity.authority = GSNetIdentity.Authority.SHARED
 	player.add_child(identity)
 
 	_behaviours[player.player_id] = behaviour
@@ -137,7 +137,7 @@ func _build_identity(player: FcPlayer, peer_id: int) -> DotNetIdentity:
 ## Rounds a position the way `net_position` reaches a client, or an invalid Callable.
 func _position_wire(other_id: int) -> Callable:
 	var other: FcPlayerNet = _behaviours.get(other_id)
-	var spec: DotNetVar = other.find_var(&"net_position") if other != null else null
+	var spec: GSNetVar = other.find_var(&"net_position") if other != null else null
 	if spec == null or not spec.has_method(&"wire_value"):
 		return Callable()
 	return Callable(spec, &"wire_value")
@@ -216,7 +216,7 @@ func session_for_peer(peer_id: int) -> int:
 	return int(_players_by_peer.get(peer_id, 0))
 
 
-## One authoritative tick. Server side, and it replaces [method FcGame.tick]. [method DotNetManager.server_tick] hands each peer's input to its entities, simulates, records lag-compensation history and sends snapshots, in that order;
+## One authoritative tick. Server side, and it replaces [method FcGame.tick]. [method GSNetManager.server_tick] hands each peer's input to its entities, simulates, records lag-compensation history and sends snapshots, in that order;
 ## the game tick happens between the first two, from [method FcPlayerNet._net_simulate] through [method ensure_game_ticked]. The call afterwards is not redundant: a server with no players runs no behaviours and the match clock still has to advance, or an empty server's warmup never ends.
 ## Monsters this server replicates: instance id -> their [FcNpcNet]. Server side.
 var _monster_nets: Dictionary = {}
@@ -228,7 +228,7 @@ var _monster_mirrors: Dictionary = {}
 
 ## The horde spawner whose signals this bridge is connected to. A mode change builds a new
 ## horde, so this is checked every tick rather than connected once.
-var _watched_spawner: DotNpcSpawner = null
+var _watched_spawner: GSNpcSpawner = null
 
 
 ## Where a client's monster mirrors live.
@@ -338,7 +338,7 @@ const BOT_SESSION_BASE := FcGame.BOT_SESSION_BASE
 var _bot_minds: Dictionary = {}
 var _next_bot := 0
 
-## Everything a client needs to mirror one player. A message rather than a spawn: [DotNetSpawner] builds entities from a prefab table,
+## Everything a client needs to mirror one player. A message rather than a spawn: [GSNetSpawner] builds entities from a prefab table,
 ## and an [FcPlayer] is built by [method FcGame.add_player] so the netted and headless deployments get the same player rather than two that drift.
 func join_payload(session_id: int) -> PackedByteArray:
 	var behaviour: FcPlayerNet = _behaviours.get(session_id)
@@ -346,7 +346,7 @@ func join_payload(session_id: int) -> PackedByteArray:
 	if behaviour == null or behaviour.identity == null:
 		return PackedByteArray()
 
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	writer.write_varint(behaviour.identity.net_id)
 	writer.write_varint(behaviour.identity.owner_peer_id)
 	writer.write_varint(session_id)
@@ -436,7 +436,7 @@ func send_signon(peer_id: int) -> void:
 
 
 ## The bullet bridge this bridge last connected to. See [method _watch_bullets].
-var _watched_bullets: DotWeaponBulletBridge = null
+var _watched_bullets: GSWeaponBulletBridge = null
 
 
 ## The mover world this bridge last sent to (a map change builds a new one).
@@ -462,7 +462,7 @@ func _live_map_io() -> Node:
 func _send_map_state(peer: Variant, payload: Dictionary) -> void:
 	var body := JSON.stringify(payload).to_utf8_buffer()
 	if body.size() > FcEvent.MAX_BODY:
-		DotLog.error(CHANNEL, "map state too large for one event, dropped", {"bytes": body.size()})
+		GSLog.error(CHANNEL, "map state too large for one event, dropped", {"bytes": body.size()})
 		return
 	send_event(int(peer), FcEvents.Kind.MAP_STATE, body)
 
@@ -482,7 +482,7 @@ func _watch_bullets() -> void:
 	bridge.bullet_spawned.connect(func(id: int, owner_id: int, weapon_id: StringName, origin: Vector3, velocity: Vector3) -> void:
 		send_event(0, FcEvents.Kind.BULLET, FcEvents.write_bullet(
 			id, owner_id, FcContent.weapon_index(weapon_id), origin, velocity)))
-	bridge.bullets.hit.connect(func(id: int, _o: int, _i: Dictionary, _d: float, _m: float, _t: DotWeaponBallistics) -> void:
+	bridge.bullets.hit.connect(func(id: int, _o: int, _i: Dictionary, _d: float, _m: float, _t: GSWeaponBallistics) -> void:
 		send_event(0, FcEvents.Kind.BULLET_END, FcEvents.write_bullet_end(id)))
 	bridge.bullets.expired.connect(func(id: int) -> void:
 		send_event(0, FcEvents.Kind.BULLET_END, FcEvents.write_bullet_end(id)))
@@ -494,7 +494,7 @@ func _watch_horde() -> void:
 	if net == null or not net.is_server or game == null:
 		return
 
-	var spawner: DotNpcSpawner = game.horde.spawner if game.horde != null else null
+	var spawner: GSNpcSpawner = game.horde.spawner if game.horde != null else null
 
 	if spawner == _watched_spawner:
 		return
@@ -521,7 +521,7 @@ func _watch_horde() -> void:
 		_on_monster_spawned(npc)
 
 
-func _on_monster_spawned(npc: DotNpcInstance) -> void:
+func _on_monster_spawned(npc: GSNpcInstance) -> void:
 	var body := npc.node as Node3D
 
 	if body == null or net == null or _monster_nets.has(npc.instance_id):
@@ -533,10 +533,10 @@ func _on_monster_spawned(npc: DotNpcInstance) -> void:
 	behaviour.body = body
 	body.add_child(behaviour)
 
-	var identity := DotNetIdentity.new()
+	var identity := GSNetIdentity.new()
 	identity.name = "Identity"
 	identity.owner_peer_id = 0
-	identity.authority = DotNetIdentity.Authority.SERVER
+	identity.authority = GSNetIdentity.Authority.SERVER
 	# Relevant to everybody, whatever the interest grid's radius says: Fatal Contact is sixty metres across, a gunner fires from eighteen and a horde arrives from anywhere,
 	# and culling by distance announced a monster twenty-five metres away and never sent it a snapshot (drawn frozen where it spawned).
 	identity.always_relevant = true
@@ -545,7 +545,7 @@ func _on_monster_spawned(npc: DotNpcInstance) -> void:
 	var registered := net.registry.register(identity, 0, net.clock.tick, net.config)
 
 	if not registered.ok:
-		DotLog.warn(CHANNEL, "could not replicate a monster", {"error": str(registered.error)})
+		GSLog.warn(CHANNEL, "could not replicate a monster", {"error": str(registered.error)})
 		return
 
 	_monster_nets[npc.instance_id] = behaviour
@@ -555,7 +555,7 @@ func _on_monster_spawned(npc: DotNpcInstance) -> void:
 	))
 
 
-func _on_monster_removed(npc: DotNpcInstance, _reason: StringName) -> void:
+func _on_monster_removed(npc: GSNpcInstance, _reason: StringName) -> void:
 	_forget_monster(npc.instance_id)
 
 
@@ -616,7 +616,7 @@ func _send_scores(peer_id: int, tick: int, force: bool = false) -> void:
 		return
 	if peer_id == 0 and not force and tick % 15 != 0:
 		return
-	var board: DotScoreboard = game.match_node.scoreboard
+	var board: GSScoreboard = game.match_node.scoreboard
 	var rows: Array[Dictionary] = []
 	for id in game.player_ids():
 		var record := board.find(str(id))
@@ -663,7 +663,7 @@ func _tick_killview() -> void:
 	for ready: Dictionary in killview.collect(now, tick):
 		var peer := peer_for_session(int(ready["victim"]))
 		if peer != 0:
-			send_event(peer, FcEvents.Kind.KILLVIEW, DotKillViewClip.pack(ready["clip"], ready["info"], FcEvents.KILLVIEW_BYTES))
+			send_event(peer, FcEvents.Kind.KILLVIEW, GSKillViewClip.pack(ready["clip"], ready["info"], FcEvents.KILLVIEW_BYTES))
 	FcFrameProbe.lap(&"kv_collect", t_kv)
 
 
@@ -729,7 +729,7 @@ func mark_ready(peer_id: int) -> void:
 	# Before the seat: kept, and answered by add_player (see [member _ready_unseated]).
 	if not _players_by_peer.has(peer_id):
 		_ready_unseated[peer_id] = true
-		DotLog.debug(CHANNEL, "a READY before the seat, kept", {"peer": peer_id})
+		GSLog.debug(CHANNEL, "a READY before the seat, kept", {"peer": peer_id})
 		return
 
 	_ready_peers[peer_id] = true
@@ -741,4 +741,4 @@ func mark_ready(peer_id: int) -> void:
 	if peer_ready_fn.is_valid():
 		peer_ready_fn.call(peer_id)
 
-	DotLog.info(CHANNEL, "a peer is ready", {"peer": peer_id})
+	GSLog.info(CHANNEL, "a peer is ready", {"peer": peer_id})

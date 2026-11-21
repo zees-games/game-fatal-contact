@@ -3,7 +3,7 @@ extends "fc_game_setup.gd"
 
 ## Work heard between ticks that touches the physics space (a respawn, a restart, a map change),
 ## held for the next server tick; armed only by [code]FcModule[/code]. See dot_tick_gate.gd.
-var tick_gate := DotTickGate.new()
+var tick_gate := GSTickGate.new()
 
 ## The standing hulls player [param id] stops at: every other living player's, where they
 ## stand now; none while `mp_solidplayers` is 0. Asked per sweep by the movement body, so a
@@ -141,9 +141,9 @@ func set_tick_rate(rate: int) -> void:
 ## Adds a player, builds their body, and puts them in the match.
 func add_player(
 	id: int, display_name: String, wanted_team: int = 0
-) -> DotResult:
+) -> GSResult:
 	if _players.has(id):
-		return DotResult.fail(DotError.CODE_STATE, "Player %d is already here." % id)
+		return GSResult.fail(GSError.CODE_STATE, "Player %d is already here." % id)
 
 	var player := FcPlayer.new()
 	player.use_tick_rate(tick_rate)
@@ -160,7 +160,7 @@ func add_player(
 	player.apply_vitals(config.player_health, config.player_armour, config.player_regen, config.fall_out_depth)
 	add_child(player)
 
-	# The layout's player mask, rather than `DotFpsTunables`' default of 1. See
+	# The layout's player mask, rather than `GSFpsTunables`' default of 1. See
 	# `FcPlayer.use_collision_mask` — with props on their own layer, 1 is a player
 	# who walks through crates.
 	if player_stack != null:
@@ -188,7 +188,7 @@ func add_player(
 		return added
 
 	# The side dot-match actually put them on, which is not necessarily the one they
-	# asked for: `DotTeamManager.assign` refuses a full team and balances an uneven one.
+	# asked for: `GSTeamManager.assign` refuses a full team and balances an uneven one.
 	# Reading it back rather than assuming is the difference between a scoreboard that
 	# matches the game and one that matches the request.
 	#
@@ -200,7 +200,7 @@ func add_player(
 	if progress != null:
 		# Not awaited. An achievement store may be remote and a join may not wait on
 		# it; readings that arrive during the load are still counted, because
-		# `DotAchievementStatsLink` holds its baseline until the tracker has the
+		# `GSAchievementStatsLink` holds its baseline until the tracker has the
 		# player. See `FcProgress.begin`.
 		progress.begin(id, display_name)
 
@@ -208,7 +208,7 @@ func add_player(
 	# this and the first thing a client's does is hang a camera off them.
 	player_added.emit(player)
 
-	return DotResult.success(player)
+	return GSResult.success(player)
 
 func _mode_shown() -> FcMode:
 	return displayed_mode()
@@ -217,9 +217,9 @@ func displayed_mode() -> FcMode:
 	return shown_mode if shown_mode != null else mode
 
 ## How a body comes apart on death under the current rules.
-func break_rules() -> DotPlayerBreakRules:
-	var rules := DotPlayerBreakRules.new()
-	rules.mode = clampi(int(rule("break_mode")), 0, 2) as DotPlayerBreakRules.Mode
+func break_rules() -> GSPlayerBreakRules:
+	var rules := GSPlayerBreakRules.new()
+	rules.mode = clampi(int(rule("break_mode")), 0, 2) as GSPlayerBreakRules.Mode
 	rules.limbs = maxi(int(rule("break_limbs")), 1)
 	rules.criticals_only = rule("break_criticals_only") != 0.0
 	return rules
@@ -230,11 +230,11 @@ func break_rules() -> DotPlayerBreakRules:
 ## admin put back gets the director's spawn choice, spawn protection, a cleared effect
 ## set and their loadout, exactly like one the match put back. Anything still queued for
 ## them is cancelled first, or the queue would respawn them a second time moments later.
-func respawn_player(id: int) -> DotResult:
+func respawn_player(id: int) -> GSResult:
 	var player := player_for(id)
 
 	if player == null:
-		return DotResult.fail(DotError.CODE_INVALID, "Player %d is not in the match." % id)
+		return GSResult.fail(GSError.CODE_INVALID, "Player %d is not in the match." % id)
 
 	var key := str(id)
 	FcWeaponDropWiring.reset_drop_key(self, id)
@@ -243,7 +243,7 @@ func respawn_player(id: int) -> DotResult:
 		match_node.respawns.cancel(key)
 
 	_on_respawn_due(key, match_node.choose_spawn(key, _tick), _tick)
-	return DotResult.success(player)
+	return GSResult.success(player)
 
 ## dot-bot-record, loaded by path in [method start_ride_recording] only: a game that never records does not compile it.
 const BOT_RECORD_DIR := "res://addons/dot_bot_record/"
@@ -251,7 +251,7 @@ const BOT_RECORD_DIR := "res://addons/dot_bot_record/"
 const FcKillViewServer := preload("fc_killview_server.gd")
 
 ## The kill view's server half over this game: every living eye, respawns held in dot-match's queue.
-func make_killview_server() -> DotKillViewServer:
+func make_killview_server() -> GSKillViewServer:
 	var server := FcKillViewServer.new(killview_rules)
 	server.tick_rate = tick_rate
 	KillPov.watch_hits(self)
@@ -265,18 +265,18 @@ func make_killview_server() -> DotKillViewServer:
 			# Only the eyes the ring keeps this tick: one tick in three at 66 ticks and 30 Hz.
 			if not due.check(p.player_id):
 				continue
-			var st: DotFpsState = p.controller.state
+			var st: GSFpsState = p.controller.state
 			var eye: Vector3 = p.controller.motor.eye_position(st) if p.controller.motor != null else st.position + eye_up
 			var basis := Basis.from_euler(Vector3(deg_to_rad(st.pitch), deg_to_rad(st.yaw), 0.0))
-			eyes.append({"id": p.player_id, "transform": Transform3D(basis, eye), "fov": KillPov.fov_of(p), "aux": KillPov.aux_of_tick(p, DotKillViewRing.AUX, true)})
+			eyes.append({"id": p.player_id, "transform": Transform3D(basis, eye), "fov": KillPov.fov_of(p), "aux": KillPov.aux_of_tick(p, GSKillViewRing.AUX, true)})
 		return eyes
 	server.use_respawn_queue(func() -> Variant: return match_node.respawns if match_node != null else null,
-		func(id: Variant) -> DotResult: return respawn_player(int(id)))
+		func(id: Variant) -> GSResult: return respawn_player(int(id)))
 	return server
 
 ## Builds [member noblock] over dot-team's rules (its cfg layers; strict fails the boot) for a server or a solo game.
-func make_noblock(strict := DotGameConfigBinder.default_strict()) -> DotResult:
-	var made := DotGameNoblock.create("game-arena", Callable(self, "block_side"), PackedStringArray(), strict)
+func make_noblock(strict := GSGameConfigBinder.default_strict()) -> GSResult:
+	var made := GSGameNoblock.create("game-arena", Callable(self, "block_side"), PackedStringArray(), strict)
 	if not made.ok:
 		return made
 	noblock = made.value
@@ -292,7 +292,7 @@ func block_side(id: Variant) -> Variant:
 
 ## A storage key that is usable as a filename.
 ##
-## `DotLoadoutKey.is_usable` has a minimum length, so a bare session id of "7" is
+## `GSLoadoutKey.is_usable` has a minimum length, so a bare session id of "7" is
 ## refused before any store sees it. Padding here rather than loosening the check: the
 ## check exists so a malformed key can never reach a filesystem path.
 ##
@@ -341,47 +341,47 @@ func current_tick() -> int:
 	return _tick
 
 ## Records the surf rides real players take (`fc_surf_rides.gd`), off unless `bot_record` is on in the config, environment, command line or console; a no-op on a shell without dot-bot's recorder.
-func start_ride_recording(add_cvar: Callable = Callable(), config_file: String = "user://bot_record.json") -> DotResult:
+func start_ride_recording(add_cvar: Callable = Callable(), config_file: String = "user://bot_record.json") -> GSResult:
 	if surf_rides != null:
-		return DotResult.success(surf_rides)
-	if DotAddonApi.build_level("dot_bot") < 5 or DotAddonApi.build_level("dot_player_controller") < 3 \
+		return GSResult.success(surf_rides)
+	if GSAddonApi.build_level("dot_bot") < 5 or GSAddonApi.build_level("dot_player_controller") < 3 \
 			or not ResourceLoader.exists("res://addons/dot_bot/runtime/surf/dot_bot_ride_harvest.gd"):
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "This shell has no ride recorder.")
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "This shell has no ride recorder.")
 	# dot-bot-record's classes are loaded here, by path, so a game that never records does not compile them.
 	var config: RefCounted = (load(BOT_RECORD_DIR + "core/dot_bot_demo_config.gd") as GDScript).new()
 	config.set(&"record", false)
-	var layered: DotResult = config.call(&"load_layered", config_file if FileAccess.file_exists(config_file) else "")
+	var layered: GSResult = config.call(&"load_layered", config_file if FileAccess.file_exists(config_file) else "")
 	if not layered.ok:
 		return layered
 	if add_cvar.is_valid():
-		var _cvars: Variant = config.call(&"bind_cvars", add_cvar, DotConVar.FLAG_NOTIFY)
-	var made: DotResult = (load(BOT_RECORD_DIR + "store/dot_bot_demo_store.gd") as GDScript).call(&"from_config", config, null)
+		var _cvars: Variant = config.call(&"bind_cvars", add_cvar, GSConVar.FLAG_NOTIFY)
+	var made: GSResult = (load(BOT_RECORD_DIR + "store/dot_bot_demo_store.gd") as GDScript).call(&"from_config", config, null)
 	if not made.ok or made.value == null:
-		return made if not made.ok else DotResult.fail(DotError.CODE_STATE, "bot_record_store is off.")
+		return made if not made.ok else GSResult.fail(GSError.CODE_STATE, "bot_record_store is off.")
 	var store: RefCounted = made.value
-	var opened: DotResult = store.call(&"open")
+	var opened: GSResult = store.call(&"open")
 	if not opened.ok:
 		return opened
 	var rides: RefCounted = (load(FcPaths.rebase("res://game/fc_surf_rides.gd")) as GDScript).new()
-	var ready: DotResult = rides.call(&"setup", self, config, store, float(tick_rate))
+	var ready: GSResult = rides.call(&"setup", self, config, store, float(tick_rate))
 	if not ready.ok:
 		return ready
 	surf_rides = rides
 	var _stats := start_demo_stats(config, store)
-	return DotResult.success(rides)
+	return GSResult.success(rides)
 
 ## Records `place` and `engage` episodes into [param store] and lets the bots roam where people stand; a no-op on a shell without dot-bot's heatmap and aim statistics.
-func start_demo_stats(config: RefCounted, store: RefCounted) -> DotResult:
+func start_demo_stats(config: RefCounted, store: RefCounted) -> GSResult:
 	if demo_stats != null:
-		return DotResult.success(demo_stats)
+		return GSResult.success(demo_stats)
 	if not ResourceLoader.exists("res://addons/dot_bot/runtime/dot_bot_demo_heatmap.gd") or not ResourceLoader.exists("res://addons/dot_bot/runtime/dot_bot_aim_stats.gd"):
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "This shell has no heatmap or aim statistics.")
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "This shell has no heatmap or aim statistics.")
 	var stats: RefCounted = (load(FcPaths.rebase("res://game/fc_demo_stats.gd")) as GDScript).new()
-	var ready: DotResult = stats.call(&"setup", self, config, store, float(tick_rate))
+	var ready: GSResult = stats.call(&"setup", self, config, store, float(tick_rate))
 	if not ready.ok:
 		return ready
 	demo_stats = stats
-	return DotResult.success(stats)
+	return GSResult.success(stats)
 
 # --- Events ----------------------------------------------------------------
 

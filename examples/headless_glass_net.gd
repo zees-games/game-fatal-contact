@@ -3,12 +3,12 @@ extends "lossy_base.gd"
 const EXPECTED_CHECKS := 14
 const MAP := &"crackhouse"
 
-## A pane the server's shot breaks breaks on a real client too: a real `DotServer` running `FcModule` and a real ENet client in one process (as headless_lossy), no loss. The server's game changes to a converted dm world, the client follows
-## it, a DotShot goes through the server game's `_resolve_shot`, and the client's copy of that pane (the same `model`) breaks from the PANE_BROKEN event alone: its own pane is not `authoritative`.
+## A pane the server's shot breaks breaks on a real client too: a real `GSServer` running `FcModule` and a real ENet client in one process (as headless_lossy), no loss. The server's game changes to a converted dm world, the client follows
+## it, a GSShot goes through the server game's `_resolve_shot`, and the client's copy of that pane (the same `model`) breaks from the PANE_BROKEN event alone: its own pane is not `authoritative`.
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 	get_tree().create_timer(300.0).timeout.connect(func() -> void:
 		print("FAIL: watchdog, the suite took over 300 s")
@@ -51,7 +51,7 @@ func _by_model(panes: Array[Node3D], model: int) -> Node3D:
 
 func _run() -> void:
 	print("game-fatal-contact: a broken pane over a real server and a real client")
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	Engine.physics_ticks_per_second = TICK_RATE
 	var ok := await _boot()
 	var a: Dictionary = {}
@@ -62,13 +62,13 @@ func _run() -> void:
 		_clients["A"] = a
 		ok = await _body(a)
 	await _teardown()
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	_report_sections(_entered, _completed, 2, EXPECTED_CHECKS)
 
 
 func _teardown() -> void:
 	for label in _clients:
-		var link: DotClientLink = _clients[label]["link"]
+		var link: GSClientLink = _clients[label]["link"]
 		if link != null and is_instance_valid(link):
 			link.disconnect_from_server("test over")
 	await get_tree().process_frame
@@ -110,7 +110,7 @@ func _body(a: Dictionary) -> bool:
 		return false
 	_check(_broken_count(server_panes) == 0 and _broken_count(client_panes) == 0, "none starts broken")
 
-	var trace: DotTrace = _game.combat.trace
+	var trace: GSTrace = _game.combat.trace
 	var target: Node3D = null
 	var origin := Vector3.ZERO
 	var dir := Vector3.ZERO
@@ -143,7 +143,7 @@ func _body(a: Dictionary) -> bool:
 
 	# The server hooks a pane on its next tick, as it does in a running game.
 	await _until(func() -> bool: return target.has_meta(&"fc_watched") and not target.get_signal_connection_list(&"broken").is_empty(), 5.0)
-	var shot := DotShot.new()
+	var shot := GSShot.new()
 	shot.origin = origin
 	shot.direction = dir
 	shot.pellets = [dir]

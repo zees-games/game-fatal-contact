@@ -1,14 +1,14 @@
 extends RefCounted
 
 ## The dedicated server the play and bench tools each stand up on a loopback port: the real
-## [DotServer] with [FcModule] loaded by path, its files in a run directory of the tool's
+## [GSServer] with [FcModule] loaded by path, its files in a run directory of the tool's
 ## own.
 
 
 ## A config for a loopback server whose admin, ban and audit files live in [param data].
 static func config(hostname: String, port: int, data: String, log_level: String,
-		max_players := 0) -> DotServerConfig:
-	var config := DotServerConfig.new()
+		max_players := 0) -> GSServerConfig:
+	var config := GSServerConfig.new()
 	config.hostname = hostname
 	config.port = port
 	if max_players > 0:
@@ -31,18 +31,18 @@ static func config(hostname: String, port: int, data: String, log_level: String,
 
 ## Boots a server on [param config] under [param parent] and loads Fatal Contact module. Null
 ## (after printing [param tag] and why) when either step fails.
-static func boot(parent: Node, config: DotServerConfig, tag: String) -> DotServer:
-	var server := DotServer.new()
+static func boot(parent: Node, config: GSServerConfig, tag: String) -> GSServer:
+	var server := GSServer.new()
 	server.name = "Server"
 	server.config = config
 	server.config_file = ""
 	server.auto_boot = false
 	parent.add_child(server)
-	var booted: DotResult = await server.boot()
+	var booted: GSResult = await server.boot()
 	if not booted.ok:
 		printerr(tag, ": ", booted.error)
 		return null
-	var loaded: DotResult = await server.modules.load_module("res://game/fc_module.gd")
+	var loaded: GSResult = await server.modules.load_module("res://game/fc_module.gd")
 	if not loaded.ok:
 		printerr(tag, ": ", loaded.error)
 		return null

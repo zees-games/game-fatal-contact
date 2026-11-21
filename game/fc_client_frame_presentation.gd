@@ -64,7 +64,7 @@ func _probe_extra() -> Dictionary:
 	})
 	return out
 
-func _on_detonated(at: Vector3, spawn: DotWeaponSpawn) -> void:
+func _on_detonated(at: Vector3, spawn: GSWeaponSpawn) -> void:
 	if presentation != null:
 		presentation.on_explosion(at, camera_position(), spawn.id)
 
@@ -104,7 +104,7 @@ static func _strength(action: StringName) -> float:
 ## where the camera was on the first frame of a roam, so it starts where the spectator looked.
 func _fly_free_camera(id: int, current: Transform3D) -> Transform3D:
 	if _free_cam == null:
-		_free_cam = DotSpectatorFreeCam.new()
+		_free_cam = GSSpectatorFreeCam.new()
 		_free_cam.rules = game.spectate_rules
 		_free_cam.seed_from(current)
 	var tunables := player.controller.tunables if player.controller != null else null
@@ -238,15 +238,15 @@ func sync_name_tags(world_mask: int) -> void:
 	TagRules.occluder_mask = world_mask
 
 
-## How much of their own body the local player sees in first person (DotPlayerViewRules.BODY_*):
+## How much of their own body the local player sees in first person (GSPlayerViewRules.BODY_*):
 ## the `first_person_body` setting, or the server's when it is "auto"; Fatal Contact's `fp_body` rule keeps at least the legs.
 func own_body_mode() -> int:
 	var picked := presentation.settings.get_string(&"first_person_body", "auto") if presentation != null and presentation.settings != null else "auto"
-	# cl_legs (DotOwnBodySetting) is the client veto: off hides the body whatever the server or the choice says.
-	if presentation != null and presentation.settings != null and not presentation.settings.get_bool(DotOwnBodySetting.KEY, DotOwnBodySetting.DEFAULT):
-		return DotPlayerViewRules.BODY_OFF
+	# cl_legs (GSOwnBodySetting) is the client veto: off hides the body whatever the server or the choice says.
+	if presentation != null and presentation.settings != null and not presentation.settings.get_bool(GSOwnBodySetting.KEY, GSOwnBodySetting.DEFAULT):
+		return GSPlayerViewRules.BODY_OFF
 	var mode := game.view_rules.own_body(OWN_BODY_CHOICES.find(StringName(picked)) - 1)
-	return DotPlayerViewRules.BODY_LEGS if mode == DotPlayerViewRules.BODY_OFF and picked == "auto" and game.rule("fp_body") != 0.0 else mode
+	return GSPlayerViewRules.BODY_LEGS if mode == GSPlayerViewRules.BODY_OFF and picked == "auto" and game.rule("fp_body") != 0.0 else mode
 
 ## Whether the camera shows somebody else's view (a spectator, a death or kill cam). The eye light is
 ## then not ours to switch: the watched player's own beam is drawn by the crowd from their head.
@@ -256,10 +256,10 @@ func _watching_other() -> bool:
 	return not player.is_alive() or (game.spectate != null and game.spectate.is_spectating(str(player.player_id)))
 
 ## The sound manager the flashlight clicks play through, or null before audio is up.
-func _flash_audio_ref() -> DotNodeRef:
+func _flash_audio_ref() -> GSNodeRef:
 	if presentation == null or presentation.audio == null or not presentation.audio.is_inside_tree():
 		return null
-	return DotNodeRef.of_path(presentation.audio.get_path())
+	return GSNodeRef.of_path(presentation.audio.get_path())
 
 ## Ticks the flashlight button is held: the game's rate once it exists, the default before.
 func _flash_hold_ticks() -> int:
@@ -276,12 +276,12 @@ func _present_flashlights() -> void:
 		return
 	var cfg := game.flashlight_conf()
 	if flash == null or not is_instance_valid(flash):
-		flash = DotFlashlight.new()
+		flash = GSFlashlight.new()
 		flash.name = "Flashlight"
 		flash.config = cfg
 		flash.handle_input = false
 		flash.authoritative = false
-		flash.allowed = DotFlashlightRules.allowed_on(cfg, String(game.map.id if game.map != null else ""))
+		flash.allowed = GSFlashlightRules.allowed_on(cfg, String(game.map.id if game.map != null else ""))
 		flash.audio = _flash_audio_ref()
 		if not flash.switch_requested.is_connected(_on_flash_switch):
 			flash.switch_requested.connect(_on_flash_switch)
@@ -294,7 +294,7 @@ func _present_flashlights() -> void:
 	elif Time.get_ticks_msec() - _flash_msec > 400:
 		flash.apply_state({"on": player.flashlight and player.is_alive()})
 	if flash_crowd == null or not is_instance_valid(flash_crowd):
-		flash_crowd = DotFlashlightCrowd.new()
+		flash_crowd = GSFlashlightCrowd.new()
 		flash_crowd.name = "Flashlights"
 		flash_crowd.config = cfg
 		flash_crowd.audio = _flash_audio_ref()
@@ -325,7 +325,7 @@ func _present_flashlights() -> void:
 func _ease_view_turn(delta: float) -> void:
 	if _sampler == null or is_zero_approx(_view_turn_left):
 		return
-	var step := _view_turn_left if absf(_view_turn_left) < 0.1 else _view_turn_left * DotCameraSmoothing.blend(VIEW_TURN_HALF_LIFE, delta)
+	var step := _view_turn_left if absf(_view_turn_left) < 0.1 else _view_turn_left * GSCameraSmoothing.blend(VIEW_TURN_HALF_LIFE, delta)
 	_view_turn_left -= step
 	_sampler.look_at_angles(_sampler.yaw + step, _sampler.pitch)
 
@@ -354,7 +354,7 @@ func _apply_shake() -> void:
 	player.camera_roll = presentation.camera_roll() + deg_to_rad(hit.x)
 	_apply_hit_wobble(now)
 
-## Whether the local player is dot-net's idea of a predicted entity. Not the same question as "is it ours". `DotNetIdentity.is_predicted` also requires
+## Whether the local player is dot-net's idea of a predicted entity. Not the same question as "is it ours". `GSNetIdentity.is_predicted` also requires
 ## the authority to be SHARED and the owner peer id to match this manager's local one — and a client whose local peer id does not match what the server addressed it as gets
 ## an entity that is neither predicted nor interpolated, which nothing then moves.
 func _is_predicted() -> bool:

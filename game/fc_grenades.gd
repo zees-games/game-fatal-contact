@@ -11,10 +11,10 @@ const CHANNEL := "arena.grenades"
 ## fc_weapons API level that has AwUtilityZones (requires.floor.json).
 const MIN_LEVEL := 4
 
-## dot-bot API level that has DotBotBrain.blind_for and the world's sight blockers.
+## dot-bot API level that has GSBotBrain.blind_for and the world's sight blockers.
 const BOT_LEVEL := 8
 
-## dot-npc API level that has DotNpcInstance.blind_for and DotNpcSenses.add_sight_blocker.
+## dot-npc API level that has GSNpcInstance.blind_for and GSNpcSenses.add_sight_blocker.
 const NPC_LEVEL := 6
 
 ## What an [signal effect] shows; the wire values live in the addon.
@@ -34,7 +34,7 @@ var _reach := 0.0
 
 ## Whether this build of fc_weapons can do it; the glue stays off below that.
 static func supported() -> bool:
-	return DotAddonApi.build_level("fc_weapons") >= MIN_LEVEL
+	return GSAddonApi.build_level("fc_weapons") >= MIN_LEVEL
 
 
 static func utility_ids(defs: Array) -> Array[StringName]:
@@ -69,8 +69,8 @@ func tick(delta: float) -> void:
 		zones.tick(delta)
 
 
-func _on_detonated(at: Vector3, spawn: DotWeaponSpawn) -> void:
-	var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(spawn.id)
+func _on_detonated(at: Vector3, spawn: GSWeaponSpawn) -> void:
+	var def: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(spawn.id)
 	if not AwUtilityZones.is_utility(def):
 		return
 
@@ -80,14 +80,14 @@ func _on_detonated(at: Vector3, spawn: DotWeaponSpawn) -> void:
 	_reach = float(def.params.get(&"effect_radius", 0.0))
 	# Blast damage stays off: the incendiary's splash was resolved by the projectile layer already.
 	_tell_bots(zones.detonate(g, def), at)
-	DotLog.debug(CHANNEL, "utility grenade went off", {"kind": String(g.kind), "at": at})
+	GSLog.debug(CHANNEL, "utility grenade went off", {"kind": String(g.kind), "at": at})
 
 
 ## A flashed bot goes blind for the ledger's seconds; a smoke cloud blocks every bot's line of sight.
 func _tell_bots(events: Array, at: Vector3) -> void:
 	_tell_monsters(events, at)
 
-	if DotAddonApi.build_level("dot_bot") < BOT_LEVEL:
+	if GSAddonApi.build_level("dot_bot") < BOT_LEVEL:
 		return
 
 	var world := FcBots.world_for(game)
@@ -96,7 +96,7 @@ func _tell_bots(events: Array, at: Vector3) -> void:
 	for e: Dictionary in events:
 		match String(e["event"]):
 			"blind":
-				var brain: DotBotBrain = world.brains.get(int(e["victim"]))
+				var brain: GSBotBrain = world.brains.get(int(e["victim"]))
 				if brain != null:
 					brain.blind_for(now, zones.ledger.remaining(int(e["victim"])), at)
 			"smoke":
@@ -106,21 +106,21 @@ func _tell_bots(events: Array, at: Vector3) -> void:
 ## Flashed monsters lose sight for the ledger's seconds; a smoke cloud blocks the horde's sight, hearing passes.
 func _tell_monsters(events: Array, at: Vector3) -> void:
 	var horde: Node = game.horde
-	if DotAddonApi.build_level("dot_npc") < NPC_LEVEL or horde == null or horde.senses == null:
+	if GSAddonApi.build_level("dot_npc") < NPC_LEVEL or horde == null or horde.senses == null:
 		return
 
 	for e: Dictionary in events:
 		match String(e["event"]):
 			"blind":
-				var npc: DotNpcInstance = _monster_for(int(e["victim"]))
+				var npc: GSNpcInstance = _monster_for(int(e["victim"]))
 				if npc != null:
 					npc.blind_for(horde.spawner.now(), zones.ledger.remaining(int(e["victim"])))
 			"smoke":
 				var _id: int = horde.senses.add_sight_blocker(at + Vector3(0.0, 1.6, 0.0), float(e["radius"]), float(e["seconds"]))
 
 
-func _monster_for(entity: int) -> DotNpcInstance:
-	if not DotEntity.is_kind(entity, DotEntity.KIND_NPC):
+func _monster_for(entity: int) -> GSNpcInstance:
+	if not GSEntity.is_kind(entity, GSEntity.KIND_NPC):
 		return null
 
 	for npc in game.horde.spawner.npcs_near(_reach_at, _reach + 1.0):
@@ -137,7 +137,7 @@ func _victims() -> Array:
 		if p != null and p.is_alive():
 			out.append(AwUtilityZones.victim(id, p.controller.state.position, p.muzzle_position(), p.aim_direction()))
 
-	if DotAddonApi.build_level("dot_npc") >= NPC_LEVEL and game.horde != null and game.horde.spawner != null and _reach > 0.0:
+	if GSAddonApi.build_level("dot_npc") >= NPC_LEVEL and game.horde != null and game.horde.spawner != null and _reach > 0.0:
 		for npc in game.horde.spawner.npcs_near(_reach_at, _reach):
 			var entity: int = game.horde.entity_id_for(npc)
 			if entity == 0 or not npc.is_alive():
@@ -157,6 +157,6 @@ func _blocked(from: Vector3, direction: Vector3, dist: float) -> bool:
 
 ## Goes through combat.apply_damage so friendly fire, self damage and armour are the rules every other hit follows.
 func _damage(attacker: int, victim: int, amount: float, type: Variant, _weapon: StringName) -> void:
-	var hit := DotDamage.make(attacker, victim, amount, game.combat.damage_type(type as StringName))
+	var hit := GSDamage.make(attacker, victim, amount, game.combat.damage_type(type as StringName))
 	hit.tick = game._tick
-	var _dealt: DotDamage = game.combat.apply_damage(hit)
+	var _dealt: GSDamage = game.combat.apply_damage(hit)

@@ -32,11 +32,11 @@ func send_event(peer_id: int, kind: int, body: PackedByteArray) -> void:
 ## An event as the bytes [method receive_event] reads, or empty if it would not encode.
 ## Public so a harness without a link delivers exactly what the link would carry.
 func encode_event(kind: int, body: PackedByteArray) -> PackedByteArray:
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	var wrote := net.messages.encode(FcEvent.new(kind, body), writer)
 
 	if not wrote.ok:
-		DotLog.warn(CHANNEL, "could not encode an event", {
+		GSLog.warn(CHANNEL, "could not encode an event", {
 			"kind": FcEvents.kind_name(kind), "error": str(wrote.error)
 		})
 		return PackedByteArray()
@@ -67,7 +67,7 @@ func _on_grenade_effect(info: Dictionary) -> void:
 		int(info["fx"]), info["position"], float(info["radius"]), float(info["seconds"]), int(info["victim"]), float(info.get("strength", 1.0))))
 
 
-func _on_launched(spawn: DotWeaponSpawn) -> void:
+func _on_launched(spawn: GSWeaponSpawn) -> void:
 	send_event(0, FcEvents.Kind.LAUNCH, FcEvents.write_launch(
 		spawn, FcContent.weapon_index(spawn.id)
 	))

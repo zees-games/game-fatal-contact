@@ -13,7 +13,7 @@ extends RigidBody3D
 ## for it: [method FcMap.to_collision] has to exist, because a physics prop needs
 ## the level to be in a physics space and a dedicated server never instantiates one.
 ##
-## [b]The mass is NOT set here.[/b] [method DotPropSpawner.spawn] puts the catalogue's
+## [b]The mass is NOT set here.[/b] [method GSPropSpawner.spawn] puts the catalogue's
 ## mass on the body before it enters the tree, and a value written in the scene would
 ## be the second copy of a number this family has already shipped a bug about: a
 ## catalogue saying 900 kg over a scene saved at 20 kg gives a prop a physics gun

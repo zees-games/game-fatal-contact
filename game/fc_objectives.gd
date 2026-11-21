@@ -8,7 +8,7 @@ const FcFlagCarry := preload("fc_flag_carry.gd")
 ## What the round is about, when the mode says it is about something.
 ##
 ## [b]Fatal Contact's first mode that is not "kill people".[/b] Free-for-all, team
-## deathmatch and siege are all scored on kills, which means [DotMatch] alone has always
+## deathmatch and siege are all scored on kills, which means [GSMatch] alone has always
 ## been enough. Capture the flag and king of the hill are not, and every hand-written
 ## version of either gets the same things wrong — see dot-objective's notes.
 ##
@@ -42,10 +42,10 @@ const BLUE := 2
 ## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
 var game: Node = null
 
-var manager: DotObjectiveManager = null
+var manager: GSObjectiveManager = null
 
 ## The capture-the-flag mechanic when the layout is `ctf`; its manager is [member manager].
-var ctf: DotObjectiveCtf = null
+var ctf: GSObjectiveCtf = null
 
 ## The drawn flags when the game draws at all (never headless); null otherwise.
 var flag_view: FcFlagView = null
@@ -59,18 +59,18 @@ var _wire_tick := -1000000
 var layout: StringName = &""
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if game == null:
-		return DotResult.fail(DotError.CODE_STATE, "FcObjectives needs a game.")
+		return GSResult.fail(GSError.CODE_STATE, "FcObjectives needs a game.")
 	if game.mode == null:
-		return DotResult.fail(DotError.CODE_STATE, "There is no mode.")
+		return GSResult.fail(GSError.CODE_STATE, "There is no mode.")
 
 	# The mode being played: on a networked client the server's (RULES mode_index), whose own `mode` stays the default.
 	var played = game.displayed_mode()
 	layout = played.objective_layout
 	if layout == &"":
-		return DotResult.fail(
-			DotError.CODE_STATE, "This mode has no objectives."
+		return GSResult.fail(
+			GSError.CODE_STATE, "This mode has no objectives."
 		)
 
 	if layout == CTF:
@@ -78,11 +78,11 @@ func setup() -> DotResult:
 
 	var defs := build(layout, game.map, game.tick_rate)
 	if defs.is_empty():
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Unknown objective layout '%s'." % layout
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Unknown objective layout '%s'." % layout
 		)
 
-	manager = DotObjectiveManager.new()
+	manager = GSObjectiveManager.new()
 	manager.name = "ObjectiveManager"
 	manager.authoritative = game.is_authority
 	manager.rules = _rules()
@@ -112,16 +112,16 @@ func setup() -> DotResult:
 	if not game.map_changed.is_connected(_on_map_changed):
 		game.map_changed.connect(_on_map_changed)
 
-	DotLog.info(CHANNEL, "layout ready", {"layout": str(layout), "count": defs.size()})
-	return DotResult.success(null)
+	GSLog.info(CHANNEL, "layout ready", {"layout": str(layout), "count": defs.size()})
+	return GSResult.success(null)
 
 
-func _setup_ctf() -> DotResult:
+func _setup_ctf() -> GSResult:
 	if manager != null and ctf == null:
 		remove_child(manager)
 		manager.queue_free()
 		manager = null
-	ctf = DotObjectiveCtf.new()
+	ctf = GSObjectiveCtf.new()
 	ctf.name = "Ctf"
 	ctf.rules = game.ctf_rules
 	ctf.authoritative = game.is_authority
@@ -144,8 +144,8 @@ func _setup_ctf() -> DotResult:
 	if not game.map_changed.is_connected(_on_map_changed):
 		game.map_changed.connect(_on_map_changed)
 
-	DotLog.info(CHANNEL, "ctf ready", {"teams": ctf.flags().size()})
-	return DotResult.success(null)
+	GSLog.info(CHANNEL, "ctf ready", {"teams": ctf.flags().size()})
+	return GSResult.success(null)
 
 
 ## True when this process has a screen. `game.headless` must not be asked: it is the collision backend and is true on every client, which hid the flags.
@@ -159,7 +159,7 @@ var draw_flags := false
 
 ## The flags are drawn wherever the game draws (a client, a listen server, a solo game); a dedicated or headless server has no eyes for them.
 func _build_flag_view() -> void:
-	if flag_view != null or ctf == null or not (draw_flags or draws_flags(DotPlatform.is_headless())):
+	if flag_view != null or ctf == null or not (draw_flags or draws_flags(GSPlatform.is_headless())):
 		return
 	flag_view = FcFlagView.new()
 	flag_view.name = "FlagView"
@@ -174,15 +174,15 @@ func ctf_bases() -> Dictionary:
 	for team in game.displayed_mode().teams():
 		team_ids.append(team.id)
 
-	var sites: Array[DotSpawnSite] = []
+	var sites: Array[GSSpawnSite] = []
 	var stack = game.player_stack
 	if stack != null and stack.spawns != null:
 		var playing: Array[StringName] = stack.teams.teams.playing_ids() if stack.teams != null else []
 		for site in stack.spawns.sites():
-			var copy := DotSpawnSite.point(site.id, site.position, site.yaw, &"")
+			var copy := GSSpawnSite.point(site.id, site.position, site.yaw, &"")
 			copy.enabled = site.enabled
 			copy.meta = site.meta
-			if DotSpawnFlags.is_flag(site):
+			if GSSpawnFlags.is_flag(site):
 				copy.team = site.team
 			else:
 				var at := playing.find(site.team)
@@ -196,15 +196,15 @@ func ctf_bases() -> Dictionary:
 
 	# Authored flag stands name a team by its place in the mode (1..N), the same numbers the workbench offers.
 	for site in sites:
-		if DotSpawnFlags.is_flag(site):
-			var wanted := DotSpawnFlags.team_id(site)
+		if GSSpawnFlags.is_flag(site):
+			var wanted := GSSpawnFlags.team_id(site)
 			site.team = StringName(str(by_index.get(wanted, 0)))
 
-	var found := DotSpawnFlags.bases(sites, team_ids.max() if not team_ids.is_empty() else 2)
+	var found := GSSpawnFlags.bases(sites, team_ids.max() if not team_ids.is_empty() else 2)
 	var out := {}
 	for id in team_ids:
 		if found.has(id):
-			out[id] = (found[id] as DotSpawnSite).position
+			out[id] = (found[id] as GSSpawnSite).position
 
 	# A map that placed its flags (imported `flag_spawns`) keeps them where it put them: first team red, second blue.
 	var homes: Dictionary = game.map.flag_homes
@@ -248,7 +248,7 @@ func _announce_flag(team: int, what: StringName, data: Dictionary) -> void:
 
 
 func _on_ctf_ended(winner: int, reason: StringName) -> void:
-	DotLog.info(CHANNEL, "ctf ended", {"winner": winner, "reason": str(reason)})
+	GSLog.info(CHANNEL, "ctf ended", {"winner": winner, "reason": str(reason)})
 
 
 ## The replicated state as JSON text when it changed (or every two seconds), else "". The bridge sends it.
@@ -302,16 +302,16 @@ func speed_scale(id: int) -> float:
 	return ctf.speed_scale(str(id)) if ctf != null else 1.0
 
 
-func _rules() -> DotObjectiveRules:
-	var rules := DotObjectiveRules.new()
+func _rules() -> GSObjectiveRules:
+	var rules := GSObjectiveRules.new()
 	rules.live = false  # Warmup. The match turns it on.
 	rules.block_style = 1
 	rules.deteriorate_ticks = 60 * game.tick_rate
 	return rules
 
 
-func _presence() -> DotObjectivePresence:
-	var presence := DotObjectivePresence.of(
+func _presence() -> GSObjectivePresence:
+	var presence := GSObjectivePresence.of(
 		func() -> PackedStringArray:
 			var out := PackedStringArray()
 			for id in game.player_ids():
@@ -343,7 +343,7 @@ func _presence() -> DotObjectivePresence:
 ## `FcModes.describe_lines` could one day say how many points a mode has.
 static func build(
 	which: StringName, map: FcMap, rate: int
-) -> Array[DotObjectiveDef]:
+) -> Array[GSObjectiveDef]:
 	if map == null:
 		return []
 
@@ -352,9 +352,9 @@ static func build(
 
 	match which:
 		KOTH:
-			var hill := DotObjectiveDef.capture(
+			var hill := GSObjectiveDef.capture(
 				&"hill",
-				DotObjectiveArea.cylinder(
+				GSObjectiveArea.cylinder(
 					Vector3(0.0, floor_y + 1.5, 0.0), reach * 0.3, 3.0
 				),
 				8 * rate
@@ -364,7 +364,7 @@ static func build(
 			hill.capture_required = 1
 			hill.score_points = 0
 
-			var clock := DotObjectiveDef.holdout(&"koth_clock", 90 * rate)
+			var clock := GSObjectiveDef.holdout(&"koth_clock", 90 * rate)
 			clock.display_name = "Hold"
 			clock.holdout_owner_of = &"hill"
 			clock.area = hill.area
@@ -382,23 +382,23 @@ static func build(
 				red_home = (map.flag_homes["red"] as Vector3) + Vector3.UP
 				blue_home = (map.flag_homes["blue"] as Vector3) + Vector3.UP
 
-			var red := DotObjectiveDef.flag(
-				&"red_flag", DotObjectiveArea.sphere(red_home, 2.0), RED
+			var red := GSObjectiveDef.flag(
+				&"red_flag", GSObjectiveArea.sphere(red_home, 2.0), RED
 			)
 			red.display_name = "Red Flag"
 			red.label = "R"
-			red.flag_capture_area = DotObjectiveArea.sphere(blue_home, 3.0)
+			red.flag_capture_area = GSObjectiveArea.sphere(blue_home, 3.0)
 			red.flag_return_ticks = 30 * rate
 			red.flag_requires_own_at_home = true
 			red.score_points = 1
 			red.player_points = 1
 
-			var blue := DotObjectiveDef.flag(
-				&"blue_flag", DotObjectiveArea.sphere(blue_home, 2.0), BLUE
+			var blue := GSObjectiveDef.flag(
+				&"blue_flag", GSObjectiveArea.sphere(blue_home, 2.0), BLUE
 			)
 			blue.display_name = "Blue Flag"
 			blue.label = "B"
-			blue.flag_capture_area = DotObjectiveArea.sphere(red_home, 3.0)
+			blue.flag_capture_area = GSObjectiveArea.sphere(red_home, 3.0)
 			blue.flag_return_ticks = 30 * rate
 			blue.flag_requires_own_at_home = true
 			blue.score_points = 1
@@ -481,14 +481,14 @@ func _score(
 
 
 func _on_completed(id: StringName, team: int, by: String) -> void:
-	DotLog.info(
+	GSLog.info(
 		CHANNEL, "objective completed",
 		{"id": str(id), "team": team, "by": by}
 	)
 
 
 func _on_event(id: StringName, what: StringName, data: Dictionary) -> void:
-	DotLog.debug(CHANNEL, "objective event", {"id": str(id), "what": str(what)})
+	GSLog.debug(CHANNEL, "objective event", {"id": str(id), "what": str(what)})
 	objective_event.emit(id, what, data)
 
 
@@ -500,13 +500,13 @@ func _on_event(id: StringName, what: StringName, data: Dictionary) -> void:
 ## which is the "announce exactly once" bug this family found in dot-vote's play
 ## history and again in dot-objective's own sweep.
 func _on_round_met(id: StringName, team: int, by: String) -> void:
-	DotLog.info(
+	GSLog.info(
 		CHANNEL, "the round objective was met",
 		{"id": str(id), "team": team, "by": by}
 	)
 
 
-func _on_player_killed(entry: DotKillFeed.Entry) -> void:
+func _on_player_killed(entry: GSKillFeed.Entry) -> void:
 	if manager == null or manager.objectives == null:
 		return
 	var key := entry.victim_key
@@ -531,7 +531,7 @@ func _on_map_changed(new_map: FcMap) -> void:
 		# bridge, and a freed node behind a live reference is an error at the next
 		# access rather than at the free.
 		layout = &""
-		var _cleared := manager.setup([] as Array[DotObjectiveDef])
+		var _cleared := manager.setup([] as Array[GSObjectiveDef])
 		return
 
 	layout = wanted
@@ -553,7 +553,7 @@ func _on_map_changed(new_map: FcMap) -> void:
 	var defs := build(layout, new_map, game.tick_rate)
 	var res := manager.setup(defs)
 	if not res.ok:
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL, "the new map has no objective layout",
 			{"why": res.error.message}
 		)
@@ -571,11 +571,11 @@ func _rebuild_ctf() -> void:
 	if ctf == null:
 		var res := _setup_ctf()
 		if not res.ok:
-			DotLog.warn(CHANNEL, "ctf would not build", {"why": res.error.message})
+			GSLog.warn(CHANNEL, "ctf would not build", {"why": res.error.message})
 		return
 	var res := ctf.setup(ctf_bases(), _score)
 	if not res.ok:
-		DotLog.warn(CHANNEL, "ctf would not rebuild", {"why": res.error.message})
+		GSLog.warn(CHANNEL, "ctf would not rebuild", {"why": res.error.message})
 	_last_wire = ""
 
 

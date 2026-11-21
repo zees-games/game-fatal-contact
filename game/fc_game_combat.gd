@@ -54,7 +54,7 @@ func _exit_tree() -> void:
 		demo_stats.call(&"release")
 		demo_stats = null
 	if _registered_name != &"":
-		DotRegistry.unregister_instance(_registered_name, self)
+		GSRegistry.unregister_instance(_registered_name, self)
 		_registered_name = &""
 
 func _follow_cvar_source() -> bool:
@@ -69,23 +69,23 @@ func _build_bullets() -> void:
 	if bullet_bridge != null:
 		bullet_bridge.queue_free()
 		bullet_bridge = null
-	var rules := combat_feel.ballistics as DotWeaponBallisticsRules
+	var rules := combat_feel.ballistics as GSWeaponBallisticsRules
 	if rules == null:
 		return
-	bullet_bridge = DotWeaponBulletBridge.new()
+	bullet_bridge = GSWeaponBulletBridge.new()
 	bullet_bridge.name = "Bullets"
 	add_child(bullet_bridge)
 	bullet_bridge.setup(combat, rules, tick_rate)
 	bullet_bridge.rewinding.connect(func(owner_id: int) -> void: _unlag_shooter = owner_id)
 	if tracers == null:
-		tracers = DotWeaponTracers.new()
+		tracers = GSWeaponTracers.new()
 		tracers.name = "Tracers"
 		add_child(tracers)
 	tracers.follow(bullet_bridge.bullets)
 
 ## The fitted def that fired [param spawn]: its owner's weapon in hand, when that is the one it came from.
 ## What tells the projectile layer a missile carries the Rocketjump warhead.
-func _fired_def(spawn: DotWeaponSpawn) -> DotWeaponDef:
+func _fired_def(spawn: GSWeaponSpawn) -> GSWeaponDef:
 	var shooter := player_for(spawn.owner_entity)
 	if shooter == null or shooter.arsenal == null:
 		return null
@@ -169,7 +169,7 @@ func _reward_kill(killer_id: int, headshot: bool) -> void:
 	if killer == null or not killer.is_alive() or killer.health == null:
 		return
 	if headshot and config.headshot_heal > 0.0:
-		var health: DotHealth = killer.health
+		var health: GSHealth = killer.health
 		var cap := config.max_health_cap if config.max_health_cap > 0.0 else 1.0e9
 		var was := health.overheal_cap
 		health.overheal_cap = maxf(cap, health.max_health)
@@ -198,7 +198,7 @@ func _sync_award_config() -> void:
 ## The direction is the shot's; a death with none (a fall, a slay) is pushed by nothing. The
 ## killing weapon's def is what lets the sniper and the launcher throw a body
 ## (fc-weapons' `params.death_reaction`).
-func decide_death(entity_id: int, damage: DotDamage) -> DotPlayerDeath:
+func decide_death(entity_id: int, damage: GSDamage) -> GSPlayerDeath:
 	# The shared catalogue, built under the loading cover. A table of its own, built here, made the
 	# first kill of a match 37 ms on staging02: twenty-seven fresh copies of the same defs.
 	var catalogue := FcPlayer.weapon_catalogue()
@@ -210,9 +210,9 @@ func decide_death(entity_id: int, damage: DotDamage) -> DotPlayerDeath:
 		if killer != null and victim != null:
 			direction = victim.controller.state.position - killer.controller.state.position
 	direction.y = clampf(direction.y, -0.4, 0.4)
-	return DotPlayerDeath.decide(
+	return GSPlayerDeath.decide(
 		ragdoll_rules.reactions(), damage.is_headshot(), damage.amount, direction,
-		DotPlayerDeath.seed_of(entity_id, _tick), def
+		GSPlayerDeath.seed_of(entity_id, _tick), def
 	)
 
 ## What the mode says a player carries, over whatever their loadout gave them: gun game's
@@ -249,7 +249,7 @@ func arm_for_mode(player: FcPlayer) -> void:
 		player.hold(hand)
 
 ## What the medal rules are told about a kill: all of it read off the simulation.
-func _kill_facts(damage: DotDamage, victim: FcPlayer, entry: DotKillFeed.Entry) -> FcAwards.KillFacts:
+func _kill_facts(damage: GSDamage, victim: FcPlayer, entry: GSKillFeed.Entry) -> FcAwards.KillFacts:
 	var killer := player_for(damage.attacker)
 	var k := FcAwards.KillFacts.new()
 	k.killer = damage.attacker
@@ -278,7 +278,7 @@ func _kill_facts(damage: DotDamage, victim: FcPlayer, entry: DotKillFeed.Entry) 
 ## [method arm_for_mode] reads the score at their respawn and hands them the gun before.
 ## Never below zero, because a negative score would be a level the list has no gun for
 ## and a scoreboard showing a player behind where they started.
-func _demote_for_melee(damage: DotDamage, killer: FcPlayer) -> void:
+func _demote_for_melee(damage: GSDamage, killer: FcPlayer) -> void:
 	if not mode.gun_game_melee_demotes or killer.arsenal == null:
 		return
 
@@ -296,7 +296,7 @@ func _demote_for_melee(damage: DotDamage, killer: FcPlayer) -> void:
 	record.score -= 1
 	match_node.scoreboard.score_changed.emit(record)
 
-func _on_entity_killed(entity_id: int, damage: DotDamage) -> void:
+func _on_entity_killed(entity_id: int, damage: GSDamage) -> void:
 	var victim := player_for(entity_id)
 
 	if victim == null:
@@ -372,7 +372,7 @@ func _on_entity_killed(entity_id: int, damage: DotDamage) -> void:
 			int(streaks.get(damage.attacker, 0))
 		)
 
-func _on_damage_applied(damage: DotDamage) -> void:
+func _on_damage_applied(damage: GSDamage) -> void:
 	# The hit marker's source, for anything a player hurt that is not themselves. Before
 	# the scoreboard's filter, because a monster hit is a hit too.
 	if (
@@ -415,18 +415,18 @@ func _build_projectiles() -> void:
 	projectiles.rocket_rules = rocket_rules
 	if rocket_rules != null:
 		projectiles.def_of = _fired_def
-		projectiles.launch_owner = func(entity_id: int, def: DotWeaponDef, at: Vector3) -> void:
+		projectiles.launch_owner = func(entity_id: int, def: GSWeaponDef, at: Vector3) -> void:
 			var _pushed := FcRocketJump.launch(player_for(entity_id), def, rocket_rules, at)
 
 
-func _build_combat() -> DotResult:
-	combat = DotCombatManager.new()
+func _build_combat() -> GSResult:
+	combat = GSCombatManager.new()
 	combat.name = "Combat"
 	combat.is_authority = is_authority
 	combat.register_service = false
 	combat.trace = map.shot_trace()
 
-	var rules := DotDamageRules.new()
+	var rules := GSDamageRules.new()
 	# Self damage stays on in every mode: rocket jumping is a movement option.
 	rules.friendly_fire = mode.friendly_fire if config.friendly_fire < 0 else config.friendly_fire == 1
 	rules.self_damage = mode.self_damage
@@ -435,7 +435,7 @@ func _build_combat() -> DotResult:
 	rules.maximum = 400.0
 	combat.rules = rules
 
-	var config := DotCombatConfig.new()
+	var config := GSCombatConfig.new()
 	config.tick_rate = tick_rate
 	config.lag_compensation = max_unlag_ms > 0.0
 	config.max_rewind_ms = max_unlag_ms
@@ -488,14 +488,14 @@ func _build_combat() -> DotResult:
 		add_child(jail_view)
 		jail_view.build(map.jail, sim_tick)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 func _build_knives() -> void:
-	knives = DotWeaponKnives.new()
+	knives = GSWeaponKnives.new()
 	knives.name = "Knives"
 	knives.rules = knife_rules
 	knives.is_authority = is_authority
-	knives.draws = not DotPlatform.is_headless()
+	knives.draws = not GSPlatform.is_headless()
 	knives.tick_rate = tick_rate
 	knives.combat = combat
 	knives.player_for = player_for
@@ -519,7 +519,7 @@ func _thrown_knife_look(weapon: StringName) -> Node3D:
 func rule(key: String) -> float:
 	return float(movement_rules.get(key, SHOW_DEFAULTS.get(key, 0.0)))
 
-func _override_rules(rules: DotMatchRules) -> void:
+func _override_rules(rules: GSMatchRules) -> void:
 	# The final killcam plays inside the match's end, so the end is that much longer.
 	rules.match_end_sec = mode.rules.match_end_sec + rule("killcam")
 
@@ -548,7 +548,7 @@ func _override_rules(rules: DotMatchRules) -> void:
 	_override_ctf_rules(rules)
 
 ## After the generic limits, on the first build of the match and on every change: capture the flag is limited by captures (`fc_ctf_capturelimit`) and by seconds only when `fc_ctf_timelimit` says so (0, the default, is no clock; the generic `fc_timelimit` and its 600 s do not apply). Its score is captures only: a kill is still a kill on the scoreboard, worth no points.
-func _override_ctf_rules(rules: DotMatchRules) -> void:
+func _override_ctf_rules(rules: GSMatchRules) -> void:
 	if mode == null or mode.objective_layout != &"ctf":
 		return
 	rules.score_limit = ctf_rules.capture_limit
@@ -558,13 +558,13 @@ func _override_ctf_rules(rules: DotMatchRules) -> void:
 	rules.friendly_points = 0
 	rules.assist_points = 0
 
-func _resolve_shot(shot: DotShot, view_tick: float) -> void:
+func _resolve_shot(shot: GSShot, view_tick: float) -> void:
 	if bullet_bridge == null:
 		combat.resolve_shot(shot, view_tick)
 		return
 	var catalogue := FcPlayer.weapon_catalogue()
-	var def: DotWeaponDef = catalogue.get_def(shot.weapon_id) if catalogue.has(shot.weapon_id) else null
-	var _resolved := bullet_bridge.resolve_shot(shot, def.tuning as DotWeaponBallistics if def != null else null, view_tick)
+	var def: GSWeaponDef = catalogue.get_def(shot.weapon_id) if catalogue.has(shot.weapon_id) else null
+	var _resolved := bullet_bridge.resolve_shot(shot, def.tuning as GSWeaponBallistics if def != null else null, view_tick)
 
 
 ## Whoever stands in the jail's button presses it. Authority side, after everybody has moved.
@@ -581,7 +581,7 @@ func _sweep_jail_button() -> void:
 			# The game tick, which every player's pits are asked on and a client predicts on too.
 			var at: int = _tick
 			if jail.press(at):
-				DotLog.info(CHANNEL, "the jail's gate opened", {"by": id, "tick": at})
+				GSLog.info(CHANNEL, "the jail's gate opened", {"by": id, "tick": at})
 				jail_changed.emit()
 				return
 
@@ -603,7 +603,7 @@ func apply_teams_text(text: String) -> void:
 
 
 ## The side with [param team_id], or null (a free-for-all, nobody).
-func team_def(team_id: int) -> DotTeam:
+func team_def(team_id: int) -> GSTeam:
 	for side in teams():
 		if side.id == team_id:
 			return side

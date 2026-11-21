@@ -16,7 +16,7 @@ const FcStats := preload("fc_stats.gd")
 ## they are these — plus one rule about id spaces that is the whole reason this works
 ## at all.
 ##
-## [b]An NPC's combat entity id comes from [DotEntityTable] and carries its kind.[/b]
+## [b]An NPC's combat entity id comes from [GSEntityTable] and carries its kind.[/b]
 ## [FcPlayer] still uses the dot-server session id as its entity id, which is a
 ## small integer; a monster used to use its own engine instance id modulo a million,
 ## which collides with another monster rather than with a player -- and the symptom of
@@ -41,7 +41,7 @@ const CHANNEL := "arena.horde"
 ## The registry name a brain reaches this through. See `fc_npc_brain.gd`.
 const SERVICE := &"arena_horde"
 
-## Where a monster's combat entity id comes from. See [DotEntityTable].
+## Where a monster's combat entity id comes from. See [GSEntityTable].
 ##
 ## [b]This replaces a scheme that could collide, silently, and lose a monster its
 ## health.[/b] It was `ENTITY_BASE + (npc.instance_id % ENTITY_BASE)` with
@@ -55,7 +55,7 @@ const SERVICE := &"arena_horde"
 ## [method is_npc_entity] is a real question rather than a range check.
 ##
 ## [b]The old comment's constraint still holds and is worth keeping.[/b] An entity id
-## travels through a [DotDamage] and a scoreboard key as text and back, so it has to
+## travels through a [GSDamage] and a scoreboard key as text and back, so it has to
 ## stay below the point where a float stops counting integers exactly. A monster id is
 ## `2 * 10^12 + serial`; the limit is 2^53, about 9 * 10^15, which leaves three orders
 ## of magnitude. It is also a million times further above any plausible session id than
@@ -74,7 +74,7 @@ const SERVICE := &"arena_horde"
 ## Monsters were the half that was broken; they are the half that moved.
 
 ## A monster died. Carries the killer's player id, or 0 for the world.
-signal npc_killed(npc: DotNpcInstance, killer_id: int)
+signal npc_killed(npc: GSNpcInstance, killer_id: int)
 
 ## A wave was placed. For a HUD, and for a test that needs to know it happened.
 signal wave_spawned(at: Vector3, count: int)
@@ -89,7 +89,7 @@ signal wave_spawned(at: Vector3, count: int)
 
 ## Metres between the spawn points taken from the navigation graph.
 ##
-## [b]Not a nicety.[/b] [method DotNpcDirector.choose_spawn_point] walks every
+## [b]Not a nicety.[/b] [method GSNpcDirector.choose_spawn_point] walks every
 ## candidate and raycasts from each player to the ones inside the distance band, so an
 ## unthinned two-metre grid over a forty-metre Fatal Contact is a few thousand raycasts per
 ## wave, several times a minute, on the server.
@@ -99,18 +99,18 @@ signal wave_spawned(at: Vector3, count: int)
 ## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
 var game: Node = null
 
-var spawner: DotNpcSpawner = null
-var director: DotNpcDirector = null
-var senses: DotNpcSenses = null
+var spawner: GSNpcSpawner = null
+var director: GSNpcDirector = null
+var senses: GSNpcSenses = null
 
 ## The monsters' squads: one per catalogue `"squad"`, so a kind shares what it sees and only
 ## `"attackers"` of it go at one player while the rest surround. On the spawner as metadata.
-var squads: DotNpcAiSquads = DotNpcAiSquads.new()
+var squads: GSNpcAiSquads = GSNpcAiSquads.new()
 
 ## What the monsters can hear: every shot a player fires, every rocket in the air, every
 ## explosion. A monster you shoot from out of its sight comes to find you; one under a
 ## rocket gets out from under it.
-var sounds: DotNpcAiSounds = DotNpcAiSounds.new()
+var sounds: GSNpcAiSounds = GSNpcAiSounds.new()
 
 ## How far a shot is heard, in metres, by a monster of alertness 1. Most of the arena: a
 ## gunfight is not a secret.
@@ -124,8 +124,8 @@ const GUNNER_RANGE := 60.0
 
 ## What the monsters have learned of where players go, kept per map in `user://npc_heat`
 ## across restarts and patrolled by the monsters with the tactics for it. See
-## [DotNpcAiHeatKeeper].
-var heat: DotNpcAiHeatKeeper = DotNpcAiHeatKeeper.new("user://npc_heat", "arena")
+## [GSNpcAiHeatKeeper].
+var heat: GSNpcAiHeatKeeper = GSNpcAiHeatKeeper.new("user://npc_heat", "arena")
 
 ## Whether the learned traffic is read from and written to disk, as well as
 ## [member FcGame.persist_npc_heat] — both, so a suite can be sure either way.
@@ -136,15 +136,15 @@ var persist_heat: bool = true
 const DANGER_MARGIN := 1.0
 
 ## The graph the monsters walk on, rebuilt on every map change.
-var nav: DotNpcNavData = null
+var nav: GSNpcNavData = null
 
 ## Where the monsters' nodes go. A child of this, so a map change frees one node.
 var _world: Node3D = null
 
-## entity id -> [DotNpcInstance]. The combat side of the id space.
+## entity id -> [GSNpcInstance]. The combat side of the id space.
 var _by_entity: Dictionary = {}
 
-## entity id -> [DotHitboxSet], so a monster can be shot.
+## entity id -> [GSHitboxSet], so a monster can be shot.
 var _hitboxes: Dictionary = {}
 
 ## The players as perception candidates, rebuilt once per tick.
@@ -161,22 +161,22 @@ func _exit_tree() -> void:
 		heat.save(spawner.now())
 
 	if _registered:
-		DotRegistry.unregister_instance(SERVICE, self)
+		GSRegistry.unregister_instance(SERVICE, self)
 		_registered = false
 
 
 ## Builds the spawner, the director and the navigation over the game's current map.
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if game == null or game.combat == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The horde needs a game that has been set up."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The horde needs a game that has been set up."
 		)
 
 	_world = Node3D.new()
 	_world.name = "Monsters"
 	add_child(_world)
 
-	senses = DotNpcSenses.new()
+	senses = GSNpcSenses.new()
 	senses.switch_ratio = 0.55
 	senses.commitment_grace = 3.0
 	# Off. This game's collision is analytic — there is no physics space on a
@@ -186,15 +186,15 @@ func setup() -> DotResult:
 	# with a physics space is a different deployment and this is one assignment.
 	senses.line_of_sight_enabled = false
 
-	spawner = DotNpcSpawner.new()
+	spawner = GSNpcSpawner.new()
 	spawner.name = "Npcs"
 	spawner.catalogue = FcNpcs.catalogue()
 	spawner.limits = FcNpcs.limits()
 	spawner.authoritative = game.is_authority
-	spawner.world_ref = DotNodeRef.of_path(NodePath("../Monsters"))
+	spawner.world_ref = GSNodeRef.of_path(NodePath("../Monsters"))
 	spawner.smooth_paths = true
 	spawner.allow_partial_paths = true
-	# Before add_child, and it has to be: DotNpcSpawner._ready makes its own senses
+	# Before add_child, and it has to be: GSNpcSpawner._ready makes its own senses
 	# when it finds none, so assigning afterwards leaves this one built, configured
 	# and read by nobody — with the spawner running on defaults that look identical
 	# until a monster refuses to give up on somebody behind a pillar.
@@ -214,7 +214,7 @@ func setup() -> DotResult:
 	spawner.removed.connect(_on_removed)
 	spawner.died.connect(_on_died)
 
-	director = DotNpcDirector.new()
+	director = GSNpcDirector.new()
 	director.name = "Director"
 	director.spawner = spawner
 	director.rules = _rules()
@@ -239,21 +239,21 @@ func setup() -> DotResult:
 	game.non_player_killed.connect(_on_entity_killed)
 	game.map_changed.connect(_on_map_changed)
 
-	DotRegistry.register(SERVICE, self)
+	GSRegistry.register(SERVICE, self)
 	_registered = true
 
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## Regenerates the graph and the spawn points for the game's current map.
 ##
 ## [b]Called on every map change, and the digest is why it can be trusted.[/b]
-## [method DotNpcNavData.matches] distinguishes "a graph for this map" from "a graph
+## [method GSNpcNavData.matches] distinguishes "a graph for this map" from "a graph
 ## for a map with the same name" — the second being a graph whose monsters walk
 ## through the walls somebody added since.
-func rebuild_navigation() -> DotResult:
+func rebuild_navigation() -> GSResult:
 	if game == null or game.map == null:
-		return DotResult.fail(DotError.CODE_STATE, "There is no map to navigate.")
+		return GSResult.fail(GSError.CODE_STATE, "There is no map to navigate.")
 
 	nav = FcNpcs.nav_for(game.map)
 
@@ -270,29 +270,29 @@ func rebuild_navigation() -> DotResult:
 	# Walking only, so a horde does not try to stand on a ledge the generator marked
 	# as somewhere to avoid.
 	var kept := director.set_spawn_points_from_nav(
-		nav, spawn_spacing, DotNpcNavFilter.walking_only()
+		nav, spawn_spacing, GSNpcNavFilter.walking_only()
 	)
 
 	if kept <= 0:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"The map produced no navigable spawn points.",
 			String(game.map.id)
 		)
 
-	DotLog.info(CHANNEL, "navigation built", {
+	GSLog.info(CHANNEL, "navigation built", {
 		"map": String(game.map.id),
 		"points": nav.point_count(),
 		"edges": nav.edge_count(),
 		"spawns": kept,
 	})
 
-	return DotResult.success(kept)
+	return GSResult.success(kept)
 
 
 ## What a horde's pacing looks like in a room rather than in a campaign.
-func _rules() -> DotNpcDirectorRules:
-	var rules := DotNpcDirectorRules.new()
+func _rules() -> GSNpcDirectorRules:
+	var rules := GSNpcDirectorRules.new()
 
 	rules.peak_per_player = game.config.horde_peak_per_player
 	rules.build_up_per_player = game.config.horde_build_up_per_player
@@ -372,7 +372,7 @@ func note_fire(player_id: int, origin: Vector3) -> void:
 		return
 
 	sounds.emit(
-		DotNpcAiSounds.Kind.COMBAT, origin, GUNFIRE_RADIUS, spawner.now(), 0.5,
+		GSNpcAiSounds.Kind.COMBAT, origin, GUNFIRE_RADIUS, spawner.now(), 0.5,
 		StringName(str(player_id))
 	)
 
@@ -394,7 +394,7 @@ func _hear_rockets(delta: float) -> void:
 	for rocket in projectiles.in_flight():
 		var reach := float(rocket[1]) + DANGER_MARGIN
 		sounds.emit(
-			DotNpcAiSounds.Kind.DANGER, rocket[0], reach * 3.0, spawner.now(), delta * 1.5,
+			GSNpcAiSounds.Kind.DANGER, rocket[0], reach * 3.0, spawner.now(), delta * 1.5,
 			&"", reach
 		)
 
@@ -404,17 +404,17 @@ func _hear_rockets(delta: float) -> void:
 ## a firefight one of them started.
 ##
 ## Returns the resolved shot, or null when none was taken.
-func npc_shoot(npc: DotNpcInstance, origin: Vector3, aim_at: Vector3, amount: float) -> DotShot:
+func npc_shoot(npc: GSNpcInstance, origin: Vector3, aim_at: Vector3, amount: float) -> GSShot:
 	if game == null or game.combat == null or npc == null or not npc.is_alive():
 		return null
 
-	var type: DotDamageType = game.combat.damage_type(FcContent.DAMAGE_BULLET)
+	var type: GSDamageType = game.combat.damage_type(FcContent.DAMAGE_BULLET)
 	var direction := aim_at - origin
 
 	if type == null or direction.length_squared() < 0.0001:
 		return null
 
-	var shot := DotShot.make(
+	var shot := GSShot.make(
 		npc.def.id if npc.def != null else &"monster", entity_id_for(npc), game.current_tick(), 0
 	)
 	shot.origin = origin
@@ -426,10 +426,10 @@ func npc_shoot(npc: DotNpcInstance, origin: Vector3, aim_at: Vector3, amount: fl
 	# and dot-combat traces the pellets, not the direction — so without it every gunner
 	# shot was resolved, counted and hit nothing, which a suite asking "did it hit" found.
 	shot.scatter()
-	var resolved: DotShot = game.combat.resolve_shot(shot)
+	var resolved: GSShot = game.combat.resolve_shot(shot)
 
 	if spawner != null:
-		sounds.emit(DotNpcAiSounds.Kind.COMBAT, origin, GUNFIRE_RADIUS, spawner.now(), 0.5)
+		sounds.emit(GSNpcAiSounds.Kind.COMBAT, origin, GUNFIRE_RADIUS, spawner.now(), 0.5)
 
 	return resolved
 
@@ -445,9 +445,9 @@ func _learn(delta: float) -> void:
 	heat.tick(delta, game.map.id if game.map != null else &"", positions, spawner.now(), spawner)
 
 
-func _on_detonated(at: Vector3, _spawn: DotWeaponSpawn) -> void:
+func _on_detonated(at: Vector3, _spawn: GSWeaponSpawn) -> void:
 	if spawner != null:
-		sounds.emit(DotNpcAiSounds.Kind.COMBAT, at, EXPLOSION_RADIUS, spawner.now(), 0.5)
+		sounds.emit(GSNpcAiSounds.Kind.COMBAT, at, EXPLOSION_RADIUS, spawner.now(), 0.5)
 
 
 func _rebuild_candidates() -> void:
@@ -457,7 +457,7 @@ func _rebuild_candidates() -> void:
 		if not player.is_alive():
 			continue
 
-		var state: DotFpsState = player.controller.state
+		var state: GSFpsState = player.controller.state
 
 		# Loudness as a radius, which is the number this game already has: a running
 		# player is heard further than a still one, and a crouching one barely at all.
@@ -467,7 +467,7 @@ func _rebuild_candidates() -> void:
 		if state.is_crouched():
 			loudness *= 0.4
 
-		_candidates.append(DotNpcSenses.Candidate.new(
+		_candidates.append(GSNpcSenses.Candidate.new(
 			StringName(str(player.player_id)),
 			state.position + Vector3(0.0, 0.9, 0.0),
 			&"player",
@@ -482,7 +482,7 @@ func _rebuild_candidates() -> void:
 ## [b]A lookup now, not a formula.[/b] It was derived from the node's engine instance
 ## id, which is what made two monsters able to share an id; the table holds the
 ## node -> id direction so nothing has to derive anything.
-func entity_id_for(npc: DotNpcInstance) -> int:
+func entity_id_for(npc: GSNpcInstance) -> int:
 	if npc == null or game == null:
 		return 0
 
@@ -495,16 +495,16 @@ func entity_id_for(npc: DotNpcInstance) -> int:
 ## to be `entity_id >= ENTITY_BASE`, which is a promise about a constant rather than a
 ## fact about the id, and it was the only thing standing between the two id spaces.
 static func is_npc_entity(entity_id: int) -> bool:
-	return DotEntity.is_kind(entity_id, DotEntity.KIND_NPC)
+	return GSEntity.is_kind(entity_id, GSEntity.KIND_NPC)
 
 
-## A monster hitting a player. Called by the brain, through [DotRegistry].
+## A monster hitting a player. Called by the brain, through [GSRegistry].
 ##
-## [b]It goes through dot-combat rather than through [DotHealth] directly.[/b] The
+## [b]It goes through dot-combat rather than through [GSHealth] directly.[/b] The
 ## resolver is what applies armour, the damage type's rules, spawn protection and the
 ## friendly-fire check, and a hit that skipped it would ignore all four — including
 ## spawn protection, which is the one whose absence a player notices immediately.
-func npc_attack(npc: DotNpcInstance, victim_key: StringName, amount: float) -> void:
+func npc_attack(npc: GSNpcInstance, victim_key: StringName, amount: float) -> void:
 	if game == null or game.combat == null or npc == null or not npc.is_alive():
 		return
 
@@ -514,12 +514,12 @@ func npc_attack(npc: DotNpcInstance, victim_key: StringName, amount: float) -> v
 	if player == null or not player.is_alive():
 		return
 
-	var type: DotDamageType = game.combat.damage_type(FcContent.DAMAGE_WORLD)
+	var type: GSDamageType = game.combat.damage_type(FcContent.DAMAGE_WORLD)
 
 	if type == null:
 		return
 
-	var damage := DotDamage.make(entity_id_for(npc), victim, amount, type)
+	var damage := GSDamage.make(entity_id_for(npc), victim, amount, type)
 	damage.weapon_id = npc.def.id if npc.def != null else &"monster"
 	game.combat.apply_damage(damage)
 
@@ -534,9 +534,9 @@ func npc_attack(npc: DotNpcInstance, victim_key: StringName, amount: float) -> v
 ## authorities over one number is how a monster ends up dying twice — once to the
 ## resolver and once to the spawner — so [method _on_health_changed] is the only writer
 ## on the dot-npc side.
-func _register_combat(npc: DotNpcInstance) -> void:
-	var opened: DotResult = game.entities.open(
-		DotEntity.KIND_NPC,
+func _register_combat(npc: GSNpcInstance) -> void:
+	var opened: GSResult = game.entities.open(
+		GSEntity.KIND_NPC,
 		npc.node,
 		&"",
 		&"",
@@ -548,24 +548,24 @@ func _register_combat(npc: DotNpcInstance) -> void:
 		# the old scheme produced in silence. Refusing to register a second time is
 		# the whole point; registering anyway is what used to cost a monster its
 		# health.
-		DotLog.error(CHANNEL, "could not open an entity for a monster", {
+		GSLog.error(CHANNEL, "could not open an entity for a monster", {
 			"npc": String(npc.def.id) if npc.def != null else "?",
 			"why": opened.error.message,
 		})
 		return
 
-	var entity: int = (opened.value as DotEntityHandle).id
+	var entity: int = (opened.value as GSEntityHandle).id
 	var def := npc.def
 
-	var set_node := DotHitboxSet.new()
+	var set_node := GSHitboxSet.new()
 	set_node.name = "Hitboxes"
 	set_node.bounds_offset = Vector3(0.0, 0.9, 0.0)
 	set_node.bounds_radius = 2.4
 
-	var head := DotHitbox.new()
+	var head := GSHitbox.new()
 	head.name = "Head"
-	head.group = DotHitGroup.HEAD
-	head.shape = DotHitbox.Shape.SPHERE
+	head.group = GSHitGroup.HEAD
+	head.shape = GSHitbox.Shape.SPHERE
 	head.radius = 0.22
 	head.position = Vector3(0.0, 1.5, 0.0)
 	# Higher than the body's, so the shared surface between the two resolves to the
@@ -573,10 +573,10 @@ func _register_combat(npc: DotNpcInstance) -> void:
 	head.precedence = 10
 	set_node.add_child(head)
 
-	var body := DotHitbox.new()
+	var body := GSHitbox.new()
 	body.name = "Body"
-	body.group = DotHitGroup.CHEST
-	body.shape = DotHitbox.Shape.CAPSULE
+	body.group = GSHitGroup.CHEST
+	body.shape = GSHitbox.Shape.CAPSULE
 	body.radius = 0.5
 	body.height = 1.4
 	body.position = Vector3(0.0, 0.8, 0.0)
@@ -584,7 +584,7 @@ func _register_combat(npc: DotNpcInstance) -> void:
 
 	npc.node.add_child(set_node)
 
-	var health := DotHealth.new()
+	var health := GSHealth.new()
 	health.name = "Health"
 	health.max_health = def.max_health if def != null else 100.0
 	health.max_armour = 0.0
@@ -601,7 +601,7 @@ func _register_combat(npc: DotNpcInstance) -> void:
 	_hitboxes[entity] = set_node
 
 
-func _forget_combat(npc: DotNpcInstance) -> void:
+func _forget_combat(npc: GSNpcInstance) -> void:
 	var entity := entity_id_for(npc)
 
 	if entity == 0:
@@ -615,7 +615,7 @@ func _forget_combat(npc: DotNpcInstance) -> void:
 	# for everything below -- which is the ordering dot-entity's own notes warn about
 	# and the reason `close()` never frees a node itself.
 	if game != null:
-		game.entities.close(entity, DotEntityTable.REASON_KILLED)
+		game.entities.close(entity, GSEntityTable.REASON_KILLED)
 
 	_by_entity.erase(entity)
 	_hitboxes.erase(entity)
@@ -623,15 +623,15 @@ func _forget_combat(npc: DotNpcInstance) -> void:
 
 # --- Events ----------------------------------------------------------------
 
-func _on_spawned(npc: DotNpcInstance) -> void:
+func _on_spawned(npc: GSNpcInstance) -> void:
 	_register_combat(npc)
 
 
-func _on_removed(npc: DotNpcInstance, _reason: StringName) -> void:
+func _on_removed(npc: GSNpcInstance, _reason: StringName) -> void:
 	_forget_combat(npc)
 
 
-func _on_died(npc: DotNpcInstance, by: StringName) -> void:
+func _on_died(npc: GSNpcInstance, by: StringName) -> void:
 	var killer := String(by).to_int()
 	npc_killed.emit(npc, killer)
 
@@ -648,13 +648,13 @@ func _on_died(npc: DotNpcInstance, by: StringName) -> void:
 ##
 ## dot-combat owns the health and decided the death; the spawner has to be told so it
 ## frees the node, runs the brain's `died` hook and gives the budget back. Reporting
-## it rather than calling [method DotNpcSpawner.remove] is what makes the brain's last
+## it rather than calling [method GSNpcSpawner.remove] is what makes the brain's last
 ## chance to act actually happen.
-func _on_entity_killed(entity_id: int, damage: DotDamage) -> void:
+func _on_entity_killed(entity_id: int, damage: GSDamage) -> void:
 	if not is_npc_entity(entity_id):
 		return
 
-	var npc: DotNpcInstance = _by_entity.get(entity_id)
+	var npc: GSNpcInstance = _by_entity.get(entity_id)
 
 	if npc == null:
 		return
@@ -668,15 +668,15 @@ func _on_map_changed(_map: FcMap) -> void:
 	# monster left standing where a wall now is, on a graph built for the old
 	# geometry, is worse than no monsters at all.
 	if spawner != null:
-		spawner.clear_all(DotNpcSpawner.REASON_CLEANUP)
+		spawner.clear_all(GSNpcSpawner.REASON_CLEANUP)
 
-	if senses != null and DotAddonApi.build_level("dot_npc") >= 6:
+	if senses != null and GSAddonApi.build_level("dot_npc") >= 6:
 		senses.clear_sight_blockers()
 
 	var rebuilt := rebuild_navigation()
 
 	if not rebuilt.ok:
-		DotLog.warn(CHANNEL, "the horde has no navigation for the new map", {
+		GSLog.warn(CHANNEL, "the horde has no navigation for the new map", {
 			"why": rebuilt.error.message
 		})
 		enabled = false
@@ -685,12 +685,12 @@ func _on_map_changed(_map: FcMap) -> void:
 # --- Admin -----------------------------------------------------------------
 
 ## Places one monster by hand. What an admin command calls.
-func spawn_one(npc_id: StringName, at: Vector3) -> DotNpcInstance:
+func spawn_one(npc_id: StringName, at: Vector3) -> GSNpcInstance:
 	return spawner.spawn(npc_id, at) if spawner != null else null
 
 
 func clear() -> int:
-	return spawner.clear_all(DotNpcSpawner.REASON_ADMIN) if spawner != null else 0
+	return spawner.clear_all(GSNpcSpawner.REASON_ADMIN) if spawner != null else 0
 
 
 func count() -> int:

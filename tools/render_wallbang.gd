@@ -10,8 +10,8 @@ const OUT_DIR := "res://screenshots/wallbang"
 
 var client: Node = null
 var _map := "dm_atrium"
-## Frame sequence after each close-up still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each close-up still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _initialize() -> void:
@@ -132,14 +132,14 @@ func _run() -> void:
 	var round_of = me.arsenal.round_for(&"rifle")
 	me.give_default_loadout()
 	round_of = me.arsenal.round_for(&"rifle")
-	var shot := DotShot.make(&"rifle", me.player_id, game.current_tick(), 0)
+	var shot := GSShot.make(&"rifle", me.player_id, game.current_tick(), 0)
 	shot.origin = eye
 	shot.direction = dir
 	shot.damage = 20.0
 	shot.penetration = round_of.make_penetration() if round_of != null else null
 	shot.scatter()
 	game.combat.set_authoritative_origin(me.player_id, eye)
-	var res: DotShot = game.combat.resolve_shot(shot)
+	var res: GSShot = game.combat.resolve_shot(shot)
 	var pres = client.get("presentation")
 	var decals: Array[Node3D] = []
 	pres.fx.spawned.connect(func(_id, node, _why) -> void:
@@ -155,7 +155,7 @@ func _run() -> void:
 	var side0 := dir.cross(Vector3.UP).normalized()
 	var exit0: Vector3 = shot.penetrations[0]["exit"]
 	var skim_from := exit0 + dir * 0.8 - side0 * 1.5
-	var skim := DotShot.make(&"rifle", me.player_id, game.current_tick(), 1)
+	var skim := GSShot.make(&"rifle", me.player_id, game.current_tick(), 1)
 	skim.origin = skim_from
 	skim.direction = (exit0 + side0 * 0.6 - skim_from).normalized()
 	skim.damage = 20.0
@@ -185,7 +185,7 @@ func _run_rest(game, me, size: Vector3, shot, pres, decals: Array[Node3D], skim_
 	skim.penetration.ricochet_angle = 40.0
 	game.combat.ricochet_enabled = true
 	game.combat.set_authoritative_origin(me.player_id, skim_from)
-	var _skim_res: DotShot = game.combat.resolve_shot(skim)
+	var _skim_res: GSShot = game.combat.resolve_shot(skim)
 	var made_before := decals.size()
 	var bounced: int = pres.fx.spawn_ricochet_decals(skim.ricochets)
 	print("ricochet decals=%d" % bounced)

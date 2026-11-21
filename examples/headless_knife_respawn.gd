@@ -11,7 +11,7 @@ const EXPECTED_CHECKS := 26
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 	get_tree().create_timer(300.0).timeout.connect(func() -> void:
 		print("FAIL: watchdog, the suite took over 300 s")
@@ -20,7 +20,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact: a thrown knife comes back with the respawn, on the client too")
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	Engine.physics_ticks_per_second = TICK_RATE
 	var ok := await _boot()
 	var a: Dictionary = {}
@@ -31,13 +31,13 @@ func _run() -> void:
 		_clients["A"] = a
 		ok = await _body(a)
 	await _teardown()
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	_report_sections(_entered, _completed, 8, EXPECTED_CHECKS)
 
 
 func _teardown() -> void:
 	for label in _clients:
-		var link: DotClientLink = _clients[label]["link"]
+		var link: GSClientLink = _clients[label]["link"]
 		if link != null and is_instance_valid(link):
 			link.disconnect_from_server("test over")
 	await get_tree().process_frame
@@ -82,7 +82,7 @@ func _body(a: Dictionary) -> bool:
 		_check(back_server, "the respawn hands the server's arsenal the knife back")
 		var back_client := await _until(func() -> bool: return own.player.arsenal.carries(knife), RELIABLE_SECONDS)
 		_check(back_client, "and the client's own arsenal carries it again", "client slot 1: %s" % [own.player.arsenal.slot_at(AwWeaponIds.SLOT_MELEE)])
-		var def: DotWeaponDef = own.player.arsenal.current_def()
+		var def: GSWeaponDef = own.player.arsenal.current_def()
 		_check(def != null and own.player.arsenal.carries(def.id), "the weapon the client holds is one it carries", str(def.id if def != null else &""))
 		_done()
 
@@ -100,7 +100,7 @@ func _body(a: Dictionary) -> bool:
 	_done()
 
 	_section("a boomerang flies out and is caught")
-	var fitted := FcAttach.serve(served.arsenal, DotNetReader.new(FcAttach.write_request(AwWeaponIds.SLOT_MELEE, FcContent.KNIFE_MOUNT, FcAttach.BOOMERANG)))
+	var fitted := FcAttach.serve(served.arsenal, GSNetReader.new(FcAttach.write_request(AwWeaponIds.SLOT_MELEE, FcContent.KNIFE_MOUNT, FcAttach.BOOMERANG)))
 	_check(fitted.ok, "the boomerang fits the knife")
 	# A short loop that fits any spawn room; the respawn point is random, so four directions are tried and one must come home.
 	_game.knives.rules["boomerang_distance"] = 4.0
@@ -139,7 +139,7 @@ func _drawn_follows_throw(served: FcPlayer, own: FcPlayerNet, knife: StringName)
 	var drive := func() -> void:
 		while ticking[0]:
 			ticking[1] += 1
-			var _o: Variant = own.player.simulate_tick(int(ticking[1]), 1.0 / float(TICK_RATE), DotFpsCommand.new(), DotWeaponCommand.new())
+			var _o: Variant = own.player.simulate_tick(int(ticking[1]), 1.0 / float(TICK_RATE), GSFpsCommand.new(), GSWeaponCommand.new())
 			await get_tree().physics_frame
 	drive.call()
 	var drawn_knife := await _until(func() -> bool: return StringName(own.player.weapons.get(&"_shown")) == knife, RELIABLE_SECONDS)
@@ -148,7 +148,7 @@ func _drawn_follows_throw(served: FcPlayer, own: FcPlayerNet, knife: StringName)
 	var out_of_hand := await _until(func() -> bool: return not own.player.arsenal.carries(knife), RELIABLE_SECONDS)
 	for _i in range(20):
 		await get_tree().physics_frame
-	var held: DotWeaponDef = own.player.arsenal.current_def()
+	var held: GSWeaponDef = own.player.arsenal.current_def()
 	var held_id: StringName = held.id if held != null else &""
 	_check(out_of_hand and held_id != knife, "the client's arsenal holds the next weapon", str(held_id))
 	_check(StringName(own.player.weapons.get(&"_shown")) == held_id, "and its view model draws that weapon, not the thrown knife",

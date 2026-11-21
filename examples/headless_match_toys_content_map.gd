@@ -81,7 +81,7 @@ func _test_toys() -> void:
 	# the shot goes on to whoever is behind it: a toy is never cover.
 	var other := game.toys.toy(1)
 	var o0 := other.body.global_position
-	var shot := DotShot.new()
+	var shot := GSShot.new()
 	shot.attacker = 950
 	shot.tick = game.current_tick()
 	shot.origin = o0 + Vector3(0.0, 0.0, 6.0)
@@ -89,7 +89,7 @@ func _test_toys() -> void:
 	shot.damage = 20.0
 	shot.max_range = 40.0
 	var clear_through := game.combat.trace.line_of_sight(shot.origin, o0 + Vector3(0.0, 0.0, -2.0))
-	game._shoot_toys([shot] as Array[DotShot])
+	game._shoot_toys([shot] as Array[GSShot])
 	for _i in range(30):
 		await get_tree().physics_frame
 	_check(other.body.global_position.z < o0.z - 0.4 and clear_through,
@@ -99,7 +99,7 @@ func _test_toys() -> void:
 	# A rocket's blast beside the barrel.
 	var barrel := game.toys.toy(3)
 	var r0 := barrel.body.global_position
-	var spawn := DotWeaponSpawn.new()
+	var spawn := GSWeaponSpawn.new()
 	spawn.splash_radius = 4.0
 	game._on_detonated_near_toys(r0 + Vector3(-1.5, 0.0, 0.0), spawn)
 	for _i in range(30):
@@ -107,15 +107,15 @@ func _test_toys() -> void:
 	_check(barrel.body.global_position.distance_to(r0) > 0.3, "a blast throws the barrel beside it", "%.2f m" % barrel.body.global_position.distance_to(r0))
 
 	# Live again: home.
-	game._on_match_state_changed(DotMatch.State.WARMUP, DotMatch.State.LIVE)
+	game._on_match_state_changed(GSMatch.State.WARMUP, GSMatch.State.LIVE)
 	await get_tree().physics_frame
 	_check(ball.body.global_position.distance_to(ball.rest.origin) < 0.05 and barrel.body.global_position.distance_to(barrel.rest.origin) < 0.05,
 		"a round going live puts every toy home")
 
-	var _off := game.toy_rules.set_cvar(DotPropBodyRules.CVAR_ENABLED, "0")
+	var _off := game.toy_rules.set_cvar(GSPropBodyRules.CVAR_ENABLED, "0")
 	_check(not ball.visible and game.toys.shot_along(o0 + Vector3(0, 0.4, 6), Vector3(0, 0, -1), 20.0, 20.0, 1) == -1,
 		"sv_toys 0 takes them away")
-	var _on := game.toy_rules.set_cvar(DotPropBodyRules.CVAR_ENABLED, "1")
+	var _on := game.toy_rules.set_cvar(GSPropBodyRules.CVAR_ENABLED, "1")
 	game.get_parent().remove_child(game)
 	game.queue_free()
 	for view: Node in _toy_views:
@@ -124,12 +124,12 @@ func _test_toys() -> void:
 	_toy_views.clear()
 	_done()
 
-func _test_content_rest(schema: DotLoadoutSchema, unowned: DotLoadout) -> void:
+func _test_content_rest(schema: GSLoadoutSchema, unowned: GSLoadout) -> void:
 	unowned.set_item(&"primary", AwWeaponIds.LAUNCHER)
 	unowned.set_item(&"secondary", AwWeaponIds.PISTOL)
 	_check(
-		not DotLoadoutValidator.validate(
-			unowned, schema, DotLoadoutEntitlements.none()
+		not GSLoadoutValidator.validate(
+			unowned, schema, GSLoadoutEntitlements.none()
 		).ok,
 		"and refuses the launcher to a player who has not unlocked it"
 	)
@@ -156,7 +156,7 @@ func _test_content() -> void:
 
 	# Every weapon must be reachable from a loadout. A content set where a weapon exists and no
 	# loadout can name it is a weapon nobody will ever hold, and nothing reports it.
-	var everything := DotLoadoutEntitlements.everything()
+	var everything := GSLoadoutEntitlements.everything()
 	var reachable := {}
 
 	for slot in schema.slot_ids():
@@ -170,47 +170,47 @@ func _test_content() -> void:
 		)
 
 	# Free by default; a server that prices weapons gets the budget enforced.
-	var greedy := DotLoadout.empty(&"arena")
+	var greedy := GSLoadout.empty(&"arena")
 	greedy.set_item(&"melee", AwWeaponIds.KNIFE)
 	greedy.set_item(&"primary", AwWeaponIds.LAUNCHER)
 	greedy.set_item(&"secondary", AwWeaponIds.REVOLVER)
 	greedy.set_item(&"thrown", AwWeaponIds.FRAG)
 	greedy.set_item(&"gear", &"armour")
 	_check(
-		DotLoadoutValidator.validate(greedy, schema, everything).ok,
+		GSLoadoutValidator.validate(greedy, schema, everything).ok,
 		"a heavy with armour and a grenade is free by default"
 	)
 	var launcher := schema.catalogue.find(AwWeaponIds.LAUNCHER)
 	launcher.cost = 6
 	schema.point_budget = 5
 	_check(
-		not DotLoadoutValidator.validate(greedy, schema, everything).ok,
+		not GSLoadoutValidator.validate(greedy, schema, everything).ok,
 		"a server that prices the launcher and sets a budget refuses it"
 	)
 	launcher.cost = 0
 	schema.point_budget = 0
 
-	var sensible := DotLoadout.empty(&"arena")
+	var sensible := GSLoadout.empty(&"arena")
 	sensible.set_item(&"melee", AwWeaponIds.KNIFE)
 	sensible.set_item(&"primary", AwWeaponIds.RIFLE)
 	sensible.set_item(&"secondary", AwWeaponIds.PISTOL)
 	sensible.set_item(&"thrown", AwWeaponIds.FRAG)
 	sensible.set_item(&"gear", &"armour")
 	_check(
-		DotLoadoutValidator.validate(sensible, schema, everything).ok,
+		GSLoadoutValidator.validate(sensible, schema, everything).ok,
 		"and permits a normal one"
 	)
 
 	# A melee weapon in the primary slot is a player who spawns with nothing to shoot.
-	var saved := DotLoadout.empty(&"arena")
+	var saved := GSLoadout.empty(&"arena")
 	saved.set_item(&"primary", AwWeaponIds.RIFLE)
 	saved.set_item(&"secondary", AwWeaponIds.PISTOL)
-	var _changes := DotLoadoutValidator.conform(saved, schema, everything)
+	var _changes := GSLoadoutValidator.conform(saved, schema, everything)
 	_check(
 		saved.item_in(&"melee") == FcWeaponRoles.resolve(&"melee")
 		and saved.item_in(&"thrown") == FcWeaponRoles.resolve(&"thrown")
 		and saved.item_in(&"primary") == AwWeaponIds.RIFLE
-		and DotLoadoutValidator.validate(saved, schema, everything).ok,
+		and GSLoadoutValidator.validate(saved, schema, everything).ok,
 		"an old primary-and-sidearm loadout gains a knife and a frag and keeps its choices"
 	)
 	_check(
@@ -218,17 +218,17 @@ func _test_content() -> void:
 		"and the default loadout has a grenade in it, which an optional slot never put there"
 	)
 
-	var knives := DotLoadout.empty(&"arena")
+	var knives := GSLoadout.empty(&"arena")
 	knives.set_item(&"primary", AwWeaponIds.KNIFE)
 	knives.set_item(&"secondary", AwWeaponIds.PISTOL)
 	_check(
-		not DotLoadoutValidator.validate(knives, schema, everything).ok,
+		not GSLoadoutValidator.validate(knives, schema, everything).ok,
 		"and refuses a knife as a primary"
 	)
 
 	# The launcher is the one paid item, so an unentitled player must not get it — which is dot-
 	# loadout's default and is worth checking here because this game's entitlement source is the.
-	var unowned := DotLoadout.empty(&"arena")
+	var unowned := GSLoadout.empty(&"arena")
 	_test_content_rest(schema, unowned)
 
 func _test_map() -> void:
@@ -475,7 +475,7 @@ func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
 	walker.controller.teleport(Vector3(2.45, 0.1, 6.0), 180.0, 0.0)
 
 	for step in range(20):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 180.0
 		command.move = Vector2(0.0, 1.0)
 		walker.controller.apply_command(command)
@@ -483,7 +483,7 @@ func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
 		tick += 1
 
 	for step in range(24):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 90.0
 		walker.controller.apply_command(command)
 		walker.controller.simulate_tick(tick, delta)
@@ -493,7 +493,7 @@ func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
 	var from_floor := false
 
 	for step in range(64 * 3):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 90.0
 		command.move = Vector2(0.0, 1.0)
 		walker.controller.apply_command(command)
@@ -526,7 +526,7 @@ func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
 	var lowest := 99.0
 
 	for step in range(64 * 5):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 90.0
 		command.move = Vector2(0.0, 1.0)
 		walker.controller.apply_command(command)
@@ -571,7 +571,7 @@ func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
 	# Held on for another half second the run ends against the perch, still on the
 	# shelf; and one hop from there is the perch.
 	for step in range(32):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 90.0
 		command.move = Vector2(0.0, 1.0)
 		walker.controller.apply_command(command)
@@ -590,10 +590,10 @@ func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
 	var perched := false
 
 	for step in range(64 * 2):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 90.0
 		command.move = Vector2(0.0, 1.0)
-		command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+		command.set_button(GSFpsCommand.BUTTON_JUMP, true)
 		walker.controller.apply_command(command)
 		walker.controller.simulate_tick(tick, delta)
 		tick += 1

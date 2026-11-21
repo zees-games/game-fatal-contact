@@ -81,7 +81,7 @@ static func dm_atrium() -> RefCounted:
 
 	# --- North-west stair --------------------------------------------------
 	#
-	# Thirteen steps of 0.36, which is under `DotFpsTunables.step_height` (0.4) and so
+	# Thirteen steps of 0.36, which is under `GSFpsTunables.step_height` (0.4) and so
 	# is walked rather than jumped — the point of this route being the one that costs
 	# nothing. [b]Measured, not assumed:[/b] the first draft used 0.6 and a bot holding
 	# forward stopped dead against the first tread, four seconds of walking for 0.8 m of
@@ -279,7 +279,7 @@ static func dm_atrium() -> RefCounted:
 	# flush with the arcade roof's south edge at z 18 -- a stair that stops half a metre
 	# short is a stair with a hole at the top of it, which reads as falling through the
 	# map. 0.36 rather than anything larger for the reason the north-west stair gives:
-	# it is under `DotFpsTunables.step_height`, so it is WALKED, and a bot holding
+	# it is under `GSFpsTunables.step_height`, so it is WALKED, and a bot holding
 	# forward climbs it instead of stopping dead against the first tread.
 	for index in range(10):
 		map.add_box(AABB(

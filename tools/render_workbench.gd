@@ -1,7 +1,7 @@
 extends SceneTree
 
-## Frame sequence after the still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after the still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 ## Renders the solo client with the lazy workbench opened (the toggle_action key): screenshots/workbench/open.png. Use the compatibility renderer (Forward+ on llvmpipe segfaults in Mesa):
 ## `xvfb-run -a godot --path . --rendering-method gl_compatibility --rendering-driver opengl3 --resolution 1280x720 --script tools/render_workbench.gd`

@@ -1,6 +1,6 @@
 extends RefCounted
 ## The wire format of the MORE event, the last kind the 5-bit field has: a varint sub-kind, then its body.
-## KNIFE is the first sub-kind; its body is dot-weapon's DotWeaponKnifeWire.
+## KNIFE is the first sub-kind; its body is dot-weapon's GSWeaponKnifeWire.
 
 enum More { KNIFE, HOST }
 
@@ -8,8 +8,8 @@ enum More { KNIFE, HOST }
 const GLIDE_LEVEL := 41
 
 
-static func _w() -> DotNetWriter:
-	return DotNetWriter.new()
+static func _w() -> GSNetWriter:
+	return GSNetWriter.new()
 
 
 static func write_knife(
@@ -18,18 +18,18 @@ static func write_knife(
 ) -> PackedByteArray:
 	var w := _w()
 	w.write_varint(More.KNIFE)
-	var wire: Script = DotWeaponKnifeWire
-	if DotAddonApi.build_level("dot_weapon") >= GLIDE_LEVEL:
+	var wire: Script = GSWeaponKnifeWire
+	if GSAddonApi.build_level("dot_weapon") >= GLIDE_LEVEL:
 		wire.call(&"write_knife", w, id, owner, phase, victim, at, motion, glide, turn)
 	else:
-		DotWeaponKnifeWire.write_knife(w, id, owner, phase, victim, at, motion)
+		GSWeaponKnifeWire.write_knife(w, id, owner, phase, victim, at, motion)
 	return w.to_bytes()
 
 
 ## The sub-kind; the body after it is read with the matching reader.
-static func read_more(reader: DotNetReader) -> int:
+static func read_more(reader: GSNetReader) -> int:
 	return reader.read_varint()
 
 
-static func read_knife(reader: DotNetReader) -> Dictionary:
-	return DotWeaponKnifeWire.read_knife(reader)
+static func read_knife(reader: GSNetReader) -> Dictionary:
+	return GSWeaponKnifeWire.read_knife(reader)

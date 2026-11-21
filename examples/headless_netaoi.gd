@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## FcNetAoi: the relevance rings are off for a 16v16, on above sv_net_aoi_players with
 ## hysteresis, read their cvars live, and describe the same rings dot-net applies.
@@ -7,17 +7,17 @@ const FcNetAoi := preload("../game/fc_net_aoi.gd")
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("arena: net relevance rings")
-	var console := DotConsole.new()
+	var console := GSConsole.new()
 	add_child(console)
 	var aoi := FcNetAoi.new()
-	aoi.bind_cvars(console.cvar, DotConVar.FLAG_ARCHIVE)
-	var interest := DotNetInterestDistance.new()
+	aoi.bind_cvars(console.cvar, GSConVar.FLAG_ARCHIVE)
+	var interest := GSNetInterestDistance.new()
 	var base := [interest.radius, interest.far_every, interest.far_distance, interest.far_tiers, interest.far_coherent, interest.aim_cone_deg]
 
 	_check(console.get_int("sv_net_aoi_players") == 32 and is_equal_approx(console.get_float("sv_net_radius"), 120.0), "defaults: rings from the 33rd player, 120 m radius")

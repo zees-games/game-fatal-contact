@@ -7,7 +7,7 @@ extends Node
 
 const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 ## Support-check period (a rest may be woken by it) and the ticks a forced rest is grounded for.
-const WAKE_EVERY_SEC := DotWeaponDrops.SUPPORT_EVERY
+const WAKE_EVERY_SEC := GSWeaponDrops.SUPPORT_EVERY
 const GROUND_TICKS := 2
 const TICKS := 64
 ## Seconds each seed is watched: a drop still moving after this counts as never settling.
@@ -19,7 +19,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = 64
 	_run.call_deferred()
 
@@ -49,7 +49,7 @@ func _pct(sorted: Array, p: float) -> float:
 
 
 ## Latest rest time the drop rules allow; 0 when a limit is 0 (no bound).
-func _bound(rules: DotWeaponDropRules) -> float:
+func _bound(rules: GSWeaponDropRules) -> float:
 	if rules.settle_max_sec <= 0.0 or rules.refall_max <= 0:
 		return 0.0
 	return float(rules.refall_max + 1) * rules.settle_max_sec + float(rules.refall_max) * WAKE_EVERY_SEC + float(GROUND_TICKS + 1) / float(TICKS)
@@ -64,7 +64,7 @@ func _run() -> void:
 	var refalls: Array = []
 	var worst := ["", 0.0]
 	var never := 0
-	var rules: DotWeaponDropRules = null
+	var rules: GSWeaponDropRules = null
 	for sd in seeds:
 		seed(1000 + sd)
 		var world := Node3D.new()
@@ -72,7 +72,7 @@ func _run() -> void:
 		_floor(world, Vector3(0, -0.5, 0), Vector3(80, 1, 40))
 		for s in 12:
 			_floor(world, Vector3(0, 0.18 * (s + 1) - 0.5, 0.3 * s + 0.15), Vector3(80, 1, 0.3))
-		var drops := DotWeaponDrops.new()
+		var drops := GSWeaponDrops.new()
 		drops.is_authority = true
 		drops.draws = true
 		drops.look_of = func(w: StringName) -> Node3D:

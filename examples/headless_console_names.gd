@@ -15,13 +15,13 @@ const CHECKS := 13
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("game-fatal-contact: console names on a dedicated server")
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 
 	if await _boot_server("fc console names", PORT, SERVER_DIR, TICK_RATE):
 		_test_new_names()
@@ -29,7 +29,7 @@ func _run() -> void:
 		_test_old_names_forward()
 
 	_teardown()
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
@@ -38,7 +38,7 @@ func _test_new_names() -> void:
 	var console := _server.console
 	var map_cmd := console.find_command("map")
 	_check(map_cmd != null, "`map` is a known command (dot-map's map change)")
-	_check(map_cmd != null and map_cmd.permission == DotAdminFlags.CHANGEMAP, "and it needs the changemap flag",
+	_check(map_cmd != null and map_cmd.permission == GSAdminFlags.CHANGEMAP, "and it needs the changemap flag",
 		map_cmd.permission if map_cmd != null else "")
 	_check(console.find_command("maps") != null, "`maps` is a known command")
 	_check(console.find_command("fc_maps") != null, "`fc_maps` (the listing that credits authors) is a known command")
@@ -72,7 +72,7 @@ func _test_old_names_forward() -> void:
 	_section("an old name says what it became, then does it")
 	var console := _server.console
 	_replies.clear()
-	var ctx := DotCmdContext.console("", PackedStringArray())
+	var ctx := GSCmdContext.console("", PackedStringArray())
 	ctx.reply_sink = func(text: String) -> void: _replies.append(text)
 	var _r := console.execute("arena_scorelimit 30", ctx)
 	_check(console.find_cvar("fc_scorelimit").get_int() == 30, "arena_scorelimit 30 sets fc_scorelimit",

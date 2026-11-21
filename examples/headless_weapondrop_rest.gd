@@ -9,7 +9,7 @@ extends Node
 
 const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 const TOLERANCE := 0.02
-## The drops spawn with a random yaw and spin (DotWeaponDrops), so the global RNG is seeded per course: a run replays
+## The drops spawn with a random yaw and spin (GSWeaponDrops), so the global RNG is seeded per course: a run replays
 ## the same tumble, whatever box or load it runs on (physics is stepped by ticks, never by wall time).
 const SEED := 20261115
 ## Longest a course may take to settle, in ticks (47 s). A drop on a stair edge can rest, lose its support, fall again
@@ -24,7 +24,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = 64
 	_run.call_deferred()
 
@@ -135,8 +135,8 @@ func _build_course(world: Node3D, course: String) -> void:
 				_floor(world, Vector3(0, 0.18 * (s + 1) - 0.5, 0.3 * s + 0.15), Vector3(40, 1, 0.3))
 
 
-func _make_drops(world: Node3D) -> DotWeaponDrops:
-	var drops := DotWeaponDrops.new()
+func _make_drops(world: Node3D) -> GSWeaponDrops:
+	var drops := GSWeaponDrops.new()
 	drops.is_authority = true
 	drops.draws = true
 	drops.look_of = func(w: StringName) -> Node3D:
@@ -150,7 +150,7 @@ func _make_drops(world: Node3D) -> DotWeaponDrops:
 	return drops
 
 
-func _spawn_all(drops: DotWeaponDrops, ids: Array, course: String) -> Dictionary:
+func _spawn_all(drops: GSWeaponDrops, ids: Array, course: String) -> Dictionary:
 	var spots := {}
 	var i := 0
 	for w: StringName in ids:
@@ -166,7 +166,7 @@ func _spawn_all(drops: DotWeaponDrops, ids: Array, course: String) -> Dictionary
 	return spots
 
 
-func _wait_settled(drops: DotWeaponDrops, spots: Dictionary, course: String) -> void:
+func _wait_settled(drops: GSWeaponDrops, spots: Dictionary, course: String) -> void:
 	var quiet := 0
 	var waited := 0
 	var prev := {}
@@ -184,7 +184,7 @@ func _wait_settled(drops: DotWeaponDrops, spots: Dictionary, course: String) -> 
 	_check(quiet >= QUIET_TICKS, "%s: every drop settled" % course, "waited %d ticks" % waited)
 
 
-func _judge(drops: DotWeaponDrops, spots: Dictionary, course: String) -> Dictionary:
+func _judge(drops: GSWeaponDrops, spots: Dictionary, course: String) -> Dictionary:
 	var last := {}
 	for id: int in spots:
 		var e: Dictionary = drops._entries[id]

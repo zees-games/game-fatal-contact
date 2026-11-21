@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcGame := preload("../game/fc_game.gd")
@@ -20,7 +20,7 @@ var _seconds := DEFAULT_SECONDS
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	for a in OS.get_cmdline_user_args():
 		if a.is_valid_float():
 			_seconds = a.to_float()
@@ -105,7 +105,7 @@ func _team_match() -> bool:
 		warm += 1
 
 	var hits := {"n": 0, "dmg": 0.0, "all_n": 0, "all_dmg": 0.0, "kills": 0}
-	game.player_killed.connect(func(_entry: DotKillFeed.Entry) -> void:
+	game.player_killed.connect(func(_entry: GSKillFeed.Entry) -> void:
 		hits["kills"] += 1)
 	game.hit_confirmed.connect(func(_att: int, victim: int, amount: float, _pt: Vector3, _hs: bool, _lethal: bool) -> void:
 		hits["all_n"] += 1

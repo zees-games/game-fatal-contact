@@ -2,7 +2,7 @@ extends "fc_attach_studio_state.gd"
 ## The attachments screen (docs/client.md, the Attachments key): the gun in hand large in its own little studio, a chip per
 ## mount on a leader line to its socket, the choices of the chosen mount in a column on the right and six stat bars at the
 ## bottom left. Moving onto a choice (mouse, keys or pad) dresses the studio's gun with it and slides the bars to what it
-## would do; a press asks for it through [signal requested]. Like DotWeaponAttachMenu it changes nothing itself: the panel
+## would do; a press asks for it through [signal requested]. Like GSWeaponAttachMenu it changes nothing itself: the panel
 ## sends the request and calls [method show_fitting] with the server's answer.
 ## Everything but the 3D studio is drawn in two `_draw` passes: about ten nodes beside the model, nothing rebuilt per pick.
 
@@ -85,7 +85,7 @@ func _ready() -> void:
 
 ## Fills the screen for [param base] (the catalogue definition, unfitted) and its [param fitting]; [param peers] are the
 ## guns the stat bars are measured against (every gun in the catalogue).
-func open(catalogue: DotWeaponAttachments, base: DotWeaponDef, fitting: DotWeaponFitting, peers: Array[DotWeaponDef] = []) -> void:
+func open(catalogue: GSWeaponAttachments, base: GSWeaponDef, fitting: GSWeaponFitting, peers: Array[GSWeaponDef] = []) -> void:
 	var same_gun := _model != null and _base != null and base != null and _base.id == base.id
 	_catalogue = catalogue
 	_base = base
@@ -127,7 +127,7 @@ func close() -> void:
 
 ## Takes [param fitting] (the server's answer, or the replicated one) without rebuilding anything: the rows, chips, gun and
 ## bars follow it in place.
-func show_fitting(fitting: DotWeaponFitting) -> void:
+func show_fitting(fitting: GSWeaponFitting) -> void:
 	_fitting = fitting
 	for m: StringName in _pending.keys():
 		if fitting.attachment_on(m) == _pending[m]:
@@ -184,7 +184,7 @@ func _set_row(row: int) -> void:
 
 
 ## The fitting the studio shows: the real one with the row under the cursor put on.
-func _shown_fitting() -> DotWeaponFitting:
+func _shown_fitting() -> GSWeaponFitting:
 	if _fitting == null:
 		return null
 	if _shown[0] == &"" or _fitting.attachment_on(_shown[0]) == _shown[1]:
@@ -244,14 +244,14 @@ func _socket(mount: StringName) -> Node3D:
 # --- stats -------------------------------------------------------------------------------------------------------------
 
 ## The six bar values (0..1) of [param def] against the catalogue.
-func _scores(def: DotWeaponDef) -> Array[float]:
+func _scores(def: GSWeaponDef) -> Array[float]:
 	var out: Array[float] = []
 	for row: Array in STATS:
 		out.append(_score(row[1], def))
 	return out
 
 
-func _raw(stat: StringName, def: DotWeaponDef) -> float:
+func _raw(stat: StringName, def: GSWeaponDef) -> float:
 	var t: Object = def.tuning
 	match stat:
 		&"damage":
@@ -276,7 +276,7 @@ static func _num(o: Object, field: StringName) -> float:
 	return float(v) if v is float or v is int else 0.0
 
 
-func _score(stat: StringName, def: DotWeaponDef) -> float:
+func _score(stat: StringName, def: GSWeaponDef) -> float:
 	var lo := INF
 	var hi := -INF
 	for peer in _peers:
@@ -321,9 +321,9 @@ func _delta_lines() -> Array:
 	var then := _catalogue.apply(_base, _shown_fitting())
 	if not now.ok or not then.ok:
 		return out
-	var delta := DotWeaponAttachments.stat_delta(now.value, then.value)
+	var delta := GSWeaponAttachments.stat_delta(now.value, then.value)
 	for field: String in delta.keys():
-		if field.begins_with(DotWeaponAttachment.PARAMS_PREFIX):
+		if field.begins_with(GSWeaponAttachment.PARAMS_PREFIX):
 			continue
 		var pair: Array = delta[field]
 		var a := float(pair[0])
@@ -349,8 +349,8 @@ func _process(delta: float) -> void:
 	if not is_visible_in_tree():
 		return
 	_time += delta
-	var k := DotCameraSmoothing.blend(maxf(0.01, ease_seconds) * LN2 / 3.0, delta)
-	var slow := DotCameraSmoothing.blend(maxf(0.01, ease_seconds) * LN2 / 1.5, delta)
+	var k := GSCameraSmoothing.blend(maxf(0.01, ease_seconds) * LN2 / 3.0, delta)
+	var slow := GSCameraSmoothing.blend(maxf(0.01, ease_seconds) * LN2 / 1.5, delta)
 	_open_t = move_toward(_open_t, 1.0, delta / 0.28)
 	_slot_t = move_toward(_slot_t, 1.0, delta / 0.22)
 	var stick := Vector2(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))
@@ -768,7 +768,7 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventKey:
 		_pad = false
 	var handled := true
-	if event.is_action_pressed(&"ui_cancel") or (InputMap.has_action(DotWeaponAttachMenu.ACTION) and event.is_action_pressed(DotWeaponAttachMenu.ACTION)):
+	if event.is_action_pressed(&"ui_cancel") or (InputMap.has_action(GSWeaponAttachMenu.ACTION) and event.is_action_pressed(GSWeaponAttachMenu.ACTION)):
 		closed.emit()
 	elif event.is_action_pressed(&"ui_up", true):
 		_set_row(posmod(_row - 1, _options().size()))

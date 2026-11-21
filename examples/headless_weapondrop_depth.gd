@@ -20,7 +20,7 @@ var _worst := {}
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = 64
 	_run.call_deferred()
 
@@ -108,13 +108,13 @@ func _box_of(body: RigidBody3D) -> Vector3:
 ## One course: every weapon in [param ids] dropped at [param spots] with [param velocity], on a
 ## server layer and a client layer that mirrors it; reports the client's depth at 10 s.
 func _course(course: String, world: Node3D, ids: Array, spots: Array, velocity: Vector3) -> void:
-	var server := DotWeaponDrops.new()
+	var server := GSWeaponDrops.new()
 	server.is_authority = true
 	server.draws = false
 	server.look_of = Wiring.look
 	server.rules.lifetime = 0.0
 	server.rules.max_count = 0
-	var client := DotWeaponDrops.new()
+	var client := GSWeaponDrops.new()
 	client.is_authority = false
 	client.draws = true
 	client.look_of = Wiring.look

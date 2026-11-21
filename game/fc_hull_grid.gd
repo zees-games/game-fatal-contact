@@ -15,10 +15,10 @@ static var enabled := true
 ## Cvar `fc_hull_fast`: 0 runs the per-candidate [method FcGame._add_hull] for the grid's candidates.
 static var fast := true
 ## Cvar `fc_hull_native`: with [member fast], a mover that is not lag-compensated gathers its hulls in dot-sim's
-## `DotSimHullWorld` (same hulls, no script call per player); 0 or without the library, by script.
+## `GSSimHullWorld` (same hulls, no script call per player); 0 or without the library, by script.
 static var native := true
 ## Cvar `fc_motor_batch`: with the hull world, the players' loop prepares every player's tick first and dot-sim ticks
-## their motors in runs of one call (`DotSimMotorBatch`, same states to the bit); 0 or without it, one call per player.
+## their motors in runs of one call (`GSSimMotorBatch`, same states to the bit); 0 or without it, one call per player.
 static var batch := true
 ## Players the batched loop found changed by another player's turn (dead, moved or pushed after its own preparation):
 ## the one-by-one loop would have ticked them differently. A match counts none.

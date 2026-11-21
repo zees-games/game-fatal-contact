@@ -2,7 +2,7 @@ extends "headless_hitreg_ping.gd"
 
 ## Hit registration over a bad link: headless_hitreg_ping's server and two clients, with every packet given a seeded random jitter on top of half the round trip, and lost at a seeded 2% each way. Round trips of 30, 60 and 120 ms; peer 3 strafes as a bot does (ADAD, turns at random intervals, now and then a stop). Every tap is aimed at peer 3's torso where the shooter's screen drew it, middle and edges, with the gun's noise zeroed as in the ping suite,
 ## so the expected hit rate is 100% and every miss is the netcode's. Each miss is put down to one cause: the command never resolved, the frame was extrapolated past the newest snapshot, the frame was blended across a lost one, or the server's rewind stood the body elsewhere. Three links per round trip: clean; jitter and loss with the buffer the adaptive interpolator settles on for it (one snapshot period, the 95th percentile lateness and one
-## period more for a loss); and jitter and loss with the shipped starting buffer of two snapshots, before it has grown. The input lead covers the jitter as DotNetClock's does. Deterministic: the clocks are placed by hand, the buffer is set rather than adapted (its arrival-gap estimate reads the wall clock), and every random draw is seeded.
+## period more for a loss); and jitter and loss with the shipped starting buffer of two snapshots, before it has grown. The input lead covers the jitter as GSNetClock's does. Deterministic: the clocks are placed by hand, the buffer is set rather than adapted (its arrival-gap estimate reads the wall clock), and every random draw is seeded.
 
 const CHAOS_RTTS: Array[int] = [30, 60, 120]
 const JITTER_MS := 30.0
@@ -51,7 +51,7 @@ func _run() -> void:
 		_late_tap_section(weapons)
 		_report_sections(_entered, _completed, 2, -1)
 		return
-	var net: DotNetManager = _clients[SHOOTER_PEER]["net"]
+	var net: GSNetManager = _clients[SHOOTER_PEER]["net"]
 	var period := float(net.config.ticks_per_snapshot())
 	print("    tick %d Hz, snapshots %d Hz (every %d ticks), input copies %d, max extrapolation %.3f s" % [
 		TICK_RATE, net.config.snapshot_rate, int(period), FcNetBridge.INPUT_COPIES, net.config.max_extrapolation_sec])
@@ -67,7 +67,7 @@ func _run() -> void:
 				# The adaptive buffer's lateness rule: a period, the p95 lateness, a period for a loss.
 				buffer = (period + float(_jitter_ticks) + (period if _loss > 0.0 else 0.0)) / period
 			for peer_id: int in _clients:
-				var interp: DotNetInterpolator = _clients[peer_id]["net"].interpolator
+				var interp: GSNetInterpolator = _clients[peer_id]["net"].interpolator
 				interp._delay_snapshots = buffer
 				interp._target_snapshots = buffer
 			var total := int(roundf(float(rtt) / 1000.0 * float(TICK_RATE)))
@@ -103,7 +103,7 @@ func _late_tap_section(weapons: Array[StringName]) -> void:
 	_jitter_ticks = 0
 	_loss = 0.0
 	for peer_id: int in _clients:
-		var interp: DotNetInterpolator = _clients[peer_id]["net"].interpolator
+		var interp: GSNetInterpolator = _clients[peer_id]["net"].interpolator
 		interp._delay_snapshots = 2.0
 		interp._target_snapshots = 2.0
 	var honoured := _late_counter("late_fire_honoured")
@@ -192,7 +192,7 @@ func _up_at(k: int) -> int:
 
 
 func _lead_ticks() -> int:
-	# DotNetClock: the flight up, and the larger of the margin and the jitter plus a tick.
+	# GSNetClock: the flight up, and the larger of the margin and the jitter plus a tick.
 	return _up_ticks + 1 + _jitter_ticks
 
 
@@ -201,10 +201,10 @@ func _judge(weapon_id: StringName, ping: int, c: Dictionary) -> void:
 		_judge_late(weapon_id, c)
 		return
 	var causes := {"unresolved": int(c["sent"]) - int(c["matched"])}
-	var period := float((_clients[SHOOTER_PEER]["net"] as DotNetManager).config.ticks_per_snapshot())
+	var period := float((_clients[SHOOTER_PEER]["net"] as GSNetManager).config.ticks_per_snapshot())
 	var errs: Array = _rewinds.get_or_add(_link, {}).get_or_add(ping, [])
 	# The worst rewind of a frame the client drew between two snapshots it held, within the span a shot is blended across: the server must stand the body where that frame drew it. Not a frame
-	# still easing out of an extrapolation (DotNetInterpolator._ease_resume): that offset is the client's alone, up to resume_ease_max (6 m), and a server that took it from the command
+	# still easing out of an extrapolation (GSNetInterpolator._ease_resume): that offset is the client's alone, up to resume_ease_max (6 m), and a server that took it from the command
 	# would let a client move hitboxes.
 	var worst_blend := 0.0
 	var blend_at := -1

@@ -40,7 +40,7 @@ func _run() -> void:
 	_client.set("force_offline", true)
 	_client.set("mouse_capture_override", true)
 	add_child(_client)
-	var gate: DotLoadGate = null
+	var gate: GSLoadGate = null
 	var t_gate := Time.get_ticks_msec()
 	var waited := 0.0
 	while waited < 120.0:
@@ -53,7 +53,7 @@ func _run() -> void:
 	for _i in 120:
 		await get_tree().process_frame
 	var menu: Object = _client.get("loadout_menu")
-	var gm: DotMenu = _client.get("game_menu")
+	var gm: GSMenu = _client.get("game_menu")
 	if menu == null or gm == null:
 		print("LOADOUT_COST no loadout menu on this host")
 		get_tree().quit(1)
@@ -63,7 +63,7 @@ func _run() -> void:
 		var t0 := Time.get_ticks_usec()
 		await menu.call(&"open")
 		var t1 := Time.get_ticks_usec()
-		var screen: DotMenuLoadoutScreen = gm.loadout_screen
+		var screen: GSMenuLoadoutScreen = gm.loadout_screen
 		var mid := _snap()
 		await get_tree().process_frame
 		var t2 := Time.get_ticks_usec()

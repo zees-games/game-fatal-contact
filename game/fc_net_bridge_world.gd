@@ -4,7 +4,7 @@ extends "fc_net_bridge_players.gd"
 
 
 ## The events about the world (bullets, toys, drops, the jail and the rules), split from [method _on_event].
-func _on_world_event(event: FcEvent, reader: DotNetReader) -> void:
+func _on_world_event(event: FcEvent, reader: GSNetReader) -> void:
 	match event.kind:
 		FcEvents.Kind.BULLET:
 			var bullet := FcEvents.read_bullet(reader)
@@ -70,7 +70,7 @@ func _on_world_event(event: FcEvent, reader: DotNetReader) -> void:
 func _apply_scores(told: Dictionary) -> void:
 	if game.is_authority or game.match_node == null or game.match_node.scoreboard == null:
 		return
-	var board: DotScoreboard = game.match_node.scoreboard
+	var board: GSScoreboard = game.match_node.scoreboard
 	for row: Dictionary in told["rows"]:
 		var record := board.find(str(int(row["session_id"])))
 		if record == null:

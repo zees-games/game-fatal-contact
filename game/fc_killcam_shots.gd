@@ -115,7 +115,7 @@ func warm() -> Array:
 	if parent == null or not is_instance_valid(parent) or not parent.is_inside_tree():
 		return []
 	_build_fx()
-	return DotRenderWarmup.collect(fx)
+	return GSRenderWarmup.collect(fx)
 
 
 ## Forgets everything, for a new match.

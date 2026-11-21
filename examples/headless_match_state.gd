@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcAwards := preload("../game/fc_awards.gd")
 const FcBoards := preload("../game/fc_boards.gd")
@@ -56,7 +56,7 @@ var _game: FcGame = null
 
 ## Observations gathered while the match runs. Arrays rather than counters: a lambda captures locals by value, so an int
 ## incremented in a signal handler stays zero outside it and the assertion blames a signal that fired.
-var _kills: Array[DotKillFeed.Entry] = []
+var _kills: Array[GSKillFeed.Entry] = []
 
 ## The map vote riding along on the real match: what state the match was in, and what the
 ## leader had, each time a ballot opened. See [method _build_vote].

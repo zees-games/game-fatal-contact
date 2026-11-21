@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcBotLoadouts := preload("../game/fc_bot_loadouts.gd")
@@ -25,7 +25,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -287,7 +287,7 @@ func _bare_fittings(game: FcGame) -> String:
 	return ", ".join(missing)
 
 
-func _carried(arsenal: DotWeaponArsenal) -> Dictionary:
+func _carried(arsenal: GSWeaponArsenal) -> Dictionary:
 	var out := {}
 	for slot in arsenal.slots():
 		var held := arsenal.slot_at(slot)
@@ -296,7 +296,7 @@ func _carried(arsenal: DotWeaponArsenal) -> Dictionary:
 	return out
 
 
-func _slot_of(arsenal: DotWeaponArsenal, id: StringName) -> int:
+func _slot_of(arsenal: GSWeaponArsenal, id: StringName) -> int:
 	for slot in arsenal.slots():
 		var held := arsenal.slot_at(slot)
 		if held != null and held.id() == id:

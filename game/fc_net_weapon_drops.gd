@@ -8,14 +8,14 @@ const FcWeaponDropEvents := preload("fc_weapon_drop_events.gd")
 var _watched_drops: Node = null
 
 ## The dropped-weapon layer this bridge last connected to.
-var _watched_weapon_drops: DotWeaponDrops = null
+var _watched_weapon_drops: GSWeaponDrops = null
 
 
 ## Follows the dropped weapons (thrown or left by the dead); server side, every tick, because a map change builds a new layer.
 func _watch_weapon_drops() -> void:
 	if net == null or not net.is_server or game == null:
 		return
-	var layer: DotWeaponDrops = game.weapon_drops
+	var layer: GSWeaponDrops = game.weapon_drops
 	if layer == _watched_weapon_drops:
 		return
 	_watched_weapon_drops = layer
@@ -61,8 +61,8 @@ func _on_weapon_gone(id: int, taker: int) -> void:
 
 
 ## Client side: applies one WEAPON_DROP, WEAPON_SETTLED or WEAPON_GONE event to the mirror.
-func _apply_weapon_drop_event(kind: int, reader: DotNetReader) -> void:
-	var layer: DotWeaponDrops = game.weapon_drops
+func _apply_weapon_drop_event(kind: int, reader: GSNetReader) -> void:
+	var layer: GSWeaponDrops = game.weapon_drops
 	match kind:
 		FcEvents.Kind.WEAPON_DROP:
 			var wd := FcWeaponDropEvents.read_weapon_drop(reader)

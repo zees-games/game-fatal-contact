@@ -1,6 +1,6 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
-## Maps handed to Fatal Contact outside the window (FcMapDrop, dot-map's DotMapDropIntake, API 30): dropped on the
+## Maps handed to Fatal Contact outside the window (FcMapDrop, dot-map's GSMapDropIntake, API 30): dropped on the
 ## executable or named by `--map-path=`, through the same intake and the same on-screen answer as a window drop. A path
 ## that holds no converted map is refused out loud with what the game takes. Window drops: headless_local_maps.
 ## [codeblock] ./game.sh test headless_mapdrop [/codeblock]
@@ -16,13 +16,13 @@ const SECTIONS := 3
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
-	if DotAddonApi.build_level("dot_map") < FcMapDrop.NEEDS_LEVEL:
-		print("-- skipped: dot-map API %d < %d (no DotMapDropIntake)" % [DotAddonApi.build_level("dot_map"), FcMapDrop.NEEDS_LEVEL])
+	if GSAddonApi.build_level("dot_map") < FcMapDrop.NEEDS_LEVEL:
+		print("-- skipped: dot-map API %d < %d (no GSMapDropIntake)" % [GSAddonApi.build_level("dot_map"), FcMapDrop.NEEDS_LEVEL])
 		_report_sections(0, 0, 0)
 		return
 	var entered := 0
@@ -79,7 +79,7 @@ func _test_intake() -> void:
 	client._menu_catalogue = FcMaps.catalogue()
 	client.source_game_path = SOURCE.path_join("no_such_install")
 	var intake := client.drop_intake()
-	var id := StringName(MAP + DotMapLocalMaps.ID_SUFFIX)
+	var id := StringName(MAP + GSMapLocalMaps.ID_SUFFIX)
 	var deep := SOURCE.path_join("deep")
 	_pack_as(deep.path_join("a/b/c/d/convert"), MAP)
 	var said: String = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(deep)]))
@@ -88,7 +88,7 @@ func _test_intake() -> void:
 	_check(not client._menu_catalogue.has(id), "and not listed")
 	intake.set(&"search_depth", 0)
 	said = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(deep)]))
-	_check(said.begins_with("Added %s" % (MAP + DotMapLocalMaps.TAG)), "search_depth 0 is no limit: found five folders down", said)
+	_check(said.begins_with("Added %s" % (MAP + GSMapLocalMaps.TAG)), "search_depth 0 is no limit: found five folders down", said)
 	_check(client._menu_catalogue.has(id), "M lists it")
 	var result: Dictionary = intake.get(&"last_result")
 	_check(str(result.get("source", "")) == "window" and (result.get("added", []) as Array).size() == 1,
@@ -122,12 +122,12 @@ func _test_cmdline() -> void:
 	var folder := SOURCE.path_join("exe/convert")
 	_pack_as(folder, MAP)
 	var said: String = await client._take_cmdline_drops(PackedStringArray(["--headless", "--map-path=" + ProjectSettings.globalize_path(folder)]))
-	var id := StringName(MAP + DotMapLocalMaps.ID_SUFFIX)
-	_check(said.begins_with("Added %s" % (MAP + DotMapLocalMaps.TAG)), "a --map-path map is added and said", said)
+	var id := StringName(MAP + GSMapLocalMaps.ID_SUFFIX)
+	_check(said.begins_with("Added %s" % (MAP + GSMapLocalMaps.TAG)), "a --map-path map is added and said", said)
 	_check(client._menu_catalogue.has(id), "M lists it")
 	_check(str((client.drop_intake().get(&"last_result") as Dictionary).get("source", "")) == "command line",
 		"the intake knows it came from the command line")
-	_check(DotMapLocalMaps.prefix_in("user://maps".path_join(MAP).path_join("convert")) != "",
+	_check(GSMapLocalMaps.prefix_in("user://maps".path_join(MAP).path_join("convert")) != "",
 		"copied as user://maps/<map>/convert, as a window drop is")
 	said = await client._take_cmdline_drops(PackedStringArray(["wss://tmcdev.net:6100/"]))
 	_check(said == "", "a connect URL on the command line says nothing", said)

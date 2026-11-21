@@ -18,7 +18,7 @@ const BOT_SESSION_BASE := 900_000_000
 ## three know what a number is. This node is the only place in the project that knows
 ## both, and it is deliberately a node rather than lines in [FcModule] because a
 ## listen server, a dedicated server and the headless suite all want it and only one of
-## them has a [DotServer].
+## them has a [GSServer].
 ##
 ## [codeblock]
 ## var progress := FcProgress.new()
@@ -32,14 +32,14 @@ const BOT_SESSION_BASE := 900_000_000
 ## what a server counts and a delta is what it reports — and an achievement is about a
 ## lifetime. Wiring one into the other directly adds the running total to the lifetime
 ## total on every kill: two after the second, five after the third, nine after the
-## fourth. [DotAchievementStatsLink] exists for exactly that and it is what is used
+## fourth. [GSAchievementStatsLink] exists for exactly that and it is what is used
 ## here; the reason it is worth a paragraph is that the wrong version compiles, runs,
 ## and is only visibly wrong to somebody who reads a player's numbers a week later.
 
 const CHANNEL := "arena.progress"
 
 ## Emitted when a player unlocks something, so a HUD can say so.
-signal award_unlocked(player_id: int, achievement: DotAchievement)
+signal award_unlocked(player_id: int, achievement: GSAchievement)
 
 @export_group("Reporting")
 
@@ -49,42 +49,42 @@ signal award_unlocked(player_id: int, achievement: DotAchievement)
 @export_range(0.0, 600.0, 5.0) var report_interval: float = 30.0
 
 ## Where the boards live; null builds one layered from [constant BOARDS_CONFIG_PATH].
-var boards_config: DotBoardsConfig = null
+var boards_config: GSBoardsConfig = null
 
 const BOARDS_CONFIG_PATH := "user://arena_boards.json"
 
 @export_group("Storage")
 
-## Where achievement progress is kept. Empty is the tracker's own [member DotAchievementTracker.store_directory].
+## Where achievement progress is kept. Empty is the tracker's own [member GSAchievementTracker.store_directory].
 @export_dir var progress_dir: String = ""
 
 const STATS_SERVICE := &"dot_stats_tracker"
 
-var stats: DotStatsTracker = null
+var stats: GSStatsTracker = null
 ## Flushes when reporting was switched on after the tracker started (it only makes its own timer at start).
 var _report_timer: Timer = null
-var achievements: DotAchievementTracker = null
-var boards: DotLeaderboardManager = null
+var achievements: GSAchievementTracker = null
+var boards: GSLeaderboardManager = null
 
 ## The differencer between the two. See the class note.
-var link: DotAchievementStatsLink = null
+var link: GSAchievementStatsLink = null
 
 ## Typed as its native base on purpose: a typed reference back to fc_game.gd closes a
 ## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
 var _game: Node = null
 
-## func(userid) -> DotClientSession, set by the module. With it a player's numbers are filed under
+## func(userid) -> GSClientSession, set by the module. With it a player's numbers are filed under
 ## dot-game's stable per-server key; without it (or no session), the seat's [method FcGame.storage_key].
 var session_fn: Callable = Callable()
 
 ## dot-game's key resolver, shared by every game; Fatal Contact drives its own tracker, so no sessions open.
-var stats_keys := DotGameStatsFeed.new()
+var stats_keys := GSGameStatsFeed.new()
 
-var _kill_feed: DotStatsEventFeed = null
+var _kill_feed: GSStatsEventFeed = null
 ## The one points score; amounts live in dot-stats' source table, the game only reports events.
-var points: DotStatsPoints = null
-## The skill rank (dot-stats' DotStatsRank): weighted stats or Elo, chosen by the fc_rank cvar.
-var rank: DotStatsRank = null
+var points: GSStatsPoints = null
+## The skill rank (dot-stats' GSStatsRank): weighted stats or Elo, chosen by the fc_rank cvar.
+var rank: GSStatsRank = null
 ## player id -> key, asked of [member key_fn] once per stay; key -> player id, its inverse.
 var _keys: Dictionary = {}
 var _ids: Dictionary = {}
@@ -106,13 +106,13 @@ var _bound: bool = false
 ## Call once, after this node is in the tree. [param game] must already have run
 ## [method FcGame.setup] — the combat manager is what the shot and damage counters
 ## hang off, and it does not exist before then.
-func attach(game: Node) -> DotResult:
+func attach(game: Node) -> GSResult:
 	if _attached:
-		return DotResult.fail(DotError.CODE_STATE, "Already attached.")
+		return GSResult.fail(GSError.CODE_STATE, "Already attached.")
 
 	if game == null or game.combat == null or game.match_node == null:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"FcProgress needs a game that has been set up.",
 		)
 
@@ -125,11 +125,11 @@ func attach(game: Node) -> DotResult:
 
 	game.player_killed.connect(_on_killed)
 	game.drops.points_collected.connect(func(taker: int, value: int) -> void:
-		var _got := points.award(taker, DotStatsPoints.SOURCE_PICKUP, float(value)))
+		var _got := points.award(taker, GSStatsPoints.SOURCE_PICKUP, float(value)))
 	bind_world()
 
 	_attached = true
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## Connects to the combat manager and the match node the game is running right now.
@@ -184,21 +184,21 @@ func rebind_world() -> void:
 ## Switches the stats report to the backbone on or off at run time (cvar fc_stats_report, off by default).
 ##
 ## Needs a backbone client holding STATS_WRITE; the token stays in that client and is never read or logged here.
-func set_reporting(on: bool) -> DotResult:
+func set_reporting(on: bool) -> GSResult:
 	if stats == null:
-		return DotResult.fail(DotError.CODE_STATE, "There is no stats tracker.")
+		return GSResult.fail(GSError.CODE_STATE, "There is no stats tracker.")
 
 	if not on:
 		stats.report_to_backbone = false
-		return DotResult.success(false)
+		return GSResult.success(false)
 
 	if stats.reporter.client == null:
-		stats.reporter.client = DotRegistry.get_service(&"dot_backbone_client")
+		stats.reporter.client = GSRegistry.get_service(&"dot_backbone_client")
 
 	if not stats.reporter.is_available():
 		stats.report_to_backbone = false
-		DotLog.warn(CHANNEL, "stats reporting needs a backbone client with STATS_WRITE; staying off")
-		return DotResult.fail(DotError.CODE_STATE, "No backbone client to report stats through.")
+		GSLog.warn(CHANNEL, "stats reporting needs a backbone client with STATS_WRITE; staying off")
+		return GSResult.fail(GSError.CODE_STATE, "No backbone client to report stats through.")
 
 	stats.report_to_backbone = true
 
@@ -210,13 +210,13 @@ func set_reporting(on: bool) -> DotResult:
 		_report_timer.timeout.connect(func() -> void: stats.flush())
 		add_child(_report_timer)
 
-	DotLog.info(CHANNEL, "stats reporting on")
-	return DotResult.success(true)
+	GSLog.info(CHANNEL, "stats reporting on")
+	return GSResult.success(true)
 
 
 func _exit_tree() -> void:
 	if stats != null:
-		DotRegistry.unregister_instance(STATS_SERVICE, stats)
+		GSRegistry.unregister_instance(STATS_SERVICE, stats)
 		# The tracker (a child, so already out) has just merged and finished its store; this covers one that never entered the tree.
 		if stats.store != null:
 			stats.store.finish()
@@ -224,8 +224,8 @@ func _exit_tree() -> void:
 		(achievements.store as FcAwardStore).finish()
 
 
-func _build() -> DotResult:
-	stats = DotStatsTracker.new()
+func _build() -> GSResult:
+	stats = GSStatsTracker.new()
 	stats.name = "Stats"
 	stats.schema = FcStats.schema()
 	stats.report_to_backbone = report_to_backbone
@@ -233,19 +233,19 @@ func _build() -> DotResult:
 	stats.define_on_start = true
 	# Before add_child, so the tracker's flush timer also writes the store.
 	if _game != null and _game.stats_file != "":
-		stats.store = DotStatsStoreFile.new(_game.stats_file)
+		stats.store = GSStatsStoreFile.new(_game.stats_file)
 	add_child(stats)
-	_kill_feed = DotStatsEventFeed.new(stats)
+	_kill_feed = GSStatsEventFeed.new(stats)
 	_kill_feed.key_of = func(id: Variant) -> StringName: return StringName(_key_of(int(id)))
 	_kill_feed.is_bot = func(id: Variant) -> bool: return int(id) >= BOT_SESSION_BASE
 	_kill_feed.extra = func() -> Dictionary: return {
 		"map": String(_game.map.id) if _game != null and _game.map != null else "",
 		"mode": String(_game.mode.id) if _game != null and _game.mode != null else "",
 	}
-	points = DotStatsPoints.new()
+	points = GSStatsPoints.new()
 	points.stat_id = FcStats.POINTS
 	points.record_fn = func(who: Variant, stat: StringName, value: float) -> void: record(int(who), stat, value)
-	rank = DotStatsRank.new()
+	rank = GSStatsRank.new()
 	rank.stat_id = FcStats.RANK_SCORE
 	rank.terms = [
 		{"stat": String(FcStats.KILLS), "weight": 1.0},
@@ -255,22 +255,22 @@ func _build() -> DotResult:
 	]
 	rank.record_fn = func(who: Variant, stat: StringName, value: float) -> void: record(int(who), stat, value)
 	rank.key_fn = func(who: Variant) -> StringName: return StringName(_key_of(int(who)))
-	# dot-game's DotGameStatsFeed and anything else duck-typed finds the tracker by this name.
-	DotRegistry.register(STATS_SERVICE, stats)
+	# dot-game's GSGameStatsFeed and anything else duck-typed finds the tracker by this name.
+	GSRegistry.register(STATS_SERVICE, stats)
 
 	var stats_started := stats.start()
 
 	if not stats_started.ok:
 		return stats_started.wrap("Fatal Contact stats tracker could not start")
 
-	achievements = DotAchievementTracker.new()
+	achievements = GSAchievementTracker.new()
 	achievements.name = "Achievements"
 	achievements.catalogue = FcAwards.catalogue()
 	achievements.report_to_backbone = report_to_backbone
 	achievements.autosave_interval = report_interval
 	# Registered under its own service name so nothing else has to be handed one; the
 	# tracker publishes itself, which is how a console command finds it.
-	achievements.register_as = DotAchievementTracker.SERVICE
+	achievements.register_as = GSAchievementTracker.SERVICE
 
 	# The tracker's own default is a file store in its store_directory; this is the same files, written behind the frame.
 	achievements.store = FcAwardStore.new(progress_dir if progress_dir != "" else achievements.store_directory)
@@ -288,7 +288,7 @@ func _build() -> DotResult:
 	# owns both and a registry lookup would find whichever tracker was registered last
 	# in a process running two games — which is exactly the deployment shape this
 	# family builds for.
-	link = DotAchievementStatsLink.new()
+	link = GSAchievementStatsLink.new()
 	link.name = "StatsLink"
 	link.tracker = achievements
 	link.stats = stats
@@ -302,19 +302,19 @@ func _build() -> DotResult:
 	return _build_boards()
 
 
-func _build_boards() -> DotResult:
-	boards = DotLeaderboardManager.new()
+func _build_boards() -> GSResult:
+	boards = GSLeaderboardManager.new()
 	boards.name = "Boards"
 	boards.report_to_backbone = report_to_backbone
 	boards.report_interval = report_interval
 	if boards_config == null:
-		boards_config = DotBoardsConfig.for_game("arena")
+		boards_config = GSBoardsConfig.for_game("arena")
 		var layered := boards_config.load_layered(BOARDS_CONFIG_PATH)
 		if not layered.ok:
-			DotLog.warn(CHANNEL, "the boards configuration is not usable, using memory", {
+			GSLog.warn(CHANNEL, "the boards configuration is not usable, using memory", {
 				"why": str(layered.error),
 			})
-			boards_config = DotBoardsConfig.for_game("arena")
+			boards_config = GSBoardsConfig.for_game("arena")
 	boards.backend = boards_config.backend
 	add_child(boards)
 
@@ -324,7 +324,7 @@ func _build_boards() -> DotResult:
 		if not defined.ok:
 			return defined.wrap("A leaderboard definition was refused")
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 # --- Players ---------------------------------------------------------------
@@ -332,12 +332,12 @@ func _build_boards() -> DotResult:
 ## Starts counting for a player. Idempotent.
 ##
 ## [b]A coroutine, because an achievement store may be remote.[/b]
-## [method DotAchievementTracker.begin] awaits its store, and its own note says why:
+## [method GSAchievementTracker.begin] awaits its store, and its own note says why:
 ## the interesting stores are a shared database behind a community's four servers, not
 ## a file. A caller that does not want to wait may drop the await — nothing below
 ## depends on the load having finished, and the reason is worth stating because it is
 ## not obvious: readings that arrive during the load are still counted. dot-stats
-## records them regardless, [DotAchievementStatsLink] declines to file them while the
+## records them regardless, [GSAchievementStatsLink] declines to file them while the
 ## tracker has no such player AND declines to move its baseline, so the first delta
 ## after the load carries everything that happened during it.
 ##
@@ -356,9 +356,9 @@ func begin(player_id: int, display_name: String = "") -> void:
 
 	# Before the session's first flush, or the flushed figures would count twice (stored and session).
 	if stats.store != null:
-		var loaded: DotResult = await rank.load_baseline(stats.store, player_id)
+		var loaded: GSResult = await rank.load_baseline(stats.store, player_id)
 		if not loaded.ok:
-			DotLog.debug(CHANNEL, "lifetime baseline could not be loaded; ranking on the session", {
+			GSLog.debug(CHANNEL, "lifetime baseline could not be loaded; ranking on the session", {
 				"player": key, "why": loaded.error.message
 			})
 		if not _attached:
@@ -369,7 +369,7 @@ func begin(player_id: int, display_name: String = "") -> void:
 	_playtime[player_id] = 0.0
 	_round_kills[player_id] = 0
 
-	var began: DotResult = await achievements.begin(key)
+	var began: GSResult = await achievements.begin(key)
 
 	# The challenge bar from the first frame, not from the first kill.
 	if began.ok:
@@ -379,7 +379,7 @@ func begin(player_id: int, display_name: String = "") -> void:
 		# Not fatal, and deliberately not silent. A store that cannot be read means a
 		# player plays with no achievements rather than not playing, which is the same
 		# call `FcGame.apply_loadout` makes about a loadout store.
-		DotLog.warn(CHANNEL, "achievement progress could not be loaded", {
+		GSLog.warn(CHANNEL, "achievement progress could not be loaded", {
 			"player": key, "why": began.error.message
 		})
 
@@ -427,10 +427,10 @@ func leave(player_id: int) -> void:
 	# happened by the time this function yields: a caller that drops the await — the
 	# module does, on a disconnect — must not be able to observe a player who is half
 	# gone, still accruing playtime against a session that has already been filed.
-	var ended: DotResult = await achievements.end(key)
+	var ended: GSResult = await achievements.end(key)
 
 	if not ended.ok:
-		DotLog.debug(CHANNEL, "achievement progress could not be saved", {
+		GSLog.debug(CHANNEL, "achievement progress could not be saved", {
 			"player": key, "why": ended.error.message
 		})
 
@@ -450,20 +450,20 @@ func record(player_id: int, stat_id: StringName, value: float = 1.0) -> void:
 ## [b]Chosen, not configured:[/b] the locked, unhidden achievement with one counting rule that
 ## the player has the most of, by fraction. The video's "Get 30 sniper kills (11/30)" is what
 ## a player should be one push from, and that is whichever goal they are already closest to.
-static func challenge_for(catalogue: DotAchievementCatalogue, progress: DotAchievementProgress) -> Array:
+static func challenge_for(catalogue: GSAchievementCatalogue, progress: GSAchievementProgress) -> Array:
 	var best := -1
 	var best_fraction := -1.0
 	var best_value := 0
 
 	for i in catalogue.achievements.size():
-		var a: DotAchievement = catalogue.achievements[i]
+		var a: GSAchievement = catalogue.achievements[i]
 
 		if a.hidden or a.secret or a.requirements.size() != 1 or progress.is_unlocked(a.id):
 			continue
 
-		var rule: DotAchievementRule = a.requirements[0]
+		var rule: GSAchievementRule = a.requirements[0]
 
-		if rule.op != DotAchievementRule.Op.AT_LEAST or rule.value <= 1.0:
+		if rule.op != GSAchievementRule.Op.AT_LEAST or rule.value <= 1.0:
 			continue
 
 		var held := progress.value_of(rule.stat)
@@ -494,9 +494,9 @@ func refresh_challenge(player_id: int) -> void:
 
 
 ## A player's session values, for a HUD or a console command.
-func session_values(player_id: int) -> DotStatsValues:
+func session_values(player_id: int) -> GSStatsValues:
 	if not _attached:
-		return DotStatsValues.new()
+		return GSStatsValues.new()
 
 	return stats.session_values(StringName(_key_of(player_id)))
 
@@ -545,7 +545,7 @@ func _flush_playtime(player_id: int, all_of_it: bool) -> void:
 
 # --- Events ----------------------------------------------------------------
 
-func _on_killed(entry: DotKillFeed.Entry) -> void:
+func _on_killed(entry: GSKillFeed.Entry) -> void:
 	var victim := entry.victim_key.to_int()
 
 	if entry.victim_key != "":
@@ -585,7 +585,7 @@ func _on_killed(entry: DotKillFeed.Entry) -> void:
 
 ## Moves the Elo ratings, or republishes the weighted score of both players from their stored baseline plus this session.
 func _update_rank(killer: int, victim: int) -> void:
-	if rank.mode == DotStatsRank.MODE_ELO:
+	if rank.mode == GSStatsRank.MODE_ELO:
 		var _moved := rank.duel(killer, victim)
 		return
 	for who in [killer, victim]:
@@ -595,7 +595,7 @@ func _update_rank(killer: int, victim: int) -> void:
 
 
 ## Files the killer/victim pair for the site's "vs" table; the shape and name rules are dot-stats'.
-func _report_kill(killer: int, victim: int, entry: DotKillFeed.Entry) -> void:
+func _report_kill(killer: int, victim: int, entry: GSKillFeed.Entry) -> void:
 	if not _attached or _kill_feed == null or victim <= 0:
 		return
 	_kill_feed.report_kill(killer, victim, String(entry.cause), {
@@ -603,7 +603,7 @@ func _report_kill(killer: int, victim: int, entry: DotKillFeed.Entry) -> void:
 	})
 
 
-func _on_shot_resolved(shot: DotShot) -> void:
+func _on_shot_resolved(shot: GSShot) -> void:
 	if shot == null or _game == null or _game.player_for(shot.attacker) == null:
 		return
 
@@ -615,14 +615,14 @@ func _on_shot_resolved(shot: DotShot) -> void:
 
 	if shot.hit_anyone():
 		record(shot.attacker, FcStats.SHOTS_HIT)
-	var _filed := DotStatsDamage.report_shot_outcome(_kill_feed, shot)
+	var _filed := GSStatsDamage.report_shot_outcome(_kill_feed, shot)
 
 	# Walls the round crossed, for the site's Penetration cost panel; the shape is dot-stats'.
 	if _kill_feed != null:
-		var _walls := DotStatsDamage.report_shot(_kill_feed, shot)
+		var _walls := GSStatsDamage.report_shot(_kill_feed, shot)
 
 
-func _on_damage_applied(damage: DotDamage) -> void:
+func _on_damage_applied(damage: GSDamage) -> void:
 	if damage.health_lost <= 0.0 or _game == null:
 		return
 
@@ -640,7 +640,7 @@ func _on_damage_applied(damage: DotDamage) -> void:
 		return
 
 	record(damage.attacker, FcStats.DAMAGE_DEALT, damage.health_lost)
-	var _filed := DotStatsDamage.report(_kill_feed, damage)
+	var _filed := GSStatsDamage.report(_kill_feed, damage)
 	points.note_damage(damage.attacker, damage.victim, damage.health_lost, Time.get_ticks_msec() / 1000.0)
 
 
@@ -650,7 +650,7 @@ func _on_round_started(_round_number: int) -> void:
 
 
 func _on_round_ended(
-	_round_number: int, winner: int, _outcome: DotMatchRules.Outcome
+	_round_number: int, winner: int, _outcome: GSMatchRules.Outcome
 ) -> void:
 	if _game == null:
 		return
@@ -667,7 +667,7 @@ func _on_round_ended(
 		_round_kills[id] = 0
 
 
-func _on_match_ended(winner: int, _outcome: DotMatchRules.Outcome) -> void:
+func _on_match_ended(winner: int, _outcome: GSMatchRules.Outcome) -> void:
 	for id in _round_kills.keys():
 		var player_id := int(id)
 
@@ -695,14 +695,14 @@ func _won(player_id: int, winner: int) -> bool:
 	if _game.mode != null and _game.mode.is_team_mode():
 		return winner != 0 and _game.team_of(player_id) == winner
 
-	var leader: DotPlayerScore = _game.match_node.scoreboard.leader()
+	var leader: GSPlayerScore = _game.match_node.scoreboard.leader()
 	return leader != null and leader.key == str(player_id)
 
 
-func _on_unlocked(player: String, achievement: DotAchievement) -> void:
+func _on_unlocked(player: String, achievement: GSAchievement) -> void:
 	award_unlocked.emit(_id_from_key(player), achievement)
 
-	DotLog.info(CHANNEL, "achievement unlocked", {
+	GSLog.info(CHANNEL, "achievement unlocked", {
 		"player": player, "id": String(achievement.id), "points": achievement.points
 	})
 
@@ -735,7 +735,7 @@ func _key_of(player_id: int) -> String:
 	if _keys.has(player_id):
 		return _keys[player_id]
 	var session: Variant = session_fn.call(player_id) if session_fn.is_valid() else null
-	var key := String(stats_keys.key_for(session)) if session is DotClientSession else FcLoadoutIdentity.seat_key(player_id)
+	var key := String(stats_keys.key_for(session)) if session is GSClientSession else FcLoadoutIdentity.seat_key(player_id)
 	_keys[player_id] = key
 	_ids[key] = player_id
 	return key

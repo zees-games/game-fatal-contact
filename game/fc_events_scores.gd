@@ -7,7 +7,7 @@ const MAX_SCORE_ROWS := 512
 ## The score table decoding of the event wire. Split out of fc_events.gd for file size.
 
 
-static func read_scores(reader: DotNetReader) -> Dictionary:
+static func read_scores(reader: GSNetReader) -> Dictionary:
 	var rows: Array[Dictionary] = []
 	var teams := {}
 	var count := reader.read_varint()

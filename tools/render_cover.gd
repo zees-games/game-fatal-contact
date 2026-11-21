@@ -18,12 +18,12 @@ var _server_pid := -1
 
 func _ready() -> void:
 	var _scratch := FcPresentation.use_scratch_settings("render_cover")
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _shot(name: String) -> void:
@@ -42,7 +42,7 @@ func _run() -> void:
 		"--bots", "2"]))
 	await get_tree().create_timer(6.0).timeout
 
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Cover"
 	link.transport_preference = "udp"
@@ -59,7 +59,7 @@ func _run() -> void:
 	add_child(client)
 	for i in 3:
 		await get_tree().process_frame
-	var gate: DotLoadGate = client.get("gate")
+	var gate: GSLoadGate = client.get("gate")
 	print("render_cover: gate open at the first shot: ", gate.is_open() if gate != null else "no gate")
 	await _shot("cover_up")
 

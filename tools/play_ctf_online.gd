@@ -30,7 +30,7 @@ func _ready() -> void:
 		match args[i]:
 			"--role": _role = args[i + 1]
 			"--map": _map = args[i + 1]
-	DotLog.set_level(DotLog.Level.WARN)
+	GSLog.set_level(GSLog.Level.WARN)
 	var _scratch := FcPresentation.use_scratch_settings("play_ctf_online_" + _role)
 	if _role == "server":
 		_serve.call_deferred()
@@ -84,7 +84,7 @@ func _script_server(g: FcGame) -> void:
 				human = id
 	print("play_ctf server: human %d on team %d" % [human, g.team_of(human)])
 	await get_tree().create_timer(10.0).timeout
-	var ctf: DotObjectiveCtf = g.objectives.ctf
+	var ctf: GSObjectiveCtf = g.objectives.ctf
 	var mine := g.team_of(human)
 	var enemy := 2 if mine == 1 else 1
 	var me = g.player_for(human)
@@ -96,7 +96,7 @@ func _script_server(g: FcGame) -> void:
 	me.controller.teleport(enemy_flag.at + Vector3.UP * 0.05, yaw, 0.0)
 	for i in 100:
 		await get_tree().create_timer(0.1).timeout
-		if enemy_flag.state == DotObjectiveFlag.State.CARRIED:
+		if enemy_flag.state == GSObjectiveFlag.State.CARRIED:
 			break
 	print("play_ctf server: enemy flag state %s carrier %s" % [enemy_flag.state, enemy_flag.carrier])
 	await get_tree().create_timer(5.0).timeout
@@ -142,7 +142,7 @@ func _run() -> void:
 		"res://tools/play_ctf_online.tscn", "--", "--role", "server", "--map", _map])
 	_server_pid = OS.create_process(OS.get_executable_path(), args)
 	await get_tree().create_timer(10.0).timeout
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Looker"
 	link.transport_preference = "udp"
@@ -165,7 +165,7 @@ func _run() -> void:
 	if not has_ctf:
 		await _finish(link)
 		return
-	var ctf: DotObjectiveCtf = game.objectives.ctf
+	var ctf: GSObjectiveCtf = game.objectives.ctf
 	game.ctf_seen.connect(func(what: StringName, team: int, by: int) -> void: _seen.append("%d:%s:%d" % [team, what, by]))
 	_watch_hud = true
 	var view = game.objectives.flag_view
@@ -189,7 +189,7 @@ func _run() -> void:
 	_check(taken, "the client sees the enemy flag picked up")
 	var carried_home := 0
 	for flag in ctf.flags():
-		if flag.state == DotObjectiveFlag.State.CARRIED and flag.carrier == str(me.player_id):
+		if flag.state == GSObjectiveFlag.State.CARRIED and flag.carrier == str(me.player_id):
 			carried_home = flag.home_team()
 	_check(carried_home != mine, "the flag this player carries (if still held when sampled) is not their own team's (carries %d, my team %d)" % [carried_home, mine])
 	var line: String = _carry_line
@@ -216,7 +216,7 @@ func _run() -> void:
 	await _finish(link)
 
 
-func _finish(link: DotClientLink) -> void:
+func _finish(link: GSClientLink) -> void:
 	print("play_ctf_online: %d failed" % _failed)
 	link.disconnect_from_server("done")
 	OS.kill(_server_pid)

@@ -1,4 +1,4 @@
-extends DotMapSession
+extends GSMapSession
 
 const FcGame := preload("fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -7,24 +7,24 @@ const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcMode := preload("fc_mode.gd")
 const FcModes := preload("fc_modes.gd")
 
-## A [DotMapSession] whose maps are built rather than loaded.
+## A [GSMapSession] whose maps are built rather than loaded.
 ##
 ## [b]dot-map assumes a map is a scene, and this game's maps are not.[/b]
-## [method DotMapSession.change_to_map] calls [DotMapLoader], which `load()`s
-## [member DotMapDef.scene_path] and casts the result to a [PackedScene] — and Fatal Contact
+## [method GSMapSession.change_to_map] calls [GSMapLoader], which `load()`s
+## [member GSMapDef.scene_path] and casts the result to a [PackedScene] — and Fatal Contact
 ## map's "scene path" names [code]fc_map.gd[/code], the script that produces it. Cast
 ## a [GDScript] to a [PackedScene] and you get null, and the next line calls
 ## `instantiate()` on it.
 ##
 ## So the load half is overridden and [b]nothing else is[/b]. The catalogue, the
 ## rotation and its cooldown, the map time limit, rock-the-vote, the extension rules,
-## and the whole [DotMapSyncHost] announce/wait/swap protocol all sit on top of this
+## and the whole [GSMapSyncHost] announce/wait/swap protocol all sit on top of this
 ## unchanged, because none of them ever opens a scene: they work on an id and a version.
 ##
 ## [b]The delivered path is kept, not removed.[/b] A map with a
-## [member DotMapDef.content_id] is content dot-cloud fetches and mounts, and there is
+## [member GSMapDef.content_id] is content dot-cloud fetches and mounts, and there is
 ## no reason this game could not have one — so a non-local map falls through to
-## [method DotMapSession.change_to_map] with `super`. The override is for the built-ins,
+## [method GSMapSession.change_to_map] with `super`. The override is for the built-ins,
 ## which is exactly the set [method FcMap.by_id] knows how to make.
 ##
 ## [codeblock]
@@ -35,13 +35,13 @@ const FcModes := preload("fc_modes.gd")
 ## await session.change_to(&"dm_atrium")
 ## [/codeblock]
 
-## Log channel. Deliberately not named CHANNEL: [DotMapSession] already declares one
+## Log channel. Deliberately not named CHANNEL: [GSMapSession] already declares one
 ## and GDScript refuses a constant that shadows a parent's.
 const LOG_CHANNEL := "arena.map.session"
 
 ## The game whose world is replaced. Required.
 ##
-## Assigned rather than resolved through a [DotNodeRef] because this is not a component
+## Assigned rather than resolved through a [GSNodeRef] because this is not a component
 ## a host wires into an arbitrary scene: an [FcMapSession] with no [FcGame] has
 ## nothing to do at all, and a null here should fail at the change rather than resolve
 ## to some other node that happens to be in the right place.
@@ -49,11 +49,11 @@ var game: FcGame = null
 
 ## The mode to switch to along with the map, when the map names one.
 ##
-## Read out of [code]DotMapDef.meta.mode[/code], which is how a rotation entry says
+## Read out of [code]GSMapDef.meta.mode[/code], which is how a rotation entry says
 ## "play team deathmatch on this one". Null means keep the mode that is running.
 var mode_from_meta: bool = true
 
-## The mode running before a rotation profile (`DotMapDef.profile.mode`) changed it, put back on the
+## The mode running before a rotation profile (`GSMapDef.profile.mode`) changed it, put back on the
 ## next map that names none. Null when no profile map is playing or an operator chose the mode since.
 var _base_mode: FcMode = null
 var _profile_moded: bool = false
@@ -64,14 +64,14 @@ var pending_mode: FcMode = null
 var _warned: Dictionary = {}
 
 
-func change_to_map(map: DotMapDef) -> DotResult:
+func change_to_map(map: GSMapDef) -> GSResult:
 	if map == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No map.")
+		return GSResult.fail(GSError.CODE_INVALID, "No map.")
 
 	if FcMaps.is_delivered(map):
 		# One of this game's delivered maps: a pack of data, not a scene. Fetched and
 		# registered here, then built by `FcMap.by_id` below like any import.
-		var mounted: DotResult = await _mount_delivered(map)
+		var mounted: GSResult = await _mount_delivered(map)
 
 		if not mounted.ok:
 			return mounted
@@ -82,8 +82,8 @@ func change_to_map(map: DotMapDef) -> DotResult:
 		return await super.change_to_map(map)
 
 	if game == null:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"This map session has no FcGame to change.",
 			String(map.id)
 		)
@@ -96,8 +96,8 @@ func change_to_map(map: DotMapDef) -> DotResult:
 	await game.tick_gate.reached()
 
 	if changing_now:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"A map change is already in progress.",
 			String(map.id)
 		)
@@ -105,8 +105,8 @@ func change_to_map(map: DotMapDef) -> DotResult:
 	var built: FcMap = FcMap.by_id(map.id)
 
 	if built == null:
-		return DotResult.fail(
-			DotError.CODE_IO,
+		return GSResult.fail(
+			GSError.CODE_IO,
 			"The catalogue names a map FcMap cannot build.",
 			String(map.id)
 		)
@@ -124,8 +124,8 @@ func change_to_map(map: DotMapDef) -> DotResult:
 		# both sides in one pool, which on a symmetric map means spawning in the enemy
 		# base about half the time — and it reads as a spawn-selection bug for as long
 		# as anybody is prepared to look at it.
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"That map does not list this mode, so it cannot host it.",
 			"%s / %s" % [String(map.id), String(playing.id)]
 		)
@@ -133,20 +133,20 @@ func change_to_map(map: DotMapDef) -> DotResult:
 	return _swap_to(map, built, wanted)
 
 
-func _adopt_built_world(map: DotMapDef) -> DotResult:
+func _adopt_built_world(map: GSMapDef) -> GSResult:
 	# The teardown and rebuild of an identical world was the longest frame of a sim host's join.
 	current = map
 	rotation.note_played(map.id)
 	time_limit.start(float(map.expected_seconds) * 3.0 if map.expected_seconds > 0 else -1.0)
-	DotLog.info(LOG_CHANNEL, "the announced map is the one this client was set up on", {
+	GSLog.info(LOG_CHANNEL, "the announced map is the one this client was set up on", {
 		"map": String(map.id),
 	})
 	changed_world()
-	return DotResult.success(world)
+	return GSResult.success(world)
 
 
 ## Tears the old world down and builds the new one; the checks have all passed by here.
-func _swap_to(map: DotMapDef, built: FcMap, wanted: FcMode) -> DotResult:
+func _swap_to(map: GSMapDef, built: FcMap, wanted: FcMode) -> GSResult:
 	changing_now = true
 
 	var previous := current
@@ -190,7 +190,7 @@ func _swap_to(map: DotMapDef, built: FcMap, wanted: FcMode) -> DotResult:
 
 	changing_now = false
 
-	DotLog.info(LOG_CHANNEL, "arena map built", {
+	GSLog.info(LOG_CHANNEL, "arena map built", {
 		"map": String(map.id),
 		"mode": String(wanted.id) if wanted != null else "unchanged",
 		"boxes": built.boxes.size(),
@@ -198,12 +198,12 @@ func _swap_to(map: DotMapDef, built: FcMap, wanted: FcMode) -> DotResult:
 
 	changed_world()
 
-	return DotResult.success(world)
+	return GSResult.success(world)
 
 
 ## A client's first announcement naming the local map its game was set up on, with no mode of its own:
 ## nothing changes. Delivered maps are excluded, since the pack can be a different version of the id.
-func _built_on_already(map: DotMapDef) -> bool:
+func _built_on_already(map: GSMapDef) -> bool:
 	return (
 		current == null and not game.is_authority and map.is_local()
 		and game.map != null and game.map.id == map.id and pending_mode == null and _mode_for(map) == null
@@ -214,7 +214,7 @@ func _built_on_already(map: DotMapDef) -> bool:
 ## its directory, so `FcMap.by_id` builds the map from the mounted manifest.
 ##
 ## [b]Here, at the change, on both ends.[/b] The server reaches it from the sync host after
-## announcing (the peers fetch in parallel), and a client from `DotMapSyncClient`'s load,
+## announcing (the peers fetch in parallel), and a client from `GSMapSyncClient`'s load,
 ## after its own fetch — so the second `ensure` is the content client's no-op for a pack it
 ## has. Not at boot: these packs are megabytes each and most are never played in a session.
 ##
@@ -222,7 +222,7 @@ func _built_on_already(map: DotMapDef) -> bool:
 ## already on the disk — a suite's stand-in, or a pack an earlier run left — and the change
 ## is refused naming the pack if it is not. A pack whose manifest is not
 ## `"kind": "arena"` is refused, warned about once, and leaves the catalogue.
-func _mount_delivered(map: DotMapDef) -> DotResult:
+func _mount_delivered(map: GSMapDef) -> GSResult:
 	return await FcMaps.mount_delivered(map, loader, catalogue)
 
 
@@ -232,11 +232,11 @@ func _mount_delivered(map: DotMapDef) -> DotResult:
 ## deferred free leaves both in the tree for a frame — two maps' worth of static bodies
 ## in one physics space, and any group lookup finding whichever it reached first. The
 ## base class says the same thing at its own teardown.
-func _swap_world(built: FcMap, def: DotMapDef) -> DotResult:
+func _swap_world(built: FcMap, def: GSMapDef) -> GSResult:
 	if world_ref == null:
 		# Nothing draws here. Not a failure: it is what a dedicated server looks like,
 		# and `FcGame.change_map` has already replaced everything that matters.
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	var resolved := _resolve_world_parent()
 
@@ -253,10 +253,10 @@ func _swap_world(built: FcMap, def: DotMapDef) -> DotResult:
 	world.name = "Map_" + String(def.id)
 	parent.add_child(world)
 
-	return DotResult.success(world)
+	return GSResult.success(world)
 
 
-## Emits [signal DotMapSession.changed] with what this session actually built.
+## Emits [signal GSMapSession.changed] with what this session actually built.
 ##
 ## A method rather than the emit inline, because `world` is legitimately null on a
 ## dedicated server and a listener that assumed otherwise would break on the deployment
@@ -276,7 +276,7 @@ func changed_world() -> void:
 ## this change set the mode to", and null there means "leave it alone" rather than
 ## "there is no mode". Reading it as the second was how a free-for-all-only map could
 ## be rotated into the middle of a team game with nothing said.
-func _mode_after(map: DotMapDef) -> FcMode:
+func _mode_after(map: GSMapDef) -> FcMode:
 	var named := _mode_for(map)
 
 	if named != null:
@@ -286,11 +286,11 @@ func _mode_after(map: DotMapDef) -> FcMode:
 
 
 ## [method _mode_after] for the director's rotation filter: a map whose profile names a mode it hosts stays in.
-func mode_after(map: DotMapDef) -> FcMode:
+func mode_after(map: GSMapDef) -> FcMode:
 	return _mode_after(map) if map != null else null
 
 
-func _mode_for(map: DotMapDef) -> FcMode:
+func _mode_for(map: GSMapDef) -> FcMode:
 	if pending_mode != null:
 		if FcMaps.supports_mode(map, pending_mode):
 			return pending_mode
@@ -323,7 +323,7 @@ func _mode_for(map: DotMapDef) -> FcMode:
 	var found := FcModes.by_id(StringName(wanted))
 
 	if found == null:
-		DotLog.warn(LOG_CHANNEL, "a map names a mode that does not exist", {
+		GSLog.warn(LOG_CHANNEL, "a map names a mode that does not exist", {
 			"map": String(map.id), "mode": wanted
 		})
 
@@ -331,15 +331,15 @@ func _mode_for(map: DotMapDef) -> FcMode:
 
 
 ## The mode id the rotation's profile names for [param map], or "". Read through `get` so a dot-map
-## without [code]DotMapDef.profile[/code] still loads.
-static func _profile_mode(map: DotMapDef) -> String:
+## without [code]GSMapDef.profile[/code] still loads.
+static func _profile_mode(map: GSMapDef) -> String:
 	var prof: Variant = map.get(&"profile")
 	if prof is Dictionary:
 		return String((prof as Dictionary).get("mode", ""))
 	return ""
 
 
-func _note_profile_mode(map: DotMapDef, before: FcMode, applied: FcMode) -> void:
+func _note_profile_mode(map: GSMapDef, before: FcMode, applied: FcMode) -> void:
 	if pending_mode != null and applied == pending_mode:
 		pending_mode = null
 		forget_profile_mode()
@@ -367,4 +367,4 @@ func forget_profile_mode() -> void:
 func _warn_once(key: String, message: String, fields: Dictionary) -> void:
 	if not _warned.has(key):
 		_warned[key] = true
-		DotLog.warn(LOG_CHANNEL, message, fields)
+		GSLog.warn(LOG_CHANNEL, message, fields)

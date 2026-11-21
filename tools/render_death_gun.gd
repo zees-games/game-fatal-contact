@@ -85,7 +85,7 @@ func _run() -> void:
 	print("bot held visible=%s id=%s" % [bot.held.visible if bot.held != null else "none", bot.held.equipped() if bot.held != null else ""])
 	bot.health.invulnerable = false
 	bot.health.invulnerable_until_tick = -1
-	var damage := DotDamage.make(me.player_id, bot_id, bot.health.health + bot.health.armour + 50.0, game.combat.damage_type(&""))
+	var damage := GSDamage.make(me.player_id, bot_id, bot.health.health + bot.health.armour + 50.0, game.combat.damage_type(&""))
 	damage.tick = game.current_tick()
 	var applied = bot.health.apply(damage)
 	game.combat.entity_killed.emit(bot_id, applied)

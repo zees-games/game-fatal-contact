@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 ## Shared state and the server-named section of headless_imported, split out for the file size gate.
 
 const FcGame := preload("../game/fc_game.gd")
@@ -126,15 +126,15 @@ func _test_server_named() -> void:
 	# What a client that has never heard of it makes of the announce: dot-map takes an unknown
 	# map only when it is delivered and its scene is inside its own mount, and the scene here
 	# is the manifest in the pack. No session, so nothing the client knows can answer first.
-	var client := DotMapSyncClient.new()
-	var accepted: DotResult = client._accept(DotMapMessage.announce(def)["map"]) if def != null \
-		else DotResult.fail(DotError.CODE_STATE, "no def")
+	var client := GSMapSyncClient.new()
+	var accepted: GSResult = client._accept(GSMapMessage.announce(def)["map"]) if def != null \
+		else GSResult.fail(GSError.CODE_STATE, "no def")
 	client.free()
 	_check(accepted.ok and FcMaps.is_delivered(accepted.value),
 		"a client that has never heard of it accepts the announce as delivered content%s" % (
 			"" if accepted.ok else ": " + accepted.error.message))
 
-	var changed: DotResult = await director.change_to(DELIVERED_ID)
+	var changed: GSResult = await director.change_to(DELIVERED_ID)
 	await get_tree().physics_frame
 	_check(changed.ok, "the change to it succeeds%s" % ("" if changed.ok else ": " + changed.error.message))
 	_check(_game.map != null and _game.map.id == DELIVERED_ID and _game.map.is_imported()
@@ -148,7 +148,7 @@ func _test_server_named() -> void:
 		"on the surf profile, with the mapper's spawns (%d)" % (_game.map.spawns.size() if _game.map != null else 0))
 
 	# Back to a built-in, then the owner drops it from the list.
-	var _back: DotResult = await director.change_to(&"dm_box")
+	var _back: GSResult = await director.change_to(&"dm_box")
 	server.games.maps = PackedStringArray()
 	var adopted := director.adopt_server_maps()
 	_check(not catalogue.has(DELIVERED_ID) and int(adopted.get("removed", 0)) == 1

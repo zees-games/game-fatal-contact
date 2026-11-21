@@ -19,7 +19,7 @@ var _settle := 0
 var _armed := false
 var _tick := 1
 var _look := Vector2(180.0, 0.0)
-var _clip := DotShotSeq.new()  # GS_SHOT_FRAMES: a clip of each view, the case held until it is done
+var _clip := GSShotSeq.new()  # GS_SHOT_FRAMES: a clip of each view, the case held until it is done
 var _clipped := false
 
 
@@ -63,10 +63,10 @@ func _physics_process(_delta: float) -> bool:
 		_look = v
 		_player.controller.teleport(Vector3(0.0, 0.05, eye_z), v.x, v.y)
 		_settle = 30
-	var cmd := DotFpsCommand.new()
+	var cmd := GSFpsCommand.new()
 	cmd.yaw = _look.x
 	cmd.pitch = _look.y
-	var _a := _player.simulate_tick(_tick, 1.0 / float(TICK_RATE), cmd, DotWeaponCommand.new())
+	var _a := _player.simulate_tick(_tick, 1.0 / float(TICK_RATE), cmd, GSWeaponCommand.new())
 	_tick += 1
 	return false
 

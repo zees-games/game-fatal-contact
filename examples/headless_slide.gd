@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## Fatal Contact's slide is unchanged: it never asks for the sprint button (that gate is Zombie Zone's
 ## opt-in in the shared addon), so crouch at a run slides and a crouch-walk does not. And the
@@ -10,20 +10,20 @@ const STEP := 1.0 / 30.0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_run.call_deferred()
 
 
-func _command(forward: float, buttons: int) -> DotFpsCommand:
-	var c := DotFpsCommand.new()
+func _command(forward: float, buttons: int) -> GSFpsCommand:
+	var c := GSFpsCommand.new()
 	c.move = Vector2(0.0, forward)
 	c.buttons = buttons
 	return c
 
 
-func _run_for(motor: DotFpsMotor, buttons: int, seconds: float) -> DotFpsState:
-	var s := DotFpsState.new()
-	s.mode = DotFpsState.Mode.GROUND
+func _run_for(motor: GSFpsMotor, buttons: int, seconds: float) -> GSFpsState:
+	var s := GSFpsState.new()
+	s.mode = GSFpsState.Mode.GROUND
 
 	for _i in range(int(seconds / STEP)):
 		motor.simulate(s, _command(1.0, buttons), STEP)
@@ -37,18 +37,18 @@ func _run() -> void:
 	_check(t.slide_enabled, "sliding is on")
 	_check(not t.slide_requires_sprint, "a slide does not need the sprint button")
 	_check(is_equal_approx(t.slide_min_speed, 4.1), "the minimum speed is still 4.1 m/s")
-	var motor := DotFpsMotor.new(t, DotFpsFlatBody.with_floor(0.0))
+	var motor := GSFpsMotor.new(t, GSFpsFlatBody.with_floor(0.0))
 
-	var run := _run_for(motor, DotFpsCommand.BUTTON_SPRINT, 3.0)
-	motor.simulate(run, _command(1.0, DotFpsCommand.BUTTON_SPRINT | DotFpsCommand.BUTTON_CROUCH), STEP)
+	var run := _run_for(motor, GSFpsCommand.BUTTON_SPRINT, 3.0)
+	motor.simulate(run, _command(1.0, GSFpsCommand.BUTTON_SPRINT | GSFpsCommand.BUTTON_CROUCH), STEP)
 	_check(run.is_sliding(), "crouch at a sprint slides")
 
 	var jog := _run_for(motor, 0, 3.0)
-	motor.simulate(jog, _command(1.0, DotFpsCommand.BUTTON_CROUCH), STEP)
+	motor.simulate(jog, _command(1.0, GSFpsCommand.BUTTON_CROUCH), STEP)
 	_check(jog.is_sliding(), "crouch at a plain run slides, no sprint button needed")
 
-	var walk := _run_for(motor, DotFpsCommand.BUTTON_WALK, 3.0)
-	motor.simulate(walk, _command(1.0, DotFpsCommand.BUTTON_WALK | DotFpsCommand.BUTTON_CROUCH), STEP)
+	var walk := _run_for(motor, GSFpsCommand.BUTTON_WALK, 3.0)
+	motor.simulate(walk, _command(1.0, GSFpsCommand.BUTTON_WALK | GSFpsCommand.BUTTON_CROUCH), STEP)
 	_check(not walk.is_sliding(), "crouch at a walk does not slide")
 
 	var hip := _run_for(motor, 0, 2.0).velocity.length()
@@ -57,7 +57,7 @@ func _run() -> void:
 	_check(FcModuleCvars.MOVEMENT_CVARS.get("sv_ads_speed_mult", [""])[0] == "aim_speed_scale" \
 		and FcPlayer.MOVEMENT_RULES.has("aim_speed_scale"), "sv_ads_speed_mult sets the rule, and it travels in RULES")
 	t.aim_speed_scale = 1.0
-	var unslowed := _run_for(DotFpsMotor.new(t, DotFpsFlatBody.with_floor(0.0)), FcPlayer.MOVE_BUTTON_AIM, 2.0).velocity.length()
+	var unslowed := _run_for(GSFpsMotor.new(t, GSFpsFlatBody.with_floor(0.0)), FcPlayer.MOVE_BUTTON_AIM, 2.0).velocity.length()
 	_check(is_equal_approx(unslowed, hip), "sv_ads_speed_mult 1 aims at full speed")
 	_report()
 	get_tree().quit(0 if _failed == 0 else 1)

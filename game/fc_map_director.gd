@@ -16,11 +16,11 @@ const FcMode := preload("fc_mode.gd")
 ## Four dot-map pieces, and each is here for a reason a line of code could not replace:
 ##
 ## [codeblock]
-## DotMapCatalogue   what can be played, with versions. FcMaps builds it.
-## DotMapRotation    what plays next, with a cooldown, so dm_box does not come
+## GSMapCatalogue   what can be played, with versions. FcMaps builds it.
+## GSMapRotation    what plays next, with a cooldown, so dm_box does not come
 ##                   round twice in three maps on a two-map server.
-## DotMapTimeLimit   how long a map lasts, with warnings, rtv and extends.
-## DotMapSyncHost    announce -> wait for every peer -> swap -> tell them to load.
+## GSMapTimeLimit   how long a map lasts, with warnings, rtv and extends.
+## GSMapSyncHost    announce -> wait for every peer -> swap -> tell them to load.
 ## [/codeblock]
 ##
 ## [b]The sync host is the one that is not optional.[/b] Without it a map change is a
@@ -40,22 +40,22 @@ const FcMode := preload("fc_mode.gd")
 const CHANNEL := "arena.maps"
 
 ## The map changed here and every peer has been told. Carries the new definition.
-signal map_changed(map: DotMapDef)
+signal map_changed(map: GSMapDef)
 
 ## A change was abandoned; the previous map is still running.
-signal change_failed(map: DotMapDef, reason: String)
+signal change_failed(map: GSMapDef, reason: String)
 
 ## The map's clock ran out. The host decides what happens next — this node does NOT
 ## change the map on its own, because on a server with a vote the answer is "open the
 ## ballot" and on one without it is "next in rotation", and only the host knows which.
-signal map_over(map: DotMapDef, reason: StringName)
+signal map_over(map: GSMapDef, reason: StringName)
 
 ## Seconds left, at each of the rules' warning marks.
 signal time_warning(seconds_left: float)
 
 @export_group("Rotation")
 
-@export var rotation_mode: DotMapRotation.Mode = DotMapRotation.Mode.RANDOM
+@export var rotation_mode: GSMapRotation.Mode = GSMapRotation.Mode.RANDOM
 
 ## How many other maps must play before one can come round again.
 ##
@@ -75,7 +75,7 @@ signal time_warning(seconds_left: float)
 @export_group("Wiring")
 
 ## Where the meshes go, on a deployment that draws any. Null on a dedicated server.
-@export var world_ref: DotNodeRef = null
+@export var world_ref: GSNodeRef = null
 
 ## The game whose world is replaced. Required before [method setup].
 var game: FcGame = null
@@ -87,19 +87,19 @@ var game: FcGame = null
 var server: Object = null
 
 var session: FcMapSession = null
-var sync: DotMapSyncHost = null
+var sync: GSMapSyncHost = null
 
 ## The server's maps.yml, or null when there is none (every map rotates, as it always did).
 ## See [method load_rotation].
-var rotation_file: DotMapRotationFile = null
+var rotation_file: GSMapRotationFile = null
 
 ## The file looked for, without or with an extension: `cfg/maps.yml`. `sv_map_rotation_file`.
 var rotation_file_name: String = DEFAULT_ROTATION_FILE
 
 const DEFAULT_ROTATION_FILE := "cfg/maps.yml"
 
-## The map running now. Duck-typed by [DotVoteMapSource] through `get("current")`.
-var current: DotMapDef = null
+## The map running now. Duck-typed by [GSVoteMapSource] through `get("current")`.
+var current: GSMapDef = null
 
 var _ready_for_changes: bool = false
 
@@ -112,15 +112,15 @@ var _ready_for_changes: bool = false
 ## first map is not a change and must not be announced as one. A director that "started"
 ## by changing to the map already running would put every client through a download and
 ## a swap for nothing, on every boot.
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if game == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The map director has no game to change."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The map director has no game to change."
 		)
 
 	if game.map == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "The game has no map, so setup() has not run."
+		return GSResult.fail(
+			GSError.CODE_STATE, "The game has no map, so setup() has not run."
 		)
 
 	var catalogue := FcMaps.catalogue()
@@ -138,7 +138,7 @@ func setup() -> DotResult:
 	session.rotation_mode = rotation_mode
 	session.map_seconds = map_seconds
 	session.warn_seconds = warn_seconds
-	# Emphatically not set: `initial_map` makes `DotMapSession._ready` change to it,
+	# Emphatically not set: `initial_map` makes `GSMapSession._ready` change to it,
 	# which would rebuild the world the game has already built. See the note above.
 	session.initial_map = &""
 	add_child(session)
@@ -148,7 +148,7 @@ func setup() -> DotResult:
 	var pool := maxi(catalogue.size() - 1, 0)
 
 	if rotation_cooldown > pool:
-		DotLog.info(CHANNEL, "the rotation cooldown was reduced to fit the catalogue", {
+		GSLog.info(CHANNEL, "the rotation cooldown was reduced to fit the catalogue", {
 			"asked": rotation_cooldown, "used": pool, "maps": catalogue.size()
 		})
 		session.rotation.cooldown = pool
@@ -160,7 +160,7 @@ func setup() -> DotResult:
 	session.map_over.connect(_on_map_over)
 	session.time_warning.connect(func(left: float) -> void: time_warning.emit(left))
 
-	sync = DotMapSyncHost.new()
+	sync = GSMapSyncHost.new()
 	sync.name = "MapSync"
 	sync.session = session
 	add_child(sync)
@@ -178,7 +178,7 @@ func setup() -> DotResult:
 		session.rotation.note_played(current.id)
 		session.time_limit.start(-1.0)
 	else:
-		DotLog.warn(CHANNEL, "the booted map is not in the catalogue", {
+		GSLog.warn(CHANNEL, "the booted map is not in the catalogue", {
 			"map": String(game.map.id)
 		})
 
@@ -186,7 +186,7 @@ func setup() -> DotResult:
 
 	var _loaded := load_rotation()
 
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## Reads maps.yml and applies it: which installed maps the rotation, the next map, the vote's
@@ -194,17 +194,17 @@ func setup() -> DotResult:
 ## [method adopt_server_maps]. A map outside the active rotation stays installed and
 ## loadable by `map <id>`; it is only never chosen.
 ##
-## The merge, the wildcards and the rules are dot-map's [DotMapRotationFile]; this game
+## The merge, the wildcards and the rules are dot-map's [GSMapRotationFile]; this game
 ## supplies the paths. A file that is present and unreadable is an ERROR and changes nothing:
 ## rotating every map is a better failure than rotating none.
-func load_rotation() -> DotResult:
-	var dir := DotMapRotationFile.config_dir_arg()
-	var found := DotMapRotationFile.find(rotation_file_name, dir)
+func load_rotation() -> GSResult:
+	var dir := GSMapRotationFile.config_dir_arg()
+	var found := GSMapRotationFile.find(rotation_file_name, dir)
 
 	if found == "" and rotation_file_name != "" and (dir != "" or rotation_file_name != DEFAULT_ROTATION_FILE):
 		# The default name being absent is an install with no maps.yml; a name or a directory
 		# somebody chose that finds nothing is a typo they would otherwise never hear about.
-		DotLog.warn(CHANNEL, "the map rotation file was not found; every map rotates", {
+		GSLog.warn(CHANNEL, "the map rotation file was not found; every map rotates", {
 			"file": rotation_file_name, "config_dir": dir,
 		})
 
@@ -213,10 +213,10 @@ func load_rotation() -> DotResult:
 		if candidate != "" and not paths.has(candidate) and FileAccess.file_exists(candidate):
 			paths.append(candidate)
 
-	var read := DotMapRotationFile.load_files(paths, "game-arena")
+	var read := GSMapRotationFile.load_files(paths, "game-arena")
 
 	if not read.ok:
-		DotLog.error(CHANNEL, "the map rotation file could not be read; every map rotates", {
+		GSLog.error(CHANNEL, "the map rotation file could not be read; every map rotates", {
 			"why": read.error.message,
 		})
 		rotation_file = null
@@ -225,13 +225,13 @@ func load_rotation() -> DotResult:
 
 	rotation_file = read.value
 	if rotation_file.has_rotations():
-		DotLog.info(CHANNEL, "the map rotation file", {
+		GSLog.info(CHANNEL, "the map rotation file", {
 			"paths": ", ".join(rotation_file.sources), "active": rotation_file.active_name(),
 		})
 		if session != null and not _rotation_attached:
 			_rotation_attached = true
 			# The file object is replaced on a reload, so the hook reads the current one.
-			session.changed.connect(func(_map: DotMapDef, _world: Node) -> void:
+			session.changed.connect(func(_map: GSMapDef, _world: Node) -> void:
 				apply_rotation())
 
 	apply_rotation()
@@ -241,9 +241,9 @@ func load_rotation() -> DotResult:
 var _rotation_attached: bool = false
 
 
-## Marks every catalogue map in or out of rotation ([DotMapDef.in_rotation]) from the file.
+## Marks every catalogue map in or out of rotation ([GSMapDef.in_rotation]) from the file.
 ## With no file, or a file with no rotations, every map is in, which is what this game did
-## before maps.yml. The imported maps' own `fc_imported_rotation` is [member DotMapDef.enabled]
+## before maps.yml. The imported maps' own `fc_imported_rotation` is [member GSMapDef.enabled]
 ## and is a separate gate: a map must pass both.
 func apply_rotation() -> void:
 	if session == null or session.catalogue == null or session.rotation == null:
@@ -260,7 +260,7 @@ func apply_rotation() -> void:
 
 
 ## The server's map keys, or the published defaults when there is no server (solo, offline).
-func _named_keys(catalogue: DotMapCatalogue) -> PackedStringArray:
+func _named_keys(catalogue: GSMapCatalogue) -> PackedStringArray:
 	if server == null:
 		return FcMaps.standalone_keys(catalogue)
 
@@ -289,9 +289,9 @@ func adopt_server_maps() -> Dictionary:
 ##
 ## A coroutine: the sync host announces, waits for peers to report the content, and
 ## only then swaps. On a server with no peers it resolves in the same frame.
-func change_to(id: StringName) -> DotResult:
+func change_to(id: StringName) -> GSResult:
 	if not _ready_for_changes:
-		return DotResult.fail(DotError.CODE_STATE, "The map director is not set up.")
+		return GSResult.fail(GSError.CODE_STATE, "The map director is not set up.")
 
 	return await sync.change_to(id)
 
@@ -299,22 +299,22 @@ func change_to(id: StringName) -> DotResult:
 ## [method change_to] for a def already in hand. With both, a host looking for "the node that changes maps" (dot-server-deploy's
 ## `sv_map` / `--map` at boot searches for `change_to` + `change_to_map`) finds this director before its MapSession child, so a
 ## startup map goes through the sync host and [signal map_changed] like `map` and the rotation do, and FC's map state is reset.
-func change_to_map(map: DotMapDef) -> DotResult:
+func change_to_map(map: GSMapDef) -> GSResult:
 	if not _ready_for_changes:
-		return DotResult.fail(DotError.CODE_STATE, "The map director is not set up.")
+		return GSResult.fail(GSError.CODE_STATE, "The map director is not set up.")
 
 	return await sync.change_to_map(map)
 
 
 ## True while a map change is underway: the sync host is announcing or waiting, or the session is swapping.
 func is_changing() -> bool:
-	return sync != null and (sync.phase != DotMapSyncHost.Phase.IDLE or (session != null and session.changing_now))
+	return sync != null and (sync.phase != GSMapSyncHost.Phase.IDLE or (session != null and session.changing_now))
 
 
 ## Changes to whatever the rotation offers next.
-func change_to_next(players: int = 0) -> DotResult:
+func change_to_next(players: int = 0) -> GSResult:
 	if not _ready_for_changes:
-		return DotResult.fail(DotError.CODE_STATE, "The map director is not set up.")
+		return GSResult.fail(GSError.CODE_STATE, "The map director is not set up.")
 
 	restrict_rotation()
 
@@ -376,13 +376,13 @@ func restrict_rotation() -> void:
 	# rotation has nothing in it", which is a server that sits on one map for ever and
 	# never explains why.
 	if allowed.is_empty():
-		DotLog.warn(CHANNEL, "no map in the catalogue can host the current mode", {
+		GSLog.warn(CHANNEL, "no map in the catalogue can host the current mode", {
 			"mode": String(mode.id) if mode != null else "none",
 			"maps": session.catalogue.size(),
 		})
 		return
 
-	# Only when it actually differs. In [constant DotMapRotation.Mode.SEQUENTIAL] the
+	# Only when it actually differs. In [constant GSMapRotation.Mode.SEQUENTIAL] the
 	# cursor indexes into `order`, so rewriting the same list every change would be a
 	# rotation that never moves off the map it is on.
 	if session.rotation.order != allowed:
@@ -391,8 +391,8 @@ func restrict_rotation() -> void:
 
 ## The map the rotation would choose next, without choosing it.
 ##
-## For a `nextmap` command and for a HUD. [method DotMapRotation.choose] has a side
-## effect in [constant DotMapRotation.Mode.SEQUENTIAL] — it advances the cursor — so
+## For a `nextmap` command and for a HUD. [method GSMapRotation.choose] has a side
+## effect in [constant GSMapRotation.Mode.SEQUENTIAL] — it advances the cursor — so
 ## this reads the forced next when there is one and otherwise says what mode is in use
 ## rather than lying about a random pick.
 func next_map_hint() -> String:
@@ -404,7 +404,7 @@ func next_map_hint() -> String:
 	if forced != &"":
 		return String(forced)
 
-	return "(%s)" % DotMapRotation.Mode.keys()[session.rotation.mode].to_lower()
+	return "(%s)" % GSMapRotation.Mode.keys()[session.rotation.mode].to_lower()
 
 
 ## Forces the next map. What a vote's result and an admin's `nextmap` both do.
@@ -465,23 +465,23 @@ func join_payload() -> Dictionary:
 
 # --- Events ----------------------------------------------------------------
 
-func _on_session_changed(map: DotMapDef, _world: Node) -> void:
+func _on_session_changed(map: GSMapDef, _world: Node) -> void:
 	current = map
 
 
-func _on_sync_finished(map: DotMapDef) -> void:
+func _on_sync_finished(map: GSMapDef) -> void:
 	current = map
 	map_changed.emit(map)
 
 
-func _on_session_failed(map: DotMapDef, reason: String) -> void:
-	DotLog.warn(CHANNEL, "a map change failed", {
+func _on_session_failed(map: GSMapDef, reason: String) -> void:
+	GSLog.warn(CHANNEL, "a map change failed", {
 		"map": String(map.id) if map != null else "-", "why": reason
 	})
 	change_failed.emit(map, reason)
 
 
-func _on_map_over(map: DotMapDef, reason: StringName) -> void:
+func _on_map_over(map: GSMapDef, reason: StringName) -> void:
 	map_over.emit(map, reason)
 
 

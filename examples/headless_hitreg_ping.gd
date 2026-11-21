@@ -1,8 +1,8 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## "Shouldn't my bullets have hit that enemy?" — end to end, over a simulated link. A real server and two real clients (bridges, bit-packed commands, snapshots, the interpolator), with every packet held for half the round trip each way: 30, 50 and 80 ms at the shipped 66 Hz tick and snapshot rate. Peer 3 strafes. Peer 2 stands, and on each tap aims from its own muzzle at peer 3's torso exactly where its screen drew it on the frame
 ## before the click, and fires: at its middle, and at either edge [constant EDGE_MARGIN_M] inside the silhouette, where a rewind a few centimetres off turns a hit into a miss. The server must register every one. The gun's spread, bloom and recoil are zeroed for the round (they are the gun's, not the netcode's), and the trace reaching the server is checked to be the one aimed. Also measured, per shot: how far the server's rewound body
-## stood from the one drawn, which must stay under [constant REWIND_TOLERANCE_M]. The clocks are placed by hand, as the net suites do: [code]DotNetClock[/code] follows the wall clock, which would make the run a different one on every box. The client's frame is drawn at a fraction through the tick ([constant ALPHAS]), as a monitor faster than the tick rate draws it, and the click is read by the next tick's command, as the game does.
+## stood from the one drawn, which must stay under [constant REWIND_TOLERANCE_M]. The clocks are placed by hand, as the net suites do: [code]GSNetClock[/code] follows the wall clock, which would make the run a different one on every box. The client's frame is drawn at a fraction through the tick ([constant ALPHAS]), as a monitor faster than the tick rate draws it, and the click is read by the next tick's command, as the game does.
 
 const FcContent := preload("../game/fc_content.gd")
 const FcGame := preload("../game/fc_game.gd")
@@ -27,7 +27,7 @@ const SETTLE_TICKS := 90
 const ALPHAS: Array[float] = [0.0, 0.25, 0.5, 0.75, 0.95]
 ## How far inside the drawn torso's edge the edge shots go (the torso is 0.30 m in radius).
 const EDGE_MARGIN_M := 0.05
-## The wire's view angles (DotFpsCommand: yaw 12 bits round, pitch 9 bits over 180 degrees):
+## The wire's view angles (GSFpsCommand: yaw 12 bits round, pitch 9 bits over 180 degrees):
 ## the server's trace may leave up to half a step from the aim, and no further.
 const YAW_STEP_DEG := 360.0 / 4096.0
 const PITCH_STEP_DEG := 180.0 / 511.0
@@ -55,7 +55,7 @@ var _entered := 0
 var _completed := 0
 
 var _server_game: FcGame = null
-var _server_net: DotNetManager = null
+var _server_net: GSNetManager = null
 var _server_bridge: FcNetBridge = null
 var _clients: Dictionary = {}
 var _joins: Array[PackedByteArray] = []
@@ -71,7 +71,7 @@ var _step := 0
 var _drawn_for: Dictionary = {}
 ## The frame drawn last: {"point": chest, "time": render tick}.
 var _last_frame: Dictionary = {}
-## The resume ease ([method DotNetInterpolator._ease_resume]) on the shooter's screen since [method _ease_reset]: frames drawn off the blend and the largest offset; and the drawn body's
+## The resume ease ([method GSNetInterpolator._ease_resume]) on the shooter's screen since [method _ease_reset]: frames drawn off the blend and the largest offset; and the drawn body's
 ## worst pop, the largest change of its per-frame step (a second difference: a strafe reversal is about a centimetre, a snap out of an extrapolation the whole jump).
 var _eased_frames := 0
 var _ease_most := 0.0
@@ -98,7 +98,7 @@ var _target := TARGET
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -129,10 +129,10 @@ func _done() -> void:
 ## projectile, a knife, a grenade or a gun that charges before it fires.
 func _hitscan_weapons() -> Array[StringName]:
 	var out: Array[StringName] = []
-	for def: DotWeaponDef in FcContent.weapons():
-		var tuning := def.tuning as DotWeaponBallistics
+	for def: GSWeaponDef in FcContent.weapons():
+		var tuning := def.tuning as GSWeaponBallistics
 		var traced := def.behaviour_path.ends_with(HITSCAN) or def.behaviour_path.ends_with(BEAM)
-		if tuning == null or not traced or def.fire_mode == DotWeaponDef.Fire.CHARGE:
+		if tuning == null or not traced or def.fire_mode == GSWeaponDef.Fire.CHARGE:
 			continue
 		print("    %-22s slot %d pellets %d %s" % [def.id, def.slot, tuning.pellets, def.behaviour_path.get_file()])
 		out.append(def.id)
@@ -173,15 +173,15 @@ func _make_game(authority: bool) -> FcGame:
 	return game
 
 
-func _make_manager(is_server: bool, scope: StringName, peer_id: int) -> DotNetManager:
-	var net := DotNetManager.new()
+func _make_manager(is_server: bool, scope: StringName, peer_id: int) -> GSNetManager:
+	var net := GSNetManager.new()
 	net.name = "Net%s" % scope
 	net.is_server = is_server
 	net.service_scope = scope
 	net.local_peer_id = peer_id
 	net.auto_tick = false
 	net.config_file = ""
-	net.config = DotNetConfig.new()
+	net.config = GSNetConfig.new()
 	net.config.tick_rate = TICK_RATE
 	net.config.snapshot_rate = FcGame.snapshot_rate_for(TICK_RATE)
 	# Sized from wall-clock arrival gaps it would be a different delay on every box.
@@ -259,9 +259,9 @@ func _round(weapon_id: StringName, ping: int) -> void:
 	var total := int(roundf(float(ping) / 1000.0 * float(TICK_RATE)))
 	_up_ticks = total / 2
 	_down_ticks = total - _up_ticks
-	var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(weapon_id)
+	var def: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(weapon_id)
 	# The catalogue's def is the one all three ends read: zeroed here, restored after.
-	var tuning := def.tuning as DotWeaponBallistics
+	var tuning := def.tuning as GSWeaponBallistics
 	var kept: Dictionary = {}
 	for field in ([] if _as_played else AIM_NOISE):
 		if field in tuning:
@@ -273,7 +273,7 @@ func _round(weapon_id: StringName, ping: int) -> void:
 	# A tap past the magazine would wait out a reload; the edges come first, then the middle.
 	# A burst gun spends a burst a tap: the burst rifle's twelve taps were 36 rounds from 30, and
 	# the last two waited out the reload (its "10 of 12" under every link, the harness's own).
-	var per_tap := maxi(1, def.burst_count) if def.fire_mode == DotWeaponDef.Fire.BURST else 1
+	var per_tap := maxi(1, def.burst_count) if def.fire_mode == GSWeaponDef.Fire.BURST else 1
 	var taps := mini(TAPS, def.magazine / per_tap) if def.magazine > 0 else TAPS
 
 	_place(weapon_id, def, distance)
@@ -334,7 +334,7 @@ func _round(weapon_id: StringName, ping: int) -> void:
 
 
 ## Fires the taps after the settle, then runs out the last shots' packets; returns how many shots went out.
-func _fire_taps(def: DotWeaponDef, taps: int) -> int:
+func _fire_taps(def: GSWeaponDef, taps: int) -> int:
 	_drawn_for.clear()
 	_resolved.clear()
 	_last_frame.clear()
@@ -354,7 +354,7 @@ func _fire_taps(def: DotWeaponDef, taps: int) -> int:
 
 
 ## Both stand whole, the shooter holding only this gun, everywhere it exists.
-func _place(weapon_id: StringName, def: DotWeaponDef, distance: float) -> void:
+func _place(weapon_id: StringName, def: GSWeaponDef, distance: float) -> void:
 	# Both stand whole, the shooter holding only this gun, everywhere it exists.
 	var tick := _server_game.current_tick()
 	for p in _players(SHOOTER):
@@ -412,7 +412,7 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 	# tick of margin, the receive timeline is the newest snapshot that can have arrived.
 	var input_tick := k + _lead_ticks()
 	for peer_id: int in _clients:
-		var clock: DotNetClock = _clients[peer_id]["net"].clock
+		var clock: GSNetClock = _clients[peer_id]["net"].clock
 		clock.tick = input_tick
 		clock._received_tick = k - _down_ticks
 		clock._receive_slip = 0.0
@@ -420,13 +420,13 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 
 	for peer_id: int in _clients:
 		var entry: Dictionary = _clients[peer_id]
-		var move := DotFpsCommand.new()
-		var fire := DotWeaponCommand.new()
+		var move := GSFpsCommand.new()
+		var fire := GSWeaponCommand.new()
 		fire.slot = slot
 		if peer_id == TARGET_PEER:
 			move.move = _target_move(index)
 			# As bots do at range: down while shooting, up again; [constant CROUCH_TICKS] drifts across the taps.
-			move.set_button(DotFpsCommand.BUTTON_CROUCH, _as_played and (index / CROUCH_TICKS) % 2 == 1)
+			move.set_button(GSFpsCommand.BUTTON_CROUCH, _as_played and (index / CROUCH_TICKS) % 2 == 1)
 		elif not _last_frame.is_empty():
 			var me: FcPlayer = (entry["game"] as FcGame).player_for(SHOOTER)
 			var muzzle := me.muzzle_position()
@@ -442,7 +442,7 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 			if _as_played:
 				fire.set_button(FcPlayer.BUTTON_AIM, true)
 			if firing:
-				fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+				fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 		var bridge: FcNetBridge = entry["bridge"]
 		bridge.client_tick(input_tick, move, fire)
 		var packet := bridge.encode_input(input_tick, move, fire)
@@ -479,7 +479,7 @@ func _step_once(slot: int, firing: bool, index: int, side: int) -> int:
 ## The frame on the shooter's screen until the next tick reads the mouse.
 func _read_frame(k: int) -> void:
 	# The frame on the shooter's screen until the next tick reads the mouse.
-	var net: DotNetManager = _clients[SHOOTER_PEER]["net"]
+	var net: GSNetManager = _clients[SHOOTER_PEER]["net"]
 	if net.clock.is_synced():
 		var alpha: float = ALPHAS[k % ALPHAS.size()]
 		# One frame per tick, a tick of frame time each: the resume ease decays on frame time, and
@@ -534,17 +534,17 @@ func _lead_ticks() -> int:
 	return _up_ticks + 1
 
 
-## How far the interpolator's resume ease ([method DotNetInterpolator._ease_resume]) moved the drawn
+## How far the interpolator's resume ease ([method GSNetInterpolator._ease_resume]) moved the drawn
 ## target off its blend this frame, in metres: what is left of the jump out of an extrapolation. The
 ## server rewinds to the blend; it cannot know this offset (and must not take one from a client).
-func _ease_offset(net: DotNetManager, bridge: FcNetBridge, render_tick: float) -> float:
+func _ease_offset(net: GSNetManager, bridge: FcNetBridge, render_tick: float) -> float:
 	return _ease_vector(net, bridge, render_tick).length()
 
 
 ## The resume ease's offset on the drawn target's position this frame, drawn at [param render_tick]
 ## (zero when none).
-func _ease_vector(net: DotNetManager, bridge: FcNetBridge, render_tick: float) -> Vector3:
-	var behaviour: DotNetBehaviour = bridge._behaviours.get(_target)
+func _ease_vector(net: GSNetManager, bridge: FcNetBridge, render_tick: float) -> Vector3:
+	var behaviour: GSNetBehaviour = bridge._behaviours.get(_target)
 	if behaviour == null or behaviour.identity == null:
 		return Vector3.ZERO
 	var net_id: int = behaviour.identity.net_id
@@ -552,8 +552,8 @@ func _ease_vector(net: DotNetManager, bridge: FcNetBridge, render_tick: float) -
 	if track == null:
 		return Vector3.ZERO
 	if net.interpolator.is_native():
-		# dot-sim's DotSimInterpolator draws the whole frame, ease included, and keeps its offsets to itself: the GDScript track's offsets stay empty. The ease is how far the drawn position is
-		# off the blend of the same snapshots at the same tick, or off the line through the two newest past them (a new newest sample eases out of the old line, DotNetInterpolator._ease_resume).
+		# dot-sim's GSSimInterpolator draws the whole frame, ease included, and keeps its offsets to itself: the GDScript track's offsets stay empty. The ease is how far the drawn position is
+		# off the blend of the same snapshots at the same tick, or off the line through the two newest past them (a new newest sample eases out of the old line, GSNetInterpolator._ease_resume).
 		if track.samples.size() < 2:
 			return Vector3.ZERO
 		var blend: Variant = net.interpolator.value_at(net_id, &"net_position", render_tick)
@@ -605,11 +605,11 @@ static func _stance_scale(player: FcPlayer) -> float:
 	return lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(player.controller.state.crouch_fraction, 0.0, 1.0))
 
 
-func _on_resolved(shot: DotShot) -> void:
+func _on_resolved(shot: GSShot) -> void:
 	if shot.attacker != SHOOTER:
 		return
 	var hit := false
-	for d: DotDamage in shot.damages:
+	for d: GSDamage in shot.damages:
 		if d.victim == _target and not d.refused:
 			hit = true
 	# The tap this is: a late shot (FcNetBridge.take_late_fire) fires on a later tick than its
@@ -634,4 +634,4 @@ func _on_resolved(shot: DotShot) -> void:
 	_resolved.append({"tick": tap, "fired": shot.tick, "origin": shot.origin, "direction": shot.direction,
 		"pellets": shot.pellets.duplicate(), "hit": hit, "rewind_error": error, "view": _stood_view, "blended": _stood_blended,
 		"crouch": _server_game.player_for(_target).controller.state.crouch_fraction,
-		"victims": shot.damages.map(func(d: DotDamage) -> int: return d.victim), "impacts": shot.impacts.duplicate()})
+		"victims": shot.damages.map(func(d: GSDamage) -> int: return d.victim), "impacts": shot.impacts.duplicate()})

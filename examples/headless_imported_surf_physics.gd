@@ -88,7 +88,7 @@ func _test_ramp() -> void:
 	var grounded := 0
 	var touching := 0
 	var top_speed := 0.0
-	var no_input := {3: [DotFpsCommand.new(), DotWeaponCommand.new()]}
+	var no_input := {3: [GSFpsCommand.new(), GSWeaponCommand.new()]}
 
 	for i in range(TICK_RATE):
 		_game.tick(no_input)
@@ -230,11 +230,11 @@ func _test_fallout() -> void:
 	# Four seconds: the shut door was walked round in about twelve, sliding along it to a
 	# corner, which is not a way out a bot's route would take.
 	for tick in range(TICK_RATE * 4):
-		var move := DotFpsCommand.new()
+		var move := GSFpsCommand.new()
 		move.yaw = 180.0
 		move.move = Vector2(0.0, 1.0)
 		move.sanitise()
-		_game.tick({player.player_id: [move, DotWeaponCommand.new()]})
+		_game.tick({player.player_id: [move, GSWeaponCommand.new()]})
 		if player.controller.state.position.z > door_z:
 			out_at = tick
 			break

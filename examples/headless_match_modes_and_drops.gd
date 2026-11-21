@@ -2,7 +2,7 @@ extends "headless_match_state.gd"
 
 ## An ERROR from the stats layer used to scroll past and leave progression off with every suite green.
 func _on_log_record(rec: Dictionary) -> void:
-	if int(rec.get("level", 0)) >= DotLog.Level.ERROR and String(rec.get("channel", "")).begins_with("stats"):
+	if int(rec.get("level", 0)) >= GSLog.Level.ERROR and String(rec.get("channel", "")).begins_with("stats"):
 		_stats_errors.append(str(rec.get("message", rec)))
 
 func _group(title: String) -> void:
@@ -163,9 +163,9 @@ func _test_team_deathmatch() -> void:
 func _hit(game: FcGame, attacker: int, victim: int, amount: float) -> float:
 	var type := game.combat.damage_type(&"bullet")
 	if type == null:
-		type = DotDamageType.new()
+		type = GSDamageType.new()
 		type.id = &"bullet"
-	var damage := DotDamage.make(attacker, victim, amount, type)
+	var damage := GSDamage.make(attacker, victim, amount, type)
 	damage.tick = game.current_tick()
 	var out := game.combat.resolver.resolve(damage)
 	return 0.0 if out.refused else out.amount
@@ -211,7 +211,7 @@ func _test_effects() -> void:
 		"dot-combat's per-hit hook is filled, which nothing in this game had ever done"
 	)
 
-	# Out of the spawn window first: a freshly spawned player is protected (DotHealth's window, the
+	# Out of the spawn window first: a freshly spawned player is protected (GSHealth's window, the
 	# PROTECTED effect and dot-spawn's ledger, all off the mode's `spawn_protection_sec`).
 	for _protect in range(game.match_node.spawn_protection_ticks() + 2):
 		game.tick({})
@@ -248,7 +248,7 @@ func _test_effects() -> void:
 	var after: float = game.combat.health_of(701).health
 	_check(
 		after < before,
-		"a burn takes health through DotHealth rather than by touching a number",
+		"a burn takes health through GSHealth rather than by touching a number",
 		"%.1f -> %.1f" % [before, after]
 	)
 
@@ -278,7 +278,7 @@ func _test_effects() -> void:
 	)
 
 	# Spawn protection, which is why PROTECTED exists as an effect rather than as
-	# DotHealth's own flag: it has to stop a capture as well.
+	# GSHealth's own flag: it has to stop a capture as well.
 	game.effects.on_spawn(701)
 	_check(
 		game.effects.has(FcEffects.PROTECTED, 701),
@@ -322,10 +322,10 @@ func _test_pack_weapons_rest(game: FcGame, p: FcPlayer) -> void:
 
 ## One tick of [param id] holding [param buttons], looking along [param pitch].
 func _hold(game: FcGame, id: int, buttons: int, slot: int = 0, pitch: float = 0.0) -> void:
-	var move := DotFpsCommand.new()
+	var move := GSFpsCommand.new()
 	move.pitch = pitch
 	move.yaw = game.player_for(id).controller.state.yaw
-	var fire := DotWeaponCommand.new()
+	var fire := GSWeaponCommand.new()
 	fire.buttons = buttons
 	fire.slot = slot
 	fire.yaw = move.yaw
@@ -401,7 +401,7 @@ func _test_pack_weapons() -> void:
 	)
 
 	# A loadout saved before the melee slot existed still gives something under 1.
-	var old := DotLoadout.empty(&"arena")
+	var old := GSLoadout.empty(&"arena")
 	old.set_item(&"primary", AwWeaponIds.SMG)
 	old.set_item(&"secondary", AwWeaponIds.REVOLVER)
 	p.give_loadout(game.loadouts.resolve(old))
@@ -416,13 +416,13 @@ func _test_pack_weapons() -> void:
 	_settle(game, 900, TICK_RATE)
 
 	# A shot, from the eye along the aim.
-	var used: Array[DotWeaponOutcome] = []
-	p.used.connect(func(o: DotWeaponOutcome) -> void: used.append(o))
+	var used: Array[GSWeaponOutcome] = []
+	p.used.connect(func(o: GSWeaponOutcome) -> void: used.append(o))
 
 	for i in range(TICK_RATE / 2):
-		_hold(game, 900, DotWeaponCommand.BUTTON_ATTACK, 0, -5.0)
+		_hold(game, 900, GSWeaponCommand.BUTTON_ATTACK, 0, -5.0)
 
-	var shots: Array[DotShot] = []
+	var shots: Array[GSShot] = []
 	for o in used:
 		shots.append_array(o.shots)
 	_check(shots.size() > 3, "held fire shoots the SMG", str(shots.size()))
@@ -439,10 +439,10 @@ func _test_pack_weapons() -> void:
 		)
 
 	# The bash on the alt-fire: the pack's own second state machine, through the rig.
-	var bashes: Array[DotWeaponOutcome] = []
-	p.weapons.bashed.connect(func(o: DotWeaponOutcome) -> void: bashes.append(o))
+	var bashes: Array[GSWeaponOutcome] = []
+	p.weapons.bashed.connect(func(o: GSWeaponOutcome) -> void: bashes.append(o))
 	_settle(game, 900, TICK_RATE / 2)
-	_hold(game, 900, DotWeaponCommand.BUTTON_ALT)
+	_hold(game, 900, GSWeaponCommand.BUTTON_ALT)
 	_settle(game, 900, 4)
 	_check(bashes.size() == 1, "the alt-fire bashes, once per press", str(bashes.size()))
 
@@ -456,7 +456,7 @@ func _test_pack_weapons() -> void:
 
 	# A frag: thrown, bounced, and gone off on its fuse rather than on the first wall.
 	var gone: Array = []
-	game.projectiles.detonated.connect(func(at: Vector3, s: DotWeaponSpawn) -> void:
+	game.projectiles.detonated.connect(func(at: Vector3, s: GSWeaponSpawn) -> void:
 		gone.append([at, s, game.current_tick()])
 	)
 
@@ -468,7 +468,7 @@ func _test_pack_weapons() -> void:
 	)
 
 	for i in range(6):
-		_hold(game, 900, DotWeaponCommand.BUTTON_ATTACK, 0, -25.0)
+		_hold(game, 900, GSWeaponCommand.BUTTON_ATTACK, 0, -25.0)
 	var thrown_at := game.current_tick()
 	_settle(game, 900, 1)
 
@@ -506,7 +506,7 @@ func _test_pack_weapons() -> void:
 	# Down at the floor a few metres out: at the thrower's own feet its splash would kill
 	# them, the respawn would hand back a rifle, and the cook-off below would be a rifle.
 	for i in range(4):
-		_hold(game, 900, DotWeaponCommand.BUTTON_ATTACK, 0, -20.0)
+		_hold(game, 900, GSWeaponCommand.BUTTON_ATTACK, 0, -20.0)
 	_settle(game, 900, TICK_RATE / 2)
 
 	var sticky: FcProjectiles.Flying = (
@@ -539,7 +539,7 @@ func _test_pack_weapons() -> void:
 	var before := p.health.health + p.health.armour
 	_settle(game, 900, TICK_RATE)
 	for i in range(TICK_RATE * 3 + 16):
-		_hold(game, 900, DotWeaponCommand.BUTTON_ATTACK)
+		_hold(game, 900, GSWeaponCommand.BUTTON_ATTACK)
 	var released := game.current_tick()
 	_settle(game, 900, 3)
 	_check(gone.size() == 1, "a grenade cooked past its fuse goes off", str(gone.size()))
@@ -608,7 +608,7 @@ func _test_drops() -> void:
 	var kill := func(killer: int, victim: int, critical: bool) -> void:
 		var health := game.combat.health_of(victim)
 		health.invulnerable_until_tick = -1
-		var damage := DotDamage.make(killer, victim, 500.0, game.combat.damage_type(&"bullet"))
+		var damage := GSDamage.make(killer, victim, 500.0, game.combat.damage_type(&"bullet"))
 		damage.tick = game.current_tick()
 		damage.critical = critical
 		var applied := health.apply(damage)
@@ -675,7 +675,7 @@ func _check_drops_expire(game: FcGame, kill: Callable) -> void:
 
 func _check_drop_wire() -> void:
 	# The wire: a drop and a take round-trip.
-	var wire := FcEvents.read_drop(DotNetReader.new(
+	var wire := FcEvents.read_drop(GSNetReader.new(
 		FcEvents.write_drop(7, 1, 25, Vector3(1, 2, 3), Vector3(4, 0, 6))
 	))
 	_check(bool(wire["ok"]) and int(wire["id"]) == 7 and int(wire["kind"]) == 1

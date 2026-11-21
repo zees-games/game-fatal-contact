@@ -7,9 +7,9 @@ const FcPlayer := preload("fc_player.gd")
 ## What dot-moderation's live tools mean in a deathmatch.
 ##
 ## [b]Every verb here is a few lines, because each is an addon's own seam.[/b] Noclip,
-## freeze, speed and gravity are dot-player-controller's `DotFpsAdminModifiers`, which the
+## freeze, speed and gravity are dot-player-controller's `GSFpsAdminModifiers`, which the
 ## owning client predicts rather than rubber-bands against; god and buddha are two flags on
-## dot-combat's `DotHealth`; slay and slap are ordinary `DotDamage` through the combat
+## dot-combat's `GSHealth`; slay and slap are ordinary `GSDamage` through the combat
 ## manager, so the kill feed, the scoreboard and the stats hear about them the way they
 ## hear about a rocket; respawn is the match's own respawn path; burn is dot-effects' own
 ## burning. Nothing here is a second rule about any of those.
@@ -17,7 +17,7 @@ const FcPlayer := preload("fc_player.gd")
 ## Blind and beacon are the two that are about a SCREEN rather than a body, and each is one
 ## flag on [FcPlayer] that `FcPlayerNet` replicates — the blind to its owner alone,
 ## the beacon to everybody — and that the client draws: `FcHud` blacks the owner's
-## screen out, `DotFxBeacon` (dot-fx) rings the player on every screen and pings. The server decides;
+## screen out, `GSFxBeacon` (dot-fx) rings the player on every screen and pings. The server decides;
 ## nothing about either is a client's to choose.
 ##
 ## Ids are the session userid as a string, which is `FcPlayer.player_id` — the one id
@@ -31,7 +31,7 @@ const WORLD_DAMAGE := &""
 const SLAP_PUSH := 6.0
 const SLAP_LIFT := 5.0
 
-## The ceiling `hp` sets. Health travels as an 11-bit integer (DotCombatNetSync), so a
+## The ceiling `hp` sets. Health travels as an 11-bit integer (GSCombatNetSync), so a
 ## value above 2047 would arrive on the client as something else entirely.
 const MAX_HEALTH := 2000.0
 
@@ -39,13 +39,13 @@ const MAX_HEALTH := 2000.0
 ## The handler table, `{ability: Callable}`.
 static func handlers(game: FcGame) -> Dictionary:
 	var table := {
-		DotModTools.ACTION_NOCLIP: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_NOCLIP: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
-			return DotFpsAdminModifiers.set_noclip(player.controller, bool(args["on"])),
+			return GSFpsAdminModifiers.set_noclip(player.controller, bool(args["on"])),
 
-		DotModTools.ACTION_FREEZE: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_FREEZE: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
@@ -54,55 +54,55 @@ static func handlers(game: FcGame) -> Dictionary:
 			# turret, which is the opposite of what a freeze is for.
 			if player.is_alive():
 				player.arsenal.disabled = on
-			return DotFpsAdminModifiers.set_frozen(player.controller, on),
+			return GSFpsAdminModifiers.set_frozen(player.controller, on),
 
-		DotModTools.ACTION_GOD: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_GOD: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
 			player.health.invulnerable = bool(args["on"])
-			return DotResult.success(player.health.invulnerable),
+			return GSResult.success(player.health.invulnerable),
 
-		DotModTools.ACTION_BUDDHA: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_BUDDHA: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
 			player.health.cannot_die = bool(args["on"])
-			return DotResult.success(player.health.cannot_die),
+			return GSResult.success(player.health.cannot_die),
 
-		DotModTools.ACTION_SLAY: func(id: StringName, _args: Dictionary) -> DotResult:
+		GSModTools.ACTION_SLAY: func(id: StringName, _args: Dictionary) -> GSResult:
 			return slay(game, id),
 
-		DotModTools.ACTION_SLAP: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_SLAP: func(id: StringName, args: Dictionary) -> GSResult:
 			return slap(game, id, float(args.get("damage", 0.0))),
 
-		DotModTools.ACTION_RESPAWN: func(id: StringName, _args: Dictionary) -> DotResult:
+		GSModTools.ACTION_RESPAWN: func(id: StringName, _args: Dictionary) -> GSResult:
 			# The spawn sight queries the physics space: on a server, at the top of the next tick (dot_tick_gate.gd).
 			if _player(game, id) == null:
 				return _absent(id)
 			game.tick_gate.run(game.respawn_player.bind(int(String(id))))
-			return DotResult.success(id),
+			return GSResult.success(id),
 
-		DotModTools.ACTION_HEALTH: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_HEALTH: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
 			if not player.is_alive():
-				return DotResult.fail(DotError.CODE_STATE, "They are dead. Respawn them first.")
+				return GSResult.fail(GSError.CODE_STATE, "They are dead. Respawn them first.")
 			player.health.health = minf(float(args["value"]), MAX_HEALTH)
-			return DotResult.success(player.health.health),
+			return GSResult.success(player.health.health),
 
-		DotModTools.ACTION_SPEED: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_SPEED: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
-			return DotFpsAdminModifiers.set_speed(player.controller, float(args["scale"])),
+			return GSFpsAdminModifiers.set_speed(player.controller, float(args["scale"])),
 
-		DotModTools.ACTION_GRAVITY: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_GRAVITY: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
-			return DotFpsAdminModifiers.set_gravity(player.controller, float(args["scale"])),
+			return GSFpsAdminModifiers.set_gravity(player.controller, float(args["scale"])),
 	}
 	table.merge(_item_handlers(game))
 	return table
@@ -111,26 +111,26 @@ static func handlers(game: FcGame) -> Dictionary:
 ## The give, strip, rename, burn, blind and beacon handlers.
 static func _item_handlers(game: FcGame) -> Dictionary:
 	return {
-		DotModTools.ACTION_GIVE: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_GIVE: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
 			var item := StringName(str(args["item"]).strip_edges().to_lower())
 			if not player.arsenal.catalogue.has(item):
-				return DotResult.fail(
-					DotError.CODE_INVALID, "There is no weapon called %s." % String(item),
+				return GSResult.fail(
+					GSError.CODE_INVALID, "There is no weapon called %s." % String(item),
 					", ".join(item_ids(game))
 				)
 			return player.arsenal.give(item),
 
-		DotModTools.ACTION_STRIP: func(id: StringName, _args: Dictionary) -> DotResult:
+		GSModTools.ACTION_STRIP: func(id: StringName, _args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
 			player.arsenal.clear()
-			return DotResult.success(null),
+			return GSResult.success(null),
 
-		DotModTools.ACTION_RENAME: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_RENAME: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
@@ -141,18 +141,18 @@ static func _item_handlers(game: FcGame) -> Dictionary:
 			var record := game.match_node.scoreboard.find(str(player.player_id))
 			if record != null:
 				record.display_name = new_name
-			return DotResult.success(new_name),
+			return GSResult.success(new_name),
 
-		DotModTools.ACTION_BURN: func(id: StringName, _args: Dictionary) -> DotResult:
+		GSModTools.ACTION_BURN: func(id: StringName, _args: Dictionary) -> GSResult:
 			if _player(game, id) == null:
 				return _absent(id)
 			if game.effects == null:
-				return DotResult.fail(DotError.CODE_UNSUPPORTED, "This server has no status effects.")
+				return GSResult.fail(GSError.CODE_UNSUPPORTED, "This server has no status effects.")
 			# The map's own fire, for its own duration: an admin's burn is the same
 			# afterburn a plasma splash leaves, so it hurts exactly as much as it looks.
 			return game.effects.apply(FcEffects.BURNING, int(String(id)), 0),
 
-		DotModTools.ACTION_BLIND: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_BLIND: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
@@ -160,14 +160,14 @@ static func _item_handlers(game: FcGame) -> Dictionary:
 			# shot; an admin who wants them to stop as well has freeze, and one verb that
 			# did both would be a verb nobody could use for only the first.
 			player.blinded = bool(args["on"])
-			return DotResult.success(player.blinded),
+			return GSResult.success(player.blinded),
 
-		DotModTools.ACTION_BEACON: func(id: StringName, args: Dictionary) -> DotResult:
+		GSModTools.ACTION_BEACON: func(id: StringName, args: Dictionary) -> GSResult:
 			var player := _player(game, id)
 			if player == null:
 				return _absent(id)
 			player.beacon = bool(args["on"])
-			return DotResult.success(player.beacon),
+			return GSResult.success(player.beacon),
 	}
 
 
@@ -221,16 +221,16 @@ static func teleport(game: FcGame, id: StringName, to: Variant) -> void:
 ## God, buddha and spawn protection are all switched off for the one event and put back,
 ## because a slay that god mode refused would make god mode a way to be unslayable — and
 ## the god flag must survive it, since the tools re-apply it on the respawn. Spawn
-## protection is three records: `DotHealth`'s window is cleared here, and the effect and
+## protection is three records: `GSHealth`'s window is cleared here, and the effect and
 ## the spawn ledger let the damage through on [constant FcEffects.ADMIN_KILL].
-static func slay(game: FcGame, id: StringName) -> DotResult:
+static func slay(game: FcGame, id: StringName) -> GSResult:
 	var player := _player(game, id)
 
 	if player == null:
 		return _absent(id)
 
 	if not player.is_alive():
-		return DotResult.fail(DotError.CODE_STATE, "They are already dead.")
+		return GSResult.fail(GSError.CODE_STATE, "They are already dead.")
 
 	var was_god := player.health.invulnerable
 	var was_buddha := player.health.cannot_die
@@ -238,7 +238,7 @@ static func slay(game: FcGame, id: StringName) -> DotResult:
 	player.health.cannot_die = false
 	player.health.invulnerable_until_tick = -1
 
-	var damage := DotDamage.make(
+	var damage := GSDamage.make(
 		0, player.player_id, player.health.health + player.health.armour * 4.0 + 1000.0,
 		game.combat.damage_type(WORLD_DAMAGE)
 	)
@@ -253,9 +253,9 @@ static func slay(game: FcGame, id: StringName) -> DotResult:
 	player.health.cannot_die = was_buddha
 
 	if not damage.lethal:
-		return DotResult.fail(DotError.CODE_STATE, "The slay was refused: %s" % damage.refusal)
+		return GSResult.fail(GSError.CODE_STATE, "The slay was refused: %s" % damage.refusal)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## A shove, and optionally some damage.
@@ -265,27 +265,27 @@ static func slay(game: FcGame, id: StringName) -> DotResult:
 ## shove rather than as a snap. The direction comes from the tick, not from a random
 ## stream — it only has to be different each time, and a slap that could be replayed
 ## differently is a slap two machines disagree about.
-static func slap(game: FcGame, id: StringName, amount: float) -> DotResult:
+static func slap(game: FcGame, id: StringName, amount: float) -> GSResult:
 	var player := _player(game, id)
 
 	if player == null:
 		return _absent(id)
 
 	if not player.is_alive():
-		return DotResult.fail(DotError.CODE_STATE, "They are dead.")
+		return GSResult.fail(GSError.CODE_STATE, "They are dead.")
 
 	var angle := deg_to_rad(float((game.current_tick() * 137) % 360))
 	var state := player.controller.state
 	state.velocity += Vector3(sin(angle) * SLAP_PUSH, SLAP_LIFT, cos(angle) * SLAP_PUSH)
-	state.mode = DotFpsState.Mode.AIR
+	state.mode = GSFpsState.Mode.AIR
 
 	if amount > 0.0:
-		var damage := DotDamage.make(0, player.player_id, amount, game.combat.damage_type(WORLD_DAMAGE))
+		var damage := GSDamage.make(0, player.player_id, amount, game.combat.damage_type(WORLD_DAMAGE))
 		damage.weapon_id = &"slap"
 		damage.tick = game.current_tick()
 		game.combat.apply_damage(damage)
 
-	return DotResult.success(state.velocity)
+	return GSResult.success(state.velocity)
 
 
 static func _player(game: FcGame, id: StringName) -> FcPlayer:
@@ -295,5 +295,5 @@ static func _player(game: FcGame, id: StringName) -> FcPlayer:
 	return game.player_for(String(id).to_int())
 
 
-static func _absent(id: StringName) -> DotResult:
-	return DotResult.fail(DotError.CODE_STATE, "Player %s is not in the match." % String(id))
+static func _absent(id: StringName) -> GSResult:
+	return GSResult.fail(GSError.CODE_STATE, "Player %s is not in the match." % String(id))

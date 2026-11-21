@@ -15,7 +15,7 @@ const FcMap := preload("../maps/fc_map.gd")
 ## site somebody forgets is the bug.
 ##
 ## [b]Nothing here owns a health value.[/b] dot-effects reports an amount and this
-## applies it through [DotHealth], which is what puts an afterburn tick through the same
+## applies it through [GSHealth], which is what puts an afterburn tick through the same
 ## armour, the same rules and the same kill feed as a rifle round.
 ##
 ## [codeblock]
@@ -43,7 +43,7 @@ const PROTECTED := &"arena_protected"
 ## Slower, from a monster's swipe. The horde's only lasting effect.
 const SLOWED := &"arena_slowed"
 
-## A key in [member DotDamage.context] that says an administrator's slay: no effect and no
+## A key in [member GSDamage.context] that says an administrator's slay: no effect and no
 ## spawn-protection ledger may refuse it. See [method adjust_damage].
 const ADMIN_KILL := &"arena_admin_kill"
 
@@ -51,14 +51,14 @@ const ADMIN_KILL := &"arena_admin_kill"
 ## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
 var game: Node = null
 
-var manager: DotEffectManager = null
+var manager: GSEffectManager = null
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if game == null:
-		return DotResult.fail(DotError.CODE_STATE, "FcEffects needs a game.")
+		return GSResult.fail(GSError.CODE_STATE, "FcEffects needs a game.")
 
-	manager = DotEffectManager.new()
+	manager = GSEffectManager.new()
 	manager.name = "EffectManager"
 	manager.authoritative = game.is_authority
 	manager.rules = _rules()
@@ -81,7 +81,7 @@ func setup() -> DotResult:
 	if not game.map_changed.is_connected(_on_map_changed):
 		game.map_changed.connect(_on_map_changed)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Put the per-hit hook back on whatever resolver is current.
@@ -92,20 +92,20 @@ func setup() -> DotResult:
 ## failure mode the note in [method setup] describes, and one nothing else would show.
 func _bind_combat() -> void:
 	if game.combat == null or game.combat.resolver == null:
-		DotLog.warn(CHANNEL, "no combat resolver to hook; hits ignore spawn protection and damage effects", {
+		GSLog.warn(CHANNEL, "no combat resolver to hook; hits ignore spawn protection and damage effects", {
 			"map": String(game.map.id) if game.map != null else "",
 		})
 		return
 	game.combat.resolver.adjust = adjust_damage
-	DotLog.debug(CHANNEL, "the per-hit hook is on the current resolver")
+	GSLog.debug(CHANNEL, "the per-hit hook is on the current resolver")
 
 
 func _on_map_changed(_map: FcMap) -> void:
 	_bind_combat()
 
 
-func _rules() -> DotEffectRules:
-	var rules := DotEffectRules.new()
+func _rules() -> GSEffectRules:
+	var rules := GSEffectRules.new()
 	# No incapacitation in a deathmatch: a player at zero health respawns in two
 	# seconds and being down instead would be a different game. game-playlot's
 	# co-operative wave mode is where that belongs.
@@ -124,7 +124,7 @@ func _rules() -> DotEffectRules:
 ## How long `PROTECTED` lasts, from the mode rather than from a constant.
 ##
 ## The table used to carry two seconds. A free-for-all's `spawn_protection_sec` is 1.5
-## and the horde's is 2.5, so the effect disagreed with [DotHealth] and with dot-spawn in
+## and the horde's is 2.5, so the effect disagreed with [GSHealth] and with dot-spawn in
 ## every mode — in one direction in some and the other in the rest. Falls back to the old
 ## two seconds when there is no match to ask, which is what a self-test that builds the
 ## table alone gets.
@@ -135,31 +135,31 @@ func _protection_ticks() -> int:
 	return game.match_node.spawn_protection_ticks()
 
 
-static func table(rate: int, protection_ticks: int = 0) -> Array[DotEffectDef]:
-	var burning := DotEffectDef.burning(BURNING, 4.0, 6 * rate)
+static func table(rate: int, protection_ticks: int = 0) -> Array[GSEffectDef]:
+	var burning := GSEffectDef.burning(BURNING, 4.0, 6 * rate)
 	burning.tick_interval = rate / 2
 	burning.damage_type = &"fire"
 	burning.display_name = "Burning"
 	burning.label = "FIRE"
 
-	var empowered := DotEffectDef.damage_buff(EMPOWERED, 1.5, 20 * rate)
+	var empowered := GSEffectDef.damage_buff(EMPOWERED, 1.5, 20 * rate)
 	empowered.display_name = "Empowered"
 	empowered.label = "DMG"
 
-	var haste := DotEffectDef.speed(HASTE, 1.35, 20 * rate)
+	var haste := GSEffectDef.speed(HASTE, 1.35, 20 * rate)
 	haste.display_name = "Haste"
 	haste.label = "SPD"
 
-	# Spawn protection as an effect rather than as DotHealth's own flag, because this
+	# Spawn protection as an effect rather than as GSHealth's own flag, because this
 	# one has to stop the player CAPTURING as well: standing on a point, untouchable,
 	# is not a fight anybody can have. dot-objective's may_capture_fn is why.
-	var protected := DotEffectDef.invulnerability(
+	var protected := GSEffectDef.invulnerability(
 		PROTECTED, protection_ticks if protection_ticks > 0 else 2 * rate
 	)
 	protected.display_name = "Protected"
 	protected.label = "INV"
 
-	var slowed := DotEffectDef.speed(SLOWED, 0.7, 3 * rate)
+	var slowed := GSEffectDef.speed(SLOWED, 0.7, 3 * rate)
 	slowed.display_name = "Slowed"
 	slowed.label = "SLOW"
 	slowed.tags = PackedStringArray(["debuff"])
@@ -170,12 +170,12 @@ static func table(rate: int, protection_ticks: int = 0) -> Array[DotEffectDef]:
 # --- The seam ---------------------------------------------------------------
 
 ## dot-combat's per-hit hook. Mutates the damage in place, or refuses it.
-func adjust_damage(damage: DotDamage) -> void:
+func adjust_damage(damage: GSDamage) -> void:
 	if manager == null or damage == null:
 		return
 
 	# [b]An administrator's slay is not a hit, and nothing here may veto it.[/b]
-	# `FcModTools.slay` switched god, buddha and `DotHealth`'s own spawn window off for
+	# `FcModTools.slay` switched god, buddha and `GSHealth`'s own spawn window off for
 	# the one event — and then this function refused it anyway, because spawn protection
 	# is three records and two of them are here: the `PROTECTED` effect and dot-spawn's
 	# ledger. So a slay inside the first second and a half of a life answered "The slay
@@ -191,32 +191,32 @@ func adjust_damage(damage: DotDamage) -> void:
 	# path to `apply_damage` runs through; after the slay above, which is the operator's.
 	if not game.can_be_harmed(damage.victim):
 		damage.refuse("loading")
-		DotLog.debug(CHANNEL, "a hit was refused", {
+		GSLog.debug(CHANNEL, "a hit was refused", {
 			"why": "loading", "attacker": damage.attacker, "victim": damage.victim,
 		})
 		return
 
 	if manager.is_invulnerable(damage.victim):
 		damage.refuse("invulnerable")
-		DotLog.debug(CHANNEL, "a hit was refused", {
+		GSLog.debug(CHANNEL, "a hit was refused", {
 			"why": "invulnerable", "attacker": damage.attacker, "victim": damage.victim,
 		})
 		return
 
 	# [b]dot-spawn's ledger, asked here because this is the one hook there is.[/b]
-	# `DotDamageResolver.adjust` is a single callable and this class owns it, so a second
+	# `GSDamageResolver.adjust` is a single callable and this class owns it, so a second
 	# subsystem that wants a veto is a line in this function rather than a second hook —
 	# and a veto applied anywhere else is one applied at some damage sites and not
 	# others, which is the bug this class's own documentation opens with.
 	#
 	# It agrees with the two gates above it by construction rather than by luck:
 	# `FcPlayerStack.refresh_spawn_rules` takes the same `spawn_protection_sec` the
-	# `PROTECTED` effect below is built from and [DotHealth] is given.
+	# `PROTECTED` effect below is built from and [GSHealth] is given.
 	if game.player_stack != null and game.player_stack.blocks_damage(
 		str(damage.attacker), str(damage.victim), damage.tick, damage.is_world_damage()
 	):
 		damage.refuse("spawn protection")
-		DotLog.debug(CHANNEL, "a hit was refused", {
+		GSLog.debug(CHANNEL, "a hit was refused", {
 			"why": "spawn protection", "attacker": damage.attacker, "victim": damage.victim,
 		})
 		return
@@ -231,7 +231,7 @@ func adjust_damage(damage: DotDamage) -> void:
 	damage.scale_by(scale, "effects")
 
 
-## Whether an entity may capture an objective. Handed to [DotObjectivePresence].
+## Whether an entity may capture an objective. Handed to [GSObjectivePresence].
 func may_capture(entity: int) -> bool:
 	return manager == null or manager.may_capture(entity)
 
@@ -242,9 +242,9 @@ func move_scale(entity: int) -> float:
 
 # --- Applying ----------------------------------------------------------------
 
-func apply(id: StringName, entity: int, source: int = 0) -> DotResult:
+func apply(id: StringName, entity: int, source: int = 0) -> GSResult:
 	if manager == null:
-		return DotResult.fail(DotError.CODE_STATE, "Effects are not set up.")
+		return GSResult.fail(GSError.CODE_STATE, "Effects are not set up.")
 	return manager.apply(id, entity, source)
 
 
@@ -305,20 +305,20 @@ func _apply_movement() -> void:
 func _on_damaged(entity: int, amount: float, type: StringName, source: int) -> void:
 	if game.combat == null:
 		return
-	var health: DotHealth = game.combat.health_of(entity)
+	var health: GSHealth = game.combat.health_of(entity)
 	if health == null:
 		return
 
-	var damage_type: DotDamageType = game.combat.damage_type(type)
+	var damage_type: GSDamageType = game.combat.damage_type(type)
 	if damage_type == null:
-		damage_type = DotDamageType.new()
+		damage_type = GSDamageType.new()
 		damage_type.id = type
 
-	# `damage.tick` is set explicitly, and it is not decoration: DotHealth refuses
-	# anything at or before invulnerable_until_tick, and a DotDamage starts at tick 0 —
+	# `damage.tick` is set explicitly, and it is not decoration: GSHealth refuses
+	# anything at or before invulnerable_until_tick, and a GSDamage starts at tick 0 —
 	# so an unstamped event is refused on every player for ever, silently. This family
 	# found that one in game-playlot's Fatal Contact on its very first hit.
-	var damage := DotDamage.make(source, entity, amount, damage_type)
+	var damage := GSDamage.make(source, entity, amount, damage_type)
 	damage.tick = game.current_tick()
 	var applied := health.apply(damage)
 
@@ -329,7 +329,7 @@ func _on_damaged(entity: int, amount: float, type: StringName, source: int) -> v
 func _on_healed(entity: int, amount: float, overheal: bool, _source: int) -> void:
 	if game.combat == null:
 		return
-	var health: DotHealth = game.combat.health_of(entity)
+	var health: GSHealth = game.combat.health_of(entity)
 	if health == null:
 		return
 	var _got := health.heal(amount)
@@ -363,7 +363,7 @@ func on_spawn(entity: int) -> void:
 
 	# A respawn without its protection is a spawn camp the server promised to stop.
 	if not res.ok:
-		DotLog.warn(CHANNEL, "a respawn was not given spawn protection", {
+		GSLog.warn(CHANNEL, "a respawn was not given spawn protection", {
 			"entity": entity, "why": res.error.message,
 		})
 

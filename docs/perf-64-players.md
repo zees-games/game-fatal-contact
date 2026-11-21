@@ -143,7 +143,7 @@ quarter rate that leaves scoped targets alone (an observer-aware tier in dot-net
 both are on the nightly board.
 
 **Aim cone (fc-dmatrium-bytes-2, 2026-11-16).** dot-net interest (API 22) takes an observer aim,
-`DotNetIdentity.interest_aim`, and `DotNetInterest.aim_cone_deg`: a far entity inside that cone of the observer's aim
+`GSNetIdentity.interest_aim`, and `GSNetInterest.aim_cone_deg`: a far entity inside that cone of the observer's aim
 is sent at most every `far_every`-th snapshot (the first band's rate), never the quarter rate; native core and GDScript
 agree (netcode_demo parity). FC's authority sets `interest_aim` from `FcPlayer.aim_direction()` each pull, and
 `sv_net_aim_cone` (default 8 degrees, 0 = off, outside 0-180 refused) sets the cone. What you aim at, scoped or not,

@@ -22,9 +22,9 @@ const MOVED := {
 ## Registers a shim for every `fc_*` name on the console (the module's own and the ones its
 ## binders put there) whose `arena_*` twin is free, plus [constant MOVED], through
 ## [param module] so they unload with it. Returns the old names it registered.
-static func install(module: DotModule) -> PackedStringArray:
+static func install(module: GSModule) -> PackedStringArray:
 	var made := PackedStringArray()
-	var console: DotConsole = module.console
+	var console: GSConsole = module.console
 	if console == null:
 		return made
 
@@ -54,9 +54,9 @@ static func install(module: DotModule) -> PackedStringArray:
 
 ## Runs [param target] with the caller's own context (so its permission, cheat and chat gates
 ## apply as if the new name was typed), after saying loudly that the name changed.
-static func _forward(ctx: DotCmdContext, console: DotConsole, old: String, target: String) -> void:
+static func _forward(ctx: GSCmdContext, console: GSConsole, old: String, target: String) -> void:
 	var why := "%s was renamed to %s; update your config" % [old, target]
-	DotLog.error("console", why, {"old": old, "new": target})
+	GSLog.error("console", why, {"old": old, "new": target})
 	ctx.reply("ERROR: " + why)
 
 	var line := target

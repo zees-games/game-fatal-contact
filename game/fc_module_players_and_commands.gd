@@ -28,7 +28,7 @@ const FcStats := preload("fc_stats.gd")
 const FcVote := preload("fc_vote.gd")
 const FcContentGroups := preload("fc_content_groups.gd")
 
-## Binds an [FcGame] to a [DotServer].
+## Binds an [FcGame] to a [GSServer].
 
 
 const CHANNEL := "arena.module"
@@ -40,7 +40,7 @@ var _combat_cvars: Array = []
 
 var bridge: FcNetBridge = null
 ## Carries the workbench's profile runtime (rows down) over this manager; null without a workbench.
-var profile_link: DotNetProfileLink = null
+var profile_link: GSNetProfileLink = null
 
 
 ## Chat, voice and moderation. See [FcServices] for why it is not this file.
@@ -61,8 +61,8 @@ var maps: FcMapDirector = null
 
 
 ## The per-map cvars a map's `cfg/.../dot_map/map/<name>.yml` sets, put back on the next map.
-var map_config: DotGameMapConfig = null
-## The active rotation entry's profile cvars (`DotMapDef.profile.values`), put back on the next map.
+var map_config: GSGameMapConfig = null
+## The active rotation entry's profile cvars (`GSMapDef.profile.values`), put back on the next map.
 var profile_config: Object = null
 
 
@@ -75,9 +75,9 @@ var _joined: Dictionary = {}
 
 
 ## Who is still behind their loading cover, from dot-game's roster used for that alone: this module
-## is not on DotGameModule, so it seats people itself and only borrows the bookkeeping (loading from
+## is not on GSGameModule, so it seats people itself and only borrows the bookkeeping (loading from
 ## the spawn event until the client says its cover lifted, again from a map change).
-var loading: DotGameRoster = null
+var loading: GSGameRoster = null
 var _handles_cover: bool = false
 
 
@@ -98,7 +98,7 @@ func _add_match_cvars() -> void:
 	add_cvar(
 		"fc_scorelimit", str(game.score_limit),
 		"Kills to win the match (a side's in a team mode); 0 for the mode's own. Gun game ends at its last gun",
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			game.score_limit = maxi(new_value.to_int(), 0)
@@ -108,7 +108,7 @@ func _add_match_cvars() -> void:
 	add_cvar(
 		"fc_timelimit", str(int(game.time_limit_sec)),
 		"Seconds a match lasts; 0 for the mode's own",
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			game.time_limit_sec = maxf(new_value.to_float(), 0.0)
@@ -118,7 +118,7 @@ func _add_match_cvars() -> void:
 	add_cvar(
 		"fc_warmup", str(game.warmup_sec),
 		"Seconds of warmup before a match; -1 for the mode's own",
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	).with_min(-1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			game.warmup_sec = new_value.to_float()
@@ -128,7 +128,7 @@ func _add_match_cvars() -> void:
 	add_cvar(
 		"mp_freezetime", str(game.freeze_sec),
 		"Seconds everyone is frozen at their spawn before a round; 0 for none, -1 for the mode's own",
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	).with_min(-1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			game.freeze_sec = new_value.to_float()
@@ -151,15 +151,15 @@ func _reapply_combat_cvars() -> void:
 	if game == null or not is_instance_valid(game) or game.combat == null:
 		return
 	for cv in _combat_cvars:
-		if cv is DotConVar and is_instance_valid(cv) and game.combat.has_method(&"set_cvar"):
-			var _applied: Variant = game.combat.call(&"set_cvar", (cv as DotConVar).name, (cv as DotConVar).get_string())
+		if cv is GSConVar and is_instance_valid(cv) and game.combat.has_method(&"set_cvar"):
+			var _applied: Variant = game.combat.call(&"set_cvar", (cv as GSConVar).name, (cv as GSConVar).get_string())
 
 
 ## The loading roster and the handler for the client's cover report on dot-server's envelope.
 ## A kind on the existing envelope because the RPC set is frozen; a client that predates it is
 ## released by the roster's timeout. Duck-typed so an older dot-server still loads this.
 func _build_loading() -> void:
-	loading = DotGameRoster.new()
+	loading = GSGameRoster.new()
 	loading.server = server
 
 	if game != null:
@@ -171,7 +171,7 @@ func _build_loading() -> void:
 	var env: Object = server.get(&"envelope")
 
 	if env != null and env.has_method("register"):
-		env.call("register", DotGameRoster.COVER_KIND, Callable(self, "_on_cover_report"), false)
+		env.call("register", GSGameRoster.COVER_KIND, Callable(self, "_on_cover_report"), false)
 		_handles_cover = true
 
 
@@ -189,29 +189,29 @@ func _start_workbench() -> void:
 		return
 	if game.player_stack != null and game.player_stack.spawn_overrides != null:
 		wb.add_set(game.player_stack.spawn_overrides, "Spawn points (per map)")
-	var ambient_set := DotGameWorkbench.cvar_set(console, FcAmbience.cvar_types(), AMBIENT_KIND)
+	var ambient_set := GSGameWorkbench.cvar_set(console, FcAmbience.cvar_types(), AMBIENT_KIND)
 	if ambient_set != null:
 		wb.add_set(ambient_set, "Ambience (fc_ambient*)")
 	var wall_types := {}
 	for cvar: String in MOVEMENT_CVARS:
 		if cvar.begins_with("fc_wall"):
 			wall_types[cvar] = "float"
-	var wall_set := DotGameWorkbench.cvar_set(console, wall_types, WALL_KIND)
+	var wall_set := GSGameWorkbench.cvar_set(console, wall_types, WALL_KIND)
 	if wall_set != null:
 		wb.add_set(wall_set, "Wall moves (fc_wall*)")
 	var speed_types := {}
 	for cvar in SPEED_CVARS:
 		speed_types[cvar] = "float"
-	var speed_set := DotGameWorkbench.cvar_set(console, speed_types, SPEED_KIND)
+	var speed_set := GSGameWorkbench.cvar_set(console, speed_types, SPEED_KIND)
 	if speed_set != null:
 		wb.add_set(speed_set, "Speeds (fc_speed_scale, fc_run_speed, ...)")
 	var started := wb.start()
 	if not started.ok:
-		DotLog.result(CHANNEL, "the workbench", started)
+		GSLog.result(CHANNEL, "the workbench", started)
 		return
 	if wb.api == null:
 		return
-	var rt := wb.api.runtime as DotProfileRuntime
+	var rt := wb.api.runtime as GSProfileRuntime
 	if rt == null:
 		return
 	if game.config_binder != null:
@@ -219,9 +219,9 @@ func _start_workbench() -> void:
 	if game.flashlight_binder != null:
 		game.flashlight_binder.attach(rt)
 	if ambient_set != null:
-		var _applied := DotGameWorkbench.bind_cvar_set(ambient_set, rt, console)
+		var _applied := GSGameWorkbench.bind_cvar_set(ambient_set, rt, console)
 	if wall_set != null:
-		var _wall_applied := DotGameWorkbench.bind_cvar_set(wall_set, rt, console)
+		var _wall_applied := GSGameWorkbench.bind_cvar_set(wall_set, rt, console)
 
 
 func _module_unload() -> void:
@@ -241,7 +241,7 @@ func _module_unload() -> void:
 		var env: Object = server.get(&"envelope")
 
 		if env != null and env.has_method("handle"):
-			env.call("handle", DotGameRoster.COVER_KIND, Callable())
+			env.call("handle", GSGameRoster.COVER_KIND, Callable())
 
 		_handles_cover = false
 
@@ -296,7 +296,7 @@ func _module_unload() -> void:
 	# a hub nothing is feeding.
 	if server != null and server.modules != null and server.modules.has_module("platform"):
 		var unloaded := server.modules.unload_module("platform")
-		DotLog.result(CHANNEL, "unloading the platform module", unloaded)
+		GSLog.result(CHANNEL, "unloading the platform module", unloaded)
 
 
 ## [b]Admission finishes AFTER a player is seated[/b], so the name and figure they are seated with are a guest's whenever the profile store is slower than the join. `player_admitted` is the moment the real ones exist;
@@ -315,7 +315,7 @@ func _wire_identity() -> void:
 
 ## What a session looks like: what dot-platform resolved for them, or null for the stock
 ## figure. Through `player_for`, because the hub keys a player by their scoped profile key.
-func _avatar_for(session_id: int) -> DotAvatar:
+func _avatar_for(session_id: int) -> GSAvatar:
 	var session := server.session_by_userid(session_id) if server != null else null
 	var platform: Object = server.modules.get_module("platform") \
 		if server != null and server.modules != null else null
@@ -325,13 +325,13 @@ func _avatar_for(session_id: int) -> DotAvatar:
 
 	var held: Variant = platform.call("player_for", session)
 
-	if held is Object and (held as Object).get("avatar") is DotAvatar:
-		return (held as Object).get("avatar") as DotAvatar
+	if held is Object and (held as Object).get("avatar") is GSAvatar:
+		return (held as Object).get("avatar") as GSAvatar
 
 	return null
 
 
-func _on_profile(event: DotEvent) -> void:
+func _on_profile(event: GSEvent) -> void:
 	var session_id := event.get_int("userid")
 	var session := server.session_by_userid(session_id) if server != null else null
 
@@ -343,7 +343,7 @@ func _on_profile(event: DotEvent) -> void:
 
 ## A client finished the signon and is in the world. [b]`client_spawn`, not `client_connected`.[/b] A connected client has a socket and nothing else (no identity, no content, no confirmation it can load the map),
 ## so adding them to the match there produces a body for someone who may still fail to join.
-func _on_client_spawn(event: DotEvent) -> void:
+func _on_client_spawn(event: GSEvent) -> void:
 	# [b]`client_spawn` carries `userid` and `name`, not `peer_id`.[/b] Reading `event.get_int("peer_id")` gives 0 on every event, so `session_of(0)` returned null and nobody ever joined a dedicated Fatal Contact server, silently;
 	# a null session is legitimate, so nothing errored, and `dedicated.tscn` never connects a client. The family's notes carry this bug, found in game-hungario.
 	var session := server.session_by_userid(event.get_int("userid"))
@@ -363,7 +363,7 @@ func _on_client_spawn(event: DotEvent) -> void:
 	_add(session)
 
 
-func _add(session: DotClientSession) -> void:
+func _add(session: GSClientSession) -> void:
 	if _joined.has(session.userid):
 		return
 
@@ -383,7 +383,7 @@ func _add(session: DotClientSession) -> void:
 
 	_joined[session.userid] = true
 
-	var loadouts := DotGameAvatarActionRelay.loadouts_of(net)
+	var loadouts := GSGameAvatarActionRelay.loadouts_of(net)
 	if loadouts != null:
 		loadouts.add_peer(session.peer_id)
 
@@ -407,7 +407,7 @@ func _add(session: DotClientSession) -> void:
 	})
 
 
-func _on_client_disconnected(session: DotClientSession, _reason: String) -> void:
+func _on_client_disconnected(session: GSClientSession, _reason: String) -> void:
 	if not _joined.has(session.userid):
 		return
 
@@ -420,7 +420,7 @@ func _on_client_disconnected(session: DotClientSession, _reason: String) -> void
 		app_wiring.call(&"player_left", session.userid)
 	game.loadout_identity.release(session.userid)
 
-	var loadouts := DotGameAvatarActionRelay.loadouts_of(net)
+	var loadouts := GSGameAvatarActionRelay.loadouts_of(net)
 	if loadouts != null:
 		loadouts.remove_peer(session.peer_id)
 
@@ -448,7 +448,7 @@ func _on_client_disconnected(session: DotClientSession, _reason: String) -> void
 		vote.forget_voter(StringName(str(session.userid)))
 
 
-func _on_player_killed(entry: DotKillFeed.Entry) -> void:
+func _on_player_killed(entry: GSKillFeed.Entry) -> void:
 	# The server log, not chat: every client draws the kill feed top-right, so a chat
 	# line repeated it. A headless operator still reads kills here.
 	log_info("kill", {"line": str(entry)})
@@ -533,9 +533,9 @@ func _reply_chat(peer: int, text: String) -> void:
 
 
 ## The map changed, whatever caused it: a vote, a rotation, or an admin typing it. [b]This is the one call site that tells the vote what is running, and having two is the bug.[/b]
-## `DotVoteDirector.begin_on_apply` is off so this signal is the only source: it fires for an operator's `map` as well as a voted change,
+## `GSVoteDirector.begin_on_apply` is off so this signal is the only source: it fires for an operator's `map` as well as a voted change,
 ## and both firing means two play-history entries for one play, a "not in the last five" cooldown that is quietly two or three.
-func _on_map_changed(map: DotMapDef) -> void:
+func _on_map_changed(map: GSMapDef) -> void:
 	# The profile's cvars went on last, so they come off first: a key both set gets the file's value back right.
 	if profile_config == null and console != null:
 		profile_config = FcMapConfig.build_profile(console)
@@ -557,7 +557,7 @@ func _on_map_changed(map: DotMapDef) -> void:
 	if vote != null:
 		vote.note_changed()
 
-	# [b]Every `return` point is a place on the map that just went.[/b] DotModTools keeps a stack of positions per player; without this `return Ada` after a change put her where she had stood on the previous map,
+	# [b]Every `return` point is a place on the map that just went.[/b] GSModTools keeps a stack of positions per player; without this `return Ada` after a change put her where she had stood on the previous map,
 	# inside whatever the new one has there (`[modtools-return-1]`; Playlot, hungario and the lobby do the same).
 	if services != null and services.mod_tools != null:
 		services.mod_tools.clear_history()
@@ -577,18 +577,18 @@ func _follow_mode() -> void:
 
 
 ## The converted world's PVS as the snapshot visibility (cvar net_visibility); a built-in map clears it.
-## [param map] is untyped: FcMap is not a DotMapDef subclass (as in arena_map_io).
+## [param map] is untyped: FcMap is not a GSMapDef subclass (as in arena_map_io).
 func _attach_visibility(map) -> void:
 	if game != null:
 		game.set_meta(FcBotPvs.META, null)
-	if net == null or map == null or DotAddonApi.build_level("dot_game") < 52:
+	if net == null or map == null or GSAddonApi.build_level("dot_game") < 52:
 		return
 	var mesh: Object = null
 	if map.has_method(&"is_imported") and map.is_imported():
 		var prefix := FcBspMap.world_prefix(String(map.id), String(map.manifest_path).get_base_dir())
-		var got: DotResult = DotMapBspMesh.load_prefix(prefix) if not prefix.is_empty() else null
+		var got: GSResult = GSMapBspMesh.load_prefix(prefix) if not prefix.is_empty() else null
 		mesh = got.value if got != null and got.ok else null
-	var on: bool = (DotGameNetcode as GDScript).call(&"attach_visibility", net, mesh)
+	var on: bool = (GSGameNetcode as GDScript).call(&"attach_visibility", net, mesh)
 	# The same set before each bot sight ray (FcBotPvs, cvar `fc_bot_pvs`): the bots' world has the game, not the netcode.
 	if game != null and on:
 		game.set_meta(FcBotPvs.META, net.interest.get(&"visibility"))
@@ -602,7 +602,7 @@ func _report_map(map_id: String) -> void:
 		return
 	# dot-server 19 sends the map's download group to joining clients with the pack's own groups.
 	# By name, so a build with an older dot-server still parses this file.
-	if DotAddonApi.build_level("dot_server") >= 19:
+	if GSAddonApi.build_level("dot_server") >= 19:
 		server.games.call(&"set_current_map", map_id, FcContentGroups.groups_for(StringName(map_id)))
 	else:
 		server.games.set_current_map(map_id)
@@ -610,7 +610,7 @@ func _report_map(map_id: String) -> void:
 
 ## The map's clock ran out. The director deliberately does not act on it: on a server with a vote the answer is "open the ballot" and on one without it is "next in rotation",
 ## and only this file knows which this server is.
-func _on_map_over(_map: DotMapDef, reason: StringName) -> void:
+func _on_map_over(_map: GSMapDef, reason: StringName) -> void:
 	if vote != null:
 		var opened := vote.director.open_vote(reason)
 
@@ -622,8 +622,8 @@ func _on_map_over(_map: DotMapDef, reason: StringName) -> void:
 		})
 
 	if maps != null:
-		var changed: DotResult = await maps.change_to_next(game.players().size())
-		DotLog.result(CHANNEL, "changing to the next map", changed)
+		var changed: GSResult = await maps.change_to_next(game.players().size())
+		GSLog.result(CHANNEL, "changing to the next map", changed)
 
 
 ## The commands that only exist once the optional halves loaded. Registered after them rather than beside the others,
@@ -637,13 +637,13 @@ func _add_extra_commands() -> void:
 		# `map`, `maps` and `mapinfo` come from dot-map itself (dot-server's `map` changed the GAME, which is not what an operator typing `map` means); dot-server's game change is `changelevel`, `game` and `gamechange`.
 		# The map change is dot-map's `map` (CHANGEMAP, like Airdrift's): a map change ends every round in progress, which is about who may do it, not where they typed it. `sv_chat_commands 0` makes it console-only.
 		# `allow_chat_change` stays at its default, ON: CHANGEMAP decides who may end a round in progress, wherever typed. A relayed website command arrives as `Source.CHAT`;
-		# `DotChatRelayConfig.command_source` can promote a relay to RCON. The SYNC HOST is the changer, not the session: `FcMapDirector.session` alone swaps the world in this process and tells nobody.
-		var map_commands := DotMapCommands.new()
+		# `GSChatRelayConfig.command_source` can promote a relay to RCON. The SYNC HOST is the changer, not the session: `FcMapDirector.session` alone swaps the world in this process and tells nobody.
+		var map_commands := GSMapCommands.new()
 		map_commands.session = maps.session
 		map_commands.changer = maps.sync
 		map_commands.player_count_fn = func() -> int:
 			return game.players().size() if game != null else 0
-		map_commands.rotation_file_fn = func() -> DotMapRotationFile:
+		map_commands.rotation_file_fn = func() -> GSMapRotationFile:
 			return maps.rotation_file if maps != null else null
 		map_commands.spec_fn = _rotation_commands
 		map_commands.bind(self)
@@ -651,27 +651,27 @@ func _add_extra_commands() -> void:
 		# FC's own name for the same change: `fc_map <id>` runs `map <id>` with the caller's context, so it is the same
 		# sync-host change (map_changed: map config, profile, vote, report) under the same changemap flag, not a second path.
 		add_command(
-			"fc_map", _cmd_fc_map, "Change the map (the same as map): fc_map <id>", DotAdminFlags.CHANGEMAP
+			"fc_map", _cmd_fc_map, "Change the map (the same as map): fc_map <id>", GSAdminFlags.CHANGEMAP
 		)
 
 	if vote != null:
 		add_command(
-			"fc_vote", _cmd_vote, "Open a vote now", DotAdminFlags.VOTE
+			"fc_vote", _cmd_vote, "Open a vote now", GSAdminFlags.VOTE
 		)
 
 		var commanded := vote.install_commands(self)
-		DotLog.result(CHANNEL, "the vote's commands", commanded)
+		GSLog.result(CHANNEL, "the vote's commands", commanded)
 
 	if services != null:
 		add_command(
 			"fc_services", _cmd_services,
-			"Show chat, voice and moderation", DotAdminFlags.GENERIC
+			"Show chat, voice and moderation", GSAdminFlags.GENERIC
 		)
 
 	if identity != null:
 		add_command(
 			"fc_identity", _cmd_identity,
-			"Show the platform layer", DotAdminFlags.GENERIC
+			"Show the platform layer", GSAdminFlags.GENERIC
 		)
 
 	if game.progress != null:
@@ -682,38 +682,38 @@ func _add_extra_commands() -> void:
 	if game.horde != null:
 		add_command(
 			"fc_horde", _cmd_horde,
-			"Show or clear the monsters: fc_horde [clear]", DotAdminFlags.GENERIC
+			"Show or clear the monsters: fc_horde [clear]", GSAdminFlags.GENERIC
 		)
 
 
-func _cmd_fc_map(ctx: DotCmdContext) -> void:
+func _cmd_fc_map(ctx: GSCmdContext) -> void:
 	var line := "map"
 	for arg: String in ctx.args:
 		line += " " + (arg if not (arg.contains(" ") or arg.contains(";") or arg.is_empty()) else "\"%s\"" % arg)
 	var _ran := server.console.execute(line, ctx)
 
 
-func _cmd_nextmap(ctx: DotCmdContext) -> void:
+func _cmd_nextmap(ctx: GSCmdContext) -> void:
 	ctx.reply("Next: %s" % maps.next_map_hint())
 	ctx.reply(_timeleft_line())
 
 
-func _cmd_vote(ctx: DotCmdContext) -> void:
-	var opened := vote.director.open_vote(DotVoteClock.REASON_MANUAL)
+func _cmd_vote(ctx: GSCmdContext) -> void:
+	var opened := vote.director.open_vote(GSVoteClock.REASON_MANUAL)
 	ctx.reply("Vote opened." if opened.ok else opened.error.message)
 
 
-func _cmd_services(ctx: DotCmdContext) -> void:
+func _cmd_services(ctx: GSCmdContext) -> void:
 	for line in services.describe_lines():
 		ctx.reply(line)
 
 
-func _cmd_identity(ctx: DotCmdContext) -> void:
+func _cmd_identity(ctx: GSCmdContext) -> void:
 	for line in identity.describe_lines():
 		ctx.reply(line)
 
 
-func _cmd_boards(ctx: DotCmdContext) -> void:
+func _cmd_boards(ctx: GSCmdContext) -> void:
 	# A remote board takes a moment; say so rather than leave the console silent.
 	if game.progress.boards.backend == "backbone":
 		ctx.reply("Fetching the board...")
@@ -735,15 +735,15 @@ func _cmd_boards(ctx: DotCmdContext) -> void:
 		rank += 1
 		ctx.reply("%2d. %-20s %s" % [
 			rank,
-			(entry as DotLeaderboardEntry).player_name,
-			board.format_value((entry as DotLeaderboardEntry).value),
+			(entry as GSLeaderboardEntry).player_name,
+			board.format_value((entry as GSLeaderboardEntry).value),
 		])
 
 	if rank == 0:
 		ctx.reply("Nobody is on that board yet.")
 
 
-func _cmd_horde(ctx: DotCmdContext) -> void:
+func _cmd_horde(ctx: GSCmdContext) -> void:
 	if not ctx.args.is_empty() and ctx.args[0] == "clear":
 		ctx.reply("Removed %d monster(s)." % game.horde.clear())
 		return

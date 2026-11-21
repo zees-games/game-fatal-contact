@@ -1,4 +1,4 @@
-extends DotGamePerfBench
+extends GSGamePerfBench
 
 const FcPresentation := preload("../game/fc_presentation.gd")
 const ClientBench := preload("client_bench.gd")
@@ -12,10 +12,10 @@ const ProcSlices := preload("proc_slices.gd")
 const FcPlayerStack := preload("../game/fc_player_stack.gd")
 const FcNpcs := preload("../game/fc_npcs.gd")
 
-## The 16v16 benchmark: dot-game's DotGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--brain-us 1` (DotBotBrain.think phases, as brain.bb_*), `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (DotSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (DotSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
+## The 16v16 benchmark: dot-game's GSGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--brain-us 1` (GSBotBrain.think phases, as brain.bb_*), `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (GSSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (GSSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
 ## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (dot-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
 ## `--first-use-only a,b` for some ids; rows also: hit, kill, death, `reload ID` (`--first-use-reload 0` skips), a thrown weapon's shot over `--first-use-thrown-frames N` frames (default 240: the fuse and blast), `npc ID` and `npc kill ID` with a horde mode such as `--mode siege`); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose); `--proc-ablate a,b --proc-slice N` (with --proc-split 1): each named group off for slices of N frames (default 40) between base slices, its ms/frame against them (tools/proc_slices.gd lists the groups; `own:<script>` / `sub:<script>` for one script's nodes). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (dot-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms.
-## `--lazy-models 1`: the client defers the models of weapons nobody carries until after the cover, as the web build does (FcClient defer_models_everywhere), and the bench does not read them all ahead, so `--first-use 1` prices those first equips. `--warm-list 1`: after the first-use rows, a `WARM_LIST <path>` line for every script loaded so far that the cover warms anyway (DotCloudSliceLoader.cached_scripts; pack scripts and addon classes; tools/record_warm_list.sh turns them into warm.txt).
+## `--lazy-models 1`: the client defers the models of weapons nobody carries until after the cover, as the web build does (FcClient defer_models_everywhere), and the bench does not read them all ahead, so `--first-use 1` prices those first equips. `--warm-list 1`: after the first-use rows, a `WARM_LIST <path>` line for every script loaded so far that the cover warms anyway (GSCloudSliceLoader.cached_scripts; pack scripts and addon classes; tools/record_warm_list.sh turns them into warm.txt).
 
 var _pilot := true
 var _motor_us := false
@@ -57,7 +57,7 @@ func _ready() -> void:
 	_ctl_us = int(args.get("ctl-us", 0)) != 0
 	_brain_us = int(args.get("brain-us", 0)) != 0
 	_weapon_us = int(args.get("weapon-us", 0)) != 0
-	_native_us = int(args.get("native-us", 0)) != 0 and ClassDB.class_exists(&"DotSimFpsBody")
+	_native_us = int(args.get("native-us", 0)) != 0 and ClassDB.class_exists(&"GSSimFpsBody")
 	_max_steps = int(args.get("max-steps", -1))
 	_fine = int(args.get("fine", 1)) != 0
 	_lazy_models = int(args.get("lazy-models", 0)) != 0
@@ -71,7 +71,7 @@ func _ready() -> void:
 	if wh.size() == 2 and DisplayServer.get_name() != "headless":
 		get_window().size = Vector2i(int(wh[0]), int(wh[1]))
 	if int(args.get("web-defaults", 0)) != 0:
-		# The browser build's defaults (DotPlatform.is_web()), before the flags below may override one.
+		# The browser build's defaults (GSPlatform.is_web()), before the flags below may override one.
 		var ap := preload("../game/fc_player.gd")
 		ap.lod_off_every = ap.WEB_LOD_OFF_EVERY
 		say("web defaults: lod_off_every %d" % ap.lod_off_every)
@@ -84,7 +84,7 @@ func _ready() -> void:
 	if args.has("figure-lift-range"):
 		# By name as well: the console hands the figure FcPlayer's value; a dot-player-char older than 27 has no lift_range.
 		preload("../game/fc_player.gd").figure_lift_range = float(args["figure-lift-range"])
-		(DotHumanoidFigure as Script).set(&"lift_range", float(args["figure-lift-range"]))
+		(GSHumanoidFigure as Script).set(&"lift_range", float(args["figure-lift-range"]))
 	if args.has("lod-scale"):
 		preload("../game/fc_player.gd").lod_scale = float(args["lod-scale"])
 	if args.has("sight-far"):
@@ -117,10 +117,10 @@ func _ready() -> void:
 	say("weapon spread: %s" % ("native" if AwWeaponRig.native_spread_active() else "script"))
 	if args.has("ragdoll-native"):
 		# By name: the bench also runs against a dot-player-char older than the switch.
-		(DotPlayerRagdoll as Script).set(&"native_pose", int(args["ragdoll-native"]) != 0)
+		(GSPlayerRagdoll as Script).set(&"native_pose", int(args["ragdoll-native"]) != 0)
 	if int(args.get("target-first", 1)) == 0:
 		# By name: the bench also runs against a dot-bot older than the switch.
-		(DotBotBrain as Script).set(&"target_first", false)
+		(GSBotBrain as Script).set(&"target_first", false)
 	_ablate = String(args.get("ablate", "")).split(",", false)
 	preload("../game/fc_player.gd").present_ablate = int(args.get("present-ablate", 0))
 	preload("../game/fc_client_prewarm.gd").prewarm_weapons_enabled = int(args.get("prewarm", 1)) != 0
@@ -147,7 +147,7 @@ func _select(game: Object) -> void:
 		Engine.physics_ticks_per_second = _tick
 	if not _lazy_models:
 		var _warmed := AwModelCache.warm(AwWeaponArtTable.model_paths())
-	var picked: DotResult = null
+	var picked: GSResult = null
 	if String(game.get("map").id) != map:
 		picked = await client.call("change_from_menu", StringName("map:" + map), StringName("mode:" + mode))
 	elif String(game.get("mode").id) != mode:
@@ -169,7 +169,7 @@ func _select_hosted() -> void:
 	# Booted elsewhere (`--boot-map`, or a map the server could not mount): change to the map from the menu as a
 	# player would; the client's timeline reports the change ("map change map:ID to playable").
 	if String(client.get("game").get("map").id) != map:
-		var picked: DotResult = await client.call("change_from_menu", StringName("map:" + map), StringName("mode:" + mode))
+		var picked: GSResult = await client.call("change_from_menu", StringName("map:" + map), StringName("mode:" + mode))
 		say("sim host: map change to %s mode %s: %s" % [map, mode, "ok" if picked.ok else picked.error.message])
 		await wait_gate(120.0)
 	t = 0.0
@@ -191,7 +191,7 @@ func _first_use(_game: Object) -> void:
 		ids.clear()
 		for s in String(args["first-use-only"]).split(",", false):
 			ids.append(StringName(s))
-	var at_gate := DotCloudSliceLoader.cached_scripts("res://", DotCloudClient.WARM_SKIP_DIRS).size()
+	var at_gate := GSCloudSliceLoader.cached_scripts("res://", GSCloudClient.WARM_SKIP_DIRS).size()
 	await _first_hit()
 	await _first_footsteps()
 	await _first_kill()
@@ -199,7 +199,7 @@ func _first_use(_game: Object) -> void:
 	var reloads := int(args.get("first-use-reload", 1)) != 0
 	var thrown_frames := int(args.get("first-use-thrown-frames", 240))
 	for id in ids:
-		var def: DotWeaponDef = AwWeaponCatalogue.table().get(id)
+		var def: GSWeaponDef = AwWeaponCatalogue.table().get(id)
 		var me: Variant = client.get("player")
 		if def == null or me == null:
 			say("first use: skip %s (%s)" % [id, "no def" if def == null else "no player"])
@@ -229,7 +229,7 @@ func _first_use(_game: Object) -> void:
 			await wait(float(def.reload_ticks) / float(maxi(def.authored_tick_rate, 66)) + 0.5)
 	await _first_death()
 	if int(args.get("warm-list", 0)) != 0:
-		var scripts := DotCloudSliceLoader.cached_scripts("res://", DotCloudClient.WARM_SKIP_DIRS)
+		var scripts := GSCloudSliceLoader.cached_scripts("res://", GSCloudClient.WARM_SKIP_DIRS)
 		# Only what the cover warms anyway: the pack's own scripts and the addon classes. A listed script the cover's scan does not
 		# find (an addon script reached only through a preload) blocks it as well, and that only moves its compile from the gate
 		# to the cover: with them, warm.txt held the warm web cover 4 s longer (staging02, 2026-11-19).
@@ -268,8 +268,8 @@ func _first_footsteps() -> void:
 	var heard: Variant = client.get("presentation").audio if client.get("presentation") != null else null
 	if me == null or heard == null:
 		return
-	for surface: StringName in DotAudioStock.SURFACES:
-		var id := DotAudioStock.footstep_id(surface)
+	for surface: StringName in GSAudioStock.SURFACES:
+		var id := GSAudioStock.footstep_id(surface)
 		var _row := await time_first_use("footstep %s" % surface, func() -> void: heard.play_at(id, me.global_position), Callable(), 0, 20)
 		await wait(0.3)
 
@@ -284,13 +284,13 @@ func _other_player(me: Variant, game: Variant) -> Variant:
 
 ## Lethal damage from [param attacker] to [param victim] through the game's own combat (feed, award, ragdoll, drop), protection off.
 func _kill(game: Variant, attacker: int, victim: int) -> void:
-	var health: DotHealth = game.combat.health_of(victim)
+	var health: GSHealth = game.combat.health_of(victim)
 	if health == null:
 		return
 	health.invulnerable = false
 	health.invulnerable_until_tick = -1
-	var type: DotDamageType = game.combat.damage_type(&"bullet")
-	var hit := DotDamage.make(attacker, victim, health.health + health.armour + 50.0, type)
+	var type: GSDamageType = game.combat.damage_type(&"bullet")
+	var hit := GSDamage.make(attacker, victim, health.health + health.armour + 50.0, type)
 	hit.tick = game.current_tick()
 	hit.weapon_id = &"rifle"
 	game.combat.apply_damage(hit)
@@ -339,11 +339,11 @@ func _first_npcs() -> void:
 	for point: Vector3 in horde.nav.points:
 		if point.distance_squared_to(want) < at.distance_squared_to(want):
 			at = point
-	for def: DotNpcDef in FcNpcs.catalogue().in_faction(FcNpcs.FACTION):
+	for def: GSNpcDef in FcNpcs.catalogue().in_faction(FcNpcs.FACTION):
 		var held: Array = []
 		var _spawned := await time_first_use("npc %s" % def.id, func() -> void: held.append(horde.spawn_one(def.id, at)), Callable(), 0, 45)
 		await wait(0.5)
-		var npc: DotNpcInstance = held[0] if not held.is_empty() else null
+		var npc: GSNpcInstance = held[0] if not held.is_empty() else null
 		if npc == null:
 			say("first use: npc %s did not spawn" % def.id)
 			continue
@@ -445,28 +445,28 @@ func _record_begin() -> void:
 			_proc_slices.levers = String(args["proc-ablate"]).split(",", false)
 			_proc_slices.slice = int(args.get("proc-slice", 40))
 			add_child(_proc_slices)
-	DotFpsPhysicsBody.profile = _queries
-	DotFpsPhysicsBody.prof.fill(0)
+	GSFpsPhysicsBody.profile = _queries
+	GSFpsPhysicsBody.prof.fill(0)
 	# --ctl-us 1: the controller's phases alone, on whichever motor path runs (--motor-us forces the script one).
-	DotFpsController.phase_timers = _ctl_us
-	DotBotBrain.phase_timers = _brain_us
+	GSFpsController.phase_timers = _ctl_us
+	GSBotBrain.phase_timers = _brain_us
 	if _brain_us:
-		DotBotBrain.phase_us.fill(0)
+		GSBotBrain.phase_us.fill(0)
 	AwWeaponRig.phase_timers = _weapon_us
-	DotWeaponArsenal.phase_timers = _weapon_us
+	GSWeaponArsenal.phase_timers = _weapon_us
 	AwWeaponRig.phase_us.fill(0)
 	AwWeaponRig.phase_calls.fill(0)
-	DotWeaponArsenal.phase_us.fill(0)
-	DotWeaponArsenal.phase_calls.fill(0)
+	GSWeaponArsenal.phase_us.fill(0)
+	GSWeaponArsenal.phase_calls.fill(0)
 	if _ctl_us:
-		DotFpsController.phase_us.fill(0)
+		GSFpsController.phase_us.fill(0)
 	if _motor_us:
-		DotFpsMotor.profile = true
-		DotFpsController.phase_us.fill(0)
-		DotFpsMotor.phase_us.fill(0)
+		GSFpsMotor.profile = true
+		GSFpsController.phase_us.fill(0)
+		GSFpsMotor.phase_us.fill(0)
 	if _native_us:
-		ClassDB.class_call_static(&"DotSimFpsBody", &"reset_profile")
-		ClassDB.class_call_static(&"DotSimFpsBody", &"set_profile", true)
+		ClassDB.class_call_static(&"GSSimFpsBody", &"reset_profile")
+		ClassDB.class_call_static(&"GSSimFpsBody", &"set_profile", true)
 
 
 func _record_end() -> void:
@@ -483,19 +483,19 @@ func _record_end() -> void:
 		for r: Dictionary in _sched[who]:
 			say("sched %s %s%s run %.2f rq %.2f vcs %.2f nvcs %.2f ms|n/frame" % [who, r.comm, " (main)" if r.main else "", r.run_ms, r.rq_wait_ms, r.vcs, r.nvcs])
 	FcFrameProbe.fine = false
-	DotFpsPhysicsBody.profile = false
-	DotFpsMotor.profile = false
-	DotFpsController.phase_timers = false
-	DotBotBrain.phase_timers = false
+	GSFpsPhysicsBody.profile = false
+	GSFpsMotor.profile = false
+	GSFpsController.phase_timers = false
+	GSBotBrain.phase_timers = false
 	AwWeaponRig.phase_timers = false
-	DotWeaponArsenal.phase_timers = false
+	GSWeaponArsenal.phase_timers = false
 	if _native_us:
-		ClassDB.class_call_static(&"DotSimFpsBody", &"set_profile", false)
+		ClassDB.class_call_static(&"GSSimFpsBody", &"set_profile", false)
 
 
 func _sidecar_extra(_game: Object) -> Dictionary:
 	var n := frames_recorded()
-	var pr := DotFpsPhysicsBody.prof
+	var pr := GSFpsPhysicsBody.prof
 	var queries := {}
 	var names := ["cast", "rest", "overlap", "ray"]
 	for i in names.size():
@@ -506,14 +506,14 @@ func _sidecar_extra(_game: Object) -> Dictionary:
 		# Totals over the recording in ms per frame; per player tick is these over arena.p_controller calls.
 		var ctl := ["pre", "consume", "motor", "publish", "report", "signals_stats", "post", "set_position"]
 		for i in ctl.size():
-			phases["ctl." + ctl[i]] = snappedf(DotFpsController.phase_us[i] / 1000.0 / n, 0.001)
+			phases["ctl." + ctl[i]] = snappedf(GSFpsController.phase_us[i] / 1000.0 / n, 0.001)
 	if _brain_us:
-		for i in DotBotBrain.PHASES.size():
-			phases["brain." + DotBotBrain.PHASES[i]] = snappedf(DotBotBrain.phase_us[i] / 1000.0 / n, 0.001)
+		for i in GSBotBrain.PHASES.size():
+			phases["brain." + GSBotBrain.PHASES[i]] = snappedf(GSBotBrain.phase_us[i] / 1000.0 / n, 0.001)
 	if _motor_us:
-		for i in DotFpsMotor.PHASES.size():
-			if DotFpsMotor.PHASES[i] != "":
-				phases["motor." + DotFpsMotor.PHASES[i]] = snappedf(DotFpsMotor.phase_us[i] / 1000.0 / n, 0.001)
+		for i in GSFpsMotor.PHASES.size():
+			if GSFpsMotor.PHASES[i] != "":
+				phases["motor." + GSFpsMotor.PHASES[i]] = snappedf(GSFpsMotor.phase_us[i] / 1000.0 / n, 0.001)
 	var weapon := {}
 	if _weapon_us:
 		# Per rig call (idle and full together); the arsenal's per call of its own, its counts beside.
@@ -521,20 +521,20 @@ func _sidecar_extra(_game: Object) -> Dictionary:
 		weapon["rig_calls"] = {"idle": rc[0], "full": rc[1]}
 		for i in AwWeaponRig.PHASES.size():
 			weapon["pw." + AwWeaponRig.PHASES[i]] = snappedf(float(AwWeaponRig.phase_us[i]) / maxf(rc[0] + rc[1], 1.0), 0.01)
-		var ac := DotWeaponArsenal.phase_calls
+		var ac := GSWeaponArsenal.phase_calls
 		weapon["arsenal_calls"] = {"full": ac[0], "idle": ac[1], "idle_rested": ac[2]}
-		for i in DotWeaponArsenal.PHASES.size():
-			weapon["pa." + DotWeaponArsenal.PHASES[i]] = snappedf(float(DotWeaponArsenal.phase_us[i]) / maxf(ac[0] + ac[1], 1.0), 0.01)
+		for i in GSWeaponArsenal.PHASES.size():
+			weapon["pa." + GSWeaponArsenal.PHASES[i]] = snappedf(float(GSWeaponArsenal.phase_us[i]) / maxf(ac[0] + ac[1], 1.0), 0.01)
 	var native := {}
 	if _native_us:
 		# Count then microseconds per slot: the four engine queries, then whole native ticks; the tick less the queries is dot-sim's own work.
-		var c: PackedInt64Array = ClassDB.class_call_static(&"DotSimFpsBody", &"profile_counters")
+		var c: PackedInt64Array = ClassDB.class_call_static(&"GSSimFpsBody", &"profile_counters")
 		var slots := ["cast", "rest", "overlap", "ray", "tick"]
 		for i in mini(slots.size(), c.size() / 2):
 			native[slots[i]] = {"per_frame": snappedf(float(c[i * 2]) / n, 0.01), "ms_per_frame": snappedf(c[i * 2 + 1] / 1000.0 / n, 0.001),
 				"us_each": snappedf(float(c[i * 2 + 1]) / maxf(c[i * 2], 1.0), 0.01)}
 	# Which movers gathered their hulls natively (dot-sim's hull world) and which by script: native 0 with a world
-	# false means the loaded libdot_sim predates DotSimHullWorld (rebuild it, ci/install.sh).
+	# false means the loaded libdot_sim predates GSSimHullWorld (rebuild it, ci/install.sh).
 	var hulls := {}
 	if _game != null:
 		hulls["world"] = _game.get(&"_hull_world") != null
@@ -551,7 +551,7 @@ func _sidecar_extra(_game: Object) -> Dictionary:
 		hulls["batch"] = FcHullGrid.batch
 		hulls["batch_rows"] = FcHullGrid.batch_rows
 		hulls["batch_faults"] = FcHullGrid.batch_faults
-	return {"phases_ms_per_frame": phases, "weapon_us_per_call": weapon, "native": native, "hulls": hulls, "sim_host": _sim_host and client.get("_sim_host") != null, "sched": _sched, "net": FcNetContext.describe(client.get("bridge")), "pilot": _pilot, "brain_native": FcPlayerStack.brain_native(), "ragdoll_native": (DotPlayerRagdoll as Script).get(&"native_pose") == true and ClassDB.class_exists(&"DotSimRagdollPose"), "queries": _queries, "max_steps": _max_steps, "fine": _fine, "motor_queries": queries, "body_skipped": preload("../game/fc_player.gd").body_skipped, "tiers": preload("../game/fc_bots.gd").tiers.describe()}
+	return {"phases_ms_per_frame": phases, "weapon_us_per_call": weapon, "native": native, "hulls": hulls, "sim_host": _sim_host and client.get("_sim_host") != null, "sched": _sched, "net": FcNetContext.describe(client.get("bridge")), "pilot": _pilot, "brain_native": FcPlayerStack.brain_native(), "ragdoll_native": (GSPlayerRagdoll as Script).get(&"native_pose") == true and ClassDB.class_exists(&"GSSimRagdollPose"), "queries": _queries, "max_steps": _max_steps, "fine": _fine, "motor_queries": queries, "body_skipped": preload("../game/fc_player.gd").body_skipped, "tiers": preload("../game/fc_bots.gd").tiers.describe()}
 
 
 ## Casters by size: the census (`shadowcensus`) and the cuts `smallcast` (longest side < 0.6 m) and `smallcast2` (< 1.5 m).

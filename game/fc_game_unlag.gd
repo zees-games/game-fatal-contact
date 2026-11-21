@@ -7,7 +7,7 @@ func _resolve_stomps() -> void:
 	_sync_stomp_config()
 	if not stomp.rules.enabled or combat == null:
 		return
-	# The hulls are gathered only once someone falls fast enough to stomp: DotStomp.find
+	# The hulls are gathered only once someone falls fast enough to stomp: GSStomp.find
 	# returns 0 below min_speed without reading them, and most ticks nobody does.
 	var gathered := false
 	for id in player_ids():
@@ -19,9 +19,9 @@ func _resolve_stomps() -> void:
 		if not gathered:
 			_gather_stomp_hulls()
 			gathered = true
-		var state: DotFpsState = player.controller.state
+		var state: GSFpsState = player.controller.state
 		var radius: float = player.controller.tunables.radius
-		# Only the hulls under these feet: DotStomp.find refuses the rest on these same two tests, so its answer is unchanged.
+		# Only the hulls under these feet: GSStomp.find refuses the rest on these same two tests, so its answer is unchanged.
 		var hulls := _stomp_hulls_under(id, state.position, radius)
 		if hulls.is_empty():
 			continue
@@ -31,7 +31,7 @@ func _resolve_stomps() -> void:
 		)
 		if victim == 0:
 			continue
-		var hit := DotDamage.make(id, victim, stomp.amount(), combat.damage_type(FcContent.DAMAGE_STOMP))
+		var hit := GSDamage.make(id, victim, stomp.amount(), combat.damage_type(FcContent.DAMAGE_STOMP))
 		hit.tick = _tick
 		hit.point = state.position
 		hit.weapon_id = FcContent.DAMAGE_STOMP
@@ -64,7 +64,7 @@ func _gather_stomp_hulls() -> void:
 		_st_radius.append(other.controller.tunables.radius)
 
 
-## The hulls DotStomp.find would weigh for feet at [param feet]: its head-gap and reach tests, same arithmetic, same order.
+## The hulls GSStomp.find would weigh for feet at [param feet]: its head-gap and reach tests, same arithmetic, same order.
 func _stomp_hulls_under(attacker: int, feet: Vector3, radius: float) -> Array:
 	var hulls: Array = []
 	var tolerance: float = stomp.rules.head_tolerance
@@ -196,7 +196,7 @@ func _unlag_restore() -> void:
 ## match's clock and win check run last, so a kill scored on this tick can end the
 ## round on this tick rather than the next one.
 ##
-## [param commands] is `{player id: [DotFpsCommand, DotWeaponCommand]}`. A player with
+## [param commands] is `{player id: [GSFpsCommand, GSWeaponCommand]}`. A player with
 ## no entry repeats their last command, which is what a dropped input packet should
 ## look like.
 ## Slots in a position ring: [constant UNLAG_SECONDS] of ticks at this game's rate (never under [constant UNLAG_HISTORY]).
@@ -265,7 +265,7 @@ func team_of(id: int) -> int:
 
 
 ## The sides in play, empty in a free-for-all.
-func teams() -> Array[DotTeam]:
+func teams() -> Array[GSTeam]:
 	# A client's own match is the mode it started in (free-for-all), not the one the server plays:
 	# the sides come from the mode it is shown, which is what the server announced.
 	if not is_authority:
@@ -291,7 +291,7 @@ func _mode_shown() -> FcMode:
 	return null
 
 
-var _shown_sides: Array[DotTeam] = []
+var _shown_sides: Array[GSTeam] = []
 
 
 var _shown_sides_for: FcMode = null

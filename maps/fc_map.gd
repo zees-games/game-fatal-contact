@@ -100,7 +100,7 @@ func _level_box(painter: FcMapPaint.Painter, index: int, bake_floor: float) -> S
 	)
 
 ## [method to_scene] built in slices behind a loading cover. A headless process keeps the one-shot build.
-func to_scene_async(slice: DotFrameSlice) -> Node3D:
+func to_scene_async(slice: GSFrameSlice) -> Node3D:
 	if is_imported():
 		if use_worlds or local_prefix != "":
 			var bare := Node3D.new()
@@ -109,7 +109,7 @@ func to_scene_async(slice: DotFrameSlice) -> Node3D:
 				return bare
 			bare.free()
 		return to_scene()
-	if DotPlatform.is_headless():
+	if GSPlatform.is_headless():
 		return to_scene()
 
 	# The photographs and the bake read on loader threads first: read in-frame, they were
@@ -141,9 +141,9 @@ func to_scene_async(slice: DotFrameSlice) -> Node3D:
 	return root
 
 ## Reads [param paths] on loader threads, a frame at a time, and returns what loaded. Missing paths are skipped.
-static func _read_threaded(paths: PackedStringArray, slice: DotFrameSlice) -> Array[Resource]:
+static func _read_threaded(paths: PackedStringArray, slice: GSFrameSlice) -> Array[Resource]:
 	var held: Array[Resource] = []
-	if not DotPlatform.has_threads():
+	if not GSPlatform.has_threads():
 		return held
 	var asked: PackedStringArray = []
 	for path in paths:
@@ -206,7 +206,7 @@ func to_collision() -> Node3D:
 
 ## Builds an imported map's solid in slices for the next [method to_collision], so a client changing map does
 ## not build it in the frame that swaps the world. Other maps are a few boxes and keep the one-shot build.
-func to_collision_async(slice: DotFrameSlice) -> void:
+func to_collision_async(slice: GSFrameSlice) -> void:
 	if not is_imported() or local_prefix != "" or prebuilt_collision != null:
 		return
 	prebuilt_collision = await FcBspMap.build_collision_async(

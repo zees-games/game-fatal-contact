@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## The real solo client with the period key pressed: the team menu as a player opens it. `tools/screenshot.sh --team-menu-key [out.png]`.
-## With `--unwired` a bare DotMenu with no server or offer: the free-for-all fallback (Play, Spectate).
+## With `--unwired` a bare GSMenu with no server or offer: the free-for-all fallback (Play, Spectate).
 
 
 func _initialize() -> void:
@@ -16,14 +16,14 @@ func _run() -> void:
 		if not a.begins_with("--"):
 			out = a
 	DirAccess.make_dir_recursive_absolute(out.get_base_dir())
-	var menu: DotMenu = null
+	var menu: GSMenu = null
 	var client: Node = null
 	if unwired:
 		var back := ColorRect.new()
 		back.color = Color(0.1, 0.12, 0.16)
 		back.set_anchors_preset(Control.PRESET_FULL_RECT)
 		root.add_child(back)
-		menu = DotMenu.new()
+		menu = GSMenu.new()
 		root.add_child(menu)
 		var _t := menu.use_teams()
 	else:

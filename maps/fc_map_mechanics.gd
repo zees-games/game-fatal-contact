@@ -13,7 +13,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## this reads it.
 ##
 ## Every volume is an [AABB] in metres and every question a box test against the player's
-## own hull, for the reason [DotFpsSwimMode] gives: an [Area3D] answers after the physics
+## own hull, for the reason [GSFpsSwimMode] gives: an [Area3D] answers after the physics
 ## step on the main loop, and a client replaying ten ticks of prediction cannot ask one
 ## where it WAS. A box list gives the server and the client's replay the same answer.
 ##
@@ -25,7 +25,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ##   sends you on at its speed. A "once" push is added on entering. An upward push lifts a
 ##   player off the ground.
 ##   [b]Stateless, where Airdrift keeps a per-tick history.[/b] Airdrift remembers which
-##   pushes held a player in a dictionary keyed by `DotFpsState.tick`, and that counter
+##   pushes held a player in a dictionary keyed by `GSFpsState.tick`, and that counter
 ##   does not travel: after a rewind the client's copy keeps counting from its newest tick
 ##   while the position is the server's, so a history keyed by it reads the wrong tick on
 ##   every replay. Here "was this player in it" is asked of the hull where the tick
@@ -35,7 +35,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ##   teleport forgets a push by itself, too: the next tick starts at the destination.
 ## - [b]Gravity[/b] (`trigger_gravity`) scales the fall while airborne inside.
 ## - [b]A conveyor[/b] (`func_conveyor`) carries a player standing on its top.
-## - [b]Water[/b] and [b]ladders[/b] are lists handed to the player's [DotFpsSwimMode] and
+## - [b]Water[/b] and [b]ladders[/b] are lists handed to the player's [GSFpsSwimMode] and
 ##   ladder mode (`fc_ladder_mode.gd`).
 ## - [b]Hurt[/b] (`trigger_hurt`) is REAL damage here, where Airdrift treats 100 or more as a
 ##   death and ignores the rest because a timer run has no health. The engine these maps
@@ -109,7 +109,7 @@ func acts() -> bool:
 ## The volume a player's hull is tested against: the standing (or crouched) hull, and two
 ## units under the feet as well. A trigger lying ON the floor (surf_fruits' pushes are
 ## 1-unit sheets) is touched by a player standing on it, and the hull alone only grazes it.
-static func hull_at(feet: Vector3, tunables: DotFpsTunables, crouch_fraction: float) -> AABB:
+static func hull_at(feet: Vector3, tunables: GSFpsTunables, crouch_fraction: float) -> AABB:
 	var r := tunables.radius
 	var height := tunables.height_at(crouch_fraction)
 	return AABB(feet - Vector3(r, TOUCH_BELOW, r), Vector3(r * 2.0, height + TOUCH_BELOW, r * 2.0))
@@ -117,8 +117,8 @@ static func hull_at(feet: Vector3, tunables: DotFpsTunables, crouch_fraction: fl
 
 ## One tick of the pushes, gravity and conveyors on [param state], after the motor has
 ## moved it. [param start] is where the player stood when the tick began.
-func simulate(motor: DotFpsMotor, state: DotFpsState, start: Vector3, delta: float) -> void:
-	if motor == null or state.mode == DotFpsState.Mode.NOCLIP:
+func simulate(motor: GSFpsMotor, state: GSFpsState, start: Vector3, delta: float) -> void:
+	if motor == null or state.mode == GSFpsState.Mode.NOCLIP:
 		return
 
 	var tunables := motor.tunables
@@ -141,7 +141,7 @@ func simulate(motor: DotFpsMotor, state: DotFpsState, start: Vector3, delta: flo
 ## The indexes into [member hurt] of every volume the hull touches, so a caller can time
 ## each one on its own: the engine these maps come from times a hurt trigger per trigger,
 ## and a player stepping from one into the next takes the second's pulse at once.
-func hurts_at(feet: Vector3, tunables: DotFpsTunables, crouch_fraction: float) -> PackedInt32Array:
+func hurts_at(feet: Vector3, tunables: GSFpsTunables, crouch_fraction: float) -> PackedInt32Array:
 	var touched := PackedInt32Array()
 	if hurt.is_empty():
 		return touched
@@ -154,7 +154,7 @@ func hurts_at(feet: Vector3, tunables: DotFpsTunables, crouch_fraction: float) -
 	return touched
 
 
-func _pushes(motor: DotFpsMotor, state: DotFpsState, hull: AABB, before: AABB, delta: float) -> void:
+func _pushes(motor: GSFpsMotor, state: GSFpsState, hull: AABB, before: AABB, delta: float) -> void:
 	if pushes.is_empty():
 		return
 
@@ -172,7 +172,7 @@ func _pushes(motor: DotFpsMotor, state: DotFpsState, hull: AABB, before: AABB, d
 			if inside and not was_inside:
 				state.velocity += push
 				if push.y > 0.0 and state.is_grounded():
-					motor.set_mode(state, DotFpsState.Mode.AIR)
+					motor.set_mode(state, GSFpsState.Mode.AIR)
 			continue
 
 		if inside:
@@ -182,7 +182,7 @@ func _pushes(motor: DotFpsMotor, state: DotFpsState, hull: AABB, before: AABB, d
 
 	if base != Vector3.ZERO:
 		if base.y > 0.0 and state.is_grounded():
-			motor.set_mode(state, DotFpsState.Mode.AIR)
+			motor.set_mode(state, GSFpsState.Mode.AIR)
 		_displace(motor, state, base, delta)
 
 		# Carried out of it by its own push: the base velocity is the player's from here,
@@ -204,7 +204,7 @@ func _pushes(motor: DotFpsMotor, state: DotFpsState, hull: AABB, before: AABB, d
 
 ## Moves [param state] by [param velocity] for one tick through the motor's own sweep,
 ## leaving the player's own velocity as it was: a base velocity is not the player's.
-static func _displace(motor: DotFpsMotor, state: DotFpsState, velocity: Vector3, delta: float) -> void:
+static func _displace(motor: GSFpsMotor, state: GSFpsState, velocity: Vector3, delta: float) -> void:
 	var own := state.velocity
 	state.velocity = velocity
 	motor.move_and_slide(state, delta)

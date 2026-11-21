@@ -30,7 +30,7 @@ var _failed := 0
 var _entered := 0
 var _finished := 0
 var _tick := 1
-var _feel: DotGameCombatFeel = null
+var _feel: GSGameCombatFeel = null
 
 
 func _ready() -> void:
@@ -39,7 +39,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_feel = DotGameCombatFeel.new(true, true)
+	_feel = GSGameCombatFeel.new(true, true)
 	_test_profiles()
 	_test_view()
 	await _test_burst()
@@ -61,8 +61,8 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 	print("  [%s] %s%s" % ["ok" if condition else "FAIL", what, ("  (" + detail + ")") if detail != "" else ""])
 
 
-func _pitch(def: DotWeaponDef) -> float:
-	var b := def.tuning as DotWeaponBallistics
+func _pitch(def: GSWeaponDef) -> float:
+	var b := def.tuning as GSWeaponBallistics
 	return b.recoil_pitch if b != null else 0.0
 
 
@@ -91,14 +91,14 @@ func _test_profiles() -> void:
 	_check(_pitch(by_id["rifle"]) > 0.36, "and kicks harder than the pack default")
 	_check(_pitch(by_id["sniper"]) > _pitch(by_id["rifle"]) * 3.0, "a sniper kicks far harder than a rifle")
 	_check(_pitch(by_id["smg"]) < _pitch(by_id["rifle"]), "an smg kicks less per shot than a rifle")
-	var rifle: DotWeaponBallistics = by_id["rifle"].tuning as DotWeaponBallistics
+	var rifle: GSWeaponBallistics = by_id["rifle"].tuning as GSWeaponBallistics
 	_check(rifle.recoil_recovery > 0.0 and rifle.recoil_recovery < 6.0, "recovery is slower than the pack default, so a burst climbs", str(rifle.recoil_recovery))
 	_check(AwWeaponPack.errors.is_empty(), "no profile failed to load", ",".join(AwWeaponPack.errors))
 	_finished += 1
 
 
-func _outcome(pitch: float, yaw: float) -> DotWeaponOutcome:
-	var o := DotWeaponOutcome.new()
+func _outcome(pitch: float, yaw: float) -> GSWeaponOutcome:
+	var o := GSWeaponOutcome.new()
 	o.recoil = Vector2(pitch, yaw)
 	o.recoil_signed = true
 	o.recoil_recovery = 3.0
@@ -128,7 +128,7 @@ func _test_view() -> void:
 		b.step(0.1)
 	_check(is_equal_approx(a.offset().x, b.offset().x), "settling is frame-rate independent", "%.4f vs %.4f" % [a.offset().x, b.offset().x])
 	a.kick(null)
-	a.kick(DotWeaponOutcome.new())
+	a.kick(GSWeaponOutcome.new())
 	_check(is_equal_approx(a.offset().x, b.offset().x), "a null or kickless outcome leaves it alone")
 	var big := FcRecoilView.new()
 	for _i in 100:
@@ -153,9 +153,9 @@ func _player(id: int) -> FcPlayer:
 func _fire(p: FcPlayer, ticks: int) -> Array:
 	var kicks: Array = []
 	for _i in ticks:
-		var w := DotWeaponCommand.new()
-		w.buttons = DotWeaponCommand.BUTTON_ATTACK
-		var c := DotFpsCommand.new()
+		var w := GSWeaponCommand.new()
+		w.buttons = GSWeaponCommand.BUTTON_ATTACK
+		var c := GSFpsCommand.new()
 		c.yaw = -90.0
 		var out := p.simulate_tick(_tick, 1.0 / float(TICK_RATE), c, w)
 		_tick += 1
@@ -173,8 +173,8 @@ func _test_burst() -> void:
 	var p2 := _player(22)
 	await get_tree().physics_frame
 	for _i in 40:
-		p1.simulate_tick(_tick, 1.0 / float(TICK_RATE), DotFpsCommand.new(), DotWeaponCommand.new())
-		p2.simulate_tick(_tick, 1.0 / float(TICK_RATE), DotFpsCommand.new(), DotWeaponCommand.new())
+		p1.simulate_tick(_tick, 1.0 / float(TICK_RATE), GSFpsCommand.new(), GSWeaponCommand.new())
+		p2.simulate_tick(_tick, 1.0 / float(TICK_RATE), GSFpsCommand.new(), GSWeaponCommand.new())
 		_tick += 1
 		await get_tree().physics_frame
 	var a: Array = await _fire(p1, 90)
@@ -220,7 +220,7 @@ func _test_crosshair() -> void:
 	p.add_child(camera)
 	await get_tree().physics_frame
 	for _i in 40:
-		p.simulate_tick(_tick, dt, DotFpsCommand.new(), DotWeaponCommand.new())
+		p.simulate_tick(_tick, dt, GSFpsCommand.new(), GSWeaponCommand.new())
 		_tick += 1
 		await get_tree().physics_frame
 	p.recoil_view.clear()
@@ -231,9 +231,9 @@ func _test_crosshair() -> void:
 	for _i in 90:
 		# The frame drawn just before this tick's shot: what the player aims with.
 		var shown := p.recoil_view.step(dt)
-		var w := DotWeaponCommand.new()
-		w.buttons = DotWeaponCommand.BUTTON_ATTACK
-		var c := DotFpsCommand.new()
+		var w := GSWeaponCommand.new()
+		w.buttons = GSWeaponCommand.BUTTON_ATTACK
+		var c := GSFpsCommand.new()
 		c.yaw = -90.0
 		var out := p.simulate_tick(_tick, dt, c, w)
 		_tick += 1
@@ -271,24 +271,24 @@ func _test_cvar() -> void:
 	_check(v.step(0.0).x <= full * 5.01, "and it is capped at 5")
 	_check(is_equal_approx(v.offset().x, full), "the underlying kick (what the bullet follows) is not scaled")
 	FcRecoilView.scale = 1.0
-	var rules := DotWeaponRecoilRules.new()
+	var rules := GSWeaponRecoilRules.new()
 	_check(rules.get_script().resource_path.ends_with("dot_weapon_recoil_rules.gd") and _feel.recoil != null and _feel.recoil.enabled, "the server's sv_recoil_* rules are on for Fatal Contact")
 	_finished += 1
 
 
 ## One second of held trigger through the server's recoil rules: the view's peak climb, the peak sideways
 ## wander, and what is left a second and a half after release.
-func _spray(def: DotWeaponDef) -> Array:
-	var b := def.tuning as DotWeaponBallistics
-	var view := DotWeaponRecoil.new()
+func _spray(def: GSWeaponDef) -> Array:
+	var b := def.tuning as GSWeaponBallistics
+	var view := GSWeaponRecoil.new()
 	var state := {}
 	var interval := maxi(def.use_interval_ticks, 1)
 	var climb := 0.0
 	var wander := 0.0
 	var tick := 1000
 	while tick < 1000 + TICK_RATE:
-		var out := DotWeaponOutcome.new()
-		var ctx := DotWeaponContext.new()
+		var out := GSWeaponOutcome.new()
+		var ctx := GSWeaponContext.new()
 		ctx.tick = tick
 		var _bullet: Variant = _feel.recoil.apply(out, b, state, ctx, def.id, TICK_RATE)
 		view.kick_outcome(out)
@@ -306,7 +306,7 @@ func _test_spray() -> void:
 	var cat := FcContent.weapon_catalogue()
 	var sprays := {}
 	for id in KICKERS:
-		if not cat.has(StringName(id)) or not (cat.get_def(StringName(id)).tuning is DotWeaponBallistics):
+		if not cat.has(StringName(id)) or not (cat.get_def(StringName(id)).tuning is GSWeaponBallistics):
 			continue
 		sprays[id] = _spray(cat.get_def(StringName(id)))
 		print("    %-16s climb %5.2f  side %5.2f  left %.3f" % [id, sprays[id][0], sprays[id][1], sprays[id][2]])

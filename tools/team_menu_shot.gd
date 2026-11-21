@@ -12,14 +12,14 @@ var _cvars := {}
 var _menus: Array = []
 
 
-func _add(n: String, v: Variant, d: String, f: int) -> DotConVar:
-	var cv := DotConVar.new(n, str(v), d, f)
+func _add(n: String, v: Variant, d: String, f: int) -> GSConVar:
+	var cv := GSConVar.new(n, str(v), d, f)
 	_cvars[n] = cv
 	return cv
 
 
 func _initialize() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -40,14 +40,14 @@ func _shot(name: String, mode: FcMode, names: String, colours: String, extra: in
 	menu.bind(game, _add, null)
 	_menus.append(menu)
 	if names != "":
-		(_cvars["mp_team_names"] as DotConVar).force_set(names)
+		(_cvars["mp_team_names"] as GSConVar).force_set(names)
 	if colours != "":
-		(_cvars["mp_team_colours"] as DotConVar).force_set(colours)
+		(_cvars["mp_team_colours"] as GSConVar).force_set(colours)
 	var back := ColorRect.new()
 	back.color = Color(0.1, 0.12, 0.16)
 	back.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(back)
-	var screen := DotMenuTeamScreen.new()
+	var screen := GSMenuTeamScreen.new()
 	root.add_child(screen)
 	screen.open((menu.server as Object).call("menu_for", 51))
 	for i in 4:

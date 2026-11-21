@@ -47,7 +47,7 @@ func _ready() -> void:
 	var at := args.find("--only")
 	if at >= 0 and at + 1 < args.size():
 		_only = args[at + 1]
-	DotLog.set_level(DotLog.Level.INFO if _verbose else DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.INFO if _verbose else GSLog.Level.ERROR)
 	var _scratch := FcPresentation.use_scratch_settings("headless_feel")
 
 	var early := Early.new()
@@ -66,7 +66,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact: what a player sees, frame by frame")
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(DATA))
 
 	if _only == "" or "offline".contains(_only):
@@ -126,7 +126,7 @@ func _test_offline() -> void:
 	var live := await _until(func() -> bool:
 		var p: FcPlayer = client.get("player")
 		var g: FcGame = client.get("game")
-		if p == null or g == null or not p.is_alive() or g.match_node == null or g.match_node.state != DotMatch.State.LIVE:
+		if p == null or g == null or not p.is_alive() or g.match_node == null or g.match_node.state != GSMatch.State.LIVE:
 			return false
 		var alive := 0
 		for other in g.players():
@@ -224,7 +224,7 @@ func _test_moves() -> void:
 	await _wait(0.8)
 	_mover_frames = []
 	_measure()
-	_mover_command = _command(Vector2(0.0, 1.0), -90.0, DotFpsCommand.BUTTON_CROUCH)
+	_mover_command = _command(Vector2(0.0, 1.0), -90.0, GSFpsCommand.BUTTON_CROUCH)
 	await _wait(0.6)
 	var slide := _mover_frames.duplicate()
 	var slide_starved := _starvation(OFFLINE_FPS)
@@ -233,7 +233,7 @@ func _test_moves() -> void:
 	_mover_command = _command(Vector2(0.0, 0.0), -90.0, 0)
 	await _wait(0.6)
 	_mover_frames = []
-	_mover_command = _command(Vector2(0.0, 0.0), -90.0, DotFpsCommand.BUTTON_JUMP)
+	_mover_command = _command(Vector2(0.0, 0.0), -90.0, GSFpsCommand.BUTTON_JUMP)
 	await _wait(0.1)
 	_mover_command = _command(Vector2(0.0, 0.0), -90.0, 0)
 	await _wait(1.0)
@@ -441,7 +441,7 @@ func _play_window(window: Array) -> void:
 	_turning = false
 	_release_movement()
 
-	var net: DotNetManager = _client.get("net")
+	var net: GSNetManager = _client.get("net")
 	var corrections := int(net.predictor.get("_corrections_applied")) - int(w["corrections"])
 	_report_local(w)
 	_report_others(w)

@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcFlagView := preload("../game/fc_flag_view.gd")
@@ -24,7 +24,7 @@ var _game: FcGame = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -152,7 +152,7 @@ func _run_part2(map: FcMap, red: int, blue: int) -> void:
 	await _run_part3(red, blue)
 
 
-func _offered(def: DotMapDef) -> Array:
+func _offered(def: GSMapDef) -> Array:
 	var out := []
 	for mode in FcModes.all():
 		if def != null and FcMaps.supports_mode(def, mode):
@@ -254,10 +254,10 @@ func _run_part4(red: int, blue: int) -> void:
 		var highest := foot
 		for i in 8 * 64:
 			var feet: Vector3 = climber.controller.state.position
-			var move := DotFpsCommand.new()
+			var move := GSFpsCommand.new()
 			move.move = Vector2(0.0, 1.0)
 			move.yaw = rad_to_deg(atan2(feet.x - top.x, feet.z - top.z))
-			_game.tick({1: [move, DotWeaponCommand.new()]})
+			_game.tick({1: [move, GSWeaponCommand.new()]})
 			feet = climber.controller.state.position
 			highest = feet if feet.y > highest.y else highest
 			if climber.controller.state.is_grounded() and feet.y > top.y - 0.2 and Vector2(feet.x - top.x, feet.z - top.z).length() < 1.5:
@@ -309,13 +309,13 @@ func _run_part5(red: int, blue: int, a: Vector3) -> void:
 		# What the view reports as the flag changes hands (the client's sounds hang off this), and the carrier's HUD line.
 		var seen: Array[String] = []
 		_game.ctf_seen.connect(func(what: StringName, team: int, by: int) -> void: seen.append("%d:%s:%d" % [team, what, by]))
-		var one: DotObjectiveFlag = flags[0]
+		var one: GSObjectiveFlag = flags[0]
 		var team_one := one.home_team()
 		var thief := 1
 		var _added := _game.add_player(thief, "thief")
 		var _spawned := _game.respawn_player(thief)
 		objs.flag_view.refresh()
-		one.state = DotObjectiveFlag.State.CARRIED
+		one.state = GSObjectiveFlag.State.CARRIED
 		one.carrier = str(thief)
 		objs.flag_view.refresh()
 		one.drop(one.at + Vector3(4, 0, 0))
@@ -328,7 +328,7 @@ func _run_part5(red: int, blue: int, a: Vector3) -> void:
 		hud.build(_game)
 		hud.follow(_game.player_for(thief))
 		_check(hud.carrying_flag_text() == "", "the HUD has no carry line while nothing is carried")
-		one.state = DotObjectiveFlag.State.CARRIED
+		one.state = GSObjectiveFlag.State.CARRIED
 		one.carrier = str(thief)
 		_check(hud.carrying_flag_text().begins_with("YOU HAVE THE "), "the carrier's HUD says they have the flag", hud.carrying_flag_text())
 		one.send_home("")

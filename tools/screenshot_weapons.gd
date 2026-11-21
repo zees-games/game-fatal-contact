@@ -118,8 +118,8 @@ func _stage() -> bool:
 	for id in bots:
 		var bot = bots[id]
 		bot.set_meta(&"bot_scripted", true)
-		bot.set_meta(&"bot_move", DotFpsCommand.new())
-		bot.set_meta(&"bot_fire", DotWeaponCommand.new())
+		bot.set_meta(&"bot_move", GSFpsCommand.new())
+		bot.set_meta(&"bot_fire", GSWeaponCommand.new())
 		if _subject == null and bot.is_alive():
 			_subject = bot
 
@@ -184,19 +184,19 @@ func _throw_yaw() -> float:
 
 
 func _command(facing: float, trigger: bool) -> void:
-	var move := DotFpsCommand.new()
+	var move := GSFpsCommand.new()
 	move.yaw = facing
 	move.pitch = 0.0
-	var fire := DotWeaponCommand.new()
+	var fire := GSWeaponCommand.new()
 	fire.yaw = facing
 	fire.pitch = 0.0
-	fire.set_button(DotWeaponCommand.BUTTON_ATTACK, trigger)
+	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, trigger)
 	_subject.set_meta(&"bot_move", move)
 	_subject.set_meta(&"bot_fire", fire)
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _shot(name: String) -> void:
@@ -354,7 +354,7 @@ func _first_person_guns(ids: PackedStringArray, carry: String) -> void:
 	if carry == "sprint" or carry == "sprint_old":
 		process_frame.connect(_force_sprint)
 	for id in ids:
-		var _given: DotResult = me.arsenal.give(StringName(id))
+		var _given: GSResult = me.arsenal.give(StringName(id))
 		me.arsenal.equip(me.arsenal.catalogue.get_def(StringName(id)).slot)
 		await _wait(0.5)
 		if carry == "sprint_old":
@@ -371,7 +371,7 @@ func _first_person_guns(ids: PackedStringArray, carry: String) -> void:
 
 func _third_person_guns(ids: PackedStringArray) -> void:
 	for id in ids:
-		var given: DotResult = _subject.arsenal.give(StringName(id))
+		var given: GSResult = _subject.arsenal.give(StringName(id))
 		var slot: int = _subject.arsenal.catalogue.get_def(StringName(id)).slot
 		_subject.hold(slot)
 		print("gun %s given ok=%s slot %d" % [id, given.ok, slot])

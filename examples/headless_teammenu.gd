@@ -23,7 +23,7 @@ var _menus: Array[FcTeamMenu] = []
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -34,14 +34,14 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 	print("  [%s] %s%s" % ["ok" if condition else "FAIL", what, ("  (" + detail + ")") if detail != "" else ""])
 
 
-func _add(n: String, v: Variant, d: String, f: int) -> DotConVar:
-	var cv := DotConVar.new(n, str(v), d, f)
+func _add(n: String, v: Variant, d: String, f: int) -> GSConVar:
+	var cv := GSConVar.new(n, str(v), d, f)
 	_cvars[n] = cv
 	return cv
 
 
 func _cv(n: String, v: String) -> void:
-	(_cvars[n] as DotConVar).force_set(v)
+	(_cvars[n] as GSConVar).force_set(v)
 
 
 func _game(mode: FcMode) -> FcGame:
@@ -115,7 +115,7 @@ func _run() -> void:
 	# 3. A switch is validated on the server.
 	_sections += 1
 	_cv("mp_teamswitch_cooldown", "5")
-	var res: DotResult = server.request(31, "3")
+	var res: GSResult = server.request(31, "3")
 	_check(res.ok and game.team_of(31) == 3, "a switch to a team with room works", str(game.team_of(31)))
 	_check(game.player_for(31).team == 3, "and the player's own team follows")
 	_check(game.player_for(31).is_alive(), "without killing them (mp_teamswitch_kill 0)")
@@ -155,7 +155,7 @@ func _run() -> void:
 	await _run_second(server)
 
 
-func _run_first(game: FcGame, server: Variant, data: Dictionary, other: int, res: DotResult) -> void:
+func _run_first(game: FcGame, server: Variant, data: Dictionary, other: int, res: GSResult) -> void:
 	_cv("mp_teamswitch_kill", "0")
 	_cv("mp_teamswitch_imbalance", "1")
 
@@ -230,7 +230,7 @@ func _run_second(server: Variant) -> void:
 		var live_before := solo.match_node.is_live()
 		var deaths := rec.deaths
 		var kills_other := solo.match_node.scoreboard.record_for("72").kills
-		var r: DotResult = pair[1].call("spectate")
+		var r: GSResult = pair[1].call("spectate")
 		_check(r.ok and rec.spectating and not solo.player_for(71).is_alive(), tag + "Spectate leaves play with no body left", str(r.error.message if r.error else ""))
 		_check(rec.deaths == deaths and solo.match_node.scoreboard.record_for("72").kills == kills_other, tag + "leaving scores no death and gives no kill credit")
 		_check(solo.spectate.is_spectating(str(71)) and pair[0].call()["spectating"], tag + "dot-spectate has them, and the menu offers Play")

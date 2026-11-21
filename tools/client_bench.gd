@@ -84,7 +84,7 @@ func _ready() -> void:
 	_play = "--play" in args
 	_wallrun = "--wallrun" in args
 	_json = "--json" in args
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	var _scratch := FcPresentation.use_scratch_settings("client_bench_" + _role)
 	if _role == "server":
 		_serve.call_deferred()
@@ -116,7 +116,7 @@ func _serve() -> void:
 		get_tree().quit(1)
 		return
 	var module := server.modules.get_module("arena") as FcModule
-	var quota: DotBotQuota = module.get("_bot_quota")
+	var quota: GSBotQuota = module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		# "off" is wanted = 0: the quota removes every bot a second later (arena-128-scale-1).
 		quota.mode_cvar.force_set("fixed")
@@ -148,7 +148,7 @@ func _feed_wall_routes(game: FcGame, module: Object) -> void:
 
 ## Every 5 s: the server's real tick rate against its declared one, what a tick costs
 ## (dot-net's server counters), snapshots and bytes a second per client, entity count.
-func _report_server(net: DotNetManager) -> void:
+func _report_server(net: GSNetManager) -> void:
 	var last: Dictionary = net.perf_counters()
 	var t0 := Time.get_ticks_usec()
 	while true:
@@ -241,7 +241,7 @@ class WallPilot extends Node:
 		var sampler = _client.get("_sampler")
 		if player == null or sampler == null or player.controller == null:
 			return
-		var c: DotFpsController = player.controller
+		var c: GSFpsController = player.controller
 		var at: Vector3 = c.state.position
 		var d := Vector2(at.x - _driver.start.x, at.z - _driver.start.z).length()
 		if d > 2.0:
@@ -250,11 +250,11 @@ class WallPilot extends Node:
 			_far = false
 			_driver = WALL_DRIVER.new(_route, &"walls")
 		sampler.look_at_angles(_driver.yaw, 0.0)
-		var cmd: DotFpsCommand = _driver.next(c.state)
+		var cmd: GSFpsCommand = _driver.next(c.state)
 		_press(&"dot_fps_forward", cmd.move.y > 0.0)
-		_press(&"dot_fps_jump", cmd.buttons & DotFpsCommand.BUTTON_JUMP != 0)
-		_press(&"dot_fps_crouch", cmd.buttons & DotFpsCommand.BUTTON_CROUCH != 0)
-		_press(&"dot_fps_sprint", cmd.buttons & DotFpsCommand.BUTTON_SPRINT != 0)
+		_press(&"dot_fps_jump", cmd.buttons & GSFpsCommand.BUTTON_JUMP != 0)
+		_press(&"dot_fps_crouch", cmd.buttons & GSFpsCommand.BUTTON_CROUCH != 0)
+		_press(&"dot_fps_sprint", cmd.buttons & GSFpsCommand.BUTTON_SPRINT != 0)
 
 	func _press(action: StringName, on: bool) -> void:
 		if on:
@@ -299,11 +299,11 @@ func _run() -> void:
 	_relay.seed = 20261016
 	_relay.up.configure(0.0, _delay, _jitter)
 	_relay.down.configure(0.0, _delay, _jitter)
-	var relayed: DotResult = _relay.start(0, "127.0.0.1", _port)
+	var relayed: GSResult = _relay.start(0, "127.0.0.1", _port)
 	if not relayed.ok:
 		return _fail("relay: %s" % relayed.error)
 
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Bench"
 	link.transport_preference = "udp"
@@ -350,7 +350,7 @@ func _run() -> void:
 		stall.watch(_client.get("gate"))
 	await _wait_until_playing()
 	# `--raw-input`: predict on the sampled command rather than the one the wire carries
-	# (DotNetConfig.predict_wire_input), to measure what the rounding is worth.
+	# (GSNetConfig.predict_wire_input), to measure what the rounding is worth.
 	var client_net = _client.get("net")
 	if "--raw-input" in OS.get_cmdline_user_args() and client_net != null and "predict_wire_input" in client_net.config:
 		client_net.config.predict_wire_input = false
@@ -391,10 +391,10 @@ func _record_seq() -> void:
 	if seq_at >= 0 and seq_at + 1 < OS.get_cmdline_user_args().size():
 		OS.set_environment("GS_SHOT_FRAMES", "16")
 		var seq_dir := ProjectSettings.globalize_path("res://").path_join(OS.get_cmdline_user_args()[seq_at + 1])
-		await DotShotSeq.new().record(get_tree(), seq_dir.trim_suffix(".seq") + ".png")
+		await GSShotSeq.new().record(get_tree(), seq_dir.trim_suffix(".seq") + ".png")
 
 
-func _run_rest(link: DotClientLink) -> void:
+func _run_rest(link: GSClientLink) -> void:
 	link.disconnect_from_server("done")
 	_finish(0)
 
@@ -506,9 +506,9 @@ func _measure() -> void:
 	var start := Time.get_ticks_usec()
 	var last := start
 	var last_phys := Engine.get_physics_frames()
-	var net: DotNetManager = _client.get("net")
+	var net: GSNetManager = _client.get("net")
 	var lead_sum := 0.0
-	var fclock := DotMenuFrameClock.new()
+	var fclock := GSMenuFrameClock.new()
 	fclock.start(get_tree())
 	var prof: RefCounted = null
 	if "--profile" in OS.get_cmdline_user_args():
@@ -580,7 +580,7 @@ func _measure() -> void:
 
 
 ## One `--timeline` row and the two readings it differs from next time: [counters, mismatches].
-func _timeline_line(net: DotNetManager, start: int, line_perf: Dictionary, line_mm: Dictionary) -> Array:
+func _timeline_line(net: GSNetManager, start: int, line_perf: Dictionary, line_mm: Dictionary) -> Array:
 	var pc: Dictionary = net.perf_counters()
 	var mm: Dictionary = net.predictor.describe().get("mismatches", {})
 	var diff := {}
@@ -599,7 +599,7 @@ func _timeline_line(net: DotNetManager, start: int, line_perf: Dictionary, line_
 	return [pc, mm]
 
 
-func _print_net(net: DotNetManager, perf0: Dictionary, n: int, lead_sum: float) -> void:
+func _print_net(net: GSNetManager, perf0: Dictionary, n: int, lead_sum: float) -> void:
 	if not perf0.is_empty():
 		var p1: Dictionary = net.perf_counters()
 		var d := func(k: StringName) -> float: return float(int(p1[k]) - int(perf0[k]))

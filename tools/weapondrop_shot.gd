@@ -50,11 +50,11 @@ func _initialize() -> void:
 	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.environment.ambient_light_color = Color(0.7, 0.7, 0.7)
 	root.add_child(env)
-	var server := DotWeaponDrops.new()
+	var server := GSWeaponDrops.new()
 	server.is_authority = true
 	server.draws = false
 	server.look_of = Wiring.look
-	var client := DotWeaponDrops.new()
+	var client := GSWeaponDrops.new()
 	client.draws = true
 	client.look_of = Wiring.look
 	root.add_child(server)

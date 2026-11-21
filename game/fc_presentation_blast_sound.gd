@@ -65,27 +65,27 @@ const STOMP_SOUND := &"stomp"
 ## Capture the flag's cues (see on_flag_event) and the medals, with the synthesised voice each
 ## falls back to in a build without dot-audio's stock files; their recordings are in RECORDED.
 const FLAG_VOICES := {
-	&"flag_taken_by_me": DotAudioSynth.Voice.PICKUP,
-	&"flag_taken": DotAudioSynth.Voice.PICKUP,
-	&"flag_lost": DotAudioSynth.Voice.DENY,
-	&"flag_lost_back": DotAudioSynth.Voice.DENY,
-	&"flag_dropped": DotAudioSynth.Voice.BLIP,
-	&"flag_returned": DotAudioSynth.Voice.PICKUP,
-	&"flag_captured": DotAudioSynth.Voice.SPAWN,
+	&"flag_taken_by_me": GSAudioSynth.Voice.PICKUP,
+	&"flag_taken": GSAudioSynth.Voice.PICKUP,
+	&"flag_lost": GSAudioSynth.Voice.DENY,
+	&"flag_lost_back": GSAudioSynth.Voice.DENY,
+	&"flag_dropped": GSAudioSynth.Voice.BLIP,
+	&"flag_returned": GSAudioSynth.Voice.PICKUP,
+	&"flag_captured": GSAudioSynth.Voice.SPAWN,
 }
 
 const MEDAL_VOICES := {
-	&"medal_first_blood": DotAudioSynth.Voice.SPAWN,
-	&"medal_headshot": DotAudioSynth.Voice.PICKUP,
-	&"medal_double_kill": DotAudioSynth.Voice.SPAWN,
-	&"medal_triple_kill": DotAudioSynth.Voice.SPAWN,
-	&"medal_multi_kill": DotAudioSynth.Voice.SPAWN,
-	&"medal_revenge": DotAudioSynth.Voice.PICKUP,
-	&"medal_shutdown": DotAudioSynth.Voice.PICKUP,
-	&"medal_point_blank": DotAudioSynth.Voice.IMPACT,
-	&"medal_no_scope": DotAudioSynth.Voice.SHOT_TIGHT,
-	&"medal_long_shot": DotAudioSynth.Voice.SHOT_TIGHT,
-	&"medal_nemesis": DotAudioSynth.Voice.DENY,
+	&"medal_first_blood": GSAudioSynth.Voice.SPAWN,
+	&"medal_headshot": GSAudioSynth.Voice.PICKUP,
+	&"medal_double_kill": GSAudioSynth.Voice.SPAWN,
+	&"medal_triple_kill": GSAudioSynth.Voice.SPAWN,
+	&"medal_multi_kill": GSAudioSynth.Voice.SPAWN,
+	&"medal_revenge": GSAudioSynth.Voice.PICKUP,
+	&"medal_shutdown": GSAudioSynth.Voice.PICKUP,
+	&"medal_point_blank": GSAudioSynth.Voice.IMPACT,
+	&"medal_no_scope": GSAudioSynth.Voice.SHOT_TIGHT,
+	&"medal_long_shot": GSAudioSynth.Voice.SHOT_TIGHT,
+	&"medal_nemesis": GSAudioSynth.Voice.DENY,
 }
 
 
@@ -96,7 +96,7 @@ const GRENADE_BLASTS: Array[StringName] = [&"frag", &"sticky", &"flash", &"smoke
 
 ## The sound id of [param grenade]'s own detonation, or [constant EXPLOSION] when this build has no recording for it.
 static func blast_sound_id(grenade: StringName) -> StringName:
-	if not GRENADE_BLASTS.has(grenade) or DotAddonApi.build_level("fc_weapons") < GRENADE_BLAST_LEVEL:
+	if not GRENADE_BLASTS.has(grenade) or GSAddonApi.build_level("fc_weapons") < GRENADE_BLAST_LEVEL:
 		return EXPLOSION
 	if int(FcNewerApi.call_static(&"AwGrenadeSound", &"count", [grenade])) == 0:
 		return EXPLOSION
@@ -108,13 +108,13 @@ func _blast_sound(weapon_id: StringName) -> StringName:
 
 
 ## A blast def for [param grenade] playing its takes from `AwGrenadeSound`, set like the stock [constant EXPLOSION]; null without recordings.
-static func grenade_blast(grenade: StringName) -> DotAudioDef:
+static func grenade_blast(grenade: StringName) -> GSAudioDef:
 	var id := blast_sound_id(grenade)
 	if id == EXPLOSION:
 		return null
-	var blast := DotAudioDef.new()
+	var blast := GSAudioDef.new()
 	blast.id = id
-	blast.kind = DotAudioDef.Kind.POSITIONAL_3D
+	blast.kind = GSAudioDef.Kind.POSITIONAL_3D
 	blast.bus = &"SFX"
 	blast.unit_size = 22.0
 	blast.max_distance = 140.0
@@ -130,14 +130,14 @@ static func grenade_blast(grenade: StringName) -> DotAudioDef:
 
 
 ## What a deathmatch makes a noise about.
-static func sound_catalogue() -> DotAudioCatalogue:
-	var c := DotAudioCatalogue.new()
-	DotAudioStock.add_to(c)
+static func sound_catalogue() -> GSAudioCatalogue:
+	var c := GSAudioCatalogue.new()
+	GSAudioStock.add_to(c)
 
 	for id in [&"rifle", &"shotgun", &"rail"]:
-		var fire := DotAudioDef.new()
+		var fire := GSAudioDef.new()
 		fire.id = StringName("fire_%s" % id)
-		fire.kind = DotAudioDef.Kind.POSITIONAL_3D
+		fire.kind = GSAudioDef.Kind.POSITIONAL_3D
 		fire.bus = &"SFX"
 		fire.unit_size = 14.0
 		# Past this it is not a shot you can act on, and it would cost a voice every frame.
@@ -149,9 +149,9 @@ static func sound_catalogue() -> DotAudioCatalogue:
 		c.add(recorded(fire))
 
 	# A blast: positional and carrying far, few at once.
-	var blast := DotAudioDef.new()
+	var blast := GSAudioDef.new()
 	blast.id = EXPLOSION
-	blast.kind = DotAudioDef.Kind.POSITIONAL_3D
+	blast.kind = GSAudioDef.Kind.POSITIONAL_3D
 	blast.bus = &"SFX"
 	blast.unit_size = 22.0
 	blast.max_distance = 140.0
@@ -165,9 +165,9 @@ static func sound_catalogue() -> DotAudioCatalogue:
 		if own != null:
 			c.add(own)
 
-	var impact := DotAudioDef.new()
+	var impact := GSAudioDef.new()
 	impact.id = &"impact"
-	impact.kind = DotAudioDef.Kind.POSITIONAL_3D
+	impact.kind = GSAudioDef.Kind.POSITIONAL_3D
 	impact.bus = &"SFX"
 	impact.max_distance = 40.0
 	impact.max_concurrent = 4
@@ -178,7 +178,7 @@ static func sound_catalogue() -> DotAudioCatalogue:
 
 	# The wall moves: files and pitch in RECORDED; a cooldown each so a run is a step, not a buzz.
 	for wall in [[WALL_RUN_SOUND, 120], [WALL_JUMP_SOUND, 90]]:
-		var move := DotAudioDef.new()
+		var move := GSAudioDef.new()
 		move.id = wall[0]
 		move.bus = &"SFX"
 		move.cooldown_ms = wall[1]
@@ -186,9 +186,9 @@ static func sound_catalogue() -> DotAudioCatalogue:
 		move.priority = 55
 		c.add(recorded(move))
 
-	var pickup := DotAudioDef.new()
+	var pickup := GSAudioDef.new()
 	pickup.id = &"pickup"
-	pickup.kind = DotAudioDef.Kind.POSITIONAL_3D
+	pickup.kind = GSAudioDef.Kind.POSITIONAL_3D
 	pickup.bus = &"SFX"
 	pickup.max_distance = 30.0
 	pickup.max_concurrent = 3
@@ -201,9 +201,9 @@ static func sound_catalogue() -> DotAudioCatalogue:
 
 
 ## Hit, kill, medal, flag, vote, beacon and body-state cues: flat on the interface bus unless noted.
-static func _add_interface_sounds(c: DotAudioCatalogue) -> void:
+static func _add_interface_sounds(c: GSAudioCatalogue) -> void:
 	# Flat, not positional: a hit marker is about your own shot and must not fade with distance.
-	var hit := DotAudioDef.new()
+	var hit := GSAudioDef.new()
 	hit.id = &"hit_marker"
 	hit.bus = &"UI"
 	hit.cooldown_ms = 60
@@ -212,7 +212,7 @@ static func _add_interface_sounds(c: DotAudioCatalogue) -> void:
 	c.add(recorded(hit))
 
 	# A hit that killed: the same flat information, longer than the tick.
-	var killed := DotAudioDef.new()
+	var killed := GSAudioDef.new()
 	killed.id = KILL_CONFIRMED
 	killed.bus = &"UI"
 	killed.max_concurrent = 1
@@ -222,7 +222,7 @@ static func _add_interface_sounds(c: DotAudioCatalogue) -> void:
 	# The medals: flat, on the interface bus, one at a time each. Information about your
 	# own kill, like the hit marker; louder than the world so a medal is never lost in it.
 	for id in MEDAL_VOICES:
-		var medal := DotAudioDef.new()
+		var medal := GSAudioDef.new()
 		medal.id = id
 		medal.bus = &"UI"
 		medal.max_concurrent = 1
@@ -230,21 +230,21 @@ static func _add_interface_sounds(c: DotAudioCatalogue) -> void:
 		c.add(recorded(medal))
 
 	for id in FLAG_VOICES:
-		var cue := DotAudioDef.new()
+		var cue := GSAudioDef.new()
 		cue.id = id
 		cue.bus = &"UI"
 		cue.max_concurrent = 2
 		cue.priority = 93
 		c.add(recorded(cue))
 
-	var stomp := DotAudioDef.new()
+	var stomp := GSAudioDef.new()
 	stomp.id = STOMP_SOUND
 	stomp.bus = &"SFX"
 	stomp.max_concurrent = 3
 	stomp.priority = 88
 	c.add(recorded(stomp))
 
-	var hurt := DotAudioDef.new()
+	var hurt := GSAudioDef.new()
 	hurt.id = &"hurt"
 	hurt.bus = &"SFX"
 	hurt.cooldown_ms = 180
@@ -252,13 +252,13 @@ static func _add_interface_sounds(c: DotAudioCatalogue) -> void:
 	hurt.priority = 90
 	c.add(recorded(hurt))
 
-	var died := DotAudioDef.new()
+	var died := GSAudioDef.new()
 	died.id = &"died"
 	died.bus = &"SFX"
 	died.priority = 100
 	c.add(recorded(died))
 
-	var spawn := DotAudioDef.new()
+	var spawn := GSAudioDef.new()
 	spawn.id = &"spawned"
 	spawn.bus = &"UI"
 	spawn.priority = 60
@@ -267,12 +267,12 @@ static func _add_interface_sounds(c: DotAudioCatalogue) -> void:
 
 
 ## The map vote's cues and the administrator's beacon ping.
-static func _add_vote_sounds(c: DotAudioCatalogue) -> void:
+static func _add_vote_sounds(c: GSAudioCatalogue) -> void:
 	# The map vote's cues. Flat and on the interface bus: a ballot is about the server, not about a
 	# place in the world, and a countdown that got quieter the further you stood from the origin
 	# would be a countdown some players never heard.
 	for vote_id in [FcVote.CUE_START, FcVote.CUE_END, FcVote.CUE_WARNING, FcVote.CUE_COUNT]:
-		var cue := DotAudioDef.new()
+		var cue := GSAudioDef.new()
 		cue.id = vote_id
 		cue.bus = &"UI"
 		cue.max_concurrent = 1
@@ -282,9 +282,9 @@ static func _add_vote_sounds(c: DotAudioCatalogue) -> void:
 	# An administrator's beacon: a ping once a second from the beaconed player, heard by everybody.
 	# Positional, because the beacon's whole job is to say WHERE somebody is and a flat ping would
 	# say only that somebody somewhere is beaconed.
-	var ping := DotAudioDef.new()
+	var ping := GSAudioDef.new()
 	ping.id = BEACON_SOUND
-	ping.kind = DotAudioDef.Kind.POSITIONAL_3D
+	ping.kind = GSAudioDef.Kind.POSITIONAL_3D
 	ping.bus = &"SFX"
 	ping.unit_size = 20.0
 	ping.max_distance = 160.0
@@ -294,16 +294,16 @@ static func _add_vote_sounds(c: DotAudioCatalogue) -> void:
 
 
 ## The addon-shipped fall and toy sounds.
-static func _add_body_sounds(c: DotAudioCatalogue) -> void:
+static func _add_body_sounds(c: GSAudioCatalogue) -> void:
 	# A body landing: dot-player-char's stock death sounds (Kenney, CC0), the thud, the face
 	# plant's smack, a crumple's slump and a launch's whoosh. Positional, because they say
 	# where somebody went down; the files ship in the addon, so the paths are its own.
-	for row: Dictionary in DotPlayerDeathSounds.rows():
-		var fall := DotAudioDef.new()
+	for row: Dictionary in GSPlayerDeathSounds.rows():
+		var fall := GSAudioDef.new()
 		fall.id = row["id"]
 		fall.path = row["path"]
 		fall.variants = row["variants"]
-		fall.kind = DotAudioDef.Kind.POSITIONAL_3D
+		fall.kind = GSAudioDef.Kind.POSITIONAL_3D
 		fall.bus = &"SFX"
 		fall.gain_db = float(row["gain_db"])
 		fall.pitch_min = float(row["pitch_min"])
@@ -317,12 +317,12 @@ static func _add_body_sounds(c: DotAudioCatalogue) -> void:
 	# The map's toys: dot-props' stock toy sounds (Kenney, CC0, and a horn made for it),
 	# shipped in the addon. Under the fight in priority: a ball bouncing never takes a voice
 	# from a shot.
-	for row: Dictionary in DotPropBodySounds.rows():
-		var toy := DotAudioDef.new()
+	for row: Dictionary in GSPropBodySounds.rows():
+		var toy := GSAudioDef.new()
 		toy.id = row["id"]
 		toy.path = row["path"]
 		toy.variants = row["variants"]
-		toy.kind = DotAudioDef.Kind.POSITIONAL_3D
+		toy.kind = GSAudioDef.Kind.POSITIONAL_3D
 		toy.bus = &"SFX"
 		toy.gain_db = float(row["gain_db"])
 		toy.pitch_min = float(row["pitch_min"])
@@ -335,7 +335,7 @@ static func _add_body_sounds(c: DotAudioCatalogue) -> void:
 
 
 ## [param def] with its [constant RECORDED] files, gain and pitch spread; unchanged for an id that has none.
-static func recorded(def: DotAudioDef) -> DotAudioDef:
+static func recorded(def: GSAudioDef) -> GSAudioDef:
 	var row: Array = RECORDED.get(def.id, [])
 	if row.is_empty():
 		return def
@@ -355,10 +355,10 @@ static func recorded(def: DotAudioDef) -> DotAudioDef:
 static func recorded_directory(folder: StringName) -> String:
 	match folder:
 		&"weapons":
-			return DotAudioWeaponStock.directory()
+			return GSAudioWeaponStock.directory()
 		&"toys":
-			return DotPropBodySounds.directory()
-	return DotAudioStock.directory()
+			return GSPropBodySounds.directory()
+	return GSAudioStock.directory()
 
 
 ## Which synthesised voice stands in for each id in a build that lacks its file. Which noise belongs
@@ -367,9 +367,9 @@ static func sound_recipes() -> Dictionary:
 	var out := _base_recipes()
 	for grenade in GRENADE_BLASTS:
 		if blast_sound_id(grenade) != EXPLOSION:
-			out[blast_sound_id(grenade)] = DotAudioSynth.Voice.BOOM
-	out[KILL_CONFIRMED] = DotAudioSynth.Voice.BLIP
-	out[STOMP_SOUND] = DotAudioSynth.Voice.IMPACT
+			out[blast_sound_id(grenade)] = GSAudioSynth.Voice.BOOM
+	out[KILL_CONFIRMED] = GSAudioSynth.Voice.BLIP
+	out[STOMP_SOUND] = GSAudioSynth.Voice.IMPACT
 	for id in MEDAL_VOICES:
 		out[id] = MEDAL_VOICES[id]
 	for id in FLAG_VOICES:
@@ -379,44 +379,44 @@ static func sound_recipes() -> Dictionary:
 
 static func _base_recipes() -> Dictionary:
 	return {
-		&"fire_rifle": DotAudioSynth.Voice.SHOT,
-		&"fire_shotgun": DotAudioSynth.Voice.SHOT_HEAVY,
-		&"fire_rail": DotAudioSynth.Voice.SHOT_TIGHT,
-		&"impact": DotAudioSynth.Voice.IMPACT,
-		EXPLOSION: DotAudioSynth.Voice.BOOM,
-		&"hit_marker": DotAudioSynth.Voice.BLIP,
-		&"hurt": DotAudioSynth.Voice.HURT,
-		&"died": DotAudioSynth.Voice.DIE,
-		&"spawned": DotAudioSynth.Voice.SPAWN,
-		&"pickup": DotAudioSynth.Voice.PICKUP,
-		WALL_RUN_SOUND: DotAudioSynth.Voice.STEP,
-		WALL_JUMP_SOUND: DotAudioSynth.Voice.IMPACT,
-		BEACON_SOUND: DotAudioSynth.Voice.BLIP,
+		&"fire_rifle": GSAudioSynth.Voice.SHOT,
+		&"fire_shotgun": GSAudioSynth.Voice.SHOT_HEAVY,
+		&"fire_rail": GSAudioSynth.Voice.SHOT_TIGHT,
+		&"impact": GSAudioSynth.Voice.IMPACT,
+		EXPLOSION: GSAudioSynth.Voice.BOOM,
+		&"hit_marker": GSAudioSynth.Voice.BLIP,
+		&"hurt": GSAudioSynth.Voice.HURT,
+		&"died": GSAudioSynth.Voice.DIE,
+		&"spawned": GSAudioSynth.Voice.SPAWN,
+		&"pickup": GSAudioSynth.Voice.PICKUP,
+		WALL_RUN_SOUND: GSAudioSynth.Voice.STEP,
+		WALL_JUMP_SOUND: GSAudioSynth.Voice.IMPACT,
+		BEACON_SOUND: GSAudioSynth.Voice.BLIP,
 		# Up for a ballot opening, the one upward sweep, because up reads as "on"; a
 		# blip for the warning and a click per second, so a countdown is heard without
 		# being mistaken for a hit marker.
-		FcVote.CUE_START: DotAudioSynth.Voice.SPAWN,
-		FcVote.CUE_END: DotAudioSynth.Voice.PICKUP,
-		FcVote.CUE_WARNING: DotAudioSynth.Voice.BLIP,
-		FcVote.CUE_COUNT: DotAudioSynth.Voice.CLICK,
+		FcVote.CUE_START: GSAudioSynth.Voice.SPAWN,
+		FcVote.CUE_END: GSAudioSynth.Voice.PICKUP,
+		FcVote.CUE_WARNING: GSAudioSynth.Voice.BLIP,
+		FcVote.CUE_COUNT: GSAudioSynth.Voice.CLICK,
 		# Stand-ins only for a build without dot-props' toy files.
-		DotPropBodySounds.BOUNCE: DotAudioSynth.Voice.IMPACT,
-		DotPropBodySounds.THUMP: DotAudioSynth.Voice.IMPACT,
-		DotPropBodySounds.KNOCK: DotAudioSynth.Voice.IMPACT,
-		DotPropBodySounds.PIN: DotAudioSynth.Voice.CLICK,
-		DotPropBodySounds.WOOD: DotAudioSynth.Voice.IMPACT,
-		DotPropBodySounds.RUBBER: DotAudioSynth.Voice.IMPACT,
-		DotPropBodySounds.PUNCH: DotAudioSynth.Voice.HURT,
-		DotPropBodySounds.METAL: DotAudioSynth.Voice.CLICK,
-		DotPropBodySounds.BELL: DotAudioSynth.Voice.PICKUP,
-		DotPropBodySounds.CLICK: DotAudioSynth.Voice.CLICK,
-		DotPropBodySounds.WATER: DotAudioSynth.Voice.STEP,
-		DotPropBodySounds.BOING: DotAudioSynth.Voice.SPAWN,
-		DotPropBodySounds.HORN: DotAudioSynth.Voice.BLIP,
+		GSPropBodySounds.BOUNCE: GSAudioSynth.Voice.IMPACT,
+		GSPropBodySounds.THUMP: GSAudioSynth.Voice.IMPACT,
+		GSPropBodySounds.KNOCK: GSAudioSynth.Voice.IMPACT,
+		GSPropBodySounds.PIN: GSAudioSynth.Voice.CLICK,
+		GSPropBodySounds.WOOD: GSAudioSynth.Voice.IMPACT,
+		GSPropBodySounds.RUBBER: GSAudioSynth.Voice.IMPACT,
+		GSPropBodySounds.PUNCH: GSAudioSynth.Voice.HURT,
+		GSPropBodySounds.METAL: GSAudioSynth.Voice.CLICK,
+		GSPropBodySounds.BELL: GSAudioSynth.Voice.PICKUP,
+		GSPropBodySounds.CLICK: GSAudioSynth.Voice.CLICK,
+		GSPropBodySounds.WATER: GSAudioSynth.Voice.STEP,
+		GSPropBodySounds.BOING: GSAudioSynth.Voice.SPAWN,
+		GSPropBodySounds.HORN: GSAudioSynth.Voice.BLIP,
 		# A body landing. The real files ship in dot-player-char; these stand in only on a
 		# build that lacks them.
-		DotPlayerDeathReactions.SOUND_THUD: DotAudioSynth.Voice.IMPACT,
-		DotPlayerDeathReactions.SOUND_FACE_PLANT: DotAudioSynth.Voice.IMPACT,
-		DotPlayerDeathReactions.SOUND_SLUMP: DotAudioSynth.Voice.STEP,
-		DotPlayerDeathReactions.SOUND_WHOOSH: DotAudioSynth.Voice.SPAWN,
+		GSPlayerDeathReactions.SOUND_THUD: GSAudioSynth.Voice.IMPACT,
+		GSPlayerDeathReactions.SOUND_FACE_PLANT: GSAudioSynth.Voice.IMPACT,
+		GSPlayerDeathReactions.SOUND_SLUMP: GSAudioSynth.Voice.STEP,
+		GSPlayerDeathReactions.SOUND_WHOOSH: GSAudioSynth.Voice.SPAWN,
 	}

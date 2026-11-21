@@ -2,17 +2,17 @@ extends "headless_match_climb_routes.gd"
 
 ## Every position and velocity of the north gallery's two wall routes, driven the
 ## intended way, as one hash.
-func _wall_trace(map: FcMap, tunables: DotFpsTunables) -> int:
+func _wall_trace(map: FcMap, tunables: GSFpsTunables) -> int:
 	var numbers := PackedFloat64Array()
 	var body := map.to_fps_body()
 
 	for route in map.wall_routes:
-		var motor := DotFpsMotor.new(tunables, body)
+		var motor := GSFpsMotor.new(tunables, body)
 		var driver := WallRouteDriver.new(route, &"walls")
-		var state := DotFpsState.new()
+		var state := GSFpsState.new()
 		state.position = driver.start
 		state.yaw = driver.yaw
-		state.mode = DotFpsState.Mode.AIR
+		state.mode = GSFpsState.Mode.AIR
 		for _i in range(200):
 			motor.simulate(state, driver.next(state), 1.0 / float(TICK_RATE))
 			for v in [state.position, state.velocity]:
@@ -66,7 +66,7 @@ func _test_wall_rules() -> void:
 	for key in off:
 		FcPlayer._set_rule(ruled_off, key, off[key])
 	var before := FcPlayer.fc_tunables()
-	var stock := DotFpsTunables.new()
+	var stock := GSFpsTunables.new()
 	for property in before.get_property_list():
 		var name := String(property["name"])
 		if name.begins_with("wall_"):
@@ -130,20 +130,20 @@ func _commands_for_tick(tick: int) -> Dictionary:
 			continue
 
 		var target := _nearest_target(player)
-		var move := DotFpsCommand.new()
-		var fire := DotWeaponCommand.new()
+		var move := GSFpsCommand.new()
+		var fire := GSWeaponCommand.new()
 
 		if target != null:
 			var to_target := (
 				target.muzzle_position() - player.muzzle_position()
 			).normalized()
 
-			# The inverse of DotWeaponCommand.aim_direction() (-Z forward). A wrong sign makes every bot shoot backwards, which
+			# The inverse of GSWeaponCommand.aim_direction() (-Z forward). A wrong sign makes every bot shoot backwards, which
 			# reads as broken hit registration.
 			move.yaw = rad_to_deg(atan2(-to_target.x, -to_target.z))
 			move.pitch = rad_to_deg(asin(clampf(to_target.y, -1.0, 1.0)))
 
-			fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+			fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 
 			# Strafe, so they are not four statues: it exercises the movement-based spread and the
 			# ground friction, and it means the shots are not all fired from a standstill.
@@ -161,7 +161,7 @@ func _play() -> void:
 	var ticks := 0
 
 	while ticks < MAX_TICKS:
-		if _game.match_node.state == DotMatch.State.MATCH_END:
+		if _game.match_node.state == GSMatch.State.MATCH_END:
 			break
 
 		_game.tick(_commands_for_tick(ticks))
@@ -221,7 +221,7 @@ func _build_vote() -> void:
 	# A score limit ABOVE the match's own, so the clock is still running when the round ends and the
 	# round end can be seen arriving.
 	var rules := _vote.director.rules
-	rules.trigger = DotVoteRules.Trigger.SCORE_LIMIT
+	rules.trigger = GSVoteRules.Trigger.SCORE_LIMIT
 	rules.duration_sec = 0.0
 	rules.score_limit = SCORE_LIMIT + 10
 	rules.vote_lead_score = SCORE_LIMIT + 6
@@ -236,7 +236,7 @@ func _build_vote() -> void:
 
 	_vote.director.vote_opened.connect(func(_options: Array, _seconds: float) -> void:
 		_vote_seen.append([
-			DotMatch.State.keys()[_game.match_node.state], _vote.leading_score()
+			GSMatch.State.keys()[_game.match_node.state], _vote.leading_score()
 		])
 	)
 	_done()
@@ -274,8 +274,8 @@ func _test_score_vote() -> void:
 
 	# A new match is followed without a map change: `fc_mode` calls `game.change_map` directly, which never fires
 	# `maps.map_changed`, so a vote bound only there held the freed match. A stand-in match node, not a real mode change.
-	var real_match: DotMatch = _game.match_node
-	var stand_in := DotMatch.new()
+	var real_match: GSMatch = _game.match_node
+	var stand_in := GSMatch.new()
 	_game.match_node = stand_in
 	_vote.advance(1.0 / float(TICK_RATE))
 	var followed: bool = _vote.get("_match") == stand_in \
@@ -341,9 +341,9 @@ func _test_outcome() -> void:
 	)
 
 	_check(
-		_game.match_node.last_outcome() == DotMatchRules.Outcome.SCORE,
+		_game.match_node.last_outcome() == GSMatchRules.Outcome.SCORE,
 		"and the match ended because of it",
-		DotMatchRules.Outcome.keys()[_game.match_node.last_outcome()]
+		GSMatchRules.Outcome.keys()[_game.match_node.last_outcome()]
 	)
 
 	_check(_states.has("MATCH_END"), "the match reached MATCH_END", str(_states))
@@ -386,7 +386,7 @@ func _test_interface_rest(hud: FcHud, menu, board) -> void:
 
 ## A kill on the feed becomes a kill reading on the registry's tracker, and reporting is off by default.
 func _stats_event_check(progress) -> void:
-	_check(DotRegistry.get_service(&"dot_stats_tracker") == progress.stats, "the tracker is the dot_stats_tracker service")
+	_check(GSRegistry.get_service(&"dot_stats_tracker") == progress.stats, "the tracker is the dot_stats_tracker service")
 	_check(not progress.stats.report_to_backbone, "stats reporting is off by default")
 	var players := _game.players()
 	if players.size() < 2:
@@ -395,7 +395,7 @@ func _stats_event_check(progress) -> void:
 	var victim: Variant = players[1]
 	var seen: Array = []
 	progress.stats.recorded.connect(func(_id: StringName, stat: StringName, _total: float) -> void: seen.append(stat))
-	var entry := DotKillFeed.Entry.new()
+	var entry := GSKillFeed.Entry.new()
 	entry.killer_key = str(killer.player_id)
 	entry.victim_key = str(victim.player_id)
 	progress._on_killed(entry)
@@ -405,7 +405,7 @@ func _stats_event_check(progress) -> void:
 	)
 	_check(progress.stats.reporter.pending_kills() == 0, "a kill is not filed for the site while reporting is off")
 	progress.stats.report_to_backbone = true
-	var bot_entry := DotKillFeed.Entry.new()
+	var bot_entry := GSKillFeed.Entry.new()
 	bot_entry.killer_key = str(FcGame.BOT_SESSION_BASE + 1)
 	bot_entry.victim_key = str(victim.player_id)
 	bot_entry.cause = &"rifle"
@@ -426,23 +426,23 @@ func _test_progression_rest(defined: int) -> void:
 ## The _async forms against the memory store (the default) and against a remote one.
 func _test_boards_async(progress) -> void:
 	_check(progress.boards.backend == "memory", "the boards backend defaults to memory")
-	_check(DotBoardsConfig.for_game("arena").validate().ok, "the boards config validates")
+	_check(GSBoardsConfig.for_game("arena").validate().ok, "the boards config validates")
 
-	var values := DotStatsValues.new()
+	var values := GSStatsValues.new()
 	values.values[FcStats.KILLS] = 7.0
 	var scope := FcBoards.scope_for(&"ffa")
 
 	await FcBoards.submit_session(progress.boards, &"ffa", &"async_p", "Ada", values)
-	var mem: DotResult = await progress.boards.entry_for_async(FcBoards.KILLS, scope, &"async_p")
+	var mem: GSResult = await progress.boards.entry_for_async(FcBoards.KILLS, scope, &"async_p")
 	_check(
-		mem.ok and mem.value is DotLeaderboardEntry and absf((mem.value as DotLeaderboardEntry).value - 7.0) < 0.001,
+		mem.ok and mem.value is GSLeaderboardEntry and absf((mem.value as GSLeaderboardEntry).value - 7.0) < 0.001,
 		"async submit lands on the memory store"
 	)
-	var memory_page: DotResult = await progress.boards.page_async(FcBoards.KILLS, scope, 0, 10)
+	var memory_page: GSResult = await progress.boards.page_async(FcBoards.KILLS, scope, 0, 10)
 	_check(memory_page.ok and (memory_page.value as Array).size() >= 1, "async page reads the memory store")
 
-	var site := DotLeaderboardFakeSite.new(get_tree())
-	var remote := DotLeaderboardManager.new()
+	var site := GSLeaderboardFakeSite.new(get_tree())
+	var remote := GSLeaderboardManager.new()
 	remote.backend = "backbone"
 	remote.backbone_client = site
 	add_child(remote)
@@ -453,10 +453,10 @@ func _test_boards_async(progress) -> void:
 	_check(not plain.ok, "the synchronous form refuses a remote store")
 
 	await FcBoards.submit_session(remote, &"ffa", &"async_p", "Ada", values)
-	var remote_page: DotResult = await remote.page_async(FcBoards.KILLS, scope, 0, 10)
+	var remote_page: GSResult = await remote.page_async(FcBoards.KILLS, scope, 0, 10)
 	_check(
 		remote_page.ok and (remote_page.value as Array).size() == 1
-		and ((remote_page.value as Array)[0] as DotLeaderboardEntry).value == 7.0,
+		and ((remote_page.value as Array)[0] as GSLeaderboardEntry).value == 7.0,
 		"a remote board takes the session through the async forms",
 		str(remote_page.error) if not remote_page.ok else ""
 	)
@@ -469,7 +469,7 @@ func _test_boards_async(progress) -> void:
 func _test_interface() -> void:
 	_section("the interface")
 
-	var ui_config := DotUiConfig.new()
+	var ui_config := GSUiConfig.new()
 	ui_config.allow_pause = false
 
 	var hud := FcHud.new()
@@ -492,7 +492,7 @@ func _test_interface() -> void:
 	hud.follow(subject)
 	hud.refresh_all()
 
-	# Health is dot-ui's `DotVitals`, handed the followed player's numbers by `present_gear`.
+	# Health is dot-ui's `GSVitals`, handed the followed player's numbers by `present_gear`.
 	hud.present_gear()
 	_check(hud.crosshair != null and hud.vitals != null, "the HUD builds")
 	_check(
@@ -510,19 +510,19 @@ func _test_interface() -> void:
 
 	# The crosshair opens by the real projection (a fixed gap would mean the binding never reaches the weapon). Both readings
 	# are taken AFTER a refresh, since `gap_pixels()` reports the spread of the last `refresh_all()`. The subject holds a weapon
-	# WITH spread (`spread_degrees()` is zero unless it is [DotWeaponBallistics]) and the movement state is moved, not the arsenal.
+	# WITH spread (`spread_degrees()` is zero unless it is [GSWeaponBallistics]) and the movement state is moved, not the arsenal.
 	for slot_index in subject.arsenal.slots():
 		var slot := subject.arsenal.slot_at(slot_index)
 
-		if slot != null and slot.def.tuning is DotWeaponBallistics:
+		if slot != null and slot.def.tuning is GSWeaponBallistics:
 			subject.arsenal.select(slot_index, _game.current_tick())
 			break
 
-	# And standing on the ground, uncrouched: `DotWeaponBallistics.spread_for` returns the airborne spread whatever the speed,
+	# And standing on the ground, uncrouched: `GSWeaponBallistics.spread_for` returns the airborne spread whatever the speed,
 	# so a subject left mid-hop by the match read "4.6 -> 4.6" with a rifle. Only the posture is set, not the position.
 	var posture_was := subject.controller.state.mode
 	var crouch_was := subject.controller.state.crouch_fraction
-	subject.controller.state.mode = DotFpsState.Mode.GROUND
+	subject.controller.state.mode = GSFpsState.Mode.GROUND
 	subject.controller.state.crouch_fraction = 0.0
 
 	# The state-driven cone: with the combat-feel rules attached the cone is the last tick's (headless_combatfeel).
@@ -591,7 +591,7 @@ func _test_interface() -> void:
 		"the strip's left score is the followed player's own", "%d" % hud.strip.left_score
 	)
 	# The server's figure, as a networked client hands it over: rounded up, never 0:00 with
-	# time left (dot-ui's `DotScoreStrip.clock_text`; Fatal Contact's own rounded down).
+	# time left (dot-ui's `GSScoreStrip.clock_text`; Fatal Contact's own rounded down).
 	hud.remaining_override = 59.4
 	hud.present_scores()
 	_check(hud.strip.clock == "1:00" and not hud.strip.clock_low, "the clock rounds the seconds left up (59.4 s reads %s)" % hud.strip.clock)

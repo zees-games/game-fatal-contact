@@ -1,6 +1,6 @@
 extends RefCounted
 
-## FcPlayer hooks for dot-replay's [DotKillcamHost]: how a drawn body is read and posed.
+## FcPlayer hooks for dot-replay's [GSKillcamHost]: how a drawn body is read and posed.
 
 const KillPov := preload("fc_kill_pov.gd")
 const KillcamShots := preload("fc_killcam_shots.gd")
@@ -42,8 +42,8 @@ const ROW_FIRE_SEQ := 7
 const ROW_FIRE_KIND := 8
 
 
-## Gives [param host] Fatal Contact's skip keys and body hooks. [param yard_fn] returns the client's DotPlayerRagdolls (or null).
-static func configure(host: DotKillcamHost, yard_fn: Callable = Callable(), shots: KillcamShots = null) -> void:
+## Gives [param host] Fatal Contact's skip keys and body hooks. [param yard_fn] returns the client's GSPlayerRagdolls (or null).
+static func configure(host: GSKillcamHost, yard_fn: Callable = Callable(), shots: KillcamShots = null) -> void:
 	host.log_channel = "arena.killcam"
 	host.skip_actions = SKIP_ACTIONS
 	host.skip_hint = "Jump or Fire to skip"
@@ -52,13 +52,13 @@ static func configure(host: DotKillcamHost, yard_fn: Callable = Callable(), shot
 		shots.state_fn = state_of
 	host.place_body_fn = place_body
 	host.restore_body_fn = restore_body
-	if DotAddonApi.build_level("dot_replay") >= 7:  # older hosts replay bodies by speed only
+	if GSAddonApi.build_level("dot_replay") >= 7:  # older hosts replay bodies by speed only
 		host.set(&"pose_fn", pose_of)
 		host.set(&"apply_pose_fn", apply_pose)
-		if DotAddonApi.build_level("dot_replay") >= 10:
+		if GSAddonApi.build_level("dot_replay") >= 10:
 			host.set(&"pose_fn", read_pose)
 			host.set(&"pose_unchanged_fn", pose_unchanged)
-	if DotAddonApi.build_level("dot_replay") >= 8:
+	if GSAddonApi.build_level("dot_replay") >= 8:
 		host.set(&"event_fn", func(p: Node, ra: Array, rb: Array, alpha: float, is_victim: bool) -> void:
 			var again: Array = host.get(&"_again")
 			var at: float = float((again[0] as Dictionary).get("time", -1.0)) if not again.is_empty() else -1.0
@@ -90,13 +90,13 @@ static func replay_events(p: Node, ra: Array, rb: Array, alpha: float, is_victim
 	var alive: bool = row[3]
 	var was: bool = p.get_meta(ALIVE_META, alive)
 	p.set_meta(ALIVE_META, alive)
-	if is_victim and was and not alive and yard is DotPlayerRagdolls and body != null and not p.has_meta(FALL_META):
-		_fall(p, body, ra, rb, alpha, yard as DotPlayerRagdolls)
+	if is_victim and was and not alive and yard is GSPlayerRagdolls and body != null and not p.has_meta(FALL_META):
+		_fall(p, body, ra, rb, alpha, yard as GSPlayerRagdolls)
 
 
-static func _fall(p: Node, body: Node3D, ra: Array, rb: Array, alpha: float, yard: DotPlayerRagdolls) -> void:
+static func _fall(p: Node, body: Node3D, ra: Array, rb: Array, alpha: float, yard: GSPlayerRagdolls) -> void:
 	var hidden: Array = []
-	for old: DotPlayerRagdoll in yard.live():
+	for old: GSPlayerRagdoll in yard.live():
 		if old.visible:
 			old.visible = false
 			hidden.append(old)
@@ -104,7 +104,7 @@ static func _fall(p: Node, body: Node3D, ra: Array, rb: Array, alpha: float, yar
 	body.global_basis = Basis(Vector3.UP, lerp_angle(deg_to_rad(ra[1]), deg_to_rad(rb[1]), alpha))
 	var was_shown := body.visible
 	body.visible = true
-	var made: Variant = p.call(&"fall_body", yard, DotPlayerDeath.new(), false)
+	var made: Variant = p.call(&"fall_body", yard, GSPlayerDeath.new(), false)
 	body.visible = was_shown
 	if made != null:
 		p.set_meta(FALL_META, made)
@@ -169,7 +169,7 @@ static func apply_pose(p: Node, a: PackedFloat32Array, b: PackedFloat32Array, al
 
 # [feet, yaw, pitch, alive, eye height]: where the body was drawn, not where the tick put it.
 static func state_of(p: Node) -> Array:
-	var controller: DotFpsController = p.get(&"controller")
+	var controller: GSFpsController = p.get(&"controller")
 	if controller == null:
 		return []
 	var st := controller.state
@@ -209,7 +209,7 @@ static func restore_body(p: Node, saved: Array) -> void:
 ## The player's crouch fraction (x) and slide (y, 1 or 0) now: the replay hands a hidden body no
 ## recorded pose, so its live stance is the nearest thing to what it was doing.
 static func _stance_of(p: Node) -> Vector2:
-	var controller: DotFpsController = p.get(&"controller")
+	var controller: GSFpsController = p.get(&"controller")
 	if controller == null:
 		return Vector2.ZERO
 	return Vector2(controller.state.crouch_fraction, 1.0 if controller.state.is_sliding() else 0.0)

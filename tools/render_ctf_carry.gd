@@ -35,7 +35,7 @@ func _run() -> void:
 	print("render_ctf_carry: %s" % _map_id)
 	await _wait_gate(60.0)
 	await _wait(4.0)
-	var picked: DotResult = await client.call("change_from_menu", &"map:%s" % _map_id, &"mode:ctf")
+	var picked: GSResult = await client.call("change_from_menu", &"map:%s" % _map_id, &"mode:ctf")
 	_check(picked.ok, "the M menu changes to %s in capture the flag" % _map_id)
 	await _wait_gate(60.0)
 	await _wait(3.0)
@@ -46,12 +46,12 @@ func _run() -> void:
 		_check(false, "the game has the ctf layer and draws flags")
 		quit(1)
 		return
-	var ctf: DotObjectiveCtf = objs.ctf
+	var ctf: GSObjectiveCtf = objs.ctf
 	var view = objs.flag_view
 	game.match_node.rules.warmup_sec = 0.0
 	game.freeze_sec = 0.0
 	for i in 100:
-		if game.match_node.state == DotMatch.State.LIVE:
+		if game.match_node.state == GSMatch.State.LIVE:
 			break
 		await _wait(0.1)
 	var mine: int = game.team_of(me.player_id)
@@ -59,8 +59,8 @@ func _run() -> void:
 	for f in ctf.flags():
 		if f.home_team() != mine:
 			enemy = f.home_team()
-	var f_mine: DotObjectiveFlag = ctf.flag_of(mine)
-	var f_enemy: DotObjectiveFlag = ctf.flag_of(enemy)
+	var f_mine: GSObjectiveFlag = ctf.flag_of(mine)
+	var f_enemy: GSObjectiveFlag = ctf.flag_of(enemy)
 	me.health.invulnerable = true
 	var carrier = null
 	for id in game.player_ids():
@@ -83,13 +83,13 @@ func _run() -> void:
 	await _run_part2(game, me, view, mine, enemy, f_mine, f_enemy, carrier)
 
 
-func _run_part2(game, me, view, mine: int, enemy, f_mine: DotObjectiveFlag, f_enemy: DotObjectiveFlag, carrier) -> void:
+func _run_part2(game, me, view, mine: int, enemy, f_mine: GSObjectiveFlag, f_enemy: GSObjectiveFlag, carrier) -> void:
 	# 1. A bot carrier, seen by somebody else: its gun in the right hand, my flag in its left, against the body.
 	var take := _toward(game, f_mine.at, f_enemy.at, 0.2)
 	for i in 60:
 		carrier.controller.teleport(take + Vector3.UP * 0.05, 0.0, 0.0)
 		await _wait(0.05)
-		if f_mine.state == DotObjectiveFlag.State.CARRIED:
+		if f_mine.state == GSObjectiveFlag.State.CARRIED:
 			break
 	_check(f_mine.carrier == str(carrier.player_id), "the bot takes my flag")
 	var stand := _toward(game, f_mine.at, f_enemy.at, 5.0)
@@ -117,14 +117,14 @@ func _run_part2(game, me, view, mine: int, enemy, f_mine: DotObjectiveFlag, f_en
 	await _run_part3(game, me, view, enemy, f_mine, f_enemy, carrier, take, right)
 
 
-func _run_part3(game, me, view, enemy, f_mine: DotObjectiveFlag, f_enemy: DotObjectiveFlag, carrier, take, right: Vector3) -> void:
+func _run_part3(game, me, view, enemy, f_mine: GSObjectiveFlag, f_enemy: GSObjectiveFlag, carrier, take, right: Vector3) -> void:
 	# 2. Me carrying: the flag at my left shoulder looking that way, then the right one with cl_lefthand.
 	carrier.controller.teleport(_ground(game, f_mine.at.lerp(f_enemy.at, 0.5)) + Vector3(0, 0.05, 30), 0.0, 0.0)
 	var enemy_spot := _toward(game, f_enemy.at, f_mine.at, 0.2)
 	_put(enemy_spot, f_enemy.at + Vector3.UP * 1.5)
 	for i in 80:
 		await _wait(0.05)
-		if f_enemy.state == DotObjectiveFlag.State.CARRIED:
+		if f_enemy.state == GSObjectiveFlag.State.CARRIED:
 			break
 	_check(f_enemy.carrier == str(me.player_id), "I take the enemy flag")
 	var out := _toward(game, f_enemy.at, f_mine.at, 4.0)
@@ -147,7 +147,7 @@ func _run_part3(game, me, view, enemy, f_mine: DotObjectiveFlag, f_enemy: DotObj
 	client.get("_sampler").look_at_angles(yaw, 10.0)
 	await _wait(0.3)
 	var dropped := FcFlagCarry.try_drop(game, me.player_id, me)
-	_check(dropped and f_enemy.state == DotObjectiveFlag.State.DROPPED, "the drop key drops the flag")
+	_check(dropped and f_enemy.state == GSObjectiveFlag.State.DROPPED, "the drop key drops the flag")
 	await _wait(0.12)
 	_check(FcFlagCarry.flying(game, enemy), "it flies")
 	await _shot("drop_in_flight")

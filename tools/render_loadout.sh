@@ -3,7 +3,7 @@
 #   GPU_SHOT_BOXES=staging02 ../gpu.sh shot wt-ros-game-arena tools/render_loadout.sh
 set -uo pipefail
 cd "$(dirname "$0")/.."
-# A short frame sequence beside each still (DotShotSeq), so Nightly -> Review can play it.
+# A short frame sequence beside each still (GSShotSeq), so Nightly -> Review can play it.
 export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-${DOT_SHOT_FRAMES:-8}} GS_SHOT_SECS=${GS_SHOT_SECS:-${DOT_SHOT_SECS:-1}}
 godot --headless --path . --import >/dev/null 2>&1 || true
 for mode in "" "--costed"; do

@@ -31,7 +31,7 @@ static func stage(game, local, hud) -> Array[Dictionary]:
 		var _p: bool = mio.press_for(local, local.player_id)
 		for _t in 64 * 4:
 			game.tick({})
-		var door: DotMapEntity = mio.world.io.entity_of(DOOR)
+		var door: GSMapEntity = mio.world.io.entity_of(DOOR)
 		var at: Vector3 = door.node.global_position if door.node != null else button
 		local.camera.global_position = at + Vector3(0.0, 1.5, 2.5)
 		local.camera.look_at(at, Vector3.UP)

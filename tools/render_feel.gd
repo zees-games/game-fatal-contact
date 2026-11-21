@@ -44,7 +44,7 @@ var _frames := 0
 var _save_every := 1
 var _log: PackedStringArray = []
 var _hands: AwViewModel = null
-var _flinch := DotFpsAimBreak.new()
+var _flinch := GSFpsAimBreak.new()
 var _flinch_wobble := Vector2.ZERO
 ## Physics frames to let a scenario settle before it is recorded.
 var _settle := 0
@@ -146,8 +146,8 @@ func _next_scenario() -> void:
 	_log = PackedStringArray(["frame,tick,alpha,eye_x,eye_y,eye_z,bot_x,bot_z,bot_screen_x,hands_x,hands_y,roll,dip,fov"])
 
 
-func _command(move: Vector2, yaw: float) -> DotFpsCommand:
-	var command := DotFpsCommand.new()
+func _command(move: Vector2, yaw: float) -> GSFpsCommand:
+	var command := GSFpsCommand.new()
 	command.move = move
 	command.yaw = yaw
 	return command
@@ -160,7 +160,7 @@ func _physics_process(_delta: float) -> bool:
 	if _scenario == "":
 		return true
 
-	var mine := DotFpsCommand.new()
+	var mine := GSFpsCommand.new()
 	var theirs := _command(Vector2.ZERO, -90.0)
 	match _scenario:
 		"bot":
@@ -180,13 +180,13 @@ func _physics_process(_delta: float) -> bool:
 		"slide":
 			mine = _command(Vector2(0.0, 1.0), 90.0)
 			if _settle <= 0 and _frame >= 24:
-				mine.buttons = DotFpsCommand.BUTTON_CROUCH
+				mine.buttons = GSFpsCommand.BUTTON_CROUCH
 
 	if _scenario == "flinch":
 		mine = _command(Vector2.ZERO, _flinch_wobble.x)
 		mine.pitch = _flinch_wobble.y
-	var _a := _player.simulate_tick(_tick, 1.0 / float(TICK_RATE), mine, DotWeaponCommand.new())
-	var _b := _bot.simulate_tick(_tick, 1.0 / float(TICK_RATE), theirs, DotWeaponCommand.new())
+	var _a := _player.simulate_tick(_tick, 1.0 / float(TICK_RATE), mine, GSWeaponCommand.new())
+	var _b := _bot.simulate_tick(_tick, 1.0 / float(TICK_RATE), theirs, GSWeaponCommand.new())
 	_tick += 1
 	if _settle > 0:
 		_settle -= 1

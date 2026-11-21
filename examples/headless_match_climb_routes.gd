@@ -49,14 +49,14 @@ func _test_box_upper() -> void:
 	var settle := 16
 
 	for step in range(64 * 20):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 90.0 if on_top_crate else 180.0
 
 		if on_top_crate and settle > 0:
 			settle -= 1
 		else:
 			command.move = Vector2(0.0, 1.0)
-			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+			command.set_button(GSFpsCommand.BUTTON_JUMP, true)
 
 		climber.controller.apply_command(command)
 		climber.controller.simulate_tick(tick, delta)
@@ -91,7 +91,7 @@ func _test_box_upper() -> void:
 		var crossed := false
 
 		for step in range(64 * 8):
-			var command := DotFpsCommand.new()
+			var command := GSFpsCommand.new()
 			command.yaw = leg["yaw"]
 			command.move = Vector2(0.0, 1.0)
 			climber.controller.apply_command(command)
@@ -122,10 +122,10 @@ func _test_box_upper() -> void:
 	var nested := false
 
 	for step in range(64 * 6):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 0.0
 		command.move = Vector2(0.0, 1.0)
-		command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+		command.set_button(GSFpsCommand.BUTTON_JUMP, true)
 		climber.controller.apply_command(command)
 		climber.controller.simulate_tick(tick, delta)
 		tick += 1
@@ -163,7 +163,7 @@ func _test_box_upper() -> void:
 		var top_x := 0.0
 
 		for step in range(64 * 4):
-			var command := DotFpsCommand.new()
+			var command := GSFpsCommand.new()
 			command.yaw = flight["up_yaw"]
 			command.move = Vector2(0.0, 1.0)
 			climber.controller.apply_command(command)
@@ -202,7 +202,7 @@ func _test_box_upper() -> void:
 		# The run ends against the pillar rather than off the end of the stair: held on
 		# for another half second, the bot is still standing on the top tread.
 		for step in range(32):
-			var command := DotFpsCommand.new()
+			var command := GSFpsCommand.new()
 			command.yaw = flight["up_yaw"]
 			command.move = Vector2(0.0, 1.0)
 			climber.controller.apply_command(command)
@@ -220,7 +220,7 @@ func _test_box_upper() -> void:
 		var onto_gantry := false
 
 		for step in range(64 * 2):
-			var command := DotFpsCommand.new()
+			var command := GSFpsCommand.new()
 			command.yaw = flight["across_yaw"]
 			command.move = Vector2(0.0, 1.0)
 			climber.controller.apply_command(command)
@@ -319,7 +319,7 @@ func _test_box_upper() -> void:
 		var top_x := 0.0
 
 		for step in range(64 * 4):
-			var command := DotFpsCommand.new()
+			var command := GSFpsCommand.new()
 			command.yaw = corner["up_yaw"]
 			command.move = Vector2(0.0, 1.0)
 			climber.controller.apply_command(command)
@@ -358,7 +358,7 @@ func _test_box_upper() -> void:
 		# Held on for a second and a half — more than the 6.5 m of landing takes — the run ends
 		# against the side wall, still at ledge height, not in the corner below.
 		for step in range(96):
-			var command := DotFpsCommand.new()
+			var command := GSFpsCommand.new()
 			command.yaw = corner["up_yaw"]
 			command.move = Vector2(0.0, 1.0)
 			climber.controller.apply_command(command)
@@ -378,7 +378,7 @@ func _test_box_upper() -> void:
 		var onto_ledge := false
 
 		for step in range(64 * 2):
-			var command := DotFpsCommand.new()
+			var command := GSFpsCommand.new()
 			command.yaw = corner["ledge_yaw"]
 			command.move = Vector2(0.0, 1.0)
 			climber.controller.apply_command(command)
@@ -425,23 +425,23 @@ func _test_box_upper() -> void:
 
 ## Drives [param route] through a bare motor on [param body]: `made`, `at`, `runs`, `jumps`, and
 ## `worst_on_wall`.
-func _drive_route(map: FcMap, body: DotFpsBody, route: Dictionary, how: StringName, walls: bool) -> Dictionary:
+func _drive_route(map: FcMap, body: GSFpsBody, route: Dictionary, how: StringName, walls: bool) -> Dictionary:
 	var t := FcPlayer.fc_tunables()
 	if not walls:
 		t.wall_run_enabled = false
 		t.wall_jump_enabled = false
 		t.wall_slide_speed = 0.0
-	var motor := DotFpsMotor.new(t, body)
+	var motor := GSFpsMotor.new(t, body)
 	var driver := WallRouteDriver.new(route, how)
-	var state := DotFpsState.new()
+	var state := GSFpsState.new()
 	state.position = driver.start
 	state.yaw = driver.yaw
-	state.mode = DotFpsState.Mode.AIR
+	state.mode = GSFpsState.Mode.AIR
 	var step := 1.0 / float(TICK_RATE)
 
 	# Settle onto the start, standing still.
 	for _i in range(16):
-		var idle := DotFpsCommand.new()
+		var idle := GSFpsCommand.new()
 		idle.yaw = driver.yaw
 		motor.simulate(state, idle, step)
 
@@ -575,7 +575,7 @@ func _test_crate_climb() -> void:
 	# Two held directions, and the switch is the honest part: the column climbs north and the ring
 	# is west of its top, so north and jump until up, then west and no jump.
 	for tick in range(tick_rate * 24):
-		var command := DotFpsCommand.new()
+		var command := GSFpsCommand.new()
 		command.yaw = 0.0
 		command.pitch = 0.0
 
@@ -585,7 +585,7 @@ func _test_crate_climb() -> void:
 			command.move = Vector2(-1.0, 1.0).normalized()
 		else:
 			command.move = Vector2(0.0, 1.0)
-			command.set_button(DotFpsCommand.BUTTON_JUMP, true)
+			command.set_button(GSFpsCommand.BUTTON_JUMP, true)
 
 		climber.controller.apply_command(command)
 		climber.controller.simulate_tick(tick, delta)
@@ -642,7 +642,7 @@ func _build() -> void:
 	_game = FcGame.new()
 	_game.name = "Arena"
 	# Throwaway achievement store, or a persisted file from an earlier run seeds the lifetime totals.
-	_game.progress_dir = DotSettingsScratch.use("headless_match_achievements")
+	_game.progress_dir = GSSettingsScratch.use("headless_match_achievements")
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = SCORE_LIMIT
 	_game.time_limit_sec = 0.0
@@ -662,15 +662,15 @@ func _build() -> void:
 	_game.match_node.rules.intermission_sec = 0.5
 	_game.match_node.rules.match_end_sec = 0.5
 
-	_game.player_killed.connect(func(entry: DotKillFeed.Entry) -> void:
+	_game.player_killed.connect(func(entry: GSKillFeed.Entry) -> void:
 		_kills.append(entry)
 	)
 	_game.player_spawned.connect(func(player: FcPlayer) -> void:
 		_spawns.append(player.player_id)
 	)
 	_game.match_state_changed.connect(
-		func(_from: DotMatch.State, to: DotMatch.State) -> void:
-			_states.append(DotMatch.State.keys()[to])
+		func(_from: GSMatch.State, to: GSMatch.State) -> void:
+			_states.append(GSMatch.State.keys()[to])
 	)
 
 	for index in range(BOTS):
@@ -678,7 +678,7 @@ func _build() -> void:
 		_check(added.ok, "bot %d joins" % (index + 1), str(added.error))
 
 	_game.start(0)
-	_check(_game.match_node.state != DotMatch.State.IDLE, "the match starts")
+	_check(_game.match_node.state != GSMatch.State.IDLE, "the match starts")
 
 	# Let the first tick run so the round goes live and everyone is spawned in.
 	_game.tick({})

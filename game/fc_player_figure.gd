@@ -3,14 +3,14 @@ extends "fc_player_build.gd"
 
 ## Tells the person how this player moves, and advances its clip. Client side. [b]From the drawn state[/b], the same one the body is placed from, so the stride matches the ground covered this frame.
 ## The weapon kind picks the arms: a gun, a melee weapon (a swing plays the slash over the legs), or empty hands.
-func _animate_figure(drawn: DotFpsState, delta: float) -> void:
+func _animate_figure(drawn: GSFpsState, delta: float) -> void:
 	if figure == null or body_mesh == null or not body_mesh.visible:
 		return
 
 	var v := drawn.velocity
 	# One dictionary per player, rewritten in place: a fresh one per body per frame was 32 dictionaries a frame.
 	var motion := _figure_motion
-	motion["on_floor"] = drawn.mode == DotFpsState.Mode.GROUND
+	motion["on_floor"] = drawn.mode == GSFpsState.Mode.GROUND
 	motion["vertical"] = v.y
 	motion["crouched"] = drawn.crouch_fraction > 0.5
 	# The figure lerps its own crouch amount toward this (render side only), so a remote's crouch and slide ease in and out.
@@ -27,27 +27,27 @@ func _animate_figure(drawn: DotFpsState, delta: float) -> void:
 	motion["aim"] = deg_to_rad(drawn.pitch)
 	figure.set_motion(motion)
 
-	var held_def: DotWeaponDef = arsenal.current_def() if arsenal != null else null
+	var held_def: GSWeaponDef = arsenal.current_def() if arsenal != null else null
 	var id := mirror_weapon if mirrored else (held_def.id if held_def != null else &"")
 	# The hold follows the weapon: looked up (catalogue, slot tests) and set only when the weapon changes.
 	if id != _figure_hold_id or _figure_hold_kind < 0:
 		var def := weapon_catalogue().get_def(id) if id != &"" else null
-		var picked := DotHumanoidFigure.Hold.NONE
+		var picked := GSHumanoidFigure.Hold.NONE
 		if def != null:
-			picked = DotHumanoidFigure.Hold.MELEE if def.slot == AwWeaponIds.SLOT_MELEE else (
-				DotHumanoidFigure.Hold.NONE if def.slot == AwWeaponIds.thrown_slot() else DotHumanoidFigure.Hold.GUN)
+			picked = GSHumanoidFigure.Hold.MELEE if def.slot == AwWeaponIds.SLOT_MELEE else (
+				GSHumanoidFigure.Hold.NONE if def.slot == AwWeaponIds.thrown_slot() else GSHumanoidFigure.Hold.GUN)
 		_figure_hold_id = id
 		_figure_hold_kind = picked
 	var kind: int = _figure_hold_kind
 	figure.set_hold(kind)
 	# A blade or empty hands pump the free arm in a sprint: the figure reads the flag only when it is given.
-	if kind != DotHumanoidFigure.Hold.GUN:
+	if kind != GSHumanoidFigure.Hold.GUN:
 		motion["sprinting"] = drawn.sprinting
 	else:
 		motion.erase("sprinting")
 
 	var seq := mirror_fire_seq if mirrored else (weapons.fire_seq % AwWeaponNet.FIRE_SEQ_WRAP if weapons != null else 0)
-	if AwWeaponNet.uses_between(_figure_fire_seq, seq) > 0 and kind == DotHumanoidFigure.Hold.MELEE:
+	if AwWeaponNet.uses_between(_figure_fire_seq, seq) > 0 and kind == GSHumanoidFigure.Hold.MELEE:
 		figure.swing()
 	_figure_fire_seq = seq
 
@@ -72,14 +72,14 @@ func _animate_windup() -> void:
 
 ## Moves the camera from the eye to behind it, and draws the body where the eye is.
 ##
-## [b]Swept from the eye, not set.[/b] dot-core's [DotCameraProbe] pulls the camera in ahead
+## [b]Swept from the eye, not set.[/b] dot-core's [GSCameraProbe] pulls the camera in ahead
 ## of a wall it is swinging toward and eases it back out; a camera simply placed 2.6 m back
 ## spends every corner inside the corner (the play test's death camera was exactly that).
 ## The body is placed on the drawn feet every frame, not left on this node: this node is
 ## moved by the tick, and a body drawn at the tick under a camera drawn per frame shakes.
-func _place_third_person(drawn: DotFpsState, delta: float) -> void:
+func _place_third_person(drawn: GSFpsState, delta: float) -> void:
 	if _tp_probe == null:
-		_tp_probe = DotCameraProbe.new(camera.get_world_3d(), third_person_mask)
+		_tp_probe = GSCameraProbe.new(camera.get_world_3d(), third_person_mask)
 	_tp_probe.collision_mask = third_person_mask
 	var pivot := view.global_position
 	var wanted := pivot + camera.global_basis * THIRD_PERSON_OFFSET
@@ -91,5 +91,5 @@ func _place_third_person(drawn: DotFpsState, delta: float) -> void:
 
 
 ## Whether the body is drawn sliding: the replicated slide timer (net_flags), for bots, humans and remote copies alike.
-func _drawn_sliding(drawn: DotFpsState) -> bool:
-	return (drawn.move_flags() & DotFpsState.Move.SLIDE) != 0 and drawn.mode == DotFpsState.Mode.GROUND
+func _drawn_sliding(drawn: GSFpsState) -> bool:
+	return (drawn.move_flags() & GSFpsState.Move.SLIDE) != 0 and drawn.mode == GSFpsState.Mode.GROUND

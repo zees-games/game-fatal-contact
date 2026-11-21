@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## FC's team avatars: in a team mode every player on a side is drawn as that side's own body
-## (dot-player-char's registered bodies, `DotHumanoidAssets.register_body`), tinted the side's colour.
+## (dot-player-char's registered bodies, `GSHumanoidAssets.register_body`), tinted the side's colour.
 ##
 ## The bodies are other people's art prepared on the kit rig (dot-player-char docs/avatar-prep.md) and are
 ## not in this repository: each is a `<id>.glb` in one of [member FcConfig.team_body_dirs], registered
@@ -46,7 +46,7 @@ static var _registered_for := ""
 static var _bodies: Array[StringName] = []
 ## Changes whenever what a team look depends on changed, so a drawn body knows to be rebuilt.
 static var version := 0
-## The tint followed from the server's `team_tint` rule; dot-player-char's `DotHumanoidAssets.team_tint` follows it.
+## The tint followed from the server's `team_tint` rule; dot-player-char's `GSHumanoidAssets.team_tint` follows it.
 static var _tint := 0.35
 
 
@@ -66,17 +66,17 @@ static func register(ids: String, dirs: String) -> Array[StringName]:
 			continue
 		var path := _find(String(id), dirs)
 		if path == "":
-			DotLog.warn(CHANNEL, "team body not found; that side wears its own looks", {"id": String(id), "dirs": dirs})
+			GSLog.warn(CHANNEL, "team body not found; that side wears its own looks", {"id": String(id), "dirs": dirs})
 			_bodies.append(&"")
 			continue
-		_bodies.append(id if has_bodies() and bool(FcNewerApi.call_static(&"DotHumanoidAssets", &"register_body", [id, path])) else &"")
+		_bodies.append(id if has_bodies() and bool(FcNewerApi.call_static(&"GSHumanoidAssets", &"register_body", [id, path])) else &"")
 	version += 1
 	return _bodies
 
 
 ## Whether this build's dot-player-char draws registered bodies ([constant BODIES_LEVEL]).
 static func has_bodies() -> bool:
-	return DotAddonApi.build_level("dot_player_char") >= BODIES_LEVEL
+	return GSAddonApi.build_level("dot_player_char") >= BODIES_LEVEL
 
 
 ## The first `<dir>/<id>.glb` that exists, else "".
@@ -115,7 +115,7 @@ static func follow(game: Object) -> void:
 		forced = on
 		_tint = tint
 		if has_bodies():
-			FcNewerApi.script_of(&"DotHumanoidAssets").set(&"team_tint", tint)
+			FcNewerApi.script_of(&"GSHumanoidAssets").set(&"team_tint", tint)
 		_sides = sides
 		version += 1
 
@@ -153,10 +153,10 @@ static func wear_key(team: int) -> String:
 
 ## [param avatar]'s look ([method FcAvatars.look_of]), worn as [param team]'s body in its colour when
 ## that side has one: the face, hair and trousers stay the player's, only the body and the top are the side's.
-static func look_of(avatar: DotAvatar, player_key: StringName, team: int) -> DotHumanoidLook:
+static func look_of(avatar: GSAvatar, player_key: StringName, team: int) -> GSHumanoidLook:
 	var look := FcAvatars.look_of(avatar, player_key)
 	var body := body_of(team)
-	if body == &"" or not has_bodies() or not (FcNewerApi.script_of(&"DotHumanoidLook").get(&"registered") as Dictionary).has(body):
+	if body == &"" or not has_bodies() or not (FcNewerApi.script_of(&"GSHumanoidLook").get(&"registered") as Dictionary).has(body):
 		return look
 	look.body = body
 	look.top = _sides[team][1]

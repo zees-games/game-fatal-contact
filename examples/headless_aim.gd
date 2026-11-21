@@ -25,7 +25,7 @@ var _hits: Array = []
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -73,11 +73,11 @@ func _boot() -> void:
 
 
 func _step(buttons: int, yaw: float, pitch: float, crouch: bool = false) -> void:
-	var m := DotFpsCommand.new()
+	var m := GSFpsCommand.new()
 	m.yaw = yaw
 	m.pitch = pitch
-	m.buttons = DotFpsCommand.BUTTON_CROUCH if crouch else 0
-	var w := DotWeaponCommand.new()
+	m.buttons = GSFpsCommand.BUTTON_CROUCH if crouch else 0
+	var w := GSWeaponCommand.new()
 	w.buttons = buttons
 	_game.tick({1: [m, w]})
 	await get_tree().physics_frame
@@ -111,11 +111,11 @@ func _trial(dist: float, crouch: bool, follow_up: bool) -> Dictionary:
 	var head := victim.global_position + Vector3(0.0, 1.62 * FcPlayer.stand_height() / 1.8, 0.0)
 	var a := angles_to(eye, head)
 	_hits.clear()
-	var aim := DotWeaponCommand.BUTTON_USER_0
+	var aim := GSWeaponCommand.BUTTON_USER_0
 	# The sights come up before the trigger: a scoped shot is never a hip one.
 	for _i in 150:
 		await _step(aim, a.x, a.y, crouch)
-	await _step(aim | DotWeaponCommand.BUTTON_ATTACK, a.x, a.y, crouch)
+	await _step(aim | GSWeaponCommand.BUTTON_ATTACK, a.x, a.y, crouch)
 	await _settle(aim, a, crouch)
 	var first := _hits.duplicate()
 	var second := []
@@ -123,7 +123,7 @@ func _trial(dist: float, crouch: bool, follow_up: bool) -> Dictionary:
 		for _i in 140:
 			await _step(aim, a.x, a.y, crouch)
 		_hits.clear()
-		await _step(aim | DotWeaponCommand.BUTTON_ATTACK, a.x, a.y, crouch)
+		await _step(aim | GSWeaponCommand.BUTTON_ATTACK, a.x, a.y, crouch)
 		await _settle(aim, a, crouch)
 		second = _hits.duplicate()
 	return {"one": first, "two": second, "eye": eye, "head": head, "angles": a}
@@ -176,8 +176,8 @@ func _select_sniper(shooter: FcPlayer) -> void:
 func _buffer_case(window: float, press_at: int, hold: bool) -> int:
 	_game.player_for(1).arsenal.fire_buffer_seconds = window
 	var a: Vector2 = (await _trial(40.0, false, false)).angles
-	var aim := DotWeaponCommand.BUTTON_USER_0
-	var fire := DotWeaponCommand.BUTTON_ATTACK
+	var aim := GSWeaponCommand.BUTTON_USER_0
+	var fire := GSWeaponCommand.BUTTON_ATTACK
 	for _i in 200:
 		await _step(aim, a.x, a.y)
 	_hits.clear()
@@ -207,7 +207,7 @@ func _wait_live(client: Node) -> bool:
 		await get_tree().process_frame
 		var p: FcPlayer = client.get("player")
 		var g: FcGame = client.get("game")
-		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == DotMatch.State.LIVE:
+		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == GSMatch.State.LIVE:
 			for o in g.players():
 				if o != p and o.is_alive():
 					return true
@@ -246,14 +246,14 @@ func _probe_client() -> void:
 	for id in bots:
 		var b: FcPlayer = bots[id]
 		b.set_meta(&"bot_scripted", true)
-		b.set_meta(&"bot_move", DotFpsCommand.new())
-		b.set_meta(&"bot_fire", DotWeaponCommand.new())
+		b.set_meta(&"bot_move", GSFpsCommand.new())
+		b.set_meta(&"bot_fire", GSWeaponCommand.new())
 	for act in [FcBindings.FIRE, FcBindings.AIM]:
 		if not InputMap.has_action(act):
 			InputMap.add_action(act)
 	var sounds: Array = []
 	var asked: Array = []
-	var audio: DotAudioManager = client.get("presentation").audio
+	var audio: GSAudioManager = client.get("presentation").audio
 	audio.played.connect(func(id: StringName, _h: int, why: StringName) -> void:
 		asked.append("%s:%s" % [id, why])
 		if why == &"ok":
@@ -266,7 +266,7 @@ func _probe_client() -> void:
 
 
 ## One pass of [method _probe_client]: [param me] fires at the still [param bot], hip or scoped, and the hit, marker and sound are checked.
-func _shoot_bot(client: Node, g: FcGame, me: FcPlayer, bot: FcPlayer, audio: DotAudioManager, sounds: Array, asked: Array, scoped: bool) -> void:
+func _shoot_bot(client: Node, g: FcGame, me: FcPlayer, bot: FcPlayer, audio: GSAudioManager, sounds: Array, asked: Array, scoped: bool) -> void:
 	# The hip shot uses a rifle: the sniper's 8 degree hip cone (a missed shot at 6 m, now that the body is
 	# the 72 unit one and a third smaller in area) tests the weapon's inaccuracy, not that the shot registers.
 	var _fill := me.arsenal.give(AwWeaponIds.SNIPER if scoped else AwWeaponIds.RIFLE)

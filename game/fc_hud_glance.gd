@@ -25,10 +25,10 @@ const FcWeaponIcons := preload("fc_weapon_icons.gd")
 ## [b]Only Fatal Contact's own pieces are here[/b]: the ranked portraits, the kill feed with its
 ## weapon silhouettes, the carried weapons, the ability bar. Health, ammunition, the scores
 ## and clock, the key prompt and hints, the hit marker and the damage numbers were drawn here
-## too and moved to dot-ui once other games needed them (`DotVitals`, `DotAmmoCounter`,
-## `DotScoreStrip`, `DotKeyPrompt`, `DotKeyHints`, `DotHitMarker`, `DotDamageNumbers`; dot-ui
+## too and moved to dot-ui once other games needed them (`GSVitals`, `GSAmmoCounter`,
+## `GSScoreStrip`, `GSKeyPrompt`, `GSKeyHints`, `GSHitMarker`, `GSDamageNumbers`; dot-ui
 ## `docs/hud.md`, "The glance pieces"); [FcHud] places them beside these. The colours
-## below are the same as `DotHudPiece.DEFAULTS`, so the two sets read as one HUD.
+## below are the same as `GSHudPiece.DEFAULTS`, so the two sets read as one HUD.
 ##
 ## Art: the weapon pictures are Jestan's CC0 sprites ([FcWeaponIcons]); the older silhouettes are rendered from the weapon models by
 ## `tools/build_weapon_icons.sh` (Kenney's CC0 blaster and tool kits); the ability icons are
@@ -66,14 +66,14 @@ class Ink:
 		return _fonts[italic]
 
 	## A HUD colour by dot-ui's name for it (`plate`, `text`, `dim`, `keycap`, ...): the theme's on
-	## [constant DotHudPiece.THEME_TYPE] as [param canvas] sees it (the menu sets one on the HUD),
+	## [constant GSHudPiece.THEME_TYPE] as [param canvas] sees it (the menu sets one on the HUD),
 	## else dot-ui's default. Read when drawing, so a theme change shows next frame.
 	static func c(canvas: CanvasItem, key: StringName) -> Color:
 		var control := canvas as Control
-		if control != null and control.has_theme_color(key, &"DotHudPiece"):
-			return control.get_theme_color(key, &"DotHudPiece")
+		if control != null and control.has_theme_color(key, &"GSHudPiece"):
+			return control.get_theme_color(key, &"GSHudPiece")
 		# `keycap_edge` is dot-ui 6's; on an older shell's dot-ui it is not in DEFAULTS.
-		return DotHudPiece.DEFAULTS.get(key, Color(1.0, 1.0, 1.0, 0.3) if key == &"keycap_edge" else Color.WHITE)
+		return GSHudPiece.DEFAULTS.get(key, Color(1.0, 1.0, 1.0, 0.3) if key == &"keycap_edge" else Color.WHITE)
 
 	## How bright the theme's HUD is, 0 to 1: dot-ui's `team_fill` (38 in the dark default,
 	## 100 in the bright "Arcade" theme). What a piece with its own saturated colour (the
@@ -81,8 +81,8 @@ class Ink:
 	static func bright(canvas: CanvasItem) -> float:
 		var control := canvas as Control
 		var n := 38
-		if control != null and control.has_theme_constant(&"team_fill", &"DotHudPiece"):
-			n = control.get_theme_constant(&"team_fill", &"DotHudPiece")
+		if control != null and control.has_theme_constant(&"team_fill", &"GSHudPiece"):
+			n = control.get_theme_constant(&"team_fill", &"GSHudPiece")
 		return clampf((float(n) - 38.0) / 62.0, 0.0, 1.0)
 
 	static func width(text: String, size: int) -> float:
@@ -159,7 +159,7 @@ class Ink:
 ## The score strip with any number of sides: dot-ui's two plates for two, and for more a plate
 ## each, yours next to the clock and the rest alternating outwards, narrowed to fit this
 ## control's width (the tag goes first, then the plate shrinks to its number).
-class TeamStrip extends DotScoreStrip:
+class TeamStrip extends GSScoreStrip:
 	## Narrowest plate: a two-digit score still reads.
 	const MIN_PLATE_W := 44.0
 	## Below this a plate drops its tag.
@@ -168,7 +168,7 @@ class TeamStrip extends DotScoreStrip:
 	## `{tag, score, colour}` per side, yours first; empty, or two, is dot-ui's own strip.
 	var teams: Array[Dictionary] = []
 
-	## [param p_teams] as [member teams]; two or fewer go to [method DotScoreStrip.show_scores].
+	## [param p_teams] as [member teams]; two or fewer go to [method GSScoreStrip.show_scores].
 	func show_teams(p_teams: Array[Dictionary]) -> void:
 		if p_teams.size() <= 2:
 			if p_teams.size() == 2:
@@ -682,7 +682,7 @@ class PortraitCache extends Node:
 	var _builds := 0
 
 	## The portrait for [param id] wearing [param avatar], or null with no display.
-	func portrait(id: int, avatar: DotAvatar) -> Texture2D:
+	func portrait(id: int, avatar: GSAvatar) -> Texture2D:
 		if DisplayServer.get_name() == "headless" or avatar == null:
 			return null
 		var digest := avatar.digest()
@@ -719,13 +719,13 @@ class PortraitCache extends Node:
 				(have[0] as Node).queue_free()
 			_made.erase(id)
 
-	func _render(avatar: DotAvatar, id: int) -> SubViewport:
+	func _render(avatar: GSAvatar, id: int) -> SubViewport:
 		var view := SubViewport.new()
 		view.size = Vector2i(SIDE, SIDE)
 		view.transparent_bg = true
 		view.own_world_3d = true
 		# The rest of the client runs msaa 0 on the web (gl_compatibility); a 4x resolve per glance face is wasted there.
-		view.msaa_3d = Viewport.MSAA_DISABLED if (DotPlatform.is_web() or RenderingServer.get_current_rendering_method() == "gl_compatibility") else Viewport.MSAA_4X
+		view.msaa_3d = Viewport.MSAA_DISABLED if (GSPlatform.is_web() or RenderingServer.get_current_rendering_method() == "gl_compatibility") else Viewport.MSAA_4X
 		view.render_target_update_mode = SubViewport.UPDATE_ONCE
 		add_child(view)
 
@@ -745,7 +745,7 @@ class PortraitCache extends Node:
 
 		# The same person the body is (`FcPlayer` draws `FcAvatars.look_of` of the same
 		# document and key), standing still, so the face in the row is the face in the world.
-		var person := DotHumanoidFigure.new()
+		var person := GSHumanoidFigure.new()
 		view.add_child(person)
 		person.build(FcAvatars.look_of(avatar, StringName("arena-player-%08d" % id)), 1.8)
 		person.animate(0.0, 0.0)
@@ -769,7 +769,7 @@ class PortraitCache extends Node:
 
 	## The middle of the person's head, in the figure's space: the head bone (the bottom of the
 	## head) carried up through the model, plus a third of a head.
-	static func _head_of(person: DotHumanoidFigure, bones: Skeleton3D) -> Vector3:
+	static func _head_of(person: GSHumanoidFigure, bones: Skeleton3D) -> Vector3:
 		var to_figure := Transform3D.IDENTITY
 		var node: Node = bones
 		while node != null and node != person:

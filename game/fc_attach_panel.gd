@@ -9,7 +9,7 @@ const FcAttachStudio := preload("fc_attach_studio.gd")
 
 signal open_changed(open: bool)
 
-## The arsenal whose gun in hand the menu fits; `func() -> DotWeaponArsenal`.
+## The arsenal whose gun in hand the menu fits; `func() -> GSWeaponArsenal`.
 var arsenal_fn: Callable = Callable()
 ## Sends a request body to the server; left empty offline, where the pick is served at once.
 var send_fn: Callable = Callable()
@@ -44,7 +44,7 @@ func open() -> bool:
 		return false
 	_slot = arsenal.current_slot()
 	_code = FcAttach.held_code(arsenal)
-	var peers: Array[DotWeaponDef] = []
+	var peers: Array[GSWeaponDef] = []
 	for id: StringName in arsenal.catalogue.ids():
 		peers.append(arsenal.catalogue.get_def(id))
 	menu.open(arsenal.attachments, base, arsenal.fitting_at(_slot), peers)
@@ -80,8 +80,8 @@ func _on_requested(mount: StringName, id: StringName) -> void:
 		return
 	var arsenal := _arsenal()
 	if arsenal != null:
-		var _fitted := FcAttach.serve(arsenal, DotNetReader.new(body))
+		var _fitted := FcAttach.serve(arsenal, GSNetReader.new(body))
 
 
-func _arsenal() -> DotWeaponArsenal:
-	return arsenal_fn.call() as DotWeaponArsenal if arsenal_fn.is_valid() else null
+func _arsenal() -> GSWeaponArsenal:
+	return arsenal_fn.call() as GSWeaponArsenal if arsenal_fn.is_valid() else null

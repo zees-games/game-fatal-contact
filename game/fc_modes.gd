@@ -5,7 +5,7 @@ const FcMode := preload("fc_mode.gd")
 ## Every mode this game ships, by id.
 ##
 ## [b]The same shape as `FcMap.by_id` / `ids`, on purpose.[/b] A server names a mode
-## with a string, a console command lists them, and dot-vote's `DotVoteListSource` can
+## with a string, a console command lists them, and dot-vote's `GSVoteListSource` can
 ## be handed [method ids] without either end knowing what a mode is. Nothing here
 ## imports dot-vote or dot-server.
 ##
@@ -61,7 +61,7 @@ static func by_id_or_default(id: StringName) -> FcMode:
 		return mode
 
 	if id != &"":
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"unknown mode, using free-for-all",
 			{"wanted": str(id), "known": str(ids())}

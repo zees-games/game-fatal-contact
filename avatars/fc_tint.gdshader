@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode cull_back;
 
-// One tintable channel per part, written per instance by DotAvatarBuilder so two
+// One tintable channel per part, written per instance by GSAvatarBuilder so two
 // players wearing the same part never recolour each other. Instance uniforms are
 // the whole reason this is a shader and not a StandardMaterial3D: a material is a
 // resource, and two players sharing one part would share it, so recolouring either

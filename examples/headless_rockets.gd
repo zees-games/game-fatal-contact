@@ -30,7 +30,7 @@ var _finished := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -43,7 +43,7 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 
 
 func _run() -> void:
-	_check(FcRocketJump.supported(), "fc-weapons is at the level the rockets need", str(DotAddonApi.build_level("fc_weapons")))
+	_check(FcRocketJump.supported(), "fc-weapons is at the level the rockets need", str(GSAddonApi.build_level("fc_weapons")))
 
 	var game := FcGame.new()
 	game.name = "G"
@@ -75,8 +75,8 @@ func _run() -> void:
 	get_tree().quit(0 if ok else 1)
 
 
-func _splash_radius(def: DotWeaponDef) -> float:
-	var b := def.tuning as DotWeaponBallistics if def != null else null
+func _splash_radius(def: GSWeaponDef) -> float:
+	var b := def.tuning as GSWeaponBallistics if def != null else null
 	return b.splash_radius if b != null else -1.0
 
 
@@ -109,22 +109,22 @@ func _test_rules(game: FcGame) -> void:
 
 	var fitted := _rocketjump_def()
 	_check(FcRocketJump.is_rocketjump(fitted), "the fitted launcher carries the warhead")
-	var base_splash := (single.tuning as DotWeaponBallistics).splash_damage
-	var cut_splash := (fitted.tuning as DotWeaponBallistics).splash_damage
+	var base_splash := (single.tuning as GSWeaponBallistics).splash_damage
+	var cut_splash := (fitted.tuning as GSWeaponBallistics).splash_damage
 	_check(is_equal_approx(cut_splash, base_splash * 0.4), "and its blast does 0.4 of the plain one", "%s of %s" % [cut_splash, base_splash])
 	_finished += 1
 
 
-func _rocketjump_def() -> DotWeaponDef:
-	var fitting := DotWeaponFitting.make(&"launcher")
+func _rocketjump_def() -> GSWeaponDef:
+	var fitting := GSWeaponFitting.make(&"launcher")
 	fitting.fit(&"warhead", FcRocketJump.ATTACHMENT)
 	var made := FcAttach.catalogue().apply(FcPlayer.weapon_catalogue().get_def(&"launcher"), fitting)
-	return made.value as DotWeaponDef if made.ok else null
+	return made.value as GSWeaponDef if made.ok else null
 
 
 ## A grenade dropped onto the floor at [param at] from 2 m, with a fuse far longer than the test.
 func _drop(game: FcGame, at: Vector3, sticks: bool) -> FcProjectiles.Flying:
-	var spawn := DotWeaponSpawn.new()
+	var spawn := GSWeaponSpawn.new()
 	spawn.id = &"frag"
 	spawn.origin = at + Vector3(0.0, 2.0, 0.0)
 	spawn.velocity = Vector3(0.0, -6.0, 0.0)
@@ -184,10 +184,10 @@ func _test_grenades(game: FcGame) -> void:
 
 
 ## Fires [param def]'s missile from 1.2 m over [param shooter]'s feet straight down, and flies it out.
-func _fire_down(game: FcGame, shooter: int, def: DotWeaponDef) -> void:
-	var b := def.tuning as DotWeaponBallistics
+func _fire_down(game: FcGame, shooter: int, def: GSWeaponDef) -> void:
+	var b := def.tuning as GSWeaponBallistics
 	var feet := game.player_for(shooter).controller.state.position
-	var spawn := DotWeaponSpawn.new()
+	var spawn := GSWeaponSpawn.new()
 	spawn.id = def.id
 	spawn.origin = feet + Vector3(0.6, 1.2, 0.0)
 	spawn.velocity = Vector3(0.0, -30.0, 0.0)
@@ -231,7 +231,7 @@ func _test_rocketjump(game: FcGame, shooter: int, other: int) -> void:
 	var given := arsenal.give(&"launcher")
 	_check(given.ok, "the shooter is handed the launcher", str(given.error))
 	var _held := arsenal.equip(def.slot)
-	var fitting := DotWeaponFitting.make(&"launcher")
+	var fitting := GSWeaponFitting.make(&"launcher")
 	fitting.fit(&"warhead", FcRocketJump.ATTACHMENT)
 	var fitted := arsenal.fit(def.slot, fitting)
 	_check(fitted.ok and FcRocketJump.is_rocketjump(arsenal.current_def()), "and fits the Rocketjump warhead", str(fitted.error))
@@ -244,7 +244,7 @@ func _test_rocketjump(game: FcGame, shooter: int, other: int) -> void:
 	_check(rose > 0.6, "its blast throws the shooter up", "%.2f m" % rose)
 	_check(is_equal_approx(game.combat.health_of(shooter).health, hp), "without hurting them (sv_rocket_jump_self_damage_scale 0)", "%s -> %s" % [hp, game.combat.health_of(shooter).health])
 
-	var off := DotWeaponFitting.make(&"launcher")
+	var off := GSWeaponFitting.make(&"launcher")
 	var bare := arsenal.fit(def.slot, off)
 	_check(bare.ok and not FcRocketJump.is_rocketjump(arsenal.current_def()), "the warhead comes off")
 	for _k in TICK_RATE * 2:
@@ -281,7 +281,7 @@ func _test_view_and_menu(game: FcGame) -> void:
 	var drawn := {}
 
 	for id: StringName in [&"launcher", &"quad_launcher", &"grenade_launcher", &"frag"]:
-		var spawn := DotWeaponSpawn.new()
+		var spawn := GSWeaponSpawn.new()
 		spawn.id = id
 		spawn.origin = Vector3(0.0, 30.0, 0.0)
 		spawn.velocity = Vector3(10.0, 0.0, 0.0)
@@ -301,9 +301,9 @@ func _test_view_and_menu(game: FcGame) -> void:
 	var base := FcPlayer.weapon_catalogue().get_def(&"launcher")
 	var choices := FcAttach.catalogue().choices_for(base)
 	_check(FcRocketJump.ATTACHMENT in choices.get(&"warhead", []), "the launcher takes the Rocketjump on its warhead mount", str(choices.keys()))
-	var menu := DotWeaponAttachMenu.new()
+	var menu := GSWeaponAttachMenu.new()
 	add_child(menu)
-	menu.open(FcAttach.catalogue(), base, DotWeaponFitting.make(&"launcher"))
+	menu.open(FcAttach.catalogue(), base, GSWeaponFitting.make(&"launcher"))
 	var heads := Array(_labels(menu, PackedStringArray())).filter(func(t: String) -> bool: return t.ends_with("Warhead"))
 	_check(heads.size() == 1, "the loadout menu has a Warhead row", str(_labels(menu, PackedStringArray())))
 	menu.queue_free()

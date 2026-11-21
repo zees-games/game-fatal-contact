@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## FC's per-app customisation (game/fc_app_wiring.gd) with fakes: every part off with no
 ## config, the avatars settings turning into rules and back, the earn events and who earns them,
@@ -78,16 +78,16 @@ class FakeGame extends RefCounted:
 class FakeClient extends RefCounted:
 	var body := {}
 
-	func get_integration(_path: String, _query: Dictionary) -> DotResult:
-		return DotResult.success(body)
+	func get_integration(_path: String, _query: Dictionary) -> GSResult:
+		return GSResult.success(body)
 
 
 class FakeReporter extends Node:
 	var sent: Array = []
 
-	func report(key: String, event_key: String, count: int, meta: Dictionary) -> DotResult:
+	func report(key: String, event_key: String, count: int, meta: Dictionary) -> GSResult:
 		sent.append({"key": key, "event": event_key, "count": count, "meta": meta})
-		return DotResult.success()
+		return GSResult.success()
 
 	func flush() -> void:
 		pass
@@ -102,7 +102,7 @@ class FakeKill extends RefCounted:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_run.call_deferred()
 
 
@@ -119,7 +119,7 @@ func _run() -> void:
 func _wiring(game: FakeGame, client: Object) -> FcAppWiring:
 	var w := FcAppWiring.new()
 	w.follow_settings = false
-	w.call(&"setup", game, client, DotPointsReporterConfig.new(), DotLoadoutConfig.new())
+	w.call(&"setup", game, client, GSPointsReporterConfig.new(), GSLoadoutConfig.new())
 	return w
 
 
@@ -131,7 +131,7 @@ func _config_off() -> void:
 	_check(not parts["events"], "no app_id or key: earn events off")
 	_check(not parts["settings"], "no client with get_integration: settings off")
 	_check(not parts["points"], "no client: points off")
-	var refused: DotResult = w.report_event(HUMAN, FcAppWiring.EVENT_KILL, false)
+	var refused: GSResult = w.report_event(HUMAN, FcAppWiring.EVENT_KILL, false)
 	_check(not refused.ok, "a report while off is refused, not sent")
 	w.player_joined(HUMAN)
 	w.player_left(HUMAN)
@@ -148,7 +148,7 @@ func _settings() -> void:
 	var client := FakeClient.new()
 	var w := _wiring(game, client)
 	_check(w.describe()["settings"], "a client with get_integration: settings on")
-	var follows := DotLoadoutSiteSource.new().has_method(&"key_mode")
+	var follows := GSLoadoutSiteSource.new().has_method(&"key_mode")
 	_check(w.describe()["points"] == follows, "no site key: points follow the site's key list (off on a dot-loadout without one)")
 	client.body = {"appId": "1", "sections": {"avatars": {"version": 2, "values": {
 		"appOnly": true,
@@ -158,7 +158,7 @@ func _settings() -> void:
 			{"slotKey": "lobby", "avatarId": "fc_swat"},
 		],
 	}}}}
-	var read: DotResult = await w.settings.refresh()
+	var read: GSResult = await w.settings.refresh()
 	_check(read.ok, "the settings read", str(read.error) if not read.ok else "")
 	_check(game.rules["team_avatars"] == 1.0, "appOnly forces team avatars on")
 	_check(game.rules["team_body_a"] == 1.0, "slot team:*:a binds side a to fc_military (index 1)",
@@ -237,7 +237,7 @@ func _points() -> void:
 	var game := FakeGame.new()
 	var client := FakeClient.new()
 	var w := _wiring(game, client)
-	var source := DotLoadoutSiteSource.with_client(client)
+	var source := GSLoadoutSiteSource.with_client(client)
 	var key := "user:%d" % HUMAN
 	source._cache[key] = {"ids": [], "points": {"enabled": true, "balance": 120, "label": "Coins"},
 		"loadout": [{"slot": "hat", "store": "s1", "key": "red_hat"}], "at": 0.0,
@@ -282,9 +282,9 @@ func _rules_codec() -> void:
 	var many := {}
 	for i in 70:
 		many["rule_%d" % i] = float(i)
-	var read := FcEvents.read_rules(DotNetReader.new(FcEvents.write_rules(many)))
+	var read := FcEvents.read_rules(GSNetReader.new(FcEvents.write_rules(many)))
 	_check(read["ok"] and (read["rules"] as Dictionary).size() == 70, "70 rules round-trip: no key cap",
 		str((read["rules"] as Dictionary).size()))
 	var short := FcEvents.write_rules(many).slice(0, 40)
-	var cut := FcEvents.read_rules(DotNetReader.new(short))
+	var cut := FcEvents.read_rules(GSNetReader.new(short))
 	_check(not cut["ok"], "a short packet stops and says so")

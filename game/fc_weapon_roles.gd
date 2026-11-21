@@ -6,7 +6,7 @@ extends RefCounted
 ##
 ## `weapons.own` (fc-weapons) is the game's whole gun set under plain ids and is always registered first; `weapons.packs`
 ## names the packs that join after it, prefixed. A missing own pack is an error: Fatal Contact then has no weapons. Tuned in
-## `cfg/addons/game_arena_weapons/*.yml` (dot-core's DotAddonConfig, so an operator's cfg/server tier wins).
+## `cfg/addons/game_arena_weapons/*.yml` (dot-core's GSAddonConfig, so an operator's cfg/server tier wins).
 
 const CHANNEL := "arena.roles"
 const ADDON := "game_arena_weapons"
@@ -89,22 +89,22 @@ static func scan(from: String = "") -> void:
 	clear()
 	_scanned = true
 
-	var res := DotAddonConfig.load_dir(ADDON, DEFAULTS)
+	var res := GSAddonConfig.load_dir(ADDON, DEFAULTS)
 	config = res.value if res.ok else DEFAULTS.duplicate(true)
 
 	if not res.ok:
-		DotLog.warn(CHANNEL, "the weapon pack settings do not load, defaults used", {"why": res.error.message})
+		GSLog.warn(CHANNEL, "the weapon pack settings do not load, defaults used", {"why": res.error.message})
 
 	var base := from if from != "" else root
-	var wanted: Array = force_packs if not force_packs.is_empty() else DotAddonConfig.get_value(config, "weapons.packs", [])
+	var wanted: Array = force_packs if not force_packs.is_empty() else GSAddonConfig.get_value(config, "weapons.packs", [])
 
 	# The off switch drops the extra packs only; the own pack is the game's weapons.
 	if OS.get_cmdline_user_args().has(OFF_ARG) or OS.get_cmdline_args().has(OFF_ARG):
-		DotLog.info(CHANNEL, "extra weapon packs are off", {"arg": OFF_ARG})
+		GSLog.info(CHANNEL, "extra weapon packs are off", {"arg": OFF_ARG})
 		wanted = []
 
-	var excluded: Array = DotAddonConfig.get_value(config, "weapons.exclude", [])
-	var own := str(DotAddonConfig.get_value(config, "weapons.own", ""))
+	var excluded: Array = GSAddonConfig.get_value(config, "weapons.exclude", [])
+	var own := str(GSAddonConfig.get_value(config, "weapons.own", ""))
 	var dirs := AwPackScan.provider_dirs(base, PROVIDER)
 	var own_script: GDScript = null
 
@@ -120,7 +120,7 @@ static func scan(from: String = "") -> void:
 		wanted = wanted.duplicate()
 		wanted.append(own_pack)
 	else:
-		DotLog.error(CHANNEL, "the game's own weapon pack is missing; Fatal Contact has no weapons", {"pack": own})
+		GSLog.error(CHANNEL, "the game's own weapon pack is missing; Fatal Contact has no weapons", {"pack": own})
 
 	var taken: Array = []
 
@@ -151,7 +151,7 @@ static func scan(from: String = "") -> void:
 		_sources.append(source)
 		packs.append(dir)
 		_class_sounds(script, kept)
-		DotLog.info(CHANNEL, "weapon pack registered", {"pack": dir, "weapons": kept.size()})
+		GSLog.info(CHANNEL, "weapon pack registered", {"pack": dir, "weapons": kept.size()})
 
 	_settle()
 
@@ -277,7 +277,7 @@ static func is_grenade_slot(slot: int) -> bool:
 ## Pins [param def] to the slot its kind belongs in, whatever the pack file asks for: melee 1, sidearms 2,
 ## EVERY gun 3 (the minigun, beamer and railgun too, which the pack puts in the special slot), frag and
 ## sticky 4, and 5 only for the utility throwables. Both [method weapons] and the role picker call it.
-static func normalise_slot(def: DotWeaponDef) -> void:
+static func normalise_slot(def: GSWeaponDef) -> void:
 	use_layout()
 	if def.slot <= AwWeaponIds.SLOT_SIDEARM:
 		return
@@ -296,7 +296,7 @@ static func _settle() -> void:
 		normalise_slot(def)
 		by_id[def.id] = def
 
-	var forced: Dictionary = DotAddonConfig.get_value(config, "weapons.roles", {})
+	var forced: Dictionary = GSAddonConfig.get_value(config, "weapons.roles", {})
 
 	for role: StringName in ROLES:
 		var named := StringName(str(forced.get(String(role), "")))
@@ -315,7 +315,7 @@ static func _settle() -> void:
 static func _auto(role: StringName, by_id: Dictionary) -> StringName:
 	var named: StringName = ROLE_DEFAULT[role]
 
-	if pack_ids.has(named) and by_id.has(named) and (by_id[named] as DotWeaponDef).slot == role_slot(role):
+	if pack_ids.has(named) and by_id.has(named) and (by_id[named] as GSWeaponDef).slot == role_slot(role):
 		return named
 
 	return AwPackRoles.first_for_slot(pack_ids, by_id, role_slot(role), ROLE_DEFAULT[role])

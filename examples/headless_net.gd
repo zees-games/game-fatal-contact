@@ -67,7 +67,7 @@ func _run() -> void:
 ## panel and an edit that applies and replicates; a guest, a non-admin, a revoked admin and the cvar off are refused.
 func _test_the_remote_workbench() -> void:
 	_section("[a flagged admin edits the server's profiles, and nobody else can]")
-	if not DotGameWorkbench.available():
+	if not GSGameWorkbench.available():
 		print("  dot-workbench is not linked: skipped")
 		_passed += 18
 		_done()
@@ -82,19 +82,19 @@ func _test_the_remote_workbench() -> void:
 	var cbinder := FcConfig.make_binder(cgame.config)
 	var _l1 := sbinder.load_layers()
 	var _l2 := cbinder.load_layers()
-	var set: DotProfileSet = sbinder.profile_sets()[0]
-	var swb := DotGameWorkbench.new()
+	var set: GSProfileSet = sbinder.profile_sets()[0]
+	var swb := GSGameWorkbench.new()
 	swb.dedicated = true
 	swb.config = {"enabled": false}
 	swb.add_set(set, "Game settings")
 	add_child(swb)
 	var started := swb.start()
 	sbinder.attach(swb.api.runtime)
-	var made := DotGameWorkbenchRemote.serve(snet)
-	var slink := DotNetProfileLink.attach(snet, swb.api.runtime as DotProfileRuntime)
-	var cremote := DotGameWorkbenchRemoteClient.attach(cnet)
-	var crt := DotProfileRuntime.new()
-	var clink := DotNetProfileLink.attach(cnet, crt)
+	var made := GSGameWorkbenchRemote.serve(snet)
+	var slink := GSNetProfileLink.attach(snet, swb.api.runtime as GSProfileRuntime)
+	var cremote := GSGameWorkbenchRemoteClient.attach(cnet)
+	var crt := GSProfileRuntime.new()
+	var clink := GSNetProfileLink.attach(cnet, crt)
 	snet.messages.seal()
 	cnet.messages.seal()
 	var remote := swb.serve_remote(snet)
@@ -106,7 +106,7 @@ func _test_the_remote_workbench() -> void:
 	snet.add_peer(5)
 	slink.peer_joined(5)
 	_wire_remote(remote, state, flags)
-	var cwb := DotGameWorkbench.new()
+	var cwb := GSGameWorkbench.new()
 	cwb.panel_mode = 2
 	cwb.config = {"enabled": false}
 	cwb.remote_client = cremote
@@ -118,7 +118,7 @@ func _test_the_remote_workbench() -> void:
 	var kind: String = set.rel_path
 	var edit := {"op": "set", "kind": kind, "id": sbinder.profile_id, "key": "horde_cap", "value": 11}
 	var base: int = sgame.config.horde_cap
-	var srt := swb.api.runtime as DotProfileRuntime
+	var srt := swb.api.runtime as GSProfileRuntime
 
 	state["uid"] = "boss"
 	cremote.ask()
@@ -130,7 +130,7 @@ func _test_the_remote_workbench() -> void:
 	cremote.ask()
 	_check(cremote.allowed and cremote.flags.has("cvar"), "with the cvar on an admin is told the flags it holds")
 	_check(cwb.overlay != null, "and gets the panel")
-	var applied: DotResult = cwb.api.handle(DotGameWorkbenchRemoteClient.ACTOR, edit)
+	var applied: GSResult = cwb.api.handle(GSGameWorkbenchRemoteClient.ACTOR, edit)
 	_check(applied.ok and sgame.config.horde_cap == 11, "an edit from the panel reaches the server's live config", "" if applied.ok else applied.error.message)
 	_check(crt.revision(kind, sbinder.profile_id) > 0 and crt.revision(kind, sbinder.profile_id) == srt.revision(kind, sbinder.profile_id), "and its row replicated to the client")
 
@@ -156,7 +156,7 @@ func _test_large_map_state_arrives_whole() -> void:
 	_check(body.size() > 16384, "the payload is past the old 16 KB event cap", "%d bytes" % body.size())
 
 	var back := FcEvent.new()
-	back.read(DotNetReader.new(FcEvent.new(FcEvents.Kind.MAP_STATE, body).to_bytes()))
+	back.read(GSNetReader.new(FcEvent.new(FcEvents.Kind.MAP_STATE, body).to_bytes()))
 	_check(back.kind == FcEvents.Kind.MAP_STATE and back.body == body, "it reads back byte for byte",
 		"%d of %d bytes" % [back.body.size(), body.size()])
 
@@ -167,7 +167,7 @@ func _test_large_map_state_arrives_whole() -> void:
 
 ## A voice frame, client to server to another client.
 ##
-## [b]Deliberately not through [DotNetManager].[/b] dot-net decodes a bit-packed
+## [b]Deliberately not through [GSNetManager].[/b] dot-net decodes a bit-packed
 ## message against a sealed schema; a voice frame is an opaque blob from a codec and
 ## putting it through would mean a message type per codec — or a schema that changes
 ## when the codec does, and the schema hash is what both ends check to agree they are
@@ -197,7 +197,7 @@ func _test_voice_wire() -> void:
 
 	_server_bridge.voice_relay_fn = func(speaker: int, bytes: PackedByteArray) -> void:
 		relayed.append({"speaker": speaker, "bytes": bytes})
-		# Straight back out, which is what DotVoiceRouter does after it has decided
+		# Straight back out, which is what GSVoiceRouter does after it has decided
 		# who hears it. The router itself is checked on a real server in `dedicated`.
 		server_link.send_voice(2, bytes)
 
@@ -252,13 +252,13 @@ func _test_voice_wire_part2(relayed: Array[Dictionary], heard: Array[PackedByteA
 	extras.name = "VoiceExtras"
 	add_child(extras)
 	var attached := extras.attach(client_bridge, client_entry["game"])
-	var voice: DotVoiceManager = extras.voice
+	var voice: GSVoiceManager = extras.voice
 	_check(attached.ok and voice != null and not voice.is_capturing(),
 		"the client's voice attaches with no microphone open before the talk key")
 	if voice != null:
-		var mic := DotVoiceSourceBuffer.new()
+		var mic := GSVoiceSourceBuffer.new()
 		mic.sample_rate = voice.config.sample_rate
-		mic.write(DotVoiceSourceBuffer.tone(440.0, 0.2, mic.sample_rate, 0.4))
+		mic.write(GSVoiceSourceBuffer.tone(440.0, 0.2, mic.sample_rate, 0.4))
 		voice.source = mic
 		extras.set_talking(true)
 		for _i in range(4):
@@ -270,32 +270,32 @@ func _test_voice_wire_part2(relayed: Array[Dictionary], heard: Array[PackedByteA
 	await _test_voice_wire_part3(server_link, client_bridge, client_link, frame, held_link, extras, voice)
 
 
-func _test_voice_wire_part3(server_link: FcNetLink, client_bridge: FcNetBridge, client_link: FcNetLink, frame: PackedByteArray, held_link: FcNetLink, extras: FcClientExtras, voice: DotVoiceManager) -> void:
-	# [b]The player's block list (sm) reaches Fatal Contact's voice.[/b] dot-chat's DotChatSelfMute
+func _test_voice_wire_part3(server_link: FcNetLink, client_bridge: FcNetBridge, client_link: FcNetLink, frame: PackedByteArray, held_link: FcNetLink, extras: FcClientExtras, voice: GSVoiceManager) -> void:
+	# [b]The player's block list (sm) reaches Fatal Contact's voice.[/b] dot-chat's GSChatSelfMute
 	# binds whatever is published as dot_voice_client; Fatal Contact's manager did not publish, so
 	# `sm` muted a player's lines here and never their voice.
-	_check(voice != null and DotRegistry.get_service(&"dot_voice_client") == voice,
+	_check(voice != null and GSRegistry.get_service(&"dot_voice_client") == voice,
 		"the client's voice is published as dot_voice_client")
-	var self_mute := DotChatSelfMute.new()
+	var self_mute := GSChatSelfMute.new()
 	self_mute.path = "user://fc_net_self_mute.json"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(self_mute.path))
 	const TALKER := 1_900_000_001
 	self_mute.set_roster([{"id": 9, "name": "Loud", "key": "loud-key", "peer": TALKER}], 2)
-	self_mute.attach_voice(DotRegistry.get_service(&"dot_voice_client"))
-	var heard_buffer := DotVoiceSinkBuffer.new()
+	self_mute.attach_voice(GSRegistry.get_service(&"dot_voice_client"))
+	var heard_buffer := GSVoiceSinkBuffer.new()
 	if voice != null:
 		heard_buffer.sample_rate = voice.config.sample_rate
-		voice.sink_factory = func(_speaker: int) -> DotVoiceSink: return heard_buffer
+		voice.sink_factory = func(_speaker: int) -> GSVoiceSink: return heard_buffer
 	var talk := func() -> void:
-		var codec := DotVoiceCodec.instance_for(voice.config.codec_id)
+		var codec := GSVoiceCodec.instance_for(voice.config.codec_id)
 		for i in range(10):
-			var packet := DotVoicePacket.new()
+			var packet := GSVoicePacket.new()
 			packet.speaker = TALKER
 			packet.sequence = i
 			packet.starts_talk_spurt = i == 0
 			packet.sample_count = voice.config.frame_samples()
 			packet.codec_id = voice.config.codec_id
-			packet.payload = codec.encode(DotVoiceSourceBuffer.tone(300.0, voice.config.frame_ms / 1000.0, voice.config.sample_rate, 0.4))
+			packet.payload = codec.encode(GSVoiceSourceBuffer.tone(300.0, voice.config.frame_ms / 1000.0, voice.config.sample_rate, 0.4))
 			var _r := voice.receive(packet.to_bytes())
 	self_mute.set_muted({"key": "loud-key", "name": "Loud"}, true)
 	if voice != null:
@@ -333,7 +333,7 @@ func _test_event_wire() -> void:
 	# has shipped a stored voice mute that loaded back as a warning, and a leaderboard
 	# reporter whose file format was not its wire format. Nothing checks that a pair are
 	# inverses except a test that runs both.
-	var hello := FcEvents.read_hello(DotNetReader.new(
+	var hello := FcEvents.read_hello(GSNetReader.new(
 		FcEvents.write_hello(128, 4242, 7, 90210, "dm_box", 25, 600.0)
 	))
 	_check(bool(hello["ok"]), "a HELLO round-trips")
@@ -344,7 +344,7 @@ func _test_event_wire() -> void:
 	_check(String(hello["map_name"]) == "dm_box", "and the map")
 	_check(int(hello["score_limit"]) == 25, "and the rules")
 
-	var kill := FcEvents.read_kill(DotNetReader.new(
+	var kill := FcEvents.read_kill(GSNetReader.new(
 		FcEvents.write_kill(11, 12, "rifle", true)
 	))
 	_check(bool(kill["ok"]), "a KILL round-trips")
@@ -356,26 +356,26 @@ func _test_event_wire() -> void:
 	_check(bool(kill["headshot"]), "and the headshot flag")
 	_check(not bool(kill["critical"]), "and no critical unless one was written")
 
-	var critical := FcEvents.read_kill(DotNetReader.new(
+	var critical := FcEvents.read_kill(GSNetReader.new(
 		FcEvents.write_kill(11, 12, "sniper", true, true)
 	))
 	_check(bool(critical["ok"]) and bool(critical["critical"]), "a lethal critical says so")
 
 	# An older server's KILL ends after the headshot. The padding to the byte is zeros, so
 	# the reader finds no critical rather than a garbage one.
-	var old := DotNetWriter.new()
+	var old := GSNetWriter.new()
 	old.write_varint(11)
 	old.write_varint(12)
 	old.write_string("rifle", FcEvents.WEAPON_BYTES)
 	old.write_bool(true)
-	var older := FcEvents.read_kill(DotNetReader.new(old.to_bytes()))
+	var older := FcEvents.read_kill(GSNetReader.new(old.to_bytes()))
 	_check(bool(older["ok"]) and not bool(older["critical"]), "and an older server's kill reads as no critical")
 
 	_test_event_wire_part2(older)
 
 
 func _test_event_wire_part2(older: Dictionary) -> void:
-	var rules := FcEvents.read_rules(DotNetReader.new(FcEvents.write_rules(
+	var rules := FcEvents.read_rules(GSNetReader.new(FcEvents.write_rules(
 		{"slide_boost": 2.5, "fp_body": 1.0, "break_mode": 2.0, "nametags": 6.0, "hpbars": 10.0}
 	)))
 	# A drop and its take, through a client's real event handler: the point a server says
@@ -404,12 +404,12 @@ func _test_event_wire_part2(older: Dictionary) -> void:
 
 	# The world kills as 0, not as a name. It is the one value with two shapes, and a
 	# string on the wire for it is a string somebody eventually puts a name in.
-	var world := FcEvents.read_kill(DotNetReader.new(
+	var world := FcEvents.read_kill(GSNetReader.new(
 		FcEvents.write_kill(0, 12, "fall", false)
 	))
 	_check(int(world["killer_id"]) == 0, "and the world kills as 0")
 
-	var state := FcEvents.read_match(DotNetReader.new(
+	var state := FcEvents.read_match(GSNetReader.new(
 		FcEvents.write_match(3, 1920, 5)
 	))
 	_check(bool(state["ok"]), "a MATCH round-trips")
@@ -418,14 +418,14 @@ func _test_event_wire_part2(older: Dictionary) -> void:
 
 	# Negative, because "no limit" is negative and a match past its clock reports a
 	# negative remainder. A uint here would have wrapped it to four billion.
-	var over := FcEvents.read_match(DotNetReader.new(
+	var over := FcEvents.read_match(GSNetReader.new(
 		FcEvents.write_match(3, -64, 5)
 	))
 	_check(int(over["remaining_ticks"]) == -64, "and a clock past zero stays negative")
 
 	# The score limit rides at the end, because an extend raises it mid-match and HELLO
 	# is sent once. A MATCH without it — an older server — keeps the limit it had.
-	var limited := FcEvents.read_match(DotNetReader.new(
+	var limited := FcEvents.read_match(GSNetReader.new(
 		FcEvents.write_match(3, 1920, 5, 35)
 	))
 	_check(
@@ -438,10 +438,10 @@ func _test_event_wire_part2(older: Dictionary) -> void:
 
 
 func _test_event_wire_part3(older: Dictionary) -> void:
-	var leave := FcEvents.read_leave(DotNetReader.new(FcEvents.write_leave(99)))
+	var leave := FcEvents.read_leave(GSNetReader.new(FcEvents.write_leave(99)))
 	_check(bool(leave["ok"]) and int(leave["session_id"]) == 99, "a LEAVE round-trips")
 
-	var notice := FcEvents.read_notice(DotNetReader.new(
+	var notice := FcEvents.read_notice(GSNetReader.new(
 		FcEvents.write_notice("Match point")
 	))
 	_check(
@@ -451,7 +451,7 @@ func _test_event_wire_part3(older: Dictionary) -> void:
 
 	# The map vote's cue and countdown. The one event whose two halves are optional each:
 	# a countdown second with no cue, a cue with no second. Both shapes round-trip.
-	var counting := FcEvents.read_vote(DotNetReader.new(
+	var counting := FcEvents.read_vote(GSNetReader.new(
 		FcEvents.write_vote("vote_count", 7, true)
 	))
 	_check(
@@ -459,7 +459,7 @@ func _test_event_wire_part3(older: Dictionary) -> void:
 			and int(counting["seconds_left"]) == 7 and bool(counting["runoff"]),
 		"a VOTE round-trips, with the cue, the second and the runoff flag"
 	)
-	var opening := FcEvents.read_vote(DotNetReader.new(
+	var opening := FcEvents.read_vote(GSNetReader.new(
 		FcEvents.write_vote("vote_start", 0, false)
 	))
 	_check(
@@ -472,7 +472,7 @@ func _test_event_wire_part3(older: Dictionary) -> void:
 		"and VOTE is a kind the message validates"
 	)
 
-	var hit := FcEvents.read_hit(DotNetReader.new(
+	var hit := FcEvents.read_hit(GSNetReader.new(
 		FcEvents.write_hit(12, 87.4, Vector3(12.5, 1.4, -30.25), true, false)
 	))
 	_check(
@@ -481,7 +481,7 @@ func _test_event_wire_part3(older: Dictionary) -> void:
 			and bool(hit["headshot"]) and not bool(hit["lethal"]),
 		"a HIT round-trips: victim, whole hit points, where, head, not lethal", str(hit)
 	)
-	var award := FcEvents.read_award(DotNetReader.new(
+	var award := FcEvents.read_award(GSNetReader.new(
 		FcEvents.write_award(11, 12, 225, 6, [0, 1, 10])
 	))
 	_check(
@@ -503,7 +503,7 @@ func _test_event_wire_part4() -> void:
 		{"session_id": 11, "kills": 7, "deaths": 3, "assists": 1, "score": -2, "objectives": 2},
 		{"session_id": 12, "kills": 0, "deaths": 9, "assists": 0, "score": 0, "objectives": 0},
 	]
-	var score := FcEvents.read_scores(DotNetReader.new(FcEvents.write_scores(score_rows, {1: 3, 2: -1})))
+	var score := FcEvents.read_scores(GSNetReader.new(FcEvents.write_scores(score_rows, {1: 3, 2: -1})))
 	var first_row: Dictionary = score["rows"][0] if score["rows"].size() == 2 else {}
 	_check(
 		bool(score["ok"]) and int(first_row.get("kills", 0)) == 7 and int(first_row.get("deaths", 0)) == 3
@@ -513,14 +513,14 @@ func _test_event_wire_part4() -> void:
 	)
 	var cut := FcEvents.write_scores(score_rows, {1: 3})
 	cut.resize(cut.size() - 3)
-	_check(not bool(FcEvents.read_scores(DotNetReader.new(cut))["ok"]), "and a cut SCORE is not ok")
+	_check(not bool(FcEvents.read_scores(GSNetReader.new(cut))["ok"]), "and a cut SCORE is not ok")
 
 	# A truncated body must not read as a valid event of nothing. `StreamPeerBuffer`
 	# reads past its end by returning zeros rather than failing, and dot-timer shipped a
-	# replay that parsed that way; `DotNetReader.ok()` is the equivalent here and it is
+	# replay that parsed that way; `GSNetReader.ok()` is the equivalent here and it is
 	# sticky, so a decoder that skipped the check gets a plausible value for the field
 	# AFTER the overrun.
-	var truncated := FcEvents.read_hello(DotNetReader.new(
+	var truncated := FcEvents.read_hello(GSNetReader.new(
 		FcEvents.write_hello(128, 1, 1, 1, "dm_box", 25, 600.0).slice(0, 3)
 	))
 	_check(not bool(truncated["ok"]), "and a truncated HELLO is refused, not guessed")
@@ -560,9 +560,9 @@ func _test_glass_breaks_on_a_client() -> void:
 	var sent: Array = []
 	var previous := _server_bridge.link
 	var link := _capture_link(sent)
-	var server_pane := DotMapGlass.new()
+	var server_pane := GSMapGlass.new()
 	server_pane.model = 9001
-	var client_pane := DotMapGlass.new()
+	var client_pane := GSMapGlass.new()
 	client_pane.model = 9001
 	client_pane.authoritative = false
 	add_child(server_pane)
@@ -574,20 +574,20 @@ func _test_glass_breaks_on_a_client() -> void:
 	_check(server_pane.hurt(5.0, Vector3(1, 2, 3), &"test"), "the server's pane breaks")
 	var told := 0
 	for item in sent:
-		var decoded: DotResult = _clients[2]["net"].messages.decode(DotNetReader.new(item[1]), 1, false)
+		var decoded: GSResult = _clients[2]["net"].messages.decode(GSNetReader.new(item[1]), 1, false)
 		if decoded.ok and (decoded.value as FcEvent).kind == FcEvents.Kind.PANE_BROKEN:
 			told += 1
-			var _r: DotResult = _clients[2]["bridge"].receive_event(item[1])
+			var _r: GSResult = _clients[2]["bridge"].receive_event(item[1])
 	_check(told >= 1, "the server sends PANE_BROKEN", str(told))
 	_check(client_pane.is_broken(), "and the client's copy is broken by it")
 	sent.clear()
-	var late := DotMapGlass.new()
+	var late := GSMapGlass.new()
 	late.model = 9001
 	late.authoritative = false
 	add_child(late)
 	_server_bridge._send_panes_signon(2)
 	for item in sent:
-		var _r: DotResult = _clients[2]["bridge"].receive_event(item[1])
+		var _r: GSResult = _clients[2]["bridge"].receive_event(item[1])
 	_check(late.is_broken(), "a joiner is told the pane is already gone")
 	_server_bridge.link = previous
 	link.free()

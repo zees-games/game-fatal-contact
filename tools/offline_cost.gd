@@ -8,12 +8,12 @@ const ClientBench := preload("client_bench.gd")
 const FcPlayerStack := preload("../game/fc_player_stack.gd")
 
 ## Solo (offline) client with N bots on `--map`: `godot --path . res://tools/offline_cost.tscn -- --map blackhawkdown --bots 10 --seconds 25`. Prints fps, frame p50/p95/max, the engine's monitors and physics steps per frame.
-## `--native 0` keeps the bots' sight scan in script, `--brain-native 0` their aim, fight step and perception (DotSimBotMind), `--motor-native 0` the movement queries; `--motor-tick 1|0` toggles [member DotFpsMotor.native_tick] (needs a dot-sim with the motor tick).
+## `--native 0` keeps the bots' sight scan in script, `--brain-native 0` their aim, fight step and perception (GSSimBotMind), `--motor-native 0` the movement queries; `--motor-tick 1|0` toggles [member GSFpsMotor.native_tick] (needs a dot-sim with the motor tick).
 
 var _bots := 10
 ## `--physoff 1`: switch the engine's 3D physics step off after warm-up. What the "physics" phase still costs is script (game tick plus every _physics_process); the drop is the engine's own share.
 var _physoff := false
-## `--motor-us 1`: time each player's motor step (DotFpsController's "motor" phase; the phase timers cost a little) and print microseconds per player tick.
+## `--motor-us 1`: time each player's motor step (GSFpsController's "motor" phase; the phase timers cost a little) and print microseconds per player tick.
 var _motor_us := false
 var _mt0 := 0
 var _reuse := true
@@ -37,9 +37,9 @@ func _ready() -> void:
 			"--seconds": _seconds = float(args[i + 1])
 			"--reuse": _reuse = int(args[i + 1]) != 0
 			"--solid": _solid = int(args[i + 1]) != 0
-			"--prof": DotFpsPhysicsBody.profile = int(args[i + 1]) != 0
+			"--prof": GSFpsPhysicsBody.profile = int(args[i + 1]) != 0
 			"--physoff": _physoff = int(args[i + 1]) != 0
-			"--target-first": (DotBotBrain as Script).set(&"target_first", int(args[i + 1]) != 0)
+			"--target-first": (GSBotBrain as Script).set(&"target_first", int(args[i + 1]) != 0)
 			"--near": preload("../game/fc_bots.gd").think_near = float(args[i + 1])
 			"--every": preload("../game/fc_bots.gd").think_every = int(args[i + 1])
 			"--tier-above": preload("../game/fc_bots.gd").tiers.above = int(args[i + 1])
@@ -50,11 +50,11 @@ func _ready() -> void:
 			"--tier-body-near": preload("../game/fc_bots.gd").tiers.body_near_every = int(args[i + 1])
 			"--tier-body-far": preload("../game/fc_bots.gd").tiers.body_far_every = int(args[i + 1])
 			"--lod": FcPlayer.present_lod_enabled = int(args[i + 1]) != 0
-			"--native": DotBotWorld.native_enabled = int(args[i + 1]) != 0
+			"--native": GSBotWorld.native_enabled = int(args[i + 1]) != 0
 			"--brain-native": FcPlayerStack.set_brain_native(int(args[i + 1]) != 0)
-			"--motor-native": DotFpsPhysicsBody.native_enabled = int(args[i + 1]) != 0
+			"--motor-native": GSFpsPhysicsBody.native_enabled = int(args[i + 1]) != 0
 			"--motor-us": _motor_us = int(args[i + 1]) != 0
-			"--motor-tick": DotFpsMotor.native_tick = int(args[i + 1]) != 0
+			"--motor-tick": GSFpsMotor.native_tick = int(args[i + 1]) != 0
 	var _scratch := FcPresentation.use_scratch_settings("offline_cost")
 	_run.call_deferred()
 
@@ -87,11 +87,11 @@ func _run() -> void:
 			_q0 = _queries(self)
 			_mt0 = _ticks
 			if _motor_us:
-				DotFpsMotor.profile = true
-				DotFpsController.phase_us.fill(0)
-				DotFpsMotor.phase_us.fill(0)
-				DotFpsPhysicsBody.native_slides = 0
-				DotFpsPhysicsBody.native_ticks = 0
+				GSFpsMotor.profile = true
+				GSFpsController.phase_us.fill(0)
+				GSFpsMotor.phase_us.fill(0)
+				GSFpsPhysicsBody.native_slides = 0
+				GSFpsPhysicsBody.native_ticks = 0
 			FcFrameProbe._reset()
 			preload("../game/fc_bots.gd").tiers.counts.clear()
 			preload("../game/fc_bots.gd").tiers.body_counts.clear()
@@ -124,7 +124,7 @@ func _report() -> void:
 	for f in _frames:
 		if f > 33.0:
 			hitches += 1
-	print("OFFLINE_COST native sight scan: %s, native motor queries: %s, native motor tick: %s, native brain: %s" % [DotBotWorld.native_available(), DotFpsPhysicsBody.native_available(), DotFpsMotor.native_tick and DotFpsPhysicsBody.native_tick_available(), DotBotWorld.native_available() and (DotBotAim as Script).get(&"native_enabled") == true])
+	print("OFFLINE_COST native sight scan: %s, native motor queries: %s, native motor tick: %s, native brain: %s" % [GSBotWorld.native_available(), GSFpsPhysicsBody.native_available(), GSFpsMotor.native_tick and GSFpsPhysicsBody.native_tick_available(), GSBotWorld.native_available() and (GSBotAim as Script).get(&"native_enabled") == true])
 	print("OFFLINE_COST fps %.1f | frame mean %.2f p50 %.2f p95 %.2f p99 %.2f max %.2f ms | >33ms %d | physics %.2f ms/frame process %.2f ms/frame | steps %.2f/frame (%d Hz, max %d) | %d bots" % [
 		1000.0 / mean, mean, sorted[n / 2], sorted[int(n * 0.95)], sorted[int(n * 0.99)], sorted[n - 1], hitches,
 		_phys / _n, _proc / _n, float(Engine.get_physics_frames() - _steps0) / _n,
@@ -136,22 +136,22 @@ func _report() -> void:
 	print("  bot tiers: %s" % JSON.stringify(preload("../game/fc_bots.gd").tiers.describe()))
 	print("  bodies sat out: %.1f per frame" % (float(FcPlayer.body_skipped) / maxf(float(_n), 1.0)))
 	print("  controller queries per physics step: %.1f" % (float(_queries(self) - _q0) / maxf(float(Engine.get_physics_frames() - _steps0), 1.0)))
-	var pr := DotFpsPhysicsBody.prof
+	var pr := GSFpsPhysicsBody.prof
 	print("  engine queries/frame: cast %.1f (%.2f ms) rest %.1f (%.2f ms) overlap %.1f (%.2f ms) ray %.1f (%.2f ms)" % [pr[0] / float(_n), pr[1] / 1000.0 / _n, pr[2] / float(_n), pr[3] / 1000.0 / _n, pr[4] / float(_n), pr[5] / 1000.0 / _n, pr[6] / float(_n), pr[7] / 1000.0 / _n])
 	_ticks = 0; _reused = 0; _settled = 0
 	var _qq := _queries(self)
 	print("  motor ticks %d settled-skips %d reused start probes %d (queries per tick %.2f)" % [_ticks, _settled, _reused, float(_qq) / maxf(_ticks, 1.0)])
 	if _motor_us:
-		DotFpsMotor.profile = false
+		GSFpsMotor.profile = false
 		var measured := _ticks - _mt0
 		print("OFFLINE_COST motor %.1f us/tick per player (%d player ticks; controller simulate_tick %.1f us)" % [
-			float(DotFpsController.phase_us[2]) / maxf(measured, 1.0), measured, float(_sum(DotFpsController.phase_us)) / maxf(measured, 1.0)])
+			float(GSFpsController.phase_us[2]) / maxf(measured, 1.0), measured, float(_sum(GSFpsController.phase_us)) / maxf(measured, 1.0)])
 		var parts := PackedStringArray()
-		for i in DotFpsMotor.PHASES.size():
-			if DotFpsMotor.PHASES[i] != "":
-				parts.append("%s %.1f" % [DotFpsMotor.PHASES[i], float(DotFpsMotor.phase_us[i]) / maxf(measured, 1.0)])
+		for i in GSFpsMotor.PHASES.size():
+			if GSFpsMotor.PHASES[i] != "":
+				parts.append("%s %.1f" % [GSFpsMotor.PHASES[i], float(GSFpsMotor.phase_us[i]) / maxf(measured, 1.0)])
 		print("  motor phases us/tick: %s" % ", ".join(parts))
-		print("  native slides %.2f, native tick halves %.2f per player tick" % [float(DotFpsPhysicsBody.native_slides) / maxf(measured, 1.0), float(DotFpsPhysicsBody.native_ticks) / maxf(measured, 1.0)])
+		print("  native slides %.2f, native tick halves %.2f per player tick" % [float(GSFpsPhysicsBody.native_slides) / maxf(measured, 1.0), float(GSFpsPhysicsBody.native_ticks) / maxf(measured, 1.0)])
 	print("  physics3d active %d islands %d pairs %d" % [Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS), Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT), Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS)])
 
 
@@ -166,7 +166,7 @@ static func _sum(a: PackedInt64Array) -> int:
 
 
 func _set_reuse(node: Node) -> void:
-	if node is DotFpsController and node.get("motor") != null:
+	if node is GSFpsController and node.get("motor") != null:
 		node.motor.reuse_settled_ground = _reuse
 	for c in node.get_children():
 		_set_reuse(c)
@@ -177,7 +177,7 @@ var _settled := 0
 
 func _queries(node: Node) -> int:
 	var total := 0
-	if node is DotFpsController and node.body != null:
+	if node is GSFpsController and node.body != null:
 		var d: Dictionary = node.body.describe()
 		total += int(d.get("queries", d.get("inner", {}).get("queries", 0)))
 		var m: Dictionary = node.motor.describe() if node.get("motor") != null else {}
@@ -202,6 +202,6 @@ func _tally_on(g: Object) -> void:
 		_heads += int(head)
 		_kills += int(lethal))
 	for p in g.call("players"):
-		p.connect(&"used", func(outcome: DotWeaponOutcome) -> void:
+		p.connect(&"used", func(outcome: GSWeaponOutcome) -> void:
 			if outcome != null and outcome.used:
 				_shots += outcome.shots.size())

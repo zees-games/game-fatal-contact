@@ -1,4 +1,4 @@
-extends DotSpectatorHost
+extends GSSpectatorHost
 
 const FcPlayer := preload("fc_player.gd")
 
@@ -33,9 +33,9 @@ var _participant_ids: Array[int] = []
 var _participant_keys := PackedStringArray()
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if game == null:
-		return DotResult.fail(DotError.CODE_STATE, "FcSpectate needs a game.")
+		return GSResult.fail(GSError.CODE_STATE, "FcSpectate needs a game.")
 
 	# [b]Authoritative on a client too, over its own camera and nothing else.[/b] This
 	# game's server sends no spectator views — a client learns of a death from the KILL
@@ -56,7 +56,7 @@ func setup() -> DotResult:
 
 	# Once per game, and INFO because it is the policy an admin is asked about: "why
 	# can I only watch my own team" has its answer in this line.
-	DotLog.info(CHANNEL, "spectating is set up", {
+	GSLog.info(CHANNEL, "spectating is set up", {
 		"own_team_only": manager.rules.force_camera == 1,
 		"roaming": manager.rules.roaming_permitted(),
 		"death_cam_ticks": manager.rules.death_cam_ticks,
@@ -71,7 +71,7 @@ func setup() -> DotResult:
 	if not game.player_spawned.is_connected(_on_spawned):
 		game.player_spawned.connect(_on_spawned)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## [b]force_camera and allow_roaming are deliberately not set[/b]: they are the operator's
@@ -148,7 +148,7 @@ func tick(_delta: float) -> void:
 
 
 ## A networked client's tick, from [code]FcNetBridge.client_tick[/code]: a networked
-## client never calls `game.tick`, see [method DotSpectatorHost.advance_client].
+## client never calls `game.tick`, see [method GSSpectatorHost.advance_client].
 func client_tick(tick: int) -> void:
 	advance_client(tick)
 
@@ -168,19 +168,19 @@ func on_kill_event(info: Dictionary) -> void:
 
 
 ## Cycle first person, chase, roaming — whatever the server's policy allows.
-func cycle_mode(key: String) -> DotResult:
+func cycle_mode(key: String) -> GSResult:
 	if manager == null:
 		return _unset()
 	var view := manager.view(key)
-	var next := DotSpectatorView.Mode.CHASE
-	if view.mode == DotSpectatorView.Mode.CHASE:
-		next = DotSpectatorView.Mode.ROAMING
-	elif view.mode == DotSpectatorView.Mode.ROAMING:
-		next = DotSpectatorView.Mode.FIRST_PERSON
+	var next := GSSpectatorView.Mode.CHASE
+	if view.mode == GSSpectatorView.Mode.CHASE:
+		next = GSSpectatorView.Mode.ROAMING
+	elif view.mode == GSSpectatorView.Mode.ROAMING:
+		next = GSSpectatorView.Mode.FIRST_PERSON
 	return manager.set_mode(key, next)
 
 
-func _on_killed(entry: DotKillFeed.Entry) -> void:
+func _on_killed(entry: GSKillFeed.Entry) -> void:
 	if manager == null:
 		return
 	var player: FcPlayer = game.player_for(int(entry.victim_key))
@@ -190,7 +190,7 @@ func _on_killed(entry: DotKillFeed.Entry) -> void:
 	else:
 		# A kill for somebody the game no longer holds: their death cam starts at the
 		# world origin, which is a camera in the floor of the middle of the map.
-		DotLog.warn(CHANNEL, "a death for a player the game does not hold; the death cam starts at the origin", {
+		GSLog.warn(CHANNEL, "a death for a player the game does not hold; the death cam starts at the origin", {
 			"victim": entry.victim_key,
 		})
 	death(entry.victim_key, at, entry.killer_key)

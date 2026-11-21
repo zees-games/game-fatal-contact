@@ -24,9 +24,9 @@ const AVATAR_ANIMS := {"avatar_walk": [&"dot_fps_forward"], "avatar_strafe": [&"
 const NO_MUZZLE: Array[StringName] = [&"knife", &"fists", &"grenade"]
 
 ## The behind-right and opponent cameras, shared with every game (dot-game docs/visual-qa.md).
-var _views: DotGameVisualQaViews = null
+var _views: GSGameVisualQaViews = null
 var _frames: Array[Dictionary] = []
-var _body_metrics := DotClipMetrics.new()
+var _body_metrics := GSClipMetrics.new()
 var _clip_key := ""
 
 
@@ -37,21 +37,21 @@ func _before_lab(args: PackedStringArray) -> void:
 	if asked == "":
 		return
 	var team := 1 if asked == "red" else (2 if asked == "blue" else int(asked))
-	var changed: DotResult = await client.call(&"change_from_menu", &"mode:tdm")
+	var changed: GSResult = await client.call(&"change_from_menu", &"mode:tdm")
 	if not changed.ok:
 		push_error("anim_review: no team deathmatch: %s" % changed.error)
 		return
 	await _wait(2.0)
 	var game: Object = client.get("game")
 	var me = client.get("player")
-	var moved: DotResult = game.get(&"match_node").switch_team(str(me.player_id), team, int(game.get(&"_tick")))
+	var moved: GSResult = game.get(&"match_node").switch_team(str(me.player_id), team, int(game.get(&"_tick")))
 	me.team = int(game.call(&"team_of", me.player_id))
 	print("ANIMREVIEW team %s: on team %d (%s)" % [asked, me.team, "ok" if moved.ok else moved.error])
 
 
 func _build_lab() -> void:
 	super._build_lab()
-	_views = DotGameVisualQaViews.new()
+	_views = GSGameVisualQaViews.new()
 	_views.cull_mask = 0xFFFFF & ~VIEW_LAYER & ~ARMS_LAYER
 	_views.setup(root, root.world_3d, (client.get("player").camera as Camera3D).environment)
 	# Every drawn frame, not only the saved ones: the body's hold and the held gun then run from the lab's start, as an
@@ -60,7 +60,7 @@ func _build_lab() -> void:
 	# With your own body off the client draws the figure whole and only hides it, which the staging undoes before the draw.
 	var presentation = client.get("presentation")
 	if presentation != null and presentation.settings != null:
-		var _off: Variant = presentation.settings.set_value(DotOwnBodySetting.KEY, false)
+		var _off: Variant = presentation.settings.set_value(GSOwnBodySetting.KEY, false)
 
 
 ## A limit at the run's fps (see PER_STEP and PER_COUNT).
@@ -79,7 +79,7 @@ func _save_frame(d: String, i: int, vp: Viewport = null) -> void:
 		return
 	if i == 0:
 		_frames.clear()
-		_body_metrics = DotClipMetrics.new()
+		_body_metrics = GSClipMetrics.new()
 		# The outside views draw one frame behind a clip's first staging (the last clip's gun, or the camera inside a wall):
 		# one staged draw before frame 0 is saved.
 		await RenderingServer.frame_pre_draw
@@ -103,7 +103,7 @@ func _stage_views() -> void:
 	cam.cull_mask = 0xFFFFF & ~BODY_LAYER
 	var arms_node := client.get("view_arms") as Node
 	if arms_node != null:
-		var _arms := DotGameVisualQaViews.tag_layers(arms_node, ARMS_LAYER)
+		var _arms := GSGameVisualQaViews.tag_layers(arms_node, ARMS_LAYER)
 	var body: Node3D = me.body_mesh
 	if body != null:
 		body.visible = true
@@ -112,7 +112,7 @@ func _stage_views() -> void:
 		# The gun in the body's hands, as everyone else sees it; the first-person present hides it.
 		me._present_held()
 		_step_shown_body(me)
-		var _body := DotGameVisualQaViews.tag_layers(body, BODY_LAYER, cam)
+		var _body := GSGameVisualQaViews.tag_layers(body, BODY_LAYER, cam)
 	_views.place(me.controller.state.position, deg_to_rad(float(me.controller.state.yaw)))
 
 
@@ -148,7 +148,7 @@ func _sample(time: float) -> Dictionary:
 	var cam := me.camera as Camera3D
 	var view := _view_model(me)
 	var out := {"t": snappedf(time, 0.001), "switching": bool(me.arsenal.is_switching()), "reloading": bool(me.arsenal.is_reloading())}
-	var figure: DotHumanoidFigure = me.figure
+	var figure: GSHumanoidFigure = me.figure
 	if figure != null and figure.skeleton() != null:
 		_body_metrics.add(_body_metrics.pose_sample(time, figure.skeleton(), me.controller.state.position, true))
 	if view == null:
@@ -176,20 +176,20 @@ func _sample(time: float) -> Dictionary:
 		if view.has_method(&"muzzle_transform"):
 			_muzzle_fit(to_cam, weapon, (view.call(&"muzzle_transform") as Transform3D).origin, out)
 	var mounted := client.get("view_arms") as Node3D
-	if mounted == null or not (mounted.get("arms") is DotPlayerViewArms):
+	if mounted == null or not (mounted.get("arms") is GSPlayerViewArms):
 		return out
-	var arms := mounted.get("arms") as DotPlayerViewArms
-	var grip: DotViewGrip = mounted.get("_grip")
+	var arms := mounted.get("arms") as GSPlayerViewArms
+	var grip: GSViewGrip = mounted.get("_grip")
 	out["arms_visible"] = mounted.is_visible_in_tree() and arms.shown
 	out["holding"] = bool(mounted.call(&"holding"))
 	if grip != null and "kind" in grip:
 		out["kind"] = str(grip.kind)
 	if "run" in arms:
 		out["run"] = snappedf(float(arms.get(&"run")), 0.001)
-	if not out["holding"] or not (arms.arms() is DotHumanoidFigure):
+	if not out["holding"] or not (arms.arms() is GSHumanoidFigure):
 		return out
 	out["hand_error"] = snappedf(arms.hand_error(grip), 0.0001)
-	var skeleton := (arms.arms() as DotHumanoidFigure).skeleton()
+	var skeleton := (arms.arms() as GSHumanoidFigure).skeleton()
 	var at := {}
 	for bone in ARM_BONES:
 		var index := skeleton.find_bone(bone)
@@ -314,7 +314,7 @@ func _inside_weapon(weapon: Node3D, at: Dictionary, sides: Array = [".R", ".L"])
 
 
 ## A clip the lab cannot play (no magazine, no sights, no inspect animation) is still a line of the report.
-func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: String, other_slot: int) -> Dictionary:
+func _fp_animation(a: String, me, id: StringName, def: GSWeaponDef, wdir: String, other_slot: int) -> Dictionary:
 	var res: Dictionary
 	if AVATAR_ANIMS.has(a):
 		res = await _avatar_clip(a, me, id, def, wdir)
@@ -329,7 +329,7 @@ func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: Strin
 
 ## A locomotion clip: the keys held from 0.2 s to 1.6 s of a 2.4 s clip (jump: one press), the yaw turned back each time so
 ## every run walks the same way. The player is put back where it stood afterwards.
-func _avatar_clip(a: String, me, id: StringName, def: DotWeaponDef, wdir: String) -> Dictionary:
+func _avatar_clip(a: String, me, id: StringName, def: GSWeaponDef, wdir: String) -> Dictionary:
 	var res := {"status": "ok"}
 	await _ensure_in_hand(me, id, def)
 	var start: Vector3 = me.controller.state.position
@@ -355,7 +355,7 @@ func _avatar_clip(a: String, me, id: StringName, def: DotWeaponDef, wdir: String
 ## The sprint clip run for real: forward and sprint held from 0.13 s to 1.33 s of a 1.6 s clip. The lab's own sprint clip
 ## only flags the view model, so the player stands still, the run blend stays 0 and the arms never take their running
 ## pose (a knife at the side, the arms swinging). The player is put back where it stood afterwards.
-func _sprint_clip(me, id: StringName, def: DotWeaponDef, wdir: String) -> Dictionary:
+func _sprint_clip(me, id: StringName, def: GSWeaponDef, wdir: String) -> Dictionary:
 	var res := {"status": "ok"}
 	await _ensure_in_hand(me, id, def)
 	var start: Vector3 = me.controller.state.position

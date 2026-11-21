@@ -17,7 +17,7 @@ var loadout_menu: Object = null
 ## B: primary, sidearm, melee, grenades and gear, as cards with each weapon's picture and numbers. Solo the game's own loadouts answer; connected the server does (dot-loadout's
 ## `/loadout`), under the owner's `mp_loadout_*` rules. Guarded on the host's dot-menu and dot-loadout levels, so an older client shell still runs the game without it.
 func _use_loadout_menu() -> void:
-	if DotAddonApi.build_level("dot_menu") < 6 or DotAddonApi.build_level("dot_loadout") < 2:
+	if GSAddonApi.build_level("dot_menu") < 6 or GSAddonApi.build_level("dot_loadout") < 2:
 		return
 	if not game_menu.has_method(&"use_loadout"):
 		return
@@ -25,7 +25,7 @@ func _use_loadout_menu() -> void:
 	if loadout_menu != null:
 		_link_menu(loadout_menu)
 		# Items the player does not own, greyed with a store button, solo and connected.
-		if DotAddonApi.build_level("dot_game") >= 40:
+		if GSAddonApi.build_level("dot_game") >= 40:
 			platform.add_loadout_store(loadout_menu, func() -> Object: return game.loadout_command if game != null else null,
 					func() -> String: return FcGame.storage_key(player.player_id) if player != null else "")
 		loadout_menu.set(&"random_fn", random_loadout)
@@ -33,8 +33,8 @@ func _use_loadout_menu() -> void:
 		# Remembered under the signed-in site account (or "local" as a guest), and never
 		# from a suite or a render on scratch settings: those must not write, or read back, a
 		# player's real choice.
-		_loadout_scratch = DotSettingsScratch.is_scratch(FcPresentation.settings_directory)
-		follow_account(DotRegistry.get_node_service(AUTH_SERVICE))
+		_loadout_scratch = GSSettingsScratch.is_scratch(FcPresentation.settings_directory)
+		follow_account(GSRegistry.get_node_service(AUTH_SERVICE))
 
 
 ## Joined to its own server process, nobody registers `dot_client_link`, so a menu that asks the
@@ -44,7 +44,7 @@ func _link_menu(menu_part: Object) -> void:
 		menu_part.set(&"link", link)
 
 
-## The key a loadout is remembered under for [param auth] (a DotAuthClient, or null): its
+## The key a loadout is remembered under for [param auth] (a GSAuthClient, or null): its
 ## account's public id when signed in, "local" for a guest or a client with no auth. Never a
 ## token. Untyped because a shell older than dot-auth's `account_key` has no such method.
 static func loadout_account_key(auth: Object) -> String:
@@ -84,28 +84,28 @@ func _rekey_loadout() -> void:
 ## Solo: what this player may pick, from the game's own manager.
 func loadout_offer() -> Variant:
 	if game == null or game.loadout_command == null or player == null:
-		return DotResult.fail(DotError.CODE_STATE, "Join the match first.")
+		return GSResult.fail(GSError.CODE_STATE, "Join the match first.")
 	return await game.loadout_command.call(&"offer", FcGame.storage_key(player.player_id))
 
 
 ## Solo: saves [param picks], and hands them over now in warmup or spawn protection.
 func choose_loadout(picks: Dictionary) -> Variant:
 	if game == null or game.loadout_command == null or player == null:
-		return DotResult.fail(DotError.CODE_STATE, "Join the match first.")
+		return GSResult.fail(GSError.CODE_STATE, "Join the match first.")
 	return await game.loadout_command.call(&"choose", null, FcGame.storage_key(player.player_id), picks)
 
 
 ## Solo: rolls a random loadout under the same `mp_loadout_random*` rules the server applies.
 func random_loadout() -> Variant:
 	if game == null or game.loadout_command == null or player == null:
-		return DotResult.fail(DotError.CODE_STATE, "Join the match first.")
+		return GSResult.fail(GSError.CODE_STATE, "Join the match first.")
 	return await game.loadout_command.call(&"choose_random", null, FcGame.storage_key(player.player_id))
 
 
 ## Solo: the "random every spawn" toggle, under the same `mp_loadout_random_on_spawn` rule.
 func random_spawn_loadout(on: bool) -> Variant:
 	if game == null or game.loadout_command == null or player == null:
-		return DotResult.fail(DotError.CODE_STATE, "Join the match first.")
+		return GSResult.fail(GSError.CODE_STATE, "Join the match first.")
 	return await game.loadout_command.call(&"set_random_spawn", FcGame.storage_key(player.player_id), on)
 
 

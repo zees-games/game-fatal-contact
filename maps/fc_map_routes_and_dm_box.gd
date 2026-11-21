@@ -15,7 +15,7 @@ func pit_at(feet: Vector3, tick: int) -> Dictionary:
 func is_imported() -> bool:
 	return manifest_path != ""
 
-static func _movement() -> DotFpsTunables:
+static func _movement() -> GSFpsTunables:
 	if _tunables == null:
 		_tunables = load(FcPaths.rebase("res://game/fc_player.gd")).fc_tunables()
 
@@ -41,7 +41,7 @@ static func climb_limit() -> float:
 ## for 0.67 s flat and 0.40 s onto a step 1.2 m up, which is 6.1 m of reach against
 ## 3.6. `game-playlot` sized a jump course with the first number, was 30% out, and
 ## was unfinishable past platform three from the day it was built — see `[reach-1]` in
-## `nightly-todo.md`. `DotFpsTunables.jump_reach` is that arithmetic; this asks it of
+## `nightly-todo.md`. `GSFpsTunables.jump_reach` is that arithmetic; this asks it of
 ## this game's movement.
 ##
 ## Returns 0.0 for a rise no jump reaches at all, which is the honest answer: there is
@@ -263,7 +263,7 @@ static func dm_box() -> RefCounted:
 	# room where most of the fighting is. A stair is the walked way up: slower to read
 	# from the top, open to anybody, and in the open.
 	#
-	# Ten treads of 0.36 — under `DotFpsTunables.step_height` (0.4), so held forward
+	# Ten treads of 0.36 — under `GSFpsTunables.step_height` (0.4), so held forward
 	# climbs it; the number and the reason are dm_atrium's and dm_pit's — each 0.9 deep,
 	# running along the gantry's outer face and climbing TOWARD the nest pillar. The last
 	# tread is at 3.6, flush with the gantry beside it, and its far face is flush with the

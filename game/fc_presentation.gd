@@ -7,14 +7,14 @@ extends "fc_presentation_setup.gd"
 ## Points every [FcPresentation] made after this at a fresh, empty settings directory named
 ## [param tag], and returns it.
 static func use_scratch_settings(tag: String) -> String:
-	# One directory per process (dot-settings' DotSettingsScratch): user:// is shared by every run on the machine.
-	var dir := DotSettingsScratch.use(tag)
+	# One directory per process (dot-settings' GSSettingsScratch): user:// is shared by every run on the machine.
+	var dir := GSSettingsScratch.use(tag)
 	settings_directory = dir
 	return dir
 
 
 ## Points the look settings at the tunables the client's sampler reads, and applies them.
-func bind_look(tunables: DotFpsTunables) -> void:
+func bind_look(tunables: GSFpsTunables) -> void:
 	_look = tunables
 	_apply_look()
 

@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -6,7 +6,7 @@ const FcMode := preload("../game/fc_mode.gd")
 const FcMapDirector := preload("../game/fc_map_director.gd")
 
 ## A combat surf map as a real client gets it: fetched over HTTPS from the CDN a standalone client
-## uses (`DotGameStandaloneContent.settings()`: content.json's `content_urls`, else content.gamespice.net), verified
+## uses (`GSGameStandaloneContent.settings()`: content.json's `content_urls`, else content.gamespice.net), verified
 ## against the shipped trust list, mounted and built, with no `maps/imported` link.
 ##
 ## [codeblock]
@@ -40,13 +40,13 @@ class StandInGames:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("FC: a combat surf map from the published CDN")
-	var settings := DotGameStandaloneContent.settings()
+	var settings := GSGameStandaloneContent.settings()
 	var origin := String((settings["urls"] as PackedStringArray)[0])
 	var probe := HTTPRequest.new()
 	add_child(probe)
@@ -59,24 +59,24 @@ func _run() -> void:
 		get_tree().quit(0)
 		return
 
-	DotPaths.remove_tree(ROOT)
+	GSPaths.remove_tree(ROOT)
 	print("\n-- a client fetches the published pack under the production key, and the game builds it")
 	var shipped: Variant = JSON.parse_string(FileAccess.get_file_as_string(String(settings["config_file"])))
 	_check(shipped is Dictionary and (shipped as Dictionary).has("trusted_keys"), "the shipped trust list is read")
 
-	var config := DotCloudConfig.new()
+	var config := GSCloudConfig.new()
 	config.side = "both"
 	config.cache_dir = ROOT.path_join("cache")
 	config.require_signed_manifests = true
 	config.trusted_keys = (shipped as Dictionary)["trusted_keys"]
-	var cloud := DotCloudClient.new()
+	var cloud := GSCloudClient.new()
 	cloud.name = "Cloud"
 	cloud.config = config
 	cloud.config_file = ""
 	cloud.register_service = false
 	cloud.http_base_urls = settings["urls"]
 	add_child(cloud)
-	DotRegistry.register(&"dot_cloud_client", cloud)
+	GSRegistry.register(&"dot_cloud_client", cloud)
 	await get_tree().process_frame
 
 	var game := FcGame.new()
@@ -95,7 +95,7 @@ func _run() -> void:
 	director.server = server
 	add_child(director)
 	_check(director.setup().ok, "the director adopts the pack the server names")
-	var changed: DotResult = await director.change_to(MAP)
+	var changed: GSResult = await director.change_to(MAP)
 	await get_tree().physics_frame
 	if not changed.ok:
 		print("  cause: %s" % changed.error)
@@ -113,5 +113,5 @@ func _run() -> void:
 	remove_child(game)
 	game.free()
 	cloud.queue_free()
-	DotPaths.remove_tree(ROOT)
+	GSPaths.remove_tree(ROOT)
 	_report_sections(1, 1, SECTIONS, CHECKS)

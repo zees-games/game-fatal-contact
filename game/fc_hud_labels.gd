@@ -2,22 +2,22 @@
 extends "fc_hud_objective.gd"
 
 ## A side's name over its score, with what became of its flag in capture the flag: "RED", "RED · TAKEN", "RED · 12s" to its return.
-func _side_tag(side: DotTeam) -> String:
+func _side_tag(side: GSTeam) -> String:
 	var tag := side.display_name.to_upper()
 	var flag := game.objectives.ctf.flag_of(side.id) if game.objectives != null and game.objectives.ctf != null else null
 	if flag == null:
 		return tag
 	match flag.state:
-		DotObjectiveFlag.State.CARRIED:
+		GSObjectiveFlag.State.CARRIED:
 			return "%s · TAKEN" % tag
-		DotObjectiveFlag.State.DROPPED:
+		GSObjectiveFlag.State.DROPPED:
 			var returns_in := ceili(float(flag.return_left) / float(maxi(game.objectives.ctf.tick_rate, 1)))
 			return "%s · %ds" % [tag, returns_in] if returns_in > 0 else "%s · DROPPED" % tag
 	return tag
 
 
 ## A side's score for the strip: captures in capture the flag (the CTF state every client mirrors at once), else the scoreboard's.
-func _side_score(side: DotTeam) -> int:
+func _side_score(side: GSTeam) -> int:
 	if game.objectives != null and game.objectives.ctf != null:
 		return int(game.objectives.ctf.scores.get(side.id, 0))
 	return game.match_node.scoreboard.team_score(side.id)

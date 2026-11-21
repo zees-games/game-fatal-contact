@@ -3,8 +3,8 @@ extends RefCounted
 ## The tail of the wire format (toys, awards, killview) and the helpers it shares with
 ## [code]fc_events.gd[/code], which extends this file so every caller's path is unchanged.
 
-static func _w() -> DotNetWriter:
-	return DotNetWriter.new()
+static func _w() -> GSNetWriter:
+	return GSNetWriter.new()
 
 const NPC_ID_BYTES := 64
 
@@ -20,7 +20,7 @@ static func write_toys(map_id: StringName, net_ids: PackedInt64Array) -> PackedB
 	return w.to_bytes()
 
 
-static func read_toys(r: DotNetReader) -> Dictionary:
+static func read_toys(r: GSNetReader) -> Dictionary:
 	var map_id := StringName(r.read_string(NPC_ID_BYTES))
 	var count := r.read_varint()
 	var ids := PackedInt64Array()
@@ -57,7 +57,7 @@ static func write_award(
 	return writer.to_bytes()
 
 
-static func read_award(reader: DotNetReader) -> Dictionary:
+static func read_award(reader: GSNetReader) -> Dictionary:
 	var out := {
 		"killer_id": reader.read_varint(),
 		"victim_id": reader.read_varint(),
@@ -75,5 +75,5 @@ static func read_award(reader: DotNetReader) -> Dictionary:
 
 # killview
 
-## Most bytes a KILLVIEW body ([method DotKillViewClip.pack]) may take: the event body's cap, less its framing.
+## Most bytes a KILLVIEW body ([method GSKillViewClip.pack]) may take: the event body's cap, less its framing.
 const KILLVIEW_BYTES := 15000

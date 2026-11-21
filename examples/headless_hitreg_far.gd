@@ -1,7 +1,7 @@
 extends "headless_hitreg_chaos.gd"
 
 ## "Hit registration sucks at times" (the owner's recording): far shots in a full room. With more than sv_net_aoi_players in it (64 bots here, 66 players) the relevance rings (FcNetAoi) send a player 30-120 m out every fourth snapshot, every second inside the shooter's aim cone; a flick onto a far player shoots it before the cone has caught up (cone 0 here).
-## The client draws such a player from its own sparse samples, blended across eight ticks or carried on past the newest (DotNetInterpolator._extrapolate), and the server's rewind must stand the body where that frame drew it, not where its every-tick ring had it (FcNetBridge.shot_feet, the per-target view a command carries).
+## The client draws such a player from its own sparse samples, blended across eight ticks or carried on past the newest (GSNetInterpolator._extrapolate), and the server's rewind must stand the body where that frame drew it, not where its every-tick ring had it (FcNetBridge.shot_feet, the per-target view a command carries).
 ## Every tap is aimed at the drawn torso, middle and edges, with the gun's noise zeroed as headless_hitreg_ping does, at 35, 46.8 and 60 m, over round trips of 30, 60 and 100 ms: on a clean link, with a seeded 0-30 ms jitter, and with the jitter and one snapshot to the shooter lost before each tap. Each miss is put down to its cause from the target's own samples. Then the recording's other cases: a scoped Marksman at a bot 46.8 m out (7:35.2; still and playing, hitscan as shipped and a flying round under sv_ballistics), every bot in the rewind ring every tick, the carbine's 100 to 37 in three hits, and the drum shotgun's pellets by distance (16 is two of its seven 8-point pellets). Deterministic: clocks by hand, seeded draws, the buffer set rather than adapted.
 
 const FcNetAoi := preload("../game/fc_net_aoi.gd")
@@ -19,7 +19,7 @@ const FAR_LINKS: Array = [
 const BOTS := 64
 const SCOPED_RANGE := 46.8
 const SHOTGUN_RANGES: Array[float] = [2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 14.0]
-## The share of all far taps that must hit; what misses is the client's resume ease (DotNetInterpolator._ease_resume), the client's alone.
+## The share of all far taps that must hit; what misses is the client's resume ease (GSNetInterpolator._ease_resume), the client's alone.
 const FAR_HIT_FLOOR := 0.95
 
 var _aoi: FcNetAoi = null
@@ -43,7 +43,7 @@ func _run() -> void:
 	print("game-fatal-contact headless far hit registration: relevance rings, sparse samples, 64 bots")
 	_build()
 	_damage_hook()
-	var net: DotNetManager = _clients[SHOOTER_PEER]["net"]
+	var net: GSNetManager = _clients[SHOOTER_PEER]["net"]
 	print("    tick %d Hz, snapshots every %d ticks, interp %.1f ticks, max extrapolation %.3f s, resume ease %.3f s" % [
 		TICK_RATE, net.config.ticks_per_snapshot(), net.interpolator.delay_ticks(), net.config.max_extrapolation_sec, net.config.resume_ease_sec])
 	_section("64 bots fill the room")
@@ -123,7 +123,7 @@ func _stand_bots() -> void:
 				p.spawn(Transform3D(Basis(), at), tick)
 
 
-func _place(weapon_id: StringName, def: DotWeaponDef, distance: float) -> void:
+func _place(weapon_id: StringName, def: GSWeaponDef, distance: float) -> void:
 	super(weapon_id, def, distance)
 	_stand_bots()
 
@@ -143,11 +143,11 @@ func _far_section(link: Array, rtt: int, cone: float, ranges: Array) -> void:
 	_cone = cone
 	if cone >= 0.0:
 		_set_cone(cone)
-	var period := float((_clients[SHOOTER_PEER]["net"] as DotNetManager).config.ticks_per_snapshot())
+	var period := float((_clients[SHOOTER_PEER]["net"] as GSNetManager).config.ticks_per_snapshot())
 	# The adaptive buffer's rule for the jitter (a period and the p95 lateness); two snapshots on a clean link.
 	var buffer := 2.0 if _jitter_ticks == 0 else (period + float(_jitter_ticks)) / period
 	for peer_id: int in _clients:
-		var interp: DotNetInterpolator = _clients[peer_id]["net"].interpolator
+		var interp: GSNetInterpolator = _clients[peer_id]["net"].interpolator
 		interp._delay_snapshots = buffer
 		interp._target_snapshots = buffer
 	_section("far: %s, rtt %d ms, %s, interp %.1f ticks" % [_link, rtt,
@@ -157,8 +157,8 @@ func _far_section(link: Array, rtt: int, cone: float, ranges: Array) -> void:
 	for r: float in ranges:
 		_range = r
 		for id in FAR_WEAPONS:
-			var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(id)
-			if def == null or (def.tuning as DotWeaponBallistics).max_range < r:
+			var def: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(id)
+			if def == null or (def.tuning as GSWeaponBallistics).max_range < r:
 				continue
 			_rng.seed = hash([_link, rtt, String(id), r])
 			_move_rng.seed = hash([rtt, String(id), r])
@@ -170,7 +170,7 @@ func _far_section(link: Array, rtt: int, cone: float, ranges: Array) -> void:
 	_done()
 
 
-func _fire_taps(def: DotWeaponDef, taps: int) -> int:
+func _fire_taps(def: GSWeaponDef, taps: int) -> int:
 	_round_base = _step
 	var sent := super(def, taps)
 	_round_base = -1
@@ -179,12 +179,12 @@ func _fire_taps(def: DotWeaponDef, taps: int) -> int:
 
 ## Loses one snapshot to the shooter before each tap, sent 2 to 5 snapshot periods before what the shooter draws when it fires (by tap), so every phase against the target's sparse samples comes round.
 func _drop_now(peer_id: int, delivery: int) -> bool:
-	if not _drop_before or _round_base < 0 or peer_id != SHOOTER_PEER or delivery != DotNetMessage.Delivery.UNRELIABLE:
+	if not _drop_before or _round_base < 0 or peer_id != SHOOTER_PEER or delivery != GSNetMessage.Delivery.UNRELIABLE:
 		return false
 	var since := _step - _round_base - 1 - SETTLE_TICKS
 	if since < -_tap_ticks:
 		return false
-	var period := (_clients[SHOOTER_PEER]["net"] as DotNetManager).config.ticks_per_snapshot()
+	var period := (_clients[SHOOTER_PEER]["net"] as GSNetManager).config.ticks_per_snapshot()
 	var tap := floori(float(since) / float(_tap_ticks))
 	for t in [tap, tap + 1]:
 		if t < 0:
@@ -213,10 +213,10 @@ func _read_frame(k: int) -> void:
 		_last_frame["track"] = _track_view(float(_last_frame["time"]))
 
 
-## The target's own samples on the shooter's client around [param render_tick], as DotNetInterpolator.sample picks them: {older, newer, ahead (past the newest)}.
+## The target's own samples on the shooter's client around [param render_tick], as GSNetInterpolator.sample picks them: {older, newer, ahead (past the newest)}.
 func _track_view(render_tick: float) -> Dictionary:
-	var net: DotNetManager = _clients[SHOOTER_PEER]["net"]
-	var behaviour: DotNetBehaviour = (_clients[SHOOTER_PEER]["bridge"] as FcNetBridge)._behaviours.get(_target)
+	var net: GSNetManager = _clients[SHOOTER_PEER]["net"]
+	var behaviour: GSNetBehaviour = (_clients[SHOOTER_PEER]["bridge"] as FcNetBridge)._behaviours.get(_target)
 	if behaviour == null or behaviour.identity == null:
 		return {}
 	var track: Variant = net.interpolator._tracks.get(behaviour.identity.net_id)
@@ -246,7 +246,7 @@ func _judge(weapon_id: StringName, ping: int, c: Dictionary) -> void:
 
 
 func _judge_far(weapon_id: StringName, ping: int, c: Dictionary) -> void:
-	var period := float((_clients[SHOOTER_PEER]["net"] as DotNetManager).config.ticks_per_snapshot())
+	var period := float((_clients[SHOOTER_PEER]["net"] as GSNetManager).config.ticks_per_snapshot())
 	var key := "%s|%d|%.1f|%s|%s" % [_link, ping, _range, weapon_id, "off" if _cone < 0.0 else str(int(_cone))]
 	var row: Array = _far.get_or_add(key, [0, 0, {}, [], 0, 0])
 	row[0] += int(c["matched"])
@@ -347,16 +347,16 @@ func _wait_out_protection() -> void:
 
 ## 7:35.2: a scoped Marksman, the shooter nearly still, at a bot's chest 46.8 m out; ammo 10 to 9, no hit.
 func _scoped_bot_sections() -> void:
-	var marksman: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(&"marksman")
+	var marksman: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(&"marksman")
 	_check(marksman != null, "the pack has the Marksman")
 	if marksman == null:
 		return
-	var tuning := marksman.tuning as DotWeaponBallistics
-	var rules := _server_game.combat_feel.ballistics as DotWeaponBallisticsRules
+	var tuning := marksman.tuning as GSWeaponBallistics
+	var rules := _server_game.combat_feel.ballistics as GSWeaponBallisticsRules
 	print("    marksman: damage %.0f, spread %.2f (%.2f moving), sniper aimed spread %.2f, muzzle velocity %.0f: %s" % [
 		tuning.damage, tuning.spread, tuning.spread_moving, tuning.accuracy("spread_aim", "sniper"), tuning.muzzle_velocity,
-		"a flying round under sv_ballistics" if DotWeaponTrajectory.is_simulated(tuning) else "hitscan even with sv_ballistics on"])
-	_check(not DotWeaponBallisticsRules.simulates(rules, tuning), "as shipped (sv_ballistics 0) the Marksman is hitscan: rewound at the click")
+		"a flying round under sv_ballistics" if GSWeaponTrajectory.is_simulated(tuning) else "hitscan even with sv_ballistics on"])
+	_check(not GSWeaponBallisticsRules.simulates(rules, tuning), "as shipped (sv_ballistics 0) the Marksman is hitscan: rewound at the click")
 	var bot := _marked_bot()
 	var mind: Variant = _server_bridge._bot_minds.get(bot)
 	var kept_target := _target
@@ -379,13 +379,13 @@ func _scoped_bot_sections() -> void:
 			_round(&"marksman", rtt)
 			_done()
 	_server_bridge._bot_minds.erase(bot)
-	# sv_ballistics on, the Marksman given a muzzle velocity: the round flies, and each tick of its flight is rewound by the shooter's lag (DotWeaponBullets._fly_tick).
+	# sv_ballistics on, the Marksman given a muzzle velocity: the round flies, and each tick of its flight is rewound by the shooter's lag (GSWeaponBullets._fly_tick).
 	if rules != null and _server_game.bullet_bridge != null:
 		var velocity := tuning.muzzle_velocity
 		tuning.muzzle_velocity = 900.0
 		rules.set(&"enabled", true)
 		_mode = "bullets"
-		var counted := func(_id: int, d: DotDamage) -> void:
+		var counted := func(_id: int, d: GSDamage) -> void:
 			if d.victim == _target and not d.refused:
 				_bullet_hits += 1
 		_server_game.bullet_bridge.bullet_hit.connect(counted)
@@ -428,13 +428,13 @@ func _bots_recorded_section() -> void:
 
 
 func _damage_hook() -> void:
-	_server_game.combat.shot_resolved.connect(func(shot: DotShot) -> void:
+	_server_game.combat.shot_resolved.connect(func(shot: GSShot) -> void:
 		if shot.attacker != SHOOTER:
 			return
 		var dealt := 0.0
 		var on_body := 0
 		var groups: Array[String] = []
-		for d: DotDamage in shot.damages:
+		for d: GSDamage in shot.damages:
 			if d.victim == _target and not d.refused:
 				dealt += d.amount
 				on_body += 1
@@ -445,8 +445,8 @@ func _damage_hook() -> void:
 ## 100 to 37 in 0.4 s: three carbine hits of 21, each counted once (a command carried in several packets fires once).
 func _burst_section() -> void:
 	_section("carbine: three hits take 100 to 37")
-	var carbine: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(&"carbine")
-	var tuning := carbine.tuning as DotWeaponBallistics
+	var carbine: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(&"carbine")
+	var tuning := carbine.tuning as GSWeaponBallistics
 	print("    carbine: damage %.0f, a shot every %d ticks: three hits in %.3f s" % [tuning.damage, carbine.use_interval_ticks,
 		2.0 * float(carbine.use_interval_ticks) / float(TICK_RATE)])
 	_mode = "burst"
@@ -478,11 +478,11 @@ func _burst_section() -> void:
 ## The drum shotgun at a still bot's chest, as played (its pattern kept): pellets on the body and damage by distance.
 func _shotgun_section() -> void:
 	_section("drum shotgun: pellets and damage by distance at a still bot's chest")
-	var def: DotWeaponDef = FcPlayer.weapon_catalogue().get_def(&"drum_shotgun")
+	var def: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(&"drum_shotgun")
 	_check(def != null, "the pack has the drum shotgun")
 	if def == null:
 		return
-	var tuning := def.tuning as DotWeaponBallistics
+	var tuning := def.tuning as GSWeaponBallistics
 	print("    drum shotgun: %d pellets of %.0f, spread %.1f (aimed %.2f), fixed pattern %s, max range %.0f m" % [
 		tuning.pellets, tuning.damage, tuning.spread, tuning.accuracy("spread_aim", "shotgun"), str(tuning.get(&"fixed_pattern")), tuning.max_range])
 	var kept_target := _target
@@ -537,12 +537,12 @@ func _ease_wire_section() -> void:
 	_section("a target's resume ease on the wire")
 	var sent := FcNetCommand.new()
 	sent.tick = 1000
-	sent.move = DotFpsCommand.new()
-	sent.fire = DotWeaponCommand.new()
-	sent.fire.buttons = DotWeaponCommand.BUTTON_ATTACK
+	sent.move = GSFpsCommand.new()
+	sent.fire = GSWeaponCommand.new()
+	sent.fire.buttons = GSWeaponCommand.BUTTON_ATTACK
 	sent.view_lag_q = 40
 	sent.view_targets = [[7, 12, 8], [9, 14, 8, 120, -3, -387]]
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	sent.write(writer)
 	var got := FcNetCommand.new()
 	got.read(writer.to_reader())

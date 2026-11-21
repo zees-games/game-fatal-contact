@@ -19,8 +19,8 @@ static var _dead_keys: Dictionary = {}
 ## fills. Duck-typed, so a dot-server that predates the field — or a stand-in in a suite —
 ## is an empty list rather than a parse error.
 ##
-## [b]Not dot-game's `DotGameContent.map_keys`[/b], which says the same thing, because this
-## game does not link dot-game: its module is a `DotModule`, and pulling an addon into the
+## [b]Not dot-game's `GSGameContent.map_keys`[/b], which says the same thing, because this
+## game does not link dot-game: its module is a `GSModule`, and pulling an addon into the
 ## client shell's dependency list for six lines of duck typing is the wrong trade.
 static func server_map_keys(server: Object) -> PackedStringArray:
 	var out := PackedStringArray()
@@ -111,9 +111,9 @@ const PACK_PREFIX := "arena-surf-dm-maps-"
 ## import wins), so solo play lists the published maps and fetches one when it is picked.
 ## A pack [param content] already has mounted at another version is named at that version:
 ## a pinned version can go unpublished, and a mounted pack needs no fetch.
-static func standalone_keys(catalogue: DotMapCatalogue, content: DotContentIndex = null) -> PackedStringArray:
+static func standalone_keys(catalogue: GSMapCatalogue, content: GSContentIndex = null) -> PackedStringArray:
 	var out := PackedStringArray()
-	var mounted := mounted_versions(content if content != null else DotContentIndex.shared())
+	var mounted := mounted_versions(content if content != null else GSContentIndex.shared())
 
 	for key in STANDALONE_KEYS:
 		var def := delivered_def(key)
@@ -121,7 +121,7 @@ static func standalone_keys(catalogue: DotMapCatalogue, content: DotContentIndex
 		if def == null:
 			continue
 
-		var have: DotMapDef = catalogue.get_map(def.id) if catalogue != null else null
+		var have: GSMapDef = catalogue.get_map(def.id) if catalogue != null else null
 
 		if have == null or bool(have.meta.get("delivered", false)):
 			var cid := String(def.content_id)
@@ -131,7 +131,7 @@ static func standalone_keys(catalogue: DotMapCatalogue, content: DotContentIndex
 
 
 ## content id -> version of each pack [param content] lists for the current session; the last mounted wins.
-static func mounted_versions(content: DotContentIndex) -> Dictionary:
+static func mounted_versions(content: GSContentIndex) -> Dictionary:
 	var out := {}
 
 	for pack in content.packs():
@@ -157,10 +157,10 @@ static func mounted_versions(content: DotContentIndex) -> Dictionary:
 ##
 ## [b]The scene path is the manifest inside the mount[/b] (`<mount>/<id>.json`): the file
 ## [FcMap] is built from, and inside the pack's own content — which is what lets a client
-## that has never heard of the map accept it (`DotMapSyncClient` takes an unknown map only
+## that has never heard of the map accept it (`GSMapSyncClient` takes an unknown map only
 ## when its scene is under its mount). Null when the key is not `<owner>/<id>@<version>`.
-static func delivered_def(key: String) -> DotMapDef:
-	var def := DotMapDef.from_content_key(key)
+static func delivered_def(key: String) -> GSMapDef:
+	var def := GSMapDef.from_content_key(key)
 
 	if def == null or def.content_version == "":
 		return null
@@ -171,7 +171,7 @@ static func delivered_def(key: String) -> DotMapDef:
 	def.scene_path = manifest_in_mount(def)
 	def.version = def.content_version
 	def.display_name = String(def.id)
-	def.kind = DotMapDef.KIND_ARENA
+	def.kind = GSMapDef.KIND_ARENA
 	def.author = "unknown"
 	def.enabled = in_rotation(def.id)
 	def.tier = 1
@@ -191,14 +191,14 @@ static func delivered_def(key: String) -> DotMapDef:
 ## `FcMap.by_id` builds the map from the mounted manifest. Shared by the map session (a server's change)
 ## and the solo picker. A pack whose manifest is not `"kind": "arena"` is refused and leaves [param catalogue].
 static func mount_delivered(
-	map: DotMapDef, loader: DotMapLoader, catalogue: DotMapCatalogue = null, allow_latest := false
-) -> DotResult:
+	map: GSMapDef, loader: GSMapLoader, catalogue: GSMapCatalogue = null, allow_latest := false
+) -> GSResult:
 	var key := str(map.meta.get("key", "%s@%s" % [String(map.content_id), map.effective_content_version()]))
 
 	if FcImportedMaps.is_mounted(map.id) \
 			and FcImportedMaps.manifest_path(map.id) == manifest_in_mount(map):
 		refresh_delivered_meta(map)
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	var first_key := key
 
@@ -206,9 +206,9 @@ static func mount_delivered(
 		if catalogue != null:
 			catalogue.remove(map.id)
 
-		return DotResult.fail(DotError.CODE_STATE, "could not load the map %s: %s (not retried this session)" % [String(map.id), _dead_keys[key]])
+		return GSResult.fail(GSError.CODE_STATE, "could not load the map %s: %s (not retried this session)" % [String(map.id), _dead_keys[key]])
 
-	var fetched: DotResult = await loader.ensure_content(map)
+	var fetched: GSResult = await loader.ensure_content(map)
 
 	if not fetched.ok and allow_latest and fetched.error != null and fetched.error.http_status == 404:
 		fetched = await _fetch_latest(map, loader)
@@ -230,7 +230,7 @@ static func mount_delivered(
 			catalogue.remove(map.id)
 
 		# The toast shows only the message, so the reason goes into it; the whole chain goes to the log.
-		DotLog.warn(CHANNEL, "a delivered map could not be fetched", {"map": String(map.id), "pack": key, "why": str(fetched.error)})
+		GSLog.warn(CHANNEL, "a delivered map could not be fetched", {"map": String(map.id), "pack": key, "why": str(fetched.error)})
 		return fetched.wrap("could not fetch the map %s: %s" % [String(map.id), why])
 
 	var dir := mount_of(map)
@@ -241,13 +241,13 @@ static func mount_delivered(
 
 		if not missing.is_empty():
 			FcImportedMaps.remove_mounted(map.id)
-			added = DotResult.fail(
-				DotError.CODE_IO, "The delivered map is incomplete.",
+			added = GSResult.fail(
+				GSError.CODE_IO, "The delivered map is incomplete.",
 				"%d declared file(s) missing, e.g. %s" % [missing.size(), missing[0]]
 			)
 
 	if not added.ok:
-		if added.error.code == DotError.CODE_INVALID:
+		if added.error.code == GSError.CODE_INVALID:
 			refuse(key, FcImportedMaps.kind_at(manifest_in_mount(map)))
 
 			if catalogue != null:
@@ -260,19 +260,19 @@ static func mount_delivered(
 			if catalogue != null:
 				catalogue.remove(map.id)
 
-		if added.error.code != DotError.CODE_INVALID:
+		if added.error.code != GSError.CODE_INVALID:
 			return added.wrap("could not load the map %s: %s" % [String(map.id), added.error.message.trim_suffix(".")])
 
 		return added.wrap("%s is not a map this game can build" % key)
 
 	refresh_delivered_meta(map)
-	DotLog.info(CHANNEL, "a delivered map is mounted", {"map": String(map.id), "pack": key, "dir": dir})
-	return DotResult.success(null)
+	GSLog.info(CHANNEL, "a delivered map is mounted", {"map": String(map.id), "pack": key, "dir": dir})
+	return GSResult.success(null)
 
 
 ## Fills a mounted delivered map's listing from its manifest, as `_imported_def_for` does for a linked one: the key alone
 ## cannot say which modes the map lists or whether it lays an objective, so until then only the modes about the players are offered (team deathmatch among them: every map hosts it).
-static func refresh_delivered_meta(def: DotMapDef) -> void:
+static func refresh_delivered_meta(def: GSMapDef) -> void:
 	var map: FcMap = FcMap.imported(def.id, true) if def != null else null
 
 	if map == null:
@@ -329,19 +329,19 @@ static func missing_declared_files(dir: String, manifest: Dictionary) -> PackedS
 
 ## Solo only: the pinned version is not published, so retry at the pack's `latest.json` version and
 ## re-point [param map] at it. A server's change never comes here: online both ends use the server's exact version.
-static func _fetch_latest(map: DotMapDef, loader: DotMapLoader) -> DotResult:
+static func _fetch_latest(map: GSMapDef, loader: GSMapLoader) -> GSResult:
 	var pinned := map.effective_content_version()
 	var latest := await latest_version(String(map.content_id))
 
 	if latest == "" or latest == pinned:
-		return DotResult.failure(DotError.from_http(404)).wrap("%s@%s and its latest are not published" % [String(map.content_id), pinned])
+		return GSResult.failure(GSError.from_http(404)).wrap("%s@%s and its latest are not published" % [String(map.content_id), pinned])
 
 	var was_version := map.content_version
 	var was_scene := map.scene_path
 	map.content_version = latest
 	map.version = latest
 	map.scene_path = manifest_in_mount(map)
-	var fetched: DotResult = await loader.ensure_content(map)
+	var fetched: GSResult = await loader.ensure_content(map)
 
 	if not fetched.ok:
 		map.content_version = was_version
@@ -350,14 +350,14 @@ static func _fetch_latest(map: DotMapDef, loader: DotMapLoader) -> DotResult:
 		return fetched
 
 	map.meta["key"] = "%s@%s" % [String(map.content_id), latest]
-	DotLog.info(CHANNEL, "pinned pack not published, using its latest", {"pack": String(map.content_id), "pinned": pinned, "latest": latest})
+	GSLog.info(CHANNEL, "pinned pack not published, using its latest", {"pack": String(map.content_id), "pinned": pinned, "latest": latest})
 	return fetched
 
 
 ## The version `<content id>/latest.json` names on the cloud client's origin, or "" when unknown. A client that
 ## has `latest_version(id)` answers it itself; otherwise the registered client's HTTP bases are asked.
 static func latest_version(content_id: String) -> String:
-	var cloud: Object = DotRegistry.get_service(DotMapLoader.CLOUD_SERVICE)
+	var cloud: Object = GSRegistry.get_service(GSMapLoader.CLOUD_SERVICE)
 
 	if cloud == null:
 		return ""
@@ -370,11 +370,11 @@ static func latest_version(content_id: String) -> String:
 		return ""
 
 	var root := (Engine.get_main_loop() as SceneTree).root
-	var http := DotHttp.new()
+	var http := GSHttp.new()
 	root.add_child(http)
 
 	for base: String in cloud.call("resolved_http_base_urls"):
-		var got: DotResult = await http.get_json("%s/%s/latest.json" % [base.rstrip("/"), content_id])
+		var got: GSResult = await http.get_json("%s/%s/latest.json" % [base.rstrip("/"), content_id])
 
 		if got.ok and got.value is Dictionary:
 			var version := str((got.value as Dictionary).get("version", "")).strip_edges()
@@ -388,19 +388,19 @@ static func latest_version(content_id: String) -> String:
 
 
 ## `res://dot_cloud/<content id>/<version>`, where [param def]'s pack mounts.
-static func mount_of(def: DotMapDef) -> String:
+static func mount_of(def: GSMapDef) -> String:
 	return "%s%s/%s" % [MOUNT_ROOT, String(def.content_id), def.effective_content_version()]
 
 
 ## `<mount>/<id>.json`: the manifest a delivered map is built from.
-static func manifest_in_mount(def: DotMapDef) -> String:
+static func manifest_in_mount(def: GSMapDef) -> String:
 	return mount_of(def).path_join("%s.json" % String(def.id))
 
 
 ## Whether [param def] is one of this game's delivered maps: content, and its scene the
 ## manifest in its own mount. Structural rather than a meta flag, because a def from a host
-## carries whatever meta the host wrote; the mount is checked plain by `DotMapSyncClient`.
-static func is_delivered(def: DotMapDef) -> bool:
+## carries whatever meta the host wrote; the mount is checked plain by `GSMapSyncClient`.
+static func is_delivered(def: GSMapDef) -> bool:
 	return (
 		def != null and not def.is_local()
 		and String(def.content_id).get_file().trim_prefix(PACK_PREFIX) == String(def.id)
@@ -421,7 +421,7 @@ static func is_delivered(def: DotMapDef) -> bool:
 ## (`FcMapSession`), and leaves the catalogue then. A built-in map's id is never
 ## replaced: `FcMap.by_id` would build the built-in whatever the catalogue said.
 static func adopt_delivered(
-	catalogue: DotMapCatalogue, keys: PackedStringArray, playing: StringName = &""
+	catalogue: GSMapCatalogue, keys: PackedStringArray, playing: StringName = &""
 ) -> Dictionary:
 	var added := 0
 	var removed := 0
@@ -435,11 +435,11 @@ static func adopt_delivered(
 		var def := delivered_def(key)
 
 		if def == null:
-			DotLog.warn(CHANNEL, "a map the server names is not <owner>/<map>@<version>", {"entry": key})
+			GSLog.warn(CHANNEL, "a map the server names is not <owner>/<map>@<version>", {"entry": key})
 			continue
 
 		if FcMap.ids().has(def.id):
-			DotLog.warn(CHANNEL, "a map the server names has a built-in map's id, and is skipped", {
+			GSLog.warn(CHANNEL, "a map the server names has a built-in map's id, and is skipped", {
 				"pack": key,
 			})
 			continue
@@ -464,7 +464,7 @@ static func adopt_delivered(
 		if res.ok:
 			added += 1
 		else:
-			DotLog.warn(CHANNEL, "a map the server names could not be catalogued", {
+			GSLog.warn(CHANNEL, "a map the server names could not be catalogued", {
 				"pack": key, "why": res.error.message,
 			})
 
@@ -484,7 +484,7 @@ static func adopt_delivered(
 			var _put_back := catalogue.add(_def_for(def.id, local))
 
 	if added > 0 or removed > 0:
-		DotLog.info(CHANNEL, "the server's maps are in the catalogue", {
+		GSLog.info(CHANNEL, "the server's maps are in the catalogue", {
 			"added": added, "removed": removed, "named": keys.size(),
 		})
 
@@ -497,6 +497,6 @@ static func refuse(key: String, kind: String) -> void:
 		return
 
 	_refused_keys[key] = true
-	DotLog.warn(CHANNEL, "a map the server names is not an arena map, and is skipped", {
+	GSLog.warn(CHANNEL, "a map the server names is not an arena map, and is skipped", {
 		"pack": key, "kind": kind if kind != "" else "(none)",
 	})

@@ -74,7 +74,7 @@ func _run() -> void:
 	var done := 0
 	for id_s in ids:
 		var id := StringName(id_s)
-		var def: DotWeaponDef = AwWeaponCatalogue.table().get(id)
+		var def: GSWeaponDef = AwWeaponCatalogue.table().get(id)
 		if def == null:
 			print("WEAPON_LAB %s: unknown weapon, skipped" % id)
 			continue
@@ -174,7 +174,7 @@ func _make_room(at: Vector3) -> void:
 
 # first person
 
-func _first_person(id: StringName, def: DotWeaponDef, wdir: String, anims: PackedStringArray) -> void:
+func _first_person(id: StringName, def: GSWeaponDef, wdir: String, anims: PackedStringArray) -> void:
 	var me = client.get("player")
 	(me.camera as Camera3D).current = true
 	_hide_ui()
@@ -185,18 +185,18 @@ func _first_person(id: StringName, def: DotWeaponDef, wdir: String, anims: Packe
 	if me.arsenal.carry != null:
 		me.arsenal.carry.enabled = false
 	_apply_view_args(me)
-	var given: DotResult = me.arsenal.give(id)
+	var given: GSResult = me.arsenal.give(id)
 	if not given.ok:
 		print("WEAPON_LAB %s: give failed: %s" % [id, given.message])
 	else:
 		# The game's catalogue may put a weapon in another slot than the pack's table does; the arsenal switches by its own.
-		def = (given.value as DotWeaponSlot).def
+		def = (given.value as GSWeaponSlot).def
 	# The weapon swapped to for draw/holster: the first catalogue weapon (by id) in a different slot, so it is the same every run.
 	var other_slot := -1
 	var keys: Array = me.arsenal.catalogue.ids()
 	keys.sort()
 	for k: StringName in keys:
-		var other: DotWeaponDef = me.arsenal.catalogue.get_def(k)
+		var other: GSWeaponDef = me.arsenal.catalogue.get_def(k)
 		if other.slot != def.slot and me.arsenal.give(k).ok:
 			other_slot = other.slot
 			break
@@ -224,7 +224,7 @@ var _lab_windup_was := -1.0
 
 
 ## The knife's charged throw: the aim key held for the meter to fill (wind-up), then let go (release and flight).
-func _fp_throw(me, id: StringName, def: DotWeaponDef, wdir: String, key: String, res: Dictionary) -> Dictionary:
+func _fp_throw(me, id: StringName, def: GSWeaponDef, wdir: String, key: String, res: Dictionary) -> Dictionary:
 	await _ensure_in_hand(me, id, def)
 	if id != &"knife":
 		return {"status": "n/a", "why": "only the knife is thrown with a wind-up"}
@@ -244,7 +244,7 @@ func _fp_throw(me, id: StringName, def: DotWeaponDef, wdir: String, key: String,
 	return res
 
 
-func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: String, other_slot: int) -> Dictionary:
+func _fp_animation(a: String, me, id: StringName, def: GSWeaponDef, wdir: String, other_slot: int) -> Dictionary:
 	var key := "fp_" + a
 	var res := {"status": "ok"}
 	match a:
@@ -318,7 +318,7 @@ func _fp_animation(a: String, me, id: StringName, def: DotWeaponDef, wdir: Strin
 
 
 ## An empty or tactical reload clip, or why the weapon has none.
-func _fp_reload(a: String, me, id: StringName, def: DotWeaponDef, wdir: String, key: String) -> Dictionary:
+func _fp_reload(a: String, me, id: StringName, def: GSWeaponDef, wdir: String, key: String) -> Dictionary:
 	var res: Dictionary
 	if not def.uses_magazine():
 		res = {"status": "n/a", "why": "no magazine"}
@@ -335,7 +335,7 @@ func _fp_reload(a: String, me, id: StringName, def: DotWeaponDef, wdir: String, 
 
 
 ## The inspect clip, or why the view model has none.
-func _fp_inspect(me, id: StringName, def: DotWeaponDef, wdir: String, key: String) -> Dictionary:
+func _fp_inspect(me, id: StringName, def: GSWeaponDef, wdir: String, key: String) -> Dictionary:
 	var res := {"status": "ok"}
 	await _ensure_in_hand(me, id, def)
 	var looked := _view_model(me)
@@ -368,8 +368,8 @@ func _art_can_aim(id: StringName) -> bool:
 	return art != null and art.aim_enabled
 
 
-func _refill(me: Node, def: DotWeaponDef) -> void:
-	var slot: DotWeaponSlot = me.arsenal.current()
+func _refill(me: Node, def: GSWeaponDef) -> void:
+	var slot: GSWeaponSlot = me.arsenal.current()
 	if slot != null and def.uses_magazine():
 		slot.magazine = def.magazine
 
@@ -381,7 +381,7 @@ func _equip_slot_now(me: Node, slot: int) -> void:
 ## A switch as a slot key makes it (holster, then deploy); `equip` is the spawn hand-out and swaps with no motion at all.
 func _switch_to(me: Node, slot: int) -> void:
 	if not me.arsenal.select(slot, me.controller.state.tick):
-		var held: DotWeaponSlot = me.arsenal.current()
+		var held: GSWeaponSlot = me.arsenal.current()
 		print("WEAPON_LAB switch to slot %d refused (holding %s, slots %s)" % [slot, held.def.id if held != null else &"", str(me.arsenal.slots())])
 
 
@@ -391,8 +391,8 @@ func _equip_slot(me: Node, slot: int) -> void:
 
 
 ## The weapon in hand, settled, and the first-person camera idle: a fixed start for every animation.
-func _ensure_in_hand(me: Node, id: StringName, def: DotWeaponDef) -> void:
-	var slot: DotWeaponSlot = me.arsenal.current()
+func _ensure_in_hand(me: Node, id: StringName, def: GSWeaponDef) -> void:
+	var slot: GSWeaponSlot = me.arsenal.current()
 	if slot == null or slot.def.id != id:
 		me.arsenal.equip(def.slot)
 		await _wait(1.4)

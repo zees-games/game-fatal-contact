@@ -34,8 +34,8 @@ const DAMAGE_STOMP := &"stomp"
 
 # --- Damage types ----------------------------------------------------------
 
-static func bullet() -> DotDamageType:
-	var type := DotDamageType.make(DAMAGE_BULLET, "Bullet")
+static func bullet() -> GSDamageType:
+	var type := GSDamageType.make(DAMAGE_BULLET, "Bullet")
 	type.armour_share = 0.5
 	type.armour_wear = 1.0
 	# Falloff starts well beyond a duel and ends beyond the map's diagonal, so it
@@ -47,8 +47,8 @@ static func bullet() -> DotDamageType:
 	return type
 
 
-static func fall() -> DotDamageType:
-	var type := DotDamageType.make(DAMAGE_FALL, "Fall")
+static func fall() -> GSDamageType:
+	var type := GSDamageType.make(DAMAGE_FALL, "Fall")
 	# Armour does not soften a landing, and a fall has no hit group.
 	type.armour_share = 0.0
 	type.uses_hit_groups = false
@@ -56,15 +56,15 @@ static func fall() -> DotDamageType:
 	return type
 
 
-static func stomp() -> DotDamageType:
-	var type := DotDamageType.make(DAMAGE_STOMP, "Stomp")
+static func stomp() -> GSDamageType:
+	var type := GSDamageType.make(DAMAGE_STOMP, "Stomp")
 	type.armour_share = 0.0
 	type.uses_hit_groups = false
 	return type
 
 
-static func world() -> DotDamageType:
-	var type := DotDamageType.make(DAMAGE_WORLD, "The world")
+static func world() -> GSDamageType:
+	var type := GSDamageType.make(DAMAGE_WORLD, "The world")
 	type.armour_share = 0.0
 	type.uses_hit_groups = false
 	return type
@@ -77,7 +77,7 @@ static func world() -> DotDamageType:
 ## to the pack, so a launcher's splash and the registered "blast" are one rule. Two copies
 ## built independently would agree today and drift the first time somebody tuned one.
 static var _damage: Dictionary = {}
-static var _item_catalogue: DotItemCatalogue = null
+static var _item_catalogue: GSItemCatalogue = null
 static var _item_catalogue_generation := -1
 
 
@@ -91,9 +91,9 @@ static func damage_table() -> Dictionary:
 	return _damage
 
 
-static func damage_types() -> Array[DotDamageType]:
-	var out: Array[DotDamageType] = []
-	for type: DotDamageType in damage_table().values():
+static func damage_types() -> Array[GSDamageType]:
+	var out: Array[GSDamageType] = []
+	for type: GSDamageType in damage_table().values():
 		out.append(type)
 	return out
 
@@ -131,7 +131,7 @@ const DEFAULT_SLOT := AwWeaponIds.SLOT_PRIMARY
 
 
 ## The pack's weapons, against this game's damage types.
-static func weapons() -> Array[DotWeaponDef]:
+static func weapons() -> Array[GSWeaponDef]:
 	Roles.ensure()
 	AwWeaponPack.game = GAME_ID
 	var out := AwWeaponCatalogue.weapons(damage_table())
@@ -150,7 +150,7 @@ static func is_grenade_slot(slot: int) -> bool:
 	return Roles.is_grenade_slot(slot)
 
 
-static func normalise_slot(def: DotWeaponDef) -> void:
+static func normalise_slot(def: GSWeaponDef) -> void:
 	Roles.normalise_slot(def)
 
 
@@ -169,9 +169,9 @@ static func is_primary_only(id: StringName) -> bool:
 ##
 ## A server checks this at boot, headless, before anybody joins — which is the only
 ## moment anybody is watching.
-static func weapon_catalogue() -> DotWeaponCatalogue:
+static func weapon_catalogue() -> GSWeaponCatalogue:
 	Roles.ensure()
-	var out := DotWeaponCatalogue.new()
+	var out := GSWeaponCatalogue.new()
 	for def in weapons():
 		out.add(def)
 	return out
@@ -215,7 +215,7 @@ static func carry_bits() -> int:
 
 
 ## Everything [param arsenal] carries, one bit per weapon.
-static func carry_mask(arsenal: DotWeaponArsenal) -> int:
+static func carry_mask(arsenal: GSWeaponArsenal) -> int:
 	if arsenal == null:
 		return 0
 
@@ -226,7 +226,7 @@ static func carry_mask(arsenal: DotWeaponArsenal) -> int:
 	var bits := carry_bits()
 
 	for s: int in arsenal.slots():
-		for w: DotWeaponSlot in arsenal.weapons_in(s):
+		for w: GSWeaponSlot in arsenal.weapons_in(s):
 			var i := Roles.wire_index(w.id())
 			if i >= 0 and i < bits:
 				mask |= 1 << i
@@ -235,7 +235,7 @@ static func carry_mask(arsenal: DotWeaponArsenal) -> int:
 
 
 ## [method carry_mask] the slow way, one `carries` per wire id: what a suite holds the fast one to.
-static func carry_mask_by_id(arsenal: DotWeaponArsenal) -> int:
+static func carry_mask_by_id(arsenal: GSWeaponArsenal) -> int:
 	if arsenal == null:
 		return 0
 	var mask := 0
@@ -259,7 +259,7 @@ static func carry_mask_by_id(arsenal: DotWeaponArsenal) -> int:
 ##
 ## [b]Full magazines on a give[/b]: the ammunition is corrected from the snapshot right
 ## after, and a weapon given empty would read as a reload the player did not ask for.
-static func apply_carry(arsenal: DotWeaponArsenal, mask: int) -> int:
+static func apply_carry(arsenal: GSWeaponArsenal, mask: int) -> int:
 	if arsenal == null or not arsenal.is_ready():
 		return 0
 
@@ -329,7 +329,7 @@ static func give_rank(slot: int) -> int:
 	return 3 if is_grenade_slot(slot) else 4
 
 
-## [param entries] (`DotLoadoutManager.resolve`'s) in [method give_rank] order, stably.
+## [param entries] (`GSLoadoutManager.resolve`'s) in [method give_rank] order, stably.
 static func in_give_order(entries: Array[Dictionary]) -> Array[Dictionary]:
 	var ranked: Array[Dictionary] = []
 	for rank in range(5):
@@ -344,19 +344,19 @@ static func in_give_order(entries: Array[Dictionary]) -> Array[Dictionary]:
 ## Note that the item ids match the weapon ids. That is a convention this game chose,
 ## not something dot-loadout requires — it is what makes `weapon_table()[item.id]` the
 ## whole of the mapping, and dot-loadout's `arsenal_slot` hint the whole of the rest.
-static func catalogue() -> DotItemCatalogue:
+static func catalogue() -> GSItemCatalogue:
 	Roles.ensure()
 	# Built once per role table: it rebuilt the whole weapon list twice per call, and a
 	# client builds a loadout schema inside a loading frame.
 	if _item_catalogue != null and _item_catalogue_generation == Roles.generation:
 		return _item_catalogue
-	var items: Array[DotItem] = []
+	var items: Array[GSItem] = []
 	var all_weapons := weapons()
 
 	# Utility grenades are entitled by `sv_grenade_utility`, like the launcher is by the game's source.
 	var utility := Grenades.utility_ids(all_weapons)
 	for weapon in all_weapons:
-		var item := DotItem.make(weapon.id, DotItem.KIND_WEAPON, weapon.id != PAID_WEAPON and not utility.has(weapon.id))
+		var item := GSItem.make(weapon.id, GSItem.KIND_WEAPON, weapon.id != PAID_WEAPON and not utility.has(weapon.id))
 		item.display_name = weapon.display_name
 		# One loadout slot per weapon, from the pack's arsenal slot. A knife in the
 		# primary slot would be a player who spawns with nothing to shoot.
@@ -366,13 +366,13 @@ static func catalogue() -> DotItemCatalogue:
 		item.cost = int(weapon.params.get(&"loadout_cost", 0))
 		items.append(item)
 
-	var armour := DotItem.make(&"armour", DotItem.KIND_EQUIPMENT, true)
+	var armour := GSItem.make(&"armour", GSItem.KIND_EQUIPMENT, true)
 	armour.display_name = "Armour"
 	armour.slots = [&"gear"]
 	armour.cost = 0
 	items.append(armour)
 
-	_item_catalogue = DotItemCatalogue.of(items)
+	_item_catalogue = GSItemCatalogue.of(items)
 	_item_catalogue_generation = Roles.generation
 	return _item_catalogue
 
@@ -383,48 +383,48 @@ static func catalogue() -> DotItemCatalogue:
 ## Points rather than an explicit list of legal combinations, because "a launcher, or a
 ## rifle and armour" is a handful of numbers rather than an enumeration that grows as
 ## the square of the weapon count — and there are twenty-seven weapons now.
-static func loadout_schema() -> DotLoadoutSchema:
+static func loadout_schema() -> GSLoadoutSchema:
 	# [b]Required, like the throwable below, and that is what puts them in anybody's
 	# hands.[/b] dot-loadout's default loadout fills REQUIRED slots only, so as optional
 	# slots a player who never chose a loadout spawned with a rifle and a pistol and
 	# pressed 5 to nothing — rendered, not reasoned: the grenade was in the class's
 	# loadout and the store's default replaced it a frame later. A loadout saved before
 	# these slots existed is not refused for lacking them: this game conforms on load
-	# (`DotLoadoutConfig.conform_on_load`), and conforming fills an empty required slot
+	# (`GSLoadoutConfig.conform_on_load`), and conforming fills an empty required slot
 	# with its default before it trims to the budget.
-	var melee := DotLoadoutSlot.make(&"melee", true, Roles.resolve(&"melee"))
+	var melee := GSLoadoutSlot.make(&"melee", true, Roles.resolve(&"melee"))
 	melee.display_name = "Melee"
-	melee.kinds = [DotItem.KIND_WEAPON]
+	melee.kinds = [GSItem.KIND_WEAPON]
 	melee.arsenal_slot = AwWeaponIds.SLOT_MELEE
 	# After the guns: the order is the B menu's, where a player looks for the primary first.
 	# Nothing stored depends on it (a loadout is keyed by slot id), and the hand a spawn
 	# holds is FcPlayer._better_hand's, not the first slot given.
 	melee.order = 22
 
-	var primary := DotLoadoutSlot.make(&"primary", true, Roles.resolve(&"primary"))
+	var primary := GSLoadoutSlot.make(&"primary", true, Roles.resolve(&"primary"))
 	primary.display_name = "Primary"
-	primary.kinds = [DotItem.KIND_WEAPON]
+	primary.kinds = [GSItem.KIND_WEAPON]
 	primary.arsenal_slot = AwWeaponIds.SLOT_PRIMARY
 	primary.order = 10
 
-	var secondary := DotLoadoutSlot.make(&"secondary", true, Roles.resolve(&"secondary"))
+	var secondary := GSLoadoutSlot.make(&"secondary", true, Roles.resolve(&"secondary"))
 	secondary.display_name = "Secondary"
-	secondary.kinds = [DotItem.KIND_WEAPON]
+	secondary.kinds = [GSItem.KIND_WEAPON]
 	secondary.arsenal_slot = AwWeaponIds.SLOT_SIDEARM
 	secondary.order = 20
 
-	var thrown := DotLoadoutSlot.make(&"thrown", true, Roles.resolve(&"thrown"))
+	var thrown := GSLoadoutSlot.make(&"thrown", true, Roles.resolve(&"thrown"))
 	thrown.display_name = "Grenades"
-	thrown.kinds = [DotItem.KIND_WEAPON]
+	thrown.kinds = [GSItem.KIND_WEAPON]
 	thrown.arsenal_slot = AwWeaponIds.thrown_slot()
 	thrown.order = 25
 
-	var gear := DotLoadoutSlot.make(&"gear")
+	var gear := GSLoadoutSlot.make(&"gear")
 	gear.display_name = "Gear"
-	gear.kinds = [DotItem.KIND_EQUIPMENT]
+	gear.kinds = [GSItem.KIND_EQUIPMENT]
 	gear.order = 30
 
-	var schema := DotLoadoutSchema.of(
+	var schema := GSLoadoutSchema.of(
 		&"arena", [melee, primary, secondary, thrown, gear], catalogue()
 	)
 	# No point-buy by default; a server sets mp_loadout_budget and per-weapon loadout_cost.

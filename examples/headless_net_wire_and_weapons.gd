@@ -4,15 +4,15 @@ func _test_command_wire() -> void:
 	print("")
 	_section("[command wire]")
 
-	var move := DotFpsCommand.new()
+	var move := GSFpsCommand.new()
 	move.move = Vector2(0.6, -0.4)
 	move.yaw = 137.5
 	move.pitch = -12.0
-	move.set_button(DotFpsCommand.BUTTON_JUMP, true)
+	move.set_button(GSFpsCommand.BUTTON_JUMP, true)
 
-	var fire := DotWeaponCommand.new()
+	var fire := GSWeaponCommand.new()
 	fire.slot = 2
-	fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 
 	var sent := FcNetCommand.new()
 	sent.tick = 4242
@@ -20,18 +20,18 @@ func _test_command_wire() -> void:
 	sent.move = move
 	sent.fire = fire
 
-	var writer := DotNetWriter.new()
+	var writer := GSNetWriter.new()
 	sent.write(writer)
 
 	var got := FcNetCommand.new()
-	got.read(DotNetReader.new(writer.to_bytes()))
+	got.read(GSNetReader.new(writer.to_bytes()))
 
 	_check(got.tick == 4242, "the tick survives the wire")
 	_check(got.move.move.distance_to(move.move) < 0.01, "the move vector survives")
 	_check(absf(got.move.yaw - move.yaw) < 0.2, "the yaw survives", str(got.move.yaw))
-	_check(got.move.is_pressed(DotFpsCommand.BUTTON_JUMP), "jump survives")
+	_check(got.move.is_pressed(GSFpsCommand.BUTTON_JUMP), "jump survives")
 	_check(got.fire.slot == 2, "the weapon slot survives")
-	_check(got.fire.is_pressed(DotWeaponCommand.BUTTON_ATTACK), "attack survives")
+	_check(got.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK), "attack survives")
 	_check(
 		absf(got.fire.yaw - got.move.yaw) < 0.001,
 		"the aim is the movement's, not a second copy"
@@ -40,27 +40,27 @@ func _test_command_wire() -> void:
 	# Lag compensation's one field: how far behind the command's tick the client drew
 	# everybody, in quarter ticks. Sent only with a button down.
 	sent.view_lag_q = 37
-	var lagged := DotNetWriter.new()
+	var lagged := GSNetWriter.new()
 	sent.write(lagged)
 	var got_lag := FcNetCommand.new()
-	got_lag.read(DotNetReader.new(lagged.to_bytes()))
+	got_lag.read(GSNetReader.new(lagged.to_bytes()))
 	_check(got_lag.view_lag_q == 37 and absf(got_lag.view_lag_ticks() - 9.25) < 0.001,
 		"the view lag survives the wire (%d quarter ticks)" % got_lag.view_lag_q)
 	var idle := FcNetCommand.new()
 	idle.view_lag_q = 37
-	var quiet := DotNetWriter.new()
+	var quiet := GSNetWriter.new()
 	idle.write(quiet)
 	var got_idle := FcNetCommand.new()
-	got_idle.read(DotNetReader.new(quiet.to_bytes()))
+	got_idle.read(GSNetReader.new(quiet.to_bytes()))
 	_check(got_idle.view_lag_q == -1 and quiet.to_bytes().size() < lagged.to_bytes().size(),
 		"and a command with no button down sends none (%d bytes against %d)" % [quiet.to_bytes().size(), lagged.to_bytes().size()])
 
 	# The one thing quantisation cannot bound: a legal pair of components with an
 	# illegal length. Diagonal at full deflection is 41% more speed than anyone else.
 	var cheat := FcNetCommand.new()
-	cheat.move = DotFpsCommand.new()
+	cheat.move = GSFpsCommand.new()
 	cheat.move.move = Vector2(1.0, 1.0)
-	cheat.fire = DotWeaponCommand.new()
+	cheat.fire = GSWeaponCommand.new()
 	cheat.sanitise(TICK_RATE)
 	_check(
 		cheat.move.move.length() <= 1.001,
@@ -69,8 +69,8 @@ func _test_command_wire() -> void:
 	)
 
 	var greedy := FcNetCommand.new()
-	greedy.move = DotFpsCommand.new()
-	greedy.fire = DotWeaponCommand.new()
+	greedy.move = GSFpsCommand.new()
+	greedy.fire = GSWeaponCommand.new()
 	greedy.delta = 10.0
 	greedy.sanitise(TICK_RATE)
 	_check(greedy.delta <= 2.0 / float(TICK_RATE), "a ten-second tick is refused")
@@ -88,7 +88,7 @@ func _test_convergence() -> void:
 
 	for peer_id in _clients:
 		var entry: Dictionary = _clients[peer_id]
-		var net: DotNetManager = entry["net"]
+		var net: GSNetManager = entry["net"]
 		_check(
 			net.stats.packets_received > 0,
 			"client %d received snapshots" % peer_id,
@@ -252,12 +252,12 @@ func _test_weapons_over_the_wire() -> void:
 func _test_replays_are_silent(own: FcPlayerNet) -> void:
 	# A replay is silent. Put the rig back to before a firing tick and run that tick
 	# again through the behaviour, the way the predictor's reconcile does.
-	var uses: Array[DotWeaponOutcome] = []
-	own.player.used.connect(func(o: DotWeaponOutcome) -> void: uses.append(o))
+	var uses: Array[GSWeaponOutcome] = []
+	own.player.used.connect(func(o: GSWeaponOutcome) -> void: uses.append(o))
 
 	var idle := FcNetCommand.new()
 	var shoot := FcNetCommand.new()
-	shoot.fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+	shoot.fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 	shoot.fire.slot = 0
 
 	var t := int(_clients[2]["net"].clock.tick)
@@ -312,10 +312,10 @@ func _test_replays_are_silent(own: FcPlayerNet) -> void:
 func _test_launch_flies_on_client(own: FcPlayerNet) -> void:
 	var client_game: FcGame = _clients[2]["game"]
 	var gone: Array = []
-	client_game.projectiles.detonated.connect(func(at: Vector3, _s: DotWeaponSpawn) -> void:
+	client_game.projectiles.detonated.connect(func(at: Vector3, _s: GSWeaponSpawn) -> void:
 		gone.append(at)
 	)
-	var spawn := DotWeaponSpawn.make(
+	var spawn := GSWeaponSpawn.make(
 		AwWeaponIds.FRAG, own.player.controller.state.position + Vector3(0.0, 1.5, 0.0),
 		Vector3(0.0, 3.0, -6.0), 12
 	)
@@ -325,7 +325,7 @@ func _test_launch_flies_on_client(own: FcPlayerNet) -> void:
 	spawn.tick = _server_game.current_tick()
 
 	var wire := FcEvents.write_launch(spawn, FcContent.weapon_index(spawn.id))
-	var read := FcEvents.read_launch(DotNetReader.new(wire))
+	var read := FcEvents.read_launch(GSNetReader.new(wire))
 	_check(
 		bool(read["ok"]) and int(read["fuse"]) == 24 and int(read["owner"]) == 12
 		and FcContent.weapon_at(int(read["weapon"])) == AwWeaponIds.FRAG
@@ -384,8 +384,8 @@ func _test_solid_players_predicted() -> void:
 	var saved_a := server_a.controller.state.position
 	var saved_b := server_b.controller.state.position
 
-	var idle := DotFpsCommand.new()
-	var walk := DotFpsCommand.new()
+	var idle := GSFpsCommand.new()
+	var walk := GSFpsCommand.new()
 	walk.move = Vector2(0.0, 1.0)
 	walk.yaw = 0.0
 	var place := func() -> void:
@@ -445,7 +445,7 @@ func _test_ready_gate() -> void:
 	_start(watcher_net)
 	for s: Array in sent:
 		if s[0] == &"event" and int(s[1]) == 77:
-			var _got: DotResult = watcher.receive_event(s[3])
+			var _got: GSResult = watcher.receive_event(s[3])
 	var hello: Dictionary = watcher.get("_hello")
 	_check(early.ok and int(hello.get("session_id", 0)) == 577 and watcher_game.player_for(577) != null,
 		"and the seat answers it: the HELLO names the player seated, and the signon describes them",

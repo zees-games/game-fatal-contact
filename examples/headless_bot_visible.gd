@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcContent := preload("../game/fc_content.gd")
 const KillcamBodies := preload("../game/fc_killcam_bodies.gd")
@@ -12,7 +12,7 @@ var _client: Node = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -63,7 +63,7 @@ func _run() -> void:
 	for i in 1200:
 		await _wait(0.1)
 		var me: Object = _client.get("player")
-		if me != null and me.is_alive() and gm.match_node.state == DotMatch.State.LIVE:
+		if me != null and me.is_alive() and gm.match_node.state == GSMatch.State.LIVE:
 			live = true
 			break
 	if not _check(live, "the offline match goes live"):
@@ -82,7 +82,7 @@ func _run() -> void:
 	# A killcam that starts while a bot is down saves the body hidden, and puts that back at its end.
 	var touched := {}
 	for id in bots:
-		var hit := DotDamage.make(_client.get("player").player_id, id, 1000.0, gm.combat.damage_type(FcContent.DAMAGE_BULLET))
+		var hit := GSDamage.make(_client.get("player").player_id, id, 1000.0, gm.combat.damage_type(FcContent.DAMAGE_BULLET))
 		hit.weapon_id = &"smg"
 		hit.tick = gm.current_tick()
 		var _d = gm.combat.apply_damage(hit)

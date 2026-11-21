@@ -48,7 +48,7 @@ func _run() -> void:
 		await _wait(0.1)
 		var p: Object = _client.get("player")
 		var g: Object = _client.get("game")
-		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == DotMatch.State.LIVE:
+		if p != null and g != null and p.is_alive() and g.match_node != null and g.match_node.state == GSMatch.State.LIVE:
 			live = true
 			break
 	if not live:
@@ -60,7 +60,7 @@ func _run() -> void:
 	var bots: Dictionary = _client.get("_bots")
 	for id in bots:
 		bots[id].set_meta(&"bot_scripted", true)
-		bots[id].set_meta(&"bot_move", DotFpsCommand.new())
+		bots[id].set_meta(&"bot_move", GSFpsCommand.new())
 	await _wait(4.0)
 	if _final:
 		await _run_final(gm, me, bots)
@@ -69,7 +69,7 @@ func _run() -> void:
 	var type = game.combat.damage_type(&"bullet")
 	if type == null:
 		type = game.combat.damage_type(FcContent.DAMAGE_BULLET)
-	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, type)
+	var damage := GSDamage.make(killer.player_id, me.player_id, 1000.0, type)
 	damage.weapon_id = &"smg"
 	damage.tick = game.current_tick()
 	# Harmless behind the loading cover (FcGame.can_be_harmed), so keep trying until it lifts.
@@ -115,7 +115,7 @@ func _with_clear_view(game: Object, me: Object, bots: Dictionary) -> Object:
 		var from: Vector3 = (b as Node3D).global_position + Vector3(0.0, 1.6, 0.0)
 		var to: Vector3 = (me as Node3D).global_position + Vector3(0.0, 1.6, 0.0)
 		var d := from.distance_to(to)
-		if d > 25.0 or d < 4.0 or not (trace as DotTrace).line_of_sight(from, to) or not _open_ahead(trace as DotTrace, from, to):
+		if d > 25.0 or d < 4.0 or not (trace as GSTrace).line_of_sight(from, to) or not _open_ahead(trace as GSTrace, from, to):
 			continue
 		if d > best_d:
 			best_d = d
@@ -132,7 +132,7 @@ func _with_clear_view(game: Object, me: Object, bots: Dictionary) -> Object:
 
 ## Stands [param bot] on open ground with a clear line to [param me], so a map with no such bot still has a killer in view.
 func _place_in_view(game: Object, me: Object, bot: Object) -> float:
-	var trace := game.combat.trace as DotTrace
+	var trace := game.combat.trace as GSTrace
 	var eye := Vector3(0.0, 1.6, 0.0)
 	var at: Vector3 = (me as Node3D).global_position
 	for d: float in [12.0, 9.0, 6.0]:
@@ -147,7 +147,7 @@ func _place_in_view(game: Object, me: Object, bot: Object) -> float:
 
 
 ## True when a fan of rays within 30 degrees of the line to [param to] runs free for 6 m, so the replayed eye looks across open ground, not along a wall.
-func _open_ahead(trace: DotTrace, eye: Vector3, to: Vector3) -> bool:
+func _open_ahead(trace: GSTrace, eye: Vector3, to: Vector3) -> bool:
 	var ahead := to - eye
 	ahead.y = 0.0
 	ahead = ahead.normalized() * minf(6.0, ahead.length() - 1.5)
@@ -164,16 +164,16 @@ func _aim_at(who: Object, target: Object) -> void:
 	var yaw := rad_to_deg(atan2(-d.x, -d.z))
 	who.controller.state.yaw = yaw
 	who.controller.state.pitch = 0.0
-	var hold := DotFpsCommand.new()
+	var hold := GSFpsCommand.new()
 	hold.yaw = yaw
 	who.set_meta(&"bot_move", hold)
 	if who.get(&"view_now") != null:
 		who.set(&"view_now", Vector2(yaw, 0.0))
 
 
-func _lethal(game: Object, killer: Object, me: Object) -> DotDamage:
+func _lethal(game: Object, killer: Object, me: Object) -> GSDamage:
 	_aim_at(killer, me)
-	var damage := DotDamage.make(killer.player_id, me.player_id, 1000.0, game.combat.damage_type(FcContent.DAMAGE_BULLET))
+	var damage := GSDamage.make(killer.player_id, me.player_id, 1000.0, game.combat.damage_type(FcContent.DAMAGE_BULLET))
 	damage.weapon_id = &"smg"
 	damage.tick = game.current_tick()
 	return damage

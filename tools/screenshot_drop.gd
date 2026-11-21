@@ -20,7 +20,7 @@ static func stage(game, local, _hud) -> Array[Dictionary]:
 			held = local.arsenal.slot_at(n).def.id
 	var other := &"rifle" if held != &"rifle" else &"smg"
 	var state := {"id": other, "magazine": 17, "reserve": 40}
-	var view := DotWeaponPickupView.new()
+	var view := GSWeaponPickupView.new()
 	view.name_of = func(id: StringName) -> String:
 		var def: Variant = local.arsenal.catalogue.get_def(id)
 		return def.name_or_id() if def != null else String(id)
@@ -42,7 +42,7 @@ static func stage(game, local, _hud) -> Array[Dictionary]:
 	var shoot := func() -> void:
 		aim_cam.call()
 		view.show_prompt({}, 0.0)
-		var tr: DotTrace = game.combat.trace
+		var tr: GSTrace = game.combat.trace
 		var _r := tr.ray(eye, dir, 6.0)
 		if _hud != null:
 			_hud.use_hint = ""

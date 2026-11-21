@@ -1,18 +1,18 @@
 extends RefCounted
 
 ## The phone's controls: dot-mobile's stick, drag-look and buttons over the HUD, driving the client's own
-## [DotFpsTouchSampler]. Fire is read through [method is_held], so a thumb and auto-fire take the Fire key's path.
+## [GSFpsTouchSampler]. Fire is read through [method is_held], so a thumb and auto-fire take the Fire key's path.
 ## Built on every client: a server may give auto-fire to keyboard players too (`sv_autofire_desktop`). See docs/client.md, "Touch".
 
 const SelfScript := preload("fc_touch.gd")
 const TagRules := preload("fc_name_tag_rules.gd")
 
-## Offsets are from the bottom-right corner (see [DotTouchButtons]). Every radius is at least 24 so a
+## Offsets are from the bottom-right corner (see [GSTouchButtons]). Every radius is at least 24 so a
 ## button is 48 px across, thumb size, and the cluster still sits above the ammunition plate.
 const LAYOUT: Array[Dictionary] = [
 	{"id": &"fire", "label": "FIRE", "offset": Vector2(86, 150), "radius": 48.0},
-	{"id": &"jump", "label": "JUMP", "offset": Vector2(195, 118), "radius": 38.0, "hold": DotFpsCommand.BUTTON_JUMP},
-	{"id": &"crouch", "label": "DUCK", "offset": Vector2(60, 268), "radius": 34.0, "hold": DotFpsCommand.BUTTON_CROUCH},
+	{"id": &"jump", "label": "JUMP", "offset": Vector2(195, 118), "radius": 38.0, "hold": GSFpsCommand.BUTTON_JUMP},
+	{"id": &"crouch", "label": "DUCK", "offset": Vector2(60, 268), "radius": 34.0, "hold": GSFpsCommand.BUTTON_CROUCH},
 	{"id": &"reload", "label": "R", "offset": Vector2(160, 252), "radius": 34.0},
 	{"id": &"next", "label": "NEXT", "offset": Vector2(280, 185), "radius": 32.0},
 ]
@@ -24,9 +24,9 @@ const CLUSTER_WIDTH := 370.0
 const ASSIST_CONE_DEG := 10.0
 const ASSIST_RANGE := 80.0
 
-var controls: DotMobileControls = null
+var controls: GSMobileControls = null
 ## dot-ui's buttons inside the overlay, for the shell's DPI fit.
-var buttons: DotTouchButtons:
+var buttons: GSTouchButtons:
 	get:
 		return controls.buttons if controls != null else null
 
@@ -34,15 +34,15 @@ var _client: Node = null
 
 
 ## Builds the overlay under [param host] (the HUD), following [param rules] (the server's). Never null.
-static func build(client: Node, host: Control, sampler: DotFpsSampler, rules: DotMobileRules, menu_button: Button = null) -> RefCounted:
+static func build(client: Node, host: Control, sampler: GSFpsSampler, rules: GSMobileRules, menu_button: Button = null) -> RefCounted:
 	var made: RefCounted = (SelfScript as GDScript).new()
 	made.call(&"_setup", client, host, sampler, rules, menu_button)
 	return made
 
 
-func _setup(client: Node, host: Control, sampler: DotFpsSampler, rules: DotMobileRules, menu_button: Button) -> void:
+func _setup(client: Node, host: Control, sampler: GSFpsSampler, rules: GSMobileRules, menu_button: Button) -> void:
 	_client = client
-	controls = DotMobileControls.new()
+	controls = GSMobileControls.new()
 	controls.name = "TouchControls"
 	controls.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if rules != null:
@@ -77,7 +77,7 @@ func active() -> bool:
 
 
 ## Called every frame by the client: pauses under a menu or the console, and matches auto-fire to the gun in hand.
-func sync(busy: bool, gun: DotWeaponDef) -> void:
+func sync(busy: bool, gun: GSWeaponDef) -> void:
 	if controls == null:
 		return
 	controls.paused = busy
@@ -119,7 +119,7 @@ func _crosshair() -> int:
 	var cam := _camera()
 	var me := _me()
 	if cam == null or me == null:
-		return DotMobileAutoFire.TARGET_NONE
+		return GSMobileAutoFire.TARGET_NONE
 	return crosshair_kind(cam.global_position, -cam.global_basis.z, me, _others(), cam.get_world_3d().direct_space_state,
 		TagRules.occluder_mask)
 
@@ -159,12 +159,12 @@ static func crosshair_kind(eye: Vector3, forward: Vector3, me: Object, others: A
 		best = p
 		best_aim = feet + Vector3(0.0, height * 0.6, 0.0)
 	if best == null:
-		return DotMobileAutoFire.TARGET_NONE
+		return GSMobileAutoFire.TARGET_NONE
 	if not _is_enemy(best):
-		return DotMobileAutoFire.TARGET_FRIEND
+		return GSMobileAutoFire.TARGET_FRIEND
 	if _blocked(space, mask, eye, best_aim):
-		return DotMobileAutoFire.TARGET_NONE
-	return DotMobileAutoFire.TARGET_ENEMY
+		return GSMobileAutoFire.TARGET_NONE
+	return GSMobileAutoFire.TARGET_ENEMY
 
 
 ## The chests of living opponents near the crosshair with no wall between, for aim assist.

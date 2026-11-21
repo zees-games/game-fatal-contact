@@ -7,7 +7,7 @@ extends "fc_game_loadouts.gd"
 ## [b]Real damage, where game-airdrift's is "100 or more is a death, the rest ignored"[/b],
 ## because a timer run has no health and this game does. The engine these maps come from
 ## reads the volume's `damage` as per second and deals it every half second, the first
-## pulse on entering; this does the same, through [method DotCombatManager.apply_damage]
+## pulse on entering; this does the same, through [method GSCombatManager.apply_damage]
 ## with attacker 0, so the resolver, armour (the world type ignores it), spawn protection,
 ## the kill feed, the scoreboard and the statistics all hear it as they hear a fall. A
 ## negative amount heals, as it does there (surf_forbidden_ways_reloaded has one).
@@ -32,7 +32,7 @@ func _hurt_from_map() -> void:
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
 		var state := player.controller.state
-		if not player.is_alive() or state.mode == DotFpsState.Mode.NOCLIP:
+		if not player.is_alive() or state.mode == GSFpsState.Mode.NOCLIP:
 			continue
 
 		for i in map.mechanics.hurts_at(state.position, player.controller.tunables, state.crouch_fraction):
@@ -48,31 +48,31 @@ func _hurt_from_map() -> void:
 			if amount == 0.0 or not player.is_alive():
 				continue
 
-			var damage := DotDamage.make(0, id, amount, combat.damage_type(FcContent.DAMAGE_WORLD))
+			var damage := GSDamage.make(0, id, amount, combat.damage_type(FcContent.DAMAGE_WORLD))
 			damage.tick = _tick
 			var _dealt := combat.apply_damage(damage)
 
 ## Whether the round is waiting to go live with everyone held still. The client reads the
 ## state MATCH told it; a countdown only exists when its length is above zero.
 func round_frozen() -> bool:
-	return match_node != null and match_node.state == DotMatch.State.COUNTDOWN \
+	return match_node != null and match_node.state == GSMatch.State.COUNTDOWN \
 			and match_node.rules != null and match_node.rules.freeze_during_countdown
 
 func _freeze_for_round(id: int, player: FcPlayer) -> void:
-	if _round_frozen_ids.has(id) or DotFpsAdminModifiers.is_frozen(player.controller):
+	if _round_frozen_ids.has(id) or GSFpsAdminModifiers.is_frozen(player.controller):
 		return
 	var held := {"god": player.health.invulnerable}
 	_round_frozen_ids[id] = held
 	player.health.invulnerable = true
 	player.arsenal.disabled = true
-	var _r := DotFpsAdminModifiers.set_frozen(player.controller, true)
+	var _r := GSFpsAdminModifiers.set_frozen(player.controller, true)
 
 func _release_from_round(id: int, player: FcPlayer) -> void:
 	var held: Dictionary = _round_frozen_ids[id]
 	_round_frozen_ids.erase(id)
 	player.health.invulnerable = bool(held["god"])
 	player.arsenal.disabled = false
-	var _r := DotFpsAdminModifiers.set_frozen(player.controller, false)
+	var _r := GSFpsAdminModifiers.set_frozen(player.controller, false)
 
 ## Holds every living player still, unarmed and unhurtable while [method round_frozen], and
 ## lets exactly those go afterwards; an admin's own freeze or god mode is left alone.
@@ -105,11 +105,11 @@ func _advance_toys(delta: float) -> void:
 ## is pushed by dot-props' `shot`. [b]The shot goes on[/b]: the combat resolves it against the
 ## level and the players as if the toy were not there, so a ball is never cover and never eats
 ## a bullet meant for somebody behind it. Authority only.
-func _shoot_toys(shots: Array[DotShot]) -> void:
+func _shoot_toys(shots: Array[GSShot]) -> void:
 	# shot_along arrived at dot-props level 6; an older checkout has no such method.
-	if toys == null or toys.count() == 0 or shots.is_empty() or DotAddonApi.build_level("dot_props") < 6:
+	if toys == null or toys.count() == 0 or shots.is_empty() or GSAddonApi.build_level("dot_props") < 6:
 		return
-	var layout: DotPhysicsLayout = player_stack.physics.layout if player_stack != null and player_stack.physics != null else null
+	var layout: GSPhysicsLayout = player_stack.physics.layout if player_stack != null and player_stack.physics != null else null
 	var level := layout.layer_mask(&"world") if layout != null else 1
 	for shot in shots:
 		var directions: Array = shot.pellets if not shot.pellets.is_empty() else [shot.direction]
@@ -123,10 +123,10 @@ func _shoot_toys(shots: Array[DotShot]) -> void:
 ## [method _add_hulls_local]'s. With [member FcHullGrid.verify] the world is filed but the bodies gather by script,
 ## and each gather is checked against it. Null when off or without the library.
 func _begin_hull_world() -> Object:
-	if not (FcHullGrid.native and FcHullGrid.fast) or not DotFpsPhysicsBody.native_hull_world_available():
+	if not (FcHullGrid.native and FcHullGrid.fast) or not GSFpsPhysicsBody.native_hull_world_available():
 		return null
 	if _hull_world == null:
-		_hull_world = ClassDB.instantiate(&"DotSimHullWorld")
+		_hull_world = ClassDB.instantiate(&"GSSimHullWorld")
 	var n := _roster.size()
 	_hull_world_data.resize(n * 6)
 	var lagged := remote_feet_fn.is_valid()
@@ -157,14 +157,14 @@ func _begin_hull_world() -> Object:
 
 func _start_motor_batch(delta: float) -> bool:
 	if _motor_batch == null:
-		_motor_batch = DotFpsMotorBatch.new()
+		_motor_batch = GSFpsMotorBatch.new()
 	return _motor_batch.start(delta)
 
 
 ## The players' loop, one whole tick after another.
-func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_world: Object, shots: Array[DotShot]) -> void:
+func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_world: Object, shots: Array[GSShot]) -> void:
 	# Once a tick, not per player: the level check stats the addon's folder on disk (~90 us a player a tick at 64 players).
-	var knife_charge := knives != null and DotAddonApi.build_level("dot_weapon") >= 41
+	var knife_charge := knives != null and GSAddonApi.build_level("dot_weapon") >= 41
 	# `FcFrameProbe.fine` (bench `--fine 1`) splits this loop's own work from the player's tick.
 	var fine := FcFrameProbe.fine
 	var t_fine := 0
@@ -179,8 +179,8 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 		var pair: Array = commands.get(id, [])
 		_pre_vy[id] = player.controller.state.velocity.y
 		FcWeaponDropWiring.input(self, id, player, pair)
-		var move: DotFpsCommand = pair[0] if pair.size() > 0 else DotFpsCommand.new()
-		var fire: DotWeaponCommand = pair[1] if pair.size() > 1 else DotWeaponCommand.new()
+		var move: GSFpsCommand = pair[0] if pair.size() > 0 else GSFpsCommand.new()
+		var fire: GSWeaponCommand = pair[1] if pair.size() > 1 else GSWeaponCommand.new()
 		if knives != null:
 			knives.input(id, player, fire)
 			player.windup = knives.call(&"charge_of", id) if knife_charge else -1.0
@@ -223,9 +223,9 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 ## then again in order each motor tick (a run of them is one native call, each seeing the earlier ones moved) and the rest
 ## of that player's tick. A player whose tick ends elsewhere than its motor left it (a pit, a death) has the later rows
 ## run again, so the states are the one-by-one loop's as long as no turn changes another player ([member FcHullGrid.batch_faults]).
-func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Object, shots: Array[DotShot]) -> void:
+func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Object, shots: Array[GSShot]) -> void:
 	# Once a tick, not per player: the level check stats the addon's folder on disk (~90 us a player a tick at 64 players).
-	var knife_charge := knives != null and DotAddonApi.build_level("dot_weapon") >= 41
+	var knife_charge := knives != null and GSAddonApi.build_level("dot_weapon") >= 41
 	var fine := FcFrameProbe.fine
 	var t_fine := 0
 	var ids := player_ids()
@@ -247,8 +247,8 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		var pair: Array = commands.get(id, [])
 		_pre_vy[id] = player.controller.state.velocity.y
 		FcWeaponDropWiring.input(self, id, player, pair)
-		var move: DotFpsCommand = pair[0] if pair.size() > 0 else DotFpsCommand.new()
-		var fire: DotWeaponCommand = pair[1] if pair.size() > 1 else DotWeaponCommand.new()
+		var move: GSFpsCommand = pair[0] if pair.size() > 0 else GSFpsCommand.new()
+		var fire: GSWeaponCommand = pair[1] if pair.size() > 1 else GSWeaponCommand.new()
 		if knives != null:
 			knives.input(id, player, fire)
 			player.windup = knives.call(&"charge_of", id) if knife_charge else -1.0
@@ -275,7 +275,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 			FcFrameProbe.add(&"pl_sim", t_fine)
 	# The idle players' posture rows in one dot-sim call (flushed before anything that could see their weapon ticks):
 	# the controller state is read in GDScript once per player instead of per field.
-	var post_lane := FcPlayer.posture_native and DotSim.has(&"players")
+	var post_lane := FcPlayer.posture_native and GSSim.has(&"players")
 	if post_lane and _post_native == null:
 		_post_native = FcPlayer.make_native_post()
 	var post_from: Object = _motor_batch if post_lane and _motor_batch.has_method(&"post_row") else null
@@ -301,14 +301,14 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 
 
 ## The second half of one player's batched tick: the motor's answer, the rest of the player's tick and what it did.
-func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, delta: float, hull_world: Object, shots: Array[DotShot],
+func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, delta: float, hull_world: Object, shots: Array[GSShot],
 		fine: bool, post_lane: bool, post_from: Object) -> void:
 	var controller := player.controller
 	var t_fine := 0
 	if fine:
 		t_fine = Time.get_ticks_usec()
-	var move: DotFpsCommand = pair[0]
-	var fire: DotWeaponCommand = pair[1]
+	var move: GSFpsCommand = pair[0]
+	var fire: GSWeaponCommand = pair[1]
 	var told := false
 	var t_ctl := Time.get_ticks_usec()
 	if row >= 0:
@@ -318,7 +318,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		controller.end_tick(_tick, player.body_d)
 	var rested := controller.state.position
 	FcFrameProbe.add(&"p_controller", t_ctl - player.ctl_usec)
-	var outcome: DotWeaponOutcome = null
+	var outcome: GSWeaponOutcome = null
 	if not player.tick_post_head(_tick, delta, fire):
 		# A weapon tick that does more than idle can reach other players: the waiting idle ones tick first, in order.
 		_flush_posts(shots)
@@ -359,7 +359,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 
 
 ## What a player's weapon tick did, in roster order: its shots, its protection and the horde's and rockets' share.
-func _post_outcome(id: int, player: FcPlayer, move: DotFpsCommand, outcome: DotWeaponOutcome, shots: Array[DotShot]) -> void:
+func _post_outcome(id: int, player: FcPlayer, move: GSFpsCommand, outcome: GSWeaponOutcome, shots: Array[GSShot]) -> void:
 	shots.append_array(outcome.shots)
 	_note_protected_action(id, player, move, not outcome.shots.is_empty())
 	if horde != null and (not outcome.shots.is_empty() or not outcome.spawns.is_empty()):
@@ -369,7 +369,7 @@ func _post_outcome(id: int, player: FcPlayer, move: DotFpsCommand, outcome: DotW
 
 
 ## The waiting idle players' posture rows in one dot-sim call, then each one's weapon tick and outcome in roster order.
-func _flush_posts(shots: Array[DotShot]) -> void:
+func _flush_posts(shots: Array[GSShot]) -> void:
 	var count := _post_players.size()
 	if count == 0:
 		return
@@ -389,7 +389,7 @@ func tick(commands: Dictionary = {}) -> void:
 	_tick += 1
 	_sync_round_freeze()
 
-	var shots: Array[DotShot] = []
+	var shots: Array[GSShot] = []
 	var delta := 1.0 / float(tick_rate)
 
 	_pre_vy.clear()
@@ -403,7 +403,7 @@ func tick(commands: Dictionary = {}) -> void:
 	if is_authority:
 		# Once a tick, not once per player in the drop wiring's input: the trace is built later than the drop layer.
 		FcWeaponDropWiring.hook_shots(self)
-	if hull_world != null and FcHullGrid.batch and not DotFpsMotor.profile and _start_motor_batch(delta):
+	if hull_world != null and FcHullGrid.batch and not GSFpsMotor.profile and _start_motor_batch(delta):
 		_tick_players_batched(commands, delta, hull_world, shots)
 	else:
 		_tick_players(commands, delta, use_grid, hull_world, shots)
@@ -443,7 +443,7 @@ func tick(commands: Dictionary = {}) -> void:
 	_tick_world_systems(shots, delta, t_lap)
 
 
-func _tick_world_systems(shots: Array[DotShot], delta, t_lap) -> void:
+func _tick_world_systems(shots: Array[GSShot], delta, t_lap) -> void:
 	var t_world := Time.get_ticks_usec()
 	t_lap = FcFrameProbe.lap_start()
 	if map_io != null:
@@ -534,7 +534,7 @@ func _apply_loadout_deferred(id: int) -> void:
 		return
 
 	if player.arsenal.slots().is_empty():
-		# The class's loadout first: `DotPlayerClassDef.loadout_id` is the field a mode changes to change what
+		# The class's loadout first: `GSPlayerClassDef.loadout_id` is the field a mode changes to change what
 		# everybody spawns holding, and it reached nothing until this line. The hardcoded pair below is the
 		# fallback for a game with no catalogue, which is what `give_default_loadout` always was.
 		var from_class := (
@@ -550,13 +550,13 @@ func _apply_loadout_deferred(id: int) -> void:
 
 ## `spawn_protection_break` (config): a player still protected who shoots (bit 1) or moves or jumps (bit 2)
 ## loses the protection now, in all three records. Zero, the default, never calls [method end_spawn_protection].
-func _note_protected_action(id: int, player: FcPlayer, move: DotFpsCommand, fired: bool) -> void:
+func _note_protected_action(id: int, player: FcPlayer, move: GSFpsCommand, fired: bool) -> void:
 	if not player.health.is_protected(_tick):
 		_protect_anchor.erase(id)
 		player.protected_view = false
 		return
 	var breaks := config.spawn_protection_break
-	var moved: bool = move.move != Vector2.ZERO or move.is_pressed(DotFpsCommand.BUTTON_JUMP)
+	var moved: bool = move.move != Vector2.ZERO or move.is_pressed(GSFpsCommand.BUTTON_JUMP)
 	if (fired and breaks & 1 != 0) or (moved and breaks & 2 != 0):
 		end_spawn_protection(id)
 	elif config.spawn_protection_move_feet > 0.0:
@@ -581,7 +581,7 @@ func end_spawn_protection(id: int) -> void:
 	if player_stack != null and player_stack.spawns != null and player_stack.spawns.protection != null:
 		player_stack.spawns.protection.revoke(str(id), _tick)
 
-func _on_respawn_due(key: String, spawn: DotSpawnPoint, tick: int) -> void:
+func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 	var id := int(key)
 	var player := player_for(id)
 
@@ -589,13 +589,13 @@ func _on_respawn_due(key: String, spawn: DotSpawnPoint, tick: int) -> void:
 		return
 
 	# [b]The director chooses; dot-match's point is the fallback.[/b] Both read the same
-	# markers — `FcPlayerStack.refresh_spawns` copies dot-match's own `DotSpawnPoint`s
+	# markers — `FcPlayerStack.refresh_spawns` copies dot-match's own `GSSpawnPoint`s
 	# into the director — so this is not a second set of spawns, it is a better choice
 	# among one set: enemy distance, line of sight, occupancy and a per-site cooldown,
 	# none of which dot-match models.
 	#
 	# It is also where spawn protection is granted, which is the half that has to go
-	# through here. `DotSpawnProtection.grant` is called inside `choose` and nowhere
+	# through here. `GSSpawnProtection.grant` is called inside `choose` and nowhere
 	# else, so a game that took dot-match's point and skipped this has an empty ledger
 	# and a `protection.advance()` that does nothing — which is what this one had.
 	var at := Transform3D(Basis.IDENTITY, Vector3(0.0, 1.0, 0.0))
@@ -607,12 +607,12 @@ func _on_respawn_due(key: String, spawn: DotSpawnPoint, tick: int) -> void:
 		var chosen := player_stack.choose_spawn(id)
 
 		if chosen.ok:
-			at = (chosen.value as DotSpawnChoice).transform
+			at = (chosen.value as GSSpawnChoice).transform
 		elif spawn == null:
 			# No point from either. Worth a line: the fallback below is the origin, and
 			# a player standing at (0, 1, 0) on every respawn is a map with no usable
 			# spawns rather than a player who found a strange corner.
-			DotLog.warn(CHANNEL, "nothing chose a spawn", {
+			GSLog.warn(CHANNEL, "nothing chose a spawn", {
 				"key": key, "why": chosen.error.message
 			})
 
@@ -638,9 +638,9 @@ func _on_respawn_due(key: String, spawn: DotSpawnPoint, tick: int) -> void:
 
 	player_spawned.emit(player)
 
-func _on_match_state_changed(from: DotMatch.State, to: DotMatch.State) -> void:
+func _on_match_state_changed(from: GSMatch.State, to: GSMatch.State) -> void:
 	# A new round has its own first blood, and nobody's revenge carries over from warmup.
-	if to == DotMatch.State.LIVE:
+	if to == GSMatch.State.LIVE:
 		medals.reset_round()
 		# And every toy home: a ball parked in a doorway during warmup is not a round's
 		# head start for anybody.
@@ -648,46 +648,46 @@ func _on_match_state_changed(from: DotMatch.State, to: DotMatch.State) -> void:
 			toys.reset()
 	match_state_changed.emit(from, to)
 
-func _build_match() -> DotResult:
+func _build_match() -> GSResult:
 	# DUPLICATED, not used directly. A Resource is a reference in GDScript, so handing
 	# dot-match the catalogue's own rules would mean a server that raised a score limit
 	# at runtime had edited the mode every later match reads.
-	var rules: DotMatchRules = mode.rules.duplicate()
+	var rules: GSMatchRules = mode.rules.duplicate()
 
 	# The exports override the mode when they are set, so a server can keep the mode
 	# and change the numbers. Zero means "whatever the mode said".
 	_override_rules(rules)
 
-	match_node = DotMatch.new()
+	match_node = GSMatch.new()
 	match_node.name = "Match"
 	match_node.rules = rules
 	match_node.register_service = false
 
 	# Built here rather than left to dot-match, which would otherwise make an untagged
-	# `DotTeam.standard_pair()`. The tags are the whole point — see `FcMode.teams`.
+	# `GSTeam.standard_pair()`. The tags are the whole point — see `FcMode.teams`.
 	# A map that tags no sides is cut into two halves that start apart before its spawn points are made (a map change
 	# comes through here as well as the first setup), so every map can host a team mode.
 	if mode.is_team_mode() and team_spawn_split:
 		var _split := map.split_spawns_for_teams()
 
 	if mode.is_team_mode():
-		var manager := DotTeamManager.new()
+		var manager := GSTeamManager.new()
 		manager.name = "Teams"
 		manager.teams = mode.teams()
 		match_node.teams = manager
 		match_node.add_child(manager)
 
-	var config := DotMatchConfig.new()
+	var config := GSMatchConfig.new()
 	config.tick_rate = tick_rate
 	config.auto_start = false
 	config.balance_between_rounds = false
 	match_node.config = config
 
-	# **Collect spawn points from THIS game and nowhere else.**  `DotMatch.setup` calls
+	# **Collect spawn points from THIS game and nowhere else.**  `GSMatch.setup` calls
 	# `refresh_spawns`, which with no `spawns_ref` walks `get_tree().current_scene` — the whole
 	# tree.
-	var mine := DotNodeRef.new()
-	mine.mode = DotNodeRef.Mode.PARENT
+	var mine := GSNodeRef.new()
+	mine.mode = GSNodeRef.Mode.PARENT
 	match_node.spawns_ref = mine
 
 	add_child(match_node)
@@ -696,7 +696,7 @@ func _build_match() -> DotResult:
 	# instantiates the level's nodes, and a match with no spawn points is a match
 	# nobody ever appears in.
 	for index in range(map.spawns.size()):
-		var point := DotSpawnPoint.new()
+		var point := GSSpawnPoint.new()
 		point.name = "Spawn%02d" % match_node.spawn_points().size()
 		point.transform = map.spawns[index]
 		point.cooldown_ticks = int(2.0 * float(tick_rate))
@@ -722,4 +722,4 @@ func _build_match() -> DotResult:
 	match_node.respawn_due.connect(_on_respawn_due)
 	match_node.state_changed.connect(_on_match_state_changed)
 
-	return DotResult.success(null)
+	return GSResult.success(null)

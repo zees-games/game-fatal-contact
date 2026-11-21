@@ -7,7 +7,7 @@ func needs_ammo() -> bool:
 	if arsenal == null:
 		return false
 	for slot_id in arsenal.slots():
-		var def: DotWeaponDef = arsenal.slot_at(slot_id).def
+		var def: GSWeaponDef = arsenal.slot_at(slot_id).def
 		if def != null and def.uses_ammo() and def.ammo_type != &"" and not def.infinite_reserve \
 				and arsenal.ammo().count(def.ammo_type) < def.reserve_cap():
 			return true
@@ -19,6 +19,6 @@ func refill_ammo(share: float) -> void:
 	if arsenal == null:
 		return
 	for slot_id in arsenal.slots():
-		var def: DotWeaponDef = arsenal.slot_at(slot_id).def
+		var def: GSWeaponDef = arsenal.slot_at(slot_id).def
 		if def != null and def.uses_ammo() and def.ammo_type != &"" and not def.infinite_reserve:
 			var _added := arsenal.add_ammo(def.ammo_type, int(ceil(float(def.reserve_cap()) * share)))

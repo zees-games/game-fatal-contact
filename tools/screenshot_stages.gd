@@ -26,8 +26,8 @@ var _players: Array[FcPlayer] = []
 var _local: FcPlayer = null
 var _hud: FcHud = null
 
-var _action_figure: DotHumanoidFigure = null
-var _toy_box: DotPropBodyBox = null
+var _action_figure: GSHumanoidFigure = null
+var _toy_box: GSPropBodyBox = null
 var _toy_placements: Array = []
 
 
@@ -59,7 +59,7 @@ func _stage_admin(map: FcMap, id: StringName) -> void:
 
 	_hud = FcHud.new()
 	_hud.name = "Hud"
-	_hud.config = DotUiConfig.new()
+	_hud.config = GSUiConfig.new()
 	_hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(_hud)
 	_hud.build(null)
@@ -142,7 +142,7 @@ func _stage_feel(map: FcMap, id: StringName) -> void:
 
 	_hud = FcHud.new()
 	_hud.name = "Hud"
-	_hud.config = DotUiConfig.new()
+	_hud.config = GSUiConfig.new()
 	_hud.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(_hud)
 	_hud.build(null)
@@ -153,11 +153,11 @@ func _stage_feel(map: FcMap, id: StringName) -> void:
 		# Asked for through the command, as the client does, and ticked the way the game
 		# ticks a player: the rig equips the view model on a tick and nothing else here
 		# ticks it.
-		var ask := DotWeaponCommand.new()
+		var ask := GSWeaponCommand.new()
 		ask.slot = slot
 		for tick in range(_feel_tick, _feel_tick + 80):
-			var _o := _local.simulate_tick(tick, 1.0 / 64.0, DotFpsCommand.new(), ask)
-			ask = DotWeaponCommand.new()
+			var _o := _local.simulate_tick(tick, 1.0 / 64.0, GSFpsCommand.new(), ask)
+			ask = GSWeaponCommand.new()
 		_feel_tick += 80
 
 	var shots_view := _feel_shots_view(id, victim, hurt, arm_hands, hold)
@@ -249,8 +249,8 @@ func _feel_shots_world(id: StringName, victim: FcPlayer, hurt: FcPlayer, arm_han
 			"at": Vector3(1.0, 0.9, 12.0),
 			"arm": func() -> void:
 				_hud.visible = false
-				var rules := DotPlayerBreakRules.new()
-				rules.mode = DotPlayerBreakRules.Mode.EXPLODE
+				var rules := GSPlayerBreakRules.new()
+				rules.mode = GSPlayerBreakRules.Mode.EXPLODE
 				rules.criticals_only = false
 				# Slowed, so the frame is mid-burst rather than after it.
 				rules.force = 2.5
@@ -309,7 +309,7 @@ func _feel_shots_world(id: StringName, victim: FcPlayer, hurt: FcPlayer, arm_han
 			"name": "%s_feel_body_legs_off" % String(id),
 			"local": true,
 			"arm": func() -> void:
-				_local.present_own_body(DotPlayerViewRules.BODY_OFF, _local.controller.state.yaw),
+				_local.present_own_body(GSPlayerViewRules.BODY_OFF, _local.controller.state.yaw),
 			"wait": 12,
 		},
 	]
@@ -338,9 +338,9 @@ func _stage_muzzle(id: StringName, arm_hands: Callable, hold: Callable) -> void:
 				var _g := _local.arsenal.give(weapon)
 				hold.call(slot),
 			"late": [[2, func() -> void:
-				var fire := DotWeaponCommand.new()
-				fire.buttons = DotWeaponCommand.BUTTON_ATTACK
-				var _o := _local.simulate_tick(_feel_tick, 1.0 / 64.0, DotFpsCommand.new(), fire)
+				var fire := GSWeaponCommand.new()
+				fire.buttons = GSWeaponCommand.BUTTON_ATTACK
+				var _o := _local.simulate_tick(_feel_tick, 1.0 / 64.0, GSFpsCommand.new(), fire)
 				_feel_tick += 1]],
 			"wait": 6,
 		})
@@ -360,7 +360,7 @@ func _fx_death(presentation: FcPresentation, at: Vector3, eye: Vector3, aim: Vec
 
 
 ## The re-firable volley of `--fx`: six shots from [param eye] along [param aim], slowed so a frame catches them.
-func _fx_fire(presentation: FcPresentation, trace: DotTraceFlat, eye: Vector3, aim: Vector3, side: Vector3) -> Callable:
+func _fx_fire(presentation: FcPresentation, trace: GSTraceFlat, eye: Vector3, aim: Vector3, side: Vector3) -> Callable:
 	var refused := {}
 	presentation.fx.spawned.connect(func(fx_id: StringName, node: Node, why: StringName) -> void:
 		if node == null:
@@ -376,7 +376,7 @@ func _fx_fire(presentation: FcPresentation, trace: DotTraceFlat, eye: Vector3, a
 			var spread := side * sin(angle) * 0.012 * i + Vector3.UP * cos(angle) * 0.012 * i
 			var dir := (aim + spread).normalized()
 			var hit := trace.ray(eye, dir, 500.0)
-			var shot := DotShot.new()
+			var shot := GSShot.new()
 			shot.weapon_id = &"rifle"
 			shot.origin = eye
 			shot.direction = dir
@@ -384,7 +384,7 @@ func _fx_fire(presentation: FcPresentation, trace: DotTraceFlat, eye: Vector3, a
 				shot.impacts = [hit.point]
 				if i == 0:
 					print("fx: the first shot stopped at %s, %.1f m away" % [hit.point, hit.distance])
-			var outcome := DotWeaponOutcome.new()
+			var outcome := GSWeaponOutcome.new()
 			outcome.used = true
 			outcome.add_shot(shot)
 			presentation.on_used(outcome)
@@ -401,7 +401,7 @@ func _fx_fire(presentation: FcPresentation, trace: DotTraceFlat, eye: Vector3, a
 
 
 ## A burst of rifle shots at a wall, drawn by the real presentation layer the way a client
-## draws its own: [method FcPresentation.on_used] with a [DotWeaponOutcome] whose
+## draws its own: [method FcPresentation.on_used] with a [GSWeaponOutcome] whose
 ## impacts are where the map's own trace says each shot stopped.
 ##
 ## [b]The particles are slowed to a twentieth of real speed and restarted once spawned.[/b]
@@ -468,7 +468,7 @@ func _stage_fx(map: FcMap, id: StringName, eye: Vector3, aim_at: Vector3) -> voi
 			"from": wall - aim * 3.5 + side * 1.0 + Vector3.UP * 0.4,
 			"at": wall + Vector3.UP * 0.2,
 			"arm": func() -> void:
-				var victim := DotEntity.make_id(DotEntity.KIND_PLAYER, 2)
+				var victim := GSEntity.make_id(GSEntity.KIND_PLAYER, 2)
 				for i in range(5):
 					var chest := wall - aim * 1.0 + side * (float(i) - 2.0) * 0.45 + Vector3.UP * (-0.3 + 0.3 * float(i % 3))
 					presentation.on_body_hit(victim, chest, eye)
@@ -506,7 +506,7 @@ func _fx_grenade_shots(presentation: FcPresentation, id: StringName, eye: Vector
 func _stage_action(map: FcMap, id: StringName, kind: StringName, action: String) -> void:
 	var body := _cast(map, 1, "Actor", Vector3(0.0, 1.3, 0.0), 0.0)
 	_action_figure = body.figure
-	var entry := DotAvatarActions.defaults().find(kind, action)
+	var entry := GSAvatarActions.defaults().find(kind, action)
 	var play := func() -> void:
 		var ok: bool = body.figure != null and body.figure.play_action(StringName(action), bool(entry.get("loop", false)), 0.0)
 		print("action %s/%s: figure=%s played=%s" % [kind, action, body.figure != null, ok])
@@ -553,11 +553,11 @@ func _stage_people(map: FcMap, id: StringName) -> void:
 		FcViewArms.mount(root, hands, _local, look)
 		_local.arm_first_person(hands, true)
 		var _given := _local.weapons.give_everything()
-		var ask := DotWeaponCommand.new()
+		var ask := GSWeaponCommand.new()
 		ask.slot = AwWeaponIds.SLOT_PRIMARY
 		for tick in range(0, 80):
-			var _o := _local.simulate_tick(tick, 1.0 / 64.0, DotFpsCommand.new(), ask)
-			ask = DotWeaponCommand.new()
+			var _o := _local.simulate_tick(tick, 1.0 / 64.0, GSFpsCommand.new(), ask)
+			ask = GSWeaponCommand.new()
 	_shots = []
 	for body in bodies:
 		_shots.append({"name": "%s_people_fp_%s" % [String(id), String(body)], "local": true, "arm": arm_for.bind(body), "wait": 30})

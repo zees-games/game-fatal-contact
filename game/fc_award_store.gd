@@ -1,6 +1,6 @@
-extends DotAchievementStoreFile
+extends GSAchievementStoreFile
 
-## Achievement progress files, written behind the frame that saved them. The tracker's autosave saves every dirty player in one frame and [DotAchievementStoreFile] writes a file for each as asked:
+## Achievement progress files, written behind the frame that saved them. The tracker's autosave saves every dirty player in one frame and [GSAchievementStoreFile] writes a file for each as asked:
 ## 24 atomic writes on the main thread every autosave interval (the owner's 55 ms spike).
 ## Here a save keeps the snapshot and returns; a worker writes the batch, or one file a frame goes out where there are no threads.
 
@@ -19,7 +19,7 @@ var _task: int = -1
 var _done: Array = []
 
 
-func _save_progress(player: String, progress: DotAchievementProgress) -> DotResult:
+func _save_progress(player: String, progress: GSAchievementProgress) -> GSResult:
 	for held in _refused:
 		if not _pending.has(held):
 			_pending[held] = _refused[held]
@@ -31,16 +31,16 @@ func _save_progress(player: String, progress: DotAchievementProgress) -> DotResu
 	elif not _ticking:
 		_ticking = true
 		tree.process_frame.connect(_tick)
-	return DotResult.success(1)
+	return GSResult.success(1)
 
 
-func _load_progress(player: String) -> DotResult:
+func _load_progress(player: String) -> GSResult:
 	if _pending.has(player):
-		return DotAchievementProgress.from_dictionary((_pending[player] as Dictionary).duplicate(true))
+		return GSAchievementProgress.from_dictionary((_pending[player] as Dictionary).duplicate(true))
 	# A write in flight may be this player's: the file is only the truth once it has landed.
 	_collect(true)
 	if _refused.has(player):
-		return DotAchievementProgress.from_dictionary((_refused[player] as Dictionary).duplicate(true))
+		return GSAchievementProgress.from_dictionary((_refused[player] as Dictionary).duplicate(true))
 	return super._load_progress(player)
 
 
@@ -73,7 +73,7 @@ func _tick() -> void:
 	if _pending.is_empty():
 		_stop_ticking()
 		return
-	if DotPlatform.has_threads():
+	if GSPlatform.has_threads():
 		_task = WorkerThreadPool.add_task(_write.bind(_take(_pending.size()), atomic, _done), false, "arena award files")
 	else:
 		_write(_take(1), atomic, _done)
@@ -110,18 +110,18 @@ func _collect(wait: bool) -> bool:
 			if not _pending.has(row[0]):
 				_refused[row[0]] = row[2]
 		if not failed.is_empty():
-			DotLog.warn(LOG, "achievement progress is not saving; it will be retried", {"players": failed.size(), "why": str(report["why"])})
+			GSLog.warn(LOG, "achievement progress is not saving; it will be retried", {"players": failed.size(), "why": str(report["why"])})
 	_done.clear()
 	writes += wrote
 	if wrote > 0:
-		DotWeb.sync_filesystem()
+		GSWeb.sync_filesystem()
 	return true
 
 
 static func _write(batch: Array, atomically: bool, done: Array) -> void:
 	var report := {"wrote": 0, "failed": [], "why": ""}
 	for row in batch:
-		var written := DotPaths.write_json(str(row[1]), row[2], true, atomically)
+		var written := GSPaths.write_json(str(row[1]), row[2], true, atomically)
 		if written.ok:
 			report["wrote"] = int(report["wrote"]) + 1
 		else:

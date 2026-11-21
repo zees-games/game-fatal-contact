@@ -1,4 +1,4 @@
-extends DotAudioManager
+extends GSAudioManager
 
 ## Fatal Contact's sound manager: dot-audio's, with the time it takes to start a sound and to drop the finished ones
 ## charged to `arena.audio`, so a recording says what sound costs on the game's thread. The mix itself runs on

@@ -2,7 +2,7 @@ extends RefCounted
 ## A client link's round trip, in milliseconds: ENet's own measurement when the link is on
 ## ENet, and dot-server's heartbeat ping otherwise. 0 while neither knows.
 ##
-## [b]Why not just `DotClientLink.ping_ms`.[/b] That is one heartbeat every two seconds,
+## [b]Why not just `GSClientLink.ping_ms`.[/b] That is one heartbeat every two seconds,
 ## sent unreliable, and it is -1 until the first comes back -- once, through a real UDP
 ## relay (`headless_lossy`), eight seconds after connecting. Until then the clock believes
 ## the link is instant and leaves the flight time out of its input lead, so the commands

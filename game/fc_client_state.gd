@@ -61,7 +61,7 @@ const CHANNEL := "arena.client"
 
 ## The player pressed Leave on the Escape menu.
 ##
-## [b]Announced, and acted on by dot-menu's stock Leave[/b] ([member DotMenu.leave_on_its_own],
+## [b]Announced, and acted on by dot-menu's stock Leave[/b] ([member GSMenu.leave_on_its_own],
 ## set in [FcMenus]): connected, it disconnects the client link, and the shell that loaded
 ## this client goes back to its own menu on the disconnect; solo on a desktop it quits. This
 ## signal is for an embedder that wants to know. Until 2026-10-11 nothing listened to it and
@@ -77,13 +77,13 @@ signal ready_to_show()
 
 ## dot-game's platform layer: the load gate and its cover (held until the level, the local
 ## body and the camera exist, then the weapon materials drawn once under it), the browser
-## filesystem flush, and [signal DotGameClient.input_blocked_changed] for the sampler. Not its
+## filesystem flush, and [signal GSGameClient.input_blocked_changed] for the sampler. Not its
 ## settings, menu, console, pointer or board: Fatal Contact's are [FcMenus] and
 ## [FcPresentation], see [method _build_platform]. The root keeps `ready_to_show` and
 ## `warm_up_items` only because it declares its own signal (the gate then leaves it alone) and
 ## because a shell older than the gate asks the root's methods, not the gate.
-var platform: DotGameClient = null
-var gate: DotLoadGate
+var platform: GSGameClient = null
+var gate: GSLoadGate
 
 ## Field of view, horizontal at 4:3. Fatal Contact shooter's number, not Godot's.
 const FIELD_OF_VIEW := 100.0
@@ -92,30 +92,30 @@ var game: FcGame = null
 var player: FcPlayer = null
 var hud: FcHud = null
 ## The Escape menu, its pages and the Tab board: dot-menu's ([FcMenus]).
-var game_menu: DotMenu = null
+var game_menu: GSMenu = null
 ## The Tab board's rows from dot-match. See [FcMenus.Board].
 var board: FcMenus.Board = null
 ## The match summary opened the Tab board (rather than a held Tab), so the client closes it.
 var _summary_board_open: bool = false
-## The final killcam ([DotKillcamHost]): records every frame, plays before the summary.
-var killcam: DotKillcamHost = null
+## The final killcam ([GSKillcamHost]): records every frame, plays before the summary.
+var killcam: GSKillcamHost = null
 ## The shots that final killcam replays (flash, tracer, spark), recorded beside the bodies.
 var killcam_shots: FcKillcamShots = null
 
-## The kill view: the killer's replayed eye, in place of the death camera ([DotKillViewClient]).
-var killview: DotKillViewClient = null
+## The kill view: the killer's replayed eye, in place of the death camera ([GSKillViewClient]).
+var killview: GSKillViewClient = null
 
 ## Solo only: the server half of the kill view, run in this process (a connected game has the bridge's).
-var solo_killview: DotKillViewSolo = null
-var winner_reveal: DotWinnerReveal = null
+var solo_killview: GSKillViewSolo = null
+var winner_reveal: GSWinnerReveal = null
 var _reveal_hid: Dictionary = {}
 var _seen_match_state: int = -1
 ## When the kill-cam last recorded the bodies (microseconds), for the `cl_killcam_hz` cap.
 var _killcam_recorded: int = 0
 ## Applies dot-menu's stock settings this game does not apply itself: the window, V-Sync,
 ## the frame cap and render scale.
-var applier: DotMenuApplier = null
-var net: DotNetManager = null
+var applier: GSMenuApplier = null
+var net: GSNetManager = null
 var bridge: FcNetBridge = null
 var link: Node = null
 
@@ -143,22 +143,22 @@ var _tick_budget: FcTickBudget = FcTickBudget.new()
 var _sim_host: FcSimHost = null
 ## The console of that process; null in every other session.
 var host_console: FcHostConsole = null
-var _solo_binder: DotGameConfigBinder = null
+var _solo_binder: GSGameConfigBinder = null
 var _workbench: Node = null
 ## Asks a server whether this player may edit it (sv_workbench_remote); null offline.
-var _workbench_remote: DotGameWorkbenchRemoteClient = null
+var _workbench_remote: GSGameWorkbenchRemoteClient = null
 ## The profile rows the server broadcasts (an admin's edit reaches every client); null offline.
-var _profile_link: DotNetProfileLink = null
-var _profile_runtime: DotProfileRuntime = null
+var _profile_link: GSNetProfileLink = null
+var _profile_runtime: GSProfileRuntime = null
 var _workbench_open := false
-var _sampler: DotFpsSampler = null
+var _sampler: GSFpsSampler = null
 ## Refuses the sights for a moment after the local player is hit (sv_unscope_hit).
-var _aim_break := DotFpsAimBreak.new()
+var _aim_break := GSFpsAimBreak.new()
 var _hit_wobble_applied := Vector2.ZERO
 ## Degrees of a wall-run attach turn not yet applied to the view.
 var _view_turn_left := 0.0
 const VIEW_TURN_HALF_LIFE := 0.0315
-var _fire := DotWeaponCommand.new()
+var _fire := GSWeaponCommand.new()
 
 ## A weapon slot the player asked for this tick, or 0 for "no change". Cleared once
 ## sent — see [method _read_fire].
@@ -167,8 +167,8 @@ var _wanted_slot: int = 0
 ## dot-mobile's overlay ([code]fc_touch.gd[/code]); built on every client, shown only on touch.
 var _touch: RefCounted = null
 ## The light on the eye and the other players' beams (dot-flashlight); the server owns on/off.
-var flash: DotFlashlight = null
-var flash_crowd: DotFlashlightCrowd = null
+var flash: GSFlashlight = null
+var flash_crowd: GSFlashlightCrowd = null
 var _flash_ticks := 0
 var _flash_msec := -100000
 var _flash_seen: Array = []
@@ -176,7 +176,7 @@ var _flash_seen: Array = []
 var _flash_lit_was: Dictionary = {}
 
 ## What the server last said was left on the clock, in seconds. Negative for "no
-## limit", which is what `DotMatch.seconds_remaining` returns and what the HUD reads as
+## limit", which is what `GSMatch.seconds_remaining` returns and what the HUD reads as
 ## "show the state name instead".
 var _match_seconds_remaining: float = -1.0
 
@@ -191,7 +191,7 @@ var _awaiting_click := false
 ## [b]HELLO names you and JOIN creates you, in that order.[/b] A client that resolved
 ## the player here and never tried again holds null for the whole session — and the
 ## list of what that breaks is the interesting part: the HUD binds by id and works, the
-## camera follows the entity and works, movement works because `DotFpsSampler.sample`
+## camera follows the entity and works, movement works because `GSFpsSampler.sample`
 ## polls the `InputMap` rather than reading events, and *everything below the
 ## `player == null` guard in `_unhandled_input` does not*. A client that connects,
 ## draws, shows a live HUD and walks around, with a dead mouse and a dead keyboard.
@@ -199,7 +199,7 @@ var _awaiting_click := false
 var _watch_id: int = -1
 
 ## The spectator's free camera while roaming, and the mouse motion not yet turned into a look.
-var _free_cam: DotSpectatorFreeCam = null
+var _free_cam: GSSpectatorFreeCam = null
 var _roam_look: Vector2 = Vector2.ZERO
 
 ## Bots this client drives, offline only. Session id -> the bot's body.
@@ -209,7 +209,7 @@ var _bots: Dictionary = {}
 var _bot_minds: Dictionary = {}
 
 ## Names offline bots from dot-bot's pool, and keeps their number.
-var _bot_roster := DotBotRoster.new()
+var _bot_roster := GSBotRoster.new()
 
 ## The next offline bot's session id.
 var _next_bot_id: int = 100
@@ -282,7 +282,7 @@ var projectile_view: FcProjectileView = null
 
 ## Where the dead lie: dot-player-char's ragdolls, built from each KILL's death (the server's
 ## pick) under [member FcGame.ragdoll_rules]. Client side.
-var ragdolls: DotPlayerRagdolls = null
+var ragdolls: GSPlayerRagdolls = null
 
 ## The projectile layer whose detonations are being heard, so a new one is noticed.
 var _heard_projectiles: RefCounted = null

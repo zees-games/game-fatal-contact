@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcViewArms := preload("../game/fc_view_arms.gd")
 const FcAmbience := preload("../game/fc_ambience.gd")
@@ -102,10 +102,10 @@ func _slab(at: Vector3, aim: Vector3) -> StaticBody3D:
 	return body
 
 
-func _outcome(from: Vector3, aim: Vector3, impacts: Array[Vector3]) -> DotWeaponOutcome:
-	var out := DotWeaponOutcome.new()
+func _outcome(from: Vector3, aim: Vector3, impacts: Array[Vector3]) -> GSWeaponOutcome:
+	var out := GSWeaponOutcome.new()
 	out.used = true
-	var shot := DotShot.new()
+	var shot := GSShot.new()
 	shot.weapon_id = &"rifle"
 	shot.origin = from
 	shot.direction = aim
@@ -144,7 +144,7 @@ static func _press(event: InputEvent, down: bool) -> void:
 
 
 static func _key_event(text: String, down: bool) -> InputEventKey:
-	var key := DotInputBinding.from_text(text) as InputEventKey
+	var key := GSInputBinding.from_text(text) as InputEventKey
 	key.pressed = down
 	return key
 
@@ -239,7 +239,7 @@ static func _shrunk_bones(player: FcPlayer) -> int:
 	return n
 
 
-## A stand-in rendezvous: the four routes `DotP2PSignallerHttp` speaks, on a real socket,
+## A stand-in rendezvous: the four routes `GSP2PSignallerHttp` speaks, on a real socket,
 ## answering each request [member delay] frames after it arrives.
 ##
 ## [b]The delay is the point.[/b] The other party check here uses the loopback signaller,
@@ -429,7 +429,7 @@ func _test_own_body() -> void:
 	g.is_authority = true
 	add_child(g)
 	var _set := g.setup(FcMap.dm_box())
-	var added: DotResult = g.add_player(9, "Nine")
+	var added: GSResult = g.add_player(9, "Nine")
 	var me: FcPlayer = added.value if added.ok else null
 	if not _check(me != null, "a player to look down from"):
 		_done()
@@ -444,21 +444,21 @@ func _test_own_body() -> void:
 	for choice: StringName in [&"off", &"body", &"auto", &"legs"]:
 		var _r := again.settings.set_value(&"first_person_body", choice)
 		picks.append(client.own_body_mode())
-	_check(picks == [DotPlayerViewRules.BODY_OFF, DotPlayerViewRules.BODY_FULL, DotPlayerViewRules.BODY_LEGS, DotPlayerViewRules.BODY_LEGS],
+	_check(picks == [GSPlayerViewRules.BODY_OFF, GSPlayerViewRules.BODY_FULL, GSPlayerViewRules.BODY_LEGS, GSPlayerViewRules.BODY_LEGS],
 		"none, whole body, the server's choice (legs) and legs each reach the player", str(picks))
-	var _legs_off := again.settings.set_value(DotOwnBodySetting.KEY, false)
+	var _legs_off := again.settings.set_value(GSOwnBodySetting.KEY, false)
 	var _body := again.settings.set_value(&"first_person_body", &"body")
-	_check(client.own_body_mode() == DotPlayerViewRules.BODY_OFF, "cl_legs off vetoes even the whole-body choice")
-	var _legs_on := again.settings.set_value(DotOwnBodySetting.KEY, true)
+	_check(client.own_body_mode() == GSPlayerViewRules.BODY_OFF, "cl_legs off vetoes even the whole-body choice")
+	var _legs_on := again.settings.set_value(GSOwnBodySetting.KEY, true)
 	var _back := again.settings.set_value(&"first_person_body", &"legs")
-	_check(client.own_body_mode() == DotPlayerViewRules.BODY_LEGS, "cl_legs back on restores the choice")
+	_check(client.own_body_mode() == GSPlayerViewRules.BODY_LEGS, "cl_legs back on restores the choice")
 	for _i in 30:
 		g.tick()
 	me.view_now = Vector2(me.controller.state.yaw, -60.0)
 	for _i in 20:
 		me.present_own_body(client.own_body_mode())
 		me.present(1.0 / 60.0)
-	var ankles := DotHumanoidLegs.ankles(me.figure.skeleton()) if me.figure != null else []
+	var ankles := GSHumanoidLegs.ankles(me.figure.skeleton()) if me.figure != null else []
 	var floor_y := me.controller.state.position.y
 	var low := INF
 	var mid := Vector3.ZERO
@@ -467,7 +467,7 @@ func _test_own_body() -> void:
 		mid += at / maxf(ankles.size(), 1)
 	var look := -me.camera.global_basis.z
 	var off_centre := rad_to_deg(look.angle_to(mid - me.camera.global_position))
-	_check(me.body_mesh.visible and me.figure != null and me.figure.first_person == DotHumanoidOwnView.LEGS,
+	_check(me.body_mesh.visible and me.figure != null and me.figure.first_person == GSHumanoidOwnView.LEGS,
 		"looking 60 degrees down, the legs are drawn and the rest is not")
 	_check(ankles.size() == 2 and off_centre < me.camera.fov * 0.5,
 		"and the feet are in view (%.0f degrees off centre of a %.0f degree view)" % [off_centre, me.camera.fov])

@@ -71,10 +71,10 @@ func _ready() -> void:
 ## `FcContent.carry_mask` (one pass over the carried weapons) against the one `carries` per wire id it replaced, empty, held
 ## and with a weapon stowed behind another in its slot.
 func _check_carry_mask() -> void:
-	var arsenal := DotWeaponArsenal.new()
+	var arsenal := GSWeaponArsenal.new()
 	arsenal.max_slots = FcPlayer.MAX_SLOTS
 	arsenal.catalogue = FcPlayer.weapon_catalogue()
-	arsenal.carry = DotWeaponCarry.new()
+	arsenal.carry = GSWeaponCarry.new()
 	arsenal.carry.slot_capacity = 3
 	add_child(arsenal)
 	var _set := arsenal.setup()
@@ -106,14 +106,14 @@ func _check_groups(foreign: bool) -> void:
 	module.free()
 	_check(FcModule.weapon_groups([&"not_a_weapon"]) == ["*"], "an id fc-weapons does not know is announced as every group")
 
-	if foreign or DotAddonApi.build_level("fc_weapons") < 14:
+	if foreign or GSAddonApi.build_level("fc_weapons") < 14:
 		_check(announced == ["*"], "every group is announced when the catalogue cannot be narrowed: %s" % str(announced))
 		return
 
 	var groups: Script = load(FcModule.WEAPON_GROUPS_SCRIPT)
 	var ids: Array = []
 
-	for def: DotWeaponDef in FcContent.weapons():
+	for def: GSWeaponDef in FcContent.weapons():
 		ids.append(def.id)
 
 	var expected := Array(groups.call("groups_for", ids))

@@ -15,7 +15,7 @@ const FcBotPvs := preload("../game/fc_bot_pvs.gd")
 const FcBotsWorld := preload("../game/fc_bots_world.gd")
 
 ## The 128-player scale harness (nightly arena-128-scale-1). Measures; asserts nothing; prints one `SCALE128 {json}` line. Driven by tools/scale128.sh, which runs it through `heavy`.
-## `godot --headless --path . res://tools/scale128.tscn -- --role server --bots 64 --tick 33 --seconds 30` (or `--role offline --bots 32 --tick 66 --seconds 20`). [b]server[/b]: DotServer + FcModule with N bots, no client, one physics tick timed three ways (script half between sentinels, TIME_PHYSICS_PROCESS, wall-clock ticks/s).
+## `godot --headless --path . res://tools/scale128.tscn -- --role server --bots 64 --tick 33 --seconds 30` (or `--role offline --bots 32 --tick 66 --seconds 20`). [b]server[/b]: GSServer + FcModule with N bots, no client, one physics tick timed three ways (script half between sentinels, TIME_PHYSICS_PROCESS, wall-clock ticks/s).
 ## [b]offline[/b]: the real offline client (game, bots and drawing in one process), the same numbers plus how fast game time ran against the wall clock (`sim_speed`) and a node census of one other player.
 
 var _role := "server"
@@ -68,16 +68,16 @@ func _sentinel(is_start: bool) -> void:
 
 const _PlayerBody := preload("res://game/fc_player_body.gd")
 
-## --cellab N: an in-process A/B of dot-sim's binding cell (DotSimCell): every N ticks the run flips between the patched
+## --cellab N: an in-process A/B of dot-sim's binding cell (GSSimCell): every N ticks the run flips between the patched
 ## cell (side 0, notify only waiters) and upstream's notify-on-every-drop (side 1); the report splits the sections by side.
 var _cellab := 0
-## --weapab N: the same alternating A/B for dot-weapon's native hitscan spread tick (DotWeaponHitscan.native_tick):
-## side 0 ("patched") runs dot-sim's DotSimWeaponSpread, side 1 ("upstream") the GDScript tick.
+## --weapab N: the same alternating A/B for dot-weapon's native hitscan spread tick (GSWeaponHitscan.native_tick):
+## side 0 ("patched") runs dot-sim's GSSimWeaponSpread, side 1 ("upstream") the GDScript tick.
 var _ab_weap := false
 ## --leanab N: the same alternating A/B for the server's lean players' loop (FcPlayer.lean_tick): side 0 ("patched") lean,
 ## side 1 ("upstream") every per-player call the long way.
 var _ab_lean := false
-## --gateab N: the same alternating A/B for dot-weapon's idle gate (DotWeaponBehaviour.idle_gate): side 0 ("patched") 1,
+## --gateab N: the same alternating A/B for dot-weapon's idle gate (GSWeaponBehaviour.idle_gate): side 0 ("patched") 1,
 ## the cached native rows reused while they provably hold; side 1 ("upstream") 0, every idle row re-read and re-checked.
 ## --idlegate 2 runs the verify mode instead; the report counts its misses either way.
 var _ab_gate := false
@@ -94,7 +94,7 @@ var _ab_net_acc := PackedInt64Array([0, 0, 0, 0])
 func _ab_begin() -> void:
 	if _cellab <= 0:
 		return
-	var need := &"DotSimWeaponSpread" if _ab_weap else &"DotSimCell"
+	var need := &"GSSimWeaponSpread" if _ab_weap else &"GSSimCell"
 	if not _ab_lean and not _ab_gate and not ClassDB.class_exists(need):
 		push_error("scale128: --%s needs dot-sim's %s" % ["weapab" if _ab_weap else "cellab", need])
 		get_tree().quit(1)
@@ -112,11 +112,11 @@ func _ab_set(side: int) -> void:
 	if _ab_lean:
 		FcPlayer.lean_tick = side == 0
 	elif _ab_gate:
-		DotWeaponBehaviour.idle_gate = 1 if side == 0 else 0
+		GSWeaponBehaviour.idle_gate = 1 if side == 0 else 0
 	elif _ab_weap:
-		DotWeaponHitscan.native_tick = side == 0
+		GSWeaponHitscan.native_tick = side == 0
 	else:
-		ClassDB.class_call_static(&"DotSimCell", &"set_notify_always", side == 1)
+		ClassDB.class_call_static(&"GSSimCell", &"set_notify_always", side == 1)
 
 
 func _ab_take_snap() -> void:
@@ -180,7 +180,7 @@ func _ready() -> void:
 			"--fastsense": FcBotBrain.fast_sense = args[i + 1] != "0"
 			"--hullgrid": FcHullGrid.enabled = args[i + 1] != "0"
 			"--hullfast": FcHullGrid.fast = args[i + 1] != "0"
-			"--worldcoarse": DotFpsFlatBody.world_coarse = args[i + 1] != "0"
+			"--worldcoarse": GSFpsFlatBody.world_coarse = args[i + 1] != "0"
 			"--hullverify": FcHullGrid.verify = args[i + 1] != "0"
 			"--hullnative": FcHullGrid.native = args[i + 1] != "0"
 			"--threads": FcBotThreads.threads = int(args[i + 1])
@@ -192,19 +192,19 @@ func _ready() -> void:
 			"--botstyles": _botstyles = args[i + 1]
 			"--wphases":
 				AwWeaponRig.phase_timers = args[i + 1] != "0"
-				DotWeaponArsenal.phase_timers = AwWeaponRig.phase_timers
+				GSWeaponArsenal.phase_timers = AwWeaponRig.phase_timers
 			# --wlane 0: idle weapons through the arsenal's idle_still and idle_posture callables (the row lane's A/B arm).
-			# --bphases 1: DotBotBrain's phase clocks (bb_*, main thread only: with --threads 0), the split of bot_brain.
-			"--bphases": (DotBotBrain as GDScript).set(&"phase_timers", args[i + 1] != "0")
+			# --bphases 1: GSBotBrain's phase clocks (bb_*, main thread only: with --threads 0), the split of bot_brain.
+			"--bphases": (GSBotBrain as GDScript).set(&"phase_timers", args[i + 1] != "0")
 			# --pvs/--pvsnative/--pvsverify: the bots' PVS pre-cull before a sight ray (fc_bot_pvs*).
 			"--pvs": FcBotPvs.enabled = args[i + 1] != "0"
 			"--pvsnative": FcBotPvs.native = args[i + 1] != "0"
 			"--pvsverify": FcBotPvs.verify = args[i + 1] != "0"
 			"--wlane": _PlayerBody.idle_row_lane = args[i + 1] != "0"
-			"--native": DotBotWorld.native_enabled = args[i + 1] != "0"
+			"--native": GSBotWorld.native_enabled = args[i + 1] != "0"
 			# --native-sight 0: bot sight rays through script, never dot-sim's native ray (the A/B of World.native_sight).
 			"--native-sight": FcBotsWorld.World.native_sight = args[i + 1] != "0"
-			"--motornative": DotFpsPhysicsBody.native_enabled = args[i + 1] != "0"
+			"--motornative": GSFpsPhysicsBody.native_enabled = args[i + 1] != "0"
 			# --fine 1: FcFrameProbe.fine for the recording, so the sections split tick_players, bots and the world (laps).
 			"--fine": _fine = args[i + 1] != "0"
 			"--cellab": _cellab = int(args[i + 1])
@@ -217,8 +217,8 @@ func _ready() -> void:
 			"--gateab":
 				_cellab = int(args[i + 1])
 				_ab_gate = _cellab > 0
-			"--idlegate": DotWeaponBehaviour.idle_gate = int(args[i + 1])
-	DotLog.set_level(DotLog.Level.ERROR)
+			"--idlegate": GSWeaponBehaviour.idle_gate = int(args[i + 1])
+	GSLog.set_level(GSLog.Level.ERROR)
 	var _scratch := FcPresentation.use_scratch_settings("scale128_" + _role)
 	for is_start in [true, false]:
 		var s := Sentinel.new()
@@ -291,12 +291,12 @@ func _report(extra: Dictionary) -> void:
 	# What the bots did while recorded, so a think-rate change shows its cost in play (shots per hit, kills).
 	out["combat"] = {"shots": _shots, "hits": _hits, "headshots": _heads, "kills": _kills,
 		"hit_rate": snappedf(float(_hits) / maxi(1, _shots), 0.001)}
-	out["native_scan"] = DotBotWorld.native_available()
-	out["motor_native"] = DotFpsPhysicsBody.native_enabled and ClassDB.class_exists(&"DotSimFpsBody")
+	out["native_scan"] = GSBotWorld.native_available()
+	out["motor_native"] = GSFpsPhysicsBody.native_enabled and ClassDB.class_exists(&"GSSimFpsBody")
 	out.merge(extra)
 	out.merge(_ab_report())
-	out["idle_gate"] = DotWeaponBehaviour.idle_gate
-	out["idle_gate_misses"] = DotWeaponBehaviour.idle_gate_misses
+	out["idle_gate"] = GSWeaponBehaviour.idle_gate
+	out["idle_gate_misses"] = GSWeaponBehaviour.idle_gate_misses
 	if FcHullGrid.verify:
 		out["hull_verified"] = FcHullGrid.verified
 		out["hull_mismatches"] = FcHullGrid.mismatches
@@ -315,22 +315,22 @@ func _report(extra: Dictionary) -> void:
 		var wp := {}
 		for i in AwWeaponRig.PHASES.size():
 			wp["rig_" + AwWeaponRig.PHASES[i]] = snappedf(AwWeaponRig.phase_us[i] / 1000.0 / maxi(1, _count), 0.001)
-		for i in DotWeaponArsenal.PHASES.size():
-			wp["ars_" + DotWeaponArsenal.PHASES[i]] = snappedf(DotWeaponArsenal.phase_us[i] / 1000.0 / maxi(1, _count), 0.001)
+		for i in GSWeaponArsenal.PHASES.size():
+			wp["ars_" + GSWeaponArsenal.PHASES[i]] = snappedf(GSWeaponArsenal.phase_us[i] / 1000.0 / maxi(1, _count), 0.001)
 		wp["rig_calls"] = AwWeaponRig.phase_calls
-		wp["ars_calls"] = DotWeaponArsenal.phase_calls
+		wp["ars_calls"] = GSWeaponArsenal.phase_calls
 		out["weapon_phases_ms"] = wp
-	if (DotBotBrain as GDScript).get(&"phase_timers"):
+	if (GSBotBrain as GDScript).get(&"phase_timers"):
 		# Brain think sub-phases (ms per tick), by name: an older dot-bot has no such clocks.
 		var bp := {}
-		var b_names: Array = (DotBotBrain as GDScript).get(&"PHASES")
-		var b_us: PackedInt64Array = (DotBotBrain as GDScript).get(&"phase_us")
+		var b_names: Array = (GSBotBrain as GDScript).get(&"PHASES")
+		var b_us: PackedInt64Array = (GSBotBrain as GDScript).get(&"phase_us")
 		for i in b_names.size():
 			bp[b_names[i]] = snappedf(b_us[i] / 1000.0 / maxi(1, _count), 0.001)
 		out["brain_phases_ms"] = bp
 	var pv := FcBotPvs.stats
 	out["bot_pvs"] = {
-		"mode": ("native" if FcBotPvs.native and DotSim.has(&"pvs") else "script") if FcBotPvs.enabled else "off",
+		"mode": ("native" if FcBotPvs.native and GSSim.has(&"pvs") else "script") if FcBotPvs.enabled else "off",
 		"on_net": _pvs_net, "on_game": _pvs_game, "asks": pv[0], "ruled_out": pv[1], "ruled_out_clear": pv[2], "native_mismatch": pv[3],
 	}
 	print("SCALE128 ", JSON.stringify(out))
@@ -349,7 +349,7 @@ var _spawn := false
 func _respawn_dead(game: Node, all: bool) -> void:
 	for p in game.players():
 		if all or not p.is_alive():
-			var _r: DotResult = game.respawn_player(p.player_id)
+			var _r: GSResult = game.respawn_player(p.player_id)
 
 
 var _shots := 0
@@ -365,7 +365,7 @@ func _tally_on(g: Object) -> void:
 			_heads += int(head)
 			_kills += int(lethal))
 	for p in g.call("players"):
-		p.connect(&"used", func(outcome: DotWeaponOutcome) -> void:
+		p.connect(&"used", func(outcome: GSWeaponOutcome) -> void:
 			if _recording and outcome != null and outcome.used:
 				_shots += outcome.shots.size())
 
@@ -375,12 +375,12 @@ func _motor_phases(ticks: int) -> Dictionary:
 	if not _motorprof:
 		return out
 	var n := maxi(1, _bots * ticks)
-	for i in DotFpsMotor.PHASES.size():
-		if DotFpsMotor.PHASES[i] != "":
-			out["m_" + DotFpsMotor.PHASES[i]] = snappedf(DotFpsMotor.phase_us[i] / float(n), 0.01)
+	for i in GSFpsMotor.PHASES.size():
+		if GSFpsMotor.PHASES[i] != "":
+			out["m_" + GSFpsMotor.PHASES[i]] = snappedf(GSFpsMotor.phase_us[i] / float(n), 0.01)
 	var cn := ["pre", "consume", "motor", "publish", "report", "signals+stats", "post", "other"]
 	for i in cn.size():
-		out["c_" + cn[i]] = snappedf(DotFpsController.phase_us[i] / float(n), 0.01)
+		out["c_" + cn[i]] = snappedf(GSFpsController.phase_us[i] / float(n), 0.01)
 	return out
 
 
@@ -388,20 +388,20 @@ func _begin_record() -> void:
 	FcBotPvs.counting = true
 	FcBotPvs.reset_stats()
 	if _motorprof:
-		DotFpsMotor.profile = true
-		DotFpsMotor.phase_us.fill(0)
-		DotFpsController.phase_us.fill(0)
+		GSFpsMotor.profile = true
+		GSFpsMotor.phase_us.fill(0)
+		GSFpsController.phase_us.fill(0)
 	FcFrameProbe.set_interval(1.0e9)
 	FcFrameProbe.fine = _fine
 	FcFrameProbe._sections.clear()
 	AwWeaponRig.phase_us.fill(0)
 	AwWeaponRig.phase_calls.fill(0)
-	DotWeaponArsenal.phase_us.fill(0)
-	DotWeaponArsenal.phase_calls.fill(0)
-	if (DotBotBrain as GDScript).get(&"phase_timers"):
-		var b_us: PackedInt64Array = (DotBotBrain as GDScript).get(&"phase_us")
+	GSWeaponArsenal.phase_us.fill(0)
+	GSWeaponArsenal.phase_calls.fill(0)
+	if (GSBotBrain as GDScript).get(&"phase_timers"):
+		var b_us: PackedInt64Array = (GSBotBrain as GDScript).get(&"phase_us")
 		b_us.fill(0)
-		(DotBotBrain as GDScript).set(&"phase_us", b_us)
+		(GSBotBrain as GDScript).set(&"phase_us", b_us)
 	_script_us.clear()
 	_phys_ms.clear()
 	_count = 0
@@ -427,7 +427,7 @@ func _serve() -> void:
 	game.register_service = true
 	add_child(game)
 	if _botstyles != "":
-		var _st := DotBotSettings.of(game).set_value("styles", _botstyles)
+		var _st := GSBotSettings.of(game).set_value("styles", _botstyles)
 	var map: FcMap = FcMap.by_id(StringName(_map))
 	if map == null and _map != "dm_box":
 		# Loud: an unknown id (cp_orange_x3 for cp-orange-x3) used to profile dm_box under the asked name.
@@ -442,7 +442,7 @@ func _serve() -> void:
 		get_tree().quit(1)
 		return
 	var module := server.modules.get_module("arena") as FcModule
-	var quota: DotBotQuota = module.get("_bot_quota")
+	var quota: GSBotQuota = module.get("_bot_quota")
 	# The server's own quota manages the bots (fixed N): an "off" quota removes every bot a second later.
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("fixed")
@@ -460,7 +460,7 @@ func _serve() -> void:
 		# empty hands, and p_weapons would time unarmed players. Spawn each one the way a respawn does (loadout too).
 		_respawn_dead(game, true)
 	await get_tree().create_timer(_settle).timeout
-	var net: DotNetManager = module.net
+	var net: GSNetManager = module.net
 	_pvs_net = net.interest != null and net.interest.visibility != null
 	_pvs_game = game.has_meta(FcBotPvs.META)
 	var before: Dictionary = net.perf_counters()
@@ -485,8 +485,8 @@ func _serve() -> void:
 		"net_ticks": nt, "snapshot_every_ticks": net.config.ticks_per_snapshot(),
 		"snapshot_hz": net.config.snapshot_rate, "entities": net.registry.all().size(),
 		# Whether dot-sim's hitscan spread tick is loaded: false with a dot-sim build older than its weapon module, where
-		# every weapon tick runs the GDScript fallback (--weapab toggles DotWeaponHitscan.native_tick on top of this).
-		"weapon_native_loaded": ClassDB.class_exists(&"DotSimWeaponSpread"),
+		# every weapon tick runs the GDScript fallback (--weapab toggles GSWeaponHitscan.native_tick on top of this).
+		"weapon_native_loaded": ClassDB.class_exists(&"GSSimWeaponSpread"),
 	})
 	get_tree().quit()
 
@@ -553,7 +553,7 @@ func _offline() -> void:
 		spin += 0.25
 		var g0 = client.get("game")
 		var p0 = client.get("player")
-		if g0 != null and p0 != null and p0.is_alive() and g0.match_node != null and g0.match_node.state == DotMatch.State.LIVE:
+		if g0 != null and p0 != null and p0.is_alive() and g0.match_node != null and g0.match_node.state == GSMatch.State.LIVE:
 			break
 	var g = client.get("game")
 	g.tick_rate = _tick

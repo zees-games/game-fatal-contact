@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 ## Saved loadouts survive a restart and a reconnect: a new store, manager and identity get them back.
 ##
@@ -20,15 +20,15 @@ class FakeIdentity:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	_run.call_deferred()
 
 
-func _make(dir: String) -> DotLoadoutManager:
-	var manager := DotLoadoutManager.new()
+func _make(dir: String) -> GSLoadoutManager:
+	var manager := GSLoadoutManager.new()
 	manager.register_service = false
 	manager.schema = FcContent.loadout_schema()
-	var config := DotLoadoutConfig.new()
+	var config := GSLoadoutConfig.new()
 	config.backend = "local"
 	config.allow_default_loadout = true
 	config.conform_on_load = true
@@ -38,8 +38,8 @@ func _make(dir: String) -> DotLoadoutManager:
 	return manager
 
 
-func _session(userid: int, with_identity: bool) -> DotClientSession:
-	var session := DotClientSession.new()
+func _session(userid: int, with_identity: bool) -> GSClientSession:
+	var session := GSClientSession.new()
 	session.userid = userid
 	if with_identity:
 		session.identity = FakeIdentity.new()
@@ -48,7 +48,7 @@ func _session(userid: int, with_identity: bool) -> DotClientSession:
 
 func _run() -> void:
 	print("arena: saved loadouts persist")
-	DotPaths.remove_tree(ROOT)
+	GSPaths.remove_tree(ROOT)
 
 	var who := FcLoadoutIdentity.new()
 	who.feed.scope_key_file = ROOT + "/scope.key"
@@ -59,12 +59,12 @@ func _run() -> void:
 
 	var first := _make(ROOT)
 	for label: String in ["Rusher", "Sniper", "Medic"]:
-		var saved: DotResult = await first.save_as(key, first.schema.default_loadout(), label)
+		var saved: GSResult = await first.save_as(key, first.schema.default_loadout(), label)
 		_check(saved.ok, "saves %s" % label, str(saved.error))
-	var _picked: DotResult = await first.select(key, 1)
-	var flag: DotResult = await first.set_random_spawn(key, true)
+	var _picked: GSResult = await first.select(key, 1)
+	var flag: GSResult = await first.set_random_spawn(key, true)
 	_check(flag.ok and first.random_spawn_for(key), "the Every spawn tick is accepted", str(flag.error))
-	var seat_saved: DotResult = await first.save_as(who.key_of(9), first.schema.default_loadout(), "Seat")
+	var seat_saved: GSResult = await first.save_as(who.key_of(9), first.schema.default_loadout(), "Seat")
 	_check(seat_saved.ok and DirAccess.get_files_at(ROOT).size() == 1, "a seat key stays in memory (only the stable key has a file)", str(DirAccess.get_files_at(ROOT)))
 	first.queue_free()
 	remove_child(first)
@@ -73,7 +73,7 @@ func _run() -> void:
 	var rejoin := FcLoadoutIdentity.new()
 	rejoin.feed.scope_key_file = ROOT + "/scope.key"
 	var key2 := rejoin.bind(_session(31, true))
-	var _loaded: DotResult = await again.load_for(key2)
+	var _loaded: GSResult = await again.load_for(key2)
 	var list := again.saved_list(key2)
 	var names: Array = []
 	for entry in list:
@@ -84,9 +84,9 @@ func _run() -> void:
 	_check(again.selected_index(key2) == 1 and again.saved_list(key2).size() == 3, "and ticking it did not touch the loadouts")
 	var on_disk := FileAccess.get_file_as_string("%s/%s.json" % [ROOT, key2])
 	_check(on_disk.contains("random_spawn"), "the flag is in the stored file (the same user:// / IndexedDB path the loadouts use)")
-	var off: DotResult = await again.set_random_spawn(key2, false)
+	var off: GSResult = await again.set_random_spawn(key2, false)
 	var third := _make(ROOT)
-	var _l3: DotResult = await third.load_for(key2)
+	var _l3: GSResult = await third.load_for(key2)
 	_check(off.ok and not third.random_spawn_for(key2), "and unticking it survives the next restart too")
 	third.queue_free()
 	remove_child(third)
@@ -95,29 +95,29 @@ func _run() -> void:
 	_check(rejoin.key_of(31) == FcGame.storage_key(31), "a released player falls back to the seat key")
 
 	var path := "%s/%s.json" % [ROOT, key]
-	DotPaths.write_text(path, "{ not json", false)
+	GSPaths.write_text(path, "{ not json", false)
 	var broken := _make(ROOT)
-	var got: DotResult = await broken.load_for(key)
+	var got: GSResult = await broken.load_for(key)
 	_check(got.ok and FileAccess.file_exists(path + ".corrupt"), "a corrupt file is set aside, not fatal", str(got.error))
-	var healed: DotResult = await broken.save_as(key, broken.schema.default_loadout(), "Fresh")
+	var healed: GSResult = await broken.save_as(key, broken.schema.default_loadout(), "Fresh")
 	_check(healed.ok and FileAccess.file_exists(path), "and the player can save again", str(healed.error))
 	broken.queue_free()
 	remove_child(broken)
 
 	var capped := _make(ROOT + "_capped")
-	var tiered := capped.store as DotLoadoutStoreTiered
-	(tiered.durable as DotLoadoutStoreLocal).max_file_bytes = 200
-	var over: DotResult = await capped.save_as(key, capped.schema.default_loadout(), "Too big")
+	var tiered := capped.store as GSLoadoutStoreTiered
+	(tiered.durable as GSLoadoutStoreLocal).max_file_bytes = 200
+	var over: GSResult = await capped.save_as(key, capped.schema.default_loadout(), "Too big")
 	_check(not over.ok and not FileAccess.file_exists("%s_capped/%s.json" % [ROOT, key]), "a save past the byte cap is refused and writes nothing", str(over.error))
-	var caps_ok := (tiered.durable as DotLoadoutStoreLocal).max_files == 20000
+	var caps_ok := (tiered.durable as GSLoadoutStoreLocal).max_files == 20000
 	_check(caps_ok, "the file-count cap defaults on")
 	capped.queue_free()
 	remove_child(capped)
 	again.queue_free()
 	remove_child(again)
 
-	DotPaths.remove_tree(ROOT)
-	DotPaths.remove_tree(ROOT + "_capped")
+	GSPaths.remove_tree(ROOT)
+	GSPaths.remove_tree(ROOT + "_capped")
 	_free_by_default()
 	_report(CHECKS)
 
@@ -131,15 +131,15 @@ func _free_by_default() -> void:
 	_check(priced == 0, "every arena item is free by default", str(priced))
 	_check(schema.point_budget == 0, "and there is no point budget")
 	var pick := schema.default_loadout()
-	var everything := DotLoadoutEntitlements.everything()
+	var everything := GSLoadoutEntitlements.everything()
 	var heavy := schema.catalogue.find(&"minigun")
-	_check(heavy != null and DotLoadoutValidator.validate(pick, schema, everything).ok, "the default loadout validates with no pricing")
+	_check(heavy != null and GSLoadoutValidator.validate(pick, schema, everything).ok, "the default loadout validates with no pricing")
 	# A profile that prices a weapon (params.loadout_cost) and a server budget.
 	heavy.cost = 8
 	pick.set_item(&"primary", &"minigun")
-	_check(DotLoadoutValidator.validate(pick, schema, everything).ok, "a priced weapon is still free until a budget is set")
+	_check(GSLoadoutValidator.validate(pick, schema, everything).ok, "a priced weapon is still free until a budget is set")
 	schema.point_budget = 5
-	var over := DotLoadoutValidator.validate(pick, schema, everything)
-	_check(not over.ok and DotLoadoutRules.CVAR_BUDGET in str(over.error) and "loadout_cost" in str(over.error), "a costed weapon over the budget is refused, naming the cvar and the field", str(over.error))
+	var over := GSLoadoutValidator.validate(pick, schema, everything)
+	_check(not over.ok and GSLoadoutRules.CVAR_BUDGET in str(over.error) and "loadout_cost" in str(over.error), "a costed weapon over the budget is refused, naming the cvar and the field", str(over.error))
 	heavy.cost = 0
-	_check(DotLoadoutValidator.validate(pick, schema, everything).ok, "free again once the profile drops the cost")
+	_check(GSLoadoutValidator.validate(pick, schema, everything).ok, "free again once the profile drops the cost")

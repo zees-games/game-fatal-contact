@@ -17,7 +17,7 @@ func _run() -> void:
 	for f in 60:
 		await process_frame
 	print("profiler_menu_shot: client up after %d ms" % Time.get_ticks_msec())
-	var prof: Object = DotRegistry.get_service(&"dot_profiler")
+	var prof: Object = GSRegistry.get_service(&"dot_profiler")
 	var menu: Object = scene.get(&"game_menu")
 	if prof == null or menu == null:
 		print("profiler_menu_shot: FAIL profiler=%s menu=%s" % [prof != null, menu != null])

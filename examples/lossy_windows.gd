@@ -3,12 +3,12 @@ extends "lossy_base.gd"
 
 
 ## A runs forward, strafes left and right, and turns: a constant input is not an input.
-func _command_a(tick: int) -> DotFpsCommand:
+func _command_a(tick: int) -> GSFpsCommand:
 	if _wall_idle:
 		if _hop_from >= 0:
 			return _pilot_command(tick - _hop_from) if _hop_pilot else _hop_command(tick - _hop_from)
 		return _wall_command(tick - _wall_from if _wall_from >= 0 else -1)
-	var move := DotFpsCommand.new()
+	var move := GSFpsCommand.new()
 	var strafe := 1.0 if (tick / 24) % 2 == 0 else -1.0
 	move.move = Vector2(strafe * 0.6, 0.8)
 	move.yaw = fmod(float(tick) * 1.4, 360.0)
@@ -16,31 +16,31 @@ func _command_a(tick: int) -> DotFpsCommand:
 	if _stam_from >= 0 and tick >= _stam_from:
 		var k := (tick - _stam_from) % _ticks(200)
 		if k < _ticks(120):
-			move.buttons |= DotFpsCommand.BUTTON_SPRINT
+			move.buttons |= GSFpsCommand.BUTTON_SPRINT
 		if k % _ticks(70) == 0:
-			move.buttons |= DotFpsCommand.BUTTON_JUMP
+			move.buttons |= GSFpsCommand.BUTTON_JUMP
 	return move
 
 
 ## A's wall script on dm_box's north wall, by ticks into it: run east along the wall, jump, dash in the air (15 m/s along the wall, past `wall_run_min_speed`) and run the wall,
 ## jump off it 35 ticks later, then hold still once down. Read off the tick alone, so the server runs exactly the commands A predicted with. Before it starts (negative), stand.
-func _wall_command(k: int) -> DotFpsCommand:
-	var move := DotFpsCommand.new()
+func _wall_command(k: int) -> GSFpsCommand:
+	var move := GSFpsCommand.new()
 	move.yaw = -90.0
 	if k < 0 or k > _t66(120):
 		return move
 	move.move = Vector2(0.0, 1.0)
 	if k == _t66(12) or k == _t66(50):
-		move.buttons |= DotFpsCommand.BUTTON_JUMP
+		move.buttons |= GSFpsCommand.BUTTON_JUMP
 	if k == _t66(15) or (_wall_hold_sprint and k > _t66(15) and k < _t66(100)):
-		move.buttons |= DotFpsCommand.BUTTON_SPRINT
+		move.buttons |= GSFpsCommand.BUTTON_SPRINT
 	return move
 
 
 ## A holds forward into dm_box's east wall and hops, jump held and let go in uneven stretches.
 ## Read off the tick alone, so the server runs the commands A predicted with.
-func _hop_command(k: int) -> DotFpsCommand:
-	var move := DotFpsCommand.new()
+func _hop_command(k: int) -> GSFpsCommand:
+	var move := GSFpsCommand.new()
 	move.yaw = -90.0
 	if k < 0:
 		return move
@@ -51,7 +51,7 @@ func _hop_command(k: int) -> DotFpsCommand:
 		var hold := 20 + (i * 7) % 30
 		var rest := 5 + (i * 3) % 9
 		if k < at + hold:
-			move.buttons |= DotFpsCommand.BUTTON_JUMP
+			move.buttons |= GSFpsCommand.BUTTON_JUMP
 			return move
 		if k < at + hold + rest:
 			return move
@@ -62,8 +62,8 @@ func _hop_command(k: int) -> DotFpsCommand:
 
 ## The netchaos pilot's habits, read off the tick: forward held, the view swinging 30 degrees either side of the wall,
 ## and every 0.3 to 1.2 s a new pick of strafe left, strafe right, jump held or nothing.
-func _pilot_command(k: int) -> DotFpsCommand:
-	var move := DotFpsCommand.new()
+func _pilot_command(k: int) -> GSFpsCommand:
+	var move := GSFpsCommand.new()
 	move.yaw = -90.0
 	if k < 0:
 		return move
@@ -77,7 +77,7 @@ func _pilot_command(k: int) -> DotFpsCommand:
 			match (((i * 31 + 7) * 2654435761) >> 8) % 4:
 				0: move.move.x = -1.0
 				1: move.move.x = 1.0
-				2: move.buttons |= DotFpsCommand.BUTTON_JUMP
+				2: move.buttons |= GSFpsCommand.BUTTON_JUMP
 			return move
 		at += span
 		i += 1
@@ -85,8 +85,8 @@ func _pilot_command(k: int) -> DotFpsCommand:
 
 
 ## B runs a circle: forward, turning at a steady rate, so its motion is smooth and known.
-func _command_b(tick: int) -> DotFpsCommand:
-	var move := DotFpsCommand.new()
+func _command_b(tick: int) -> GSFpsCommand:
+	var move := GSFpsCommand.new()
 	move.move = Vector2(0.0, 1.0)
 	move.yaw = fmod(float(tick) * 1.0, 360.0)
 	return move
@@ -94,9 +94,9 @@ func _command_b(tick: int) -> DotFpsCommand:
 
 func _begin_window() -> void:
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
-	var server_net: DotNetManager = _module().net
-	var buffer := server_net.input_buffer_for(int((a["link"] as DotClientLink).multiplayer.get_unique_id()))
+	var net: GSNetManager = a["net"]
+	var server_net: GSNetManager = _module().net
+	var buffer := server_net.input_buffer_for(int((a["link"] as GSClientLink).multiplayer.get_unique_id()))
 
 	_relay.reset_counts()
 	net.interpolator.reset_counts()
@@ -192,7 +192,7 @@ func _pump_window(seconds: float) -> void:
 	var next_chat := started + 150
 	var next_a_chat := started + 300
 	var next_slay := started + 500
-	var link_a: DotClientLink = _clients["A"]["link"]
+	var link_a: GSClientLink = _clients["A"]["link"]
 
 	while true:
 		var now := (Engine.get_physics_frames() - started_frame) * 1000 / Engine.physics_ticks_per_second
@@ -232,8 +232,8 @@ func _measure_window(
 	sent_a_chat: Array, got_a_chat: Array
 ) -> void:
 	var a: Dictionary = _clients["A"]
-	var net: DotNetManager = a["net"]
-	var link: DotClientLink = a["link"]
+	var net: GSNetManager = a["net"]
+	var link: GSClientLink = a["link"]
 	var said: Dictionary = _relay.describe()
 
 	# connection: both ends. A client whose server dropped it does not find out until its own
@@ -241,7 +241,7 @@ func _measure_window(
 	# disconnected A and A had heard nothing for seconds (see dot-core's peer_timeout_*).
 	var a_session := int(a["session"])
 	var on_server := _game.player_for(a_session) != null
-	_check(link.phase == DotClientLink.Phase.PLAYING and String(a["gone"][0]) == "" and on_server,
+	_check(link.phase == GSClientLink.Phase.PLAYING and String(a["gone"][0]) == "" and on_server,
 		"%s: A is still connected and playing, on both ends" % title,
 		"gone: '%s', on the server: %s" % [a["gone"][0], on_server])
 	var injected_down := float(_relay.down.loss_ratio())
@@ -267,7 +267,7 @@ func _measure_window(
 		max_lead = maxi(max_lead, l)
 	var snaps := int(net.clock.get("_snap_count")) - int(_w["snaps"])
 	var catch_ups := int(net.clock.get("_catch_up_count")) - int(_w["catch_ups"])
-	var buffer: DotNetInput.Buffer = _w["buffer"]
+	var buffer: GSNetInput.Buffer = _w["buffer"]
 	var late := buffer.late_count - int(_w["late"])
 	var starved := buffer.starved_count - int(_w["starved"])
 	var ticks_run := net.clock.input_tick() - int(_w["first_tick"])
@@ -377,14 +377,14 @@ func _measure_window(
 		"%s: A's prediction within 5 cm of the server's for 95%% of ticks, corrected in %.0f%% of replays" % [title, rate * 100.0],
 		"p95 %.3f, max %.3f" % [d95, dmax])
 
-	# --- what DotNetStats says ---
+	# --- what GSNetStats says ---
 	var lost := net.stats.snapshots_lost - int(_w["stats_lost"])
 	var received := net.stats.snapshots_received - int(_w["stats_received"])
 	var reported := float(lost) / float(maxi(1, lost + received))
-	print("    DotNetStats: %d snapshots received, %d inferred lost: %.3f, against %.3f injected" % [
+	print("    GSNetStats: %d snapshots received, %d inferred lost: %.3f, against %.3f injected" % [
 		received, lost, reported, injected_down])
 	_check(absf(reported - injected_down) <= 0.05,
-		"%s: DotNetStats reports a loss near the injected one (%.3f vs %.3f)" % [title, reported, injected_down])
+		"%s: GSNetStats reports a loss near the injected one (%.3f vs %.3f)" % [title, reported, injected_down])
 
 	# --- reliable streams ---
 	_check(not sent_notices.is_empty() and got_notices == sent_notices,
@@ -433,9 +433,9 @@ func _edge_holes(from: int, to: int, command_of: Callable) -> Array[int]:
 		while _hop_starved.has(first - 1):
 			first -= 1
 		# The tick is read a frame after the server ran it, so one either side counts.
-		var held: DotFpsCommand = command_of.call(first - 2)
+		var held: GSFpsCommand = command_of.call(first - 2)
 		for u in range(first - 1, h + 2):
-			var c: DotFpsCommand = command_of.call(u)
+			var c: GSFpsCommand = command_of.call(u)
 			if c.buttons != held.buttons or c.move != held.move or not is_equal_approx(c.yaw, held.yaw):
 				out.append(h)
 				break
@@ -454,7 +454,7 @@ func _note_stall_ticks() -> void:
 
 
 func _wall_holes(from: int) -> Array[int]:
-	return _edge_holes(from, from + 120, func(t: int) -> DotFpsCommand: return _wall_command(t - from))
+	return _edge_holes(from, from + 120, func(t: int) -> GSFpsCommand: return _wall_command(t - from))
 
 
 ## Server ticks a snapshot takes to reach A at worst: the relay's 55 ms and 25 ms of jitter, and two lost in a row.
@@ -464,7 +464,7 @@ func _down_ticks() -> int:
 
 ## The input ticks A predicted before it could know of each of [param holes]: from the hole until the
 ## snapshot of it is down, A's lead further on. Its prediction of those is not held to the server's.
-func _excused(holes: Array[int], net: DotNetManager) -> Dictionary:
+func _excused(holes: Array[int], net: GSNetManager) -> Dictionary:
 	var out := {}
 	var reach := maxi(0, net.clock.input_tick() - _game.current_tick()) + _down_ticks() + 1
 	for h in holes:

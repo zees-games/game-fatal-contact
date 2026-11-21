@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcGame := preload("../game/fc_game.gd")
@@ -21,7 +21,7 @@ const SECTIONS := 1
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -115,10 +115,10 @@ func _climb(game: FcGame, bot: FcPlayer, goal: Vector3, seed_value: int, tick: i
 
 
 ## Up to a few {foot, goal}: a ladder's foot and a mesh point on its top platform 4 to 8 m off whose route to the foot crosses a ladder ride and cannot be walked.
-func _tries(nav: DotBotNav, space: PhysicsDirectSpaceState3D, volumes: Array[AABB], hull: float) -> Array[Dictionary]:
+func _tries(nav: GSBotNav, space: PhysicsDirectSpaceState3D, volumes: Array[AABB], hull: float) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for ride in nav.rides():
-		if int(ride["id"]) < DotBotLinks.LADDER_ID or out.size() >= TRIES:
+		if int(ride["id"]) < GSBotLinks.LADDER_ID or out.size() >= TRIES:
 			continue
 		var foot: Vector3 = ride["from"]
 		var top: Vector3 = ride["to"]
@@ -133,7 +133,7 @@ func _tries(nav: DotBotNav, space: PhysicsDirectSpaceState3D, volumes: Array[AAB
 			var rides: PackedInt32Array = way["rides"]
 			var climbs := false
 			for r in rides:
-				climbs = climbs or r >= DotBotLinks.LADDER_ID
+				climbs = climbs or r >= GSBotLinks.LADDER_ID
 			if climbs:
 				out.append({"foot": foot, "goal": at})
 				break

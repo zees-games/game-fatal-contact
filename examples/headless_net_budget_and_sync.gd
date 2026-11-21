@@ -55,8 +55,8 @@ func _test_predicted_node_is_not_moved() -> void:
 	print("")
 	_section("[the predicted entity's node]")
 
-	# `DotNetManager.receive_snapshot` calls `read_state` — and therefore `_net_state_applied` —
-	# BEFORE `DotNetPredictor.reconcile`, and the first thing reconcile does is read the node as
+	# `GSNetManager.receive_snapshot` calls `read_state` — and therefore `_net_state_applied` —
+	# BEFORE `GSNetPredictor.reconcile`, and the first thing reconcile does is read the node as
 	# "what the client is showing" so it can measure the correction.
 	var behaviour := (_clients[2]["bridge"] as FcNetBridge).behaviour_for(11)
 
@@ -72,7 +72,7 @@ func _test_predicted_node_is_not_moved() -> void:
 	var parked := Vector3(123.0, 4.0, 56.0)
 	player.global_position = parked
 	behaviour.net_position = Vector3(7.0, 0.0, 7.0)
-	behaviour._net_state_applied((_clients[2]["net"] as DotNetManager).clock.tick)
+	behaviour._net_state_applied((_clients[2]["net"] as GSNetManager).clock.tick)
 
 	_check(
 		player.global_position.is_equal_approx(parked),
@@ -95,7 +95,7 @@ func _test_predicted_node_is_not_moved() -> void:
 
 	remote.player.global_position = parked
 	remote.net_position = Vector3(3.0, 0.0, 3.0)
-	remote._net_state_applied((_clients[2]["net"] as DotNetManager).clock.tick)
+	remote._net_state_applied((_clients[2]["net"] as GSNetManager).clock.tick)
 
 	_check(
 		not remote.player.global_position.is_equal_approx(parked),
@@ -119,7 +119,7 @@ func _test_config_agreement() -> void:
 	)
 
 	for peer_id in _clients:
-		var net: DotNetManager = _clients[peer_id]["net"]
+		var net: GSNetManager = _clients[peer_id]["net"]
 
 		_check(
 			is_equal_approx(net.config.world_extent, _server_net.config.world_extent),
@@ -141,7 +141,7 @@ func _test_config_agreement() -> void:
 	var server_hash := _server_net.messages.schema_hash()
 
 	for peer_id in _clients:
-		var net: DotNetManager = _clients[peer_id]["net"]
+		var net: GSNetManager = _clients[peer_id]["net"]
 
 		_check(
 			net.messages.schema_hash() == server_hash,
@@ -176,7 +176,7 @@ class EngineErrors extends Logger:
 
 
 ## dot-map's announce/ready/load protocol, over this game's own link: two [FcNetLink]s, a
-## real [DotMapSyncHost] and [DotMapSyncClient], payloads through the same `send_map` a socket
+## real [GSMapSyncHost] and [GSMapSyncClient], payloads through the same `send_map` a socket
 ## would use. dot-map's own suite only runs a loopback `send_fn`.
 func _test_map_sync_wire() -> void:
 	print("")
@@ -212,7 +212,7 @@ func _test_map_sync_wire() -> void:
 	session.catalogue = catalogue
 	add_child(session)
 
-	var host := DotMapSyncHost.new()
+	var host := GSMapSyncHost.new()
 	host.name = "MapHost"
 	host.session = session
 	host.sync_timeout_sec = 5.0
@@ -220,7 +220,7 @@ func _test_map_sync_wire() -> void:
 		server_link.send_map(peer, payload)
 	add_child(host)
 
-	# The FOLLOWER needs a catalogue too: `DotMapSyncClient` accepts an announced map only if
+	# The FOLLOWER needs a catalogue too: `GSMapSyncClient` accepts an announced map only if
 	# it is in its own catalogue at the same version, else it refuses with "a host may not
 	# send a map that is not delivered content".
 	var client_game: FcGame = client_entry["game"]
@@ -231,7 +231,7 @@ func _test_map_sync_wire() -> void:
 	follower_session.catalogue = FcMaps.catalogue()
 	add_child(follower_session)
 
-	var follower := DotMapSyncClient.new()
+	var follower := GSMapSyncClient.new()
 	follower.name = "MapFollower"
 	follower.session = follower_session
 	follower.accept_unknown_maps = true
@@ -239,11 +239,11 @@ func _test_map_sync_wire() -> void:
 		client_link.send_map_report(payload)
 	add_child(follower)
 
-	# One argument. `DotMapSyncClient.changed` carries the map and nothing else, unlike
-	# `DotMapSession.changed`, which carries the world as well.
+	# One argument. `GSMapSyncClient.changed` carries the map and nothing else, unlike
+	# `GSMapSession.changed`, which carries the world as well.
 	# A client set up on the map the server then announces first (a sim host's) keeps the world it built.
 	var combat_before := client_game.combat
-	var same: DotResult = await follower_session.change_to_map(catalogue.get_map(client_game.map.id))
+	var same: GSResult = await follower_session.change_to_map(catalogue.get_map(client_game.map.id))
 	_check(
 		same.ok and follower_session.current != null and client_game.combat == combat_before,
 		"a first announcement of the client's own map keeps the world it was set up with",
@@ -251,7 +251,7 @@ func _test_map_sync_wire() -> void:
 	)
 
 	var loads: Array[StringName] = []
-	follower.changed.connect(func(map: DotMapDef) -> void: loads.append(map.id))
+	follower.changed.connect(func(map: GSMapDef) -> void: loads.append(map.id))
 
 	_server_bridge.map_report_fn = func(peer: int, payload: Dictionary) -> void:
 		host.handle(peer, payload)
@@ -262,7 +262,7 @@ func _test_map_sync_wire() -> void:
 	host.add_peer(2)
 
 	var target: StringName = &"dm_atrium" if _server_game.map.id == &"dm_box" else &"dm_box"
-	var changed: DotResult = await host.change_to(target)
+	var changed: GSResult = await host.change_to(target)
 
 	_check(changed.ok, "the server changes map with a peer following", str(changed.error))
 	_check(

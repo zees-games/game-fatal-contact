@@ -4,7 +4,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 const ClientBench := preload("client_bench.gd")
 
 ## A whole solo match on the real client with bots, every frame over a threshold logged with
-## what changed in it (dot-core's DotHitchLog): respawns, the kill-cam, the match summary.
+## what changed in it (dot-core's GSHitchLog): respawns, the kill-cam, the match summary.
 ## Window it on a GPU, because software GL makes every frame a hitch:
 ##
 ## [codeblock]
@@ -26,7 +26,7 @@ var _boom := 10.0
 var _top := 25
 var _gate_open := false
 var _boomed := false
-var _hitch := DotHitchLog.new()
+var _hitch := GSHitchLog.new()
 var _client: Node = null
 var _state := -2
 var _cam := false
@@ -51,7 +51,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	DotFrameCost.enabled = true
+	GSFrameCost.enabled = true
 	_hitch.threshold_ms = _threshold
 	_hitch.start(get_tree())
 	_t0 = Time.get_ticks_usec()
@@ -82,7 +82,7 @@ func _run() -> void:
 			if g.match_node.rules != null and g.match_node.rules.time_limit_sec != _time:
 				g.match_node.rules.score_limit = _score
 				g.match_node.rules.time_limit_sec = _time
-			if g.match_node.state == DotMatch.State.MATCH_END and ended_at < 0.0:
+			if g.match_node.state == GSMatch.State.MATCH_END and ended_at < 0.0:
 				ended_at = t
 		if (ended_at >= 0.0 and t > ended_at + _tail) or t > _seconds:
 			break

@@ -21,13 +21,13 @@ static func groups_for(map_id: StringName) -> PackedStringArray:
 
 ## Fetches and mounts [param map_id]'s group into this game's mounted pack before the level is built.
 ## Never fatal: a map without its bake still draws, so a failure is logged and the change goes on.
-static func top_up(map_id: StringName) -> DotResult:
+static func top_up(map_id: StringName) -> GSResult:
 	var root := FcPaths.root()
-	var cloud: Object = DotRegistry.get_service(DotMapLoader.CLOUD_SERVICE)
+	var cloud: Object = GSRegistry.get_service(GSMapLoader.CLOUD_SERVICE)
 	if map_id == &"" or root == "res://" or cloud == null or not cloud.has_method(&"ensure_groups_at"):
-		return DotResult.success(false)
-	var got: DotResult = await cloud.call(&"ensure_groups_at", root, groups_for(map_id))
+		return GSResult.success(false)
+	var got: GSResult = await cloud.call(&"ensure_groups_at", root, groups_for(map_id))
 	if not got.ok:
-		DotLog.warn(CHANNEL, "could not fetch the map's files", {"map": String(map_id), "why": got.error.message})
+		GSLog.warn(CHANNEL, "could not fetch the map's files", {"map": String(map_id), "why": got.error.message})
 		return got
-	return DotResult.success(true)
+	return GSResult.success(true)

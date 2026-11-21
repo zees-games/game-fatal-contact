@@ -1,4 +1,4 @@
-extends DotFpsHullBody
+extends GSFpsHullBody
 
 
 static func hull_at(feet: Vector3, height: float, radius: float) -> AABB:

@@ -4,20 +4,20 @@ extends "fc_player_figure.gd"
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const FcScopePrefs := preload("fc_scope_prefs.gd")
 const FcScopeBody := preload("fc_scope_body.gd")
-## How far above its origin a drawn body looks for the floor to stand on, metres ([member DotHumanoidFigure.floor_reach]).
+## How far above its origin a drawn body looks for the floor to stand on, metres ([member GSHumanoidFigure.floor_reach]).
 const FIGURE_FLOOR_REACH := 0.6  # under the 0.69 m crouched hull: nothing it stands under is in reach
 
 ## Breaks this player's body apart on a death: [param rules] decides how much. Client
 ## side, drawing only. [param direction] is the way the killing hit travelled; the seed
 ## is the victim and the tick, so every client breaks the same body the same way.
 func break_body(
-	rules: DotPlayerBreakRules, direction: Vector3, p_seed: int, critical: bool
-) -> DotPlayerBodyBreak:
+	rules: GSPlayerBreakRules, direction: Vector3, p_seed: int, critical: bool
+) -> GSPlayerBodyBreak:
 	if body_mesh == null or rules == null:
 		return null
 
-	var before := DotPlayerBodyBreak.visible_meshes(body_mesh)
-	var made := DotPlayerBodyBreak.break_apart(
+	var before := GSPlayerBodyBreak.visible_meshes(body_mesh)
+	var made := GSPlayerBodyBreak.break_apart(
 		body_mesh, get_parent(), rules, global_position, direction, p_seed, true, critical
 	)
 
@@ -36,7 +36,7 @@ func break_body(
 ## This player's body falls: a ragdoll copied from what is drawn, built in [param yard] as [param death] says.
 ## Client side, drawing only; the figure stays hidden until [method _mend_body] draws it on respawn. Null when the
 ## style hides bodies or there is no body to copy. [param gun_prop] false leaves the gun to a real dropped weapon.
-func fall_body(yard: DotPlayerRagdolls, death: DotPlayerDeath, gun_prop: bool = true) -> DotPlayerRagdoll:
+func fall_body(yard: GSPlayerRagdolls, death: GSPlayerDeath, gun_prop: bool = true) -> GSPlayerRagdoll:
 	if yard == null or body_mesh == null or not body_mesh.is_inside_tree():
 		return null
 	# Already down and hidden: copying it again would build a second ragdoll from hidden meshes.
@@ -101,7 +101,7 @@ func held_may_show() -> bool:
 	if body_mesh != null and not body_mesh.visible:
 		return false
 	# A respawned body still in its death pose (the figure keeps it while in the air) lays its hand on the floor.
-	if figure != null and figure.state == DotPlayerAnimState.DEAD:
+	if figure != null and figure.state == GSPlayerAnimState.DEAD:
 		return false
 	var skin: MeshInstance3D = figure.mesh() if figure != null else null
 	return skin == null or skin.visible
@@ -253,12 +253,12 @@ func _range_held() -> void:
 		(part as GeometryInstance3D).visibility_range_end = held_draw_range
 
 ## [method FcAttach.held_code] for this body's own arsenal, worked out again only when the held slot or its
-## definition changes (`DotWeaponArsenal.fit` always puts a new definition in the slot). The code walks the whole
+## definition changes (`GSWeaponArsenal.fit` always puts a new definition in the slot). The code walks the whole
 ## attachments catalogue twice, and this runs per drawn body per frame: with varied bot guns it was ~0.6 ms a frame.
 func _held_code_cached() -> int:
-	var slot: DotWeaponSlot = arsenal.current() if arsenal != null else null
-	var def: DotWeaponDef = slot.def if slot != null else null
-	var cat: DotWeaponAttachments = arsenal.attachments if arsenal != null else null
+	var slot: GSWeaponSlot = arsenal.current() if arsenal != null else null
+	var def: GSWeaponDef = slot.def if slot != null else null
+	var cat: GSWeaponAttachments = arsenal.attachments if arsenal != null else null
 	if slot != _held_code_slot or def != _held_code_def or cat != _held_code_cat:
 		_held_code_slot = slot
 		_held_code_def = def
@@ -322,8 +322,8 @@ func rebuild_body() -> void:
 ## player who is invisible because their crest is from a newer build is worse than one
 ## drawn as a capsule — and `conform` already drops a part it does not have, so
 ## reaching this at all means the schema itself would not build.
-func _wear(avatar: DotAvatar) -> bool:
-	figure = DotHumanoidFigure.new()
+func _wear(avatar: GSAvatar) -> bool:
+	figure = GSHumanoidFigure.new()
 	figure.name = "Person"
 	body_mesh.add_child(figure)
 	var height := controller.tunables.stand_height if controller != null and controller.tunables != null else FcPlayerTunables.stand_height_m()
@@ -345,7 +345,7 @@ func _wear(avatar: DotAvatar) -> bool:
 		figure.sprint_speed = 6.0
 
 	if not figure.from_art:
-		DotLog.debug(CHANNEL, "the people's art is missing; using the capsule", {"player": player_id})
+		GSLog.debug(CHANNEL, "the people's art is missing; using the capsule", {"player": player_id})
 		body_mesh.remove_child(figure)
 		figure.queue_free()
 		figure = null
@@ -375,7 +375,7 @@ func _wear(avatar: DotAvatar) -> bool:
 ## `FcPlayer` drew a coloured capsule — a value produced correctly and consumed by
 ## nobody, which is this family's most repeated shape and which the "a method whose
 ## name occurs once" detector is what caught.
-func attach_body_mesh(colour: Color, avatar: DotAvatar = null) -> void:
+func attach_body_mesh(colour: Color, avatar: GSAvatar = null) -> void:
 	if body_mesh != null:
 		return
 
@@ -413,7 +413,7 @@ func attach_body_mesh(colour: Color, avatar: DotAvatar = null) -> void:
 	nose.position = Vector3(0.0, 1.5, -0.45)
 	body_mesh.add_child(nose)
 
-## Your own body in first person: [param mode] is DotPlayerViewRules' BODY_OFF, BODY_LEGS or
+## Your own body in first person: [param mode] is GSPlayerViewRules' BODY_OFF, BODY_LEGS or
 ## BODY_FULL. Client side, for the player at this keyboard; placed each frame by [method present]
 ## at the drawn feet, so it moves with the interpolated eye. The held gun's world model stays hidden.
 func present_own_body(mode: int, _yaw: float = 0.0) -> void:
@@ -425,7 +425,7 @@ func present_own_body(mode: int, _yaw: float = 0.0) -> void:
 		if _first_person != null:
 			_first_person.restore()
 		if figure != null:
-			figure.first_person = DotHumanoidOwnView.THIRD
+			figure.first_person = GSHumanoidOwnView.THIRD
 			figure.position = Vector3.ZERO
 		body_mesh.visible = true
 		_present_held()
@@ -435,7 +435,7 @@ func present_own_body(mode: int, _yaw: float = 0.0) -> void:
 		if _first_person != null:
 			_first_person.restore()
 		if figure != null:
-			figure.first_person = DotHumanoidOwnView.THIRD
+			figure.first_person = GSHumanoidOwnView.THIRD
 		if body_mesh != null:
 			body_mesh.visible = false
 		if held != null:
@@ -448,10 +448,10 @@ func present_own_body(mode: int, _yaw: float = 0.0) -> void:
 		held.visible = false
 	body_mesh.visible = true
 	if figure != null:
-		figure.first_person = DotHumanoidOwnView.BODY if mode >= 2 else DotHumanoidOwnView.LEGS
+		figure.first_person = GSHumanoidOwnView.BODY if mode >= 2 else GSHumanoidOwnView.LEGS
 		return
 	if _first_person == null:
-		_first_person = DotPlayerFirstPersonBody.new()
+		_first_person = GSPlayerFirstPersonBody.new()
 		_first_person.back_offset = 0.0
 		# What to keep, by name: the box avatars' parts are not named what a hide list would guess.
 		_first_person.shown_names = PackedStringArray(["leg", "foot", "shoe", "boot"])
@@ -465,7 +465,7 @@ func own_body_back(pitch: float) -> float:
 	return base + extra * clampf((down - 60.0) / 25.0, 0.0, 1.0)
 
 ## In first person: places your own body, when one is drawn, at the drawn feet behind the eye, with the wall-run roll.
-func _place_own_body(drawn: DotFpsState, delta: float) -> void:
+func _place_own_body(drawn: GSFpsState, delta: float) -> void:
 	if _tp_probe != null:
 		_tp_probe.reset()
 	if own_body_mode <= 0 or body_mesh == null or not body_mesh.visible:
@@ -474,7 +474,7 @@ func _place_own_body(drawn: DotFpsState, delta: float) -> void:
 	var back := own_body_back(drawn.pitch)
 	body_mesh.global_position = drawn.position + Basis(Vector3.UP, deg_to_rad(drawn.yaw)) * Vector3(0.0, 0.0, back)
 
-## What the body is doing now as [enum DotFpsState.Move] bits; remote players too (from the replicated state).
+## What the body is doing now as [enum GSFpsState.Move] bits; remote players too (from the replicated state).
 func move_flags() -> int:
 	return controller.state.move_flags() if controller != null and controller.state != null else 0
 
@@ -487,10 +487,10 @@ func _flashlight_hands(pressed: bool, delta: float) -> void:
 	if not flashlight_ready:
 		flashlight_ready = true
 		flashlight = FcFlashlight.starts_on(flashlight_cfg, flashlight_map)
-	if edge and is_alive() and flashlight_cfg.enabled and DotFlashlightRules.allowed_on(flashlight_cfg, flashlight_map):
-		flashlight = not flashlight and DotFlashlightRules.can_light(flashlight_cfg, flashlight_charge)
+	if edge and is_alive() and flashlight_cfg.enabled and GSFlashlightRules.allowed_on(flashlight_cfg, flashlight_map):
+		flashlight = not flashlight and GSFlashlightRules.can_light(flashlight_cfg, flashlight_charge)
 	if flashlight_cfg.battery:
-		flashlight_charge = DotFlashlightRules.step_charge(flashlight_cfg, flashlight_charge, flashlight, delta)
+		flashlight_charge = GSFlashlightRules.step_charge(flashlight_cfg, flashlight_charge, flashlight, delta)
 		if flashlight and flashlight_charge <= 0.0:
 			flashlight = false
 
@@ -522,12 +522,12 @@ func fit_hitboxes_to_crouch(crouch: float) -> void:
 		var y: float = box.get_meta(&"stand_y")
 		var h: float = box.get_meta(&"stand_h")
 		box.position.y = y * k
-		if box.shape == DotHitbox.Shape.CAPSULE:
+		if box.shape == GSHitbox.Shape.CAPSULE:
 			box.height = maxf(h * k, box.radius * 2.0 + 0.02)
 
 
 ## Sideways speed across the aim (positive right) that bends the wall-shot barrel; zero while wall-running, as the drawn view does.
-static func wall_shot_strafe(state: DotFpsState) -> float:
+static func wall_shot_strafe(state: GSFpsState) -> float:
 	if state.is_wall_running():
 		return 0.0
 	return state.velocity.dot(Basis(Vector3.UP, deg_to_rad(state.yaw)).x)
@@ -537,21 +537,21 @@ static func wall_shot_strafe(state: DotFpsState) -> float:
 var flag_one_hand := false
 
 ## Whether the rig has simulate_idle (fc-weapons API 24); the live shell pins 21, whose idle tick is simulate_tick with no context.
-static var idle_tick := DotAddonApi.build_level("fc_weapons") >= 24
+static var idle_tick := GSAddonApi.build_level("fc_weapons") >= 24
 
 ## Whether an idle tick hands the rig its posture as a row (fc-weapons API 33, simulate_idle_row): one native call per
 ## idle weapon instead of the arsenal asking idle_still and idle_posture. Bit-exact either way; off is the A/B arm.
-static var idle_row_lane := DotAddonApi.build_level("fc_weapons") >= 33
+static var idle_row_lane := GSAddonApi.build_level("fc_weapons") >= 33
 
 
 func simulate_tick(
 	tick: int,
 	delta: float,
-	movement_command: DotFpsCommand,
-	combat_command: DotWeaponCommand
-) -> DotWeaponOutcome:
+	movement_command: GSFpsCommand,
+	combat_command: GSWeaponCommand
+) -> GSWeaponOutcome:
 	if not health.alive:
-		return DotWeaponOutcome.nothing("Dead.")
+		return GSWeaponOutcome.nothing("Dead.")
 	tick_pre(tick, movement_command)
 	var t_ctl := Time.get_ticks_usec()
 	var d := body_delta(tick, delta, movement_command)
@@ -562,7 +562,7 @@ func simulate_tick(
 
 
 ## Body tiers (dot-bot 23, on above bot_tier_body_above players): ticks between this bot's motor ticks, written by [code]FcBots[/code]
-## from [method DotBotThinkTier.body_period] for a bot no person sees, nears or fights; 1 = every tick (people, and
+## from [method GSBotThinkTier.body_period] for a bot no person sees, nears or fights; 1 = every tick (people, and
 ## every bot while [code]bot_tier_body_every_near/far[/code] are 1 or the match has no more than [code]bot_tier_body_above[/code] players).
 var body_every: int = 1
 ## The tick of this player's last motor tick, for [method body_delta].
@@ -571,7 +571,7 @@ var body_last_tick: int = -1
 static var body_skipped := 0
 ## A gap longer than this (a death, a map change) is not made up.
 const BODY_MAX_GAP := 8
-## What [method body_delta] answered last, for the batched loop's [method DotFpsController.end_tick].
+## What [method body_delta] answered last, for the batched loop's [method GSFpsController.end_tick].
 var body_d := 0.0
 
 
@@ -579,7 +579,7 @@ var body_d := 0.0
 ## [member body_every] (its view still turns and its tick count still advances); else the ticks since its last
 ## motor tick times [param delta], so the skipped time is made up in one longer tick. Any edge ticks at once: a
 ## button change, a waiting push, or anything but walking on the ground (air, slide, wall run, ladder, swim).
-func body_delta(tick: int, delta: float, command: DotFpsCommand) -> float:
+func body_delta(tick: int, delta: float, command: GSFpsCommand) -> float:
 	var gap := tick - body_last_tick
 	if body_last_tick < 0 or gap <= 0 or gap > BODY_MAX_GAP:
 		body_last_tick = tick
@@ -605,7 +605,7 @@ var ctl_usec := 0
 
 
 ## [method simulate_tick] up to the controller's tick; the game's batched loop runs the controller's two halves itself.
-func tick_pre(tick: int, movement_command: DotFpsCommand) -> void:
+func tick_pre(tick: int, movement_command: GSFpsCommand) -> void:
 	var fine := FcFrameProbe.fine
 	var t_fine := Time.get_ticks_usec() if fine else 0
 	# Where the tick starts, for the pushes: "was this player in a booster last tick" is
@@ -616,7 +616,7 @@ func tick_pre(tick: int, movement_command: DotFpsCommand) -> void:
 	# previous_position() (dot-player-controller 25) is render_state(0.0).position without duplicating the state, once per player per tick.
 	_position_two_back = controller.previous_position()
 	ladder.now = tick
-	var view := DotFpsMotor._view_basis(controller.state.yaw, 0.0)
+	var view := GSFpsMotor._view_basis(controller.state.yaw, 0.0)
 	var intent: Vector3 = view.right * movement_command.move.x + view.forward * movement_command.move.y
 	ladder.wish = Vector3(intent.x, 0.0, intent.z).normalized()
 	_hull_tick = tick
@@ -626,7 +626,7 @@ func tick_pre(tick: int, movement_command: DotFpsCommand) -> void:
 
 
 ## [method simulate_tick] after the controller's tick: the map's mechanics, the health and the weapons.
-func tick_post(tick: int, delta: float, combat_command: DotWeaponCommand) -> DotWeaponOutcome:
+func tick_post(tick: int, delta: float, combat_command: GSWeaponCommand) -> GSWeaponOutcome:
 	if tick_post_head(tick, delta, combat_command):
 		var still := _idle_row()
 		return tick_idle_row(_posture_row, still)
@@ -635,7 +635,7 @@ func tick_post(tick: int, delta: float, combat_command: DotWeaponCommand) -> Dot
 
 ## [method tick_post] up to its weapons. True when they tick idle through the row lane: the caller then hands
 ## [method tick_idle_row] the posture row (FcGame's batched loop fills every such player's in one dot-sim call).
-func tick_post_head(tick: int, delta: float, combat_command: DotWeaponCommand) -> bool:
+func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) -> bool:
 	var fine := FcFrameProbe.fine
 	var t_fine := Time.get_ticks_usec() if fine else 0
 	_post_moved = false
@@ -679,9 +679,9 @@ func tick_post_head(tick: int, delta: float, combat_command: DotWeaponCommand) -
 
 ## The idle weapon tick of a [method tick_post_head] that answered true: [param row] is [method _idle_row]'s
 ## (its first 9 floats), [param still] its still flag.
-func tick_idle_row(row: PackedFloat64Array, still: bool) -> DotWeaponOutcome:
+func tick_idle_row(row: PackedFloat64Array, still: bool) -> GSWeaponOutcome:
 	var t_wp := Time.get_ticks_usec()
-	var out: DotWeaponOutcome = weapons.call(&"simulate_idle_row", _command, _posture_tick, row, still)
+	var out: GSWeaponOutcome = weapons.call(&"simulate_idle_row", _command, _posture_tick, row, still)
 	_idle_hands()
 	FcFrameProbe.add(&"p_weapons", t_wp)
 	if FcFrameProbe.fine:
@@ -690,9 +690,9 @@ func tick_idle_row(row: PackedFloat64Array, still: bool) -> DotWeaponOutcome:
 
 
 ## The weapon tick of a [method tick_post_head] that answered false.
-func tick_weapons(tick: int) -> DotWeaponOutcome:
+func tick_weapons(tick: int) -> GSWeaponOutcome:
 	var t_wp := Time.get_ticks_usec()
-	var out: DotWeaponOutcome
+	var out: GSWeaponOutcome
 	# A shooter with nothing pressed and nothing under way ticks the weapon in hand and no more: the rig
 	# builds its own posture then, so the context below (a dozen writes and an extra dictionary) is skipped.
 	if _idle_now:
@@ -724,11 +724,11 @@ func _idle_hands() -> void:
 		hands.set_sprinting(controller.state.sprinting)
 
 ## The weapon context of a tick that does more than idle.
-func _weapon_context(tick: int, muzzle: Vector3, state: DotFpsState) -> DotWeaponContext:
+func _weapon_context(tick: int, muzzle: Vector3, state: GSFpsState) -> GSWeaponContext:
 	# Pushed in from the simulated state, never read out of a rendered one: an
 	# interpolated position differs between client and server by design, and feeding it
 	# to the spread makes the spread differ too.
-	var ctx := DotWeaponContext.make(
+	var ctx := GSWeaponContext.make(
 		player_id, tick, muzzle, _command.aim_direction()
 	)
 	ctx.speed = state.horizontal_speed()

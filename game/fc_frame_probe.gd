@@ -50,8 +50,8 @@ static var fine_on_record: bool = true
 
 
 ## `cl_perf_split 1` (`--cl_perf_split 1`, `?cl_perf_split=1`): the report also splits `p_controller` into its phases
-## (`ctl_<phase>`, DotFpsController.phase_us) and dot-sim's native motor queries and ticks (`mt_<slot>`,
-## DotSimFpsBody.profile_counters), which no browser profiler reaches. Off by default: clock reads per player tick.
+## (`ctl_<phase>`, GSFpsController.phase_us) and dot-sim's native motor queries and ticks (`mt_<slot>`,
+## GSSimFpsBody.profile_counters), which no browser profiler reaches. Off by default: clock reads per player tick.
 static var split: bool = false
 const CTL_PHASES := ["pre", "consume", "motor", "publish", "report", "signals", "post", "setpos"]
 const MT_SLOTS := ["cast", "rest", "overlap", "ray", "tick"]
@@ -73,28 +73,28 @@ static func from_launch() -> void:
 
 static func set_split(enabled: bool) -> void:
 	split = enabled
-	DotFpsController.phase_timers = enabled
-	DotFpsController.phase_us.fill(0)
-	if ClassDB.class_exists(&"DotSimFpsBody"):
-		ClassDB.class_call_static(&"DotSimFpsBody", &"reset_profile")
-		ClassDB.class_call_static(&"DotSimFpsBody", &"set_profile", enabled)
+	GSFpsController.phase_timers = enabled
+	GSFpsController.phase_us.fill(0)
+	if ClassDB.class_exists(&"GSSimFpsBody"):
+		ClassDB.class_call_static(&"GSSimFpsBody", &"reset_profile")
+		ClassDB.class_call_static(&"GSSimFpsBody", &"set_profile", enabled)
 
 
 ## Adds the split rows for a report over [param n] frames to [param report], then restarts their counters.
 static func _split_rows(report: Dictionary, n: int) -> void:
 	var ctl_row: PackedInt64Array = _sections.get(&"p_controller", PackedInt64Array([0, 0, 0]))
 	var calls := float(ctl_row[1]) / n
-	var us := DotFpsController.phase_us
+	var us := GSFpsController.phase_us
 	for i in mini(CTL_PHASES.size(), us.size()):
 		report["ctl_" + CTL_PHASES[i]] = "%.2f ms/frame max 0.0 x%.1f" % [float(us[i]) / n / 1000.0, calls]
 	us.fill(0)
-	if not ClassDB.class_exists(&"DotSimFpsBody"):
+	if not ClassDB.class_exists(&"GSSimFpsBody"):
 		return
-	var c: PackedInt64Array = ClassDB.class_call_static(&"DotSimFpsBody", &"profile_counters")
+	var c: PackedInt64Array = ClassDB.class_call_static(&"GSSimFpsBody", &"profile_counters")
 	for i in mini(MT_SLOTS.size(), c.size() / 2):
 		report["mt_" + MT_SLOTS[i]] = "%.2f ms/frame max 0.0 x%.1f" % [
 			float(c[i * 2 + 1]) / n / 1000.0, float(c[i * 2]) / n]
-	ClassDB.class_call_static(&"DotSimFpsBody", &"reset_profile")
+	ClassDB.class_call_static(&"GSSimFpsBody", &"reset_profile")
 
 
 ## A launch option for a measurement, from `--name value` or the page's `?name=value`; ""
@@ -105,7 +105,7 @@ static func launch_value(option: String) -> String:
 	var index := args.find("--" + option)
 	if index >= 0 and index + 1 < args.size():
 		return args[index + 1]
-	return DotWeb.query_param(option) if DotWeb.available() else ""
+	return GSWeb.query_param(option) if GSWeb.available() else ""
 
 
 static func set_interval(seconds: float) -> void:
@@ -115,17 +115,17 @@ static func set_interval(seconds: float) -> void:
 
 
 ## Adds the time since [param since_usec] to [param section]: `var t := Time.get_ticks_usec()` before the work, `FcFrameProbe.add(&"name", t)` after.
-## While the dot profiler records ([member DotFrameCost.enabled]) the time is also charged to [DotFrameCost] as `arena.<section>`, so a recorded profile's hitches name the section (`r_held`, `bot_after`, ...) instead of a bare `engine.script`.
+## While the dot profiler records ([member GSFrameCost.enabled]) the time is also charged to [GSFrameCost] as `arena.<section>`, so a recorded profile's hitches name the section (`r_held`, `bot_after`, ...) instead of a bare `engine.script`.
 static func add(section: StringName, since_usec: int) -> void:
 	var spent := Time.get_ticks_usec() - since_usec
 	if spent >= FcLoadTimeline.SLOW_SECTION_USEC and FcLoadTimeline.tracing:
 		FcLoadTimeline.mark("section %s %d ms" % [section, spent / 1000])
 	if interval <= 0.0:
-		if DotFrameCost.enabled:
-			DotFrameCost.add_usec(_profiled(section), spent)
+		if GSFrameCost.enabled:
+			GSFrameCost.add_usec(_profiled(section), spent)
 		return
-	if DotFrameCost.enabled:
-		DotFrameCost.add_usec(_profiled(section), spent)
+	if GSFrameCost.enabled:
+		GSFrameCost.add_usec(_profiled(section), spent)
 	var row: PackedInt64Array = _sections.get(section, PackedInt64Array([0, 0, 0]))
 	row[0] += spent
 	row[1] += 1
@@ -144,8 +144,8 @@ static func lap(section: StringName, since_usec: int) -> int:
 	if not fine:
 		return 0
 	var now := Time.get_ticks_usec()
-	if DotFrameCost.enabled:
-		DotFrameCost.add_usec(_profiled(section), now - since_usec)
+	if GSFrameCost.enabled:
+		GSFrameCost.add_usec(_profiled(section), now - since_usec)
 	if now - since_usec >= FcLoadTimeline.SLOW_SECTION_USEC and FcLoadTimeline.tracing:
 		FcLoadTimeline.mark("lap %s %d ms" % [section, (now - since_usec) / 1000])
 	# The sim host's `--sim_sections 2` has no recording: its laps go on the sections line.
@@ -169,14 +169,14 @@ static var _pa_names: Array[StringName] = []
 ## Charges what the weapon rig's and arsenal's phase clocks gained since the last call to `arena.pw_<part>` and
 ## `arena.pa_<part>`, so a recorded profile splits p_weapons. After each p_weapons, while [member fine] is on.
 static func charge_weapon_phases() -> void:
-	if not DotFrameCost.enabled:
+	if not GSFrameCost.enabled:
 		return
 	var rig := AwWeaponRig.phase_us
-	var ars := DotWeaponArsenal.phase_us
+	var ars := GSWeaponArsenal.phase_us
 	if _pw_names.is_empty():
 		for part in AwWeaponRig.PHASES:
 			_pw_names.append(StringName("arena.pw_" + part))
-		for part in DotWeaponArsenal.PHASES:
+		for part in GSWeaponArsenal.PHASES:
 			_pa_names.append(StringName("arena.pa_" + part))
 	if _pw_seen.size() != rig.size():
 		_pw_seen = rig.duplicate()
@@ -184,11 +184,11 @@ static func charge_weapon_phases() -> void:
 		_pa_seen = ars.duplicate()
 	for i in rig.size():
 		if rig[i] != _pw_seen[i]:
-			DotFrameCost.add_usec(_pw_names[i], rig[i] - _pw_seen[i])
+			GSFrameCost.add_usec(_pw_names[i], rig[i] - _pw_seen[i])
 			_pw_seen[i] = rig[i]
 	for i in ars.size():
 		if ars[i] != _pa_seen[i]:
-			DotFrameCost.add_usec(_pa_names[i], ars[i] - _pa_seen[i])
+			GSFrameCost.add_usec(_pa_names[i], ars[i] - _pa_seen[i])
 			_pa_seen[i] = ars[i]
 
 
@@ -263,7 +263,7 @@ static func frame(delta: float, extra: Callable) -> Dictionary:
 		_split_rows(report, n)
 	if extra.is_valid():
 		report.merge(extra.call(), true)
-	DotLog.info(CHANNEL, "frame", report)
+	GSLog.info(CHANNEL, "frame", report)
 	_reset()
 	return report
 

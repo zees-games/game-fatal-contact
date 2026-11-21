@@ -20,7 +20,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -32,16 +32,16 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 	print("  [%s] %s%s" % ["ok" if condition else "FAIL", what, ("  (" + detail + ")") if detail != "" else ""])
 
 
-func _fps(pitch: float) -> DotFpsCommand:
-	var c := DotFpsCommand.new()
+func _fps(pitch: float) -> GSFpsCommand:
+	var c := GSFpsCommand.new()
 	c.pitch = pitch
 	return c
 
 
-func _use(down: bool) -> DotWeaponCommand:
-	var c := DotWeaponCommand.new()
+func _use(down: bool) -> GSWeaponCommand:
+	var c := GSWeaponCommand.new()
 	c.pitch = -89.0
-	c.set_button(DotWeaponCommand.BUTTON_USE, down)
+	c.set_button(GSWeaponCommand.BUTTON_USE, down)
 	return c
 
 
@@ -58,8 +58,8 @@ func _step(game: FcGame, id: int, at: Vector3, down: bool, ticks: int) -> void:
 		await get_tree().physics_frame
 
 
-func _door_y(world: DotMapWorld) -> float:
-	var e: DotMapEntity = world.io.entity_of(293)
+func _door_y(world: GSMapWorld) -> float:
+	var e: GSMapEntity = world.io.entity_of(293)
 	return e.node.global_position.y if e.node != null else NAN
 
 
@@ -86,7 +86,7 @@ func _run() -> void:
 	if mio == null:
 		get_tree().quit(1)
 		return
-	var world: DotMapWorld = mio.world
+	var world: GSMapWorld = mio.world
 	var button_at: Vector3 = world.io.entity_of(39).origin(world.io)
 	var stand := button_at + Vector3(0.0, 1.0, 0.0) - Vector3(0.0, 1.6, 0.0)
 
@@ -137,7 +137,7 @@ func _run() -> void:
 
 
 ## Movers see the host's living players as bodies; a map without movers builds none.
-func _test_bodies_and_plain(mio: Object, world: DotMapWorld, player: Object) -> void:
+func _test_bodies_and_plain(mio: Object, world: GSMapWorld, player: Object) -> void:
 	var live: Array = mio.bodies()
 	_check(live.size() == 1 and int(live[0]["id"]) == 21 and (live[0]["position"] as Vector3).is_equal_approx(player.controller.state.position), "the host hands its living players to the movers as bodies")
 	var before: Vector3 = player.controller.state.position

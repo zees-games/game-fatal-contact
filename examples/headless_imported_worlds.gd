@@ -88,12 +88,12 @@ func _test_catalogue() -> void:
 	FcMaps.imported_rotation = "all"
 	FcMaps.apply_rotation(catalogue)
 	var all_on := catalogue.maps.filter(
-		func(m: DotMapDef) -> bool: return bool(m.meta.get("imported", false)) and m.enabled
+		func(m: GSMapDef) -> bool: return bool(m.meta.get("imported", false)) and m.enabled
 	).size()
 	FcMaps.imported_rotation = "none"
 	FcMaps.apply_rotation(catalogue)
 	var none_on := catalogue.maps.filter(
-		func(m: DotMapDef) -> bool: return bool(m.meta.get("imported", false)) and m.enabled
+		func(m: GSMapDef) -> bool: return bool(m.meta.get("imported", false)) and m.enabled
 	).size()
 	FcMaps.imported_rotation = FcMaps.IMPORTED_ROTATION_DEFAULT
 	_check(all_on == ids.size() and none_on == 0,
@@ -162,7 +162,7 @@ func _test_prop_visuals() -> void:
 			worlds += 1
 			var licence: Dictionary = (doc as Dictionary).get("licence", {})
 			# simplify_path is lexical and worlds/ is a link: follow the link first, as the importer's reader does.
-			var store := DotMapBspMesh.real_dir(base.path_join(id)).path_join(str(licence.get("model_store", "model-library"))).simplify_path()
+			var store := GSMapBspMesh.real_dir(base.path_join(id)).path_join(str(licence.get("model_store", "model-library"))).simplify_path()
 			if not DirAccess.dir_exists_absolute(store):
 				# The gitignored model-library is not copied beside worlds/ when the project is offloaded
 				# through absolute worktree links (gpu.sh only follows ../sibling links): nothing to resolve.
@@ -198,7 +198,7 @@ func _test_lighting() -> void:
 
 	var own := _lit(&"surf_mai_remix")
 	var sun := own.get_node_or_null("Sun") as DirectionalLight3D
-	var want := DotLightRig.sun_rotation(-60.0, 51.0)
+	var want := GSLightRig.sun_rotation(-60.0, 51.0)
 	_check(
 		sun != null and sun.rotation.is_equal_approx(want)
 			and sun.light_color.is_equal_approx(Color(0.9490196, 0.8784314, 0.7176471)),
@@ -352,13 +352,13 @@ func _test_loads() -> bool:
 	# A client changing map builds this solid a slice a frame (FcMap.to_collision_async): it must be the same body.
 	var dir := _game.map.manifest_path.get_base_dir()
 	var one_shot := FcBspMap.build_collision(manifest, dir)
-	var sliced: Node = await FcBspMap.build_collision_async(manifest, dir, DotFrameSlice.new(0))
+	var sliced: Node = await FcBspMap.build_collision_async(manifest, dir, GSFrameSlice.new(0))
 	var one_sig := _solid_signature(one_shot)
 	_check(one_sig.size() > 0 and one_sig == _solid_signature(sliced),
 		"the solid built in slices is the one-shot solid (%d nodes)" % one_sig.size())
 	one_shot.free()
 	sliced.free()
-	_check(_game.combat.trace is DotTracePhysics,
+	_check(_game.combat.trace is GSTracePhysics,
 		"the shots trace the physics space, not a box list")
 	_check(_game.match_node.spawn_points().size() == _game.map.spawns.size()
 		and _game.map.spawns.size() == (manifest.get("spawns", []) as Array).size(),
@@ -381,8 +381,8 @@ func _test_loads() -> bool:
 	var first := _game.player_for(1)
 	# Inside the solid-players wrapper (`fc_solid_body.gd`), which only adds the others.
 	var map_body: Variant = first.controller.flat_body.get(&"inner")
-	_check(map_body is DotFpsPhysicsBody
-		and (map_body as DotFpsPhysicsBody).is_bound(),
+	_check(map_body is GSFpsPhysicsBody
+		and (map_body as GSFpsPhysicsBody).is_bound(),
 		"a player moves against the physics space, bound before the first tick")
 
 	_game.start(0)
@@ -465,11 +465,11 @@ func _test_deathmatch() -> void:
 	# one stays zero outside it (docs/gdscript-hazards.md).
 	var kills: Array[int] = [0]
 	var leader_at_end: Array[int] = [-1]
-	_game.player_killed.connect(func(_entry: DotKillFeed.Entry) -> void: kills[0] += 1)
+	_game.player_killed.connect(func(_entry: GSKillFeed.Entry) -> void: kills[0] += 1)
 	_game.match_node.state_changed.connect(
 		func(_from: Variant, to: Variant) -> void:
 			# Read now, at the transition: the next match zeroes the scoreboard.
-			if int(to) == DotMatch.State.MATCH_END and leader_at_end[0] < 0:
+			if int(to) == GSMatch.State.MATCH_END and leader_at_end[0] < 0:
 				var best := 0
 				for record in _game.match_node.scoreboard.players():
 					best = maxi(best, record.kills)
@@ -481,7 +481,7 @@ func _test_deathmatch() -> void:
 	var grounded_samples := 0
 	var samples := 0
 	var bounds := _game.map.bounds.grow(1.0)
-	var probe := DotFpsPhysicsBody.for_node(_game.map.collision_root)
+	var probe := GSFpsPhysicsBody.for_node(_game.map.collision_root)
 	var tunables := FcPlayer.fc_tunables()
 
 	for tick in range(ticks):
@@ -560,14 +560,14 @@ func _commands_for_tick(tick: int) -> Dictionary:
 				best = d
 				target = other
 
-		var move := DotFpsCommand.new()
-		var fire := DotWeaponCommand.new()
+		var move := GSFpsCommand.new()
+		var fire := GSWeaponCommand.new()
 
 		if target != null:
 			var to_target := (target.muzzle_position() - player.muzzle_position()).normalized()
 			move.yaw = rad_to_deg(atan2(-to_target.x, -to_target.z))
 			move.pitch = rad_to_deg(asin(clampf(to_target.y, -1.0, 1.0)))
-			fire.set_button(DotWeaponCommand.BUTTON_ATTACK, true)
+			fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 			move.move = Vector2(sin(float(tick) * 0.05 + float(player.player_id)), 0.6)
 
 		move.sanitise()
@@ -665,7 +665,7 @@ func _test_jail() -> void:
 		"with fc_jail off every volume does what the map shipped")
 	jail.enabled = true
 
-	var wire := FcEvents.read_jail(DotNetReader.new(FcEvents.write_jail(true, 640, 1280, 4321)))
+	var wire := FcEvents.read_jail(GSNetReader.new(FcEvents.write_jail(true, 640, 1280, 4321)))
 	var shut_tick := 4321 + 640
 	_game.apply_jail_state(wire)
 	_check(bool(wire["ok"]) and jail.opened_at == 4321 and jail.is_open(4321 + 10) and not jail.is_open(shut_tick),
@@ -730,11 +730,11 @@ func _test_packs() -> void:
 
 	var slot_id: int = player.arsenal.slots()[0]
 	for s in player.arsenal.slots():
-		var def: DotWeaponDef = player.arsenal.slot_at(s).def
+		var def: GSWeaponDef = player.arsenal.slot_at(s).def
 		if def != null and def.uses_ammo() and def.ammo_type != &"" and not def.infinite_reserve and def.reserve_cap() > 0:
 			slot_id = s
 			break
-	var held: DotWeaponDef = player.arsenal.slot_at(slot_id).def
+	var held: GSWeaponDef = player.arsenal.slot_at(slot_id).def
 	player.arsenal.ammo().set_count(held.ammo_type, 0)
 	player.controller.teleport(ammo_at, 0.0, 0.0)
 	game.tick({})
@@ -749,6 +749,6 @@ func _test_packs() -> void:
 	_done()
 
 
-static func _in_solid(body: DotFpsPhysicsBody, feet: Vector3, tunables: DotFpsTunables) -> bool:
+static func _in_solid(body: GSFpsPhysicsBody, feet: Vector3, tunables: GSFpsTunables) -> bool:
 	var height := tunables.stand_height - 0.2
 	return body.overlaps(feet + Vector3.UP * (0.1 + height * 0.5), height, tunables.radius - 0.05)

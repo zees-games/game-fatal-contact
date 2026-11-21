@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -12,7 +12,7 @@ const FcClientView := preload("../game/fc_client_view.gd")
 const FcSimHost := preload("../game/fc_sim_host.gd")
 
 ## An arena map delivered the way a player gets it: published as a signed pack, fetched by a
-## real [DotCloudClient], mounted, and built from the mount alone.
+## real [GSCloudClient], mounted, and built from the mount alone.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_delivered.tscn
@@ -20,7 +20,7 @@ const FcSimHost := preload("../game/fc_sim_host.gd")
 ## [/codeblock]
 ##
 ## [b]What this adds to `headless_imported`'s server-named section[/b], which hand-copies two
-## files into a fake mount: the pack here is made by [DotCloudPublisher] from the real map
+## files into a fake mount: the pack here is made by [GSCloudPublisher] from the real map
 ## folder (textures, lightmap and their imported outputs), the fetch is dot-cloud's own
 ## (verified against the suite's key), and the map is checked to read nothing from the
 ## `maps/imported` link. A client without the fc-surf-dm-maps link has only this path.
@@ -76,7 +76,7 @@ class StandInGames:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -92,8 +92,8 @@ func _run() -> void:
 		get_tree().quit(1 if _failed > 0 else 0)
 		return
 
-	DotPaths.remove_tree(ROOT)
-	DotPaths.remove_tree(STAGE)
+	GSPaths.remove_tree(ROOT)
+	GSPaths.remove_tree(STAGE)
 	var keys := await _test_publish(source_manifest.get_base_dir())
 
 	if not keys.is_empty():
@@ -115,7 +115,7 @@ func _test_solo_start_map() -> void:
 	_section("a solo session's start map is the first map")
 	var solo := StandInSolo.new()
 	add_child(solo)
-	DotRegistry.register(&"dot_solo", solo)
+	GSRegistry.register(&"dot_solo", solo)
 	solo.start_map = &"dm_pit"
 	_check(FcClientView._startup_map().id == &"dm_pit", "a built-in start map is the first map")
 	_check(FcSimHost.asked_map_id() == "dm_pit", "a sim host starts its server child on the start map",
@@ -125,7 +125,7 @@ func _test_solo_start_map() -> void:
 		"a delivered one not yet mounted starts on dm_box")
 	solo.start_map = &"../dm_pit"
 	_check(FcClientView._solo_start_map() == "", "a start map that is not a map id is ignored")
-	DotRegistry.unregister(&"dot_solo")
+	GSRegistry.unregister(&"dot_solo")
 	solo.queue_free()
 	_done()
 
@@ -154,7 +154,7 @@ func _test_game_pack_leaves_maps_out() -> void:
 
 	_check(missing.is_empty(), "every link is in MAP_LINKS (missing: %s)" % ", ".join(missing))
 	_check(passed, "publish.sh hands MAP_LINKS to the publisher as --exclude-dir")
-	DotPaths.remove_tree(PACK_ROOT)
+	GSPaths.remove_tree(PACK_ROOT)
 	var kept := PackedStringArray(["game/fc_game.gd", "maps/fc_map.gd", "maps/surf/x.surf.json"])
 	var files := kept.duplicate()
 
@@ -162,16 +162,16 @@ func _test_game_pack_leaves_maps_out() -> void:
 		files.append(link.path_join("m").path_join("m.json"))
 
 	for rel in files:
-		DotPaths.ensure_parent_dir(PACK_ROOT.path_join(rel))
-		DotPaths.write_text(PACK_ROOT.path_join(rel), "{}")
+		GSPaths.ensure_parent_dir(PACK_ROOT.path_join(rel))
+		GSPaths.write_text(PACK_ROOT.path_join(rel), "{}")
 
-	var publisher := DotCloudPublisher.new()
+	var publisher := GSCloudPublisher.new()
 	publisher.exclude_dirs.append_array(listed)
 	var got := publisher._collect(PACK_ROOT)
 	got.sort()
 	kept.sort()
 	_check(got == kept, "the publisher keeps the game and drops the maps (%s)" % ", ".join(got))
-	DotPaths.remove_tree(PACK_ROOT)
+	GSPaths.remove_tree(PACK_ROOT)
 	_done()
 
 
@@ -184,7 +184,7 @@ func _test_map_groups() -> void:
 	var groups: Dictionary = parsed if parsed is Dictionary else {}
 	var files := PackedStringArray()
 	for dir in ["lightmaps", "maps/surf"]:
-		for rel in DotPaths.list_files_recursive("res://" + dir):
+		for rel in GSPaths.list_files_recursive("res://" + dir):
 			if rel.ends_with(".res") or rel.ends_with(".surf.json"):
 				files.append(dir.path_join(rel))
 	var loose := PackedStringArray()
@@ -194,14 +194,14 @@ func _test_map_groups() -> void:
 			loose.append(rel)
 	_check(files.size() >= 8 and loose.is_empty(), "every bake and ride file is in its map's group (%d files; loose: %s)" % [files.size(), ", ".join(loose)])
 
-	DotPaths.remove_tree(GROUPS_ROOT)
+	GSPaths.remove_tree(GROUPS_ROOT)
 	var src := GROUPS_ROOT.path_join("src")
 	for rel in files + PackedStringArray(["game/fc_game.gd"]):
-		DotPaths.ensure_parent_dir(src.path_join(rel))
-		DotPaths.write_text(src.path_join(rel), rel)
+		GSPaths.ensure_parent_dir(src.path_join(rel))
+		GSPaths.write_text(src.path_join(rel), rel)
 	DirAccess.copy_absolute(ProjectSettings.globalize_path("res://groups.json"), ProjectSettings.globalize_path(src.path_join("groups.json")))
-	var pair := DotCloudSignature.generate_keypair()
-	var publisher := DotCloudPublisher.new()
+	var pair := GSCloudSignature.generate_keypair()
+	var publisher := GSCloudPublisher.new()
 	publisher.content_id = "%s/arena-groups-check" % OWNER
 	publisher.version = VERSION
 	publisher.signing_key_pem = str(pair.value["private"]) if pair.ok else ""
@@ -209,19 +209,19 @@ func _test_map_groups() -> void:
 	var published := publisher.publish(src, GROUPS_ROOT.path_join("dist").path_join(publisher.content_id))
 	_check(published.ok, "the publisher accepts groups.json (no pattern matches nothing)%s" % ("" if published.ok else ": " + str(published.error)))
 
-	if not published.ok or DotAddonApi.build_level("dot_cloud") < 22:
+	if not published.ok or GSAddonApi.build_level("dot_cloud") < 22:
 		_skipped = GROUP_MOUNT_CHECKS
-		_line("dot-cloud %d has no top-up (needs 22); the mount checks are skipped" % DotAddonApi.build_level("dot_cloud"))
-		DotPaths.remove_tree(GROUPS_ROOT)
+		_line("dot-cloud %d has no top-up (needs 22); the mount checks are skipped" % GSAddonApi.build_level("dot_cloud"))
+		GSPaths.remove_tree(GROUPS_ROOT)
 		_done()
 		return
 
-	var config := DotCloudConfig.new()
+	var config := GSCloudConfig.new()
 	config.side = "both"
 	config.cache_dir = GROUPS_ROOT.path_join("cache")
 	config.require_signed_manifests = true
 	config.trusted_keys = {"fc_groups": str(pair.value["public"])}
-	var cloud := DotCloudClient.new()
+	var cloud := GSCloudClient.new()
 	cloud.name = "GroupsCloud"
 	cloud.config = config
 	cloud.config_file = ""
@@ -229,17 +229,17 @@ func _test_map_groups() -> void:
 	cloud.local_search_dirs = PackedStringArray([GROUPS_ROOT.path_join("dist")])
 	cloud.manifest_url_template = "{base}/{id}/manifest.json"
 	add_child(cloud)
-	var prefix := DotCloudClient.mount_prefix_for(StringName(publisher.content_id), VERSION).trim_suffix("/")
-	var first: DotResult = await cloud.ensure(StringName(publisher.content_id), VERSION, FcContentGroups.groups_for(&"dm_box"))
+	var prefix := GSCloudClient.mount_prefix_for(StringName(publisher.content_id), VERSION).trim_suffix("/")
+	var first: GSResult = await cloud.ensure(StringName(publisher.content_id), VERSION, FcContentGroups.groups_for(&"dm_box"))
 	_check(first.ok and FileAccess.file_exists(prefix.path_join("game/fc_game.gd")), "a join on dm_box mounts the pack's code%s" % ("" if first.ok else ": " + str(first.error)))
 	_check(FileAccess.file_exists(prefix.path_join("lightmaps/dm_box.res")), "and dm_box's bake")
 	_check(not FileAccess.file_exists(prefix.path_join("lightmaps/dm_pit.res")) and not FileAccess.file_exists(prefix.path_join("maps/surf/surf_ski_2.surf.json")), "and no other map's files")
-	var topped: DotResult = await cloud.call(&"ensure_groups_at", prefix.path_join("game"), FcContentGroups.groups_for(&"dm_pit"))
+	var topped: GSResult = await cloud.call(&"ensure_groups_at", prefix.path_join("game"), FcContentGroups.groups_for(&"dm_pit"))
 	_check(topped.ok and str(topped.value) == prefix and FileAccess.file_exists(prefix.path_join("lightmaps/dm_pit.res")), "a change to dm_pit tops up its bake%s" % ("" if topped.ok else ": " + str(topped.error)))
 	_check(not FileAccess.file_exists(prefix.path_join("lightmaps/dm_atrium.res")), "and still not the maps nobody played")
 	cloud.queue_free()
 	await get_tree().process_frame
-	DotPaths.remove_tree(GROUPS_ROOT)
+	GSPaths.remove_tree(GROUPS_ROOT)
 	_done()
 
 
@@ -263,7 +263,7 @@ static func _gitignore_links(text: String) -> PackedStringArray:
 ## The signed pack, made from the real folder.
 func _test_publish(source: String) -> Dictionary:
 	_section("the map folder publishes as a signed pack")
-	var pair := DotCloudSignature.generate_keypair()
+	var pair := GSCloudSignature.generate_keypair()
 	_check(pair.ok, "a signing key is made")
 
 	if not pair.ok:
@@ -272,7 +272,7 @@ func _test_publish(source: String) -> Dictionary:
 
 	var staged := _stage(source)
 	_check(not staged.is_empty(), "the folder is staged without its resource uids")
-	var publisher := DotCloudPublisher.new()
+	var publisher := GSCloudPublisher.new()
 	publisher.content_id = "%s/%s" % [OWNER, MAP]
 	publisher.version = VERSION
 	publisher.signing_key_pem = str(pair.value["private"])
@@ -301,10 +301,10 @@ func _stage(source: String) -> String:
 
 
 func _stage_dir(source: String, dest: String) -> void:
-	for rel in DotPaths.list_files_recursive(source):
+	for rel in GSPaths.list_files_recursive(source):
 		var from := source.path_join(rel)
 		var to := dest.path_join(rel)
-		DotPaths.ensure_parent_dir(to)
+		GSPaths.ensure_parent_dir(to)
 
 		if rel.ends_with(".import"):
 			var kept := PackedStringArray()
@@ -313,14 +313,14 @@ func _stage_dir(source: String, dest: String) -> void:
 				if not line.begins_with("uid="):
 					kept.append(line)
 
-			DotPaths.write_text(to, "\n".join(kept))
+			GSPaths.write_text(to, "\n".join(kept))
 		else:
 			DirAccess.copy_absolute(from, ProjectSettings.globalize_path(to))
 
 
 var _director: FcMapDirector = null
 var _server: StandInServer = null
-var _cloud: DotCloudClient = null
+var _cloud: GSCloudClient = null
 var _mount := ""
 
 
@@ -328,12 +328,12 @@ var _mount := ""
 func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 	_section("a content client fetches it, and the game builds the map from the mount")
 
-	var config := DotCloudConfig.new()
+	var config := GSCloudConfig.new()
 	config.side = "both"
 	config.cache_dir = ROOT.path_join("cache")
 	config.require_signed_manifests = true
 	config.trusted_keys = {"fc_delivered": str(keys["public"])}
-	_cloud = DotCloudClient.new()
+	_cloud = GSCloudClient.new()
 	_cloud.name = "Cloud"
 	_cloud.config = config
 	_cloud.config_file = ""
@@ -341,7 +341,7 @@ func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 	_cloud.manifest_url_template = "{base}/{id}/manifest.json"
 	_cloud.register_service = false
 	add_child(_cloud)
-	DotRegistry.register(&"dot_cloud_client", _cloud)
+	GSRegistry.register(&"dot_cloud_client", _cloud)
 	await get_tree().process_frame
 
 	# A built-in first, so the first change is a change; the delivered map then replaces the
@@ -366,7 +366,7 @@ func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 	var def := director.session.catalogue.get_map(MAP)
 	_check(def != null and not def.is_local(), "the catalogue lists the map as delivered content, not local")
 
-	var changed: DotResult = await director.change_to(MAP)
+	var changed: GSResult = await director.change_to(MAP)
 	await get_tree().physics_frame
 	_check(changed.ok, "the change succeeds%s" % ("" if changed.ok else ": " + changed.error.message))
 
@@ -384,12 +384,12 @@ func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 	# so a `?map=` game is built on it once rather than on dm_box first.
 	var solo := StandInSolo.new()
 	add_child(solo)
-	DotRegistry.register(&"dot_solo", solo)
+	GSRegistry.register(&"dot_solo", solo)
 	solo.start_map = MAP
 	var first := FcClientView._startup_map()
 	_check(first != null and first.id == MAP, "a mounted solo start map is the first map, with no dm_box before it",
 		str(first.id) if first != null else "none")
-	DotRegistry.unregister(&"dot_solo")
+	GSRegistry.unregister(&"dot_solo")
 	solo.queue_free()
 	_done()
 	_director = director
@@ -465,7 +465,7 @@ func _shot(scene: Node, map: FcMap, path: String) -> void:
 
 func _test_leaves() -> void:
 	_section("a pack the server stops naming leaves the catalogue")
-	var _away: DotResult = await _director.change_to(&"dm_box")
+	var _away: GSResult = await _director.change_to(&"dm_box")
 	_server.games.maps = PackedStringArray()
 	var adopted := _director.adopt_server_maps()
 	var back := _director.session.catalogue.get_map(MAP)
@@ -498,8 +498,8 @@ func _cleanup(game: FcGame) -> void:
 	if _cloud != null:
 		_cloud.queue_free()
 
-	DotPaths.remove_tree(ROOT)
-	DotPaths.remove_tree(STAGE)
+	GSPaths.remove_tree(ROOT)
+	GSPaths.remove_tree(STAGE)
 
 
 func _finish() -> void:

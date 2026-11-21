@@ -4,7 +4,7 @@ const FcPaths := preload("fc_paths.gd")
 
 
 const FcEvents := preload("fc_events.gd")
-const DotGameRelevance := preload("res://addons/dot_game/net/dot_game_relevance.gd")
+const GSGameRelevance := preload("res://addons/dot_game/net/dot_game_relevance.gd")
 const FcMode := preload("fc_mode.gd")
 const FcModTools := preload("fc_mod_tools.gd")
 const FcModule := preload("fc_module.gd")
@@ -16,7 +16,7 @@ const MAP_BALLOT_TOPIC := &"map_ballot"
 
 
 ## dot-platform's own module, loaded beside this one. A path, because that is what
-## [code]DotModuleHost.load_module[/code] takes — see [method _build_identity].
+## [code]GSModuleHost.load_module[/code] takes — see [method _build_identity].
 const PLATFORM_MODULE_PATH := "res://addons/dot_platform/dot_platform_module.gd"
 
 
@@ -26,7 +26,7 @@ static var punishments_file: String = ""
 
 
 ## The live tools' commands. See [method _build_mod_commands].
-var mod_commands: DotModToolCommands = null
+var mod_commands: GSModToolCommands = null
 
 
 ## The authoritative tick. Counted here because the module is what drives it.
@@ -37,9 +37,9 @@ var _tick: int = 0
 func _bind_surf_cvars(flags: int) -> void:
 	var values := game.config.surf_values()
 	# Before dot-audio 21 the surf cvars have a finite upper bound that clamps; from 21 they are unbounded and a bad value is refused.
-	var level := DotAddonApi.build_level("dot_audio")
+	var level := GSAddonApi.build_level("dot_audio")
 	if level < 21:
-		DotLog.debug(CHANNEL, "dot-audio API %d: sv_surf_* upper bounds are finite (unbounded from 21)" % level)
+		GSLog.debug(CHANNEL, "dot-audio API %d: sv_surf_* upper bounds are finite (unbounded from 21)" % level)
 	for spec: Dictionary in preload("res://addons/dot_game/runtime/dot_game_slide_sounds.gd").surf_cvar_specs():
 		var key := String(spec["name"]).trim_prefix("sv_surf_")
 		var v: Variant = values.get(key, spec["value"])
@@ -52,9 +52,9 @@ func _bind_surf_cvars(flags: int) -> void:
 ## Binds the cvars of the game's rule sets (fall, ragdoll, toys, views, spectate, bodies, noblock, feel).
 func _bind_rule_cvars() -> void:
 	# Replicated where each client draws or predicts under the rule; the rules are the game's, so one bind lasts.
-	var replicated := DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED
+	var replicated := GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
 	# sv_falldamage and its tunables: dot-combat's, on here (not on surf maps); server side, the damage arrives as health.
-	var _fall := game.fall_rules.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY)
+	var _fall := game.fall_rules.bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY)
 
 	# Dead bodies: dot-player-char's sv_ragdoll* (the server picks each reaction, FcGame.decide_death).
 	var _ragdoll_cvars := game.ragdoll_rules.bind_cvars(add_cvar, replicated)
@@ -73,11 +73,11 @@ func _bind_rule_cvars() -> void:
 	# sv_mobile_*, sv_aim_assist*, sv_autofire*: dot-mobile's touch controls.
 	var _mobile_cvars := game.mobile_rules.bind_cvars(add_cvar, replicated)
 
-	# snd_shot_*: dot-audio's DotShotRules (layered shots, room tails).
+	# snd_shot_*: dot-audio's GSShotRules (layered shots, room tails).
 	var _shot_cvars := game.shot_rules.bind_cvars(add_cvar, replicated)
 
-	# fc_ambient*: dot-audio's DotAmbienceRules; the directory cvar stays local.
-	var _ambient_cvars := game.ambient_rules.bind_cvars(add_cvar, replicated, DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY)
+	# fc_ambient*: dot-audio's GSAmbienceRules; the directory cvar stays local.
+	var _ambient_cvars := game.ambient_rules.bind_cvars(add_cvar, replicated, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY)
 
 	# mp_forcecamera, mp_freeroam, mp_freeroam_speed: dot-spectate's rules (FcClient.toggle_roam).
 	var _spectate_cvars := game.spectate_rules.bind_cvars(add_cvar, replicated)
@@ -87,7 +87,7 @@ func _bind_rule_cvars() -> void:
 	# mp_solidplayers: players and bots stop at each other (1) or pass through (0) (FcGame.solid_hulls_for).
 	var _solid_cvars := game.body_rules.bind_cvars(add_cvar, replicated)
 
-	# mp_teamblock, mp_enemyblock, !block / !noblock: dot-game's module builds DotGameNoblock after this load.
+	# mp_teamblock, mp_enemyblock, !block / !noblock: dot-game's module builds GSGameNoblock after this load.
 
 	# mp_vm_sway* and friends: fc-weapons' view model feel, drawn on each client.
 	var _feel_cvars := game.feel_rules.bind_cvars(add_cvar, replicated)
@@ -100,15 +100,15 @@ func _bind_rule_cvars() -> void:
 
 ## The manager, the bridge and the link. [b]The module drives the tick, not the game.[/b] The game's tick has to happen INSIDE dot-net's, between applying each peer's inputs and building the snapshot,
 ## which is what `FcNetBridge.server_tick` arranges through `FcPlayerNet._net_simulate`. A game ticking itself as well would move everybody twice.
-func _build_netcode() -> DotResult:
-	net = DotNetManager.new()
+func _build_netcode() -> GSResult:
+	net = GSNetManager.new()
 	net.name = "Net"
 	net.is_server = true
 	net.local_peer_id = 1
 	net.auto_tick = false
 	net.config_file = ""
 
-	var config := DotNetConfig.new()
+	var config := GSNetConfig.new()
 	config.tick_rate = game.tick_rate
 	config.snapshot_rate = FcGame.snapshot_rate_for(game.tick_rate, snapshot_target())
 	config.enable_prediction = true
@@ -132,9 +132,9 @@ func _build_netcode() -> DotResult:
 	if not started.ok:
 		return started
 
-	# net_skip_idle and net_visibility, the switches dot-game's own games get from DotGameNetcode (dot-game 52; by name, so an older host still parses this).
-	if DotAddonApi.build_level("dot_game") >= 52:
-		(DotGameRelevance as GDScript).call(&"bind_toggles", console, net)
+	# net_skip_idle and net_visibility, the switches dot-game's own games get from GSGameNetcode (dot-game 52; by name, so an older host still parses this).
+	if GSAddonApi.build_level("dot_game") >= 52:
+		(GSGameRelevance as GDScript).call(&"bind_toggles", console, net)
 
 	bridge = FcNetBridge.new()
 	bridge.name = "Bridge"
@@ -145,29 +145,29 @@ func _build_netcode() -> DotResult:
 	if not attached.ok:
 		return attached
 
-	# Under the DotServer node, whose name is the first half of the RPC routing. The
-	# client parents its copy under `DotClientLink`, which is named to match.
+	# Under the GSServer node, whose name is the first half of the RPC routing. The
+	# client parents its copy under `GSClientLink`, which is named to match.
 	bridge.open_link(server)
 
 	# The switch a server owner uses to forbid clients' artificial lag; dot-game's module does the same.
-	var _latency := net.latency.bind_server_cvar(Callable(self, "add_cvar"), DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED)
+	var _latency := net.latency.bind_server_cvar(Callable(self, "add_cvar"), GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED)
 
 	# Who somebody is reaches the match: a figure as they are seated, and the real name
 	# and figure once dot-platform has them. See `_wire_identity`.
 	_wire_identity()
 
 	# Avatar actions: the relay, and the loadouts the join/leave handlers below tell.
-	var avatar := DotGameAvatarActionRelay.serve(net, self, server)
+	var avatar := GSGameAvatarActionRelay.serve(net, self, server)
 	if not avatar.ok:
 		log_warn("avatar actions not served", {"why": avatar.error.message})
 
 	# The remote workbench's frame (inert until sv_workbench_remote) and the profile rows an admin's edit sends.
-	var bench := DotGameWorkbenchRemote.serve(net)
+	var bench := GSGameWorkbenchRemote.serve(net)
 	if not bench.ok:
 		log_warn("remote workbench not served", {"why": bench.error.message})
-	var wb_runtime: DotProfileRuntime = game.workbench.api.runtime as DotProfileRuntime if game.workbench != null and game.workbench.api != null else null
+	var wb_runtime: GSProfileRuntime = game.workbench.api.runtime as GSProfileRuntime if game.workbench != null and game.workbench.api != null else null
 	if wb_runtime != null:
-		profile_link = DotNetProfileLink.attach(net, wb_runtime)
+		profile_link = GSNetProfileLink.attach(net, wb_runtime)
 		if bench.ok and game.workbench.serve_remote(net) == null:
 			log_warn("remote workbench not bound", {})
 
@@ -175,19 +175,19 @@ func _build_netcode() -> DotResult:
 	net.messages.seal()
 
 	# A client whose schema cannot work with this server's is dropped, in words: dot-net only
-	# says so and owns no socket (as DotGameNetcode.refuse_peer).
+	# says so and owns no socket (as GSGameNetcode.refuse_peer).
 	net.peer_schema_refused.connect(_refuse_peer)
 
 	return net.start()
 
 
 ## Content, profiles, avatars and admission.
-func _build_identity() -> DotResult:
+func _build_identity() -> GSResult:
 	identity = FcIdentity.new()
 	identity.name = "Identity"
 	add_child(identity)
 
-	var ready: DotResult = await identity.setup()
+	var ready: GSResult = await identity.setup()
 
 	if not ready.ok:
 		remove_child(identity)
@@ -195,24 +195,24 @@ func _build_identity() -> DotResult:
 		identity = null
 		return ready
 
-	# [b]Loaded by PATH, not by instance, and the hub is found through the registry.[/b] `DotModuleHost.load_module` takes a path and constructs the module itself (that is what lets an operator name a module in a config file),
+	# [b]Loaded by PATH, not by instance, and the hub is found through the registry.[/b] `GSModuleHost.load_module` takes a path and constructs the module itself (that is what lets an operator name a module in a config file),
 	# so a pre-built instance with `platform` assigned would be thrown away and a fresh one made with `platform` null.
-	# dot-platform's module falls back to `DotRegistry.get_service(DotPlatformHub.SERVICE)` for exactly this, which is why `FcIdentity` registers the hub.
+	# dot-platform's module falls back to `GSRegistry.get_service(GSPlatformHub.SERVICE)` for exactly this, which is why `FcIdentity` registers the hub.
 	if server.modules != null and not server.modules.has_module("platform"):
 		# Awaited: loading a module runs its `_module_load`, which is allowed to be a
 		# coroutine. An un-awaited one returns at its first suspension, and the line
 		# below then reads `.ok` off null.
-		var loaded_module: DotResult = await server.modules.load_module(
+		var loaded_module: GSResult = await server.modules.load_module(
 			PLATFORM_MODULE_PATH
 		)
 
 		if not loaded_module.ok:
 			return loaded_module.wrap("The platform module would not load")
 
-	return DotResult.success(identity)
+	return GSResult.success(identity)
 
 
-func _build_services() -> DotResult:
+func _build_services() -> GSResult:
 	services = FcServices.new()
 	services.name = "Services"
 	services.punishments_file = punishments_file
@@ -225,7 +225,7 @@ func _build_services() -> DotResult:
 
 	add_child(services)
 
-	var ready: DotResult = await services.setup(server, game, bridge.link)
+	var ready: GSResult = await services.setup(server, game, bridge.link)
 
 	if not ready.ok:
 		remove_child(services)
@@ -241,16 +241,16 @@ func _build_services() -> DotResult:
 
 		# sv_voice_enable and sv_voice_mode: enforced on the router, replicated so a client
 		# hides its key. On this module, so they go when it unloads.
-		var _voice_cvars := services.voice.bind_cvars(add_cvar, DotConVar.FLAG_NOTIFY | DotConVar.FLAG_REPLICATED)
+		var _voice_cvars := services.voice.bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED)
 
 	services.command_entered.connect(_on_chat_command)
 
-	return DotResult.success(services)
+	return GSResult.success(services)
 
 
 ## The app's avatars settings, earn events, points and store items (fc_app_wiring.gd). Each part
 ## stays off, logged once, until its operator configures it; a failure here never stops the server.
-func _build_app() -> DotResult:
+func _build_app() -> GSResult:
 	app_wiring = FcAppWiring.new()
 	app_wiring.name = "AppWiring"
 	add_child(app_wiring)
@@ -259,12 +259,12 @@ func _build_app() -> DotResult:
 
 
 ## noclip, god, slay, bring and the rest, on this server's console and in chat. Through this module as the host, so every one is removed on unload like the module's own commands.
-## The handlers are `FcModTools`; the flags, the targets and the immunity rule are dot-moderation's `DotModToolCommands`, and neither names the other.
+## The handlers are `FcModTools`; the flags, the targets and the immunity rule are dot-moderation's `GSModToolCommands`, and neither names the other.
 func _build_mod_commands() -> void:
 	if services == null or services.mod_tools == null:
 		return
 
-	mod_commands = DotModToolCommands.install(self, services.mod_tools, server)
+	mod_commands = GSModToolCommands.install(self, services.mod_tools, server)
 	mod_commands.alive_fn = func(id: StringName) -> bool:
 		var player := game.player_for(String(id).to_int()) if String(id).is_valid_int() else null
 		return player != null and player.is_alive()
@@ -280,14 +280,14 @@ func _build_mod_commands() -> void:
 		game.player_spawned.connect(_on_player_spawned_for_tools)
 
 
-func _build_maps() -> DotResult:
+func _build_maps() -> GSResult:
 	maps = FcMapDirector.new()
 	maps.name = "Maps"
 	maps.game = game
 	# A dedicated server draws nothing, so there is no world node to put meshes in.
 	# `FcGame.change_map` has already replaced everything that decides the game.
 	maps.world_ref = null
-	# The server owner's map list (`cfg/content.yml` -> `DotGameDescriptor.maps`): the
+	# The server owner's map list (`cfg/content.yml` -> `GSGameDescriptor.maps`): the
 	# combat surf maps this server offers as packs. See `FcMaps.delivered_def`.
 	maps.server = server
 	add_child(maps)
@@ -327,7 +327,7 @@ func _build_maps() -> DotResult:
 	add_cvar(
 		"fc_imported_rotation", FcMaps.imported_rotation,
 		"Imported combat surf maps in the rotation: all, none, or ids separated by commas",
-		DotConVar.FLAG_ARCHIVE | DotConVar.FLAG_NOTIFY
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
 	).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcMaps.imported_rotation = new_value
@@ -352,11 +352,11 @@ func _build_maps() -> DotResult:
 	if scene != null and scene.has_method(&"attach_maps"):
 		scene.call(&"attach_maps", maps)
 
-	return DotResult.success(maps)
+	return GSResult.success(maps)
 
 
 ## Both map clocks follow the server's hibernation: they stop while nobody is here and start again from the top when somebody joins. The vote's is the one that runs; the map director's is the fallback for a server whose vote did not load.
-## With hibernation off the vote's own [code]empty_choice[/code] changes the map when the limit runs out on nobody. This module is not on DotGameModule, which does this by itself for the games that are.
+## With hibernation off the vote's own [code]empty_choice[/code] changes the map when the limit runs out on nobody. This module is not on GSGameModule, which does this by itself for the games that are.
 func _follow_hibernation() -> void:
 	if vote != null and vote.director != null:
 		vote.director.follow_hibernation(server)
@@ -365,7 +365,7 @@ func _follow_hibernation() -> void:
 		maps.session.follow_hibernation(server)
 
 
-func _build_vote() -> DotResult:
+func _build_vote() -> GSResult:
 	vote = FcVote.new()
 	vote.name = "Vote"
 	vote.game = game
@@ -383,7 +383,7 @@ func _build_vote() -> DotResult:
 	vote.is_admin_fn = func(voter: StringName) -> bool:
 		var session := server.session_by_userid(String(voter).to_int())
 		# has_permission, not permissions.has: the second misses `root`.
-		return session != null and session.has_permission(DotAdminFlags.CHANGEMAP)
+		return session != null and session.has_permission(GSAdminFlags.CHANGEMAP)
 
 	# The drawn ballot, to each playing session with its own voter id — this game's voters
 	# are the bare userid — so the client shell marks the player's own choice. Topic
@@ -392,7 +392,7 @@ func _build_vote() -> DotResult:
 		for session in server.playing_sessions():
 			var data := state.duplicate()
 			data["you"] = str(session.userid)
-			server.send_notice(session, DotNotice.make(
+			server.send_notice(session, GSNotice.make(
 				&"", "", float(state.get("seconds", -1.0)), MAP_BALLOT_TOPIC, data
 			))
 
@@ -419,7 +419,7 @@ func _build_vote() -> DotResult:
 		return ready
 
 	vote.change_due.connect(
-		func(id: StringName, _choice: DotVoteChoice) -> void:
+		func(id: StringName, _choice: GSVoteChoice) -> void:
 			log_info("a vote decided what plays next", {"choice": String(id)})
 	)
 
@@ -434,7 +434,7 @@ func _build_vote() -> DotResult:
 				))
 	)
 
-	return DotResult.success(vote)
+	return GSResult.success(vote)
 
 
 ## How often the bot count is put right, seconds. Not every tick: adding a player is a
@@ -442,8 +442,8 @@ func _build_vote() -> DotResult:
 const BOT_CHECK_SEC := 1.0
 
 
-var _bot_quota: DotBotQuota = null
-var _bot_roster := DotBotRoster.new()
+var _bot_quota: GSBotQuota = null
+var _bot_roster := GSBotRoster.new()
 var _since_bot_check := 0.0
 
 
@@ -483,7 +483,7 @@ func _physics_process(delta: float) -> void:
 		_refresh_aoi()
 	_log_shot_rewinds(delta)
 	# The map clock and the vote clock, from the SIMULATED tick rather than from the frame: a server that stalls should not lose that time off its map, and a test must be able to run an hour of a map in a millisecond.
-	# [b]One clock, and it is the vote's when there is a vote.[/b] The map director's `DotMapTimeLimit` and the vote's `DotVoteClock` both ran here from boot and the first to expire won: the director's reached `_on_map_over`
+	# [b]One clock, and it is the vote's when there is a vote.[/b] The map director's `GSMapTimeLimit` and the vote's `GSVoteClock` both ran here from boot and the first to expire won: the director's reached `_on_map_over`
 	# and opened a SECOND ballot over a winner already chosen. The map director's clock is the fallback for a server whose vote did not load, the only server that advances it.
 	if maps != null and vote == null:
 		maps.advance(delta)
@@ -500,8 +500,8 @@ func _physics_process(delta: float) -> void:
 	_follow_npc_lod(game.horde.spawner if game != null and game.horde != null else null, delta)
 
 
-## The NPC level of detail and sense workers follow the `npc_lod*` cvars (dot-game's DotGameNpcLod; all off by default). This module is a DotModule, so it holds the attachment itself.
-var _npc_lod: DotGameNpcLod = null
+## The NPC level of detail and sense workers follow the `npc_lod*` cvars (dot-game's GSGameNpcLod; all off by default). This module is a GSModule, so it holds the attachment itself.
+var _npc_lod: GSGameNpcLod = null
 
 
 func _follow_npc_lod(spawner: Object, delta: float) -> void:
@@ -510,13 +510,13 @@ func _follow_npc_lod(spawner: Object, delta: float) -> void:
 	if _npc_lod == null or _npc_lod.spawner != spawner:
 		if _npc_lod != null:
 			_npc_lod.release()
-		_npc_lod = DotGameNpcLod.attach(self, console, spawner, server.config if server != null else null)
+		_npc_lod = GSGameNpcLod.attach(self, console, spawner, server.config if server != null else null)
 	if _npc_lod != null:
 		_npc_lod.follow(delta)
 
 
 ## So `changegame`, a vote and the server browser have something to name. Ships inside the build, so `client_scene` stays empty and the signon takes the "you already have it" path
-## (an absolute server path there is refused by `DotClientLink`, and signon timed out). What a server browser is told about this game: [b]dot-browser is the client half and has never asked a real `DotServer` anything[/b];
+## (an absolute server path there is refused by `GSClientLink`, and signon timed out). What a server browser is told about this game: [b]dot-browser is the client half and has never asked a real `GSServer` anything[/b];
 ## what a query returns about the GAME comes from providers like this one: what is being played, on what, how far through it is, and whether it is worth joining.
 func _build_query_provider() -> void:
 	var provider := FcQueryProvider.new()
@@ -524,15 +524,15 @@ func _build_query_provider() -> void:
 	add_query_provider(provider)
 
 
-## A [DotQueryProvider] over this module. An inner class because it is one method and
+## A [GSQueryProvider] over this module. An inner class because it is one method and
 ## a reference, and a file for it would be a file about nothing else.
-class FcQueryProvider extends DotQueryProvider:
+class FcQueryProvider extends GSQueryProvider:
 	var module: FcModule = null
 
 	func _provider_name() -> String:
 		return "arena"
 
-	func _contribute(snapshot: DotQuerySnapshot) -> void:
+	func _contribute(snapshot: GSQuerySnapshot) -> void:
 		if module == null or module.game == null:
 			return
 
@@ -542,7 +542,7 @@ class FcQueryProvider extends DotQueryProvider:
 			"mode_name": game.mode.display_name if game.mode != null else "",
 			"map": String(game.map.id) if game.map != null else "",
 			"score_limit": game.match_node.rules.score_limit,
-			"state": DotMatch.State.keys()[game.match_node.state],
+			"state": GSMatch.State.keys()[game.match_node.state],
 			"round": game.match_node.round_number,
 			"teams": game.mode.team_count if game.mode != null else 0,
 			"monsters": game.horde.count() if game.horde != null else 0,
@@ -558,7 +558,7 @@ class FcQueryProvider extends DotQueryProvider:
 			# The vote's clock is the one that runs when there is a vote; see
 			# `_physics_process`. Left out when the vote has none (`rtv_only`,
 			# `duration_sec: 0`): a 0 there reads, in a server browser, as a map about to end.
-			var clock := DotVoteClockView.state_of(module.vote.director)
+			var clock := GSVoteClockView.state_of(module.vote.director)
 			if bool(clock["has_clock"]):
 				values["time_left"] = int(clock["seconds_left"])
 			else:
@@ -571,7 +571,7 @@ func _register_game() -> void:
 	if server.games == null or server.games.find_game("arena") != null:
 		return
 
-	var descriptor := DotGameDescriptor.new()
+	var descriptor := GSGameDescriptor.new()
 	descriptor.game_id = "arena"
 	descriptor.display_name = "Zee's Fatal Contact"
 	descriptor.scene = FcPaths.rebase(FcPaths.rebase("res://scenes/fc_server.tscn"))
@@ -614,7 +614,7 @@ func _change_mode(old_value: String, new_value: String) -> void:
 
 	if wanted == null:
 		# Only a `force_set` skips the validator. Put back rather than left showing a mode the game is not playing.
-		DotLog.error("mod." + _module_name(), "no such mode", {"wanted": new_value, "known": ", ".join(_mode_ids())})
+		GSLog.error("mod." + _module_name(), "no such mode", {"wanted": new_value, "known": ", ".join(_mode_ids())})
 		_revert_mode(old_value)
 		return
 
@@ -631,7 +631,7 @@ func _change_mode(old_value: String, new_value: String) -> void:
 
 	session.want_mode(wanted)
 
-	var here: DotMapDef = maps.current if maps.current != null else session.current
+	var here: GSMapDef = maps.current if maps.current != null else session.current
 
 	if maps.is_changing() or here == null or not FcMaps.supports_mode(here, wanted):
 		log_info("the mode applies at the next map that can host it", {
@@ -686,13 +686,13 @@ func _change_mode_in_place(old_value: String, wanted: FcMode) -> void:
 
 
 ## The `fc_mode` validator: an unknown id is refused before anything changes, naming every valid one.
-func _validate_mode(value: String) -> DotResult:
+func _validate_mode(value: String) -> GSResult:
 	if FcModes.by_id(StringName(value)) != null:
-		return DotResult.success(value)
+		return GSResult.success(value)
 
 	var known := ", ".join(_mode_ids())
-	DotLog.error("mod." + _module_name(), "fc_mode refused an unknown mode", {"wanted": value, "known": known})
-	return DotResult.fail(DotError.CODE_INVALID, "fc_mode: no mode '%s'. Valid: %s" % [value, known])
+	GSLog.error("mod." + _module_name(), "fc_mode refused an unknown mode", {"wanted": value, "known": known})
+	return GSResult.fail(GSError.CODE_INVALID, "fc_mode: no mode '%s'. Valid: %s" % [value, known])
 
 
 ## Put the cvar back to what the game is actually playing. Refused and put back rather than left showing a mode the game is not playing:

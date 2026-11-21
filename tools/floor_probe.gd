@@ -83,7 +83,7 @@ func _run() -> void:
 		for p: FcPlayer in _client.game.players():
 			if p.camera != null or p.figure == null or p.body_mesh == null or not p.body_mesh.visible or not p.is_alive():
 				continue
-			var state: DotFpsState = p.controller.state
+			var state: GSFpsState = p.controller.state
 			if not state.is_grounded():
 				continue
 			var floor_y := _floor_under(p)
@@ -114,7 +114,7 @@ func _run() -> void:
 
 func _root_row(p: FcPlayer, root_gap: float, fig_gap: float, floor_y: float) -> String:
 	var f = p.figure
-	var state: DotFpsState = p.controller.state
+	var state: GSFpsState = p.controller.state
 	var lift_now: float = f.legs.floor_lift(f, f.floor_mask, 0.45)
 	var lift_game: float = f.legs.floor_lift(f, p.controller.tunables.collision_mask, 0.45)
 	var parts := PackedStringArray([
@@ -156,9 +156,9 @@ func _floor_under(p: FcPlayer) -> float:
 	return float((hit.position as Vector3).y)
 
 
-## The lowest sole in world y: each ankle (found as [DotClipMetrics] finds it, IK feet through their
+## The lowest sole in world y: each ankle (found as [GSClipMetrics] finds it, IK feet through their
 ## leg) less its rest height over the mesh bottom, so a sole on the floor reads 0.
-func _sole_y(figure: DotHumanoidFigure) -> float:
+func _sole_y(figure: GSHumanoidFigure) -> float:
 	var skel := figure.skeleton()
 	var mesh := figure.mesh()
 	if skel == null or mesh == null or mesh.mesh == null:
@@ -172,7 +172,7 @@ func _sole_y(figure: DotHumanoidFigure) -> float:
 			var bone := skel.get_bone_name(i).to_lower()
 			if bone.contains("foot") and not bone.contains("toe"):
 				var rest := skel.get_bone_global_rest(i).origin
-				feet.append([i, DotClipMetrics._leg_anchor(skel, i), (to_fig * skel.global_transform * rest).y - bottom])
+				feet.append([i, GSClipMetrics._leg_anchor(skel, i), (to_fig * skel.global_transform * rest).y - bottom])
 		_clear[key] = feet
 		print("FLOOR_PROBE figure %s look %s mesh %s bottom %.3f height %.3f" % [figure.get_path(), String(figure.look.body) if figure.look else "-", mesh.mesh.resource_path, bottom, figure.height])
 		if _clear.size() == 1:

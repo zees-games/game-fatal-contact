@@ -12,7 +12,7 @@ const Wiring := preload("../game/fc_weapon_drop_wiring.gd")
 const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 
 const TOLERANCE := 0.02
-## Most a settled drop's lowest mesh point may sit above the surface under it, in metres (DotWeaponDrops grounds a drop resting higher than 0.25).
+## Most a settled drop's lowest mesh point may sit above the surface under it, in metres (GSWeaponDrops grounds a drop resting higher than 0.25).
 const FLOAT_MAX := 0.3
 const GAP := 0.05
 const TICK_RATE := 64
@@ -25,7 +25,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -76,11 +76,11 @@ func _run() -> void:
 	var _a := game.add_player(21, "A")
 	game.tick({})
 	var player := game.player_for(21)
-	var drops: DotWeaponDrops = game.weapon_drops
+	var drops: GSWeaponDrops = game.weapon_drops
 	drops.rules.lifetime = 0.0
 	drops.rules.max_count = 0
 	var mask := drops.collision_mask
-	var client := DotWeaponDrops.new()
+	var client := GSWeaponDrops.new()
 	client.is_authority = false
 	client.draws = true
 	client.look_of = Wiring.look
@@ -116,7 +116,7 @@ func _run() -> void:
 			continue
 		# floatgun-ak-1: nothing to land on within GAP below either pose, or the gun hangs in the air.
 		for side in 2:
-			var layer: DotWeaponDrops = drops if side == 0 else client
+			var layer: GSWeaponDrops = drops if side == 0 else client
 			var b: RigidBody3D = layer.get("_entries")[e]["body"]
 			var g: float = (layer.call("_sweep_down", b, b.global_transform, 3.0) as Vector3).length()
 			if g > gap[side]:
@@ -144,7 +144,7 @@ func _run() -> void:
 
 
 ## Kills the player holding each weapon at spread spots; returns drop id -> [weapon, spot].
-func _drop_deaths(game: FcGame, player: Object, drops: DotWeaponDrops, mask: int) -> Dictionary:
+func _drop_deaths(game: FcGame, player: Object, drops: GSWeaponDrops, mask: int) -> Dictionary:
 	var spots: Array[Vector2] = []
 	for xi in range(-8, 9, 2):
 		for zi in range(-8, 9, 2):

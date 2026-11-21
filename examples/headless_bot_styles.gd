@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcBotLoadouts := preload("../game/fc_bot_loadouts.gd")
@@ -24,7 +24,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -46,11 +46,11 @@ func _classes() -> void:
 		var klass: Variant = FcBotsWorld.STYLE_CLASS.get(id)
 		if klass == null:
 			unmapped.append(String(id))
-		elif not DotBotStyle.DEFAULTS.has(String(klass)):
+		elif not GSBotStyle.DEFAULTS.has(String(klass)):
 			unknown.append("%s=%s" % [id, klass])
 	_check(unmapped.is_empty(), "every weapon id has a class", ", ".join(unmapped))
 	_check(unknown.is_empty(), "every class has styles in the shipped table", ", ".join(unknown))
-	var def := DotWeaponDef.new()
+	var def := GSWeaponDef.new()
 	def.id = &"aw_sniper"
 	var prefixed := FcBotsWorld.World._class_of(def)
 	def.id = &"other_pack_scope"
@@ -83,13 +83,13 @@ func _fight(kit: String, title: String, checks: Callable) -> void:
 		var commands := {}
 		for id in ids:
 			commands[id] = FcBots.think(game, game.player_for(id), minds[id], tick, float(TICK_RATE))
-			var brain: DotBotBrain = minds[id].brain
+			var brain: GSBotBrain = minds[id].brain
 			if brain != null and brain.last != null:
 				states[brain.last.state] = true
 		game.tick(commands)
 		if i % 32 == 0:
 			for id in ids:
-				var brain: DotBotBrain = minds[id].brain
+				var brain: GSBotBrain = minds[id].brain
 				if brain != null and brain.style.active:
 					labels[brain.style.label()] = true
 		if i % 8 == 0:
@@ -105,7 +105,7 @@ func _sniper_checks(minds: Array, states: Dictionary, labels: Dictionary) -> voi
 	var covered := 0
 	var entered := {}
 	for mind in minds:
-		var style: DotBotStyle = mind.brain.style if mind.brain != null else null
+		var style: GSBotStyle = mind.brain.style if mind.brain != null else null
 		if style == null:
 			continue
 		var any := false

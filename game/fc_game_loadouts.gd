@@ -16,7 +16,7 @@ func apply_loadout(id: int, at_spawn := false) -> void:
 		return
 
 	if at_spawn and loadout_command != null and not player.has_meta(&"bot") and id < 900_000_000:
-		var rolled: DotLoadout = await loadout_command.roll_for_spawn(_loadout_key(id))
+		var rolled: GSLoadout = await loadout_command.roll_for_spawn(_loadout_key(id))
 		player = player_for(id)
 		if rolled != null and player != null:
 			player.give_loadout(FcContent.in_give_order(loadouts.resolve(rolled)))
@@ -27,10 +27,10 @@ func apply_loadout(id: int, at_spawn := false) -> void:
 		if player == null:
 			return
 
-	var res: DotResult = await loadouts.active_for(_loadout_key(id))
+	var res: GSResult = await loadouts.active_for(_loadout_key(id))
 
 	if not res.ok:
-		DotLog.debug(CHANNEL, "loadout unavailable, using the default", {
+		GSLog.debug(CHANNEL, "loadout unavailable, using the default", {
 			"player": id, "error": str(res.error)
 		})
 		player.give_default_loadout()
@@ -48,10 +48,10 @@ func _give_bot_loadout(player: FcPlayer) -> bool:
 		return false
 	if bot_loadouts == null:
 		bot_loadouts = FcBotLoadouts.new()
-		DotLog.info(CHANNEL, "bot loadouts loaded", {"kits": bot_loadouts.load_from(), "sv_bot_loadouts": FcBotLoadouts.mode})
+		GSLog.info(CHANNEL, "bot loadouts loaded", {"kits": bot_loadouts.load_from(), "sv_bot_loadouts": FcBotLoadouts.mode})
 	var difficulty := ""
-	if has_meta(DotBotSettings.META):
-		difficulty = DotBotSettings.of(self).difficulty()
+	if has_meta(GSBotSettings.META):
+		difficulty = GSBotSettings.of(self).difficulty()
 	var drawn := bot_loadouts.draw(loadouts, _loadout_key(player.player_id), player.player_id, difficulty)
 	if drawn == null:
 		return false
@@ -69,14 +69,14 @@ func _fit_bot_attachments(player: FcPlayer, kit: FcBotLoadouts.Kit) -> void:
 		var held := player.arsenal.slot_at(slot)
 		if held == null or held.def == null or not kit.attachments.has(String(held.def.id)):
 			continue
-		var fitting := DotWeaponFitting.make(held.def.id)
+		var fitting := GSWeaponFitting.make(held.def.id)
 		var mounts: Variant = kit.attachments[String(held.def.id)]
 		if mounts is Dictionary:
 			for mount: Variant in mounts:
 				fitting.fit(StringName(str(mount)), StringName(str(mounts[mount])))
-		var res: DotResult = player.arsenal.fit(slot, fitting)
+		var res: GSResult = player.arsenal.fit(slot, fitting)
 		if not res.ok:
-			DotLog.debug(CHANNEL, "a bot attachment did not fit", {"kit": String(kit.id), "weapon": String(held.def.id), "error": str(res.error)})
+			GSLog.debug(CHANNEL, "a bot attachment did not fit", {"kit": String(kit.id), "weapon": String(held.def.id), "error": str(res.error)})
 
 ## Why the B menu has nothing to choose right now, or "": a mode that decides what everybody
 ## carries (gun game, Only Snipers) makes a loadout pointless, and the menu says so rather than
@@ -92,7 +92,7 @@ func players() -> Array[FcPlayer]:
 		out.append(_players[key])
 	return out
 
-## The facts DotLoadoutInstantSwap judges for a loadout key: seconds since spawn and last shot
+## The facts GSLoadoutInstantSwap judges for a loadout key: seconds since spawn and last shot
 ## (-1: none) and metres to the nearest living enemy (-1: none).
 func loadout_instant_facts(key: String) -> Dictionary:
 	var id := loadout_identity.id_of(key)
@@ -134,7 +134,7 @@ func loadout_now_allowed(id: int) -> bool:
 	var player := player_for(id)
 	if player == null or not player.is_alive():
 		return false
-	if match_node != null and match_node.state == DotMatch.State.WARMUP:
+	if match_node != null and match_node.state == GSMatch.State.WARMUP:
 		return true
 	return player.health != null and player.health.is_protected(_tick)
 
@@ -144,12 +144,12 @@ func rearm_if_allowed(id: int) -> bool:
 	if not is_authority or not loadout_now_allowed(id):
 		return false
 	await apply_loadout(id)
-	DotLog.debug(CHANNEL, "loadout handed over at once", {"player": id})
+	GSLog.debug(CHANNEL, "loadout handed over at once", {"player": id})
 	return true
 
 ## The B menu's server half, when the host's dot-loadout has one (API 2).
 func _build_loadout_command() -> void:
-	if DotAddonApi.build_level("dot_loadout") < 2 or not ResourceLoader.exists(LOADOUT_COMMAND_SCRIPT):
+	if GSAddonApi.build_level("dot_loadout") < 2 or not ResourceLoader.exists(LOADOUT_COMMAND_SCRIPT):
 		return
 	loadout_command = (load(LOADOUT_COMMAND_SCRIPT) as GDScript).new()
 	loadout_command.set(&"manager", loadouts)
@@ -168,20 +168,20 @@ func _build_loadout_command() -> void:
 	loadout_command.set(&"item_alias_fn", Callable(FcContent.Roles, &"alias"))
 	loadout_command.set(&"applied_fn", func(_ctx: Object, key: String) -> bool:
 		return await rearm_if_allowed(loadout_identity.id_of(key)))
-	# DotNotice drops data holding a PackedStringArray (the offer's tags), so a client over a link got an empty answer and B opened nothing.
+	# GSNotice drops data holding a PackedStringArray (the offer's tags), so a client over a link got an empty answer and B opened nothing.
 	loadout_command.set(&"notice_fn", _send_loadout_notice)
 
 
 func _send_loadout_notice(ctx: Object, data: Dictionary) -> bool:
 	var session: Variant = ctx.get(&"session") if ctx != null else null
-	var server: Object = DotRegistry.get_service(&"dot_server")
+	var server: Object = GSRegistry.get_service(&"dot_server")
 	if not (session is Object) or server == null or not server.has_method(&"send_notice"):
 		return false
 	var topic: StringName = loadout_command.get_script().get_script_constant_map().get("TOPIC", &"loadout_menu")
-	return bool(server.call(&"send_notice", session, DotNotice.make(&"", "", -1.0, topic, plain_data(data) as Dictionary)))
+	return bool(server.call(&"send_notice", session, GSNotice.make(&"", "", -1.0, topic, plain_data(data) as Dictionary)))
 
 
-## [param value] with every PackedStringArray turned into an Array, which DotNotice carries.
+## [param value] with every PackedStringArray turned into an Array, which GSNotice carries.
 static func plain_data(value: Variant) -> Variant:
 	if value is PackedStringArray:
 		return Array(value as PackedStringArray)
@@ -195,13 +195,13 @@ static func plain_data(value: Variant) -> Variant:
 	return value
 
 ## The loadout manager; and its B-menu command too unless [param with_command] is false (setup builds that a step later: its script load was a third of this step).
-func _build_loadouts(with_command := true) -> DotResult:
-	loadouts = DotLoadoutManager.new()
+func _build_loadouts(with_command := true) -> GSResult:
+	loadouts = GSLoadoutManager.new()
 	loadouts.name = "Loadouts"
 	loadouts.schema = FcContent.loadout_schema()
 	loadouts.register_service = false
 
-	var config := DotLoadoutConfig.new()
+	var config := GSLoadoutConfig.new()
 	config.backend = "local"
 	config.allow_default_loadout = true
 	config.conform_on_load = true
@@ -211,21 +211,21 @@ func _build_loadouts(with_command := true) -> DotResult:
 	# Everything in this game is free except the launcher, and there is no entitlement
 	# service to ask. A game with unlocks binds a real source here; leaving it unset means
 	# only `free` items, which is dot-loadout's loud default.
-	loadouts.entitlement_source = func(_key: String) -> DotLoadoutEntitlements:
+	loadouts.entitlement_source = func(_key: String) -> GSLoadoutEntitlements:
 		var owned: Array = [FcContent.PAID_WEAPON]
 		if utility_grenades:
 			owned.append_array(FcGrenades.utility_ids(FcContent.weapons()))
-		return DotLoadoutEntitlements.of(owned)
+		return GSLoadoutEntitlements.of(owned)
 	# Adds what the site store says the player owns (no-op without a backbone client).
-	DotGameStoreEntitlements.attach(loadouts)
+	GSGameStoreEntitlements.attach(loadouts)
 
 	add_child(loadouts)
 	if with_command:
 		_build_loadout_command()
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 ## Statistics, achievements and boards, if this instance keeps any.
-func _build_player_stack() -> DotResult:
+func _build_player_stack() -> GSResult:
 	if player_stack != null:
 		player_stack.queue_free()
 
@@ -239,9 +239,9 @@ func _build_player_stack() -> DotResult:
 
 	return player_stack.setup(self).wrap("Fatal Contact's player stack")
 
-func _build_progress() -> DotResult:
+func _build_progress() -> GSResult:
 	if not track_progress or not is_authority:
-		return DotResult.success(null)
+		return GSResult.success(null)
 
 	progress = FcProgress.new()
 	progress.name = "Progress"
@@ -254,12 +254,12 @@ func _build_progress() -> DotResult:
 		# A game with no statistics is a game. A game that refuses to start because a
 		# leaderboard definition was rejected is not, and this is the same call
 		# `apply_loadout` makes about an unreachable store.
-		DotLog.warn(CHANNEL, "progression is off", {"why": attached.error.message})
+		GSLog.warn(CHANNEL, "progression is off", {"why": attached.error.message})
 		remove_child(progress)
 		progress.queue_free()
 		progress = null
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 ## The spectate layer, on every side. Idempotent.
 func _build_spectate() -> void:
@@ -274,7 +274,7 @@ func _build_spectate() -> void:
 	var spectate_ready := spectate.setup()
 
 	if not spectate_ready.ok:
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL, "spectating is off", {"why": spectate_ready.error.message}
 		)
 		remove_child(spectate)
@@ -300,7 +300,7 @@ func _reconcile_client_objectives() -> void:
 	add_child(objectives)
 	var res := objectives.setup()
 	if not res.ok:
-		DotLog.warn(CHANNEL, "the client flag layer is off", {"why": res.error.message})
+		GSLog.warn(CHANNEL, "the client flag layer is off", {"why": res.error.message})
 		remove_child(objectives)
 		objectives.queue_free()
 		objectives = null
@@ -324,7 +324,7 @@ func _build_world_layers() -> void:
 		var effects_ready := effects.setup()
 
 		if not effects_ready.ok:
-			DotLog.warn(CHANNEL, "effects are off", {"why": effects_ready.error.message})
+			GSLog.warn(CHANNEL, "effects are off", {"why": effects_ready.error.message})
 			remove_child(effects)
 			effects.queue_free()
 			effects = null
@@ -340,7 +340,7 @@ func _build_world_layers() -> void:
 		var objectives_ready := objectives.setup()
 
 		if not objectives_ready.ok:
-			DotLog.warn(
+			GSLog.warn(
 				CHANNEL, "objectives are off", {"why": objectives_ready.error.message}
 			)
 			remove_child(objectives)
@@ -358,7 +358,7 @@ func _build_world_layers() -> void:
 		var props_ready := props.setup()
 
 		if not props_ready.ok:
-			DotLog.warn(CHANNEL, "props are off", {"why": props_ready.error.message})
+			GSLog.warn(CHANNEL, "props are off", {"why": props_ready.error.message})
 			remove_child(props)
 			props.queue_free()
 			props = null
@@ -374,7 +374,7 @@ func _build_world_layers() -> void:
 	var horde_ready := horde.setup()
 
 	if not horde_ready.ok:
-		DotLog.warn(CHANNEL, "the horde is off", {"why": horde_ready.error.message})
+		GSLog.warn(CHANNEL, "the horde is off", {"why": horde_ready.error.message})
 		remove_child(horde)
 		horde.queue_free()
 		horde = null

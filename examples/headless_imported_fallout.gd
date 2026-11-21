@@ -49,11 +49,11 @@ func _test_fallout_all_part2(sealed: Array[String], report: Array[String], playe
 				var reach := 0.0
 				var lowest := start.y
 				for tick in range(int(TICK_RATE * FALLOUT_WALK)):
-					var move := DotFpsCommand.new()
+					var move := GSFpsCommand.new()
 					move.yaw = yaw
 					move.move = Vector2(0.0, 1.0)
 					move.sanitise()
-					_game.tick({player.player_id: [move, DotWeaponCommand.new()]})
+					_game.tick({player.player_id: [move, GSWeaponCommand.new()]})
 					var here := player.controller.state.position
 					# Only ground counts: a body walked off a ledge keeps its sideways
 					# speed through the whole fall, which is not a way out of a cell.

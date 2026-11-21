@@ -1,6 +1,6 @@
-extends DotConfig
+extends GSConfig
 
-## Fatal Contact's server tunables for [DotGameConfigBinder]: `fc_<field>` cvars, a `config` profile at
+## Fatal Contact's server tunables for [GSGameConfigBinder]: `fc_<field>` cvars, a `config` profile at
 ## `cfg/server/game/game-arena/config/game.yml`, `ARENA_*` env and `--arena-*` argv.
 
 ## `@export_group` -> the cfg file it lives in: `cfg/game/game-arena/config_<file>/game.yml`.
@@ -11,8 +11,8 @@ const CFG_FILES := {
 
 
 ## The binder every entry point uses: [param config] layered, one cfg file per [constant CFG_FILES] entry.
-static func make_binder(config: DotConfig, json_path := "") -> DotGameConfigBinder:
-	var b := DotGameConfigBinder.create(config, "game-arena", "fc", json_path)
+static func make_binder(config: GSConfig, json_path := "") -> GSGameConfigBinder:
+	var b := GSGameConfigBinder.create(config, "game-arena", "fc", json_path)
 	b.grouped = true
 	b.group_files = CFG_FILES
 	return b
@@ -52,12 +52,12 @@ func cli_prefix() -> String:
 @export_range(0.1, 30.0, 0.1) var horde_spawn_interval: float = 0.6
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if horde_spawn_max_distance <= horde_spawn_min_distance:
-		return DotResult.fail(DotError.CODE_INVALID, "horde_spawn_max_distance must exceed horde_spawn_min_distance")
+		return GSResult.fail(GSError.CODE_INVALID, "horde_spawn_max_distance must exceed horde_spawn_min_distance")
 	if max_health_cap > 0.0 and max_health_cap < player_health:
-		return DotResult.fail(DotError.CODE_INVALID, "max_health_cap must be 0 (unlimited) or at least player_health")
-	return DotResult.success(null)
+		return GSResult.fail(GSError.CODE_INVALID, "max_health_cap must be 0 (unlimited) or at least player_health")
+	return GSResult.success(null)
 
 
 @export_group("Players")
@@ -210,13 +210,13 @@ func validate() -> DotResult:
 ## Ticks a second for solo and a listen host (project.godot's physics rate is the same default); a dedicated server runs the host's sv_tickrate instead. Above 66 costs CPU in proportion; not yet measured with 32 bots.
 @export_range(20, 128, 1) var tick_rate: int = FcContent.TICK_RATE
 
-## Solo on its own server process (FcSimHost): the tick rate by player count (bots and you) in dot-server's `sv_tickrate_tiers` grammar (DotTickTiers), read once as the solo server starts; it overrides [member tick_rate]. A tick dearer than its length cannot keep real time, and then the whole game, gravity included, runs slower than the clock: on PH 64 players cost about 32 ms a tick and held 20-30 ticks a second of 66. Empty keeps [member tick_rate] at every count.
+## Solo on its own server process (FcSimHost): the tick rate by player count (bots and you) in dot-server's `sv_tickrate_tiers` grammar (GSTickTiers), read once as the solo server starts; it overrides [member tick_rate]. A tick dearer than its length cannot keep real time, and then the whole game, gravity included, runs slower than the clock: on PH 64 players cost about 32 ms a tick and held 20-30 ticks a second of 66. Empty keeps [member tick_rate] at every count.
 @export var solo_tick_tiers: String = "players<=32:66,<=64:33,else:22"
 
 ## Solo on its own server process: seconds between repeats of the in-game "server behind" line while the server stays under its tick rate. It is said as the server falls behind and again after it caught up; 0 says it on every 5 s report that is behind.
 @export_range(0.0, 3600.0, 1.0, "or_greater") var behind_notice_sec: float = 60.0
 
-## The surf fields as [method DotAudioSurfRules.apply_values] takes them.
+## The surf fields as [method GSAudioSurfRules.apply_values] takes them.
 func surf_values() -> Dictionary:
 	return {
 		"sounds": surf_sounds, "volume": surf_volume, "quiet_speed": surf_quiet_speed,

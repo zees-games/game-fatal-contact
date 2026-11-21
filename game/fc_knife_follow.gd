@@ -12,7 +12,7 @@ static func follow(rules: Dictionary, source: Object) -> bool:
 		return false
 	if not source.has_method(&"replicated_cvar") or not source.has_signal(&"replicated_cvar_changed"):
 		return false
-	for suffix: String in DotWeaponKnives.CVAR_SPECS:
+	for suffix: String in GSWeaponKnives.CVAR_SPECS:
 		var held := String(source.call(&"replicated_cvar", PREFIX + suffix, ""))
 		if held != "":
 			apply(rules, PREFIX + suffix, held)
@@ -25,7 +25,7 @@ static func follow(rules: Dictionary, source: Object) -> bool:
 static func apply(rules: Dictionary, cvar_name: String, value: String) -> bool:
 	if not cvar_name.begins_with(PREFIX):
 		return false
-	var spec: Variant = DotWeaponKnives.CVAR_SPECS.get(cvar_name.substr(PREFIX.length()), null)
+	var spec: Variant = GSWeaponKnives.CVAR_SPECS.get(cvar_name.substr(PREFIX.length()), null)
 	if spec == null:
 		return false
 	var key: String = spec[0]

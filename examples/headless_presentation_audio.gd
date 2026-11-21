@@ -11,7 +11,7 @@ func _test_schema() -> void:
 		FcPresentation.settings_directory
 	)
 
-	var clamped := s.keys_in_scope(DotSettingsDef.Scope.SERVER_CLAMPED)
+	var clamped := s.keys_in_scope(GSSettingsDef.Scope.SERVER_CLAMPED)
 	_check(clamped.has(&"field_of_view"), "a server may cap the field of view")
 	_check(clamped.has(&"view_model"), "and force view models off")
 	_check(
@@ -19,7 +19,7 @@ func _test_schema() -> void:
 		"and may not touch the sensitivity or the volume, which are a fingerprint"
 	)
 
-	var account := s.keys_in_scope(DotSettingsDef.Scope.ACCOUNT)
+	var account := s.keys_in_scope(GSSettingsDef.Scope.ACCOUNT)
 	_check(
 		account.has(&"sensitivity") and account.has(&"crosshair"),
 		"sensitivity and a crosshair follow the person, because they are about their hand"
@@ -34,17 +34,17 @@ func _test_schema() -> void:
 		"and so does the effect catalogue, which loads no scene to validate"
 	)
 	var stock_ok := true
-	for sound: StringName in DotAudioWeaponStock.COUNTS:
-		stock_ok = stock_ok and FcPresentation.sound_catalogue().find(DotAudioWeaponStock.id_of(sound)) != null
+	for sound: StringName in GSAudioWeaponStock.COUNTS:
+		stock_ok = stock_ok and FcPresentation.sound_catalogue().find(GSAudioWeaponStock.id_of(sound)) != null
 	_check(stock_ok, "the game's sound catalogue carries every stock weapon sound")
 	_check_grenade_blasts()
 	var stock_streams := true
 	for sound in [AwWeaponSound.LIGHT, AwWeaponSound.SHOTGUN, AwWeaponSound.DRY, AwWeaponSound.EQUIP,
 			AwWeaponSound.RELOAD_OUT, AwWeaponSound.RELOAD_SHELL, AwWeaponSound.SUPPRESSED]:
 		var stock_stream := AwWeaponSound.stream(sound)
-		stock_streams = stock_streams and stock_stream is AudioStreamOggVorbis and stock_stream.resource_path.begins_with(DotWeaponSound.DIR)
+		stock_streams = stock_streams and stock_stream is AudioStreamOggVorbis and stock_stream.resource_path.begins_with(GSWeaponSound.DIR)
 	_check(stock_streams, "weapon shots, dry, equip and reloads play the stock recordings, not the synth fallback")
-	var stock_problems := DotWeaponSound.check_stock()
+	var stock_problems := GSWeaponSound.check_stock()
 	_check(stock_problems.is_empty(), "every weapon class resolves a non-silent, unclipped stock voice (%s)" % ", ".join(stock_problems))
 	_done()
 
@@ -90,7 +90,7 @@ func _test_audio_is_a_firefight() -> void:
 	_section("A shot you cannot place is a shot you cannot answer")
 
 	var p := _make()
-	var sink := p.audio.sink as DotAudioSinkNull
+	var sink := p.audio.sink as GSAudioSinkNull
 	_check(sink != null, "a headless run gets the sink that cannot make a noise")
 	if sink == null:
 		p.queue_free()
@@ -101,12 +101,12 @@ func _test_audio_is_a_firefight() -> void:
 	var rifle := cat.find(&"fire_rifle")
 	_check(rifle != null, "a rifle has a sound")
 	_check(
-		rifle.kind == DotAudioDef.Kind.POSITIONAL_3D,
+		rifle.kind == GSAudioDef.Kind.POSITIONAL_3D,
 		"and it is positional, which is the only thing audio adds that the HUD cannot"
 	)
 	_check(rifle.max_distance > 0.0, "with a cull distance rather than an attenuation curve alone")
 	_check(
-		cat.find(&"hit_marker").kind == DotAudioDef.Kind.FLAT,
+		cat.find(&"hit_marker").kind == GSAudioDef.Kind.FLAT,
 		"while a hit marker is flat, because it is information about your own shot and "
 		+ "would otherwise get quieter the further away you hit somebody"
 	)
@@ -142,7 +142,7 @@ func _test_audio_is_a_firefight() -> void:
 
 	# The bank is what the real sink would be given. Baking it here is the only place a
 	# headless run can tell "the game would make a noise" from "the game has a table".
-	var bank := DotAudioSynth.bank(cat, recipes)
+	var bank := GSAudioSynth.bank(cat, recipes)
 	_check(
 		bank.has(&"fire_rifle") and bank.has(rifle.path),
 		"the bank answers under both the id and the path the def names"
@@ -157,14 +157,14 @@ func _test_audio_is_a_firefight() -> void:
 	_audio_firefight_rest()
 
 
-func _check_recipes_cover_ids(cat: DotAudioCatalogue, recipes: Dictionary) -> void:
+func _check_recipes_cover_ids(cat: GSAudioCatalogue, recipes: Dictionary) -> void:
 	var uncovered: Array[String] = []
 	for id in cat.ids():
 		# dot-audio's stock footsteps and beds are files the addon ships: no stand-in needed.
-		# Nor are the ambience moods' files, which DotAmbience registers when a mood starts,
+		# Nor are the ambience moods' files, which GSAmbience registers when a mood starts,
 		# nor fc-weapons' own per-gun reports (aw_gun_*), recordings the pack ships.
 		var sid := String(id)
-		if not recipes.has(id) and not DotAudioStock.ids().has(id) and not sid.begins_with("shot_") and not sid.begins_with(DotAmbience.ID_PREFIX) \
+		if not recipes.has(id) and not GSAudioStock.ids().has(id) and not sid.begins_with("shot_") and not sid.begins_with(GSAmbience.ID_PREFIX) \
 				and not sid.begins_with(AwShotLayers.GUN_PREFIX):
 			uncovered.append(String(id))
 	_check(
@@ -179,7 +179,7 @@ func _check_recipes_cover_ids(cat: DotAudioCatalogue, recipes: Dictionary) -> vo
 	_check(stray.is_empty(), "and no recipe names an id that is not there (%s)" % str(stray))
 
 
-func _check_sliced_bank(cat: DotAudioCatalogue, recipes: Dictionary, bank: Dictionary) -> void:
+func _check_sliced_bank(cat: GSAudioCatalogue, recipes: Dictionary, bank: Dictionary) -> void:
 	# Baked a few recipes a frame under the loading cover, never as one 0.7 s frame: the
 	# sliced bank must hold exactly what the one-shot bank does, in many short calls.
 	var sliced := {}
@@ -202,7 +202,7 @@ func _check_sliced_bank(cat: DotAudioCatalogue, recipes: Dictionary, bank: Dicti
 		"and it took %d calls, none over 250 ms or a quarter of the bake (longest %d ms of %d)" % [calls, longest, total])
 
 
-func _check_bake_order(cat: DotAudioCatalogue, recipes: Dictionary) -> void:
+func _check_bake_order(cat: GSAudioCatalogue, recipes: Dictionary) -> void:
 	# The cover waits only for the stand-ins that are heard: an id whose recorded files exist is played from them, so its
 	# fallback recipe is queued first (bake_into consumes from the end, so it bakes last, after the cover).
 	var order := FcPresentation.bake_order(cat, recipes)
@@ -219,7 +219,7 @@ func _check_bake_order(cat: DotAudioCatalogue, recipes: Dictionary) -> void:
 		"the recipes behind a recorded file bake after the heard ones (%d of %d behind files; recorded ids not behind: %s)" % [shadowed, ids.size(), str(misplaced)])
 
 
-func _check_recorded_sounds(cat: DotAudioCatalogue, rifle: DotAudioDef, bank: Dictionary) -> void:
+func _check_recorded_sounds(cat: GSAudioCatalogue, rifle: GSAudioDef, bank: Dictionary) -> void:
 	# Item 1722: every game sound was a synthesised stand-in because its file was looked for in a
 	# res://audio nobody filled. They name the addons' recorded files now.
 	var unrecorded: Array[String] = []
@@ -283,7 +283,7 @@ func _test_effects_and_the_player_who_asked_for_none() -> void:
 
 	# The grunt: scaled by the damage, and left to the death cry when the hit was lethal.
 	var q := _make()
-	var hurt_sink := q.audio.sink as DotAudioSinkNull
+	var hurt_sink := q.audio.sink as GSAudioSinkNull
 	hurt_sink.forget()
 	q.on_hurt(5.0)
 	q.on_hurt(60.0, true)
@@ -325,7 +325,7 @@ func _check_render_quality(p) -> void:
 	add_child(screen)
 	var client := FcClient.new()
 	client.presentation = p
-	client.platform = DotGameClient.new()
+	client.platform = GSGameClient.new()
 	var quality: Node = load("res://addons/dot_fx/runtime/dot_fx_render_quality.gd").new()
 	quality.set(&"viewport", screen)
 	add_child(quality)
@@ -439,13 +439,13 @@ func _test_blood() -> void:
 	var p := _make(false)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	var npc := DotEntity.make_id(DotEntity.KIND_NPC, 1)
+	var npc := GSEntity.make_id(GSEntity.KIND_NPC, 1)
 	var eye := Vector3(0, 1.7, 8)
 	var chest := Vector3(0, 1.2, -1)
 
 	_check(p.blood != null and p.blood.decals.blood_count() == 0, "the presentation owns a blood layer, empty")
 	_check(p.break_fx != null and p.break_fx.is_in_group(&"fc_break_fx"), "the presentation owns the break effects, found by the panes")
-	p.on_body_hit(DotEntity.make_id(DotEntity.KIND_PROP, 3), chest, eye)
+	p.on_body_hit(GSEntity.make_id(GSEntity.KIND_PROP, 3), chest, eye)
 	_check(p.blood.decals.blood_count() == 0, "a prop bleeds nothing")
 	p.on_body_hit(npc, chest, eye)
 	_check(p.blood.decals.blood_count() == 1, "gore on: a hit body splatters the wall behind it (%d)" % p.blood.decals.blood_count())
@@ -471,7 +471,7 @@ func _test_blood() -> void:
 ## Each of the five thrown grenades is heard as its own recording on detonation, a launcher as the stock blast.
 func _check_grenade_blasts() -> void:
 	var catalogue := FcPresentation.sound_catalogue()
-	if DotAddonApi.build_level("fc_weapons") < FcPresentation.GRENADE_BLAST_LEVEL:
+	if GSAddonApi.build_level("fc_weapons") < FcPresentation.GRENADE_BLAST_LEVEL:
 		_check(FcPresentation.blast_sound_id(&"frag") == FcPresentation.EXPLOSION, "without fc_weapons level 26 a grenade keeps the stock blast")
 		return
 	var heard: Dictionary = {}

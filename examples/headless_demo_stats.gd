@@ -19,7 +19,7 @@ var _game: FcGame = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -68,10 +68,10 @@ func _boot() -> void:
 
 
 func _step(buttons: int, yaw: float, pitch: float, who: int = 1) -> void:
-	var m := DotFpsCommand.new()
+	var m := GSFpsCommand.new()
 	m.yaw = yaw
 	m.pitch = pitch
-	var w := DotWeaponCommand.new()
+	var w := GSWeaponCommand.new()
 	w.buttons = buttons
 	w.yaw = yaw
 	w.pitch = pitch
@@ -84,16 +84,16 @@ static func angles_to(from: Vector3, to: Vector3) -> Vector2:
 	return Vector2(rad_to_deg(atan2(-d.x, -d.z)), rad_to_deg(asin(d.y)))
 
 
-func _episodes(store: DotBotDemoStoreMemory, kind: String) -> Array:
-	return store.episodes.filter(func(e: DotBotDemoEpisode) -> bool: return e.kind == kind)
+func _episodes(store: GSBotDemoStoreMemory, kind: String) -> Array:
+	return store.episodes.filter(func(e: GSBotDemoEpisode) -> bool: return e.kind == kind)
 
 
 func _run() -> void:
 	await _boot()
-	var config := DotBotDemoConfig.new()
+	var config := GSBotDemoConfig.new()
 	config.store = "memory"
 	config.record = false
-	var store := DotBotDemoStoreMemory.new()
+	var store := GSBotDemoStoreMemory.new()
 	var started := _game.start_demo_stats(config, store)
 	_check(started.ok, "demo stats start over a store", str(started.error))
 	var stats: RefCounted = _game.demo_stats
@@ -119,12 +119,12 @@ func _run() -> void:
 	var eye: Vector3 = shooter.muzzle_position()
 	# The head, above the chest the recorder measures against, so the first view error is small but not zero.
 	var a := angles_to(eye, victim.global_position + Vector3(0.0, 1.62 * FcPlayerTunables.body_scale(), 0.0))
-	var aim := DotWeaponCommand.BUTTON_USER_0
+	var aim := GSWeaponCommand.BUTTON_USER_0
 	for _i in 150:
 		await _step(aim, a.x, a.y)
 	var hits: Array = []
 	_game.hit_confirmed.connect(func(by: int, at: int, _amount: float, _point: Vector3, _head: bool, _lethal: bool) -> void: hits.append("%d>%d" % [by, at]))
-	await _step(aim | DotWeaponCommand.BUTTON_ATTACK, a.x, a.y)
+	await _step(aim | GSWeaponCommand.BUTTON_ATTACK, a.x, a.y)
 	for _i in 12:
 		await _step(aim, a.x, a.y)
 	# A bot that stands and looks at a player is no subject.
@@ -137,14 +137,14 @@ func _run() -> void:
 	await _run_part2(store, stats, victim, a, aim, hits)
 
 
-func _run_part2(store: DotBotDemoStoreMemory, stats: RefCounted, victim, a, aim, hits: Array) -> void:
+func _run_part2(store: GSBotDemoStoreMemory, stats: RefCounted, victim, a, aim, hits: Array) -> void:
 	var places := _episodes(store, "place")
 	var engages := _episodes(store, "engage")
 	_check(places.size() >= 2, "standing about makes place episodes cut at the span", str(places.size()))
 	_check(not places.is_empty() and places[0].key == "all" and places[0].frame_size == 5 and places[0].sample_count() > 0, "a place episode carries position, the fight flag and the speed under its label")
-	_check(places.all(func(e: DotBotDemoEpisode) -> bool: return e.map_id == "demo_lane"), "episodes carry the map")
+	_check(places.all(func(e: GSBotDemoEpisode) -> bool: return e.map_id == "demo_lane"), "episodes carry the map")
 	_check(engages.size() == 1, "one engagement, ended by the hit", "%d stored, hits %s" % [engages.size(), hits])
-	var e: DotBotDemoEpisode = engages[0] if not engages.is_empty() else null
+	var e: GSBotDemoEpisode = engages[0] if not engages.is_empty() else null
 	_check(e != null and e.outcome in ["hit", "kill"], "the engagement ends at the first hit", e.outcome if e != null else "")
 	var fired_at := -1
 	var first_error := -1.0
@@ -166,7 +166,7 @@ func _run_part2(store: DotBotDemoStoreMemory, stats: RefCounted, victim, a, aim,
 	_check(stats.refreshes > before_periodic, "the slow timer reloads them again", "%d -> %d" % [before_periodic, stats.refreshes])
 	stats.refresh_interval = 600.0
 
-	var folded: DotResult = await stats.refresh()
+	var folded: GSResult = await stats.refresh()
 	_check(folded.ok and stats.stats.episode_count("all") + stats.stats.dropped >= 1, "the aim statistics fold the engagement", str(folded.error))
 	_check(stats.heatmap.episode_count() >= 2, "the heatmap folds the place episodes", str(stats.heatmap.episode_count()))
 
@@ -176,9 +176,9 @@ func _run_part2(store: DotBotDemoStoreMemory, stats: RefCounted, victim, a, aim,
 	var world: FcBots.World = FcBots.world_for(_game)
 	var plain := world.waypoints()
 	_check(plain.size() == 2 and plain.has(busy) and plain.has(empty), "waypoints are unweighted before the heatmap has enough", str(plain.size()))
-	var heat: DotBotDemoHeatmap = stats.heatmap
+	var heat: GSBotDemoHeatmap = stats.heatmap
 	for i in 4:
-		var ep := DotBotDemoEpisode.new()
+		var ep := GSBotDemoEpisode.new()
 		ep.map_id = "demo_lane"
 		ep.map_version = heat.map_version
 		ep.kind = "place"
@@ -201,7 +201,7 @@ func _run_part2(store: DotBotDemoStoreMemory, stats: RefCounted, victim, a, aim,
 	await _run_part3(store, stats, victim, a)
 
 
-func _run_part3(store: DotBotDemoStoreMemory, stats: RefCounted, victim, a) -> void:
+func _run_part3(store: GSBotDemoStoreMemory, stats: RefCounted, victim, a) -> void:
 	# Engage detection against synthetic placements of the enemy: the cone (45 degrees), the range (60 m) and the grace out of view (0.5 s).
 	var spot := Transform3D(Basis(), Vector3(-30.0, 0.05, -20.0))
 	victim.spawn(spot, _game.current_tick())
@@ -228,11 +228,11 @@ func _run_part3(store: DotBotDemoStoreMemory, stats: RefCounted, victim, a) -> v
 	_check(_episodes(store, "engage").size() == 1, "an engagement that never reached a hit stores nothing", str(_episodes(store, "engage").size()))
 
 	# The suggestion tool's lines over a store: too few episodes say so, enough print a table.
-	var tool_store := DotBotDemoStoreMemory.new()
+	var tool_store := GSBotDemoStoreMemory.new()
 	var few := await FcDemoStatsScript.preset_lines(tool_store, "lane", "1")
 	_check(not few.is_empty() and few[few.size() - 1].contains("not enough"), "no recordings print a message", str(few))
 	for i in 40:
-		var ep := DotBotDemoEpisode.new()
+		var ep := GSBotDemoEpisode.new()
 		ep.map_id = "lane"
 		ep.map_version = "1"
 		ep.kind = "engage"

@@ -9,7 +9,7 @@ const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 ##   godot --write-movie out.avi --fixed-fps 60 --script res://tools/filmstrip_pace.gd -- [steady|noisy]
 
 const SECONDS := 6.0
-var _fig: DotHumanoidFigure = null
+var _fig: GSHumanoidFigure = null
 var _held: AwWorldModel = null
 var _cam: Camera3D = null
 var _mode := "noisy"
@@ -34,7 +34,7 @@ func _initialize() -> void:
 	root.add_child(map.to_scene())
 	root.add_child(FcMapLighting.build(map))
 	var id := &"arena-player-00000007"
-	_fig = DotHumanoidFigure.new()
+	_fig = GSHumanoidFigure.new()
 	root.add_child(_fig)
 	_fig.build(FcAvatars.look_of(FcAvatars.stock_avatar(id), id), 1.8)
 	_fig.set_run_speeds(4.4, 3.6)

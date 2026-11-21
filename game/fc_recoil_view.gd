@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## The camera's half of the recoil: the kick each of the local player's shots turns the view by, piling up along a burst and settling once the trigger is let go. Same numbers as the bullet, so no desync:
-## the server offsets each bullet by the kick left from earlier shots (DotWeaponRecoilRules, sv_recoil_*); this adds the kick of the same outcomes, decaying at the same recovery rate, to the camera.
+## the server offsets each bullet by the kick left from earlier shots (GSWeaponRecoilRules, sv_recoil_*); this adds the kick of the same outcomes, decaying at the same recovery rate, to the camera.
 ## [b]All of it, and nothing else turns the camera for a shot[/b], so the crosshair is where the next bullet goes. It used to draw 70% and leave the rest to the weapon pose's spring
 ## (AwWeaponPose.view_punch), but that spring is a transient with its own share (0.12 on automatics), not the pattern: a held rifle burst put the bullets a degree above and beside
 ## the crosshair (fc-hitreg-vertical-1, chest hits with the crosshair on the legs). The hands still kick on their own spring.
@@ -13,7 +13,7 @@ static var scale: float = 1.0
 ## Most pitch the burst may pile up, in degrees.
 var max_pitch: float = 30.0
 
-var _recoil := DotWeaponRecoil.new()
+var _recoil := GSWeaponRecoil.new()
 
 
 func _init() -> void:
@@ -21,7 +21,7 @@ func _init() -> void:
 
 
 ## One shot's outcome; a melee swing or a beam without recoil leaves the view alone.
-func kick(outcome: DotWeaponOutcome) -> void:
+func kick(outcome: GSWeaponOutcome) -> void:
 	if outcome == null:
 		return
 	_recoil.max_pitch = max_pitch
@@ -44,5 +44,5 @@ func offset() -> Vector2:
 
 
 func clear() -> void:
-	_recoil = DotWeaponRecoil.new()
+	_recoil = GSWeaponRecoil.new()
 	_recoil.max_pitch = max_pitch

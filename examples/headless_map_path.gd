@@ -30,17 +30,17 @@ func attach_maps(director: Node) -> void:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("game-fatal-contact: one map change path")
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	DirAccess.make_dir_recursive_absolute(SERVER_DIR)
 
 	if await _boot_server("fc map path", PORT, SERVER_DIR, TICK_RATE):
-		_module.maps.map_changed.connect(func(m: DotMapDef) -> void: _changed.append(m.id))
+		_module.maps.map_changed.connect(func(m: GSMapDef) -> void: _changed.append(m.id))
 		_test_names()
 		await _test_console_changes()
 		await _test_host_startup()
@@ -48,12 +48,12 @@ func _run() -> void:
 		await _test_map_list_profile()
 
 	_teardown()
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
-## Runs [param fn] (a coroutine returning a DotResult) while standing in for the server tick that opens the gate.
-func _pump(fn: Callable) -> DotResult:
+## Runs [param fn] (a coroutine returning a GSResult) while standing in for the server tick that opens the gate.
+func _pump(fn: Callable) -> GSResult:
 	var box := {"r": null}
 	var runner := func() -> void:
 		box["r"] = await fn.call()
@@ -63,13 +63,13 @@ func _pump(fn: Callable) -> DotResult:
 			break
 		_game.tick_gate.open()
 		await get_tree().process_frame
-	return box["r"] if box["r"] != null else DotResult.fail(DotError.CODE_TIMEOUT, "never finished")
+	return box["r"] if box["r"] != null else GSResult.fail(GSError.CODE_TIMEOUT, "never finished")
 
 
 ## Types [param line] at the server console and waits until the director reports a map change (or gives up).
-func _console_change(line: String) -> DotResult:
+func _console_change(line: String) -> GSResult:
 	var before := _changed.size()
-	var res := _server.console.execute(line, DotCmdContext.console("", PackedStringArray()))
+	var res := _server.console.execute(line, GSCmdContext.console("", PackedStringArray()))
 	for _i in 600:
 		if _changed.size() > before or not res.ok:
 			break
@@ -137,18 +137,18 @@ func _test_host_startup() -> void:
 	var scene: Node = FcServer.new()
 	scene.name = "ArenaServer"
 	games.add_child(scene)
-	var nothing: DotResult = await scene.change_to(&"dm_atrium")
+	var nothing: GSResult = await scene.change_to(&"dm_atrium")
 	_check(not nothing.ok, "before the module attaches its director, the scene refuses a change")
 	scene.attach_maps(_module.maps)
 	var found := _host_find(games, [&"change_to", &"change_to_map"])
 	_check(found == scene, "the host's search under server.games finds the game scene")
 	var fetch := _host_find(games, [&"ensure_map_content"])
-	var fetched: DotResult = await fetch.call(&"ensure_map_content", &"dm_atrium") if fetch != null else null
-	var refused: DotResult = await fetch.call(&"ensure_map_content", &"no_such_map") if fetch != null else null
+	var fetched: GSResult = await fetch.call(&"ensure_map_content", &"dm_atrium") if fetch != null else null
+	var refused: GSResult = await fetch.call(&"ensure_map_content", &"no_such_map") if fetch != null else null
 	_check(fetched != null and fetched.ok and refused != null and not refused.ok,
 		"its fetch step knows the catalogue's maps and refuses others")
 	var before := _changed.size()
-	var res := await _pump(func() -> DotResult: return await found.call(&"change_to", &"dm_atrium"))
+	var res := await _pump(func() -> GSResult: return await found.call(&"change_to", &"dm_atrium"))
 	_check(res.ok and _changed.size() == before + 1 and _game.map.id == &"dm_atrium",
 		"change_to through it fires map_changed once", "%s %s" % [str(res.error), _changed])
 
@@ -157,7 +157,7 @@ func _test_host_startup() -> void:
 	scene.deferred_map = &"dm_box"
 	before = _changed.size()
 	scene.attach_maps(_module.maps)
-	var again := await _pump(func() -> DotResult: return await found.call(&"change_to", &"dm_box"))
+	var again := await _pump(func() -> GSResult: return await found.call(&"change_to", &"dm_box"))
 	for _i in 30:
 		_game.tick_gate.open()
 		await get_tree().process_frame
@@ -180,7 +180,7 @@ func _test_fc_mode() -> void:
 		all_ids = all_ids and msg.contains(String(id))
 	_check(all_ids, "and the refusal lists every valid id", msg)
 	_check(console.get_string("fc_mode", "") == was, "and the cvar keeps its value", console.get_string("fc_mode", ""))
-	var typed := console.execute("fc_mode nope", DotCmdContext.console("", PackedStringArray()))
+	var typed := console.execute("fc_mode nope", GSCmdContext.console("", PackedStringArray()))
 	_check(not typed.ok and console.get_string("fc_mode", "") == was, "typed at the console too")
 
 	var ctf_map := _hosts(&"ctf")
@@ -223,7 +223,7 @@ func _test_map_list_profile() -> void:
 		ctf_map, other, ProjectSettings.globalize_path(profile)])
 	f.close()
 	_module.maps.rotation_file_name = ProjectSettings.globalize_path(list)
-	var read: DotResult = _module.maps.load_rotation()
+	var read: GSResult = _module.maps.load_rotation()
 	_check(read.ok and _module.maps.rotation_file != null and _module.maps.rotation_file.has_rotations(), "the map list is read", str(read.error))
 	var limit_was := _server.console.get_string("fc_scorelimit", "")
 
@@ -236,7 +236,7 @@ func _test_map_list_profile() -> void:
 	_check(_server.console.get_string("fc_scorelimit", "") == limit_was, "and the other entry's cvars are put back",
 		_server.console.get_string("fc_scorelimit", ""))
 	var _ok := _module.maps.set_next(other)
-	var next := await _pump(func() -> DotResult: return await _module.maps.change_to_next())
+	var next := await _pump(func() -> GSResult: return await _module.maps.change_to_next())
 	_check(next.ok and _game.map.id == other and _game.mode.id == &"ffa" and _server.console.get_string("fc_scorelimit", "") == "7",
 		"the rotation's next map takes its entry's profile too", "%s %s %s" % [_game.map.id, _game.mode.id, _server.console.get_string("fc_scorelimit", "")])
 	_done()

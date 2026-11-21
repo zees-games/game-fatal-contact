@@ -13,11 +13,11 @@ static var scale: float = 1.0
 const MAX_SHOTS := 8
 
 ## The server's recoil rules, or null for the weapon's flat kick.
-var rules: DotWeaponRecoilRules = null
-var catalogue: DotWeaponCatalogue = null
+var rules: GSWeaponRecoilRules = null
+var catalogue: GSWeaponCatalogue = null
 var tick_rate := 64
 
-var _recoil := DotWeaponRecoil.new()
+var _recoil := GSWeaponRecoil.new()
 var _state := {}
 var _id := &""
 var _seq := -1.0
@@ -25,9 +25,9 @@ var _clock := 0.0
 
 
 ## The rounds fired since the last frame, one outcome each, in order; advances the replay clock by [param delta].
-func shots(aux: PackedFloat32Array, delta: float) -> Array[DotWeaponOutcome]:
+func shots(aux: PackedFloat32Array, delta: float) -> Array[GSWeaponOutcome]:
 	_clock += maxf(delta, 0.0)
-	var out: Array[DotWeaponOutcome] = []
+	var out: Array[GSWeaponOutcome] = []
 	var id := KillPov.weapon_of(aux[KillPov.WEAPON])
 	if id != _id:
 		_id = id
@@ -46,14 +46,14 @@ func shots(aux: PackedFloat32Array, delta: float) -> Array[DotWeaponOutcome]:
 	return out
 
 
-func _one(aux: PackedFloat32Array, id: StringName, b: DotWeaponBallistics, tick: int) -> DotWeaponOutcome:
-	var outcome := DotWeaponOutcome.new()
+func _one(aux: PackedFloat32Array, id: StringName, b: GSWeaponBallistics, tick: int) -> GSWeaponOutcome:
+	var outcome := GSWeaponOutcome.new()
 	outcome.used = true
-	outcome.kind = DotWeaponOutcome.KIND_SHOT
+	outcome.kind = GSWeaponOutcome.KIND_SHOT
 	var flags := int(aux[KillPov.FLAGS])
 	var recorded := Vector2(aux[KillPov.KICK_PITCH], aux[KillPov.KICK_YAW])
 	if rules != null and b != null:
-		var ctx := DotWeaponContext.new()
+		var ctx := GSWeaponContext.new()
 		ctx.tick = tick
 		ctx.aiming = aux[KillPov.ADS] > 0.5
 		ctx.crouched = flags & KillPov.CROUCHED != 0
@@ -75,7 +75,7 @@ func _one(aux: PackedFloat32Array, id: StringName, b: DotWeaponBallistics, tick:
 
 
 ## Adds one round's kick to the camera's share.
-func kick(outcome: DotWeaponOutcome) -> void:
+func kick(outcome: GSWeaponOutcome) -> void:
 	_recoil.kick_outcome(outcome)
 
 
@@ -92,18 +92,18 @@ func offset() -> Vector2:
 
 
 func clear() -> void:
-	_recoil = DotWeaponRecoil.new()
+	_recoil = GSWeaponRecoil.new()
 	_state.clear()
 	_id = &""
 	_seq = -1.0
 	_clock = 0.0
 
 
-func _ballistics(id: StringName) -> DotWeaponBallistics:
+func _ballistics(id: StringName) -> GSWeaponBallistics:
 	if catalogue == null or id == &"" or not catalogue.has(id):
 		return null
 	var def := catalogue.get_def(id)
-	return def.tuning as DotWeaponBallistics if def != null else null
+	return def.tuning as GSWeaponBallistics if def != null else null
 
 
 func _interval(id: StringName) -> int:

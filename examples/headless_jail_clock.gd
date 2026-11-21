@@ -33,7 +33,7 @@ var _opened := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -54,7 +54,7 @@ func _new_game(authority: bool, game_name: String) -> Node:
 	game.is_authority = authority
 	game.mode = FcMode.free_for_all(50)
 	add_child(game)
-	var made: DotResult = game.setup(FcMap.imported(MAP))
+	var made: GSResult = game.setup(FcMap.imported(MAP))
 	if not made.ok:
 		return null
 	game.jail_rules["open"] = 1.0
@@ -64,10 +64,10 @@ func _new_game(authority: bool, game_name: String) -> Node:
 
 
 func _join(game: Node, id: int) -> Variant:
-	var _a: DotResult = game.add_player(id, "p%d" % id)
+	var _a: GSResult = game.add_player(id, "p%d" % id)
 	var player = game.player_for(id)
 	if player != null and not player.is_alive():
-		var _r: DotResult = game.respawn_player(id)
+		var _r: GSResult = game.respawn_player(id)
 	return player
 
 
@@ -187,9 +187,9 @@ func _client_after_replays(first, late) -> void:
 
 	var pressed := _press(first, [late])
 	mine.controller.teleport(_jail.button_box().get_center(), 0.0, 0.0)
-	var _s = mine.simulate_tick(pressed, delta, DotFpsCommand.new(), DotWeaponCommand.new())
+	var _s = mine.simulate_tick(pressed, delta, GSFpsCommand.new(), GSWeaponCommand.new())
 	var j: RefCounted = _jail
-	client.apply_jail_state(FcEvents.read_jail(DotNetReader.new(
+	client.apply_jail_state(FcEvents.read_jail(GSNetReader.new(
 		FcEvents.write_jail(j.enabled, j.open_ticks, j.cooldown_ticks, j.opened_at))))
 
 	# Ticks pressed+1 .. probe-1 in the cell, each predicted once, and REPLAYS of them replayed again.
@@ -199,16 +199,16 @@ func _client_after_replays(first, late) -> void:
 		_hold_in_cell([first, late])
 		_game.tick({})
 		mine.controller.teleport(_jail.cell(), 0.0, 0.0)
-		_s = mine.simulate_tick(t, delta, DotFpsCommand.new(), DotWeaponCommand.new())
+		_s = mine.simulate_tick(t, delta, GSFpsCommand.new(), GSWeaponCommand.new())
 		if replays < REPLAYS and t >= pressed + REPLAY_TICKS * (replays + 1):
 			replays += 1
 			for r in range(t - REPLAY_TICKS + 1, t + 1):
 				mine.controller.teleport(_jail.cell(), 0.0, 0.0)
-				_s = mine.simulate_tick(r, delta, DotFpsCommand.new(), DotWeaponCommand.new())
+				_s = mine.simulate_tick(r, delta, GSFpsCommand.new(), GSWeaponCommand.new())
 
 	var server_got := _probe(first, [late])
 	mine.controller.teleport((_gate["box"] as AABB).get_center(), 0.0, 0.0)
-	_s = mine.simulate_tick(probe_at, delta, DotFpsCommand.new(), DotWeaponCommand.new())
+	_s = mine.simulate_tick(probe_at, delta, GSFpsCommand.new(), GSWeaponCommand.new())
 	var client_got := _where(mine)
 	_check(server_got == "out" and client_got == server_got,
 		"after %d replays of %d ticks the client predicts the way out like the server" % [replays, REPLAY_TICKS],

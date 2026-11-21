@@ -5,12 +5,12 @@ const FcPlayerNet := preload("res://game/fc_player_net.gd")
 const EXPECTED_CHECKS := 15
 
 ## An attachment a client asks for over a real ENet link (Ask.ATTACH) is fitted by the server alone, and reaches the
-## client as `net_fitted`: a real `DotServer` running `FcModule` and a real client in one process (as headless_lossy).
+## client as `net_fitted`: a real `GSServer` running `FcModule` and a real client in one process (as headless_lossy).
 ## A request the catalogue refuses, or one cut short, leaves the server's fitting as it was.
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 	get_tree().create_timer(300.0).timeout.connect(func() -> void:
 		print("FAIL: watchdog, the suite took over 300 s")
@@ -19,7 +19,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact: weapon attachments over a real server and a real client")
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	Engine.physics_ticks_per_second = TICK_RATE
 	var ok := await _boot()
 	var a: Dictionary = {}
@@ -30,13 +30,13 @@ func _run() -> void:
 		_clients["A"] = a
 		ok = await _body(a)
 	await _teardown()
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	_report_sections(_entered, _completed, 3, EXPECTED_CHECKS)
 
 
 func _teardown() -> void:
 	for label in _clients:
-		var link: DotClientLink = _clients[label]["link"]
+		var link: GSClientLink = _clients[label]["link"]
 		if link != null and is_instance_valid(link):
 			link.disconnect_from_server("test over")
 	await get_tree().process_frame
@@ -58,7 +58,7 @@ func _teardown() -> void:
 
 
 ## The first gun in the catalogue a suppressor fits.
-func _suppressible(arsenal: DotWeaponArsenal) -> DotWeaponDef:
+func _suppressible(arsenal: GSWeaponArsenal) -> GSWeaponDef:
 	for id in arsenal.catalogue.ids():
 		var def := arsenal.catalogue.get_def(id)
 		if (arsenal.attachments.choices_for(def).get(&"muzzle", []) as Array).has(&"suppressor"):
@@ -102,8 +102,8 @@ func _body(a: Dictionary) -> bool:
 	var bare := await _until(func() -> bool: return served.arsenal.fitting_at(def.slot).attachment_on(&"muzzle") == &"", RELIABLE_SECONDS)
 	_check(bare and served.arsenal.fitting_at(def.slot).is_empty(), "an unknown part, a wrong mount and an empty slot fit nothing; an empty id takes it off", "%s then %s" % [before, served.arsenal.fitting_at(def.slot).key()])
 	var cut := FcAttach.write_request(def.slot, &"muzzle", &"suppressor").slice(0, 3)
-	_check(not FcAttach.serve(served.arsenal, DotNetReader.new(cut)).ok and served.arsenal.fitting_at(def.slot).is_empty(), "a cut-off request is refused")
-	_check(not FcAttach.serve(served.arsenal, DotNetReader.new(FcAttach.write_request(def.slot, &"", &"suppressor"))).ok, "and one naming no mount")
+	_check(not FcAttach.serve(served.arsenal, GSNetReader.new(cut)).ok and served.arsenal.fitting_at(def.slot).is_empty(), "a cut-off request is refused")
+	_check(not FcAttach.serve(served.arsenal, GSNetReader.new(FcAttach.write_request(def.slot, &"", &"suppressor"))).ok, "and one naming no mount")
 	var cleared := await _until(func() -> bool: return own.net_fitted == 0, RELIABLE_SECONDS)
 	_check(cleared and not FcAttach.suppressed(def.id, own.net_fitted), "the client sees the bare gun again", str(own.net_fitted))
 	_done()

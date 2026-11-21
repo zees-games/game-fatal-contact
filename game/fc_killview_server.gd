@@ -1,7 +1,7 @@
-extends DotKillViewServer
+extends GSKillViewServer
 
-## The kill view's server over FC: [member eyes_fn] is asked only for the eyes the ring would keep. The ring keeps a sample per [member DotKillViewRules.record_hz] (30) and the tick is 66, so two in three of
-## the eyes built every tick (a dictionary, a basis, a transform, the fov and the aux floats, per living player) were refused by [method DotKillViewRing.record] on its rate check. [member due] is that same
+## The kill view's server over FC: [member eyes_fn] is asked only for the eyes the ring would keep. The ring keeps a sample per [member GSKillViewRules.record_hz] (30) and the tick is 66, so two in three of
+## the eyes built every tick (a dictionary, a basis, a transform, the fov and the aux floats, per living player) were refused by [method GSKillViewRing.record] on its rate check. [member due] is that same
 ## check, asked before the eye is built: what the ring holds is unchanged, sample for sample.
 
 ## The rate check the eyes ask. Its own object so the [member eyes_fn] closure holding it holds no
@@ -9,7 +9,7 @@ extends DotKillViewServer
 var due: Due = null
 
 
-func _init(p_rules: DotKillViewRules = null) -> void:
+func _init(p_rules: GSKillViewRules = null) -> void:
 	super(p_rules)
 	due = Due.new(ring)
 
@@ -26,7 +26,7 @@ func forget(id: Variant) -> void:
 	super.forget(id)
 
 
-## [method DotKillViewRing.record]'s rate check, before the sample is built.
+## [method GSKillViewRing.record]'s rate check, before the sample is built.
 class Due:
 	extends RefCounted
 
@@ -40,9 +40,9 @@ class Due:
 	var recording := false
 	## The time each id's eye was last handed to the ring.
 	var last: Dictionary = {}
-	var _ring: DotKillViewRing = null
+	var _ring: GSKillViewRing = null
 
-	func _init(p_ring: DotKillViewRing) -> void:
+	func _init(p_ring: GSKillViewRing) -> void:
 		_ring = p_ring
 
 	## Whether the ring takes a sample of [param id] at [member now]. An id with no samples (new,

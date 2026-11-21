@@ -38,7 +38,7 @@ func _run() -> void:
 	var lines := PackedStringArray(["role,window,overlay,ring_centre,ring_radius,offset_px,offset_share"])
 	for role in roles:
 		var id := StringName(role)
-		var def: DotWeaponDef = AwWeaponCatalogue.table().get(id)
+		var def: GSWeaponDef = AwWeaponCatalogue.table().get(id)
 		if def == null:
 			print("no def %s" % role)
 			continue
@@ -51,12 +51,12 @@ func _run() -> void:
 			# The carry weight would refuse a heavy gun on top of the spawn loadout and leave the knife in hand.
 			if me.arsenal.carry != null:
 				me.arsenal.carry.enabled = false
-			var given: DotResult = me.arsenal.give(id)
+			var given: GSResult = me.arsenal.give(id)
 			if not given.ok:
 				print("scope_align ERROR: cannot give %s: %s" % [role, given.error.message if given.error != null else "?"])
 				break
 			# The game pins a slot by kind, so take the one it gave.
-			var slot: int = (given.value as DotWeaponSlot).def.slot
+			var slot: int = (given.value as GSWeaponSlot).def.slot
 			if me.arsenal.current_slot() == slot:
 				for other in range(1, me.arsenal.max_slots + 1):
 					if other != slot and me.arsenal.equip(other):
@@ -65,7 +65,7 @@ func _run() -> void:
 			var _up: bool = me.arsenal.equip(slot)
 			await _wait(1.0)
 			me = client.get("player")
-			var in_hand: DotWeaponDef = me.arsenal.current_def()
+			var in_hand: GSWeaponDef = me.arsenal.current_def()
 			held = in_hand.id if in_hand != null else &""
 			if held == id:
 				break

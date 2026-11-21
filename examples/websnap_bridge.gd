@@ -6,19 +6,19 @@ extends "../game/fc_net_bridge.gd"
 var seen: Array[String] = []
 
 
-func receive_snapshot(payload: PackedByteArray) -> DotResult:
-	var reader := DotNetReader.new(payload)
+func receive_snapshot(payload: PackedByteArray) -> GSResult:
+	var reader := GSNetReader.new(payload)
 	var tick := reader.read_uint(32)
 	var part := reader.read_uint(8)
 	seen.append("snap %d:%d" % [tick, part])
-	return DotResult.success(payload.size())
+	return GSResult.success(payload.size())
 
 
-func receive_event(payload: PackedByteArray) -> DotResult:
+func receive_event(payload: PackedByteArray) -> GSResult:
 	seen.append("event")
-	return DotResult.success(payload.size())
+	return GSResult.success(payload.size())
 
 
-func receive_map(payload: Dictionary) -> DotResult:
+func receive_map(payload: Dictionary) -> GSResult:
 	seen.append("map")
-	return DotResult.success(payload.size())
+	return GSResult.success(payload.size())

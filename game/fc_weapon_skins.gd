@@ -29,7 +29,7 @@ static func apply(root: String = "res://addons", only: PackedStringArray = Packe
 	AwWeaponArtTable.drop_cache()
 
 	if OS.get_cmdline_user_args().has(OFF_ARG) or OS.get_cmdline_args().has(OFF_ARG):
-		DotLog.info(CHANNEL, "weapon skins are off", {"arg": OFF_ARG})
+		GSLog.info(CHANNEL, "weapon skins are off", {"arg": OFF_ARG})
 		return applied
 
 	var owner_of := {}
@@ -47,14 +47,14 @@ static func apply(root: String = "res://addons", only: PackedStringArray = Packe
 				continue
 
 			if owner_of.has(role):
-				DotLog.debug(CHANNEL, "a later pack takes a role", {"role": role, "from": owner_of[role], "to": pack["name"]})
+				GSLog.debug(CHANNEL, "a later pack takes a role", {"role": role, "from": owner_of[role], "to": pack["name"]})
 
 			_rows[StringName(str(role))] = rows[role]
 			owner_of[role] = pack["name"]
 			n += 1
 
 		applied.append(str(pack["name"]))
-		DotLog.info(CHANNEL, "weapon skin pack applied", {"pack": pack["name"], "roles": n})
+		GSLog.info(CHANNEL, "weapon skin pack applied", {"pack": pack["name"], "roles": n})
 
 	# Registered, not applied once: a later add_source rebuilds the table and would drop plain edits.
 	if not _rows.is_empty():
@@ -78,7 +78,7 @@ static func dress(table: Dictionary) -> void:
 
 		if art is AwWeaponVisual:
 			AwArtDress.apply(art as AwWeaponVisual, _rows[role] as Dictionary)
-			DotLog.debug(CHANNEL, "role dressed", {"role": role, "model": (art as AwWeaponVisual).model_path})
+			GSLog.debug(CHANNEL, "role dressed", {"role": role, "model": (art as AwWeaponVisual).model_path})
 
 
 static func describe_lines() -> PackedStringArray:

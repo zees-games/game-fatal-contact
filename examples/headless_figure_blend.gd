@@ -10,11 +10,11 @@ const RANGE_M := 65.0
 ## The most a head may move in one 64 Hz tick while changing stance (metres): a pop is well over this.
 const MAX_STEP := 0.05
 
-var suite: DotGameCheckSuite
+var suite: GSGameCheckSuite
 var game: Node
 
 
-func _init(p_suite: DotGameCheckSuite, p_game: Node) -> void:
+func _init(p_suite: GSGameCheckSuite, p_game: Node) -> void:
 	suite = p_suite
 	game = p_game
 
@@ -34,12 +34,12 @@ func run(target: FcPlayer, tag: String) -> void:
 		var stand_head := 0.0
 		var lowest := INF
 		for i in 40 + 90:
-			var cmd := DotFpsCommand.new()
+			var cmd := GSFpsCommand.new()
 			cmd.move = Vector2(0, 1) if slide else Vector2.ZERO
-			cmd.buttons = DotFpsCommand.BUTTON_SPRINT if slide else 0
+			cmd.buttons = GSFpsCommand.BUTTON_SPRINT if slide else 0
 			if i >= 40:
-				cmd.buttons |= DotFpsCommand.BUTTON_CROUCH
-			game.tick({1: [DotFpsCommand.new(), DotWeaponCommand.new()], 2: [cmd, DotWeaponCommand.new()]})
+				cmd.buttons |= GSFpsCommand.BUTTON_CROUCH
+			game.tick({1: [GSFpsCommand.new(), GSWeaponCommand.new()], 2: [cmd, GSWeaponCommand.new()]})
 			target.present(1.0 / 64.0)
 			await suite.get_tree().physics_frame
 			var sk: Skeleton3D = target.figure.skeleton()
@@ -54,7 +54,7 @@ func run(target: FcPlayer, tag: String) -> void:
 			last = h
 			if i >= 40 + 70:
 				settled += 1
-				for b: DotHitbox in target.hitboxes.hitboxes():
+				for b: GSHitbox in target.hitboxes.hitboxes():
 					if b.intersect_ray(eye, (head - eye).normalized(), RANGE_M * 2.0).hitbox != null:
 						inside += 1
 						break

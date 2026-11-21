@@ -119,7 +119,7 @@ func _test_console_stops_movement() -> void:
 	client._sampler = FcClient.make_sampler()
 	client._wire_chat_window()
 	client.game_menu = FcMenus.build(self, p)
-	var platform := DotGameClient.new()
+	var platform := GSGameClient.new()
 	platform.use_gate = false
 	platform.busy_fn = client._input_busy
 	platform.input_blocked_changed.connect(client._suspend_input)
@@ -228,10 +228,10 @@ func _test_the_escape_menu() -> void:
 	bot_client.game = solo
 	bot_client.presentation = p
 	bot_client._bind_bot_console()
-	var was := DotBotSettings.of(solo).difficulty()
+	var was := GSBotSettings.of(solo).difficulty()
 	var _picked := p.settings.set_value(&"solo_bot_difficulty", &"hard")
-	_check(was == "easy" and DotBotSettings.of(solo).difficulty() == "hard",
-		"the saved pick sets the solo bots, and picking again changes them", "%s then %s" % [was, DotBotSettings.of(solo).difficulty()])
+	_check(was == "easy" and GSBotSettings.of(solo).difficulty() == "hard",
+		"the saved pick sets the solo bots, and picking again changes them", "%s then %s" % [was, GSBotSettings.of(solo).difficulty()])
 	bot_client.free()
 	remove_child(solo)
 	solo.free()
@@ -240,7 +240,7 @@ func _test_the_escape_menu() -> void:
 	menu.close()
 
 	# H is help, nothing else is on H; the Escape menu has Help & commands and a working Leave.
-	_check(p.bindings.key_for(DotMenuBindings.HELP_ACTION) == "H" and p.bindings.defaults_on("H").size() == 1,
+	_check(p.bindings.key_for(GSMenuBindings.HELP_ACTION) == "H" and p.bindings.defaults_on("H").size() == 1,
 		"help is on H, and nothing else in the table is",
 		str(p.bindings.defaults_on("H").map(func(r: Dictionary) -> String: return str(r["label"]))))
 	var h := InputEventKey.new()
@@ -266,7 +266,7 @@ func _test_the_escape_menu() -> void:
 	_done()
 
 
-func _check_controls_page(p: FcPresentation, menu: DotMenu) -> void:
+func _check_controls_page(p: FcPresentation, menu: GSMenu) -> void:
 	menu.open(&"controls")
 	var dash := menu.screen.find_child("Row_bind_dash", true, false)
 	_check(dash != null and menu.screen.find_child("Row_invert_pitch", true, false) != null,
@@ -282,20 +282,20 @@ func _check_controls_page(p: FcPresentation, menu: DotMenu) -> void:
 	)
 	if dash != null:
 		dash.emit_signal(&"captured", "B")
-	_check(DotInputBinding.describe_action(&"dot_fps_sprint") == "B", "a key captured there moves the action")
+	_check(GSInputBinding.describe_action(&"dot_fps_sprint") == "B", "a key captured there moves the action")
 	_check(p.settings.get_string(&"bind_dash") == "B", "and is stored in the document")
 	dash = menu.screen.find_child("Row_bind_dash", true, false)
 	if dash != null:
 		dash.emit_signal(&"captured", "Space")
 	_check(
-		DotInputBinding.describe_action(&"dot_fps_sprint") == "Space"
-			and DotInputBinding.describe_action(&"dot_fps_jump") == "B",
+		GSInputBinding.describe_action(&"dot_fps_sprint") == "Space"
+			and GSInputBinding.describe_action(&"dot_fps_jump") == "B",
 		"a taken key swaps rather than leaving jump on nothing"
 	)
 	p.bindings.reset_all(p.settings)
 	_check(
-		DotInputBinding.describe_action(&"dot_fps_jump") == "Space"
-			and DotInputBinding.describe_action(&"dot_fps_sprint") == "Shift",
+		GSInputBinding.describe_action(&"dot_fps_jump") == "Space"
+			and GSInputBinding.describe_action(&"dot_fps_sprint") == "Shift",
 		"and Reset puts both back"
 	)
 	_check(
@@ -305,12 +305,12 @@ func _check_controls_page(p: FcPresentation, menu: DotMenu) -> void:
 
 
 ## `sensitivity`, `invert_pitch` and `crosshair` were on the settings screen and read by nothing:
-## the view turned at `DotFpsTunables`' default whatever the slider said.
+## the view turned at `GSFpsTunables`' default whatever the slider said.
 func _test_look_and_crosshair() -> void:
 	_section("The settings a player touches first reach what they are about")
 
 	var p := _make()
-	var look := DotFpsTunables.new()
+	var look := GSFpsTunables.new()
 	var fingerprint := look.fingerprint()
 	var addon_default := look.mouse_sensitivity
 
@@ -343,7 +343,7 @@ func _test_look_and_crosshair() -> void:
 
 	# The client hands the sampler a new tunables object when it adopts its player, and a
 	# new object carries the addon's default again.
-	var replaced := DotFpsTunables.new()
+	var replaced := GSFpsTunables.new()
 	p.bind_look(replaced)
 	_check(
 		is_equal_approx(replaced.mouse_sensitivity, look.mouse_sensitivity)
@@ -351,7 +351,7 @@ func _test_look_and_crosshair() -> void:
 		"a replacement tunables object is given the player's settings, not the default"
 	)
 
-	var crosshair := DotCrosshair.new()
+	var crosshair := GSCrosshair.new()
 	crosshair.length = 7.0
 	p.bind_crosshair(crosshair)
 	_check(
@@ -375,7 +375,7 @@ func _test_look_and_crosshair() -> void:
 	_test_look_and_crosshair_part2(p, crosshair)
 
 
-func _test_look_and_crosshair_part2(p, crosshair: DotCrosshair) -> void:
+func _test_look_and_crosshair_part2(p, crosshair: GSCrosshair) -> void:
 	# The camera motion: binding pushes the saved scales, each slider moves its own cue, 0 is off.
 	var player := FcPlayer.new()
 	player.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), 31, "Mover")
@@ -384,7 +384,7 @@ func _test_look_and_crosshair_part2(p, crosshair: DotCrosshair) -> void:
 	var picks := FcPlayer.camera_motion_picks()
 	p.settings.set_value(&"camera_landing_dip", 0.5)
 	p.bind_camera_motion(player)
-	var motion: DotFpsViewMotion = player.camera_motion
+	var motion: GSFpsViewMotion = player.camera_motion
 	_check(
 		motion != null and is_equal_approx(motion.landing_dip, picks.landing_dip * 0.5)
 		and is_equal_approx(motion.strafe_roll, picks.strafe_roll),
@@ -393,8 +393,8 @@ func _test_look_and_crosshair_part2(p, crosshair: DotCrosshair) -> void:
 	)
 	# Wall on the right has normal LEFT; positive wall_roll() leans left (away from it).
 	var lean := FcPlayer.camera_motion_picks()
-	var ws := DotFpsState.new()
-	ws.mode = DotFpsState.Mode.AIR
+	var ws := GSFpsState.new()
+	ws.mode = GSFpsState.Mode.AIR
 	ws.velocity = Vector3(0.0, 0.0, -9.0)
 	ws.wall_run_time = 0.1
 	ws.wall_normal = Vector3.LEFT
@@ -434,7 +434,7 @@ func _test_mouse_drives_view() -> void:
 	var client := FcClient.new()
 	var stand_in := FcPlayer.new()
 	client.player = stand_in
-	client._sampler = DotFpsSampler.new(DotFpsTunables.new())
+	client._sampler = GSFpsSampler.new(GSFpsTunables.new())
 
 	var motion := InputEventMouseMotion.new()
 	motion.relative = Vector2(120.0, 0.0)
@@ -510,11 +510,11 @@ func _test_click_keeps_modal_pointer() -> void:
 ## A connected client's respawn faces the way its spawn faces.
 func _test_the_kill_view() -> void:
 	_section("The kill view replaces the death camera, and Space skips it")
-	var rules := DotKillViewRules.new()
+	var rules := GSKillViewRules.new()
 	rules.enabled = true
-	_check(rules.camera == DotKillViewRules.Camera.EYE, "mp_killview_camera defaults to the killer's eye")
-	rules.camera = DotKillViewRules.Camera.EYE
-	var ring := DotKillViewRing.new(rules)
+	_check(rules.camera == GSKillViewRules.Camera.EYE, "mp_killview_camera defaults to the killer's eye")
+	rules.camera = GSKillViewRules.Camera.EYE
+	var ring := GSKillViewRing.new(rules)
 	for i in 120:
 		var yaw := float(i) * 0.01
 		var _r := ring.record(7, float(i) / 30.0, Transform3D(Basis(Vector3.UP, yaw), Vector3(float(i) * 0.1, 1.6, 0.0)), 80.0, Vector2(0.5, 0.45))
@@ -531,7 +531,7 @@ func _test_the_kill_view() -> void:
 	var was_current := port.get_camera_3d()
 	var hud_stub := Control.new()
 	port.add_child(hud_stub)
-	var view := DotKillViewClient.new()
+	var view := GSKillViewClient.new()
 	port.add_child(view)
 	view.setup(rules)
 	view.kv.auto_process = false
@@ -558,7 +558,7 @@ func _test_the_kill_view() -> void:
 	for _i in 200:
 		view.kv.advance(0.1)
 	_check(ended == [true, false] and asked[0] == 1 and previous.current, "a replay that runs out resumes the flow without a respawn request", "%s %s %s" % [ended, asked, previous.current])
-	rules.camera = DotKillViewRules.Camera.BEHIND
+	rules.camera = GSKillViewRules.Camera.BEHIND
 	var eye := [Transform3D()]
 	view.kv.view.connect(func(x: Transform3D, _f: float, _c: Vector2, _h: bool) -> void: eye[0] = x)
 	var _again := view.play(clips[0]["clip"], {"killer": "Bolt"})
@@ -571,8 +571,8 @@ func _test_the_kill_view() -> void:
 	_check(gap > 1.5 and gap < 6.0 and ahead > 1.0 and not view.crosshair.visible,
 		"mp_killview_camera 1: the camera rides behind the killer's eye, no crosshair", "gap %.2f ahead %.2f" % [gap, ahead])
 	view.kv.killcam.skip()
-	var off := DotKillViewRules.new()
-	var quiet := DotKillViewClient.new()
+	var off := GSKillViewRules.new()
+	var quiet := GSKillViewClient.new()
 	port.add_child(quiet)
 	quiet.setup(off)
 	_check(not quiet.play(clips[0]["clip"], {}), "with the cvar off nothing plays")
@@ -588,14 +588,14 @@ func _test_a_respawn_faces_its_spawn() -> void:
 	g.is_authority = true
 	add_child(g)
 	var _set := g.setup(FcMap.dm_box())
-	var added: DotResult = g.add_player(7, "Seven")
+	var added: GSResult = g.add_player(7, "Seven")
 	var p: FcPlayer = added.value if added.ok else null
 
 	var client := FcClient.new()
 	client.game = g
 	client.player = p
 	client._offline = false
-	client._sampler = DotFpsSampler.new(p.controller.tunables if p != null else DotFpsTunables.new())
+	client._sampler = GSFpsSampler.new(p.controller.tunables if p != null else GSFpsTunables.new())
 
 	# A spawn whose yaw is not where the mouse is.
 	var spawn: Transform3D = Transform3D.IDENTITY
@@ -643,7 +643,7 @@ func _test_the_view_turns_every_frame() -> void:
 	g.is_authority = true
 	add_child(g)
 	var _set := g.setup(FcMap.dm_box())
-	var added: DotResult = g.add_player(7, "Seven")
+	var added: GSResult = g.add_player(7, "Seven")
 	var p: FcPlayer = added.value if added.ok else null
 	if p == null:
 		_check(false, "a player to draw")
@@ -656,7 +656,7 @@ func _test_the_view_turns_every_frame() -> void:
 	client.game = g
 	client.player = p
 	client.mouse_capture_override = true
-	client._sampler = DotFpsSampler.new(p.controller.tunables)
+	client._sampler = GSFpsSampler.new(p.controller.tunables)
 	client._sampler.look_at_angles(p.controller.state.yaw, 0.0)
 
 	client._fold_look()
@@ -703,7 +703,7 @@ func _test_remote_beams_follow_the_light() -> void:
 	var _set := g.setup(FcMap.dm_box())
 	var players: Array[FcPlayer] = []
 	for id: int in [7, 8, 9]:
-		var added: DotResult = g.add_player(id, "P%d" % id)
+		var added: GSResult = g.add_player(id, "P%d" % id)
 		players.append(added.value if added.ok else null)
 	if players.has(null):
 		_check(false, "three players to draw")
@@ -718,7 +718,7 @@ func _test_remote_beams_follow_the_light() -> void:
 	var client := FcClient.new()
 	client.game = g
 	client.player = me
-	var crowd := DotFlashlightCrowd.new()
+	var crowd := GSFlashlightCrowd.new()
 	crowd.config = g.flashlight_conf()
 	add_child(crowd)
 	client.flash_crowd = crowd

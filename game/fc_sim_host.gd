@@ -34,7 +34,7 @@ static var live: Node = null
 
 ## True once the link is playing on the local server.
 var up := false
-var link: DotClientLink = null
+var link: GSClientLink = null
 var _pid := -1
 var _anchor: Node = null
 var _ready_path := ""
@@ -53,9 +53,9 @@ static func wanted(launched: bool = false) -> bool:
 
 ## [method wanted] for the given user args.
 static func wanted_for(args: PackedStringArray, launched: bool) -> bool:
-	if DotPlatform.is_web() or not DotPlatform.has_threads():
+	if GSPlatform.is_web() or not GSPlatform.has_threads():
 		return false
-	if DotRegistry.get_service(&"dot_client_link") != null:
+	if GSRegistry.get_service(&"dot_client_link") != null:
 		return false
 	if forced >= 0:
 		return forced == 1
@@ -67,7 +67,7 @@ static func wanted_for(args: PackedStringArray, launched: bool) -> bool:
 
 ## The user args a shell's solo session adds to the child, so it mounts the packs this one did and loads this game; empty when the game was not delivered by one, or the shell cannot start one.
 static func shell_child_args() -> PackedStringArray:
-	var solo: Object = DotRegistry.get_service(SOLO_SERVICE)
+	var solo: Object = GSRegistry.get_service(SOLO_SERVICE)
 	if solo == null or not solo.has_method(&"sim_child_args"):
 		return PackedStringArray()
 	var got: Variant = solo.call(&"sim_child_args")
@@ -81,12 +81,12 @@ static func server_scene() -> String:
 	return FcPaths.rebase(SERVER_SCENE)
 
 
-func start(bots: int) -> DotResult:
+func start(bots: int) -> GSResult:
 	if not ResourceLoader.exists(server_scene()):
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "the server scene is not in this build")
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "the server scene is not in this build")
 	var port := _free_port()
 	if port <= 0:
-		return DotResult.fail(DotError.CODE_INVALID, "no free loopback port")
+		return GSResult.fail(GSError.CODE_INVALID, "no free loopback port")
 	_ready_path = ProjectSettings.globalize_path("user://sim_host_%d.ready" % port)
 	if FileAccess.file_exists(_ready_path):
 		var _gone := DirAccess.remove_absolute(_ready_path)
@@ -102,21 +102,21 @@ func start(bots: int) -> DotResult:
 	args.append_array(shell_child_args())
 	_pid = OS.create_process(OS.get_executable_path(), args)
 	if _pid <= 0:
-		return DotResult.fail(DotError.CODE_INVALID, "the server process did not start")
+		return GSResult.fail(GSError.CODE_INVALID, "the server process did not start")
 
 	var t := 0.0
 	while not FileAccess.file_exists(_ready_path) and t < BOOT_LIMIT_SEC:
 		if not OS.is_process_running(_pid):
 			var why := _exit_reason(log_path)
 			_pid = -1
-			return DotResult.fail(DotError.CODE_INVALID, "the server process exited while booting (%s)" % why)
+			return GSResult.fail(GSError.CODE_INVALID, "the server process exited while booting (%s)" % why)
 		await get_tree().create_timer(POLL_SEC).timeout
 		t += POLL_SEC
 	if not FileAccess.file_exists(_ready_path):
 		stop()
-		return DotResult.fail(DotError.CODE_INVALID, "the server did not come up in time")
+		return GSResult.fail(GSError.CODE_INVALID, "the server did not come up in time")
 
-	link = DotClientLink.new()
+	link = GSClientLink.new()
 	link.name = "Server"
 	link.transport_preference = "udp"
 	# RPCs address a node by path: the link sits where the server's own node does, `/root/ArenaSimServer/Server`.
@@ -124,7 +124,7 @@ func start(bots: int) -> DotResult:
 	_anchor.name = ANCHOR
 	get_tree().root.add_child(_anchor)
 	_anchor.add_child(link)
-	var asked: DotResult = await link.connect_to_server("127.0.0.1:%d" % port)
+	var asked: GSResult = await link.connect_to_server("127.0.0.1:%d" % port)
 	if not asked.ok:
 		stop()
 		return asked
@@ -134,12 +134,12 @@ func start(bots: int) -> DotResult:
 		t += POLL_SEC
 	if not link.is_playing():
 		stop()
-		return DotResult.fail(DotError.CODE_INVALID, "never joined the local server")
+		return GSResult.fail(GSError.CODE_INVALID, "never joined the local server")
 	if hold_joined_sec > 0.0:
 		await get_tree().create_timer(hold_joined_sec).timeout
 	up = true
 	live = self
-	return DotResult.success({"port": port, "pid": _pid, "boot_sec": t})
+	return GSResult.success({"port": port, "pid": _pid, "boot_sec": t})
 
 
 ## The launch flags this process was given that the server child takes too, appended to [param args].
@@ -246,7 +246,7 @@ static func asked_map_id() -> String:
 ## The shell's solo start map (`?map=`, `--solo-map`, read duck-typed off [constant SOLO_SERVICE]), or "" outside
 ## one, without one or when it is not a map id.
 static func solo_start_map() -> String:
-	var solo: Object = DotRegistry.get_service(SOLO_SERVICE)
+	var solo: Object = GSRegistry.get_service(SOLO_SERVICE)
 	if solo == null or not (&"start_map" in solo):
 		return ""
 	var id := str(solo.get(&"start_map"))

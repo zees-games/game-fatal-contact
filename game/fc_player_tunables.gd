@@ -6,7 +6,7 @@ extends RefCounted
 ## every imported map is drawn at), so a person is 1.37 m beside a 2.13 m door, as in the original.
 ## At 1.83 m (what 0.0254 m a unit would make) the same person stood 96 map units tall. The controller
 ## puts the eye at the height less half the radius, which is 64 units for a 72 unit, 16 unit radius body.
-## [member DotHumanoidFigure] scales whatever body it is given to the standing height, so every avatar
+## [member GSHumanoidFigure] scales whatever body it is given to the standing height, so every avatar
 ## follows. `FcGame` writes these from `FcConfig` through [method configure_body] (cvars `fc_avatar_*`).
 static var avatar_height_units: float = 72.0
 static var avatar_crouch_units: float = 54.0
@@ -19,7 +19,7 @@ const LEGACY_HEIGHT := 1.8
 const SPRINT_SCALE := 1.25
 
 ## The movement command's aim bit and the share of ground speed an aimed player keeps (sv_ads_speed_mult).
-const AIM_BUTTON := DotFpsCommand.BUTTON_USER_1
+const AIM_BUTTON := GSFpsCommand.BUTTON_USER_1
 const AIM_SPEED_SCALE := 0.45
 
 
@@ -43,7 +43,7 @@ static func radius_m() -> float:
 	return avatar_radius_units * avatar_unit_metres
 
 
-## Standing eye height above the feet, metres: what [DotFpsMotor] reports (height less half the radius).
+## Standing eye height above the feet, metres: what [GSFpsMotor] reports (height less half the radius).
 static func eye_height_m() -> float:
 	return stand_height_m() - radius_m() * 0.5
 
@@ -53,14 +53,14 @@ static func body_scale() -> float:
 	return stand_height_m() / LEGACY_HEIGHT
 
 
-static func apply_body(tunables: DotFpsTunables) -> void:
+static func apply_body(tunables: GSFpsTunables) -> void:
 	tunables.stand_height = stand_height_m()
 	tunables.crouch_height = crouch_height_m()
 	tunables.radius = radius_m()
 
 
-static func make() -> DotFpsTunables:
-	var tunables := DotFpsTunables.with_profile("classic")
+static func make() -> GSFpsTunables:
+	var tunables := GSFpsTunables.with_profile("classic")
 	apply_body(tunables)
 	tunables.walk_speed_scale = 0.45
 	tunables.max_velocity = 400.0
@@ -83,12 +83,12 @@ static func make() -> DotFpsTunables:
 	# and the owner reported sprint as broken. With fc_dash 1 the same bit also dashes.
 	tunables.sprint_speed_scale = SPRINT_SCALE
 	tunables.crouch_speed_scale = 0.45
-	# Crouch at a run slides (DotFpsSlidePreset.apply_run: a burst and a long, low-friction carry).
-	DotFpsSlidePreset.apply_run(tunables)
+	# Crouch at a run slides (GSFpsSlidePreset.apply_run: a burst and a long, low-friction carry).
+	GSFpsSlidePreset.apply_run(tunables)
 	# E throws you upward on a cooldown, on the command's first user bit (the weapon buttons
 	# ride in their own). Off by default: a stray E must not fire the player; fc_launch 1 enables it.
 	tunables.launch_enabled = false
-	tunables.launch_button = DotFpsCommand.BUTTON_USER_0
+	tunables.launch_button = GSFpsCommand.BUTTON_USER_0
 	tunables.launch_velocity = 15.5
 	tunables.launch_cooldown = 8.0
 	# Down the sights the motor slows the player, the same in prediction and on the server.
@@ -97,7 +97,7 @@ static func make() -> DotFpsTunables:
 	# Shift dashes when this is on (it shares the sprint bit). A press throws you along the way you steer.
 	# Off by default: fc_dash 1 turns it on (a mode or an operator's choice).
 	tunables.dash_enabled = false
-	tunables.dash_button = DotFpsCommand.BUTTON_SPRINT
+	tunables.dash_button = GSFpsCommand.BUTTON_SPRINT
 	tunables.dash_speed = 15.0
 	tunables.dash_lift = 2.5
 	tunables.dash_cooldown = 3.0

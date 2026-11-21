@@ -49,7 +49,7 @@ func _check(ok: bool, what: String) -> void:
 
 
 func _hit(game: Object, attacker: int, me: Object, type: StringName) -> void:
-	var damage := DotDamage.make(attacker, me.player_id, 1000.0, game.combat.damage_type(type))
+	var damage := GSDamage.make(attacker, me.player_id, 1000.0, game.combat.damage_type(type))
 	damage.weapon_id = &"smg" if attacker != 0 else &""
 	damage.tick = game.current_tick()
 	game.combat.apply_damage(damage)
@@ -60,7 +60,7 @@ func _aim_at(who: Object, target: Object) -> void:
 	var yaw := rad_to_deg(atan2(-d.x, -d.z))
 	who.controller.state.yaw = yaw
 	who.controller.state.pitch = 0.0
-	var hold := DotFpsCommand.new()
+	var hold := GSFpsCommand.new()
 	hold.yaw = yaw
 	who.set_meta(&"bot_move", hold)
 
@@ -92,12 +92,12 @@ func _run() -> void:
 	for i in 1200:
 		await _wait(0.1)
 		me = _client.get("player")
-		if me != null and me.is_alive() and gm.match_node.state == DotMatch.State.LIVE:
+		if me != null and me.is_alive() and gm.match_node.state == GSMatch.State.LIVE:
 			break
 	var bots: Dictionary = _client.get("_bots")
 	for id in bots:
 		bots[id].set_meta(&"bot_scripted", true)
-		bots[id].set_meta(&"bot_move", DotFpsCommand.new())
+		bots[id].set_meta(&"bot_move", GSFpsCommand.new())
 	await _wait(8.0)
 	var killer: Object = bots.values()[0]
 	var kv: Node = _client.get("killview")
@@ -116,9 +116,9 @@ func _run() -> void:
 	while t < 16.0:
 		await _wait(0.1)
 		t += 0.1
-		var kc: DotKillcam = kv.kv.killcam if kv != null and kv.kv != null else null
+		var kc: GSKillcam = kv.kv.killcam if kv != null and kv.kv != null else null
 		var active: bool = kv != null and kv.is_active()
-		var playing: bool = kc != null and kc.state == DotKillcam.State.PLAYING
+		var playing: bool = kc != null and kc.state == GSKillcam.State.PLAYING
 		var prog: float = kc.progress() if kc != null and playing else -1.0
 		print("T %.1f alive=%s active=%s state=%s prog=%.2f hud=%s kcam=%s match=%d" % [t, me.is_alive(), active, kc.state if kc != null else -1, prog, _client.get("hud").visible, kh.is_playing() if kh != null else "n/a", int(gm.match_node.state)])
 		if active and first_active < 0.0:
@@ -144,7 +144,7 @@ func _run() -> void:
 		if playing and prog >= 0.95 and not shots.has("last"):
 			shots["last"] = true
 			_shot("d_last")
-		if playing and kc != null and kc.state == DotKillcam.State.PLAYING:
+		if playing and kc != null and kc.state == GSKillcam.State.PLAYING:
 			cam_in_view = cam_in_view or kv.camera.current
 		if first_play >= 0.0 and not active and done < 0.0:
 			done = t
@@ -260,8 +260,8 @@ func _run_crowd() -> void:
 		await process_frame
 		if kv == null or not kv.is_active():
 			continue
-		var kc: DotKillcam = kv.kv.killcam if kv.kv != null else null
-		if kc == null or kc.state != DotKillcam.State.PLAYING:
+		var kc: GSKillcam = kv.kv.killcam if kv.kv != null else null
+		if kc == null or kc.state != GSKillcam.State.PLAYING:
 			continue
 		deaths += 1
 		print("KV death=%d killer=%s victim=%s kill_at=%s stage_kills=%d" % [deaths, kv.get(&"_killer"), kv.get(&"_victim"), kv.get(&"_kill_at"), kv.stage.buffer.events_between(-INF, INF, &"kill").size()])
@@ -281,7 +281,7 @@ func _run_crowd() -> void:
 				break
 		var f2 := 40
 		while kv.is_active():
-			if kc.state == DotKillcam.State.PLAYING:
+			if kc.state == GSKillcam.State.PLAYING:
 				if not _lens_report(kv, "d%d f%03d" % [deaths, f2]).is_empty():
 					bad += 1
 			f2 += 1

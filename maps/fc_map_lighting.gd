@@ -4,13 +4,13 @@ extends RefCounted
 ##
 ## [b]A built-in map's lighting is a dot-lighting document the map carries[/b]
 ## (`FcMap.lighting`), so it changes with the map and a map can be lit differently from
-## the next without any code knowing which map it is. [DotLightRig] turns the document into
-## a sun and an [Environment]; what stays here is this game's: which [DotLightProfile] a
+## the next without any code knowing which map it is. [GSLightRig] turns the document into
+## a sun and an [Environment]; what stays here is this game's: which [GSLightProfile] a
 ## machine gets and the shape of the sun's shadow map. The
 ## reasoning for each is in docs/maps.md, "Colour and light".
 ##
 ## [b]An imported map is lit from its manifest's `lighting` block[/b], as game-airdrift
-## lights it: the same [DotLightRig] over the sun, ambient, fog and sky the importer read
+## lights it: the same [GSLightRig] over the sun, ambient, fog and sky the importer read
 ## out of the compiled map, plus three decisions copied from Airdrift's `AirdriftLighting` and
 ## `AirdriftBspMap` (duplicated on purpose; a game cannot name another game's script): a white
 ## ambient is the map editor's default and not a sky, so the zenith comes from the sky's
@@ -47,7 +47,7 @@ static func build(map: Object) -> Node3D:
 		return root
 
 	var lighting: Dictionary = map.lighting
-	var sun := DotLightRig.apply(root, DotLightDocument.from_dictionary(lighting), profile())
+	var sun := GSLightRig.apply(root, GSLightDocument.from_dictionary(lighting), profile())
 	if sun != null and sun.shadow_enabled:
 		# One orthogonal shadow map over the whole map rather than four cascades: the
 		# largest built-in map is 64 m across, so one map covers it at a usable resolution,
@@ -108,8 +108,8 @@ static func _cloud_sky(root: Node3D, sun: DirectionalLight3D) -> void:
 ## [b]The sky continues under the horizon.[/b] These maps are walled, so from inside it is
 ## never seen; from above (an overview, a spectator) the default dark ground half is a brown
 ## void around a bright map, which is the first thing the old look was criticised for.
-static func profile() -> DotLightProfile:
-	var p := DotLightProfile.painted()
+static func profile() -> GSLightProfile:
+	var p := GSLightProfile.painted()
 	p.sun_shadows = true
 	p.sky_below_horizon = true
 	return p
@@ -127,7 +127,7 @@ static func _build_imported(root: Node3D, map: Object) -> void:
 		return
 
 	if manifest.is_empty():
-		DotLog.warn(CHANNEL, "an imported map's manifest did not read; it gets the fixed light", {
+		GSLog.warn(CHANNEL, "an imported map's manifest did not read; it gets the fixed light", {
 			"map": String(map.id),
 		})
 		_fixed(root)
@@ -135,7 +135,7 @@ static func _build_imported(root: Node3D, map: Object) -> void:
 
 	var lighting: Dictionary = manifest.get("lighting", {}) if manifest.get("lighting") is Dictionary else {}
 	var document := imported_document(lighting)
-	var _sun := DotLightRig.apply(root, DotLightDocument.from_dictionary(document), imported_profile())
+	var _sun := GSLightRig.apply(root, GSLightDocument.from_dictionary(document), imported_profile())
 	_apply_named_sky(root, str(lighting.get("sky_name", "")))
 	_apply_air(root, map)
 
@@ -164,8 +164,8 @@ static func imported_document(lighting: Dictionary) -> Dictionary:
 ## is what makes a neon strip read as a light. [b]The sky continues under the horizon[/b]:
 ## these maps float inside their sky, and the default dark ground half turns every glance
 ## down between two ramps into a floor that is not there.
-static func imported_profile() -> DotLightProfile:
-	var p := DotLightProfile.for_platform()
+static func imported_profile() -> GSLightProfile:
+	var p := GSLightProfile.for_platform()
 	p.sky_below_horizon = true
 	return p
 
@@ -256,7 +256,7 @@ static func _darken(root: Node3D) -> void:
 ## horizon, so one that does not load leaves the procedural sky.
 ## The family's panorama for the map's sky name; an unknown or missing name keeps the gradient.
 static func _apply_named_sky(root: Node3D, sky_name: String) -> void:
-	var mat := DotMapBspMesh.sky_material_for(sky_name)
+	var mat := GSMapBspMesh.sky_material_for(sky_name)
 
 	if mat == null:
 		return
@@ -291,7 +291,7 @@ static func _apply_packed_sky(root: Node3D, lighting: Dictionary, dir: String) -
 		)
 
 		if tex == null:
-			DotLog.warn(CHANNEL, "a packed sky face did not load; the sky stays a colour", {"face": suffix})
+			GSLog.warn(CHANNEL, "a packed sky face did not load; the sky stays a colour", {"face": suffix})
 			return
 
 		mat.set_shader_parameter("face_" + suffix, tex)

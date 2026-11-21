@@ -20,7 +20,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -34,15 +34,15 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 
 func _step(game: FcGame, id: int, down: bool, ticks: int) -> void:
 	for _k in ticks:
-		var c := DotWeaponCommand.new()
-		c.set_button(DotWeaponCommand.BUTTON_FIRE_MODE, down)
-		game.tick({id: [DotFpsCommand.new(), c]})
+		var c := GSWeaponCommand.new()
+		c.set_button(GSWeaponCommand.BUTTON_FIRE_MODE, down)
+		game.tick({id: [GSFpsCommand.new(), c]})
 		await get_tree().physics_frame
 
 
 func _run() -> void:
 	_check(
-		DotInputBinding.describe_action(&"arena_fire_mode") == "N" or not InputMap.has_action(&"arena_fire_mode"),
+		GSInputBinding.describe_action(&"arena_fire_mode") == "N" or not InputMap.has_action(&"arena_fire_mode"),
 		"the fire-mode action is N by default (or not registered in a bare game)"
 	)
 	var game := FcGame.new()

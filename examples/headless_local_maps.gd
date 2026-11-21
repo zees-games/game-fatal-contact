@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcMap := preload("../maps/fc_map.gd")
 const FcBspMap := preload("../maps/fc_bsp_map.gd")
@@ -38,7 +38,7 @@ var _source_game := ""
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--source="):
 			_source = a.trim_prefix("--source=")
@@ -78,14 +78,14 @@ func _run() -> void:
 		await _test_source_install()
 		sections += 1
 	else:
-		print("-- drops and _orig skipped: dot-map API %d < %d" % [DotAddonApi.build_level("dot_map"), FcLocalMaps.DROP_LEVEL])
+		print("-- drops and _orig skipped: dot-map API %d < %d" % [GSAddonApi.build_level("dot_map"), FcLocalMaps.DROP_LEVEL])
 	var planned := 8 if FcLocalMaps.can_drop() else 4
 	if not _source.is_empty():
-		var name := DotMapLocalMaps.prefix_in(_source).get_file()
+		var name := GSMapLocalMaps.prefix_in(_source).get_file()
 		if not _check(not name.is_empty(), "the source holds a converted map", _source):
 			_report_sections(sections, sections, planned)
 			return
-		var id := StringName(name + DotMapLocalMaps.ID_SUFFIX)
+		var id := StringName(name + GSMapLocalMaps.ID_SUFFIX)
 		_clean()
 		_copy_tree(_source, RES_FOLDER.path_join("convert"))
 		_test_load(id, "res://addons/maps", false)
@@ -114,14 +114,14 @@ func _test_real_install(name: String) -> void:
 	var sets: Array = FcSourceInstall.open_install(_source_game)
 	var files := 0
 	for v: Variant in sets:
-		files += (v as DotMapVpk).entries.size()
+		files += (v as GSMapVpk).entries.size()
 	print("   %d archives, %d materials/textures listed in %d ms: %s" % [found.size(), files, Time.get_ticks_msec() - t, ", ".join(found)])
-	var src: Variant = JSON.parse_string(FileAccess.get_file_as_string(DotMapLocalMaps.prefix_in(_source) + ".json"))
+	var src: Variant = JSON.parse_string(FileAccess.get_file_as_string(GSMapLocalMaps.prefix_in(_source) + ".json"))
 	var before: Array = ((src as Dictionary).get("original_textures", {}) as Dictionary).get("missing", []) if src is Dictionary else []
 	var target := "user://maps".path_join(name)
 	var had := DirAccess.dir_exists_absolute(target)
 	FcMaps.list_local = true
-	var local_maps: Object = DotMapLocalMaps
+	var local_maps: Object = GSMapLocalMaps
 	var player_cache: Variant = local_maps.get(&"zip_cache")
 	local_maps.set(&"zip_cache", ZIP_CACHE)
 	var client := FcClient.new()
@@ -130,7 +130,7 @@ func _test_real_install(name: String) -> void:
 	t = Time.get_ticks_msec()
 	var said: String = await client.import_dropped(PackedStringArray([_source]))
 	print("   dropped in %d ms: %s" % [Time.get_ticks_msec() - t, said])
-	var prefix := DotMapLocalMaps.prefix_in(target)
+	var prefix := GSMapLocalMaps.prefix_in(target)
 	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(prefix + ".json"))
 	var orig: Dictionary = (data as Dictionary).get("original_textures", {}) if data is Dictionary else {}
 	var filled: Array = orig.get("filled", [])
@@ -141,7 +141,7 @@ func _test_real_install(name: String) -> void:
 	_check(said.contains("%d filled from your game install" % filled.size()), "and the drop says so", said)
 	var drawn := 0
 	for m: Variant in filled:
-		if FileAccess.file_exists(prefix.get_base_dir().path_join("textures/orig/%s.png" % DotMapVtf.safe_name(str(m)))):
+		if FileAccess.file_exists(prefix.get_base_dir().path_join("textures/orig/%s.png" % GSMapVtf.safe_name(str(m)))):
 			drawn += 1
 	_check(drawn == filled.size(), "each filled one is a texture in the pack", "%d of %d" % [drawn, filled.size()])
 	local_maps.set(&"zip_cache", player_cache)
@@ -159,7 +159,7 @@ func _test_listing() -> void:
 	var cat := FcMaps.catalogue()
 	_check(cat.has(&"fixture_local"), "a solo catalogue lists the copy as fixture_local")
 	var def := cat.get_map(&"fixture_local") if cat.has(&"fixture_local") else null
-	_check(def != null and def.display_name.ends_with(DotMapLocalMaps.TAG), "titled (local)",
+	_check(def != null and def.display_name.ends_with(GSMapLocalMaps.TAG), "titled (local)",
 		"" if def == null else def.display_name)
 	_check(def != null and def.version.begins_with("0.0.0-"), "versioned by its bytes")
 	var rows := FcMaps.menu_rows(cat, &"", null, [])
@@ -176,7 +176,7 @@ func _test_load(id: StringName, root: String, fixture: bool) -> void:
 	var map: FcMap = FcMap.by_id(id)
 	if not _check(map != null and map.local_prefix != "" and map.is_imported(), "by_id builds the local map"):
 		return
-	_check(map.display_name.ends_with(DotMapLocalMaps.TAG), "its title says local", map.display_name)
+	_check(map.display_name.ends_with(GSMapLocalMaps.TAG), "its title says local", map.display_name)
 	_check(map.spawns.size() > 0, "it has spawns", str(map.spawns.size()))
 	_check(map.bounds.size.x > 0.0 and map.bounds.size.z > 0.0, "it has bounds", str(map.bounds))
 	_check(FcBspMap.world_prefix(String(id), map.manifest_path.get_base_dir()) == map.local_prefix,
@@ -199,7 +199,7 @@ func _test_load(id: StringName, root: String, fixture: bool) -> void:
 func _test_drops() -> void:
 	print("-- dropped onto the window: a folder, a zip, and junk")
 	FcMaps.list_local = true
-	var local_maps: Object = DotMapLocalMaps  # API 24 by name, so this parses on API 23
+	var local_maps: Object = GSMapLocalMaps  # API 24 by name, so this parses on API 23
 	var player_cache: Variant = local_maps.get(&"zip_cache")
 	local_maps.set(&"zip_cache", ZIP_CACHE)
 	var client := FcClient.new()
@@ -209,7 +209,7 @@ func _test_drops() -> void:
 	var said := client.on_maps_dropped(_drop(DROP_SOURCE.path_join("zz_local_maps_suite_drop")))
 	_check(DirAccess.dir_exists_absolute(DROPPED_FOLDER), "the folder is copied into user://maps")
 	_check(client._menu_catalogue.has(&"fixture_local"), "M lists the dropped map without a rebuild")
-	_check(said.begins_with("Added ") and said.contains(DotMapLocalMaps.TAG), "the player is told it was added", said)
+	_check(said.begins_with("Added ") and said.contains(GSMapLocalMaps.TAG), "the player is told it was added", said)
 	var rows := FcMaps.menu_rows(client._menu_catalogue, &"", null, [])
 	_check(rows.any(func(row: Dictionary) -> bool: return row["id"] == "map:fixture_local"), "the solo menu offers the drop")
 	_wipe(DROPPED_FOLDER)
@@ -256,7 +256,7 @@ func _test_drops() -> void:
 func _test_drop_layouts() -> void:
 	print("-- dropped layouts: a download's convert folder, a deep folder, a shipped map's name")
 	FcMaps.list_local = true
-	var local_maps: Object = DotMapLocalMaps
+	var local_maps: Object = GSMapLocalMaps
 	var player_cache: Variant = local_maps.get(&"zip_cache")
 	local_maps.set(&"zip_cache", ZIP_CACHE)
 	var client := FcClient.new()
@@ -272,9 +272,9 @@ func _test_drop_layouts() -> void:
 	if not had_bare:
 		_pack_as("user://maps/convert", LAYOUT_MAP)
 	var said: String = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(download.path_join("convert"))]))
-	var id := StringName(LAYOUT_MAP + DotMapLocalMaps.ID_SUFFIX)
-	var title := LAYOUT_MAP + DotMapLocalMaps.TAG
-	_check(DotMapLocalMaps.prefix_in("user://maps".path_join(LAYOUT_MAP).path_join("convert")) != "",
+	var id := StringName(LAYOUT_MAP + GSMapLocalMaps.ID_SUFFIX)
+	var title := LAYOUT_MAP + GSMapLocalMaps.TAG
+	_check(GSMapLocalMaps.prefix_in("user://maps".path_join(LAYOUT_MAP).path_join("convert")) != "",
 		"a dropped convert folder is copied as user://maps/<map>/convert")
 	if not had_bare:
 		_check(not DirAccess.dir_exists_absolute("user://maps/convert"), "and an older bare convert copy of it is gone")
@@ -291,7 +291,7 @@ func _test_drop_layouts() -> void:
 	_pack_as(deep.path_join("a/b/convert"), LAYOUT_MAP)
 	said = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(deep) + "/"]))
 	_check(said.begins_with("Added " + title), "a pack three folders down is found", said)
-	_check(DotMapLocalMaps.prefix_in("user://maps".path_join(LAYOUT_MAP).path_join("convert")) != "",
+	_check(GSMapLocalMaps.prefix_in("user://maps".path_join(LAYOUT_MAP).path_join("convert")) != "",
 		"and copied as user://maps/<map>/convert")
 	_wipe("user://maps".path_join(LAYOUT_MAP))
 
@@ -303,9 +303,9 @@ func _test_drop_layouts() -> void:
 	_pack_as(orig_tree.path_join(orig_name), orig_name, licence.merged({"original_textures":
 		{"from_base": 1, "from_pak": 0, "missing": ["tfcustoms/color_grey", "brick/brickwall003"]}}))
 	said = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(orig_tree.get_base_dir())]))
-	_check(client._menu_catalogue.has(StringName(orig_name + DotMapLocalMaps.ID_SUFFIX)),
+	_check(client._menu_catalogue.has(StringName(orig_name + GSMapLocalMaps.ID_SUFFIX)),
 		"a download with a <map>_orig pack imports that one", said)
-	_check(DotMapLocalMaps.prefix_in("user://maps".path_join(orig_name)) != "", "copied as user://maps/<map>_orig")
+	_check(GSMapLocalMaps.prefix_in("user://maps".path_join(orig_name)) != "", "copied as user://maps/<map>_orig")
 	_check(said.contains("2 of 3 original textures missing") and said.contains("tfcustoms/color_grey, brick/brickwall003"),
 		"and says which original textures it lacks", said)
 	_check(said.contains("3 props are stand-in models"), "and that its props are stand-ins", said)
@@ -334,7 +334,7 @@ func _test_drop_layouts() -> void:
 ## A map named like a shipped one is listed beside it, as (local).
 func _test_drop_shipped_name(client: FcClient) -> void:
 	var shipped := StringName()
-	for def: DotMapDef in client._menu_catalogue.maps:
+	for def: GSMapDef in client._menu_catalogue.maps:
 		if not bool(def.meta.get("local", false)) and def.enabled \
 				and not DirAccess.dir_exists_absolute("user://maps".path_join(String(def.id))):
 			shipped = def.id
@@ -342,18 +342,18 @@ func _test_drop_shipped_name(client: FcClient) -> void:
 	if _check(shipped != &"", "the catalogue has a shipped map"):
 		_pack_as(DROP_SOURCE.path_join("same/convert"), String(shipped))
 		var said: String = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(DROP_SOURCE.path_join("same/convert"))]))
-		var local_id := StringName(String(shipped) + DotMapLocalMaps.ID_SUFFIX)
+		var local_id := StringName(String(shipped) + GSMapLocalMaps.ID_SUFFIX)
 		_check(client._menu_catalogue.has(shipped) and client._menu_catalogue.has(local_id),
 			"a map named like a shipped one is listed beside it", said)
 		var label := ""
 		for row: Dictionary in FcMaps.menu_rows(client._menu_catalogue, &"", null, []):
 			if row["id"] == "map:%s" % local_id:
 				label = str(row["name"])
-		_check(label.ends_with(DotMapLocalMaps.TAG), "its M row says (local)", label)
+		_check(label.ends_with(GSMapLocalMaps.TAG), "its M row says (local)", label)
 		# The solo server's M rows (FcVoteSource): a local map whatever is played, nothing the mode cannot host.
 		var source: Object = FcVoteSource.of(client._menu_catalogue, null, null)
 		var listed := PackedStringArray()
-		for choice: DotVoteChoice in source.call(&"choices"):
+		for choice: GSVoteChoice in source.call(&"choices"):
 			listed.append(String(choice.id))
 		_check(listed.has("map:%s" % local_id), "the solo server's M lists the local map in any mode", str(listed.size()))
 		_check(not listed.has("map:%s" % shipped), "and not a map the mode cannot host")
@@ -382,7 +382,7 @@ func _touch(path: String) -> void:
 	f.close()
 
 
-## `DotMapLocalMaps.accept_dropped` (API 24), called so the suite still parses on an older host.
+## `GSMapLocalMaps.accept_dropped` (API 24), called so the suite still parses on an older host.
 ## The user folder is game-fatal-contact, and the first run copies the old game-arena folder's maps and settings in.
 func _test_user_dir() -> void:
 	_check(FcUserDir.is_ours(), "project.godot names the user folder %s" % FcUserDir.DIR_NAME,
@@ -413,7 +413,7 @@ func _write(path: String, text: String) -> void:
 
 
 func _drop(path: String) -> Dictionary:
-	var local_maps: Object = DotMapLocalMaps
+	var local_maps: Object = GSMapLocalMaps
 	return local_maps.call(&"accept_dropped", PackedStringArray([ProjectSettings.globalize_path(path)]))
 
 
@@ -422,7 +422,7 @@ func _test_original() -> void:
 	_check(FcLocalMaps.is_original(&"gm_fork_orig_local"), "a local _orig pack is original")
 	_check(not FcLocalMaps.is_original(&"gm_fork_local"), "a plain local map is not")
 	_check(not FcLocalMaps.is_original(&"gm_fork_orig"), "a shipped or delivered id never is")
-	var got := DotMapBspMesh.load_prefix(FIXTURE_DIR.path_join("fixture"))
+	var got := GSMapBspMesh.load_prefix(FIXTURE_DIR.path_join("fixture"))
 	if not _check(got.ok, "the fixture mesh reads"):
 		return
 	for pair in [["gm_fork_orig_local", true], ["fixture_local", false], ["surf_x_orig", false]]:
@@ -435,11 +435,11 @@ func _test_original() -> void:
 
 func _test_source_install() -> void:
 	print("-- an _orig pack's missing stock textures come from the player's own install, locally only")
-	_check(DotMapVpk.crc32("123456789".to_ascii_buffer()) == 0xCBF43926, "VPK CRC-32 is zlib's",
-		"%x" % DotMapVpk.crc32("123456789".to_ascii_buffer()))
-	_check(DotMapVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40") == "concrete_floor001", "a cubemap-patched name is its base",
-		DotMapVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40"))
-	var keys := DotMapVtf.vmt_keys("\"LightmappedGeneric\"\n{\n\t\"$baseTexture\" \"Concrete/Floor\" // a comment\n\t$surfaceprop concrete\n}")
+	_check(GSMapVpk.crc32("123456789".to_ascii_buffer()) == 0xCBF43926, "VPK CRC-32 is zlib's",
+		"%x" % GSMapVpk.crc32("123456789".to_ascii_buffer()))
+	_check(GSMapVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40") == "concrete_floor001", "a cubemap-patched name is its base",
+		GSMapVtf.safe_name("maps/cp_x/Concrete/Floor001_12_-3_40"))
+	var keys := GSMapVtf.vmt_keys("\"LightmappedGeneric\"\n{\n\t\"$baseTexture\" \"Concrete/Floor\" // a comment\n\t$surfaceprop concrete\n}")
 	_check(keys.get("$basetexture") == "Concrete/Floor" and keys.get("$surfaceprop") == "concrete", "a VMT's keys are read", str(keys))
 	_check(Array(FcSourceInstall.library_folders("\"libraryfolders\"\n{\n\t\"1\"\n\t{\n\t\t\"path\"\t\t\"D:\\\\SteamLibrary\"\n\t}\n}")) \
 		== ["D:/SteamLibrary"], "a Steam libraryfolders.vdf's libraries are read",
@@ -447,10 +447,10 @@ func _test_source_install() -> void:
 
 	# The fixture install: tf/tf2_textures_dir.vpk (VPK v2) and its part _000. A VMT stored in the dir names an RGBA8888
 	# VTF in the part (green, its smaller mips blue); a patch VMT includes a base naming a DXT1 VTF (red) partly preloaded.
-	var green := DotMapVpkWriter.vtf_rgba(4, 4, 3, Color8(20, 200, 30), Color8(0, 0, 255))
-	var red := DotMapVpkWriter.vtf_dxt1(8, 8, 0xF800)
+	var green := GSMapVpkWriter.vtf_rgba(4, 4, 3, Color8(20, 200, 30), Color8(0, 0, 255))
+	var red := GSMapVpkWriter.vtf_dxt1(8, 8, 0xF800)
 	var tf := SOURCE_GAME.path_join("tf")
-	DotMapVpkWriter.write_vpk(tf.path_join("tf2_textures"), {
+	GSMapVpkWriter.write_vpk(tf.path_join("tf2_textures"), {
 		"materials/concrete/concretefloor001.vmt": [("\"LightmappedGeneric\"\n{\n\t\"$basetexture\" \"Concrete/ConcreteFloor001\"\n}"
 			).to_utf8_buffer(), -1, 0],
 		"materials/concrete/concretefloor001.vtf": [green, 0, 0],
@@ -472,7 +472,7 @@ func _test_source_install() -> void:
 
 	# Dropped with the install set: two of three filled, the third still a stand-in, and the drop says so.
 	FcMaps.list_local = true
-	var local_maps: Object = DotMapLocalMaps
+	var local_maps: Object = GSMapLocalMaps
 	var player_cache: Variant = local_maps.get(&"zip_cache")
 	local_maps.set(&"zip_cache", ZIP_CACHE)
 	var client := FcClient.new()
@@ -483,7 +483,7 @@ func _test_source_install() -> void:
 	_pack_as(tree.path_join(orig_name), orig_name, {"licence": {"models": []}, "original_textures":
 		{"from_base": 1, "from_pak": 0, "textures": 1, "missing": ["concrete/concretefloor001", "metal/metalwall001", "dev/nothere"]}})
 	var said: String = await client.import_dropped(PackedStringArray([ProjectSettings.globalize_path(tree)]))
-	var prefix := DotMapLocalMaps.prefix_in("user://maps".path_join(orig_name))
+	var prefix := GSMapLocalMaps.prefix_in("user://maps".path_join(orig_name))
 	_check(said.contains("1 of 4 original textures missing") and said.contains("using free stand-ins: dev/nothere."),
 		"the drop says what is still a stand-in", said)
 	_check(said.contains("2 filled from your game install (%s): concrete/concretefloor001, metal/metalwall001." % install),
@@ -517,22 +517,22 @@ func _test_source_install() -> void:
 
 ## The fixture VPK lists, reads and decodes its files, and refuses one that fails its CRC. False when it does not open.
 func _test_fixture_vpk(install: String, green: PackedByteArray, red: PackedByteArray) -> bool:
-	var vpk := DotMapVpk.new()
+	var vpk := GSMapVpk.new()
 	if not _check(vpk.open(install.path_join("tf/tf2_textures_dir.vpk")), "the fixture VPK opens", vpk.error):
 		return false
 	_check(vpk.entries.size() == 5 and vpk.has("Materials/Metal/MetalWall001.vmt"), "and lists its 5 files", str(vpk.entries.keys()))
 	_check(vpk.read("materials/metal/metalwall_red.vtf") == red, "a preloaded file reads whole from its part")
-	var img := DotMapVtf.image(vpk.read("materials/concrete/concretefloor001.vtf"))
+	var img := GSMapVtf.image(vpk.read("materials/concrete/concretefloor001.vtf"))
 	_check(img != null and img.get_size() == Vector2i(4, 4) and img.get_pixel(3, 3).to_rgba32() == Color8(20, 200, 30).to_rgba32(),
-		"an RGBA8888 VTF decodes its largest mip", DotMapVtf.error if img == null else str(img.get_pixel(3, 3)))
-	img = DotMapVtf.image(green, 2)
+		"an RGBA8888 VTF decodes its largest mip", GSMapVtf.error if img == null else str(img.get_pixel(3, 3)))
+	img = GSMapVtf.image(green, 2)
 	_check(img != null and img.get_size() == Vector2i(2, 2) and img.get_pixel(0, 0).to_rgba32() == Color8(0, 0, 255).to_rgba32(),
-		"and a smaller mip when it is too big", DotMapVtf.error if img == null else str(img.get_size()))
-	img = DotMapVtf.image(red)
+		"and a smaller mip when it is too big", GSMapVtf.error if img == null else str(img.get_size()))
+	img = GSMapVtf.image(red)
 	_check(img != null and img.get_size() == Vector2i(8, 8) and img.get_pixel(5, 6).r > 0.95 and img.get_pixel(5, 6).g < 0.05,
-		"a DXT1 VTF decodes", DotMapVtf.error if img == null else str(img.get_pixel(5, 6)))
-	var bad := DotMapVpk.new()
-	DotMapVpkWriter.write_vpk(SOURCE_GAME.path_join("broken/bad"), {"materials/x.vtf": [red, 0, 0]}, 2, true)
+		"a DXT1 VTF decodes", GSMapVtf.error if img == null else str(img.get_pixel(5, 6)))
+	var bad := GSMapVpk.new()
+	GSMapVpkWriter.write_vpk(SOURCE_GAME.path_join("broken/bad"), {"materials/x.vtf": [red, 0, 0]}, 2, true)
 	_check(bad.open(SOURCE_GAME.path_join("broken/bad_dir.vpk")) and bad.read("materials/x.vtf").is_empty()
 		and bad.error.begins_with("crc mismatch"), "a file that fails its CRC is not read", bad.error)
 	DirAccess.remove_absolute(SOURCE_GAME.path_join("broken/bad_dir.vpk"))
@@ -592,7 +592,7 @@ func _clean() -> void:
 	_wipe(DROP_SOURCE)
 	_wipe(DROPPED_FOLDER)
 	_wipe("user://maps".path_join(LAYOUT_MAP))
-	if DotMapLocalMaps.prefix_in("user://maps/convert").get_file() == LAYOUT_MAP:
+	if GSMapLocalMaps.prefix_in("user://maps/convert").get_file() == LAYOUT_MAP:
 		_wipe("user://maps/convert")
 	_wipe(ZIP_CACHE)
 	_wipe(SOURCE_STEAM)

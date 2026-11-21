@@ -7,7 +7,7 @@ const FcHudAppPoints := preload("fc_hud_app_points.gd")
 const FcHudDamageDirs := preload("fc_hud_damage_dirs.gd")
 
 ## The knife throw's power bar under the crosshair: shown only while the aim key winds a throw up.
-var throw_bar: DotStatBar = null
+var throw_bar: GSStatBar = null
 var throw_meter := FcThrowMeter.new()
 var _throw_fill: float = 0.0
 
@@ -51,8 +51,8 @@ func build(p_game: FcGame) -> void:
 	_build_crosshair()
 
 	# Bottom left: health as a thick bar with its number at the end, armour as a thin one
-	# under it when there is any. The bars ease and the numbers do not (`DotVitals`).
-	vitals = DotVitals.new()
+	# under it when there is any. The bars ease and the numbers do not (`GSVitals`).
+	vitals = GSVitals.new()
 	vitals.name = "Vitals"
 	_place(vitals, Control.PRESET_BOTTOM_LEFT, Rect2(0.0, -112.0, 380.0, 104.0))
 	vitals.streak_icon = Look.medal_icon("fire")
@@ -60,14 +60,14 @@ func build(p_game: FcGame) -> void:
 	vitals.bar_end = 300.0
 
 	# Bottom right: the weapon's name, then `magazine | reserve`.
-	ammo = DotAmmoCounter.new()
+	ammo = GSAmmoCounter.new()
 	ammo.name = "Ammo"
 	_place(ammo, Control.PRESET_BOTTOM_RIGHT, Rect2(-300.0, -84.0, 290.0, 70.0))
 
 	# The right edge below 110 px belongs to the client shell's ballot column (`SHELL_COLUMN_TOP`)
 	# and this game cannot see when one is open, so the hints sit left and the weapon slots
 	# stack up from the ammunition counter (checked with `screenshot.sh --glance --ballot`).
-	hints = DotKeyHints.new()
+	hints = GSKeyHints.new()
 	hints.name = "KeyHints"
 	# Seven rows: started high so the last ends above the streak meter's words.
 	_place(hints, Control.PRESET_CENTER_LEFT, Rect2(62.0, -170.0, 200.0, 196.0))
@@ -80,7 +80,7 @@ func build(p_game: FcGame) -> void:
 	abilities = FcHudGlance.AbilityBar.new()
 	abilities.name = "Abilities"
 	# On a phone the thumbs' cluster (FcTouch.LAYOUT) fills the right edge ~370 units in; the bar sits left of it.
-	var abilities_gap: float = preload("fc_touch.gd").CLUSTER_WIDTH if DotPlatform.has_touch() else 0.0
+	var abilities_gap: float = preload("fc_touch.gd").CLUSTER_WIDTH if GSPlatform.has_touch() else 0.0
 	_place(abilities, Control.PRESET_CENTER_RIGHT, Rect2(-388.0 - abilities_gap, -45.0, 380.0, 90.0))
 
 	# Over the middle: chevrons toward whoever hurt you.
@@ -88,12 +88,12 @@ func build(p_game: FcGame) -> void:
 	damage_dirs.name = "DamageDirs"
 	_place(damage_dirs, Control.PRESET_FULL_RECT, Rect2(0.0, 0.0, 0.0, 0.0))
 
-	slide_label = DotKeyPrompt.new()
+	slide_label = GSKeyPrompt.new()
 	slide_label.name = "Prompt"
 	_place(slide_label, Control.PRESET_CENTER, Rect2(-330.0, 120.0, 300.0, 36.0))
 	slide_label.visible = false
 
-	throw_bar = DotStatBar.new()
+	throw_bar = GSStatBar.new()
 	throw_bar.name = "ThrowMeter"
 	throw_bar.max_value = 1.0
 	throw_bar.show_text = false
@@ -117,7 +117,7 @@ func build(p_game: FcGame) -> void:
 
 ## The crosshair, bound to the weapon's spread.
 func _build_crosshair() -> void:
-	crosshair = DotCrosshair.new()
+	crosshair = GSCrosshair.new()
 	crosshair.name = "Crosshair"
 	crosshair.set_anchors_preset(Control.PRESET_FULL_RECT)
 	crosshair.fov_degrees = 75.0
@@ -191,7 +191,7 @@ func follow(p_player: FcPlayer) -> void:
 ## camera was the player's own setting converted from horizontal-at-4:3 — 83.6 degrees
 ## vertical at the default of 100 — so every gap was drawn 17% wider than the cone the
 ## shots actually leave in, and at a setting of 120 it was 69% wider. A crosshair that is
-## confidently wrong about where the shots go is exactly what `DotCrosshair` says it
+## confidently wrong about where the shots go is exactly what `GSCrosshair` says it
 ## exists to avoid.
 ##
 ## Read off the camera once a frame rather than pushed from the settings, because the
@@ -212,7 +212,7 @@ func match_view() -> void:
 ## event. `FcClient` rebuilds the entry and calls this; the signal path below is the
 ## offline and listen-server one. Both end in the same place deliberately — a feed that
 ## looked different depending on how the kill arrived would be two feeds.
-func show_kill(entry: DotKillFeed.Entry) -> void:
+func show_kill(entry: GSKillFeed.Entry) -> void:
 	_on_kill(entry)
 
 
@@ -224,7 +224,7 @@ static func cause_label(cause: Variant) -> String:
 	return def.display_name if def != null else str(cause)
 
 
-func _on_kill(entry: DotKillFeed.Entry) -> void:
+func _on_kill(entry: GSKillFeed.Entry) -> void:
 	if feed == null:
 		return
 
@@ -249,7 +249,7 @@ func _on_kill(entry: DotKillFeed.Entry) -> void:
 ## Fills the feed from kills that happened before this HUD existed.
 ##
 ## What a client joining a match in progress needs, and what a HUD rebuilt after a
-## settings change needs. `DotKillFeed` is bounded and keeps its entries, so the last
+## settings change needs. `GSKillFeed` is bounded and keeps its entries, so the last
 ## few are always available -- taking them is one call and not having it is a feed that
 ## is empty until the next person dies.
 func catch_up(since_tick: int = -1) -> int:
@@ -270,7 +270,7 @@ func catch_up(since_tick: int = -1) -> int:
 ## Refreshes the two labels that are not widgets.
 ##
 ## The round timer and the score are read once a frame rather than through a
-## `DotHudWidget`, because both are strings assembled from several values and a widget
+## `GSHudWidget`, because both are strings assembled from several values and a widget
 ## exists to bind one.
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
@@ -314,7 +314,7 @@ func _present_slow() -> void:
 func present_scores() -> void:
 	# The override first, when there is one.
 	#
-	# [b]A networked client's own `DotMatch` never runs.[/b] Nothing ticks it, so
+	# [b]A networked client's own `GSMatch` never runs.[/b] Nothing ticks it, so
 	# `seconds_remaining()` is derived from `_ticks_in_state` against a `_current_tick`
 	# that is still 0 — a number nothing ever wrote, not a stale one. A connected
 	# browser client showed "IDLE" for ever while the server was playing a round.
@@ -324,10 +324,10 @@ func present_scores() -> void:
 		else game.match_node.seconds_remaining()
 	)
 	var clock := (
-		String(DotMatch.State.keys()[game.match_node.state]).capitalize() if remaining < 0.0
+		String(GSMatch.State.keys()[game.match_node.state]).capitalize() if remaining < 0.0
 		# Rounded up, so the clock never says 0:00 with time left (dot-ui's; Fatal Contact's own
 		# rounded down until 2026-10-11).
-		else DotScoreStrip.clock_text(remaining)
+		else GSScoreStrip.clock_text(remaining)
 	)
 	var mode := game.displayed_mode()
 	var limit := game.match_node.rules.score_limit if game.match_node.rules != null else 0
@@ -336,10 +336,10 @@ func present_scores() -> void:
 
 	var board := game.match_node.scoreboard
 	var me := str(player.player_id) if _live() else ""
-	var mine_record: DotPlayerScore = board.find(me) if me != "" else null
+	var mine_record: GSPlayerScore = board.find(me) if me != "" else null
 	# The sides from the game, not the match: a client's own match (solo's too) never has teams; the server's arrive as TEAM events.
 	if mode != null and mode.is_team_mode():
-		var sides: Array[DotTeam] = []
+		var sides: Array[GSTeam] = []
 		for side in game.teams():
 			if not side.is_spectator:
 				sides.append(side)
@@ -359,7 +359,7 @@ func present_scores() -> void:
 				strip.show_teams(rows)
 			return
 	# A free-for-all: you, and whoever is ahead of you (behind you, when you lead).
-	var other: DotPlayerScore = null
+	var other: GSPlayerScore = null
 	for record in board.ranked():
 		if record.present and record != mine_record:
 			other = record
@@ -386,7 +386,7 @@ func present_portraits() -> void:
 	var mode := game.displayed_mode()
 	var teams := mode != null and mode.is_team_mode()
 	var objective := mode != null and mode.objective_layout != &""
-	var order: Array[DotPlayerScore] = []
+	var order: Array[GSPlayerScore] = []
 	for record in (FcEvents.ranked_by_objectives(game.match_node.scoreboard) if objective else game.match_node.scoreboard.ranked()):
 		if record.present:
 			order.append(record)
@@ -398,7 +398,7 @@ func present_portraits() -> void:
 			continue
 		var id := int(record.key) if record.key.is_valid_int() else 0
 		var who := game.player_for(id) if id != 0 else null
-		var avatar: DotAvatar = who.avatar if who != null and who.avatar != null \
+		var avatar: GSAvatar = who.avatar if who != null and who.avatar != null \
 			else FcAvatars.stock_avatar(StringName(FcGame.storage_key(id)))
 		var side := _team_colour(game.team_of(id)) if teams and id != 0 else Color(0, 0, 0, 0)
 		var entry := {
@@ -427,7 +427,7 @@ func present_gear() -> void:
 		if _live() and player.health != null:
 			vitals.show_vitals(player.health.health, player.health.max_health, player.health.armour, player.health.max_armour)
 
-	var slot: DotWeaponSlot = player.arsenal.current() if live and player.arsenal != null else null
+	var slot: GSWeaponSlot = player.arsenal.current() if live and player.arsenal != null else null
 	var fire_key := String(keys.get(&"fire_mode", ""))
 	if ammo != null and slot != null and (slot != _label_slot or slot.def != _label_def or slot.fire_mode() != _label_mode or fire_key != _label_key):
 		_label_slot = slot
@@ -453,8 +453,8 @@ func present_gear() -> void:
 	var key_sig := keys.hash()
 	if slots != null:
 		# On a phone the right edge belongs to Fire, Jump and Next; the held weapon is on the ammunition plate.
-		slots.visible = not DotPlatform.has_touch()
-		var arsenal: DotWeaponArsenal = player.arsenal if live else null
+		slots.visible = not GSPlatform.has_touch()
+		var arsenal: GSWeaponArsenal = player.arsenal if live else null
 		var row_sig := hash([key_sig, live, arsenal.get_instance_id() if arsenal != null else 0])
 		if arsenal != null:
 			row_sig = hash([row_sig, arsenal.current_slot()])
@@ -467,7 +467,7 @@ func present_gear() -> void:
 
 	if hints != null:
 		# Keyboard keys mean nothing on a phone, and the list covers the view there.
-		hints.visible = live and not DotPlatform.has_touch() and _hints_wanted()
+		hints.visible = live and not GSPlatform.has_touch() and _hints_wanted()
 		var shown_mode: Variant = game.displayed_mode() if game != null else null
 		var arms := shown_mode != null and bool(shown_mode.call(&"arms_players"))
 		var hint_sig := hash([key_sig, shown_mode == null, arms])
@@ -538,7 +538,7 @@ func _present_hints(loadout_menu: bool) -> void:
 func present_throw_meter(delta: float, live: bool) -> float:
 	var winding := false
 	if live and game != null and game.knives != null and player.arsenal != null and player.aim_held:
-		var def: DotWeaponDef = player.arsenal.current_def()
+		var def: GSWeaponDef = player.arsenal.current_def()
 		winding = def != null and def.id == game.knives.weapon_id and player.is_alive()
 	var fill := throw_meter.advance(delta, winding, game.knife_rules if game != null else {})
 	# The authority's game writes the windup itself; a client's followed player takes the meter.
@@ -573,10 +573,10 @@ func present_body() -> void:
 			_fill_viewport(scope)
 	if crosshair != null:
 		# The scope has its own reticle; a crosshair drawn over it is two.
-		# Dead or in a kill view: DotCrosshair hides itself (alive_source); older dot-ui is hidden here.
+		# Dead or in a kill view: GSCrosshair hides itself (alive_source); older dot-ui is hidden here.
 		crosshair.visible = not scope_up and (_crosshair_hides or (live and player.is_alive()))
 		# Down an iron sight the sight is the aiming mark: the crosshair fades out as the gun
-		# comes up and back as it goes down (dot-ui's DotCrosshair, API 5; Christian's first
+		# comes up and back as it goes down (dot-ui's GSCrosshair, API 5; Christian's first
 		# play test had both on screen at once). Hip fire keeps it.
 		if _crosshair_fades:
 			crosshair.call(&"set_aim", hands.aim_fraction() if hands != null and not scope_up else 0.0)
@@ -584,8 +584,8 @@ func present_body() -> void:
 	_present_hurt(live)
 	present_throw_meter(get_process_delta_time(), live)
 
-	var state: DotFpsState = player.controller.state if live else null
-	var tunables: DotFpsTunables = player.controller.tunables if live else null
+	var state: GSFpsState = player.controller.state if live else null
+	var tunables: GSFpsTunables = player.controller.tunables if live else null
 	present_abilities(state, tunables)
 
 	_present_prompt(state, live)
@@ -598,7 +598,7 @@ func present_body() -> void:
 	var delta := get_process_delta_time()
 	var streak := int(streaks.get(player.player_id, 0)) if player != null else 0
 	vitals.show_streak(streak, STREAK_FULL)
-	# The hit marker and the damage numbers advance themselves (`DotHudPiece._process`).
+	# The hit marker and the damage numbers advance themselves (`GSHudPiece._process`).
 	medal_row.advance(delta)
 
 	if notice_label != null:
@@ -616,7 +616,7 @@ func present_body() -> void:
 
 
 ## What can be done right now, as the genre prompts it.
-func _present_prompt(state: DotFpsState, live: bool) -> void:
+func _present_prompt(state: GSFpsState, live: bool) -> void:
 	if slide_label != null:
 		if state != null and state.is_sliding():
 			slide_label.show_prompt("Cancel slide", _key_label(&"slide"))
@@ -672,7 +672,7 @@ func _fill_viewport(control: Control) -> void:
 
 ## The key a prompt names; none on a touch device, which has no keyboard.
 func _key_label(action: StringName) -> String:
-	return "" if DotPlatform.has_touch() else String(keys[action])
+	return "" if GSPlatform.has_touch() else String(keys[action])
 
 
 ## The red edge from low health and from a flash.
@@ -694,7 +694,7 @@ func _present_hurt(live: bool) -> void:
 ## The ability buttons from the followed player's movement state: slide, launch and dash
 ## with their cooldowns, and the wall jump with its jumps left in the air. Only the ones
 ## the server's rules turn on.
-func present_abilities(state: DotFpsState, tunables: DotFpsTunables) -> void:
+func present_abilities(state: GSFpsState, tunables: GSFpsTunables) -> void:
 	if abilities == null:
 		return
 	var buttons: Array[Dictionary] = []
@@ -759,10 +759,10 @@ func present_blind(delta: float) -> void:
 func carrying_flag_text() -> String:
 	if game == null or game.objectives == null or game.objectives.ctf == null or not _live():
 		return ""
-	var ctf: DotObjectiveCtf = game.objectives.ctf
+	var ctf: GSObjectiveCtf = game.objectives.ctf
 	var me := str(player.player_id)
 	for flag in ctf.flags():
-		if flag.state == DotObjectiveFlag.State.CARRIED and flag.carrier == me:
+		if flag.state == GSObjectiveFlag.State.CARRIED and flag.carrier == me:
 			return "YOU HAVE THE %s FLAG - TAKE IT TO YOUR BASE" % FcFlagView.name_of(flag.home_team())
 	return ""
 

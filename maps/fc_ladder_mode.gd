@@ -1,4 +1,4 @@
-extends DotFpsMoveMode
+extends GSFpsMoveMode
 
 const FcBspMap := preload("fc_bsp_map.gd")
 
@@ -16,13 +16,13 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## up, look down to go down), strafe moves along the wall, jump lets go and pushes off it.
 ## Speed is the climb speed, 200 units a second, whatever the run speed is.
 ##
-## Data, not an area, for [DotFpsSwimMode]'s reason: a box list gives a client replaying
+## Data, not an area, for [GSFpsSwimMode]'s reason: a box list gives a client replaying
 ## prediction the same answer the server had. [method update] is the game's once-a-tick
 ## call that puts a player on; [method _simulate] takes them off.
 ##
 ## [b]One difference from Airdrift:[/b] the jump-off grace is counted on [member now], the
 ## game's tick, which `FcPlayer` writes before every simulated tick, rather than on
-## `DotFpsState.tick`. That counter is not replicated, so after a rewind a client's copy
+## `GSFpsState.tick`. That counter is not replicated, so after a rewind a client's copy
 ## keeps counting from its newest tick and a replayed tick would read a different gap from
 ## the one the server read. The game's tick is the same number on a replay as the first
 ## time round.
@@ -73,8 +73,8 @@ func touching(feet: Vector3, radius: float, height: float) -> AABB:
 ## Once a tick, after the move: a player touching a ladder who is falling, or walking into
 ## it, is put on it. Read from the state rather than the command, so it needs nothing a
 ## replayed tick does not have. Noclip, and somebody already on, are left.
-func update(motor: DotFpsMotor, state: DotFpsState) -> void:
-	if mode_id < 0 or volumes.is_empty() or state.mode == mode_id or state.mode == DotFpsState.Mode.NOCLIP:
+func update(motor: GSFpsMotor, state: GSFpsState) -> void:
+	if mode_id < 0 or volumes.is_empty() or state.mode == mode_id or state.mode == GSFpsState.Mode.NOCLIP:
 		return
 	var t := motor.tunables
 	var box := touching(state.position, t.radius, t.height_at(state.crouch_fraction))
@@ -98,24 +98,24 @@ func update(motor: DotFpsMotor, state: DotFpsState) -> void:
 		state.velocity = Vector3.ZERO
 
 
-func _simulate(state: DotFpsState, command: DotFpsCommand, delta: float, motor: DotFpsMotor) -> void:
+func _simulate(state: GSFpsState, command: GSFpsCommand, delta: float, motor: GSFpsMotor) -> void:
 	var t := motor.tunables
 	var box := touching(state.position, t.radius, t.height_at(state.crouch_fraction))
 	if box.size == Vector3.ZERO:
 		# Off the top while pushing forward: carry on over the lip, or the climb's zero
 		# velocity drops a climber straight back onto the ladder.
 		if state.velocity.y > 0.0 and command.move.y > 0.0:
-			var fwd := DotFpsMotor._view_basis(state.yaw, 0.0).forward
+			var fwd := GSFpsMotor._view_basis(state.yaw, 0.0).forward
 			state.velocity = Vector3(fwd.x, 0.0, fwd.z).normalized() * climb_speed + Vector3.UP * state.velocity.y
-		motor.set_mode(state, DotFpsState.Mode.AIR)
+		motor.set_mode(state, GSFpsState.Mode.AIR)
 		motor.move_and_slide(state, delta)
 		return
 
 	var away := _away(box, state.position)
-	if command.is_pressed(DotFpsCommand.BUTTON_JUMP):
+	if command.is_pressed(GSFpsCommand.BUTTON_JUMP):
 		state.velocity = away * jump_off_speed
 		_jumped_off_tick = now
-		motor.set_mode(state, DotFpsState.Mode.AIR)
+		motor.set_mode(state, GSFpsState.Mode.AIR)
 		motor.move_and_slide(state, delta)
 		return
 
@@ -123,7 +123,7 @@ func _simulate(state: DotFpsState, command: DotFpsCommand, delta: float, motor: 
 	# ladder's face and what does not; the part into the face is turned into motion UP it
 	# (out of it, down), and the rest is kept. So forward while facing the ladder climbs,
 	# looking up climbs faster, looking down far enough descends, and strafe slides across.
-	var basis := DotFpsMotor._view_basis(state.yaw, state.pitch)
+	var basis := GSFpsMotor._view_basis(state.yaw, state.pitch)
 	var wish := (basis.forward * clampf(command.move.y, -1.0, 1.0)
 		+ basis.right * clampf(command.move.x, -1.0, 1.0)) * climb_speed
 	var into := wish.dot(away)

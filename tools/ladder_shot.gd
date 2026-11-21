@@ -59,8 +59,8 @@ func _initialize() -> void:
 
 
 func _pick_side(map: FcMap) -> void:
-	var body := DotFpsPhysicsBody.for_node(map.collision_root)
-	var tun: DotFpsTunables = _player.controller.tunables
+	var body := GSFpsPhysicsBody.for_node(map.collision_root)
+	var tun: GSFpsTunables = _player.controller.tunables
 	var thin_x := _rung.size.x < _rung.size.z
 
 	for side: float in [1.0, -1.0]:
@@ -81,11 +81,11 @@ func _physics_process(_delta: float) -> bool:
 		_armed = true
 		_player.controller.teleport(_start, _yaw, 0.0)
 
-	var cmd := DotFpsCommand.new()
+	var cmd := GSFpsCommand.new()
 	cmd.move = Vector2(0.0, 1.0)
 	cmd.yaw = _yaw if _phase < 2 else _yaw + 180.0
 	cmd.pitch = 40.0 if _phase < 2 else -50.0
-	var s: DotFpsState = _player.controller.state
+	var s: GSFpsState = _player.controller.state
 	var on: bool = s.mode == _player.ladder.mode_id
 	_was_on = _was_on or on
 
@@ -108,7 +108,7 @@ func _physics_process(_delta: float) -> bool:
 		if _hold <= 0:
 			quit(0)
 
-	var weapon := DotWeaponCommand.new()
+	var weapon := GSWeaponCommand.new()
 	weapon.yaw = cmd.yaw
 	weapon.pitch = cmd.pitch
 	var _out := _player.simulate_tick(_tick, 1.0 / float(TICK_RATE), cmd, weapon)

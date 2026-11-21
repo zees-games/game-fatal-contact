@@ -10,7 +10,7 @@ const FcFrameProbe := preload("fc_frame_probe.gd")
 
 
 class NavWorld:
-	extends DotBotWorld
+	extends GSBotWorld
 
 	var game: Object = null
 	var brains: Dictionary = {}
@@ -20,11 +20,11 @@ class NavWorld:
 	var _drops_tick: int = -1
 	## The graph bots walk on and the map it was built for: the horde's when it has one,
 	## built here on a built-in map when it does not, none on an imported map.
-	var _graph: DotNpcNavGraph = null
+	var _graph: GSNpcNavGraph = null
 	var _graph_map: Object = null
 	## An imported map's walkable mesh, baked from its brushes in the background, and the map
 	## it is for. See [method _nav_for_map].
-	var _nav: DotBotNav = null
+	var _nav: GSBotNav = null
 	var _nav_map: Object = null
 	## The map's ride edges ([code]fc_surf.gd[/code]), once its mesh has landed and if it has
 	## a surf cache; and whether that was looked for on this mesh.
@@ -33,9 +33,9 @@ class NavWorld:
 	var _surf_tick: int = -1
 	var _surf_now: RefCounted = null
 	## The map's ladders joined into [member _nav] as climb edges, and how many got one.
-	var _ladders: DotBotLinks = null
+	var _ladders: GSBotLinks = null
 	## The drop and hop edges found on the mesh (kept so they are not collected).
-	var _edges: DotBotLinks = null
+	var _edges: GSBotLinks = null
 	## False in a test that wants ladders to be the only way up.
 	var join_edges := true
 	## The drop, hop and stitch search under way (dot-bot 26), a slice a frame: the map change's longest bot work.
@@ -46,7 +46,7 @@ class NavWorld:
 	## sight and wall rays then use queries of their own on [member _par_space] and whose other answers take [member _par_lock].
 	var par: bool = false
 	var _par_space: PhysicsDirectSpaceState3D = null
-	var _par_trace: DotTrace = null
+	var _par_trace: GSTrace = null
 	var _par_physics: bool = false
 	var _par_lock := Mutex.new()
 	## GodotPhysics3D answers every query out of buffers the space shares, so rays go one at a time.
@@ -77,9 +77,9 @@ class NavWorld:
 	func senses(all: Array) -> Object:
 		return null if par else super(all)
 
-	func _glass_of_trace() -> DotMapGlassSight:
+	func _glass_of_trace() -> GSMapGlassSight:
 		var g: Variant = _par_trace.get("glass")
-		return g as DotMapGlassSight if g is DotMapGlassSight and (g as DotMapGlassSight).glass_mask != 0 else null
+		return g as GSMapGlassSight if g is GSMapGlassSight and (g as GSMapGlassSight).glass_mask != 0 else null
 
 	func _ray_par(from: Vector3, to: Vector3, mask: int) -> Dictionary:
 		var q := PhysicsRayQueryParameters3D.new()
@@ -98,8 +98,8 @@ class NavWorld:
 	func _wall_par(from: Vector3, dir: Vector3, reach: float) -> Dictionary:
 		var found := {}
 		if not _par_physics:
-			# DotTrace.ray with no hitboxes is this world ray (the observer is called below, on the main thread).
-			var flat: DotHitbox.Hit = _par_trace.call(&"_world_ray", from, dir, reach)
+			# GSTrace.ray with no hitboxes is this world ray (the observer is called below, on the main thread).
+			var flat: GSHitbox.Hit = _par_trace.call(&"_world_ray", from, dir, reach)
 			if flat.ok():
 				found = {"normal": flat.normal, "distance": flat.distance}
 		else:
@@ -128,9 +128,9 @@ class NavWorld:
 	func _wall_ahead(from: Vector3, dir: Vector3, reach: float) -> Dictionary:
 		var combat: Variant = game.get("combat")
 		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		if not trace is DotTrace:
+		if not trace is GSTrace:
 			return {}
-		var hit := (trace as DotTrace).ray(from, dir, reach)
+		var hit := (trace as GSTrace).ray(from, dir, reach)
 		if not hit.ok():
 			return {}
 		return {"normal": hit.normal, "distance": hit.distance}
@@ -187,7 +187,7 @@ class NavWorld:
 		var t_link := Time.get_ticks_usec()
 		_link_ladders(nav)
 		FcFrameProbe.add(&"bot_nav_links", t_link)
-		if DotAddonApi.build_level("dot_bot") < 4 or DotAddonApi.build_level("dot_player_controller") < 3:
+		if GSAddonApi.build_level("dot_bot") < 4 or GSAddonApi.build_level("dot_player_controller") < 3:
 			return null
 		var t_surf := Time.get_ticks_usec()
 		var surf_script := load(FcPaths.rebase("res://game/fc_surf.gd")) as GDScript
@@ -197,13 +197,13 @@ class NavWorld:
 
 	## True once the edge search is done; until then one slice per frame, on the main thread (its rays are physics queries).
 	## The nav is held unready meanwhile, so bots walk as before the bake landed and route once every edge is in.
-	func _join_sliced(nav: DotBotNav) -> bool:
-		if not join_edges or DotAddonApi.build_level("dot_bot") < 26:
+	func _join_sliced(nav: GSBotNav) -> bool:
+		if not join_edges or GSAddonApi.build_level("dot_bot") < 26:
 			_edges = null
 			return true
 		if not _joining:
 			_joining = true
-			_edges = DotBotLinks.new()
+			_edges = GSBotLinks.new()
 		if par or _join_frame == Engine.get_process_frames():
 			return false
 		_join_frame = Engine.get_process_frames()
@@ -223,27 +223,27 @@ class NavWorld:
 		return n
 
 	## Joins the imported map's ladders into [param nav] as one-way climbs and hands the brain their geometry (dot-bot 10).
-	func _link_ladders(nav: DotBotNav) -> void:
+	func _link_ladders(nav: GSBotNav) -> void:
 		_ladders = null
 		ladder_fn = Callable()
 		# Drops off the rims and hops over gaps join a spawn island the plain bake leaves cut off.
-		if join_edges and DotAddonApi.build_level("dot_bot") >= 12:
+		if join_edges and GSAddonApi.build_level("dot_bot") >= 12:
 			if _edges == null:
-				_edges = DotBotLinks.new()
+				_edges = GSBotLinks.new()
 				_edges.join(nav)
 			_climb_back_ledges(nav)
-		if DotAddonApi.build_level("dot_bot") >= 13:
-			extra_waypoints = nav.spread_points(ROAM_PLACES, DotRandomStream.new(7919, &"roam"))
+		if GSAddonApi.build_level("dot_bot") >= 13:
+			extra_waypoints = nav.spread_points(ROAM_PLACES, GSRandomStream.new(7919, &"roam"))
 		var mechanics: Variant = (game.get("map") as Object).get("mechanics")
-		if DotAddonApi.build_level("dot_bot") < 10 or not (mechanics is Object) or (mechanics as Object).get("ladders").is_empty():
+		if GSAddonApi.build_level("dot_bot") < 10 or not (mechanics is Object) or (mechanics as Object).get("ladders").is_empty():
 			return
-		var links := DotBotLinks.link_ladders(nav, (mechanics as Object).get("ladders"))
+		var links := GSBotLinks.link_ladders(nav, (mechanics as Object).get("ladders"))
 		if links != null:
 			_ladders = links
 			ladder_fn = links.ladder_of
 
 	## A team map's spawn rooms are walled in, with a ramp that tops out on a ledge over the open floor: bots leave by the drop but, with no way back up, never reach the enemy spawn. Each short drop gets a reverse climb edge, only on a map whose spawns carry a side.
-	func _climb_back_ledges(nav: DotBotNav) -> void:
+	func _climb_back_ledges(nav: GSBotNav) -> void:
 		var map: Variant = game.get("map")
 		if not (map is Object) or not (map as Object).has_method(&"spawn_tag"):
 			return
@@ -274,7 +274,7 @@ class NavWorld:
 		return _surf_looked
 
 	## The imported map's mesh for the ride recorder (baking it if nothing has asked yet); null on a built-in map.
-	func nav_for_rides() -> DotBotNav:
+	func nav_for_rides() -> GSBotNav:
 		return _nav_for_map()
 
 	## The corners of a way from [param from] to [param to]: over the navigation graph on a
@@ -302,9 +302,9 @@ class NavWorld:
 		return graph.find_smooth_path(from, to, -1.0, true)
 
 	## The mesh for an imported map, the bake started on the first route asked on it; null on a built-in map.
-	## [b]Not the graph.[/b] The graph is laid over a box list; an imported map's solid is hundreds of convex brushes with ramps and ledges at every height, so graph bots walked through the walls. dot-bot's [DotBotNav] bakes what a body can stand on
+	## [b]Not the graph.[/b] The graph is laid over a box list; an imported map's solid is hundreds of convex brushes with ramps and ledges at every height, so graph bots walked through the walls. dot-bot's [GSBotNav] bakes what a body can stand on
 	## from those brushes ([member FcMap.collision_root]). [b]In the background[/b]: the two default surf maps took 2 to 3 s to bake against a tenth of a second for the map change, so bots walk straight for those seconds and route after.
-	func _nav_for_map() -> DotBotNav:
+	func _nav_for_map() -> GSBotNav:
 		var map: Variant = game.get("map")
 		if not (map is Object) or not (map as Object).has_method(&"is_imported") or not bool((map as Object).call(&"is_imported")):
 			return null
@@ -312,14 +312,14 @@ class NavWorld:
 			return _nav
 		# An older shell's dot-bot has no background bake, and baking in the tick is seconds:
 		# its bots walk straight, as they did before.
-		if DotAddonApi.build_level("dot_bot") < 3:
+		if GSAddonApi.build_level("dot_bot") < 3:
 			return null
 		var root: Variant = (map as Object).get("collision_root")
 		if not (root is Node3D) or not (root as Node3D).is_inside_tree():
 			return null
 		if _nav != null:
 			_nav.clear()
-		_nav = DotBotNav.new()
+		_nav = GSBotNav.new()
 		_nav_map = map
 		_surf = null
 		_surf_looked = false
@@ -332,7 +332,7 @@ class NavWorld:
 		if source != null:
 			source.free()
 		if not started.ok:
-			DotLog.warn(CHANNEL, "bots cannot route on this map", {"map": str((map as Object).get("id")), "error": started.error.message})
+			GSLog.warn(CHANNEL, "bots cannot route on this map", {"map": str((map as Object).get("id")), "error": started.error.message})
 		return _nav
 
 	func walkable_near(at: Vector3) -> Vector3:
@@ -377,15 +377,15 @@ class NavWorld:
 	func _npcs() -> GDScript:
 		return load(FcPaths.rebase("res://game/fc_npcs.gd")) as GDScript
 
-	func _body_tunables() -> DotFpsTunables:
+	func _body_tunables() -> GSFpsTunables:
 		for p: Object in game.call("players"):
 			var controller: Variant = p.get("controller")
 			var tunables: Variant = (controller as Object).get("tunables") if controller is Object else null
-			if tunables is DotFpsTunables:
+			if tunables is GSFpsTunables:
 				return tunables
 		return (load(FcPaths.rebase("res://game/fc_player.gd")) as GDScript).call("fc_tunables")
 
-	func _graph_for_map() -> DotNpcNavGraph:
+	func _graph_for_map() -> GSNpcNavGraph:
 		var map: Variant = game.get("map")
 		if not (map is Object) or not (map as Object).has_method(&"is_imported") or bool((map as Object).call(&"is_imported")):
 			return null
@@ -395,9 +395,9 @@ class NavWorld:
 		_graph = null
 		var horde: Variant = game.get("horde")
 		var data: Variant = (horde as Object).get("nav") if horde is Object else null
-		if not (data is DotNpcNavData) or not (data as DotNpcNavData).matches(_npcs().digest_of(map)):
+		if not (data is GSNpcNavData) or not (data as GSNpcNavData).matches(_npcs().digest_of(map)):
 			data = _npcs().nav_for(map)
-		var graph := DotNpcNavGraph.new()
-		if (data as DotNpcNavData).validate().ok and graph.rebuild(data).ok:
+		var graph := GSNpcNavGraph.new()
+		if (data as GSNpcNavData).validate().ok and graph.rebuild(data).ok:
 			_graph = graph
 		return _graph

@@ -20,7 +20,7 @@ var _game: FcGame = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -34,9 +34,9 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 
 func _fire(ticks: int) -> void:
 	for i in ticks:
-		var w := DotWeaponCommand.new()
-		w.buttons = DotWeaponCommand.BUTTON_ATTACK if i == 0 else 0
-		_game.tick({1: [DotFpsCommand.new(), w]})
+		var w := GSWeaponCommand.new()
+		w.buttons = GSWeaponCommand.BUTTON_ATTACK if i == 0 else 0
+		_game.tick({1: [GSFpsCommand.new(), w]})
 		await get_tree().physics_frame
 
 
@@ -72,7 +72,7 @@ func _run() -> void:
 		_game.tick({})
 		await get_tree().physics_frame
 	var def := shooter.arsenal.current_def()
-	var tuning := FcPlayer.weapon_catalogue().get_def(def.id).tuning as DotWeaponBallistics
+	var tuning := FcPlayer.weapon_catalogue().get_def(def.id).tuning as GSWeaponBallistics
 	var was := [tuning.muzzle_velocity, tuning.bullet_gravity, tuning.drag, tuning.max_range, tuning.spread, tuning.spread_moving, tuning.recoil_pitch]
 	tuning.muzzle_velocity = 40.0
 	tuning.bullet_gravity = 1.0
@@ -106,7 +106,7 @@ func _run() -> void:
 
 	_game.combat.health_of(2).health = health_before
 	_game.combat_feel.ballistics.set(&"enabled", true)
-	_game.bullet_bridge.bullet_hit.connect(func(_id: int, d: DotDamage) -> void:
+	_game.bullet_bridge.bullet_hit.connect(func(_id: int, d: GSDamage) -> void:
 		info.hits.append(d)
 		info.point = d.point
 		info.ticks = _game.get_tick() if _game.has_method(&"get_tick") else 0)
@@ -151,7 +151,7 @@ func _wallbang_check(shooter: FcPlayer, victim: FcPlayer) -> void:
 	feet.y = maxf(feet.y, 0.05)
 	victim.spawn(Transform3D(Basis(), feet), 1)
 	_game.tick({})
-	var flat := _game.combat.trace as DotTraceFlat
+	var flat := _game.combat.trace as GSTraceFlat
 	_check(flat != null, "wall: the headless trace is flat")
 	if flat == null:
 		return
@@ -161,9 +161,9 @@ func _wallbang_check(shooter: FcPlayer, victim: FcPlayer) -> void:
 	var _w: RefCounted = flat.add_box(AABB(wall_at - Vector3(3.0, 3.0, 0.1), Vector3(6.0, 6.0, 0.2)))
 	await get_tree().physics_frame
 	var seen: Array = []
-	var on_damage := func(d: DotDamage) -> void: seen.append(d)
+	var on_damage := func(d: GSDamage) -> void: seen.append(d)
 	_game.combat.damage_applied.connect(on_damage)
-	var before: DotStatsValues = null
+	var before: GSStatsValues = null
 	var key := StringName(_game.progress._key_of(1))
 	if _game.progress.stats != null:
 		before = _game.progress.stats.session_values(key).duplicate_values()
@@ -175,11 +175,11 @@ func _wallbang_check(shooter: FcPlayer, victim: FcPlayer) -> void:
 	flat.boxes.assign(boxes_was)
 	flat.box_materials.assign(mats_was)
 	var passed := false
-	for d: DotDamage in seen:
+	for d: GSDamage in seen:
 		passed = passed or (int(d.context.get("penetrated", 0)) > 0 and bool(d.context.get("wallbang", false)))
 	_check(not seen.is_empty(), "wall: the shot through a wall landed", str(seen.size()))
 	_check(passed, "wall: its damage is marked penetrated and wallbang")
-	var now: DotStatsValues = _game.progress.stats.session_values(key)
-	var hits_before := before.get_value(DotStatsPenetration.HITS) if before != null else 0.0
-	_check(now.get_value(DotStatsPenetration.HITS) > hits_before, "wall: penetration_hits is filed", str(now.get_value(DotStatsPenetration.HITS)))
-	_check(now.get_value(DotStatsPenetration.DAMAGE) > 0.0, "wall: penetration_damage is filed")
+	var now: GSStatsValues = _game.progress.stats.session_values(key)
+	var hits_before := before.get_value(GSStatsPenetration.HITS) if before != null else 0.0
+	_check(now.get_value(GSStatsPenetration.HITS) > hits_before, "wall: penetration_hits is filed", str(now.get_value(GSStatsPenetration.HITS)))
+	_check(now.get_value(GSStatsPenetration.DAMAGE) > 0.0, "wall: penetration_damage is filed")

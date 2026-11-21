@@ -1,8 +1,8 @@
-extends DotNetBehaviour
+extends GSNetBehaviour
 
 ## A monster over the wire: where it is, which way it faces, how hurt it is, what it is doing.
 ##
-## dot-npc's [DotNpcNetSync] fields, on this game's net behaviour — the split that addon
+## dot-npc's [GSNpcNetSync] fields, on this game's net behaviour — the split that addon
 ## exists to make, since dot-npc cannot name dot-net. Server-authoritative and never
 ## predicted: a monster's position comes out of a navigation graph and a brain, neither of
 ## which a client could reproduce, so the client interpolates and draws.
@@ -12,7 +12,7 @@ extends DotNetBehaviour
 ## listen server ever showed one.
 
 ## The server's row. Null on a client.
-var npc: DotNpcInstance = null
+var npc: GSNpcInstance = null
 
 ## The body this moves: the server's monster, or a client's mirror of it.
 var body: Node3D = null
@@ -26,8 +26,8 @@ var net_state: int = 0
 
 
 func _register_net_vars() -> void:
-	for spec in DotNpcNetSync.specs():
-		var field := replicate(spec["property"], DotNetVar.Type[spec["type"]])
+	for spec in GSNpcNetSync.specs():
+		var field := replicate(spec["property"], GSNetVar.Type[spec["type"]])
 
 		if int(spec["bits"]) > 0:
 			field.bits(int(spec["bits"]))
@@ -40,12 +40,12 @@ func pull() -> void:
 	if npc == null or not npc.is_alive():
 		return
 
-	var state := DotNpcNetSync.State.IDLE
+	var state := GSNpcNetSync.State.IDLE
 
 	if npc.has_target():
-		state = DotNpcNetSync.State.ATTACKING
+		state = GSNpcNetSync.State.ATTACKING
 
-	DotNpcNetSync.pull(npc, self, state)
+	GSNpcNetSync.pull(npc, self, state)
 
 
 func _net_simulate(_tick: int, _delta: float) -> void:
@@ -68,4 +68,4 @@ func _draw() -> void:
 	if identity != null and identity.is_authoritative:
 		return
 
-	DotNpcNetSync.apply(body, self)
+	GSNpcNetSync.apply(body, self)

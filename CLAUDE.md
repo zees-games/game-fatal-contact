@@ -76,7 +76,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 **Client**
 
 - Adopt the player on `player_added`, never `player_spawned`. Offline, name the player before creating it. [client](docs/client.md#booting-and-adopting-a-player)
-- The camera is written only in `FcPlayer.present`, never `DotFpsView`; a server may clamp the field of view, never read it. [client](docs/client.md#the-camera-is-written-in-exactly-one-place)
+- The camera is written only in `FcPlayer.present`, never `GSFpsView`; a server may clamp the field of view, never read it. [client](docs/client.md#the-camera-is-written-in-exactly-one-place)
 - A client's own `mode` is never replaced; display reads `displayed_mode()`. [client](docs/client.md#a-client-knows-the-mode-only-for-display)
 - Effects are built against `FcPresentation.facing` (-Z along the shot); a missing scene is a warning. [client](docs/client.md#effect-scenes)
 - Players and bots are dot-player-char's people (`FcAvatars.look_of`); the document stays `arena_stock` (its schema id) and its parts are `fc_body_*`, `fc_head_*`, `fc_crest_*`: a document stored with the old `arena_*` part ids still loads, `FcAvatars.migrated` reads them as the new ones; the gun hand is the left. [client](docs/client.md#avatars)
@@ -91,7 +91,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - Full-screen overlays are sized to the viewport; HUD pieces draw handed values; judge them with `screenshot.sh --glance` at 16:9, 4:3 and 854x480. [client](docs/client.md#the-hud)
 - The HUD follows dot-menu's theme and `hud_scale`; a HUD colour is a theme name (`Ink.c`), never a literal, except side, medal and weapon colours. [client](docs/client.md#the-hud)
 - Below 1280x720 the HUD is scaled (`fit_design`), never re-laid out; a new piece gets a `footprint()`. [client](docs/client.md#the-hud)
-- Half the HUD is dot-ui's glance pieces and the winner reveal is `DotWinnerReveal`, so the pack needs dot-ui 13 (the weapon icons, `DotWeaponIconStyle`) (`requires.floor.json`). [client](docs/client.md#the-hud)
+- Half the HUD is dot-ui's glance pieces and the winner reveal is `GSWinnerReveal`, so the pack needs dot-ui 13 (the weapon icons, `GSWeaponIconStyle`) (`requires.floor.json`). [client](docs/client.md#the-hud)
 - Nothing of the HUD on the right edge from 110 px down (the shell's column); below a ballot a piece reads `dot_hud_cover`. [client](docs/client.md#the-hud)
 - The streak meter ends above a full chat log; the chat box is scaled with the HUD and clear of the slide prompt. [client](docs/client.md#the-chat-box)
 - Hit marker, damage numbers, medals, points and nemesis come only from the server's HIT and AWARD, never a predicted shot. [client](docs/client.md#kill-feedback)
@@ -129,27 +129,27 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - A guard on a host addon's level needs that addon in `requires.floor.json` at the older path's level. [client](docs/client.md#keys)
 - `fc_weapons` is the whole weapon runtime (its `Aw*` classes are named directly), so `requires.floor.json` and `requires.pins.json` carry it at level 32, the first level under the `fc_weapons` name (below it the folder was `arena_weapons`, which this pack no longer loads); no other weapon addon is linked.
 - An imported map's solid is in the tree on every machine before any player is bodied; spawns are settled. [imported](docs/imported-maps.md#the-solid-is-the-games-on-every-machine)
-- Bots route on an imported map over a `DotBotNav` baked in the background, never in the tick. [imported](docs/imported-maps.md#bots-route-over-a-mesh-baked-from-the-brushes)
+- Bots route on an imported map over a `GSBotNav` baked in the background, never in the tick. [imported](docs/imported-maps.md#bots-route-over-a-mesh-baked-from-the-brushes)
 - Ride edges are planned by `tools/surf_rides.tscn`, never at load; `fc_surf.gd` loads by path only with dot-bot 4, dot-player-controller 3. [imported](docs/imported-maps.md#bots-ride-the-ramps)
 - Map mechanics run inside the simulated tick on both ends; pushes are stateless; swim and ladder modes are registered on every map. [imported](docs/imported-maps.md#the-maps-own-mechanics)
 - A Workshop map (solo only, `provides.json` `accepts`) is a JSON box-list document whose id is its entry's id; a bad one is refused and unlisted, the game's ids win. [maps](docs/maps.md#workshop-maps)
-- Fatal Contact needs a shell with dot-player-controller v0.1.5+, the wall moves and `DotFpsViewMotion`. [imported](docs/imported-maps.md#the-solid-is-the-games-on-every-machine)
+- Fatal Contact needs a shell with dot-player-controller v0.1.5+, the wall moves and `GSFpsViewMotion`. [imported](docs/imported-maps.md#the-solid-is-the-games-on-every-machine)
 
 **Horde, weapons, services**
 
-- Monster entity ids come from the `DotEntityTable`; players keep session ids on purpose. [horde](docs/horde.md#a-monsters-entity-id)
+- Monster entity ids come from the `GSEntityTable`; players keep session ids on purpose. [horde](docs/horde.md#a-monsters-entity-id)
 - A non-player death goes to `non_player_killed`, never `report_kill`. [horde](docs/horde.md#a-non-player-entity-in-dot-combat)
-- `DotPhysGun.hold` every tick; the prop tool is an intent. [horde](docs/horde.md#props)
+- `GSPhysGun.hold` every tick; the prop tool is an intent. [horde](docs/horde.md#props)
 - The rig drives the player's own `Arsenal`; call newer rig methods through `has_method`. [weapons](docs/weapons.md#the-rig-drives-the-players-own-arsenal)
 - A detonation pins the attacker's origin to the blast. [weapons](docs/weapons.md#projectiles)
 - A projectile passes through a team-mate holding its launch point, and at `mp_teammate_passthrough` 2 misses every team-mate all flight (dot-combat's, by name). [weapons](docs/weapons.md#projectiles)
-- `DotAchievementStatsLink`, never `recorded.connect`. [services](docs/services.md#progression)
+- `GSAchievementStatsLink`, never `recorded.connect`. [services](docs/services.md#progression)
 - One chat path; hook `player_command` too; moderation is built first. [services](docs/services.md#chat)
 - The speaker id comes from the transport, never the payload. [services](docs/services.md#voice)
 - `admin_abilities` on every player, both ends. [services](docs/services.md#an-administrators-live-tools)
 - One vote clock; voters keyed by bare session id. [services](docs/services.md#the-map-vote)
 - A private match reports nothing (`reporting_allowed()`), and does not migrate. [services](docs/services.md#a-private-match-files-nothing)
-- **Avatar library (`game/fc_avatar_library.gd`).** The one place Fatal Contact talks to the site's avatar library (dot-user-avatar's `DotAvatarLibraryClient`) and reads the app's `DotAvatarAppRules`. It sends the app id (cvar `sv_avatar_app_id`, 0 = unset, calls refused), honours the emote/pose/gesture and wearable switches and per-wearable rules, treats an equip cap of 0 as unlimited, and refuses (never trims) a list over it. The loadout limits are the cvars `sv_avatar_loadout_max_entries` and `sv_avatar_loadout_max_per_kind` (0 = unlimited). Suite: `headless_avatar_library`.
+- **Avatar library (`game/fc_avatar_library.gd`).** The one place Fatal Contact talks to the site's avatar library (dot-user-avatar's `GSAvatarLibraryClient`) and reads the app's `GSAvatarAppRules`. It sends the app id (cvar `sv_avatar_app_id`, 0 = unset, calls refused), honours the emote/pose/gesture and wearable switches and per-wearable rules, treats an equip cap of 0 as unlimited, and refuses (never trims) a list over it. The loadout limits are the cvars `sv_avatar_loadout_max_entries` and `sv_avatar_loadout_max_per_kind` (0 = unlimited). Suite: `headless_avatar_library`.
 
 ## Visual quality
 

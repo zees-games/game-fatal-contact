@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -57,11 +57,11 @@ var _completed := 0
 
 
 var _server_side: Node = null
-var _server: DotServer = null
+var _server: GSServer = null
 var _game: FcGame = null
 var _relay = null
 var _client_side: Node = null
-var _link: DotClientLink = null
+var _link: GSClientLink = null
 var _client: Node = null
 var _bot_session := 0
 
@@ -84,7 +84,7 @@ var _offline_bots: Dictionary = {}
 
 ## The standalone player the moves section drives, its command, its tick and its frames.
 var _mover: FcPlayer = null
-var _mover_command: DotFpsCommand = null
+var _mover_command: GSFpsCommand = null
 var _mover_tick := 1
 var _mover_frames: Array = []
 
@@ -180,8 +180,8 @@ static func _motion_track(frames: Array, key: String) -> Dictionary:
 	return {"low": low, "high": high, "step": step, "jerk": jerk}
 
 
-static func _command(move: Vector2, yaw: float, buttons: int) -> DotFpsCommand:
-	var command := DotFpsCommand.new()
+static func _command(move: Vector2, yaw: float, buttons: int) -> GSFpsCommand:
+	var command := GSFpsCommand.new()
 	command.move = move
 	command.yaw = yaw
 	command.buttons = buttons
@@ -242,7 +242,7 @@ func _boot() -> bool:
 		_done()
 		return false
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.hostname = "arena feel"
 	config.port = PORT
 	config.bind_address = "127.0.0.1"
@@ -259,27 +259,27 @@ func _boot() -> bool:
 	config.stdin_console_enabled = false
 	config.log_level = "info" if _verbose else "error"
 
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
 	_server.auto_boot = false
 	_server_side.add_child(_server)
 
-	var booted: DotResult = await _server.boot()
+	var booted: GSResult = await _server.boot()
 	if not _check(booted.ok, "the server boots", str(booted.error)):
 		_done()
 		return false
 
 	FcModule.punishments_file = "%s/punishments.json" % DATA
-	var loaded: DotResult = await _server.modules.load_module("res://game/fc_module.gd")
+	var loaded: GSResult = await _server.modules.load_module("res://game/fc_module.gd")
 	if not _check(loaded.ok, "Fatal Contact module loads", str(loaded.error)):
 		_done()
 		return false
 
 	# No quota bots: they would shoot the player being measured. One bot of our own, whose
 	# every command is written here, so its path is known tick for tick.
-	var quota: DotBotQuota = _module().get("_bot_quota")
+	var quota: GSBotQuota = _module().get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("off")
 	var bridge = _module().bridge
@@ -289,7 +289,7 @@ func _boot() -> bool:
 
 	_relay = Relay.new()
 	_relay.seed = 20261011
-	var relayed: DotResult = _relay.start(0, "127.0.0.1", config.effective_enet_port())
+	var relayed: GSResult = _relay.start(0, "127.0.0.1", config.effective_enet_port())
 	_check(relayed.ok, "the relay listens in front of UDP %d" % config.effective_enet_port(), str(relayed.error))
 	_done()
 	return relayed.ok and _bot_session != 0
@@ -304,7 +304,7 @@ func _connect() -> bool:
 	add_child(_client_side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), _client_side.get_path())
 
-	_link = DotClientLink.new()
+	_link = GSClientLink.new()
 	_link.name = "Server"
 	_link.player_name = "Watcher"
 	_link.transport_preference = "udp"
@@ -326,7 +326,7 @@ func _connect() -> bool:
 	var map_in := [false]
 	var opened_on := [""]
 	var extras: Node = _client.get("extras")
-	var gate: DotLoadGate = _client.get("gate")
+	var gate: GSLoadGate = _client.get("gate")
 	if extras != null:
 		# Ahead of the client's own handler: on the map it booted on, that releases the cover inside the same
 		# emit, and a listener after it heard the map only once the gate had opened (1 run in 2 failed).
@@ -334,7 +334,7 @@ func _connect() -> bool:
 		var had := extras.is_connected("map_changed", own)
 		if had:
 			extras.disconnect("map_changed", own)
-		extras.connect("map_changed", func(_m: DotMapDef) -> void: map_in[0] = true)
+		extras.connect("map_changed", func(_m: GSMapDef) -> void: map_in[0] = true)
 		if had:
 			extras.connect("map_changed", own)
 	if gate != null:
@@ -344,7 +344,7 @@ func _connect() -> bool:
 
 	var playing := await _until(func() -> bool:
 		var p: FcPlayer = _client.get("player")
-		var net: DotNetManager = _client.get("net")
+		var net: GSNetManager = _client.get("net")
 		return p != null and p.is_alive() and net != null and net.clock.is_synced(), 40.0)
 	_check(playing, "the client adopts its player and is alive", "transport %s" % _link.transport_used)
 	var sees := await _until(func() -> bool: return _remote_bot() != null and _remote_bot().is_alive(), 30.0)
@@ -401,7 +401,7 @@ func _teardown() -> void:
 		_server.shutdown("done")
 	for _i in range(10):
 		await get_tree().process_frame
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 
 
 func _early_physics() -> void:
@@ -411,17 +411,17 @@ func _early_physics() -> void:
 		else:
 			Input.action_release(&"dot_fps_jump")
 	if _mover != null and _mover_command != null:
-		var _outcome := _mover.simulate_tick(_mover_tick, 1.0 / float(TICK_RATE), _mover_command, DotWeaponCommand.new())
+		var _outcome := _mover.simulate_tick(_mover_tick, 1.0 / float(TICK_RATE), _mover_command, GSWeaponCommand.new())
 		_mover_tick += 1
 	for id in _offline_bots:
 		var bot: FcPlayer = _offline_bots[id]
 		if not is_instance_valid(bot):
 			continue
-		var move := DotFpsCommand.new()
+		var move := GSFpsCommand.new()
 		move.move = Vector2(0.0, 1.0)
 		move.yaw = wrapf(float(bot.controller.state.tick) * BOT_TURN + float(id) * 90.0, -180.0, 180.0)
 		bot.set_meta(&"bot_move", move)
-		bot.set_meta(&"bot_fire", DotWeaponCommand.new())
+		bot.set_meta(&"bot_fire", GSWeaponCommand.new())
 	# The server hears its clients once a tick, as a dedicated server does.
 	if _server_side != null:
 		var api := get_tree().get_multiplayer(_server_side.get_path())
@@ -432,11 +432,11 @@ func _early_physics() -> void:
 	var behaviour = _module().bridge.behaviour_for(_bot_session) if _module() != null else null
 	if behaviour == null:
 		return
-	var move := DotFpsCommand.new()
+	var move := GSFpsCommand.new()
 	move.move = Vector2(0.0, 1.0)
 	move.yaw = wrapf(float(_game.current_tick()) * BOT_TURN, -180.0, 180.0)
 	behaviour.last_move = move
-	behaviour.last_fire = DotWeaponCommand.new()
+	behaviour.last_fire = GSWeaponCommand.new()
 
 
 func _late_physics() -> void:
@@ -495,10 +495,10 @@ func _late_process(delta: float) -> void:
 	var frame := {
 		"dt": delta, "eye": eye, "yaw": yaw, "vel": _segment_velocity(p),
 		"physics": physics, "vm": _view_model_offset(p), "others": {},
-		"tick": (_client.get("net") as DotNetManager).clock.tick if _client.get("net") != null else 0,
-		"drift": float((_client.get("net") as DotNetManager).clock.get("_drift_scale")) if _client.get("net") != null else 1.0,
-		"slip": float((_client.get("net") as DotNetManager).clock.get("_slip")) if _client.get("net") != null else 0.0,
-		"slip_rate": float((_client.get("net") as DotNetManager).clock.get("_slip_recovery")) if _client.get("net") != null else 0.0,
+		"tick": (_client.get("net") as GSNetManager).clock.tick if _client.get("net") != null else 0,
+		"drift": float((_client.get("net") as GSNetManager).clock.get("_drift_scale")) if _client.get("net") != null else 1.0,
+		"slip": float((_client.get("net") as GSNetManager).clock.get("_slip")) if _client.get("net") != null else 0.0,
+		"slip_rate": float((_client.get("net") as GSNetManager).clock.get("_slip_recovery")) if _client.get("net") != null else 0.0,
 		"alpha": p.get("drawn_alpha"), "frac": Engine.get_physics_interpolation_fraction(),
 		"offset": p.drawn_offset,
 	}
@@ -531,9 +531,9 @@ static func _view_model_offset(p: FcPlayer) -> Variant:
 
 
 ## The render tick the interpolator drew at this frame (connected only), the same arithmetic
-## as `DotNetManager.interpolate_frame`; -1 offline.
+## as `GSNetManager.interpolate_frame`; -1 offline.
 func _render_tick() -> float:
-	var net: DotNetManager = _client.get("net")
+	var net: GSNetManager = _client.get("net")
 	if net == null or net.interpolator == null:
 		return -1.0
 	var alpha := clampf(Engine.get_physics_interpolation_fraction(), 0.0, 1.0)
@@ -546,7 +546,7 @@ func _render_tick() -> float:
 func _begin_window(_unused: float) -> void:
 	_measure()
 	_w = {"frames": [], "started": Time.get_ticks_msec(), "last": null, "tick0": _game.current_tick() if _game != null else 0}
-	var net: DotNetManager = _client.get("net")
+	var net: GSNetManager = _client.get("net")
 	if net != null:
 		_w["corrections"] = int(net.predictor.get("_corrections_applied"))
 		_w["snaps"] = int(net.clock.get("_snap_count"))
@@ -560,11 +560,11 @@ func _begin_window(_unused: float) -> void:
 
 
 ## The server's buffer of this client's commands, for how many came late or not at all.
-func _server_buffer() -> DotNetInput.Buffer:
+func _server_buffer() -> GSNetInput.Buffer:
 	var module := _module()
 	if module == null or _link == null:
 		return null
-	var server_net: DotNetManager = module.get("net")
+	var server_net: GSNetManager = module.get("net")
 	return server_net.input_buffer_for(_link.multiplayer.get_unique_id()) if server_net != null else null
 
 
@@ -612,7 +612,7 @@ func _local(w: Dictionary, limit: float = 0.02) -> Dictionary:
 			if along < -0.0005:
 				backward += 1
 			# Less 15% of the step: after a slip the drawing runs up to a tenth fast or slow while
-			# taken up (DotNetClock.render_alpha). And less what the clock does on purpose: while it
+			# taken up (GSNetClock.render_alpha). And less what the clock does on purpose: while it
 			# gains lead its ticks run up to 12% short, so the eye runs faster for a few frames.
 			var clock_share := absf(1.0 / maxf(float(b.get("drift", 1.0)), 0.01) - 1.0)
 			if absf(float(b.get("slip", 0.0))) > 1e-6 or absf(float(a.get("slip", 0.0))) > 1e-6:

@@ -1,10 +1,10 @@
-extends DotGameNetchaosClient
+extends GSGameNetchaosClient
 
 const FcNetBridge := preload("../game/fc_net_bridge.gd")
 const FcPresentation := preload("../game/fc_presentation.gd")
 const FcSolidBody := preload("../game/fc_solid_body.gd")
 
-## Fatal Contact's side of `tools/netchaos.sh` (dot-game's DotGameNetchaosClient).
+## Fatal Contact's side of `tools/netchaos.sh` (dot-game's GSGameNetchaosClient).
 
 
 func _configure() -> void:

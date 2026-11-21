@@ -78,7 +78,7 @@ func _test_map_change() -> void:
 	var changed_to: Array[StringName] = []
 	_game.map_changed.connect(func(m: FcMap) -> void: changed_to.append(m.id))
 
-	var changed: DotResult = await director.change_to(target)
+	var changed: GSResult = await director.change_to(target)
 
 	_check(changed.ok, "the map changes under the players", str(changed.error))
 	_check(_game.map.id == target, "and the game is on the new one")
@@ -131,11 +131,11 @@ func _test_map_change() -> void:
 	)
 
 	_check(
-		_game.combat.trace is DotTraceFlat
-			and (_game.combat.trace as DotTraceFlat).boxes.size() == new_map.boxes.size(),
+		_game.combat.trace is GSTraceFlat
+			and (_game.combat.trace as GSTraceFlat).boxes.size() == new_map.boxes.size(),
 		"the trace holds the new map's boxes and not the old one's",
 		"%d, expected %d" % [
-			(_game.combat.trace as DotTraceFlat).boxes.size(), new_map.boxes.size()
+			(_game.combat.trace as GSTraceFlat).boxes.size(), new_map.boxes.size()
 		]
 	)
 
@@ -166,7 +166,7 @@ func _test_map_change() -> void:
 		)
 
 		# [b]And out of dot-spawn's ledger, which `victim.spawn(..., 0)` does not clear.[/b] The
-		# zero above is `DotHealth`'s window; the map change respawned everybody through
+		# zero above is `GSHealth`'s window; the map change respawned everybody through
 		# `_on_respawn_due` and that is what grants the session-scoped protection the resolver now.
 		if _game.player_stack != null and _game.player_stack.spawns.protection != null:
 			_game.player_stack.spawns.protection.revoke(
@@ -174,7 +174,7 @@ func _test_map_change() -> void:
 			)
 
 		# [b]And THREE records, not two.[/b] `FcPlayerStack.refresh_spawn_rules` says it outright
-		# -- spawn protection is enforced by [DotHealth]'s window, by dot-spawn's ledger, and by the
+		# -- spawn protection is enforced by [GSHealth]'s window, by dot-spawn's ledger, and by the
 		# `arena_protected` effect -- and this cleared the first two.
 		if _game.effects != null and _game.effects.manager != null:
 			_game.effects.manager.remove(
@@ -185,10 +185,10 @@ func _test_map_change() -> void:
 			FcStats.DAMAGE_DEALT, 0.0
 		)
 
-		# Stamped, because an unstamped `DotDamage` is tick 0 and every gate that
+		# Stamped, because an unstamped `GSDamage` is tick 0 and every gate that
 		# compares a tick against a window refuses it for ever. `FcEffects` carries
 		# the same warning and names where this family found it the first time.
-		var event := DotDamage.make(
+		var event := GSDamage.make(
 			shooter.player_id, victim.player_id, 10.0,
 			_game.combat.damage_type(FcContent.DAMAGE_BULLET)
 		)
@@ -217,31 +217,31 @@ func _test_map_change() -> void:
 			"%.0f -> %.0f, damage %.1f" % [before, after, damage.health_lost]
 		)
 
-		var zoned := DotDamage.make(
+		var zoned := GSDamage.make(
 			shooter.player_id, victim.player_id, 5.0,
 			_game.combat.damage_type(FcContent.DAMAGE_BULLET)
 		)
 		zoned.tick = _game.current_tick()
-		zoned.hit_group = DotHitGroup.NECK
+		zoned.hit_group = GSHitGroup.NECK
 		zoned.weapon_id = &"probe"
 		var _z := _game.combat.apply_damage(zoned)
 		_check(
-			_game.progress.session_values(shooter.player_id).get_cell(DotStatsHitzones.HITS, "zone:neck") >= 1.0,
+			_game.progress.session_values(shooter.player_id).get_cell(GSStatsHitzones.HITS, "zone:neck") >= 1.0,
 			"a landed hit is filed by body zone through the dot-stats hitzone hook"
 		)
 		var pts_before := _game.progress.session_values(shooter.player_id).get_value(FcStats.POINTS, 0.0)
-		var _landed := _game.progress.points.award(shooter.player_id, DotStatsPoints.SOURCE_PICKUP, 3.0)
+		var _landed := _game.progress.points.award(shooter.player_id, GSStatsPoints.SOURCE_PICKUP, 3.0)
 		_check(
 			_game.progress.session_values(shooter.player_id).get_value(FcStats.POINTS, 0.0) == pts_before + 3.0,
-			"a points award lands on the player's arena.points stat through the DotStatsPoints hook"
+			"a points award lands on the player's arena.points stat through the GSStatsPoints hook"
 		)
-		_game.progress.rank.mode = DotStatsRank.MODE_ELO
+		_game.progress.rank.mode = GSStatsRank.MODE_ELO
 		var _moved := _game.progress.rank.duel(shooter.player_id, -999)
 		_check(
 			_game.progress.session_values(shooter.player_id).get_value(FcStats.RANK_SCORE, 0.0) == 1012.0,
-			"an Elo win files rank_score through the DotStatsRank hook"
+			"an Elo win files rank_score through the GSStatsRank hook"
 		)
-		_game.progress.rank.mode = DotStatsRank.MODE_WEIGHTED
+		_game.progress.rank.mode = GSStatsRank.MODE_WEIGHTED
 		_game.progress.rank.reset()
 
 		# Lifetime path: a stored baseline lifts the rank, no baseline ranks on the session, a flush never counts twice.
@@ -249,13 +249,13 @@ func _test_map_change() -> void:
 		var tracker := _game.progress.stats
 		var sess := tracker.session_values(StringName(_game.progress._key_of(shooter.player_id)))
 		var session_only := rk.publish(shooter.player_id, sess.to_dictionary())
-		var career := DotStatsValues.new()
+		var career := GSStatsValues.new()
 		career.values[str(FcStats.KILLS)] = 100.0
-		var store := DotStatsStoreMemory.new()
+		var store := GSStatsStoreMemory.new()
 		var _stored := await store.merge(StringName(_game.progress._key_of(shooter.player_id)), career, tracker.schema)
 		rk.forget(shooter.player_id)
-		var loaded: DotResult = await store.values_for(StringName(_game.progress._key_of(shooter.player_id)))
-		rk.seed_baseline(shooter.player_id, loaded.value as DotStatsValues)
+		var loaded: GSResult = await store.values_for(StringName(_game.progress._key_of(shooter.player_id)))
+		rk.seed_baseline(shooter.player_id, loaded.value as GSStatsValues)
 		var lifetime := rk.publish_lifetime(shooter.player_id, sess, tracker.schema)
 		_check(lifetime > session_only, "a player with a stored baseline ranks above the session-only figure", "%s vs %s" % [lifetime, session_only])
 		_check(
@@ -264,24 +264,24 @@ func _test_map_change() -> void:
 		)
 		tracker.store = store
 		store.schema = tracker.schema
-		var _flushed: DotResult = await tracker.flush()
+		var _flushed: GSResult = await tracker.flush()
 		_check(
 			is_equal_approx(rk.publish_lifetime(shooter.player_id, sess, tracker.schema), lifetime),
 			"a flush after the baseline load does not count the session twice"
 		)
 		tracker.store = null
-		rk.mode = DotStatsRank.MODE_ELO
-		var stored_rank := DotStatsValues.new()
+		rk.mode = GSStatsRank.MODE_ELO
+		var stored_rank := GSStatsValues.new()
 		stored_rank.values[str(FcStats.RANK_SCORE)] = 1500.0
 		rk.seed_baseline(victim.player_id, stored_rank)
 		_check(rk.rating_of(victim.player_id) == 1500.0, "Elo mode seeds the rating from the stored rank_score")
-		rk.mode = DotStatsRank.MODE_WEIGHTED
+		rk.mode = GSStatsRank.MODE_WEIGHTED
 		rk.reset()
 
 		# Leave and rejoin through the progress node and a file store: the lifetime total survives, and a flush after the rejoin adds only the new session.
 		var file_path := "user://headless_match_stats.json"
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(file_path))
-		var fstore := DotStatsStoreFile.new(file_path)
+		var fstore := GSStatsStoreFile.new(file_path)
 		fstore.schema = tracker.schema
 		tracker.store = fstore
 		var visitor := 9001
@@ -289,23 +289,23 @@ func _test_map_change() -> void:
 		await _game.progress.begin(visitor, "Visitor")
 		_game.progress.record(visitor, FcStats.KILLS, 3.0)
 		await _game.progress.leave(visitor)
-		var _w: DotResult = await tracker.flush_store()
+		var _w: GSResult = await tracker.flush_store()
 		var kills_id := StringName(FcStats.KILLS)
 		var stored_after_leave: float = (await fstore.values_for(vkey)).value.get_value(kills_id)
 		_check(stored_after_leave == 3.0, "a leave files the session into the lifetime store", str(stored_after_leave))
 		await _game.progress.begin(visitor, "Visitor")
-		var base: DotStatsValues = _game.progress.rank.baselines.get(visitor, null)
+		var base: GSStatsValues = _game.progress.rank.baselines.get(visitor, null)
 		_check(base != null and base.get_value(kills_id) == 3.0, "a rejoin reads the stored lifetime total as the rank baseline")
 		_check(_game.progress.stats.session_values(vkey).get_value(kills_id) == 0.0, "the rejoined session starts at zero")
 		_game.progress.record(visitor, FcStats.KILLS, 2.0)
-		var _w2: DotResult = await tracker.flush()
+		var _w2: GSResult = await tracker.flush()
 		var stored_after_flush: float = (await fstore.values_for(vkey)).value.get_value(kills_id)
 		_check(stored_after_flush == 5.0, "a flush after the rejoin adds only the new session", str(stored_after_flush))
-		var _w3: DotResult = await tracker.flush()
+		var _w3: GSResult = await tracker.flush()
 		_check((await fstore.values_for(vkey)).value.get_value(kills_id) == 5.0, "a second flush adds nothing")
 		# The store writes behind on a worker; a fresh process sees the file only once the owner has finished it (the tracker does on exit).
 		fstore.finish()
-		var reread := DotStatsStoreFile.new(file_path)
+		var reread := GSStatsStoreFile.new(file_path)
 		reread.schema = tracker.schema
 		_check((await reread.values_for(vkey)).value.get_value(kills_id) == 5.0, "the file holds the same total for a fresh process")
 		await _game.progress.leave(visitor)

@@ -3,7 +3,7 @@ extends SceneTree
 ## The offline client in first person, then third person through the view key's own path,
 ## then under a server's `mp_forceview 1`: a frame of each and a line saying what the
 ## client did. The check behind the view toggle (dot-player-controller's
-## `DotPlayerViewRules`); the camera itself is checked by `render_cameras`.
+## `GSPlayerViewRules`); the camera itself is checked by `render_cameras`.
 ##
 ##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_views.gd
 
@@ -44,7 +44,7 @@ func _run() -> void:
 	_check(behind > 0.5, "the camera is behind the eye (%.2f m)" % behind)
 	await _shot("fc_view_third")
 
-	game.view_rules.force_view = DotPlayerViewRules.FIRST_ONLY
+	game.view_rules.force_view = GSPlayerViewRules.FIRST_ONLY
 	await _wait(0.3)
 	_check(not me.third_person, "mp_forceview 1 puts them back in first person")
 	client.call("toggle_view")
@@ -52,7 +52,7 @@ func _run() -> void:
 	_check(not me.third_person, "and the view key does nothing")
 	await _shot("fc_view_forced_first")
 
-	game.view_rules.force_view = DotPlayerViewRules.THIRD_ONLY
+	game.view_rules.force_view = GSPlayerViewRules.THIRD_ONLY
 	await _wait(0.3)
 	_check(me.third_person, "mp_forceview 2 holds third person")
 
@@ -66,8 +66,8 @@ func _check(ok: bool, what: String) -> void:
 		_failed += 1
 
 
-## Frame sequence after each still (GS_SHOT_FRAMES); see DotShotSeq.
-var _seq := DotShotSeq.new()
+## Frame sequence after each still (GS_SHOT_FRAMES); see GSShotSeq.
+var _seq := GSShotSeq.new()
 
 
 func _shot(file: String) -> void:

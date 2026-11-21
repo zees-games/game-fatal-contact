@@ -1,4 +1,4 @@
-extends DotVoteSource
+extends GSVoteSource
 
 const FcGame := preload("fc_game.gd")
 const FcMapDirector := preload("fc_map_director.gd")
@@ -8,8 +8,8 @@ const FcModes := preload("fc_modes.gd")
 
 ## What the players of this server get to choose: the map, and the mode.
 ##
-## [b]One source, because a [DotVoteDirector] has one.[/b] dot-vote ships
-## [DotVoteMapSource] and [DotVoteGameSource] and neither is quite this: a map source
+## [b]One source, because a [GSVoteDirector] has one.[/b] dot-vote ships
+## [GSVoteMapSource] and [GSVoteGameSource] and neither is quite this: a map source
 ## alone cannot switch free-for-all to team deathmatch, and running two directors would
 ## mean two clocks, two rock-the-vote tallies and two cooldowns over one server.
 ##
@@ -28,8 +28,8 @@ const FcModes := preload("fc_modes.gd")
 ## on it, and a string whose meaning depends on which of two tables happens to hold it
 ## is a string that will one day mean both.
 ##
-## Modes are offered in their own [member DotVoteChoice.group], so a ballot filled by
-## [constant DotVoteRules.Fill.RANDOM] does not spend all six slots on modes.
+## Modes are offered in their own [member GSVoteChoice.group], so a ballot filled by
+## [constant GSVoteRules.Fill.RANDOM] does not spend all six slots on modes.
 
 const CHANNEL := "arena.vote"
 
@@ -40,7 +40,7 @@ const GROUP_MAPS := &"maps"
 const GROUP_MODES := &"modes"
 
 ## The catalogue maps are offered from. Required.
-var catalogue: DotMapCatalogue = null
+var catalogue: GSMapCatalogue = null
 
 ## What actually changes things. Required for [method apply].
 var director: FcMapDirector = null
@@ -55,8 +55,8 @@ var include_modes: bool = true
 ## Typed as the base on purpose: a script that names itself inside itself leaks the whole
 ## script graph at exit on Godot 4.7.2 (docs/gdscript-hazards.md). Callers cast.
 static func of(
-	p_catalogue: DotMapCatalogue, p_director: FcMapDirector, p_game: FcGame
-) -> DotVoteSource:
+	p_catalogue: GSMapCatalogue, p_director: FcMapDirector, p_game: FcGame
+) -> GSVoteSource:
 	var source = new()
 	source.catalogue = p_catalogue
 	source.director = p_director
@@ -72,8 +72,8 @@ func is_usable() -> bool:
 	return catalogue != null and catalogue.size() > 0
 
 
-func choices() -> Array[DotVoteChoice]:
-	var out: Array[DotVoteChoice] = []
+func choices() -> Array[GSVoteChoice]:
+	var out: Array[GSVoteChoice] = []
 
 	if catalogue == null:
 		return out
@@ -90,7 +90,7 @@ func choices() -> Array[DotVoteChoice]:
 		# A map dropped onto a solo window is listed whatever is played: picking it plays it in a mode it can host
 		# ([method apply]); only this machine ever sees the row.
 		if not FcMaps.supports_mode(def, mode) and not bool(def.meta.get("local", false)):
-			DotLog.debug(CHANNEL, "a map is off the ballot for the mode being played", {
+			GSLog.debug(CHANNEL, "a map is off the ballot for the mode being played", {
 				"map": String(def.id), "mode": String(mode.id) if mode != null else "",
 			})
 			continue
@@ -124,7 +124,7 @@ func current_id() -> StringName:
 	return &""
 
 
-## Why [param id] is not offered now, for dot-vote's map menu (`DotVoteMapMenu.unavailable_text`),
+## Why [param id] is not offered now, for dot-vote's map menu (`GSVoteMapMenu.unavailable_text`),
 ## or empty when it is offered or this source cannot say.
 ##
 ## [b]The case that needs it is a list opened before a change.[/b] M lists the team modes on
@@ -141,7 +141,7 @@ func unavailable_reason(id: StringName) -> String:
 			return "There is no mode called '%s'." % text.substr(MODE_PREFIX.length())
 		if game != null and game.mode != null and game.mode.id == mode.id:
 			return "%s is already being played." % mode.display_name
-		var here: DotMapDef = director.current if director != null else null
+		var here: GSMapDef = director.current if director != null else null
 		if here != null and not FcMaps.supports_mode(here, mode):
 			return "%s cannot be played on %s: %s Choose a map that can host it first." % [
 				mode.display_name, here.name_or_id(),
@@ -166,10 +166,10 @@ func supports_apply() -> bool:
 ## Makes the winning choice happen.
 ## A coroutine: a map change waits for every peer to have the content before the world
 ## swaps, and a mode change is a map change to the same map.
-func apply(id: StringName) -> DotResult:
+func apply(id: StringName) -> GSResult:
 	if not supports_apply():
-		return DotResult.fail(
-			DotError.CODE_STATE, "This vote source has nothing to change with."
+		return GSResult.fail(
+			GSError.CODE_STATE, "This vote source has nothing to change with."
 		)
 
 	var text := String(id)
@@ -183,8 +183,8 @@ func apply(id: StringName) -> DotResult:
 	if text.begins_with(MODE_PREFIX):
 		return await _apply_mode(StringName(text.substr(MODE_PREFIX.length())))
 
-	return DotResult.fail(
-		DotError.CODE_INVALID,
+	return GSResult.fail(
+		GSError.CODE_INVALID,
 		"A vote choice must say whether it is a map or a mode.",
 		text
 	)
@@ -193,7 +193,7 @@ func apply(id: StringName) -> DotResult:
 ## For a local map [param map_id] that cannot host the mode being played, the first mode it can (free-for-all runs
 ## anywhere); empty for any other map, which changes under the mode being played.
 func mode_for_local(map_id: StringName) -> StringName:
-	var def: DotMapDef = catalogue.get_map(map_id) if catalogue != null and catalogue.has(map_id) else null
+	var def: GSMapDef = catalogue.get_map(map_id) if catalogue != null and catalogue.has(map_id) else null
 	var mode: FcMode = game.mode if game != null else null
 	if def == null or mode == null or not bool(def.meta.get("local", false)) or FcMaps.supports_mode(def, mode):
 		return &""
@@ -204,23 +204,23 @@ func mode_for_local(map_id: StringName) -> StringName:
 
 
 ## The map menu's pick of a map and a mode together (`map:<id>`, `mode:<id>`): the map changes under the mode, as one change. The stamp is put back like [method _apply_mode]'s.
-func apply_with_mode(id: StringName, mode_id: StringName) -> DotResult:
+func apply_with_mode(id: StringName, mode_id: StringName) -> GSResult:
 	if not supports_apply():
-		return DotResult.fail(DotError.CODE_STATE, "This vote source has nothing to change with.")
+		return GSResult.fail(GSError.CODE_STATE, "This vote source has nothing to change with.")
 	var map_text := String(id)
 	var mode_text := String(mode_id)
 	if not map_text.begins_with(MAP_PREFIX) or not mode_text.begins_with(MODE_PREFIX):
-		return DotResult.fail(DotError.CODE_INVALID, "A map and a mode must be a map and a mode.", "%s / %s" % [map_text, mode_text])
+		return GSResult.fail(GSError.CODE_INVALID, "A map and a mode must be a map and a mode.", "%s / %s" % [map_text, mode_text])
 	var mode := FcModes.by_id(StringName(mode_text.substr(MODE_PREFIX.length())))
-	var def: DotMapDef = catalogue.get_map(StringName(map_text.substr(MAP_PREFIX.length()))) if catalogue != null else null
+	var def: GSMapDef = catalogue.get_map(StringName(map_text.substr(MAP_PREFIX.length()))) if catalogue != null else null
 	if mode == null or def == null:
-		return DotResult.fail(DotError.CODE_INVALID, "There is no such map or mode.", "%s / %s" % [map_text, mode_text])
+		return GSResult.fail(GSError.CODE_INVALID, "There is no such map or mode.", "%s / %s" % [map_text, mode_text])
 	if not FcMaps.supports_mode(def, mode):
-		return DotResult.fail(DotError.CODE_INVALID, "%s cannot host %s." % [def.name_or_id(), mode.display_name])
+		return GSResult.fail(GSError.CODE_INVALID, "%s cannot host %s." % [def.name_or_id(), mode.display_name])
 	var had_mode := def.meta.has("mode")
 	var old_mode: Variant = def.meta.get("mode")
 	def.meta["mode"] = String(mode.id)
-	var result: DotResult = await director.change_to(def.id)
+	var result: GSResult = await director.change_to(def.id)
 	if had_mode:
 		def.meta["mode"] = old_mode
 	else:
@@ -237,20 +237,20 @@ func apply_with_mode(id: StringName, mode_id: StringName) -> DotResult:
 ## Team Deathmatch. Going through the same path a map change takes rebuilds all three
 ## and puts every player back through team assignment, which is what a mode change
 ## actually is.
-func _apply_mode(mode_id: StringName) -> DotResult:
+func _apply_mode(mode_id: StringName) -> GSResult:
 	var mode := FcModes.by_id(mode_id)
 
 	if mode == null:
-		return DotResult.fail(DotError.CODE_IO, "No such mode.", String(mode_id))
+		return GSResult.fail(GSError.CODE_IO, "No such mode.", String(mode_id))
 
 	if director.current == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "There is no current map to change the mode on."
+		return GSResult.fail(
+			GSError.CODE_STATE, "There is no current map to change the mode on."
 		)
 
 	if not FcMaps.supports_mode(director.current, mode):
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The map running does not list this mode, so it cannot host it.",
 			"%s / %s" % [String(director.current.id), String(mode_id)]
 		)
@@ -265,20 +265,20 @@ func _apply_mode(mode_id: StringName) -> DotResult:
 	# mode back to this one over whatever the players or an operator had chosen since (vote
 	# Team Deathmatch here, Free For All elsewhere, rotate back, and the ballot's "current
 	# mode" is a lie). The change is awaited whole, so the stamp is read before we restore.
-	var def: DotMapDef = director.current
+	var def: GSMapDef = director.current
 	var had_mode := def.meta.has("mode")
 	var old_mode: Variant = def.meta.get("mode")
 	def.meta["mode"] = String(mode_id)
 
 	# INFO, because a mode change is a map change to the same map — every player is
 	# re-teamed and the match restarts — and the director's own line names only the map.
-	DotLog.info(CHANNEL, "the vote changes the mode; the map re-runs under it", {
+	GSLog.info(CHANNEL, "the vote changes the mode; the map re-runs under it", {
 		"map": String(director.current.id),
 		"from": String(game.mode.id) if game != null and game.mode != null else "",
 		"to": String(mode_id),
 	})
 
-	var result: DotResult = await director.change_to(def.id)
+	var result: GSResult = await director.change_to(def.id)
 
 	if had_mode:
 		def.meta["mode"] = old_mode
@@ -288,8 +288,8 @@ func _apply_mode(mode_id: StringName) -> DotResult:
 	return result
 
 
-func _map_choice(def: DotMapDef) -> DotVoteChoice:
-	var choice := DotVoteChoice.of(
+func _map_choice(def: GSMapDef) -> GSVoteChoice:
+	var choice := GSVoteChoice.of(
 		StringName(MAP_PREFIX + String(def.id)), def.name_or_id()
 	)
 	choice.pack_title = def.pack_title
@@ -309,8 +309,8 @@ func _map_choice(def: DotMapDef) -> DotVoteChoice:
 	return choice
 
 
-func _mode_choice(mode: FcMode) -> DotVoteChoice:
-	var choice := DotVoteChoice.of(
+func _mode_choice(mode: FcMode) -> GSVoteChoice:
+	var choice := GSVoteChoice.of(
 		StringName(MODE_PREFIX + String(mode.id)), mode.display_name
 	)
 	choice.group = GROUP_MODES
@@ -319,7 +319,7 @@ func _mode_choice(mode: FcMode) -> DotVoteChoice:
 	return choice
 
 
-func _apply_settings(choice: DotVoteChoice, settings: Dictionary) -> void:
+func _apply_settings(choice: GSVoteChoice, settings: Dictionary) -> void:
 	if settings.has("weight"):
 		choice.weight = float(settings["weight"])
 

@@ -10,10 +10,10 @@ extends RefCounted
 ##
 ## Everything goes through the capture's [code]key[/code], [code]turn[/code] and
 ## [code]click[/code], which are input events: the client's own bindings and its
-## [DotFpsSampler] read them, exactly as they read a player. Nothing here moves the body.
+## [GSFpsSampler] read them, exactly as they read a player. Nothing here moves the body.
 
 var _client: Node = null
-var _steps: DotAudioFootsteps = null
+var _steps: GSAudioFootsteps = null
 var _last := Vector3.INF
 var _check_ms := 0
 var _walked := 0.0
@@ -33,7 +33,7 @@ func drive(capture: SceneTree, ms: int) -> bool:
 			return false
 
 	var player: Node3D = _client.get("player")
-	var sampler: DotFpsSampler = (
+	var sampler: GSFpsSampler = (
 		_client.call(&"active_sampler") if _client.has_method(&"active_sampler") else _client.get("_sampler")
 	)
 	if player == null or sampler == null:
@@ -116,8 +116,8 @@ func _find(n: Node) -> Node:
 	return null
 
 
-func _find_steps(n: Node) -> DotAudioFootsteps:
-	if n is DotAudioFootsteps:
+func _find_steps(n: Node) -> GSAudioFootsteps:
+	if n is GSAudioFootsteps:
 		return n
 	for child in n.get_children():
 		var hit := _find_steps(child)

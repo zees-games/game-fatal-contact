@@ -22,7 +22,7 @@ const REPORT_SEC := 5.0
 const GONE_SEC := 5.0
 const NEVER_SEC := 120.0
 
-var _server: DotServer = null
+var _server: GSServer = null
 var _joined := false
 var _alone_sec := 0.0
 var _since_check := 0.0
@@ -54,7 +54,7 @@ func _ready() -> void:
 	game.register_service = true
 	# The solo cfg layers, lenient as solo reads them: a typo must not stop a single-player game.
 	var binder := FcConfig.make_binder(game.config, "user://cfg/arena.json")
-	DotLog.result(CHANNEL, "config", binder.load_layers())
+	GSLog.result(CHANNEL, "config", binder.load_layers())
 	game.config_binder = binder
 	game.tick_rate = solo_tick_rate(game.config.solo_tick_tiers, bots + 1, game.config.tick_rate)
 	var mode := _arg("--mode", "")
@@ -72,24 +72,24 @@ func _ready() -> void:
 	game.start(0)
 
 	var config := _server_config(port, game.tick_rate, data)
-	var server := DotServer.new()
+	var server := GSServer.new()
 	server.name = "Server"
 	server.config = config
 	server.config_file = ""
 	server.auto_boot = false
 	add_child(server)
-	var booted: DotResult = await server.boot()
+	var booted: GSResult = await server.boot()
 	if not booted.ok:
 		_die("boot: %s" % booted.error.message)
 		return
 	FcTickBudget.server_process = true
-	var loaded: DotResult = await server.modules.load_module(FcPaths.rebase("res://game/fc_module.gd"))
+	var loaded: GSResult = await server.modules.load_module(FcPaths.rebase("res://game/fc_module.gd"))
 	if not loaded.ok:
 		_die("module: %s" % loaded.error.message)
 		return
 	var module := server.modules.get_module("arena") as FcModule
 	_module = module
-	var quota: DotBotQuota = module.get("_bot_quota")
+	var quota: GSBotQuota = module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("fixed")
 		quota.quota_cvar.force_set(str(bots))
@@ -112,20 +112,20 @@ func _ready() -> void:
 	_server = server
 	print("SIM_HOST ready map=%s mode=%s bots=%d bot_threads=%d brain=%s loop=%s" % [String(game.map.id), String(game.mode.id), bots,  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		FcBotThreads.threads, "native" if FcPlayerStack.brain_native() else "script",
-		"native" if FcBots.tier_schedule and bool(FcBots.tiers.get(&"native")) and ClassDB.class_exists(&"DotSimThinkTier") else "script"])
+		"native" if FcBots.tier_schedule and bool(FcBots.tiers.get(&"native")) and ClassDB.class_exists(&"GSSimThinkTier") else "script"])
 	_report(module.net)
 
 
 ## The tick rate for [param players] from [member FcConfig.solo_tick_tiers] ([param spec]), else [param default_rate].
 ## A table that does not parse, or names a rate the game cannot run, is said loudly and leaves [param default_rate].
 static func solo_tick_rate(spec: String, players: int, default_rate: int) -> int:
-	var tiers := DotTickTiers.parse(spec)
+	var tiers := GSTickTiers.parse(spec)
 	if tiers.error != "":
-		DotLog.warn(CHANNEL, "solo_tick_tiers ignored (%s); ticking at %d" % [tiers.error, default_rate])
+		GSLog.warn(CHANNEL, "solo_tick_tiers ignored (%s); ticking at %d" % [tiers.error, default_rate])
 		return default_rate
 	var rate := tiers.rate_for(players, default_rate)
 	if rate < FcGame.MIN_TICK_RATE or rate > FcGame.MAX_TICK_RATE:
-		DotLog.warn(CHANNEL, "solo_tick_tiers gives %d Hz for %d players, outside %d-%d; ticking at %d" % [
+		GSLog.warn(CHANNEL, "solo_tick_tiers gives %d Hz for %d players, outside %d-%d; ticking at %d" % [
 			rate, players, FcGame.MIN_TICK_RATE, FcGame.MAX_TICK_RATE, default_rate])
 		return default_rate
 	if rate != default_rate:
@@ -135,13 +135,13 @@ static func solo_tick_rate(spec: String, players: int, default_rate: int) -> int
 
 ## The bench switches a perf run passes through: bot threads, native brain and loop, a synthetic load and tick sections.
 # `--cvar name=value` (repeatable), a bench knob for an A/B of one setting; an unknown name stops the host.
-func _apply_cvars(server: DotServer) -> bool:
+func _apply_cvars(server: GSServer) -> bool:
 	var args := OS.get_cmdline_user_args()
 	for k in args.size() - 1:
 		if args[k] != "--cvar":
 			continue
 		var pair := args[k + 1].split("=", true, 1)
-		var cv: DotConVar = server.console.find_cvar(pair[0]) if pair.size() == 2 else null
+		var cv: GSConVar = server.console.find_cvar(pair[0]) if pair.size() == 2 else null
 		if cv == null:
 			_die("--cvar %s: no such cvar (name=value)" % args[k + 1])
 			return false
@@ -170,10 +170,10 @@ func _apply_bench_flags() -> void:
 	if sections == "1" or sections == "2":
 		FcFrameProbe.set_interval(1.0e9)
 		# The addons' own phases, in a SIM_HOST_PHASES line: the controller's always, the brain's on one thread only.
-		DotFpsController.phase_timers = true
+		GSFpsController.phase_timers = true
 		if FcBots.brain_phases:
 			# By name: dot-bot 26 (the live shell's) has no brain phase timers.
-			(DotBotBrain as GDScript).set(&"phase_timers", FcBotThreads.threads == 0)
+			(GSBotBrain as GDScript).set(&"phase_timers", FcBotThreads.threads == 0)
 		FcFrameProbe.fine = sections == "2"
 		# p_weapons split by the rig's and the arsenal's own clocks (pw_*, pa_*), on the fine level only: a clock read a part.
 		for w in _weapon_phase_clocks():
@@ -181,8 +181,8 @@ func _apply_bench_flags() -> void:
 
 
 ## The loopback server config for the solo host: [param data] holds its admin, ban and audit files.
-static func _server_config(port: int, tickrate: int, data: String) -> DotServerConfig:
-	var config := DotServerConfig.new()
+static func _server_config(port: int, tickrate: int, data: String) -> GSServerConfig:
+	var config := GSServerConfig.new()
 	config.hostname = "solo"
 	config.port = port
 	config.tickrate = tickrate
@@ -227,14 +227,14 @@ func _physics_process(_delta: float) -> void:
 
 func _remote_players() -> int:
 	var count := 0
-	for session: DotClientSession in _server.sessions():
+	for session: GSClientSession in _server.sessions():
 		if not session.local:
 			count += 1
 	return count
 
 
 ## Every few seconds, one line: the tick rate held and what a tick cost (dot-net server counters).
-func _report(net: DotNetManager) -> void:
+func _report(net: GSNetManager) -> void:
 	var last: Dictionary = net.perf_counters()
 	var t0 := Time.get_ticks_usec()
 	while is_inside_tree():
@@ -249,7 +249,7 @@ func _report(net: DotNetManager) -> void:
 			(int(now[&"server_send_usec"]) - int(last[&"server_send_usec"])) / 1000.0 / ticks])
 		var behind := behind_line(held, Engine.physics_ticks_per_second, sim_ms)
 		if behind != "":
-			DotLog.warn(CHANNEL, behind)
+			GSLog.warn(CHANNEL, behind)
 		_tell_player(held, Engine.physics_ticks_per_second)
 		# server_tick's own sections (a dot-net without them reports 0): input before sim, the
 		# still-registered check inside sim, the rewind history record inside send.
@@ -324,22 +324,22 @@ static func sections_line(sections: Dictionary, ticks: int) -> String:
 
 
 ## [prefix, script] of the weapon sub-phase clocks this build's addons have: AwWeaponRig's from fc-weapons API 10,
-## DotWeaponArsenal's from dot-weapon API 32. Read and set by name, so an older shell's addons still parse.
+## GSWeaponArsenal's from dot-weapon API 32. Read and set by name, so an older shell's addons still parse.
 static func _weapon_phase_clocks() -> Array:
 	var clocks := []
-	if DotAddonApi.build_level("fc_weapons") >= 10:
+	if GSAddonApi.build_level("fc_weapons") >= 10:
 		clocks.append(["pw_", AwWeaponRig])
-	if DotAddonApi.build_level("dot_weapon") >= 32:
-		clocks.append(["pa_", DotWeaponArsenal])
+	if GSAddonApi.build_level("dot_weapon") >= 32:
+		clocks.append(["pa_", GSWeaponArsenal])
 	return clocks
 
 
-## `SIM_HOST_PHASES name ms/tick, ...`: DotFpsController's phases (pc_*, outside the motor) and DotBotBrain's (bb_*).
+## `SIM_HOST_PHASES name ms/tick, ...`: GSFpsController's phases (pc_*, outside the motor) and GSBotBrain's (bb_*).
 static func phases_line(ticks: int) -> String:
 	var parts := PackedStringArray()
 	var names := ["pc_pre", "pc_consume", "pc_motor", "pc_publish", "pc_report", "pc_signals", "pc_post", "pc_body"]
 	for i in names.size():
-		parts.append("%s %.3f" % [names[i], DotFpsController.phase_us[i] / 1000.0 / ticks])
+		parts.append("%s %.3f" % [names[i], GSFpsController.phase_us[i] / 1000.0 / ticks])
 	# The rig's and the arsenal's sub-phases (pw_*, pa_*), by name: an older shell's addons have no such timers.
 	for w in _weapon_phase_clocks():
 		var script: GDScript = w[1]
@@ -351,10 +351,10 @@ static func phases_line(ticks: int) -> String:
 			parts.append("%s%s %.3f" % [w[0], w_names[i], w_us[i] / 1000.0 / ticks])
 		w_us.fill(0)
 		script.set(&"phase_us", w_us)
-	DotFpsController.phase_us.fill(0)
+	GSFpsController.phase_us.fill(0)
 	if not FcBots.brain_phases:
 		return "SIM_HOST_PHASES ms/tick | " + ", ".join(parts)
-	var brain: GDScript = DotBotBrain
+	var brain: GDScript = GSBotBrain
 	var brain_names: Array = brain.get(&"PHASES")
 	var brain_us: PackedInt64Array = brain.get(&"phase_us")
 	for i in brain_names.size():

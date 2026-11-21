@@ -55,7 +55,7 @@ func _one(id: StringName) -> void:
 				if o != b and nav != null and nav.joined(sp, start[o + 1]):
 					linked += 1
 			var mind: FcBots.Mind = minds[b + 1]
-			var brain: DotBotBrain = mind.brain
+			var brain: GSBotBrain = mind.brain
 			var tag := " %s unstick %d" % [str(brain.last.state), brain._unstick.total] if brain != null else ""
 			tag += " persona %s" % (mind.persona.id if mind.persona != null else &"none")
 			detail.append("%.1f,%.1f,%.1f(nav %.1f, joined to %d of %d others%s)" % [sp.x, sp.y, sp.z, off, linked, BOTS - 1, tag])

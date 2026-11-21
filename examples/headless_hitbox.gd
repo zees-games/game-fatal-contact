@@ -30,7 +30,7 @@ var _hist: Array = []
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -100,13 +100,13 @@ func _pose(target: FcPlayer) -> Dictionary:
 
 
 func _step(target_move: Vector2, crouch: bool) -> void:
-	var m1 := DotFpsCommand.new()
-	var w1 := DotWeaponCommand.new()
-	var m2 := DotFpsCommand.new()
+	var m1 := GSFpsCommand.new()
+	var w1 := GSWeaponCommand.new()
+	var m2 := GSFpsCommand.new()
 	m2.move = target_move
-	m2.buttons = DotFpsCommand.BUTTON_CROUCH if crouch else 0
+	m2.buttons = GSFpsCommand.BUTTON_CROUCH if crouch else 0
 	m2.yaw = 90.0
-	var w2 := DotWeaponCommand.new()
+	var w2 := GSWeaponCommand.new()
 	_game.tick({1: [m1, w1], 2: [m2, w2]})
 	await get_tree().physics_frame
 	_hist.append(_pose(_game.player_for(2)))
@@ -114,14 +114,14 @@ func _step(target_move: Vector2, crouch: bool) -> void:
 
 func _fire(at: Vector3, lag: float) -> Dictionary:
 	var shooter = _game.player_for(1)
-	var shot := DotShot.make(&"hitbox_probe", 1, _game._tick, 0)
+	var shot := GSShot.make(&"hitbox_probe", 1, _game._tick, 0)
 	shot.origin = shooter.muzzle_position()
 	shot.direction = (at - shot.origin).normalized()
 	shot.pellets = [shot.direction]
 	shot.pellet_count = 1
 	shot.damage = 1.0
 	shot.max_range = 200.0
-	shot.damage_type = DotDamageType.new()
+	shot.damage_type = GSDamageType.new()
 	_game._unlag_shooter = 1
 	_game._resolve_shot(shot, float(_game._tick) - lag if lag >= 0.0 else -1.0)
 	for d in shot.damages:
@@ -169,13 +169,13 @@ func _cell(label: String, stance_crouch: bool, moving: bool, table: Dictionary) 
 
 
 func _run() -> void:
-	if DotGameShardArgs.is_merge():
-		var logs := DotGameShardArgs.merge_logs()
-		_ok(logs.size() == CELLS.size() and DotGameShardArgs.missing(logs).is_empty(), "every shard's log is there (%d logs)" % logs.size())
+	if GSGameShardArgs.is_merge():
+		var logs := GSGameShardArgs.merge_logs()
+		_ok(logs.size() == CELLS.size() and GSGameShardArgs.missing(logs).is_empty(), "every shard's log is there (%d logs)" % logs.size())
 		print("%d checks, %d failed" % [_checks, _failed])
 		get_tree().quit(0 if _failed == 0 else 1)
 		return
-	var shard := DotGameShardArgs.shard()
+	var shard := GSGameShardArgs.shard()
 	await _boot()
 	var table := {}
 	for key: String in CELLS:

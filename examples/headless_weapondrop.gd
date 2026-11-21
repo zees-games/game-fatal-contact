@@ -43,7 +43,7 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	Engine.physics_ticks_per_second = TICK_RATE
 	_run.call_deferred()
 
@@ -55,15 +55,15 @@ func _check(condition: bool, what: String, detail: String = "") -> void:
 	print("  [%s] %s%s" % ["ok" if condition else "FAIL", what, ("  (" + detail + ")") if detail != "" else ""])
 
 
-func _press(down: bool, button: int = DotWeaponCommand.BUTTON_DROP) -> DotWeaponCommand:
-	var c := DotWeaponCommand.new()
+func _press(down: bool, button: int = GSWeaponCommand.BUTTON_DROP) -> GSWeaponCommand:
+	var c := GSWeaponCommand.new()
 	c.set_button(button, down)
 	return c
 
 
-func _step(game: FcGame, id: int, down: bool, ticks: int, button: int = DotWeaponCommand.BUTTON_DROP) -> void:
+func _step(game: FcGame, id: int, down: bool, ticks: int, button: int = GSWeaponCommand.BUTTON_DROP) -> void:
 	for _k in ticks:
-		game.tick({id: [DotFpsCommand.new(), _press(down, button)]})
+		game.tick({id: [GSFpsCommand.new(), _press(down, button)]})
 		await get_tree().physics_frame
 
 
@@ -104,7 +104,7 @@ func _run() -> void:
 	_check(drops.count() == 0, "sv_weapon_drop_key 0: the key throws nothing")
 	rules.key_enabled = true
 
-	# Hold-to-drop (DotWeaponDropKey): nothing on the press, a throw when the hold is over, none on an early release.
+	# Hold-to-drop (GSWeaponDropKey): nothing on the press, a throw when the hold is over, none on an early release.
 	rules.key_hold = 0.25
 	await _step(game, 21, true, 8)
 	_check(drops.count() == 0, "sv_weapon_drop_key_hold: the press alone throws nothing", str(drops.count()))
@@ -125,7 +125,7 @@ func _run() -> void:
 	await _run_part2(game, drops, player, rules)
 
 
-func _run_part2(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules) -> void:
+func _run_part2(game: FcGame, drops: GSWeaponDrops, player: FcPlayer, rules: GSWeaponDropRules) -> void:
 	var held_id: StringName = player.arsenal.current().id()
 	rules.auto_pickup = true
 	await _step(game, 21, true, 1)
@@ -160,8 +160,8 @@ func _run_part2(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: Do
 	player.controller.state.position = lying.global_position + Vector3(0.0, 0.0, 0.5)
 	await _step(game, 21, false, TICK_RATE)
 	_check(drops.count() == 1, "with auto pickup off, standing on it takes nothing", str(drops.count()))
-	await _step(game, 21, true, 2, DotWeaponCommand.BUTTON_USE)
-	await _step(game, 21, false, 2, DotWeaponCommand.BUTTON_USE)
+	await _step(game, 21, true, 2, GSWeaponCommand.BUTTON_USE)
+	await _step(game, 21, false, 2, GSWeaponCommand.BUTTON_USE)
 	_check(drops.count() == 0, "the use key picks it up", str(drops.count()))
 	var back_gun = player.arsenal.weapons_in(gun_slot)
 	_check(not back_gun.is_empty() and back_gun[0].magazine == 7, "with the magazine it lay with", str(back_gun[0].magazine if not back_gun.is_empty() else -1))
@@ -178,15 +178,15 @@ func _run_part2(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: Do
 ## The second half of the weapon drop checks.
 
 
-func _run_end(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules) -> void:
+func _run_end(game: FcGame, drops: GSWeaponDrops, player: FcPlayer, rules: GSWeaponDropRules) -> void:
 	var victim := game.player_for(22)
 	victim.controller.state.position = Vector3(30.0, victim.controller.state.position.y, 30.0)
 	await _run_middle(game, drops, player, rules)
 
 
-func _run_middle(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules) -> void:
+func _run_middle(game: FcGame, drops: GSWeaponDrops, player: FcPlayer, rules: GSWeaponDropRules) -> void:
 	var before := drops.count()
-	var fatal := DotDamage.make(21, 22, 5000.0, game.combat.damage_type(&""))
+	var fatal := GSDamage.make(21, 22, 5000.0, game.combat.damage_type(&""))
 	game.combat.health_of(22).spawn_protection_ticks = 0
 	game.combat.apply_damage(fatal)
 	game.tick({})
@@ -209,7 +209,7 @@ func _run_middle(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: D
 	for _k in TICK_RATE * 3:
 		await _step(game, 21, false, 1)
 	var rest_at := lie_body.global_position
-	var tr: DotTrace = game.combat.trace
+	var tr: GSTrace = game.combat.trace
 	var awake_before: int = drops.active_count()
 	var _miss := tr.ray(rest_at + Vector3(3.0, 1.0, 0.0), Vector3.DOWN, 5.0)
 	_check(drops.active_count() == awake_before, "a trace that misses wakes nothing", str(drops.active_count()))
@@ -223,7 +223,7 @@ func _run_middle(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: D
 	await _run_second(game, drops, player, rules, snap)
 
 
-func _run_second(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules, snap: Dictionary) -> void:
+func _run_second(game: FcGame, drops: GSWeaponDrops, player: FcPlayer, rules: GSWeaponDropRules, snap: Dictionary) -> void:
 	_check(drops.active_count() > 0, "an explosion's sphere wakes it too")
 
 	var held_def: StringName = StringName(str((snap["state"] as Dictionary).get("id", "")))
@@ -244,8 +244,8 @@ func _run_second(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: D
 	_check(pr.get("mode", "") == "swap", "a different weapon in the slot is offered as a swap", str(pr))
 	# A new gun is one plain press: a tap on a different weapon replaces the held one at once.
 	_check(not bool(pr.get("hold", false)), "a swap prompt asks for no hold", str(pr))
-	await _step(game, 21, true, 2, DotWeaponCommand.BUTTON_USE)
-	await _step(game, 21, false, 2, DotWeaponCommand.BUTTON_USE)
+	await _step(game, 21, true, 2, GSWeaponCommand.BUTTON_USE)
+	await _step(game, 21, false, 2, GSWeaponCommand.BUTTON_USE)
 	var swapped = player.arsenal.current()
 	_check(not drops.has_drop(d2) and player.arsenal.carries(held_def) and not player.arsenal.carries(other), "a tap on a different weapon in the slot replaces it", str(swapped.id() if swapped != null else ""))
 	_check(drops.count() == 1, "while the old one lies on the floor", str(drops.count()))
@@ -260,7 +260,7 @@ func _run_second(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: D
 	# A splash is stopped by a wall: find a blocked and an open spot round one centre in the real level.
 	drops.clear()
 	_check(drops.can_see.is_valid(), "Fatal Contact gives the drop layer its sight check")
-	var trace: DotTrace = game.combat.trace
+	var trace: GSTrace = game.combat.trace
 	var centre := Vector3.ZERO
 	var wall_spot := Vector3.INF
 	var open_spot := Vector3.INF
@@ -309,7 +309,7 @@ func _check_shot_pools() -> void:
 	shot.queue_free()
 
 
-func _check_prewarm(game: FcGame, drops: DotWeaponDrops, snap: Dictionary, open_spot: Vector3) -> void:
+func _check_prewarm(game: FcGame, drops: GSWeaponDrops, snap: Dictionary, open_spot: Vector3) -> void:
 	# Pre-warm: bodies are parked under the loading cover, so the first throw builds no model.
 	var builds := [0]
 	var inner: Callable = drops.look_of
@@ -346,13 +346,13 @@ func _check_prewarm(game: FcGame, drops: DotWeaponDrops, snap: Dictionary, open_
 	_check(builds[0] == built_warm + 1, "a second drop beyond the parked body builds one (control)", "%d builds" % (builds[0] - built_warm))
 
 
-func _check_pickup_panel(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, rules: DotWeaponDropRules, snap: Dictionary) -> void:
+func _check_pickup_panel(game: FcGame, drops: GSWeaponDrops, player: FcPlayer, rules: GSWeaponDropRules, snap: Dictionary) -> void:
 	# The world panel: shown for a drop the player looks at, hidden out of reach.
 	drops.clear()
 	drops.rules.pickup_delay = 0.0
 	var eye: Vector3 = player.muzzle_position()
 	var _d3 := drops.spawn(snap["state"], eye + player.aim_direction() * 1.2, Vector3.ZERO, 22)
-	var view := DotWeaponPickupView.new()
+	var view := GSWeaponPickupView.new()
 	add_child(view)
 	var seen := drops.prompt_for(player.arsenal, eye, player.aim_direction(), game.weapon_drop_class_of(21))
 	view.show_prompt(seen, 0.0)
@@ -377,7 +377,7 @@ func _check_pickup_panel(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, 
 	player.camera = cam
 	WeaponDropWiring.update_panel(stub, true, 0.0)
 	WeaponDropWiring.update_panel(stub, true, held_for)
-	var pv: DotWeaponPickupView = stub.get_meta(&"pickup_view")
+	var pv: GSWeaponPickupView = stub.get_meta(&"pickup_view")
 	var rings := int(pv._circle.visible) + int(stub.hud.crosshair.hold_progress > 0.0)
 	_check(stub.hud.crosshair.hold_progress > 0.0, "holding E fills the crosshair ring", str(stub.hud.crosshair.hold_progress))
 	_check(not pv._circle.visible, "and the world circle on the panel stays off", str(pv._circle.visible))
@@ -390,7 +390,7 @@ func _check_pickup_panel(game: FcGame, drops: DotWeaponDrops, player: FcPlayer, 
 
 func _check_railgun_slot() -> void:
 	# The railgun is primary-only: no catalogue path may put it anywhere else.
-	var rail: DotWeaponDef = FcContent.weapon_table().get(AwWeaponIds.CHARGE_RIFLE)
+	var rail: GSWeaponDef = FcContent.weapon_table().get(AwWeaponIds.CHARGE_RIFLE)
 	_check(rail != null and rail.slot == AwWeaponIds.SLOT_PRIMARY, "the railgun is defined in the primary slot", str(rail.slot if rail != null else -1))
 	_check(FcContent.weapon_catalogue().get_def(AwWeaponIds.CHARGE_RIFLE).slot == AwWeaponIds.SLOT_PRIMARY, "and the validated catalogue agrees")
 	for def in FcContent.weapons():

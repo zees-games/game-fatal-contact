@@ -1,11 +1,11 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 ## A module reload leaves ONE link under the server, and a real ENet client still hears it.
 ##
-## The bridge's link sits under the [DotServer] node (RPCs route by path), so nothing freed it
+## The bridge's link sits under the [GSServer] node (RPCs route by path), so nothing freed it
 ## when the module unloaded: the next load added a second, Godot renamed the live one
 ## `@Node@n`, and every RPC to a real client was dropped without an error. The suite reloads
 ## the module twice, then joins a real client and asks for the HELLO, which is a server RPC.
-## [DotGameLink] is the fix; break it (a bare `add_child` in `open_link`) and this fails.
+## [GSGameLink] is the fix; break it (a bare `add_child` in `open_link`) and this fails.
 
 const FcEvents := preload("../game/fc_events.gd")
 const FcGame := preload("../game/fc_game.gd")
@@ -26,18 +26,18 @@ var _entered := 0
 var _completed := 0
 
 var _server_side: Node = null
-var _server: DotServer = null
+var _server: GSServer = null
 var _game: FcGame = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("game-fatal-contact: a module reload leaves one live link")
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	Engine.physics_ticks_per_second = TICK_RATE
 	if await _boot():
 		await _test_reload()
@@ -45,7 +45,7 @@ func _run() -> void:
 	if _server != null:
 		_server.shutdown("done")
 	await get_tree().process_frame
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
@@ -75,7 +75,7 @@ func _module() -> FcModule:
 
 ## What a reload resets: no quota bots, or one could meet the client and change the section.
 func _quiet_the_bots() -> void:
-	var quota: DotBotQuota = _module().get("_bot_quota")
+	var quota: GSBotQuota = _module().get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("off")
 
@@ -99,7 +99,7 @@ func _boot() -> bool:
 		_done()
 		return false
 
-	var config := DotServerConfig.new()
+	var config := GSServerConfig.new()
 	config.hostname = "arena reload"
 	config.port = PORT
 	config.bind_address = "127.0.0.1"
@@ -115,18 +115,18 @@ func _boot() -> bool:
 	config.enet_share_udp_port = false
 	config.stdin_console_enabled = false
 	config.log_level = "error"
-	_server = DotServer.new()
+	_server = GSServer.new()
 	_server.name = "Server"
 	_server.config = config
 	_server.config_file = ""
 	_server.auto_boot = false
 	_server_side.add_child(_server)
-	var booted: DotResult = await _server.boot()
+	var booted: GSResult = await _server.boot()
 	if not _check(booted.ok, "the server boots on %d" % PORT, str(booted.error)):
 		_done()
 		return false
 	FcModule.punishments_file = "%s/punishments.json" % DATA
-	var loaded: DotResult = await _server.modules.load_module(MODULE)
+	var loaded: GSResult = await _server.modules.load_module(MODULE)
 	_check(loaded.ok, "the module loads", str(loaded.error))
 	_done()
 	return loaded.ok
@@ -160,7 +160,7 @@ func _test_client_hears_the_server() -> void:
 	side.name = "ClientSide"
 	add_child(side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Reloader"
 	link.transport_preference = "udp"
@@ -169,11 +169,11 @@ func _test_client_hears_the_server() -> void:
 	var spawned := [false]
 	link.spawned.connect(func() -> void: spawned[0] = true)
 	link.connect_to_server("127.0.0.1:%d" % PORT)
-	await _until(func() -> bool: return spawned[0] or link.phase == DotClientLink.Phase.FAILED, 30.0)
+	await _until(func() -> bool: return spawned[0] or link.phase == GSClientLink.Phase.FAILED, 30.0)
 	if not _check(spawned[0], "the client signs on"):
 		_done()
 		return
-	DotGameClient.report_cover(link, false)
+	GSGameClient.report_cover(link, false)
 
 	var game := FcGame.new()
 	game.name = "Game"
@@ -182,14 +182,14 @@ func _test_client_hears_the_server() -> void:
 	game.register_service = false
 	side.add_child(game)
 	game.setup(FcMap.dm_box())
-	var net := DotNetManager.new()
+	var net := GSNetManager.new()
 	net.name = "Net"
 	net.is_server = false
 	net.service_scope = &"reload_client"
 	net.local_peer_id = side.multiplayer.get_unique_id()
 	net.auto_tick = false
 	net.config_file = ""
-	var cfg := DotNetConfig.new()
+	var cfg := GSNetConfig.new()
 	cfg.tick_rate = game.tick_rate
 	cfg.snapshot_rate = FcGame.NET_SNAPSHOT_RATE
 	cfg.enable_prediction = true

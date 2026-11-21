@@ -1,13 +1,13 @@
-extends DotTracePhysics
+extends GSTracePhysics
 ## The physics shot trace with the jail glass rule: a ray fired from inside the cell is stopped by the glass layer, one from outside passes it.
 
-## The rule and the cell; null or an empty cell leaves the trace as DotTracePhysics.
-var glass: DotMapGlassSight = null
+## The rule and the cell; null or an empty cell leaves the trace as GSTracePhysics.
+var glass: GSMapGlassSight = null
 var _sight_query := false
 var _base_mask := 1
 
 
-func _world_ray(from: Vector3, direction: Vector3, max_distance: float) -> DotHitbox.Hit:
+func _world_ray(from: Vector3, direction: Vector3, max_distance: float) -> GSHitbox.Hit:
 	if glass == null or glass.glass_mask == 0:
 		return super(from, direction, max_distance)
 	_base_mask = collision_mask

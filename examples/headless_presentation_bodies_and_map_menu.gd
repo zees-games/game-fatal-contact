@@ -9,7 +9,7 @@ func _test_bodies_fall() -> void:
 	g.is_authority = true
 	add_child(g)
 	var _set := g.setup(FcMap.dm_box())
-	var dmg := DotDamage.new()
+	var dmg := GSDamage.new()
 	dmg.attacker = 3
 	dmg.weapon_id = AwWeaponIds.SNIPER
 	dmg.amount = 120.0
@@ -34,19 +34,19 @@ func _test_bodies_fall() -> void:
 
 	# The wire: the death rides KILL, and an older kill still reads.
 	var wrote := FcEvents.write_kill(3, 9, "sniper", false, true, sniped)
-	var read := FcEvents.read_kill(DotNetReader.new(wrote))
-	var back := DotPlayerDeath.from_dict(read)
+	var read := FcEvents.read_kill(GSNetReader.new(wrote))
+	var back := GSPlayerDeath.from_dict(read)
 	_check(bool(read["ok"]) and bool(read["critical"]) and back.reaction == sniped.reaction
 		and back.roll_seed == sniped.roll_seed and absf(back.damage - 120.0) < 0.5
 		and back.direction.distance_to(sniped.direction) < 0.02,
 		"the KILL carries the reaction, the seed, the damage and the direction (%d bytes)" % wrote.size())
-	var old := FcEvents.read_kill(DotNetReader.new(FcEvents.write_kill(3, 9, "pistol", true, false)))
-	_check(bool(old["ok"]) and not old.has("death_reaction") and DotPlayerDeath.from_dict(old).reaction == &"limp",
+	var old := FcEvents.read_kill(GSNetReader.new(FcEvents.write_kill(3, 9, "pistol", true, false)))
+	_check(bool(old["ok"]) and not old.has("death_reaction") and GSPlayerDeath.from_dict(old).reaction == &"limp",
 		"a KILL without one reads as a plain fall")
 
 	# The client's half, on a floor in a physics world.
 	var floor_body := _test_floor()
-	var yard := DotPlayerRagdolls.new()
+	var yard := GSPlayerRagdolls.new()
 	add_child(yard)
 
 	var player := FcPlayer.new()
@@ -57,7 +57,7 @@ func _test_bodies_fall() -> void:
 	player.attach_body_mesh(Color.WHITE, FcAvatars.stock_avatar(&"faller"))
 	player.present(0.016)
 	player.make_dead()
-	var fall := DotPlayerDeath.new()
+	var fall := GSPlayerDeath.new()
 	fall.reaction = &"limp"
 	fall.direction = Vector3(1, 0, 0)
 	fall.damage = 80.0
@@ -77,7 +77,7 @@ func _test_bodies_fall() -> void:
 	player.body_mesh.remove_child(player.held)
 	player.held.free()
 	player.held = null
-	_check(body != null and body.style == DotPlayerRagdollRules.Style.RAGDOLL and body.part_count() == 6,
+	_check(body != null and body.style == GSPlayerRagdollRules.Style.RAGDOLL and body.part_count() == 6,
 		"the stock avatar falls as a six-part ragdoll (%s)" % (str(body.describe()) if body != null else "none"))
 	_check(not player.body_mesh.visible, "and the standing figure is hidden")
 	var waited := 0.0
@@ -93,10 +93,10 @@ func _test_bodies_fall() -> void:
 	yard.rules.enabled = false
 	player.make_dead()
 	var toppled := player.fall_body(yard, fall)
-	_check(toppled != null and toppled.style == DotPlayerRagdollRules.Style.TOPPLE, "sv_ragdoll 0: a topple, no physics")
+	_check(toppled != null and toppled.style == GSPlayerRagdollRules.Style.TOPPLE, "sv_ragdoll 0: a topple, no physics")
 	player.health.alive = true
 	player.present(0.016)
-	yard.rules.style = DotPlayerRagdollRules.Style.HIDE
+	yard.rules.style = GSPlayerRagdollRules.Style.HIDE
 	player.make_dead()
 	_check(player.fall_body(yard, fall) == null and not player.body_mesh.visible,
 		"sv_ragdoll_style hide: nothing, and the figure gone")
@@ -107,40 +107,40 @@ func _test_bodies_fall() -> void:
 	# The client is not in the tree here (its _ready builds a whole game); its yard has to be.
 	client.remove_child(client.ragdolls)
 	add_child(client.ragdolls)
-	var added: DotResult = g.add_player(11, "Eleven")
+	var added: GSResult = g.add_player(11, "Eleven")
 	var eleven: FcPlayer = added.value if added.ok else null
 	eleven.attach_body_mesh(Color.WHITE, FcAvatars.stock_avatar(&"eleven"))
 	eleven.make_dead()
-	var entry := DotKillFeed.Entry.new()
+	var entry := GSKillFeed.Entry.new()
 	entry.victim_key = "11"
 	entry.set_meta(&"death", fall)
 	_test_bodies_fall_rest(g, floor_body, yard, player, client, entry)
 
 
-func _test_bodies_fall_rest(g: FcGame, floor_body: StaticBody3D, yard: DotPlayerRagdolls, player: FcPlayer, client: FcClient, entry: DotKillFeed.Entry) -> void:
+func _test_bodies_fall_rest(g: FcGame, floor_body: StaticBody3D, yard: GSPlayerRagdolls, player: FcPlayer, client: FcClient, entry: GSKillFeed.Entry) -> void:
 	client._on_solo_kill(entry)
 	_check(client.ragdolls.live().size() == 1, "solo, a kill's entry carries the fall and the client draws it")
 	_check(client.ragdolls.rules == g.ragdoll_rules, "and it draws under the game's (the server's) rules")
 
 	# Connected, the KILL often lands before the snapshot that says the victim is dead: the stale
 	# alive flag must not stand the figure up again to play a second, standing death.
-	yard.rules.style = DotPlayerRagdollRules.Style.RAGDOLL
+	yard.rules.style = GSPlayerRagdollRules.Style.RAGDOLL
 	yard.rules.enabled = true
 	player.health.alive = true
 	player.present(0.016)
 	var before := yard.live().size()
-	var early := player.fall_body(yard, DotPlayerDeath.new())
+	var early := player.fall_body(yard, GSPlayerDeath.new())
 	player.present(0.016)
 	_check(early != null and not player.body_mesh.visible,
 		"a fall while the mirror still reads alive keeps the standing figure hidden")
-	_check(player.fall_body(yard, DotPlayerDeath.new()) == null and yard.live().size() == before + 1,
+	_check(player.fall_body(yard, GSPlayerDeath.new()) == null and yard.live().size() == before + 1,
 		"a second fall of the same body builds no second ragdoll (%d live)" % (yard.live().size() - before))
 	player.make_dead()
 	player.present(0.016)
 	player.health.alive = true
 	player.present(0.016)
 	_check(player.body_mesh.visible, "once seen dead, the respawn draws the figure again")
-	var _late := player.fall_body(yard, DotPlayerDeath.new())
+	var _late := player.fall_body(yard, GSPlayerDeath.new())
 	player.set(&"_down_at_ms", Time.get_ticks_msec() - 5000)
 	player.present(0.016)
 	_check(player.body_mesh.visible, "and if the dead snapshot never came, it gets up after a grace")
@@ -163,9 +163,9 @@ func _test_the_map_menu() -> void:
 	add_child(client)
 	for _i in 6:
 		await get_tree().process_frame
-	var menu: DotMenu = client.game_menu
-	var keys: DotMenuBindings = menu.bindings if menu != null else null
-	_check(keys != null and keys.key_for(DotMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
+	var menu: GSMenu = client.game_menu
+	var keys: GSMenuBindings = menu.bindings if menu != null else null
+	_check(keys != null and keys.key_for(GSMenuBindings.MAPS_ACTION) == "M" and keys.defaults_on("M").size() == 1,
 		"the map menu is on M, and nothing else in the table is",
 		str(keys.defaults_on("M").map(func(r: Dictionary) -> String: return str(r["label"]))) if keys != null else "no menu")
 	var rows := client.map_menu_rows()
@@ -174,7 +174,7 @@ func _test_the_map_menu() -> void:
 		"it lists more than one map, and the modes this map can host", str(rows.map(func(r: Dictionary) -> String: return str(r["id"]))))
 	menu.close_all()
 	_check(menu.handle_event(_key_press(KEY_M)) and menu.picker.is_open(), "M opens the picker")
-	var tabbed: bool = menu.maps.has_tabs() and keys.key_for(DotMenuBindings.MODES_ACTION) == "Minus"
+	var tabbed: bool = menu.maps.has_tabs() and keys.key_for(GSMenuBindings.MODES_ACTION) == "Minus"
 	var _tab1 := menu.handle_event(_key_press(KEY_MINUS))
 	var on_modes: bool = menu.picker.items.size() > 0 and menu.picker.items.all(func(r: Dictionary) -> bool: return str(r["id"]).begins_with("mode:"))
 	var _tab2 := menu.handle_event(_key_press(KEY_MINUS))
@@ -182,7 +182,7 @@ func _test_the_map_menu() -> void:
 		"the picker has a Maps and a Game modes tab, switched by - (rebindable), maps first")
 	var wanted := &""
 	var key := KEY_NONE
-	for row in range(1, DotMenuPicker.PAGE_SIZE + 1):
+	for row in range(1, GSMenuPicker.PAGE_SIZE + 1):
 		var it: Variant = menu.picker.at_row(row)
 		if it is Dictionary and str((it as Dictionary)["id"]).begins_with("map:") and not bool((it as Dictionary)["current"]):
 			wanted = StringName(str((it as Dictionary)["id"]).substr(4))
@@ -210,7 +210,7 @@ func _test_the_map_menu() -> void:
 		"the Tab board lists every record with its kills", "%d rows, %d present" % [menu.scoreboard.rows().size(), present])
 	menu.scoreboard.close()
 	# The summary board comes up with nobody holding Tab, so the next match closes it.
-	client._on_match({"state": DotMatch.State.MATCH_END, "round": 1, "remaining_ticks": 0})
+	client._on_match({"state": GSMatch.State.MATCH_END, "round": 1, "remaining_ticks": 0})
 	var revealed: bool = client.winner_reveal != null and client.winner_reveal.is_active()
 	if client.killcam != null:
 		client.killcam.skip()
@@ -221,7 +221,7 @@ func _test_the_map_menu() -> void:
 	var script := load("res://game/fc_client.gd") as GDScript
 	_check(script != null and script.can_instantiate(), "the client script parses, so the end-of-match flow exists at all")
 	_check(client.winner_reveal != null and client.killcam != null, "the killcam is built at start and the podium by the first match end")
-	client._on_match({"state": DotMatch.State.WARMUP, "round": 2, "remaining_ticks": 0})
+	client._on_match({"state": GSMatch.State.WARMUP, "round": 2, "remaining_ticks": 0})
 	_check(not menu.scoreboard.is_open(), "and the next match takes it down again")
 	# Overlapping screens that each restore "what they found" left the HUD hidden for good.
 	client.hud.visible = false
@@ -277,7 +277,7 @@ func _test_feedback_from_the_wire() -> void:
 	var them: FcPlayer = g.add_player(7, "Victim").value
 
 	var hud := FcHud.new()
-	hud.config = DotUiConfig.new()
+	hud.config = GSUiConfig.new()
 	add_child(hud)
 	hud.build(null)
 	hud.follow(me)
@@ -288,21 +288,21 @@ func _test_feedback_from_the_wire() -> void:
 	client.hud = hud
 
 	var at := them.global_position + Vector3(0.0, 1.4, 0.0)
-	client._on_hit(FcEvents.read_hit(DotNetReader.new(FcEvents.write_hit(7, 34.0, at, false, false))))
+	client._on_hit(FcEvents.read_hit(GSNetReader.new(FcEvents.write_hit(7, 34.0, at, false, false))))
 	_check(hud.hit_marker.alpha() > 0.9 and not hud.hit_marker.kill, "a HIT flashes the hit marker, white")
 	_check(hud.damage_numbers.entries.size() == 1 and int(hud.damage_numbers.entries[0]["amount"]) == 34,
 		"and a number rises from where it landed, saying what it took")
-	client._on_hit(FcEvents.read_hit(DotNetReader.new(FcEvents.write_hit(7, 20.0, at, false, false))))
+	client._on_hit(FcEvents.read_hit(GSNetReader.new(FcEvents.write_hit(7, 20.0, at, false, false))))
 	_check(hud.damage_numbers.entries.size() == 1 and int(hud.damage_numbers.entries[0]["amount"]) == 54,
 		"a second hit on them straight after adds into the same number (%s)" % [hud.damage_numbers.entries.map(func(e: Dictionary) -> int: return int(e["amount"]))])
-	client._on_hit(FcEvents.read_hit(DotNetReader.new(FcEvents.write_hit(7, 80.0, at, true, true))))
+	client._on_hit(FcEvents.read_hit(GSNetReader.new(FcEvents.write_hit(7, 80.0, at, true, true))))
 	_check(hud.hit_marker.kill and bool(hud.damage_numbers.entries[0]["headshot"]),
 		"a lethal hit to the head turns the marker red and the number gold")
 	hud.hit_marker.advance(1.0)
 	hud.damage_numbers.advance(1.0)
 	_check(hud.hit_marker.alpha() == 0.0 and hud.damage_numbers.entries.is_empty(), "and both are gone within a second")
 
-	var award := FcEvents.read_award(DotNetReader.new(
+	var award := FcEvents.read_award(GSNetReader.new(
 		FcEvents.write_award(6, 7, FcAwards.points_for([M.FIRST_BLOOD, M.HEADSHOT]), 4, [M.FIRST_BLOOD, M.HEADSHOT])
 	))
 	client._on_award(award)
@@ -345,11 +345,11 @@ func _test_blind_and_beacon() -> void:
 	_section("An admin's beacon is drawn and heard, and a blind darkens one screen")
 
 	var p := _make()
-	var sink := p.audio.sink as DotAudioSinkNull
+	var sink := p.audio.sink as GSAudioSinkNull
 
 	var def := p.audio.catalogue.find(FcPresentation.BEACON_SOUND)
 	_check(
-		def != null and def.kind == DotAudioDef.Kind.POSITIONAL_3D and def.max_distance >= 90.0,
+		def != null and def.kind == GSAudioDef.Kind.POSITIONAL_3D and def.max_distance >= 90.0,
 		"the ping is positional and carries at least as far as a shot",
 		"a beacon's job is to say where somebody is"
 	)
@@ -395,7 +395,7 @@ func _test_blind_and_beacon() -> void:
 	_check(player.beacon_marker == null, "and switched off, the marker goes")
 
 	var hud := FcHud.new()
-	hud.config = DotUiConfig.new()
+	hud.config = GSUiConfig.new()
 	add_child(hud)
 	hud.build(null)
 	hud.follow(player)
@@ -413,7 +413,7 @@ func _test_blind_and_beacon() -> void:
 		"blinded, it fades in rather than cutting (%.2f half way)" % hud.blind_overlay.modulate.a
 	)
 	hud.present_blind(1.0)
-	# The whole viewport, not the HUD's rect: `DotHud` insets itself by the safe area and the first rendered
+	# The whole viewport, not the HUD's rect: `GSHud` insets itself by the safe area and the first rendered
 	# blind left a frame of the world round the edge. This is the one layout check a 64 x 64 headless
 	# viewport can still answer, because the inset is the same sixteen pixels there.
 	_check(

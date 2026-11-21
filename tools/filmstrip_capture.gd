@@ -5,7 +5,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 
-## Plays one scripted clip (a DotScenario from tools/filmstrip_scenarios.json) and draws a
+## Plays one scripted clip (a GSScenario from tools/filmstrip_scenarios.json) and draws a
 ## first-person view on the left and a third-person view on the right of one window, for
 ## `--write-movie` to record. Run by tools/filmstrip_run.sh:
 ## `godot --write-movie out.avi --fixed-fps 15 --script res://tools/filmstrip_capture.gd -- <clip>`.
@@ -13,12 +13,12 @@ const FcPlayer := preload("../game/fc_player.gd")
 const TICK_RATE := 64
 const SETTLE_TICKS := 40
 const VIEW := Vector2i(640, 480)
-const MOVE_BUTTONS := {"jump": DotFpsCommand.BUTTON_JUMP, "crouch": DotFpsCommand.BUTTON_CROUCH,
-	"sprint": DotFpsCommand.BUTTON_SPRINT, "walk": DotFpsCommand.BUTTON_WALK}
-const WEAPON_BUTTONS := {"attack": DotWeaponCommand.BUTTON_ATTACK, "alt": DotWeaponCommand.BUTTON_ALT,
-	"reload": DotWeaponCommand.BUTTON_RELOAD, "aim": DotWeaponCommand.BUTTON_AIM}
+const MOVE_BUTTONS := {"jump": GSFpsCommand.BUTTON_JUMP, "crouch": GSFpsCommand.BUTTON_CROUCH,
+	"sprint": GSFpsCommand.BUTTON_SPRINT, "walk": GSFpsCommand.BUTTON_WALK}
+const WEAPON_BUTTONS := {"attack": GSWeaponCommand.BUTTON_ATTACK, "alt": GSWeaponCommand.BUTTON_ALT,
+	"reload": GSWeaponCommand.BUTTON_RELOAD, "aim": GSWeaponCommand.BUTTON_AIM}
 
-var _clip: DotScenario = null
+var _clip: GSScenario = null
 var _player: FcPlayer = null
 ## The own body is on its own layer so the first-person view leaves it out while the
 ## third-person view, sharing the world, still draws it.
@@ -29,21 +29,21 @@ var _tp_cam: Camera3D = null
 var _tick := 0
 var _prev_time := 0.0
 var _before := Vector3.INF
-var _flinch := DotFpsAimBreak.new()
+var _flinch := GSFpsAimBreak.new()
 var _wobble := Vector2.ZERO
 var _dead := false
-var _metrics := DotClipMetrics.new()
+var _metrics := GSClipMetrics.new()
 var _spawn_yaw := 0.0
 var _hands: Node3D = null
 var _armed := false
 var _query := PhysicsRayQueryParameters3D.new()
-## A clip's `own_body` (DotPlayerViewRules.BODY_*): the first-person view draws your own body, placed by the game.
+## A clip's `own_body` (GSPlayerViewRules.BODY_*): the first-person view draws your own body, placed by the game.
 var _own_body := 0
 
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
-	var clips := DotScenario.load_file("res://tools/filmstrip_scenarios.json")
+	var clips := GSScenario.load_file("res://tools/filmstrip_scenarios.json")
 	if args.is_empty() or not clips.has(args[0]):
 		printerr("filmstrip: clip %s not in %s" % [str(args), str(clips.keys())])
 		quit(2)
@@ -109,18 +109,18 @@ func _physics_process(_delta: float) -> bool:
 		if weapon_id != &"":
 			var given := _player.arsenal.give(weapon_id)
 			if given.ok:
-				var _held := _player.arsenal.equip(int((given.value as DotWeaponSlot).def.slot))
+				var _held := _player.arsenal.equip(int((given.value as GSWeaponSlot).def.slot))
 		# Placed once the tree is live: a teleport inside _initialize was lost and every clip began at the origin.
 		var spawn: Array = _clip.fields.get("spawn", [15.0, 0.05, -13.0])
 		_player.controller.teleport(Vector3(spawn[0], spawn[1], spawn[2]), _spawn_yaw, 0.0)
 	var time := _clip_time()
 	var state := _clip.state_at(maxf(time, 0.0))
 	var move: Array = state["move"]
-	var move_cmd := DotFpsCommand.new()
+	var move_cmd := GSFpsCommand.new()
 	move_cmd.move = Vector2(float(move[0]), float(move[1]))
 	move_cmd.yaw = _spawn_yaw + float(state["yaw"]) + _wobble.x
 	move_cmd.pitch = float(state["pitch"]) + _wobble.y
-	var weapon_cmd := DotWeaponCommand.new()
+	var weapon_cmd := GSWeaponCommand.new()
 	if time >= 0.0:
 		for button: String in state["buttons"]:
 			move_cmd.buttons |= int(MOVE_BUTTONS.get(button, 0))
@@ -153,7 +153,7 @@ func _event(event: String, time: float) -> void:
 func _hit(amount: float) -> void:
 	_player.health.invulnerable = false
 	_player.health.invulnerable_until_tick = -1
-	_player.health.apply(DotDamage.make(0, _player.player_id, amount, DotDamageType.new()))
+	_player.health.apply(GSDamage.make(0, _player.player_id, amount, GSDamageType.new()))
 
 
 func _process(delta: float) -> bool:
@@ -173,7 +173,7 @@ func _process(delta: float) -> bool:
 	time -= (1.0 - alpha) / float(TICK_RATE)
 	if _own_body > 0 and _player.figure != null:
 		_player.own_body_mode = _own_body
-		_player.figure.first_person = DotHumanoidOwnView.BODY if _own_body >= 2 else DotHumanoidOwnView.LEGS
+		_player.figure.first_person = GSHumanoidOwnView.BODY if _own_body >= 2 else GSHumanoidOwnView.LEGS
 		_player.body_mesh.visible = true
 	elif _player.body_mesh != null:
 		_player.body_mesh.global_position = feet
@@ -209,9 +209,9 @@ func _unit(cam: Camera3D, spot: Vector3) -> Vector2:
 
 ## Runs once at shutdown, after `_process` has returned true, so none of it is per-frame.
 func _finalize() -> void:
-	var text := DotClipMetrics.table(_clip.name, _metrics.evaluate(DotClipMetrics.limits_for("res://tools/filmstrip_thresholds.json", _clip.name)))
+	var text := GSClipMetrics.table(_clip.name, _metrics.evaluate(GSClipMetrics.limits_for("res://tools/filmstrip_thresholds.json", _clip.name)))
 	print(text)
-	DotClipMetrics.write_report("res://screenshots/filmstrip/%s_report.txt" % _clip.name, text)
+	GSClipMetrics.write_report("res://screenshots/filmstrip/%s_report.txt" % _clip.name, text)
 
 
 func _tag_body(node: Node) -> void:

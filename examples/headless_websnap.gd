@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcNetLink := preload("../game/fc_net_link.gd")
 const WebsnapBridge := preload("websnap_bridge.gd")
@@ -15,7 +15,7 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	print("game-fatal-contact: a browser client applies only the newest snapshot of a poll")
 	await _run()
 	FcNetLink.coalesce = OS.has_feature("web")
@@ -34,7 +34,7 @@ func _done() -> void:
 
 ## A snapshot payload as the server writes it: the 32-bit tick first; [param part] marks which one it was.
 func _snap(tick: int, part: int = 0) -> PackedByteArray:
-	var w := DotNetWriter.new()
+	var w := GSNetWriter.new()
 	w.write_uint(tick, 32)
 	w.write_uint(part, 8)
 	return w.to_bytes()

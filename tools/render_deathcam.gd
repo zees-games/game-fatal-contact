@@ -2,7 +2,7 @@ extends SceneTree
 
 ## The solo client's death camera for a death against a wall, killer on the open side, with the
 ## body on the floor: FcClient driving dot-spectate's stand-back death camera (6087cbf), not a
-## standalone DotSpectatorManager. Frames at 0.3, 1.2 and 3 s after the kill, the eye's distance
+## standalone GSSpectatorManager. Frames at 0.3, 1.2 and 3 s after the kill, the eye's distance
 ## from the body, and whether the camera is inside the level, printed and saved to
 ## screenshots/deathcam/. The look no assertion gives: is the camera held against the wall, and
 ## is the body in frame.
@@ -103,7 +103,7 @@ func _run() -> void:
 	me.health.invulnerable = false
 	me.health.invulnerable_until_tick = -1
 	var type = game.combat.damage_type(&"")
-	var damage := DotDamage.make(killer_id, me.player_id, me.health.health + me.health.armour + 50.0, type)
+	var damage := GSDamage.make(killer_id, me.player_id, me.health.health + me.health.armour + 50.0, type)
 	damage.tick = game.current_tick()
 	var applied = me.health.apply(damage)
 	game.combat.entity_killed.emit(me.player_id, applied)

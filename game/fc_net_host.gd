@@ -17,7 +17,7 @@ func send_host_reply(peer_id: int, seq: int, done: bool, good: bool, text: Strin
 	_send_event(peer_id, FcEvents.Kind.MORE, FcHostWire.write_reply(seq, done, good, text))
 
 
-func _on_host_ask(peer_id: int, reader: DotNetReader) -> void:
+func _on_host_ask(peer_id: int, reader: GSNetReader) -> void:
 	if not host_line_fn.is_valid():
 		return
 	var asked := FcHostWire.read_line(reader)
@@ -25,7 +25,7 @@ func _on_host_ask(peer_id: int, reader: DotNetReader) -> void:
 		host_line_fn.call(peer_id, int(asked["seq"]), str(asked["line"]))
 
 
-func _apply_host_reply(reader: DotNetReader) -> void:
+func _apply_host_reply(reader: GSNetReader) -> void:
 	var r := FcHostWire.read_reply(reader)
 	if bool(r["ok"]):
 		host_replied.emit(int(r["seq"]), bool(r["done"]), bool(r["good"]), str(r["text"]))

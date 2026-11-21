@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 
 const FcBots := preload("../game/fc_bots.gd")
@@ -33,27 +33,27 @@ var _game: FcGame = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _merge() -> void:
-	var logs := DotGameShardArgs.merge_logs()
-	var missing := DotGameShardArgs.missing(logs)
+	var logs := GSGameShardArgs.merge_logs()
+	var missing := GSGameShardArgs.missing(logs)
 	_check(logs.size() == SHARDS.size() and missing.is_empty(), "every shard's log is there (%d logs)" % logs.size(), "missing %s" % [missing])
-	var entered := DotGameShardArgs.sections_entered(logs)
+	var entered := GSGameShardArgs.sections_entered(logs)
 	_check(entered == SECTIONS, "the shards entered every section (%d of %d)" % [entered, SECTIONS])
 	_report_sections(1, 1, 1)
 
 
 func _run() -> void:
 	print("game-fatal-contact headless bot hit registration")
-	if DotGameShardArgs.is_merge():
+	if GSGameShardArgs.is_merge():
 		_merge()
 		return
 	FcBots.think_every = 2
 	FcBots.think_near = 0.0
-	var shard := DotGameShardArgs.shard()
+	var shard := GSGameShardArgs.shard()
 	if shard == "" or shard == "direct":
 		await _direct("calm server, one tick per frame", 1, 0)
 		await _direct("loaded server, 6 ticks back to back then a 40 ms stall", 6, 40)
@@ -134,20 +134,20 @@ func _aimed(tick_index: int) -> Array:
 	var shooter: FcPlayer = _game.player_for(ATTACKER)
 	var target: FcPlayer = _game.player_for(TARGET)
 	var aim := angles_to(shooter.muzzle_position(), target.global_position + Vector3.UP * FcBots.chest_height())
-	var m := DotFpsCommand.new()
+	var m := GSFpsCommand.new()
 	m.yaw = aim.x
 	m.pitch = aim.y
-	var w := DotWeaponCommand.new()
+	var w := GSWeaponCommand.new()
 	# A tap every TAP_TICKS: holding the trigger climbs the recoil and widens the spread, which is the gun's doing.
-	w.buttons = DotWeaponCommand.BUTTON_ATTACK if tick_index % TAP_TICKS == 0 else 0
+	w.buttons = GSWeaponCommand.BUTTON_ATTACK if tick_index % TAP_TICKS == 0 else 0
 	return [m, w]
 
 
 func _strafe(tick_index: int, strafing: bool) -> Array:
-	var m := DotFpsCommand.new()
+	var m := GSFpsCommand.new()
 	if strafing:
 		m.move = Vector2(1.0 if (tick_index / 24) % 2 == 0 else -1.0, 0.0)
-	var w := DotWeaponCommand.new()
+	var w := GSWeaponCommand.new()
 	return [m, w]
 
 
@@ -191,7 +191,7 @@ func _brain() -> void:
 	# Whole control, so what is measured is the correction itself; bot_recoil_control scales it per difficulty.
 	FcBots.recoil_control = 1.0
 	# The generic bot: a weapon style (a rifle's strafe) would move the shooter under the aim this measures.
-	var _st := DotBotSettings.of(_game).set_value("styles", "0")
+	var _st := GSBotSettings.of(_game).set_value("styles", "0")
 	for comp in [false, true]:
 		FcBots.recoil_compensation = comp
 		var mind := FcBots.Mind.new()
@@ -208,7 +208,7 @@ func _brain() -> void:
 				var errs: Array[float] = []
 				var dirs: Array[float] = []
 				var spreads: Array[float] = []
-				var probe := func(shot: DotShot) -> void:
+				var probe := func(shot: GSShot) -> void:
 					if shot.attacker == ATTACKER:
 						var want := (ref.global_position + Vector3.UP * FcBots.chest_height() - shot.origin).normalized()
 						dirs.append(rad_to_deg(shot.direction.angle_to(want)))
@@ -220,9 +220,9 @@ func _brain() -> void:
 						mind.brain.settings.profile.aim_error = 0.0
 						mind.brain.settings.profile.aim_floor = 0.0
 					var cmds := {ATTACKER: FcBots.think(_game, bot, mind, tick, float(TICK_RATE)), TARGET: _strafe(i, strafing)}
-					var wc: DotWeaponCommand = cmds[ATTACKER][1]
-					if wc.is_pressed(DotWeaponCommand.BUTTON_ATTACK) and bot.is_alive():
-						var mv: DotFpsCommand = cmds[ATTACKER][0]
+					var wc: GSWeaponCommand = cmds[ATTACKER][1]
+					if wc.is_pressed(GSWeaponCommand.BUTTON_ATTACK) and bot.is_alive():
+						var mv: GSFpsCommand = cmds[ATTACKER][0]
 						var ideal := angles_to(bot.muzzle_position(), ref.global_position + Vector3.UP * FcBots.chest_height())
 						errs.append(Vector2(wrapf(mv.yaw - ideal.x, -180.0, 180.0), mv.pitch - ideal.y).length())
 					_game.tick(cmds)
@@ -251,7 +251,7 @@ func _brain() -> void:
 						_check(dirs[dirs.size() / 2] < 1.0, "%s: the bullets leave within a degree of the chest" % label, "median %.2f" % dirs[dirs.size() / 2])
 	FcBots.recoil_compensation = true
 	FcBots.recoil_control = -1.0
-	var _st1 := DotBotSettings.of(_game).set_value("styles", "1")
+	var _st1 := GSBotSettings.of(_game).set_value("styles", "1")
 	print("    hit rate without compensation %d of %d, with it %d of %d" % [landed[false], shots[false], landed[true], shots[true]])
 	_check(float(landed[true]) / maxf(float(shots[true]), 1.0) > 1.3 * float(landed[false]) / maxf(float(shots[false]), 1.0),
 		"compensating the recoil lifts the hit rate by a third or more")
@@ -295,14 +295,14 @@ func _crowd() -> void:
 				var a: Vector3 = h[h.size() - 1 - back]
 				var b: Vector3 = h[h.size() - 1 - back - 1]
 				var at := a.lerp(b, lag - float(back))
-				var shot := DotShot.make(&"crowd_probe", ATTACKER, _game._tick, 0)
+				var shot := GSShot.make(&"crowd_probe", ATTACKER, _game._tick, 0)
 				shot.origin = shooter.muzzle_position()
 				shot.direction = (at - shot.origin).normalized()
 				shot.pellets = [shot.direction]
 				shot.pellet_count = 1
 				shot.damage = 1.0
 				shot.max_range = 200.0
-				shot.damage_type = DotDamageType.new()
+				shot.damage_type = GSDamageType.new()
 				_game._unlag_shooter = ATTACKER
 				_game._resolve_shot(shot, float(_game._tick) - lag)
 				for d in shot.damages:

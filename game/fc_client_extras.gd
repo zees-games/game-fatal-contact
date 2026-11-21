@@ -39,17 +39,17 @@ const CHANNEL := "arena.client.extras"
 ## with a colon is a signal a window has to take back apart.
 signal said(speaker: String, text: String, kind: String)
 
-## What is carrying this conversation changed. See [DotChatManager.chat_state].
+## What is carrying this conversation changed. See [GSChatManager.chat_state].
 signal chat_relay_changed(relayed: bool)
 
 ## A chat line arrived and should be drawn.
 signal line_received(text: String)
 
 ## The server is changing map. Carries what to, so a HUD can say so.
-signal map_changing(map: DotMapDef)
+signal map_changing(map: GSMapDef)
 
 ## The world was replaced on this client.
-signal map_changed(map: DotMapDef)
+signal map_changed(map: GSMapDef)
 
 @export_group("Voice")
 
@@ -65,17 +65,17 @@ signal map_changed(map: DotMapDef)
 var bridge: FcNetBridge = null
 var game: FcGame = null
 
-var chat: DotChatClient = null
-var voice: DotVoiceManager = null
-var maps: DotMapSyncClient = null
+var chat: GSChatClient = null
+var voice: GSVoiceManager = null
+var maps: GSMapSyncClient = null
 
 var _talking: bool = false
 
 
 ## Builds all three and points the bridge's callables at them.
-func attach(p_bridge: FcNetBridge, p_game: FcGame) -> DotResult:
+func attach(p_bridge: FcNetBridge, p_game: FcGame) -> GSResult:
 	if p_bridge == null:
-		return DotResult.fail(DotError.CODE_STATE, "No bridge to attach to.")
+		return GSResult.fail(GSError.CODE_STATE, "No bridge to attach to.")
 
 	bridge = p_bridge
 	game = p_game
@@ -89,7 +89,7 @@ func attach(p_bridge: FcNetBridge, p_game: FcGame) -> DotResult:
 		_build_voice()
 		FcLoadTimeline.mark("extras: voice")
 
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 # --- Chat ------------------------------------------------------------------
@@ -102,28 +102,28 @@ func attach(p_bridge: FcNetBridge, p_game: FcGame) -> DotResult:
 ## back — and it detects a gap in the sequence, which is how a client knows it missed
 ## something rather than that nobody spoke.
 func _build_chat() -> void:
-	chat = DotChatClient.new()
+	chat = GSChatClient.new()
 	chat.name = "Chat"
-	chat.rules = DotChatRules.new()
+	chat.rules = GSChatRules.new()
 	chat.history_limit = 300
-	chat.register_as = DotChatClient.SERVICE
+	chat.register_as = GSChatClient.SERVICE
 	add_child(chat)
 
 	var started := chat.start()
 
 	if not started.ok:
-		DotLog.warn(CHANNEL, "the chat client did not start", {
+		GSLog.warn(CHANNEL, "the chat client did not start", {
 			"why": started.error.message
 		})
 		return
 
 	for id in [CH_ALL, CH_TEAM, CH_NEAR, CH_WHISPER]:
-		var channel := DotChatChannel.everyone()
+		var channel := GSChatChannel.everyone()
 		channel.id = id
 		chat.add_channel(channel)
 
 	chat.message_received.connect(
-		func(message: DotChatMessage, _channel: StringName) -> void:
+		func(message: GSChatMessage, _channel: StringName) -> void:
 			# A dot-chat line's kind is "say" on every channel; the channel is what makes
 			# it a team line, and "team" is what the chat box colours.
 			var kind := "team" if message.channel == CH_TEAM else message.kind_name()
@@ -135,7 +135,7 @@ func _build_chat() -> void:
 		func(expected: int, received: int) -> void:
 			# Worth a line. A gap means a reliable channel dropped something, which on
 			# a chat channel is a message somebody typed and nobody saw.
-			DotLog.info(CHANNEL, "a chat line was missed", {
+			GSLog.info(CHANNEL, "a chat line was missed", {
 				"expected": expected, "received": received
 			})
 	)
@@ -145,8 +145,8 @@ func _build_chat() -> void:
 ##
 ## [b]This is the entry point, and nothing called it.[/b] dot-chat's router decides who
 ## hears a line and then hands it to dot-server's chat manager to put on the wire — so
-## on the client it arrives on `DotClientLink.chat_received`, not through anything
-## dot-chat owns. A `DotChatClient` that nothing feeds is a history that stays empty
+## on the client it arrives on `GSClientLink.chat_received`, not through anything
+## dot-chat owns. A `GSChatClient` that nothing feeds is a history that stays empty
 ## and an unread count that stays zero, while chat works perfectly on screen.
 ##
 ## Found by the family's own detector: a public method whose name occurs once in its
@@ -169,12 +169,12 @@ func receive_wire(payload: Dictionary) -> void:
 			# been emitted. Returning here is what stops it being drawn twice.
 			return
 
-	# Not a shape `DotChatClient` knows. dot-server's own chat manager sends a simpler
+	# Not a shape `GSChatClient` knows. dot-server's own chat manager sends a simpler
 	# payload than dot-chat's wire, and a server running WITHOUT dot-chat sends only
 	# that — so the fallback is not a failure path, it is the other deployment.
 	#
 	# [b]It used to be unreachable, and that is what made every line in this game blank.[/b]
-	# `DotChatMessage.from_dictionary` gave every key a default, so dot-server's payload
+	# `GSChatMessage.from_dictionary` gave every key a default, so dot-server's payload
 	# parsed as a valid message with no text, no sender and no channel — `receive` returned
 	# ok and this fallback never ran. dot-chat refuses a dictionary with no `m` now; what
 	# is below is what actually draws chat on this client.
@@ -191,31 +191,31 @@ func receive_wire(payload: Dictionary) -> void:
 ## It carries the player's name as its sender and no text at all (dot-chat's `_presence`),
 ## so drawing it as `sender: text` put a bare "Guest 435:" in the chat box on every join,
 ## which read as a chat command echoed with its text stripped. It is drawn as a plain line,
-## worded by [method DotChatMessage.describe]. Only those two kinds: an ADMIN line's sender
+## worded by [method GSChatMessage.describe]. Only those two kinds: an ADMIN line's sender
 ## is the admin, and `describe()` would drop the name.
-static func speaker_of(message: DotChatMessage) -> String:
+static func speaker_of(message: GSChatMessage) -> String:
 	return "" if is_presence(message) else message.sender_name
 
 
 ## The text a dot-chat line is drawn with. See [method speaker_of].
-static func text_of(message: DotChatMessage) -> String:
+static func text_of(message: GSChatMessage) -> String:
 	return message.describe() if is_presence(message) else message.text
 
 
 ## A join or leave notice: a name and no text.
-static func is_presence(message: DotChatMessage) -> bool:
-	return message.kind in [DotChatMessage.Kind.JOIN, DotChatMessage.Kind.LEAVE]
+static func is_presence(message: GSChatMessage) -> bool:
+	return message.kind in [GSChatMessage.Kind.JOIN, GSChatMessage.Kind.LEAVE]
 
 
 # --- Voice -----------------------------------------------------------------
 
 func _build_voice() -> void:
-	var config := DotVoiceConfig.new()
+	var config := GSVoiceConfig.new()
 	config.capture_enabled = false
 	config.push_to_talk = push_to_talk
 	config.jitter_ms = 60.0
 
-	voice = DotVoiceManager.new()
+	voice = GSVoiceManager.new()
 	voice.name = "Voice"
 	voice.config = config
 	voice.config_file = ""
@@ -224,7 +224,7 @@ func _build_voice() -> void:
 	# everywhere on a server that decided who hears it by distance throws away the
 	# only thing that made the distance worth computing.
 	voice.positional_playback = true
-	voice.playback_root_ref = DotNodeRef.of_self()
+	voice.playback_root_ref = GSNodeRef.of_self()
 	add_child(voice)
 
 	# One encoded frame out, per capture. This was `frame_sent.connect(pass)`: the manager
@@ -242,7 +242,7 @@ func _build_voice() -> void:
 	# The menu's voice settings and the player's block list (sm) find it by this name, and
 	# the server's sv_voice_enable reaches it, with or without a microphone.
 	voice.publish_as_client()
-	var _following := voice.follow_cvars(DotRegistry.get_service(&"dot_client_link"))
+	var _following := voice.follow_cvars(GSRegistry.get_service(&"dot_client_link"))
 
 	# Where a relayed frame arrives. Set on the bridge rather than the link, because
 	# the bridge is the only file that names both a link and a game.
@@ -267,7 +267,7 @@ func set_talking(pressed: bool) -> void:
 		# Headless, no device, or the browser refused; update_talk says so once a press.
 		# `AudioServer` reports a working sound card when there is none, and only
 		# `get_driver_name()` says "Dummy".
-		DotLog.info(CHANNEL, "voice capture is not available", {"why": started.error.message})
+		GSLog.info(CHANNEL, "voice capture is not available", {"why": started.error.message})
 		return
 
 	_talking = pressed and voice.server_enabled
@@ -317,7 +317,7 @@ func pump_voice(_delta: float) -> void:
 ## Follows the server's map changes.
 ##
 ## [b]The session is not optional, and leaving it out looked exactly like a trust
-## refusal.[/b] `DotMapSyncClient` only accepts an announced map if it is either in the
+## refusal.[/b] `GSMapSyncClient` only accepts an announced map if it is either in the
 ## client's OWN catalogue at the same version, or delivered content whose scene
 ## resolves inside its own mount — and the second rule exists so a hostile host cannot
 ## name an arbitrary `res://` path. Built with no session, this client had no
@@ -337,7 +337,7 @@ func _build_maps() -> void:
 	session.world_ref = null
 	add_child(session)
 
-	maps = DotMapSyncClient.new()
+	maps = GSMapSyncClient.new()
 	maps.name = "MapSync"
 	# On, and the catalogue above is what makes it safe: a map this client does not
 	# know is accepted only if it is delivered content, which none of the built-in
@@ -348,15 +348,15 @@ func _build_maps() -> void:
 	maps.session = session
 	add_child(maps)
 
-	maps.fetching.connect(func(map: DotMapDef) -> void: map_changing.emit(map))
-	# One argument. `DotMapSyncClient.changed` carries the map and nothing else —
-	# unlike `DotMapSession.changed`, which carries the world as well. A two-argument
+	maps.fetching.connect(func(map: GSMapDef) -> void: map_changing.emit(map))
+	# One argument. `GSMapSyncClient.changed` carries the map and nothing else —
+	# unlike `GSMapSession.changed`, which carries the world as well. A two-argument
 	# handler bound to it is a runtime error on the first map change and on no other
 	# occasion.
 	maps.changed.connect(_on_map_loaded)
 	maps.change_aborted.connect(
 		func(map_id: StringName, reason: String) -> void:
-			DotLog.info(CHANNEL, "the map change was called off", {
+			GSLog.info(CHANNEL, "the map change was called off", {
 				"map": String(map_id), "why": reason
 			})
 	)
@@ -375,7 +375,7 @@ func _build_maps() -> void:
 ## A server announcing one of its delivered maps wins over a local import of the same id.
 ##
 ## [b]Because dot-map would refuse it otherwise[/b]: a client with fc-surf-dm-maps linked has
-## `surf_x` in its catalogue as a local def at `0.0.0-<hash>`, and `DotMapSyncClient` refuses
+## `surf_x` in its catalogue as a local def at `0.0.0-<hash>`, and `GSMapSyncClient` refuses
 ## an announce for a known LOCAL map at another version ("this client has a different
 ## version of that map"). The server named a pack, built from that pack's bytes, and is
 ## waiting for this client to fetch the same one — so the local entry is dropped and the
@@ -383,8 +383,8 @@ func _build_maps() -> void:
 ## The link stays on the disk; `FcImportedMaps.add_mounted` makes the mount win for that
 ## id once the pack is here.
 func _prefer_delivered(payload: Dictionary) -> void:
-	if not DotMapMessage.is_map_message(payload) \
-			or DotMapMessage.kind_of(payload) != DotMapMessage.KIND_ANNOUNCE:
+	if not GSMapMessage.is_map_message(payload) \
+			or GSMapMessage.kind_of(payload) != GSMapMessage.KIND_ANNOUNCE:
 		return
 
 	var announced: Variant = payload.get("map", {})
@@ -392,7 +392,7 @@ func _prefer_delivered(payload: Dictionary) -> void:
 	if not (announced is Dictionary) or maps.session == null or maps.session.catalogue == null:
 		return
 
-	var def := DotMapDef.from_dictionary(announced as Dictionary)
+	var def := GSMapDef.from_dictionary(announced as Dictionary)
 
 	if not FcMaps.is_delivered(def):
 		return
@@ -410,7 +410,7 @@ func _prefer_delivered(payload: Dictionary) -> void:
 ## `FcMap` being code rather than a scene buys: the server and the client both call
 ## `FcMap.by_id`, so the geometry cannot differ — and for a predicting client that
 ## is not a nicety, it is the condition under which prediction converges at all.
-func _on_map_loaded(map: DotMapDef) -> void:
+func _on_map_loaded(map: GSMapDef) -> void:
 	map_changed.emit(map)
 
 

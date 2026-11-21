@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcClientExtras := preload("../game/fc_client_extras.gd")
 const FcEvents := preload("../game/fc_events.gd")
@@ -20,9 +20,9 @@ const FcTestPorts := preload("test_ports.gd")
 ## one starts `published_net_host.tscn` (a dedicated server whose game names
 ## `gamemann/arena-surf-dm-maps-surf_10x_reloaded_fixed@1.2.3`, as cfg/content.yml's `maps:` does on a
 ## real one, and which changes to that map before anybody joins), then joins it as `FcClient`
-## does: a `DotClientLink` on ENet, the netcode, and `FcClientExtras`' map sync. The server's
+## does: a `GSClientLink` on ENet, the netcode, and `FcClientExtras`' map sync. The server's
 ## READY admit announces its map; the client fetches the pack from the CDN a standalone client uses
-## (`DotGameStandaloneContent.settings()`), checks it against the shipped trust list, mounts it in
+## (`GSGameStandaloneContent.settings()`), checks it against the shipped trust list, mounts it in
 ## its own cache and builds the level, with no `maps/imported` link anywhere.
 ##
 ## Not in `game.sh test`: it needs the network and the published packs. Skips (exit 0), saying so,
@@ -47,11 +47,11 @@ var _completed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
-func _build_client_net(side: Node, link: DotClientLink) -> Array:
+func _build_client_net(side: Node, link: GSClientLink) -> Array:
 	# What `FcClient._build_netcode` builds, minus everything that draws (as lossy_base does).
 	var game := FcGame.new()
 	game.name = "Game"
@@ -61,14 +61,14 @@ func _build_client_net(side: Node, link: DotClientLink) -> Array:
 	side.add_child(game)
 	game.setup(FcMap.dm_box())
 	var _following := game.follow_server_cvars(link)
-	var net := DotNetManager.new()
+	var net := GSNetManager.new()
 	net.name = "Net"
 	net.is_server = false
 	net.service_scope = &"published_net"
 	net.local_peer_id = side.multiplayer.get_unique_id()
 	net.auto_tick = false
 	net.config_file = ""
-	var cfg := DotNetConfig.new()
+	var cfg := GSNetConfig.new()
 	cfg.tick_rate = game.tick_rate
 	cfg.snapshot_rate = FcGame.NET_SNAPSHOT_RATE
 	cfg.enable_prediction = true
@@ -88,14 +88,14 @@ func _build_client_net(side: Node, link: DotClientLink) -> Array:
 	return [game, net, bridge]
 
 
-func _client_cloud(settings: Dictionary, shipped: Variant) -> DotCloudClient:
-	var config := DotCloudConfig.new()
+func _client_cloud(settings: Dictionary, shipped: Variant) -> GSCloudClient:
+	var config := GSCloudConfig.new()
 	config.side = "client"
 	config.cache_dir = ROOT.path_join("client_cache")
 	config.require_signed_manifests = true
 	config.trusted_keys = (shipped as Dictionary)["trusted_keys"] if shipped is Dictionary else []
-	# What DotGameStandaloneContent.install builds, with a cache of its own.
-	var cloud := DotCloudClient.new()
+	# What GSGameStandaloneContent.install builds, with a cache of its own.
+	var cloud := GSCloudClient.new()
 	cloud.name = "Cloud"
 	cloud.host_role = "client"
 	cloud.config = config
@@ -105,12 +105,12 @@ func _client_cloud(settings: Dictionary, shipped: Variant) -> DotCloudClient:
 	cloud.manifest_url_template = "{base}/{id}/{version}/manifest.json"
 	cloud.manifest_url_fallbacks = PackedStringArray(["{base}/{id}/manifest.json"])
 	add_child(cloud)
-	DotRegistry.register(&"dot_cloud_client", cloud)
+	GSRegistry.register(&"dot_cloud_client", cloud)
 	await get_tree().process_frame
 	return cloud
 
 
-func _check_client_map(game: FcGame, bridge: FcNetBridge, cloud: DotCloudClient, mounted_before: bool, session: Array, gone: Array) -> void:
+func _check_client_map(game: FcGame, bridge: FcNetBridge, cloud: GSCloudClient, mounted_before: bool, session: Array, gone: Array) -> void:
 	var map := game.map
 	_check(map != null and map.id == MAP and map.is_imported(), "the server's announce puts the client on %s" % MAP,
 		"on %s%s" % [String(map.id) if map != null else "nothing", (", link ended: " + gone[0]) if gone[0] != "" else ""])
@@ -149,7 +149,7 @@ func _connect_client(port: int, enet_port: int) -> Array:
 	side.name = "Client"
 	add_child(side)
 	get_tree().set_multiplayer(MultiplayerAPI.create_default_interface(), side.get_path())
-	var link := DotClientLink.new()
+	var link := GSClientLink.new()
 	link.name = "Server"
 	link.player_name = "Surfer"
 	link.transport_preference = "udp"
@@ -165,13 +165,13 @@ func _connect_client(port: int, enet_port: int) -> Array:
 
 func _run() -> void:
 	print("FC: a real client joins a server on a published combat surf map and builds it from the pack")
-	var settings := DotGameStandaloneContent.settings()
+	var settings := GSGameStandaloneContent.settings()
 	var origin := String((settings["urls"] as PackedStringArray)[0])
 	if not await _cdn_up(origin):
 		get_tree().quit(0)
 		return
 
-	DotPaths.remove_tree(ROOT)
+	GSPaths.remove_tree(ROOT)
 	DirAccess.make_dir_recursive_absolute(ROOT)
 	_status = ProjectSettings.globalize_path(ROOT.path_join("host.json"))
 	var port := FcTestPorts.free_port()
@@ -202,26 +202,26 @@ func _run() -> void:
 	_entered += 1
 	print("\n-- a client with its own dot-cloud joins over ENet and follows it onto the map")
 	var shipped: Variant = JSON.parse_string(FileAccess.get_file_as_string(String(settings["config_file"])))
-	var cloud: DotCloudClient = await _client_cloud(settings, shipped)
+	var cloud: GSCloudClient = await _client_cloud(settings, shipped)
 	var config := cloud.config
 	var mounted_before := cloud.is_mounted(StringName("%s/%s" % [OWNER, PACK]), VERSION)
 
 	var joined := _connect_client(port, int(h.get("enet_port", port)))
 	var side: Node = joined[0]
-	var link: DotClientLink = joined[1]
+	var link: GSClientLink = joined[1]
 	var spawned: Array = joined[2]
 	var gone: Array = joined[3]
 	await _until(func() -> bool:
-		return spawned[0] or gone[0] != "" or link.phase == DotClientLink.Phase.FAILED, 30.0)
+		return spawned[0] or gone[0] != "" or link.phase == GSClientLink.Phase.FAILED, 30.0)
 	if not _check(spawned[0], "the client joins over ENet",
 			"%s %s" % [gone[0], str(link.last_error) if link.last_error != null else ""]):
 		await _finish()
 		return
-	DotGameClient.report_cover(link, false)
+	GSGameClient.report_cover(link, false)
 
 	var built := _build_client_net(side, link)
 	var game: FcGame = built[0]
-	var net: DotNetManager = built[1]
+	var net: GSNetManager = built[1]
 	var bridge: FcNetBridge = built[2]
 	var session := [0]
 	bridge.hello_received.connect(func(info: Dictionary) -> void: session[0] = int(info["session_id"]))
@@ -230,7 +230,7 @@ func _run() -> void:
 	extras.name = "Extras"
 	extras.voice_enabled = false
 	side.add_child(extras)
-	var attached: DotResult = extras.attach(bridge, game)
+	var attached: GSResult = extras.attach(bridge, game)
 	_check(attached.ok, "FcClientExtras attaches its map sync", str(attached.error))
 	net.start()
 	bridge.send_request(FcEvents.Ask.READY)
@@ -253,7 +253,7 @@ func _finish() -> void:
 		await _until(func() -> bool: return not OS.is_process_running(_host_pid), 10.0)
 		if OS.is_process_running(_host_pid):
 			OS.kill(_host_pid)
-	DotPaths.remove_tree(ROOT)
+	GSPaths.remove_tree(ROOT)
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 

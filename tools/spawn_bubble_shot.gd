@@ -1,11 +1,11 @@
 extends SceneTree
 
-## Spawn-protection bubble (DotSpawnBubble3D) round a stand-in body, beside an unprotected one.
+## Spawn-protection bubble (GSSpawnBubble3D) round a stand-in body, beside an unprotected one.
 ## xvfb-run -a godot --path . --resolution 1280x720 --script res://tools/spawn_bubble_shot.gd -- [out.png]
 
 var _ticks := 0
-## Frame sequence after the still (GS_SHOT_FRAMES): the bubble animates. See DotShotSeq.
-var _clip := DotShotSeq.new()
+## Frame sequence after the still (GS_SHOT_FRAMES): the bubble animates. See GSShotSeq.
+var _clip := GSShotSeq.new()
 var _out := "screenshots/spawn_bubble.png"
 
 
@@ -50,7 +50,7 @@ func _initialize() -> void:
 	root.add_child(env)
 	var _plain := _body(-1.6, Color(0.8, 0.3, 0.25))
 	var prot := _body(0.0, Color(0.25, 0.4, 0.85))
-	var bubble := DotSpawnBubble3D.new()
+	var bubble := GSSpawnBubble3D.new()
 	prot.add_child(bubble)
 	bubble.sync(true)
 	var cam := Camera3D.new()

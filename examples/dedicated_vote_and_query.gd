@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcBrowser := preload("../game/fc_browser.gd")
 const FcGame := preload("../game/fc_game.gd")
@@ -12,7 +12,7 @@ const FcTestPorts := preload("test_ports.gd")
 const FcVote := preload("../game/fc_vote.gd")
 const FcVoteSource := preload("../game/fc_vote_source.gd")
 
-## A real [DotServer], listening, with Fatal Contact loaded into it; exits non-zero on any failure.
+## A real [GSServer], listening, with Fatal Contact loaded into it; exits non-zero on any failure.
 ## Unlike `headless_match` (an [FcGame] driven directly) this binds a port, loads
 ## [FcModule] and exercises its console commands, cvar, sessions and unload. No client connects.
 
@@ -24,7 +24,7 @@ var _entered := 0
 var _finished := 0
 
 
-var _server: DotServer = null
+var _server: GSServer = null
 var _game: FcGame = null
 
 
@@ -80,7 +80,7 @@ func _test_vote_wiring(module: FcModule, options: Array) -> void:
 	)
 
 	# A refusal is a legitimate answer; the point is that the clock did not latch.
-	var opened := module.vote.director.open_vote(DotVoteClock.REASON_MANUAL)
+	var opened := module.vote.director.open_vote(GSVoteClock.REASON_MANUAL)
 	_check(
 		opened.ok or opened.error != null,
 		"a vote can be asked for and answers either way",
@@ -148,8 +148,8 @@ func _test_maps_and_vote() -> void:
 	_check(menu_half != null and _server.console.find_command("mapmenu") != null
 		and _server.console.find_cvar("sv_map_menu_flag").get_string() == "generic",
 		"the map menu is there, staff-only by default")
-	var menu_player := DotCmdContext.new()
-	menu_player.source = DotCmdContext.Source.CHAT
+	var menu_player := GSCmdContext.new()
+	menu_player.source = GSCmdContext.Source.CHAT
 	var offered: Dictionary = menu_half.call("offer", menu_player) if menu_half != null else {"maps": []}
 	var rows: Array = offered["maps"]
 	_check(rows.filter(func(r: Dictionary) -> bool: return r["mode"] == "Map").size() > 1
@@ -161,8 +161,8 @@ func _test_maps_and_vote() -> void:
 		if row["mode"] == "Map" and not bool(row["current"]):
 			target = StringName(str(row["id"]))
 			break
-	var staff := DotCmdContext.new()
-	staff.source = DotCmdContext.Source.CHAT
+	var staff := GSCmdContext.new()
+	staff.source = GSCmdContext.Source.CHAT
 	staff.permissions = PackedStringArray(["generic"])
 	# The adopted player has no client to say it has the map, so it is off the sync host for the
 	# change and back on after. Not awaited directly: a hung change would say nothing.
@@ -250,9 +250,9 @@ func _test_maps_and_vote() -> void:
 	# A row from a list opened on a map with team spawns, chosen after a change to dm_pit
 	# (none): refused, saying why. The director's current map is swapped for the check
 	# only; nothing awaits in between, and the refusal changes nothing.
-	var director_here: DotMapDef = module.maps.current
+	var director_here: GSMapDef = module.maps.current
 	module.maps.current = module.maps.session.catalogue.get_map(&"dm_pit")
-	var pit_def: DotMapDef = module.maps.current
+	var pit_def: GSMapDef = module.maps.current
 	module.maps.current = director_here
 	_check(FcMaps.supports_mode(pit_def, FcModes.by_id(&"tdm")),
 		"a map with no team spawns of its own still hosts a team mode (its spawns are split into halves)")
@@ -267,7 +267,7 @@ func _test_maps_and_vote() -> void:
 	if _check(session != null, "the adopted player is still here"):
 		var replies := PackedStringArray()
 		var ctx := session.make_context(
-			"nominate", PackedStringArray(["dm_atrium"]), DotCmdContext.Source.CHAT,
+			"nominate", PackedStringArray(["dm_atrium"]), GSCmdContext.Source.CHAT,
 			func(line: String) -> void: replies.append(line)
 		)
 		_server.console.execute("nominate dm_atrium", ctx)
@@ -307,7 +307,7 @@ func _test_maps_and_vote() -> void:
 
 	var was_min := module.vote.director.rules.min_players_to_vote
 	module.vote.director.rules.min_players_to_vote = 0
-	var started := module.vote.director.start_vote(DotVoteClock.REASON_MANUAL)
+	var started := module.vote.director.start_vote(GSVoteClock.REASON_MANUAL)
 	module.vote.director.rules.min_players_to_vote = was_min
 
 	_check(
@@ -333,7 +333,7 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 	print("")
 	print("finish_round waits for a live round, not warmup")
 	var module := _server.modules.get_module("arena") as FcModule
-	var director: DotVoteDirector = module.vote.director if module != null and module.vote != null else null
+	var director: GSVoteDirector = module.vote.director if module != null and module.vote != null else null
 	var hook: Variant = director.get("round_in_progress_fn") if director != null else null
 	var hooked := hook is Callable and (hook as Callable).is_valid()
 
@@ -343,21 +343,21 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 			_check(false, "finish_round %s: no hook to try" % what)
 		return
 
-	var match_node: DotMatch = _game.match_node
+	var match_node: GSMatch = _game.match_node
 	var was := match_node.state
-	match_node.state = DotMatch.State.WARMUP
+	match_node.state = GSMatch.State.WARMUP
 	var warm_applied := []
 	var warm := _finish_round_probe(hook, warm_applied)
 	_check(warm_applied == [&"b"] and not warm.is_finishing_round(),
 		"in warmup a time limit with finish_round changes at once", str(warm_applied))
 
-	match_node.state = DotMatch.State.LIVE
+	match_node.state = GSMatch.State.LIVE
 	var live_applied := []
 	var live := _finish_round_probe(hook, live_applied)
 	_check(live_applied.is_empty() and live.is_finishing_round(),
 		"during a live round it waits for the round", str(live_applied))
 
-	match_node.state = DotMatch.State.INTERMISSION
+	match_node.state = GSMatch.State.INTERMISSION
 	live.advance(0.1)
 	_check(live_applied == [&"b"], "and the round ending is the change", str(live_applied))
 
@@ -369,27 +369,27 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 
 ## A director under `time_up: finish_round` carrying [param hook], its clock run out with a
 ## winner already decided: what dot-vote's own suite builds, with the game's answer in it.
-func _finish_round_probe(hook: Callable, applied: Array) -> DotVoteDirector:
-	var source := DotVoteListSource.new()
-	var _a := source.add(DotVoteChoice.of(&"a", "A"))
-	var _b := source.add(DotVoteChoice.of(&"b", "B"))
-	source.apply_fn = func(id: StringName) -> DotResult:
+func _finish_round_probe(hook: Callable, applied: Array) -> GSVoteDirector:
+	var source := GSVoteListSource.new()
+	var _a := source.add(GSVoteChoice.of(&"a", "A"))
+	var _b := source.add(GSVoteChoice.of(&"b", "B"))
+	source.apply_fn = func(id: StringName) -> GSResult:
 		applied.append(id)
-		return DotResult.success(id)
+		return GSResult.success(id)
 
-	var rules := DotVoteRules.new()
+	var rules := GSVoteRules.new()
 	rules.apply_delay_sec = 0.0
 	rules.duration_sec = 100.0
 	rules.vote_lead_sec = 40.0
 	rules.vote_duration_sec = 5.0
 	rules.include_extend = false
-	rules.apply = DotVoteRules.Apply.END_OF_TIME
+	rules.apply = GSVoteRules.Apply.END_OF_TIME
 	rules.cooldown = 0
-	rules.time_up = DotVoteRules.TimeUp.FINISH_ROUND
+	rules.time_up = GSVoteRules.TimeUp.FINISH_ROUND
 	# For ever: only the hook may release it.
 	rules.finish_round_max_sec = 0.0
 
-	var probe := DotVoteDirector.new()
+	var probe := GSVoteDirector.new()
 	probe.rules = rules
 	probe.source = source
 	probe.register_service = false
@@ -425,7 +425,7 @@ func _test_query() -> void:
 	if module == null:
 		return
 
-	var snapshot := DotQuerySnapshot.new()
+	var snapshot := GSQuerySnapshot.new()
 
 	for provider in module._query_providers:
 		provider.call("_contribute", snapshot)
@@ -448,7 +448,7 @@ func _test_query() -> void:
 	_end()
 
 
-## dot-browser asking a real [DotServer]: a real UDP round trip between two objects in one
+## dot-browser asking a real [GSServer]: a real UDP round trip between two objects in one
 ## process, the shape a player opening a server list is in.
 func _test_browser() -> void:
 	_begin()
@@ -486,7 +486,7 @@ func _test_browser() -> void:
 	var added := browser.add("127.0.0.1:%d" % PORT, query_port)
 	_check(added.ok, "a server can be added by address", str(added.error))
 
-	var refreshed: DotResult = await browser.refresh()
+	var refreshed: GSResult = await browser.refresh()
 	_check(refreshed.ok, "and asked", str(refreshed.error))
 
 	var entries := browser.browser.entries()
@@ -576,7 +576,7 @@ func _test_client_spawn() -> void:
 
 	# `adopt_session` is for exactly this: a test that needs the session table populated without
 	# a socket. A participant without a session is invisible to the roster, slots and queries.
-	var session := DotClientSession.new()
+	var session := GSClientSession.new()
 	session.peer_id = 4242
 	session.userid = 77
 	session.display_name = "Ada"
@@ -618,11 +618,11 @@ func _test_client_spawn() -> void:
 	# **The map sync admits a peer at its READY, and that admission names the map.** `add_peer`
 	# only enrolls for the NEXT change, leaving a joiner on dm_box (4773e55). This is the
 	# module's own path, seat then READY, read off the link.
-	var sync: DotMapSyncHost = module.maps.sync if module.maps != null else null
+	var sync: GSMapSyncHost = module.maps.sync if module.maps != null else null
 	var announced: Array = []
 	if link != null:
 		link.loopback_map = func(_m: StringName, peer: int, payload: Dictionary) -> void:
-			if peer == 4242 and DotMapMessage.kind_of(payload) == DotMapMessage.KIND_ANNOUNCE:
+			if peer == 4242 and GSMapMessage.kind_of(payload) == GSMapMessage.KIND_ANNOUNCE:
 				announced.append(str((payload.get("map", {}) as Dictionary).get("id", "")))
 	_check(sync != null and not sync.peers.has(4242),
 		"a seated peer that has not said READY is not on the map sync yet",

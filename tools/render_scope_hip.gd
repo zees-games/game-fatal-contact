@@ -36,7 +36,7 @@ func _run() -> void:
 	var roles := wanted.split(",") if wanted != "" else PackedStringArray(["sniper", "marksman", "charge_rifle"])
 	for role in roles:
 		var id := StringName(role)
-		var def: DotWeaponDef = AwWeaponCatalogue.table().get(id)
+		var def: GSWeaponDef = AwWeaponCatalogue.table().get(id)
 		if def == null:
 			print("no def %s" % role)
 			continue

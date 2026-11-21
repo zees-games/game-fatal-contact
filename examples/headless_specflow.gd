@@ -16,25 +16,25 @@ const CHECKS := 24
 
 
 
-var _admin: DotClientSession = null
-var _player: DotClientSession = null
+var _admin: GSClientSession = null
+var _player: GSClientSession = null
 
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
 func _run() -> void:
 	print("game-fatal-contact: Spectate and Play from the team menu on a dedicated server")
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	if await _build():
 		await _test_spectate_and_back()
 		await _test_bot_fill()
 		await _test_refusals()
 	_teardown()
-	DotPaths.remove_tree(SERVER_DIR)
+	GSPaths.remove_tree(SERVER_DIR)
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
@@ -52,8 +52,8 @@ func _build() -> bool:
 
 
 ## Runs [param ticks] server ticks with Ada holding [param move].
-func _step(ticks: int, move: DotFpsCommand = null) -> void:
-	var command := move if move != null else DotFpsCommand.new()
+func _step(ticks: int, move: GSFpsCommand = null) -> void:
+	var command := move if move != null else GSFpsCommand.new()
 	var behaviour := _module.bridge.behaviour_for(73)
 
 	for _i in range(ticks):
@@ -63,8 +63,8 @@ func _step(ticks: int, move: DotFpsCommand = null) -> void:
 		_module.bridge.server_tick(_tick)
 
 
-func _move(forward: float, buttons: int = 0, yaw: float = 0.0) -> DotFpsCommand:
-	var command := DotFpsCommand.new()
+func _move(forward: float, buttons: int = 0, yaw: float = 0.0) -> GSFpsCommand:
+	var command := GSFpsCommand.new()
 	command.move = Vector2(0.0, forward)
 	command.yaw = yaw
 	command.buttons = buttons

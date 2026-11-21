@@ -34,7 +34,7 @@ func _run() -> void:
 	await _probe()
 	_link.disconnect_from_server("done")
 	await get_tree().create_timer(0.3).timeout
-	DotPaths.remove_tree(DATA)
+	GSPaths.remove_tree(DATA)
 	print("floatgun: server floats=%d of %d checks, client floats=%d of %d checks, stray guns=%d of %d checks (%d guns hidden mesh by mesh)" % [_floats[0], _checked[0], _floats[1], _checked[1], _guns[1], _guns[0], _gun_unseen])
 	get_tree().quit(1 if _floats[0] + _floats[1] + _guns[1] > 0 else 0)
 
@@ -46,7 +46,7 @@ func _setup_game() -> void:
 
 
 func _watch_server() -> void:
-	var drops: DotWeaponDrops = _game.weapon_drops
+	var drops: GSWeaponDrops = _game.weapon_drops
 	drops.settled.connect(func(id: int, _at: Transform3D) -> void:
 		var e: Dictionary = drops.get("_entries").get(id, {})
 		_how[id] = "grounded" if e.has("ground_in") else ("plain-rest" if not _how.has(id) else "ground-moved"))
@@ -70,7 +70,7 @@ func _probe() -> void:
 			_check_guns(cg, t)
 
 
-func _check_side(drops: DotWeaponDrops, side: String, t: float) -> void:
+func _check_side(drops: GSWeaponDrops, side: String, t: float) -> void:
 	var entries: Dictionary = drops.get("_entries")
 	for id: int in entries:
 		var e: Dictionary = entries[id]
@@ -161,7 +161,7 @@ func _report_gun(what: String, at: Vector3, detail: String, t: float) -> void:
 
 
 ## How far the physics would push [param body] out of the world it sits in (0 when clear or only touching).
-func _embedded(body: RigidBody3D, drops: DotWeaponDrops) -> float:
+func _embedded(body: RigidBody3D, drops: GSWeaponDrops) -> float:
 	var q := PhysicsTestMotionParameters3D.new()
 	q.from = body.global_transform
 	q.motion = Vector3.ZERO

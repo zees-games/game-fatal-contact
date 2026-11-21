@@ -54,22 +54,22 @@ class Track:
 	var last_pos: Vector3 = Vector3.INF
 	var pre_pos: Vector3 = Vector3.ZERO
 	var pre_vel: Vector3 = Vector3.ZERO
-	var pre_state: DotFpsState = null
+	var pre_state: GSFpsState = null
 	var ticks: int = 0
 	## The island the rider is coming to rest on and for how many ticks, while a ride ends.
 	var landing: int = -1
 	var settled: int = 0
 
 var game: Object = null
-var demo: DotBotDemoConfig = null
-var ride_config: DotBotRideConfig = null
-var schema: DotBotDemoSchema = null
-var recorder: DotBotDemoRecorder = null
-var store: DotBotDemoStore = null
-var harvest: DotBotRideHarvest = null
-var book: DotBotRideBook = null
-var rng: DotRandomStream = null
-var nav: DotBotNav = null
+var demo: GSBotDemoConfig = null
+var ride_config: GSBotRideConfig = null
+var schema: GSBotDemoSchema = null
+var recorder: GSBotDemoRecorder = null
+var store: GSBotDemoStore = null
+var harvest: GSBotRideHarvest = null
+var book: GSBotRideBook = null
+var rng: GSRandomStream = null
+var nav: GSBotNav = null
 var map: Object = null
 var tick_rate: float = float(FcContent.TICK_RATE)
 
@@ -85,9 +85,9 @@ var _tracks: Dictionary = {}
 var _courses: Dictionary = {}
 var _floors: Dictionary = {}
 var _replay_course: ReplayCourse = null
-var _sim: DotFpsSimulator = null
+var _sim: GSFpsSimulator = null
 var _dirty: Dictionary = {}
-var _job: DotBotRideHarvestJob = null
+var _job: GSBotRideHarvestJob = null
 var _job_key: String = ""
 var _job_loaded: Array = []
 var _busy: bool = false
@@ -98,16 +98,16 @@ var _attached: bool = false
 
 
 ## Cap and target are the recorder's own, so one setting says both how many rides a key keeps and when recordings outrank seeds.
-static func ride_config_for(config: DotBotDemoConfig) -> DotBotRideConfig:
-	var out := DotBotRideConfig.new()
+static func ride_config_for(config: GSBotDemoConfig) -> GSBotRideConfig:
+	var out := GSBotRideConfig.new()
 	out.cap = config.cap
 	out.target = config.target
 	return out
 
 
 ## The `ride` schema: where the player is and how fast, and the command the server applied.
-static func ride_schema() -> DotBotDemoSchema:
-	var s := DotBotDemoSchema.make(KIND)
+static func ride_schema() -> GSBotDemoSchema:
+	var s := GSBotDemoSchema.make(KIND)
 	s.add_observation("position", 3, 100.0).add_observation("velocity", 3, 20.0)
 	s.add_action("yaw", 1, 180.0).add_action("move", 2, 1.0).add_action("jump", 1, 1.0, true)
 	s.keep_outcomes = PackedStringArray(["landed"])
@@ -115,19 +115,19 @@ static func ride_schema() -> DotBotDemoSchema:
 
 
 ## Builds the recorder over [param p_store] for [param p_game] (a server's game); [param p_config] is the layered `bot_record_*` config.
-func setup(p_game: Object, p_config: DotBotDemoConfig, p_store: DotBotDemoStore, p_tick_rate: float) -> DotResult:
+func setup(p_game: Object, p_config: GSBotDemoConfig, p_store: GSBotDemoStore, p_tick_rate: float) -> GSResult:
 	game = p_game
 	demo = p_config
 	store = p_store
 	tick_rate = p_tick_rate
 	ride_config = ride_config_for(demo)
-	var layered := DotBotRideConfig.new()
+	var layered := GSBotRideConfig.new()
 	if layered.load_layered("").ok:
 		ride_config.piloted = layered.piloted
 		ride_config.pilot_tracking = layered.pilot_tracking
 		ride_config.pilot_horizon = layered.pilot_horizon
 	schema = ride_schema()
-	recorder = DotBotDemoRecorder.new(demo, store)
+	recorder = GSBotDemoRecorder.new(demo, store)
 	recorder.is_server = true
 	recorder.tick_rate = tick_rate
 	recorder.include_fn = func(subject: Variant) -> bool:
@@ -136,14 +136,14 @@ func setup(p_game: Object, p_config: DotBotDemoConfig, p_store: DotBotDemoStore,
 	var registered := recorder.register(schema)
 	if not registered.ok:
 		return registered
-	book = DotBotRideBook.new(ride_config)
-	rng = DotRandomStream.new(ride_config.seed)
+	book = GSBotRideBook.new(ride_config)
+	rng = GSRandomStream.new(ride_config.seed)
 	_replay_course = ReplayCourse.new()
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## Keys the recorder and the book to the game's current map, with its mesh once baked.
-func set_map(p_map: Object, p_nav: DotBotNav) -> void:
+func set_map(p_map: Object, p_nav: GSBotNav) -> void:
 	map = p_map
 	nav = p_nav
 	_tracks.clear()
@@ -228,7 +228,7 @@ func before(id: int, player: Object) -> void:
 
 ## [method before] for a tick whose [method begin_tick] answered true.
 func before_synced(id: int, player: Object) -> void:
-	var state: DotFpsState = player.controller.state
+	var state: GSFpsState = player.controller.state
 	var t := _track(id)
 	t.pre_pos = state.position
 	t.pre_vel = state.velocity
@@ -237,11 +237,11 @@ func before_synced(id: int, player: Object) -> void:
 
 
 ## After [param player] simulated [param command] on [param tick]: begins, extends, ends or drops a ride.
-func after(id: int, player: Object, command: DotFpsCommand, tick: int) -> void:
+func after(id: int, player: Object, command: GSFpsCommand, tick: int) -> void:
 	if not is_on():
 		return
 	var t := _track(id)
-	var state: DotFpsState = player.controller.state
+	var state: GSFpsState = player.controller.state
 	if player.has_meta(&"bot"):
 		_tracks.erase(id)
 		return
@@ -269,10 +269,10 @@ func after(id: int, player: Object, command: DotFpsCommand, tick: int) -> void:
 			_extend(id, t, state, command, tick, grounded, here)
 
 
-func _extend(id: int, t: Track, state: DotFpsState, command: DotFpsCommand, tick: int, grounded: bool, here: int) -> void:
+func _extend(id: int, t: Track, state: GSFpsState, command: GSFpsCommand, tick: int, grounded: bool, here: int) -> void:
 	t.ticks += 1
 	var obs := PackedFloat32Array([t.pre_pos.x, t.pre_pos.y, t.pre_pos.z, t.pre_vel.x, t.pre_vel.y, t.pre_vel.z])
-	var act := PackedFloat32Array([command.yaw, command.move.x, command.move.y, 1.0 if command.is_pressed(DotFpsCommand.BUTTON_JUMP) else 0.0])
+	var act := PackedFloat32Array([command.yaw, command.move.x, command.move.y, 1.0 if command.is_pressed(GSFpsCommand.BUTTON_JUMP) else 0.0])
 	var _kept := recorder.sample(id, obs, act, tick)
 	var bounds: AABB = map.get("bounds")
 	var lost := state.position.y < bounds.position.y - FcSurf.FALL_OUT_DEPTH or float(t.ticks) / tick_rate > FcSurf.RIDE_SECONDS
@@ -350,7 +350,7 @@ func canonical(island: int) -> int:
 # --- The host the harvest replays on --------------------------------------------------
 
 ## The episode's start as a state, and its course made current; null when the key names no island.
-func replay_start(ep: DotBotDemoEpisode) -> Variant:
+func replay_start(ep: GSBotDemoEpisode) -> Variant:
 	var course := course_for_key(ep.key)
 	if course == null:
 		return null
@@ -359,7 +359,7 @@ func replay_start(ep: DotBotDemoEpisode) -> Variant:
 
 
 ## What only Fatal Contact knows about [param ep]'s edge, for the harvest's pilot: the reference yaw and score of the course a bot rides it on.
-func pilot_setup(pilot: DotBotSurfPilot, ep: DotBotDemoEpisode) -> void:
+func pilot_setup(pilot: GSBotSurfPilot, ep: GSBotDemoEpisode) -> void:
 	var course := course_for_key(ep.key)
 	if course == null:
 		return
@@ -374,23 +374,23 @@ func reference_yaw_for(key: String) -> float:
 
 
 ## The command for one recorded [param action].
-func replay_command(sim: Variant, action: PackedFloat32Array, _state: Variant) -> DotFpsCommand:
+func replay_command(sim: Variant, action: PackedFloat32Array, _state: Variant) -> GSFpsCommand:
 	return sim.command(action[ACTION_YAW], Vector2(action[ACTION_MOVE], action[ACTION_MOVE + 1]), action[ACTION_JUMP] > 0.5)
 
 
 ## Landed on the recorded island, fell out or hit a pit, or still going.
-func landing(state: Variant, _event: int, _ep: DotBotDemoEpisode) -> int:
+func landing(state: Variant, _event: int, _ep: GSBotDemoEpisode) -> int:
 	match _replay_course.current.event_at(state):
-		DotBotSurfCourse.EVENT_GOAL:
-			return DotBotRideHarvest.LANDED
-		DotBotSurfCourse.EVENT_PIT, DotBotSurfCourse.EVENT_BELOW:
-			return DotBotRideHarvest.FAILED
-	return DotBotRideHarvest.GOING
+		GSBotSurfCourse.EVENT_GOAL:
+			return GSBotRideHarvest.LANDED
+		GSBotSurfCourse.EVENT_PIT, GSBotSurfCourse.EVENT_BELOW:
+			return GSBotRideHarvest.FAILED
+	return GSBotRideHarvest.GOING
 
 
 ## [param state] moved up to [param metres] sideways and its speed changed by up to [param speed].
-func perturb(state: Variant, stream: DotRandomStream, metres: float, speed: float) -> Variant:
-	var s: DotFpsState = (state as DotFpsState).duplicate_state()
+func perturb(state: Variant, stream: GSRandomStream, metres: float, speed: float) -> Variant:
+	var s: GSFpsState = (state as GSFpsState).duplicate_state()
 	s.position += Vector3(stream.next_range_f(-metres, metres), 0.0, stream.next_range_f(-metres, metres))
 	var flat := Vector3(s.velocity.x, 0.0, s.velocity.z)
 	if flat.length() > 0.01:
@@ -422,15 +422,15 @@ func course_for_key(key: String) -> FcSurf.EdgeCourse:
 
 
 ## A harvest over [param p_sim], whose oracle follows the episode being replayed.
-func make_harvest(p_sim: DotFpsSimulator) -> DotBotRideHarvest:
+func make_harvest(p_sim: GSFpsSimulator) -> GSBotRideHarvest:
 	p_sim.oracle = _replay_course.event_at
 	_sim = p_sim
-	harvest = DotBotRideHarvest.new(ride_config, schema, p_sim, self)
+	harvest = GSBotRideHarvest.new(ride_config, schema, p_sim, self)
 	return harvest
 
 
 ## The harvest on [param controller]'s motor over the map's brushes, as an edge's veto runs.
-func harvest_on(controller: DotFpsController) -> DotBotRideHarvest:
+func harvest_on(controller: GSFpsController) -> GSBotRideHarvest:
 	var surf := FcSurf.new()
 	surf.map = map
 	surf.nav = nav
@@ -445,7 +445,7 @@ func harvest_on(controller: DotFpsController) -> DotBotRideHarvest:
 # --- State as plain values ------------------------------------------------------------
 
 ## Every field of the motor state as JSON-safe values.
-static func encode_state(state: DotFpsState) -> Dictionary:
+static func encode_state(state: GSFpsState) -> Dictionary:
 	var out := {}
 	for prop: Dictionary in state.get_property_list():
 		if int(prop["usage"]) & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
@@ -464,8 +464,8 @@ static func encode_state(state: DotFpsState) -> Dictionary:
 
 
 ## The state [method encode_state] wrote.
-static func decode_state(data: Dictionary) -> DotFpsState:
-	var state := DotFpsState.new()
+static func decode_state(data: Dictionary) -> GSFpsState:
+	var state := GSFpsState.new()
 	for name: String in data:
 		var v: Variant = data[name]
 		var have: Variant = state.get(name)
@@ -508,11 +508,11 @@ func _start_job() -> void:
 	_busy = true
 	var key: String = _dirty.keys()[0]
 	_dirty.erase(key)
-	var loaded: DotResult = await store.load(recorder.map_id, recorder.map_version, KIND, key, 0)
+	var loaded: GSResult = await store.load(recorder.map_id, recorder.map_version, KIND, key, 0)
 	if loaded.ok:
-		var todo := DotBotRideHarvest.unchecked(loaded.value)
+		var todo := GSBotRideHarvest.unchecked(loaded.value)
 		var players: Array = game.call(&"players")
-		var made: DotBotRideHarvest = harvest_on(players[0].controller) if not players.is_empty() and not todo.is_empty() else null
+		var made: GSBotRideHarvest = harvest_on(players[0].controller) if not players.is_empty() and not todo.is_empty() else null
 		if made != null:
 			_job = made.make_job(todo)
 			_job_key = key
@@ -525,12 +525,12 @@ func _commit_job() -> void:
 	var job := _job
 	var key := _job_key
 	_job = null
-	var committed: DotResult = await harvest.commit(store, _job_loaded, job.verdicts)
+	var committed: GSResult = await harvest.commit(store, _job_loaded, job.verdicts)
 	if committed.ok:
 		var good := job.verdicts.filter(func(v: Dictionary) -> bool: return v["ok"]).size()
 		recorder.note_verified(KIND, key, good)
 		harvested += good
-		var _loaded: DotResult = await book.load_edge(store, KIND, key, schema, tick_rate, reference_yaw_for(key))
+		var _loaded: GSResult = await book.load_edge(store, KIND, key, schema, tick_rate, reference_yaw_for(key))
 	_busy = false
 
 
@@ -546,7 +546,7 @@ func attach_surf(surf: Object) -> void:
 		if not _edge_courses.has(key):
 			_edge_courses[key] = edge.course
 		book.add_seeded(key, SEED_SCORE, edge.cache)
-		var _loaded: DotResult = await book.load_edge(store, KIND, key, schema, tick_rate, reference_yaw_for(key))
+		var _loaded: GSResult = await book.load_edge(store, KIND, key, schema, tick_rate, reference_yaw_for(key))
 
 
 ## The key recordings of [param edge] are filed under.
@@ -559,12 +559,12 @@ func pick(edge_id: int) -> Dictionary:
 	var key: String = _edge_keys.get(edge_id, "")
 	if key == "" or book.recorded_count(key) == 0:
 		return {}
-	var entry := DotBotSurfRide.pick(book, key, rng)
-	return entry if entry.get("source", "") == DotBotRideBook.RECORDED else {}
+	var entry := GSBotSurfRide.pick(book, key, rng)
+	return entry if entry.get("source", "") == GSBotRideBook.RECORDED else {}
 
 
 ## Writes one recorded action into a bot's intent.
-func decode(action: PackedFloat32Array, _state: Variant, intent: DotBotIntent) -> void:
+func decode(action: PackedFloat32Array, _state: Variant, intent: GSBotIntent) -> void:
 	intent.yaw = action[ACTION_YAW]
 	intent.move = Vector2(action[ACTION_MOVE], action[ACTION_MOVE + 1])
 	intent.jump = action[ACTION_JUMP] > 0.5

@@ -1,4 +1,4 @@
-extends DotGameCheckSuite
+extends GSGameCheckSuite
 
 const FcMap := preload("../maps/fc_map.gd")
 
@@ -12,7 +12,7 @@ var _client: Node = null
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run.call_deferred()
 
 
@@ -76,7 +76,7 @@ func _run() -> void:
 		await _wait(0.1)
 		_script_bots()
 		me = _client.get("player")
-		if me != null and me.is_alive() and gm.match_node.state == DotMatch.State.LIVE and gm.map != null and gm.map.id == MAP:
+		if me != null and me.is_alive() and gm.match_node.state == GSMatch.State.LIVE and gm.map != null and gm.map.id == MAP:
 			live = true
 			break
 	var seen := "state %d map %s" % [int(gm.match_node.state), str(gm.map.id) if gm.map != null else "-"]
@@ -92,7 +92,7 @@ func _run() -> void:
 	_check(glass.size() > 0, "the world's breakable glass is built as panes", "%d glass of %d" % [glass.size(), _panes().size()])
 	_check(_broken_count() == 0, "no pane starts broken")
 
-	var trace: DotTrace = gm.combat.trace
+	var trace: GSTrace = gm.combat.trace
 	var target: Node3D = null
 	var origin := Vector3.ZERO
 	var dir := Vector3.ZERO
@@ -121,7 +121,7 @@ func _run() -> void:
 		_report(EXPECTED_CHECKS)
 		return
 
-	var shot := DotShot.new()
+	var shot := GSShot.new()
 	shot.origin = origin
 	shot.direction = dir
 	shot.pellets = [dir]
