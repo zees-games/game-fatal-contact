@@ -11,7 +11,7 @@ const ProcSplit := preload("proc_split.gd")
 const FcPlayerStack := preload("../game/fc_player_stack.gd")
 const FcNpcs := preload("../game/fc_npcs.gd")
 
-## The 16v16 benchmark: dot-game's DotGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (DotSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (DotSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
+## The 16v16 benchmark: dot-game's DotGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--brain-us 1` (DotBotBrain.think phases, as brain.bb_*), `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (DotSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (DotSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
 ## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (dot-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
 ## `--first-use-only a,b` for some ids; rows also: hit, kill, death, `reload ID` (`--first-use-reload 0` skips), a thrown weapon's shot over `--first-use-thrown-frames N` frames (default 240: the fuse and blast), `npc ID` and `npc kill ID` with a horde mode such as `--mode siege`); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (dot-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms.
 ## `--lazy-models 1`: the client defers the models of weapons nobody carries until after the cover, as the web build does (FcClient defer_models_everywhere), and the bench does not read them all ahead, so `--first-use 1` prices those first equips. `--warm-list 1`: after the first-use rows, a `WARM_LIST <path>` line for every script loaded so far that the cover warms anyway (DotCloudSliceLoader.cached_scripts; pack scripts and addon classes; tools/record_warm_list.sh turns them into warm.txt).
@@ -23,6 +23,7 @@ var _motor_us := false
 var _queries := false
 var _native_us := false
 var _ctl_us := false
+var _brain_us := false
 ## `--weapon-us 1`: the rig's and the arsenal's parts of p_weapons, in microseconds per call (off by default: the clocks are inside p_weapons).
 var _weapon_us := false
 ## `--tick N`: the game and engine tick rate (default: the game's, 66); 128 for the 128 Hz cost.
@@ -52,6 +53,7 @@ func _ready() -> void:
 	_motor_us = int(args.get("motor-us", 0)) != 0
 	_queries = int(args.get("queries", 0)) != 0
 	_ctl_us = int(args.get("ctl-us", 0)) != 0
+	_brain_us = int(args.get("brain-us", 0)) != 0
 	_weapon_us = int(args.get("weapon-us", 0)) != 0
 	_native_us = int(args.get("native-us", 0)) != 0 and ClassDB.class_exists(&"DotSimFpsBody")
 	_max_steps = int(args.get("max-steps", -1))
@@ -439,6 +441,9 @@ func _record_begin() -> void:
 	DotFpsPhysicsBody.prof.fill(0)
 	# --ctl-us 1: the controller's phases alone, on whichever motor path runs (--motor-us forces the script one).
 	DotFpsController.phase_timers = _ctl_us
+	DotBotBrain.phase_timers = _brain_us
+	if _brain_us:
+		DotBotBrain.phase_us.fill(0)
 	AwWeaponRig.phase_timers = _weapon_us
 	DotWeaponArsenal.phase_timers = _weapon_us
 	AwWeaponRig.phase_us.fill(0)
@@ -469,6 +474,7 @@ func _record_end() -> void:
 	DotFpsPhysicsBody.profile = false
 	DotFpsMotor.profile = false
 	DotFpsController.phase_timers = false
+	DotBotBrain.phase_timers = false
 	AwWeaponRig.phase_timers = false
 	DotWeaponArsenal.phase_timers = false
 	if _native_us:
@@ -489,6 +495,9 @@ func _sidecar_extra(_game: Object) -> Dictionary:
 		var ctl := ["pre", "consume", "motor", "publish", "report", "signals_stats", "post", "set_position"]
 		for i in ctl.size():
 			phases["ctl." + ctl[i]] = snappedf(DotFpsController.phase_us[i] / 1000.0 / n, 0.001)
+	if _brain_us:
+		for i in DotBotBrain.PHASES.size():
+			phases["brain." + DotBotBrain.PHASES[i]] = snappedf(DotBotBrain.phase_us[i] / 1000.0 / n, 0.001)
 	if _motor_us:
 		for i in DotFpsMotor.PHASES.size():
 			if DotFpsMotor.PHASES[i] != "":
