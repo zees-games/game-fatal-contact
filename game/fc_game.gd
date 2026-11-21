@@ -258,6 +258,7 @@ func make_killview_server() -> DotKillViewServer:
 	var due := server.due
 	server.eyes_fn = func() -> Array:
 		var eyes: Array = []
+		var eye_up := Vector3(0.0, FcPlayer.eye_height(), 0.0)
 		for p: FcPlayer in players():
 			if not p.is_alive() or p.controller == null or p.controller.state == null:
 				continue
@@ -265,7 +266,7 @@ func make_killview_server() -> DotKillViewServer:
 			if not due.check(p.player_id):
 				continue
 			var st: DotFpsState = p.controller.state
-			var eye: Vector3 = p.controller.motor.eye_position(st) if p.controller.motor != null else st.position + Vector3(0.0, FcPlayer.eye_height(), 0.0)
+			var eye: Vector3 = p.controller.motor.eye_position(st) if p.controller.motor != null else st.position + eye_up
 			var basis := Basis.from_euler(Vector3(deg_to_rad(st.pitch), deg_to_rad(st.yaw), 0.0))
 			eyes.append({"id": p.player_id, "transform": Transform3D(basis, eye), "fov": KillPov.fov_of(p), "aux": KillPov.aux_of_tick(p, DotKillViewRing.AUX, true)})
 		return eyes

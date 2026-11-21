@@ -42,6 +42,8 @@ const FOV_MIN := 40.0
 const FOV_MAX := 160.0
 
 static var _ids: Dictionary = {}
+## [code]String(id).hash() & 0xFFFFFF[/code] as a float, by weapon id: the aux's weapon slot, hashed once per id instead of per player per tick.
+static var _weapon_hash: Dictionary = {}
 static var _ids_generation := -1
 ## [method aux_of_tick]'s readings for the physics tick [member _tick_frame], by instance id.
 static var _tick_aux: Dictionary = {}
@@ -135,7 +137,12 @@ static func _aux_full(p: Object) -> PackedFloat32Array:
 		out[MAG] = float(slot.magazine) if slot.def.magazine > 0 else 0.0
 		out[RESERVE] = float(arsenal.ammo().count(slot.def.ammo_type)) if slot.def.ammo_type != &"" else 0.0
 		out[SPREAD] = float(p.call(&"spread_degrees"))
-	out[WEAPON] = float(int(String(id).hash() & 0xFFFFFF)) if id != &"" else 0.0
+	if id != &"":
+		var hashed: Variant = _weapon_hash.get(id)
+		if hashed == null:
+			hashed = float(int(String(id).hash() & 0xFFFFFF))
+			_weapon_hash[id] = hashed
+		out[WEAPON] = hashed
 	out[ADS] = 1.0 if bool(p.get(&"aim_held")) else 0.0
 	if bool(p.get(&"mirrored")):
 		out[FIRE_SEQ] = float(int(p.get(&"mirror_fire_seq")) % 4096)
