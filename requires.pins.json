@@ -2,6 +2,7 @@
   "format": 1,
   "addons": {
     "dot_audio": 22,
+    "dot_camera": 1,
     "dot_bot": 26,
     "dot_combat": 6,
     "dot_fx": 11,
