@@ -369,7 +369,7 @@ func _fx_fire(presentation: FcPresentation, trace: GSTraceFlat, eye: Vector3, ai
 	var fire := func() -> void:
 		# A small group, the last one freshest: holes from the earlier shots, the spark
 		# and the flash from the last. One shot per frame's budget, as a client fires one
-		# a tick: six in one frame is over dot-fx's budget and the last are refused.
+		# a tick: six in one frame is over gs-fx's budget and the last are refused.
 		for i in range(6):
 			presentation.present(0.016, eye, aim)
 			var angle := float(i) * 1.1
@@ -502,7 +502,7 @@ func _fx_grenade_shots(presentation: FcPresentation, id: StringName, eye: Vector
 
 
 ## `--action <kind> <id>` (`--action emote dance`, `--action pose sit`): a figure playing an avatar
-## action from the front, early and later in the clip. The id goes through dot-user-avatar's own list.
+## action from the front, early and later in the clip. The id goes through gs-user-avatar's own list.
 func _stage_action(map: FcMap, id: StringName, kind: StringName, action: String) -> void:
 	var body := _cast(map, 1, "Actor", Vector3(0.0, 1.3, 0.0), 0.0)
 	_action_figure = body.figure

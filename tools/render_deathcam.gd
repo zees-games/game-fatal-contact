@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## The solo client's death camera for a death against a wall, killer on the open side, with the
-## body on the floor: FcClient driving dot-spectate's stand-back death camera (6087cbf), not a
+## body on the floor: FcClient driving gs-spectate's stand-back death camera (6087cbf), not a
 ## standalone GSSpectatorManager. Frames at 0.3, 1.2 and 3 s after the kill, the eye's distance
 ## from the body, and whether the camera is inside the level, printed and saved to
 ## screenshots/deathcam/. The look no assertion gives: is the camera held against the wall, and

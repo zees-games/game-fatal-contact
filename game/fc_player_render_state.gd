@@ -138,7 +138,7 @@ func _present_bubble(at: Vector3) -> void:
 	protection_bubble.sync(true)
 
 
-## Draws [member beacon], and says when it pings. [b]Only while alive.[/b] The flag outlives a death — dot-moderation re-applies it on the
+## Draws [member beacon], and says when it pings. [b]Only while alive.[/b] The flag outlives a death — gs-moderation re-applies it on the
 ## respawn — but a ring round a corpse that is about to vanish marks nothing, and a column over a spectating player's last position points everybody at an empty floor.
 ## Placed at the DRAWN position, which is the render state on the local player and the interpolated one on a remote player, for the reason [GSFxBeacon] is top level.
 func _present_beacon(delta: float, at: Vector3) -> void:

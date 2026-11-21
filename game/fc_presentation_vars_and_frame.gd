@@ -62,7 +62,7 @@ func _local_commands() -> GSConsoleLocal:
 	)
 
 	local.add_command(&"solo_map", "Change the map of this offline match, as the M menu does: solo_map <id>", func(a: PackedStringArray) -> Variant:
-		# The in-process web match has no server console, so dot-server-deploy's rotation check (a page
+		# The in-process web match has no server console, so gs-server-deploy's rotation check (a page
 		# changing maps back to back, the wasm heap's real test) types this instead of paging the M menu.
 		if client == null or not client.has_method("change_from_menu"):
 			return "no client"
@@ -291,7 +291,7 @@ func _add_remote_vars(local: GSConsoleLocal) -> void:
 	_add_figure_vars(local)
 
 
-## The remote figures' own ranges (dot-player-char 27 reads them live; an older addon keeps its constants and refuses).
+## The remote figures' own ranges (gs-player-char 27 reads them live; an older addon keeps its constants and refuses).
 func _add_figure_vars(local: GSConsoleLocal) -> void:
 	var _lift: Variant = _addon_static(GSHumanoidFigure, &"lift_range", 0.0, FcPlayer.figure_lift_range)
 	for row: Array in [
@@ -312,7 +312,7 @@ func _add_figure_vars(local: GSConsoleLocal) -> void:
 					return GSResult.fail(GSError.CODE_INVALID, "%s takes a number, %s" % [cvar, "above 0" if least > 0.0 else "0 or more"])
 				var have: Variant = _addon_static(GSHumanoidFigure, field, null, text.to_float())
 				if have == null:
-					return GSResult.fail(GSError.CODE_UNSUPPORTED, "%s needs dot-player-char 27" % cvar)
+					return GSResult.fail(GSError.CODE_UNSUPPORTED, "%s needs gs-player-char 27" % cvar)
 				if field == &"draw_range":
 					FcPlayer.figure_draw_range = have
 				elif field == &"lift_range":
@@ -375,7 +375,7 @@ func present(delta: float, eye: Vector3, forward: Vector3) -> void:
 	blood.advance(delta)
 
 
-## The camera offset to add this frame, which the rig applies and this does not. dot-spectate's
+## The camera offset to add this frame, which the rig applies and this does not. gs-spectate's
 ## rule: it computes a transform and touches no camera. One implementation then serves the play rig,
 ## a spectator's, and a headless suite with no camera at all.
 func camera_shake() -> Vector3:
@@ -505,7 +505,7 @@ func on_impact(at: Transform3D, on_player: bool, weapon_id: StringName = &"") ->
 		FcHoleSizes.fit(hole, weapon_id)
 	audio.play_at(&"impact", at.origin)
 	# On a moving body (a prop, a platform) the spark rides along; on the world it is a plain spawn.
-	# (spawn_on_surface is dot_fx level 11; a shell pinned lower keeps the plain spawn.)
+	# (spawn_on_surface is gs_fx level 11; a shell pinned lower keeps the plain spawn.)
 	if on_player or not fx.has_method(&"spawn_on_surface"):
 		var _plain := fx.spawn(&"impact_spark", at)
 	else:
@@ -513,7 +513,7 @@ func on_impact(at: Transform3D, on_player: bool, weapon_id: StringName = &"") ->
 
 
 ## A map-vote cue from the server. Empty is silence, and an id this catalogue does not
-## have is dot-audio's silent refusal rather than an error: a server configured with a
+## have is gs-audio's silent refusal rather than an error: a server configured with a
 ## sound set this client was not built with should cost a noise, not a log line per second.
 func on_vote_cue(id: StringName) -> int:
 	if id == &"" or audio == null:
@@ -556,7 +556,7 @@ func on_stomp(at: Vector3, sound: StringName, effect: StringName) -> void:
 		fx.spawn(effect, Transform3D(Basis.IDENTITY, at))
 
 
-## A utility grenade's effect: a cloud or a fire, or a blind for the followed player (through dot-fx, so the flash settings cap it).
+## A utility grenade's effect: a cloud or a fire, or a blind for the followed player (through gs-fx, so the flash settings cap it).
 func on_grenade_fx(info: Dictionary, own_id: int) -> void:
 	var _shown := AwGrenadeFx.show(fx, get_tree(), info, own_id)
 
@@ -678,11 +678,11 @@ func keep_walkers(bodies: Array) -> void:
 		steps.keep(bodies)
 
 
-## Which stock shot (dot-audio `GSAudioShotStock`) each weapon plays; a weapon not listed keeps its single `fire_*` sound.
+## Which stock shot (gs-audio `GSAudioShotStock`) each weapon plays; a weapon not listed keeps its single `fire_*` sound.
 const SHOT_CLASS := {&"rifle": &"rifle", &"shotgun": &"shotgun", &"rail": &"sniper"}
 
 
-## The layered shot player and the enclosure probe it reads (dot-audio); `use_shot_rules` hands both the server's cvars.
+## The layered shot player and the enclosure probe it reads (gs-audio); `use_shot_rules` hands both the server's cvars.
 var shots: GSShotPlayer = null
 var shot_enclosure: GSAudioEnclosure = null
 

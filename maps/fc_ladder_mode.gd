@@ -7,7 +7,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ##
 ## [b]A copy of game-airdrift's `AirdriftLadderMode`, in metres[/b], for the reason
 ## `fc_map_mechanics.gd` gives: a game cannot name another game's script, and a
-## delivered pack cannot resolve a `class_name`. Not in dot-player-controller either,
+## delivered pack cannot resolve a `class_name`. Not in gs-player-controller either,
 ## deliberately: a ladder the way this genre climbs one is the genre's.
 ##
 ## [b]What a ladder is in those games:[/b] a thin invisible brush against a wall. A player

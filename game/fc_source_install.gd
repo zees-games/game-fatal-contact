@@ -8,7 +8,7 @@ extends RefCounted
 const SETTING := &"source_game_path"
 ## Decoded textures, per install: never inside the project.
 const CACHE_DIR := "user://source_cache"
-## Where an `_orig` pack keeps its textures (dot-map-convert `origtex.DIR`).
+## Where an `_orig` pack keeps its textures (gs-map-convert `origtex.DIR`).
 const ORIG_DIR := "textures/orig"
 ## The games looked for under each Steam library, in order.
 const GAMES := ["Team Fortress 2"]

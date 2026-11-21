@@ -7,7 +7,7 @@ const FcServer := preload("../game/fc_server.gd")
 
 ## Every way Fatal Contact's map changes takes ONE path, the module's map director (sync host, FC's state reset,
 ## `map_changed`, which applies the map config, the map list's `mode:`/`cfg:` and a pending `fc_mode`):
-## `map`, `fc_map`, the rotation's next map, and a host's startup map (dot-server-deploy's `map:` in server.yml,
+## `map`, `fc_map`, the rotation's next map, and a host's startup map (gs-server-deploy's `map:` in server.yml,
 ## which looks for `change_to` under `server.games`, where the game scene is and the module is not).
 ## And `fc_mode` is a cvar that refuses an unknown id, listing the valid ones, and waits for a map that can host it.
 ## Run `./game.sh test headless_map_path`.
@@ -116,7 +116,7 @@ func _test_console_changes() -> void:
 	_done()
 
 
-## dot-server-deploy's `_find_map_session`: the first node under `server.games` with `change_to` and `change_to_map`.
+## gs-server-deploy's `_find_map_session`: the first node under `server.games` with `change_to` and `change_to_map`.
 static func _host_find(root: Node, wants: Array[StringName]) -> Object:
 	for child in root.get_children():
 		var all := true

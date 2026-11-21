@@ -48,7 +48,7 @@ The process phase split (`--proc-split 1`, wall clock, n=2): early flush 0.52, `
 
 ### Census at 32 players (sim host, `--proc-split 1`)
 
-4120 nodes; 1330 MeshInstance3D (616 visible, 383 casting shadows, 49 skinned); 49 Skeleton3D with 2107 bones, all internally processing; 100 AnimationPlayer (54 processing themselves, 46 manual); 135 GPUParticles3D, all in internal physics process; 70 audio players (none playing); 19 visible lights (15 directional: the HUD portrait worlds; 4 omni; 1 shadowed); 110 OmniLight3D nodes in all; 22 Camera3D; 34 Label3D; 352 collision shapes on 15 rigid, 3 static bodies and 1 area; 1348 signal connections. Scripts with a `_process`: `dot_humanoid_figure` 46 (32 bodies and about 14 HUD portraits), `aw_shot_fx` 33, `aw_charge_fx` 13, `aw_world_model` 11, `aw_view_model` 6, and about 50 singletons (HUD, menus, audio).
+4120 nodes; 1330 MeshInstance3D (616 visible, 383 casting shadows, 49 skinned); 49 Skeleton3D with 2107 bones, all internally processing; 100 AnimationPlayer (54 processing themselves, 46 manual); 135 GPUParticles3D, all in internal physics process; 70 audio players (none playing); 19 visible lights (15 directional: the HUD portrait worlds; 4 omni; 1 shadowed); 110 OmniLight3D nodes in all; 22 Camera3D; 34 Label3D; 352 collision shapes on 15 rigid, 3 static bodies and 1 area; 1348 signal connections. Scripts with a `_process`: `gs_humanoid_figure` 46 (32 bodies and about 14 HUD portraits), `aw_shot_fx` 33, `aw_charge_fx` 13, `aw_world_model` 11, `aw_view_model` 6, and about 50 singletons (HUD, menus, audio).
 
 ## The candidates
 
@@ -58,7 +58,7 @@ The process phase split (`--proc-split 1`, wall clock, n=2): early flush 0.52, `
 
 ### (b) Skinning and animation
 
-`--present-ablate 1` (no figure animation; presentation only) cuts **1.52 ms p50** at 32 (n=2, 12.6 to 11.1 ms; `r_anim` -0.99, `bodies` -1.16, GPU -0.37). An earlier `--ablate noanim` gave 1.65. The per-call cost is inside dot-player-char's `GSHumanoidFigure.animate` (legs restored and applied every call, the motion dictionary duplicated each call). Skinning itself is on the GPU (49 skinned meshes, 2107 bones); the CPU side is the skeleton flush, 0.65 ms.
+`--present-ablate 1` (no figure animation; presentation only) cuts **1.52 ms p50** at 32 (n=2, 12.6 to 11.1 ms; `r_anim` -0.99, `bodies` -1.16, GPU -0.37). An earlier `--ablate noanim` gave 1.65. The per-call cost is inside gs-player-char's `GSHumanoidFigure.animate` (legs restored and applied every call, the motion dictionary duplicated each call). Skinning itself is on the GPU (49 skinned meshes, 2107 bones); the CPU side is the skeleton flush, 0.65 ms.
 
 ### (c) GDScript hot loops for native code
 
@@ -75,7 +75,7 @@ The render phase is 1.57 ms of the 12.9 ms frame (1.02 ms of it `render_cpu`) an
 - `--ablate no3d` (no 3D drawn): p50 -1.77 ms; render phase 1.53 to 0.82, `render_cpu` 0.98 to 0.40, GPU 2.71 to 0.56, and the physics phase 0.64 lower. So all of 3D drawing costs the main thread about 1-1.8 ms.
 - `--res 640x360` (a ninth of the pixels): no change (GPU 2.68 ms, p50 within noise). The game is not fill-bound, so **MSAA (4x, `GSGameRenderQuality`) and shadow resolution are not where the frame goes**: lowering them buys no client fps on this box. Shadows: 383 shadow-casting meshes but one shadowed light; the cost is draw submission on the CPU, counted in the 1.0 ms `render_cpu`.
 
-**A separate render thread (`rendering/driver/threads/thread_model=2`) is not usable on Godot 4.7.2**: the bench run crashed (exit 139) after a sky shader compile race (`fc_sky.gdshader` interleaved with the engine's sky shader: "Expected a ';'"), `RenderingDevice.finalize` "can only be called from the render thread", and 11504 warnings that `particles_is_inactive` forces a RenderingServer sync every frame (dot-fx `dot_muzzle_flash.gd:90`, from `aw_shot_fx_flash._pack_flash`). Even without the crash those syncs would serialise the two threads. The most the render thread could win is the 1.0-1.5 ms of render CPU on main; it needs the engine's threaded model to mature and dot-fx to stop polling particles.
+**A separate render thread (`rendering/driver/threads/thread_model=2`) is not usable on Godot 4.7.2**: the bench run crashed (exit 139) after a sky shader compile race (`fc_sky.gdshader` interleaved with the engine's sky shader: "Expected a ';'"), `RenderingDevice.finalize` "can only be called from the render thread", and 11504 warnings that `particles_is_inactive` forces a RenderingServer sync every frame (gs-fx `gs_muzzle_flash.gd:90`, from `aw_shot_fx_flash._pack_flash`). Even without the crash those syncs would serialise the two threads. The most the render thread could win is the 1.0-1.5 ms of render CPU on main; it needs the engine's threaded model to mature and gs-fx to stop polling particles.
 
 ### (f) Bench pacing and vsync
 
@@ -87,11 +87,11 @@ Saved ms are at 32 players, sim host, client frame of 12.9 ms p50. Effort: S sma
 
 | # | What | Saves | Effort | Where | Item |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Native per-body client path: snapshot decode, interpolation, pose and animation of every remote player in one native loop | 4-5 ms (of the 5.5 ms the per-player GDScript costs) | L | dot-net, dot-player-char | `perf-client-native-body-1` |
-| 2 | `GSHumanoidFigure.animate`: no per-call dictionary duplicate, no unchanged leg writes, batched bone poses | up to 1.5 ms (measured ablation 1.52) | M | dot-player-char | `perf-figure-animate-1` |
-| 3 | Unattributed process (about 1.0 ms of singletons and effects' `_process`) and engine physics (1.7 ms: ragdolls, 135 particle nodes) | 1-2 ms (estimate, profile first) | M | game-fatal-contact, fc-weapons, dot-fx | `perf-unattributed-process-1` |
-| 4 | Separate render thread, once safe: needs the engine fixes above and dot-fx's muzzle flash to stop calling `particles_is_inactive` | 1.0-1.5 ms (render CPU on main) | M, blocked | dot-fx, engine | `perf-render-thread-1` |
-| 5 | Server: native player row and bots (10.7 of 15.15 ms a tick at 32) | server headroom, not client fps | L | dot-player-controller, dot-bot | existing `simhost-sim-cost-1`, `simhost-native-player-row-1`, `perf-native-motor-2` |
+| 1 | Native per-body client path: snapshot decode, interpolation, pose and animation of every remote player in one native loop | 4-5 ms (of the 5.5 ms the per-player GDScript costs) | L | gs-net, gs-player-char | `perf-client-native-body-1` |
+| 2 | `GSHumanoidFigure.animate`: no per-call dictionary duplicate, no unchanged leg writes, batched bone poses | up to 1.5 ms (measured ablation 1.52) | M | gs-player-char | `perf-figure-animate-1` |
+| 3 | Unattributed process (about 1.0 ms of singletons and effects' `_process`) and engine physics (1.7 ms: ragdolls, 135 particle nodes) | 1-2 ms (estimate, profile first) | M | game-fatal-contact, fc-weapons, gs-fx | `perf-unattributed-process-1` |
+| 4 | Separate render thread, once safe: needs the engine fixes above and gs-fx's muzzle flash to stop calling `particles_is_inactive` | 1.0-1.5 ms (render CPU on main) | M, blocked | gs-fx, engine | `perf-render-thread-1` |
+| 5 | Server: native player row and bots (10.7 of 15.15 ms a tick at 32) | server headroom, not client fps | L | gs-player-controller, gs-bot | existing `simhost-sim-cost-1`, `simhost-native-player-row-1`, `perf-native-motor-2` |
 | 6 | Bench default `--sim-host 1`, and report the server's ms per tick | none; measures what ships | S | game-fatal-contact tools | `perf-bench-simhost-default-1` |
 | 7 | HUD portrait figures stop processing after their single render | under 0.1 ms | S | game-fatal-contact | `perf-portrait-figures-1` |
 

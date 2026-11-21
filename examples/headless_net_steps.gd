@@ -7,7 +7,7 @@ extends RefCounted
 static func client_step(clients: Dictionary, commands: Dictionary, tick: int) -> void:
 	# The receive timeline walks with the clock (`GSNetClock.advance` does it in the game);
 	# ticks set by hand skip that, and the view lag would then grow by one on every tick
-	# without a snapshot, which no client's does. dot-net has no public step for this.
+	# without a snapshot, which no client's does. gs-net has no public step for this.
 	for peer_id in clients:
 		var walked: GSNetClock = clients[peer_id]["net"].clock
 		walked._received_tick = maxi(walked._received_tick, tick - 1)

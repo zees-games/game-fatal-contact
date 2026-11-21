@@ -1,5 +1,5 @@
 extends Node
-## A converted map's doors, lifts and buttons in the arena: dot-map's mover world built on every machine, the host's use key, and the client's mirror.
+## A converted map's doors, lifts and buttons in the arena: gs-map's mover world built on every machine, the host's use key, and the client's mirror.
 ## A map with no movers gets none of this (`build` returns null), so it pays nothing per frame.
 
 const CHANNEL := "arena.map_io"
@@ -86,7 +86,7 @@ func tick() -> void:
 		world.step(bodies())
 
 
-## Dot-map body dictionaries for the living players; `body` is the player id.
+## GS-map body dictionaries for the living players; `body` is the player id.
 func bodies() -> Array:
 	var out: Array = []
 	if game == null:

@@ -15,10 +15,10 @@ const FcTestPorts := preload("test_ports.gd")
 ## godot --headless --path . res://examples/published_net.tscn
 ## [/codeblock]
 ##
-## Two processes, because dot-cloud's registry entry and its `res://dot_cloud/` mount are
+## Two processes, because gs-cloud's registry entry and its `res://gs_cloud/` mount are
 ## process-wide: in one process the client would find the server's mount and prove nothing. This
 ## one starts `published_net_host.tscn` (a dedicated server whose game names
-## `gamemann/arena-surf-dm-maps-surf_10x_reloaded_fixed@1.2.3`, as cfg/content.yml's `maps:` does on a
+## `gamemann/fc-surf-dm-maps-surf_10x_reloaded_fixed@1.2.3`, as cfg/content.yml's `maps:` does on a
 ## real one, and which changes to that map before anybody joins), then joins it as `FcClient`
 ## does: a `GSClientLink` on ENet, the netcode, and `FcClientExtras`' map sync. The server's
 ## READY admit announces its map; the client fetches the pack from the CDN a standalone client uses
@@ -30,7 +30,7 @@ const FcTestPorts := preload("test_ports.gd")
 
 const MAP := &"surf_10x_reloaded_fixed"
 const OWNER := "gamemann"
-const PACK := "arena-surf-dm-maps-surf_10x_reloaded_fixed"
+const PACK := "fc-surf-dm-maps-surf_10x_reloaded_fixed"
 const VERSION := "1.2.3"
 const SECTIONS := 2
 const CHECKS := 12
@@ -105,7 +105,7 @@ func _client_cloud(settings: Dictionary, shipped: Variant) -> GSCloudClient:
 	cloud.manifest_url_template = "{base}/{id}/{version}/manifest.json"
 	cloud.manifest_url_fallbacks = PackedStringArray(["{base}/{id}/manifest.json"])
 	add_child(cloud)
-	GSRegistry.register(&"dot_cloud_client", cloud)
+	GSRegistry.register(&"gs_cloud_client", cloud)
 	await get_tree().process_frame
 	return cloud
 
@@ -115,10 +115,10 @@ func _check_client_map(game: FcGame, bridge: FcNetBridge, cloud: GSCloudClient, 
 	_check(map != null and map.id == MAP and map.is_imported(), "the server's announce puts the client on %s" % MAP,
 		"on %s%s" % [String(map.id) if map != null else "nothing", (", link ended: " + gone[0]) if gone[0] != "" else ""])
 	_check(not mounted_before and cloud.is_mounted(StringName("%s/%s" % [OWNER, PACK]), VERSION),
-		"the client's own dot-cloud fetched and mounted the signed pack")
+		"the client's own gs-cloud fetched and mounted the signed pack")
 	var cached := DirAccess.get_files_at(cloud.config.cache_dir).size() + DirAccess.get_directories_at(cloud.config.cache_dir).size()
 	_check(cached > 0, "into the client's own cache (%d entries)" % cached)
-	_check(map != null and map.manifest_path.begins_with("res://dot_cloud/") and map.manifest_path.find("maps/imported") < 0,
+	_check(map != null and map.manifest_path.begins_with("res://gs_cloud/") and map.manifest_path.find("maps/imported") < 0,
 		"built from the mount, nothing from the maps/imported link (%s)" % (map.manifest_path if map != null else "none"))
 	var solid := map.collision_root if map != null else null
 	_check(solid != null and solid.is_inside_tree() and solid.get_child_count() > 100,
@@ -195,12 +195,12 @@ func _run() -> void:
 		await _finish()
 		return
 	var h := host as Dictionary
-	_check(bool(h.get("mounted", false)) and String(h.get("manifest_path", "")).begins_with("res://dot_cloud/"),
+	_check(bool(h.get("mounted", false)) and String(h.get("manifest_path", "")).begins_with("res://gs_cloud/"),
 		"from its own mount (%s)" % h.get("manifest_path", ""))
 	_completed += 1
 
 	_entered += 1
-	print("\n-- a client with its own dot-cloud joins over ENet and follows it onto the map")
+	print("\n-- a client with its own gs-cloud joins over ENet and follows it onto the map")
 	var shipped: Variant = JSON.parse_string(FileAccess.get_file_as_string(String(settings["config_file"])))
 	var cloud: GSCloudClient = await _client_cloud(settings, shipped)
 	var config := cloud.config

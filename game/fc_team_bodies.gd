@@ -1,9 +1,9 @@
 extends RefCounted
 
 ## FC's team avatars: in a team mode every player on a side is drawn as that side's own body
-## (dot-player-char's registered bodies, `GSHumanoidAssets.register_body`), tinted the side's colour.
+## (gs-player-char's registered bodies, `GSHumanoidAssets.register_body`), tinted the side's colour.
 ##
-## The bodies are other people's art prepared on the kit rig (dot-player-char docs/avatar-prep.md) and are
+## The bodies are other people's art prepared on the kit rig (gs-player-char docs/avatar-prep.md) and are
 ## not in this repository: each is a `<id>.glb` in one of [member FcConfig.team_body_dirs], registered
 ## the first time a look asks. A side whose body is missing, a free-for-all, or the server's
 ## `team_avatars` rule at 0 draw each player's own look ([method FcAvatars.look_of]), the library people.
@@ -14,7 +14,7 @@ extends RefCounted
 const FcAvatars := preload("fc_avatars.gd")
 const FcNewerApi := preload("fc_newer_api.gd")
 
-## The dot-player-char level with registered bodies and the team tint. Below it (the shell's older dot-player-char)
+## The gs-player-char level with registered bodies and the team tint. Below it (the shell's older gs-player-char)
 ## nobody wears a team body and every side keeps its own looks.
 const BODIES_LEVEL := 26
 
@@ -46,7 +46,7 @@ static var _registered_for := ""
 static var _bodies: Array[StringName] = []
 ## Changes whenever what a team look depends on changed, so a drawn body knows to be rebuilt.
 static var version := 0
-## The tint followed from the server's `team_tint` rule; dot-player-char's `GSHumanoidAssets.team_tint` follows it.
+## The tint followed from the server's `team_tint` rule; gs-player-char's `GSHumanoidAssets.team_tint` follows it.
 static var _tint := 0.35
 
 
@@ -74,9 +74,9 @@ static func register(ids: String, dirs: String) -> Array[StringName]:
 	return _bodies
 
 
-## Whether this build's dot-player-char draws registered bodies ([constant BODIES_LEVEL]).
+## Whether this build's gs-player-char draws registered bodies ([constant BODIES_LEVEL]).
 static func has_bodies() -> bool:
-	return GSAddonApi.build_level("dot_player_char") >= BODIES_LEVEL
+	return GSAddonApi.build_level("gs_player_char") >= BODIES_LEVEL
 
 
 ## The first `<dir>/<id>.glb` that exists, else "".

@@ -101,7 +101,7 @@ static func make() -> GSFpsTunables:
 	tunables.dash_speed = 15.0
 	tunables.dash_lift = 2.5
 	tunables.dash_cooldown = 3.0
-	# Walls: run a few steps along one, jump off it, ride it down. dot-player-controller's defaults for everything but these four (docs/wall-movement.md there, docs/modes.md here).
+	# Walls: run a few steps along one, jump off it, ride it down. gs-player-controller's defaults for everything but these four (docs/wall-movement.md there, docs/modes.md here).
 	# The run needs MORE than the 5.74 m/s plain run along the wall, so a run is something a player does on purpose: at the run speed or under, every jump beside a wall would become a run and peak about 40% lower than meant.
 	# The wall jump needs no speed at all, and the slide catches a fall against a wall.
 	tunables.wall_run_enabled = true
@@ -142,7 +142,7 @@ const BODY_RULES := {"wall_run_body_roll": 25.0, "wall_run_body_yaw": 12.0}
 
 
 ## Tunables a class (or a per-server profile entry) may override through its `attributes`
-## dictionary, keyed by the tunable's own name; the typed class fields live in dot-player-class.
+## dictionary, keyed by the tunable's own name; the typed class fields live in gs-player-class.
 const CLASS_ATTRIBUTES: PackedStringArray = ["wall_run_min_height", "wall_run_min_length"]
 
 

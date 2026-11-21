@@ -2,7 +2,7 @@ extends GSGameVisualQaCapture
 
 ## FC's visual QA capture for the horde monsters (npcs/) and the 20 avatar bodies (`avatar_<part>`, the document's
 ## BODIES): each idles, walks and runs a circle on the default stage, seen from the victim's eye (an avatar: first
-## person free, the eye is a close front-left three-quarter view), behind-right and the front, at 60 fps. The loop and the checklist are dot-game's
+## person free, the eye is a close front-left three-quarter view), behind-right and the front, at 60 fps. The loop and the checklist are gs-game's
 ## docs/visual-qa.md; the weapons and the player's own locomotion are tools/anim_review.gd (docs/anim-review.md).
 ## A monster's figure animates from how far its body moves (`auto_animate`), so a clip moves the body at that pace.
 ##   bash tools/visual_qa_shot.sh [--only grunt,brute] [--clips walk,run]

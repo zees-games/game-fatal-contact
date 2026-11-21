@@ -40,7 +40,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ## - [b]Hurt[/b] (`trigger_hurt`) is REAL damage here, where Airdrift treats 100 or more as a
 ##   death and ignores the rest because a timer run has no health. The engine these maps
 ##   come from reads `damage` as per second and deals it in half-second pulses; Fatal Contact does
-##   the same through dot-combat as world damage, on the server, so the kill feed, the
+##   the same through gs-combat as world damage, on the server, so the kill feed, the
 ##   scoreboard and the statistics hear it like any other death. A negative amount heals,
 ##   as it does there. See `FcGame._hurt_from_map`. Not predicted: health is the
 ##   server's and replicates.

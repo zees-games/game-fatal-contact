@@ -1,6 +1,6 @@
 extends RefCounted
 
-## FcPlayer hooks for dot-replay's [GSKillcamHost]: how a drawn body is read and posed.
+## FcPlayer hooks for gs-replay's [GSKillcamHost]: how a drawn body is read and posed.
 
 const KillPov := preload("fc_kill_pov.gd")
 const KillcamShots := preload("fc_killcam_shots.gd")
@@ -24,14 +24,14 @@ static func hz_for(players: int) -> float:
 		return crowd_hz
 	return record_hz
 ## `cl_killcam_pose_lod`: 1 keeps a body's last recorded pose (no read of its ~43 bones, one engine call each) while its
-## figure's animation LOD step (dot-player-char `anim_step`, 2+ for a far, offscreen or unseen body) has not run out since
+## figure's animation LOD step (gs-player-char `anim_step`, 2+ for a far, offscreen or unseen body) has not run out since
 ## that read; 0 reads every body at every pose. A near body on screen is step 1, so always read.
 static var pose_lod: bool = true
 # Player instance id -> the process frame of its body's last pose read, for [member pose_lod].
 static var _pose_read_at: Dictionary = {}
 static var _pose_read_pruned: int = 16
 
-const SKIP_ACTIONS: PackedStringArray = ["dot_fps_jump", "arena_fire", "ui_cancel"]
+const SKIP_ACTIONS: PackedStringArray = ["gs_fps_jump", "arena_fire", "ui_cancel"]
 const SEQ_RANGE := 4096
 const SEQ_META := &"killcam_seen_seq"
 const ALIVE_META := &"killcam_seen_alive"
@@ -52,13 +52,13 @@ static func configure(host: GSKillcamHost, yard_fn: Callable = Callable(), shots
 		shots.state_fn = state_of
 	host.place_body_fn = place_body
 	host.restore_body_fn = restore_body
-	if GSAddonApi.build_level("dot_replay") >= 7:  # older hosts replay bodies by speed only
+	if GSAddonApi.build_level("gs_replay") >= 7:  # older hosts replay bodies by speed only
 		host.set(&"pose_fn", pose_of)
 		host.set(&"apply_pose_fn", apply_pose)
-		if GSAddonApi.build_level("dot_replay") >= 10:
+		if GSAddonApi.build_level("gs_replay") >= 10:
 			host.set(&"pose_fn", read_pose)
 			host.set(&"pose_unchanged_fn", pose_unchanged)
-	if GSAddonApi.build_level("dot_replay") >= 8:
+	if GSAddonApi.build_level("gs_replay") >= 8:
 		host.set(&"event_fn", func(p: Node, ra: Array, rb: Array, alpha: float, is_victim: bool) -> void:
 			var again: Array = host.get(&"_again")
 			var at: float = float((again[0] as Dictionary).get("time", -1.0)) if not again.is_empty() else -1.0

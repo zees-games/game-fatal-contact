@@ -2,7 +2,7 @@ extends "headless_match_spectating_and_objectives.gd"
 
 const FcTestToys := preload("fc_test_toys.gd")
 
-## dot-props' toys on the built-in maps, on a headless authority: every map's built, clear of its
+## gs-props' toys on the built-in maps, on a headless authority: every map's built, clear of its
 ## boxes and spawns; a walk into a ball sends it on; a shot pushes it and is still the combat's.
 func _test_toys() -> void:
 	_section("the maps' toys")
@@ -325,7 +325,7 @@ func _test_map_look() -> void:
 			var map: FcMap = FcMap.by_id(id)
 			var data := ResourceLoader.load(FcMap.BAKE_PATH % String(id)) as LightmapGIData if ResourceLoader.exists(FcMap.BAKE_PATH % String(id)) else null
 
-			if data == null or str(data.get_meta(&"dot_light_fingerprint", "")) != map.light_fingerprint():
+			if data == null or str(data.get_meta(&"gs_light_fingerprint", "")) != map.light_fingerprint():
 				all_baked = false
 				stale.append(String(id))
 
@@ -372,10 +372,10 @@ func _test_map_look() -> void:
 		elif child is DirectionalLight3D and child.name == "Fill":
 			fill = child
 	_check(sun != null and sun.shadow_enabled, "a built-in map has a sun that casts shadows")
-	# dot-lighting's painted(): the shade's shape comes from a shadowless fill where the
+	# gs-lighting's painted(): the shade's shape comes from a shadowless fill where the
 	# Compatibility renderer has no occlusion, and the grade from the adjustment pass.
 	_check(fill != null and not fill.shadow_enabled and env != null and env.adjustment_enabled,
-		"and a shadowless fill and a grade (dot-lighting's painted())")
+		"and a shadowless fill and a grade (gs-lighting's painted())")
 	_check(
 		env != null and env.background_mode == Environment.BG_SKY and env.sky != null,
 		"and a sky, not a flat background"

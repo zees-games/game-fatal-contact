@@ -7,8 +7,8 @@ const FcPlayer := preload("../game/fc_player.gd")
 const FcTestPorts := preload("test_ports.gd")
 
 
-## dot-net's lossy UDP relay, by path (it has no class_name).
-const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
+## gs-net's lossy UDP relay, by path (it has no class_name).
+const Relay := preload("res://addons/gs_net/testing/gs_net_udp_relay.gd")
 
 ## What a player SEES, frame by frame: the real client, offline and through a real socket.
 ## [codeblock] godot --headless --path . res://examples/headless_feel.tscn godot --headless --path .
@@ -407,9 +407,9 @@ func _teardown() -> void:
 func _early_physics() -> void:
 	if _jumping:
 		if Engine.get_physics_frames() % JUMP_EVERY == 0:
-			Input.action_press(&"dot_fps_jump")
+			Input.action_press(&"gs_fps_jump")
 		else:
-			Input.action_release(&"dot_fps_jump")
+			Input.action_release(&"gs_fps_jump")
 	if _mover != null and _mover_command != null:
 		var _outcome := _mover.simulate_tick(_mover_tick, 1.0 / float(TICK_RATE), _mover_command, GSWeaponCommand.new())
 		_mover_tick += 1

@@ -29,12 +29,12 @@ ms per tick, inclusive. "Per unit" is per call for CS:S and per player or bot-ti
 | `BoxTrace` (engine trace) | 548 calls, 0.44 | 0.8 µs | `GSTracePhysics.line_of_sight` | | 22 µs | 27x | structural: Godot physics against BSP brushes |
 | `ComputePartPositions` | about 0.28 | cached per target per frame | none (bots aim at chest/head offsets) | 0 | | | n/a |
 | `CBasePlayer::PhysicsSimulate` | 0.745 | 24 µs per player | `pl_sim` | 4.6-4.7 (56 calls) | 84 µs | 3.5x | motor already native (`motor_tick=full`); the wrapper is a native candidate, see `p_controller` |
-| `PlayerRunCommand` (movement) | 0.718 | 23 µs | `p_controller` | 2.3 | 74 µs | 3.2x | native candidate: about 1.2 of 2.3 ms, about 600 lines of `dot_fps_controller.gd`. It is authoritative sim, so it needs a parity suite like `perf-native-motor-2`; `arena-p-controller-2` covers the engine queries |
-| (weapon think inside PlayerRunCommand) | | | `p_weapons` | 1.3 | 42 µs | | native candidate, high risk: about 0.6 of 1.3 ms, about 1,500 lines of dot-combat. Hit reg, so not recommended now |
+| `PlayerRunCommand` (movement) | 0.718 | 23 µs | `p_controller` | 2.3 | 74 µs | 3.2x | native candidate: about 1.2 of 2.3 ms, about 600 lines of `gs_fps_controller.gd`. It is authoritative sim, so it needs a parity suite like `perf-native-motor-2`; `arena-p-controller-2` covers the engine queries |
+| (weapon think inside PlayerRunCommand) | | | `p_weapons` | 1.3 | 42 µs | | native candidate, high risk: about 0.6 of 1.3 ms, about 1,500 lines of gs-combat. Hit reg, so not recommended now |
 | `CPhysicsHook::FrameUpdatePostEntityThink` | 0.157 | | `tick_world` (props, ragdolls) | inside `srv_game` | | | structural: Godot physics |
 | `SV_ComputeClientPacks` (listen) | 0.042 per snapshot | | SIM_HOST `send` | 0.73-0.75 | | 17x, see source-server-comparison.md 1 | snapshot codec already native; the rest is structural (`net-pack-once-1`) |
 | `CBaseServer::WriteDeltaEntities` (listen) | 0.012 | | inside `send` | | | | already native (`GSSimSnapshotCodec`) |
-| `NET_ProcessSocket` + `ProcessUsercmds` (listen) | 0.064 x 2 | | dot-net dispatch and input | about 0.2 | | about 1.5x | structural: dot-net dispatch, about 0.2 ms |
+| `NET_ProcessSocket` + `ProcessUsercmds` (listen) | 0.064 x 2 | | gs-net dispatch and input | about 0.2 | | about 1.5x | structural: gs-net dispatch, about 0.2 ms |
 | `SV_SendClientMessages` (bots only) | 0.001 | | none on bots | 0 | | | n/a |
 | (no Source equivalent) | | | `net_pull` | 0.56-1.7 | | in flight, `arena-simnet` | in flight (`arena-simnet`) |
 | (no Source equivalent) | | | bot glue: `bot_after` 0.25, `ba_tail` 0.30, `bt_setup` 0.11, `ba_throw` 0.10, `ba_write` 0.07, `ba_sanitise` 0.04, `br_tiers` 0.04, `br_near` 0.03 | about 0.95 | 31 µs per bot-tick | | native candidate: about 0.7 of 0.95 ms, about 500 lines (`fc_bots.gd` tail and glue) |
@@ -59,7 +59,7 @@ ms per tick, inclusive. "Per unit" is per call for CS:S and per player or bot-ti
   - `br_contacts` builds one contact table a tick (0.44 ms) and every think reads it.
   - `_candidates` filters by FOV and range before any ray.
   - `_sees` traces the chest, then the head: at most 2 rays.
-  - Sight answers are reused for `SIGHT_REUSE` 0.045 s, and for 0.15 s beyond `sight_far` 20 m (`dot_bot_brain.gd:64`).
+  - Sight answers are reused for `SIGHT_REUSE` 0.045 s, and for 0.15 s beyond `sight_far` 20 m (`gs_bot_brain.gd:64`).
   - Brains run on `WorkerThreadPool` with `bot_threads` 3 by default.
 - **The cost per think is the gap.** `srv_bots` is 2.98 ms for 31 bots: 97 µs per bot-tick against CS:S's 36. Per think it is about 71 µs of brain plus 34 µs of refresh, and 0.95 ms of glue is spread over all 31 bots.
   - **Visibility**: 8-33 rays a tick at threads 0 (`bot_los` 0.2-0.72 ms), about 22 µs per ray. Each ray goes through `GSTracePhysics.line_of_sight`. That builds two `GSHitbox.Hit` objects and looks up the surface material, then calls `intersect_ray`. A worker-thread ray is about 6 µs.
@@ -112,21 +112,21 @@ The sight-ray saving is consistent and has no overlap: about 0.14 ms a tick, whi
 | `srv_bots` | 2.888 / 2.871 / 2.823 | 2.861 | 2.795 / 2.955 / 2.853 | 2.868 |
 | sim (total) | 12.29 / 12.13 / 12.24 | 12.22 | 12.05 / 12.72 / 12.29 | 12.35 |
 
-dot-sim's existing mind (aim, fight step, perception) makes no measurable difference here, so it is not the bottleneck. The cost sits in the GDScript around it: the think loop, the contact table, the coast and the glue.
+gs-sim's existing mind (aim, fight step, perception) makes no measurable difference here, so it is not the bottleneck. The cost sits in the GDScript around it: the think loop, the contact table, the coast and the glue.
 
 ## Recommended Rust scope
 
-The Native column in the scope table marks each line as **already native**, a **native candidate** (estimated ms saved, estimated lines to move) or **structural** (Godot physics, the network or the sum of other rows, which Rust in dot-sim does not fix). Only dot-sim has Rust today (about 8.5k lines: motor, brain, snapshot, bots, math, gdext). dot-bot, dot-net, dot-player-controller and dot-combat are GDScript.
+The Native column in the scope table marks each line as **already native**, a **native candidate** (estimated ms saved, estimated lines to move) or **structural** (Godot physics, the network or the sum of other rows, which Rust in gs-sim does not fix). Only gs-sim has Rust today (about 8.5k lines: motor, brain, snapshot, bots, math, gdext). gs-bot, gs-net, gs-player-controller and gs-combat are GDScript.
 
-**Recommended: one bot tick in dot-sim** (`simhost-bot-native-glue-1`).
+**Recommended: one bot tick in gs-sim** (`simhost-bot-native-glue-1`).
 
 - **What moves**: the per-tick bot loop, which is
   - the think tiers (`GSBotThinkTier`, 221 lines);
   - the contact table (`br_contacts`);
   - coast and gate (`bt_coast`, `bt_gate`);
   - the think tail and glue (`ba_tail`, `bot_after`, `bt_setup`, the `fc_bots.gd` and `fc_bots_world.gd` parts);
-  - the brain's per-think GDScript in `dot_bot_brain.gd` (965 lines) that wraps the existing `GSSimBotMind`.
-- **Size**: about 1,400 GDScript lines become about 1,500 Rust lines in dot-sim, plus a GDScript twin that is kept for the web.
+  - the brain's per-think GDScript in `gs_bot_brain.gd` (965 lines) that wraps the existing `GSSimBotMind`.
+- **Size**: about 1,400 GDScript lines become about 1,500 Rust lines in gs-sim, plus a GDScript twin that is kept for the web.
 - **Expected saving**: `srv_bots` from 2.9 to about 1.1-1.4 ms a tick at 31 bots, so 1.5-1.8 ms a tick, or 50-60 µs per bot-tick. That is CS:S's 36 µs per bot-tick plus FC's engine rays.
 - **Risk**: low. It covers bots only, and hit reg, lag compensation and the human sim stay outside it. Its parity check is the bot suites plus a seeded command-for-command comparison, like `perf-native-motor-2`.
 - **Overlap**: it overlaps `arena-perf-step-2`'s `bot_brain` kernel. Merge the two rather than run both.
@@ -143,10 +143,10 @@ The Native column in the scope table marks each line as **already native**, a **
 
 | Gap | FC cost now | Source | Owner | Board |
 | --- | --- | --- | --- | --- |
-| Engine ray against BSP trace | 6-22 µs per ray | 0.8 µs | dot-combat: a shared sight-ray API (no `Hit`, no material) for every game, then a native or BSP-tree trace | `bot-sight-ray-shared-1` |
-| Per-target part points shared across bots | each bot computes chest and head offsets | `m_partInfo` per frame | dot-bot | `bot-sight-ray-shared-1` |
-| Tier classify twice a think | about 10 µs per think | none (skip count only) | dot-bot `GSBotThinkTier` | `bot-tier-classify-once-1` |
-| Coast allocations | 2 duplicates per coasting bot, about 10 µs | `Upkeep` about 1 µs, no allocation | dot-bot / game glue | `bot-tier-classify-once-1` |
-| Brain and glue in GDScript | 71 µs brain + 31 µs glue per bot-tick | 36 µs per bot-tick in C++ | dot-sim native brain and glue | `simhost-bot-native-glue-1` |
-| Player movement and weapons | 74 + 42 µs per player | 23 µs | dot-sim native player row | `simhost-sim-cost-1` |
+| Engine ray against BSP trace | 6-22 µs per ray | 0.8 µs | gs-combat: a shared sight-ray API (no `Hit`, no material) for every game, then a native or BSP-tree trace | `bot-sight-ray-shared-1` |
+| Per-target part points shared across bots | each bot computes chest and head offsets | `m_partInfo` per frame | gs-bot | `bot-sight-ray-shared-1` |
+| Tier classify twice a think | about 10 µs per think | none (skip count only) | gs-bot `GSBotThinkTier` | `bot-tier-classify-once-1` |
+| Coast allocations | 2 duplicates per coasting bot, about 10 µs | `Upkeep` about 1 µs, no allocation | gs-bot / game glue | `bot-tier-classify-once-1` |
+| Brain and glue in GDScript | 71 µs brain + 31 µs glue per bot-tick | 36 µs per bot-tick in C++ | gs-sim native brain and glue | `simhost-bot-native-glue-1` |
+| Player movement and weapons | 74 + 42 µs per player | 23 µs | gs-sim native player row | `simhost-sim-cost-1` |
 | `net_pull` | 0.56-1.7 ms | 0 | in flight, `arena-simnet` | `net-pack-once-1` |

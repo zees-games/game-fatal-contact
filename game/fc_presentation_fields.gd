@@ -66,13 +66,13 @@ var settings: GSSettingsManager = null
 var audio: GSAudioManager = null
 
 
-## Everybody's footsteps by surface and a bed per map: dot-audio's stock (Kenney's footsteps
+## Everybody's footsteps by surface and a bed per map: gs-audio's stock (Kenney's footsteps
 ## and generated beds, CC0; the addon's stock/CREDITS.md).
 var steps: GSAudioFootsteps = null
 var ambience: GSAudioAmbience = null
 
 
-## Quiet moods under the map (dot-audio's stock set); the bed above plays only when none loaded.
+## Quiet moods under the map (gs-audio's stock set); the bed above plays only when none loaded.
 var ambient: GSAmbienceDirector = null
 var fx: GSFxManager = null
 ## Blood behind a body the local player hit; drawn only while `gore` is on.
@@ -139,7 +139,7 @@ static func bake_order(catalogue: GSAudioCatalogue, recipes: Dictionary) -> Dict
 
 ## Bakes the recipes named by [param ids] (consumed from the end) into [param bank] until
 ## [param budget_msec] is spent; one recipe is never split, so the call overruns by at most one.
-## Stock voices (dot_audio stock/voices, self-synthesised) replace the sine-sweep stand-ins for shot, hit, hurt, die, impact, boom.
+## Stock voices (gs_audio stock/voices, self-synthesised) replace the sine-sweep stand-ins for shot, hit, hurt, die, impact, boom.
 static func bake_into(bank: Dictionary, catalogue: GSAudioCatalogue, recipes: Dictionary, ids: Array, budget_msec: int) -> void:
 	var until := Time.get_ticks_msec() + budget_msec
 	while not ids.is_empty() and Time.get_ticks_msec() < until:

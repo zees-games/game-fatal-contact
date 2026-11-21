@@ -26,7 +26,7 @@ var _settle := 4.0
 var _port := 27230
 var _map := "dm_box"
 var _mode := "ffa"
-## --botstyles: the bot_styles value (dot-bot weapon styles); empty leaves the default.
+## --botstyles: the bot_styles value (gs-bot weapon styles); empty leaves the default.
 var _botstyles := ""
 
 var _t_start := 0
@@ -68,16 +68,16 @@ func _sentinel(is_start: bool) -> void:
 
 const _PlayerBody := preload("res://game/fc_player_body.gd")
 
-## --cellab N: an in-process A/B of dot-sim's binding cell (GSSimCell): every N ticks the run flips between the patched
+## --cellab N: an in-process A/B of gs-sim's binding cell (GSSimCell): every N ticks the run flips between the patched
 ## cell (side 0, notify only waiters) and upstream's notify-on-every-drop (side 1); the report splits the sections by side.
 var _cellab := 0
-## --weapab N: the same alternating A/B for dot-weapon's native hitscan spread tick (GSWeaponHitscan.native_tick):
-## side 0 ("patched") runs dot-sim's GSSimWeaponSpread, side 1 ("upstream") the GDScript tick.
+## --weapab N: the same alternating A/B for gs-weapon's native hitscan spread tick (GSWeaponHitscan.native_tick):
+## side 0 ("patched") runs gs-sim's GSSimWeaponSpread, side 1 ("upstream") the GDScript tick.
 var _ab_weap := false
 ## --leanab N: the same alternating A/B for the server's lean players' loop (FcPlayer.lean_tick): side 0 ("patched") lean,
 ## side 1 ("upstream") every per-player call the long way.
 var _ab_lean := false
-## --gateab N: the same alternating A/B for dot-weapon's idle gate (GSWeaponBehaviour.idle_gate): side 0 ("patched") 1,
+## --gateab N: the same alternating A/B for gs-weapon's idle gate (GSWeaponBehaviour.idle_gate): side 0 ("patched") 1,
 ## the cached native rows reused while they provably hold; side 1 ("upstream") 0, every idle row re-read and re-checked.
 ## --idlegate 2 runs the verify mode instead; the report counts its misses either way.
 var _ab_gate := false
@@ -96,7 +96,7 @@ func _ab_begin() -> void:
 		return
 	var need := &"GSSimWeaponSpread" if _ab_weap else &"GSSimCell"
 	if not _ab_lean and not _ab_gate and not ClassDB.class_exists(need):
-		push_error("scale128: --%s needs dot-sim's %s" % ["weapab" if _ab_weap else "cellab", need])
+		push_error("scale128: --%s needs gs-sim's %s" % ["weapab" if _ab_weap else "cellab", need])
 		get_tree().quit(1)
 		return
 	_ab_side = 0
@@ -202,7 +202,7 @@ func _ready() -> void:
 			"--pvsverify": FcBotPvs.verify = args[i + 1] != "0"
 			"--wlane": _PlayerBody.idle_row_lane = args[i + 1] != "0"
 			"--native": GSBotWorld.native_enabled = args[i + 1] != "0"
-			# --native-sight 0: bot sight rays through script, never dot-sim's native ray (the A/B of World.native_sight).
+			# --native-sight 0: bot sight rays through script, never gs-sim's native ray (the A/B of World.native_sight).
 			"--native-sight": FcBotsWorld.World.native_sight = args[i + 1] != "0"
 			"--motornative": GSFpsPhysicsBody.native_enabled = args[i + 1] != "0"
 			# --fine 1: FcFrameProbe.fine for the recording, so the sections split tick_players, bots and the world (laps).
@@ -302,7 +302,7 @@ func _report(extra: Dictionary) -> void:
 		out["hull_mismatches"] = FcHullGrid.mismatches
 		out["hull_native_verified"] = FcHullGrid.native_verified
 		out["hull_native_mismatches"] = FcHullGrid.native_mismatches
-	# Hull gathers dot-sim's hull world answered in the motor tick (no script call), and the pair calls it made.
+	# Hull gathers gs-sim's hull world answered in the motor tick (no script call), and the pair calls it made.
 	var arena := get_tree().root.find_child("Arena", true, false)
 	var world: Object = arena.get(&"_hull_world") if arena != null else null
 	if world != null:
@@ -321,7 +321,7 @@ func _report(extra: Dictionary) -> void:
 		wp["ars_calls"] = GSWeaponArsenal.phase_calls
 		out["weapon_phases_ms"] = wp
 	if (GSBotBrain as GDScript).get(&"phase_timers"):
-		# Brain think sub-phases (ms per tick), by name: an older dot-bot has no such clocks.
+		# Brain think sub-phases (ms per tick), by name: an older gs-bot has no such clocks.
 		var bp := {}
 		var b_names: Array = (GSBotBrain as GDScript).get(&"PHASES")
 		var b_us: PackedInt64Array = (GSBotBrain as GDScript).get(&"phase_us")
@@ -484,7 +484,7 @@ func _serve() -> void:
 		"net_send_ms_per_tick": snappedf((int(after[&"server_send_usec"]) - int(before[&"server_send_usec"])) / 1000.0 / nt, 0.001),
 		"net_ticks": nt, "snapshot_every_ticks": net.config.ticks_per_snapshot(),
 		"snapshot_hz": net.config.snapshot_rate, "entities": net.registry.all().size(),
-		# Whether dot-sim's hitscan spread tick is loaded: false with a dot-sim build older than its weapon module, where
+		# Whether gs-sim's hitscan spread tick is loaded: false with a gs-sim build older than its weapon module, where
 		# every weapon tick runs the GDScript fallback (--weapab toggles GSWeaponHitscan.native_tick on top of this).
 		"weapon_native_loaded": ClassDB.class_exists(&"GSSimWeaponSpread"),
 	})

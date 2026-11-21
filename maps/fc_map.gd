@@ -160,7 +160,7 @@ static func _read_threaded(paths: PackedStringArray, slice: GSFrameSlice) -> Arr
 
 ## The level as collision only: static bodies, no meshes, no material.
 ##
-## [b]This exists for one reason, and it is dot-props.[/b] Everything else in this game
+## [b]This exists for one reason, and it is gs-props.[/b] Everything else in this game
 ## is analytic — the player's movement, the shot tracing, the navigation — precisely so
 ## a headless server needs no physics space. A physics prop is the exception: a rigid
 ## body has to have something to land on, and on a dedicated server nothing has ever

@@ -2,7 +2,7 @@ extends SceneTree
 
 ## The offline client in first person, then third person through the view key's own path,
 ## then under a server's `mp_forceview 1`: a frame of each and a line saying what the
-## client did. The check behind the view toggle (dot-player-controller's
+## client did. The check behind the view toggle (gs-player-controller's
 ## `GSPlayerViewRules`); the camera itself is checked by `render_cameras`.
 ##
 ##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_views.gd

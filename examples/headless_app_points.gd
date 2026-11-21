@@ -149,7 +149,7 @@ func _settings() -> void:
 	var w := _wiring(game, client)
 	_check(w.describe()["settings"], "a client with get_integration: settings on")
 	var follows := GSLoadoutSiteSource.new().has_method(&"key_mode")
-	_check(w.describe()["points"] == follows, "no site key: points follow the site's key list (off on a dot-loadout without one)")
+	_check(w.describe()["points"] == follows, "no site key: points follow the site's key list (off on a gs-loadout without one)")
 	client.body = {"appId": "1", "sections": {"avatars": {"version": 2, "values": {
 		"appOnly": true,
 		"slots": [

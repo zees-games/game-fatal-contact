@@ -1,6 +1,6 @@
 extends Node
 
-## Where the time to a playable frame goes, stamped in engine milliseconds (Time.get_ticks_msec) and printed once when the gate opens, as one console line and `window.dotWeb.published.arena_load` (JSON). Always on: about 20 stamps and one line.
+## Where the time to a playable frame goes, stamped in engine milliseconds (Time.get_ticks_msec) and printed once when the gate opens, as one console line and `window.gsWeb.published.arena_load` (JSON). Always on: about 20 stamps and one line.
 ## A hold appearing or going, the gate's state and the client's own phases (a `mark`) are stamped with the frame number, so a slow phase shows as a long gap and a frame count:
 ## long gap in few frames = one big frame, long gap in many = a sliced phase.
 
@@ -70,7 +70,7 @@ func _ready() -> void:
 	set_physics_process(false)
 	_last_ms = Time.get_ticks_msec()
 	mark("timeline_start")
-	# Beside this script, not "res://game/": a pack mounted under res://dot_cloud/<id>/<version>/ has no such path.
+	# Beside this script, not "res://game/": a pack mounted under res://gs_cloud/<id>/<version>/ has no such path.
 	var probe: GDScript = load((get_script() as Script).resource_path.get_base_dir().path_join("fc_frame_probe.gd"))
 	var trace := str(probe.call(&"launch_value", "cl_load_trace"))
 	_trace_items = trace == "items"
@@ -272,7 +272,7 @@ func _process(_delta: float) -> void:
 
 ## The first [const SETTLE_MSEC] of play after the gate opens: each frame of [const SETTLE_SLOW_MS] or more is
 ## stamped between the client's own marks, so a spike right after the cover names its work. Reported once, as
-## `arena.load` "after open" and `window.dotWeb.published.arena_after_open`.
+## `arena.load` "after open" and `window.gsWeb.published.arena_after_open`.
 func _settle() -> void:
 	var now := Time.get_ticks_msec()
 	var ms := now - _last_ms

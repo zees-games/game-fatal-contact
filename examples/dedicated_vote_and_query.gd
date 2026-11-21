@@ -34,7 +34,7 @@ var _game: FcGame = null
 var _caught: Array[Dictionary] = []
 
 
-## The vote and map clocks, the ballot's ids and cooldown, and dot-vote's commands.
+## The vote and map clocks, the ballot's ids and cooldown, and gs-vote's commands.
 func _test_vote_wiring(module: FcModule, options: Array) -> void:
 	# Both map clocks follow hibernation; their own suites assert what following does.
 	_check(
@@ -104,12 +104,12 @@ func _test_vote_wiring(module: FcModule, options: Array) -> void:
 
 	_check(
 		absent.is_empty(),
-		"dot-vote's commands are on the console, the operator's with the players'",
+		"gs-vote's commands are on the console, the operator's with the players'",
 		"missing: %s" % ", ".join(absent)
 	)
 
 
-## dot-map and dot-vote, on a server with a rotation and a ballot.
+## gs-map and gs-vote, on a server with a rotation and a ballot.
 func _test_maps_and_vote() -> void:
 	_begin()
 	print("")
@@ -127,7 +127,7 @@ func _test_maps_and_vote() -> void:
 
 	# The sync host has a transport. Without one it announces a change to nobody and
 	# every client carries on playing a map that no longer exists — which is the
-	# absence dot-map's own notes call "the structural one".
+	# absence gs-map's own notes call "the structural one".
 	_check(
 		module.maps.sync != null and module.maps.sync.send_fn.is_valid(),
 		"the map sync host has somewhere to send its announcements"
@@ -143,7 +143,7 @@ func _test_maps_and_vote() -> void:
 
 	# The map menu's server half (M): the maps and the modes of this ballot, each said to be
 	# which; the owner's flag changes the map now through the director (so peers follow),
-	# anybody else gets a vote. Contexts as dot-server makes them for a chat line.
+	# anybody else gets a vote. Contexts as gs-server makes them for a chat line.
 	var menu_half: Object = module.vote.commands.get("map_menu")
 	_check(menu_half != null and _server.console.find_command("mapmenu") != null
 		and _server.console.find_cvar("sv_map_menu_flag").get_string() == "generic",
@@ -368,7 +368,7 @@ func _test_finish_round_waits_for_a_live_round() -> void:
 
 
 ## A director under `time_up: finish_round` carrying [param hook], its clock run out with a
-## winner already decided: what dot-vote's own suite builds, with the game's answer in it.
+## winner already decided: what gs-vote's own suite builds, with the game's answer in it.
 func _finish_round_probe(hook: Callable, applied: Array) -> GSVoteDirector:
 	var source := GSVoteListSource.new()
 	var _a := source.add(GSVoteChoice.of(&"a", "A"))
@@ -413,7 +413,7 @@ func _finish_round_probe(hook: Callable, applied: Array) -> GSVoteDirector:
 	return probe
 
 
-## What a server browser is told: dot-browser is the client half; this is the server half, a
+## What a server browser is told: gs-browser is the client half; this is the server half, a
 ## query provider contributing the numbers a browser filters on.
 func _test_query() -> void:
 	_begin()
@@ -448,7 +448,7 @@ func _test_query() -> void:
 	_end()
 
 
-## dot-browser asking a real [GSServer]: a real UDP round trip between two objects in one
+## gs-browser asking a real [GSServer]: a real UDP round trip between two objects in one
 ## process, the shape a player opening a server list is in.
 func _test_browser() -> void:
 	_begin()
@@ -470,7 +470,7 @@ func _test_browser() -> void:
 		remove_child(browser)
 		return
 
-	# The query port, not the game port. dot-server listens for queries separately —
+	# The query port, not the game port. gs-server listens for queries separately —
 	# a browser that asked the game port would get no answer and report every server
 	# as offline, which reads as the browser being broken.
 	var query_port := _server.config.query_port
@@ -517,7 +517,7 @@ func _test_browser() -> void:
 		)
 
 		# The game half, which is what `FcModule`'s query provider contributes. It is NOT
-		# `entry.map` (dot-server's `info.map`, empty before any game switch); dot-browser nests
+		# `entry.map` (gs-server's `info.map`, empty before any game switch); gs-browser nests
 		# the game's section under `rules["game"]` so a field named `map` cannot overwrite it.
 		_check(
 			FcBrowser.game_field(entry, "map") == String(_game.map.id),
@@ -566,7 +566,7 @@ func _test_client_spawn() -> void:
 
 	# `client_spawn` carries `userid` and `name`, not `peer_id`. The module once looked the
 	# session up by `peer_id` (0 on every event) and nobody joined; this suite fires the event
-	# dot-server fires and asserts somebody joined.
+	# gs-server fires and asserts somebody joined.
 	var module := _server.modules.get_module("arena") as FcModule
 
 	if not _check(module != null, "the module is loaded"):
@@ -586,13 +586,13 @@ func _test_client_spawn() -> void:
 
 	# 4242 has no socket, so everything the bridge sends it was an `rpc_id` to an unknown peer
 	# ("Attempt to call RPC with unknown peer ID" on every run). Caught on the link's loopback:
-	# what was sent becomes a check. `_test_bots` silences dot-net's own send the same way.
+	# what was sent becomes a check. `_test_bots` silences gs-net's own send the same way.
 	var link: Variant = module.bridge.link if module.bridge != null else null
 	if link != null:
 		link.loopback = func(method: StringName, peer_id: int, _payload: PackedByteArray) -> void:
 			_caught.append({"method": method, "peer": peer_id})
 
-	# The payload dot-server actually fires: `{"userid", "name"}`. No peer_id.
+	# The payload gs-server actually fires: `{"userid", "name"}`. No peer_id.
 	_server.events.fire("client_spawn", {"userid": session.userid, "name": session.display_name})
 
 	_check(
@@ -661,7 +661,7 @@ func _test_commands() -> void:
 	var restart := _server.console.execute("fc_restart")
 	_check(restart.ok, "fc_restart runs", str(restart.error))
 	# A console line arrives in the idle frame, and a restart respawns everybody (a physics space
-	# query on a threaded server): it is held for the next server tick (dot_tick_gate.gd).
+	# query on a threaded server): it is held for the next server tick (gs_tick_gate.gd).
 	_check(
 		_game.tick_gate.armed and _game.tick_gate.pending() == 1,
 		"held for the next server tick",

@@ -81,7 +81,7 @@ enum Kind {
 	## A bullet hit or expired on the server: its id. The client's copy ends there rather than at its own range.
 	BULLET_END,
 	## The victim's kill view (`mp_killview`): the killer's recorded view as a clip, to the victim alone. A
-	## var-encoded dictionary, because dot-replay owns the clip's shape and a copy here would drift from it.
+	## var-encoded dictionary, because gs-replay owns the clip's shape and a copy here would drift from it.
 	##
 	## After BULLET_END, for the reason VOTE gives.
 	KILLVIEW,
@@ -101,7 +101,7 @@ enum Kind {
 	WEAPON_SETTLED,
 	## A dropped weapon is gone: its id and who took it (0 for expiry or the cap).
 	WEAPON_GONE,
-	## A converted map's mover state (dot-map's io_snapshot, io_state or a batch of them), as UTF-8 JSON. One per tick while something moves, and the whole state at signon.
+	## A converted map's mover state (gs-map's io_snapshot, io_state or a batch of them), as UTF-8 JSON. One per tick while something moves, and the whole state at signon.
 	##
 	## After WEAPON_GONE, for the reason VOTE gives.
 	MAP_STATE,
@@ -130,7 +130,7 @@ enum Kind {
 }
 
 enum Ask {
-	## I have loaded my scene and can receive. Tell me everything. [b]Nothing may be sent to a peer before this arrives.[/b] dot-server's signon
+	## I have loaded my scene and can receive. Tell me everything. [b]Nothing may be sent to a peer before this arrives.[/b] gs-server's signon
 	## finishes and *then* the client builds its scene; everything sent in between
 	## lands on a node that does not exist and is lost, one "Node not found" per call.
 	READY,
@@ -140,7 +140,7 @@ enum Ask {
 	NAME,
 	## Do something with a prop: grab, release, freeze or punt.
 	##
-	## [b]An intent, not an action, and the whole reason dot-props needs one.[/b] A
+	## [b]An intent, not an action, and the whole reason gs-props needs one.[/b] A
 	## rigid body's contact solver is not reproducible across machines, so props are
 	## server-authoritative and unpredicted — a client that moved one locally would be
 	## corrected on the next snapshot, every snapshot. The body carries what the
@@ -304,10 +304,10 @@ static func read_prop_act(reader: GSNetReader) -> Dictionary:
 ## [param critical] is last and optional on the wire, like MATCH's score limit: a reader
 ## that finds the message ends before it reads a kill that was not one.
 ##
-## [param death] (dot-player-char's [GSPlayerDeath]: the reaction the server picked, its
+## [param death] (gs-player-char's [GSPlayerDeath]: the reaction the server picked, its
 ## seed, the shot's direction and damage) comes after it and is optional the same way, so
 ## every client builds the same fall and an older client reads the kill without it. About
-## seven bytes, in dot-player-char's own form (`GSPlayerDeath.write_to`).
+## seven bytes, in gs-player-char's own form (`GSPlayerDeath.write_to`).
 static func write_kill(
 	killer_id: int, victim_id: int, weapon: String, headshot: bool, critical: bool = false,
 	death: GSPlayerDeath = null
@@ -447,7 +447,7 @@ const CUE_BYTES := 32
 ##
 ## [b]An id, never a file.[/b] What the id sounds like is the client's catalogue, so a
 ## server can name a cue a client has no sound for and the client plays nothing — which
-## is dot-audio's rule for any id it does not know, and the right one for a noise.
+## is gs-audio's rule for any id it does not know, and the right one for a noise.
 static func write_vote(cue: String, seconds_left: int, runoff: bool) -> PackedByteArray:
 	var writer := _w()
 	writer.write_string(cue, CUE_BYTES)

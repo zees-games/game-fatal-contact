@@ -11,8 +11,8 @@ extends RefCounted
 const OLD_PREFIX := "arena_"
 const NEW_PREFIX := "fc_"
 
-## Old names whose new name is not `fc_` + the rest: the map change is dot-map's `map`
-## (`arena_maps` is `fc_maps`, the listing that credits authors) and the stats report is dot-game's family cvar.
+## Old names whose new name is not `fc_` + the rest: the map change is gs-map's `map`
+## (`arena_maps` is `fc_maps`, the listing that credits authors) and the stats report is gs-game's family cvar.
 const MOVED := {
 	"arena_map": "map",
 	"arena_stats_report": "stats_report",

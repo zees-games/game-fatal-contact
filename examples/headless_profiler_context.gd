@@ -2,7 +2,7 @@ extends GSGameCheckSuite
 
 const FcProfilerContext := preload("../game/fc_profiler_context.gd")
 
-## The profiler reports what perf work needs: the game and the dot-sim natives in every report's context, dot-sim's
+## The profiler reports what perf work needs: the game and the gs-sim natives in every report's context, gs-sim's
 ## native timers in extras, and none of it failing where the library is missing.
 ## Run: [code]./game.sh test headless_profiler_context[/code]
 
@@ -47,7 +47,7 @@ func _test_natives() -> void:
 	var n := FcProfilerContext.natives()
 	for key: String in ["loaded", "stamp", "status", "hull_native", "fc_hull_native"]:
 		_check(n.has(key), "natives has %s" % key)
-	_check(str(n.status).begins_with("dot-sim:"), "the status is dot_sim_status()", str(n.status))
+	_check(str(n.status).begins_with("gs-sim:"), "the status is gs_sim_status()", str(n.status))
 	_check(n.fc_hull_native == ("1" if n.hull_native else "0"), "the hull cvar matches the flag")
 	_check(n.loaded == ClassDB.class_exists(&"GSSimFpsBody"), "loaded follows the class")
 	_done()
@@ -84,7 +84,7 @@ func _test_report() -> void:
 	_check(not FcFrameProbe.fine, "the sub-spans are off again after the recording")
 	_check(FileAccess.file_exists(String(res.value).get_basename() + ".txt"), "a text report is beside the JSON")
 	var text := FileAccess.get_file_as_string(String(res.value).get_basename() + ".txt")
-	_check(text.contains("dot-sim:"), "the text report shows the natives line")
+	_check(text.contains("gs-sim:"), "the text report shows the natives line")
 	prof.queue_free()
 	_done()
 

@@ -8,7 +8,7 @@ const ClientBench := preload("client_bench.gd")
 const FcPlayerStack := preload("../game/fc_player_stack.gd")
 
 ## Solo (offline) client with N bots on `--map`: `godot --path . res://tools/offline_cost.tscn -- --map blackhawkdown --bots 10 --seconds 25`. Prints fps, frame p50/p95/max, the engine's monitors and physics steps per frame.
-## `--native 0` keeps the bots' sight scan in script, `--brain-native 0` their aim, fight step and perception (GSSimBotMind), `--motor-native 0` the movement queries; `--motor-tick 1|0` toggles [member GSFpsMotor.native_tick] (needs a dot-sim with the motor tick).
+## `--native 0` keeps the bots' sight scan in script, `--brain-native 0` their aim, fight step and perception (GSSimBotMind), `--motor-native 0` the movement queries; `--motor-tick 1|0` toggles [member GSFpsMotor.native_tick] (needs a gs-sim with the motor tick).
 
 var _bots := 10
 ## `--physoff 1`: switch the engine's 3D physics step off after warm-up. What the "physics" phase still costs is script (game tick plus every _physics_process); the drop is the engine's own share.

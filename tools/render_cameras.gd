@@ -1,7 +1,7 @@
 extends GSCameraTool
 
 ## Fatal Contact's cameras against its real maps: the third-person view, and the spectator's
-## chase camera (the one the play test found inside a wall). See dot-core's GSCameraTool.
+## chase camera (the one the play test found inside a wall). See gs-core's GSCameraTool.
 ##
 ##   tools/render_cameras.sh [map]        # dm_box by default; frames in screenshots/cameras/
 ##   godot --headless --path . --script tools/render_cameras.gd -- --no-render --map dm_atrium
@@ -71,6 +71,6 @@ func _eye_height() -> float:
 
 
 func _offsets() -> Dictionary:
-	# The spectator's chase camera is dot-spectate's: 3.5 m behind the eye and 0.9 up (the
+	# The spectator's chase camera is gs-spectate's: 3.5 m behind the eye and 0.9 up (the
 	# Fatal Contact's rules), along the watched player's view.
 	return {"third_person": FcPlayer.THIRD_PERSON_OFFSET, "chase": Vector3(0.0, 0.9, 3.5)}

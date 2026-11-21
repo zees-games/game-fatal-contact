@@ -21,8 +21,8 @@ const FcSpriteWeapon := preload("fc_sprite_weapon.gd")
 const FcRecoilView := preload("fc_recoil_view.gd")
 
 ## One player: movement, weapons, health and hitboxes, assembled. [b]This is the piece every one of
-## the addons says belongs in the game.[/b] dot-player-controller does not know about dot-combat;
-## dot-combat does not know about dot-match; none of them knows about the others' node layout.
+## the addons says belongs in the game.[/b] gs-player-controller does not know about gs-combat;
+## gs-combat does not know about gs-match; none of them knows about the others' node layout.
 
 const CHANNEL := "arena.player"
 
@@ -51,7 +51,7 @@ enum Mode {
 
 @export_group("Identity")
 
-## Stable id. A dot-server session id in a real deployment; an index in a test. The same value is
+## Stable id. A gs-server session id in a real deployment; an index in a test. The same value is
 ## the scoreboard key, the combat entity id and the damage attribution, which is what stops three id
 ## spaces having to be mapped onto each other at every seam.
 @export var player_id: int = 0
@@ -88,7 +88,7 @@ var mirror_fire_kind: int = 0
 var mirror_switching: bool = false
 var mirror_charge: float = 0.0
 ## The knife throw's wind-up as the figure and the view model show it: 0 to 1 while winding, below 0 when not. Written
-## by whoever knows it: the server's game for a player it simulates (dot-weapon's `charge_of`), the snapshot for a
+## by whoever knows it: the server's game for a player it simulates (gs-weapon's `charge_of`), the snapshot for a
 ## mirror (`net_charge`), the HUD's meter for the followed player on a client.
 var windup: float = -1.0
 var _windup_was: float = -1.0
@@ -127,7 +127,7 @@ var view_now: Variant = null
 var drawn_offset: Vector3 = Vector3.ZERO
 
 ## How far through the current tick this frame is drawn (usually 0..1, -1 to 2 just after a slip),
-## or NAN for the engine's physics fraction. Set every frame by a connected client from dot-net's
+## or NAN for the engine's physics fraction. Set every frame by a connected client from gs-net's
 ## `GSNetClock.render_alpha`.
 var drawn_alpha: float = NAN
 
@@ -211,7 +211,7 @@ var _first_person: GSPlayerFirstPersonBody = null
 var own_body_mode: int = 0
 
 ## Third person: the camera behind and over the shoulder of the eye, kept out of the level by
-## dot-core's probe, and the whole body drawn. The client sets it from the view key under the
+## gs-core's probe, and the whole body drawn. The client sets it from the view key under the
 ## server's `mp_forceview`; presentation only, the simulation does not know.
 var third_person: bool = false
 
@@ -243,12 +243,12 @@ var _view_fov_scale: float = 1.0
 ## What a remote player is drawn as. Null on the local player, who sees their own eyes.
 var body_mesh: Node3D = null
 
-## The person drawn in [member body_mesh]: dot-player-char's people, the family's one style for
+## The person drawn in [member body_mesh]: gs-player-char's people, the family's one style for
 ## players, bots and NPCs, coloured from [member avatar] by `FcAvatars.look_of`. Null on a
 ## server, and for the capsule a build without the people's art falls back to.
 var figure: GSHumanoidFigure = null
 
-## What this player looks like, as a dot-user-avatar document; null is the stock figure. Set on a
+## What this player looks like, as a gs-user-avatar document; null is the stock figure. Set on a
 ## server from the identity layer and carried to every client in JOIN, so a member who dressed on
 ## the site is that figure on every screen.
 var avatar: GSAvatar = null
@@ -320,7 +320,7 @@ var late_fire_aim := Vector2(NAN, 0.0)
 var _tick_rate: int = FcContent.TICK_RATE
 
 ## A [GSFpsController] that collides against analytic geometry rather than physics. `_make_body` is
-## dot-player-controller's documented seam for exactly this, and using it is what lets the same
+## gs-player-controller's documented seam for exactly this, and using it is what lets the same
 ## [FcPlayer] run on a dedicated server with no physics space and in a client with one.
 class HeadlessController extends GSFpsController:
 	var flat_body: GSFpsBody = null
@@ -344,7 +344,7 @@ var _hull_tick: int = -1
 func game_tick() -> int:
 	return _hull_tick
 
-## dot-sim's hull world ([method FcGame._begin_hull_world]) this player is filed in as [member hull_slot] while the players' loop runs; a death or a spawn is written to it.
+## gs-sim's hull world ([method FcGame._begin_hull_world]) this player is filed in as [member hull_slot] while the players' loop runs; a death or a spawn is written to it.
 var hull_world: Object = null
 var hull_slot: int = -1
 ## The movement body [member hull_world] was last given to, its slot, and whether the body took it.
@@ -441,7 +441,7 @@ static var held_draw_range: float = WEB_HELD_DRAW_RANGE if GSPlatform.is_web() e
 ## and the body holding it still casts its own.
 static var held_shadows: bool = not GSPlatform.is_web()
 
-## `cl_figure_draw_range`: the figure's draw range (dot-player-char 27 reads it live), mirrored here for the per-frame
+## `cl_figure_draw_range`: the figure's draw range (gs-player-char 27 reads it live), mirrored here for the per-frame
 ## test that hides a gun and crest past it. 0: drawn at every distance.
 static var figure_draw_range: float = GSHumanoidFigure.DRAW_RANGE
 ## `cl_figure_lift_range`'s default: past it, or out of view, a remote body stands on the floor only on the frames its
@@ -572,7 +572,7 @@ var _figure_hold_kind: int = -1
 
 ## How a stair tread's rise reaches the eye: the time constant of an exponential, seconds.
 ## The step is the simulation's at once; only the view eases (as `GSFpsView.smooth_step_up` does in
-## dot-player-controller's camera; this game writes its own in `present`). `headless_feel` measures it.
+## gs-player-controller's camera; this game writes its own in `present`). `headless_feel` measures it.
 var step_smooth_time: float = 0.05
 
 ## The part of recent stair steps not yet shown, metres: subtracted from the eye, easing to 0.

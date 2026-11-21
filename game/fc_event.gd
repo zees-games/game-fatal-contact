@@ -4,7 +4,7 @@ const FcEvents := preload("fc_events.gd")
 
 ## Anything the authority tells a client that is not a snapshot. Reliable, to clients.
 ##
-## A kind and a body, rather than one message type per event. dot-net seals its message
+## A kind and a body, rather than one message type per event. gs-net seals its message
 ## registry by sorting the type names and assigning wire ids from that order, so every
 ## message type added is a wire-id change on both ends — and the two ends are separate
 ## programs the moment a browser connects. One message with a kind inside it moves that

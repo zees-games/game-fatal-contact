@@ -422,7 +422,7 @@ func _test_reach() -> void:
 	)
 	_done()
 
-## dot-core's [GSCollisionAudit] over every built-in map as a client draws it: drawn geometry with
+## gs-core's [GSCollisionAudit] over every built-in map as a client draws it: drawn geometry with
 ## no shape near it is a wall a player walks into.
 func _test_collision_audit() -> void:
 	_section("every map: nothing drawn is walked through")

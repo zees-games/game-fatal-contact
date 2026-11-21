@@ -112,9 +112,9 @@ func _fly_free_camera(id: int, current: Transform3D) -> Transform3D:
 	_free_cam.look(Vector2(-_roam_look.x, -_roam_look.y) * sens)
 	_roam_look = Vector2.ZERO
 	var move := Vector3(
-		_strength(&"dot_fps_right") - _strength(&"dot_fps_left"),
-		_strength(&"dot_fps_jump") - _strength(&"dot_fps_crouch"),
-		_strength(&"dot_fps_forward") - _strength(&"dot_fps_back"),
+		_strength(&"gs_fps_right") - _strength(&"gs_fps_left"),
+		_strength(&"gs_fps_jump") - _strength(&"gs_fps_crouch"),
+		_strength(&"gs_fps_forward") - _strength(&"gs_fps_back"),
 	)
 	if not mouse_drives_view():
 		move = Vector3.ZERO
@@ -153,7 +153,7 @@ func _drive_spectator_camera() -> void:
 		var roaming := game.spectate.is_roaming(str(id))
 		hud.roam_hint = "Back to players" if roaming else ("Free camera" if game.spectate.can_roam(str(id)) else "")
 
-	# The chase and death cameras are pulled out of the level by dot-spectate, given it.
+	# The chase and death cameras are pulled out of the level by gs-spectate, given it.
 	var manager := game.spectate.manager
 	if manager != null and manager.camera_world == null:
 		manager.camera_world = player.camera.get_world_3d()
@@ -339,8 +339,8 @@ func _apply_hit_wobble(now: float) -> void:
 	if step != Vector2.ZERO:
 		_sampler.look_at_angles(_sampler.yaw + step.x, _sampler.pitch + step.y)
 
-## Adds the frame's camera shake. dot-fx computes it; this is the only thing that applies it.
-## Same rule as dot-spectate's camera: one implementation then serves the play rig, a
+## Adds the frame's camera shake. gs-fx computes it; this is the only thing that applies it.
+## Same rule as gs-spectate's camera: one implementation then serves the play rig, a
 ## spectator's and a headless suite, with no second code path to keep in step.
 func _apply_shake() -> void:
 	if player == null or player.camera == null or presentation == null:
@@ -354,7 +354,7 @@ func _apply_shake() -> void:
 	player.camera_roll = presentation.camera_roll() + deg_to_rad(hit.x)
 	_apply_hit_wobble(now)
 
-## Whether the local player is dot-net's idea of a predicted entity. Not the same question as "is it ours". `GSNetIdentity.is_predicted` also requires
+## Whether the local player is gs-net's idea of a predicted entity. Not the same question as "is it ours". `GSNetIdentity.is_predicted` also requires
 ## the authority to be SHARED and the owner peer id to match this manager's local one — and a client whose local peer id does not match what the server addressed it as gets
 ## an entity that is neither predicted nor interpolated, which nothing then moves.
 func _is_predicted() -> bool:

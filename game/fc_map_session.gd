@@ -9,7 +9,7 @@ const FcModes := preload("fc_modes.gd")
 
 ## A [GSMapSession] whose maps are built rather than loaded.
 ##
-## [b]dot-map assumes a map is a scene, and this game's maps are not.[/b]
+## [b]gs-map assumes a map is a scene, and this game's maps are not.[/b]
 ## [method GSMapSession.change_to_map] calls [GSMapLoader], which `load()`s
 ## [member GSMapDef.scene_path] and casts the result to a [PackedScene] — and Fatal Contact
 ## map's "scene path" names [code]fc_map.gd[/code], the script that produces it. Cast
@@ -22,7 +22,7 @@ const FcModes := preload("fc_modes.gd")
 ## unchanged, because none of them ever opens a scene: they work on an id and a version.
 ##
 ## [b]The delivered path is kept, not removed.[/b] A map with a
-## [member GSMapDef.content_id] is content dot-cloud fetches and mounts, and there is
+## [member GSMapDef.content_id] is content gs-cloud fetches and mounts, and there is
 ## no reason this game could not have one — so a non-local map falls through to
 ## [method GSMapSession.change_to_map] with `super`. The override is for the built-ins,
 ## which is exactly the set [method FcMap.by_id] knows how to make.
@@ -76,7 +76,7 @@ func change_to_map(map: GSMapDef) -> GSResult:
 		if not mounted.ok:
 			return mounted
 	elif not map.is_local():
-		# Delivered content. dot-cloud fetches it, dot-map mounts it, and the base
+		# Delivered content. gs-cloud fetches it, gs-map mounts it, and the base
 		# class does the rest — there is nothing arena-specific about a map that
 		# really is a scene.
 		return await super.change_to_map(map)
@@ -92,7 +92,7 @@ func change_to_map(map: GSMapDef) -> GSResult:
 		return _adopt_built_world(map)
 
 	# The swap respawns everybody, and the map sync's last peer report lands in the idle frame:
-	# on a server the swap itself waits for the next tick (dot_tick_gate.gd).
+	# on a server the swap itself waits for the next tick (gs_tick_gate.gd).
 	await game.tick_gate.reached()
 
 	if changing_now:
@@ -178,7 +178,7 @@ func _swap_to(map: GSMapDef, built: FcMap, wanted: FcMode) -> GSResult:
 	current = map
 	_note_profile_mode(map, previous_mode, wanted)
 
-	# No zones. dot-timer is not in this game; an arena map's "zones" are its spawn
+	# No zones. gs-timer is not in this game; an arena map's "zones" are its spawn
 	# points, and those come from FcMap with the geometry.
 	zones_json = ""
 
@@ -330,7 +330,7 @@ func _mode_for(map: GSMapDef) -> FcMode:
 	return found
 
 
-## The mode id the rotation's profile names for [param map], or "". Read through `get` so a dot-map
+## The mode id the rotation's profile names for [param map], or "". Read through `get` so a gs-map
 ## without [code]GSMapDef.profile[/code] still loads.
 static func _profile_mode(map: GSMapDef) -> String:
 	var prof: Variant = map.get(&"profile")

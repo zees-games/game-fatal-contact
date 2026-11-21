@@ -7,8 +7,8 @@ extends SceneTree
 
 const FcPresentation := preload("../game/fc_presentation.gd")
 const FcViewArms := preload("../game/fc_view_arms.gd")
-## The fractions to stop at, the wait for a rig to reach one and the contact sheet: dot-weapon's, shared with ZZ's review.
-const ReloadShots := preload("res://addons/dot_weapon/view/dot_weapon_reload_shots.gd")
+## The fractions to stop at, the wait for a rig to reach one and the contact sheet: gs-weapon's, shared with ZZ's review.
+const ReloadShots := preload("res://addons/gs_weapon/view/gs_weapon_reload_shots.gd")
 
 var OUT_DIR := "screenshots/reload"
 
@@ -429,7 +429,7 @@ func _drawn_sets(me: Node) -> Array:
 	return out
 
 
-## Every visible arms node near the eye: the pack's own arms, dot-player-char's view arms, and any first-person figure.
+## Every visible arms node near the eye: the pack's own arms, gs-player-char's view arms, and any first-person figure.
 func _arm_owners(me: Node) -> Array:
 	var camera: Camera3D = me.camera
 	var out: Array = []

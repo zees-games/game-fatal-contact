@@ -325,7 +325,7 @@ func present_scores() -> void:
 	)
 	var clock := (
 		String(GSMatch.State.keys()[game.match_node.state]).capitalize() if remaining < 0.0
-		# Rounded up, so the clock never says 0:00 with time left (dot-ui's; Fatal Contact's own
+		# Rounded up, so the clock never says 0:00 with time left (gs-ui's; Fatal Contact's own
 		# rounded down until 2026-10-11).
 		else GSScoreStrip.clock_text(remaining)
 	)
@@ -573,10 +573,10 @@ func present_body() -> void:
 			_fill_viewport(scope)
 	if crosshair != null:
 		# The scope has its own reticle; a crosshair drawn over it is two.
-		# Dead or in a kill view: GSCrosshair hides itself (alive_source); older dot-ui is hidden here.
+		# Dead or in a kill view: GSCrosshair hides itself (alive_source); older gs-ui is hidden here.
 		crosshair.visible = not scope_up and (_crosshair_hides or (live and player.is_alive()))
 		# Down an iron sight the sight is the aiming mark: the crosshair fades out as the gun
-		# comes up and back as it goes down (dot-ui's GSCrosshair, API 5; Christian's first
+		# comes up and back as it goes down (gs-ui's GSCrosshair, API 5; Christian's first
 		# play test had both on screen at once). Hip fire keeps it.
 		if _crosshair_fades:
 			crosshair.call(&"set_aim", hands.aim_fraction() if hands != null and not scope_up else 0.0)

@@ -17,13 +17,13 @@ const LIMITS := {"detach_m": 0.06, "intersect_m": 0.03, "near_cut_m": 0.005, "po
 ## Per-frame steps (a velocity) shrink at a higher fps; a frame count (a duration) grows. A kick is one impulse at any fps.
 const PER_STEP: PackedStringArray = ["pop_m", "pop_deg"]
 const PER_COUNT: PackedStringArray = ["wrong_hand_frames", "hidden_frames"]
-const AVATAR_ANIMS := {"avatar_walk": [&"dot_fps_forward"], "avatar_strafe": [&"dot_fps_left"],
-	"avatar_run": [&"dot_fps_forward", &"dot_fps_sprint"], "avatar_crouch": [&"dot_fps_crouch"],
-	"avatar_crouch_walk": [&"dot_fps_forward", &"dot_fps_crouch"], "avatar_jump": [&"dot_fps_jump"]}
+const AVATAR_ANIMS := {"avatar_walk": [&"gs_fps_forward"], "avatar_strafe": [&"gs_fps_left"],
+	"avatar_run": [&"gs_fps_forward", &"gs_fps_sprint"], "avatar_crouch": [&"gs_fps_crouch"],
+	"avatar_crouch_walk": [&"gs_fps_forward", &"gs_fps_crouch"], "avatar_jump": [&"gs_fps_jump"]}
 ## Hand pose kinds with no barrel: a knife, fists or a grenade has no muzzle to judge in its fire clip.
 const NO_MUZZLE: Array[StringName] = [&"knife", &"fists", &"grenade"]
 
-## The behind-right and opponent cameras, shared with every game (dot-game docs/visual-qa.md).
+## The behind-right and opponent cameras, shared with every game (gs-game docs/visual-qa.md).
 var _views: GSGameVisualQaViews = null
 var _frames: Array[Dictionary] = []
 var _body_metrics := GSClipMetrics.new()
@@ -243,7 +243,7 @@ func _v(p: Vector3) -> Array:
 
 
 ## The upper arm held straight out sideways and level: a T-pose (no IK applied).
-## An arm folded to its shoulder (a one-hand grip's hidden arm, dot-player-char 28) is not drawn: its rest direction is no pose.
+## An arm folded to its shoulder (a one-hand grip's hidden arm, gs-player-char 28) is not drawn: its rest direction is no pose.
 func _straight_out(to_cam: Transform3D, at: Dictionary, side: String) -> bool:
 	var upper: Vector3 = (at["LowerArm" + side] as Vector3) - (at["UpperArm" + side] as Vector3)
 	if upper.length() < 0.01:
@@ -359,7 +359,7 @@ func _sprint_clip(me, id: StringName, def: GSWeaponDef, wdir: String) -> Diction
 	var res := {"status": "ok"}
 	await _ensure_in_hand(me, id, def)
 	var start: Vector3 = me.controller.state.position
-	var keys: Array[StringName] = [&"dot_fps_forward", &"dot_fps_sprint"]
+	var keys: Array[StringName] = [&"gs_fps_forward", &"gs_fps_sprint"]
 	await _clip(wdir, "fp_sprint", _f(48), func(i: int) -> void:
 		if i == _f(4):
 			for k: StringName in keys:

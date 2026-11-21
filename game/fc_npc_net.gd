@@ -2,8 +2,8 @@ extends GSNetBehaviour
 
 ## A monster over the wire: where it is, which way it faces, how hurt it is, what it is doing.
 ##
-## dot-npc's [GSNpcNetSync] fields, on this game's net behaviour — the split that addon
-## exists to make, since dot-npc cannot name dot-net. Server-authoritative and never
+## gs-npc's [GSNpcNetSync] fields, on this game's net behaviour — the split that addon
+## exists to make, since gs-npc cannot name gs-net. Server-authoritative and never
 ## predicted: a monster's position comes out of a navigation graph and a brain, neither of
 ## which a client could reproduce, so the client interpolates and draws.
 ##

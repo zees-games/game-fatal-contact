@@ -12,7 +12,7 @@ const FcTestPorts := preload("test_ports.gd")
 ## [/codeblock]
 ##
 ## A real [GSServer] listening on a port, [FcModule] loaded into it by path, three
-## sessions adopted the way dot-server documents for a test — an administrator, a
+## sessions adopted the way gs-server documents for a test — an administrator, a
 ## moderator and a player — and every command sent through [method GSConsole.execute]
 ## with a CHAT context built from the speaker's own session, which is exactly what
 ## `!noclip` in the chat box becomes. So the permission flag, the chat gate, the target
@@ -296,7 +296,7 @@ func _test_slap_and_slay() -> void:
 	_check(not _ada().is_alive(), "!slay Ada kills her, god mode or not", " / ".join(slain))
 	_check(
 		_deaths_of(73) == deaths + 1,
-		"and the match counts it, because it is ordinary damage through dot-combat"
+		"and the match counts it, because it is ordinary damage through gs-combat"
 	)
 
 	var again := await _say(_admin, "!slay Ada")
@@ -360,7 +360,7 @@ func _test_blind_and_beacon() -> void:
 		"and it is on the entity the netcode sends her"
 	)
 
-	# A blind is a spell. dot-moderation lifts it through the same handler when the time
+	# A blind is a spell. gs-moderation lifts it through the same handler when the time
 	# is up, so what is checked is the flag, not the timer.
 	var _lift := await _say(_admin, "!blind Ada off")
 	_check(not _ada().blinded, "!blind Ada off lifts it")
@@ -456,7 +456,7 @@ func _test_return_after_a_map_change() -> void:
 		"!bring Ada gives her somewhere to be returned to"
 	)
 
-	# The director's own signal, not `maps.change_to`: that waits on dot-map's sync
+	# The director's own signal, not `maps.change_to`: that waits on gs-map's sync
 	# host for every peer to load the map, and a session adopted here has no peer, so
 	# it never completes. What is under test is the module's answer to a change,
 	# which is exactly what the signal reaches. The swap itself is headless_match's.

@@ -20,7 +20,7 @@ var ads_rules: AwAdsRules = null
 
 var hands: AwViewModel = null
 var flashes: AwShotFx = null
-## The killer's arms on dot-player-char's rig, as the live view draws them; null below its API 8.
+## The killer's arms on gs-player-char's rig, as the live view draws them; null below its API 8.
 var arms: GSPlayerViewArms = null
 
 var _grip: GSViewGrip = null
@@ -395,7 +395,7 @@ func parked() -> Array:
 ## Whether the shared arm rig draws the hands; the view model's own sleeves are then built off, not left drawn under the gun.
 func _shares_arms(model: AwViewModel = null) -> bool:
 	var m := model if model != null else hands
-	return GSAddonApi.build_level("dot_player_char") >= FcViewArms.NEEDS_LEVEL and m.has_signal(&"hands_reached")
+	return GSAddonApi.build_level("gs_player_char") >= FcViewArms.NEEDS_LEVEL and m.has_signal(&"hands_reached")
 
 
 func _mount_arms(cam: Camera3D) -> void:

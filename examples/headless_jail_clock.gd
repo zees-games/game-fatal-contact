@@ -173,7 +173,7 @@ func _server_two_clocks(first, late) -> void:
 
 
 ## A predicting client: its own game, told the gate by JAIL, simulating its player on the server's
-## tick numbers (as `FcPlayerNet._predict` does), replaying as dot-net does after a mismatch.
+## tick numbers (as `FcPlayerNet._predict` does), replaying as gs-net does after a mismatch.
 func _client_after_replays(first, late) -> void:
 	print("-- a predicting client, after replays, sees the gate the server sees")
 	var client := _new_game(false, "C")

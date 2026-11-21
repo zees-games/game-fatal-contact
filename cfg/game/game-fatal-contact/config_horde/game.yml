@@ -1,5 +1,5 @@
-# game-arena: every key of this file at its code default, commented out. Uncomment a line to change it;
-# an operator overrides in cfg/server/game/game-arena/config_horde/game.yml. Layers: defaults < this < env < argv.
+# game-fatal-contact: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-fatal-contact/config_horde/game.yml. Layers: defaults < this < env < argv.
 
 # --- Horde
 # Horde monsters per player at the most intense moment. [0.0..40.0]

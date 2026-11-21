@@ -52,7 +52,7 @@ func _run() -> void:
 	if _legacy:
 		client.set("_tick_budget", null)
 		Engine.max_physics_steps_per_frame = 2
-	Input.action_press(&"dot_fps_forward")
+	Input.action_press(&"gs_fps_forward")
 	var game = client.get("game")
 	# Warm up: the loading cover and the first spawn are not the steady state.
 	var w0 := Time.get_ticks_usec()

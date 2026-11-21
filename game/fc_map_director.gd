@@ -13,7 +13,7 @@ const FcMode := preload("fc_mode.gd")
 ## listed what could be typed. [method FcGame.change_map] is the half that makes a
 ## change possible at all; this is the half that makes it reach the players.
 ##
-## Four dot-map pieces, and each is here for a reason a line of code could not replace:
+## Four gs-map pieces, and each is here for a reason a line of code could not replace:
 ##
 ## [codeblock]
 ## GSMapCatalogue   what can be played, with versions. FcMaps builds it.
@@ -26,7 +26,7 @@ const FcMode := preload("fc_mode.gd")
 ## [b]The sync host is the one that is not optional.[/b] Without it a map change is a
 ## change in this process: the server frees the world, builds the next one, and every
 ## connected client carries on playing a map that no longer exists — which is precisely
-## the absence dot-map's own notes call "the structural one".
+## the absence gs-map's own notes call "the structural one".
 ##
 ## [codeblock]
 ## var maps := FcMapDirector.new()
@@ -61,7 +61,7 @@ signal time_warning(seconds_left: float)
 ##
 ## [b]Clamped against the catalogue's size at [method setup], not here.[/b] A cooldown
 ## of five on a two-map server is a rotation that can never offer anything, and
-## dot-map's own `on_cooldown` takes a pool size for exactly that reason — but a value
+## gs-map's own `on_cooldown` takes a pool size for exactly that reason — but a value
 ## that silently means "never" is worse than one that was reduced with a log line.
 @export_range(0, 32, 1) var rotation_cooldown: int = 3
 
@@ -80,7 +80,7 @@ signal time_warning(seconds_left: float)
 ## The game whose world is replaced. Required before [method setup].
 var game: FcGame = null
 
-## Whatever names this server's delivered maps: the dot-server, read through
+## Whatever names this server's delivered maps: the gs-server, read through
 ## [code]games.current_maps()[/code] (see `FcMaps.server_map_keys`). Null — a suite, a
 ## listen server with no host config — means none, and the catalogue is the built-ins and
 ## the local imports, exactly as before.
@@ -194,7 +194,7 @@ func setup() -> GSResult:
 ## [method adopt_server_maps]. A map outside the active rotation stays installed and
 ## loadable by `map <id>`; it is only never chosen.
 ##
-## The merge, the wildcards and the rules are dot-map's [GSMapRotationFile]; this game
+## The merge, the wildcards and the rules are gs-map's [GSMapRotationFile]; this game
 ## supplies the paths. A file that is present and unreadable is an ERROR and changes nothing:
 ## rotating every map is a better failure than rotating none.
 func load_rotation() -> GSResult:
@@ -213,7 +213,7 @@ func load_rotation() -> GSResult:
 		if candidate != "" and not paths.has(candidate) and FileAccess.file_exists(candidate):
 			paths.append(candidate)
 
-	var read := GSMapRotationFile.load_files(paths, "game-arena")
+	var read := GSMapRotationFile.load_files(paths, "game-fatal-contact")
 
 	if not read.ok:
 		GSLog.error(CHANNEL, "the map rotation file could not be read; every map rotates", {
@@ -296,7 +296,7 @@ func change_to(id: StringName) -> GSResult:
 	return await sync.change_to(id)
 
 
-## [method change_to] for a def already in hand. With both, a host looking for "the node that changes maps" (dot-server-deploy's
+## [method change_to] for a def already in hand. With both, a host looking for "the node that changes maps" (gs-server-deploy's
 ## `sv_map` / `--map` at boot searches for `change_to` + `change_to_map`) finds this director before its MapSession child, so a
 ## startup map goes through the sync host and [signal map_changed] like `map` and the rotation do, and FC's map state is reset.
 func change_to_map(map: GSMapDef) -> GSResult:
@@ -323,7 +323,7 @@ func change_to_next(players: int = 0) -> GSResult:
 
 ## Narrows the rotation to the maps that can host the mode being played.
 ##
-## [b]dot-map's rotation filters on player count and on cooldown, and knows nothing
+## [b]gs-map's rotation filters on player count and on cooldown, and knows nothing
 ## about modes — correctly.[/b] "What a mode needs from a map" is a game's question and
 ## every game answers it differently; here it is one property, whether any spawn is
 ## tagged. So the filtering has to happen on this side, and this is the only place that
@@ -417,7 +417,7 @@ func set_next(id: StringName) -> bool:
 
 ## Advances the map clock. Once per tick, from whatever drives the game.
 ##
-## [b]Not a wall clock, deliberately[/b], and dot-map says why: a server that stalls
+## [b]Not a wall clock, deliberately[/b], and gs-map says why: a server that stalls
 ## should not lose that time off its map, and a test must be able to run an hour of a
 ## map in a millisecond.
 func advance(delta: float) -> void:

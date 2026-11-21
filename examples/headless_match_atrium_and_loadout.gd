@@ -606,7 +606,7 @@ func _test_atrium() -> void:
 	await get_tree().process_frame
 	_done()
 
-## The instant weapon change after a spawn (dot-loadout's GSLoadoutInstantSwap): at once when
+## The instant weapon change after a spawn (gs-loadout's GSLoadoutInstantSwap): at once when
 ## nobody is near and nobody fired, and the reasons it is refused.
 func _test_instant_loadout() -> void:
 	_section("instant loadout after spawn")

@@ -1,31 +1,31 @@
 #!/usr/bin/env bash
 # Every script the pack ships must compile against the addons the Gamespice client shell carries: the tags in
-# dot-server-deploy's addons.lock, not the linked working trees (usually some levels ahead). The suites and the
-# parse pass in game.sh only see the linked heads. On 2026-11-16 pack 0.1.67 named dot-bot 32 and dot-weapon 41
-# calls; on the shell (dot-bot 26, dot-weapon 40) the bot brain and the HUD did not compile, bots stood still and
+# gs-server-deploy's addons.lock, not the linked working trees (usually some levels ahead). The suites and the
+# parse pass in game.sh only see the linked heads. On 2026-11-16 pack 0.1.67 named gs-bot 32 and gs-weapon 41
+# calls; on the shell (gs-bot 26, gs-weapon 40) the bot brain and the HUD did not compile, bots stood still and
 # the throw meter's empty track sat under the crosshair. tools/publish.sh runs this first.
-#   tools/check_shell_parse.sh [--lock FILE]   default lock: <repos>/dot-server-deploy/addons.lock
-# The addon repositories are the siblings of dot-server-deploy (GS_REPOS_ROOT, else this checkout's parent).
+#   tools/check_shell_parse.sh [--lock FILE]   default lock: <repos>/gs-server-deploy/addons.lock
+# The addon repositories are the siblings of gs-server-deploy (GS_REPOS_ROOT, else this checkout's parent).
 # GODOT names the binary (default godot). Exit 0 = every shipped script parses; 1 = some do not; 2 = cannot check.
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GODOT="${GODOT:-godot}"
-ROOTS=("${GS_REPOS_ROOT:-${DOT_REPOS_ROOT:-}}" "$(dirname "$HERE")" /home/gamedev/godot /home/gamedev/projects/godot)
+ROOTS=("${GS_REPOS_ROOT:-}" "$(dirname "$HERE")" /home/gamedev/godot /home/gamedev/projects/godot)
 LOCK=""
 [ "${1:-}" = --lock ] && LOCK="${2:-}"
 if [ -z "$LOCK" ]; then
-    for r in "${ROOTS[@]}"; do [ -n "$r" ] && [ -f "$r/dot-server-deploy/addons.lock" ] && { LOCK="$r/dot-server-deploy/addons.lock"; break; }; done
+    for r in "${ROOTS[@]}"; do [ -n "$r" ] && [ -f "$r/gs-server-deploy/addons.lock" ] && { LOCK="$r/gs-server-deploy/addons.lock"; break; }; done
 fi
-[ -f "$LOCK" ] || { echo "check_shell_parse: no dot-server-deploy/addons.lock found (set GS_REPOS_ROOT or --lock)" >&2; exit 2; }
+[ -f "$LOCK" ] || { echo "check_shell_parse: no gs-server-deploy/addons.lock found (set GS_REPOS_ROOT or --lock)" >&2; exit 2; }
 SIB="$(cd "$(dirname "$LOCK")/.." && pwd)"
 W="$(mktemp -d)"; trap 'rm -rf "$W"' EXIT
 mkdir -p "$W/addons"
-# The pinned addons, as dot-server-deploy's tools/check-pinned.sh builds them (the lock's own directory naming).
+# The pinned addons, as gs-server-deploy's tools/check-pinned.sh builds them (the lock's own directory naming).
 bad=0
 while IFS=$'\t' read -r repo tag; do
     case "$repo" in ''|\#*) continue ;; esac
     src="$SIB/$repo"
-    [ "$repo" = fc-weapons ] && [ ! -e "$src/.git" ] && src="$SIB/arena-weapons"
+    [ "$repo" = fc-weapons ] && [ ! -e "$src/.git" ] && src="$SIB/fc-weapons"
     d="$(echo "$repo" | tr - _ | sed 's/_dot//')"
     [ -L "$HERE/addons/$d" ] || [ -d "$HERE/addons/$d" ] || continue
     if [ -e "$src/.git" ] && git -C "$src" archive "$tag" "addons/$d" 2>/dev/null | tar -x -C "$W"; then
@@ -48,7 +48,7 @@ ln -s "$W/addons" "$W/p/addons"
 timeout 900 "$GODOT" --headless --path "$W/p" --import >"$W/import.log" 2>&1
 (cd "$W/p" && find . -name '*.gd' -not -path './.godot/*' -not -path './addons/*' | sed 's|^\./||' > "$W/list")
 # The import registered the pack's own `class_name`s, which a browser shell never does: it mounts the pack under
-# res://dot_cloud/<owner>/<id>/<ver>/ and its class list is the shell's plus the addon overlay's. Keep only the
+# res://gs_cloud/<owner>/<id>/<ver>/ and its class list is the shell's plus the addon overlay's. Keep only the
 # addons' entries so a script that leans on a pack-level global fails here as it does there (0.1.70:
 # "Could not find type FcHudDamageDirs", then every client script that extends through the HUD).
 CACHE="$W/p/.godot/global_script_class_cache.cfg"
@@ -64,7 +64,7 @@ if [ -f "$CACHE" ]; then
         }
     ' "$CACHE" > "$CACHE.addons" && mv "$CACHE.addons" "$CACHE"
 fi
-PARSE_LIST="$W/list" timeout 900 "$GODOT" --headless --path "$W/p" --script res://addons/dot_core/tools/dot_parse_all.gd >"$W/parse.log" 2>&1
+PARSE_LIST="$W/list" timeout 900 "$GODOT" --headless --path "$W/p" --script res://addons/gs_core/tools/gs_parse_all.gd >"$W/parse.log" 2>&1
 grep -aq '^PARSED ' "$W/parse.log" || { tail -20 "$W/parse.log" >&2; echo "check_shell_parse: the parse tool did not finish" >&2; exit 2; }
 fails="$(grep -aE -A1 'Parse Error' "$W/parse.log" | grep -aE 'Parse Error|at: ' | paste - - | sed 's/SCRIPT ERROR: //; s/ *at: GDScript::reload//' | sort -u)"
 if [ -n "$fails" ]; then

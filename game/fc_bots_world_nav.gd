@@ -38,7 +38,7 @@ class NavWorld:
 	var _edges: GSBotLinks = null
 	## False in a test that wants ladders to be the only way up.
 	var join_edges := true
-	## The drop, hop and stitch search under way (dot-bot 26), a slice a frame: the map change's longest bot work.
+	## The drop, hop and stitch search under way (gs-bot 26), a slice a frame: the map change's longest bot work.
 	var _joining := false
 	var _join_frame := -1
 	const JOIN_SLICE_USEC := 6000
@@ -72,7 +72,7 @@ class NavWorld:
 		_par_space = null
 		_par_trace = null
 
-	## No native sight scan while brains think in parallel: dot-bot gives it only to the main thread, so the
+	## No native sight scan while brains think in parallel: gs-bot gives it only to the main thread, so the
 	## brains that happened to run there scanned natively and the rest in script, a mix that changed run to run.
 	func senses(all: Array) -> Object:
 		return null if par else super(all)
@@ -172,7 +172,7 @@ class NavWorld:
 		return _surf_now
 
 	## The map's ride edges, linked into its mesh: null on a built-in map, before the mesh lands,
-	## on a map with no surf cache, and on a shell without dot-bot 4 or dot-player-controller 3.
+	## on a map with no surf cache, and on a shell without gs-bot 4 or gs-player-controller 3.
 	func surf_for_map() -> RefCounted:
 		var nav := _nav_for_map()
 		if nav == null:
@@ -187,7 +187,7 @@ class NavWorld:
 		var t_link := Time.get_ticks_usec()
 		_link_ladders(nav)
 		FcFrameProbe.add(&"bot_nav_links", t_link)
-		if GSAddonApi.build_level("dot_bot") < 4 or GSAddonApi.build_level("dot_player_controller") < 3:
+		if GSAddonApi.build_level("gs_bot") < 4 or GSAddonApi.build_level("gs_player_controller") < 3:
 			return null
 		var t_surf := Time.get_ticks_usec()
 		var surf_script := load(FcPaths.rebase("res://game/fc_surf.gd")) as GDScript
@@ -198,7 +198,7 @@ class NavWorld:
 	## True once the edge search is done; until then one slice per frame, on the main thread (its rays are physics queries).
 	## The nav is held unready meanwhile, so bots walk as before the bake landed and route once every edge is in.
 	func _join_sliced(nav: GSBotNav) -> bool:
-		if not join_edges or GSAddonApi.build_level("dot_bot") < 26:
+		if not join_edges or GSAddonApi.build_level("gs_bot") < 26:
 			_edges = null
 			return true
 		if not _joining:
@@ -222,20 +222,20 @@ class NavWorld:
 			n += 1 if l.has("from") else 0
 		return n
 
-	## Joins the imported map's ladders into [param nav] as one-way climbs and hands the brain their geometry (dot-bot 10).
+	## Joins the imported map's ladders into [param nav] as one-way climbs and hands the brain their geometry (gs-bot 10).
 	func _link_ladders(nav: GSBotNav) -> void:
 		_ladders = null
 		ladder_fn = Callable()
 		# Drops off the rims and hops over gaps join a spawn island the plain bake leaves cut off.
-		if join_edges and GSAddonApi.build_level("dot_bot") >= 12:
+		if join_edges and GSAddonApi.build_level("gs_bot") >= 12:
 			if _edges == null:
 				_edges = GSBotLinks.new()
 				_edges.join(nav)
 			_climb_back_ledges(nav)
-		if GSAddonApi.build_level("dot_bot") >= 13:
+		if GSAddonApi.build_level("gs_bot") >= 13:
 			extra_waypoints = nav.spread_points(ROAM_PLACES, GSRandomStream.new(7919, &"roam"))
 		var mechanics: Variant = (game.get("map") as Object).get("mechanics")
-		if GSAddonApi.build_level("dot_bot") < 10 or not (mechanics is Object) or (mechanics as Object).get("ladders").is_empty():
+		if GSAddonApi.build_level("gs_bot") < 10 or not (mechanics is Object) or (mechanics as Object).get("ladders").is_empty():
 			return
 		var links := GSBotLinks.link_ladders(nav, (mechanics as Object).get("ladders"))
 		if links != null:
@@ -302,7 +302,7 @@ class NavWorld:
 		return graph.find_smooth_path(from, to, -1.0, true)
 
 	## The mesh for an imported map, the bake started on the first route asked on it; null on a built-in map.
-	## [b]Not the graph.[/b] The graph is laid over a box list; an imported map's solid is hundreds of convex brushes with ramps and ledges at every height, so graph bots walked through the walls. dot-bot's [GSBotNav] bakes what a body can stand on
+	## [b]Not the graph.[/b] The graph is laid over a box list; an imported map's solid is hundreds of convex brushes with ramps and ledges at every height, so graph bots walked through the walls. gs-bot's [GSBotNav] bakes what a body can stand on
 	## from those brushes ([member FcMap.collision_root]). [b]In the background[/b]: the two default surf maps took 2 to 3 s to bake against a tenth of a second for the map change, so bots walk straight for those seconds and route after.
 	func _nav_for_map() -> GSBotNav:
 		var map: Variant = game.get("map")
@@ -310,9 +310,9 @@ class NavWorld:
 			return null
 		if _nav != null and _nav_map == map:
 			return _nav
-		# An older shell's dot-bot has no background bake, and baking in the tick is seconds:
+		# An older shell's gs-bot has no background bake, and baking in the tick is seconds:
 		# its bots walk straight, as they did before.
-		if GSAddonApi.build_level("dot_bot") < 3:
+		if GSAddonApi.build_level("gs_bot") < 3:
 			return null
 		var root: Variant = (map as Object).get("collision_root")
 		if not (root is Node3D) or not (root as Node3D).is_inside_tree():

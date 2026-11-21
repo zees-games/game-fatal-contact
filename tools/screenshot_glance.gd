@@ -157,7 +157,7 @@ func _process(delta: float) -> bool:
 
 
 ## The HUD as a player sees it mid-match, every piece with something in it: a real [FcGame]
-## (free-for-all, or `--glance tdm`) with eight players and a few kills filed through dot-match.
+## (free-for-all, or `--glance tdm`) with eight players and a few kills filed through gs-match.
 var _glance_game: FcGame = null
 
 
@@ -176,7 +176,7 @@ var _glance_map_ballot := false
 var _glance_chat := false
 
 
-## `--glance --theme <id>`: which of dot-menu's themes the HUD is drawn in; empty is dot-ui's
+## `--glance --theme <id>`: which of gs-menu's themes the HUD is drawn in; empty is gs-ui's
 ## default. Names the frame.
 var _glance_theme := ""
 
@@ -212,7 +212,7 @@ func _play_glance() -> void:
 	var game := _glance_game
 	if not _glance_go_live(game):
 		return
-	# Kills filed through dot-match, as the game files them: the scores, the ranks and the
+	# Kills filed through gs-match, as the game files them: the scores, the ranks and the
 	# feed all come from these.
 	var kills := [
 		[113, 115, &"rifle", false], [112, 114, &"sniper", true], [116, 112, &"shotgun", false],
@@ -258,8 +258,8 @@ func _play_glance() -> void:
 	_hud.build(game)
 	_hud.follow(_local)
 	var _caught := _hud.catch_up()
-	# `--theme <id>`: the HUD in one of dot-menu's themes, as the menu sets it
-	# (`GSMenu.follow_hud`); without it, dot-ui's default, which is the dark HUD.
+	# `--theme <id>`: the HUD in one of gs-menu's themes, as the menu sets it
+	# (`GSMenu.follow_hud`); without it, gs-ui's default, which is the dark HUD.
 	var args := OS.get_cmdline_user_args()
 	var theme_at := args.find("--theme")
 	if theme_at >= 0 and theme_at + 1 < args.size():
@@ -375,7 +375,7 @@ func _play_killview(game: FcGame, killer_id: int) -> void:
 
 
 ## A stand-in for the client shell's notice overlay with the game vote open: its drawn ballot,
-## placed where dot-server-deploy's `client/notice_overlay.gd` places it (a copy.
+## placed where gs-server-deploy's `client/notice_overlay.gd` places it (a copy.
 func _stage_full_chat() -> void:
 	var layer := CanvasLayer.new()
 	layer.name = "ChatLayer"

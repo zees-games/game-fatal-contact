@@ -1,11 +1,11 @@
 extends RefCounted
 
-## Maps copied in by hand: a raw convert folder under `res://addons/maps/<map>/` or `user://maps/<map>/`, listed by dot-map's [code]GSMapLocalMaps[/code] as `<name>_local`. Solo only: the catalogue lists them when [code]FcMaps.list_local[/code] is on
-## (a solo client and its sim host), and no server rotation, vote or pack ever names one. The folder is dot-map's own mesh format, not the legacy manifest [code]FcImportedMaps[/code] reads, so the map's
+## Maps copied in by hand: a raw convert folder under `res://addons/maps/<map>/` or `user://maps/<map>/`, listed by gs-map's [code]GSMapLocalMaps[/code] as `<name>_local`. Solo only: the catalogue lists them when [code]FcMaps.list_local[/code] is on
+## (a solo client and its sim host), and no server rotation, vote or pack ever names one. The folder is gs-map's own mesh format, not the legacy manifest [code]FcImportedMaps[/code] reads, so the map's
 ## spawns, bounds and solid come from the mesh here and its drawing from [code]FcBspMap.world_prefix[/code], which answers a local id with its folder.
 
 const CHANNEL := "arena.maps"
-## The dot-map API level with `watch_drops`, `accept_dropped`, zips and `is_original`.
+## The gs-map API level with `watch_drops`, `accept_dropped`, zips and `is_original`.
 const DROP_LEVEL := 24
 
 ## prefix -> {version, mesh}: the listing and the load read the same copy once, and a re-converted copy (a new version) is read again.
@@ -34,10 +34,10 @@ static func is_original(id: StringName) -> bool:
 	return bool(local_maps.call(&"is_original", {"name": String(id).trim_suffix(GSMapLocalMaps.ID_SUFFIX)}))
 
 
-## Whether the host's dot-map has drops, zips and `_orig` (API 24). The live web shell pins dot-map 23 (fc-publish-blocked-1),
+## Whether the host's gs-map has drops, zips and `_orig` (API 24). The live web shell pins gs-map 23 (fc-publish-blocked-1),
 ## so the floor stays 23 and the API 24 calls go through `call()`, which parses on an older host; remove when the oldest shell is 24.
 static func can_drop() -> bool:
-	return GSAddonApi.build_level("dot_map") >= DROP_LEVEL
+	return GSAddonApi.build_level("gs_map") >= DROP_LEVEL
 
 
 ## The entry for [param id], or empty.
@@ -53,7 +53,7 @@ static func prefix_in(id: String, map_dir: String) -> String:
 	return prefix if FileAccess.file_exists(prefix + ".json") and FileAccess.file_exists(prefix + ".bin") else ""
 
 
-## The read mesh of [param found], or null when it does not load (dot-map logs why).
+## The read mesh of [param found], or null when it does not load (gs-map logs why).
 static func mesh(found: Dictionary) -> GSMapBspMesh:
 	var prefix := str(found.get("prefix", ""))
 	var version := GSMapLocalMaps.version_of(found)

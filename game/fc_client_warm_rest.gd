@@ -60,9 +60,9 @@ func _weapon_warm_items() -> Array:
 	return out
 
 
-## dot-game's platform layer, added first so the cover is the first thing drawn. [b]Only the pieces that remove duplicate code without moving a documented rule.[/b] Taken: the gate (with the map hold and the weapon warm-up on it), the link and the offline answer, the browser flush, and the input-blocked signal. Left off, each for a reason:
+## gs-game's platform layer, added first so the cover is the first thing drawn. [b]Only the pieces that remove duplicate code without moving a documented rule.[/b] Taken: the gate (with the map hold and the weapon warm-up on it), the link and the offline answer, the browser flush, and the input-blocked signal. Left off, each for a reason:
 ## [code]use_settings[/code] and [code]use_console[/code], because the settings document is [FcPresentation]'s plain manager with a menu built round it by [FcMenus] (the Servers page, the camera rows) and the console must be built after that menu; [code]capture_pointer[/code], because Escape releases and then opens, and "Click to play"
-## is Fatal Contact's ([method _unhandled_input]); the Tab board, because [FcMenus].Board merges dot-match's records with the roster.
+## is Fatal Contact's ([method _unhandled_input]); the Tab board, because [FcMenus].Board merges gs-match's records with the roster.
 func _build_platform() -> void:
 	platform = GSGameClient.new()
 	platform.name = "Platform"
@@ -89,7 +89,7 @@ func _build_platform() -> void:
 		if &"warm_game_root" in gate:
 			gate.set(&"warm_game_root", false)
 	# The warm-up sizes its rounds by what is left of this budget after a bare frame, and a load frame
-	# here (the match's ticks and the view) is 56-100 ms on staging02: at dot-core's 40 nothing is
+	# here (the match's ticks and the view) is 56-100 ms on staging02: at gs-core's 40 nothing is
 	# left, every round is 4 items over 2 frames, and the warm-up took 9-11 s of the cover.
 	if &"warm_budget_msec" in gate:
 		gate.set(&"warm_budget_msec", maxf(float(gate.get(&"warm_budget_msec")), GATE_WARM_BUDGET_MSEC))
@@ -102,7 +102,7 @@ func _build_platform() -> void:
 		gate.opened.connect(_begin_warm_rest, CONNECT_ONE_SHOT)
 		gate.opened.connect(_prebuild_catalogue, CONNECT_ONE_SHOT)
 	if FcFrameProbe.on() and GSWeb.available():
-		# Lets a page script split its own frame log at the cover (window.dotWeb.publishedAt.arena_gate_open, ms).
+		# Lets a page script split its own frame log at the cover (window.gsWeb.publishedAt.arena_gate_open, ms).
 		gate.opened.connect(func() -> void: GSWeb.publish("arena_gate_open", "1"))
 	# The chat box and console have the keyboard, and so does the menu: the platform polls
 	# this every frame, so there is no signal to forward from each of them.

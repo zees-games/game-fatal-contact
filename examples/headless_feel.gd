@@ -178,14 +178,14 @@ func _test_offline() -> void:
 ## map into the ledges and the east wall. Pressed again after a moment on the floor, every
 ## hop starts at a run's speed and the circle stays the size it was.
 func _hold_movement(jump: bool) -> void:
-	Input.action_press(&"dot_fps_forward")
-	Input.action_press(&"dot_fps_right")
+	Input.action_press(&"gs_fps_forward")
+	Input.action_press(&"gs_fps_right")
 	_jumping = jump
 
 
 func _release_movement() -> void:
 	_jumping = false
-	for action in [&"dot_fps_forward", &"dot_fps_right", &"dot_fps_jump"]:
+	for action in [&"gs_fps_forward", &"gs_fps_right", &"gs_fps_jump"]:
 		Input.action_release(action)
 
 

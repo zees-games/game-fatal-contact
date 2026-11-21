@@ -20,4 +20,4 @@ The detail behind [CLAUDE.md](../CLAUDE.md). Fatal Contact plays free-for-all, t
 | [anim-review.md](anim-review.md) | judging or fixing a weapon's first-person or third-person animation: the capture, the contact sheets, the glitch metrics, the loop |
 | [testing.md](testing.md) | adding a check, or believing a green run |
 | [history.md](history.md) | a bug that "cannot be happening"; what this game found and how it looked |
-| [not-yet.md](not-yet.md) | planning: what is not built yet (the dot-game conversion, bots on the nav graph, monster animation, pickups, real audio, …) |
+| [not-yet.md](not-yet.md) | planning: what is not built yet (the gs-game conversion, bots on the nav graph, monster animation, pickups, real audio, …) |

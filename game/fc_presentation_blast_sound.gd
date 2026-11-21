@@ -1,11 +1,11 @@
 extends "fc_presentation_vars_and_frame.gd"
 
 # The cue ids only (FcVote.CUE_* are these): `fc_vote.gd` is server-side, and preloading it
-# here compiled the vote and dot-vote into every client.
+# here compiled the vote and gs-vote into every client.
 const FcVote := preload("fc_vote_cues.gd")
 const FcNewerApi := preload("fc_newer_api.gd")
 ## Ids that play recorded files from the addons: id -> [folder, file stem, how many, gain dB, pitch
-## low, pitch high]. Folder: &"weapons", &"stock" (dot-audio `stock/`) or &"toys" (dot-props). The
+## low, pitch high]. Folder: &"weapons", &"stock" (gs-audio `stock/`) or &"toys" (gs-props). The
 ## recipes in [method sound_recipes] stay for a build that lacks the files.
 const RECORDED := {
 	&"fire_rifle": [&"weapons", "rifle_fire", 5, 0.0, 0.95, 1.05],
@@ -63,7 +63,7 @@ const STOMP_SOUND := &"stomp"
 
 
 ## Capture the flag's cues (see on_flag_event) and the medals, with the synthesised voice each
-## falls back to in a build without dot-audio's stock files; their recordings are in RECORDED.
+## falls back to in a build without gs-audio's stock files; their recordings are in RECORDED.
 const FLAG_VOICES := {
 	&"flag_taken_by_me": GSAudioSynth.Voice.PICKUP,
 	&"flag_taken": GSAudioSynth.Voice.PICKUP,
@@ -295,7 +295,7 @@ static func _add_vote_sounds(c: GSAudioCatalogue) -> void:
 
 ## The addon-shipped fall and toy sounds.
 static func _add_body_sounds(c: GSAudioCatalogue) -> void:
-	# A body landing: dot-player-char's stock death sounds (Kenney, CC0), the thud, the face
+	# A body landing: gs-player-char's stock death sounds (Kenney, CC0), the thud, the face
 	# plant's smack, a crumple's slump and a launch's whoosh. Positional, because they say
 	# where somebody went down; the files ship in the addon, so the paths are its own.
 	for row: Dictionary in GSPlayerDeathSounds.rows():
@@ -314,7 +314,7 @@ static func _add_body_sounds(c: GSAudioCatalogue) -> void:
 		fall.priority = 45
 		c.add(fall)
 
-	# The map's toys: dot-props' stock toy sounds (Kenney, CC0, and a horn made for it),
+	# The map's toys: gs-props' stock toy sounds (Kenney, CC0, and a horn made for it),
 	# shipped in the addon. Under the fight in priority: a ball bouncing never takes a voice
 	# from a shot.
 	for row: Dictionary in GSPropBodySounds.rows():
@@ -399,7 +399,7 @@ static func _base_recipes() -> Dictionary:
 		FcVote.CUE_END: GSAudioSynth.Voice.PICKUP,
 		FcVote.CUE_WARNING: GSAudioSynth.Voice.BLIP,
 		FcVote.CUE_COUNT: GSAudioSynth.Voice.CLICK,
-		# Stand-ins only for a build without dot-props' toy files.
+		# Stand-ins only for a build without gs-props' toy files.
 		GSPropBodySounds.BOUNCE: GSAudioSynth.Voice.IMPACT,
 		GSPropBodySounds.THUMP: GSAudioSynth.Voice.IMPACT,
 		GSPropBodySounds.KNOCK: GSAudioSynth.Voice.IMPACT,
@@ -413,7 +413,7 @@ static func _base_recipes() -> Dictionary:
 		GSPropBodySounds.WATER: GSAudioSynth.Voice.STEP,
 		GSPropBodySounds.BOING: GSAudioSynth.Voice.SPAWN,
 		GSPropBodySounds.HORN: GSAudioSynth.Voice.BLIP,
-		# A body landing. The real files ship in dot-player-char; these stand in only on a
+		# A body landing. The real files ship in gs-player-char; these stand in only on a
 		# build that lacks them.
 		GSPlayerDeathReactions.SOUND_THUD: GSAudioSynth.Voice.IMPACT,
 		GSPlayerDeathReactions.SOUND_FACE_PLANT: GSAudioSynth.Voice.IMPACT,

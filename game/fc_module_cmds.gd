@@ -61,7 +61,7 @@ func _cmd_maps(ctx: GSCmdContext) -> void:
 				"" if def.enabled and def.in_rotation else ", not in rotation",
 			])
 
-	ctx.reply("`map <id>` changes it under the players. `maps` is dot-map's list; this one also credits the imported maps' authors.")
+	ctx.reply("`map <id>` changes it under the players. `maps` is gs-map's list; this one also credits the imported maps' authors.")
 
 
 ## Whether maps.yml's active rotation plays [param id]. A map the catalogue lacks is not.
@@ -79,7 +79,7 @@ func _cmd_score(ctx: GSCmdContext) -> void:
 		ctx.reply(line)
 
 
-## Disconnects a peer whose message schema this server cannot play with, with dot-net's
+## Disconnects a peer whose message schema this server cannot play with, with gs-net's
 ## sentence as the reason. See `peer_schema_refused` above.
 func _refuse_peer(peer_id: int, error: GSError) -> void:
 	var session: GSClientSession = server.session_of(peer_id) if server != null else null

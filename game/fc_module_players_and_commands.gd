@@ -34,7 +34,7 @@ const FcContentGroups := preload("fc_content_groups.gd")
 const CHANNEL := "arena.module"
 
 
-## dot-combat's cvars (mp_teammate_passthrough), kept to put on each map's new combat manager.
+## gs-combat's cvars (mp_teammate_passthrough), kept to put on each map's new combat manager.
 var _combat_cvars: Array = []
 
 
@@ -60,7 +60,7 @@ var identity: FcIdentity = null
 var maps: FcMapDirector = null
 
 
-## The per-map cvars a map's `cfg/.../dot_map/map/<name>.yml` sets, put back on the next map.
+## The per-map cvars a map's `cfg/.../gs_map/map/<name>.yml` sets, put back on the next map.
 var map_config: GSGameMapConfig = null
 ## The active rotation entry's profile cvars (`GSMapDef.profile.values`), put back on the next map.
 var profile_config: Object = null
@@ -70,11 +70,11 @@ var profile_config: Object = null
 var vote: FcVote = null
 
 
-## dot-server session id -> whether we have put them in the match.
+## gs-server session id -> whether we have put them in the match.
 var _joined: Dictionary = {}
 
 
-## Who is still behind their loading cover, from dot-game's roster used for that alone: this module
+## Who is still behind their loading cover, from gs-game's roster used for that alone: this module
 ## is not on GSGameModule, so it seats people itself and only borrows the bookkeeping (loading from
 ## the spawn event until the client says its cover lifted, again from a map change).
 var loading: GSGameRoster = null
@@ -145,7 +145,7 @@ func _apply_match_limits() -> void:
 		bridge.note_score_limit_changed()
 
 
-## Puts dot-combat's cvars on the world's current combat manager: after a change, and after a
+## Puts gs-combat's cvars on the world's current combat manager: after a change, and after a
 ## map change built a new manager the cvar knows nothing about.
 func _reapply_combat_cvars() -> void:
 	if game == null or not is_instance_valid(game) or game.combat == null:
@@ -155,9 +155,9 @@ func _reapply_combat_cvars() -> void:
 			var _applied: Variant = game.combat.call(&"set_cvar", (cv as GSConVar).name, (cv as GSConVar).get_string())
 
 
-## The loading roster and the handler for the client's cover report on dot-server's envelope.
+## The loading roster and the handler for the client's cover report on gs-server's envelope.
 ## A kind on the existing envelope because the RPC set is frozen; a client that predates it is
-## released by the roster's timeout. Duck-typed so an older dot-server still loads this.
+## released by the roster's timeout. Duck-typed so an older gs-server still loads this.
 func _build_loading() -> void:
 	loading = GSGameRoster.new()
 	loading.server = server
@@ -313,7 +313,7 @@ func _wire_identity() -> void:
 	hook_post("player_renamed", _on_profile)
 
 
-## What a session looks like: what dot-platform resolved for them, or null for the stock
+## What a session looks like: what gs-platform resolved for them, or null for the stock
 ## figure. Through `player_for`, because the hub keys a player by their scoped profile key.
 func _avatar_for(session_id: int) -> GSAvatar:
 	var session := server.session_by_userid(session_id) if server != null else null
@@ -351,8 +351,8 @@ func _on_client_spawn(event: GSEvent) -> void:
 	if session == null:
 		return
 
-	# dot-moderation's records, checked here rather than at connect. [b]dot-server has its own ban list and this is not it.[/b] Its mute is two booleans on a session that dies with its connection, so a muted player reconnects and talks;
-	# dot-moderation's records are durable, expiring and scoped. Both are consulted: dot-server's admission runs first and this is the second gate.
+	# gs-moderation's records, checked here rather than at connect. [b]gs-server has its own ban list and this is not it.[/b] Its mute is two booleans on a session that dies with its connection, so a muted player reconnects and talks;
+	# gs-moderation's records are durable, expiring and scoped. Both are consulted: gs-server's admission runs first and this is the second gate.
 	if services != null:
 		var admitted := services.check_admission(session)
 
@@ -367,7 +367,7 @@ func _add(session: GSClientSession) -> void:
 	if _joined.has(session.userid):
 		return
 
-	# The session id, not the peer id: a peer id is reassigned when someone reconnects, and the scoreboard, combat entity and damage attribution would go to the next player to join. dot-server's userid is stable for the session.
+	# The session id, not the peer id: a peer id is reassigned when someone reconnects, and the scoreboard, combat entity and damage attribution would go to the next player to join. gs-server's userid is stable for the session.
 	# Through the bridge, which adds them to the game AND registers them as a replicated entity owned by their peer. `game.add_player` alone gives the server a player nothing is sent about:
 	# the manager only builds snapshots and input buffers for peers it knows, so the server would simulate them perfectly and alone.
 	game.loadout_identity.bind(session)
@@ -454,7 +454,7 @@ func _on_player_killed(entry: GSKillFeed.Entry) -> void:
 	log_info("kill", {"line": str(entry)})
 
 
-## A player typed `!something`. [b]Claimed, or it is broadcast as chat.[/b] dot-chat holds a command until somebody says they handled it;
+## A player typed `!something`. [b]Claimed, or it is broadcast as chat.[/b] gs-chat holds a command until somebody says they handled it;
 ## an unclaimed one with `broadcast_unknown_commands` off is dropped, so a player typing `!rtv` on a server where the vote failed to load gets silence rather than "there is no vote here".
 func _on_chat_command(peer: int, command: String, args: PackedStringArray) -> void:
 	var session := server.session_of(peer)
@@ -462,7 +462,7 @@ func _on_chat_command(peer: int, command: String, args: PackedStringArray) -> vo
 	if session == null:
 		return
 
-	# [b]The vote's own commands are not here.[/b] `!rtv`, `!nominate`, `!vote`, `!nextmap` and `!timeleft` are dot-vote's, registered on the console by `FcVote.install_commands` with `.with_chat()`, and an unclaimed `!` line carries on to the console.
+	# [b]The vote's own commands are not here.[/b] `!rtv`, `!nominate`, `!vote`, `!nextmap` and `!timeleft` are gs-vote's, registered on the console by `FcVote.install_commands` with `.with_chat()`, and an unclaimed `!` line carries on to the console.
 	# Answering them here as well made two paths to one director, one without `setnextmap`. Only a server whose vote did not load answers them here, so a player gets "no vote" rather than silence.
 	if vote == null:
 		match command:
@@ -581,7 +581,7 @@ func _follow_mode() -> void:
 func _attach_visibility(map) -> void:
 	if game != null:
 		game.set_meta(FcBotPvs.META, null)
-	if net == null or map == null or GSAddonApi.build_level("dot_game") < 52:
+	if net == null or map == null or GSAddonApi.build_level("gs_game") < 52:
 		return
 	var mesh: Object = null
 	if map.has_method(&"is_imported") and map.is_imported():
@@ -595,14 +595,14 @@ func _attach_visibility(map) -> void:
 	log_info("snapshot visibility", {"map": String(map.id), "in_force": on})
 
 
-## Tells dot-server which map this is, so A2S and DQP print it in their map field (and
+## Tells gs-server which map this is, so A2S and DQP print it in their map field (and
 ## the backbone report does too) rather than this game's content id.
 func _report_map(map_id: String) -> void:
 	if server == null or server.games == null:
 		return
-	# dot-server 19 sends the map's download group to joining clients with the pack's own groups.
-	# By name, so a build with an older dot-server still parses this file.
-	if GSAddonApi.build_level("dot_server") >= 19:
+	# gs-server 19 sends the map's download group to joining clients with the pack's own groups.
+	# By name, so a build with an older gs-server still parses this file.
+	if GSAddonApi.build_level("gs_server") >= 19:
 		server.games.call(&"set_current_map", map_id, FcContentGroups.groups_for(StringName(map_id)))
 	else:
 		server.games.set_current_map(map_id)
@@ -634,8 +634,8 @@ func _add_extra_commands() -> void:
 			"fc_nextmap", _cmd_nextmap, "What plays next", ""
 		)
 
-		# `map`, `maps` and `mapinfo` come from dot-map itself (dot-server's `map` changed the GAME, which is not what an operator typing `map` means); dot-server's game change is `changelevel`, `game` and `gamechange`.
-		# The map change is dot-map's `map` (CHANGEMAP, like Airdrift's): a map change ends every round in progress, which is about who may do it, not where they typed it. `sv_chat_commands 0` makes it console-only.
+		# `map`, `maps` and `mapinfo` come from gs-map itself (gs-server's `map` changed the GAME, which is not what an operator typing `map` means); gs-server's game change is `changelevel`, `game` and `gamechange`.
+		# The map change is gs-map's `map` (CHANGEMAP, like Airdrift's): a map change ends every round in progress, which is about who may do it, not where they typed it. `sv_chat_commands 0` makes it console-only.
 		# `allow_chat_change` stays at its default, ON: CHANGEMAP decides who may end a round in progress, wherever typed. A relayed website command arrives as `Source.CHAT`;
 		# `GSChatRelayConfig.command_source` can promote a relay to RCON. The SYNC HOST is the changer, not the session: `FcMapDirector.session` alone swaps the world in this process and tells nobody.
 		var map_commands := GSMapCommands.new()

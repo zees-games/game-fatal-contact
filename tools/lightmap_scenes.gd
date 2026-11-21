@@ -3,7 +3,7 @@ extends Node
 const FcMap := preload("../maps/fc_map.gd")
 const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 
-## Writes one bake scene per built-in map for dot-lighting's baker: the level built exactly as a
+## Writes one bake scene per built-in map for gs-lighting's baker: the level built exactly as a
 ## client builds it (every box with its UV2), the map's sun and sky, a LightmapGI added and the
 ## map's fingerprint recorded. tools/bake_lightmaps.sh runs this and then the bake.
 ##

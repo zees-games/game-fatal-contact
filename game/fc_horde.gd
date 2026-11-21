@@ -6,18 +6,18 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcNpcs := preload("fc_npcs.gd")
 const FcStats := preload("fc_stats.gd")
 
-## Monsters in the arena: dot-npc, dot-npc-ai and dot-npc-ai-director, joined to
-## dot-combat.
+## Monsters in the arena: gs-npc, gs-npc-ai and gs-npc-ai-director, joined to
+## gs-combat.
 ##
 ## [b]The three NPC addons deliberately know nothing about damage, and this is the file
-## that pays for it.[/b] dot-npc ships a `damage` method for a game with no combat
-## layer and hands the job to the game when there is one; dot-combat has never heard of
+## that pays for it.[/b] gs-npc ships a `damage` method for a game with no combat
+## layer and hands the job to the game when there is one; gs-combat has never heard of
 ## an NPC and only knows entity ids, hitboxes and health. Twenty lines join them, and
 ## they are these — plus one rule about id spaces that is the whole reason this works
 ## at all.
 ##
 ## [b]An NPC's combat entity id comes from [GSEntityTable] and carries its kind.[/b]
-## [FcPlayer] still uses the dot-server session id as its entity id, which is a
+## [FcPlayer] still uses the gs-server session id as its entity id, which is a
 ## small integer; a monster used to use its own engine instance id modulo a million,
 ## which collides with another monster rather than with a player -- and the symptom of
 ## that is a monster that stops taking damage, not a shot that kills somebody else.
@@ -32,7 +32,7 @@ const FcStats := preload("fc_stats.gd")
 ## horde.enabled = true
 ## [/codeblock]
 ##
-## [b]Server-authoritative and unpredicted[/b], for dot-props' reason twice over: a
+## [b]Server-authoritative and unpredicted[/b], for gs-props' reason twice over: a
 ## brain runs a behaviour tree against a blackboard with lifetimes on it, which is not
 ## something two machines reproduce from the same inputs.
 
@@ -64,11 +64,11 @@ const SERVICE := &"arena_horde"
 ##
 ## [b]The player half is deliberately NOT converted, and that is a measured decision
 ## rather than an oversight.[/b] In this game an entity id and a session id are the
-## same integer, and seven things depend on it: dot-match scoreboard keys, dot-effects'
-## per-entity scales, dot-stats rows, dot-spectate, the player-stack roster, the kill
+## same integer, and seven things depend on it: gs-match scoreboard keys, gs-effects'
+## per-entity scales, gs-stats rows, gs-spectate, the player-stack roster, the kill
 ## feed on the wire, and the client that rebuilds one from two ints it was sent.
 ## Moving players onto the table means translating at every one of those boundaries in
-## the same pass -- and dot-effects is keyed from BOTH spaces today
+## the same pass -- and gs-effects is keyed from BOTH spaces today
 ## (`damage_taken_scale(damage.victim)` against `move_speed_scale(session_id)`), so a
 ## half-done conversion is an effect layer that silently stops applying to damage.
 ## Monsters were the half that was broken; they are the half that moved.
@@ -207,7 +207,7 @@ func setup() -> GSResult:
 	sounds.attach(spawner)
 	heat.persist = persist_heat and game.persist_npc_heat
 	add_child(spawner)
-	# Each kind's scene and brain now, while the map loads, not on its first spawn (dot-npc: about 30 ms a kind).
+	# Each kind's scene and brain now, while the map loads, not on its first spawn (gs-npc: about 30 ms a kind).
 	var _warmed := spawner.warm()
 
 	spawner.spawned.connect(_on_spawned)
@@ -234,7 +234,7 @@ func setup() -> GSResult:
 	if not built.ok:
 		return built
 
-	# The game's kills come through here, not through dot-match. A monster is not on
+	# The game's kills come through here, not through gs-match. A monster is not on
 	# the scoreboard and must never be given a row on it.
 	game.non_player_killed.connect(_on_entity_killed)
 	game.map_changed.connect(_on_map_changed)
@@ -399,7 +399,7 @@ func _hear_rockets(delta: float) -> void:
 		)
 
 
-## A gunner fired. Resolved by dot-combat like any player's shot — hitboxes, armour, the
+## A gunner fired. Resolved by gs-combat like any player's shot — hitboxes, armour, the
 ## kill feed — and heard by every other monster, which is what draws the rest of a horde to
 ## a firefight one of them started.
 ##
@@ -423,7 +423,7 @@ func npc_shoot(npc: GSNpcInstance, origin: Vector3, aim_at: Vector3, amount: flo
 	shot.damage_type = type
 	shot.max_range = GUNNER_RANGE
 	# The pellet directions. A weapon builds them; a shot made by hand has none until this,
-	# and dot-combat traces the pellets, not the direction — so without it every gunner
+	# and gs-combat traces the pellets, not the direction — so without it every gunner
 	# shot was resolved, counted and hit nothing, which a suite asking "did it hit" found.
 	shot.scatter()
 	var resolved: GSShot = game.combat.resolve_shot(shot)
@@ -500,7 +500,7 @@ static func is_npc_entity(entity_id: int) -> bool:
 
 ## A monster hitting a player. Called by the brain, through [GSRegistry].
 ##
-## [b]It goes through dot-combat rather than through [GSHealth] directly.[/b] The
+## [b]It goes through gs-combat rather than through [GSHealth] directly.[/b] The
 ## resolver is what applies armour, the damage type's rules, spawn protection and the
 ## friendly-fire check, and a hit that skipped it would ignore all four — including
 ## spawn protection, which is the one whose absence a player notices immediately.
@@ -526,14 +526,14 @@ func npc_attack(npc: GSNpcInstance, victim_key: StringName, amount: float) -> vo
 
 ## Registers a monster as shootable and damageable.
 ##
-## Both halves, and they are separate calls in dot-combat: hitboxes make it hittable,
+## Both halves, and they are separate calls in gs-combat: hitboxes make it hittable,
 ## health makes it damageable. One without the other is a monster shots pass through,
 ## or one that takes hits and never dies.
 ##
-## [b]The health is dot-combat's and the health dot-npc holds is a mirror.[/b] Two
+## [b]The health is gs-combat's and the health gs-npc holds is a mirror.[/b] Two
 ## authorities over one number is how a monster ends up dying twice — once to the
 ## resolver and once to the spawner — so [method _on_health_changed] is the only writer
-## on the dot-npc side.
+## on the gs-npc side.
 func _register_combat(npc: GSNpcInstance) -> void:
 	var opened: GSResult = game.entities.open(
 		GSEntity.KIND_NPC,
@@ -610,9 +610,9 @@ func _forget_combat(npc: GSNpcInstance) -> void:
 	if game != null and game.combat != null and is_instance_valid(game.combat):
 		game.combat.forget(entity)
 
-	# After the two erases read it, and after dot-combat has been told. The lookup
+	# After the two erases read it, and after gs-combat has been told. The lookup
 	# above goes through the table, so closing first would make `entity` unreachable
-	# for everything below -- which is the ordering dot-entity's own notes warn about
+	# for everything below -- which is the ordering gs-entity's own notes warn about
 	# and the reason `close()` never frees a node itself.
 	if game != null:
 		game.entities.close(entity, GSEntityTable.REASON_KILLED)
@@ -646,7 +646,7 @@ func _on_died(npc: GSNpcInstance, by: StringName) -> void:
 
 ## A combat entity that is not a player was killed.
 ##
-## dot-combat owns the health and decided the death; the spawner has to be told so it
+## gs-combat owns the health and decided the death; the spawner has to be told so it
 ## frees the node, runs the brain's `died` hook and gives the budget back. Reporting
 ## it rather than calling [method GSNpcSpawner.remove] is what makes the brain's last
 ## chance to act actually happen.
@@ -670,7 +670,7 @@ func _on_map_changed(_map: FcMap) -> void:
 	if spawner != null:
 		spawner.clear_all(GSNpcSpawner.REASON_CLEANUP)
 
-	if senses != null and GSAddonApi.build_level("dot_npc") >= 6:
+	if senses != null and GSAddonApi.build_level("gs_npc") >= 6:
 		senses.clear_sight_blockers()
 
 	var rebuilt := rebuild_navigation()

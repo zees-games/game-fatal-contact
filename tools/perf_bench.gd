@@ -12,9 +12,9 @@ const ProcSlices := preload("proc_slices.gd")
 const FcPlayerStack := preload("../game/fc_player_stack.gd")
 const FcNpcs := preload("../game/fc_npcs.gd")
 
-## The 16v16 benchmark: dot-game's GSGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--brain-us 1` (GSBotBrain.think phases, as brain.bb_*), `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: dot-player-char's ragdoll bone pose in dot-sim (GSSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: dot-bot's native mind (GSSimBotMind: aim, fight step, perception) off or on; without the dot-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
-## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (dot-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
-## `--first-use-only a,b` for some ids; rows also: hit, kill, death, `reload ID` (`--first-use-reload 0` skips), a thrown weapon's shot over `--first-use-thrown-frames N` frames (default 240: the fuse and blast), `npc ID` and `npc kill ID` with a horde mode such as `--mode siege`); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose); `--proc-ablate a,b --proc-slice N` (with --proc-split 1): each named group off for slices of N frames (default 40) between base slices, its ms/frame against them (tools/proc_slices.gd lists the groups; `own:<script>` / `sub:<script>` for one script's nodes). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (dot-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms.
+## The 16v16 benchmark: gs-game's GSGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--brain-us 1` (GSBotBrain.think phases, as brain.bb_*), `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: gs-player-char's ragdoll bone pose in gs-sim (GSSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: gs-bot's native mind (GSSimBotMind: aim, fight step, perception) off or on; without the gs-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
+## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (gs-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
+## `--first-use-only a,b` for some ids; rows also: hit, kill, death, `reload ID` (`--first-use-reload 0` skips), a thrown weapon's shot over `--first-use-thrown-frames N` frames (default 240: the fuse and blast), `npc ID` and `npc kill ID` with a horde mode such as `--mode siege`); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose); `--proc-ablate a,b --proc-slice N` (with --proc-split 1): each named group off for slices of N frames (default 40) between base slices, its ms/frame against them (tools/proc_slices.gd lists the groups; `own:<script>` / `sub:<script>` for one script's nodes). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (gs-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms.
 ## `--lazy-models 1`: the client defers the models of weapons nobody carries until after the cover, as the web build does (FcClient defer_models_everywhere), and the bench does not read them all ahead, so `--first-use 1` prices those first equips. `--warm-list 1`: after the first-use rows, a `WARM_LIST <path>` line for every script loaded so far that the cover warms anyway (GSCloudSliceLoader.cached_scripts; pack scripts and addon classes; tools/record_warm_list.sh turns them into warm.txt).
 
 var _pilot := true
@@ -82,7 +82,7 @@ func _ready() -> void:
 	if args.has("lod-crowd"):
 		preload("../game/fc_player.gd").lod_crowd_players = int(args["lod-crowd"])
 	if args.has("figure-lift-range"):
-		# By name as well: the console hands the figure FcPlayer's value; a dot-player-char older than 27 has no lift_range.
+		# By name as well: the console hands the figure FcPlayer's value; a gs-player-char older than 27 has no lift_range.
 		preload("../game/fc_player.gd").figure_lift_range = float(args["figure-lift-range"])
 		(GSHumanoidFigure as Script).set(&"lift_range", float(args["figure-lift-range"]))
 	if args.has("lod-scale"):
@@ -116,10 +116,10 @@ func _ready() -> void:
 		AwWeaponRig.native_spread = int(args["weapon-native"]) != 0
 	say("weapon spread: %s" % ("native" if AwWeaponRig.native_spread_active() else "script"))
 	if args.has("ragdoll-native"):
-		# By name: the bench also runs against a dot-player-char older than the switch.
+		# By name: the bench also runs against a gs-player-char older than the switch.
 		(GSPlayerRagdoll as Script).set(&"native_pose", int(args["ragdoll-native"]) != 0)
 	if int(args.get("target-first", 1)) == 0:
-		# By name: the bench also runs against a dot-bot older than the switch.
+		# By name: the bench also runs against a gs-bot older than the switch.
 		(GSBotBrain as Script).set(&"target_first", false)
 	_ablate = String(args.get("ablate", "")).split(",", false)
 	preload("../game/fc_player.gd").present_ablate = int(args.get("present-ablate", 0))
@@ -527,14 +527,14 @@ func _sidecar_extra(_game: Object) -> Dictionary:
 			weapon["pa." + GSWeaponArsenal.PHASES[i]] = snappedf(float(GSWeaponArsenal.phase_us[i]) / maxf(ac[0] + ac[1], 1.0), 0.01)
 	var native := {}
 	if _native_us:
-		# Count then microseconds per slot: the four engine queries, then whole native ticks; the tick less the queries is dot-sim's own work.
+		# Count then microseconds per slot: the four engine queries, then whole native ticks; the tick less the queries is gs-sim's own work.
 		var c: PackedInt64Array = ClassDB.class_call_static(&"GSSimFpsBody", &"profile_counters")
 		var slots := ["cast", "rest", "overlap", "ray", "tick"]
 		for i in mini(slots.size(), c.size() / 2):
 			native[slots[i]] = {"per_frame": snappedf(float(c[i * 2]) / n, 0.01), "ms_per_frame": snappedf(c[i * 2 + 1] / 1000.0 / n, 0.001),
 				"us_each": snappedf(float(c[i * 2 + 1]) / maxf(c[i * 2], 1.0), 0.01)}
-	# Which movers gathered their hulls natively (dot-sim's hull world) and which by script: native 0 with a world
-	# false means the loaded libdot_sim predates GSSimHullWorld (rebuild it, ci/install.sh).
+	# Which movers gathered their hulls natively (gs-sim's hull world) and which by script: native 0 with a world
+	# false means the loaded libgs_sim predates GSSimHullWorld (rebuild it, ci/install.sh).
 	var hulls := {}
 	if _game != null:
 		hulls["world"] = _game.get(&"_hull_world") != null

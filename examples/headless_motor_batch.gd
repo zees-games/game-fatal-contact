@@ -7,7 +7,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcModTools := preload("../game/fc_mod_tools.gd")
 
-## `fc_motor_batch`: the players' motors ticked in runs of one dot-sim call play exactly the
+## `fc_motor_batch`: the players' motors ticked in runs of one gs-sim call play exactly the
 ## match the loop one player after another plays. A recorded bot match is replayed through both
 ## loops and every player's state, hashed every few ticks, is identical, on box, pit, imported and surf maps.
 
@@ -88,14 +88,14 @@ func _run() -> void:
 	var was := FcHullGrid.batch
 	if not GSFpsMotorBatch.available() or not ClassDB.class_exists(&"GSSimHullWorld"):
 		# Natives older than the batch: the cvar changes nothing and there is nothing to compare.
-		print("skip: the loaded dot-sim has no motor batch")
+		print("skip: the loaded gs-sim has no motor batch")
 		for i in CHECKS:
-			_check(true, "(skipped: no motor batch in dot-sim)")
+			_check(true, "(skipped: no motor batch in gs-sim)")
 		_report_sections(SECTIONS, SECTIONS, SECTIONS, CHECKS)
 		return
 
 	_section("a box of walkers: recorded, replayed through both loops")
-	# Every idle posture row the batched loop hands dot-sim is checked against the script's from the state.
+	# Every idle posture row the batched loop hands gs-sim is checked against the script's from the state.
 	FcPlayer.posture_verify = true
 	FcPlayer.posture_batched_rows = 0
 	FcPlayer.posture_misses = 0

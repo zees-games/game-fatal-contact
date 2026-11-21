@@ -10,11 +10,11 @@ const HULL_NEAR_SQ := 144.0
 ## Beyond this a hull cannot touch one tick's sweep (top speed times a tick, plus both radii, with room to spare).
 const HULL_REACH_SQ := 16.0
 
-## The kill view (dot-replay's `mp_killview*`): on in this game. Bound by the module (REPLICATED), followed by the client.
+## The kill view (gs-replay's `mp_killview*`): on in this game. Bound by the module (REPLICATED), followed by the client.
 var killview_rules: GSKillViewRules = _make_killview_rules()
 
 ## `sv_falldamage*`: landing hard hurts, except on a surf map (ramps land fast by design).
-## On here, off in dot-combat's default; the server applies it, a client never does.
+## On here, off in gs-combat's default; the server applies it, a client never does.
 var fall_rules: GSFallDamageRules = make_fall_rules()
 
 ## Landing on a head (`sv_stomp*`, the cfg `stomp_*` keys); the numbers are copied from [member config] each tick.
@@ -23,16 +23,16 @@ var _pre_vy: Dictionary = {}
 ## Where each player's saved loadouts are filed (a stable key when they have one).
 var loadout_identity := FcLoadoutIdentity.new()
 
-## Movement-dependent spread, recoil patterns and the spread crosshair (dot-game's opt-in; sv_spread_*, sv_recoil_*, on here).
+## Movement-dependent spread, recoil patterns and the spread crosshair (gs-game's opt-in; sv_spread_*, sv_recoil_*, on here).
 var combat_feel: GSGameCombatFeel = _make_combat_feel()
 
 ## Shots fired against damage applied, per shooter (bots and players): the counter behind `fc_shot_stats`.
 var shot_stats := FcShotStats.new()
 
-## Ammo profiles (`cfg/game/game-arena/ammo`): what each gun's round can penetrate, read by the hitscan behaviour.
+## Ammo profiles (`cfg/game/game-fatal-contact/ammo`): what each gun's round can penetrate, read by the hitscan behaviour.
 var ammo_types: GSWeaponAmmoTypes = _load_ammo_types()
 
-const LOADOUT_COMMAND_SCRIPT := "res://addons/dot_loadout/integrations/dot_loadout_command.gd"
+const LOADOUT_COMMAND_SCRIPT := "res://addons/gs_loadout/integrations/gs_loadout_command.gd"
 
 ## A client behind a loading cover sets this and calls [method build_map_io_async], so the movers are not one long frame.
 var defer_map_io := false
@@ -81,14 +81,14 @@ var _pair_memo_tick: int = -1
 var _pair_memo_fn: Callable = Callable()
 ## Where the players stand, for [method solid_hulls_for] while the players' loop runs ([FcHullGrid]).
 var _hull_grid := FcHullGrid.new()
-## dot-sim's `GSSimHullWorld` for the players' loop ([method _begin_hull_world]), and its per-slot data.
+## gs-sim's `GSSimHullWorld` for the players' loop ([method _begin_hull_world]), and its per-slot data.
 var _hull_world: Object = null
 var _hull_world_data := PackedFloat64Array()
 ## The players' motors ticked in runs of one native call ([method _tick_players_batched]), and each roster slot's row and commands.
 var _motor_batch: GSFpsMotorBatch = null
 var _batch_rows := PackedInt32Array()
 var _batch_pairs: Array = []
-## The batched loop's idle weapon ticks waiting on one dot-sim posture call ([method _flush_posts]): its
+## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its
 ## `GSSimPlayerPost`, the input rows (10 floats each) and each one's player, id and move command.
 var _post_native: Object = null
 var _post_in := PackedFloat64Array()
@@ -116,7 +116,7 @@ var _ids_cache: Array[int] = []
 
 # --- Toys --------------------------------------------------------------------
 
-## A toy's blast at its centre, m/s to a toy of up to 3 kg (dot-props' `blast`).
+## A toy's blast at its centre, m/s to a toy of up to 3 kg (gs-props' `blast`).
 const TOY_BLAST_SPEED := 12.0
 
 ## The sprint rules start from this game's own tunables, so loading them (for `sv_sprint_shoot` and `sv_sprint_barrel`) leaves the speeds as they were.
@@ -127,7 +127,7 @@ static func _make_combat_feel() -> GSGameCombatFeel:
 
 static func _load_ammo_types() -> GSWeaponAmmoTypes:
 	var types := GSWeaponAmmoTypes.new()
-	var _n := types.load_set(GSWeaponAmmoTypes.make_set("", "game-arena"))
+	var _n := types.load_set(GSWeaponAmmoTypes.make_set("", "game-fatal-contact"))
 	return types
 
 # --- Players ---------------------------------------------------------------

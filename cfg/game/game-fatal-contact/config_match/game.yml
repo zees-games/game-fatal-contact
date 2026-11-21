@@ -1,5 +1,5 @@
-# game-arena: every key of this file at its code default, commented out. Uncomment a line to change it;
-# an operator overrides in cfg/server/game/game-arena/config_match/game.yml. Layers: defaults < this < env < argv.
+# game-fatal-contact: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-fatal-contact/config_match/game.yml. Layers: defaults < this < env < argv.
 
 # --- Match
 # Seconds before a dead player respawns; -1 keeps each mode's own. [-1.0..60.0]
@@ -22,7 +22,7 @@
 # --- Simulation
 # Ticks a second for solo and a listen host (project.godot's physics rate is the same default); a dedicated s... [20..128]
 # tick_rate: 66
-# Solo on its own server process (FcSimHost): the tick rate by player count (bots and you) in dot-server's `s...
+# Solo on its own server process (FcSimHost): the tick rate by player count (bots and you) in gs-server's `s...
 # solo_tick_tiers: "players<=32:66,<=64:33,else:22"
 # Solo on its own server process: seconds between repeats of the in-game "server behind" line while the serve... [0.0..]
 # behind_notice_sec: 60.0

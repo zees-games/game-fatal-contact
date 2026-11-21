@@ -102,7 +102,7 @@ func _test_solo() -> void:
 		"gg-garage and dm-overwatch are catalogued without a server")
 	_check(solo.maps.size() == FcMaps.STANDALONE_KEYS.size() and solo.maps.size() >= 6,
 		"all %d published maps are listed, and a second pass keeps them" % solo.maps.size())
-	_check(solo.get_map(&"gg-garage").scene_path == "res://dot_cloud/gamemann/gg-garage/1.0.5/gg-garage.json",
+	_check(solo.get_map(&"gg-garage").scene_path == "res://gs_cloud/gamemann/gg-garage/1.0.5/gg-garage.json",
 		"gg-garage mounts at its hyphenated manifest")
 
 	print("-- an unlinked picker lists the suggested packs by label, and a pick with no cloud fails naming it")
@@ -204,7 +204,7 @@ func _test_solo_part2(solo: GSMapCatalogue, only: _OnlyVersion) -> void:
 func _test_dead_maps() -> void:
 	print("-- any fetch failure (opaque, 5xx, hollow pack) drops the map and is not retried")
 	FcMaps.clear_dead()
-	var hollow_dir := "res://dot_cloud/gamemann/dm-hollowtest/0.0.1"
+	var hollow_dir := "res://gs_cloud/gamemann/dm-hollowtest/0.0.1"
 	_write_hollow_pack(hollow_dir)
 	var cat := GSMapCatalogue.new()
 	var keys := FcMaps.standalone_keys(cat)
@@ -262,14 +262,14 @@ func _resolve(link: String) -> String:
 	return str(out[0]).strip_edges()
 
 
-## A dot-cloud stand-in whose origin answers 404 for every pack.
+## A gs-cloud stand-in whose origin answers 404 for every pack.
 class _Missing404 extends RefCounted:
 	func ensure(_id: StringName, _version: String, _groups: Variant = null, _url: String = "") -> GSResult:
 		var e := GSError.from_http(404)
 		return GSResult.failure(e).wrap("Could not download the content manifest.")
 
 
-## A dot-cloud stand-in that has the versions in `have`, and names `latest` as the newest.
+## A gs-cloud stand-in that has the versions in `have`, and names `latest` as the newest.
 class _Latest extends RefCounted:
 	var have: Array = []
 	var latest := ""
@@ -281,18 +281,18 @@ class _Latest extends RefCounted:
 	func ensure(id: StringName, version: String, _groups: Variant = null, _url: String = "") -> GSResult:
 		asked.append("%s@%s" % [id, version])
 		if have.has(version):
-			return GSResult.success("res://dot_cloud/%s/%s" % [id, version])
+			return GSResult.success("res://gs_cloud/%s/%s" % [id, version])
 		return GSResult.failure(GSError.from_http(404))
 
 
-## A dot-cloud stand-in that has only 9.9.9 (as if mounted) and answers 404 for any other version.
+## A gs-cloud stand-in that has only 9.9.9 (as if mounted) and answers 404 for any other version.
 class _OnlyVersion extends RefCounted:
 	var asked := PackedStringArray()
 
 	func ensure(id: StringName, version: String, _groups: Variant = null, _url: String = "") -> GSResult:
 		asked.append("%s@%s" % [id, version])
 		if version == "9.9.9":
-			return GSResult.success("res://dot_cloud/%s/%s" % [id, version])
+			return GSResult.success("res://gs_cloud/%s/%s" % [id, version])
 		return GSResult.failure(GSError.from_http(404))
 
 
@@ -312,4 +312,4 @@ class _FakeCdn extends RefCounted:
 				return GSResult.fail(GSError.CODE_IO, "Failed to fetch")
 			"gg-garage":
 				return GSResult.failure(GSError.from_http(500)).wrap("Could not download the content manifest.")
-		return GSResult.success("res://dot_cloud/%s/%s" % [id, version])
+		return GSResult.success("res://gs_cloud/%s/%s" % [id, version])

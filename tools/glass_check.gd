@@ -1,5 +1,5 @@
 extends SceneTree
-## Shoots a breakable window of an imported map through dot-combat's own pellet trace: it must break, and the shot must carry on.
+## Shoots a breakable window of an imported map through gs-combat's own pellet trace: it must break, and the shot must carry on.
 ## godot --headless --path . --script tools/glass_check.gd -- <map id> [<legacy map dir>]
 
 const Bsp := preload("res://maps/fc_bsp_map.gd")

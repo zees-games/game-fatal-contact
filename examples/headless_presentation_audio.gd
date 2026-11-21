@@ -54,7 +54,7 @@ func _test_ambience_is_quiet_and_obeys_settings() -> void:
 
 	var p := _make()
 	var a := p.ambient
-	_check(a != null and a.has_moods() and a.ambient.mood_names().size() == 8, "dot-audio's stock mood set loaded")
+	_check(a != null and a.has_moods() and a.ambient.mood_names().size() == 8, "gs-audio's stock mood set loaded")
 	if a == null or not a.has_moods():
 		p.queue_free()
 		_done()
@@ -160,7 +160,7 @@ func _test_audio_is_a_firefight() -> void:
 func _check_recipes_cover_ids(cat: GSAudioCatalogue, recipes: Dictionary) -> void:
 	var uncovered: Array[String] = []
 	for id in cat.ids():
-		# dot-audio's stock footsteps and beds are files the addon ships: no stand-in needed.
+		# gs-audio's stock footsteps and beds are files the addon ships: no stand-in needed.
 		# Nor are the ambience moods' files, which GSAmbience registers when a mood starts,
 		# nor fc-weapons' own per-gun reports (aw_gun_*), recordings the pack ships.
 		var sid := String(id)
@@ -319,14 +319,14 @@ func _test_effects_and_the_player_who_asked_for_none() -> void:
 
 
 func _check_render_quality(p) -> void:
-	# Texture detail and filtering reach the world's viewport through dot-fx's render quality,
+	# Texture detail and filtering reach the world's viewport through gs-fx's render quality,
 	# which follows the presentation's settings only because the client hands them over.
 	var screen := SubViewport.new()
 	add_child(screen)
 	var client := FcClient.new()
 	client.presentation = p
 	client.platform = GSGameClient.new()
-	var quality: Node = load("res://addons/dot_fx/runtime/dot_fx_render_quality.gd").new()
+	var quality: Node = load("res://addons/gs_fx/runtime/gs_fx_render_quality.gd").new()
 	quality.set(&"viewport", screen)
 	add_child(quality)
 	client.platform.render_quality = quality
@@ -343,7 +343,7 @@ func _check_render_quality(p) -> void:
 
 
 ## [b]Every effect this game names was refused once[/b], because `scenes/fx/` did not
-## exist, and dot-fx logs a missing scene at DEBUG.
+## exist, and gs-fx logs a missing scene at DEBUG.
 func _test_a_shot_is_drawn() -> void:
 	_section("A shot is drawn: a flash at the gun, a spark and a hole where it stopped")
 	var missing := FcPresentation.fx_catalogue().missing_scenes()

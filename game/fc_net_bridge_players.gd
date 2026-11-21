@@ -48,7 +48,7 @@ var peer_ready_fn: Callable = Callable()
 var _ready_unseated: Dictionary = {}
 
 
-## dot-net's own sends (snapshots, its schema) held back from a peer that has not said READY. Server side.
+## gs-net's own sends (snapshots, its schema) held back from a peer that has not said READY. Server side.
 var unready_held: int = 0
 
 ## READY and RESPAWN requests heard between ticks, as [peer_id, kind]; answered by [method _answer_tick_asks] at the top of
@@ -240,7 +240,7 @@ func server_tick(tick: int) -> void:
 	_game_ticked_for = -1
 	var t_pre := Time.get_ticks_usec()
 	# What a console line, a chat command or an admin heard since the last tick (a restart, a mode
-	# change, a respawn, a map change's swap), then the clients' queued asks (dot_tick_gate.gd).
+	# change, a respawn, a map change's swap), then the clients' queued asks (gs_tick_gate.gd).
 	if game != null:
 		game.tick_gate.open()
 	_answer_tick_asks()
@@ -331,7 +331,7 @@ func _commands() -> Dictionary:
 	return out
 
 
-## Where a bot's session id starts. Far above any userid dot-server hands out (they count up
+## Where a bot's session id starts. Far above any userid gs-server hands out (they count up
 ## from 1 for the life of the process), and far below the entity table's ids (10^12), so a
 ## bot's id is a player id like anybody's and can never be a person's.
 const BOT_SESSION_BASE := FcGame.BOT_SESSION_BASE
@@ -708,14 +708,14 @@ func _answer_tick_asks() -> void:
 			FcEvents.Ask.READY:
 				mark_ready(peer_id)
 			FcEvents.Ask.RESPAWN:
-				# Asked for, never taken. dot-match owns respawning and has its own
+				# Asked for, never taken. gs-match owns respawning and has its own
 				# timer; a client that could respawn itself could respawn instantly. The one
 				# exception is a victim watching their kill view, who may skip it.
 				if killview != null and game != null:
 					killview.skip(session_for_peer(peer_id), game.current_tick())
 
 
-## Whether dot-net's sends wait for a peer's READY: over a socket, where a call to a node the client has not built yet
+## Whether gs-net's sends wait for a peer's READY: over a socket, where a call to a node the client has not built yet
 ## is an engine error per call. A loopback harness delivers to bridges that exist, and keeps its old timing.
 func holds_unready() -> bool:
 	return link != null and not link.loopback.is_valid()
@@ -733,7 +733,7 @@ func mark_ready(peer_id: int) -> void:
 		return
 
 	_ready_peers[peer_id] = true
-	# The schema dot-net sent on add_peer was held back while the peer built its scene ([method _send]).
+	# The schema gs-net sent on add_peer was held back while the peer built its scene ([method _send]).
 	if holds_unready():
 		var _announced := net.announce_schema(peer_id)
 	send_signon(peer_id)

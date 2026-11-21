@@ -8,7 +8,7 @@ const FcModes := preload("fc_modes.gd")
 
 ## What the players of this server get to choose: the map, and the mode.
 ##
-## [b]One source, because a [GSVoteDirector] has one.[/b] dot-vote ships
+## [b]One source, because a [GSVoteDirector] has one.[/b] gs-vote ships
 ## [GSVoteMapSource] and [GSVoteGameSource] and neither is quite this: a map source
 ## alone cannot switch free-for-all to team deathmatch, and running two directors would
 ## mean two clocks, two rock-the-vote tallies and two cooldowns over one server.
@@ -124,7 +124,7 @@ func current_id() -> StringName:
 	return &""
 
 
-## Why [param id] is not offered now, for dot-vote's map menu (`GSVoteMapMenu.unavailable_text`),
+## Why [param id] is not offered now, for gs-vote's map menu (`GSVoteMapMenu.unavailable_text`),
 ## or empty when it is offered or this source cannot say.
 ##
 ## [b]The case that needs it is a list opened before a change.[/b] M lists the team modes on
@@ -231,7 +231,7 @@ func apply_with_mode(id: StringName, mode_id: StringName) -> GSResult:
 ## Changes the mode by re-running the current map with it.
 ##
 ## [b]There is no cheaper way, and pretending otherwise is the bug.[/b] The mode builds
-## the match rules, the team manager and the damage rules, and dot-match reads
+## the match rules, the team manager and the damage rules, and gs-match reads
 ## `team_based` to decide whether to assign anybody a side at all — so assigning a new
 ## mode to a running game leaves a match that scores individually while calling itself
 ## Team Deathmatch. Going through the same path a map change takes rebuilds all three
@@ -300,7 +300,7 @@ func _map_choice(def: GSMapDef) -> GSVoteChoice:
 	choice.meta = {"map": String(def.id)}
 
 	# Per-map vote settings ride in the map's own metadata, under the same `vote` key
-	# dot-vote's own sources use. An operator learns the convention once.
+	# gs-vote's own sources use. An operator learns the convention once.
 	var settings: Variant = def.meta.get("vote")
 
 	if settings is Dictionary:

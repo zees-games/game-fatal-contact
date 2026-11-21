@@ -71,7 +71,7 @@ func _run() -> void:
 
 	if FcMap.imported_ids().is_empty():
 		_line("no imported maps under %s — nothing to check" % FcImportedMaps.roots()[0])
-		_line("  link fc-surf-dm-maps: dot-bootstrap/bootstrap.sh --links game-arena")
+		_line("  link fc-surf-dm-maps: gs-bootstrap/bootstrap.sh --links game-fatal-contact")
 		get_tree().quit(0)
 		return
 
@@ -357,7 +357,7 @@ func _test_mechanics() -> void:
 
 
 func _test_hurt() -> void:
-	_section("a hurt volume hurts through dot-combat, kills as the world, and heals")
+	_section("a hurt volume hurts through gs-combat, kills as the world, and heals")
 
 	var changed := _game.change_map(FcMap.by_id(HURT_MAP))
 	var mech := _game.map.mechanics if changed.ok else null
@@ -406,7 +406,7 @@ func _test_hurt() -> void:
 			per_second, pulse, first, player.health.health])
 	_check(dealt.size() == 1 and dealt[0].attacker == 0 and dealt[0].type != null
 		and dealt[0].type.id == FcContent.DAMAGE_WORLD,
-		"through dot-combat, as world damage (%d events, attacker %d, type %s)" % [
+		"through gs-combat, as world damage (%d events, attacker %d, type %s)" % [
 			dealt.size(), dealt[0].attacker if not dealt.is_empty() else -1,
 			dealt[0].type.id if not dealt.is_empty() and dealt[0].type != null else &"?"])
 
@@ -516,7 +516,7 @@ func _test_every_map() -> void:
 		])
 
 		# Most, not all: a mapper's spawn can be a few units off the floor or in a wall, and
-		# dot-spawn's director only ever needs enough good ones. Half bad is a broken import.
+		# gs-spawn's director only ever needs enough good ones. Half bad is a broken import.
 		if map.spawns.size() < 8 or floored * 4 < map.spawns.size() * 3 or stuck * 4 > map.spawns.size():
 			bad.append(String(id))
 
@@ -533,7 +533,7 @@ func _test_every_map() -> void:
 	_done()
 
 
-## dot-core's [GSCollisionAudit] over every imported map as a client draws it (the drawn brushes
+## gs-core's [GSCollisionAudit] over every imported map as a client draws it (the drawn brushes
 ## beside the collision the game builds): geometry with no shape near it is a wall a player
 ## walks into. Fails on any finding; what is meant to be walked through is opted out in
 ## `fc_bsp_map.gd` with the reason.

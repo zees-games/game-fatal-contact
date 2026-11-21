@@ -6,28 +6,28 @@ const FcEvents := preload("fc_events.gd")
 const FcModes := preload("fc_modes.gd")
 const FcTeamBodies := preload("fc_team_bodies.gd")
 
-## The Escape menu and the Tab board: dot-menu's, with this game's pages on it.
+## The Escape menu and the Tab board: gs-menu's, with this game's pages on it.
 ##
-## [b]dot-menu's since 2026-10-10, like every other game here.[/b] It was dot-ui's
+## [b]gs-menu's since 2026-10-10, like every other game here.[/b] It was gs-ui's
 ## `GSPauseScreen` (Resume, Settings, Interface, Controls, Servers, Leave) over two generated
 ## `GSSettingsScreen`s, a `GSBindingsPanel` rebinder and a browser screen, each a different
-## look. Now it is the one menu: dot-menu's stock General, Video, Audio, Controls and
+## look. Now it is the one menu: gs-menu's stock General, Video, Audio, Controls and
 ## Advanced pages as views of this game's settings document ([FcPresentation]), plus
 ## this game's own:
 ##
 ## - **Interface**: the theme, the frame-rate counter, the crosshair and the HUD's margin.
 ## - **Controls**: the stock mouse card, this game's look switches and every key from
 ##   [FcBindings], each a key button (rebindable, swapping on a conflict).
-## - **Servers**: dot-browser's list, drawn as a page ([method _servers_page]).
+## - **Servers**: gs-browser's list, drawn as a page ([method _servers_page]).
 ## - **Credits**: who made the team bodies ([method credits_page]); the rest of the art is
 ##   credited in the README and licence.json.
 ##
-## **Leave** is dot-menu's stock one ([member GSMenu.leave_on_its_own]): off the server when
+## **Leave** is gs-menu's stock one ([member GSMenu.leave_on_its_own]): off the server when
 ## connected, which hands the player back to whatever loaded the client, and a quit when solo
 ## on a desktop. Until 2026-10-11 Leave only emitted `FcClient.leave_requested`, which
 ## nothing listened to, so the button did nothing; the signal is still emitted for an
 ## embedder. **H opens help** ([method _fill_help]: the goal and every mode), and the HUD's
-## own key hints list it, so dot-menu's corner plate is off here.
+## own key hints list it, so gs-menu's corner plate is off here.
 
 const CHANNEL := "arena.menus"
 
@@ -44,7 +44,7 @@ static func build(host: Node, presentation: Node, browser: FcBrowser = null) -> 
 	menu.name = "GameMenu"
 	# Under the HUD's clock, mode label and portraits (to y 160) and its notice line (182..): the
 	# default 64 drew "Loadout equipped." over the mode label. By name: the web shell pinned
-	# 2026-10-17 has dot-menu 0.1.3, older than `toast_top`, and assigning it there stopped
+	# 2026-10-17 has gs-menu 0.1.3, older than `toast_top`, and assigning it there stopped
 	# this function with a script error, so that shell's client had no menu at all.
 	if &"toast_top" in menu:
 		menu.set(&"toast_top", 236.0)
@@ -53,7 +53,7 @@ static func build(host: Node, presentation: Node, browser: FcBrowser = null) -> 
 	var config := GSMenuConfig.new()
 	config.brand_name = "Zee's Fatal Contact"
 	# The kill feed owns the top right, where the touch Menu button defaults. By name: older
-	# dot-menu has no such property, and assigning it would stop this function.
+	# gs-menu has no such property, and assigning it would stop this function.
 	if &"menu_button_corner" in config:
 		config.set(&"menu_button_corner", &"top_left")
 	var _layered := config.load_layered()
@@ -65,7 +65,7 @@ static func build(host: Node, presentation: Node, browser: FcBrowser = null) -> 
 	menu.manage_pointer = false
 	menu.scoreboard_action = FcBindings.SCOREBOARD
 	menu.leave_on_its_own = true
-	# The HUD's key hints have H (`FcHud`), so dot-menu's corner plate would say it twice.
+	# The HUD's key hints have H (`FcHud`), so gs-menu's corner plate would say it twice.
 	config.help_hint = &"off"
 	# The chat box or the console has the keyboard: Tab is a letter then, not the board.
 	if presentation != null:
@@ -109,7 +109,7 @@ static func _add_video_audio_controls(menu: GSMenu) -> void:
 
 	var controls := menu.page(&"controls")
 	if controls != null:
-		# This game's invert is `invert_pitch`, stored before dot-menu's `invert_mouse`
+		# This game's invert is `invert_pitch`, stored before gs-menu's `invert_mouse`
 		# existed; the stock row for the stock key is not drawn, because it is not declared.
 		controls.section("Mouse") \
 			.add(GSMenuRow.toggle(&"invert_pitch", "Invert vertical look")) \
@@ -160,7 +160,7 @@ static func add_pages(menu: GSMenu, browser: FcBrowser = null) -> void:
 		var calm: GSSettingsDef = menu.settings.schema.find(&"reduce_motion") if menu.settings != null else null
 		motion.add(GSMenuRow.toggle(&"reduce_motion", "Reduce motion", calm.description if calm != null else ""))
 
-	# Solo bots: dot-bot's presets, saved. A server's bots follow the server's bot_difficulty.
+	# Solo bots: gs-bot's presets, saved. A server's bots follow the server's bot_difficulty.
 	if general != null:
 		general.section("Solo bots").add(GSMenuRow.select(&"solo_bot_difficulty", "Bot difficulty",
 			"How well the bots play when you play alone. Easy misses and reacts late; nightmare does neither. A server sets its own.",
@@ -243,7 +243,7 @@ static func fill_help(help: GSMenuHelp) -> void:
 	help.add_text("Moving", "Duck while running to slide (C slides too), Shift dashes when the server allows dashing, and E launches you. In a props mode E grabs a prop and X freezes it. F is the flashlight; outside a props mode X is the quick melee.")
 
 
-## dot-browser's list as a page: a card of servers, each with a Join, and a Refresh.
+## gs-browser's list as a page: a card of servers, each with a Join, and a Refresh.
 ##
 ## [b]A page rather than a screen of its own[/b], so it is in the menu's sidebar, theme and
 ## pointer handling like everything else. It is drawn fresh each time it is shown, which is
@@ -313,10 +313,10 @@ static func _servers_page(menu: GSMenu, browser: FcBrowser) -> GSMenuPage:
 	return page
 
 
-## The Tab board's rows from dot-match, with the server's roster merged in by key for what
+## The Tab board's rows from gs-match, with the server's roster merged in by key for what
 ## only the server knows (time connected and ping).
 ##
-## [b]dot-menu's `GSMenuScoreboard` since 2026-10-09[/b]; it hung off a dot-ui screen until
+## [b]gs-menu's `GSMenuScoreboard` since 2026-10-09[/b]; it hung off a gs-ui screen until
 ## the Escape menu moved, and is the menu's own `scoreboard` now. Held on Tab
 ## ([constant FcBindings.SCOREBOARD]), never one of the menu's overlays, so holding it
 ## stops nobody moving.
@@ -348,7 +348,7 @@ class Board extends RefCounted:
 			{"key": &"seconds", "title": "Time", "kind": GSMenuScoreboard.KIND_DURATION},
 			{"key": &"ping", "title": "Ping", "kind": GSMenuScoreboard.KIND_PING},
 		]
-		# dot-match's own order: best score, then kills.
+		# gs-match's own order: best score, then kills.
 		board.sort_with = func(a: Dictionary, b: Dictionary) -> bool: return int(a.get("rank", 0)) < int(b.get("rank", 0))
 		board.prepare = _rows_from_match
 		if link != null and link.has_signal(&"scoreboard_received"):

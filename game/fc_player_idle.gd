@@ -41,7 +41,7 @@ func _idle_still() -> bool:
 ## [method _idle_posture] as the packed row of [method AwWeaponRig.simulate_idle_row] ([code][speed, airborne, crouched,
 ## aiming, sliding, sprinting, wall_running, tick, hurt_tick][/code], aiming never set there), written into
 ## [member _posture_row], with [method _idle_still]'s answer returned: one read of the controller state for both.
-## Needs a controller (the caller checks). dot-sim's [code]GSSimPlayerPost[/code] answers it where the library has it
+## Needs a controller (the caller checks). gs-sim's [code]GSSimPlayerPost[/code] answers it where the library has it
 ## (bit for bit: [code]headless_posture_native_parity[/code]); [method _idle_row_script] is the fallback (web without the
 ## library, [member posture_native] off).
 func _idle_row() -> bool:
@@ -152,12 +152,12 @@ func _idle_row_script() -> bool:
 var _posture_ctx := GSWeaponContext.new()
 
 
-## Cvar [code]fc_posture_native[/code]: 1 runs [method _idle_row] in dot-sim where its library has
+## Cvar [code]fc_posture_native[/code]: 1 runs [method _idle_row] in gs-sim where its library has
 ## [code]GSSimPlayerPost[/code] (bit for bit with the script); 0 runs the script (the reference and the A/B arm).
 static var posture_native := true
 
 
-## Checks every row FcGame's batched loop hands dot-sim against the script ([method post_input]), counting
+## Checks every row FcGame's batched loop hands gs-sim against the script ([method post_input]), counting
 ## [member posture_batched_rows] and [member posture_misses]. For the parity suites; off in play.
 static var posture_verify := false
 static var posture_batched_rows: int = 0
@@ -175,7 +175,7 @@ var _idle_now := false
 var _muzzle := Vector3.ZERO
 
 
-## dot-sim's [code]GSSimPlayerPost[/code] for this player, or null before the first native [method _idle_row].
+## gs-sim's [code]GSSimPlayerPost[/code] for this player, or null before the first native [method _idle_row].
 var _native_post: Object = null
 
 

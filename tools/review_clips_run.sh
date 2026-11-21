@@ -15,7 +15,7 @@ n=0
 while read -r _ id kind first count; do
   # A loop-friendly clip: h264, no audio, even dimensions. Movie Maker frames are full-range JPEG: convert them to
   # limited range (and tag it), or every player stretches them again and the clip looks washed out
-  # (dot-game docs/visual-qa-root-cause.md).
+  # (gs-game docs/visual-qa-root-cause.md).
   ffmpeg -v error -y -i "$out/all.avi" -vf "select=between(n\,$first\,$((first + count - 1))),setpts=N/(FRAME_RATE*TB),scale=1280:-2:in_range=pc:out_range=tv" \
     -an -c:v libx264 -pix_fmt yuv420p -color_range tv -crf 18 -preset fast -movflags +faststart "$out/${id}__${kind}.mp4"
   n=$((n + 1))

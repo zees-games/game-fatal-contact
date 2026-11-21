@@ -14,7 +14,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ##
 ## [b]The format is Airdrift's.[/b] `<root>/<id>/<id>.json` beside `<id>.bin`, a lightmap
 ## and `textures/`, read by [FcBspMap]. The roots are `res://maps/imported` (the
-## fc-surf-dm-maps repository, linked in by dot-bootstrap at the path its `.import`
+## fc-surf-dm-maps repository, linked in by gs-bootstrap at the path its `.import`
 ## markers were written against) and `user://maps`, where a
 ## map that arrived at runtime would be; the first root that has an id wins, so a map in
 ## the build is never silently replaced by one dropped in beside it.
@@ -24,7 +24,7 @@ const FcBspMap := preload("fc_bsp_map.gd")
 ##
 ## [b]A delivered map is registered by its directory, not found under a root.[/b] A map the
 ## SERVER names (`<owner>/<id>@<version>` in [member GSGameDescriptor.maps]) is its own
-## dot-cloud pack, mounted at `res://dot_cloud/<owner>/<id>/<version>/` with `<id>.json`
+## gs-cloud pack, mounted at `res://gs_cloud/<owner>/<id>/<version>/` with `<id>.json`
 ## and `<id>.bin` directly inside — the directory is named for the version, the files for
 ## the map, so a scan of `<root>/<name>/<name>.json` pointed at a mount silently finds
 ## nothing (game-airdrift found the same thing and wrote `AirdriftMapCatalogue.at_directory`).
@@ -62,7 +62,7 @@ static var _versions: Dictionary = {}
 static var _mounted: Dictionary = {}
 
 
-## The deathmatch and gun game maps (the fc-dm-maps repository, linked by dot-bootstrap).
+## The deathmatch and gun game maps (the fc-dm-maps repository, linked by gs-bootstrap).
 const DM_ROOT := "res://maps/imported_dm"
 
 
@@ -187,7 +187,7 @@ static func manifest(id: StringName) -> Dictionary:
 
 ## The map's version: `0.0.0-<12 hex>` of its manifest's bytes.
 ##
-## [b]From the bytes, not a constant.[/b] dot-map's sync protocol accepts an announced map
+## [b]From the bytes, not a constant.[/b] gs-map's sync protocol accepts an announced map
 ## only at the version the client also has, and a rotation cooldown and every record are
 ## about a map AT a version. A re-import that moved a brush is a different
 ## map; hashing the manifest (which carries every offset into the mesh) says so on both

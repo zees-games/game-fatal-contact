@@ -6,7 +6,7 @@ const EXPECTED_CHECKS := 10
 const MAP := &"crackhouse"
 
 ## A hitscan shot breaks a glass pane of a converted dm world in the running game: the pane is on the shot layer, the shot
-## goes through the game's own `_resolve_shot` (dot-combat's pellet trace, `Hit.collider`), the pane breaks and the shot
+## goes through the game's own `_resolve_shot` (gs-combat's pellet trace, `Hit.collider`), the pane breaks and the shot
 ## carries on through, and no other pane breaks.
 var _client: Node = null
 
@@ -56,7 +56,7 @@ func _script_bots() -> void:
 
 
 func _panes() -> Array[Node]:
-	return get_tree().get_nodes_in_group(&"dot_map_glass")
+	return get_tree().get_nodes_in_group(&"gs_map_glass")
 
 
 func _broken_count() -> int:

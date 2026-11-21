@@ -4,7 +4,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcModuleCvars := preload("../game/fc_module_cvars.gd")
 
-## What dot-game's GSGameCombatFeel does to a real FcPlayer: spread widens while moving, airborne and
+## What gs-game's GSGameCombatFeel does to a real FcPlayer: spread widens while moving, airborne and
 ## sliding and narrows crouched; the recoil pattern is the same every run; the cl_crosshair_* cvars restyle
 ## the crosshair through the console; the sprint rules are opt-in.
 ##
@@ -167,7 +167,7 @@ func _test_console() -> void:
 	_entered += 1
 	print("== cl_crosshair_* at the console")
 	if _feel.crosshair_cvars == null:
-		_check(false, "dot-ui's crosshair cvars are present")
+		_check(false, "gs-ui's crosshair cvars are present")
 		return
 	var cross := GSCrosshair.new()
 	add_child(cross)
@@ -188,7 +188,7 @@ func _test_console() -> void:
 func _test_wiring() -> void:
 	_entered += 1
 	print("== the opt-in wiring")
-	_check(_feel.spread != null and _feel.recoil != null, "dot-weapon's rules are loaded by path")
+	_check(_feel.spread != null and _feel.recoil != null, "gs-weapon's rules are loaded by path")
 	_check(_feel.sprint == null, "a game may opt out of the sprint rules")
 	var names: Array[String] = []
 	_feel.bind_cvars(func(n: String, d: String, _h: String, _f: int) -> Object:

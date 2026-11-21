@@ -161,10 +161,10 @@ func _test_console_stops_movement() -> void:
 	_done()
 
 
-## The Escape menu is dot-menu's, over this game's settings document and key table, with this game's
+## The Escape menu is gs-menu's, over this game's settings document and key table, with this game's
 ## pages on it.
 func _test_the_escape_menu() -> void:
-	_section("The Escape menu is dot-menu's, and its rows reach what they are about")
+	_section("The Escape menu is gs-menu's, and its rows reach what they are about")
 
 	var p := _make(false)
 	var browser := FcBrowser.new()
@@ -282,20 +282,20 @@ func _check_controls_page(p: FcPresentation, menu: GSMenu) -> void:
 	)
 	if dash != null:
 		dash.emit_signal(&"captured", "B")
-	_check(GSInputBinding.describe_action(&"dot_fps_sprint") == "B", "a key captured there moves the action")
+	_check(GSInputBinding.describe_action(&"gs_fps_sprint") == "B", "a key captured there moves the action")
 	_check(p.settings.get_string(&"bind_dash") == "B", "and is stored in the document")
 	dash = menu.screen.find_child("Row_bind_dash", true, false)
 	if dash != null:
 		dash.emit_signal(&"captured", "Space")
 	_check(
-		GSInputBinding.describe_action(&"dot_fps_sprint") == "Space"
-			and GSInputBinding.describe_action(&"dot_fps_jump") == "B",
+		GSInputBinding.describe_action(&"gs_fps_sprint") == "Space"
+			and GSInputBinding.describe_action(&"gs_fps_jump") == "B",
 		"a taken key swaps rather than leaving jump on nothing"
 	)
 	p.bindings.reset_all(p.settings)
 	_check(
-		GSInputBinding.describe_action(&"dot_fps_jump") == "Space"
-			and GSInputBinding.describe_action(&"dot_fps_sprint") == "Shift",
+		GSInputBinding.describe_action(&"gs_fps_jump") == "Space"
+			and GSInputBinding.describe_action(&"gs_fps_sprint") == "Shift",
 		"and Reset puts both back"
 	)
 	_check(

@@ -2,7 +2,7 @@ extends RefCounted
 
 ## A map's sun, sky and air, as one node a client adds beside the level and replaces with it.
 ##
-## [b]A built-in map's lighting is a dot-lighting document the map carries[/b]
+## [b]A built-in map's lighting is a gs-lighting document the map carries[/b]
 ## (`FcMap.lighting`), so it changes with the map and a map can be lit differently from
 ## the next without any code knowing which map it is. [GSLightRig] turns the document into
 ## a sun and an [Environment]; what stays here is this game's: which [GSLightProfile] a
@@ -86,16 +86,16 @@ static func _cloud_sky(root: Node3D, sun: DirectionalLight3D) -> void:
 		return
 
 
-## What this machine draws of a map's lighting: dot-lighting's `painted()`.
+## What this machine draws of a map's lighting: gs-lighting's `painted()`.
 ##
-## [b]`painted()` is the family's profile for flat-painted boxes[/b] (dot-lighting API 3):
+## [b]`painted()` is the family's profile for flat-painted boxes[/b] (gs-lighting API 3):
 ## a longer filmic shoulder and a lower exposure, a contrast and saturation grade, ambient
 ## occlusion where Forward+ can draw it, and a shadowless fill from the side the sun is not
 ## on, so a crate's two shaded faces are two shades under Compatibility, which has no
 ## occlusion. Its light numbers are per renderer: the client shell draws Compatibility
 ## everywhere, which clips before it tone maps. This game's own grade and its hand-set
 ## Compatibility numbers (reference 700, ambient 0.45) were the first try at the same thing
-## and moved into dot-lighting so every painted game gets it; measured on dm_box from a
+## and moved into gs-lighting so every painted game gets it; measured on dm_box from a
 ## player's eye, the sunlit floor went 0.88 -> 0.70 luminance with the darker `GROUND`.
 ##
 ## [b]A browser gets the sun's shadows put back.[/b] `web()` drops them because on a large
@@ -203,7 +203,7 @@ const SKY_TOPS := {
 ## The zenith a map should have instead of its ambient, or transparent when its ambient is
 ## usable.
 ##
-## [b]A white ambient is not a statement about the sky.[/b] dot-lighting draws the top of
+## [b]A white ambient is not a statement about the sky.[/b] gs-lighting draws the top of
 ## the sky in the map's ambient, which is the colour the sky lit the map with; a mapper who
 ## never set it compiles with the editor's default white, and the map is drawn under a
 ## blank white dome. Ten of the thirty-three combat surf maps carry exactly that white. Only the sky

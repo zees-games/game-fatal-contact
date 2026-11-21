@@ -25,8 +25,8 @@ const FcWeaponIcons := preload("fc_weapon_icons.gd")
 ## [b]Only Fatal Contact's own pieces are here[/b]: the ranked portraits, the kill feed with its
 ## weapon silhouettes, the carried weapons, the ability bar. Health, ammunition, the scores
 ## and clock, the key prompt and hints, the hit marker and the damage numbers were drawn here
-## too and moved to dot-ui once other games needed them (`GSVitals`, `GSAmmoCounter`,
-## `GSScoreStrip`, `GSKeyPrompt`, `GSKeyHints`, `GSHitMarker`, `GSDamageNumbers`; dot-ui
+## too and moved to gs-ui once other games needed them (`GSVitals`, `GSAmmoCounter`,
+## `GSScoreStrip`, `GSKeyPrompt`, `GSKeyHints`, `GSHitMarker`, `GSDamageNumbers`; gs-ui
 ## `docs/hud.md`, "The glance pieces"); [FcHud] places them beside these. The colours
 ## below are the same as `GSHudPiece.DEFAULTS`, so the two sets read as one HUD.
 ##
@@ -39,7 +39,7 @@ const WEAPON_ICON_DIR := "res://assets/weapon_icons"
 const HUD_ICON_DIR := "res://assets/hud_icons"
 
 ## Fatal Contact's accent: your own ring, row and slot. The rest of every piece's colours are the
-## theme's ([method Ink.c]), so the menu's theme restyles these pieces with dot-ui's.
+## theme's ([method Ink.c]), so the menu's theme restyles these pieces with gs-ui's.
 const GOLD := Color(1.0, 0.8, 0.22)
 ## The two sides' colours when the teams give none, and the free-for-all plates.
 const BLUE := Color(0.22, 0.5, 0.95)
@@ -65,17 +65,17 @@ class Ink:
 			_fonts[italic] = f
 		return _fonts[italic]
 
-	## A HUD colour by dot-ui's name for it (`plate`, `text`, `dim`, `keycap`, ...): the theme's on
+	## A HUD colour by gs-ui's name for it (`plate`, `text`, `dim`, `keycap`, ...): the theme's on
 	## [constant GSHudPiece.THEME_TYPE] as [param canvas] sees it (the menu sets one on the HUD),
-	## else dot-ui's default. Read when drawing, so a theme change shows next frame.
+	## else gs-ui's default. Read when drawing, so a theme change shows next frame.
 	static func c(canvas: CanvasItem, key: StringName) -> Color:
 		var control := canvas as Control
 		if control != null and control.has_theme_color(key, &"GSHudPiece"):
 			return control.get_theme_color(key, &"GSHudPiece")
-		# `keycap_edge` is dot-ui 6's; on an older shell's dot-ui it is not in DEFAULTS.
+		# `keycap_edge` is gs-ui 6's; on an older shell's gs-ui it is not in DEFAULTS.
 		return GSHudPiece.DEFAULTS.get(key, Color(1.0, 1.0, 1.0, 0.3) if key == &"keycap_edge" else Color.WHITE)
 
-	## How bright the theme's HUD is, 0 to 1: dot-ui's `team_fill` (38 in the dark default,
+	## How bright the theme's HUD is, 0 to 1: gs-ui's `team_fill` (38 in the dark default,
 	## 100 in the bright "Arcade" theme). What a piece with its own saturated colour (the
 	## ability buttons, a medal's ring) blends its dark and its bright look by.
 	static func bright(canvas: CanvasItem) -> float:
@@ -156,7 +156,7 @@ class Ink:
 		return w
 
 
-## The score strip with any number of sides: dot-ui's two plates for two, and for more a plate
+## The score strip with any number of sides: gs-ui's two plates for two, and for more a plate
 ## each, yours next to the clock and the rest alternating outwards, narrowed to fit this
 ## control's width (the tag goes first, then the plate shrinks to its number).
 class TeamStrip extends GSScoreStrip:
@@ -165,7 +165,7 @@ class TeamStrip extends GSScoreStrip:
 	## Below this a plate drops its tag.
 	const TAG_PLATE_W := 80.0
 
-	## `{tag, score, colour}` per side, yours first; empty, or two, is dot-ui's own strip.
+	## `{tag, score, colour}` per side, yours first; empty, or two, is gs-ui's own strip.
 	var teams: Array[Dictionary] = []
 
 	## [param p_teams] as [member teams]; two or fewer go to [method GSScoreStrip.show_scores].
@@ -208,7 +208,7 @@ class TeamStrip extends GSScoreStrip:
 		var base := super()
 		if not sides or teams.size() <= 2:
 			return base
-		# Either side of the clock as wide as the fuller one, as dot-ui's is: the line under it is centred too.
+		# Either side of the clock as wide as the fuller one, as gs-ui's is: the line under it is centred too.
 		var half := CLOCK_W * 0.5 + (GAP + plate_width()) * ceilf(float(teams.size()) * 0.5)
 		var left := minf(size.x * 0.5 - half, base.position.x)
 		return Rect2(left, 0.0, size.x - 2.0 * left, H + 28.0)
@@ -222,7 +222,7 @@ class TeamStrip extends GSScoreStrip:
 			var t: Dictionary = teams[i]
 			_side(plate_rect(i), t["colour"], "" if narrow else str(t["tag"]), int(t["score"]))
 		var keep := sides
-		# The clock and the line under it are dot-ui's: drawn with the two plates switched off.
+		# The clock and the line under it are gs-ui's: drawn with the two plates switched off.
 		sides = false
 		super()
 		sides = keep

@@ -10,7 +10,7 @@
 # Kept on purpose (phase 2, see docs/fc-rename-plan.md): the cfg game id dir,
 # content/pack ids, stat/award/leaderboard keys, input actions, effect and prop
 # ids, user:// settings, env vars, argv,
-# RPC-visible node names, and the entry-point shims dot-server-deploy loads.
+# RPC-visible node names, and the entry-point shims gs-server-deploy loads.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 exec python3 - "$@" <<'PY'
@@ -22,7 +22,7 @@ OC = O.capitalize()
 OU = O.upper()
 SELF = {"tools/fc_rename_apply.sh", "docs/fc-rename-plan.md"}
 
-# Old entry paths dot-server-deploy loads: they stay as thin shims over the new files.
+# Old entry paths gs-server-deploy loads: they stay as thin shims over the new files.
 SHIMS = {
     f"game/{O}_module.gd": ("game/fc_module.gd", None),
     f"game/{O}.tscn": ("game/fc.tscn", OC + "Client"),
@@ -93,7 +93,7 @@ for old, (new, root) in SHIMS.items():
         git("mv", old + ".uid", new + ".uid")
     with open(old, "w") as fh:
         if old.endswith(".gd"):
-            fh.write(f'## Old entry path, kept for dot-server-deploy\'s game.yml `module:` until it\n'
+            fh.write(f'## Old entry path, kept for gs-server-deploy\'s game.yml `module:` until it\n'
                      f'## names res://{new}. Remove after that change is deployed.\n'
                      f'extends "{os.path.basename(new)}"\n')
         else:

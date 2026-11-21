@@ -6,7 +6,7 @@ extends RefCounted
 ##
 ## `weapons.own` (fc-weapons) is the game's whole gun set under plain ids and is always registered first; `weapons.packs`
 ## names the packs that join after it, prefixed. A missing own pack is an error: Fatal Contact then has no weapons. Tuned in
-## `cfg/addons/game_arena_weapons/*.yml` (dot-core's GSAddonConfig, so an operator's cfg/server tier wins).
+## `cfg/addons/game_arena_weapons/*.yml` (gs-core's GSAddonConfig, so an operator's cfg/server tier wins).
 
 const CHANNEL := "arena.roles"
 const ADDON := "game_arena_weapons"

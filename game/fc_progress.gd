@@ -13,8 +13,8 @@ const BOT_SESSION_BASE := 900_000_000
 ## What a player keeps when the match ends: statistics, achievements and boards.
 ##
 ## [b]Three addons that have never heard of each other, joined in one file.[/b]
-## dot-stats counts, dot-achievements decides what counting earns you, and
-## dot-leaderboard orders what was counted. None of them knows what a kill is; all
+## gs-stats counts, gs-achievements decides what counting earns you, and
+## gs-leaderboard orders what was counted. None of them knows what a kill is; all
 ## three know what a number is. This node is the only place in the project that knows
 ## both, and it is deliberately a node rather than lines in [FcModule] because a
 ## listen server, a dedicated server and the headless suite all want it and only one of
@@ -27,7 +27,7 @@ const BOT_SESSION_BASE := 900_000_000
 ## progress.begin(session.userid, session.display_name)
 ## [/codeblock]
 ##
-## [b]The link between stats and achievements is not a signal connection.[/b] dot-stats'
+## [b]The link between stats and achievements is not a signal connection.[/b] gs-stats'
 ## `recorded` carries the player's SESSION total — its whole design is that a session is
 ## what a server counts and a delta is what it reports — and an achievement is about a
 ## lifetime. Wiring one into the other directly adds the running total to the lifetime
@@ -58,7 +58,7 @@ const BOARDS_CONFIG_PATH := "user://arena_boards.json"
 ## Where achievement progress is kept. Empty is the tracker's own [member GSAchievementTracker.store_directory].
 @export_dir var progress_dir: String = ""
 
-const STATS_SERVICE := &"dot_stats_tracker"
+const STATS_SERVICE := &"gs_stats_tracker"
 
 var stats: GSStatsTracker = null
 ## Flushes when reporting was switched on after the tracker started (it only makes its own timer at start).
@@ -74,16 +74,16 @@ var link: GSAchievementStatsLink = null
 var _game: Node = null
 
 ## func(userid) -> GSClientSession, set by the module. With it a player's numbers are filed under
-## dot-game's stable per-server key; without it (or no session), the seat's [method FcGame.storage_key].
+## gs-game's stable per-server key; without it (or no session), the seat's [method FcGame.storage_key].
 var session_fn: Callable = Callable()
 
-## dot-game's key resolver, shared by every game; Fatal Contact drives its own tracker, so no sessions open.
+## gs-game's key resolver, shared by every game; Fatal Contact drives its own tracker, so no sessions open.
 var stats_keys := GSGameStatsFeed.new()
 
 var _kill_feed: GSStatsEventFeed = null
-## The one points score; amounts live in dot-stats' source table, the game only reports events.
+## The one points score; amounts live in gs-stats' source table, the game only reports events.
 var points: GSStatsPoints = null
-## The skill rank (dot-stats' GSStatsRank): weighted stats or Elo, chosen by the fc_rank cvar.
+## The skill rank (gs-stats' GSStatsRank): weighted stats or Elo, chosen by the fc_rank cvar.
 var rank: GSStatsRank = null
 ## player id -> key, asked of [member key_fn] once per stay; key -> player id, its inverse.
 var _keys: Dictionary = {}
@@ -141,7 +141,7 @@ func attach(game: Node) -> GSResult:
 ##
 ## The game's own `player_killed` is NOT re-bound here: the game outlives its world, so
 ## that connection is made once in [method attach] and stays. Deliberately not
-## dot-match's `kill_recorded` either — the game emits `player_killed` AFTER the
+## gs-match's `kill_recorded` either — the game emits `player_killed` AFTER the
 ## scoreboard and the feed have seen it, which is the moment the entry's `streak` field
 ## is correct.
 func bind_world() -> void:
@@ -193,7 +193,7 @@ func set_reporting(on: bool) -> GSResult:
 		return GSResult.success(false)
 
 	if stats.reporter.client == null:
-		stats.reporter.client = GSRegistry.get_service(&"dot_backbone_client")
+		stats.reporter.client = GSRegistry.get_service(&"gs_backbone_client")
 
 	if not stats.reporter.is_available():
 		stats.report_to_backbone = false
@@ -255,7 +255,7 @@ func _build() -> GSResult:
 	]
 	rank.record_fn = func(who: Variant, stat: StringName, value: float) -> void: record(int(who), stat, value)
 	rank.key_fn = func(who: Variant) -> StringName: return StringName(_key_of(int(who)))
-	# dot-game's GSGameStatsFeed and anything else duck-typed finds the tracker by this name.
+	# gs-game's GSGameStatsFeed and anything else duck-typed finds the tracker by this name.
 	GSRegistry.register(STATS_SERVICE, stats)
 
 	var stats_started := stats.start()
@@ -336,7 +336,7 @@ func _build_boards() -> GSResult:
 ## the interesting stores are a shared database behind a community's four servers, not
 ## a file. A caller that does not want to wait may drop the await — nothing below
 ## depends on the load having finished, and the reason is worth stating because it is
-## not obvious: readings that arrive during the load are still counted. dot-stats
+## not obvious: readings that arrive during the load are still counted. gs-stats
 ## records them regardless, [GSAchievementStatsLink] declines to file them while the
 ## tracker has no such player AND declines to move its baseline, so the first delta
 ## after the load carries everything that happened during it.
@@ -435,7 +435,7 @@ func leave(player_id: int) -> void:
 		})
 
 
-## Records one reading against a player. The single door into dot-stats.
+## Records one reading against a player. The single door into gs-stats.
 func record(player_id: int, stat_id: StringName, value: float = 1.0) -> void:
 	if not _attached or player_id >= BOT_SESSION_BASE:
 		return
@@ -594,7 +594,7 @@ func _update_rank(killer: int, victim: int) -> void:
 		var _s := rank.publish_lifetime(who, stats.session_values(StringName(_key_of(int(who)))), stats.schema)
 
 
-## Files the killer/victim pair for the site's "vs" table; the shape and name rules are dot-stats'.
+## Files the killer/victim pair for the site's "vs" table; the shape and name rules are gs-stats'.
 func _report_kill(killer: int, victim: int, entry: GSKillFeed.Entry) -> void:
 	if not _attached or _kill_feed == null or victim <= 0:
 		return
@@ -617,7 +617,7 @@ func _on_shot_resolved(shot: GSShot) -> void:
 		record(shot.attacker, FcStats.SHOTS_HIT)
 	var _filed := GSStatsDamage.report_shot_outcome(_kill_feed, shot)
 
-	# Walls the round crossed, for the site's Penetration cost panel; the shape is dot-stats'.
+	# Walls the round crossed, for the site's Penetration cost panel; the shape is gs-stats'.
 	if _kill_feed != null:
 		var _walls := GSStatsDamage.report_shot(_kill_feed, shot)
 
@@ -626,7 +626,7 @@ func _on_damage_applied(damage: GSDamage) -> void:
 	if damage.health_lost <= 0.0 or _game == null:
 		return
 
-	# Players only. dot-combat carries entity ids and a game may register anything
+	# Players only. gs-combat carries entity ids and a game may register anything
 	# with it; filing a stat against a monster's id gives it a session, a lifetime
 	# progress row and, when it disconnects — which it never does — a leaderboard
 	# entry. The check is `player_for`, not an id range, so it is right for whatever
@@ -684,7 +684,7 @@ func _on_match_ended(winner: int, _outcome: GSMatchRules.Outcome) -> void:
 ## Whether [param player_id] is on the winning side of [param winner].
 ##
 ## [b]`winner` means two different things and the mode decides which.[/b] In a team
-## mode it is a team number; in a free-for-all dot-match has no teams and it is 0,
+## mode it is a team number; in a free-for-all gs-match has no teams and it is 0,
 ## which is not a player id — so the winner of a free-for-all round is read off the
 ## scoreboard instead. Treating 0 as a team in a free-for-all credits nobody, which
 ## looks exactly like a game where nobody ever wins.

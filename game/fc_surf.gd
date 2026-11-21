@@ -9,18 +9,18 @@ extends RefCounted
 ## platform ended at the edge of its own and it walked straight off. A ride edge is a navigation
 ## link from one platform to another that the map's ramps carry a player across; a route may
 ## cross it, and when the brain reaches its start ([member GSBotIntent.ride]) the legs are
-## dot-bot's [GSBotSurfPilot]'s until it lands, while the brain keeps aiming and shooting.
+## gs-bot's [GSBotSurfPilot]'s until it lands, while the brain keeps aiming and shooting.
 ##
 ## [b]Learned offline, from the map alone.[/b] `tools/surf_rides.tscn` finds the edges (a search
 ## from each platform for a ride that lands on another), and plans each on the real motor with
-## dot-bot's [GSBotSurfPlanner]: rides from perturbed starts, then repair rounds from wherever
+## gs-bot's [GSBotSurfPlanner]: rides from perturbed starts, then repair rounds from wherever
 ## the pilot fails. The result is `maps/surf/<id>.surf.json`; nothing is planned at map load.
 ## The map's teleports are pits on every ride, and walkable links in the routes (a bot at the
 ## foot of a ramp walks into the teleport that takes it back up). Reasoning and numbers:
 ## docs/imported-maps.md, "Bots ride the ramps".
 ##
-## [b]Loaded by path, and only on a shell that has it.[/b] This file names dot-bot's level 4 and
-## dot-player-controller's level 3 ([GSBotSurfRide], [GSFpsSimulator]); `fc_bots.gd` loads
+## [b]Loaded by path, and only on a shell that has it.[/b] This file names gs-bot's level 4 and
+## gs-player-controller's level 3 ([GSBotSurfRide], [GSFpsSimulator]); `fc_bots.gd` loads
 ## it only when both are there, so an older shell's bots walk as they did.
 
 const CHANNEL := "arena.surf"
@@ -36,7 +36,7 @@ const UNITS := 0.01905
 ## Ride ids are edge indices; a teleport link's id is this plus the pit's index.
 const TELEPORT_BASE := 1000
 ## A ride edge's route cost per metre: a ride covers its ground several times faster than walking,
-## and at a walked metre's cost a drop off a pad's rim (dot-bot's drop links) outbid the ride from it.
+## and at a walked metre's cost a drop off a pad's rim (gs-bot's drop links) outbid the ride from it.
 const RIDE_COST := 0.25
 
 ## The longest a ride may run before the bot is told it did not land, seconds.

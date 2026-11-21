@@ -2,7 +2,7 @@ extends "headless_match_map_change.gd"
 
 # --- Monsters --------------------------------------------------------------
 
-## dot-npc, dot-npc-ai and dot-npc-ai-director, over this game's own geometry.
+## gs-npc, gs-npc-ai and gs-npc-ai-director, over this game's own geometry.
 func _test_horde() -> void:
 	_section("monsters")
 
@@ -135,7 +135,7 @@ func _test_horde() -> void:
 	else:
 		_check(false, "and it hears a player fire", "no living player to shoot")
 
-	# The gunner: same brain, its ranged branch chosen by its definition, and a shot that dot-combat
+	# The gunner: same brain, its ranged branch chosen by its definition, and a shot that gs-combat
 	# resolves against a real player's hitboxes. A breath first, and a different spot: the horde's
 	# limits space spawns a quarter of a second apart, and the grunt is standing on the first one.
 	for step in range(TICK_RATE / 2):
@@ -159,7 +159,7 @@ func _test_horde() -> void:
 	if shooter != null and _game.effects != null:
 		_game.effects.remove(FcEffects.PROTECTED, shooter.player_id)
 		shooter.health.invulnerable_until_tick = -1
-		# And the third record of it, dot-spawn's ledger.
+		# And the third record of it, gs-spawn's ledger.
 		if _game.player_stack != null and _game.player_stack.spawns != null \
 				and _game.player_stack.spawns.protection != null:
 			_game.player_stack.spawns.protection.revoke(
@@ -186,13 +186,13 @@ func _test_horde() -> void:
 		var muzzle := gunner.position() + Vector3(0.0, 1.4, 0.0)
 		_game.combat.set_authoritative_origin(horde.entity_id_for(gunner), muzzle)
 		var shot: GSShot = horde.npc_shoot(gunner, muzzle, body + Vector3(0.0, 1.0, 0.0), 6.0)
-		_check(shot != null and shot.hit_anyone(), "and its shot hits a player through dot-combat",
+		_check(shot != null and shot.hit_anyone(), "and its shot hits a player through gs-combat",
 			("impact %s, player state %s, hitboxes %s, damages %s" % [
 				str(shot.impacts), str(body), str(shooter.hitboxes.global_position),
 				str(shot.damages.map(func(d: GSDamage) -> String: return d.refusal if d.refused else "landed"))
 			]) if shot != null else "no shot")
 	else:
-		_check(false, "and its shot hits a player through dot-combat", "no gunner or no player")
+		_check(false, "and its shot hits a player through gs-combat", "no gunner or no player")
 
 	# --- The id space -----------------------------------------------------
 
@@ -248,7 +248,7 @@ func _test_horde() -> void:
 		"a monster is both shootable and damageable"
 	)
 
-	# --- Killing one ------------------------------------------------------  Through dot-combat,
+	# --- Killing one ------------------------------------------------------  Through gs-combat,
 	# which is the only way a monster is supposed to die here: the resolver owns armour, the damage
 	# type and spawn protection, and a hit that went straight to GSHealth would skip all three.
 	var killed: Array[int] = []
@@ -297,7 +297,7 @@ func _test_horde() -> void:
 
 	_check(
 		_game.combat.hitboxes_of(entity) == null,
-		"and dot-combat forgot it when it went"
+		"and gs-combat forgot it when it went"
 	)
 
 	# --- The director -----------------------------------------------------
@@ -448,7 +448,7 @@ func _test_siege() -> void:
 	_done()
 
 func _siege_tools(game: FcGame) -> void:
-	# --- The tools, which is what makes dot-props reachable ---------------  [b]A physics gun
+	# --- The tools, which is what makes gs-props reachable ---------------  [b]A physics gun
 	# nothing can call is a physics gun that does not exist.[/b] `phys_gun()` and `grav_gun()` were
 	# built, documented and called by nobody until the family's own detector.
 	var eye := game.map.floor_y + 2.5
@@ -594,7 +594,7 @@ func _new_siege_game() -> FcGame:
 func _test_geometry_held() -> void:
 	_section("the world held")
 
-	# The failure dot-player-controller documents at length: a player who ends a tick
+	# The failure gs-player-controller documents at length: a player who ends a tick
 	# exactly touching the floor is never grounded again and sinks through the world.
 	# Four bots for ninety seconds is enough for it to happen if it can.
 	_check(
@@ -686,7 +686,7 @@ func _check_space_query_audit() -> void:
 
 
 ## The server's ways in from the idle frame that respawn somebody or swap the map, each through `game.tick_gate`
-## (dot_tick_gate.gd; docs/sim-thread.md "Physics space queries"). A file that stops using it fails here.
+## (gs_tick_gate.gd; docs/sim-thread.md "Physics space queries"). A file that stops using it fails here.
 const TICK_GATED_FILES := {
 	"game/fc_module.gd": "fc_restart",
 	"game/fc_module_build.gd": "fc_mode",

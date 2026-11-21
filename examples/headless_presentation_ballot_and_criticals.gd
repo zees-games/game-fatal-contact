@@ -24,7 +24,7 @@ func _test_hud_makes_room_for_a_ballot() -> void:
 	layer.layer = 20
 	add_child(layer)
 	var ballot := Control.new()
-	ballot.add_to_group(&"dot_hud_cover")
+	ballot.add_to_group(&"gs_hud_cover")
 	ballot.position = Vector2(904.0, 110.0)
 	ballot.size = Vector2(360.0, 327.0)
 	layer.add_child(ballot)
@@ -91,7 +91,7 @@ func _test_vote_is_heard() -> void:
 	var p := _make()
 	var sink := p.audio.sink as GSAudioSinkNull
 
-	# The rules this game votes by, as the server builds them. dot-vote ships every cue
+	# The rules this game votes by, as the server builds them. gs-vote ships every cue
 	# empty, so a cue id the rules name and the catalogue lacks is a sound that is
 	# configured, sent to every client each second of a countdown, and never heard.
 	var vote := FcVote.new()
@@ -153,7 +153,7 @@ func _test_criticals_and_the_body() -> void:
 	rules.mode = GSPlayerBreakRules.Mode.LIMBS
 	rules.limbs = 1
 	rules.criticals_only = true
-	# The body is a skinned person (dot-player-char's people): a limb is baked off the skin and
+	# The body is a skinned person (gs-player-char's people): a limb is baked off the skin and
 	# its bones shrink to the stump, so what is counted is the shrunk bones.
 	var whole := _shrunk_bones(player)
 

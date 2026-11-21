@@ -9,7 +9,7 @@ const FcVoteSource := preload("fc_vote_source.gd")
 ## Wraps [GSVoteDirector] over [FcVoteSource], and the wrapping is four callables
 ## and one rule about who calls [method GSVoteDirector.begin]. Everything else — the
 ## ballot, the counting method, the tie-breaks, the quorum, nominations, rock the vote,
-## the cooldowns, the extensions — is dot-vote's fifty-five settings and none of it is
+## the cooldowns, the extensions — is gs-vote's fifty-five settings and none of it is
 ## restated here.
 ##
 ## [b]`begin_on_apply` is off, and getting that wrong halves every cooldown.[/b] The
@@ -17,7 +17,7 @@ const FcVoteSource := preload("fc_vote_source.gd")
 ## "the map changed" signal — which is the one that has to be connected, because it
 ## also fires for an operator typing `map` by hand. Both firing means two entries
 ## in the play history for one play, and a "not in the last five maps" cooldown that is
-## quietly a cooldown of two or three. dot-vote's own notes found this by running the
+## quietly a cooldown of two or three. gs-vote's own notes found this by running the
 ## addon inside a real host, which is the only place it is visible.
 ##
 ## [codeblock]
@@ -79,7 +79,7 @@ signal change_due(id: StringName, choice: GSVoteChoice)
 ## number without touching code:
 ##
 ## [codeblock]
-## _rules()  <  game.yml metadata: map_vote:  <  this file  <  DOT_VOTE_*  <  --vote-*
+## _rules()  <  game.yml metadata: map_vote:  <  this file  <  GS_VOTE_*  <  --vote-*
 ## [/codeblock]
 ##
 ## The file is JSON, keyed exactly as [GSVoteRules] is, enums by name. The end-of-map
@@ -115,7 +115,7 @@ var announce_fn: Callable = Callable()
 var is_admin_fn: Callable = Callable()
 
 ## [code]func(state: Dictionary)[/code]: the ballot as a client draws it, sent whenever it
-## changes. The host points it at the client shell (a dot-server notice), which draws it as
+## changes. The host points it at the client shell (a gs-server notice), which draws it as
 ## a menu a player picks from with a number key or a click. Unset sends nothing.
 var ballot_fn: Callable = Callable()
 
@@ -126,7 +126,7 @@ var people_fn: Callable = Callable()
 ## What [member ballot_fn] is fed from. Polled once per [method advance].
 var feed: GSVoteBallotFeed = null
 
-## What dot-vote's commands are called here. `vote` rather than dot-vote's `votefor`,
+## What gs-vote's commands are called here. `vote` rather than gs-vote's `votefor`,
 ## because `!vote 2` is what this game's players have always typed.
 const COMMAND_NAMES := {"vote": "vote"}
 
@@ -176,7 +176,7 @@ func setup() -> GSResult:
 	# [b]Whether a round is being played, for `time_up: finish_round`.[/b] Warmup and the gap
 	# between rounds have nothing to play out, so a limit that runs out there changes at once
 	# instead of holding for `finish_round_max_sec`. Set by name and only where it exists: a
-	# delivered pack runs on the shell's dot-vote, and one older than API 3 has no such field
+	# delivered pack runs on the shell's gs-vote, and one older than API 3 has no such field
 	# (naming it would fail the pack's parse); there it holds, as it did before.
 	if "round_in_progress_fn" in director:
 		director.set(&"round_in_progress_fn", round_in_progress)
@@ -221,7 +221,7 @@ func _wire_director_callbacks() -> void:
 
 	# Nobody spectates in this game yet. Declared anyway, because the alternative is
 	# `spectators_may_vote` being a setting that reads correctly and decides nothing —
-	# and dot-vote's own notes have a whole section on the one that did exactly that.
+	# and gs-vote's own notes have a whole section on the one that did exactly that.
 	director.is_spectator_fn = func(voter: StringName) -> bool:
 		if game == null:
 			return false
@@ -254,7 +254,7 @@ func _wire_director_signals() -> void:
 
 	# Two signals, two messages, rather than one merged in here. The director emits a
 	# countdown second and that second's cue separately, and merging them would mean
-	# working out which cue belongs to which second — which is dot-vote's knowledge, not
+	# working out which cue belongs to which second — which is gs-vote's knowledge, not
 	# this file's. A ten-second countdown is twenty small reliable messages.
 	director.cue.connect(
 		func(id: StringName) -> void: cue_due.emit(id, 0, false)
@@ -265,7 +265,7 @@ func _wire_director_signals() -> void:
 	)
 
 	# A host that enforces its own score limit has to hear an extend, or the match ends on
-	# the old number with the vote believing it extended. dot-match is that host here.
+	# the old number with the vote believing it extended. gs-match is that host here.
 	director.score_limit_changed.connect(_on_score_limit_changed)
 
 
@@ -333,7 +333,7 @@ func _rules() -> GSVoteRules:
 	# fight in progress — a ballot that appears mid-fight is one most people close unread.
 	rules.vote_warning_sec = 10.0
 
-	# The ids FcPresentation's catalogue plays. dot-vote ships every cue empty and
+	# The ids FcPresentation's catalogue plays. gs-vote ships every cue empty and
 	# names no audio class; this game has a catalogue, so it has something to name.
 	rules.cue_vote_start = String(CUE_START)
 	rules.cue_vote_end = String(CUE_END)
@@ -342,7 +342,7 @@ func _rules() -> GSVoteRules:
 	rules.cue_countdown = String(CUE_COUNT)
 
 	# Two maps ship, so a "not in the last five" cooldown would leave nothing to
-	# offer. dot-vote's `cooldown_max_fraction` caps this against the pool size at
+	# offer. gs-vote's `cooldown_max_fraction` caps this against the pool size at
 	# runtime, and one is the honest number for a catalogue this small.
 	rules.cooldown = 1
 
@@ -380,7 +380,7 @@ func advance(delta: float) -> void:
 
 ## Tells the clock a round ended, for a round-limited vote.
 ##
-## [b]Connected to dot-match's `round_ended`, and it was called by nothing.[/b] This game
+## [b]Connected to gs-match's `round_ended`, and it was called by nothing.[/b] This game
 ## applies a vote's winner at the end of a round, and until this was connected "the end
 ## of a round" reached the director only as the clock running out — so the rule that a
 ## map never changes under a fight in progress was written down and not kept.
@@ -389,9 +389,9 @@ func note_round_end() -> bool:
 
 
 ## The leading score in the match in progress: the best player's frags, or the leading
-## team's total in a team mode — whatever dot-match's own score limit is measured on.
+## team's total in a team mode — whatever gs-match's own score limit is measured on.
 ##
-## [b]Per match, and a match here is a round.[/b] dot-match zeroes the scoreboard at the
+## [b]Per match, and a match here is a round.[/b] gs-match zeroes the scoreboard at the
 ## start of every round, so a vote `score_limit` is a frag limit on one match, the way the
 ## community choosers read the frag limit — not a total across the map.
 func leading_score() -> int:
@@ -410,7 +410,7 @@ func leading_score() -> int:
 
 
 ## Polled rather than connected: a score moves on a kill, an assist, an objective and a
-## team award, from four places in dot-match, and one integer compared once a tick is
+## team award, from four places in gs-match, and one integer compared once a tick is
 ## cheaper than four connections that have to be remade on every map change.
 func _report_score() -> void:
 	var top := leading_score()
@@ -446,7 +446,7 @@ func _bind_match() -> void:
 
 ## Whether a round is live right now: not warmup, not between rounds. Read through `game` on
 ## every call, because a map change builds the match anew. No match is "cannot tell", which
-## holds a finish_round change as dot-vote always did.
+## holds a finish_round change as gs-vote always did.
 func round_in_progress() -> bool:
 	var node: GSMatch = game.match_node if game != null else null
 	return node == null or node.is_live()
@@ -470,12 +470,12 @@ func _on_score_limit_changed(limit: int) -> void:
 		GSLog.info(CHANNEL, "an extend raised the match's score limit", {"limit": limit})
 
 
-## dot-vote's commands, on [param host] — the module, so they go when it does.
+## gs-vote's commands, on [param host] — the module, so they go when it does.
 ##
 ## [b]These are the only vote commands, and that is the point.[/b] This game had its own
 ## `!rtv`, `!nominate`, `!vote`, `!nextmap` and `!timeleft` in the module's chat handler,
-## and none of dot-vote's operator commands — `setnextmap`, `nominate_addmap`,
-## `forcertv`, `votereload` — existed here at all. dot-vote's are registered on the
+## and none of gs-vote's operator commands — `setnextmap`, `nominate_addmap`,
+## `forcertv`, `votereload` — existed here at all. gs-vote's are registered on the
 ## console with `.with_chat()`, so a `!rtv` the chat handler does not claim reaches them;
 ## two handlers for one name is the collision [code]TmcVote[/code] documents, where
 ## [GSConsole] keeps the first registration and the second is silently dead.
@@ -491,7 +491,7 @@ func install_commands(host: Object) -> GSResult:
 	commands.resolve_fn = func(text: String) -> StringName:
 		return _qualify(StringName(text))
 	# This game's voters are the bare session id — `str(userid)`, which is what
-	# `voters_fn` lists and what the module forgets on a disconnect. dot-vote's default is
+	# `voters_fn` lists and what the module forgets on a disconnect. gs-vote's default is
 	# `u<userid>`, and two spellings of one voter is a player who can rock the vote twice.
 	commands.voter_fn = func(ctx: Object) -> StringName:
 		var session: Variant = ctx.get("session")
@@ -503,9 +503,9 @@ func install_commands(host: Object) -> GSResult:
 
 	var bound := commands.bind(host)
 
-	# The map menu (M), dot-vote's: the ballot's own maps and modes, each said to be which,
+	# The map menu (M), gs-vote's: the ballot's own maps and modes, each said to be which,
 	# changed now through the source (the map director, so every peer follows). Read by
-	# name, because a server on a dot-vote older than the menu has no `map_menu`.
+	# name, because a server on a gs-vote older than the menu has no `map_menu`.
 	var menu_half: Variant = commands.get(&"map_menu")
 	if menu_half is Object:
 		(menu_half as Object).set(&"rows_fn", func(rows: Array) -> Array:

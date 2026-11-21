@@ -30,9 +30,9 @@ const FcRequest := preload("../game/fc_request.gd")
 ## Two clients, one server, one process, and a lossy wire between them.
 ##
 ## [b]This is the first time anything in this family runs netcode over more than one
-## client.[/b] dot-net's own integration run adds exactly one peer, which is the one
+## client.[/b] gs-net's own integration run adds exactly one peer, which is the one
 ## shape in which "replicate to everybody" and "replicate to whoever is served first"
-## look identical — and that is precisely how a replication bug survived in dot-net
+## look identical — and that is precisely how a replication bug survived in gs-net
 ## until it was looked for. Two peers here is not thoroughness, it is the minimum that
 ## tests the thing at all.
 ##
@@ -179,7 +179,7 @@ func _make_manager(is_server: bool, scope: StringName, peer_id: int) -> GSNetMan
 	# size the interpolation delay from wall-clock arrival gaps, a different view lag on every box.
 	net.config.adaptive_interpolation = false
 	# From the game, exactly as `FcModule` and `FcClient` do it. A suite that
-	# left this at dot-net's default would agree with itself on both ends and prove
+	# left this at gs-net's default would agree with itself on both ends and prove
 	# nothing about the two that actually ship — which is how the 128-against-256
 	# mismatch survived until a browser drew sky in every direction.
 	net.config.world_extent = FcGame.NET_WORLD_EXTENT
@@ -295,7 +295,7 @@ func _join_everyone() -> void:
 
 		# The TOYS a signon carries; this harness routes no events by itself. Before any
 		# snapshot: a client that has not paired the toys stops reading a snapshot at the
-		# first entity it does not know, players and all (dot-net's `receive_snapshot`).
+		# first entity it does not know, players and all (gs-net's `receive_snapshot`).
 		_deliver_event(peer_id, FcEvents.Kind.TOYS, _server_bridge.get("_toys_body"))
 		_quiet_client_toys(peer_id)
 

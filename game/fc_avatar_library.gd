@@ -2,7 +2,7 @@ extends RefCounted
 
 ## Fatal Contact's side of the site's avatar library: what a member may equip here, and equipping it.
 ##
-## dot-user-avatar's [GSAvatarLibraryClient] does the calls; this adds what only the game knows. The app id
+## gs-user-avatar's [GSAvatarLibraryClient] does the calls; this adds what only the game knows. The app id
 ## ([member app_id], the `sv_avatar_app_id` cvar) goes on every call, and the app's own switches
 ## ([GSAvatarAppRules]: emotes, poses and gestures each, wearables, and a rule per wearable) are honoured on this side
 ## as well as the site's. A value of 0 for the equip cap means unlimited. Nothing is clamped: a list over the cap, a kind
@@ -26,7 +26,7 @@ static func client_for(http: GSHttp, base_url: String, headers: Dictionary = {})
 
 
 ## Sets how many entries one avatar loadout message may carry and how many equipped actions of one kind the server
-## accepts, both 0 = unlimited (dot-game's [GSGameAvatarLoadoutMessage] and [GSGameAvatarLoadouts]). A negative
+## accepts, both 0 = unlimited (gs-game's [GSGameAvatarLoadoutMessage] and [GSGameAvatarLoadouts]). A negative
 ## number is refused and leaves both as they were.
 static func apply_loadout_limits(max_entries: int, max_per_kind: int) -> GSResult:
 	if max_entries < 0 or max_per_kind < 0:

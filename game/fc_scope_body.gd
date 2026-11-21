@@ -1,7 +1,7 @@
 extends RefCounted
 
 ## cl_scope_body: draw a lens-mode scope as the gun's own scope (body, ocular and magnified glass) rather than a
-## flat circle over a hidden gun. Its own script, not FcScopePrefs: a static var there would sit in dot-weapon's shared prefs.
+## flat circle over a hidden gun. Its own script, not FcScopePrefs: a static var there would sit in gs-weapon's shared prefs.
 
 ## On by default off the web; the web build keeps the flat lens it had.
 static var body := not OS.has_feature("web")

@@ -47,7 +47,7 @@ var map_in_fn: Callable = Callable()
 var map_report_fn: Callable = Callable()
 
 
-## How the client learns its round-trip time, in milliseconds. [b]Nothing in dot-net writes an RTT
+## How the client learns its round-trip time, in milliseconds. [b]Nothing in gs-net writes an RTT
 ## sample, and the clock needs one.[/b] Without it the input lead is a guess, and on a link past
 ## about 30 ms every input arrives after its tick and is discarded as late.
 var rtt_source: Callable = Callable()
@@ -185,12 +185,12 @@ func open_link(parent: Node) -> FcNetLink:
 	return link
 
 
-## Where dot-net's own outgoing bytes go. [param delivery] decides the call, not the caller: a snapshot is unreliable and an event is not, and dot-net knows which is which.
+## Where gs-net's own outgoing bytes go. [param delivery] decides the call, not the caller: a snapshot is unreliable and an event is not, and gs-net knows which is which.
 func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
 	if link == null:
 		return
 
-	# Over a socket, only to a peer that said READY, as [method send_event] does. dot-net sends its schema on add_peer and snapshots from the next tick, while the client may still be building the scene its `Server/Arena`
+	# Over a socket, only to a peer that said READY, as [method send_event] does. gs-net sends its schema on add_peer and snapshots from the next tick, while the client may still be building the scene its `Server/Arena`
 	# node sits in: the solo host's client joins first and builds for 30 s after, and every call that arrived in that time was a `Node not found: "ArenaSimServer/Server/Arena"` error on its console. [method mark_ready] sends the schema again.
 	if net.is_server and holds_unready():
 		if peer_id == 0:
@@ -206,7 +206,7 @@ func _send(peer_id: int, payload: PackedByteArray, delivery: int) -> void:
 	elif net.is_server:
 		link.send_event(peer_id, payload)
 	else:
-		# A client's reliable send is a request. dot-net sends exactly one through here (its message schema, as it starts);
+		# A client's reliable send is a request. gs-net sends exactly one through here (its message schema, as it starts);
 		# `send_event` is a call only the server may make, and the server's end refuses it from a client.
 		link.send_request(payload)
 
@@ -429,7 +429,7 @@ func apply_join(payload: PackedByteArray) -> GSResult:
 	return mirrored
 
 
-## Sends an event to one peer, or to every ready peer when [param peer_id] is 0. [b]Ready peers, not connected ones[/b]: a peer past dot-server's signon has a socket and has not built its scene,
+## Sends an event to one peer, or to every ready peer when [param peer_id] is 0. [b]Ready peers, not connected ones[/b]: a peer past gs-server's signon has a socket and has not built its scene,
 ## so an RPC lands on a node that does not exist ("Node not found" per call). The gate is [enum FcEvents.Ask].READY.
 ## The server changed a movement rule: every client gets the whole set. Server side; a client's own set_movement_rules emits this too and must not echo it back.
 func _on_movement_rules_changed(rules: Dictionary) -> void:
@@ -557,7 +557,7 @@ func _on_player_killed(entry: GSKillFeed.Entry) -> void:
 			"killer": named.display_name if named != null else "", "weapon": String(entry.cause)})
 		if not res.ok:
 			GSLog.trace(CHANNEL, "no kill view", {"why": res.error.message})
-	# The killer key is a string here and 0-means-the-world on the wire. dot-match
+	# The killer key is a string here and 0-means-the-world on the wire. gs-match
 	# reads an empty killer key as "the world"; this game never writes "0" for it,
 	# because that would create a scoreboard record for a player who does not exist.
 	var killer := int(entry.killer_key) if String(entry.killer_key).is_valid_int() else 0
@@ -746,9 +746,9 @@ func _adopt_tick_rate(rate: int, snapshot_rate: int = 0) -> void:
 	net.clock.tick_rate = rate
 	if game.spectate != null:
 		game.spectate.retime()
-	# dot-net API 7 has GSNetClock.adopt_tick_rate(), which also raises the engine's step cap to a quarter second of ticks (a client under 16 fps ran fewer ticks than the server at 128 Hz).
+	# gs-net API 7 has GSNetClock.adopt_tick_rate(), which also raises the engine's step cap to a quarter second of ticks (a client under 16 fps ran fewer ticks than the server at 128 Hz).
 	# A shell built before it gets the same rule here, as game-airdrift does; remove this branch when the oldest shell is API 7.
-	if GSAddonApi.build_level("dot_net") >= 7:
+	if GSAddonApi.build_level("gs_net") >= 7:
 		GSNetClock.adopt_tick_rate(rate)
 	else:
 		Engine.max_physics_steps_per_frame = maxi(Engine.max_physics_steps_per_frame, ceili(0.25 * float(rate)))

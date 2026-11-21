@@ -200,7 +200,7 @@ func _sample_clock(server_tick: int) -> void:
 	var target := clock.server_tick() + int(clock.call("_target_lead"))
 	var error := target - clock.tick
 	# Against what the clock steers to: the server's input-lead report once it has one, which
-	# the round trip's lead above is not any more (dot-net's `lead_error`).
+	# the round trip's lead above is not any more (gs-net's `lead_error`).
 	if clock.has_method(&"lead_error"):
 		error = roundi(float(clock.call(&"lead_error")))
 	var lead := clock.input_tick() - server_tick
@@ -230,7 +230,7 @@ func _sample_render() -> void:
 	var drawn := seen.global_position
 	# Exactly what `GSNetManager.interpolate_frame` hands the interpolator: the clock's
 	# render alpha and what the receive timeline moved by re-anchoring that the drawing has
-	# not followed yet, on a dot-net that has them (headless_feel says why).
+	# not followed yet, on a gs-net that has them (headless_feel says why).
 	var alpha := clampf(Engine.get_physics_interpolation_fraction(), 0.0, 1.0)
 	var slip := 0.0
 	if net.clock.has_method(&"render_alpha"):

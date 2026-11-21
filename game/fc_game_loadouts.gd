@@ -147,9 +147,9 @@ func rearm_if_allowed(id: int) -> bool:
 	GSLog.debug(CHANNEL, "loadout handed over at once", {"player": id})
 	return true
 
-## The B menu's server half, when the host's dot-loadout has one (API 2).
+## The B menu's server half, when the host's gs-loadout has one (API 2).
 func _build_loadout_command() -> void:
-	if GSAddonApi.build_level("dot_loadout") < 2 or not ResourceLoader.exists(LOADOUT_COMMAND_SCRIPT):
+	if GSAddonApi.build_level("gs_loadout") < 2 or not ResourceLoader.exists(LOADOUT_COMMAND_SCRIPT):
 		return
 	loadout_command = (load(LOADOUT_COMMAND_SCRIPT) as GDScript).new()
 	loadout_command.set(&"manager", loadouts)
@@ -174,7 +174,7 @@ func _build_loadout_command() -> void:
 
 func _send_loadout_notice(ctx: Object, data: Dictionary) -> bool:
 	var session: Variant = ctx.get(&"session") if ctx != null else null
-	var server: Object = GSRegistry.get_service(&"dot_server")
+	var server: Object = GSRegistry.get_service(&"gs_server")
 	if not (session is Object) or server == null or not server.has_method(&"send_notice"):
 		return false
 	var topic: StringName = loadout_command.get_script().get_script_constant_map().get("TOPIC", &"loadout_menu")
@@ -210,7 +210,7 @@ func _build_loadouts(with_command := true) -> GSResult:
 
 	# Everything in this game is free except the launcher, and there is no entitlement
 	# service to ask. A game with unlocks binds a real source here; leaving it unset means
-	# only `free` items, which is dot-loadout's loud default.
+	# only `free` items, which is gs-loadout's loud default.
 	loadouts.entitlement_source = func(_key: String) -> GSLoadoutEntitlements:
 		var owned: Array = [FcContent.PAID_WEAPON]
 		if utility_grenades:

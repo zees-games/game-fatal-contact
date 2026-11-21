@@ -13,7 +13,7 @@ func _module_name() -> String:
 
 
 func _map_config_game() -> String:
-	return "game-arena"
+	return "game-fatal-contact"
 
 
 ## FFA stays solid; see [method FcGame.block_side].
@@ -21,7 +21,7 @@ func _noblock_side(id: Variant) -> Variant:
 	return game.block_side(id)
 
 
-## The download groups a joining web client needs, per addon dir: dot-server-deploy's host announces them, and the shell fetches
+## The download groups a joining web client needs, per addon dir: gs-server-deploy's host announces them, and the shell fetches
 ## only those of the fc-weapons pack. Every weapon this server can hand out (loadouts, pickups, drops, admin gives all come from
 ## the catalogue), because a group the client did not fetch cannot be added while it plays.
 func addon_groups() -> Dictionary:
@@ -102,7 +102,7 @@ func _module_load() -> GSResult:
 		)
 
 	# This module's _physics_process is the server tick and opens the gate first: from here a
-	# respawn, restart or map change heard between ticks waits for it (dot_tick_gate.gd).
+	# respawn, restart or map change heard between ticks waits for it (gs_tick_gate.gd).
 	game.tick_gate.armed = true
 
 	_bind_commands_and_cvars()
@@ -126,7 +126,7 @@ func _module_load() -> GSResult:
 	# broken: one person connects, the match sits in WARMUP for ever, nobody spawns.
 	_bot_quota = GSBotQuota.install(self, game.config.bot_quota)
 
-	# [b]How the bots play[/b]: dot-bot's `bot_difficulty` (easy, medium, hard, nightmare; medium by
+	# [b]How the bots play[/b]: gs-bot's `bot_difficulty` (easy, medium, hard, nightmare; medium by
 	# default) and every `bot_*` setting it bundles, each overridable.
 	var _bot_cvars := GSBotSettings.of(game).bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY, add_command)
 
@@ -184,8 +184,8 @@ func _bind_commands_and_cvars() -> void:
 	_add_match_cvars()
 
 	# B, the loadout menu: `/loadout` and its notice, and the owner's mp_loadout_menu,
-	# mp_loadout_allow and mp_loadout_fixed and the mp_loadout_random* dice (dot-loadout's GSLoadoutCommand). Absent on a host
-	# whose dot-loadout predates it, and then B says the server did not answer.
+	# mp_loadout_allow and mp_loadout_fixed and the mp_loadout_random* dice (gs-loadout's GSLoadoutCommand). Absent on a host
+	# whose gs-loadout predates it, and then B says the server did not answer.
 	if game.loadout_command != null:
 		game.loadout_command.call(&"bind", self)
 
@@ -325,6 +325,6 @@ func _bind_mode_cvars() -> void:
 
 
 func _cmd_restart(ctx: GSCmdContext) -> void:
-	# Everybody respawns, so on a server it happens at the top of the next tick (dot_tick_gate.gd).
+	# Everybody respawns, so on a server it happens at the top of the next tick (gs_tick_gate.gd).
 	game.tick_gate.run(func() -> void: game.start(game.current_tick()))
 	ctx.reply("Match restarted.")

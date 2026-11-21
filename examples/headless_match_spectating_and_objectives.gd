@@ -503,7 +503,7 @@ func _test_capture_the_flag() -> void:
 	_check(red_flag.is_home(), "and the flag goes home")
 	_check(
 		game.match_node.scoreboard.team_score(game.team_of(thief)) > 0,
-		"and dot-match has the point, through report_objective rather than a bare "
+		"and gs-match has the point, through report_objective rather than a bare "
 		+ "team score, so the win check ran with it",
 		str(game.match_node.scoreboard.team_score(game.team_of(thief)))
 	)

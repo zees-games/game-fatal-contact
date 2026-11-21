@@ -3,10 +3,10 @@ extends RefCounted
 ## Records the rides real players take between the platforms of a combat surf map, replays them on
 ## the real motor to keep the ones that land, and gives bots the verified ones to ride.
 ##
-## It is the host side of dot-bot's ride harvest: [method replay_start], [method replay_command],
+## It is the host side of gs-bot's ride harvest: [method replay_start], [method replay_command],
 ## [method landing] and [method perturb]. Off unless the server turns `bot_record` on; bots are
-## never recorded. Loaded by path, and only on a shell that has dot-bot's recorder.
-## Reasoning: dot-bot docs/demonstration-recorder.md, "The first consumer: surf rides".
+## never recorded. Loaded by path, and only on a shell that has gs-bot's recorder.
+## Reasoning: gs-bot docs/demonstration-recorder.md, "The first consumer: surf rides".
 ##
 ## It also has [method pilot_setup], so the harvest replays a ride as a bot rides it (quantised, tracking and vetoing) while `piloted` is on in [member ride_config]; `GS_BOT_HARVEST_PILOTED=0` replays the commands open loop.
 

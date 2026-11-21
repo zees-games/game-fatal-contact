@@ -19,7 +19,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("FC: per-map cvars from cfg/game/game-arena/dot_map/map")
+	print("FC: per-map cvars from cfg/game/game-fatal-contact/gs_map/map")
 	var console := GSConsole.new()
 	add_child(console)
 	console.cvar("fc_surf", "0", "", GSConVar.FLAG_ARCHIVE)

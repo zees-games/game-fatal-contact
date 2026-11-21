@@ -1,7 +1,7 @@
 extends "headless_match_wall_rules_and_interface.gd"
 
-## dot-stats, dot-achievements and dot-leaderboard, over the match that just ran. Every check is against a number the match
-## PRODUCED, not one this test filed: reading back one's own readings tests dot-stats, and what is untested elsewhere is
+## gs-stats, gs-achievements and gs-leaderboard, over the match that just ran. Every check is against a number the match
+## PRODUCED, not one this test filed: reading back one's own readings tests gs-stats, and what is untested elsewhere is
 ## whether a kill here reaches those three addons at all.
 func _test_progression() -> void:
 	_section("progression")
@@ -73,7 +73,7 @@ func _test_progression() -> void:
 
 	_check(
 		total_kills == float(credited),
-		"every credited kill reached dot-stats",
+		"every credited kill reached gs-stats",
 		"feed %d, stats %d" % [credited, int(total_kills)]
 	)
 
@@ -102,8 +102,8 @@ func _test_progression() -> void:
 		"%d" % int(best_streak)
 	)
 
-	# Achievements: First Blood is one kill and the match produced six, so this would pass even if dot-stats and
-	# dot-achievements were wired straight through (the bug GSAchievementStatsLink prevents); it proves they connect at all.
+	# Achievements: First Blood is one kill and the match produced six, so this would pass even if gs-stats and
+	# gs-achievements were wired straight through (the bug GSAchievementStatsLink prevents); it proves they connect at all.
 	var unlocked_any := false
 
 	for player in _game.players():

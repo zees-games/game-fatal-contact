@@ -1,8 +1,8 @@
 extends RefCounted
 
-## The flashlight's config and binder for this game (the beam, the battery and the sounds are dot-flashlight's).
+## The flashlight's config and binder for this game (the beam, the battery and the sounds are gs-flashlight's).
 
-const GAME_ID := "game-arena"
+const GAME_ID := "game-fatal-contact"
 ## The wire bit the client holds for a few ticks to ask the server for a switch.
 const BUTTON := GSWeaponCommand.BUTTON_USER_1
 ## Seconds the bit is held (3 ticks at 66): long enough that one lost command does not lose the press.
@@ -20,7 +20,7 @@ static func make_config() -> GSFlashlightConfig:
 	return cfg
 
 
-## `fc_flashlight_<field>` cvars, `cfg/game/game-arena/flashlight/game.yml`, and a workbench set.
+## `fc_flashlight_<field>` cvars, `cfg/game/game-fatal-contact/flashlight/game.yml`, and a workbench set.
 static func make_binder(cfg: GSFlashlightConfig) -> GSGameConfigBinder:
 	var b := GSGameConfigBinder.create(cfg, GAME_ID, "fc_flashlight")
 	b.profile_kind = "flashlight"

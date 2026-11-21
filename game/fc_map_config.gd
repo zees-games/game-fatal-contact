@@ -1,10 +1,10 @@
 extends RefCounted
 
-## Fatal Contact's per-map settings: dot-game's [GSGameMapConfig] (dot-map's files) over the cvars a map may change.
+## Fatal Contact's per-map settings: gs-game's [GSGameMapConfig] (gs-map's files) over the cvars a map may change.
 ##
-## `cfg/game/game-arena/dot_map/map/<name>.yml` (a glob such as `surf_%.yml` covers a class of maps), overridable from `cfg/server/...`. Only the keys in [constant KEYS] are accepted; anything else a file says is logged and ignored.
+## `cfg/game/game-fatal-contact/gs_map/map/<name>.yml` (a glob such as `surf_%.yml` covers a class of maps), overridable from `cfg/server/...`. Only the keys in [constant KEYS] are accepted; anything else a file says is logged and ignored.
 
-const GAME_ID := "game-arena"
+const GAME_ID := "game-fatal-contact"
 
 ## cvar -> its constraint. Add a cvar here to let a map or an operator's per-map file set it.
 const KEYS := {
@@ -14,7 +14,7 @@ const KEYS := {
 }
 
 
-## The applier over [param console]'s cvars (dot-game's [GSGameMapConfig]). Call `apply(map_id)` on every map load.
+## The applier over [param console]'s cvars (gs-game's [GSGameMapConfig]). Call `apply(map_id)` on every map load.
 static func build(console: GSConsole) -> GSGameMapConfig:
 	return GSGameMapConfig.for_console(GAME_ID, console, KEYS)
 
@@ -24,7 +24,7 @@ static var _refused: Dictionary = {}
 
 ## A rotation profile's cvars (`GSMapDef.profile.values`, from a maps.yml `mode:`/`cfg:` file) for one map, put
 ## back on the next. Any existing cvar but `fc_mode` (the profile's `mode` does that) and protected ones.
-## Null when the linked dot-map predates `GSMapConfig.apply_values`: profiles then change no cvars.
+## Null when the linked gs-map predates `GSMapConfig.apply_values`: profiles then change no cvars.
 static func build_profile(console: GSConsole) -> Object:
 	var script: Variant = load(GSGameMapConfig.SCRIPT_PATH) if ResourceLoader.exists(GSGameMapConfig.SCRIPT_PATH) else null
 	if script == null:

@@ -59,7 +59,7 @@ const SERVICE := &"arena_game"
 const NET_WORLD_EXTENT := 512.0
 
 ## How long a remote body takes to ease back onto its snapshot blend after the buffer ran
-## dry and dot-net extrapolated it (`GSNetConfig.resume_ease_sec`, dot-net's 0.12 default).
+## dry and gs-net extrapolated it (`GSNetConfig.resume_ease_sec`, gs-net's 0.12 default).
 ## The server rewinds a shot to the blend, never to the eased body (the offset is the
 ## client's and is not sent), so every frame drawn off the blend is a frame where the
 ## crosshair and the hitbox disagree. At 0.12 s `headless_hitreg_chaos` missed 1 tap of
@@ -88,7 +88,7 @@ signal player_spawned(player: FcPlayer)
 ## A player exists. Fired by [method add_player], on every machine that has one.
 ##
 ## [b]Distinct from [signal player_spawned], and a client needs this one.[/b]
-## `player_spawned` fires from `_on_respawn_due`, which is dot-match's, which runs on
+## `player_spawned` fires from `_on_respawn_due`, which is gs-match's, which runs on
 ## the AUTHORITY — so on a mirroring client it never fires at all. A client that waited
 ## for it to find its own player waited for ever: the HUD still bound by id and worked,
 ## the scoreboard worked, and there was no camera and no world, because both hang off
@@ -103,7 +103,7 @@ signal match_state_changed(from: GSMatch.State, to: GSMatch.State)
 
 ## A combat entity that is NOT a player was killed.
 ##
-## [b]This exists because the scoreboard used to get a row for one.[/b] dot-combat
+## [b]This exists because the scoreboard used to get a row for one.[/b] gs-combat
 ## knows only entity ids; anything a game layer registers with it — a monster, a
 ## breakable, a turret — arrives at `_on_entity_killed` looking exactly like a player.
 ## The old handler passed the id to `GSMatch.report_kill` regardless, which creates a
@@ -211,12 +211,12 @@ var map: FcMap = null
 var match_node: GSMatch = null
 ## Every world object this game has a combat entity id for. See [GSEntityTable].
 ##
-## [b]Monsters only, today.[/b] A player's entity id in this game IS their dot-server
-## session id, and seven things depend on that identity — dot-match's scoreboard keys,
-## dot-effects' per-entity scales, dot-stats rows, dot-spectate, the player-stack
+## [b]Monsters only, today.[/b] A player's entity id in this game IS their gs-server
+## session id, and seven things depend on that identity — gs-match's scoreboard keys,
+## gs-effects' per-entity scales, gs-stats rows, gs-spectate, the player-stack
 ## roster, the kill feed on the wire, and the client that rebuilds one from two ints.
 ## [FcHorde] carries the full reasoning and what converting the other half would
-## take; the short version is that dot-effects is keyed from both spaces at once, so
+## take; the short version is that gs-effects is keyed from both spaces at once, so
 ## the two halves cannot move separately.
 ##
 ## What the table already buys is the half that was wrong: monster ids used to be
@@ -231,14 +231,14 @@ var combat: GSCombatManager = null
 var loading_fn: Callable = Callable()
 var loadouts: GSLoadoutManager = null
 
-## The loadout menu's server half (dot-loadout's `GSLoadoutCommand`): the `/loadout` command
+## The loadout menu's server half (gs-loadout's `GSLoadoutCommand`): the `/loadout` command
 ## the B menu sends, its `loadout_menu` notice, and the owner's `mp_loadout_*` cvars, which the
 ## module binds. Solo the client asks it directly. Untyped and loaded by path because a host with
-## a dot-loadout older than API 2 has no such class, and this script must still parse there
+## a gs-loadout older than API 2 has no such class, and this script must still parse there
 ## (`requires.floor.json`); null on such a host, and the B menu is then not offered.
 var loadout_command: Object = null
 
-## The kits bots draw at each spawn (`cfg/game/game-arena/bot_loadout/`, narrowed by `sv_bot_loadouts`);
+## The kits bots draw at each spawn (`cfg/game/game-fatal-contact/bot_loadout/`, narrowed by `sv_bot_loadouts`);
 ## loaded on the first bot spawn. See [method apply_loadout].
 var bot_loadouts: FcBotLoadouts = null
 
@@ -267,13 +267,13 @@ var utility_grenades := false
 ## change keeps what the server owner set.
 var drops: FcDrops = null
 
-## Weapons lying in the world (thrown with the drop key, or left by the dead): dot-weapon's layer
+## Weapons lying in the world (thrown with the drop key, or left by the dead): gs-weapon's layer
 ## under [member weapon_drop_rules], whose cvars are the server owner's and outlive a map change.
 var weapon_drops: GSWeaponDrops = null
 var weapon_drop_rules: GSWeaponDropRules = GSWeaponDropRules.new()
-## Thrown knives (GSWeaponKnives, dot-weapon), and their server rules: one dictionary for the game's life, so cvars outlive a map.
+## Thrown knives (GSWeaponKnives, gs-weapon), and their server rules: one dictionary for the game's life, so cvars outlive a map.
 var knives: GSWeaponKnives = null
-## The throw winds up while the aim key is held (`fc_knife_throw_charge`, on by default; dot-weapon's own default is off).
+## The throw winds up while the aim key is held (`fc_knife_throw_charge`, on by default; gs-weapon's own default is off).
 var knife_rules: Dictionary = GSWeaponKnives.DEFAULT_RULES.merged({"charge": true, "charge_sec": 1.0}, true)
 
 
@@ -321,7 +321,7 @@ signal hit_confirmed(attacker: int, victim: int, amount: float, point: Vector3, 
 ## What one kill earned: its medals ([enum FcAwards.Medal]), its points, and the
 ## killer's streak now. Authority side, after [signal player_killed] for the same kill.
 ## A head stomp landed (authority side): who, on whom, the downward speed, where, and the sound and
-## effect ids to present. The stat event dot-stats counts; [constant FcStats.STOMPS] listens.
+## effect ids to present. The stat event gs-stats counts; [constant FcStats.STOMPS] listens.
 signal stomped(attacker: int, victim: int, fall_speed: float, point: Vector3, sound: StringName, effect: StringName)
 
 ## What one kill earned, see below.
@@ -367,7 +367,7 @@ var progress: FcProgress = null
 ##
 ## [b]Authority only, and unpredicted.[/b] A brain runs a behaviour tree against a
 ## blackboard with lifetimes on it, which is not something two machines reproduce from
-## the same inputs — dot-npc says so and dot-props says the same thing about rigid
+## the same inputs — gs-npc says so and gs-props says the same thing about rigid
 ## bodies. A client sees monsters because they are replicated, never because it
 ## simulated them.
 var horde: FcHorde = null
@@ -407,14 +407,14 @@ var persist_npc_heat: bool = false
 ## Physics props. Null unless the mode asks for them and this instance is the authority.
 var props: FcProps = null
 
-## The map's toys (dot-props' [GSPropBodyBox]): loose ones only here, beach balls, footballs,
+## The map's toys (gs-props' [GSPropBodyBox]): loose ones only here, beach balls, footballs,
 ## barrels and tyres, which a person walks through and pushes and a shot sends rolling but which
 ## stop no shot and hold nobody up, so they are never cover, a ledge or a launch in a
 ## deathmatch. Built from [member FcMap.toys] on both ends in the same order, simulated by
 ## the authority, posed from snapshots on a client (`fc_toy_net.gd`). Null before a map.
 var toys: GSPropBodyBox = null
 
-## dot-props' `sv_toys*`, bound by the module REPLICATED and followed by a client.
+## gs-props' `sv_toys*`, bound by the module REPLICATED and followed by a client.
 var toy_rules: GSPropBodyRules = GSPropBodyRules.new()
 
 ## The map's toys are about to go (a map change), on both ends: what the bridge releases their
@@ -432,8 +432,8 @@ var _toy_level: Node3D = null
 ## Status effects: burning, empowered, haste, spawn protection, slowed.
 ##
 ## Built in every mode, because spawn protection is one of them and every mode has
-## that. dot-effects' whole integration is one line — `resolver.adjust` — which
-## dot-combat has offered since it was written and nothing here had ever filled.
+## that. gs-effects' whole integration is one line — `resolver.adjust` — which
+## gs-combat has offered since it was written and nothing here had ever filled.
 var effects: FcEffects = null
 
 ## What the round is about, in a mode that is about something. Null in a deathmatch.
@@ -444,8 +444,8 @@ var spectate: FcSpectate = null
 
 ## Who is in the session, which side, what class, where they enter, and the physics.
 ##
-## [b]Built last and binds to everything else.[/b] It adds no authority: dot-match still
-## decides the round and dot-combat still decides damage. What it does is keep one set
+## [b]Built last and binds to everything else.[/b] It adds no authority: gs-match still
+## decides the round and gs-combat still decides damage. What it does is keep one set
 ## of records in step with them, so a scoreboard, a spectator camera, a class screen and
 ## a spawn selector read the same thing rather than four dictionaries that agree until
 ## somebody reconnects. See [FcPlayerStack].
@@ -516,7 +516,7 @@ var _unlag_moved: Dictionary = {}
 var _unlag_refit: Dictionary = {}
 ## The shooter, whom a rewind leaves where they are.
 var _unlag_shooter: int = 0
-## Flies simulated bullets when `sv_ballistics` is on; null without dot-weapon's ballistics rules.
+## Flies simulated bullets when `sv_ballistics` is on; null without gs-weapon's ballistics rules.
 var bullet_bridge: GSWeaponBulletBridge = null
 ## Draws their tracers (client side of a local or listen game).
 var tracers: GSWeaponTracers = null
@@ -563,17 +563,17 @@ var _hurt_due: Dictionary = {}
 ## What [method follow_server_cvars] follows; null on a server and offline.
 var _cvar_source: Object = null
 
-## What a dead body does, and which death reactions the server allows: dot-player-char's
+## What a dead body does, and which death reactions the server allows: gs-player-char's
 ## `sv_ragdoll*` cvars. Bound by the module on the server (REPLICATED) and followed through the
 ## client link on a client, which is the end that draws the bodies. One for the life of the
 ## game, not per map, so a map change keeps the server's setting.
 var ragdoll_rules: GSPlayerRagdollRules = GSPlayerRagdollRules.new()
 
-## Whether a player may switch to third person: dot-player-controller's `mp_forceview`. Bound
+## Whether a player may switch to third person: gs-player-controller's `mp_forceview`. Bound
 ## by the module (REPLICATED) and followed by the client, which is the end with a camera.
 var view_rules: GSPlayerViewRules = GSPlayerViewRules.new()
 
-## dot-mobile's touch, aim assist and auto-fire cvars (`sv_mobile_*`, `sv_aim_assist*`, `sv_autofire*`): bound by the
+## gs-mobile's touch, aim assist and auto-fire cvars (`sv_mobile_*`, `sv_aim_assist*`, `sv_autofire*`): bound by the
 ## module (REPLICATED), followed by the client's overlay. Auto-fire is allowed here, so a touch player starts with it.
 var mobile_rules: GSMobileRules = _make_mobile_rules()
 
@@ -587,17 +587,17 @@ static func _make_mobile_rules() -> GSMobileRules:
 ## The ambience cvars (`fc_ambient*`): bound by the module (REPLICATED), followed by a client through its link.
 var ambient_rules: GSAmbienceRules = FcAmbience.make_rules()
 
-## `snd_shot_*`: dot-audio's layered shots and room-aware tails (all on). Bound by the module, followed by the client.
+## `snd_shot_*`: gs-audio's layered shots and room-aware tails (all on). Bound by the module, followed by the client.
 var shot_rules := GSShotRules.new()
 
-## Who a spectator may watch and whether they may fly a free camera: dot-spectate's
+## Who a spectator may watch and whether they may fly a free camera: gs-spectate's
 ## `mp_forcecamera`, `mp_freeroam` and `mp_freeroam_speed`. Bound by the module (REPLICATED) and
 ## followed by the client, which is the end that flies the camera. One object for the life of
 ## the game, shared with [FcSpectate]'s manager, so a cvar change reaches the rules in use
 ## and a map change keeps the operator's setting.
 var spectate_rules: GSSpectatorRules = GSSpectatorRules.new()
 
-## Whether players and bots are solid to each other: dot-player-controller's
+## Whether players and bots are solid to each other: gs-player-controller's
 ## `mp_solidplayers` (1 by default). Bound by the module (REPLICATED) and followed by the
 ## client, because a client predicts its own player against the others' hulls. Fatal Contact's
 ## movement is analytic, so the hulls are boxes in each player's movement body
@@ -650,13 +650,13 @@ func ring_feet(id: int, view_tick: float) -> Variant:
 	count_shot_rewind(&"unrecorded" if then == null else (&"ring" if _unlag_shot else &"bullet"))
 	return then
 
-## Which pairs of players stop at each other (dot-team's `GSTeamBlockRules`: `mp_teamblock`,
+## Which pairs of players stop at each other (gs-team's `GSTeamBlockRules`: `mp_teamblock`,
 ## `mp_enemyblock`, `!block` / `!noblock`); null until [method make_noblock] or a client's
 ## `add_noblock` sets it. Feeds [member body_rules] `pair_fn`; the same answer on every machine,
 ## or the client rubber-bands.
 var block_rules: Object = null
 
-## dot-game's wiring of [member block_rules]: its cfg layers, cvars and chat commands.
+## gs-game's wiring of [member block_rules]: its cfg layers, cvars and chat commands.
 var noblock: GSGameNoblock = null
 
 ## Whether a module has bound [member noblock]'s cvars and commands (they cannot be bound twice).

@@ -23,7 +23,7 @@ static func snapshot_rate_for(rate: int, target: int = NET_SNAPSHOT_RATE) -> int
 	return best
 
 ## Snapshots of interpolation delay for a client receiving [param snapshot_rate] a second: `cl_interp` seconds
-## (launch option, 0 = unset) wins over `cl_interp_ratio` snapshots (default 2, dot-net's own). The delay in TIME is then
+## (launch option, 0 = unset) wins over `cl_interp_ratio` snapshots (default 2, gs-net's own). The delay in TIME is then
 ## the same at any tick rate, as CS2's cl_interp is; never under one snapshot.
 static func interp_buffer_for(snapshot_rate: int, interp_sec: float, ratio: float) -> float:
 	var buffer := interp_sec * float(maxi(snapshot_rate, 1)) if interp_sec > 0.0 else ratio
@@ -192,7 +192,7 @@ func _sync_award_config() -> void:
 	medals.long_shot_m = config.award_long_shot_m
 	medals.nemesis_at = config.award_nemesis_at
 
-## The fall a death gets: dot-player-char's reaction rule over the server's weights, seeded from
+## The fall a death gets: gs-player-char's reaction rule over the server's weights, seeded from
 ## the victim and the tick. Server side; the bridge sends it on KILL and every client draws it.
 ##
 ## The direction is the shot's; a death with none (a fall, a slay) is pushed by nothing. The
@@ -307,7 +307,7 @@ func _on_entity_killed(entity_id: int, damage: GSDamage) -> void:
 
 	victim.make_dead()
 
-	# An attacker of 0 is world damage — a fall, the void — and dot-match reads an
+	# An attacker of 0 is world damage — a fall, the void — and gs-match reads an
 	# empty killer key as exactly that. Passing "0" instead would create a scoreboard
 	# record for a player who does not exist.
 	var killer_key := "" if damage.attacker == 0 else str(damage.attacker)
@@ -319,7 +319,7 @@ func _on_entity_killed(entity_id: int, damage: GSDamage) -> void:
 		_tick,
 		damage.is_headshot()
 	)
-	# dot-match's entry has no field for it; the bridge reads it to tell every client a
+	# gs-match's entry has no field for it; the bridge reads it to tell every client a
 	# lethal critical happened, which is what breaks a body and what a reward hangs on.
 	entry.set_meta(&"critical", damage.critical)
 	# How the body falls, picked once, here, and sent with the kill (see `decide_death`).
@@ -392,7 +392,7 @@ func _on_damage_applied(damage: GSDamage) -> void:
 			)
 
 	# Only players are on the scoreboard. Damage to or from anything else a game layer registered with
-	# dot-combat — a monster, a breakable — would otherwise create a record keyed on an id no player has,
+	# gs-combat — a monster, a breakable — would otherwise create a record keyed on an id no player has,
 	# for the same reason `non_player_killed` exists.
 	if player_for(damage.victim) == null:
 		return
@@ -461,7 +461,7 @@ func _build_combat() -> GSResult:
 
 	_build_bullets()
 
-	# A new manager starts on dot-combat's defaults; a client re-follows the server's cvars here.
+	# A new manager starts on gs-combat's defaults; a client re-follows the server's cvars here.
 	var _following := _follow_cvar_source()
 
 	_build_projectiles()

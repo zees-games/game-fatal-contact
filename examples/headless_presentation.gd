@@ -66,15 +66,15 @@ func _run() -> void:
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
-## The levels of the addons the live shell ships, `requires.pins.json` (refresh it when a shell ships; same shape as requires.floor.json), so a floor is judged against what the shell has, not the linked head. Where dot-server-deploy's addons.lock is reachable it must pin at least these levels, or the file claims more than any shell will have.
+## The levels of the addons the live shell ships, `requires.pins.json` (refresh it when a shell ships; same shape as requires.floor.json), so a floor is judged against what the shell has, not the linked head. Where gs-server-deploy's addons.lock is reachable it must pin at least these levels, or the file claims more than any shell will have.
 func _pinned_levels() -> Dictionary:
 	var read := GSAddonApi.parse(FileAccess.get_file_as_string("res://requires.pins.json"), "requires.pins.json")
 	return read.value as Dictionary if read.ok else {}
 
 
 func _lock_covers(pins: Dictionary) -> String:
-	for root in [(OS.get_environment("GS_REPOS_ROOT") if OS.has_environment("GS_REPOS_ROOT") else OS.get_environment("DOT_REPOS_ROOT")), "/home/gamedev/godot", "/home/gamedev/projects/godot"]:
-		var lock := str(root).path_join("dot-server-deploy/addons.lock")
+	for root in [(OS.get_environment("GS_REPOS_ROOT") if OS.has_environment("GS_REPOS_ROOT") else OS.get_environment("GS_REPOS_ROOT")), "/home/gamedev/godot", "/home/gamedev/projects/godot"]:
+		var lock := str(root).path_join("gs-server-deploy/addons.lock")
 		if str(root) != "" and FileAccess.file_exists(lock):
 			var locked := GSAddonApi.pinned_levels(lock, str(root))
 			for addon in pins:
@@ -94,8 +94,8 @@ func _test_every_key_is_an_action() -> void:
 		&"arena_reload": "R", &"arena_inspect": "L", &"arena_slot_1": "1", &"arena_slot_2": "2", &"arena_slot_3": "3",
 		&"arena_slot_4": "4", &"arena_slot_5": "5", &"arena_weapon_previous": "Wheel up",
 		&"arena_weapon_next": "Wheel down", &"arena_weapon_last": "Z", &"arena_launch": "E",
-		&"arena_launch_props": "P", &"arena_punt": "G", &"dot_voice_talk": "V",
-		&"dot_fps_walk": "Alt", &"arena_fire_mode": "N",
+		&"arena_launch_props": "P", &"arena_punt": "G", &"gs_voice_talk": "V",
+		&"gs_fps_walk": "Alt", &"arena_fire_mode": "N",
 	}
 	var wrong: Array[String] = []
 	for action: StringName in expected:
@@ -106,7 +106,7 @@ func _test_every_key_is_an_action() -> void:
 
 	_check_mode_label()
 
-	# The wheel rows by name: a pack asks for dot-ui 4, which names the wheel (level 2).
+	# The wheel rows by name: a pack asks for gs-ui 4, which names the wheel (level 2).
 	var named := FcBindings.make().row_for_action(&"arena_weapon_previous")
 	_check(
 		str(named["label"]) == "Previous weapon" and str(named["default"]) == "Wheel up",
@@ -118,15 +118,15 @@ func _test_every_key_is_an_action() -> void:
 	# One key, one meaning: V is push to talk and nothing else; the sampler reads no noclip.
 	var sampler := FcClient.make_sampler()
 	_check(
-		str(sampler.actions.get("noclip", &"")) == "" and not InputMap.has_action(&"dot_fps_noclip"),
-		"the sampler has no noclip key, so V is not dot_fps_noclip's",
+		str(sampler.actions.get("noclip", &"")) == "" and not InputMap.has_action(&"gs_fps_noclip"),
+		"the sampler has no noclip key, so V is not gs_fps_noclip's",
 		str(sampler.actions.get("noclip"))
 	)
 	var on_v: Array[String] = []
 	for row in p.bindings.rows:
 		if p.bindings.stored(row, p.settings) == "V":
 			on_v.append(str(row["action"]))
-	_check(on_v == ["dot_voice_talk"], "and V is on one row, push to talk (dot-voice's action)", str(on_v))
+	_check(on_v == ["gs_voice_talk"], "and V is on one row, push to talk (gs-voice's action)", str(on_v))
 
 	# A client with this presentation and a stand-in player, not in the tree (see
 	# `_test_mouse_drives_view`); the pointer counts as captured.
@@ -226,7 +226,7 @@ func _check_floors() -> void:
 	var pins := _pinned_levels()
 	var behind := _lock_covers(pins)
 	_check(not pins.is_empty() and behind == "", "requires.pins.json is read and addons.lock pins nothing lower", behind)
-	# A floor with no pin is judged against the linked head, not the shell: dot-weapon 42 and fc-weapons 31 went in that way
+	# A floor with no pin is judged against the linked head, not the shell: gs-weapon 42 and fc-weapons 31 went in that way
 	# (2026-11-16), the pack asked for levels no shell had, and on Gamespice the bot brain and the HUD did not compile.
 	var unpinned: Array[String] = []
 	for addon in (floors.value as Dictionary if floors.ok else {}):
@@ -235,9 +235,9 @@ func _check_floors() -> void:
 	_check(unpinned.is_empty(), "every floored addon has the shell's level in requires.pins.json", str(unpinned))
 	var asked := GSAddonApi.apply_floors(derived, floors.value if floors.ok else {})
 	_check(
-		asked.get("dot_ui") == 23 and asked.get("dot_lighting") == derived.get("dot_lighting") \
-			and int(asked.get("dot_lighting", 0)) >= 3,
-		"so a pack asks a shell for dot-ui 23 (the health tag) and the dot-lighting it was built on (3+, painted())", str(asked)
+		asked.get("gs_ui") == 23 and asked.get("gs_lighting") == derived.get("gs_lighting") \
+			and int(asked.get("gs_lighting", 0)) >= 3,
+		"so a pack asks a shell for gs-ui 23 (the health tag) and the gs-lighting it was built on (3+, painted())", str(asked)
 	)
 
 
@@ -297,8 +297,8 @@ func _test_party_is_sandboxed() -> void:
 	add_child(party)
 	_check(party.setup().ok, "a party sets up")
 
-	# The decision this game makes and the lobby does not: Fatal Contact reports to dot-stats, unlocks dot-
-	# achievements and files to dot-leaderboard.
+	# The decision this game makes and the lobby does not: Fatal Contact reports to gs-stats, unlocks dot-
+	# achievements and files to gs-leaderboard.
 	_check(
 		party.session.config.trust == GSP2PConfig.Trust.SANDBOXED,
 		"a private arena match is sandboxed, because a host who can cheat and a "
@@ -438,6 +438,6 @@ func _test_team_bodies_fall_back() -> void:
 		var assets := FcNewerApi.script_of(&"GSHumanoidAssets")
 		var was: Variant = assets.get(&"team_tint")
 		assets.set(&"team_tint", 0.5)
-		_check(is_equal_approx(float(assets.get(&"team_tint")), 0.5), "dot-player-char's team tint is set through its class found by name", str(assets.get(&"team_tint")))
+		_check(is_equal_approx(float(assets.get(&"team_tint")), 0.5), "gs-player-char's team tint is set through its class found by name", str(assets.get(&"team_tint")))
 		assets.set(&"team_tint", was)
 	_done()

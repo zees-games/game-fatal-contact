@@ -14,12 +14,12 @@ const FcPaths := preload("../game/fc_paths.gd")
 const PACK_HEALTH := 1
 const PACK_AMMO := 2
 
-const CONTACT_SHADE_SCRIPT := "res://addons/dot_lighting/runtime/dot_contact_shade.gd"
+const CONTACT_SHADE_SCRIPT := "res://addons/gs_lighting/runtime/gs_contact_shade.gd"
 
-## Baked light for the built-in maps (dot-lighting API 5): `lightmaps/<id>.res`, made by
-## tools/bake_lightmaps.sh. Reached by path so a shell with an older dot-lighting still draws the map.
-const BAKE_SCRIPT := "res://addons/dot_lighting/bake/dot_light_bake.gd"
-const SHEET_SCRIPT := "res://addons/dot_lighting/bake/dot_lightmap_sheet.gd"
+## Baked light for the built-in maps (gs-lighting API 5): `lightmaps/<id>.res`, made by
+## tools/bake_lightmaps.sh. Reached by path so a shell with an older gs-lighting still draws the map.
+const BAKE_SCRIPT := "res://addons/gs_lighting/bake/gs_light_bake.gd"
+const SHEET_SCRIPT := "res://addons/gs_lighting/bake/gs_lightmap_sheet.gd"
 const BAKE_PATH := "res://lightmaps/%s.res"
 ## Bump when what a bake means changes beyond the boxes and the sun (tools/lightmap_scenes.gd).
 const BAKE_VERSION := 1
@@ -98,7 +98,7 @@ var out_of_reach: Array[AABB] = []
 ## repaint is never a new map. See `fc_map_paint.gd` for how a box's colour is chosen.
 var paint_zones: Array[Dictionary] = []
 
-## How this map is lit: a dot-lighting document (`GSLightDocument.from_dictionary`).
+## How this map is lit: a gs-lighting document (`GSLightDocument.from_dictionary`).
 ##
 ## Carried by the map so it changes with the map; `fc_map_lighting.gd` applies it.
 var lighting: Dictionary = DAYLIGHT.duplicate(true)
@@ -106,7 +106,7 @@ var lighting: Dictionary = DAYLIGHT.duplicate(true)
 ## A clear afternoon: a warm sun high in the south-west, a blue sky, a little haze at the
 ## far walls.
 ##
-## [b]The sun angles are in dot-lighting's source convention[/b] (a negative pitch is a sun
+## [b]The sun angles are in gs-lighting's source convention[/b] (a negative pitch is a sun
 ## in the sky; `GSLightRig.sun_rotation` converts the direction, not the angles). The
 ## brightness is what the rig divides by its reference (200) and square-roots, so 380 is an
 ## energy of about 1.4. The ambient colour is the light in the shade: a pale cool grey, not
@@ -114,8 +114,8 @@ var lighting: Dictionary = DAYLIGHT.duplicate(true)
 ## navy and a yellow crate olive. The fog is what the horizon is drawn in and hazes only
 ## the far side of dm_atrium's yard; its distances are source units (metres / 0.01905).
 ##
-## `sky_top` is this game's, not dot-lighting's (the document ignores keys it does not
-## know): dot-lighting draws the zenith in the ambient colour, which is right for a world
+## `sky_top` is this game's, not gs-lighting's (the document ignores keys it does not
+## know): gs-lighting draws the zenith in the ambient colour, which is right for a world
 ## whose ambient was measured from its sky and wrong here, where the shade is deliberately
 ## paler than the sky. `fc_map_lighting.gd` repaints the zenith with it.
 const DAYLIGHT := {
@@ -152,7 +152,7 @@ const DAYLIGHT := {
 ## The manifest this map was built from; empty for a built-in map.
 var manifest_path: String = ""
 
-## A map copied in by hand ([code]FcLocalMaps[/code]): its dot-bsp-mesh prefix, which is drawn and collided through dot-map
+## A map copied in by hand ([code]FcLocalMaps[/code]): its gs-bsp-mesh prefix, which is drawn and collided through gs-map
 ## rather than the legacy manifest. Empty for every other map.
 var local_prefix: String = ""
 
@@ -213,7 +213,7 @@ var baked: LightmapGI = null
 ## is only where. An imported map has none.
 var packs: Array[Dictionary] = []
 
-## The map's toys (dot-props' placements, `{toy, at, yaw}`), which [FcGame] builds on both
+## The map's toys (gs-props' placements, `{toy, at, yaw}`), which [FcGame] builds on both
 ## ends in this order. Loose ones only, never a fixed toy: the movement and the shot trace are
 ## this list's boxes and nothing else, so a see-saw or a trampoline would be something a player
 ## walks through and a shot passes, and a fixed toy that did collide would be cover or a ledge

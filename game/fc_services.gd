@@ -7,35 +7,35 @@ const FcModTools := preload("fc_mod_tools.gd")
 
 ## Chat, voice and moderation on a dedicated Fatal Contact server.
 ##
-## [b]This is the second file in the project that names dot-server, and the first
+## [b]This is the second file in the project that names gs-server, and the first
 ## version of this work tried very hard for it to be the first.[/b] [FcModule] is
 ## the bridge between a game and a server; this is the bridge between a server and
 ## three addons that are not about the game at all — who may speak, who may be heard,
 ## and who is allowed in. Folding it into the module made a five-hundred-line file
 ## whose two halves shared nothing, so it is its own node and the rule is now "two
-## files name dot-server, and here is what each is for".
+## files name gs-server, and here is what each is for".
 ##
 ## [codeblock]
-## dot-chat        the policy: channels, audiences, sanitisation, rate limits,
+## gs-chat        the policy: channels, audiences, sanitisation, rate limits,
 ##                 command prefixes. NOT the transport.
-## dot-server      the transport: it already has a chat RPC on both ends.
-## dot-voice       the whole path, because dot-server has no voice at all.
-## dot-moderation  who is banned, gagged or muted, durably.
+## gs-server      the transport: it already has a chat RPC on both ends.
+## gs-voice       the whole path, because gs-server has no voice at all.
+## gs-moderation  who is banned, gagged or muted, durably.
 ## [/codeblock]
 ##
-## [b]dot-chat and dot-server's own chat are not two chat systems here.[/b] They would
+## [b]gs-chat and gs-server's own chat are not two chat systems here.[/b] They would
 ## be if both delivered lines, so exactly one does: the `player_chat` event is hooked
 ## and [b]cancelled[/b], the text goes to [GSChatRouter] instead, and the router's
-## `send_fn` hands each recipient's line back to dot-server's manager to put on the
-## wire. What that buys is everything dot-server's chat does not have — a radius
+## `send_fn` hands each recipient's line back to gs-server's manager to put on the
+## wire. What that buys is everything gs-server's chat does not have — a radius
 ## channel, a whisper, markup and invisible-character stripping, per-channel history, a
 ## backlog for a joining player, and `!` commands the game can claim.
 ##
-## [b]dot-moderation exists because dot-server's mute is two booleans on a session
+## [b]gs-moderation exists because gs-server's mute is two booleans on a session
 ## object, and a session dies with its connection.[/b] A muted player reconnects and
 ## talks. Every punishment issued here is a durable record with an expiry and a scope,
-## and the two registry services it publishes — `dot_mute_source` and `dot_ban_source`
-## — are consulted by dot-chat's router, dot-voice's router and dot-server's admission
+## and the two registry services it publishes — `gs_mute_source` and `gs_ban_source`
+## — are consulted by gs-chat's router, gs-voice's router and gs-server's admission
 ## check without any of the four importing another.
 
 const CHANNEL := "arena.services"
@@ -69,7 +69,7 @@ signal command_entered(peer: int, command: String, args: PackedStringArray)
 ## What this server's punishments apply to. Empty means every server that shares the
 ## store, which is what a single-community deployment wants.
 ##
-## [b]The unconfigured case is the one that has to work.[/b] dot-moderation shipped
+## [b]The unconfigured case is the one that has to work.[/b] gs-moderation shipped
 ## with a server that had no scope seeing no scoped punishments — so the only case a
 ## one-server community ever has was the case that silently enforced nothing.
 @export var server_scope: String = ""
@@ -99,7 +99,7 @@ var chat: GSChatRouter = null
 var voice: GSVoiceRouter = null
 var moderation: GSModerationManager = null
 
-## dot-moderation's live tools — noclip, god, slay, bring and the rest — with this game's
+## gs-moderation's live tools — noclip, god, slay, bring and the rest — with this game's
 ## handlers in them. [FcModule] puts their commands on the console.
 var mod_tools: GSModTools = null
 
@@ -109,7 +109,7 @@ var relay: GSChatRelay = null
 ## The backbone client the relay posts through. Assigned by the module BEFORE
 ## [method setup], because [FcIdentity] is what owns one and is built first.
 ##
-## [b]An [Object], not a [GSBackboneClient].[/b] Same reasoning as dot-chat's own: this
+## [b]An [Object], not a [GSBackboneClient].[/b] Same reasoning as gs-chat's own: this
 ## file is happy to name the type and the relay is not, and keeping one spelling across
 ## the seam means the duck-typed contract is the only contract.
 var backbone: Object = null
@@ -134,7 +134,7 @@ func setup(p_server: GSServer, p_game: FcGame, p_link: FcNetLink) -> GSResult:
 	game = p_game
 	link = p_link
 
-	# Moderation FIRST, and the order is load-bearing. It publishes `dot_mute_source`
+	# Moderation FIRST, and the order is load-bearing. It publishes `gs_mute_source`
 	# on `_ready`, and both routers below look that name up when they start — a chat
 	# router that started first would find nothing, warn once, and then enforce no gag
 	# for the life of the server.
@@ -171,7 +171,7 @@ func setup(p_server: GSServer, p_game: FcGame, p_link: FcNetLink) -> GSResult:
 ## Joins this server's chat to its room on the website.
 ##
 ## [b]Three seams, and every one of them points at something that already existed.[/b]
-## The backbone client is dot-auth's. The permission answer is dot-server's admin
+## The backbone client is gs-auth's. The permission answer is gs-server's admin
 ## manager, through `uid_has_permission` — the method written for exactly this, deciding
 ## what somebody may do when they are not connected. The command runner is the console,
 ## with a context built the way RCON builds one.
@@ -205,12 +205,12 @@ func _build_relay() -> GSResult:
 
 	if backbone == null:
 		# **Found, not handed over.** A backbone client is built by whatever owns the
-		# server's credential — dot-server-deploy's `TmcReport`, or this game's own
+		# server's credential — gs-server-deploy's `TmcReport`, or this game's own
 		# identity layer — and a relay built during module load exists before any host
 		# could assign one. `GSBackboneClient` publishes itself under this name for
-		# exactly that reason; the ordering trap is the one that left dot-server's audit
+		# exactly that reason; the ordering trap is the one that left gs-server's audit
 		# log unopened in every default configuration.
-		backbone = GSRegistry.get_service(&"dot_backbone_client")
+		backbone = GSRegistry.get_service(&"gs_backbone_client")
 
 	if backbone == null:
 		# Info and success, not a failure, and the difference matters now that the relay
@@ -267,7 +267,7 @@ func _uid_has_permission(uid: String, flag: String) -> bool:
 
 ## Runs a command typed on the website, as the site member who typed it.
 ##
-## [b]dot-server's, not this game's.[/b] Every game in this family that has a relay needs
+## [b]gs-server's, not this game's.[/b] Every game in this family that has a relay needs
 ## exactly this and the glue is identical in all of them — a context built by hand, the
 ## uid's own flags on it, the console asked. Five copies of that is the shape this tree
 ## has shipped in four shell scripts and three vendoring lists, so it lives in
@@ -305,7 +305,7 @@ func _build_moderation() -> GSResult:
 		file_store.path = punishments_file
 		moderation.store = file_store
 
-	# How a peer maps to a person. dot-moderation's documented seam, and it has to be
+	# How a peer maps to a person. gs-moderation's documented seam, and it has to be
 	# set here because only the host knows: a peer id is reassigned the moment somebody
 	# reconnects, and a ban keyed on one would be served to the next player to join.
 	moderation.key_for_peer = func(peer: int) -> String:
@@ -423,27 +423,27 @@ func _wire_chat_callbacks() -> void:
 		var session := server.session_of(peer)
 		return session != null and session.permissions.has(GSAdminFlags.CHAT)
 
-	# Consulted only when no `dot_mute_source` is registered. dot-moderation registers
+	# Consulted only when no `gs_mute_source` is registered. gs-moderation registers
 	# one above, so this is the fallback for a build without it — and it reads
-	# dot-server's own per-session flag, which is exactly the thing that does not
+	# gs-server's own per-session flag, which is exactly the thing that does not
 	# survive a reconnect.
 	chat.gag_fn = func(peer: int) -> bool:
 		var session := server.session_of(peer)
 		return session != null and session.gagged
 
 
-## Connects the router to the game and intercepts dot-server's chat events.
+## Connects the router to the game and intercepts gs-server's chat events.
 func _hook_chat_events() -> void:
 	chat.message_accepted.connect(_on_message_accepted)
 	chat.command_entered.connect(_on_command_entered)
 
-	# The interception. dot-server's chat manager sanitises, rate limits and then
+	# The interception. gs-server's chat manager sanitises, rate limits and then
 	# broadcasts; cancelling the event stops the broadcast and leaves everything before
-	# it — which is the half that is genuinely dot-server's job, because it holds the
+	# it — which is the half that is genuinely gs-server's job, because it holds the
 	# session.
-	# dot-chat makes the join and leave notices (`join_notice` in add_peer), so dot-server's
+	# gs-chat makes the join and leave notices (`join_notice` in add_peer), so gs-server's
 	# would be a second one on a second path. hungario and Playlot do the same; while
-	# the client drew dot-chat's notice as a bare name the duplicate went unnoticed.
+	# the client drew gs-chat's notice as a bare name the duplicate went unnoticed.
 	if server.chat != null:
 		server.chat.announce_joins = false
 
@@ -451,7 +451,7 @@ func _hook_chat_events() -> void:
 		server.events.hook_pre("player_chat", _on_player_chat)
 
 		# **And `player_command`, without which none of this game's chat commands
-		# exist.** dot-server's chat manager checks for a command prefix BEFORE it
+		# exist.** gs-server's chat manager checks for a command prefix BEFORE it
 		# fires `player_chat`, and `_handle_command` returns on every path — including
 		# the unknown-command one, which is silently ignored. Its prefixes are `["!",
 		# "/"]`, identical to `GSChatRules`'.
@@ -460,7 +460,7 @@ func _hook_chat_events() -> void:
 		# `command_entered` — which this game connects, and which `_on_chat_command`
 		# below switches on — **could not fire.** `!nominate`, `!timeleft`, `!score`
 		# and `!stats` have no console equivalent and therefore did nothing whatever;
-		# `!rtv` and `!vote` only appeared to work because dot-server has commands of
+		# `!rtv` and `!vote` only appeared to work because gs-server has commands of
 		# those names of its own.
 		#
 		# `player_command` is fired before the console lookup and is cancellable, which
@@ -523,7 +523,7 @@ func _chat_rules() -> GSChatRules:
 	return rules
 
 
-## dot-server's `player_chat`, intercepted.
+## gs-server's `player_chat`, intercepted.
 ##
 ## [b]Cancelled every time, and the cancel reason is empty on purpose.[/b] The event's
 ## contract is that a cancelled message is refused and the player told why; here the
@@ -549,7 +549,7 @@ func _on_player_chat(event: GSEvent) -> void:
 	if not submitted.ok:
 		# The router refused it — rate, duplicate, gag, length. Its own
 		# `message_refused` signal has already fired with the reason; telling the
-		# player is dot-server's job because it is the one holding the session.
+		# player is gs-server's job because it is the one holding the session.
 		server.chat.send_system_to(session, submitted.error.message)
 
 	event.cancel("")
@@ -561,8 +561,8 @@ func _on_player_chat(event: GSEvent) -> void:
 ## `send_system_to`, which made every line a player typed a SYSTEM line whose text happened
 ## to start with their name — drawn as "[Server]: WhoZ: hello", and pushed onto the HUD's
 ## centre notice with the server's announcements. The client's `GSChatClient.receive` reads
-## this form and keeps the speaker apart from the text; dot-server's own payload is only its
-## fallback, for a server running without dot-chat.
+## this form and keeps the speaker apart from the text; gs-server's own payload is only its
+## fallback, for a server running without gs-chat.
 func _send_chat(wire: Dictionary, recipients: PackedInt32Array) -> void:
 	if not GSChatMessage.from_dictionary(wire).ok:
 		return
@@ -571,7 +571,7 @@ func _send_chat(wire: Dictionary, recipients: PackedInt32Array) -> void:
 		_send_wire(server.session_of(peer), wire)
 
 
-## One dot-chat line to one session, if it can still be reached.
+## One gs-chat line to one session, if it can still be reached.
 ##
 ## The same reachability test as `GSChatManager._can_reach`: a session the server has not
 ## yet noticed leaving is still active, and an RPC at a peer that is gone prints an engine
@@ -611,7 +611,7 @@ func _on_command_entered(
 ##
 ## Also latches for the `player_command` path, where there is no router message to
 ## claim — the handler runs inside the event and what "claimed" means there is
-## "cancel the event so dot-server does not also look it up".
+## "cancel the event so gs-server does not also look it up".
 func claim_command() -> void:
 	_command_claimed = true
 
@@ -619,7 +619,7 @@ func claim_command() -> void:
 		chat.claim_command()
 
 
-## A `!command` from dot-server's chat manager, before it reaches the console.
+## A `!command` from gs-server's chat manager, before it reaches the console.
 func _on_player_command(event: GSEvent) -> void:
 	var session := event.get_session()
 
@@ -637,7 +637,7 @@ func _on_player_command(event: GSEvent) -> void:
 	command_entered.emit(session.peer_id, event.get_string("command"), args)
 
 	# Only what the game actually took. Anything else goes on to the console exactly as
-	# it did before, which is what keeps `!kick` and every other dot-server command
+	# it did before, which is what keeps `!kick` and every other gs-server command
 	# working — and keeps the "do not confirm which commands exist" answer for the rest.
 	if _command_claimed:
 		event.cancel("handled by the game", CHANNEL)
@@ -700,7 +700,7 @@ func add_peer(peer: int) -> void:
 		return
 
 	# The backlog, which is the difference between joining a conversation and joining
-	# a silence. dot-chat keeps it per channel and only for channels that asked.
+	# a silence. gs-chat keeps it per channel and only for channels that asked.
 	var session := server.session_of(peer)
 
 	if session != null:
@@ -724,7 +724,7 @@ func remove_peer(peer: int) -> void:
 
 # --- Admission -------------------------------------------------------------
 
-## Whether a session may join, by dot-moderation's records.
+## Whether a session may join, by gs-moderation's records.
 ##
 ## Both halves: the person and the address. A ban on an address that the person can
 ## walk round by reconnecting is not a ban, and one on a person who can change address

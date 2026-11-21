@@ -175,9 +175,9 @@ class EngineErrors extends Logger:
 		return out
 
 
-## dot-map's announce/ready/load protocol, over this game's own link: two [FcNetLink]s, a
+## gs-map's announce/ready/load protocol, over this game's own link: two [FcNetLink]s, a
 ## real [GSMapSyncHost] and [GSMapSyncClient], payloads through the same `send_map` a socket
-## would use. dot-map's own suite only runs a loopback `send_fn`.
+## would use. gs-map's own suite only runs a loopback `send_fn`.
 func _test_map_sync_wire() -> void:
 	print("")
 	_section("[map sync over the link]")

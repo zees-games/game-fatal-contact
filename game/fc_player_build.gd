@@ -66,7 +66,7 @@ func _build_controller() -> void:
 	controller.register_service = false
 	controller.register_default_actions = false
 	# No run HUD reads the movement stats (jumps, strafe sync) in FC: not folded every tick per player.
-	# By name: the live shell's dot-player-controller 28 has no observe_stats (API 29) and folds them always.
+	# By name: the live shell's gs-player-controller 28 has no observe_stats (API 29) and folds them always.
 	if &"observe_stats" in controller:
 		controller.set(&"observe_stats", false)
 	# On for every player on every machine, because a registration order is part of the
@@ -106,7 +106,7 @@ func make_dead() -> void:
 		hull_world.set_alive(hull_slot, false)
 
 
-## Files this player in [param world] (dot-sim's `GSSimHullWorld`) as roster slot [param slot] for this players' loop;
+## Files this player in [param world] (gs-sim's `GSSimHullWorld`) as roster slot [param slot] for this players' loop;
 ## with [param native] its movement body gathers its hulls from the world. Whether the body does.
 func use_hull_world(world: Object, slot: int, native: bool) -> bool:
 	hull_world = world
@@ -562,7 +562,7 @@ func muzzle_position() -> Vector3:
 # --- Registration ----------------------------------------------------------
 
 ## Registers with the combat manager so this player can shoot and be shot. Both halves matter and
-## they are separate calls in dot-combat: hitboxes make you hittable, health makes you damageable.
+## they are separate calls in gs-combat: hitboxes make you hittable, health makes you damageable.
 func join_combat(combat: GSCombatManager) -> void:
 	_combat = combat
 	hitboxes.register_with(combat, player_id)

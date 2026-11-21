@@ -103,7 +103,7 @@ func _test_flow() -> void:
 	_check(_flag(game, 2).carrier == str(thief) and ctf.scores[1] == 0, "carrying across the middle scores nothing")
 	_go(game, thief, _stand_of(game, 1))
 	_check(ctf.scores[1] == 1 and _flag(game, 2).is_home(), "bringing it to its own stand scores and returns the flag")
-	_check(game.match_node.scoreboard.team_score(1) > 0, "dot-match has the point through report_objective")
+	_check(game.match_node.scoreboard.team_score(1) > 0, "gs-match has the point through report_objective")
 	_check(is_equal_approx(tunables.max_speed, base), "and the slowdown ends")
 	await _free(game)
 	_done()

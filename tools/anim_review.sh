@@ -6,7 +6,7 @@
 # --team plays team deathmatch on that side, so the views show its team body (docs/client.md, Avatars).
 # --avatar adds the locomotion clips (avatar_walk, _strafe, _run, _crouch, _crouch_walk, _jump) with the weapon held.
 # Every clip's per-frame numbers go to <weapon>/<clip>_frames.tsv; a FAIL clip's (every clip's with --frames) are printed too.
-# The capture runs through dot-game's visual QA driver (dot-game docs/visual-qa.md): on a GPU box through gpu.sh shot,
+# The capture runs through gs-game's visual QA driver (gs-game docs/visual-qa.md): on a GPU box through gpu.sh shot,
 # through heavy here when no box takes it; run it as gamedev (who holds the box key) from the checkout or a ~/wt worktree. --soft keeps it
 # here on software rendering (slower, same frames apart from lighting).
 set -euo pipefail
@@ -41,9 +41,9 @@ pick=()
 [[ $weapons == all ]] || pick=(--only "$weapons")
 drive=(--shot tools/anim_review_shot.sh --out "$out" --fps "$fps" --fresh "$weapons" --no-report)
 [[ $soft == 1 ]] && drive+=(--soft)
-# dot-game's driver routes the shot to a GPU box (heavy here when none takes it), files the clips as <weapon>/<clip>.mp4
+# gs-game's driver routes the shot to a GPU box (heavy here when none takes it), files the clips as <weapon>/<clip>.mp4
 # and leaves report.md to the report below.
-bash addons/dot_game/tools/dot_game_visual_qa.sh "${drive[@]}" -- --anims "$anims" "${pick[@]}" "${team[@]}" || rc=$?
+bash addons/gs_game/tools/gs_game_visual_qa.sh "${drive[@]}" -- --anims "$anims" "${pick[@]}" "${team[@]}" || rc=$?
 python3 - "$out" "$log" "$frames" "$fps" <<'PY'
 import json, math, os, sys
 out, log, all_frames = sys.argv[1], sys.argv[2], sys.argv[3] == "1"

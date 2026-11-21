@@ -364,13 +364,13 @@ func _wear(avatar: GSAvatar) -> bool:
 ## Something to see a remote player as.
 ##
 ## [b]An avatar when one is given, a capsule and a nose when one is not.[/b] The
-## fallback is not a lesser case: a server with no dot-platform hands out nothing, a
+## fallback is not a lesser case: a server with no gs-platform hands out nothing, a
 ## client that has not been told yet has nothing, and a player has to be visible in
 ## both. [FcAvatars.stock_avatar] closes most of that gap — it is a real document
 ## over the same schema, deterministic in the player id — so the capsule is what is
 ## left when even the schema is absent.
 ##
-## [b]The avatar is what makes dot-user-avatar do anything here.[/b] Before this,
+## [b]The avatar is what makes gs-user-avatar do anything here.[/b] Before this,
 ## `FcAvatars` built documents, `FcIdentity` resolved them and
 ## `FcPlayer` drew a coloured capsule — a value produced correctly and consumed by
 ## nobody, which is this family's most repeated shape and which the "a method whose
@@ -561,7 +561,7 @@ func simulate_tick(
 	return tick_post(tick, delta, combat_command)
 
 
-## Body tiers (dot-bot 23, on above bot_tier_body_above players): ticks between this bot's motor ticks, written by [code]FcBots[/code]
+## Body tiers (gs-bot 23, on above bot_tier_body_above players): ticks between this bot's motor ticks, written by [code]FcBots[/code]
 ## from [method GSBotThinkTier.body_period] for a bot no person sees, nears or fights; 1 = every tick (people, and
 ## every bot while [code]bot_tier_body_every_near/far[/code] are 1 or the match has no more than [code]bot_tier_body_above[/code] players).
 var body_every: int = 1
@@ -613,7 +613,7 @@ func tick_pre(tick: int, movement_command: GSFpsCommand) -> void:
 	_tick_start = controller.state.position
 	_yaw_before_tick = controller.state.yaw
 	# The previous state's position before this tick replaces it: two ticks back after it.
-	# previous_position() (dot-player-controller 25) is render_state(0.0).position without duplicating the state, once per player per tick.
+	# previous_position() (gs-player-controller 25) is render_state(0.0).position without duplicating the state, once per player per tick.
 	_position_two_back = controller.previous_position()
 	ladder.now = tick
 	var view := GSFpsMotor._view_basis(controller.state.yaw, 0.0)
@@ -634,7 +634,7 @@ func tick_post(tick: int, delta: float, combat_command: GSWeaponCommand) -> GSWe
 
 
 ## [method tick_post] up to its weapons. True when they tick idle through the row lane: the caller then hands
-## [method tick_idle_row] the posture row (FcGame's batched loop fills every such player's in one dot-sim call).
+## [method tick_idle_row] the posture row (FcGame's batched loop fills every such player's in one gs-sim call).
 func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) -> bool:
 	var fine := FcFrameProbe.fine
 	var t_fine := Time.get_ticks_usec() if fine else 0

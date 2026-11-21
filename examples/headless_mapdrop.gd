@@ -1,6 +1,6 @@
 extends GSGameCheckSuite
 
-## Maps handed to Fatal Contact outside the window (FcMapDrop, dot-map's GSMapDropIntake, API 30): dropped on the
+## Maps handed to Fatal Contact outside the window (FcMapDrop, gs-map's GSMapDropIntake, API 30): dropped on the
 ## executable or named by `--map-path=`, through the same intake and the same on-screen answer as a window drop. A path
 ## that holds no converted map is refused out loud with what the game takes. Window drops: headless_local_maps.
 ## [codeblock] ./game.sh test headless_mapdrop [/codeblock]
@@ -21,8 +21,8 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	if GSAddonApi.build_level("dot_map") < FcMapDrop.NEEDS_LEVEL:
-		print("-- skipped: dot-map API %d < %d (no GSMapDropIntake)" % [GSAddonApi.build_level("dot_map"), FcMapDrop.NEEDS_LEVEL])
+	if GSAddonApi.build_level("gs_map") < FcMapDrop.NEEDS_LEVEL:
+		print("-- skipped: gs-map API %d < %d (no GSMapDropIntake)" % [GSAddonApi.build_level("gs_map"), FcMapDrop.NEEDS_LEVEL])
 		_report_sections(0, 0, 0)
 		return
 	var entered := 0
@@ -50,7 +50,7 @@ func _test_args() -> void:
 	if not _check(intake != null, "the client makes the shared intake"):
 		client.free()
 		return
-	var kept: PackedStringArray = intake.call(&"strip_config_args", PackedStringArray(["--arena-bots", folder, "--dot_net.port", folder,
+	var kept: PackedStringArray = intake.call(&"strip_config_args", PackedStringArray(["--arena-bots", folder, "--gs_net.port", folder,
 		"--arena-no-weapon-packs", folder, "--config=x", "--headless"]), intake.get(&"config_prefixes"), intake.get(&"option_takes_value"))
 	_check(kept == PackedStringArray([folder, "--config=x", "--headless"]),
 		"--arena-<key> and --<addon>.<key> values are not drops; a --arena-no- switch takes no value", str(kept))
@@ -68,7 +68,7 @@ func _test_args() -> void:
 	paths = intake.call(&"paths_in", PackedStringArray(["wss://tmcdev.net:6100/", folder]))
 	_check(paths == PackedStringArray([folder]), "a real path beside a connect URL is still a drop", str(paths))
 	_check((intake.call(&"paths_in_args", PackedStringArray(["wss://tmcdev.net:6100/", "tmcdev.net:6100"])) as Dictionary)["missing"].is_empty(),
-		"dot-map's own intake skips URLs too")
+		"gs-map's own intake skips URLs too")
 	client.free()
 
 

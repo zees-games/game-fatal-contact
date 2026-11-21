@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Every res:// path a shipped script loads at run time must go through FcPaths.rebase. A delivered pack
-# mounts at res://dot_cloud/<id>/<version>/, so "res://maps/fc_map.gd" names a file of the host project,
+# mounts at res://gs_cloud/<id>/<version>/, so "res://maps/fc_map.gd" names a file of the host project,
 # which on a panel server is nothing: 0.1.69 died there in FcMap.dm_box ("Attempt to open script
 # 'res://maps/fc_map.gd' ... File not found"), setup() handed back null and no match started. A dev
 # checkout has the file at both paths, so no suite sees it; this reads the source instead.
 #   tools/check_pack_paths.sh        exit 0 = clean; 1 = an un-rebased path (each printed as file:line)
 # The rule, per shipped script (publish.sh's exclusions: examples, tests, tools, docs, addons, ...):
-# - a "res://X" literal where X is not addons/ (host-side, shared), dot_cloud/ (the mount itself) or
+# - a "res://X" literal where X is not addons/ (host-side, shared), gs_cloud/ (the mount itself) or
 #   .godot/ must sit on a line that also calls rebase( or a helper that rebases (RebaseHelpers below);
 # - or be a `const NAME := "res://X..."` whose every use is on such a line.
 # preload("res://<own file>") is the same mistake and is caught by the first rule. Comments are ignored; a
@@ -17,7 +17,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.." || exit 2
 # Helpers whose body runs FcPaths.rebase on the path they are given (each one checked by hand: keep short).
 REBASE='rebase\(|Ink\.texture\(|[^_a-zA-Z]texture\(|_texture\('
 SKIP='^(examples|tests|tools|docs|images|screenshots|shots_boot|ci|\.github|addons|maps/imported|maps/imported_dm|worlds|worlds_dm|\.stores)/'
-OWN='"res://(?!addons(/|")|dot_cloud/|\.godot/)[^"]+"'
+OWN='"res://(?!addons(/|")|gs_cloud/|\.godot/)[^"]+"'
 bad=0
 while IFS= read -r f; do
     [[ "$f" =~ $SKIP ]] && continue

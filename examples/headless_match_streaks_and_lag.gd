@@ -20,7 +20,7 @@ func _weapon_mode_game(mode: FcMode, ids: Array) -> FcGame:
 	_go_live(game)
 	return game
 
-## Kill somebody the way the game does it, through dot-combat.
+## Kill somebody the way the game does it, through gs-combat.
 func _kill_through_combat(game: FcGame, killer: int, victim: int, weapon: StringName = &"", headshot := false) -> void:
 	var health := game.combat.health_of(victim)
 	if health == null:
@@ -265,7 +265,7 @@ func _test_medal_rules() -> void:
 		"every medal has a name and a sound id")
 	_done()
 
-## The same rules reached the way a real kill reaches them: through dot-combat, on an
+## The same rules reached the way a real kill reaches them: through gs-combat, on an
 ## authoritative game, with the hit confirmed for the attacker and the medals after the kill.
 func _test_medals_from_a_game() -> void:
 	_section("medals: a game judges its own kills, and confirms the hits")
@@ -617,7 +617,7 @@ func _test_launch_inside_team_mate() -> void:
 	_check(hp.call(enemy_id) < game.combat.health_of(enemy_id).max_health,
 		"and the enemy takes it", "%.1f" % hp.call(enemy_id))
 
-	# --- The policy is dot-combat's, in one place: with the rule off, the old geometry.
+	# --- The policy is gs-combat's, in one place: with the rule off, the old geometry.
 	var rules := game.combat.rules
 	if rules != null and "pass_through_team_mate_at_muzzle" in rules:
 		rules.set(&"pass_through_team_mate_at_muzzle", false)

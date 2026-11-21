@@ -23,7 +23,7 @@ A CS:S server with 31 bots runs a 66 Hz tick in about 1.4 ms. FC's sim host need
 - **FC's figures** come from staging02, windowed, sim host, cp-orange-x3, 32 players:
   - the SIM_HOST line: sim 11.8-12.5 ms per tick, send 0.73-0.77;
   - `--sim_sections 2` (bench logs 20261113-130207 and later);
-  - the dot-net split on nightly `simhost-net-dispatch-1`: `srv_net` 12.47 = n_sim 11.76 + n_send 0.65 + input about 0.05. Inside n_sim, `net_pull` is 0.56 and the dispatch residual is 0.14.
+  - the gs-net split on nightly `simhost-net-dispatch-1`: `srv_net` 12.47 = n_sim 11.76 + n_send 0.65 + input about 0.05. Inside n_sim, `net_pull` is 0.56 and the dispatch residual is 0.14.
 
 ## Where the 10x is
 
@@ -37,8 +37,8 @@ FC's 12 ms per tick splits like this:
 | Bots (`srv_bots`) | 2.7-3.3 | 0.66 | addons; `simhost-bot-native-glue-1` |
 | Copying sim state into replicated fields (`net_pull`) | 0.56-1.7 | 0 (props are read at pack time) | in flight: bot pulls only on snapshot ticks (worktree `arena-simnet`) |
 | Kill view eyes | 0.45 | none | in flight: eyes only on ring-due ticks (`arena-simnet`) |
-| dot-net dispatch and input | about 0.2 | inside `NET_ProcessSocket` 0.064 x 2 | dot-net; measured below the gate |
-| Snapshot build and send | 0.65-0.77 | about 0.09 | dot-net; see technique 1 |
+| gs-net dispatch and input | about 0.2 | inside `NET_ProcessSocket` 0.064 x 2 | gs-net; measured below the gate |
+| Snapshot build and send | 0.65-0.77 | about 0.09 | gs-net; see technique 1 |
 
 The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap. The other 8-9 ms is the same work done in GDScript instead of C++, which perf-vs-css.md already covers.
 
@@ -52,7 +52,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
   - `SV_CreateClientSnapshots` packs only when at least one client's `ShouldSendMessages()` is due, which is at its `cl_updaterate`.
   - Fake clients (bots) are skipped outright (`sv_main.cpp:1878`): bots never cost a pack or a send.
   - `PackEntities_Normal` then encodes each transmitted entity once, into a shared `PackedEntity`, in parallel (`ParallelProcess`). Every client's `WriteDeltaEntities` then deltas the shared packs against its own acked baseline.
-- **FC now.** dot-net builds a snapshot every `ticks_per_snapshot()`: 66/33, so every second tick.
+- **FC now.** gs-net builds a snapshot every `ticks_per_snapshot()`: 66/33, so every second tick.
   - It freezes the state, does shared property reads, then per-peer relevance and encoding.
   - It has a native core, and `sv_snapshot_workers` spreads per-peer builds over threads (`fc-snapshot-workers-1`, merged).
   - Bots are server-owned, so they receive nothing, as in Source.
@@ -69,7 +69,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
   - When `nChanges == 0`, it reuses the previous packet (`UsePreviouslySentPacket`). A `ChangeFrameList` records the tick each prop last changed, so a client's delta only walks props changed since its ack.
   - Nothing is copied between snapshots.
 - **FC now.**
-  - dot-net deltas against the client's acked snapshot (`encode_ack` / `receive_ack`).
+  - gs-net deltas against the client's acked snapshot (`encode_ack` / `receive_ack`).
   - The replicated fields are a mirror that `FcPlayerNet.pull()` refills every tick, for every player.
   - The in-flight `arena-simnet` patch stops refilling bots between snapshots. That is half of 31 bots' pulls.
   - A person's pull cannot skip, because `_pull_exact` puts his state back through float32 every tick, as his client's replay does.
@@ -85,7 +85,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
   - This is inside the 0.042 ms `SV_ComputeClientPacks` scope.
   - It cuts bytes and client work, not server sim time.
 - **FC now.**
-  - dot-net's `GSNetInterestDistance` / `GSNetInterestGrid`, with a flat radius.
+  - gs-net's `GSNetInterestDistance` / `GSNetInterestGrid`, with a flat radius.
   - FC's `FcNetAoi` distance tiers apply from 33 players: full rate inside 20 m, every 2nd snapshot to 120 m (`sv_net_far_distance`, `sv_net_far_tiers`; 40 m with a quarter-rate band past 80 m before fc-dmatrium-bytes-1).
   - A beaconed player is `always_relevant`.
   - No PVS yet: a branch exists on `net-visibility-interest-1`, not merged.
@@ -108,7 +108,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
   - `CBasePlayer::ProcessUsercmds` runs `PlayerRunCommand` for each one as the packet arrives (inside `NET_ProcessSocket`, 0.064 ms per call here).
   - Bots never touch the network: `CCSBot` fills a usercmd and runs it straight through `PlayerRunCommand`.
 - **FC now.**
-  - dot-net buffers input per peer and applies it on the tick (`_apply_input`, `has_method`/`call` per behaviour).
+  - gs-net buffers input per peer and applies it on the tick (`_apply_input`, `has_method`/`call` per behaviour).
   - It then calls `_net_simulate` on every identity; the first player's call runs the whole game tick once (`FcNetBridge.ensure_game_ticked`).
   - Bots' commands are made in `_commands()`, in the slot a client's input lands in.
   - Measured: input about 0.05 ms, dispatch residual 0.14 ms.
@@ -127,7 +127,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
 - **FC now.**
   - Bots think on tiers too: `bot_refresh` runs about 16 times a tick at 32 players, which is alternate ticks.
   - `srv_bots` costs 2.7-3.3 ms, with `bot_brain` 1.1-1.3 and the rest glue.
-- **Saves.** 1-2 ms, but only native: the per-tick contact table and batch refresh in dot-sim (`simhost-bot-native-glue-1`).
+- **Saves.** 1-2 ms, but only native: the per-tick contact table and batch refresh in gs-sim (`simhost-bot-native-glue-1`).
   - FC's think rate is already Source's; the gap is the cost per think.
 - **Risk.** None to hit reg if the bot digests stay identical, which is what that item's done-when requires.
 
@@ -138,7 +138,7 @@ The network-side techniques explain about 1.5-2.5 ms of the roughly 10.5 ms gap.
   - vphysics runs only props (`CPhysicsHook` 0.10 ms here).
   - No rigid body per player.
 - **FC now.**
-  - `p_controller` about 96 µs a player through dot-sim's motor batch, with native hull collision (`p_hulls` 0.5).
+  - `p_controller` about 96 µs a player through gs-sim's motor batch, with native hull collision (`p_hulls` 0.5).
   - Rigid bodies only for props and ragdolls, in `tick_world`.
 - **Saves.** The large one, 2-2.5 ms, from the player row in native code (`simhost-native-player-row-1`; perf-vs-css.md row 2). That work is in the addons.
 - **Risk.** It must keep the same motor results (sim digests), or prediction and lag compensation drift.
@@ -174,9 +174,9 @@ Nothing in this pass. Every candidate is one of three kinds:
   - the kill view record gate;
   - the per-player glue `pl_pre` + `pl_post`: 0.9 ms with the fine spans on, which inflate it (64 clock-read pairs a tick). It is not split further here, and cutting 0.6 of it is not credible.
 - **In an addon:**
-  - snapshot pack sharing (dot-net);
-  - bot glue (dot-sim);
-  - the player row (dot-sim, dot-fps);
-  - pull sets (dot-fps, fc-weapons, dot-combat).
+  - snapshot pack sharing (gs-net);
+  - bot glue (gs-sim);
+  - the player row (gs-sim, gs-fps);
+  - pull sets (gs-fps, fc-weapons, gs-combat).
 
 The 10x is the language the per-player work runs in, not a missing network trick. FC already has Source's snapshot-rate split, its bot staggering, server-only hit boxes, and interest culling.

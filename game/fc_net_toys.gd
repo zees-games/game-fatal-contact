@@ -99,7 +99,7 @@ func _release_toys() -> void:
 
 ## Client, on TOYS: a mirror for every id at once, under the holder, whether this end's toys
 ## for that map exist yet or not. [b]A client must know every entity a snapshot carries[/b]:
-## dot-net stops reading a snapshot at the first one it does not know (a body cannot be skipped
+## gs-net stops reading a snapshot at the first one it does not know (a body cannot be skipped
 ## without its declarations), so a toy mirror missing while the client loads the map, or ever,
 ## on a client left on another map, was every player after it frozen. Paired with its toy
 ## by index as soon as both are here.

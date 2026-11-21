@@ -79,6 +79,6 @@ E2
 rc=$?
 # qa-post.sh lives with the panel on dev01; a repro run is not a sweep result.
 if [ $post -eq 1 ] && [ -z "$repro" ]; then
-    ssh dev01 "f=\$(mktemp) && cat >\$f && QA_URL=http://127.0.0.1:3010 QA_COMMIT=$(git rev-parse HEAD 2>/dev/null) ~/stack/nightly/scripts/qa-post.sh fuzz game-arena \$f; r=\$?; rm -f \$f; exit \$r" <"$out/summary.json" || echo "fuzz: post failed" >&2
+    ssh dev01 "f=\$(mktemp) && cat >\$f && QA_URL=http://127.0.0.1:3010 QA_COMMIT=$(git rev-parse HEAD 2>/dev/null) ~/stack/nightly/scripts/qa-post.sh fuzz game-fatal-contact \$f; r=\$?; rm -f \$f; exit \$r" <"$out/summary.json" || echo "fuzz: post failed" >&2
 fi
 exit $rc

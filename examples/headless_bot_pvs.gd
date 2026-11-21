@@ -5,8 +5,8 @@ const FcBspMap := preload("../maps/fc_bsp_map.gd")
 const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcBotPvs := preload("../game/fc_bot_pvs.gd")
 
-## The bots' PVS pre-cull (FcBotPvs, cvar `fc_bot_pvs`): on converted maps with vis data, dot-sim's native
-## `GSSimPvs` gives the same cluster and the same answer as dot-net's script `GSNetVisibility` for seeded points
+## The bots' PVS pre-cull (FcBotPvs, cvar `fc_bot_pvs`): on converted maps with vis data, gs-sim's native
+## `GSSimPvs` gives the same cluster and the same answer as gs-net's script `GSNetVisibility` for seeded points
 ## (around the spawns and anywhere in the map's box, with and without bounds), `visible_many` agrees pair for pair, and
 ## the wrapper in verify mode counts no disagreement. Skips (exit 0, says so) a map that is not linked; without the
 ## library only the script set is exercised. The rays a ruled-out pair saves are checked live by scale128 `--pvsverify 1`
@@ -26,7 +26,7 @@ func _run() -> void:
 	print("FC — bot PVS: native and script sets agree")
 	var native := GSSim.has(&"pvs")
 	if not native:
-		print("dot-sim has no pvs module: only the script set is exercised")
+		print("gs-sim has no pvs module: only the script set is exercised")
 	var tried := 0
 	for id in MAPS:
 		if not FcImportedMaps.has(id):
@@ -42,7 +42,7 @@ func _run() -> void:
 			box = box.expand(s.origin)
 		box = box.grow(24.0)
 		for bounds in [AABB(), box.grow(-12.0)]:
-			var vis: GSNetVisibility = GSNetVisibility.from_dot_map_mesh(got.value, bounds)
+			var vis: GSNetVisibility = GSNetVisibility.from_gs_map_mesh(got.value, bounds)
 			if not _check(vis != null and vis.is_ready(), "%s: the map has a PVS" % id):
 				break
 			tried += 1

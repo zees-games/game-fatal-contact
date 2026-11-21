@@ -97,7 +97,7 @@ func _test_convergence() -> void:
 		_check(net.stats.decode_failures == 0, "client %d had no decode failures" % peer_id)
 
 	# Every client's copy of every player has to track the server. A client that got
-	# only the first peer's updates — the shape of dot-net's replication bug — passes
+	# only the first peer's updates — the shape of gs-net's replication bug — passes
 	# half of these and fails the other half.
 	for peer_id in _clients:
 		var bridge: FcNetBridge = _clients[peer_id]["bridge"]
@@ -276,7 +276,7 @@ func _test_replays_are_silent(own: FcPlayerNet) -> void:
 	_check(fresh - drawn_before == 1, "a fresh predicted shot is drawn", str(fresh - drawn_before))
 
 	var _restored := own.player.weapons.restore(rewind)
-	# As the predictor's replay loop does (dot-net API 23).
+	# As the predictor's replay loop does (gs-net API 23).
 	own.set(&"net_replaying", true)
 	_check(own.is_replay(t), "the same tick again is known to be a replay")
 	own._net_apply_input(shoot, t)
@@ -291,7 +291,7 @@ func _test_replays_are_silent(own: FcPlayerNet) -> void:
 	# The clock snapping back: fresh ticks below the newest one simulated. Taken for
 	# replays, they held the rig and the weapon's signals until the clock caught up (the
 	# 2026-11-18 footage's thrown knife left in the hand).
-	_check(own.get(&"net_replaying") != null, "dot-net says which ticks are replays (API 23)")
+	_check(own.get(&"net_replaying") != null, "gs-net says which ticks are replays (API 23)")
 	for i in range(TICK_RATE):
 		t += 1
 		own._net_apply_input(idle, t)
@@ -410,7 +410,7 @@ func _test_ready_gate() -> void:
 	print("")
 	_section("[the ready gate]")
 
-	# **Nothing may be sent to a peer before it says it can receive.** dot-server's signon finishes
+	# **Nothing may be sent to a peer before it says it can receive.** gs-server's signon finishes
 	# and THEN the client builds its scene, so everything sent in between lands on a node that does
 	# not exist and is lost — one "Node not found" per call.
 	var sent: Array = []
@@ -467,7 +467,7 @@ func _test_ready_gate() -> void:
 	# signon ever sent a JOIN, so a client never learned of anybody who arrived after it.
 	sent.clear()
 	var late := bridge.add_player(88, 588, "Late")
-	# Peer 88 itself is sent dot-net's message schema here, which is not this.
+	# Peer 88 itself is sent gs-net's message schema here, which is not this.
 	var to_ready := sent.filter(func(s: Array) -> bool: return int(s[1]) == 77)
 	_check(
 		late.ok and to_ready.size() == 1,

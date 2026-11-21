@@ -27,5 +27,5 @@ One weapon alone, on one box: `gpu.sh shot proj tools/weapon_lab.sh --out DIR --
 
 ## Notes
 
-- Weapons are Fatal Contact catalogue (`AwWeaponCatalogue`, the fc-weapons pack). zee-dot-weapons is not loaded by arena.
+- Weapons are Fatal Contact catalogue (`AwWeaponCatalogue`, the fc-weapons pack). zee-gs-weapons is not loaded by arena.
 - The boxes need nothing but godot, xvfb-run and ffmpeg (they have all three). The JPEG frames are deleted after encoding.

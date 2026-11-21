@@ -11,10 +11,10 @@ const CHANNEL := "arena.grenades"
 ## fc_weapons API level that has AwUtilityZones (requires.floor.json).
 const MIN_LEVEL := 4
 
-## dot-bot API level that has GSBotBrain.blind_for and the world's sight blockers.
+## gs-bot API level that has GSBotBrain.blind_for and the world's sight blockers.
 const BOT_LEVEL := 8
 
-## dot-npc API level that has GSNpcInstance.blind_for and GSNpcSenses.add_sight_blocker.
+## gs-npc API level that has GSNpcInstance.blind_for and GSNpcSenses.add_sight_blocker.
 const NPC_LEVEL := 6
 
 ## What an [signal effect] shows; the wire values live in the addon.
@@ -87,7 +87,7 @@ func _on_detonated(at: Vector3, spawn: GSWeaponSpawn) -> void:
 func _tell_bots(events: Array, at: Vector3) -> void:
 	_tell_monsters(events, at)
 
-	if GSAddonApi.build_level("dot_bot") < BOT_LEVEL:
+	if GSAddonApi.build_level("gs_bot") < BOT_LEVEL:
 		return
 
 	var world := FcBots.world_for(game)
@@ -106,7 +106,7 @@ func _tell_bots(events: Array, at: Vector3) -> void:
 ## Flashed monsters lose sight for the ledger's seconds; a smoke cloud blocks the horde's sight, hearing passes.
 func _tell_monsters(events: Array, at: Vector3) -> void:
 	var horde: Node = game.horde
-	if GSAddonApi.build_level("dot_npc") < NPC_LEVEL or horde == null or horde.senses == null:
+	if GSAddonApi.build_level("gs_npc") < NPC_LEVEL or horde == null or horde.senses == null:
 		return
 
 	for e: Dictionary in events:
@@ -137,7 +137,7 @@ func _victims() -> Array:
 		if p != null and p.is_alive():
 			out.append(AwUtilityZones.victim(id, p.controller.state.position, p.muzzle_position(), p.aim_direction()))
 
-	if GSAddonApi.build_level("dot_npc") >= NPC_LEVEL and game.horde != null and game.horde.spawner != null and _reach > 0.0:
+	if GSAddonApi.build_level("gs_npc") >= NPC_LEVEL and game.horde != null and game.horde.spawner != null and _reach > 0.0:
 		for npc in game.horde.spawner.npcs_near(_reach_at, _reach):
 			var entity: int = game.horde.entity_id_for(npc)
 			if entity == 0 or not npc.is_alive():

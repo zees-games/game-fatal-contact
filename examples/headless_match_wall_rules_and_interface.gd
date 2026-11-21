@@ -192,7 +192,7 @@ func _play() -> void:
 	_done()
 
 ## A map vote over the match `_play` is about to run, with a score limit and nothing else. Real frags, not a reported number:
-## dot-vote's suite calls `note_score` by hand, and until this no game did, so `trigger: score_limit` validated and did nothing.
+## gs-vote's suite calls `note_score` by hand, and until this no game did, so `trigger: score_limit` validated and did nothing.
 func _build_vote() -> void:
 	_section("a map vote over the match")
 
@@ -268,7 +268,7 @@ func _test_score_vote() -> void:
 	)
 	_check(
 		_vote.director.clock.rounds_played == 1,
-		"and dot-match's round end reached it (%d)" % _vote.director.clock.rounds_played,
+		"and gs-match's round end reached it (%d)" % _vote.director.clock.rounds_played,
 		"FcVote.note_round_end existed and was called by nothing"
 	)
 
@@ -386,7 +386,7 @@ func _test_interface_rest(hud: FcHud, menu, board) -> void:
 
 ## A kill on the feed becomes a kill reading on the registry's tracker, and reporting is off by default.
 func _stats_event_check(progress) -> void:
-	_check(GSRegistry.get_service(&"dot_stats_tracker") == progress.stats, "the tracker is the dot_stats_tracker service")
+	_check(GSRegistry.get_service(&"gs_stats_tracker") == progress.stats, "the tracker is the gs_stats_tracker service")
 	_check(not progress.stats.report_to_backbone, "stats reporting is off by default")
 	var players := _game.players()
 	if players.size() < 2:
@@ -492,7 +492,7 @@ func _test_interface() -> void:
 	hud.follow(subject)
 	hud.refresh_all()
 
-	# Health is dot-ui's `GSVitals`, handed the followed player's numbers by `present_gear`.
+	# Health is gs-ui's `GSVitals`, handed the followed player's numbers by `present_gear`.
 	hud.present_gear()
 	_check(hud.crosshair != null and hud.vitals != null, "the HUD builds")
 	_check(
@@ -591,7 +591,7 @@ func _test_interface() -> void:
 		"the strip's left score is the followed player's own", "%d" % hud.strip.left_score
 	)
 	# The server's figure, as a networked client hands it over: rounded up, never 0:00 with
-	# time left (dot-ui's `GSScoreStrip.clock_text`; Fatal Contact's own rounded down).
+	# time left (gs-ui's `GSScoreStrip.clock_text`; Fatal Contact's own rounded down).
 	hud.remaining_override = 59.4
 	hud.present_scores()
 	_check(hud.strip.clock == "1:00" and not hud.strip.clock_low, "the clock rounds the seconds left up (59.4 s reads %s)" % hud.strip.clock)
@@ -644,7 +644,7 @@ func _test_interface() -> void:
 	FcWeaponIcons.shared.set_profile(&"")
 	_check(overridden and FcWeaponIcons.shared.texture(&"pistol") is AtlasTexture, "a profile's override replaces one weapon's picture and only for that profile")
 
-	# The Escape menu and the Tab board are dot-menu's (since 2026-10-10), built with no
+	# The Escape menu and the Tab board are gs-menu's (since 2026-10-10), built with no
 	# presentation layer here: no settings document, so only rows that need none draw.
 	var menu := FcMenus.build(self, null)
 	_check(menu != null and menu.screen != null, "the menu builds without a settings document")
@@ -656,7 +656,7 @@ func _test_interface() -> void:
 		"the stock pages, this game's Interface page and Credits, in order", str(page_ids)
 	)
 	# The Servers page is there only with a browser behind it; a page that opened nothing
-	# would be the dot-ui menu's greyed button again.
+	# would be the gs-ui menu's greyed button again.
 	_check(menu.page(&"servers") == null, "no Servers page where there is no browser")
 	_check(
 		menu.bindings != null and menu.bindings.row_for_action(&"arena_scoreboard").get("default", "") == "Tab",

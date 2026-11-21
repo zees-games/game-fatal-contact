@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Drives the local player for dot-audio's loudness capture (addons/dot_audio/tools/loudness.sh
+## Drives the local player for gs-audio's loudness capture (addons/gs_audio/tools/loudness.sh
 ## finds this file by name), so a recording of this game is a player's and not the bots'.
 ##
 ## [b]Why the stand-in is not enough here.[/b] It holds W and turns a little every six

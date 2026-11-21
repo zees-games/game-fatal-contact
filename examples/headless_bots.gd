@@ -14,7 +14,7 @@ const FcPlayer := preload("../game/fc_player.gd")
 ## ./game.sh test headless_bots
 ## [/codeblock]
 ##
-## [b]What it holds still.[/b] dot-bot's own suite measures the brain against a scripted
+## [b]What it holds still.[/b] gs-bot's own suite measures the brain against a scripted
 ## opponent in a world of rays. This is the same brain fed from Fatal Contact (FcBots): a bot at
 ## each preset plays [constant SECONDS] of a one-on-one deathmatch against a reference player
 ## whose settings are pinned here and never follow a preset, so the kill/death ratio moves only
@@ -357,7 +357,7 @@ func _test_order() -> void:
 	_done()
 
 
-## FcBots' typed command writer gives exactly what dot-bot's generic write_move/write_fire give.
+## FcBots' typed command writer gives exactly what gs-bot's generic write_move/write_fire give.
 func _check_typed_write() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 0xb07
@@ -383,7 +383,7 @@ func _check_typed_write() -> void:
 		if move_a.yaw == move_b.yaw and move_a.pitch == move_b.pitch and move_a.move == move_b.move and move_a.buttons == move_b.buttons \
 				and fire_a.yaw == fire_b.yaw and fire_a.pitch == fire_b.pitch and fire_a.buttons == fire_b.buttons and fire_a.slot == fire_b.slot:
 			same += 1
-	_check(same == 64, "the bots' typed command writer matches dot-bot's write_move/write_fire", "%d of 64 the same" % same)
+	_check(same == 64, "the bots' typed command writer matches gs-bot's write_move/write_fire", "%d of 64 the same" % same)
 
 
 func _sighted(trace: GSTrace, bot: Node3D, target: Node3D) -> bool:

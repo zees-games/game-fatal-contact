@@ -5,9 +5,9 @@ const CHANNEL := "arena.teams"
 ## Colours for the sides past the stock pair, and for any a config names without a colour.
 const PALETTE: PackedStringArray = ["#d94040", "#4073e6", "#40b85a", "#e6c040", "#a050d0", "#e68a30", "#40c8c8", "#d060a0"]
 const NAMES: PackedStringArray = ["Red", "Blue", "Green", "Yellow", "Purple", "Orange", "Teal", "Pink"]
-const TeamMenuServer := preload("res://addons/dot_team/runtime/dot_team_menu_server.gd")
+const TeamMenuServer := preload("res://addons/gs_team/runtime/gs_team_menu_server.gd")
 
-## dot-team's menu rules; the adapters below are what make it arena's.
+## gs-team's menu rules; the adapters below are what make it arena's.
 var server: RefCounted = TeamMenuServer.new()
 var game: FcGame = null
 var names_cvar: GSConVar = null
@@ -159,7 +159,7 @@ func set_spectating(id: int, on: bool) -> GSResult:
 	return _bring_back(id)
 
 
-## The respawn's spawn sight queries the physics space, so on a server it waits for the next tick (dot_tick_gate.gd).
+## The respawn's spawn sight queries the physics space, so on a server it waits for the next tick (gs_tick_gate.gd).
 func _bring_back(id: int) -> GSResult:
 	if game.player_for(id) == null:
 		return GSResult.fail(GSError.CODE_INVALID, "Player %d is not in the match." % id)

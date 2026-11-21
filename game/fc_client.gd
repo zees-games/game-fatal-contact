@@ -31,7 +31,7 @@ func _present_frame(delta: float) -> void:
 	_present_sprite_view()
 
 	if presentation != null:
-		# Neither dot-audio nor dot-fx ticks itself: `_process` stops while paused.
+		# Neither gs-audio nor gs-fx ticks itself: `_process` stops while paused.
 		var eye := camera_position()
 		var forward := Vector3.FORWARD
 		if player != null and player.camera != null:
@@ -241,7 +241,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 			return
 
-	# The menu is up: every key is its own (dot-menu closes on Escape), and nothing below
+	# The menu is up: every key is its own (gs-menu closes on Escape), and nothing below
 	# may act on the world behind it.
 	if _menu_open():
 		return
@@ -263,7 +263,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if player == null:
 		return
 
-	# dot-mobile's overlay forwards every touch to the sampler itself; with the overlay off, a touch moves nothing.
+	# gs-mobile's overlay forwards every touch to the sampler itself; with the overlay off, a touch moves nothing.
 	if event is InputEventScreenTouch or event is InputEventScreenDrag:
 		return
 

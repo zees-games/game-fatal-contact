@@ -145,7 +145,7 @@ func _test_limits() -> void:
 	var res: GSResult = AvatarLibrary.apply_loadout_limits(0, 0)
 	_check(res.ok and GSGameAvatarLoadoutMessage.max_entries == 0 and GSGameAvatarLoadouts.max_per_kind == 0, "0 and 0 mean unlimited")
 	res = AvatarLibrary.apply_loadout_limits(12, 5)
-	_check(res.ok and GSGameAvatarLoadoutMessage.max_entries == 12 and GSGameAvatarLoadouts.max_per_kind == 5, "a limit is applied to dot-game")
+	_check(res.ok and GSGameAvatarLoadoutMessage.max_entries == 12 and GSGameAvatarLoadouts.max_per_kind == 5, "a limit is applied to gs-game")
 	res = AvatarLibrary.apply_loadout_limits(-1, 5)
 	_check(not res.ok and GSGameAvatarLoadoutMessage.max_entries == 12, "a negative limit is refused and nothing changes")
 	res = AvatarLibrary.apply_loadout_limits(3, -1)

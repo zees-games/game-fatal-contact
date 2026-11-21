@@ -6,13 +6,13 @@ const FcStats := preload("fc_stats.gd")
 ## What a player can earn here, as a document rather than as code.
 ##
 ## Every rule reads an id from [FcStats] and nothing else. That is the whole
-## integration: dot-achievements never hears about a kill, a weapon or a round — it
+## integration: gs-achievements never hears about a kill, a weapon or a round — it
 ## hears that a number moved, which is what makes the catalogue a thing an operator
 ## could edit into a JSON file without a rebuild ([method GSAchievementCatalogue.save_json_file]
 ## writes exactly the shape [method GSAchievementCatalogue.from_json_file] reads).
 ##
 ## [b]One stat may be read with only one merge rule across the whole catalogue.[/b]
-## dot-achievements refuses a catalogue that breaks it, at [method GSAchievementCatalogue.validate]
+## gs-achievements refuses a catalogue that breaks it, at [method GSAchievementCatalogue.validate]
 ## rather than at the first reading, and the reason is worth restating: one number
 ## cannot be both a running total and a personal best. So every rule over
 ## [constant FcStats.BEST_STREAK] and [constant FcStats.BEST_ROUND_KILLS] uses
@@ -20,13 +20,13 @@ const FcStats := preload("fc_stats.gd")
 ## [constant GSAchievementRule.Merge.SUM]. The helpers below are the only reason that
 ## cannot be got wrong one entry at a time.
 ##
-## The counterpart of that rule lives in [FcProgress]: dot-stats' `recorded` signal
+## The counterpart of that rule lives in [FcProgress]: gs-stats' `recorded` signal
 ## carries a session total and an achievement is about a lifetime, so
 ## [GSAchievementStatsLink] differences SUM stats and passes the rest through. A
 ## HIGHEST stat here is therefore an absolute in both systems, which is the only way
 ## "best streak" means the same thing on both sides.
 
-# No `CHANNEL`: a static catalogue document, validated by dot-achievements, which is
+# No `CHANNEL`: a static catalogue document, validated by gs-achievements, which is
 # where a refusal is reported. Nothing here runs.
 
 ## Categories, so a menu can group them without parsing names.
@@ -84,7 +84,7 @@ const LONG_SHOT_M := 30.0
 const NEMESIS_AT := 3
 
 ## Each medal's name, sound and worth, by [enum Medal]. The name is what the popup says;
-## the sound is a dot-audio id the client's catalogue maps to a voice. What it LOOKS like
+## the sound is a gs-audio id the client's catalogue maps to a voice. What it LOOKS like
 ## (icon, colour) is the HUD's, because it is only ever drawn.
 const MEDALS := {
 	Medal.FIRST_BLOOD: {"name": "First Blood", "sound": &"medal_first_blood", "points": 50},
@@ -309,7 +309,7 @@ static func catalogue() -> GSAchievementCatalogue:
 
 	# --- Two-rule entries -------------------------------------------------
 	#
-	# The pair is the point: dot-achievements ANDs the requirements by default
+	# The pair is the point: gs-achievements ANDs the requirements by default
 	# (`require_all`), so "landed a lot of shots AND played a lot of rounds" is two
 	# rules rather than a derived percentage. Accuracy is deliberately NOT a stat —
 	# see FcStats.accuracy_of — because a stored percentage is a third number that

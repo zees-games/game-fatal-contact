@@ -85,11 +85,11 @@ In Siege, **E** picks up and drops a prop, **X** freezes it, **G** punts it, and
 
 ## Getting started
 
-You need [Godot 4.7](https://godotengine.org/download). The game is built from GameSpice addons, each in its own repository. The easiest way to get everything is [dot-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
+You need [Godot 4.7](https://godotengine.org/download). The game is built from GameSpice addons, each in its own repository. The easiest way to get everything is [gs-bootstrap](https://github.com/gamespice-platform/bootstrap), which clones every project and links the addons in:
 
 ```bash
 git clone https://github.com/gamespice-platform/bootstrap.git
-cd dot-bootstrap
+cd gs-bootstrap
 ./bootstrap.sh
 cd projects/game-fatal-contact
 ./game.sh
@@ -109,7 +109,7 @@ On Windows, run `bootstrap.ps1` and open the project in Godot.
 
 Without the map packs the game plays its three own maps. With bootstrap, fc-surf-dm-maps is linked at `maps/imported` and fc-dm-maps at `maps/imported_dm`. To play one map offline: `./game.sh -- --offline --map surf_10x_reloaded_fixed` or `--map gg-woods`.
 
-`online` and `server` use [dot-server-deploy](https://github.com/gamespice-platform/server-deploy), which bootstrap clones next to this project. Run its `./setup.sh` once first.
+`online` and `server` use [gs-server-deploy](https://github.com/gamespice-platform/server-deploy), which bootstrap clones next to this project. Run its `./setup.sh` once first.
 
 ## Running a server
 
@@ -138,11 +138,11 @@ Settings are cvars. Set them in the server config, on the command line, or live 
 
 Wall movement: `fc_wall_run` (1 on, 0 off); `fc_wall_jump` and `fc_wall_slide` work the same way. Fine tuning is in the `fc_wall_run_*` and `fc_wall_jump_*` cvars (minimum speed, duration, gravity, angle, push, body roll). `cvarlist fc_wall` lists them with their defaults and ranges.
 
-`mp_teammate_passthrough` is shared with dot-combat, takes effect from the next shot and also covers rockets and grenades in flight. At 2 a team-mate never stops a shot, but a blast still reaches them.
+`mp_teammate_passthrough` is shared with gs-combat, takes effect from the next shot and also covers rockets and grenades in flight. At 2 a team-mate never stops a shot, but a blast still reaches them.
 
 ### Ragdolls
 
-Dead bodies fall as ragdolls from [dot-player-char](https://github.com/gamespice-platform/player-char). The server picks how each one falls and every player sees the same fall.
+Dead bodies fall as ragdolls from [gs-player-char](https://github.com/gamespice-platform/player-char). The server picks how each one falls and every player sees the same fall.
 
 | Cvar | Default | What it does |
 | --- | --- | --- |
@@ -155,7 +155,7 @@ Dead bodies fall as ragdolls from [dot-player-char](https://github.com/gamespice
 
 ### Bots
 
-Bots come from [dot-bot](https://github.com/gamespice-platform/bot) and play the same solo and on a server.
+Bots come from [gs-bot](https://github.com/gamespice-platform/bot) and play the same solo and on a server.
 
 | Cvar | Default | What it does |
 | --- | --- | --- |
@@ -165,9 +165,9 @@ Bots come from [dot-bot](https://github.com/gamespice-platform/bot) and play the
 | `bot_reaction` | 0.3 | Any single preset value, e.g. seconds before a bot fires on somebody new |
 | `bot_personas` | empty | Deal each bot a character by weight (`warden:2,raider:1`); `off` uses one shared preset |
 
-Each bot gets a character from `cfg/game/game-arena/bot/*.yml` (warden, raider, escort, marksman, runner, balanced). A character leans a bot toward defending, attacking or supporting in CTF, scales the server's `bot_*` values, and gives each bot its own aim spread.
+Each bot gets a character from `cfg/game/game-fatal-contact/bot/*.yml` (warden, raider, escort, marksman, runner, balanced). A character leans a bot toward defending, attacking or supporting in CTF, scales the server's `bot_*` values, and gives each bot its own aim spread.
 
-`bot_difficulty` sets about thirty `bot_*` values at once. Change one after choosing a preset and it stays changed; `bot_settings` lists them and `bot_settings_reset` goes back to the preset. dot-bot's README has the full table. Solo, the same names work in the console (the key under Escape), and `./game.sh -- --bot_difficulty hard --bots 5` sets both at launch.
+`bot_difficulty` sets about thirty `bot_*` values at once. Change one after choosing a preset and it stays changed; `bot_settings` lists them and `bot_settings_reset` goes back to the preset. gs-bot's README has the full table. Solo, the same names work in the console (the key under Escape), and `./game.sh -- --bot_difficulty hard --bots 5` sets both at launch.
 
 ### Console commands
 
@@ -182,7 +182,7 @@ Each bot gets a character from `cfg/game/game-arena/bot/*.yml` (warden, raider, 
 
 ### Admin commands
 
-These come from [dot-moderation](https://github.com/gamespice-platform/moderation). Type them in the console, or in chat with a `!` in front.
+These come from [gs-moderation](https://github.com/gamespice-platform/moderation). Type them in the console, or in chat with a `!` in front.
 
 | Command | Needs | Notes |
 | --- | --- | --- |
@@ -199,13 +199,13 @@ A player can be a name, `@me`, `@all`, `@others`, `@alive`, `@dead` or `@team:<n
 
 ### The map vote
 
-The next-map vote is [dot-vote](https://github.com/gamespice-platform/vote). The defaults (shown below) are in `game/fc_vote.gd`. To change them, create `user://cfg/arena_vote.json`, or use `DOT_VOTE_*` environment variables or `--vote-*` arguments:
+The next-map vote is [gs-vote](https://github.com/gamespice-platform/vote). The defaults (shown below) are in `game/fc_vote.gd`. To change them, create `user://cfg/arena_vote.json`, or use `GS_VOTE_*` environment variables or `--vote-*` arguments:
 
 ```json
 { "end_vote": true, "vote_lead_sec": 120, "include_extend": true, "extend_seconds": 600, "max_extends": 3 }
 ```
 
-`end_vote: false` turns the end-of-map vote off and `include_extend: false` removes "extend" from the ballot. dot-vote's README lists every setting.
+`end_vote: false` turns the end-of-map vote off and `include_extend: false` removes "extend" from the ballot. gs-vote's README lists every setting.
 
 ## Testing
 
@@ -241,22 +241,22 @@ The next-map vote is [dot-vote](https://github.com/gamespice-platform/vote). The
 
 | Asset | Author / source | License | Where |
 | --- | --- | --- | --- |
-| Players and bots | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) | CC0 1.0 | [dot-player-char](https://github.com/gamespice-platform/player-char) |
-| Avatar parts and horde monsters | Kenney, character kit skins | CC0 | generated from dot-player-char |
+| Players and bots | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) | CC0 1.0 | [gs-player-char](https://github.com/gamespice-platform/player-char) |
+| Avatar parts and horde monsters | Kenney, character kit skins | CC0 | generated from gs-player-char |
 | Team body "fc_swat" (team avatars, not in this repository) | SpatialNeglect, after bobeer, VassKacsoHunor, Simon Coenen, Bzovius, Albin, Shedmon and h1ggs | CC BY 4.0 | a private `fc_swat.glb` in `fc_team_body_dirs`, [docs/client.md](docs/client.md#avatars) |
 | Team body "fc_military" (team avatars, not in this repository) | jayb3e, "Game Ready Military Character" | CC BY 4.0 | a private `fc_military.glb` in `fc_team_body_dirs` |
 | Built-in map grid | Kenney, [Prototype Textures](https://kenney.nl/assets/prototype-textures) | CC0 | `assets/prototype/` |
 | Medal icons | Kenney, [Board Game Icons](https://kenney.nl/assets/board-game-icons), [Game Icons](https://kenney.nl/assets/game-icons) | CC0 | `assets/medals/` |
 | HUD ability icons | Kenney, [Game Icons](https://kenney.nl/assets/game-icons), [Mobile Controls](https://kenney.nl/assets/mobile-controls) | CC0 | `assets/hud_icons/` |
-| Weapon icons | Jestan, [The Ultimate Weapons Pack](https://jestan.itch.io/weapons-pack) | CC0 1.0 (per the itch.io page; the licence file in the zip is outdated) | dot-ui, `addons/dot_ui/icons/jestan/CREDITS.md` |
+| Weapon icons | Jestan, [The Ultimate Weapons Pack](https://jestan.itch.io/weapons-pack) | CC0 1.0 (per the itch.io page; the licence file in the zip is outdated) | gs-ui, `addons/gs_ui/icons/jestan/CREDITS.md` |
 | Older weapon silhouettes | Rendered from Kenney weapon models by `tools/build_weapon_icons.sh` | CC0 | `assets/weapon_icons/` |
 | Weapons (models, sounds, art) | [fc-weapons](https://github.com/zees-games/fc-weapons), which credits its own sources | see fc-weapons | fc-weapons |
 | Built-in map surfaces (Bricks097, Concrete047A, PaintedPlaster017, Concrete034, Metal063, Planks039) | [ambientCG](https://ambientcg.com), Lennart Demes and contributors | CC0 1.0 | `assets/surfaces/`, details in `assets/surfaces/CREDITS.md` |
-| Footsteps | Kenney, Impact Sounds | CC0 | dot-audio, `addons/dot_audio/stock/CREDITS.md` |
-| Ambience beds | Generated by dot-audio | none (synthesized) | dot-audio |
-| Mood ambience under each map | OpenGameArt recordings, each author listed in [dot-audio's moods credits](https://github.com/gamespice-platform/audio/blob/main/addons/dot_audio/stock/moods/CREDITS.md) | CC0 | dot-audio |
-| Map toys | Meshes made in code by dot-props; sounds by Kenney | CC0 | `addons/dot_props/toys/sounds/CREDITS.md` |
-| Stomp sound | Synthesized at run time by dot-audio's `GSAudioSynth` | none (no recording) | dot-audio |
+| Footsteps | Kenney, Impact Sounds | CC0 | gs-audio, `addons/gs_audio/stock/CREDITS.md` |
+| Ambience beds | Generated by gs-audio | none (synthesized) | gs-audio |
+| Mood ambience under each map | OpenGameArt recordings, each author listed in [gs-audio's moods credits](https://github.com/gamespice-platform/audio/blob/main/addons/gs_audio/stock/moods/CREDITS.md) | CC0 | gs-audio |
+| Map toys | Meshes made in code by gs-props; sounds by Kenney | CC0 | `addons/gs_props/toys/sounds/CREDITS.md` |
+| Stomp sound | Synthesized at run time by gs-audio's `GSAudioSynth` | none (no recording) | gs-audio |
 | Combat surf and deathmatch maps | Other people's work, shared with credit. Each map's author, original page and licence as stated there (often none) are in `maps.json` / `licence.json` | as stated by each author | [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps), [fc-dm-maps](https://github.com/zees-games/fc-dm-maps) |
 
 The maps are published under the CDN's credited-community-map exception, not as our own work. This repository carries none of them; each map is its own pack. `fc_maps` names the author beside each map.

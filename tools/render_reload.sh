@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Every magazine weapon's first-person reload, frame by frame, with the one-arm-set check (tools/render_reload.gd):
-# screenshots/reload/<id>_NN.png and <id>_sheet.png (the sheet is dot-weapon's GSWeaponReloadShots, built in the script).
+# screenshots/reload/<id>_NN.png and <id>_sheet.png (the sheet is gs-weapon's GSWeaponReloadShots, built in the script).
 # Run it on a GPU box: ../gpu.sh shot game-fatal-contact tools/render_reload.sh
 #   tools/render_reload.sh [--frames 12 --left 1 --only grenade_launcher,revolver]
 set -euo pipefail
 # A short frame sequence beside each still (GSShotSeq), so Nightly -> Review can play and scrub it.
-export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-${DOT_SHOT_FRAMES:-8}} GS_SHOT_SECS=${GS_SHOT_SECS:-${DOT_SHOT_SECS:-1}}
+export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-8} GS_SHOT_SECS=${GS_SHOT_SECS:-1}
 cd "$(dirname "$0")/.."
 # A short frame sequence beside each still (GSShotSeq), so Nightly -> Review can play it.
-export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-${DOT_SHOT_FRAMES:-8}} GS_SHOT_SECS=${GS_SHOT_SECS:-${DOT_SHOT_SECS:-1}}
+export GS_SHOT_FRAMES=${GS_SHOT_FRAMES:-8} GS_SHOT_SECS=${GS_SHOT_SECS:-1}
 out=screenshots/reload
 args=("$@")
 for i in "${!args[@]}"; do [ "${args[$i]}" = "--out" ] && out="${args[$((i+1))]}"; done

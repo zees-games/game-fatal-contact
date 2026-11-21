@@ -12,9 +12,9 @@ const MAP := &"surf_10x_reloaded_fixed"
 
 ## The fake pack [method _test_server_named] mounts: an id no root has, under an owner no
 ## origin has, so nothing real is shadowed and nothing is fetched.
-const DELIVERED_OWNER := "dot-test"
-const DELIVERED_ID := &"dot_test_delivered_surf"
-const DELIVERED_NOT_FC := &"dot_test_delivered_course"
+const DELIVERED_OWNER := "gs-test"
+const DELIVERED_ID := &"gs_test_delivered_surf"
+const DELIVERED_NOT_FC := &"gs_test_delivered_course"
 const DELIVERED_VERSION := "1.0.0"
 
 var _entered := 0
@@ -46,7 +46,7 @@ func _line(text: String) -> void:
 
 # --- Named by the server ----------------------------------------------------------
 
-## Stands in for a dot-server: `games.current_maps()` is all the director reads.
+## Stands in for a gs-server: `games.current_maps()` is all the director reads.
 class StandInServer:
 	extends RefCounted
 	var games := StandInGames.new()
@@ -60,7 +60,7 @@ class StandInGames:
 		return maps
 
 
-## The pack layout dot-cloud mounts: `<id>.json` and `<id>.bin` in the version directory. MAP's
+## The pack layout gs-cloud mounts: `<id>.json` and `<id>.bin` in the version directory. MAP's
 ## files under a new id, and a second manifest that says it is a timer course; no lightmap.
 func _deliver_packs(mount: String, other: String) -> void:
 	var source := FcImportedMaps.manifest_path(MAP)
@@ -97,8 +97,8 @@ func _test_server_named() -> void:
 
 	var key := "%s/%s@%s" % [DELIVERED_OWNER, DELIVERED_ID, DELIVERED_VERSION]
 	var not_fc_key := "%s/%s@%s" % [DELIVERED_OWNER, DELIVERED_NOT_FC, DELIVERED_VERSION]
-	var mount := "res://dot_cloud/%s/%s/%s" % [DELIVERED_OWNER, DELIVERED_ID, DELIVERED_VERSION]
-	var other := "res://dot_cloud/%s/%s/%s" % [DELIVERED_OWNER, DELIVERED_NOT_FC, DELIVERED_VERSION]
+	var mount := "res://gs_cloud/%s/%s/%s" % [DELIVERED_OWNER, DELIVERED_ID, DELIVERED_VERSION]
+	var other := "res://gs_cloud/%s/%s/%s" % [DELIVERED_OWNER, DELIVERED_NOT_FC, DELIVERED_VERSION]
 
 	_deliver_packs(mount, other)
 
@@ -123,7 +123,7 @@ func _test_server_named() -> void:
 	_check(catalogue != null and not catalogue.has(DELIVERED_NOT_FC),
 		"a named pack whose manifest is not kind arena is skipped")
 
-	# What a client that has never heard of it makes of the announce: dot-map takes an unknown
+	# What a client that has never heard of it makes of the announce: gs-map takes an unknown
 	# map only when it is delivered and its scene is inside its own mount, and the scene here
 	# is the manifest in the pack. No session, so nothing the client knows can answer first.
 	var client := GSMapSyncClient.new()
@@ -157,8 +157,8 @@ func _test_server_named() -> void:
 
 	remove_child(director)
 	director.free()
-	_remove_tree("res://dot_cloud/%s" % DELIVERED_OWNER)
-	DirAccess.remove_absolute(ProjectSettings.globalize_path("res://dot_cloud"))
+	_remove_tree("res://gs_cloud/%s" % DELIVERED_OWNER)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("res://gs_cloud"))
 
 	_done()
 

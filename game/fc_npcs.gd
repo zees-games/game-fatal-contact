@@ -13,7 +13,7 @@ const FcMap := preload("../maps/fc_map.gd")
 ## map somebody later widened is a graph whose NPCs walk into a wall, and nothing
 ## reports it — an NPC that walks into a wall is what an NPC with no path does too.
 ##
-## dot-npc's own notes on the generator make the case for feeding it the map's own
+## gs-npc's own notes on the generator make the case for feeding it the map's own
 ## constants rather than a scene: "a runtime handed a graph cannot raycast the map it
 ## came from". [method nav_for] hands it the boxes.
 ##
@@ -36,7 +36,7 @@ const GUNNER := &"arena_gunner"
 const FACTION := &"monster"
 
 ## Where the brain every one of them uses lives. A PATH, because a brain in a mounted
-## dot-cloud pack cannot resolve a `class_name` — measured, in this family, as "every
+## gs-cloud pack cannot resolve a `class_name` — measured, in this family, as "every
 ## cross-file type reference inside a pack fails to compile".
 static var BRAIN_PATH := FcPaths.rebase(FcPaths.rebase("res://game/fc_npc_brain.gd"))
 
@@ -60,7 +60,7 @@ static func catalogue() -> GSNpcCatalogue:
 static func limits() -> GSNpcLimits:
 	var out := GSNpcLimits.new()
 
-	# Well under dot-npc's default of 96. Fatal Contact is a room, not a campaign level,
+	# Well under gs-npc's default of 96. Fatal Contact is a room, not a campaign level,
 	# and forty monsters in a forty-metre square is already a wall of them.
 	out.world_budget = 40
 	out.per_kind_cap = 24
@@ -90,7 +90,7 @@ static func limits() -> GSNpcLimits:
 ##
 ## [b]Why Fatal Contact has one.[/b] Three melee kinds teach a player one lesson: keep moving
 ## and shoot what is closest. A monster that fights from range, from cover, from the side,
-## is the one that makes the room's geometry matter, and it is what dot-npc-ai's squad
+## is the one that makes the room's geometry matter, and it is what gs-npc-ai's squad
 ## roles are for: a gunner pinning you while another walks round you is the encounter the
 ## tactical shooters built their reputations on.
 static func _gunner() -> GSNpcDef:
@@ -194,7 +194,7 @@ static func _stalker() -> GSNpcDef:
 ## resumable build ([method GSNpcNavBuilder.begin] / [method GSNpcNavBuilder.step], worker
 ## tasks) that zombie-zone uses for a minute-long graph (`zz_nav_threads`, `zz_nav_budget_ms`)
 ## would only add a window in which the horde has no ground. Imported maps route through
-## dot-bot's own background bake (`FcBots.World._nav_for_map`). Revisit if a map's extent
+## gs-bot's own background bake (`FcBots.World._nav_for_map`). Revisit if a map's extent
 ## grows past about 100 m.
 ##
 ## [b]The digest is not decoration.[/b] [method GSNpcNavData.matches] is how a runtime

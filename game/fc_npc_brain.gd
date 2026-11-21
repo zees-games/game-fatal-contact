@@ -1,11 +1,11 @@
-extends "res://addons/dot_npc_ai/runtime/dot_npc_ai_brain.gd"
+extends "res://addons/gs_npc_ai/runtime/gs_npc_ai_brain.gd"
 
 ## How Fatal Contact monster decides: a behaviour tree, a character, and one attack.
 ##
 ## [b]Extended by PATH rather than by name, and that is not a style choice.[/b] A
-## script inside a mounted dot-cloud pack cannot resolve a `class_name` — the project's
+## script inside a mounted gs-cloud pack cannot resolve a `class_name` — the project's
 ## script cache was built long before the pack arrived — so `extends GSNpcAiBrain`
-## fails to compile in exactly the deployment dot-npc was shaped for. This one ships in
+## fails to compile in exactly the deployment gs-npc was shaped for. This one ships in
 ## the build and is written the delivered way anyway, because a rule you only follow
 ## where it is needed is a rule nobody notices you have broken.
 ##
@@ -23,7 +23,7 @@ extends "res://addons/dot_npc_ai/runtime/dot_npc_ai_brain.gd"
 ## [/codeblock]
 ##
 ## The sequence is [method GSNpcAiSequence.reactive_with] rather than a plain
-## sequence, and dot-npc-ai's own notes say why: a plain sequence resumes at the child
+## sequence, and gs-npc-ai's own notes say why: a plain sequence resumes at the child
 ## that returned RUNNING and never re-asks the condition, so a monster chases a target
 ## it no longer has — for ever, because the thing that would clear the chase is the
 ## condition it stopped asking.
@@ -31,7 +31,7 @@ extends "res://addons/dot_npc_ai/runtime/dot_npc_ai_brain.gd"
 ## [b]The character is the difficulty, and the server only moves it.[/b]
 ## [GSNpcAiCharacter] carries reaction time, aggression and self-preservation per NPC,
 ## seeded from the instance id, so twenty monsters do not all lunge on the same tick.
-## That is Fatal Contact shooters' characteristics table and it is the reason dot-npc-ai
+## That is Fatal Contact shooters' characteristics table and it is the reason gs-npc-ai
 ## exists. `npc_skill` and `npc_reaction_scale` ([member FcGame.npc_skill]) shift every
 ## kind toward easy or nightmare without flattening them: a brute on a hard server is
 ## still slower to notice than a stalker on the same one.
@@ -66,7 +66,7 @@ var _horde: Object = null
 ## it on the context, and it does both [i]before[/i] calling `_build`. A brain that
 ## assigns `character` inside `_build` therefore gets neither: every monster of a kind
 ## shares its preset's seed, so all of them roll the same aim error at the same moment
-## — the "firing squad" dot-npc-ai's own notes warn about — and `ctx.character` stays
+## — the "firing squad" gs-npc-ai's own notes warn about — and `ctx.character` stays
 ## null for every node in the tree.
 ##
 ## Nothing errors. A null on the context reads as "this NPC has no character", which is
@@ -114,12 +114,12 @@ func _build() -> void:
 
 	var root_children: Array[GSNpcAiNode] = [
 		# First, and above the fight: nothing a monster is doing is worth standing under a
-		# rocket for. dot-npc-ai's leaf; the horde turns every rocket in the air into a
+		# rocket for. gs-npc-ai's leaf; the horde turns every rocket in the air into a
 		# danger with the splash as its reach.
 		GSNpcAiLeaf.Action.new(&"dodge", _dodge),
 		GSNpcAiSequence.reactive_with(&"fight", fight_children),
 		# Between the fight and the wander. Without it a monster that lost you behind a
-		# pillar turned round and drifted off the moment dot-npc's grace ran out, and every
+		# pillar turned round and drifted off the moment gs-npc's grace ran out, and every
 		# kind's `memory_time` below — the brute's twenty seconds most of all — was set and
 		# read by nothing.
 		GSNpcAiLeaf.Action.new(&"search", _search),
@@ -356,7 +356,7 @@ func _dodge(ctx: GSNpcAiContext) -> GSNpcAiNode.Status:
 	return flee_danger(ctx, speed)
 
 
-## Goes to where it last knew somebody was, and looks round. dot-npc-ai's search, at the
+## Goes to where it last knew somebody was, and looks round. gs-npc-ai's search, at the
 ## pace of a monster that has lost you rather than one that can see you.
 ##
 ## FAILURE when there is nothing remembered, which hands the selector on to `wander`.
@@ -391,7 +391,7 @@ func _wander(ctx: GSNpcAiContext) -> GSNpcAiNode.Status:
 
 ## Being shot is information, and a monster that ignores it is one you can farm.
 ##
-## [b]`_npc_damaged` was declared, documented and called by nothing when dot-npc was
+## [b]`_npc_damaged` was declared, documented and called by nothing when gs-npc was
 ## written[/b] — this family's most repeated shape, in a brand new addon, on its first
 ## pass. It is wired now, and this override is what proves it from the game's side.
 func _npc_damaged(amount: float, by: StringName) -> void:
@@ -405,7 +405,7 @@ func _npc_damaged(amount: float, by: StringName) -> void:
 
 ## Where the damage actually happens.
 ##
-## [b]dot-npc has no idea what damage is and must not learn.[/b] It ships a `damage`
+## [b]gs-npc has no idea what damage is and must not learn.[/b] It ships a `damage`
 ## method for a game with no combat addon and hands the job to the game when there is
 ## one; this brain is the game's half, and it reaches it through [GSRegistry] because
 ## a brain loaded from a path cannot be handed anything.

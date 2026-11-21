@@ -13,7 +13,7 @@ extends Node3D
 ##
 ## [b]Extended by nothing and referenced by PATH.[/b] A `class_name` here would be a
 ## global identifier reserved in every consuming project for a capsule, and — the
-## reason that actually matters — a script inside a mounted dot-cloud pack cannot
+## reason that actually matters — a script inside a mounted gs-cloud pack cannot
 ## resolve one. `scene_path` in the catalogue and `extends` by path are what a
 ## delivered NPC must look like, so the shipped ones look like it too.
 ##
@@ -83,7 +83,7 @@ func _ready() -> void:
 	add_child(snout)
 
 
-## One of the family's animated people (dot-player-char's `GSHumanoidFigure`), the person
+## One of the family's animated people (gs-player-char's `GSHumanoidFigure`), the person
 ## the kit's skin letter names, its top pulled toward the kind's tint so the four kinds are told
 ## apart at range, [member body_height] tall. It animates from how far its body moves
 ## (`auto_animate`): the horde's brain moves the body, and nothing here knows a speed. False

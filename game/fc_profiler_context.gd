@@ -1,7 +1,7 @@
 extends RefCounted
 
-## What the in-game profiler (dot-profiler) reports about this game beside its own numbers: the game, map and bot count, the sound driver, the dot-sim natives (tag, which run, the `fc_hull_native` cvar) in every report's `context`,
-## and dot-sim's native timers in `extras.native` of any recording (F10, `profiler_capture`, `record`). Without the library every part degrades (the natives line says so, the timer hook reports nothing, no error);
+## What the in-game profiler (gs-profiler) reports about this game beside its own numbers: the game, map and bot count, the sound driver, the gs-sim natives (tag, which run, the `fc_hull_native` cvar) in every report's `context`,
+## and gs-sim's native timers in `extras.native` of any recording (F10, `profiler_capture`, `record`). Without the library every part degrades (the natives line says so, the timer hook reports nothing, no error);
 ## costs nothing while no recording runs: providers are read at a recording's start and end, and the native timers are on only inside one.
 
 const FcGame := preload("fc_game.gd")
@@ -11,7 +11,7 @@ const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetContext := preload("fc_net_context.gd")
 
-const STAMP := "res://addons/dot_sim/bin/.natives"
+const STAMP := "res://addons/gs_sim/bin/.natives"
 const SLOTS := ["cast", "rest", "overlap", "ray", "tick"]
 ## What a player may cost a tick, in microseconds: the report's suspects are rated against it.
 const PLAYER_TARGET_US := 70.0
@@ -98,7 +98,7 @@ static func game_context(game: Object, bridge: Object = null) -> Dictionary:
 	return out
 
 
-## The sound driver and its latency, and how busy the game's sound manager is (dot-audio's `describe`).
+## The sound driver and its latency, and how busy the game's sound manager is (gs-audio's `describe`).
 static func audio_context(presentation: Object) -> Dictionary:
 	var out := {"driver": AudioServer.get_driver_name(), "output": AudioServer.output_device, "mix_rate": int(AudioServer.get_mix_rate()),
 		"latency_ms": snappedf(AudioServer.get_output_latency() * 1000.0, 0.1), "buses": AudioServer.bus_count}
@@ -111,18 +111,18 @@ static func audio_context(presentation: Object) -> Dictionary:
 	return out
 
 
-## dot-sim: tag and platform from the bootstrap's stamp, the modules loaded, what runs, and the hull cvar.
+## gs-sim: tag and platform from the bootstrap's stamp, the modules loaded, what runs, and the hull cvar.
 static func natives() -> Dictionary:
 	var out := {"loaded": ClassDB.class_exists(&"GSSimFpsBody")}
 	out["stamp"] = FileAccess.get_file_as_string(STAMP).strip_edges() if FileAccess.file_exists(STAMP) else "unknown"
-	out["status"] = FcPlayerStack.dot_sim_status()
+	out["status"] = FcPlayerStack.gs_sim_status()
 	out["hull_native"] = FcHullGrid.native
 	out["fc_hull_native"] = "1" if FcHullGrid.native else "0"
 	out["fc_bot_pvs"] = ("native" if FcBotPvs.native and GSSim.has(&"pvs") else "script") if FcBotPvs.enabled else "off"
 	return out
 
 
-## Starts dot-sim's per-call timers for the recording; a no-op where the library is missing.
+## Starts gs-sim's per-call timers for the recording; a no-op where the library is missing.
 static func begin_native() -> void:
 	_begin_frame = Engine.get_process_frames()
 	if ClassDB.class_exists(&"GSSimFpsBody"):

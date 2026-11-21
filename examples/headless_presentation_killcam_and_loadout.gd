@@ -329,7 +329,7 @@ func _test_hud_fits_the_frame() -> void:
 		", ".join(chat_met))
 	chat_screen.queue_free()
 
-	# 1280x720 and up are laid out exactly as dot-ui's full-rect inset laid them out.
+	# 1280x720 and up are laid out exactly as gs-ui's full-rect inset laid them out.
 	var same := true
 	for frame: Vector2 in [Vector2(1280, 720), Vector2(1600, 900), Vector2(1920, 1080)]:
 		hud.fit_to_frame(frame)
@@ -380,7 +380,7 @@ func _check_crowded_frames(hud: FcHud) -> void:
 	hud.strip.show_scores(1, 2, "RED", "BLUE", Color.RED, Color.BLUE)
 	_check(hud.strip.teams.is_empty() and hud.strip.left_score == 1 and hud.strip.right_score == 2,
 		"two sides go back to the plain two plates")
-	# The clock is dot-ui's `GSScoreStrip.clock_text`, which rounds up: a clock never says
+	# The clock is gs-ui's `GSScoreStrip.clock_text`, which rounds up: a clock never says
 	# 0:00 with time left. Fatal Contact's own rounded down (9:37.4 read 9:37).
 	_check(GSScoreStrip.clock_text(577.4) == "9:38" and GSScoreStrip.clock_text(0.3) == "0:01"
 			and GSScoreStrip.clock_text(0.0) == "0:00" and GSScoreStrip.clock_text(600.0) == "10:00",
@@ -507,7 +507,7 @@ func _check_rebind(p: FcPresentation, window: GSChatWindow) -> void:
 
 
 func _check_join_notice(p: FcPresentation, window: GSChatWindow) -> void:
-	# A join notice is a name and NO text (dot-chat's `_presence`). Drawn as name and text it was a
+	# A join notice is a name and NO text (gs-chat's `_presence`). Drawn as name and text it was a
 	# bare "Guest 435:" in the box, which read as a chat command echoed with its text stripped.
 	var extras_script := preload("../game/fc_client_extras.gd")
 	var join := GSChatMessage.make(GSChatMessage.Kind.JOIN, &"all", "k2", "Guest 435", "")

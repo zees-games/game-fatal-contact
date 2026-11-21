@@ -317,7 +317,7 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 		what = "muzzle %s %s" % [category, "view" if fp else "world"]
 		GSWeaponMuzzle.warm(host, category, null, fp)
 	elif step == 10:
-		# The first layered shot builds dot-audio's manager, room and player (65 ms on the first knife swing): now, under the cover.
+		# The first layered shot builds gs-audio's manager, room and player (65 ms on the first knife swing): now, under the cover.
 		what = "layered shot"
 		if host != self and host.has_method(&"prewarm_layers"):
 			var _layered: Variant = host.call(&"prewarm_layers")
@@ -482,7 +482,7 @@ func _prewarm_end() -> void:
 	for path: Variant in _warm.get("flash_asked", []):
 		var _dropped := ResourceLoader.load_threaded_get(str(path))
 	_warm = {}
-	# Draw the (hidden) loadout screen on the solo offer, so the first B finds the cards made; a dot-menu without it just draws on B.
+	# Draw the (hidden) loadout screen on the solo offer, so the first B finds the cards made; a gs-menu without it just draws on B.
 	if loadout_menu != null and loadout_menu.has_method(&"prepare"):
 		var began := Time.get_ticks_usec()
 		var _drawn: Variant = loadout_menu.call(&"prepare")

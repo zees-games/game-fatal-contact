@@ -5,11 +5,11 @@ const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetCommand := preload("fc_net_command.gd")
 const FcPlayer := preload("fc_player.gd")
 
-## The thirty lines dot-player-controller and dot-combat each say belong in the game.
+## The thirty lines gs-player-controller and gs-combat each say belong in the game.
 ##
-## [b]Neither addon may name a dot-net class.[/b] A script that so much as mentions a
+## [b]Neither addon may name a gs-net class.[/b] A script that so much as mentions a
 ## missing [code]class_name[/code] fails to parse and takes every script that
-## references it down with it, so dot-player-controller has to compile with dot-core
+## references it down with it, so gs-player-controller has to compile with gs-core
 ## alone. What each addon ships instead is a [code]*NetSync[/code] class describing
 ## what to replicate as data — property names, and type names as strings. Resolving
 ## those strings against [code]GSNetVar.Type[/code] is this file's job, and it is the
@@ -32,14 +32,14 @@ var bridge: Node = null
 static var skip_idle_pull := true
 
 ## Whether [method pull] keeps the last view and velocity when the new ones would go out on the wire as the same
-## codes (`sv_net_hold_subquantum`, default on). dot-net marks a property dirty on any change of its raw value, so a
+## codes (`sv_net_hold_subquantum`, default on). gs-net marks a property dirty on any change of its raw value, so a
 ## yaw that moved a twentieth of a 12-bit step was written again, bits identical to what every receiver already
 ## had: on dm_atrium at 64 players, 61% of pitch writes, 8% of yaw and 7% of velocity (tools/net_probe.gd
 ## --fields, 2026-11-16). Holding the old value keeps what each receiver decodes exactly as it was, just without
 ## the repeat. Only the observer's copy is held: the owner rewinds from [member net_exact], and the lag-comp
 ## history records the node, not these properties. Position is never held: the server reads it back.
 static var hold_subquantum := true
-## dot-net API 22's GSNetIdentity.interest_aim, looked up once (older dot-net has no aim cone).
+## gs-net API 22's GSNetIdentity.interest_aim, looked up once (older gs-net has no aim cone).
 static var _has_interest_aim: bool = _script_has(GSNetIdentity, &"interest_aim")
 
 
@@ -78,8 +78,8 @@ var net_timers2: int = 0
 ## because the slack the match is judged with shrinks with it.
 ##
 ## Owner-only, because nobody else rewinds this player: observers interpolate the quantised
-## copy as before. A [code]PackedFloat32Array[/code] so the match is exact (dot-net compares a
-## custom property after a round trip), and declared here rather than in dot-player-controller
+## copy as before. A [code]PackedFloat32Array[/code] so the match is exact (gs-net compares a
+## custom property after a round trip), and declared here rather than in gs-player-controller
 ## so the declaration comes from the pack on both ends, whatever addon the client's shell has.
 var net_exact: PackedFloat32Array = PackedFloat32Array()
 
@@ -215,7 +215,7 @@ func _register_net_vars() -> void:
 	for spec in GSFpsNetSync.rewind_specs2():
 		replicate(spec["property"], GSNetVar.Type[spec["type"]]).bits(int(spec["bits"])).to_owner_only()
 
-	# The pack's `all_specs()` is dot-weapon's three plus its own four, and is the one call
+	# The pack's `all_specs()` is gs-weapon's three plus its own four, and is the one call
 	# its README asks a game to make: concatenating the halves by hand is how a game forgets
 	# the second one and has weapons that are silent for everybody but their owner.
 	for spec in GSCombatNetSync.specs() + AwWeaponNet.all_specs() + AwWeaponNet.charge_specs() + GSWeaponNetSync.fire_mode_specs(false) + GSWeaponNetSync.fitting_specs():
@@ -241,8 +241,8 @@ func _register_net_vars() -> void:
 			declaration.server_driven()
 
 	# The owner's exact movement, to rewind from (see [member net_exact]).
-	# PACKED_FLOAT32 (dot_net 20): the same bits as the custom codec it replaced, a whole-array
-	# flag then the floats, and dot-sim's snapshot codec reads them natively.
+	# PACKED_FLOAT32 (gs_net 20): the same bits as the custom codec it replaced, a whole-array
+	# flag then the floats, and gs-sim's snapshot codec reads them natively.
 	replicate(&"net_exact", GSNetVar.Type.PACKED_FLOAT32).of_length(EXACT_FLOATS).to_owner_only()
 
 	# [b]Per-player state rather than an event, and that is what makes both of these
@@ -349,7 +349,7 @@ func _net_simulate(tick: int, delta: float) -> void:
 
 ## One predicted tick, which may be a replay.
 ##
-## [b]A replay is marked, and it never was.[/b] dot-net's predictor reconciles by calling
+## [b]A replay is marked, and it never was.[/b] gs-net's predictor reconciles by calling
 ## [method _net_simulate] again for every unacknowledged tick, exactly as it called it the
 ## first time; nothing in the call says which is which. Unmarked, every use inside the
 ## replayed window emitted `used` again — so the client heard its own shot, saw its flash
@@ -363,13 +363,13 @@ func _net_simulate(tick: int, delta: float) -> void:
 ## jump seven over 20% loss (`headless_lossy`); the slide's and the dash's signals and the
 ## jump count had the same fault with nothing listening closely enough to say.
 ##
-## Which ticks are replays is the predictor's word (`net_replaying`, dot-net API 23), not
+## Which ticks are replays is the predictor's word (`net_replaying`, gs-net API 23), not
 ## the tick's: after the clock snaps back (a lead given back, a re-anchored timeline) the
 ## next fresh ticks are below the newest one simulated. Read off the tick, they were taken
 ## for replays until the clock passed its old lead again, with the rig's presentation and
 ## the weapon's signals held the whole while: the 2026-11-18 footage's knife that stayed in
 ## the hand after its throw, under a HUD already reading PISTOL, until the next left click.
-## A dot-net without the flag still gets the old reading.
+## A gs-net without the flag still gets the old reading.
 func _predict(tick: int, delta: float) -> void:
 	var replaying := is_replay(tick)
 	var controller := player.controller
@@ -392,7 +392,7 @@ func _predict(tick: int, delta: float) -> void:
 
 
 ## Whether a replay would simulate anything: not while dead, when `simulate_tick` returns
-## at once and the server's word is all there is. dot-net then keeps the rewind and skips
+## at once and the server's word is all there is. gs-net then keeps the rewind and skips
 ## the replay (`GSNetBehaviour._net_predicts`, API 10), where it used to replay the whole
 ## lead on every snapshot of a death, because the server's body moves and the client's
 ## does not, so none of them matched.
@@ -401,7 +401,7 @@ func _net_predicts() -> bool:
 
 
 ## Puts back each of velocity, yaw and pitch whose new value would be written as the same codes as the one it
-## replaced (see [member hold_subquantum]), so dot-net does not see a change no receiver could.
+## replaced (see [member hold_subquantum]), so gs-net does not see a change no receiver could.
 func _hold_subquantum(velocity: Vector3, yaw: float, pitch: float) -> void:
 	if _velocity_var != null and net_velocity != velocity and _velocity_var.wire_value(net_velocity) == _velocity_var.wire_value(velocity):
 		net_velocity = velocity
@@ -419,7 +419,7 @@ static func _angle_code(degrees: float, bits: int) -> int:
 	return int(roundf(fposmod(degrees, 360.0) / 360.0 * float(mask))) & mask
 
 
-## Whether a tick simulated now is a replay: the predictor's flag where dot-net has one,
+## Whether a tick simulated now is a replay: the predictor's flag where gs-net has one,
 ## else whether [param tick] was simulated before.
 func is_replay(tick: int) -> bool:
 	var flag: Variant = get(&"net_replaying")
@@ -446,7 +446,7 @@ func pull() -> void:
 	GSCombatNetSync.pull(player.health, self)
 	lap = FcFrameProbe.lap(&"np_combat", lap)
 
-	# The rig's pull is dot-weapon's three and the pack's four.
+	# The rig's pull is gs-weapon's three and the pack's four.
 	if player.weapons != null:
 		AwWeaponNet.pull(player.weapons, self)
 	else:
@@ -479,7 +479,7 @@ func pull() -> void:
 	# relevance is the server's decision, and a client's copy of the flag decides nothing.
 	if identity != null and identity.is_authoritative:
 		identity.always_relevant = player.beacon
-		# Where this player looks, for dot-net's aim cone (FcNetAoi.aim_cone_deg): far players
+		# Where this player looks, for gs-net's aim cone (FcNetAoi.aim_cone_deg): far players
 		# in it keep the first ring's rate, so a scoped shot has samples to rewind against.
 		if _has_interest_aim:
 			identity.set(&"interest_aim", player.aim_direction())
@@ -617,7 +617,7 @@ func _net_state_applied(tick: int) -> void:
 ##
 ## [b]The owner's arsenal is made to carry what the server says it carries, and its
 ## ammunition corrected[/b] — before the predictor replays on top, because this hook runs
-## first. Then the slot, through dot-weapon's own push. Anybody else's is drawn, not
+## first. Then the slot, through gs-weapon's own push. Anybody else's is drawn, not
 ## simulated: what they hold and how often they have used it go to the player's mirror
 ## fields, and `FcPlayer` hangs the gun in their hand from those.
 func _push_weapons() -> void:
@@ -667,7 +667,7 @@ var _owner_slot_was := 0
 
 
 ## The owner's arsenal lowers its weapon when the server emptied the hand: a Boomerang thrower waits for the catch
-## bare-handed (dot-weapon rule `boomerang_empty_hand`), where the carry's take alone would draw the next weapon.
+## bare-handed (gs-weapon rule `boomerang_empty_hand`), where the carry's take alone would draw the next weapon.
 ## Only on the snapshot that took a weapon away or emptied the hand, so a draw the owner predicts from an empty
 ## hand is not undone while the server catches up.
 func _follow_empty_hand(carry_changed: bool) -> void:
@@ -728,7 +728,7 @@ func _remote_push_note() -> void:
 ## the symptom is an interpolator that appears not to work.
 ##
 ## Deliberately not the bookkeeping half. [member last_state_tick] is what reconciliation
-## rewinds to and the tick here is a *render* tick, behind the server's. dot-net does not
+## rewinds to and the tick here is a *render* tick, behind the server's. gs-net does not
 ## call this on a predicted entity, which is why the predictor is not fought.
 func _net_interpolated(_tick: int) -> void:
 	if player == null:

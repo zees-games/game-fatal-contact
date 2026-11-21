@@ -18,10 +18,10 @@ const FcLocalMaps := preload("fc_local_maps.gd")
 ##   now: an addon is in the client SHELL, so Fatal Contact's pack could not use it until the addon
 ##   is tagged and the shell rebuilt and published — and the reusable half is tangled with
 ##   Airdrift's own (genre units as a class, its timer zones, its texture set and Kenney
-##   stand-ins, its flashlight, dot-lighting). What Fatal Contact needs is about three hundred
+##   stand-ins, its flashlight, gs-lighting). What Fatal Contact needs is about three hundred
 ##   lines with none of that.
 ## - [b]A copy, which is this file.[/b] The family's rule for anything shared between two
-##   games is that it is duplicated deliberately or lives in dot-core; this is the first.
+##   games is that it is duplicated deliberately or lives in gs-core; this is the first.
 ##
 ## What the copy keeps is exactly what the manifest format promises: `<id>.bin` holds the
 ## vertices (ten floats: position, normal, uv, uv2) and indices of each surface, then the
@@ -34,11 +34,11 @@ const FcLocalMaps := preload("fc_local_maps.gd")
 ##
 ## What it deliberately leaves out, and why that is safe for a deathmatch:
 ##
-## - [b]Timer zones.[/b] dot-timer is not in this game. A combat surf map has no finish by
+## - [b]Timer zones.[/b] gs-timer is not in this game. A combat surf map has no finish by
 ##   definition (that is what its `"kind": "arena"` says); the only zones Fatal Contact reads are
 ##   the pits, which are a teleport.
 ## - [b]The map's sky, sun and fog.[/b] Not built here: `fc_map_lighting.gd` reads the
-##   manifest's `lighting` block through dot-lighting, as Airdrift does, packed sky faces
+##   manifest's `lighting` block through gs-lighting, as Airdrift does, packed sky faces
 ##   included. The surfaces are `unshaded` and lit by the baked lightmap alone, so the
 ##   world looks like the map; the lighting is the sun on the players, the fog and the sky.
 ## - [b]Kenney stand-ins and Airdrift's prototype set[/b] for a texture the map did not
@@ -59,8 +59,8 @@ const METRES_PER_UNIT := 0.01905
 const VERTEX_FLOATS := 10
 
 
-## dot-map's drawn world, loaded by path so a shell without it still plays the legacy meshes.
-const DRAWN_WORLD := "res://addons/dot_map/bsp/dot_map_drawn_world.gd"
+## gs-map's drawn world, loaded by path so a shell without it still plays the legacy meshes.
+const DRAWN_WORLD := "res://addons/gs_map/bsp/gs_map_drawn_world.gd"
 
 ## Where the converted worlds (`bsp.py regen`, fc-surf-dm-maps/worlds) are linked.
 const WORLD_ROOT := "res://worlds"
@@ -85,7 +85,7 @@ static func world_prefix(id: String, map_dir: String = "") -> String:
 	return ""
 
 
-## Replaces [param drawn]'s legacy meshes with the map's dot-map world (free PBR art, same frame
+## Replaces [param drawn]'s legacy meshes with the map's gs-map world (free PBR art, same frame
 ## and scale); collision, spawns and mechanics stay the manifest's. False leaves the legacy meshes.
 static func draw_world(drawn: Node3D, id: String, map_dir: String = "") -> bool:
 	var prefix := _draw_prefix(id, map_dir)
@@ -139,7 +139,7 @@ static func _draw_plan(drawn: Node3D, id: String, got: GSResult) -> Dictionary:
 	return {"script": load(DRAWN_WORLD), "mesh": got.value, "options": {
 		"props": true,
 		"mark": func(label: String) -> void: FcLoadTimeline.mark(label),
-		# A local `<map>_orig` pack only (dot-map 24); every shipped and delivered map keeps the free textures.
+		# A local `<map>_orig` pack only (gs-map 24); every shipped and delivered map keeps the free textures.
 		"original_textures": FcLocalMaps.is_original(StringName(id)),
 		"surfaces_root": surfaces if DirAccess.dir_exists_absolute(surfaces) else GSMapSurfaces.DEFAULT_ROOT,
 	}}

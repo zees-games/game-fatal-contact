@@ -5,13 +5,13 @@ const FcRocketJump := preload("fc_rocket_jump.gd")
 ## Rockets and grenades in flight, and what happens where they land.
 ##
 ## [b]This is new, and the reason it is new is a bug.[/b] The rocket launcher used to be
-## a `GSWeapon` with `delivery = PROJECTILE`, and dot-combat resolved one by recording
+## a `GSWeapon` with `delivery = PROJECTILE`, and gs-combat resolved one by recording
 ## an impact at `origin + direction * max_range` and applying the splash there. Max
 ## range was 220 metres, so every rocket in this game has detonated 220 metres away in
 ## the sky, through walls, hitting nobody. Nothing errored, no check failed, and the
 ## weapon simply did nothing for its whole life.
 ##
-## dot-weapon returns a [GSWeaponSpawn] instead of pretending a rocket is a shot,
+## gs-weapon returns a [GSWeaponSpawn] instead of pretending a rocket is a shot,
 ## which is what forced this file into existence. A spawn is an entity with a lifetime;
 ## somebody has to fly it.
 ##
@@ -155,7 +155,7 @@ func launch(spawn: GSWeaponSpawn) -> void:
 ## rocket goes on past a friend down the corridor as a bullet does. Its splash is not a
 ## sweep and still reaches team-mates under friendly fire.
 ##
-## Read by name, because a host whose dot-combat predates the field must still load this.
+## Read by name, because a host whose gs-combat predates the field must still load this.
 func _passes_every_team_mate() -> bool:
 	if _combat == null or _combat.rules == null:
 		return false
@@ -164,20 +164,20 @@ func _passes_every_team_mate() -> bool:
 	return everywhere == true
 
 
-## The bodies a projectile launched at [param spawn]'s origin passes through: dot-combat's
+## The bodies a projectile launched at [param spawn]'s origin passes through: gs-combat's
 ## answer for a shot from the same muzzle, so the policy is written once.
 ##
 ## [b]Why.[/b] Team-mates do not collide in this game, so two of them can stand in one
 ## place, and the launch point is then inside the friend's hitboxes. A ray that starts
 ## inside a hitbox hits it at 0 m: every rocket fired from there went off in the friend at
-## the muzzle, with its splash back on the shooter, and a grenade bounced off them. dot-combat
+## the muzzle, with its splash back on the shooter, and a grenade bounced off them. gs-combat
 ## leaves such a team-mate out of a gun's trace ([code]GSCombatManager.pass_through_sets[/code],
 ## governed by [code]GSDamageRules.pass_through_team_mate_at_muzzle[/code] and
 ## [code]pass_through_fn[/code]); the flight sweep below is a trace of its own and has to ask
 ## the same question. An enemy holding the launch point is not in the answer, so it is
 ## still hit at 0 m.
 ##
-## Called by name because a delivered pack runs on the host's dot-combat, and one older
+## Called by name because a delivered pack runs on the host's gs-combat, and one older
 ## than the method must still load this file; there it is the old behaviour.
 func _passes_at_launch(spawn: GSWeaponSpawn) -> Array:
 	if _combat == null or not _combat.has_method(&"pass_through_sets"):
@@ -290,7 +290,7 @@ func _off_surface(hit: GSHitbox.Hit) -> Vector3:
 ## Whether [param f] goes off this tick without touching anything.
 ##
 ## A fused spawn whose fuse has run out, and one with no fuse AND no speed: the shape
-## dot-weapon gives a grenade cooked past its fuse — "no velocity, no fuse, at the
+## gs-weapon gives a grenade cooked past its fuse — "no velocity, no fuse, at the
 ## carrier's own position" — which means now.
 func _due(f: Flying) -> bool:
 	if f.spawn.fuse_ticks > 0:
@@ -420,7 +420,7 @@ func _sweep(f: Flying, step: Vector3) -> GSHitbox.Hit:
 	return hit if hit.ok() else null
 
 
-## Turns an arrival into an ordinary [GSShot] with a splash, and lets dot-combat do
+## Turns an arrival into an ordinary [GSShot] with a splash, and lets gs-combat do
 ## the rest — the same falloff, friendly fire and armour rules as every other hit.
 func _detonate(f: Flying, at: Vector3) -> void:
 	if _combat != null and _combat.is_authority:
@@ -447,7 +447,7 @@ func _detonate(f: Flying, at: Vector3) -> void:
 		shot.impacts = [at]
 		shot.pellets = [shot.direction]
 
-		# [b]The blast is where it landed, and dot-combat had to be stopped moving it.[/b]
+		# [b]The blast is where it landed, and gs-combat had to be stopped moving it.[/b]
 		# `resolve_shot` corrects a shot's origin to where it believes the attacker is
 		# whenever the two are more than `max_origin_error` apart — right for a gun, whose
 		# shot must leave the shooter — and then re-traces, clearing the impacts set

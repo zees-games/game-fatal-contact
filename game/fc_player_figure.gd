@@ -72,7 +72,7 @@ func _animate_windup() -> void:
 
 ## Moves the camera from the eye to behind it, and draws the body where the eye is.
 ##
-## [b]Swept from the eye, not set.[/b] dot-core's [GSCameraProbe] pulls the camera in ahead
+## [b]Swept from the eye, not set.[/b] gs-core's [GSCameraProbe] pulls the camera in ahead
 ## of a wall it is swinging toward and eases it back out; a camera simply placed 2.6 m back
 ## spends every corner inside the corner (the play test's death camera was exactly that).
 ## The body is placed on the drawn feet every frame, not left on this node: this node is

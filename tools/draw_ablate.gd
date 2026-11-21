@@ -5,7 +5,7 @@ extends Node
 ## Web render defaults (no MSAA, 2 sun splits, 60 m sun shadows) are applied first; `--web 0` skips them.
 
 const FcPresentation := preload("../game/fc_presentation.gd")
-const RenderQuality := preload("../addons/dot_game/runtime/dot_game_render_quality.gd")
+const RenderQuality := preload("../addons/gs_game/runtime/gs_game_render_quality.gd")
 
 var _bots := 3
 var _web := true

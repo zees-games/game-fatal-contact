@@ -21,7 +21,7 @@ const FcSimHost := preload("../game/fc_sim_host.gd")
 ##
 ## [b]What this adds to `headless_imported`'s server-named section[/b], which hand-copies two
 ## files into a fake mount: the pack here is made by [GSCloudPublisher] from the real map
-## folder (textures, lightmap and their imported outputs), the fetch is dot-cloud's own
+## folder (textures, lightmap and their imported outputs), the fetch is gs-cloud's own
 ## (verified against the suite's key), and the map is checked to read nothing from the
 ## `maps/imported` link. A client without the fc-surf-dm-maps link has only this path.
 ##
@@ -47,7 +47,7 @@ var GROUPS_ROOT := "user://fc_map_groups_check_%d" % OS.get_process_id()
 const SECTIONS := 8
 ## Without a frame; two more with `--shot`.
 const CHECKS := 38
-## The groups section's mount checks, skipped (and not expected) on a dot-cloud before API 22.
+## The groups section's mount checks, skipped (and not expected) on a gs-cloud before API 22.
 const GROUP_MOUNT_CHECKS := 5
 
 var _skipped := 0
@@ -56,7 +56,7 @@ var _entered := 0
 var _completed := 0
 
 
-## The browser shell's `dot_solo`, as far as a start map goes.
+## The browser shell's `gs_solo`, as far as a start map goes.
 class StandInSolo:
 	extends Node
 	var start_map: StringName = &""
@@ -108,14 +108,14 @@ func _run() -> void:
 	_finish()
 
 
-## The site's "Play map" (`?map=`): the shell names a start map on `dot_solo`; a built-in one is
+## The site's "Play map" (`?map=`): the shell names a start map on `gs_solo`; a built-in one is
 ## the first map, a delivered pack is fetched before the first map is read (`_fetch_solo_start_map`), and
 ## until it is mounted the first map is dm_box.
 func _test_solo_start_map() -> void:
 	_section("a solo session's start map is the first map")
 	var solo := StandInSolo.new()
 	add_child(solo)
-	GSRegistry.register(&"dot_solo", solo)
+	GSRegistry.register(&"gs_solo", solo)
 	solo.start_map = &"dm_pit"
 	_check(FcClientView._startup_map().id == &"dm_pit", "a built-in start map is the first map")
 	_check(FcSimHost.asked_map_id() == "dm_pit", "a sim host starts its server child on the start map",
@@ -125,7 +125,7 @@ func _test_solo_start_map() -> void:
 		"a delivered one not yet mounted starts on dm_box")
 	solo.start_map = &"../dm_pit"
 	_check(FcClientView._solo_start_map() == "", "a start map that is not a map id is ignored")
-	GSRegistry.unregister(&"dot_solo")
+	GSRegistry.unregister(&"gs_solo")
 	solo.queue_free()
 	_done()
 
@@ -209,9 +209,9 @@ func _test_map_groups() -> void:
 	var published := publisher.publish(src, GROUPS_ROOT.path_join("dist").path_join(publisher.content_id))
 	_check(published.ok, "the publisher accepts groups.json (no pattern matches nothing)%s" % ("" if published.ok else ": " + str(published.error)))
 
-	if not published.ok or GSAddonApi.build_level("dot_cloud") < 22:
+	if not published.ok or GSAddonApi.build_level("gs_cloud") < 22:
 		_skipped = GROUP_MOUNT_CHECKS
-		_line("dot-cloud %d has no top-up (needs 22); the mount checks are skipped" % GSAddonApi.build_level("dot_cloud"))
+		_line("gs-cloud %d has no top-up (needs 22); the mount checks are skipped" % GSAddonApi.build_level("gs_cloud"))
 		GSPaths.remove_tree(GROUPS_ROOT)
 		_done()
 		return
@@ -243,7 +243,7 @@ func _test_map_groups() -> void:
 	_done()
 
 
-## The paths dot-bootstrap links (the pattern under each `# bootstrap-link:` line), without slashes.
+## The paths gs-bootstrap links (the pattern under each `# bootstrap-link:` line), without slashes.
 static func _gitignore_links(text: String) -> PackedStringArray:
 	var out := PackedStringArray()
 	var armed := false
@@ -341,7 +341,7 @@ func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 	_cloud.manifest_url_template = "{base}/{id}/manifest.json"
 	_cloud.register_service = false
 	add_child(_cloud)
-	GSRegistry.register(&"dot_cloud_client", _cloud)
+	GSRegistry.register(&"gs_cloud_client", _cloud)
 	await get_tree().process_frame
 
 	# A built-in first, so the first change is a change; the delivered map then replaces the
@@ -370,8 +370,8 @@ func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 	await get_tree().physics_frame
 	_check(changed.ok, "the change succeeds%s" % ("" if changed.ok else ": " + changed.error.message))
 
-	_mount = "res://dot_cloud/%s/%s/%s/" % [OWNER, MAP, VERSION]
-	_check(_cloud.is_mounted(StringName("%s/%s" % [OWNER, MAP]), VERSION), "dot-cloud has the pack mounted")
+	_mount = "res://gs_cloud/%s/%s/%s/" % [OWNER, MAP, VERSION]
+	_check(_cloud.is_mounted(StringName("%s/%s" % [OWNER, MAP]), VERSION), "gs-cloud has the pack mounted")
 	var map := game.map
 	_check(map != null and map.id == MAP and map.is_imported(), "the game is on the map")
 	_check(map != null and map.manifest_path.begins_with(_mount),
@@ -384,12 +384,12 @@ func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 	# so a `?map=` game is built on it once rather than on dm_box first.
 	var solo := StandInSolo.new()
 	add_child(solo)
-	GSRegistry.register(&"dot_solo", solo)
+	GSRegistry.register(&"gs_solo", solo)
 	solo.start_map = MAP
 	var first := FcClientView._startup_map()
 	_check(first != null and first.id == MAP, "a mounted solo start map is the first map, with no dm_box before it",
 		str(first.id) if first != null else "none")
-	GSRegistry.unregister(&"dot_solo")
+	GSRegistry.unregister(&"gs_solo")
 	solo.queue_free()
 	_done()
 	_director = director
@@ -476,7 +476,7 @@ func _test_leaves() -> void:
 
 func _test_surf_keys() -> void:
 	_section("the published surf packs are in the solo list, under their manifest ids")
-	var def := FcMaps.delivered_def("gamemann/arena-surf-dm-maps-surf_10x_final@1.2.3")
+	var def := FcMaps.delivered_def("gamemann/fc-surf-dm-maps-surf_10x_final@1.2.3")
 	_check(def != null and String(def.id) == "surf_10x_final", "the pack prefix is stripped from the map id (%s)" % (String(def.id) if def != null else "null"))
 	_check(FcMaps.is_delivered(def), "a prefixed surf pack counts as delivered (is_delivered)")
 	var surf := 0
@@ -485,7 +485,7 @@ func _test_surf_keys() -> void:
 			surf += 1
 	_check(surf == 39, "STANDALONE_KEYS holds 39 surf packs (%d)" % surf)
 	var listed := FcMaps.standalone_keys(null)
-	_check("gamemann/arena-surf-dm-maps-surf_10x_final@1.2.3" in listed, "standalone_keys() lists a surf pack")
+	_check("gamemann/fc-surf-dm-maps-surf_10x_final@1.2.3" in listed, "standalone_keys() lists a surf pack")
 	_check(listed.size() >= surf, "standalone_keys() lists at least all of them (%d)" % listed.size())
 	_done()
 

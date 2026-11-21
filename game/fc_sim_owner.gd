@@ -87,7 +87,7 @@ func _change(map_id: String, mode_id: String) -> GSResult:
 			return changed
 	if mode_id != "-" and mode_id != "" and String(game.mode.id) != mode_id:
 		var _set: GSResult = server.console.execute("fc_mode %s" % mode_id)
-		# The mode's map change runs at the top of the next tick (dot_tick_gate.gd); judge it after.
+		# The mode's map change runs at the top of the next tick (gs_tick_gate.gd); judge it after.
 		await game.tick_gate.reached()
 		if String(game.mode.id) != mode_id:
 			return GSResult.fail(GSError.CODE_STATE, "This map cannot play %s." % mode_id)

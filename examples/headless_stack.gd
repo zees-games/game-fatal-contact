@@ -16,7 +16,7 @@ const FcPlayer := preload("../game/fc_player.gd")
 ## a roster nothing has tested, and the failures in a join are never in either half.
 ##
 ## What it checks is the six things that can only be wrong at the seam: that joining a
-## game files a roster row, that the side dot-match chose is the side dot-team holds,
+## game files a roster row, that the side gs-match chose is the side gs-team holds,
 ## that a kill marks somebody dead in both, that a spawn honours a pending class, that
 ## leaving holds a seat rather than dropping it, and that the physics profile is the
 ## game's tick rate rather than the preset's.
@@ -76,7 +76,7 @@ func _build() -> bool:
 		_line("  FAIL  the game set up without a player stack")
 		return false
 
-	# Players before start, and the warm-up shortened: dot-match queues a respawn for
+	# Players before start, and the warm-up shortened: gs-match queues a respawn for
 	# anybody present when the round goes live, and a player added afterwards waits for
 	# the next round. headless_match.gd does the same in the same order.
 	_game.match_node.rules.warmup_sec = 0.0
@@ -185,8 +185,8 @@ func _test_sides() -> void:
 
 	_check(
 		mismatched == 0,
-		"and it is the side dot-match assigned, not one dot-team picked — Fatal Contact's "
-		+ "sides come from a balance dot-match does and a map's per-side spawn tags, "
+		"and it is the side gs-match assigned, not one gs-team picked — Fatal Contact's "
+		+ "sides come from a balance gs-match does and a map's per-side spawn tags, "
 		+ "and driving that from outside would mean reimplementing both"
 	)
 
@@ -197,7 +197,7 @@ func _test_sides() -> void:
 	_check(not teams.are_enemies("1", "1"), "and nobody is their own enemy")
 	_check(
 		teams.teams.has_team(GSTeamSet.SPECTATOR),
-		"a spectator side exists, which dot-match has no notion of at all"
+		"a spectator side exists, which gs-match has no notion of at all"
 	)
 
 	var spectate := _stack().spectate
@@ -205,7 +205,7 @@ func _test_sides() -> void:
 	_check(spectate.team_index(&"blue") == 1, "with the named sides mapped to numbers")
 	_check(
 		spectate.team_index(GSTeamSet.SPECTATOR) == 0,
-		"and the spectator side to zero, which is what dot-spectate means by no team"
+		"and the spectator side to zero, which is what gs-spectate means by no team"
 	)
 	_check(not spectate.is_spectating("1"), "and nobody is watching while alive")
 
@@ -244,7 +244,7 @@ func _test_life_and_death() -> void:
 		_game.tick({})
 
 	# An attacker on the OTHER side. This is a team mode, so a team-mate's damage is
-	# filtered by dot-combat's friendly-fire rules and the victim would survive — which
+	# filtered by gs-combat's friendly-fire rules and the victim would survive — which
 	# would look like the roster not hearing about a death rather than like a kill that
 	# never happened.
 	var attacker := _enemy_of(1)
@@ -265,7 +265,7 @@ func _test_life_and_death() -> void:
 	_check(roster.get_record("1").death_count >= 1, "and counts the death")
 	_check(
 		_stack().spawns.respawn_pending("1"),
-		"and dot-spawn has a respawn queued for them"
+		"and gs-spawn has a respawn queued for them"
 	)
 
 
@@ -281,7 +281,7 @@ func _test_classes_and_spawns() -> void:
 	_check(classes.options_for("1").size() == 1, "a class screen has one option here")
 	_check(bool(classes.options_for("1")[0]["available"]), "and it is available")
 
-	# Wait for the respawn dot-match queued.
+	# Wait for the respawn gs-match queued.
 	for i in range(TICK_RATE * 8):
 		_game.tick({})
 		if _stack().roster.get_record("1").alive:

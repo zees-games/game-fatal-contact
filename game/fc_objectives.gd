@@ -10,7 +10,7 @@ const FcFlagCarry := preload("fc_flag_carry.gd")
 ## [b]Fatal Contact's first mode that is not "kill people".[/b] Free-for-all, team
 ## deathmatch and siege are all scored on kills, which means [GSMatch] alone has always
 ## been enough. Capture the flag and king of the hill are not, and every hand-written
-## version of either gets the same things wrong — see dot-objective's notes.
+## version of either gets the same things wrong — see gs-objective's notes.
 ##
 ## [b]The layout comes from the map's own numbers.[/b] `FcMap` is built from
 ## constants — an extent, a floor height, a list of boxes — which is what lets a
@@ -101,7 +101,7 @@ func setup() -> GSResult:
 	# A flag carrier who dies drops it. Connected rather than left to the kill handler,
 	# because there are three ways to stop being alive here — shot, fell, disconnected —
 	# and a carrier who dies still carrying is a flag nobody can take and that never
-	# comes home. dot-objective re-tests it every tick as a second lock on the door.
+	# comes home. gs-objective re-tests it every tick as a second lock on the door.
 	if not game.player_killed.is_connected(_on_player_killed):
 		game.player_killed.connect(_on_player_killed)
 
@@ -329,7 +329,7 @@ func _presence() -> GSObjectivePresence:
 			return player != null and player.is_alive()
 	)
 	# An invulnerable player may not capture and may still block, which is the whole
-	# reason dot-objective asks those two questions separately.
+	# reason gs-objective asks those two questions separately.
 	presence.may_capture_fn = func(key: String) -> bool:
 		if game.effects == null:
 			return true
@@ -459,7 +459,7 @@ func _touch_flags() -> void:
 ## Where a completion becomes a score.
 ##
 ## [b]Through `report_objective` and not through `add_team_score`, whenever there is a
-## player to name.[/b] dot-match's scoreboard credits the player's team from their own
+## player to name.[/b] gs-match's scoreboard credits the player's team from their own
 ## record, and `report_objective` runs the win check afterwards — which in a mode scored
 ## by objectives is what ends the round. Adding to the team directly skips both, so the
 ## capture that wins the game does not end it until somebody happens to get a kill.
@@ -492,13 +492,13 @@ func _on_event(id: StringName, what: StringName, data: Dictionary) -> void:
 	objective_event.emit(id, what, data)
 
 
-## dot-objective announces and never ends a round. This is where the announcement
+## gs-objective announces and never ends a round. This is where the announcement
 ## becomes a decision, and it is in the game rather than in the addon.
 ##
 ## The scoring already happened in [method _score], which ran the win check with it —
 ## so this only has to say so. Adding a point here as well would score a capture twice,
-## which is the "announce exactly once" bug this family found in dot-vote's play
-## history and again in dot-objective's own sweep.
+## which is the "announce exactly once" bug this family found in gs-vote's play
+## history and again in gs-objective's own sweep.
 func _on_round_met(id: StringName, team: int, by: String) -> void:
 	GSLog.info(
 		CHANNEL, "the round objective was met",

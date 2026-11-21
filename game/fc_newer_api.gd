@@ -1,6 +1,6 @@
 extends RefCounted
 ## Reaching addon API that is newer than the client shell's pinned addons, without naming it where the parser looks.
-## The web shell carries its own addons (dot-server-deploy's addons.lock tags), usually some levels behind the linked
+## The web shell carries its own addons (gs-server-deploy's addons.lock tags), usually some levels behind the linked
 ## heads. A script that names a newer static function, constant or class directly does not compile there, and every
 ## script that depends on it fails with it: on 2026-11-16 the bot brain and the HUD failed that way on Gamespice
 ## and bots stood still. Callers check `GSAddonApi.build_level(...)` first and reach the newer API through these.

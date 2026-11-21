@@ -51,7 +51,7 @@ var _player_file_was: int = -1
 ## ([method FcPresentation.build_console]).
 ## When the player's own settings document was last written, or -1 when there is none.
 static func _player_file_stamp() -> int:
-	var path := ProjectSettings.globalize_path(FcPresentation.PLAYER_SETTINGS).path_join("game_arena.local.json")
+	var path := ProjectSettings.globalize_path(FcPresentation.PLAYER_SETTINGS).path_join("game_fatal_contact.local.json")
 	return FileAccess.get_modified_time(path) if FileAccess.file_exists(path) else -1
 
 
@@ -340,7 +340,7 @@ class RendezvousStub:
 		return {}
 
 
-## A stand-in for dot-auth's client: the three members the loadout key reads.
+## A stand-in for gs-auth's client: the three members the loadout key reads.
 class FakeAuth extends Node:
 	signal signed_in(identity: Variant)
 	signal signed_out()
@@ -349,7 +349,7 @@ class FakeAuth extends Node:
 		return key
 
 
-## A hole needs a surface (dot-fx 0.3.3): a miss's endpoint is open air, a character walks
+## A hole needs a surface (gs-fx 0.3.3): a miss's endpoint is open air, a character walks
 ## away, and a crate that moves carries its hole with it.
 func _test_decals_need_a_surface(p: FcPresentation, eye: Vector3, aim: Vector3) -> void:
 	var drawn := {}

@@ -43,7 +43,7 @@ func setup() -> GSResult:
 	# nobody tells anything, and a mirror runs no timers: the death camera it was handed
 	# would never hand over. The client runs the same rules from the same mode over the
 	# players it already draws, and decides nothing the server has to trust; what the
-	# server enforces is what it replicates. See dot-spectate's docs/design.md, on mirrors.
+	# server enforces is what it replicates. See gs-spectate's docs/design.md, on mirrors.
 	authoritative = true
 	# The game's own object, so the cvars the module binds (and a client follows) are the
 	# rules in use.
@@ -63,8 +63,8 @@ func setup() -> GSResult:
 		"authoritative": manager.authoritative,
 	})
 
-	# The authority's signals. A networked client emits neither — dot-combat resolves no
-	# death on a mirror and dot-match's respawn queue runs on the authority — so a client
+	# The authority's signals. A networked client emits neither — gs-combat resolves no
+	# death on a mirror and gs-match's respawn queue runs on the authority — so a client
 	# is fed by the bridge instead: [method on_kill_event] and [method client_tick].
 	if not game.player_killed.is_connected(_on_killed):
 		game.player_killed.connect(_on_killed)

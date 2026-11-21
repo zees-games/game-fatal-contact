@@ -16,7 +16,7 @@ const CHUNK := 1
 ## Threads that decide (the main thread is one); 0 and 1 think on the main thread.
 static var threads: int = launch_default()
 
-## [member threads] on a threaded web engine (dot-server-deploy's `index-mt`, picked when the page is
+## [member threads] on a threaded web engine (gs-server-deploy's `index-mt`, picked when the page is
 ## cross-origin isolated): the browser's main thread draws too, so the brains go to workers there.
 const WEB_THREADS := 4
 
@@ -91,8 +91,8 @@ static func _decide(pending: Array[int], minds: Array) -> void:
 		FcFrameProbe.add(&"bot_brain", started)
 		return
 	# Before par_begin (the world hands out no native scan once it is on): a native brain takes a
-	# handle on this tick's packed scan and stays native on its worker (dot-bot API 34 with a
-	# worker-safe dot_sim); without that it moves into script (a no-op once it is).
+	# handle on this tick's packed scan and stays native on its worker (gs-bot API 34 with a
+	# worker-safe gs_sim); without that it moves into script (a no-op once it is).
 	for mind: FcBots.Mind in jobs:
 		if mind.brain.has_method(&"par_ready"):
 			mind.brain.par_ready(mind.t_world)

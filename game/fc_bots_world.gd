@@ -11,7 +11,7 @@ const FcBotPvs := preload("fc_bot_pvs.gd")
 
 ## The behaviour of a weapon whose shot flies (a rocket, a bolt); every other one is led as
 ## hitscan. A path, because the pack names behaviours by path (see [GSWeaponDef]).
-const PROJECTILE_BEHAVIOUR := "dot_weapon_projectile.gd"
+const PROJECTILE_BEHAVIOUR := "gs_weapon_projectile.gd"
 
 
 ## How long a bot cooks a grenade before letting go, seconds. Well inside the frag's 3 s fuse.
@@ -22,8 +22,8 @@ const HILL := &"hill"
 
 ## A bot looks at which gun to hold one tick in this many (see `FcBots._choose_gun`).
 const GUN_CHECK_EVERY := 8
-## The play style class (dot-bot's [GSBotStyle] table) of each FC weapon id; a pack's other weapons go by their tags
-## in [method World._class_of]. Kept to dot-bot's class names, so the shipped table and `bot_style_weights` apply.
+## The play style class (gs-bot's [GSBotStyle] table) of each FC weapon id; a pack's other weapons go by their tags
+## in [method World._class_of]. Kept to gs-bot's class names, so the shipped table and `bot_style_weights` apply.
 const STYLE_CLASS := {
 	&"knife": &"melee",
 	&"pistol": &"pistol", &"revolver": &"pistol", &"derringer": &"pistol", &"machine_pistol": &"smg",
@@ -33,8 +33,8 @@ const STYLE_CLASS := {
 	&"grenade_launcher": &"launcher", &"beamer": &"heavy", &"charge_rifle": &"sniper",
 	&"frag": &"throw", &"sticky": &"throw", &"flash": &"throw", &"smoke": &"throw", &"incendiary": &"throw",
 }
-## dot-bot API level of [code]GSBotContact.weapon_class[/code] and [code]magazine[/code] (weapon play styles). Below it the
-## contact has neither and the bot plays the generic style, so [code]requires.floor.json[/code] keeps dot_bot at 26.
+## gs-bot API level of [code]GSBotContact.weapon_class[/code] and [code]magazine[/code] (weapon play styles). Below it the
+## contact has neither and the bot plays the generic style, so [code]requires.floor.json[/code] keeps gs_bot at 26.
 const STYLE_LEVEL := 32
 ## Metres inside which a scoped gun gives way to the sidearm.
 const GUN_CLOSE := 10.0
@@ -82,7 +82,7 @@ class Mind:
 	var throw_back: int = 0
 	var throw_at: int = 0
 	var throw_cook_from: int = 0
-	## The ride under way (dot-bot's GSBotSurfRide, untyped so an older shell still compiles
+	## The ride under way (gs-bot's GSBotSurfRide, untyped so an older shell still compiles
 	## this), or null.
 	var ride: Variant = null
 	## Where the bot was last tick, to see a teleport.
@@ -121,17 +121,17 @@ const AUTO_STAGGER_ABOVE := 16
 ## The stagger in force this tick (1 = none): `think_every`, or what auto picks for the player count.
 static var _every: int = 1
 static var think_near: float = 30.0
-## Sight LOD (cvars `bot_sight_far`, `bot_sight_far_reuse`; dot-bot's GSBotWorld.sight_far): a body farther than this that a
+## Sight LOD (cvars `bot_sight_far`, `bot_sight_far_reuse`; gs-bot's GSBotWorld.sight_far): a body farther than this that a
 ## bot did not see stays unseen for `sight_far_reuse` s before the next ray; never its target, never a "seen". 0 is off; 20 m (A/B on staging02, 31 bots: bot_los -45%, bot_brain -26%).
 static var sight_far: float = 20.0
 static var sight_far_reuse: float = 0.15
-## 1 when a native bot mind (dot_sim's GSSimBotMind) holds sight without the sight LOD (no `sight_cached_far`), 0 when not; -1 unknown.
+## 1 when a native bot mind (gs_sim's GSSimBotMind) holds sight without the sight LOD (no `sight_cached_far`), 0 when not; -1 unknown.
 static var _sight_lod_split := -1
 
 
-## The sight LOD distance the brains get this tick: [member sight_far], or 0 (off) on a dot_sim whose bot mind has no
+## The sight LOD distance the brains get this tick: [member sight_far], or 0 (off) on a gs_sim whose bot mind has no
 ## sight LOD. A brain with a native mind perceives and caches sight there without the LOD, while a brain in script
-## (every brain on a worker thread when dot_sim cannot think there, cvar `bot_threads`) holds far bodies unseen: the
+## (every brain on a worker thread when gs_sim cannot think there, cvar `bot_threads`) holds far bodies unseen: the
 ## two would see different bots and play a different match (dm-morpheus at 16 bots, threads 0 vs 4, 2026-11-17).
 static func sight_far_now() -> float:
 	if _sight_lod_split < 0:
@@ -158,7 +158,7 @@ static var think_floor: int = 1
 static var think_floor_engaged: int = 1
 
 
-## Bot characters (cvar `bot_personas`): "" deals every persona in `cfg/game/game-arena/bot/` by weight, so each bot
+## Bot characters (cvar `bot_personas`): "" deals every persona in `cfg/game/game-fatal-contact/bot/` by weight, so each bot
 ## gets its own aim and lean to defend, attack or support; "id:weight,..." only those; "off" one shared bot_difficulty.
 static var personas_mode: String = ""
 const PERSONAS_OFF := "off"
@@ -188,8 +188,8 @@ class World:
 	var _loadouts: Dictionary = {}
 	## [constant STYLE_CLASS] by weapon definition, so a contact's class is one lookup a tick.
 	var _classes: Dictionary = {}
-	## Whether this build's dot-bot has play styles ([constant STYLE_LEVEL]); asked once per world, not per contact.
-	var _styled: bool = GSAddonApi.build_level("dot_bot") >= STYLE_LEVEL
+	## Whether this build's gs-bot has play styles ([constant STYLE_LEVEL]); asked once per world, not per contact.
+	var _styled: bool = GSAddonApi.build_level("gs_bot") >= STYLE_LEVEL
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
 	var _contacts: Array = []
@@ -243,7 +243,7 @@ class World:
 		if _personas == null:
 			_personas = GSBotPersonaPool.new()
 			_persona_rng.seed = 0x5eed
-			var n := _personas.load_from(GSProfileSet.create("dot-bot", "game-arena", GSBotPersona.KIND, GSBotPersona.schema()))
+			var n := _personas.load_from(GSProfileSet.create("gs-bot", "game-fatal-contact", GSBotPersona.KIND, GSBotPersona.schema()))
 			_personas.set_override(mode)
 			GSLog.info(CHANNEL, "bot personas loaded", {"personas": n, "override": mode})
 		return _personas
@@ -425,7 +425,7 @@ class World:
 		return made
 
 	## The class of the weapon in hand and how full its magazine is, for the bot's play style.
-	## Set by name: the fields exist from dot-bot [constant STYLE_LEVEL], and a host below it still parses this file.
+	## Set by name: the fields exist from gs-bot [constant STYLE_LEVEL], and a host below it still parses this file.
 	func _weapon_of(c: GSBotContact, p: FcPlayer) -> void:
 		if not _styled:
 			return
@@ -618,7 +618,7 @@ class World:
 		_sight_query.exclude = trace.exclude_rids
 		return space.intersect_ray(_sight_query).is_empty()
 
-	## Whether a native mind may ask sight of dot-sim's [code]GSSimSightRay[/code] (when loaded) in place of
+	## Whether a native mind may ask sight of gs-sim's [code]GSSimSightRay[/code] (when loaded) in place of
 	## [method line_of_sight]; off: every ray goes through script (scale128 [code]--native-sight 0[/code]).
 	static var native_sight: bool = true
 	## The native ray (a GSSimSightRay), made once when the class is loaded; null: script only.
@@ -630,7 +630,7 @@ class World:
 	var _sight_main: Callable = Callable()
 	var _sight_at: int = -1
 
-	## dot-bot's hook: the native ray's [code]clear[/code] when this world's sight is the one plain engine ray
+	## gs-bot's hook: the native ray's [code]clear[/code] when this world's sight is the one plain engine ray
 	## [method _sight_ray] / [method _los_par] ask (a plain physics or glass trace; the jail glass rule goes with it),
 	## bound to that ray's space, mask and exclusions; else [method line_of_sight]. The same answer to the bit.
 	func sight_callable() -> Callable:

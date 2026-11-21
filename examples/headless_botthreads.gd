@@ -93,7 +93,7 @@ func _run() -> void:
 	_check(not FcBotThreads.active(64), "bot_threads 0 is off at any count")
 	_done()
 
-	_section("the live shell's dot-bot 26 path plays the same match")
+	_section("the live shell's gs-bot 26 path plays the same match")
 	await _older_api()
 	_done()
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
@@ -191,13 +191,13 @@ func _play(count: int, map_id: StringName = &"") -> Array:
 
 
 ## Think and body tiers on (every bot coasts when nobody sees it), played on the current addons' calls, then on the
-## calls a dot-bot 26 host has (the floor in requires.floor.json): the same digests.
+## calls a gs-bot 26 host has (the floor in requires.floor.json): the same digests.
 func _older_api() -> void:
 	var tiers := FcBots.tiers
 	var was := [tiers.above, tiers.body_above, FcBots.tier_schedule]
 	tiers.above = 0
 	tiers.body_above = 0
-	var current_bot := GSAddonApi.build_level("dot_bot") >= 27
+	var current_bot := GSAddonApi.build_level("gs_bot") >= 27
 	var body_before := _sum(tiers.body_counts)
 	FcBots.tier_schedule = current_bot
 	var now := await _play(0)
@@ -208,20 +208,20 @@ func _older_api() -> void:
 	tiers.above = was[0]
 	tiers.body_above = was[1]
 	FcBots.tier_schedule = was[2]
-	print("dot-bot %d: body tier answers above 1 %d current, %d older path" % [GSAddonApi.build_level("dot_bot"), body_now, body_old])
+	print("gs-bot %d: body tier answers above 1 %d current, %d older path" % [GSAddonApi.build_level("gs_bot"), body_now, body_old])
 	_check(body_now > 0 and body_old > 0, "bots coasted on body tiers both ways (%d, %d)" % [body_now, body_old])
-	_check(now[0].size() > 10 and now[0] == old[0], "dot-bot 26's period/until_beat/body_period play the match schedule plays (%d kills, %d)" % [now[1], old[1]])
-	_check(current_bot == FcBots.tier_schedule, "the guard follows the build's dot-bot level (%d)" % GSAddonApi.build_level("dot_bot"))
+	_check(now[0].size() > 10 and now[0] == old[0], "gs-bot 26's period/until_beat/body_period play the match schedule plays (%d kills, %d)" % [now[1], old[1]])
+	_check(current_bot == FcBots.tier_schedule, "the guard follows the build's gs-bot level (%d)" % GSAddonApi.build_level("gs_bot"))
 	var phases := FcBots.brain_phases
 	FcBots.brain_phases = false
 	var line_old := FcSimServer.phases_line(1)
 	FcBots.brain_phases = phases
 	var line_now := FcSimServer.phases_line(1)
-	_check(line_old.begins_with("SIM_HOST_PHASES") and not line_old.contains("bb_"), "the sim host's phase line leaves out the brain on dot-bot 26: " + line_old)
-	_check(line_now.contains("bb_setup") == (GSAddonApi.build_level("dot_bot") >= 29), "and has the brain's phases from dot-bot 29: " + line_now)
+	_check(line_old.begins_with("SIM_HOST_PHASES") and not line_old.contains("bb_"), "the sim host's phase line leaves out the brain on gs-bot 26: " + line_old)
+	_check(line_now.contains("bb_setup") == (GSAddonApi.build_level("gs_bot") >= 29), "and has the brain's phases from gs-bot 29: " + line_now)
 
 
-## The tier's answers above 1 so far, the native tier's included (flushed by name: not every dot-bot level has it).
+## The tier's answers above 1 so far, the native tier's included (flushed by name: not every gs-bot level has it).
 static func _sum(counts: Dictionary) -> int:
 	if FcBots.tiers.has_method(&"_flush"):
 		FcBots.tiers.call(&"_flush")

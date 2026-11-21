@@ -29,4 +29,4 @@ jobs:
             suites: 'examples/headless_match examples/headless_net examples/headless_presentation examples/headless_stack examples/headless_admin examples/headless_imported examples/dedicated examples/headless_lossy'
             hygiene: true
         secrets:
-            DEPS_TOKEN: ${{ secrets.DOT_DEPS_TOKEN }}
+            DEPS_TOKEN: ${{ secrets.GS_DEPS_TOKEN }}

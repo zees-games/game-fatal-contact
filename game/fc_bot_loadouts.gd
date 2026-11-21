@@ -1,13 +1,13 @@
 extends RefCounted
 
-## The loadouts bots draw from: one `cfg/game/game-arena/bot_loadout/<id>.yml` profile per kit,
+## The loadouts bots draw from: one `cfg/game/game-fatal-contact/bot_loadout/<id>.yml` profile per kit,
 ## dealt per life by weight, narrowed by `sv_bot_loadouts` and the bot difficulty.
 ## Deterministic: a draw depends only on [member seed], the bot's id and its life count.
 
 const CHANNEL := "arena.bots"
 const FcContent := preload("fc_content.gd")
 
-## The profile kind, and the folder under `cfg/game/game-arena/`.
+## The profile kind, and the folder under `cfg/game/game-fatal-contact/`.
 const KIND := "bot_loadout"
 ## The cvar word for every enabled profile.
 const ALL := "all"
@@ -32,7 +32,7 @@ class Kit extends RefCounted:
 	var items: Dictionary = {}
 	## Weapon id -> {mount: attachment id}.
 	var attachments: Dictionary = {}
-	## Bot difficulties (dot-bot presets) it is dealt at; empty for any.
+	## Bot difficulties (gs-bot presets) it is dealt at; empty for any.
 	var difficulty := PackedStringArray()
 	var tags := PackedStringArray()
 
@@ -70,7 +70,7 @@ static func schema() -> Array:
 ## Loads every enabled profile of [param profiles] (the game's when null). Returns how many loaded.
 func load_from(profiles: GSProfileSet = null) -> int:
 	if profiles == null:
-		profiles = GSProfileSet.create("", "game-arena", KIND, schema())
+		profiles = GSProfileSet.create("", "game-fatal-contact", KIND, schema())
 	kits.clear()
 	_override_text = "\u0001"
 	for id in profiles.list_ids():

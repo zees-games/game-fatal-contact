@@ -166,7 +166,7 @@ func _knife_to_hand(me) -> int:
 	return slot
 
 
-## Takes the knife out of the arsenal the way a throw does (dot_weapon_knives `_release`): the drop state rides the knife.
+## Takes the knife out of the arsenal the way a throw does (gs_weapon_knives `_release`): the drop state rides the knife.
 func _knife_out(me) -> Dictionary:
 	var slot := _knife_to_hand(me)
 	if slot < 0:

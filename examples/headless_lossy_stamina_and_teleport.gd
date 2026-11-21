@@ -136,7 +136,7 @@ func _stamina_wall_run(server_a: FcPlayer, session: int, net: GSNetManager) -> v
 
 
 ## [b]The server teleports A while it moves.[/b] A hop of 1 m is eased; one of many metres is a snap by
-## design (dot-net's reconcile_snap_distance). Either way A must end where the server's A is and
+## design (gs-net's reconcile_snap_distance). Either way A must end where the server's A is and
 ## stay there: one snap at most per teleport, then replays that agree.
 func _test_teleport_under_loss() -> void:
 	_section("a server teleport of a moving player through loss")

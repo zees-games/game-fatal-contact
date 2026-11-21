@@ -3,7 +3,7 @@ extends "fc_server_suite.gd"
 const FcTestPorts := preload("test_ports.gd")
 
 ## Fatal Contact's console names on a real dedicated server: the game's own are `fc_*`, the map
-## change is dot-map's `map`, and an old `arena_*` name is only a hidden shim that says loudly
+## change is gs-map's `map`, and an old `arena_*` name is only a hidden shim that says loudly
 ## what it was renamed to and then does it. Run `headless_console_names`.
 
 var PORT := FcTestPorts.free_port()
@@ -37,7 +37,7 @@ func _test_new_names() -> void:
 	_section("the new names")
 	var console := _server.console
 	var map_cmd := console.find_command("map")
-	_check(map_cmd != null, "`map` is a known command (dot-map's map change)")
+	_check(map_cmd != null, "`map` is a known command (gs-map's map change)")
 	_check(map_cmd != null and map_cmd.permission == GSAdminFlags.CHANGEMAP, "and it needs the changemap flag",
 		map_cmd.permission if map_cmd != null else "")
 	_check(console.find_command("maps") != null, "`maps` is a known command")
@@ -81,7 +81,7 @@ func _test_old_names_forward() -> void:
 		"and the reply names the new name", "\n".join(_replies))
 
 	var old_map := console.find_command("arena_map")
-	_check(old_map != null and old_map.description == "Renamed: use map", "arena_map points at dot-map's map")
+	_check(old_map != null and old_map.description == "Renamed: use map", "arena_map points at gs-map's map")
 	var old_report := console.find_command("arena_stats_report")
 	_check(old_report != null and old_report.description == "Renamed: use stats_report",
 		"arena_stats_report points at stats_report, and is no silent alias")

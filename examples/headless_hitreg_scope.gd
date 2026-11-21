@@ -58,7 +58,7 @@ func _rounds(weapons: Array[StringName], ping: int) -> void:
 			_round(id, ping)
 
 
-## The hitscan guns of dot-weapon's "sniper" accuracy class with no cone of their own when
+## The hitscan guns of gs-weapon's "sniper" accuracy class with no cone of their own when
 ## aimed (a marksman rifle that keeps one is a gun's choice, not the netcode's).
 func _scoped_weapons() -> Array[StringName]:
 	var out: Array[StringName] = []

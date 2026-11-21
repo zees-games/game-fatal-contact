@@ -178,7 +178,7 @@ func _check_recoil(screen: Node, killer: Object) -> void:
 	_check(aux.size() == GSKillViewRing.AUX and KillPov.SIZE == GSKillViewRing.AUX, "the aux layout is the twelve floats the ring records")
 	_check(KillPov.aux_of(killer, 8).size() == 8 and KillPov.aux_of(null, 20).size() == 20, "a ring of another size gets that many slots, never an out-of-range write")
 	var floor_json: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://requires.floor.json"))
-	_check(int(floor_json["addons"]["dot_replay"]) >= 9, "the pack requires the dot-replay that records twelve aux floats and the event hook")
+	_check(int(floor_json["addons"]["gs_replay"]) >= 9, "the pack requires the gs-replay that records twelve aux floats and the event hook")
 	aux[KillPov.KICK_PITCH] = 2.0
 	aux[KillPov.FLAGS] = KillPov.GROUNDED
 	var climb := 0.0

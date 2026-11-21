@@ -17,7 +17,7 @@ func _ready() -> void:
 
 func _panes_under(root: Node) -> Array[Node3D]:
 	var out: Array[Node3D] = []
-	for pane in get_tree().get_nodes_in_group(&"dot_map_glass"):
+	for pane in get_tree().get_nodes_in_group(&"gs_map_glass"):
 		if root.is_ancestor_of(pane) and String(pane.get(&"kind")).begins_with("glass"):
 			out.append(pane as Node3D)
 	return out
@@ -104,7 +104,7 @@ func _body(a: Dictionary) -> bool:
 	var client_panes := _panes_under(a["side"])
 	if not _check(followed and not server_panes.is_empty() and server_panes.size() == client_panes.size(),
 			"both ends build the same panes", "server %d client %d, client map %s, %d glass in the tree, A's game is %s" % [server_panes.size(), client_panes.size(),
-					str(a_game.map.id) if a_game.map != null else "none", get_tree().get_nodes_in_group(&"dot_map_glass").size(),
+					str(a_game.map.id) if a_game.map != null else "none", get_tree().get_nodes_in_group(&"gs_map_glass").size(),
 					str(a_game.get_path())]):
 		_done()
 		return false

@@ -2,7 +2,7 @@
 extends "fc_game_setup.gd"
 
 ## Work heard between ticks that touches the physics space (a respawn, a restart, a map change),
-## held for the next server tick; armed only by [code]FcModule[/code]. See dot_tick_gate.gd.
+## held for the next server tick; armed only by [code]FcModule[/code]. See gs_tick_gate.gd.
 var tick_gate := GSTickGate.new()
 
 ## The standing hulls player [param id] stops at: every other living player's, where they
@@ -52,8 +52,8 @@ func _solid_hulls_for(id: int, tick: int = -1) -> Array:
 
 
 ## [method _add_hull] over [param cand] for a mover whose neighbours are where they stand now (no lag compensation): the same tests, with the loop invariants (ids, roster, the pair callable) hoisted out of the per-candidate call. Cvar `fc_hull_fast`.
-## The pair test is asked once per pair and tick ([method _pair_index]), and only of living players: about 10 us a call through dot-team's block rules, the largest part of a gather.
-## One answer serves both players of a pair: dot-team's `blocks(a, b)` is symmetric (one relation, both players' overrides).
+## The pair test is asked once per pair and tick ([method _pair_index]), and only of living players: about 10 us a call through gs-team's block rules, the largest part of a gather.
+## One answer serves both players of a pair: gs-team's `blocks(a, b)` is symmetric (one relation, both players' overrides).
 func _add_hulls_local(out: Array, cand: Array, id: int, me_at: Vector3, coarse: float, tick: int = -1) -> void:
 	var ids := _roster_ids
 	var roster := _roster
@@ -187,12 +187,12 @@ func add_player(
 		remove_player(id)
 		return added
 
-	# The side dot-match actually put them on, which is not necessarily the one they
+	# The side gs-match actually put them on, which is not necessarily the one they
 	# asked for: `GSTeamManager.assign` refuses a full team and balances an uneven one.
 	# Reading it back rather than assuming is the difference between a scoreboard that
 	# matches the game and one that matches the request.
 	#
-	# It is set on the player because that is what dot-combat's friendly-fire check and
+	# It is set on the player because that is what gs-combat's friendly-fire check and
 	# the renderer's colour both read, and `FcPlayer.team` had been declared and
 	# assigned by nothing since the class was written.
 	player.team = team_of(id)
@@ -245,12 +245,12 @@ func respawn_player(id: int) -> GSResult:
 	_on_respawn_due(key, match_node.choose_spawn(key, _tick), _tick)
 	return GSResult.success(player)
 
-## dot-bot-record, loaded by path in [method start_ride_recording] only: a game that never records does not compile it.
-const BOT_RECORD_DIR := "res://addons/dot_bot_record/"
+## gs-bot-record, loaded by path in [method start_ride_recording] only: a game that never records does not compile it.
+const BOT_RECORD_DIR := "res://addons/gs_bot_record/"
 ## FC's kill view server: asks for an eye only when the ring would keep it.
 const FcKillViewServer := preload("fc_killview_server.gd")
 
-## The kill view's server half over this game: every living eye, respawns held in dot-match's queue.
+## The kill view's server half over this game: every living eye, respawns held in gs-match's queue.
 func make_killview_server() -> GSKillViewServer:
 	var server := FcKillViewServer.new(killview_rules)
 	server.tick_rate = tick_rate
@@ -274,9 +274,9 @@ func make_killview_server() -> GSKillViewServer:
 		func(id: Variant) -> GSResult: return respawn_player(int(id)))
 	return server
 
-## Builds [member noblock] over dot-team's rules (its cfg layers; strict fails the boot) for a server or a solo game.
+## Builds [member noblock] over gs-team's rules (its cfg layers; strict fails the boot) for a server or a solo game.
 func make_noblock(strict := GSGameConfigBinder.default_strict()) -> GSResult:
-	var made := GSGameNoblock.create("game-arena", Callable(self, "block_side"), PackedStringArray(), strict)
+	var made := GSGameNoblock.create("game-fatal-contact", Callable(self, "block_side"), PackedStringArray(), strict)
 	if not made.ok:
 		return made
 	noblock = made.value
@@ -297,9 +297,9 @@ func block_side(id: Variant) -> Variant:
 ## check exists so a malformed key can never reach a filesystem path.
 ##
 ## [b]One key for every store, and that is deliberate.[/b] Loadouts, achievement
-## progress and dot-stats' sessions are three subsystems that each want a durable
+## progress and gs-stats' sessions are three subsystems that each want a durable
 ## per-player id, and three formats would be three chances for one of them to file
-## under a name the others cannot find. It also refuses to be an account id: dot-stats'
+## under a name the others cannot find. It also refuses to be an account id: gs-stats'
 ## reporter rejects anything with a `backbone:` prefix before it leaves the server, and
 ## a key built from the session id can never carry one.
 static func storage_key(id: int) -> String:
@@ -340,22 +340,22 @@ func collision_lag(view_lag: float) -> float:
 func current_tick() -> int:
 	return _tick
 
-## Records the surf rides real players take (`fc_surf_rides.gd`), off unless `bot_record` is on in the config, environment, command line or console; a no-op on a shell without dot-bot's recorder.
+## Records the surf rides real players take (`fc_surf_rides.gd`), off unless `bot_record` is on in the config, environment, command line or console; a no-op on a shell without gs-bot's recorder.
 func start_ride_recording(add_cvar: Callable = Callable(), config_file: String = "user://bot_record.json") -> GSResult:
 	if surf_rides != null:
 		return GSResult.success(surf_rides)
-	if GSAddonApi.build_level("dot_bot") < 5 or GSAddonApi.build_level("dot_player_controller") < 3 \
-			or not ResourceLoader.exists("res://addons/dot_bot/runtime/surf/dot_bot_ride_harvest.gd"):
+	if GSAddonApi.build_level("gs_bot") < 5 or GSAddonApi.build_level("gs_player_controller") < 3 \
+			or not ResourceLoader.exists("res://addons/gs_bot/runtime/surf/gs_bot_ride_harvest.gd"):
 		return GSResult.fail(GSError.CODE_UNSUPPORTED, "This shell has no ride recorder.")
-	# dot-bot-record's classes are loaded here, by path, so a game that never records does not compile them.
-	var config: RefCounted = (load(BOT_RECORD_DIR + "core/dot_bot_demo_config.gd") as GDScript).new()
+	# gs-bot-record's classes are loaded here, by path, so a game that never records does not compile them.
+	var config: RefCounted = (load(BOT_RECORD_DIR + "core/gs_bot_demo_config.gd") as GDScript).new()
 	config.set(&"record", false)
 	var layered: GSResult = config.call(&"load_layered", config_file if FileAccess.file_exists(config_file) else "")
 	if not layered.ok:
 		return layered
 	if add_cvar.is_valid():
 		var _cvars: Variant = config.call(&"bind_cvars", add_cvar, GSConVar.FLAG_NOTIFY)
-	var made: GSResult = (load(BOT_RECORD_DIR + "store/dot_bot_demo_store.gd") as GDScript).call(&"from_config", config, null)
+	var made: GSResult = (load(BOT_RECORD_DIR + "store/gs_bot_demo_store.gd") as GDScript).call(&"from_config", config, null)
 	if not made.ok or made.value == null:
 		return made if not made.ok else GSResult.fail(GSError.CODE_STATE, "bot_record_store is off.")
 	var store: RefCounted = made.value
@@ -370,11 +370,11 @@ func start_ride_recording(add_cvar: Callable = Callable(), config_file: String =
 	var _stats := start_demo_stats(config, store)
 	return GSResult.success(rides)
 
-## Records `place` and `engage` episodes into [param store] and lets the bots roam where people stand; a no-op on a shell without dot-bot's heatmap and aim statistics.
+## Records `place` and `engage` episodes into [param store] and lets the bots roam where people stand; a no-op on a shell without gs-bot's heatmap and aim statistics.
 func start_demo_stats(config: RefCounted, store: RefCounted) -> GSResult:
 	if demo_stats != null:
 		return GSResult.success(demo_stats)
-	if not ResourceLoader.exists("res://addons/dot_bot/runtime/dot_bot_demo_heatmap.gd") or not ResourceLoader.exists("res://addons/dot_bot/runtime/dot_bot_aim_stats.gd"):
+	if not ResourceLoader.exists("res://addons/gs_bot/runtime/gs_bot_demo_heatmap.gd") or not ResourceLoader.exists("res://addons/gs_bot/runtime/gs_bot_aim_stats.gd"):
 		return GSResult.fail(GSError.CODE_UNSUPPORTED, "This shell has no heatmap or aim statistics.")
 	var stats: RefCounted = (load(FcPaths.rebase("res://game/fc_demo_stats.gd")) as GDScript).new()
 	var ready: GSResult = stats.call(&"setup", self, config, store, float(tick_rate))

@@ -318,7 +318,7 @@ func _install_fakes() -> void:
 	await get_tree().create_timer(2.0).timeout
 
 
-## Counts the observer-visible properties that changed since the previous snapshot (--fields), with dot-net's own
+## Counts the observer-visible properties that changed since the previous snapshot (--fields), with gs-net's own
 ## [method GSNetVar.differs] and [method GSNetVar.estimated_bits] plus the 6-bit property index; an entity with any
 ## change adds its 36-bit header (id, behaviour count, property count) under "<script>.header".
 func _count_fields(_tick: int, _peers: int) -> void:
@@ -400,7 +400,7 @@ func _move_eyes() -> void:
 		var on := _eye_on[i]
 		if on != null and is_instance_valid(on):
 			_eyes[i].global_position = on.global_position + Vector3.UP * 0.01 * (floorf(float(i) / _eye_laps) + 1.0)
-			# And looks where its player looks, for dot-net's aim cone (FcNetAoi.aim_cone_deg).
+			# And looks where its player looks, for gs-net's aim cone (FcNetAoi.aim_cone_deg).
 			var identity := _eyes[i].get_child(0)
 			if &"interest_aim" in identity and on.has_method(&"aim_direction"):
 				identity.set(&"interest_aim", on.call(&"aim_direction"))

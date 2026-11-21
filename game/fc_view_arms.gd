@@ -1,12 +1,12 @@
 extends Node3D
 
-## Your own arms on dot-player-char's GSPlayerViewArms, holding the weapon where AwViewModel
+## Your own arms on gs-player-char's GSPlayerViewArms, holding the weapon where AwViewModel
 ## measured its grip. Absent below API 8: the view model draws its own hands then.
 
 const NEEDS_LEVEL := 8
 ## Poses held with the firing hand alone.
 const ONE_HAND: Array[StringName] = [&"melee", &"thrown", &"fists"]
-## The hand pose (GSViewGrip.kind, dot-player-char's GSViewHandPoses) each weapon art pose closes into.
+## The hand pose (GSViewGrip.kind, gs-player-char's GSViewHandPoses) each weapon art pose closes into.
 const POSE_KINDS := {&"rifle": &"rifle", &"pistol": &"pistol", &"heavy": &"launcher", &"melee": &"knife",
 	&"thrown": &"grenade", &"fists": &"fists"}
 ## Weapons whose hands differ from their art pose's (a pump's fore-end, a scoped stock); edit or add ids.
@@ -14,10 +14,10 @@ static var hand_kinds := {&"shotgun": &"shotgun", &"drum_shotgun": &"shotgun", &
 	&"marksman": &"sniper", &"fists": &"fists"}
 ## Nearest a held grip comes to the eye (metres), so a pistol's hand does not fill the view.
 const HANDS_MIN_DISTANCE := 0.3
-## Added to it with real hands (dot-player-char 28), whose wrist sits this far behind the grip the fingers close on:
+## Added to it with real hands (gs-player-char 28), whose wrist sits this far behind the grip the fingers close on:
 ## at 0.3 alone an aimed revolver's wrist came 0.041 m from the eye, inside the camera's near plane (0.04 still 0.048).
 static var real_hand_setback := 0.06
-## Nearest a hand's wrist comes to the eye along the view (metres, dot-player-char 30's GSPlayerViewArms.hand_min_depth):
+## Nearest a hand's wrist comes to the eye along the view (metres, gs-player-char 30's GSPlayerViewArms.hand_min_depth):
 ## a reload that pulls the launcher to the chest, or a wall that pushes the gun back, slides the hand out along the gun
 ## instead of into the camera's near plane (0.05); at 0 a launcher reload's support fingers came 0.012 m from the eye.
 ## 0 is off.
@@ -67,7 +67,7 @@ var _look_override := false
 
 
 static func available() -> bool:
-	return GSAddonApi.build_level("dot_player_char") >= NEEDS_LEVEL
+	return GSAddonApi.build_level("gs_player_char") >= NEEDS_LEVEL
 
 
 ## Puts a view model's hands on [param body]'s camera: AwViewModel's own when there is no API, else these arms under [param parent].
@@ -112,7 +112,7 @@ func _on_hands(anchor: Node3D, grip: Vector3, fore: Vector3, pose: StringName) -
 	# A knife's handle is inside the fist and against the wrist, so keeping the arm out of its box swung the elbow
 	# out flat beside the eye (anim_review's T-pose); a blade held in one hand has no forend to clear.
 	_grip.bounds = AABB() if pose == &"melee" else weapon_bounds(model, _boxes)
-	# Real fingers (dot-player-char 27): which grip they close into and the gun's axes they close round.
+	# Real fingers (gs-player-char 27): which grip they close into and the gun's axes they close round.
 	if "kind" in _grip:
 		_grip.kind = hand_kind(pose, body.weapons.current_art() if body != null and body.weapons != null else null)
 		var held: Dictionary = model.art_hand_grip() if model != null and model.has_method(&"art_hand_grip") else {}
@@ -149,7 +149,7 @@ static func drawn_depth(anchor: Node3D) -> float:
 
 
 ## The drawn weapon's box in the frame [signal AwViewModel.hands_reached] gives its points in, which the arms keep
-## their elbows out of. That frame is often a bare marker (HandsFrame) with no mesh for dot-player-char to measure,
+## their elbows out of. That frame is often a bare marker (HandsFrame) with no mesh for gs-player-char to measure,
 ## but its points are the animated node's, so the weapon is measured there. [param boxes] keeps each weapon's own box.
 static func weapon_bounds(model: AwViewModel, boxes: Dictionary) -> AABB:
 	var weapon: Node3D = model.weapon_node() if model != null else null

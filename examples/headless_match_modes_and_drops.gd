@@ -49,7 +49,7 @@ func _test_modes() -> void:
 	)
 
 	# team_count and rules.team_based state one fact and validate() catches them disagreeing: a mode with two sides over
-	# free-for-all rules scores everyone individually while calling itself Team Deathmatch, correct inside dot-match.
+	# free-for-all rules scores everyone individually while calling itself Team Deathmatch, correct inside gs-match.
 	var broken: FcMode = FcMode.team_deathmatch()
 	broken.rules.team_based = false
 	_check(not broken.validate().ok, "a mode that disagrees with its rules is refused")
@@ -92,7 +92,7 @@ func _test_team_deathmatch() -> void:
 
 	_check(game.teams().size() == 2, "with two sides", str(game.teams().size()))
 
-	# The tags send a side to its own end. Without them dot-match falls back to the shared pool and both sides spawn from one,
+	# The tags send a side to its own end. Without them gs-match falls back to the shared pool and both sides spawn from one,
 	# in the enemy base about half the time, which reads as a spawn-selection bug instead of an untagged map.
 	var tagged := 0
 
@@ -102,7 +102,7 @@ func _test_team_deathmatch() -> void:
 
 	_check(tagged > 0, "the map's spawns carry team tags", "%d tagged" % tagged)
 
-	# Six players, and dot-match decides the sides.
+	# Six players, and gs-match decides the sides.
 	var counts := {}
 
 	for index in range(6):
@@ -138,7 +138,7 @@ func _test_team_deathmatch() -> void:
 
 	_check(mirrored == 6, "the player carries the side it was given", "%d of 6" % mirrored)
 
-	# And the reason any of that matters: dot-combat asks a callable for two entity ids and compares
+	# And the reason any of that matters: gs-combat asks a callable for two entity ids and compares
 	# the answers.
 	var resolver := game.combat.resolver
 	_check(resolver.team_of.is_valid(), "combat can ask who is on whose side")
@@ -181,7 +181,7 @@ func _go_live(game: FcGame) -> void:
 
 # --- Effects ---------------------------------------------------------------
 
-## dot-effects, and the one line that makes it count: the damage check.
+## gs-effects, and the one line that makes it count: the damage check.
 func _test_effects() -> void:
 	_section("effects")
 
@@ -208,11 +208,11 @@ func _test_effects() -> void:
 
 	_check(
 		game.combat.resolver.adjust.is_valid(),
-		"dot-combat's per-hit hook is filled, which nothing in this game had ever done"
+		"gs-combat's per-hit hook is filled, which nothing in this game had ever done"
 	)
 
 	# Out of the spawn window first: a freshly spawned player is protected (GSHealth's window, the
-	# PROTECTED effect and dot-spawn's ledger, all off the mode's `spawn_protection_sec`).
+	# PROTECTED effect and gs-spawn's ledger, all off the mode's `spawn_protection_sec`).
 	for _protect in range(game.match_node.spawn_protection_ticks() + 2):
 		game.tick({})
 
@@ -287,7 +287,7 @@ func _test_effects() -> void:
 	_check(
 		not game.effects.may_capture(701),
 		"and an untouchable player captures nothing, which is the whole reason "
-		+ "dot-objective asks a callable"
+		+ "gs-objective asks a callable"
 	)
 
 	# And the seam a changelevel breaks.

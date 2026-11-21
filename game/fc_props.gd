@@ -14,7 +14,7 @@ const FcStats := preload("fc_stats.gd")
 ## tracing and the navigation are all analytic geometry from [FcMap], because
 ## analytic gives the same answer on a client replaying a tick and a server that ran
 ## it. A rigid body does not — a contact solver is not reproducible across machines —
-## which is why dot-props is server-authoritative and unpredicted, and why nothing here
+## which is why gs-props is server-authoritative and unpredicted, and why nothing here
 ## is ever handed to the netcode's prediction path.
 ##
 ## The cost of that exception is one method: [method FcMap.to_collision]. A prop has
@@ -92,7 +92,7 @@ var _limits: GSPropLimits = null
 
 ## Prop intents that came off the wire between ticks, as [player_id, action, direction], answered at the top of [method tick].
 ## [b]A request handler never queries the physics space[/b]: packets are polled in the idle frame, and with physics on its own
-## thread (`physics/3d/run_on_separate_thread`, or Jolt's) a query there races the step. dot-physics `docs/threading.md`.
+## thread (`physics/3d/run_on_separate_thread`, or Jolt's) a query there races the step. gs-physics `docs/threading.md`.
 var _queued_acts: Array = []
 
 
@@ -193,7 +193,7 @@ func _make_limits() -> GSPropLimits:
 ## What can be spawned. Four props, which is four different weights.
 ##
 ## [b]The mass is the interesting field and it is the one the catalogue owns.[/b]
-## dot-props puts it on the body at spawn rather than leaving it to whatever the scene
+## gs-props puts it on the body at spawn rather than leaving it to whatever the scene
 ## was saved with, which is what makes one scene serve several entries — and this
 ## catalogue does exactly that: a crate and a pallet are the same script at different
 ## sizes, and the physics gun's mass limit is what tells them apart.
@@ -294,7 +294,7 @@ func spawn_for(player_id: int, prop_id: StringName, at: Vector3) -> GSPropInstan
 ## server and a client that both scattered got different levels, and a suite that
 ## passed differently the second time it was run.
 ##
-## [b]The map's furniture shares a player's budget, and that is dot-props' rule rather
+## [b]The map's furniture shares a player's budget, and that is gs-props' rule rather
 ## than a bug here.[/b] [method GSPropSpawner.may_spawn] checks
 ## [member GSPropLimits.per_player_budget] against the owner it is given, and the
 ## empty owner is an owner like any other — so eight props are eight props' worth of
@@ -321,7 +321,7 @@ func scatter(count: int) -> int:
 		)
 
 		# The spawn interval is a rate limit on PLAYERS, and the map is not one.
-		# dot-props keeps one "last spawn" per owner and the map's furniture all
+		# gs-props keeps one "last spawn" per owner and the map's furniture all
 		# shares the empty owner, so eight placements in one call would place one and
 		# refuse seven — which is what happened the first time this ran, and it looked
 		# exactly like a scatter that had been configured for one prop.
@@ -493,7 +493,7 @@ func _carry(delta: float) -> void:
 ## tested headlessly.
 ##
 ## [b]Taken off the world node rather than off this one.[/b] `FcProps` is a plain
-## [Node] and `get_world_3d()` does not exist on one — dot-npc's own notes record the
+## [Node] and `get_world_3d()` does not exist on one — gs-npc's own notes record the
 ## same mistake, where a duck-typed `has_method` branch around it would not even
 ## compile because GDScript cannot infer what such a branch returns.
 func _space() -> Variant:
@@ -560,7 +560,7 @@ func count() -> int:
 ## [b]Without it every box is on Godot's default layer 1 with mask 1.[/b] Bit 0 happens
 ## to be `world` in `shooter_3d`, so a player still lands on the floor — but the mask is
 ## wrong in both directions: the level would not be hit by a projectile or a prop, and
-## nothing in the inspector would match the layer names dot-physics writes there. The
+## nothing in the inspector would match the layer names gs-physics writes there. The
 ## layout was named and never applied to a single body in this game.
 func _classify_level(root: Node) -> void:
 	if game == null or game.player_stack == null:

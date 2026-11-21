@@ -2,7 +2,7 @@ extends GSGameCheckSuite
 
 const FcPlayerIdle := preload("../game/fc_player_idle.gd")
 
-## An idle weapon tick's posture row and flinch check (FcPlayerIdle._idle_row, cvar `fc_posture_native`): dot-sim's
+## An idle weapon tick's posture row and flinch check (FcPlayerIdle._idle_row, cvar `fc_posture_native`): gs-sim's
 ## `GSSimPlayerPost` gives the script's row and still flag to the bit over seeded controller states (moving, air,
 ## crouch edges, slide, wall run, sprint, hurt ticks around the flinch window, arsenal rates and none, no health),
 ## one player at a time and as packed rows (`run_rows`). Without the library only the script lane runs, and the suite
@@ -31,7 +31,7 @@ func _run() -> void:
 	_body.controller = _controller
 	var native := GSSim.has(&"players")
 	if not native:
-		print("dot-sim has no players module: only the script lane is exercised")
+		print("gs-sim has no players module: only the script lane is exercised")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
 	var row_diff := 0

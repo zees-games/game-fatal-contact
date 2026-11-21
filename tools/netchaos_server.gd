@@ -6,7 +6,7 @@ const FcModule := preload("../game/fc_module.gd")
 const FcNetBridge := preload("../game/fc_net_bridge.gd")
 const FcPresentation := preload("../game/fc_presentation.gd")
 
-## Fatal Contact's side of `tools/netchaos.sh` (dot-game's GSGameNetchaosServer): no bots, no limits.
+## Fatal Contact's side of `tools/netchaos.sh` (gs-game's GSGameNetchaosServer): no bots, no limits.
 
 var _game: FcGame = null
 

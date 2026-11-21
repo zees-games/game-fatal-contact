@@ -1,12 +1,12 @@
 // Frames of the FC web client in a real browser, split at the loading cover (needs ?cl_perf, which
-// makes the client set window.dotWeb.publishedAt.arena_gate_open when the gate opens).
+// makes the client set window.gsWeb.publishedAt.arena_gate_open when the gate opens).
 //
 //   node tools/browser_stall.mjs [pageUrl] [--budget-ms N] [--runs N] [--phases] [--steady-s N]
 //
 // Connects over CDP to a Chrome on a GPU box (`gpu.sh cdp-run --serve 8099 -- node ...` sets
 // GPU_CDP_URL; or CDP=..., default 127.0.0.1:9222); SwiftShader frame times say nothing. Per run it
 // prints fps and the worst frame for the cover, the first 2 s of play and the rest, the content
-// download's end (the page's .pck/.dot-pack responses), the cover drop, the time to the first smooth
+// download's end (the page's .pck/.gs-pack responses), the cover drop, the time to the first smooth
 // second (no frame of 50 ms or more for 1 s) and the worst frames after the drop, each named by the
 // client's last load mark before it (arena_load / arena_after_open, published by FcLoadTimeline).
 // --phases also prints the load marks on the page clock, after the boot marks (each .wasm/.pck/.js
@@ -77,8 +77,8 @@ async function run(i) {
   });
   await page.goto(url, { waitUntil: 'load' });
   let open = null;
-  for (let s = 0; s < 180 && open === null; s++) { await page.waitForTimeout(1000); open = await page.evaluate(() => window.dotWeb?.publishedAt?.arena_gate_open ?? null); }
-  for (let s = 0; s < 12; s++) { await page.waitForTimeout(1000); if (await page.evaluate(() => window.dotWeb?.publishedAt?.arena_after_open != null)) break; }
+  for (let s = 0; s < 180 && open === null; s++) { await page.waitForTimeout(1000); open = await page.evaluate(() => window.gsWeb?.publishedAt?.arena_gate_open ?? null); }
+  for (let s = 0; s < 12; s++) { await page.waitForTimeout(1000); if (await page.evaluate(() => window.gsWeb?.publishedAt?.arena_after_open != null)) break; }
   await page.waitForTimeout(1000);
   let cdp = null, frames0 = 0;
   if (open !== null && steadyS > 0 && (glCount || cpuProf)) {
@@ -91,10 +91,10 @@ async function run(i) {
   const gln = glCount ? await page.evaluate(() => { window.__gl.on = false; return { n: window.__gl.n, frames: window.__frames.length }; }) : null;
   const r = await page.evaluate(() => {
     const gl = document.createElement('canvas').getContext('webgl2');
-    const packs = performance.getEntriesByType('resource').filter(e => /\.(pck|dot-pack|wasm)(\?|$)/.test(e.name));
-    const w = window.dotWeb ?? { published: {}, publishedAt: {} };
+    const packs = performance.getEntriesByType('resource').filter(e => /\.(pck|gs-pack|wasm)(\?|$)/.test(e.name));
+    const w = window.gsWeb ?? { published: {}, publishedAt: {} };
     const MB = (b) => (b / 1048576).toFixed(1);
-    const files = performance.getEntriesByType('resource').filter(e => /\.(pck|dot-pack|wasm|js)(\?|$)/.test(e.name))
+    const files = performance.getEntriesByType('resource').filter(e => /\.(pck|gs-pack|wasm|js)(\?|$)/.test(e.name))
       .flatMap(e => [[e.startTime, `fetch ${e.name.split('/').pop().split('?')[0]} begins`],
         [e.responseEnd, `fetch ${e.name.split('/').pop().split('?')[0]} done ${MB(e.decodedBodySize)} MB, ${MB(e.transferSize)} MB over the wire, ${(e.responseEnd - e.startTime).toFixed(0)} ms`]]);
     return { frames: window.__frames, gpu: gl.getParameter(gl.getExtension('WEBGL_debug_renderer_info').UNMASKED_RENDERER_WEBGL),

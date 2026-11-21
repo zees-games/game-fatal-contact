@@ -145,7 +145,7 @@ static func schema() -> GSSettingsSchema:
 	# their ACCOUNT scope, which the table leaves alone.
 	FcBindings.make().add_to_schema(s)
 
-	# dot-menu's stock video and interface settings: the window, V-Sync, the frame cap, render
+	# gs-menu's stock video and interface settings: the window, V-Sync, the frame cap, render
 	# scale, the theme, the frame-rate counter and net_stat. Keys already declared above keep this
 	# game's default (a field of view of 100, horizontal at 4:3).
 	return GSMenuStock.declare(s, [GSMenuStock.GROUP_VIDEO, GSMenuStock.GROUP_INTERFACE] as Array[StringName])
@@ -230,7 +230,7 @@ func _build_settings() -> GSResult:
 	settings.name = "Settings"
 	settings.schema = schema()
 	settings.local_store = GSSettingsStoreFile.new(settings_directory)
-	settings.app_namespace = &"game_arena"
+	settings.app_namespace = &"game_fatal_contact"
 	settings.shared_namespace = &"tmc_account"
 	add_child(settings)
 
@@ -242,10 +242,10 @@ func _build_settings() -> GSResult:
 
 
 ## Push to talk or an open microphone, on this player's voice (published by the client's
-## extras as `dot_voice_client`). Also when the voice is published after the settings
+## extras as `gs_voice_client`). Also when the voice is published after the settings
 ## loaded, or a saved open microphone would wait for the switch to be touched.
 func _apply_push_to_talk() -> void:
-	var voice := GSRegistry.get_service(&"dot_voice_client")
+	var voice := GSRegistry.get_service(&"gs_voice_client")
 	if voice != null and voice.has_method(&"set_open_mic") and settings != null:
 		voice.call(&"set_open_mic", not settings.get_bool(&"push_to_talk", true))
 	var bus := GSRegistry.signals()
@@ -254,7 +254,7 @@ func _apply_push_to_talk() -> void:
 
 
 func _on_service_registered(service: StringName, _instance: Object) -> void:
-	if service == &"dot_voice_client":
+	if service == &"gs_voice_client":
 		_apply_push_to_talk()
 
 
@@ -345,7 +345,7 @@ func _apply_crosshair() -> void:
 
 	var style := StringName(settings.get_string(&"crosshair", "cross"))
 
-	# `suppressed` rather than `visible`: dot-ui keeps a suppressed crosshair measuring its
+	# `suppressed` rather than `visible`: gs-ui keeps a suppressed crosshair measuring its
 	# spread, so nothing that reads the gap stops working because a player hid the lines.
 	_crosshair.suppressed = style == &"none"
 	_crosshair.centre_dot = true
@@ -367,7 +367,7 @@ func _build_audio() -> GSResult:
 	# A firefight is the busiest this game gets and thirty-two is what it needs; past
 	# that the pool is holding sounds nobody can pick out of the mix.
 	audio.voices = 32
-	# Measured toward the family's -17 LUFS (dot-audio docs/loudness.md) with the local player
+	# Measured toward the family's -17 LUFS (gs-audio docs/loudness.md) with the local player
 	# driven by tools/loudness_pilot.gd (walking, turning off walls, firing bursts): at 4.0 a 40 s
 	# round read -19.5 LUFS, at 7.5 three rounds read -16.8, -17.6 and -17.2.
 	audio.loudness_trim_db = 7.5
@@ -485,7 +485,7 @@ func _build_fx() -> GSResult:
 	return GSResult.success(null)
 
 
-## dot-console's kit: `help`, `clear`, `settings`, every setting by its own name, the in-process
+## gs-console's kit: `help`, `clear`, `settings`, every setting by its own name, the in-process
 ## server's console, and the panel on layer 128, registered with [param menu]. This game adds its
 ## own four.
 func build_console(menu: Object = null) -> GSResult:

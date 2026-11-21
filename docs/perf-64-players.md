@@ -115,9 +115,9 @@ fakes, 30 s, PH (timings there are noise; bytes are not):
 | cp-orange-x3 | 2 / 2 / 20 + sub-quantum hold | 258 | 518 | - |
 
 Before dotnet-thin-ack-sync, far-ring thinning cost bytes: at far_every 2 a peer got about 30% more than with no
-thinning. The cause was in dot-net: a per-peer view was synced to the peer's acks only while its entity was in the
+thinning. The cause was in gs-net: a per-peer view was synced to the peer's acks only while its entity was in the
 snapshot, so with wired (strict) acks a thinned entity's pending fields were older than `last_ack` when it came back,
-counted as lost (`relost`) and went out again. dot-net now keeps a per-peer ring of acked ticks and promotes any send
+counted as lost (`relost`) and went out again. gs-net now keeps a per-peer ring of acked ticks and promotes any send
 whose own snapshot was acked (no wire change). With that, the rings save bytes (rows marked "thinned-ack sync", same
 probe, 2026-11-16): dm_atrium 560 B against 635 unthinned, cp-orange-x3 283 against 307. `sv_net_far_every` defaults
 to 2 again (tiers 2, 40 m). On cp-orange-x3, the map 64 players are for, a peer is at 283 B against 523 unfiltered,
@@ -127,7 +127,7 @@ under the 350 B goal; small DM maps stay near 560 B because most players there a
 before interest, and how much of it a receiver could tell apart (`FIELDS wire ...`, only changes whose quantised code
 moved). On dm_atrium every peer is a player (65 entities, about 33 changed a snapshot): position 153 B, the 36-bit entity
 headers 158, velocity 108, yaw 78, pitch 64, flags 40. 61% of pitch writes, 8% of yaw and 7% of velocity carried the
-same codes as the last send: dot-net marks a field dirty on any raw change. `FcPlayerNet.hold_subquantum`
+same codes as the last send: gs-net marks a field dirty on any raw change. `FcPlayerNet.hold_subquantum`
 (`sv_net_hold_subquantum`, default 1) keeps the previous value when the new one quantises the same, so receivers decode
 exactly what they did and the repeat is not sent; position is not held (the server reads it back), and neither lag-comp
 history nor the owner's rewind (`net_exact`) reads these fields. That alone took the unfiltered control from 616 B to
@@ -139,10 +139,10 @@ thinned almost nobody. A quarter-rate band is what reaches 350 B (20 m with two 
 0.10-0.20 m against 0.025). The default is therefore one band, `sv_net_far_distance` 20 and `sv_net_far_tiers` 1: full
 rate to 20 m, every second snapshot to 120 m (the half rate the scope suite already held at 40-80 m). dm_atrium is at
 406-411 B against 541-549, cp-orange-x3 at 260 against 283. The last ~60 B to 350 on small DM maps needs either a
-quarter rate that leaves scoped targets alone (an observer-aware tier in dot-net interest) or cheaper observer velocity;
+quarter rate that leaves scoped targets alone (an observer-aware tier in gs-net interest) or cheaper observer velocity;
 both are on the nightly board.
 
-**Aim cone (fc-dmatrium-bytes-2, 2026-11-16).** dot-net interest (API 22) takes an observer aim,
+**Aim cone (fc-dmatrium-bytes-2, 2026-11-16).** gs-net interest (API 22) takes an observer aim,
 `GSNetIdentity.interest_aim`, and `GSNetInterest.aim_cone_deg`: a far entity inside that cone of the observer's aim
 is sent at most every `far_every`-th snapshot (the first band's rate), never the quarter rate; native core and GDScript
 agree (netcode_demo parity). FC's authority sets `interest_aim` from `FcPlayer.aim_direction()` each pull, and
@@ -269,4 +269,4 @@ dm_atrium combat (9.4-10.5).
 The server tick (22-28 ms against the 11 ms goal) is now the main gap.
 
 Nodes (fc-64p-4) wait on fc-weapons (`fcw-remote-shotfx-nodes`). The browser measurement (fc-64p-7) waits on a
-threaded web export with native dot-sim and a 64-player browser bench (`web-threads-native-dlink`).
+threaded web export with native gs-sim and a 64-player browser bench (`web-threads-native-dlink`).

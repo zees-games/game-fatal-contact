@@ -5,7 +5,7 @@ const FcBotThreads := preload("fc_bot_threads.gd")
 const FcLaunchCommands := preload("fc_launch_commands.gd")
 
 
-## The offline bots: the brain a server's bots run (FcBots, dot-bot), with the same
+## The offline bots: the brain a server's bots run (FcBots, gs-bot), with the same
 ## `bot_difficulty`. Offline only; a server's bots are the server's.
 ##
 ## [b]Not the test fixture any more.[/b] This used to face the nearest player through any
@@ -39,7 +39,7 @@ func _drive_bots() -> void:
 		driven[i].set_meta("bot_fire", made[1])
 
 
-## Adds or removes offline bots until there are [param count], named from dot-bot's pool.
+## Adds or removes offline bots until there are [param count], named from gs-bot's pool.
 func _keep_offline_bots(count: int) -> void:
 	var taken: Array = []
 	for p in game.players():

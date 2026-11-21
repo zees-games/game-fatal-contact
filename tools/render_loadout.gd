@@ -1,8 +1,8 @@
 extends SceneTree
 
 ## The offline client's B menu and its crosshair down the sights: a frame of each, and a line
-## saying what the client did. The check behind the loadout menu (dot-menu's
-## `GSMenuLoadoutScreen`, dot-loadout's offer) and the crosshair's fade (dot-ui's
+## saying what the client did. The check behind the loadout menu (gs-menu's
+## `GSMenuLoadoutScreen`, gs-loadout's offer) and the crosshair's fade (gs-ui's
 ## `GSCrosshair.aim_source`), which no headless suite can look at.
 ##
 ##   xvfb-run -a godot --path . --resolution 1920x1080 --script tools/render_loadout.gd

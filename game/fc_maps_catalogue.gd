@@ -8,7 +8,7 @@ const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcMapDoc := preload("../maps/fc_map_doc.gd")
 const FcMode := preload("fc_mode.gd")
 
-## This game's maps as dot-map content. [b]The awkward part:[/b] dot-map treats a map as content (id, version, scene path) and [FcMap] builds these in code on purpose ("the headless test and the played game must get the same map"), so [member GSMapDef.scene_path] names [b]the script that produces the map[/b] and [code]meta.builder[/code] says so.
+## This game's maps as gs-map content. [b]The awkward part:[/b] gs-map treats a map as content (id, version, scene path) and [FcMap] builds these in code on purpose ("the headless test and the played game must get the same map"), so [member GSMapDef.scene_path] names [b]the script that produces the map[/b] and [code]meta.builder[/code] says so.
 ## That is the seam: rotation, cooldowns, nominations, ballots and the announce/ready/load protocol work on id and version and never open the scene; only [GSMapLoader] reads `scene_path`, and [FcMapDirector] calls [method FcMap.by_id] for a built-in.
 ## A [b]delivered[/b] map (see [method delivered_def]) sets [member GSMapDef.content_id] and points at the manifest in its pack. The path is a real file, not a `code://` sentinel, so a validator can check it.
 
@@ -44,7 +44,7 @@ const MAP_VERSIONS := {
 }
 
 
-## Every built-in map, as dot-map content, built from [method FcMap.ids] rather than listed here. [b]A second list of the maps is the bug this family has shipped four times[/b]:
+## Every built-in map, as gs-map content, built from [method FcMap.ids] rather than listed here. [b]A second list of the maps is the bug this family has shipped four times[/b]:
 ## `setup.sh`, `tools/check.sh`, `tools/package_check.sh` and bootstrap all carried one and all went stale.
 ## The fix is to read it from the one place that cannot, the code that makes the maps.
 static func catalogue(content: GSContentIndex = null) -> GSMapCatalogue:
@@ -146,7 +146,7 @@ static func _follow_content(out: GSMapCatalogue, content: GSContentIndex) -> voi
 			var _removed := out.remove(def.id)
 
 
-## The file a game pack states what it takes from subscriptions in (dot-cloud's
+## The file a game pack states what it takes from subscriptions in (gs-cloud's
 ## docs/workshop.md, "What a game accepts"). Read from there, not repeated here, because the
 ## site offers a pack by this same file and a second list would drift from it.
 const PROVIDES_PATH := "res://provides.json"
@@ -319,7 +319,7 @@ static func _def_for(id: StringName, map: FcMap) -> GSMapDef:
 	def.author = "dot"
 	def.enabled = true
 
-	# The tier is a difficulty in a timer game and a size here, and dot-map does not care which — it is an
+	# The tier is a difficulty in a timer game and a size here, and gs-map does not care which — it is an
 	# integer a nomination filter and a ballot can sort on. One is a room, ten is a complex. Derived from
 	# the map's own extent rather than written down, for this file's own reason.
 	def.tier = clampi(int(map.extent / 8.0), 1, 10)
@@ -346,7 +346,7 @@ const IMPORTED_ROTATION_DEFAULT := "all"
 
 
 ## Which imported maps the rotation, the vote and nominations may offer: `all`, `none` (or empty), or a comma-separated list of ids. See [constant IMPORTED_ROTATION_DEFAULT].
-## A map left out is [member GSMapDef.enabled] false (the field dot-map's rotation pool, dot-vote's ballot and nominations read) and stays in the catalogue,
+## A map left out is [member GSMapDef.enabled] false (the field gs-map's rotation pool, gs-vote's ballot and nominations read) and stays in the catalogue,
 ## so a change to it by name still works and a client still recognises it when a server plays it.
 static var imported_rotation: String = IMPORTED_ROTATION_DEFAULT
 
@@ -379,7 +379,7 @@ static func apply_rotation(catalogue: GSMapCatalogue) -> void:
 			def.enabled = in_rotation(def.id)
 
 
-## An imported map as dot-map content. [b]Local, not delivered[/b] (no `content_id`): on every machine that has it the map is files in this build's tree (the linked fc-surf-dm-maps) that `FcMap.by_id` builds, like a built-in.
+## An imported map as gs-map content. [b]Local, not delivered[/b] (no `content_id`): on every machine that has it the map is files in this build's tree (the linked fc-surf-dm-maps) that `FcMap.by_id` builds, like a built-in.
 ## The version is its manifest's hash (`FcImportedMaps.version_of`), so a server and a client holding different imports of one map disagree at the announce instead of colliding against different brushes.
 static func _imported_def_for(id: StringName, map: FcMap) -> GSMapDef:
 	var def := GSMapDef.new()

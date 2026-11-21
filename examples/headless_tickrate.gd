@@ -199,7 +199,7 @@ func _test_wall_cap() -> void:
 				print("  measured: %d Hz cap %.1f s rewind %d: server tick %d, client tick %d (cap tick %d)" % [rate, cap, every, e.x, e.y, roundi(cap * float(rate))])
 				if true:
 					# Above 66 Hz the wire counts timers in 1/64 s (GSFpsNetSync.EXACT_RATE_LIMIT): a rewound client can end a
-					# wall run one 128 Hz tick from the server. Bounded here; filed against dot-player-controller.
+					# wall run one 128 Hz tick from the server. Bounded here; filed against gs-player-controller.
 					_check(absi(e.x - e.y) <= (1 if rate > 66 and every > 1 else 0) and absi(e.x - roundi(cap * float(rate))) <= 1, "%d Hz, %.1f s cap, rewound every %d: both end on tick %d" % [rate, cap, every, e.x], "client %d" % e.y)
 	GSFpsNetSync.timer_scale = was
 	_done()

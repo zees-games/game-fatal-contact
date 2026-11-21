@@ -1,5 +1,5 @@
 extends SceneTree
-## Renders a real breakable of an imported map before and after a hitscan shot (dot-combat's pellet trace) breaks it, with dot-fx's break effect: one glass pane and one wood breakable.
+## Renders a real breakable of an imported map before and after a hitscan shot (gs-combat's pellet trace) breaks it, with gs-fx's break effect: one glass pane and one wood breakable.
 ## xvfb-run godot --path . --script tools/break_shot.gd -- <map id> [<legacy map dir>]  ->  screenshots/<id>_break_<kind>_{before,after}.png
 
 const Bsp := preload("res://maps/fc_bsp_map.gd")

@@ -3,7 +3,7 @@ extends RefCounted
 ## Where this game's own files are, wherever this copy of it happens to live.
 ##
 ## [b]A delivered pack does not mount at the path its content was authored at.[/b] It
-## mounts at [code]res://dot_cloud/<id>/<version>/[/code], so every absolute
+## mounts at [code]res://gs_cloud/<id>/<version>/[/code], so every absolute
 ## [code]res://[/code] reference a game makes to its OWN files resolves against the
 ## host project root instead -- which holds another game's file, or nothing.
 ##
@@ -62,7 +62,7 @@ static func rebase_onto(path: String, here: String) -> String:
 	# [code]const[/code] in a script that still says [code]res://props/x.tscn[/code] and
 	# needs rebasing, and an exported property on a node that arrives already absolute and
 	# must not be. Rebasing the second produces
-	# [code]res://dot_cloud/<id>/<version>/dot_cloud/<id>/<version>/…[/code], which fails to
+	# [code]res://gs_cloud/<id>/<version>/gs_cloud/<id>/<version>/…[/code], which fails to
 	# load with a path long enough that the doubling reads as noise.
 	#
 	# Built in, [param here] is [code]res://[/code] and every [code]res://[/code] path is

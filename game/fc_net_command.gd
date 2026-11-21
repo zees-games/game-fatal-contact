@@ -7,14 +7,14 @@ const FcPlayer := preload("fc_player.gd")
 ##
 ## [b]This is the only thing a client is allowed to send about itself.[/b] Clients
 ## send inputs, never state — a client that could send a position could send any
-## position, and dot-net's whole security model rests on the distinction.
+## position, and gs-net's whole security model rests on the distinction.
 ##
 ## Fatal Contact player has two commands, because two addons that do not know about each
 ## other each define one: [GSFpsCommand] for movement and [GSWeaponCommand] for
 ## the weapon. Both already know how to write themselves through a duck-typed
 ## [code]Variant[/code] writer, for the same reason [GSFpsNetSync] never mentions
-## [code]GSNetVar[/code] — an addon that named a dot-net class would fail to parse
-## without dot-net installed. Composing them here costs nothing and keeps the
+## [code]GSNetVar[/code] — an addon that named a gs-net class would fail to parse
+## without gs-net installed. Composing them here costs nothing and keeps the
 ## quantisation decisions in the addon that owns them.
 ##
 ## [b]The view angles travel once, not twice.[/b] [GSWeaponCommand] carries its own
@@ -197,7 +197,7 @@ func _equals(other: GSNetInput) -> bool:
 		and view_back == them.view_back and view_span == them.view_span and view_targets == them.view_targets
 
 
-## Bits one command costs, before dot-net's own framing.
+## Bits one command costs, before gs-net's own framing.
 static func estimated_bits() -> int:
 	return GSFpsCommand.estimated_bits() + 4 + GSWeaponCommand.BUTTON_BITS + 1
 

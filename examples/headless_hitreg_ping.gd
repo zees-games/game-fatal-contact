@@ -38,8 +38,8 @@ const REWIND_TOLERANCE_M := 0.025
 ## The torso hitbox, [code]FcPlayer[/code]'s zones, before the body scale.
 const TORSO_RADIUS := 0.30
 const TORSO_HEIGHT := 0.98
-const HITSCAN := "dot_weapon_hitscan.gd"
-const BEAM := "dot_weapon_beam.gd"
+const HITSCAN := "gs_weapon_hitscan.gd"
+const BEAM := "gs_weapon_beam.gd"
 ## Every spread, bloom and recoil a ballistics tuning has, zeroed for the round.
 const AIM_NOISE: Array[StringName] = [&"spread", &"spread_moving", &"spread_airborne", &"spread_crouched",
 	&"bloom", &"bloom_max", &"spread_aim", &"spread_hip", &"spread_sprint", &"spread_slide", &"spread_flinch",
@@ -552,7 +552,7 @@ func _ease_vector(net: GSNetManager, bridge: FcNetBridge, render_tick: float) ->
 	if track == null:
 		return Vector3.ZERO
 	if net.interpolator.is_native():
-		# dot-sim's GSSimInterpolator draws the whole frame, ease included, and keeps its offsets to itself: the GDScript track's offsets stay empty. The ease is how far the drawn position is
+		# gs-sim's GSSimInterpolator draws the whole frame, ease included, and keeps its offsets to itself: the GDScript track's offsets stay empty. The ease is how far the drawn position is
 		# off the blend of the same snapshots at the same tick, or off the line through the two newest past them (a new newest sample eases out of the old line, GSNetInterpolator._ease_resume).
 		if track.samples.size() < 2:
 			return Vector3.ZERO

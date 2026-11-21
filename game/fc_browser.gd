@@ -2,9 +2,9 @@ extends Node
 
 const FcBrowser := preload("fc_browser.gd")
 
-## The server browser: dot-browser's client half, on a screen a player can open.
+## The server browser: gs-browser's client half, on a screen a player can open.
 ##
-## [b]dot-server has answered queries since it was written and nothing had ever
+## [b]gs-server has answered queries since it was written and nothing had ever
 ## asked one.[/b] `FcModule` contributes a query provider, so a browser reading this
 ## server gets the mode, the map, the round and how far through it is — and until this
 ## file existed, the only thing in this family that could read it was a test. That is
@@ -12,7 +12,7 @@ const FcBrowser := preload("fc_browser.gd")
 ## and the answer is a client that asks.
 ##
 ## [b]Three protocols, and the reason there are three is deployment rather than
-## taste.[/b] dot-browser speaks DQP over UDP for a desktop client, DQP as JSON over a
+## taste.[/b] gs-browser speaks DQP over UDP for a desktop client, DQP as JSON over a
 ## WebSocket for a browser build — which cannot open a UDP socket at all — and A2S for
 ## the twenty years of trackers and tooling that speak nothing else.
 ## [constant GSBrowserTarget.Protocol.AUTO] picks, and it picks by asking
@@ -71,11 +71,11 @@ func setup() -> GSResult:
 	# for something nobody reads until they have picked one.
 	#
 	# [b]The game section is the reason `FcModule` has a query provider at all.[/b]
-	# `info.map` is dot-server's, and dot-server means by it "the content id of the
+	# `info.map` is gs-server's, and gs-server means by it "the content id of the
 	# game that is loaded" — which on a server that never `changegame`s is empty. What
 	# a player wants to see is `dm_atrium`, and that is the game's own fact, which is
 	# why it arrives under `rules["game"]` rather than overwriting `info.map`.
-	# dot-browser nests it deliberately: flattening would collide the first time a
+	# gs-browser nests it deliberately: flattening would collide the first time a
 	# game put a field called `map` in it, which is the first time.
 	browser.sections = PackedStringArray(["info", "players", "game"])
 	browser.conditional = true
@@ -119,7 +119,7 @@ func setup() -> GSResult:
 ## address", several layers below anything that could say what was wrong.
 ##
 ## Zero means "ask the game port", which is what a server that has not moved its query
-## listener does. dot-server's default moves it, so a caller that knows both passes
+## listener does. gs-server's default moves it, so a caller that knows both passes
 ## both: a browser asking the game port of a server whose queries are elsewhere gets
 ## no answer, and reports it as offline.
 func add(address: String, query_port: int = 0) -> GSResult:
@@ -144,7 +144,7 @@ func add(address: String, query_port: int = 0) -> GSResult:
 
 ## The port a bare host is assumed to be on.
 ##
-## dot-server's own default, not the long-standing 27015. A list that guessed the wrong
+## gs-server's own default, not the long-standing 27015. A list that guessed the wrong
 ## port would report every server on it as offline, which reads as the browser being
 ## broken.
 static func default_port() -> int:
@@ -184,7 +184,7 @@ func note_connected(key: String) -> void:
 
 ## What the game says about itself, from the query's `game` section.
 ##
-## [b]Not `entry.map`.[/b] That is dot-server's `info.map`, which means "the content id
+## [b]Not `entry.map`.[/b] That is gs-server's `info.map`, which means "the content id
 ## of the loaded game" and is empty on a server that has never switched games. The map
 ## a player wants to read is the game's own, and it arrives nested so it cannot
 ## overwrite the other.

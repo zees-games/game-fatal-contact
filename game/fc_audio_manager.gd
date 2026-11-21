@@ -1,6 +1,6 @@
 extends GSAudioManager
 
-## Fatal Contact's sound manager: dot-audio's, with the time it takes to start a sound and to drop the finished ones
+## Fatal Contact's sound manager: gs-audio's, with the time it takes to start a sound and to drop the finished ones
 ## charged to `arena.audio`, so a recording says what sound costs on the game's thread. The mix itself runs on
 ## the engine's audio thread and is not in it; the report's `context.audio` names the driver and its latency.
 
@@ -8,7 +8,7 @@ const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 
 ## While the solo game is behind wall-clock time (FcTickBudget.shed_now), positional one-shots further than [constant SHED_NEAR] from the listener are limited to [constant SHED_FAR_PER_FRAME] a drawn frame;
-## the rest are refused the way dot-audio refuses a sound over its concurrency limit (handle 0, `played` with a reason). Sounds without a position (own weapon, interface, announcers) and near ones always play.
+## the rest are refused the way gs-audio refuses a sound over its concurrency limit (handle 0, `played` with a reason). Sounds without a position (own weapon, interface, announcers) and near ones always play.
 const SHED_NEAR := 12.0
 const SHED_FAR_PER_FRAME := 2
 

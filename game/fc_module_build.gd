@@ -4,7 +4,7 @@ const FcPaths := preload("fc_paths.gd")
 
 
 const FcEvents := preload("fc_events.gd")
-const GSGameRelevance := preload("res://addons/dot_game/net/dot_game_relevance.gd")
+const GSGameRelevance := preload("res://addons/gs_game/net/gs_game_relevance.gd")
 const FcMode := preload("fc_mode.gd")
 const FcModTools := preload("fc_mod_tools.gd")
 const FcModule := preload("fc_module.gd")
@@ -15,12 +15,12 @@ const FcModule := preload("fc_module.gd")
 const MAP_BALLOT_TOPIC := &"map_ballot"
 
 
-## dot-platform's own module, loaded beside this one. A path, because that is what
+## gs-platform's own module, loaded beside this one. A path, because that is what
 ## [code]GSModuleHost.load_module[/code] takes — see [method _build_identity].
-const PLATFORM_MODULE_PATH := "res://addons/dot_platform/dot_platform_module.gd"
+const PLATFORM_MODULE_PATH := "res://addons/gs_platform/gs_platform_module.gd"
 
 
-## Where the services keep punishments. Empty is dot-moderation's own default,
+## Where the services keep punishments. Empty is gs-moderation's own default,
 ## `user://moderation.json` — the store a real server enforces.
 static var punishments_file: String = ""
 
@@ -33,14 +33,14 @@ var mod_commands: GSModToolCommands = null
 var _tick: int = 0
 
 
-## Binds dot-audio's sv_surf_* cvars with the `surf_*` profile values as their defaults, which every client follows.
+## Binds gs-audio's sv_surf_* cvars with the `surf_*` profile values as their defaults, which every client follows.
 func _bind_surf_cvars(flags: int) -> void:
 	var values := game.config.surf_values()
-	# Before dot-audio 21 the surf cvars have a finite upper bound that clamps; from 21 they are unbounded and a bad value is refused.
-	var level := GSAddonApi.build_level("dot_audio")
+	# Before gs-audio 21 the surf cvars have a finite upper bound that clamps; from 21 they are unbounded and a bad value is refused.
+	var level := GSAddonApi.build_level("gs_audio")
 	if level < 21:
-		GSLog.debug(CHANNEL, "dot-audio API %d: sv_surf_* upper bounds are finite (unbounded from 21)" % level)
-	for spec: Dictionary in preload("res://addons/dot_game/runtime/dot_game_slide_sounds.gd").surf_cvar_specs():
+		GSLog.debug(CHANNEL, "gs-audio API %d: sv_surf_* upper bounds are finite (unbounded from 21)" % level)
+	for spec: Dictionary in preload("res://addons/gs_game/runtime/gs_game_slide_sounds.gd").surf_cvar_specs():
 		var key := String(spec["name"]).trim_prefix("sv_surf_")
 		var v: Variant = values.get(key, spec["value"])
 		var text := ("1" if v else "0") if v is bool else str(v)
@@ -53,33 +53,33 @@ func _bind_surf_cvars(flags: int) -> void:
 func _bind_rule_cvars() -> void:
 	# Replicated where each client draws or predicts under the rule; the rules are the game's, so one bind lasts.
 	var replicated := GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
-	# sv_falldamage and its tunables: dot-combat's, on here (not on surf maps); server side, the damage arrives as health.
+	# sv_falldamage and its tunables: gs-combat's, on here (not on surf maps); server side, the damage arrives as health.
 	var _fall := game.fall_rules.bind_cvars(add_cvar, GSConVar.FLAG_NOTIFY)
 
-	# Dead bodies: dot-player-char's sv_ragdoll* (the server picks each reaction, FcGame.decide_death).
+	# Dead bodies: gs-player-char's sv_ragdoll* (the server picks each reaction, FcGame.decide_death).
 	var _ragdoll_cvars := game.ragdoll_rules.bind_cvars(add_cvar, replicated)
 	var _weapon_drop_cvars := game.weapon_drop_rules.bind_cvars(add_cvar, replicated)  # sv_weapon_drop*
 	var _use_cvars := game.map_use.bind_cvars(add_cvar, replicated)  # sv_use_reach, sv_use_cooldown
 
-	# The map's toys: dot-props' sv_toys, sv_toys_awake, sv_toys_push.
+	# The map's toys: gs-props' sv_toys, sv_toys_awake, sv_toys_push.
 	var _toy_cvars := game.toy_rules.bind_cvars(add_cvar, replicated)
 
 	# mp_forceview: free view (0), held in first (1) or third (2) person.
 	var _view_cvars := game.view_rules.bind_cvars(add_cvar, replicated)
 
-	# mp_killview*: dot-replay's kill view.
+	# mp_killview*: gs-replay's kill view.
 	var _killview_cvars := game.killview_rules.bind_cvars(add_cvar, replicated)
 
-	# sv_mobile_*, sv_aim_assist*, sv_autofire*: dot-mobile's touch controls.
+	# sv_mobile_*, sv_aim_assist*, sv_autofire*: gs-mobile's touch controls.
 	var _mobile_cvars := game.mobile_rules.bind_cvars(add_cvar, replicated)
 
-	# snd_shot_*: dot-audio's GSShotRules (layered shots, room tails).
+	# snd_shot_*: gs-audio's GSShotRules (layered shots, room tails).
 	var _shot_cvars := game.shot_rules.bind_cvars(add_cvar, replicated)
 
-	# fc_ambient*: dot-audio's GSAmbienceRules; the directory cvar stays local.
+	# fc_ambient*: gs-audio's GSAmbienceRules; the directory cvar stays local.
 	var _ambient_cvars := game.ambient_rules.bind_cvars(add_cvar, replicated, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY)
 
-	# mp_forcecamera, mp_freeroam, mp_freeroam_speed: dot-spectate's rules (FcClient.toggle_roam).
+	# mp_forcecamera, mp_freeroam, mp_freeroam_speed: gs-spectate's rules (FcClient.toggle_roam).
 	var _spectate_cvars := game.spectate_rules.bind_cvars(add_cvar, replicated)
 
 	_bind_surf_cvars(replicated)
@@ -87,7 +87,7 @@ func _bind_rule_cvars() -> void:
 	# mp_solidplayers: players and bots stop at each other (1) or pass through (0) (FcGame.solid_hulls_for).
 	var _solid_cvars := game.body_rules.bind_cvars(add_cvar, replicated)
 
-	# mp_teamblock, mp_enemyblock, !block / !noblock: dot-game's module builds GSGameNoblock after this load.
+	# mp_teamblock, mp_enemyblock, !block / !noblock: gs-game's module builds GSGameNoblock after this load.
 
 	# mp_vm_sway* and friends: fc-weapons' view model feel, drawn on each client.
 	var _feel_cvars := game.feel_rules.bind_cvars(add_cvar, replicated)
@@ -98,7 +98,7 @@ func _bind_rule_cvars() -> void:
 	game.combat_feel.bind_cvars(add_cvar)
 
 
-## The manager, the bridge and the link. [b]The module drives the tick, not the game.[/b] The game's tick has to happen INSIDE dot-net's, between applying each peer's inputs and building the snapshot,
+## The manager, the bridge and the link. [b]The module drives the tick, not the game.[/b] The game's tick has to happen INSIDE gs-net's, between applying each peer's inputs and building the snapshot,
 ## which is what `FcNetBridge.server_tick` arranges through `FcPlayerNet._net_simulate`. A game ticking itself as well would move everybody twice.
 func _build_netcode() -> GSResult:
 	net = GSNetManager.new()
@@ -132,8 +132,8 @@ func _build_netcode() -> GSResult:
 	if not started.ok:
 		return started
 
-	# net_skip_idle and net_visibility, the switches dot-game's own games get from GSGameNetcode (dot-game 52; by name, so an older host still parses this).
-	if GSAddonApi.build_level("dot_game") >= 52:
+	# net_skip_idle and net_visibility, the switches gs-game's own games get from GSGameNetcode (gs-game 52; by name, so an older host still parses this).
+	if GSAddonApi.build_level("gs_game") >= 52:
 		(GSGameRelevance as GDScript).call(&"bind_toggles", console, net)
 
 	bridge = FcNetBridge.new()
@@ -149,11 +149,11 @@ func _build_netcode() -> GSResult:
 	# client parents its copy under `GSClientLink`, which is named to match.
 	bridge.open_link(server)
 
-	# The switch a server owner uses to forbid clients' artificial lag; dot-game's module does the same.
+	# The switch a server owner uses to forbid clients' artificial lag; gs-game's module does the same.
 	var _latency := net.latency.bind_server_cvar(Callable(self, "add_cvar"), GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED)
 
 	# Who somebody is reaches the match: a figure as they are seated, and the real name
-	# and figure once dot-platform has them. See `_wire_identity`.
+	# and figure once gs-platform has them. See `_wire_identity`.
 	_wire_identity()
 
 	# Avatar actions: the relay, and the loadouts the join/leave handlers below tell.
@@ -174,7 +174,7 @@ func _build_netcode() -> GSResult:
 	# Sealed after every type is registered: a type added later is one the peer was told is absent.
 	net.messages.seal()
 
-	# A client whose schema cannot work with this server's is dropped, in words: dot-net only
+	# A client whose schema cannot work with this server's is dropped, in words: gs-net only
 	# says so and owns no socket (as GSGameNetcode.refuse_peer).
 	net.peer_schema_refused.connect(_refuse_peer)
 
@@ -197,7 +197,7 @@ func _build_identity() -> GSResult:
 
 	# [b]Loaded by PATH, not by instance, and the hub is found through the registry.[/b] `GSModuleHost.load_module` takes a path and constructs the module itself (that is what lets an operator name a module in a config file),
 	# so a pre-built instance with `platform` assigned would be thrown away and a fresh one made with `platform` null.
-	# dot-platform's module falls back to `GSRegistry.get_service(GSPlatformHub.SERVICE)` for exactly this, which is why `FcIdentity` registers the hub.
+	# gs-platform's module falls back to `GSRegistry.get_service(GSPlatformHub.SERVICE)` for exactly this, which is why `FcIdentity` registers the hub.
 	if server.modules != null and not server.modules.has_module("platform"):
 		# Awaited: loading a module runs its `_module_load`, which is allowed to be a
 		# coroutine. An un-awaited one returns at its first suspension, and the line
@@ -219,7 +219,7 @@ func _build_services() -> GSResult:
 
 	# Before `setup`, not after. The relay is built inside it, and a client assigned
 	# afterwards is a client the relay has already decided it does not have — the same
-	# ordering that left dot-server's audit log unopened in every default configuration.
+	# ordering that left gs-server's audit log unopened in every default configuration.
 	if identity != null:
 		services.backbone = identity.backbone
 
@@ -259,7 +259,7 @@ func _build_app() -> GSResult:
 
 
 ## noclip, god, slay, bring and the rest, on this server's console and in chat. Through this module as the host, so every one is removed on unload like the module's own commands.
-## The handlers are `FcModTools`; the flags, the targets and the immunity rule are dot-moderation's `GSModToolCommands`, and neither names the other.
+## The handlers are `FcModTools`; the flags, the targets and the immunity rule are gs-moderation's `GSModToolCommands`, and neither names the other.
 func _build_mod_commands() -> void:
 	if services == null or services.mod_tools == null:
 		return
@@ -300,8 +300,8 @@ func _build_maps() -> GSResult:
 		maps = null
 		return ready
 
-	# The transport. dot-map is deliberately transport-agnostic — it depends on nothing
-	# but dot-core — so the host says where a payload goes, one peer at a time.
+	# The transport. gs-map is deliberately transport-agnostic — it depends on nothing
+	# but gs-core — so the host says where a payload goes, one peer at a time.
 	maps.sync.send_fn = func(peer: int, payload: Dictionary) -> void:
 		if bridge != null and bridge.link != null:
 			bridge.link.send_map(peer, payload)
@@ -347,7 +347,7 @@ func _build_maps() -> GSResult:
 	)
 
 	# The game scene (FcServer, under `server.games`) forwards `change_to` to this director: a host that changes
-	# "the game's map" looks there (dot-server-deploy's `map:` in server.yml / `--map`), and the module is not under it.
+	# "the game's map" looks there (gs-server-deploy's `map:` in server.yml / `--map`), and the module is not under it.
 	var scene := game.get_parent()
 	if scene != null and scene.has_method(&"attach_maps"):
 		scene.call(&"attach_maps", maps)
@@ -458,7 +458,7 @@ func _keep_bots() -> void:
 	var wanted := _bot_quota.wanted(humans, slots)
 	var bots := bridge.bot_ids()
 
-	# Named from dot-bot's pool, never a person's name and never "Bot 3".
+	# Named from gs-bot's pool, never a person's name and never "Bot 3".
 	var taken: Array = game.players().map(func(p) -> String: return p.display_name)
 	var _kept := _bot_roster.keep(wanted, bots,
 		func(bot_name: String) -> int: return bridge.add_bot(bot_name),
@@ -500,7 +500,7 @@ func _physics_process(delta: float) -> void:
 	_follow_npc_lod(game.horde.spawner if game != null and game.horde != null else null, delta)
 
 
-## The NPC level of detail and sense workers follow the `npc_lod*` cvars (dot-game's GSGameNpcLod; all off by default). This module is a GSModule, so it holds the attachment itself.
+## The NPC level of detail and sense workers follow the `npc_lod*` cvars (gs-game's GSGameNpcLod; all off by default). This module is a GSModule, so it holds the attachment itself.
 var _npc_lod: GSGameNpcLod = null
 
 
@@ -516,7 +516,7 @@ func _follow_npc_lod(spawner: Object, delta: float) -> void:
 
 
 ## So `changegame`, a vote and the server browser have something to name. Ships inside the build, so `client_scene` stays empty and the signon takes the "you already have it" path
-## (an absolute server path there is refused by `GSClientLink`, and signon timed out). What a server browser is told about this game: [b]dot-browser is the client half and has never asked a real `GSServer` anything[/b];
+## (an absolute server path there is refused by `GSClientLink`, and signon timed out). What a server browser is told about this game: [b]gs-browser is the client half and has never asked a real `GSServer` anything[/b];
 ## what a query returns about the GAME comes from providers like this one: what is being played, on what, how far through it is, and whether it is worth joining.
 func _build_query_provider() -> void:
 	var provider := FcQueryProvider.new()
@@ -578,7 +578,7 @@ func _register_game() -> void:
 
 	# [b]`metadata["module"]`, not `descriptor.module`: there is no such property.[/b] Godot refuses a dynamic property on a Resource, so setting it pushed an error on every registration and the descriptor named no module at all,
 	# and `changegame arena` would load the scene and no module ("the game loaded but its module did not", a failure this family has shipped before).
-	# `metadata` is where a module path goes; dot-server-deploy's host reads it from there.
+	# `metadata` is where a module path goes; gs-server-deploy's host reads it from there.
 	descriptor.metadata = {
 		"module": FcPaths.rebase(FcPaths.rebase("res://game/fc_module.gd")),
 		"kind": "arena",
@@ -641,7 +641,7 @@ func _change_mode(old_value: String, new_value: String) -> void:
 		})
 		return
 
-	# The change respawns everybody, so on a server it waits for the next tick (dot_tick_gate.gd).
+	# The change respawns everybody, so on a server it waits for the next tick (gs_tick_gate.gd).
 	game.tick_gate.run(func() -> void:
 		if session.pending_mode != wanted or maps.is_changing():
 			# Superseded by a later fc_mode, or a map change started and plays it.

@@ -91,7 +91,7 @@ const _OTHER_MOVEMENT_CVARS := {
 	"fc_crit_chance": ["", "Chance any hit is a critical, 0 to 1 (headshots always are)"],
 }
 
-## [constant _OTHER_MOVEMENT_CVARS] plus the slide's, whose names and words dot-player-controller writes once.
+## [constant _OTHER_MOVEMENT_CVARS] plus the slide's, whose names and words gs-player-controller writes once.
 static var MOVEMENT_CVARS: Dictionary = _OTHER_MOVEMENT_CVARS.merged(GSFpsSlidePreset.cvar_table("fc_slide"))
 
 
@@ -101,7 +101,7 @@ func _add_movement_cvars() -> void:
 	for cvar in MOVEMENT_CVARS:
 		var key: String = MOVEMENT_CVARS[cvar][0]
 
-		# The two critical cvars set dot-combat's rules on the server, not a rule a client
+		# The two critical cvars set gs-combat's rules on the server, not a rule a client
 		# draws: a critical is judged where the damage is.
 		if key == "":
 			_add_critical_cvar(cvar, MOVEMENT_CVARS[cvar][1])
@@ -126,7 +126,7 @@ func _add_movement_cvars() -> void:
 	_add_hit_group_cvars()
 
 
-## fc_head_mult, _neck_mult, _stomach_mult and _leg_mult: dot-combat's `GSHitGroup.bind_cvars` on the resolver's table (defaults are dot-combat's).
+## fc_head_mult, _neck_mult, _stomach_mult and _leg_mult: gs-combat's `GSHitGroup.bind_cvars` on the resolver's table (defaults are gs-combat's).
 func _add_hit_group_cvars() -> void:
 	var groups: GSHitGroup = game.combat.resolver.hit_groups if game.combat != null and game.combat.resolver != null else null
 	if groups == null:
@@ -248,7 +248,7 @@ func _add_shot_rewind_cvars() -> void:
 			log_info("shot view cone changed", {"deg": game.shot_view_cone_deg}))
 
 
-## `stats_report` (dot-game's family cvar): 1 files the players' stats with the backbone. Off by default. The old `arena_stats_report` is a loud renamed shim (fc_renamed_names.gd).
+## `stats_report` (gs-game's family cvar): 1 files the players' stats with the backbone. Off by default. The old `arena_stats_report` is a loud renamed shim (fc_renamed_names.gd).
 func _add_stats_report_cvar() -> void:
 	var _cv := GSGameStatsReport.bind(self,
 		func(on: bool) -> GSResult:
@@ -257,7 +257,7 @@ func _add_stats_report_cvar() -> void:
 			return game.progress.set_reporting(on))
 
 
-## `fc_rank`: "weighted", "elo", or "weighted:arena.kills=1,arena.deaths=-0.5" (dot-stats' GSStatsRank.apply_cvar).
+## `fc_rank`: "weighted", "elo", or "weighted:arena.kills=1,arena.deaths=-0.5" (gs-stats' GSStatsRank.apply_cvar).
 func _add_rank_cvar() -> void:
 	add_cvar("fc_rank", "weighted",
 		"Skill rank formula: weighted, elo, or weighted:<stat>=<weight>,...",
@@ -298,7 +298,7 @@ func _add_avatar_library_cvars() -> void:
 			var _r := FcAvatarLibrary.apply_loadout_limits(GSGameAvatarLoadoutMessage.max_entries, int(new_value.to_float())))
 
 
-## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_native`: dot-sim's sight scan; `bot_native_brain`: dot-bot's native mind (on); `motor_native`: dot-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in dot-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: dot-sim's ragdoll bone pose.
+## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_native`: gs-sim's sight scan; `bot_native_brain`: gs-bot's native mind (on); `motor_native`: gs-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in gs-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: gs-sim's ragdoll bone pose.
 func _add_bot_think_cvars() -> void:
 	add_cvar("bot_think_every", str(FcBots.think_every),
 		"A bot far from every enemy runs its brain one tick in this many (1 = every tick, 0 = 2 above 16 players)",
@@ -306,12 +306,12 @@ func _add_bot_think_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcBots.think_every = maxi(0, int(new_value.to_float())))
 	add_cvar("bot_personas", FcBots.personas_mode,
-		"Bot characters (cfg/game/game-arena/bot/*.yml): empty deals every persona by its weight, 'id:weight,...' only those, 'off' one shared bot_difficulty",
+		"Bot characters (cfg/game/game-fatal-contact/bot/*.yml): empty deals every persona by its weight, 'id:weight,...' only those, 'off' one shared bot_difficulty",
 		GSConVar.FLAG_ARCHIVE).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBots.personas_mode = new_value.strip_edges())
 	add_cvar("sv_bot_loadouts", FcBotLoadouts.mode,
-		"Kits bots draw at each spawn (cfg/game/game-arena/bot_loadout/*.yml): 'all' every enabled one by its weight, 'id[:weight],...' only those",
+		"Kits bots draw at each spawn (cfg/game/game-fatal-contact/bot_loadout/*.yml): 'all' every enabled one by its weight, 'id[:weight],...' only those",
 		GSConVar.FLAG_ARCHIVE).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotLoadouts.mode = new_value.strip_edges())
@@ -366,7 +366,7 @@ func _add_bot_think_cvars() -> void:
 ## The native/threaded switches of the bot and motor engines.
 func _add_bot_engine_cvars() -> void:
 	add_cvar("bot_fast_sense", "1" if FcBotBrain.fast_sense else "0",
-		"1: bots scan candidates by squared distance and cone cosine (same result, cheaper); 0: dot-bot's stock scan",
+		"1: bots scan candidates by squared distance and cone cosine (same result, cheaper); 0: gs-bot's stock scan",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotBrain.fast_sense = new_value.to_float() >= 0.5)
@@ -376,37 +376,37 @@ func _add_bot_engine_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcBotThreads.threads = maxi(0, int(new_value.to_float())))
 	add_cvar("bot_native", "1" if GSBotWorld.native_enabled else "0",
-		"1: the bots' sight scan runs in dot-sim when its library is installed (same result, cheaper); 0: in script. Without the library it is script either way",
+		"1: the bots' sight scan runs in gs-sim when its library is installed (same result, cheaper); 0: in script. Without the library it is script either way",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			GSBotWorld.native_enabled = new_value.to_float() >= 0.5)
-	# On by default (FcPlayerStack._static_init): with a dot-sim whose mind is worker_safe, native brains
-	# stay native on bot_threads workers (dot-bot API 34 par_ready), and a 64-player sim host on staging02 spends
+	# On by default (FcPlayerStack._static_init): with a gs-sim whose mind is worker_safe, native brains
+	# stay native on bot_threads workers (gs-bot API 34 par_ready), and a 64-player sim host on staging02 spends
 	# ~0.25 ms/tick less on bot_brain (nightly simhost-bot-native-glue-1). An older library thinks in script there.
 	add_cvar("bot_native_brain", "1",
-		"1: the bots' aim, fight step and perception run in dot-sim when its library has the bot mind (the same decisions to the bit, cheaper; on bot_threads workers too with a worker-safe library); 0: in script. Takes effect for bots added after the change",
+		"1: the bots' aim, fight step and perception run in gs-sim when its library has the bot mind (the same decisions to the bit, cheaper; on bot_threads workers too with a worker-safe library); 0: in script. Takes effect for bots added after the change",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcPlayerStack.set_brain_native(new_value.to_float() >= 0.5))
 	add_cvar("motor_native", "1" if GSFpsPhysicsBody.native_enabled else "0",
-		"1: the players' movement collision queries (sweep, rest contact, overlap) run in dot-sim when its library is installed (bit-identical to the script, so web and native clients still agree; cheaper); 0: in script. Without the library it is script either way",
+		"1: the players' movement collision queries (sweep, rest contact, overlap) run in gs-sim when its library is installed (bit-identical to the script, so web and native clients still agree; cheaper); 0: in script. Without the library it is script either way",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			GSFpsPhysicsBody.native_enabled = new_value.to_float() >= 0.5)
-	# By name: a no-op against a dot-player-char older than the switch.
+	# By name: a no-op against a gs-player-char older than the switch.
 	add_cvar("ragdoll_native", "0" if (GSPlayerRagdoll as Script).get(&"native_pose") == false else "1",
-		"1: a skinned ragdoll's bones follow its parts in dot-sim when its library is installed (the same bone poses as the script, to the bit; cheaper); 0: in script. Client-side looks only; without the library it is script either way",
+		"1: a skinned ragdoll's bones follow its parts in gs-sim when its library is installed (the same bone poses as the script, to the bit; cheaper); 0: in script. Client-side looks only; without the library it is script either way",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			(GSPlayerRagdoll as Script).set(&"native_pose", new_value.to_float() >= 0.5))
 	# On by default (FcPlayerStack._static_init); Fatal Contact suites run it against the script's bits.
 	add_cvar("motor_native_tick", "1",
-		"1: a plain ground or air tick's start and end (ground check, friction, acceleration, gravity, collide-and-slide) run in dot-sim as one call each when its library has the motor tick (bit-identical to the script); 0: in script. Needs motor_native; without the library it is script either way",
+		"1: a plain ground or air tick's start and end (ground check, friction, acceleration, gravity, collide-and-slide) run in gs-sim as one call each when its library has the motor tick (bit-identical to the script); 0: in script. Needs motor_native; without the library it is script either way",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			GSFpsMotor.native_tick = new_value.to_float() >= 0.5)
 	add_cvar("motor_native_full", "1" if GSFpsMotor.native_full else "0",
-		"1: with motor_native_tick, the whole tick (jumps, slides, launches, dashes, wall runs and wall jumps too) runs in dot-sim as one call when its library has it (bit-identical to the script); 0: only the start and end",
+		"1: with motor_native_tick, the whole tick (jumps, slides, launches, dashes, wall runs and wall jumps too) runs in gs-sim as one call when its library has it (bit-identical to the script); 0: only the start and end",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			GSFpsMotor.native_full = new_value.to_float() >= 0.5)
@@ -425,12 +425,12 @@ func _add_hull_and_pvs_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.fast = new_value.to_float() >= 0.5)
 	add_cvar("fc_hull_native", "1" if FcHullGrid.native else "0",
-		"1: with fc_hull_fast, a mover that is not lag-compensated gathers its hulls in dot-sim (same hulls, no script call per player); 0: by script",
+		"1: with fc_hull_fast, a mover that is not lag-compensated gathers its hulls in gs-sim (same hulls, no script call per player); 0: by script",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.native = new_value.to_float() >= 0.5)
 	add_cvar("fc_motor_batch", "1" if FcHullGrid.batch else "0",
-		"1: with fc_hull_native, dot-sim ticks the players' motors in runs of one call a game tick (same states); 0: one call per player",
+		"1: with fc_hull_native, gs-sim ticks the players' motors in runs of one call a game tick (same states); 0: one call per player",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.batch = new_value.to_float() >= 0.5)
@@ -440,12 +440,12 @@ func _add_hull_and_pvs_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcBotPvs.enabled = new_value.to_float() >= 0.5)
 	add_cvar("fc_bot_pvs_native", "1" if FcBotPvs.native else "0",
-		"1: with fc_bot_pvs, dot-sim asks the PVS where its library has it (bit for bit with the script), else no pre-cull; 0: the script set (slower than none)",
+		"1: with fc_bot_pvs, gs-sim asks the PVS where its library has it (bit for bit with the script), else no pre-cull; 0: the script set (slower than none)",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotPvs.native = new_value.to_float() >= 0.5)
 	add_cvar("fc_posture_native", "1" if FcPlayer.posture_native else "0",
-		"1: an idle weapon tick's posture row and flinch check run in dot-sim where its library has GSSimPlayerPost (bit for bit with the script); 0: the script",
+		"1: an idle weapon tick's posture row and flinch check run in gs-sim where its library has GSSimPlayerPost (bit for bit with the script); 0: the script",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcPlayer.posture_native = new_value.to_float() >= 0.5)
@@ -507,7 +507,7 @@ func _add_rocket_cvars(flags: int) -> void:
 ## stream to one client is ~6 kB/s steady and ~16 kB/s at a join with up to 31 bots, and a
 ## snapshot is already bounded by `max_entities_per_snapshot` and the mtu. What a cap does
 ## when it bites is hold a snapshot back, which a player reads as a ping spike. It is here
-## for an operator on a metered uplink, and it is dot-net's `per_client_budget`, read live.
+## for an operator on a metered uplink, and it is gs-net's `per_client_budget`, read live.
 func _add_rate_cvar() -> void:
 	_cv_maxrate = add_cvar("sv_maxrate", "0",
 		"Bytes a second each client may be sent; 0 is no cap (a cap that bites delays snapshots)",
@@ -547,7 +547,7 @@ func _add_snapshot_rate_cvar() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0)
 
 
-## `sv_snapshot_workers`: [member GSNetConfig.snapshot_workers], live. The same bytes on the wire either way (dot-net builds each peer's snapshot from one frozen instant);
+## `sv_snapshot_workers`: [member GSNetConfig.snapshot_workers], live. The same bytes on the wire either way (gs-net builds each peer's snapshot from one frozen instant);
 ## net_probe, 31 bots + 31 fake peers on PH: send 4.31 -> 2.86 ms/tick with 4 (nightly fc-snapshot-workers-1). Launch `+sv_snapshot_workers N` or env ARENA_SNAPSHOT_WORKERS.
 func _add_snapshot_workers_cvar() -> void:
 	add_cvar("sv_snapshot_workers", str(net.config.snapshot_workers if net != null and net.config != null else 0),
@@ -572,7 +572,7 @@ static func default_snapshot_workers() -> int:
 	return n if n >= 2 else 0
 
 
-## Fatal Contact's own limits on `sv_tickrate` (dot-server's range is wider; [constant FcGame.MIN_TICK_RATE] to
+## Fatal Contact's own limits on `sv_tickrate` (gs-server's range is wider; [constant FcGame.MIN_TICK_RATE] to
 ## [constant FcGame.MAX_TICK_RATE]), and `bot_think_hz`: the bots' think rate in Hertz, so 33 means a think every 2nd
 ## tick at 66 and every 4th at 128 (`bot_think_every` counts ticks; the last one set wins; 0 leaves it to `bot_think_every`).
 func _add_tick_rate_cvars() -> void:
@@ -673,7 +673,7 @@ func _add_flag_carry_cvars() -> void:
 		)
 
 
-## The knife rules as cvars (`fc_knife_throw`, `_speed`, `_pickup`, `_damage`): dot-weapon's table.
+## The knife rules as cvars (`fc_knife_throw`, `_speed`, `_pickup`, `_damage`): gs-weapon's table.
 func _add_knife_cvars() -> void:
 	var _made := GSWeaponKnives.bind_cvars(
 		game.knife_rules, add_cvar, "fc_knife",

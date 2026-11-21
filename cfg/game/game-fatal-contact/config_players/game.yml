@@ -1,5 +1,5 @@
-# game-arena: every key of this file at its code default, commented out. Uncomment a line to change it;
-# an operator overrides in cfg/server/game/game-arena/config_players/game.yml. Layers: defaults < this < env < argv.
+# game-fatal-contact: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-fatal-contact/config_players/game.yml. Layers: defaults < this < env < argv.
 
 # --- Players
 # Health a player spawns with and heals up to. [1.0..1000.0]
@@ -52,7 +52,7 @@
 # stomp_bounce: 8.0
 # Seconds before the same player can stomp again. [0.0..30.0]
 # stomp_cooldown_sec: 0.5
-# Sound id played on a stomp (a dot-audio id).
+# Sound id played on a stomp (a gs-audio id).
 # stomp_sound: "stomp"
-# Effect id spawned on a stomp (a dot-fx id).
+# Effect id spawned on a stomp (a gs-fx id).
 # stomp_effect: "stomp_puff"

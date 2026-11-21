@@ -14,10 +14,10 @@ static var enabled := true
 ## Test hook (scale128 --hullverify): every grid answer is also computed by the full scan and compared.
 ## Cvar `fc_hull_fast`: 0 runs the per-candidate [method FcGame._add_hull] for the grid's candidates.
 static var fast := true
-## Cvar `fc_hull_native`: with [member fast], a mover that is not lag-compensated gathers its hulls in dot-sim's
+## Cvar `fc_hull_native`: with [member fast], a mover that is not lag-compensated gathers its hulls in gs-sim's
 ## `GSSimHullWorld` (same hulls, no script call per player); 0 or without the library, by script.
 static var native := true
-## Cvar `fc_motor_batch`: with the hull world, the players' loop prepares every player's tick first and dot-sim ticks
+## Cvar `fc_motor_batch`: with the hull world, the players' loop prepares every player's tick first and gs-sim ticks
 ## their motors in runs of one call (`GSSimMotorBatch`, same states to the bit); 0 or without it, one call per player.
 static var batch := true
 ## Players the batched loop found changed by another player's turn (dead, moved or pushed after its own preparation):

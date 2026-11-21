@@ -11,7 +11,7 @@ const NAME_BYTES := 32
 ## On the holder of an `AwShotFx` (a world model, or the local rig): its gun has a suppressor on.
 const SUPPRESSED_META := &"arena_suppressed"
 
-## The Boomerang attachment (dot-weapon API 41: a thrown knife flies a loop back).
+## The Boomerang attachment (gs-weapon API 41: a thrown knife flies a loop back).
 ## STAND-IN: fc-weapons has no knife socket or Boomerang model yet, so the entry carries no model and the knife
 ## looks the same fitted or not; the board item fc-knife-throw-1 holds the art request.
 const BOOMERANG := &"boomerang"
@@ -25,8 +25,8 @@ static var _catalogue: GSWeaponAttachments = null
 static func catalogue() -> GSWeaponAttachments:
 	if _catalogue == null:
 		_catalogue = AwSpawnProvider.attachment_defs()
-		# The shell's older dot-weapon has no Boomerang throw: offering it there would fit an attachment that does nothing.
-		if _catalogue.get_attachment(BOOMERANG) == null and GSAddonApi.build_level("dot_weapon") >= FcThrowMeter.CHARGE_LEVEL:
+		# The shell's older gs-weapon has no Boomerang throw: offering it there would fit an attachment that does nothing.
+		if _catalogue.get_attachment(BOOMERANG) == null and GSAddonApi.build_level("gs_weapon") >= FcThrowMeter.CHARGE_LEVEL:
 			var _added := _catalogue.add(boomerang())
 	return _catalogue
 
@@ -39,7 +39,7 @@ static func boomerang() -> GSWeaponAttachment:
 	att.description = "A thrown knife flies a loop and comes back to where it was thrown from."
 	att.mount = FcContent.KNIFE_MOUNT
 	att.fits_weapons = [FcContent.melee_id()] as Array[StringName]
-	# GSWeaponKnives.PARAM_BOOMERANG (dot-weapon 41), written out so this parses on an older dot-weapon.
+	# GSWeaponKnives.PARAM_BOOMERANG (gs-weapon 41), written out so this parses on an older gs-weapon.
 	att.params_set = {BOOMERANG_PARAM: true}
 	return att
 

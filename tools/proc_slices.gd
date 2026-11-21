@@ -9,19 +9,19 @@ extends Node
 
 ## Script file names (without .gd) per lever; a node matches when its script's file name is in the list.
 const SCRIPTS := {
-	"figures": ["dot_humanoid_figure"],
-	"fx": ["aw_shot_fx", "aw_charge_fx", "aw_shot_layers", "aw_world_model", "dot_shot_player", "dot_weapon_tracers",
-		"fc_projectile_view", "dot_spawn_bubble_3d", "dot_damage_numbers"],
-	"hud": ["fc_hud", "dot_crosshair", "dot_hit_marker", "dot_vitals", "dot_ammo_counter", "dot_key_hints", "dot_key_prompt",
-		"dot_feed_view", "aw_scope_overlay", "dot_menu_net_stat"],
-	"menus": ["dot_menu", "dot_menu_layout_editor", "dot_menu_scoreboard", "dot_menu_screen", "dot_menu_team_screen", "dot_browser",
-		"dot_settings_manager", "dot_mobile_buttons", "dot_mobile_controls", "dot_game_workbench", "dot_voice_manager",
-		"dot_load_gate", "dot_camera_fade", "dot_map_visibility"],
-	"audio": ["fc_audio_manager", "dot_audio_manager", "dot_ambience", "dot_audio_ambience", "dot_game_slide_sounds",
-		"dot_audio_footsteps", "dot_audio_slide", "dot_audio_surf"],
-	"view": ["fc_view_arms", "aw_view_model", "dot_flashlight", "dot_flashlight_crowd", "fc_flag_view", "fc_drops",
-		"dot_killcam", "dot_player_body_break", "dot_prop_toy_box", "dot_weapon_knives", "dot_weapon_drops"],
-	"pres": ["fc_presentation", "dot_game_avatar_action_client"],
+	"figures": ["gs_humanoid_figure"],
+	"fx": ["aw_shot_fx", "aw_charge_fx", "aw_shot_layers", "aw_world_model", "gs_shot_player", "gs_weapon_tracers",
+		"fc_projectile_view", "gs_spawn_bubble_3d", "gs_damage_numbers"],
+	"hud": ["fc_hud", "gs_crosshair", "gs_hit_marker", "gs_vitals", "gs_ammo_counter", "gs_key_hints", "gs_key_prompt",
+		"gs_feed_view", "aw_scope_overlay", "gs_menu_net_stat"],
+	"menus": ["gs_menu", "gs_menu_layout_editor", "gs_menu_scoreboard", "gs_menu_screen", "gs_menu_team_screen", "gs_browser",
+		"gs_settings_manager", "gs_mobile_buttons", "gs_mobile_controls", "gs_game_workbench", "gs_voice_manager",
+		"gs_load_gate", "gs_camera_fade", "gs_map_visibility"],
+	"audio": ["fc_audio_manager", "gs_audio_manager", "gs_ambience", "gs_audio_ambience", "gs_game_slide_sounds",
+		"gs_audio_footsteps", "gs_audio_slide", "gs_audio_surf"],
+	"view": ["fc_view_arms", "aw_view_model", "gs_flashlight", "gs_flashlight_crowd", "fc_flag_view", "fc_drops",
+		"gs_killcam", "gs_player_body_break", "gs_prop_toy_box", "gs_weapon_knives", "gs_weapon_drops"],
+	"pres": ["fc_presentation", "gs_game_avatar_action_client"],
 }
 ## Engine classes per lever, disabled.
 const CLASSES := {"skel": ["Skeleton3D"], "anim": ["AnimationPlayer", "AnimationTree"], "particles": ["GPUParticles3D", "CPUParticles3D"]}

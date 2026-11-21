@@ -12,18 +12,18 @@ var event_budget_usec := 0
 var _events_waiting: Array[PackedByteArray] = []
 var _event_frame := -1
 var _event_usec := 0
-## 1 when dot-net has GSNetManager.snapshot_due(), 0 when not, -1 before the first ask.
+## 1 when gs-net has GSNetManager.snapshot_due(), 0 when not, -1 before the first ask.
 var _snapshot_due_api := -1
 
 
 ## Whether the tick being simulated ends in a snapshot (and the history recorded with it):
-## dot-net 19's [code]GSNetManager.snapshot_due()[/code]. True on a shell's older dot-net, which
-## cannot say: every tick is then pulled, as before. Called by name, so an older dot-net parses.
+## gs-net 19's [code]GSNetManager.snapshot_due()[/code]. True on a shell's older gs-net, which
+## cannot say: every tick is then pulled, as before. Called by name, so an older gs-net parses.
 func snapshot_due() -> bool:
 	if net == null:
 		return true
 	if _snapshot_due_api < 0:
-		_snapshot_due_api = 1 if GSAddonApi.build_level("dot_net") >= 19 and net.has_method(&"snapshot_due") else 0
+		_snapshot_due_api = 1 if GSAddonApi.build_level("gs_net") >= 19 and net.has_method(&"snapshot_due") else 0
 	return _snapshot_due_api == 0 or bool(net.call(&"snapshot_due"))
 
 
@@ -69,22 +69,22 @@ func client_tick(tick: int, move: GSFpsCommand, fire: GSWeaponCommand) -> void:
 	var t := Time.get_ticks_usec()
 	# The snapshots read since the last tick, reconciled once against the newest, before
 	# this tick predicts on top of them (GSNetConfig.reconcile_once_per_frame; by name for
-	# an older shell's dot-net, where each snapshot already reconciled as it came).
+	# an older shell's gs-net, where each snapshot already reconciled as it came).
 	if net.has_method(&"flush_reconcile"):
 		var replays := probe_replays_before()
 		net.call(&"flush_reconcile")
 		probe_replays_after(replays)
 		FcFrameProbe.add(&"reconcile", t)
 		t = Time.get_ticks_usec()
-	# [b]Through dot-net's predictor, not around it[/b] (`GSNetManager.predict_tick`, API 10).
+	# [b]Through gs-net's predictor, not around it[/b] (`GSNetManager.predict_tick`, API 10).
 	# Simulating the predicted behaviours here by hand predicted the same thing, but the
 	# predictor never saw these ticks: `skip_matching_replays` had nothing remembered to
 	# compare a snapshot with unless a replay had happened to cover its tick, so most snapshots
 	# replayed the whole lead, and the net graph's prediction row read 0 ms/s. By name, with
-	# the old loop kept, for an older shell's dot-net.
+	# the old loop kept, for an older shell's gs-net.
 	#
 	# [b]The old loop predicts what the server will compute, and says so.[/b] The web shell
-	# pinned 2026-10-17 has dot-net 0.1.12: the skip (`skip_matching_replays`, `_remember`)
+	# pinned 2026-10-17 has gs-net 0.1.12: the skip (`skip_matching_replays`, `_remember`)
 	# but no `predict_tick`. That loop predicted on the command as typed while the server ran
 	# it as it arrived, rounded by the wire, so the prediction drifted off the server's by
 	# millimetres a tick and never matched a snapshot; and it remembered nothing, so nothing
@@ -127,7 +127,7 @@ func receive_snapshot(payload: PackedByteArray) -> GSResult:
 	# The one place an RTT sample is written. `GSNetStats` has a median and a
 	# mean-absolute-deviation behind it and `receive_snapshot` reads
 	# `rtt_percentile(0.5)` on every snapshot to feed the clock — and no caller
-	# anywhere in dot-net writes a sample, because dot-net never touches a transport.
+	# anywhere in gs-net writes a sample, because gs-net never touches a transport.
 	# Without this the clock's input lead omits the flight time and, past about 30 ms
 	# of latency, every command arrives after its tick and is discarded as late.
 	if rtt_source.is_valid():
@@ -160,7 +160,7 @@ func probe_replays_after(before: int) -> void:
 
 ## An input packet, with the snapshot acknowledgement in front of it.
 ##
-## [b]dot-net does not send either of these for you.[/b] It owns no client-to-server
+## [b]gs-net does not send either of these for you.[/b] It owns no client-to-server
 ## channel — inventing one would need a second socket or make every payload ambiguous
 ## with a message — so the four bytes of acknowledgement ride inside the input packet
 ## a host already sends every tick. Wiring it is what makes a property lost to a
@@ -482,13 +482,13 @@ func take_late_fire(peer_id: int, tick: int, command: FcNetCommand) -> Array:
 # adding one is not a wire-id change on two separately-built programs.
 
 
-## Releases what `cl_latency_baseline` is holding. A client drives its own clock (`auto_tick` off), so dot-net's own step never runs and held snapshots would wait for ever; call it once a frame.
+## Releases what `cl_latency_baseline` is holding. A client drives its own clock (`auto_tick` off), so gs-net's own step never runs and held snapshots would wait for ever; call it once a frame.
 func advance_latency(delta: float) -> void:
 	if net != null and net.latency.busy():
 		net.latency.advance(delta)
 
 
-## Sends one input command to the server, through `cl_latency_baseline` when it is on (the link's RPC is not dot-net's send path).
+## Sends one input command to the server, through `cl_latency_baseline` when it is on (the link's RPC is not gs-net's send path).
 func send_input(tick: int, move: GSFpsCommand, fire: GSWeaponCommand) -> void:
 	if link != null:
 		_send_held(link.send_input, encode_input(tick, move, fire))
@@ -599,7 +599,7 @@ func receive_voice_frame(peer_id: int, payload: PackedByteArray) -> GSResult:
 	return GSResult.success(payload.size())
 
 
-## A dot-map announcement arrived. Client side.
+## A gs-map announcement arrived. Client side.
 func receive_map(payload: Dictionary) -> GSResult:
 	if not map_in_fn.is_valid():
 		return GSResult.fail(GSError.CODE_STATE, "This end does not follow maps.")

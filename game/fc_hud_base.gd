@@ -14,7 +14,7 @@ const MedalRow := preload("fc_hud_medal_row.gd")
 const FcEvents := preload("fc_events.gd")
 
 ## The in-game display, laid out for a glance (see [FcHudGlance]): scores, clock and portraits at the top centre, the kill feed top right, health bottom left, magazine and reserve bottom right with the carried weapons up the right edge, abilities bottom centre, key hints on the left; kill feedback over the middle.
-## [b]Built here rather than shipped by dot-ui, and that is the division of labour.[/b] dot-ui draws a bounded self-expiring list of coloured fragments and a bar from a `Callable`; it does not know what a kill or health is. Every widget below is a dot-ui class bound to a game value, and the binding is the only thing in this file.
+## [b]Built here rather than shipped by gs-ui, and that is the division of labour.[/b] gs-ui draws a bounded self-expiring list of coloured fragments and a bar from a `Callable`; it does not know what a kill or health is. Every widget below is a gs-ui class bound to a game value, and the binding is the only thing in this file.
 ## Almost no art: the bars and plates are drawn; the weapon silhouettes are rendered from the models (`tools/build_weapon_icons.sh`); the medal and ability icons are Kenney's CC0.
 
 
@@ -26,10 +26,10 @@ var game: FcGame = null
 
 
 var crosshair: GSCrosshair = null
-## Whether the host's GSCrosshair fades while aiming (dot-ui API 5).
-var _crosshair_fades: bool = GSAddonApi.build_level("dot_ui") >= 5
-## Whether GSCrosshair hides itself while the viewer is dead (dot-ui API 14).
-var _crosshair_hides: bool = GSAddonApi.build_level("dot_ui") >= 14
+## Whether the host's GSCrosshair fades while aiming (gs-ui API 5).
+var _crosshair_fades: bool = GSAddonApi.build_level("gs_ui") >= 5
+## Whether GSCrosshair hides itself while the viewer is dead (gs-ui API 14).
+var _crosshair_hides: bool = GSAddonApi.build_level("gs_ui") >= 14
 
 
 ## Bottom left: health as a bar with its number, armour as a thin bar under it.
@@ -110,8 +110,8 @@ var hurt_overlay: ColorRect = null
 const HURT_FROM := 0.35
 
 
-## The hit pulse: dot-fx's `hurt_flash` (strength in [member flash_source]'s `flash_colour`), drawn at
-## the edge. Read through dot-fx so "no flashes" and the three-a-second limit hold; the gain maps its peak (0.28) to about the max.
+## The hit pulse: gs-fx's `hurt_flash` (strength in [member flash_source]'s `flash_colour`), drawn at
+## the edge. Read through gs-fx so "no flashes" and the three-a-second limit hold; the gain maps its peak (0.28) to about the max.
 var flash_source: Object = null
 const HURT_PULSE_GAIN := 2.2
 const HURT_PULSE_MAX := 0.6
@@ -219,8 +219,8 @@ var notice_label: Label = null
 var _notice_age: float = 0.0
 
 
-## [b]A vote's opening line, which a drawn ballot makes a duplicate.[/b] dot-vote says "Vote: Box, Atrium, … (20s)" in chat as its ballot opens, and `FcClient._on_said` centre prints every system line,
-## so while the shell's ballot was on screen the same list was in the middle too, over the medals' row. Only that shape: dot-server's yes/no vote ("Vote: <question> — type !yes or !no (20s)") stays,
+## [b]A vote's opening line, which a drawn ballot makes a duplicate.[/b] gs-vote says "Vote: Box, Atrium, … (20s)" in chat as its ballot opens, and `FcClient._on_said` centre prints every system line,
+## so while the shell's ballot was on screen the same list was in the middle too, over the medals' row. Only that shape: gs-server's yes/no vote ("Vote: <question> — type !yes or !no (20s)") stays,
 ## because "!yes" is how to answer it and a ballot is not always drawn for one.
 static func is_ballot_line(text: String) -> bool:
 	if not text.begins_with("Vote: ") or text.contains("!yes"):
@@ -230,7 +230,7 @@ static func is_ballot_line(text: String) -> bool:
 
 
 ## [b]Keeps the HUD out from under the client shell's ballots[/b], every frame. The shell draws every ballot down the right-hand side, over whatever the game drew, and cannot reach into a delivered game, so the game looks:
-## `GSHudPiece.covered_rect` is every visible member of the `dot_hud_cover` group, merged, in this HUD's own coordinates; dot-ui's pieces each dim themselves under one.
+## `GSHudPiece.covered_rect` is every visible member of the `gs_hud_cover` group, merged, in this HUD's own coordinates; gs-ui's pieces each dim themselves under one.
 ## The weapon slots up the right edge tighten, then show only the rows around the current one, to end above a ballot (a seven-row map ballot reaches slot 1 at 1280x720); the vote's centre line goes while its ballot is drawn.
 func make_room() -> void:
 	var cover := GSHudPiece.covered_rect(self)
@@ -431,7 +431,7 @@ const BLIND_COLOUR := Color(0.01, 0.01, 0.015)
 
 ## Builds every widget. Call after adding to the tree.
 ## How far in from the screen's edge the HUD sits, in pixels: the `hud_safe_area` setting,
-## applied live. dot-ui's `GSHud` reads its config's margin once, when it enters the tree.
+## applied live. gs-ui's `GSHud` reads its config's margin once, when it enters the tree.
 func set_safe_area(pixels: float) -> void:
 	if config == null:
 		config = GSUiConfig.new()
@@ -442,7 +442,7 @@ func set_safe_area(pixels: float) -> void:
 
 ## The frame the HUD is drawn for ([member GSHud.fit_design]): below it the whole HUD is scaled down by `GSHud.fit_scale`, never laid out again. [b]On a smaller frame its pieces ran into each other[/b]
 ## (at 854x480 the challenge ran over the scores, the ability bar over the health; at 960x720 the scores reached the kill feed). The shell never shows a game such a frame (canvas 1280x720, stretched), so this is the same answer for the game on its own.
-## Never larger: on a bigger frame the pieces keep their size and the map gets the room. dot-ui took it over (`fit_design`, `fit_scale`, `fit_to_frame`, API 4); below half size (`fit_min`) a frame gets overlap, not dust.
+## Never larger: on a bigger frame the pieces keep their size and the map gets the room. gs-ui took it over (`fit_design`, `fit_scale`, `fit_to_frame`, API 4); below half size (`fit_min`) a frame gets overlap, not dust.
 const DESIGN_FRAME := Vector2(1280.0, 720.0)
 
 
@@ -468,7 +468,7 @@ func _present_slow() -> void:
 
 
 ## Fatal Contact's own colour over whichever theme the player picked: gold for "yours" (your ring, row, slot and streak). Everything else (plates, words, ink, key caps) is the theme's,
-## so Paper and High contrast can change it; `FcClient` hands this to dot-menu's `follow_hud` with the HUD.
+## so Paper and High contrast can change it; `FcClient` hands this to gs-menu's `follow_hud` with the HUD.
 static func accent_theme() -> Theme:
 	var t := Theme.new()
 	t.set_color(&"highlight", &"GSHudPiece", GOLD)
@@ -476,7 +476,7 @@ static func accent_theme() -> Theme:
 
 
 ## Where the client shell's right-hand column starts, in frame pixels: its game ballot and
-## its lines are drawn from here down, a third of the frame wide (dot-server-deploy's
+## its lines are drawn from here down, a third of the frame wide (gs-server-deploy's
 ## `client/notice_overlay.gd`, `COLUMN_TOP`; a copy, keep in step).
 const SHELL_COLUMN_TOP := 110.0
 

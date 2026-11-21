@@ -6,7 +6,7 @@ const FcBotsWorld := preload("../game/fc_bots_world.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 
-## Bot play styles by weapon: the gun in a bot's hand sets its style class (dot-bot's table), so
+## Bot play styles by weapon: the gun in a bot's hand sets its style class (gs-bot's table), so
 ## snipers take cover and peek. Run: [code]./game.sh test headless_bot_styles[/code].
 
 const TICK_RATE := 64
@@ -39,7 +39,7 @@ func _run() -> void:
 
 
 func _classes() -> void:
-	_section("every FC weapon has a style class in dot-bot's table")
+	_section("every FC weapon has a style class in gs-bot's table")
 	var unmapped: Array[String] = []
 	var unknown: Array[String] = []
 	for id: StringName in AwWeaponPack.IDS:

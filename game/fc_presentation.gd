@@ -7,7 +7,7 @@ extends "fc_presentation_setup.gd"
 ## Points every [FcPresentation] made after this at a fresh, empty settings directory named
 ## [param tag], and returns it.
 static func use_scratch_settings(tag: String) -> String:
-	# One directory per process (dot-settings' GSSettingsScratch): user:// is shared by every run on the machine.
+	# One directory per process (gs-settings' GSSettingsScratch): user:// is shared by every run on the machine.
 	var dir := GSSettingsScratch.use(tag)
 	settings_directory = dir
 	return dir

@@ -4,7 +4,7 @@ const Roles := preload("fc_weapon_roles.gd")
 const Grenades := preload("fc_grenades.gd")
 
 ## The game tier of the profile set: cfg/game/<this>/weapon/<id>.yml.
-const GAME_ID := "game-arena"
+const GAME_ID := "game-fatal-contact"
 
 ## The mount the melee weapon carries for a thrown-knife attachment (FcAttach.BOOMERANG).
 const KNIFE_MOUNT := &"grip"
@@ -72,7 +72,7 @@ static func world() -> GSDamageType:
 
 ## Every damage type the game registers: its own three, and the pack's four.
 ##
-## [b]Built once and shared[/b], and the reason is identity rather than speed. dot-combat
+## [b]Built once and shared[/b], and the reason is identity rather than speed. gs-combat
 ## registers the objects it is handed, and [method weapon_catalogue] hands the SAME objects
 ## to the pack, so a launcher's splash and the registered "blast" are one rule. Two copies
 ## built independently would agree today and drift the first time somebody tuned one.
@@ -307,7 +307,7 @@ static func loadout_slot_for(slot: int) -> StringName:
 ## The one item a player has to have unlocked. Everything else is free.
 ##
 ## Kept rather than made free with the rest, because it is the only thing exercising
-## dot-loadout's entitlement path in this game, and a path nothing exercises is one
+## gs-loadout's entitlement path in this game, and a path nothing exercises is one
 ## nobody knows still works. The game's entitlement source grants it to everybody.
 const PAID_WEAPON := AwWeaponIds.LAUNCHER
 
@@ -342,8 +342,8 @@ static func in_give_order(entries: Array[Dictionary]) -> Array[Dictionary]:
 ## The items a loadout can name. One per weapon, plus armour.
 ##
 ## Note that the item ids match the weapon ids. That is a convention this game chose,
-## not something dot-loadout requires — it is what makes `weapon_table()[item.id]` the
-## whole of the mapping, and dot-loadout's `arsenal_slot` hint the whole of the rest.
+## not something gs-loadout requires — it is what makes `weapon_table()[item.id]` the
+## whole of the mapping, and gs-loadout's `arsenal_slot` hint the whole of the rest.
 static func catalogue() -> GSItemCatalogue:
 	Roles.ensure()
 	# Built once per role table: it rebuilt the whole weapon list twice per call, and a
@@ -385,7 +385,7 @@ static func catalogue() -> GSItemCatalogue:
 ## the square of the weapon count — and there are twenty-seven weapons now.
 static func loadout_schema() -> GSLoadoutSchema:
 	# [b]Required, like the throwable below, and that is what puts them in anybody's
-	# hands.[/b] dot-loadout's default loadout fills REQUIRED slots only, so as optional
+	# hands.[/b] gs-loadout's default loadout fills REQUIRED slots only, so as optional
 	# slots a player who never chose a loadout spawned with a rifle and a pistol and
 	# pressed 5 to nothing — rendered, not reasoned: the grenade was in the class's
 	# loadout and the store's default replaced it a frame later. A loadout saved before

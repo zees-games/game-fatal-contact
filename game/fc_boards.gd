@@ -5,7 +5,7 @@ const FcStats := preload("fc_stats.gd")
 ## The boards this game orders players on, and the scope every one of them is cut by.
 ##
 ## [b]A board is one number per player, ordered. A stat is many numbers per player,
-## accumulated.[/b] dot-leaderboard says so in its own notes and the distinction is
+## accumulated.[/b] gs-leaderboard says so in its own notes and the distinction is
 ## the whole reason both addons are here: [FcStats] counts, and these order what was
 ## counted. [method GSLeaderboardManager.publish_stat] is the bridge — it reads the
 ## total out of the store rather than taking a value, so a board built this way can
@@ -65,7 +65,7 @@ static func scope_for(mode_id: StringName) -> Dictionary:
 	return {"mode": String(mode_id)}
 
 
-## Files everything a player's session earned, from their dot-stats values.
+## Files everything a player's session earned, from their gs-stats values.
 ##
 ## [b]One call site, on purpose.[/b] Six boards derived from one values bag is six
 ## chances for a board to be fed the wrong stat, and the way this family loses those is

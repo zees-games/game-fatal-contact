@@ -7,7 +7,7 @@ const FcModes := preload("../game/fc_modes.gd")
 const FcMapDirector := preload("../game/fc_map_director.gd")
 const FcMapConfig := preload("../game/fc_map_config.gd")
 
-## A maps.yml entry's profile (`GSMapDef.profile`, dot-map's `mode:`/`cfg:`): its mode on the map change when the map can host it, the server's mode back on the next map, its cvars for that map only, and the rotation filter.
+## A maps.yml entry's profile (`GSMapDef.profile`, gs-map's `mode:`/`cfg:`): its mode on the map change when the map can host it, the server's mode back on the next map, its cvars for that map only, and the rotation filter.
 ## [codeblock] godot --headless --path . res://examples/headless_rotation_profile.tscn
 ## [/codeblock]
 

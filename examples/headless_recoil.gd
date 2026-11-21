@@ -87,7 +87,7 @@ func _test_profiles() -> void:
 		if by_id.has(id) and _pitch(by_id[id]) > 0.0:
 			loud.append(id)
 	_check(loud.is_empty(), "melee, beams and grenades do not kick", ",".join(loud))
-	_check(is_equal_approx(_pitch(by_id["rifle"]), 0.70), "Fatal Contact's rifle profile (cfg/game/game-arena) is applied", str(_pitch(by_id["rifle"])))
+	_check(is_equal_approx(_pitch(by_id["rifle"]), 0.70), "Fatal Contact's rifle profile (cfg/game/game-fatal-contact) is applied", str(_pitch(by_id["rifle"])))
 	_check(_pitch(by_id["rifle"]) > 0.36, "and kicks harder than the pack default")
 	_check(_pitch(by_id["sniper"]) > _pitch(by_id["rifle"]) * 3.0, "a sniper kicks far harder than a rifle")
 	_check(_pitch(by_id["smg"]) < _pitch(by_id["rifle"]), "an smg kicks less per shot than a rifle")
@@ -272,7 +272,7 @@ func _test_cvar() -> void:
 	_check(is_equal_approx(v.offset().x, full), "the underlying kick (what the bullet follows) is not scaled")
 	FcRecoilView.scale = 1.0
 	var rules := GSWeaponRecoilRules.new()
-	_check(rules.get_script().resource_path.ends_with("dot_weapon_recoil_rules.gd") and _feel.recoil != null and _feel.recoil.enabled, "the server's sv_recoil_* rules are on for Fatal Contact")
+	_check(rules.get_script().resource_path.ends_with("gs_weapon_recoil_rules.gd") and _feel.recoil != null and _feel.recoil.enabled, "the server's sv_recoil_* rules are on for Fatal Contact")
 	_finished += 1
 
 

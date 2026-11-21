@@ -18,7 +18,7 @@ while (($#)); do
 done
 shards=${LAB_SHARDS:-4}
 read -r -a boxes <<<"${LAB_BOXES:-staging staging02}"
-gpu=${GPU_SH:-/home/gamedev/godot/dot-bootstrap/tools/gpu.sh}
+gpu=${GPU_SH:-/home/gamedev/godot/gs-bootstrap/tools/gpu.sh}
 export GODOT_ROOT=${GODOT_ROOT:-/home/gamedev/wt/.lab-root}
 out=${LAB_OUT:-/home/gamedev/weapon-lab/out}/$run
 mkdir -p "$GODOT_ROOT" "$out"

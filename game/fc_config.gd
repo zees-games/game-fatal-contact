@@ -1,9 +1,9 @@
 extends GSConfig
 
 ## Fatal Contact's server tunables for [GSGameConfigBinder]: `fc_<field>` cvars, a `config` profile at
-## `cfg/server/game/game-arena/config/game.yml`, `ARENA_*` env and `--arena-*` argv.
+## `cfg/server/game/game-fatal-contact/config/game.yml`, `ARENA_*` env and `--arena-*` argv.
 
-## `@export_group` -> the cfg file it lives in: `cfg/game/game-arena/config_<file>/game.yml`.
+## `@export_group` -> the cfg file it lives in: `cfg/game/game-fatal-contact/config_<file>/game.yml`.
 const FcContent := preload("fc_content.gd")
 const CFG_FILES := {
 	"Horde": "horde", "Players": "players", "Kill rewards": "players", "Stomp": "players", "Match": "match", "Bots": "match", "Awards": "awards", "Surf": "surf", "Simulation": "match",
@@ -12,7 +12,7 @@ const CFG_FILES := {
 
 ## The binder every entry point uses: [param config] layered, one cfg file per [constant CFG_FILES] entry.
 static func make_binder(config: GSConfig, json_path := "") -> GSGameConfigBinder:
-	var b := GSGameConfigBinder.create(config, "game-arena", "fc", json_path)
+	var b := GSGameConfigBinder.create(config, "game-fatal-contact", "fc", json_path)
 	b.grouped = true
 	b.group_files = CFG_FILES
 	return b
@@ -132,10 +132,10 @@ func validate() -> GSResult:
 ## Seconds before the same player can stomp again.
 @export_range(0.0, 30.0, 0.1) var stomp_cooldown_sec: float = 0.5
 
-## Sound id played on a stomp (a dot-audio id).
+## Sound id played on a stomp (a gs-audio id).
 @export var stomp_sound: String = "stomp"
 
-## Effect id spawned on a stomp (a dot-fx id).
+## Effect id spawned on a stomp (a gs-fx id).
 @export var stomp_effect: String = "stomp_puff"
 
 @export_group("Match")
@@ -210,7 +210,7 @@ func validate() -> GSResult:
 ## Ticks a second for solo and a listen host (project.godot's physics rate is the same default); a dedicated server runs the host's sv_tickrate instead. Above 66 costs CPU in proportion; not yet measured with 32 bots.
 @export_range(20, 128, 1) var tick_rate: int = FcContent.TICK_RATE
 
-## Solo on its own server process (FcSimHost): the tick rate by player count (bots and you) in dot-server's `sv_tickrate_tiers` grammar (GSTickTiers), read once as the solo server starts; it overrides [member tick_rate]. A tick dearer than its length cannot keep real time, and then the whole game, gravity included, runs slower than the clock: on PH 64 players cost about 32 ms a tick and held 20-30 ticks a second of 66. Empty keeps [member tick_rate] at every count.
+## Solo on its own server process (FcSimHost): the tick rate by player count (bots and you) in gs-server's `sv_tickrate_tiers` grammar (GSTickTiers), read once as the solo server starts; it overrides [member tick_rate]. A tick dearer than its length cannot keep real time, and then the whole game, gravity included, runs slower than the clock: on PH 64 players cost about 32 ms a tick and held 20-30 ticks a second of 66. Empty keeps [member tick_rate] at every count.
 @export var solo_tick_tiers: String = "players<=32:66,<=64:33,else:22"
 
 ## Solo on its own server process: seconds between repeats of the in-game "server behind" line while the server stays under its tick rate. It is said as the server falls behind and again after it caught up; 0 says it on every 5 s report that is behind.

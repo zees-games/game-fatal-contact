@@ -9,9 +9,9 @@ const FcNetBridge := preload("../game/fc_net_bridge.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcTestPorts := preload("test_ports.gd")
 
-## dot-net's lossy UDP relay, by path: a test tool that ships inside the addon so a game
-## that links dot_net can reach it, and has no class_name for the same reason.
-const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
+## gs-net's lossy UDP relay, by path: a test tool that ships inside the addon so a game
+## that links gs_net can reach it, and has no class_name for the same reason.
+const Relay := preload("res://addons/gs_net/testing/gs_net_udp_relay.gd")
 
 ## A real Fatal Contact server, real ENet clients, and real packet loss between them.
 ##
@@ -25,14 +25,14 @@ const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
 ## transit and snapshot age, and a line per freeze. [code]--ping-rtt[/code] puts a defect
 ## back as a control: it feeds the clock the heartbeat's round trip instead of ENet's (see
 ## [method FcNetBridge.link_rtt_ms]), and it fails checks. (`--stock-enet` was the other
-## until dot-core's GSTransportENet stopped advertising six bytes a second; its own
+## until gs-core's GSTransportENet stopped advertising six bytes a second; its own
 ## `dual_transport_selftest` holds that one now.)
 ##
 ## [b]What only this can see.[/b] `headless_net` drops one packet in five, but in its own
 ## loopback: in order, instantly, never twice, and never a reliable one. A browser's
 ## "unreliable" is TCP. So until a server listened on ENet as well, nothing here had ever
 ## had a datagram arrive late, out of order, twice, or not at all -- and a reliable event
-## had never been retransmitted. This puts dot-net's relay between a real `GSClientLink`
+## had never been retransmitted. This puts gs-net's relay between a real `GSClientLink`
 ## on ENet and a real `GSServer` running `FcModule`, and plays.
 ##
 ## Two clients. **A** goes through the relay and is the one measured: it runs, strafes and
@@ -67,7 +67,7 @@ const FIRST_SECONDS := 3.0
 
 ## How long anything sent reliably may take to land. ENet doubles a command's resend timeout
 ## every time it goes unacknowledged, with no cap, and a try fails if the data OR its
-## acknowledgement is lost: 36% a try at 20% each way. Once a timeout passes dot-core's 30 s
+## acknowledgement is lost: 36% a try at 20% each way. Once a timeout passes gs-core's 30 s
 ## peer maximum (eight failed tries) the peer is dropped, so what follows the windows runs at 5%. The
 ## tail is long and real: a wait shorter than this is a wait on the dice, and every one that
 ## was written shorter (6 s for the windows' streams, 10 s for B's leave, 5 s for the cvars)
@@ -246,7 +246,7 @@ func _boot() -> bool:
 
 	var config := _server_config()
 
-	# The server's ENet is dot-core's own: GSTransportENet no longer advertises the engine's
+	# The server's ENet is gs-core's own: GSTransportENet no longer advertises the engine's
 	# channel count as its incoming bandwidth (which throttled every client's commands to
 	# 1/32 for its first seconds; see docs/history.md), so nothing is built by hand.
 
@@ -394,8 +394,8 @@ func _connect_client(label: String, udp_port: int, lift_cover: bool = true) -> D
 	return record
 
 
-## dot-combat's `mp_teammate_passthrough` on a client: the client traces its own shots, so the
-## server's value rides dot-server's replicated cvars before the scene loads, and every change.
+## gs-combat's `mp_teammate_passthrough` on a client: the client traces its own shots, so the
+## server's value rides gs-server's replicated cvars before the scene loads, and every change.
 func _test_server_cvars_reach_the_client() -> void:
 	_section("the server's mp_teammate_passthrough reaches a client's world, live")
 	var a: Dictionary = _clients["A"]
@@ -519,12 +519,12 @@ func _listen_as_a(a: Dictionary) -> void:
 		_got_kills.append("%d>%d" % [int(info["killer_id"]), int(info["victim_id"])])
 	)
 	(a["link"] as GSClientLink).chat_received.connect(func(payload: Dictionary) -> void:
-		# dot-server's own line carries `text`; one routed through dot-chat carries `m`.
+		# gs-server's own line carries `text`; one routed through gs-chat carries `m`.
 		var text := str(payload.get("text", payload.get("m", "")))
 		if text.begins_with("chat-"):
 			_got_chat.append(text)
 		elif text.contains("a-says-"):
-			# dot-chat puts the speaker in front of a player's line.
+			# gs-chat puts the speaker in front of a player's line.
 			_got_a_chat.append(text.substr(text.find("a-says-")))
 		elif _verbose:
 			print("    (A got chat %s)" % payload)

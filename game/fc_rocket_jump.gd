@@ -66,7 +66,7 @@ static func apply_rules(rules: RefCounted, catalogue: GSWeaponCatalogue, attachm
 
 
 ## [param base] with its self-damage scaled by [param scale]: what a Rocketjump blast hurts its shooter with.
-## `sv_rocket_jump_self_damage_scale` 0 (the default) makes it 0, which dot-combat refuses outright.
+## `sv_rocket_jump_self_damage_scale` 0 (the default) makes it 0, which gs-combat refuses outright.
 static func self_scaled_type(base: GSDamageType, scale: float) -> GSDamageType:
 	if base == null:
 		return null

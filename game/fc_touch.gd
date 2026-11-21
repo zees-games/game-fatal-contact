@@ -1,6 +1,6 @@
 extends RefCounted
 
-## The phone's controls: dot-mobile's stick, drag-look and buttons over the HUD, driving the client's own
+## The phone's controls: gs-mobile's stick, drag-look and buttons over the HUD, driving the client's own
 ## [GSFpsTouchSampler]. Fire is read through [method is_held], so a thumb and auto-fire take the Fire key's path.
 ## Built on every client: a server may give auto-fire to keyboard players too (`sv_autofire_desktop`). See docs/client.md, "Touch".
 
@@ -25,7 +25,7 @@ const ASSIST_CONE_DEG := 10.0
 const ASSIST_RANGE := 80.0
 
 var controls: GSMobileControls = null
-## dot-ui's buttons inside the overlay, for the shell's DPI fit.
+## gs-ui's buttons inside the overlay, for the shell's DPI fit.
 var buttons: GSTouchButtons:
 	get:
 		return controls.buttons if controls != null else null

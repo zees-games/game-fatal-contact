@@ -50,7 +50,7 @@ static var fine_on_record: bool = true
 
 
 ## `cl_perf_split 1` (`--cl_perf_split 1`, `?cl_perf_split=1`): the report also splits `p_controller` into its phases
-## (`ctl_<phase>`, GSFpsController.phase_us) and dot-sim's native motor queries and ticks (`mt_<slot>`,
+## (`ctl_<phase>`, GSFpsController.phase_us) and gs-sim's native motor queries and ticks (`mt_<slot>`,
 ## GSSimFpsBody.profile_counters), which no browser profiler reaches. Off by default: clock reads per player tick.
 static var split: bool = false
 const CTL_PHASES := ["pre", "consume", "motor", "publish", "report", "signals", "post", "setpos"]

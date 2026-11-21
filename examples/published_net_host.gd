@@ -18,7 +18,7 @@ const FcModule := preload("../game/fc_module.gd")
 
 const MAP := &"surf_10x_reloaded_fixed"
 const OWNER := "gamemann"
-const PACK := "arena-surf-dm-maps-surf_10x_reloaded_fixed"
+const PACK := "fc-surf-dm-maps-surf_10x_reloaded_fixed"
 const VERSION := "1.2.3"
 
 var _port := 0
@@ -53,16 +53,16 @@ func _host_cloud(config: GSCloudConfig, settings: Dictionary) -> GSCloudClient:
 	cloud.register_service = false
 	cloud.http_base_urls = settings["urls"]
 	add_child(cloud)
-	GSRegistry.register(&"dot_cloud_client", cloud)
+	GSRegistry.register(&"gs_cloud_client", cloud)
 	await get_tree().process_frame
 	return cloud
 
 
 func _name_the_pack() -> void:
-	# What cfg/content.yml's `maps:` gives a real server (dot-server-deploy's game-fatal-contact block): the game names
+	# What cfg/content.yml's `maps:` gives a real server (gs-server-deploy's game-fatal-contact block): the game names
 	# the published pack. A scene path with `://` in it, so a joining client is not asked to sync the game itself.
 	var descriptor := GSGameDescriptor.new()
-	descriptor.game_id = "game-arena"
+	descriptor.game_id = "game-fatal-contact"
 	descriptor.scene = "res://game/fc_server.tscn"
 	descriptor.maps = PackedStringArray(["%s/%s@%s" % [OWNER, PACK, VERSION]])
 	_server.games.set(&"_current", descriptor)

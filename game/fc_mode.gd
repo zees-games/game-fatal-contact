@@ -9,7 +9,7 @@ extends Resource
 ## [b]A mode is DATA, not a subclass.[/b] Free-for-all and team deathmatch differ only
 ## in what is written here, so adding one is writing a resource rather than writing a
 ## file — which is what makes "configurable" true rather than aspirational. A server
-## names one with `mp_mode`, dot-vote can offer several, and neither has to know what
+## names one with `mp_mode`, gs-vote can offer several, and neither has to know what
 ## any of them mean.
 ##
 ## The line where that stops holding is real and worth naming: a mode that changes what
@@ -23,7 +23,7 @@ extends Resource
 ## game.setup(FcMap.by_id(mode.preferred_map))
 ## [/codeblock]
 
-## What a server types, and what dot-vote would offer.
+## What a server types, and what gs-vote would offer.
 @export var id: StringName = &"ffa"
 
 @export var display_name: String = "Free-For-All"
@@ -36,7 +36,7 @@ extends Resource
 ## The match rules. Never null after [method validate].
 ##
 ## [b]This resource is duplicated before use.[/b] `FcGame` copies it rather than
-## handing dot-match the catalogue's own object, because a `Resource` is a reference in
+## handing gs-match the catalogue's own object, because a `Resource` is a reference in
 ## GDScript and a server that adjusted a score limit at runtime would otherwise be
 ## editing the mode every later match reads. This family has shipped that exact aliasing
 ## four times — see `GSLeaderboardDef.scoped()` in the tree's notes.
@@ -214,7 +214,7 @@ static func free_for_all(limit: int = 25) -> Resource:
 ## Siege: a free-for-all with monsters in it, and cover you can move.
 ##
 ## [b]The mode that exists to run the joins.[/b] It is the only shipped configuration
-## where dot-npc, dot-npc-ai, dot-npc-ai-director and dot-props are all live at once
+## where gs-npc, gs-npc-ai, gs-npc-ai-director and gs-props are all live at once
 ## alongside the five this game already ran — and by this family's own repeated lesson,
 ## that is where the bugs are rather than in any one of them.
 ##
@@ -284,7 +284,7 @@ static func team_deathmatch(limit: int = 75) -> Resource:
 
 ## King of the hill: one point, two clocks, and the clock that runs is the owner's.
 ##
-## [b]The mode that made this game need dot-objective.[/b] Everything before it is
+## [b]The mode that made this game need gs-objective.[/b] Everything before it is
 ## scored on kills, so [GSMatch] alone was enough; this one is scored on **holding a
 ## place**, and the difference is not a score limit — it is a capture curve where the
 ## second player is worth half a player, a block that pauses rather than undoes, a
@@ -405,10 +405,10 @@ func validate() -> GSResult:
 		)
 
 	# A mode's two halves have to agree, and nothing else checks it. `team_based` is
-	# what dot-match reads to decide whether to assign anybody a side at all, so a mode
+	# what gs-match reads to decide whether to assign anybody a side at all, so a mode
 	# claiming two teams over free-for-all rules puts everyone on no team and scores
 	# them individually while calling itself Team Deathmatch — correct at every point
-	# inside dot-match, and wrong.
+	# inside gs-match, and wrong.
 	if is_team_mode() != rules.team_based:
 		return GSResult.fail(
 			GSError.CODE_INVALID,

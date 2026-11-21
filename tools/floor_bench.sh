@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The floor experiment (tools/floor_bench.gd), windowed on a GPU box as tools/perf_bench.sh runs: dot-bootstrap's gpu.sh run,
+# The floor experiment (tools/floor_bench.gd), windowed on a GPU box as tools/perf_bench.sh runs: gs-bootstrap's gpu.sh run,
 # GPU_XORG=1 (the NVIDIA card through a headless Xorg), the same Godot binary and default window. n process runs, logs in
 # ~/perf-bench/floor-<stamp>-<i>.log, then the median p50 of each step over the runs.
 # Usage: tools/floor_bench.sh [-n 3] [--box staging02] [-- extra bench args, e.g. --bots 31 --warmup 8]
@@ -7,7 +7,7 @@ set -u
 n=3 box=staging02
 while [ $# -gt 0 ]; do case $1 in -n) n=$2; shift 2 ;; --box) box=$2; shift 2 ;; --) shift; break ;; *) break ;; esac; done
 dir=$(cd "$(dirname "$0")/.." && pwd)
-gpu=${GPU_SH:-/home/gamedev/godot/dot-bootstrap/tools/gpu.sh}
+gpu=${GPU_SH:-/home/gamedev/godot/gs-bootstrap/tools/gpu.sh}
 out=$HOME/perf-bench; mkdir -p "$out"
 stamp=$(date +%Y%m%d%H%M%S)
 logs=()

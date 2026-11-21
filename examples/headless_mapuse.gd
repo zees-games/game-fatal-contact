@@ -145,7 +145,7 @@ func _test_bodies_and_plain(mio: Object, world: GSMapWorld, player: Object) -> v
 	_check(absf(player.controller.state.position.y - before.y - 2.0 / TICK_RATE) < 0.0001, "a mover's carry displaces the player by velocity over the tick")
 	var hp: float = player.health.health
 	world.io.damage_fn.call(21, 10.0, "crush", null)
-	_check(player.health.health < hp, "and a crush is world damage through dot-combat", "%s -> %s" % [hp, player.health.health])
+	_check(player.health.health < hp, "and a crush is world damage through gs-combat", "%s -> %s" % [hp, player.health.health])
 
 	var plain := FcGame.new()
 	plain.name = "P"

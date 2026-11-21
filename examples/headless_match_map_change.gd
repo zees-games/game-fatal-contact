@@ -2,7 +2,7 @@ extends "headless_match_progression.gd"
 
 # --- Changing the map ------------------------------------------------------
 
-## dot-map, over the game that is already running, with players in it. The deployment shape that did not exist: dot-map's own
+## gs-map, over the game that is already running, with players in it. The deployment shape that did not exist: gs-map's own
 ## suite runs scenes, this runs a catalogue of code-made maps, a session that builds rather than loads, and an [FcGame] that
 ## tears down a combat manager and a match node it did not expect to lose.
 func _test_map_change() -> void:
@@ -165,7 +165,7 @@ func _test_map_change() -> void:
 			0
 		)
 
-		# [b]And out of dot-spawn's ledger, which `victim.spawn(..., 0)` does not clear.[/b] The
+		# [b]And out of gs-spawn's ledger, which `victim.spawn(..., 0)` does not clear.[/b] The
 		# zero above is `GSHealth`'s window; the map change respawned everybody through
 		# `_on_respawn_due` and that is what grants the session-scoped protection the resolver now.
 		if _game.player_stack != null and _game.player_stack.spawns.protection != null:
@@ -174,7 +174,7 @@ func _test_map_change() -> void:
 			)
 
 		# [b]And THREE records, not two.[/b] `FcPlayerStack.refresh_spawn_rules` says it outright
-		# -- spawn protection is enforced by [GSHealth]'s window, by dot-spawn's ledger, and by the
+		# -- spawn protection is enforced by [GSHealth]'s window, by gs-spawn's ledger, and by the
 		# `arena_protected` effect -- and this cleared the first two.
 		if _game.effects != null and _game.effects.manager != null:
 			_game.effects.manager.remove(
@@ -227,7 +227,7 @@ func _test_map_change() -> void:
 		var _z := _game.combat.apply_damage(zoned)
 		_check(
 			_game.progress.session_values(shooter.player_id).get_cell(GSStatsHitzones.HITS, "zone:neck") >= 1.0,
-			"a landed hit is filed by body zone through the dot-stats hitzone hook"
+			"a landed hit is filed by body zone through the gs-stats hitzone hook"
 		)
 		var pts_before := _game.progress.session_values(shooter.player_id).get_value(FcStats.POINTS, 0.0)
 		var _landed := _game.progress.points.award(shooter.player_id, GSStatsPoints.SOURCE_PICKUP, 3.0)

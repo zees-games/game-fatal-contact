@@ -32,7 +32,7 @@ func _exit_tree() -> void:
 ## The map's own sun, sky and air, replacing whatever the last map had.
 ##
 ## [b]Per map, and replaced with the level[/b], because a built-in map carries its lighting
-## as a dot-lighting document (`FcMap.lighting`) and the next map may be lit differently.
+## as a gs-lighting document (`FcMap.lighting`) and the next map may be lit differently.
 ## Two `WorldEnvironment`s in one tree is the second one ignored with a warning, so the old
 ## one goes first, with `free()` for the same reason the level does.
 func _light() -> void:
@@ -44,13 +44,13 @@ func _light() -> void:
 	add_child(_lighting)
 
 
-## The movement sampler, with dot-player-controller's default actions registered for any
+## The movement sampler, with gs-player-controller's default actions registered for any
 ## the key table has not made yet.
 ##
 ## [b]No noclip key.[/b] The addon's default for it is V, which is push to talk here, and
 ## Fatal Contact's noclip is an administrator's modifier (`noclip` at the console or in chat; the
 ## motor ignores the bit unless the server granted it). The role is taken off before the
-## defaults are registered, so `dot_fps_noclip` is never created on V and V does one thing.
+## defaults are registered, so `gs_fps_noclip` is never created on V and V does one thing.
 static func make_sampler() -> GSFpsSampler:
 	var tunables := FcPlayer.fc_tunables()
 	var sampler: GSFpsSampler = GSFpsTouchSampler.new(tunables) if GSPlatform.has_touch() else GSFpsSampler.new(tunables)
@@ -113,7 +113,7 @@ func _adopt_catalogue(built: GSMapCatalogue) -> void:
 ## `user://maps` and offered in M as "<title> (local)"; a `<map>_orig` pack draws with its own textures. Never on a
 ## client of a public server: a local map exists on this machine alone.
 ## Every drop is answered on screen, on the menu's layer so an open Esc menu does not hide it: "Importing <map>…" while it
-## copies, then what was added or why not. A server client, or a build whose dot-map is older than API 24, says so.
+## copies, then what was added or why not. A server client, or a build whose gs-map is older than API 24, says so.
 func watch_map_drops() -> void:
 	if presentation != null and presentation.settings != null \
 			and not presentation.settings.changed.is_connected(_on_source_game_path):
@@ -125,8 +125,8 @@ func watch_map_drops() -> void:
 	_take_cmdline_drops.call_deferred(FcMapDrop.cmdline())
 
 
-## The shared drop intake (dot-map's GSMapDropIntake, API 30, FcMapDrop) every drop goes through, made on first use;
-## null on an older dot-map, where a window drop goes to [method accept_drop] directly and the command line is not read.
+## The shared drop intake (gs-map's GSMapDropIntake, API 30, FcMapDrop) every drop goes through, made on first use;
+## null on an older gs-map, where a window drop goes to [method accept_drop] directly and the command line is not read.
 var map_drop: Node = null
 
 
@@ -198,7 +198,7 @@ func _on_source_game_path(key: StringName, _value: Variant, _why: StringName) ->
 		install if not FcSourceInstall.archives(install).is_empty() else "none found" if install == "" else install + " has no *_dir.vpk"))
 
 
-## The dot-map API level with `accept_dropped` (FcLocalMaps.DROP_LEVEL, which is not reachable from here).
+## The gs-map API level with `accept_dropped` (FcLocalMaps.DROP_LEVEL, which is not reachable from here).
 const MAP_DROP_LEVEL := 24
 ## Seconds a drop's answer stays up.
 const DROP_SAY_SEC := 9.0
@@ -211,7 +211,7 @@ func _on_files_dropped(files: PackedStringArray) -> void:
 
 
 ## Imports [param files] dropped onto the window (or the executable: [param source] "command line") and says each step on
-## screen. Returns the last line said. Each path goes through [method drop_intake] when dot-map has it.
+## screen. Returns the last line said. Each path goes through [method drop_intake] when gs-map has it.
 func import_dropped(files: PackedStringArray, source: String = "window") -> String:
 	var shown := PackedStringArray()
 	for f in files:
@@ -219,9 +219,9 @@ func import_dropped(files: PackedStringArray, source: String = "window") -> Stri
 	var names := ", ".join(shown)
 	if not FcMaps.list_local:
 		return _drop_say("%s: dropped maps play in solo only. Leave this server, start a solo game and drop it again." % names)
-	var level := GSAddonApi.build_level("dot_map")
+	var level := GSAddonApi.build_level("gs_map")
 	if level < MAP_DROP_LEVEL:
-		return _drop_say("Cannot import %s: this build's dot-map is API %d, importing a dropped map needs %d. Update the game." % [
+		return _drop_say("Cannot import %s: this build's gs-map is API %d, importing a dropped map needs %d. Update the game." % [
 			names, level, MAP_DROP_LEVEL])
 	var _shown := _drop_say("Importing %s…" % names, 0.0)
 	# The copy blocks: let the panel draw first.
@@ -264,7 +264,7 @@ func import_dropped(files: PackedStringArray, source: String = "window") -> Stri
 	return _drop_say(text)
 
 
-## dot-map's `accept_dropped` for one dropped [param path] into [param into], plus what it does not look for: a pack up to
+## gs-map's `accept_dropped` for one dropped [param path] into [param into], plus what it does not look for: a pack up to
 ## [param depth] folders down (a whole download; 0 = no limit), the `<map>_orig` pack with the map's own textures before the
 ## free one beside it, and a folder named `convert`, copied as `<map>/convert` so another map's `convert` does not replace it.
 func accept_drop(path: String, into: String = "user://maps", depth: int = 3) -> Dictionary:
@@ -280,13 +280,13 @@ func accept_drop(path: String, into: String = "user://maps", depth: int = 3) -> 
 			_forget_bare_convert(local_maps, map_name)
 			path = pack
 		elif pack != "" and pack != path and pack.get_base_dir() != path:
-			path = pack  # deeper than dot-map looks (one level)
+			path = pack  # deeper than gs-map looks (one level)
 	return local_maps.call(&"accept_dropped", PackedStringArray([path]), into)
 
 
 ## The first folder at or under [param dir], at most [param depth] folders down, holding a converted map (`<name>.json`
 ## beside `<name>.bin`; a negative depth is no limit), `convert` first then by name; empty when there is none. A `<map>_orig` pack in a pack's folder
-## (`dot-map-convert regen --orig-textures` writes it there) is taken instead of that free one.
+## (`gs-map-convert regen --orig-textures` writes it there) is taken instead of that free one.
 static func _pack_dir_under(local_maps: Object, dir: String, depth: int) -> String:
 	if str(local_maps.call(&"prefix_in", dir)) != "":
 		for sub in DirAccess.get_directories_at(dir):
@@ -433,7 +433,7 @@ func _catalogue_sliced() -> GSMapCatalogue:
 	return _menu_catalogue
 
 
-## A picked map whose pack is not on this machine: fetched through dot-cloud under the load cover
+## A picked map whose pack is not on this machine: fetched through gs-cloud under the load cover
 ## with its progress, then mounted so [code]FcMap.by_id[/code] builds it. Success when nothing was needed.
 func _fetch_picked(id: StringName) -> GSResult:
 	var def := _catalogue().get_map(id)
@@ -455,7 +455,7 @@ func _fetch_picked(id: StringName) -> GSResult:
 	if mounted.ok and FcMap.by_id(id) == null:
 		return GSResult.fail(GSError.CODE_STATE, "%s was fetched but this game cannot build it." % def.label())
 	if not mounted.ok and cloud == null:
-		return GSResult.fail(GSError.CODE_STATE, "%s is not on this machine and there is no dot-cloud client to fetch it." % def.label())
+		return GSResult.fail(GSError.CODE_STATE, "%s is not on this machine and there is no gs-cloud client to fetch it." % def.label())
 	return mounted
 
 
@@ -534,7 +534,7 @@ func _input_busy() -> bool:
 
 
 ## Movement stops while anything has the keyboard or the screen: the cover, the chat box,
-## the console, or dot-menu's menu ([member platform]'s [code]busy_fn[/code] says which). Only
+## the console, or gs-menu's menu ([member platform]'s [code]busy_fn[/code] says which). Only
 ## when none does is it given back, so the console closing while the chat box is still open
 ## does not walk the player.
 func _suspend_input(blocked: bool) -> void:
@@ -551,12 +551,12 @@ func _attach_open() -> bool:
 	return attach_panel != null and attach_panel.is_open()
 
 
-## A `dot_pointer_modal` node (dot-ui's ballot) that has freed the mouse; a click must not recapture it.
+## A `gs_pointer_modal` node (gs-ui's ballot) that has freed the mouse; a click must not recapture it.
 func _pointer_modal_up() -> bool:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null:
 		return false
-	for node in tree.get_nodes_in_group(&"dot_pointer_modal"):
+	for node in tree.get_nodes_in_group(&"gs_pointer_modal"):
 		if node.has_method(&"is_pointer_mode") and bool(node.call(&"is_pointer_mode")):
 			return true
 	return false
@@ -639,7 +639,7 @@ func _ask_prop(action: int) -> void:
 ##
 ## [b]It does not connect, and that is honest rather than lazy.[/b] Joining means
 ## tearing down this client's netcode, opening a transport at a new address and going
-## through dot-server's signon again — which is a launcher's job, and this game is
+## through gs-server's signon again — which is a launcher's job, and this game is
 ## loaded BY one. What this does is note the visit, so the server lands in the
 ## player's history, and say where to go.
 func _on_join_requested(entry: GSBrowserEntry) -> void:
@@ -674,7 +674,7 @@ func _on_vote(info: Dictionary) -> void:
 
 
 func _on_kill(info: Dictionary) -> void:
-	# The feed is dot-ui's and takes an entry, not a dictionary. Rebuilt here rather
+	# The feed is gs-ui's and takes an entry, not a dictionary. Rebuilt here rather
 	# than replicated as one, because a `GSKillFeed.Entry` has ten fields and three of
 	# them are only meaningful on the server that scored it.
 	if hud == null or game == null:

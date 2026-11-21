@@ -3,9 +3,9 @@ extends "fc_maps_catalogue.gd"
 
 # --- Delivered: the maps the server names --------------------------------
 
-## Where dot-cloud mounts every pack. dot-cloud's own constant, spelled out so this file
+## Where gs-cloud mounts every pack. gs-cloud's own constant, spelled out so this file
 ## parses in a build that does not link it.
-const MOUNT_ROOT := "res://dot_cloud/"
+const MOUNT_ROOT := "res://gs_cloud/"
 
 
 ## Pack key -> why it failed: a delivered map whose fetch or mount failed this session, for ANY reason
@@ -15,12 +15,12 @@ static var _dead_keys: Dictionary = {}
 
 
 ## The pack keys (`<owner>/<map id>@<version>`) the server names for the running game:
-## [code]server.games.current_maps()[/code], which dot-server-deploy's `cfg/content.yml`
-## fills. Duck-typed, so a dot-server that predates the field — or a stand-in in a suite —
+## [code]server.games.current_maps()[/code], which gs-server-deploy's `cfg/content.yml`
+## fills. Duck-typed, so a gs-server that predates the field — or a stand-in in a suite —
 ## is an empty list rather than a parse error.
 ##
-## [b]Not dot-game's `GSGameContent.map_keys`[/b], which says the same thing, because this
-## game does not link dot-game: its module is a `GSModule`, and pulling an addon into the
+## [b]Not gs-game's `GSGameContent.map_keys`[/b], which says the same thing, because this
+## game does not link gs-game: its module is a `GSModule`, and pulling an addon into the
 ## client shell's dependency list for six lines of duck typing is the wrong trade.
 static func server_map_keys(server: Object) -> PackedStringArray:
 	var out := PackedStringArray()
@@ -44,7 +44,7 @@ static func server_map_keys(server: Object) -> PackedStringArray:
 # a CDN lacks is retried at its latest.json in solo (dev has 1.0.4 and no 1.0.3).
 const STANDALONE_KEYS: PackedStringArray = [
 	"gamemann/aim-forts@1.0.5",
-	# cp-orange-x3: stripped pack (every texture/model mapped to CC0, check_packs clean) from fc-dm-maps v1.0.10: CC0 brick walls and concrete stairs (no stair-step brick), grey/orange floors (dot-map-convert 2442296); member of asset 116.
+	# cp-orange-x3: stripped pack (every texture/model mapped to CC0, check_packs clean) from fc-dm-maps v1.0.10: CC0 brick walls and concrete stairs (no stair-step brick), grey/orange floors (gs-map-convert 2442296); member of asset 116.
 	"gamemann/cp-orange-x3@1.0.10",
 	"gamemann/crackhouse@1.0.5",
 	"gamemann/dm-hot-cn-v1@1.0.5",
@@ -61,50 +61,50 @@ const STANDALONE_KEYS: PackedStringArray = [
 	"gamemann/gg-simpsons-x@1.0.5",
 	"gamemann/gg-woods@1.0.5",
 	# The combat surf packs are published as <repo>-<map> (see PACK_PREFIX), at the repo's 1.2.x.
-	"gamemann/arena-surf-dm-maps-surf_10x_final@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_10x_reloaded_fixed@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_110b_austinpowers@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_29_12_06@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_adverse@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_akai_final@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_bathroom_final@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_buck_wild@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_dust2_2008_final@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_forbidden_ways_2nd@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_forbidden_ways_reloaded@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_fruits@1.2.4",
-	"gamemann/arena-surf-dm-maps-surf_grave_reloaded@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_greatriver@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_greatriver_v4@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_greatriver_xdre4m@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_i_hate_campers@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_japan_ptad@1.2.4",
-	"gamemann/arena-surf-dm-maps-surf_legends@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_machine2@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_machine_remix_final@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_mai_remix@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_matrix_v8@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_ny_advance@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_ny_bigloop_2008a@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_parrot_selector@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_pavilion@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_pox@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_rebel_resistance_final3@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_ski_2@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_ski_2_source@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_skyworld@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_snipers_island@1.2.4",
-	"gamemann/arena-surf-dm-maps-surf_the_flow@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_the_gloaming@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_thriller@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_torque2@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_velocity@1.2.3",
-	"gamemann/arena-surf-dm-maps-surf_xiv_v2a@1.2.4",
+	"gamemann/fc-surf-dm-maps-surf_10x_final@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_10x_reloaded_fixed@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_110b_austinpowers@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_29_12_06@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_adverse@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_akai_final@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_bathroom_final@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_buck_wild@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_dust2_2008_final@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_forbidden_ways_2nd@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_forbidden_ways_reloaded@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_fruits@1.2.4",
+	"gamemann/fc-surf-dm-maps-surf_grave_reloaded@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_greatriver@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_greatriver_v4@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_greatriver_xdre4m@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_i_hate_campers@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_japan_ptad@1.2.4",
+	"gamemann/fc-surf-dm-maps-surf_legends@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_machine2@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_machine_remix_final@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_mai_remix@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_matrix_v8@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_ny_advance@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_ny_bigloop_2008a@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_parrot_selector@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_pavilion@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_pox@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_rebel_resistance_final3@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_ski_2@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_ski_2_source@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_skyworld@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_snipers_island@1.2.4",
+	"gamemann/fc-surf-dm-maps-surf_the_flow@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_the_gloaming@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_thriller@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_torque2@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_velocity@1.2.3",
+	"gamemann/fc-surf-dm-maps-surf_xiv_v2a@1.2.4",
 ]
 
 
-## The surf packs are published as `gamemann/arena-surf-dm-maps-<map>`; the map's own id (its manifest's) has no prefix.
-const PACK_PREFIX := "arena-surf-dm-maps-"
+## The surf packs are published as `gamemann/fc-surf-dm-maps-<map>`; the map's own id (its manifest's) has no prefix.
+const PACK_PREFIX := "fc-surf-dm-maps-"
 
 
 ## [constant STANDALONE_KEYS] minus the maps [param catalogue] already has (a linked local
@@ -140,7 +140,7 @@ static func mounted_versions(content: GSContentIndex) -> Dictionary:
 	return out
 
 
-## A map the server names, as dot-map content: delivered, not downloaded.
+## A map the server names, as gs-map content: delivered, not downloaded.
 ##
 ## [b]Built from the key alone[/b], because nothing else is on the disk yet: these packs are
 ## a megabyte to five each and a server that fetched every one at boot would sit
@@ -153,7 +153,7 @@ static func mounted_versions(content: GSContentIndex) -> Dictionary:
 ## because nobody versions a link; a pack is versioned by whoever published it, the server
 ## named exactly that version, and a client is told it in the announce and fetches it from
 ## its own origin — so both ends agree on the bytes by construction, and a republish is a
-## new version by dot-cloud's rule. Hashing would need the manifest before the fetch.
+## new version by gs-cloud's rule. Hashing would need the manifest before the fetch.
 ##
 ## [b]The scene path is the manifest inside the mount[/b] (`<mount>/<id>.json`): the file
 ## [FcMap] is built from, and inside the pack's own content — which is what lets a client
@@ -387,7 +387,7 @@ static func latest_version(content_id: String) -> String:
 	return ""
 
 
-## `res://dot_cloud/<content id>/<version>`, where [param def]'s pack mounts.
+## `res://gs_cloud/<content id>/<version>`, where [param def]'s pack mounts.
 static func mount_of(def: GSMapDef) -> String:
 	return "%s%s/%s" % [MOUNT_ROOT, String(def.content_id), def.effective_content_version()]
 

@@ -4,26 +4,26 @@ const FcEffects := preload("fc_effects.gd")
 const FcGame := preload("fc_game.gd")
 const FcPlayer := preload("fc_player.gd")
 
-## What dot-moderation's live tools mean in a deathmatch.
+## What gs-moderation's live tools mean in a deathmatch.
 ##
 ## [b]Every verb here is a few lines, because each is an addon's own seam.[/b] Noclip,
-## freeze, speed and gravity are dot-player-controller's `GSFpsAdminModifiers`, which the
+## freeze, speed and gravity are gs-player-controller's `GSFpsAdminModifiers`, which the
 ## owning client predicts rather than rubber-bands against; god and buddha are two flags on
-## dot-combat's `GSHealth`; slay and slap are ordinary `GSDamage` through the combat
+## gs-combat's `GSHealth`; slay and slap are ordinary `GSDamage` through the combat
 ## manager, so the kill feed, the scoreboard and the stats hear about them the way they
-## hear about a rocket; respawn is the match's own respawn path; burn is dot-effects' own
+## hear about a rocket; respawn is the match's own respawn path; burn is gs-effects' own
 ## burning. Nothing here is a second rule about any of those.
 ##
 ## Blind and beacon are the two that are about a SCREEN rather than a body, and each is one
 ## flag on [FcPlayer] that `FcPlayerNet` replicates — the blind to its owner alone,
 ## the beacon to everybody — and that the client draws: `FcHud` blacks the owner's
-## screen out, `GSFxBeacon` (dot-fx) rings the player on every screen and pings. The server decides;
+## screen out, `GSFxBeacon` (gs-fx) rings the player on every screen and pings. The server decides;
 ## nothing about either is a client's to choose.
 ##
 ## Ids are the session userid as a string, which is `FcPlayer.player_id` — the one id
 ## space this game has. See the project's docs/architecture.md.
 
-## The damage type a slay or a slap carries. Empty is dot-combat's generic type, which
+## The damage type a slay or a slap carries. Empty is gs-combat's generic type, which
 ## armour does not absorb and nothing multiplies — an admin's slap for 10 is 10.
 const WORLD_DAMAGE := &""
 
@@ -77,7 +77,7 @@ static func handlers(game: FcGame) -> Dictionary:
 			return slap(game, id, float(args.get("damage", 0.0))),
 
 		GSModTools.ACTION_RESPAWN: func(id: StringName, _args: Dictionary) -> GSResult:
-			# The spawn sight queries the physics space: on a server, at the top of the next tick (dot_tick_gate.gd).
+			# The spawn sight queries the physics space: on a server, at the top of the next tick (gs_tick_gate.gd).
 			if _player(game, id) == null:
 				return _absent(id)
 			game.tick_gate.run(game.respawn_player.bind(int(String(id))))
@@ -172,13 +172,13 @@ static func _item_handlers(game: FcGame) -> Dictionary:
 
 
 ## Why the rest are refused. Nothing is, now that blind and beacon have a client to draw
-## them; kept as a table because a new dot-moderation ability arrives unsupported, and the
+## them; kept as a table because a new gs-moderation ability arrives unsupported, and the
 ## place its reason goes is here.
 static func unsupported() -> Dictionary:
 	return {}
 
 
-## Toggles that outlive a respawn here, beyond dot-moderation's own god and buddha.
+## Toggles that outlive a respawn here, beyond gs-moderation's own god and buddha.
 ##
 ## [b]Blind and beacon are about the person, not the body.[/b] Freeze and noclip end with
 ## the body because arriving in a spawn room frozen, or falling through its floor, is the

@@ -227,7 +227,7 @@ func _build_netcode() -> GSResult:
 	# The server's `mp_teammate_passthrough` through the link (FcGame.follow_server_cvars).
 	if link != null:
 		var _following := game.follow_server_cvars(link)
-		platform.map_config_game = "game-arena"
+		platform.map_config_game = "game-fatal-contact"
 		GSLog.result(CHANNEL, "noblock", platform.add_noblock(game, Callable(game, "block_side")))
 		game.noblock = platform.noblock
 
@@ -302,7 +302,7 @@ func _build_netcode() -> GSResult:
 			presentation.set_chat_relayed(relayed)
 	)
 
-	# Chat arrives on `GSClientLink.chat_received`, not on anything dot-chat owns; unconnected
+	# Chat arrives on `GSClientLink.chat_received`, not on anything gs-chat owns; unconnected
 	# the client's GSChatClient is a history nothing feeds.
 	if link != null and link.has_signal("chat_received"):
 		link.connect("chat_received", extras.receive_wire)
@@ -338,7 +338,7 @@ func _client_net_config() -> GSNetConfig:
 	config.world_extent = FcGame.NET_WORLD_EXTENT
 	# A shorter ease back onto the blend the server rewinds to (FcGame.CLIENT_RESUME_EASE_SEC).
 	config.resume_ease_sec = FcGame.CLIENT_RESUME_EASE_SEC
-	# By name, as a pack runs on whatever dot-net its shell carries (docs/netcode.md, "A frame's cost").
+	# By name, as a pack runs on whatever gs-net its shell carries (docs/netcode.md, "A frame's cost").
 	if &"reconcile_once_per_frame" in config:
 		config.set(&"reconcile_once_per_frame", FcFrameProbe.launch_value("cl_reconcile_per_snapshot") != "1")
 	# And no replay when the snapshot matches the prediction; `cl_replay_always 1` replays every one.
@@ -416,7 +416,7 @@ func _build_killcam() -> void:
 	add_child(killcam)
 	_scale_killcam_events()
 
-## The kills the killcam buffer keeps, grown with the players: dot-replay's default 64 is a few
+## The kills the killcam buffer keeps, grown with the players: gs-replay's default 64 is a few
 ## seconds of kills at 128 bots, and a kill evicted before its view starts plays no bodies at all.
 ## A player dies at most a few times in the window, so this bounds what the window can hold.
 func _scale_killcam_events() -> void:
@@ -426,7 +426,7 @@ func _scale_killcam_events() -> void:
 	killcam.buffer.max_events = maxi(killcam.buffer.max_events, wanted)
 
 ## A player exists. Ours is one of them; the rest need something to be seen as. [b]`player_added`,
-## not `player_spawned`.[/b] `player_spawned` comes out of dot-match's respawn queue, which runs on
+## not `player_spawned`.[/b] `player_spawned` comes out of gs-match's respawn queue, which runs on
 ## the AUTHORITY — a mirroring client never fires it, so a client waiting on it waits for ever.
 func _on_player_added(added: FcPlayer) -> void:
 	if added == null:
@@ -441,7 +441,7 @@ func _on_player_added(added: FcPlayer) -> void:
 
 	# Offline this game ticks everybody, and nothing but a tick moves a bot's node: its body
 	# is drawn between ticks by the player itself (`FcPlayer.interpolate_body`). A mirror's
-	# node is moved once a frame by dot-net's interpolator instead.
+	# node is moved once a frame by gs-net's interpolator instead.
 	if added != player:
 		added.interpolate_body = _offline
 
@@ -599,7 +599,7 @@ func _start_remote_workbench() -> void:
 			_apply_mouse())
 	_workbench = wb
 
-## Solo: F9 opens dot-workbench over the config and noblock sets (nothing without the addon).
+## Solo: F9 opens gs-workbench over the config and noblock sets (nothing without the addon).
 func _start_solo_workbench() -> void:
 	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"

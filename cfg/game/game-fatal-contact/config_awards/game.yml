@@ -1,5 +1,5 @@
-# game-arena: every key of this file at its code default, commented out. Uncomment a line to change it;
-# an operator overrides in cfg/server/game/game-arena/config_awards/game.yml. Layers: defaults < this < env < argv.
+# game-fatal-contact: every key of this file at its code default, commented out. Uncomment a line to change it;
+# an operator overrides in cfg/server/game/game-fatal-contact/config_awards/game.yml. Layers: defaults < this < env < argv.
 
 # --- Awards
 # Points a kill is worth before its medals. [0..1000]

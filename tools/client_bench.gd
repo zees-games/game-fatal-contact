@@ -10,12 +10,12 @@ const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 const StallRecorder := preload("stall_recorder.gd")
 const FrameProfile := preload("frame_profile.gd")
 
-## dot-net's lossy UDP relay, by path (it has no class_name): the latency simulator.
-const Relay := preload("res://addons/dot_net/testing/dot_net_udp_relay.gd")
+## gs-net's lossy UDP relay, by path (it has no class_name): the latency simulator.
+const Relay := preload("res://addons/gs_net/testing/gs_net_udp_relay.gd")
 
 ## What a CONNECTED client's frame costs, and whether the round trip changes it: the real
 ## client (`fc.tscn`) in this process, a dedicated Fatal Contact server with hunting bots in a
-## second one, and dot-net's relay between them adding a delay each way.
+## second one, and gs-net's relay between them adding a delay each way.
 ##
 ## [codeblock]
 ## godot --headless --path . res://tools/client_bench.tscn -- --bots 3 --delay 30 --seconds 15
@@ -53,7 +53,7 @@ var _play := false
 ## `--wallrun` (needs a map with wall routes, dm_atrium): the server puts the client's player at the start of the first wall route every few seconds and the client's pilot drives the route
 ## (the run, the slide, the jump onto the wall) instead of wandering, so the mismatch check covers a predicted wall run. An earlier "0 mismatches" ran on dm_box, which has none.
 var _wallrun := false
-## The server game's tick rate. 60 is dot-server's default `sv_tickrate`; 64 is FcGame's.
+## The server game's tick rate. 60 is gs-server's default `sv_tickrate`; 64 is FcGame's.
 var _tick := FcContent.TICK_RATE
 
 var _server_pid := -1
@@ -147,7 +147,7 @@ func _feed_wall_routes(game: FcGame, module: Object) -> void:
 
 
 ## Every 5 s: the server's real tick rate against its declared one, what a tick costs
-## (dot-net's server counters), snapshots and bytes a second per client, entity count.
+## (gs-net's server counters), snapshots and bytes a second per client, entity count.
 func _report_server(net: GSNetManager) -> void:
 	var last: Dictionary = net.perf_counters()
 	var t0 := Time.get_ticks_usec()
@@ -194,7 +194,7 @@ class Pilot extends Node:
 
 	func _ready() -> void:
 		_rng.seed = 20261017
-		Input.action_press(&"dot_fps_forward")
+		Input.action_press(&"gs_fps_forward")
 		Input.action_press(&"arena_fire")
 
 	func _process(delta: float) -> void:
@@ -205,12 +205,12 @@ class Pilot extends Node:
 		if _t < _next:
 			return
 		_next = _t + _rng.randf_range(0.3, 1.2)
-		for a: StringName in [&"dot_fps_left", &"dot_fps_right", &"dot_fps_jump"]:
+		for a: StringName in [&"gs_fps_left", &"gs_fps_right", &"gs_fps_jump"]:
 			Input.action_release(a)
 		match _rng.randi_range(0, 5):
-			0: Input.action_press(&"dot_fps_left")
-			1: Input.action_press(&"dot_fps_right")
-			2: Input.action_press(&"dot_fps_jump")
+			0: Input.action_press(&"gs_fps_left")
+			1: Input.action_press(&"gs_fps_right")
+			2: Input.action_press(&"gs_fps_jump")
 			3:
 				if _rng.randf() < 0.5:
 					Input.action_release(&"arena_fire")
@@ -251,10 +251,10 @@ class WallPilot extends Node:
 			_driver = WALL_DRIVER.new(_route, &"walls")
 		sampler.look_at_angles(_driver.yaw, 0.0)
 		var cmd: GSFpsCommand = _driver.next(c.state)
-		_press(&"dot_fps_forward", cmd.move.y > 0.0)
-		_press(&"dot_fps_jump", cmd.buttons & GSFpsCommand.BUTTON_JUMP != 0)
-		_press(&"dot_fps_crouch", cmd.buttons & GSFpsCommand.BUTTON_CROUCH != 0)
-		_press(&"dot_fps_sprint", cmd.buttons & GSFpsCommand.BUTTON_SPRINT != 0)
+		_press(&"gs_fps_forward", cmd.move.y > 0.0)
+		_press(&"gs_fps_jump", cmd.buttons & GSFpsCommand.BUTTON_JUMP != 0)
+		_press(&"gs_fps_crouch", cmd.buttons & GSFpsCommand.BUTTON_CROUCH != 0)
+		_press(&"gs_fps_sprint", cmd.buttons & GSFpsCommand.BUTTON_SPRINT != 0)
 
 	func _press(action: StringName, on: bool) -> void:
 		if on:

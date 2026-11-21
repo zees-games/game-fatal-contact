@@ -5,7 +5,7 @@ extends "render_base.gd"
 ##
 ##     tools/render_rockets.sh [map]      # frames in screenshots/rockets/<map>_<shot>_NN.png
 ##
-## Everything goes through the player's own input (`arena_fire`, `dot_fps_jump`), so the missile, the bounce and
+## Everything goes through the player's own input (`arena_fire`, `gs_fps_jump`), so the missile, the bounce and
 ## the launch are the game's, not a stand-in.
 
 const FcPlayer := preload("../game/fc_player.gd")
@@ -159,19 +159,19 @@ func _rocketjump(game, me, lane: Dictionary, view: String) -> void:
 	_place(me, lane, -85.0)
 	await _wait(1.2)
 	var start: float = me.controller.state.position.y
-	Input.action_press(&"dot_fps_forward")
-	Input.action_press(&"dot_fps_jump")
+	Input.action_press(&"gs_fps_forward")
+	Input.action_press(&"gs_fps_jump")
 	await _wait(0.08)
 	Input.action_press(&"arena_fire")
 	await _wait(0.1)
 	Input.action_release(&"arena_fire")
-	Input.action_release(&"dot_fps_jump")
+	Input.action_release(&"gs_fps_jump")
 	var top := start
 	for i in 8:
 		await _shot("rocketjump_%s_%02d" % [view, i])
 		top = maxf(top, me.controller.state.position.y)
 		await _wait(EVERY)
-	Input.action_release(&"dot_fps_forward")
+	Input.action_release(&"gs_fps_forward")
 	for i in 20:
 		await _wait(0.05)
 		top = maxf(top, me.controller.state.position.y)

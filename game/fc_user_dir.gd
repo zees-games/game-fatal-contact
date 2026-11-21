@@ -1,17 +1,17 @@
 extends RefCounted
 
-## Fatal Contact's user folder. It was Godot's default, named after `config/name` (`godot/app_userdata/game-arena`); project.godot now names it itself (`use_custom_user_dir`, `game-fatal-contact`), so it is one predictable folder on every platform: `~/.local/share/game-fatal-contact` on Linux, `%APPDATA%\game-fatal-contact` on Windows,
+## Fatal Contact's user folder. It was Godot's default, named after `config/name` (`godot/app_userdata/game-fatal-contact`); project.godot now names it itself (`use_custom_user_dir`, `game-fatal-contact`), so it is one predictable folder on every platform: `~/.local/share/game-fatal-contact` on Linux, `%APPDATA%\game-fatal-contact` on Windows,
 ## `~/Library/Application Support/game-fatal-contact` on macOS. `migrate()` copies the old folder into the new one once (settings, `maps/`, stats, loadouts, profiles), never over a file the new folder already has, and leaves the old folder as it was. Engine caches are not copied.
 ## Nothing happens on the web (`/userfs`) or when another project runs the game (a pack in the shell): the setting it checks is this project's alone.
 
 const DIR_NAME := "game-fatal-contact"
-const OLD_NAME := "game-arena"
+const OLD_NAME := "game-fatal-contact"
 
 ## The log channel for the one-time copy.
 const CHANNEL := "arena.user_dir"
 
 ## Written into the new folder once the copy ran (or found nothing to copy), so it runs once per machine.
-const MARKER := "user://.migrated_from_game_arena"
+const MARKER := "user://.migrated_from_game_fatal_contact"
 ## Rebuilt by the engine; the shader cache alone was 80 MB of an 84 MB folder.
 const SKIP := ["shader_cache", "vulkan", "logs"]
 
@@ -23,7 +23,7 @@ static func is_ours() -> bool:
 		and str(ProjectSettings.get_setting("application/config/custom_user_dir_name", "")) == DIR_NAME
 
 
-## The folder Godot gave the game while `config/name` was "game-arena".
+## The folder Godot gave the game while `config/name` was "game-fatal-contact".
 static func old_dir() -> String:
 	var godot := "godot" if OS.get_name() in ["Linux", "FreeBSD", "NetBSD", "OpenBSD", "BSD"] else "Godot"
 	return OS.get_data_dir().path_join(godot).path_join("app_userdata").path_join(OLD_NAME)

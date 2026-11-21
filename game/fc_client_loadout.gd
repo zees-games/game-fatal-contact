@@ -1,23 +1,23 @@
 extends "fc_client_state.gd"
 
-## dot-auth's client, as the shell that signed the player in registers it. Absent solo
+## gs-auth's client, as the shell that signed the player in registers it. Absent solo
 ## without a shell, or from a shell that predates it: then every loadout is "local".
-const AUTH_SERVICE := &"dot_auth_client"
+const AUTH_SERVICE := &"gs_auth_client"
 var _account_auth: Object = null
 var _loadout_restored := false
 var _loadout_scratch := false
 var _previews: Node = null
 var _weapon_table: Dictionary = {}
-## dot-menu's loadout menu, or null on a host whose dot-menu predates it (API 6).
+## gs-menu's loadout menu, or null on a host whose gs-menu predates it (API 6).
 var loadout_menu: Object = null
 
 ## The client's loadout menu: offering, choosing, restoring and keying a player's loadout to their account. Split out of fc_client_view.gd for file size.
 
 
-## B: primary, sidearm, melee, grenades and gear, as cards with each weapon's picture and numbers. Solo the game's own loadouts answer; connected the server does (dot-loadout's
-## `/loadout`), under the owner's `mp_loadout_*` rules. Guarded on the host's dot-menu and dot-loadout levels, so an older client shell still runs the game without it.
+## B: primary, sidearm, melee, grenades and gear, as cards with each weapon's picture and numbers. Solo the game's own loadouts answer; connected the server does (gs-loadout's
+## `/loadout`), under the owner's `mp_loadout_*` rules. Guarded on the host's gs-menu and gs-loadout levels, so an older client shell still runs the game without it.
 func _use_loadout_menu() -> void:
-	if GSAddonApi.build_level("dot_menu") < 6 or GSAddonApi.build_level("dot_loadout") < 2:
+	if GSAddonApi.build_level("gs_menu") < 6 or GSAddonApi.build_level("gs_loadout") < 2:
 		return
 	if not game_menu.has_method(&"use_loadout"):
 		return
@@ -25,7 +25,7 @@ func _use_loadout_menu() -> void:
 	if loadout_menu != null:
 		_link_menu(loadout_menu)
 		# Items the player does not own, greyed with a store button, solo and connected.
-		if GSAddonApi.build_level("dot_game") >= 40:
+		if GSAddonApi.build_level("gs_game") >= 40:
 			platform.add_loadout_store(loadout_menu, func() -> Object: return game.loadout_command if game != null else null,
 					func() -> String: return FcGame.storage_key(player.player_id) if player != null else "")
 		loadout_menu.set(&"random_fn", random_loadout)
@@ -37,7 +37,7 @@ func _use_loadout_menu() -> void:
 		follow_account(GSRegistry.get_node_service(AUTH_SERVICE))
 
 
-## Joined to its own server process, nobody registers `dot_client_link`, so a menu that asks the
+## Joined to its own server process, nobody registers `gs_client_link`, so a menu that asks the
 ## server is handed the host's link; without it B took the solo path on a client with no loadouts.
 func _link_menu(menu_part: Object) -> void:
 	if menu_part != null and link != null and not _offline and &"link" in menu_part:
@@ -46,7 +46,7 @@ func _link_menu(menu_part: Object) -> void:
 
 ## The key a loadout is remembered under for [param auth] (a GSAuthClient, or null): its
 ## account's public id when signed in, "local" for a guest or a client with no auth. Never a
-## token. Untyped because a shell older than dot-auth's `account_key` has no such method.
+## token. Untyped because a shell older than gs-auth's `account_key` has no such method.
 static func loadout_account_key(auth: Object) -> String:
 	if auth == null or not is_instance_valid(auth) or not auth.has_method(&"account_key"):
 		return "local"
@@ -142,7 +142,7 @@ func decorate_loadout_choice(_slot_id: String, choice: Dictionary) -> Dictionary
 	return out
 
 
-## Sends the choice this player saved last time (dot-menu remembers it on this device), once
+## Sends the choice this player saved last time (gs-menu remembers it on this device), once
 ## per join: solo into the game's own manager, connected to the server.
 func _restore_loadout() -> void:
 	if loadout_menu == null or _loadout_restored:

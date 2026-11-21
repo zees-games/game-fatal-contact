@@ -5,9 +5,9 @@ const FcMode := preload("fc_mode.gd")
 ## Every mode this game ships, by id.
 ##
 ## [b]The same shape as `FcMap.by_id` / `ids`, on purpose.[/b] A server names a mode
-## with a string, a console command lists them, and dot-vote's `GSVoteListSource` can
+## with a string, a console command lists them, and gs-vote's `GSVoteListSource` can
 ## be handed [method ids] without either end knowing what a mode is. Nothing here
-## imports dot-vote or dot-server.
+## imports gs-vote or gs-server.
 ##
 ## Every call builds a FRESH resource. Handing out a shared one would let a server that
 ## adjusted a score limit at runtime edit the mode every later match reads — the

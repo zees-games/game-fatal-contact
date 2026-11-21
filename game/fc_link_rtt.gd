@@ -1,6 +1,6 @@
 extends RefCounted
 ## A client link's round trip, in milliseconds: ENet's own measurement when the link is on
-## ENet, and dot-server's heartbeat ping otherwise. 0 while neither knows.
+## ENet, and gs-server's heartbeat ping otherwise. 0 while neither knows.
 ##
 ## [b]Why not just `GSClientLink.ping_ms`.[/b] That is one heartbeat every two seconds,
 ## sent unreliable, and it is -1 until the first comes back -- once, through a real UDP

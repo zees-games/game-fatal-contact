@@ -19,7 +19,7 @@ var roster: GSPlayerRoster = null
 var teams: GSTeamRoster = null
 
 
-## The dot-team side for one of dot-match's team ids. [b]An id, not an index[/b]: dot-match's `standard_pair()` is Red `1` and Blue `2`, a spectator team `31`; treating `team_of()`'s answer as a position would put team 1 on dot-team's first side by luck and a spectator nowhere.
+## The gs-team side for one of gs-match's team ids. [b]An id, not an index[/b]: gs-match's `standard_pair()` is Red `1` and Blue `2`, a spectator team `31`; treating `team_of()`'s answer as a position would put team 1 on gs-team's first side by luck and a spectator nowhere.
 ## So the id is looked up in the match's own ordered team list and the POSITION crosses over: the nth playing side there is the nth playing side here.
 func _side_of_id(team_id: int) -> StringName:
 	if game.match_node.teams == null or team_id <= 0:
@@ -63,7 +63,7 @@ func _score_of_key(key: String) -> float:
 	return float(score.score) if score != null else 0.0
 
 
-## Where a player's EYES are, which is not where their feet are. dot-spectate's documentation is explicit: a chase camera derived from a capsule's origin sits in the floor and a first-person one is at the knees.
+## Where a player's EYES are, which is not where their feet are. gs-spectate's documentation is explicit: a chase camera derived from a capsule's origin sits in the floor and a first-person one is at the knees.
 ## The controller answers it, because it knows the eye height and the pitch.
 func _pose_of_key(key: String) -> Transform3D:
 	var player: FcPlayer = game.player_for(int(key))
@@ -78,7 +78,7 @@ func _pose_of_key(key: String) -> Transform3D:
 ## The spawning player is never their own enemy: one respawned while alive (a map change, an admin) stood on the site being scored and scored it as the most dangerous place on the map.
 func _enemy_positions(team: StringName, key: String = "") -> Array:
 	var out: Array = []
-	# The MODE says whether there are sides, not dot-match's team manager: that exists in a free-for-all too, and the roster keeps whatever side a team mode left everybody on,
+	# The MODE says whether there are sides, not gs-match's team manager: that exists in a free-for-all too, and the roster keeps whatever side a team mode left everybody on,
 	# which told a free-for-all respawner its old team-mates were friends.
 	var sided: bool = game.mode != null and game.mode.is_team_mode() and team != &""
 

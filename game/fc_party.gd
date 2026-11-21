@@ -2,9 +2,9 @@ extends Node
 
 ## A private deathmatch among friends, with nothing persistent coming out of it.
 ##
-## [b]Fatal Contact takes dot-peer-to-peer with the trust turned down, and that is the whole
-## decision.[/b] This game reports to dot-stats, unlocks dot-achievements and files to
-## dot-leaderboard. A peer-to-peer host is a player's own machine and can lie about all of
+## [b]Fatal Contact takes gs-peer-to-peer with the trust turned down, and that is the whole
+## decision.[/b] This game reports to gs-stats, unlocks gs-achievements and files to
+## gs-leaderboard. A peer-to-peer host is a player's own machine and can lie about all of
 ## it — so the answer is not "try to catch them", it is **nothing persistent leaves a
 ## peer-to-peer match**:
 ##
@@ -79,7 +79,7 @@ func host(display_name: String) -> GSResult:
 			"this build cannot host a private match",
 			GSP2PSession.unavailable_reason()
 		)
-	# Awaited: dot-peer-to-peer's session awaits its signaller since 37d47c1, because an
+	# Awaited: gs-peer-to-peer's session awaits its signaller since 37d47c1, because an
 	# HTTP rendezvous answers a frame later at best. A caller of this awaits it too.
 	var res: GSResult = await session.host(display_name)
 	if res.ok:

@@ -140,12 +140,12 @@ func _weapon(me: Node, id: StringName) -> void:
 				sampler.look_at_angles(yaw, 0.0)
 				await _seconds(0.4)
 			"run into the wall":
-				Input.action_press(&"dot_fps_forward")
-				Input.action_press(&"dot_fps_sprint")
+				Input.action_press(&"gs_fps_forward")
+				Input.action_press(&"gs_fps_sprint")
 				await _sample(worst, 3.0)
 				_check(worst.sprint >= 0.99, "%s sprint: the gun goes to its sprint carry with no weapon key down" % id, "sprint blend %.2f over %d samples" % [worst.sprint, worst.n])
-				Input.action_release(&"dot_fps_forward")
-				Input.action_release(&"dot_fps_sprint")
+				Input.action_release(&"gs_fps_forward")
+				Input.action_release(&"gs_fps_sprint")
 				sampler.look_at_angles(yaw + 180.0, 0.0)
 				yaw += 180.0
 				await _seconds(0.5)
@@ -226,7 +226,7 @@ func _sample(worst: Dictionary, seconds: float) -> void:
 		if grip.is_two_hand():
 			var p: Vector3 = held.palm_offset
 			pairs.append(["Middle1.L", grip.support_world(), grip.support, Vector3(-p.x, p.y, p.z)])
-		# Real hands (dot-player-char 28) seat each wrist where its closed fingers land on the grip, not at palm_offset.
+		# Real hands (gs-player-char 28) seat each wrist where its closed fingers land on the grip, not at palm_offset.
 		var wrists: Array = held.call(&"wrist_targets", grip) if held.has_method(&"wrist_targets") else []
 		for pair: Array in pairs:
 			if -(camera.global_transform.affine_inverse() * (pair[1] as Vector3)).z < _near():
@@ -256,7 +256,7 @@ func _sample(worst: Dictionary, seconds: float) -> void:
 			worst.sets = sets
 
 
-## Visible arm sets near the eye: the pack's own, dot-player-char's view arms, a first-person figure.
+## Visible arm sets near the eye: the pack's own, gs-player-char's view arms, a first-person figure.
 func _arm_sets(camera: Camera3D) -> int:
 	var found: Array = []
 	for node in _client.find_children("*", "Node3D", true, false):

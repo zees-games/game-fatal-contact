@@ -138,7 +138,7 @@ func _test_crowd(crowd: int) -> void:
 	_check(bots.size() == crowd, "%d bots play" % crowd, str(bots.size()))
 	var buffer: GSKillcamBuffer = _host.buffer
 	_check(buffer.max_events >= _game.players().size() * 4,
-		"the killcam keeps kill events for every player, not dot-replay's 64", "%d for %d players" % [buffer.max_events, _game.players().size()])
+		"the killcam keeps kill events for every player, not gs-replay's 64", "%d for %d players" % [buffer.max_events, _game.players().size()])
 	# Long enough for the new bots to spread out and run.
 	await _wait(4.0)
 	var since: float = _host.now_fn.call()

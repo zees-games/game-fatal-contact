@@ -11,8 +11,8 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 ## a world and a menu wants a viewport-sized stack with nothing behind it; one script that
 ## did both would spend most of itself deciding which it was doing.
 ##
-## The menu here is dot-menu's with this game's pages on it, so every page is rendered:
-## dot-menu's own `tools/screenshot.sh` draws its demo's pages, not these rows.
+## The menu here is gs-menu's with this game's pages on it, so every page is rendered:
+## gs-menu's own `tools/screenshot.sh` draws its demo's pages, not these rows.
 ##
 ## Run through `tools/screenshot_menus.sh`. [b]Not `--headless`[/b]: that gives a null
 ## renderer, a 64 x 64 viewport, and every frame it saves is empty — which is worse than no
@@ -80,7 +80,7 @@ func _build() -> void:
 	root.add_child(_presentation)
 	GSLog.result("screenshot", "the presentation", _presentation.setup())
 
-	# The menu the client builds (dot-menu's, through FcMenus), over this game's own
+	# The menu the client builds (gs-menu's, through FcMenus), over this game's own
 	# settings document and key table, with a browser holding two servers as a list
 	# would after a refresh.
 	_browser = FcBrowser.new()
@@ -105,7 +105,7 @@ func _build() -> void:
 			entry.max_players = int(f[4])
 			entry.ping_ms = int(f[5])
 	_menu = FcMenus.build(root, _presentation, _browser)
-	# The site-store page the client adds through dot-game, over a canned entitlements read.
+	# The site-store page the client adds through gs-game, over a canned entitlements read.
 	GSGameStorePanel.add_to_menu(_menu, func() -> String: return "p1", func() -> Object: return _StoreFake.new())
 
 	# A scoreboard with names of the length a real one has, and a row that is the local

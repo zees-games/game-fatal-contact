@@ -11,7 +11,7 @@ const FcSurfRides := preload("../game/fc_surf_rides.gd")
 ##     godot --headless --path . tools/surf_rides.tscn -- surf_10x_reloaded_fixed --plan 0 --starts 6 --repairs 32 --rounds 3
 ##
 ## [b]--explore[/b] bakes the bots' mesh as the game does and, from every platform that holds a spawn
-## or a teleport's landing, searches (dot-bot's [GSBotSurfPlanner]) for a ride that ends standing on
+## or a teleport's landing, searches (gs-bot's [GSBotSurfPlanner]) for a ride that ends standing on
 ## another platform at least [constant MIN_RIDE_METRES] away (not a teleport's floor, lowest first).
 ## Each one found is an edge, and its landing is explored in turn (`--platforms N` caps how many).
 ## Edges are rewritten as each is found, so a run its timeout cuts short keeps what it found.

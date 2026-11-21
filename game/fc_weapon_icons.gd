@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Fatal Contact's weapon pictures: weapon id (fc-weapons') to sprite tag; the rest is dot-ui's [GSWeaponIconStyle].
+## Fatal Contact's weapon pictures: weapon id (fc-weapons') to sprite tag; the rest is gs-ui's [GSWeaponIconStyle].
 
 const TAGS := {
 	&"battle_rifle": &"battle_rifle", &"beamer": &"energy_rifle", &"bullpup": &"bullpup",

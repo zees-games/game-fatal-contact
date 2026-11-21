@@ -10,10 +10,10 @@ render_mode cull_back;
 // Deliberately a second copy of game-airdrift's rather than a shared file. Nothing is
 // shared between games in this family that is not an addon, and a shader that lived
 // in one game and was loaded by another would be a dependency neither declares.
-instance uniform vec4 dot_avatar_tint_0 : source_color = vec4(0.75, 0.75, 0.78, 1.0);
+instance uniform vec4 gs_avatar_tint_0 : source_color = vec4(0.75, 0.75, 0.78, 1.0);
 
 void fragment() {
-	ALBEDO = dot_avatar_tint_0.rgb;
+	ALBEDO = gs_avatar_tint_0.rgb;
 	ROUGHNESS = 0.85;
 	METALLIC = 0.0;
 }

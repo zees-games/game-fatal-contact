@@ -4,14 +4,14 @@ const FcPaths := preload("fc_paths.gd")
 
 ## What a player looks like, as a document a server can check without loading a mesh.
 ##
-## [b]The point of dot-user-avatar is that an avatar is data, not a model.[/b] A server
+## [b]The point of gs-user-avatar is that an avatar is data, not a model.[/b] A server
 ## validates "body: trooper, head: boxy, crest: fin, tinted these three colours"
 ## against a schema and a set of entitlements, and never opens a scene to do it — which
 ## is what lets a headless dedicated server refuse a cosmetic a player is not entitled
 ## to without shipping the cosmetic.
 ##
 ## [b]One schema, two sources of parts.[/b] The six parts here ship in this build under
-## `res://avatars/`; a delivered part names dot-cloud content instead, and
+## `res://avatars/`; a delivered part names gs-cloud content instead, and
 ## [GSAvatarBuilder] does not care which it got. A player with none of their own gets
 ## [method stock_avatar], which is a real document over the same schema rather than a
 ## special case — so a server that has never spoken to a backbone draws everybody, and
@@ -152,7 +152,7 @@ static func _part(id: StringName, slot: StringName) -> GSAvatarPart:
 	out.display_name = String(id).replace("fc_", "").capitalize()
 	out.colour_channels = 1
 	# Free and shipped in this build: no content id, so the catalogue resolves it
-	# straight to res://avatars/<id>.tscn without asking dot-cloud for anything.
+	# straight to res://avatars/<id>.tscn without asking gs-cloud for anything.
 	out.free = true
 	return out
 
@@ -282,7 +282,7 @@ static func make_rig() -> Node3D:
 	return rig
 
 
-## The person an avatar document is drawn as: dot-player-char's people (one rig and one style
+## The person an avatar document is drawn as: gs-player-char's people (one rig and one style
 ## for every game in the family, docs/characters.md), coloured from the document.
 ##
 ## [b]The document stays this game's[/b] (body, head, crest, colours): it is what a server
@@ -339,7 +339,7 @@ static func crest_of(stored: GSAvatar) -> Node3D:
 	crest.position = Vector3(0.0, float(CREST_LIFT.get(part, 0.08)), 0.0)
 	if crest is GeometryInstance3D:
 		(crest as GeometryInstance3D).set_instance_shader_parameter(
-			&"dot_avatar_tint_0", avatar.colour_of(SLOT_CREST, 0))
+			&"gs_avatar_tint_0", avatar.colour_of(SLOT_CREST, 0))
 	return crest
 
 

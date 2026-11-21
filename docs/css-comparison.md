@@ -74,10 +74,10 @@ Note that the bench runs the editor binary. A release export runs GDScript faste
 | # | Cut | Where | Expected ms | Status |
 | --- | --- | --- | --- | --- |
 | 1 | Dormant bodies out of sight: present at most 10 Hz (from 30 Hz), and a thinned body's figure stops its own per-frame floor ray (`cl_remote_dormant`) | FC | measured 0.1 | not kept, see below |
-| 2 | Drive each body's figure and held gun from the present loop: one call per body, no `_process` callbacks, nothing for a body that is thinned | dot-player-char, fc-weapons | 0.5-0.8 (of the 0.81 in body subtrees) | board item |
-| 3 | Bone setup off the main thread (Source's threaded bone setup): step the figures' clips on the WorkerThreadPool and write the skeletons on the main thread | dot-player-char | 0.6-1.0 (r_anim 0.44-0.75 + pf_tail 0.6) | board item |
-| 4 | An interpolation list: skip remote identities whose bracket has not changed (a standing or dead body) | dot-net | 0.3-0.5 | board item; a cache inside the math reached only 0.45 |
-| 5 | Run FC's `_net_state_applied` hooks only for fields that changed (0.6-0.85 ms per snapshot) | FC + dot-net | 0.3-0.5 | board item |
+| 2 | Drive each body's figure and held gun from the present loop: one call per body, no `_process` callbacks, nothing for a body that is thinned | gs-player-char, fc-weapons | 0.5-0.8 (of the 0.81 in body subtrees) | board item |
+| 3 | Bone setup off the main thread (Source's threaded bone setup): step the figures' clips on the WorkerThreadPool and write the skeletons on the main thread | gs-player-char | 0.6-1.0 (r_anim 0.44-0.75 + pf_tail 0.6) | board item |
+| 4 | An interpolation list: skip remote identities whose bracket has not changed (a standing or dead body) | gs-net | 0.3-0.5 | board item; a cache inside the math reached only 0.45 |
+| 5 | Run FC's `_net_state_applied` hooks only for fields that changed (0.6-0.85 ms per snapshot) | FC + gs-net | 0.3-0.5 | board item |
 | 6 | Render thread (`thread_model=2`), as Source's threaded material system does | engine | about 1 | perf-render-thread-1 (crashes on 4.7.2) |
 | 7 | Occlusion dormancy: a body in the frustum but behind the level's solid world (three rays, 10 Hz) counts as out of sight (`cl_remote_occlusion`) | FC | measured p50 -0.7 to -1.7 ms, bodies -0.64 (n=3, shared box) | kept |
 | 8 | Bench a release export, not the editor binary | tools | measurement, not a cut | board item |

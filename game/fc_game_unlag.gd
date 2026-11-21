@@ -148,7 +148,7 @@ func unlag_crouch_at(id: int, at: float) -> float:
 	return lerpf(crouches[a], crouches[b], at - float(lo))
 
 
-## dot-combat's rewind: every other living player, put where they were at [param view_tick], in the stance they had then:
+## gs-combat's rewind: every other living player, put where they were at [param view_tick], in the stance they had then:
 ## the zones fit the present crouch, and a target that crouched since was traced a standing head too short (footage 2026-11-15).
 func _unlag_rewind(view_tick: float) -> void:
 	for id in _players:

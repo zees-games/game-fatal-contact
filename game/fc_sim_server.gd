@@ -152,14 +152,14 @@ func _apply_cvars(server: GSServer) -> bool:
 func _apply_bench_flags() -> void:
 	# The brains on worker threads: the same match as one thread (headless_botthreads), less of each tick.
 	FcBotThreads.threads = maxi(0, int(_arg("--bot_threads", str(FcBotThreads.native_default()))))
-	# dot-bot's native mind (the `bot_native_brain` cvar, on by default) for a bench's A/B; brains on workers keep it with a worker-safe dot-sim.
+	# gs-bot's native mind (the `bot_native_brain` cvar, on by default) for a bench's A/B; brains on workers keep it with a worker-safe gs-sim.
 	var brain_native := _arg("--bot_native_brain", "")
 	if brain_native != "":
 		FcPlayerStack.set_brain_native(brain_native.to_int() != 0)
-	# dot-sim's native bot loop (think tiers so far; on when the library is loaded) off for a bench's A/B.
+	# gs-sim's native bot loop (think tiers so far; on when the library is loaded) off for a bench's A/B.
 	var native_loop := _arg("--bot_native_loop", "")
 	if native_loop != "" and FcBots.tier_schedule:
-		# By name: dot-bot 26 (the live shell's) has no native tier to switch.
+		# By name: gs-bot 26 (the live shell's) has no native tier to switch.
 		FcBots.tiers.set(&"native", native_loop.to_int() != 0)
 	_load_us = maxi(0, int(_arg("--sim_load_us", "0")))
 	set_physics_process(_load_us > 0)
@@ -172,7 +172,7 @@ func _apply_bench_flags() -> void:
 		# The addons' own phases, in a SIM_HOST_PHASES line: the controller's always, the brain's on one thread only.
 		GSFpsController.phase_timers = true
 		if FcBots.brain_phases:
-			# By name: dot-bot 26 (the live shell's) has no brain phase timers.
+			# By name: gs-bot 26 (the live shell's) has no brain phase timers.
 			(GSBotBrain as GDScript).set(&"phase_timers", FcBotThreads.threads == 0)
 		FcFrameProbe.fine = sections == "2"
 		# p_weapons split by the rig's and the arsenal's own clocks (pw_*, pa_*), on the fine level only: a clock read a part.
@@ -233,7 +233,7 @@ func _remote_players() -> int:
 	return count
 
 
-## Every few seconds, one line: the tick rate held and what a tick cost (dot-net server counters).
+## Every few seconds, one line: the tick rate held and what a tick cost (gs-net server counters).
 func _report(net: GSNetManager) -> void:
 	var last: Dictionary = net.perf_counters()
 	var t0 := Time.get_ticks_usec()
@@ -251,7 +251,7 @@ func _report(net: GSNetManager) -> void:
 		if behind != "":
 			GSLog.warn(CHANNEL, behind)
 		_tell_player(held, Engine.physics_ticks_per_second)
-		# server_tick's own sections (a dot-net without them reports 0): input before sim, the
+		# server_tick's own sections (a gs-net without them reports 0): input before sim, the
 		# still-registered check inside sim, the rewind history record inside send.
 		print("SIM_HOST_NET ms/tick | input %.3f, check %.3f, hist %.3f" % [  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			_per_tick(now, last, &"server_input_usec", ticks), _per_tick(now, last, &"server_check_usec", ticks),
@@ -324,12 +324,12 @@ static func sections_line(sections: Dictionary, ticks: int) -> String:
 
 
 ## [prefix, script] of the weapon sub-phase clocks this build's addons have: AwWeaponRig's from fc-weapons API 10,
-## GSWeaponArsenal's from dot-weapon API 32. Read and set by name, so an older shell's addons still parse.
+## GSWeaponArsenal's from gs-weapon API 32. Read and set by name, so an older shell's addons still parse.
 static func _weapon_phase_clocks() -> Array:
 	var clocks := []
 	if GSAddonApi.build_level("fc_weapons") >= 10:
 		clocks.append(["pw_", AwWeaponRig])
-	if GSAddonApi.build_level("dot_weapon") >= 32:
+	if GSAddonApi.build_level("gs_weapon") >= 32:
 		clocks.append(["pa_", GSWeaponArsenal])
 	return clocks
 

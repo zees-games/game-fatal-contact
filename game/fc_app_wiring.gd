@@ -8,10 +8,10 @@ extends Node
 ## [b]Every part is off until its operator configures it, and off is quiet:[/b] one log line, no
 ## crash, nothing sent.
 ## [codeblock]
-## earn events    GSPointsReporter        user://app_points.json, DOT_POINTS_*, --points-*
+## earn events    GSPointsReporter        user://app_points.json, GS_POINTS_*, --points-*
 ##                                         (app_id, server_id, private_key_path)
-## settings       GSLoadoutSiteSettings   a backbone client (dot_backbone_client)
-## points, items  GSLoadoutSiteSource     user://app_loadout.json, DOT_LOADOUT_*, --loadout-*
+## settings       GSLoadoutSiteSettings   a backbone client (gs_backbone_client)
+## points, items  GSLoadoutSiteSource     user://app_loadout.json, GS_LOADOUT_*, --loadout-*
 ##                                         (no key: follows the site's list; site_public_key_path pins)
 ## [/codeblock]
 ##
@@ -51,13 +51,13 @@ const BOT_SESSION_BASE := 900_000_000
 ## and second playing side, bound through the `team_body_a` / `team_body_b` rules (fc_team_bodies.gd).
 const SIDE_SUFFIXES: PackedStringArray = [":a", ":b"]
 const SIDE_RULES: PackedStringArray = ["team_body_a", "team_body_b"]
-## The dot-loadout level that brought GSLoadoutSiteSettings.
+## The gs-loadout level that brought GSLoadoutSiteSettings.
 const SETTINGS_LEVEL := 3
 
 ## The game: anything with `rule`, `set_movement_rules`, `config`, `player_for`, `player_ids`,
 ## `team_of`, `mode`, `match_node`, `loadout_identity` and the `player_killed` / `map_changed` signals.
 var game: Object = null
-## The backbone client (dot-auth's GSBackboneClient); `dot_backbone_client` when none is given.
+## The backbone client (gs-auth's GSBackboneClient); `gs_backbone_client` when none is given.
 var client: Object = null
 ## Whether [method setup] starts polling the settings (tests drive [method apply_avatars] themselves).
 var follow_settings := true
@@ -81,7 +81,7 @@ var _team_avatars_before := 1.0
 ## [method describe].
 func setup(p_game: Object, p_client: Object = null, points_config: Object = null, loadout_config: Object = null) -> GSResult:
 	game = p_game
-	client = p_client if p_client != null else GSRegistry.get_service(&"dot_backbone_client")
+	client = p_client if p_client != null else GSRegistry.get_service(&"gs_backbone_client")
 	_setup_reporter(points_config)
 	var loadout: Object = loadout_config if loadout_config != null else _loadout_config()
 	_setup_settings(loadout)
@@ -114,19 +114,19 @@ func _setup_reporter(cfg: Object) -> void:
 	var script := FcNewerApi.script_of(&"GSPointsReporter")
 	var cfg_script := FcNewerApi.script_of(&"GSPointsReporterConfig")
 	if script == null or cfg_script == null:
-		_once(&"no_reporter", "app points events are off: this build has no GSPointsReporter (dot-achievements)")
+		_once(&"no_reporter", "app points events are off: this build has no GSPointsReporter (gs-achievements)")
 		return
 	if cfg == null:
 		cfg = cfg_script.new()
 		var loaded: GSResult = cfg.call(&"load_layered", POINTS_CONFIG_PATH)
 		if _points_unset(cfg):
-			_once(&"points_off", "app points events are off: no app_id or signing key (%s, DOT_POINTS_*)" % POINTS_CONFIG_PATH)
+			_once(&"points_off", "app points events are off: no app_id or signing key (%s, GS_POINTS_*)" % POINTS_CONFIG_PATH)
 			return
 		if not loaded.ok:
 			GSLog.result(CHANNEL, "app points events are off: the points config is invalid", loaded)
 			return
 	elif _points_unset(cfg):
-		_once(&"points_off", "app points events are off: no app_id or signing key (%s, DOT_POINTS_*)" % POINTS_CONFIG_PATH)
+		_once(&"points_off", "app points events are off: no app_id or signing key (%s, GS_POINTS_*)" % POINTS_CONFIG_PATH)
 		return
 	var made: Node = script.new()
 	made.name = "AppPointsReporter"
@@ -261,10 +261,10 @@ func _loadout_config() -> GSLoadoutConfig:
 
 
 func _setup_settings(cfg: Object) -> void:
-	# dot-loadout level 3 introduced the site settings; the floor is 2, so ask the host before reaching for the class.
-	var script: Script = FcNewerApi.script_of(&"GSLoadoutSiteSettings") if GSAddonApi.build_level("dot_loadout") >= SETTINGS_LEVEL else null
+	# gs-loadout level 3 introduced the site settings; the floor is 2, so ask the host before reaching for the class.
+	var script: Script = FcNewerApi.script_of(&"GSLoadoutSiteSettings") if GSAddonApi.build_level("gs_loadout") >= SETTINGS_LEVEL else null
 	if script == null:
-		_once(&"no_settings", "app avatars settings are off: this build has no GSLoadoutSiteSettings (dot-loadout)")
+		_once(&"no_settings", "app avatars settings are off: this build has no GSLoadoutSiteSettings (gs-loadout)")
 		return
 	if client == null or not client.has_method(&"get_integration"):
 		_once(&"settings_no_client", "app avatars settings are off: no backbone client")
@@ -339,14 +339,14 @@ func _setup_site(cfg: Object) -> void:
 	var script := FcNewerApi.script_of(&"GSLoadoutSiteSource")
 	if script == null or not script.get_script_method_list().any(
 			func(m: Dictionary) -> bool: return m.get("name") == "points_of"):
-		_once(&"no_site", "app points on the HUD are off: this build's GSLoadoutSiteSource has no points (dot-loadout)")
+		_once(&"no_site", "app points on the HUD are off: this build's GSLoadoutSiteSource has no points (gs-loadout)")
 		return
 	if client == null or not client.has_method(&"get_integration"):
 		_once(&"site_no_client", "app points on the HUD are off: no backbone client")
 		return
 	var made: GSResult = script.call(&"from_config", cfg, client)
 	if not made.ok:
-		_once(&"site_off", "app points on the HUD are off: site key config unusable (%s site_public_key_path, DOT_LOADOUT_*; clear the pin to follow the site's key list)" % LOADOUT_CONFIG_PATH,
+		_once(&"site_off", "app points on the HUD are off: site key config unusable (%s site_public_key_path, GS_LOADOUT_*; clear the pin to follow the site's key list)" % LOADOUT_CONFIG_PATH,
 			{"why": made.error.message})
 		return
 	use_site(made.value)

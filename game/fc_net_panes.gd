@@ -21,12 +21,12 @@ func _watch_panes() -> void:
 	if props != null and not props.has_meta(&"fc_watched"):
 		props.set_meta(&"fc_watched", true)
 		props.connect(&"prop_broke", _on_prop_broke)
-	var count := tree.get_node_count_in_group(&"dot_map_glass")
+	var count := tree.get_node_count_in_group(&"gs_map_glass")
 	if count == _panes_seen and not _panes_dirty:
 		return
 	_panes_seen = count
 	_panes_dirty = false
-	for pane: Node in tree.get_nodes_in_group(&"dot_map_glass"):
+	for pane: Node in tree.get_nodes_in_group(&"gs_map_glass"):
 		if pane.has_meta(&"fc_watched"):
 			continue
 		pane.set_meta(&"fc_watched", true)
@@ -65,7 +65,7 @@ func _burst_at(material: String, at: Vector3) -> void:
 func _send_panes_signon(peer_id: int) -> void:
 	if not is_inside_tree():
 		return
-	for pane: Node in get_tree().get_nodes_in_group(&"dot_map_glass"):
+	for pane: Node in get_tree().get_nodes_in_group(&"gs_map_glass"):
 		if bool(pane.call(&"is_broken")):
 			_send_event(peer_id, FcEvents.Kind.PANE_BROKEN, FcEvents.write_taken(int(pane.get("model")), 0))
 
@@ -75,7 +75,7 @@ func _apply_pane_broken(reader: GSNetReader) -> void:
 	var told := FcEvents.read_taken(reader)
 	if not bool(told["ok"]) or not is_inside_tree():
 		return
-	for pane: Node in get_tree().get_nodes_in_group(&"dot_map_glass"):
+	for pane: Node in get_tree().get_nodes_in_group(&"gs_map_glass"):
 		if int(pane.get("model")) == int(told["id"]):
 			pane.set(&"authoritative", false)
 			_pane_quiet(pane)
@@ -83,7 +83,7 @@ func _apply_pane_broken(reader: GSNetReader) -> void:
 			_pane_fx(pane, pane.global_position)
 
 
-## Glass shards and the crack, from dot-fx; the pane's own bare quads are switched off for them.
+## Glass shards and the crack, from gs-fx; the pane's own bare quads are switched off for them.
 func _pane_fx(pane: Node, at: Vector3) -> void:
 	var fx := get_tree().get_first_node_in_group(&"fc_break_fx") as GSFxBreak if is_inside_tree() else null
 	if fx == null:
@@ -91,7 +91,7 @@ func _pane_fx(pane: Node, at: Vector3) -> void:
 	fx.burst(String(pane.get(&"kind")), at, Vector3.UP, 1.0)
 
 
-## The pane's own bare quads would double dot-fx's shards, so they go before it breaks.
+## The pane's own bare quads would double gs-fx's shards, so they go before it breaks.
 func _pane_quiet(pane: Node) -> void:
 	if is_inside_tree() and get_tree().get_first_node_in_group(&"fc_break_fx") != null:
 		pane.set(&"shard_count", 0)

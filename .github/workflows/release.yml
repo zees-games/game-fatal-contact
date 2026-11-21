@@ -24,7 +24,7 @@ jobs:
             # none of dedicated, so a release checked something different from a push.
             suites: 'examples/headless_match examples/headless_net examples/headless_presentation examples/headless_stack examples/headless_admin examples/headless_imported examples/dedicated examples/headless_lossy'
         secrets:
-            DEPS_TOKEN: ${{ secrets.DOT_DEPS_TOKEN }}
+            DEPS_TOKEN: ${{ secrets.GS_DEPS_TOKEN }}
 
     # pack: true also attaches <repo>-<version>-pack.zip, the imported tree website-city
     # publishes as this game's signed pack; the source tarball alone cannot be one.
@@ -37,4 +37,4 @@ jobs:
         with:
             pack: true
         secrets:
-            DEPS_TOKEN: ${{ secrets.DOT_DEPS_TOKEN }}
+            DEPS_TOKEN: ${{ secrets.GS_DEPS_TOKEN }}

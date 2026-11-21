@@ -98,7 +98,7 @@ static func step_out(space: PhysicsDirectSpaceState3D, eye: Vector3, forward: Ve
 
 ## The twelve aux floats for [param p] (layout in [GSKillViewRing]): weapon, ads, fire count, reload, mag, reserve,
 ## spread, hits, the last shot's recoil pitch and yaw (0 when this end never saw the outcome), flags, ground speed.
-## [param size] is the ring's AUX; a shorter ring (an older dot-replay) gets the slots it has, never an out-of-range write.
+## [param size] is the ring's AUX; a shorter ring (an older gs-replay) gets the slots it has, never an out-of-range write.
 static func aux_of(p: Object, size: int = GSKillViewRing.AUX) -> PackedFloat32Array:
 	var full := _aux_full(p)
 	full.resize(size)

@@ -9,7 +9,7 @@ const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
 
 ## Bot soak on the real Arena: N bots play a free-for-all on one map for M simulated minutes
-## through dot-bot's GSBotSoak, fed by dot-spawn's GSSpawnWatch and the game's kill stats.
+## through gs-bot's GSBotSoak, fed by gs-spawn's GSSpawnWatch and the game's kill stats.
 ##
 ## [codeblock]
 ## ./game.sh soak [map] [minutes]
@@ -18,7 +18,7 @@ const FcSimServer := preload("../game/fc_sim_server.gd")
 ##
 ## --seed N makes the run a pure function of N: bot count (4 to 12, unless --bots), difficulty preset and every bot's brain come from it. tools/fuzz.sh sweeps it.
 ##
-## --stranded-sec N sets dot-bot's bot_stranded_sec for the run (0 off; default the preset's 6).
+## --stranded-sec N sets gs-bot's bot_stranded_sec for the run (0 off; default the preset's 6).
 ##
 ## --sections 1 prints where the ticks went (the sim host's SIM_HOST_SECTIONS line, plus soak_think for the brains
 ## and soak_tick for the game, and on a surf map the rides' SOAK_SURF counts), `2` adds the fine sub-spans. Off by default: each section costs two clock reads.
@@ -223,7 +223,7 @@ func _movers() -> Array:
 	return out
 
 
-## A bot that stands on purpose has no goal for the stuck watch: it fights, listens or searches with nowhere to walk, and the brain moves it when that ends. A bot that wants to walk, or has nowhere to go (roam, no move), still counts, and that one dot-bot's unstick reports as stranded.
+## A bot that stands on purpose has no goal for the stuck watch: it fights, listens or searches with nowhere to walk, and the brain moves it when that ends. A bot that wants to walk, or has nowhere to go (roam, no move), still counts, and that one gs-bot's unstick reports as stranded.
 func _holding(mind: FcBots.Mind) -> bool:
 	var last: GSBotIntent = mind.brain.last if mind.brain != null else null
 	return last != null and last.move.length() <= 0.3 and HOLD_STATES.has(last.state)

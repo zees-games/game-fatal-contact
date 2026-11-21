@@ -3,7 +3,7 @@ extends GSGameCheckSuite
 const FcTouch := preload("../game/fc_touch.gd")
 const TagRules := preload("../game/fc_name_tag_rules.gd")
 
-## The touch layout fits a phone without overlapping; dot-mobile's overlay drives the sampler; auto-fire's crosshair holds fire on team-mates and the dead.
+## The touch layout fits a phone without overlapping; gs-mobile's overlay drives the sampler; auto-fire's crosshair holds fire on team-mates and the dead.
 ## Run: `godot --headless --path . res://examples/headless_touch.tscn`
 
 const CHECKS := 27

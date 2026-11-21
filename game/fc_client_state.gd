@@ -8,8 +8,8 @@ const FcViewArms := preload("fc_view_arms.gd")
 const FcBindings := preload("fc_bindings.gd")
 const FcBots := preload("fc_bots.gd")
 const FcBrowser := preload("fc_browser.gd")
-## Loaded when a link is built ([method _build_netcode]), never preloaded: the extras pull dot-chat,
-## dot-voice and the map sync client (about 50 scripts, ~9 MB of MEMORY_STATIC), and an offline
+## Loaded when a link is built ([method _build_netcode]), never preloaded: the extras pull gs-chat,
+## gs-voice and the map sync client (about 50 scripts, ~9 MB of MEMORY_STATIC), and an offline
 ## game never builds them.
 const FC_CLIENT_EXTRAS := "res://game/fc_client_extras.gd"
 const FcEvents := preload("fc_events.gd")
@@ -61,7 +61,7 @@ const CHANNEL := "arena.client"
 
 ## The player pressed Leave on the Escape menu.
 ##
-## [b]Announced, and acted on by dot-menu's stock Leave[/b] ([member GSMenu.leave_on_its_own],
+## [b]Announced, and acted on by gs-menu's stock Leave[/b] ([member GSMenu.leave_on_its_own],
 ## set in [FcMenus]): connected, it disconnects the client link, and the shell that loaded
 ## this client goes back to its own menu on the disconnect; solo on a desktop it quits. This
 ## signal is for an embedder that wants to know. Until 2026-10-11 nothing listened to it and
@@ -69,13 +69,13 @@ const CHANNEL := "arena.client"
 signal leave_requested()
 
 ## The level and the local player's camera exist, so the frame shows the game and not an
-## empty room. A shell that knows the contract (dot-server-deploy's `_watch_game_ready`)
+## empty room. A shell that knows the contract (gs-server-deploy's `_watch_game_ready`)
 ## keeps its loading screen up until this, then draws every material once under it so the
 ## shaders compile there rather than at the first shot; see [method warm_up_items]. Emitted
 ## again after each map change. Nothing here depends on anyone listening.
 signal ready_to_show()
 
-## dot-game's platform layer: the load gate and its cover (held until the level, the local
+## gs-game's platform layer: the load gate and its cover (held until the level, the local
 ## body and the camera exist, then the weapon materials drawn once under it), the browser
 ## filesystem flush, and [signal GSGameClient.input_blocked_changed] for the sampler. Not its
 ## settings, menu, console, pointer or board: Fatal Contact's are [FcMenus] and
@@ -91,9 +91,9 @@ const FIELD_OF_VIEW := 100.0
 var game: FcGame = null
 var player: FcPlayer = null
 var hud: FcHud = null
-## The Escape menu, its pages and the Tab board: dot-menu's ([FcMenus]).
+## The Escape menu, its pages and the Tab board: gs-menu's ([FcMenus]).
 var game_menu: GSMenu = null
-## The Tab board's rows from dot-match. See [FcMenus.Board].
+## The Tab board's rows from gs-match. See [FcMenus.Board].
 var board: FcMenus.Board = null
 ## The match summary opened the Tab board (rather than a held Tab), so the client closes it.
 var _summary_board_open: bool = false
@@ -112,7 +112,7 @@ var _reveal_hid: Dictionary = {}
 var _seen_match_state: int = -1
 ## When the kill-cam last recorded the bodies (microseconds), for the `cl_killcam_hz` cap.
 var _killcam_recorded: int = 0
-## Applies dot-menu's stock settings this game does not apply itself: the window, V-Sync,
+## Applies gs-menu's stock settings this game does not apply itself: the window, V-Sync,
 ## the frame cap and render scale.
 var applier: GSMenuApplier = null
 var net: GSNetManager = null
@@ -164,9 +164,9 @@ var _fire := GSWeaponCommand.new()
 ## sent — see [method _read_fire].
 var _wanted_slot: int = 0
 
-## dot-mobile's overlay ([code]fc_touch.gd[/code]); built on every client, shown only on touch.
+## gs-mobile's overlay ([code]fc_touch.gd[/code]); built on every client, shown only on touch.
 var _touch: RefCounted = null
-## The light on the eye and the other players' beams (dot-flashlight); the server owns on/off.
+## The light on the eye and the other players' beams (gs-flashlight); the server owns on/off.
 var flash: GSFlashlight = null
 var flash_crowd: GSFlashlightCrowd = null
 var _flash_ticks := 0
@@ -208,7 +208,7 @@ var _bots: Dictionary = {}
 ## Their minds (FcBots.Mind), by session id: the same brain a server's bots run.
 var _bot_minds: Dictionary = {}
 
-## Names offline bots from dot-bot's pool, and keeps their number.
+## Names offline bots from gs-bot's pool, and keeps their number.
 var _bot_roster := GSBotRoster.new()
 
 ## The next offline bot's session id.
@@ -231,7 +231,7 @@ var _figure_loads: PackedStringArray = []
 ## The map's sun and environment (`FcMapLighting.build`), replaced with the level.
 var _lighting: Node3D = null
 
-## dot-browser's client half, and the screen over it.
+## gs-browser's client half, and the screen over it.
 var browser: FcBrowser = null
 
 ## Settings, audio, effects and the console. Everything that belongs to the person at the
@@ -280,7 +280,7 @@ var _sprite_view: FcSpriteWeapon = null
 ## Every rocket and grenade in the air, drawn.
 var projectile_view: FcProjectileView = null
 
-## Where the dead lie: dot-player-char's ragdolls, built from each KILL's death (the server's
+## Where the dead lie: gs-player-char's ragdolls, built from each KILL's death (the server's
 ## pick) under [member FcGame.ragdoll_rules]. Client side.
 var ragdolls: GSPlayerRagdolls = null
 

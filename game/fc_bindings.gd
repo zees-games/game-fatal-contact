@@ -1,13 +1,13 @@
 extends RefCounted
 
-## Every key this game reads, as one dot-menu [GSMenuBindings] table: the action, the
+## Every key this game reads, as one gs-menu [GSMenuBindings] table: the action, the
 ## setting that stores it, the words on the Controls page, the default and the card it
 ## goes on.
 ##
 ## [b]A table, because four things read it and they must never disagree:[/b] the InputMap,
 ## the settings document (one binding setting per row, declared by
 ## [method GSMenuBindings.add_to_schema]), the menu's Controls page and its help screen.
-## Before dot-menu this game had dot-ui's rebinder, which filtered the InputMap on two
+## Before gs-menu this game had gs-ui's rebinder, which filtered the InputMap on two
 ## prefixes and saved to a file of its own beside the settings document.
 ##
 ## [b]Every key the client reads is a row, and is read through its action[/b]
@@ -21,7 +21,7 @@ extends RefCounted
 ## more rows on E and X: two rows on one default are a conflict the table's swap cannot
 ## finish (binding a third action to E would move only one of them off it).
 ##
-## [b]No noclip key.[/b] dot-player-controller registers `dot_fps_noclip` on V, which is
+## [b]No noclip key.[/b] gs-player-controller registers `gs_fps_noclip` on V, which is
 ## push to talk here. Fatal Contact's noclip is an administrator's modifier (`noclip` at the
 ## console or in chat) and the motor ignores the bit unless the server granted it, so the
 ## client takes the role off its sampler (`FcClient.make_sampler`) and V
@@ -33,10 +33,10 @@ const CHAT := &"arena_chat"
 const CHAT_TEAM := &"arena_chat_team"
 const SCOREBOARD := &"arena_scoreboard"
 
-const DUCK := &"dot_fps_crouch"
-const WALK := &"dot_fps_walk"
+const DUCK := &"gs_fps_crouch"
+const WALK := &"gs_fps_walk"
 ## The sprint bit, which this game spends on the dash (it has no sprint).
-const DASH := &"dot_fps_sprint"
+const DASH := &"gs_fps_sprint"
 const LAUNCH := &"arena_launch"
 const LAUNCH_PROPS := &"arena_launch_props"
 const FIRE := &"arena_fire"
@@ -57,7 +57,7 @@ const WEAPON_NEXT := &"arena_weapon_next"
 const WEAPON_LAST := &"arena_weapon_last"
 const PUNT := &"arena_punt"
 const FIRE_MODE := &"arena_fire_mode"
-## The attachments menu on the gun in hand (dot-weapon's action, so its menu closes on the same key).
+## The attachments menu on the gun in hand (gs-weapon's action, so its menu closes on the same key).
 const ATTACH := GSWeaponAttachMenu.ACTION
 const WEAPON_DROP := &"arena_weapon_drop"
 const USE := &"arena_use"
@@ -65,15 +65,15 @@ const USE := &"arena_use"
 const VIEW := &"arena_view"
 ## The spectator's free camera, on and off (`mp_freeroam`). Its flying keys are the movement keys.
 const ROAM := &"arena_roam"
-## dot-voice's action (GSVoiceManager.TALK_ACTION), so the talk key is one setting with every
+## gs-voice's action (GSVoiceManager.TALK_ACTION), so the talk key is one setting with every
 ## other game's; still stored as bind_voice.
-const VOICE := &"dot_voice_talk"
+const VOICE := &"gs_voice_talk"
 const VOICE_GAG := &"voice_gag"
 const VOICE_MUTE := &"voice_mute"
 
 
 ## The key table. The wheel rows are written by name ("Wheel up" / "Wheel down"): a pack
-## asks for dot-ui 4 (requires.floor.json), and dot-ui names the wheel from level 2.
+## asks for gs-ui 4 (requires.floor.json), and gs-ui names the wheel from level 2.
 static func make() -> GSMenuBindings:
 	var keys := GSMenuBindings.new()
 	# Duck is also the slide: a slide IS a duck at a run. C is added beside it while the row
@@ -105,23 +105,23 @@ static func make() -> GSMenuBindings:
 	keys.add(CHAT, &"chat_open_key", "Chat", "Y", "Chat", GSSettingsDef.Scope.ACCOUNT)
 	keys.add(CHAT_TEAM, &"chat_team_key", "Team chat", "U", "Chat", GSSettingsDef.Scope.ACCOUNT)
 	keys.add(VOICE, &"bind_voice", "Push to talk", "V", "Chat")
-	# Look at a player and press (dot-game's GSGameClient): G is the punt and H is help here.
+	# Look at a player and press (gs-game's GSGameClient): G is the punt and H is help here.
 	keys.add(VOICE_GAG, &"bind_voice_gag", "Look at a player: stop (or resume) hearing them", "J", "Chat")
 	keys.add(VOICE_MUTE, &"bind_voice_mute", "Look at a player: mute (or unmute) their voice and chat", "K", "Chat")
 	keys.add(SCOREBOARD, &"bind_scoreboard", "Scoreboard (hold)", "Tab", "Interface")
 	keys.add(VIEW, &"bind_view", "First or third person, where the server allows it", "F5", "Interface")
 	keys.add(ROAM, &"bind_roam", "Free camera while spectating (move keys fly, Dash fast, Walk slow)", "T", "Interface")
-	# H opens help, in every game of the family (dot-menu's `dot_menu_help`).
+	# H opens help, in every game of the family (gs-menu's `gs_menu_help`).
 	keys.add_help("Interface")
-	# M is the map menu, in every game of the family (dot-menu's `dot_menu_maps`).
+	# M is the map menu, in every game of the family (gs-menu's `gs_menu_maps`).
 	var _m := keys.add_maps("Interface")
-	# B is the loadout menu (dot-menu's `dot_menu_loadout`), where the host has it (API 6).
-	if GSAddonApi.build_level("dot_menu") >= 21 and keys.has_method(&"add_modes"):
+	# B is the loadout menu (gs-menu's `gs_menu_loadout`), where the host has it (API 6).
+	if GSAddonApi.build_level("gs_menu") >= 21 and keys.has_method(&"add_modes"):
 		var _g: Variant = keys.call(&"add_modes", "Interface")
-	if GSAddonApi.build_level("dot_menu") >= 6 and keys.has_method(&"add_loadout"):
+	if GSAddonApi.build_level("gs_menu") >= 6 and keys.has_method(&"add_loadout"):
 		var _l: Variant = keys.call(&"add_loadout", "Weapons")
-	# Period is the team menu (dot-menu API 17): the teams, or Play and Spectate in a free-for-all.
-	if GSAddonApi.build_level("dot_menu") >= 17 and keys.has_method(&"add_teams"):
+	# Period is the team menu (gs-menu API 17): the teams, or Play and Spectate in a free-for-all.
+	if GSAddonApi.build_level("gs_menu") >= 17 and keys.has_method(&"add_teams"):
 		var _t: Variant = keys.call(&"add_teams", "Interface")
 	var _r := keys.renamed(&"bind_bash", ["F"]).renamed(&"bind_launch_props", ["X", "N"]).renamed(&"bind_fire_mode", ["L"])
 	return keys

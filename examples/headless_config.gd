@@ -15,7 +15,7 @@ const FcMap := preload("../maps/fc_map.gd")
 ## every copy of this project on a box, and two suites at once wrote and deleted each other's cfg files.
 const ROOT_ARG := "--cfgroot="
 var ROOT := _root()
-const GAME := "game-arena"
+const GAME := "game-fatal-contact"
 const SECTIONS := 5
 const CHECKS := 43
 
@@ -59,7 +59,7 @@ func _run() -> void:
 	console.set_cvar("fc_surf_volume", "1.5")
 	var surf := GSAudioSurfRules.new()
 	_check(surf.apply_values(game.config.surf_values()) == 7 and is_equal_approx(surf.volume, 1.5), "the surf profile keys reach the rules")
-	_check(FcConfig.new().surf_values()["volume"] == 0.6 and surf.mute_steps, "surf defaults match dot-audio's")
+	_check(FcConfig.new().surf_values()["volume"] == 0.6 and surf.mute_steps, "surf defaults match gs-audio's")
 	game.config.horde_spawn_max_distance = 5.0
 	_check(not game.config.validate().ok, "validate refuses max <= min distance")
 	_check(not binder.check_map("dm_nowhere", ["dm_box"]).ok, "strict: an unknown map is refused")
@@ -129,7 +129,7 @@ class _Member extends RefCounted:
 	var claims: Dictionary = {}
 
 
-## Stats go under dot-game's stable per-server key once a session is known, the seat's key without one.
+## Stats go under gs-game's stable per-server key once a session is known, the seat's key without one.
 func _stats_keys(game: FcGame) -> void:
 	_begin()
 	var p := game.progress
@@ -210,7 +210,7 @@ func _templates(binder: GSGameConfigBinder) -> void:
 	for path: String in files:
 		if not FileAccess.file_exists("res://" + path) or FileAccess.get_file_as_string("res://" + path) != files[path]:
 			stale.append(path)
-	_check(stale.is_empty(), "the shipped files match the config (run addons/dot_game/qa/dot_game_cfg_templates.gd): " + ",".join(stale))
+	_check(stale.is_empty(), "the shipped files match the config (run addons/gs_game/qa/gs_game_cfg_templates.gd): " + ",".join(stale))
 	_end()
 
 
@@ -242,7 +242,7 @@ func _workbench(binder: GSGameConfigBinder, game: Node) -> void:
 	var res: GSResult = wb.api.handle(GSGameWorkbench.LOCAL_ACTOR, {"op": "set", "kind": "config_awards", "id": binder.profile_id, "key": "award_kill_points", "value": 150})
 	_check(res.ok and game.config.award_kill_points == 150, "a workbench edit reaches the live config")
 	var files: Dictionary = wb.exporter.call("collect")
-	var text: String = files.get("cfg/game/game-arena/config_awards/game.yml", "")
+	var text: String = files.get("cfg/game/game-fatal-contact/config_awards/game.yml", "")
 	_check(text.contains("award_kill_points: 150"), "the export holds the edit in the right file")
 	var console := GSConsole.new()
 	add_child(console)

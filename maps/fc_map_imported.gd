@@ -407,9 +407,9 @@ func shot_trace() -> GSTrace:
 
 	return trace
 
-## Whether this host's dot-lighting can lay a bake (API level 5).
+## Whether this host's gs-lighting can lay a bake (API level 5).
 static func can_bake() -> bool:
-	return GSAddonApi.build_level("dot_lighting") >= 5 and ResourceLoader.exists(BAKE_SCRIPT) \
+	return GSAddonApi.build_level("gs_lighting") >= 5 and ResourceLoader.exists(BAKE_SCRIPT) \
 			and ResourceLoader.exists(SHEET_SCRIPT)
 
 ## What the bake must have been made from: the boxes, the floor and the sun, plus the versions of
@@ -436,12 +436,12 @@ func _attach_bake(level: Node3D) -> void:
 	if res.ok:
 		baked = res.value
 
-## Where a box meets the floor or another box, dot-lighting's contact shade (API 4): the
+## Where a box meets the floor or another box, gs-lighting's contact shade (API 4): the
 ## Compatibility renderer the client shell draws has no ambient occlusion, and every crate and
 ## wall stood on the floor with no shade at its foot. One unshaded mesh, built once here.
 ## By path, behind the level, so a shell older than the helper draws the map without it.
 func _add_contact_shade(root: Node3D) -> void:
-	if GSAddonApi.build_level("dot_lighting") < 4 or not ResourceLoader.exists(CONTACT_SHADE_SCRIPT):
+	if GSAddonApi.build_level("gs_lighting") < 4 or not ResourceLoader.exists(CONTACT_SHADE_SCRIPT):
 		return
 	var shade_boxes: Array = []
 	var floor_box := AABB(

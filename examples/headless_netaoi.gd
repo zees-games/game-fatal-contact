@@ -1,7 +1,7 @@
 extends GSGameCheckSuite
 
 ## FcNetAoi: the relevance rings are off for a 16v16, on above sv_net_aoi_players with
-## hysteresis, read their cvars live, and describe the same rings dot-net applies.
+## hysteresis, read their cvars live, and describe the same rings gs-net applies.
 
 const FcNetAoi := preload("../game/fc_net_aoi.gd")
 
@@ -21,7 +21,7 @@ func _run() -> void:
 	var base := [interest.radius, interest.far_every, interest.far_distance, interest.far_tiers, interest.far_coherent, interest.aim_cone_deg]
 
 	_check(console.get_int("sv_net_aoi_players") == 32 and is_equal_approx(console.get_float("sv_net_radius"), 120.0), "defaults: rings from the 33rd player, 120 m radius")
-	_check(console.get_int("sv_net_far_every") == 2 and console.get_int("sv_net_far_tiers") == 2 and is_equal_approx(console.get_float("sv_net_far_distance"), 15.0) and is_equal_approx(console.get_float("sv_net_aim_cone"), 8.0), "defaults: far rings on (far_every 2, dot-net syncs thinned acks), two bands from 15 m, an 8 degree aim cone")
+	_check(console.get_int("sv_net_far_every") == 2 and console.get_int("sv_net_far_tiers") == 2 and is_equal_approx(console.get_float("sv_net_far_distance"), 15.0) and is_equal_approx(console.get_float("sv_net_aim_cone"), 8.0), "defaults: far rings on (far_every 2, gs-net syncs thinned acks), two bands from 15 m, an 8 degree aim cone")
 
 	for players in [1, 16, 31, 32]:
 		var changed := aoi.refresh(interest, players)

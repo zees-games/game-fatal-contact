@@ -208,7 +208,7 @@ class StubGame:
 		respawned.append(id)
 
 
-## dot-bot's GSBotIntent.stranded puts the bot back at a spawn through the game's respawn.
+## gs-bot's GSBotIntent.stranded puts the bot back at a spawn through the game's respawn.
 func _test_unstrand() -> void:
 	_section("a stranded bot is respawned")
 	var game := StubGame.new()

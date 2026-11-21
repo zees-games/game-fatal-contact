@@ -238,7 +238,7 @@ func _measure_window(
 
 	# connection: both ends. A client whose server dropped it does not find out until its own
 	# ENet gives up, so asking only the client passed a window in which the server had
-	# disconnected A and A had heard nothing for seconds (see dot-core's peer_timeout_*).
+	# disconnected A and A had heard nothing for seconds (see gs-core's peer_timeout_*).
 	var a_session := int(a["session"])
 	var on_server := _game.player_for(a_session) != null
 	_check(link.phase == GSClientLink.Phase.PLAYING and String(a["gone"][0]) == "" and on_server,
@@ -419,7 +419,7 @@ static func _missing(sent: Array, got: Array) -> String:
 
 
 ## [b]A hole.[/b] With 20% loss a packet's four resends cover two lost in a row; three in a row leave
-## the server a tick without A's command, which it runs on the last one it had (dot-net's
+## the server a tick without A's command, which it runs on the last one it had (gs-net's
 ## `note_starved`), 0.3 to 0.5% of ticks. Where A's script changes there the server did not run what A
 ## predicted with, and at 22 Hz one tick's walk is 26 cm. Returns those server ticks of [from - 2, to):
 ## the starved ones (a run of them counts from its first) whose command differs from the one repeated.

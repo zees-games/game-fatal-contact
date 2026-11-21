@@ -2,7 +2,7 @@
 
 Why does a 2004 game run 32 players faster than FC? This file answers with measurements: a CS:S dedicated server profiled on the same box as FC's bench, the CS:S map data read straight from the .bsp, and FC's own budget from [perf-architecture](perf-architecture.md). A CS:S client could not be measured (no client install; the SDK download fails with "No subscription"). The client column therefore uses only facts that can be read from the shipped map files or the Source SDK 2013 source.
 
-**The short answer.** CS:S does not do less per player than FC; it does the same work in C++. FC's map rendering already has what made Source fast: BSP visibility culling (dot-map's `GSMapVisibility`, on by default for converted maps) and baked lighting (`LightmapGI`). All 3D drawing together costs FC 0.9-1.8 ms of a 12.9 ms frame. The gap is per-player game code:
+**The short answer.** CS:S does not do less per player than FC; it does the same work in C++. FC's map rendering already has what made Source fast: BSP visibility culling (gs-map's `GSMapVisibility`, on by default for converted maps) and baked lighting (`LightmapGI`). All 3D drawing together costs FC 0.9-1.8 ms of a 12.9 ms frame. The gap is per-player game code:
 
 - on the server, 4-6 times CS:S per player-tick;
 - on the client, about 5.5 ms of GDScript loops over the remote players, where Source runs compiled entity code.
@@ -59,7 +59,7 @@ The earlier dev02 runs agree in shape. dev02 is a loaded QEMU VM (load 6), and 6
 
 From any point in de_dust2, the precomputed PVS rules out about 80% of the map with no runtime test. All world lighting is baked into lightmaps; no runtime light shades the world.
 
-**FC already has both.** FC draws converted maps through dot-map's `GSMapDrawnWorld`:
+**FC already has both.** FC draws converted maps through gs-map's `GSMapDrawnWorld`:
 
 - `_add_culling` attaches `GSMapVisibility`, the same PVS and area portals read from the source map plus occluders. `cull` defaults to true.
 - `GSMapLitWorld` and the game's `LightmapGI` bakes (`tools/lightmap_scenes.gd`) supply the baked lighting.
@@ -75,7 +75,7 @@ What is left of FC's drawing is small and already measured:
 - **Interpolation.** Every entity's interpolation is compiled code: `C_BaseEntity::GetInterpolationAmount` in `c_baseentity.cpp` returns `cl_interp`, rounded to ticks, plus one tick. Each networked variable is a `CInterpolatedVar` history.
 - **Character shadows** are render-to-texture blobs projected onto the world (`clientshadowmgr.cpp`), not shadow-map passes through every caster.
 
-FC does the same interpolation (dot-net's `GSNetInterpolator`, `cl_interp_ratio` 2) and the same per-body pose and animation, but in GDScript per remote player.
+FC does the same interpolation (gs-net's `GSNetInterpolator`, `cl_interp_ratio` 2) and the same per-body pose and animation, but in GDScript per remote player.
 
 ## Top 5 structural differences, ranked by what FC could gain
 
@@ -100,4 +100,4 @@ Ruled out by measurement:
 - the killview record gate: 10.89 to 10.85 ms per tick, against about 3 ms of run-to-run noise;
 - the 3D scene on cp-orange-x3: 0.93 ms in total.
 
-Rows 1-3 are work in the addons (dot-net, dot-player-char, dot-player-controller, dot-bot, dot-sim), not in this repository.
+Rows 1-3 are work in the addons (gs-net, gs-player-char, gs-player-controller, gs-bot, gs-sim), not in this repository.

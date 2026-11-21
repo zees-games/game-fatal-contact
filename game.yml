@@ -1,6 +1,6 @@
 # This game's descriptor: what a server runs when it installs this repository's pack.
 #
-# It travels INSIDE the pack (dot-ci's package.sh --pack keeps it at the root), so a
+# It travels INSIDE the pack (gs-ci's package.sh --pack keeps it at the root), so a
 # server started with `TMC_GAMES=<owner>/<repo>` needs nothing but the content origin:
 # `./server install-games` fetches the pack, verifies it, and writes this file to
 # content/<repo>/game.yml, where an operator can then edit cvars and player counts.
@@ -10,11 +10,11 @@
 # neither of which this file can know. What is written here for them is a placeholder.
 #
 # Paths are relative to the pack's mount point, which is also this repository's root.
-# Keep scene, client_scene and module in step with dot-server-deploy/content/fatalcontact/game.yml,
+# Keep scene, client_scene and module in step with gs-server-deploy/content/fatalcontact/game.yml,
 # which describes the same game for a deployment that publishes it itself;
-# dot-server-deploy's examples/install_descriptor suite fails when the two disagree.
+# gs-server-deploy's examples/install_descriptor suite fails when the two disagree.
 
-content_id: gamemann/game-arena
+content_id: gamemann/game-fatal-contact
 version: 0.0.0
 kind: pack
 
@@ -40,13 +40,13 @@ cvars:
   #   mp_loadout_menu: "0"
   #   mp_loadout_fixed: "primary=sniper secondary=pistol melee=knife thrown=frag"
 
-# What this game adds to a TMC server's /admin menu (dot-server-deploy reads it; any other
+# What this game adds to a TMC server's /admin menu (gs-server-deploy reads it; any other
 # host ignores it). Each item is the console line an admin could type, shown only to an
 # admin holding that command's flag. A server owner can rename or remove these in their own
 # cfg/admin_menu.yml, which always wins.
 metadata:
   # Ids this game was published under before the rename; an origin redirects them here (moved_to).
-  former_ids: [gamemann/game-final-contact, gamemann/game-arena]
+  former_ids: [gamemann/game-final-contact, gamemann/game-fatal-contact]
   admin_menu:
     title: "Fatal Contact"
     items:
@@ -76,42 +76,42 @@ suggested:
   - dm=gamemann/gg-punishment
   - dm=gamemann/gg-simpsons-x
   - dm=gamemann/gg-woods
-  - surf=gamemann/arena-surf-dm-maps-surf_10x_final
-  - surf=gamemann/arena-surf-dm-maps-surf_10x_reloaded_fixed
-  - surf=gamemann/arena-surf-dm-maps-surf_110b_austinpowers
-  - surf=gamemann/arena-surf-dm-maps-surf_29_12_06
-  - surf=gamemann/arena-surf-dm-maps-surf_adverse
-  - surf=gamemann/arena-surf-dm-maps-surf_akai_final
-  - surf=gamemann/arena-surf-dm-maps-surf_bathroom_final
-  - surf=gamemann/arena-surf-dm-maps-surf_buck_wild
-  - surf=gamemann/arena-surf-dm-maps-surf_dust2_2008_final
-  - surf=gamemann/arena-surf-dm-maps-surf_forbidden_ways_2nd
-  - surf=gamemann/arena-surf-dm-maps-surf_forbidden_ways_reloaded
-  - surf=gamemann/arena-surf-dm-maps-surf_fruits
-  - surf=gamemann/arena-surf-dm-maps-surf_grave_reloaded
-  - surf=gamemann/arena-surf-dm-maps-surf_greatriver
-  - surf=gamemann/arena-surf-dm-maps-surf_greatriver_v4
-  - surf=gamemann/arena-surf-dm-maps-surf_greatriver_xdre4m
-  - surf=gamemann/arena-surf-dm-maps-surf_i_hate_campers
-  - surf=gamemann/arena-surf-dm-maps-surf_japan_ptad
-  - surf=gamemann/arena-surf-dm-maps-surf_legends
-  - surf=gamemann/arena-surf-dm-maps-surf_machine2
-  - surf=gamemann/arena-surf-dm-maps-surf_machine_remix_final
-  - surf=gamemann/arena-surf-dm-maps-surf_mai_remix
-  - surf=gamemann/arena-surf-dm-maps-surf_matrix_v8
-  - surf=gamemann/arena-surf-dm-maps-surf_ny_advance
-  - surf=gamemann/arena-surf-dm-maps-surf_ny_bigloop_2008a
-  - surf=gamemann/arena-surf-dm-maps-surf_parrot_selector
-  - surf=gamemann/arena-surf-dm-maps-surf_pavilion
-  - surf=gamemann/arena-surf-dm-maps-surf_pox
-  - surf=gamemann/arena-surf-dm-maps-surf_rebel_resistance_final3
-  - surf=gamemann/arena-surf-dm-maps-surf_ski_2
-  - surf=gamemann/arena-surf-dm-maps-surf_ski_2_source
-  - surf=gamemann/arena-surf-dm-maps-surf_skyworld
-  - surf=gamemann/arena-surf-dm-maps-surf_snipers_island
-  - surf=gamemann/arena-surf-dm-maps-surf_the_flow
-  - surf=gamemann/arena-surf-dm-maps-surf_the_gloaming
-  - surf=gamemann/arena-surf-dm-maps-surf_thriller
-  - surf=gamemann/arena-surf-dm-maps-surf_torque2
-  - surf=gamemann/arena-surf-dm-maps-surf_velocity
-  - surf=gamemann/arena-surf-dm-maps-surf_xiv_v2a
+  - surf=gamemann/fc-surf-dm-maps-surf_10x_final
+  - surf=gamemann/fc-surf-dm-maps-surf_10x_reloaded_fixed
+  - surf=gamemann/fc-surf-dm-maps-surf_110b_austinpowers
+  - surf=gamemann/fc-surf-dm-maps-surf_29_12_06
+  - surf=gamemann/fc-surf-dm-maps-surf_adverse
+  - surf=gamemann/fc-surf-dm-maps-surf_akai_final
+  - surf=gamemann/fc-surf-dm-maps-surf_bathroom_final
+  - surf=gamemann/fc-surf-dm-maps-surf_buck_wild
+  - surf=gamemann/fc-surf-dm-maps-surf_dust2_2008_final
+  - surf=gamemann/fc-surf-dm-maps-surf_forbidden_ways_2nd
+  - surf=gamemann/fc-surf-dm-maps-surf_forbidden_ways_reloaded
+  - surf=gamemann/fc-surf-dm-maps-surf_fruits
+  - surf=gamemann/fc-surf-dm-maps-surf_grave_reloaded
+  - surf=gamemann/fc-surf-dm-maps-surf_greatriver
+  - surf=gamemann/fc-surf-dm-maps-surf_greatriver_v4
+  - surf=gamemann/fc-surf-dm-maps-surf_greatriver_xdre4m
+  - surf=gamemann/fc-surf-dm-maps-surf_i_hate_campers
+  - surf=gamemann/fc-surf-dm-maps-surf_japan_ptad
+  - surf=gamemann/fc-surf-dm-maps-surf_legends
+  - surf=gamemann/fc-surf-dm-maps-surf_machine2
+  - surf=gamemann/fc-surf-dm-maps-surf_machine_remix_final
+  - surf=gamemann/fc-surf-dm-maps-surf_mai_remix
+  - surf=gamemann/fc-surf-dm-maps-surf_matrix_v8
+  - surf=gamemann/fc-surf-dm-maps-surf_ny_advance
+  - surf=gamemann/fc-surf-dm-maps-surf_ny_bigloop_2008a
+  - surf=gamemann/fc-surf-dm-maps-surf_parrot_selector
+  - surf=gamemann/fc-surf-dm-maps-surf_pavilion
+  - surf=gamemann/fc-surf-dm-maps-surf_pox
+  - surf=gamemann/fc-surf-dm-maps-surf_rebel_resistance_final3
+  - surf=gamemann/fc-surf-dm-maps-surf_ski_2
+  - surf=gamemann/fc-surf-dm-maps-surf_ski_2_source
+  - surf=gamemann/fc-surf-dm-maps-surf_skyworld
+  - surf=gamemann/fc-surf-dm-maps-surf_snipers_island
+  - surf=gamemann/fc-surf-dm-maps-surf_the_flow
+  - surf=gamemann/fc-surf-dm-maps-surf_the_gloaming
+  - surf=gamemann/fc-surf-dm-maps-surf_thriller
+  - surf=gamemann/fc-surf-dm-maps-surf_torque2
+  - surf=gamemann/fc-surf-dm-maps-surf_velocity
+  - surf=gamemann/fc-surf-dm-maps-surf_xiv_v2a

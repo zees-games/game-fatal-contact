@@ -2,7 +2,7 @@
 extends "fc_game_loadouts.gd"
 
 ## Deals an imported map's hurt volumes (`trigger_hurt`) to everybody standing in one, as
-## world damage through dot-combat.
+## world damage through gs-combat.
 ##
 ## [b]Real damage, where game-airdrift's is "100 or more is a death, the rest ignored"[/b],
 ## because a timer run has no health and this game does. The engine these maps come from
@@ -102,22 +102,22 @@ func _advance_toys(delta: float) -> void:
 	toys.advance(delta)
 
 ## Every shot this tick against the toys: the first toy along each pellet, nearer than any wall,
-## is pushed by dot-props' `shot`. [b]The shot goes on[/b]: the combat resolves it against the
+## is pushed by gs-props' `shot`. [b]The shot goes on[/b]: the combat resolves it against the
 ## level and the players as if the toy were not there, so a ball is never cover and never eats
 ## a bullet meant for somebody behind it. Authority only.
 func _shoot_toys(shots: Array[GSShot]) -> void:
-	# shot_along arrived at dot-props level 6; an older checkout has no such method.
-	if toys == null or toys.count() == 0 or shots.is_empty() or GSAddonApi.build_level("dot_props") < 6:
+	# shot_along arrived at gs-props level 6; an older checkout has no such method.
+	if toys == null or toys.count() == 0 or shots.is_empty() or GSAddonApi.build_level("gs_props") < 6:
 		return
 	var layout: GSPhysicsLayout = player_stack.physics.layout if player_stack != null and player_stack.physics != null else null
 	var level := layout.layer_mask(&"world") if layout != null else 1
 	for shot in shots:
 		var directions: Array = shot.pellets if not shot.pellets.is_empty() else [shot.direction]
-		# Each pellet carries the shot's damage, as dot-combat resolves them.
+		# Each pellet carries the shot's damage, as gs-combat resolves them.
 		for raw: Variant in directions:
 			var _pushed := toys.shot_along(shot.origin, raw as Vector3, maxf(shot.max_range, 1.0), shot.damage, level)
 
-## Starts dot-sim's hull world for this players' loop (cvar `fc_hull_native`): where everybody stands, their hull
+## Starts gs-sim's hull world for this players' loop (cvar `fc_hull_native`): where everybody stands, their hull
 ## sizes, who is alive, and which movers may gather natively (not lag-compensated: [method _solid_hulls_for]'s
 ## `remote` false). Their movement bodies then gather in the motor tick with no script call, the answer
 ## [method _add_hulls_local]'s. With [member FcHullGrid.verify] the world is filed but the bodies gather by script,
@@ -164,7 +164,7 @@ func _start_motor_batch(delta: float) -> bool:
 ## The players' loop, one whole tick after another.
 func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_world: Object, shots: Array[GSShot]) -> void:
 	# Once a tick, not per player: the level check stats the addon's folder on disk (~90 us a player a tick at 64 players).
-	var knife_charge := knives != null and GSAddonApi.build_level("dot_weapon") >= 41
+	var knife_charge := knives != null and GSAddonApi.build_level("gs_weapon") >= 41
 	# `FcFrameProbe.fine` (bench `--fine 1`) splits this loop's own work from the player's tick.
 	var fine := FcFrameProbe.fine
 	var t_fine := 0
@@ -219,13 +219,13 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 				FcFrameProbe.add(&"pl_post", t_fine)
 
 
-## [method _tick_players] with the motors in dot-sim's batch: first every player's part before its motor in roster order,
+## [method _tick_players] with the motors in gs-sim's batch: first every player's part before its motor in roster order,
 ## then again in order each motor tick (a run of them is one native call, each seeing the earlier ones moved) and the rest
 ## of that player's tick. A player whose tick ends elsewhere than its motor left it (a pit, a death) has the later rows
 ## run again, so the states are the one-by-one loop's as long as no turn changes another player ([member FcHullGrid.batch_faults]).
 func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Object, shots: Array[GSShot]) -> void:
 	# Once a tick, not per player: the level check stats the addon's folder on disk (~90 us a player a tick at 64 players).
-	var knife_charge := knives != null and GSAddonApi.build_level("dot_weapon") >= 41
+	var knife_charge := knives != null and GSAddonApi.build_level("gs_weapon") >= 41
 	var fine := FcFrameProbe.fine
 	var t_fine := 0
 	var ids := player_ids()
@@ -273,7 +273,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		player.ctl_usec = Time.get_ticks_usec() - t_ctl
 		if fine:
 			FcFrameProbe.add(&"pl_sim", t_fine)
-	# The idle players' posture rows in one dot-sim call (flushed before anything that could see their weapon ticks):
+	# The idle players' posture rows in one gs-sim call (flushed before anything that could see their weapon ticks):
 	# the controller state is read in GDScript once per player instead of per field.
 	var post_lane := FcPlayer.posture_native and GSSim.has(&"players")
 	if post_lane and _post_native == null:
@@ -368,7 +368,7 @@ func _post_outcome(id: int, player: FcPlayer, move: GSFpsCommand, outcome: GSWea
 		projectiles.accept(outcome)
 
 
-## The waiting idle players' posture rows in one dot-sim call, then each one's weapon tick and outcome in roster order.
+## The waiting idle players' posture rows in one gs-sim call, then each one's weapon tick and outcome in roster order.
 func _flush_posts(shots: Array[GSShot]) -> void:
 	var count := _post_players.size()
 	if count == 0:
@@ -568,7 +568,7 @@ func _note_protected_action(id: int, player: FcPlayer, move: GSFpsCommand, fired
 			end_spawn_protection(id)
 	player.protected_view = config.spawn_protection_bubble and player.health.is_protected(_tick)
 
-## Ends spawn protection for [param id] now: the health window, the `PROTECTED` effect and dot-spawn's ledger.
+## Ends spawn protection for [param id] now: the health window, the `PROTECTED` effect and gs-spawn's ledger.
 func end_spawn_protection(id: int) -> void:
 	var player := player_for(id)
 	if player == null:
@@ -588,15 +588,15 @@ func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 	if player == null:
 		return
 
-	# [b]The director chooses; dot-match's point is the fallback.[/b] Both read the same
-	# markers — `FcPlayerStack.refresh_spawns` copies dot-match's own `GSSpawnPoint`s
+	# [b]The director chooses; gs-match's point is the fallback.[/b] Both read the same
+	# markers — `FcPlayerStack.refresh_spawns` copies gs-match's own `GSSpawnPoint`s
 	# into the director — so this is not a second set of spawns, it is a better choice
 	# among one set: enemy distance, line of sight, occupancy and a per-site cooldown,
-	# none of which dot-match models.
+	# none of which gs-match models.
 	#
 	# It is also where spawn protection is granted, which is the half that has to go
 	# through here. `GSSpawnProtection.grant` is called inside `choose` and nowhere
-	# else, so a game that took dot-match's point and skipped this has an empty ledger
+	# else, so a game that took gs-match's point and skipped this has an empty ledger
 	# and a `protection.advance()` that does nothing — which is what this one had.
 	var at := Transform3D(Basis.IDENTITY, Vector3(0.0, 1.0, 0.0))
 
@@ -650,7 +650,7 @@ func _on_match_state_changed(from: GSMatch.State, to: GSMatch.State) -> void:
 
 func _build_match() -> GSResult:
 	# DUPLICATED, not used directly. A Resource is a reference in GDScript, so handing
-	# dot-match the catalogue's own rules would mean a server that raised a score limit
+	# gs-match the catalogue's own rules would mean a server that raised a score limit
 	# at runtime had edited the mode every later match reads.
 	var rules: GSMatchRules = mode.rules.duplicate()
 
@@ -663,7 +663,7 @@ func _build_match() -> GSResult:
 	match_node.rules = rules
 	match_node.register_service = false
 
-	# Built here rather than left to dot-match, which would otherwise make an untagged
+	# Built here rather than left to gs-match, which would otherwise make an untagged
 	# `GSTeam.standard_pair()`. The tags are the whole point — see `FcMode.teams`.
 	# A map that tags no sides is cut into two halves that start apart before its spawn points are made (a map change
 	# comes through here as well as the first setup), so every map can host a team mode.

@@ -64,12 +64,12 @@ const SLAB_PALE := 0.3
 ## one colour drowns the rest.
 const WALL_PALE := 0.12
 
-## Photographic surfaces (ambientCG, CC0) by role, from dot-map's `GSMapSurfaces`, vendored into
+## Photographic surfaces (ambientCG, CC0) by role, from gs-map's `GSMapSurfaces`, vendored into
 ## `assets/surfaces` (client-only in `sides.json`). The zone colour still says where a thing is:
 ## it multiplies the photograph, paled toward white by `PHOTO_PALE` because the colours were
 ## chosen against a light grid and a photograph under a full pastel went muddy. A build without
 ## the textures (a checkout not imported, an older shell) draws the Kenney grid as it did.
-const SURFACES_SCRIPT := "res://addons/dot_map/surfaces/dot_map_surfaces.gd"
+const SURFACES_SCRIPT := "res://addons/gs_map/surfaces/gs_map_surfaces.gd"
 const SURFACES_ROOT := "res://assets/surfaces"
 const KIND_OF_ROLE := {
 	Role.WALL: &"brick",

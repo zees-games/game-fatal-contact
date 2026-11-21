@@ -24,7 +24,7 @@ func _build() -> bool:
 
 	# The game first, and registered: FcModule finds it through GSRegistry rather
 	# than being handed it, which is what makes `load_module(path)` work at all —
-	# dot-server loads a module from a script path and has nowhere to pass an argument.
+	# gs-server loads a module from a script path and has nowhere to pass an argument.
 	_game = FcGame.new()
 	_game.name = "Arena"
 	_game.tick_rate = 64
@@ -48,7 +48,7 @@ func _build() -> bool:
 	config.port = PORT
 	config.bind_address = "127.0.0.1"
 	# Empty means the RCON listener does not open, which is what a test wants and is
-	# also what dotserve treats as "RCON is off" rather than as a weak password.
+	# also what gsserve treats as "RCON is off" rather than as a weak password.
 	config.rcon_password = ""
 	config.admins_path = "%s/admins.json" % SERVER_DIR
 	config.bans_path = "%s/bans.json" % SERVER_DIR
@@ -61,7 +61,7 @@ func _build() -> bool:
 	config.query_enabled = true
 	config.query_port = PORT + 1
 	# A self-test takes no commands, and a console reader blocked on an open stdin pipe
-	# (the exit probe's copy holds one) keeps the process from ever exiting. dot-server no
+	# (the exit probe's copy holds one) keeps the process from ever exiting. gs-server no
 	# longer reads a pipe unless `stdin_console_pipes` is on; a terminal is still read.
 	config.stdin_console_enabled = false
 
@@ -145,7 +145,7 @@ func _test_module_loaded() -> void:
 		_server.console.find_cvar("fc_scorelimit") != null, "and its cvar"
 	)
 
-	# The NPC skill cvars, on a real console. A fake in dot-npc-ai's suite proves the
+	# The NPC skill cvars, on a real console. A fake in gs-npc-ai's suite proves the
 	# binding's arithmetic; only this proves `add_cvar` hands back something it can bind to.
 	_check(
 		_server.console.find_cvar("npc_skill") != null
@@ -154,7 +154,7 @@ func _test_module_loaded() -> void:
 		"and the three NPC skill cvars"
 	)
 
-	# Shooting through team-mates, the operator's: dot-combat's cvar on the world's own rules.
+	# Shooting through team-mates, the operator's: gs-combat's cvar on the world's own rules.
 	var through := _server.console.set_cvar("mp_teammate_passthrough", "2")
 	_check(
 		through.ok and _game.combat.rules.pass_through_team_mates
@@ -192,17 +192,17 @@ func _test_module_loaded() -> void:
 	)
 	var _reset := _server.console.set_cvar("npc_skill", "0")
 
-	# dot-map's own commands, on a real console. `map` was dot-server's and it changed the
+	# gs-map's own commands, on a real console. `map` was gs-server's and it changed the
 	# GAME; on a server running one game and several maps that is the one thing an operator
 	# typing it does not mean.
 	for command in ["map", "maps", "mapinfo"]:
 		_check(
 			_server.console.find_command(command) != null,
-			"and dot-map's %s" % command
+			"and gs-map's %s" % command
 		)
 	_check(
 		_server.console.find_command("game") != null,
-		"while `game` is what changes the game, which is what dot-server's `map` used to do"
+		"while `game` is what changes the game, which is what gs-server's `map` used to do"
 	)
 
 	# Ending a round in progress is still only CHANGEMAP; the `sv_chat_commands` flag says so
@@ -218,8 +218,8 @@ func _test_module_loaded() -> void:
 
 
 ## Chat, voice, moderation and the identity chain, on a real server: all five addons up in one
-## process on one [GSServer], with dot-moderation before the two routers that look up its
-## `dot_mute_source` (a router that starts first enforces no gag).
+## process on one [GSServer], with gs-moderation before the two routers that look up its
+## `gs_mute_source` (a router that starts first enforces no gag).
 func _test_services() -> void:
 	_begin()
 	print("")
@@ -249,7 +249,7 @@ func _test_services() -> void:
 	_check(services.moderation != null, "moderation is running")
 
 	# The registry names, which are how the three reach each other without importing
-	# one another. dot-moderation publishes both; dot-chat's router and dot-voice's
+	# one another. gs-moderation publishes both; gs-chat's router and gs-voice's
 	# router each look one of them up.
 	_check(
 		GSRegistry.get_service(GSModerationManager.MUTE_SERVICE) != null,
@@ -294,7 +294,7 @@ func _test_services() -> void:
 		str(dirty.value)
 	)
 
-	# --- Moderation: dot-server's mute is two booleans that die with the connection, so a muted
+	# --- Moderation: gs-server's mute is two booleans that die with the connection, so a muted
 	# player reconnects and talks. A punishment is a record. ---
 	var subject := GSPunishmentSubject.for_uid("4242")
 
@@ -323,7 +323,7 @@ func _test_services() -> void:
 	)
 
 	# The unconfigured scope is the case a one-server community always has, and it is
-	# the one dot-moderation once had silently enforcing nothing.
+	# the one gs-moderation once had silently enforcing nothing.
 	_check(
 		services.server_scope == "",
 		"this server has no scope, which is the case that has to work"
@@ -349,11 +349,11 @@ func _test_services() -> void:
 		_check(module.identity.platform != null, "with a platform hub")
 		_check(
 			GSRegistry.get_node_service(GSPlatformHub.SERVICE) != null,
-			"registered, which is how dot-platform's module finds it"
+			"registered, which is how gs-platform's module finds it"
 		)
 		_check(
 			_server.modules.has_module("platform"),
-			"and dot-platform's own module is loaded beside this one"
+			"and gs-platform's own module is loaded beside this one"
 		)
 
 		# Never null, for anybody. A caller that had to branch on "did this player
@@ -391,7 +391,7 @@ func _test_map_rotation_file() -> void:
 			"pit": {"maps": ["dm_pit"]},
 		},
 		"commands": {"names": {"rtv": "rockthevote"}},
-	}}], "game-arena")
+	}}], "game-fatal-contact")
 	if not _check(built.ok, "a maps.yml with two rotations and a renamed rtv parses",
 		"" if built.ok else built.error.message):
 		return
@@ -763,7 +763,7 @@ func _test_no_message_preloads_itself() -> void:
 func _extends_message(source: String) -> bool:
 	for line in source.split("\n"):
 		if line.begins_with("extends "):
-			return line.contains("GSNetMessage") or line.contains("dot_net_message.gd")
+			return line.contains("GSNetMessage") or line.contains("gs_net_message.gd")
 	return false
 
 

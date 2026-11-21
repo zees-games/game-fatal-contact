@@ -72,7 +72,7 @@ func setup(p_game: Node) -> GSResult:
 		GSRegistry.register(SERVICE, self)
 		_registered = true
 
-	_print_dot_sim_status()
+	_print_gs_sim_status()
 	GSLog.info(CHANNEL, "player stack up", {
 		"tick_rate": game.tick_rate,
 		"classes": classes.catalogue.ids().size(),
@@ -82,41 +82,41 @@ func setup(p_game: Node) -> GSResult:
 	return GSResult.success(null)
 
 
-static var _dot_sim_status_printed: bool = false
+static var _gs_sim_status_printed: bool = false
 
 
 # The addon's default is off. On at script load, so a solo client and a listen host run it too
 # (motor_native_tick exists only where FcModule loads), and that cvar can still turn it off.
-# dot-bot's native mind (GSSimBotMind) on too, as bot_native_brain's default says.
+# gs-bot's native mind (GSSimBotMind) on too, as bot_native_brain's default says.
 static func _static_init() -> void:
 	GSFpsMotor.native_tick = true
 	set_brain_native(true)
 
 
-## dot-bot's native mind (GSSimBotMind: aim, fight step, perception) on or off for brains made
-## from now on. By name: an older dot-bot has no such switches, and the set is then a no-op.
+## gs-bot's native mind (GSSimBotMind: aim, fight step, perception) on or off for brains made
+## from now on. By name: an older gs-bot has no such switches, and the set is then a no-op.
 static func set_brain_native(on: bool) -> void:
 	(GSBotAim as Script).set(&"native_enabled", on)
 	(GSBotBrain as Script).set(&"native_perceive", on)
 
 
-## Whether new bot brains think in dot-sim (the switch is on and the library has GSSimBotMind).
+## Whether new bot brains think in gs-sim (the switch is on and the library has GSSimBotMind).
 static func brain_native() -> bool:
 	return (GSBotAim as Script).get(&"native_enabled") == true and ClassDB.class_exists(&"GSSimBotMind")
 
 
-## One line per process saying whether dot-sim's library loaded and what runs in it, so a
+## One line per process saying whether gs-sim's library loaded and what runs in it, so a
 ## player or a log can tell native from the GDScript twins (bootstrap fetches the library;
 ## the web never has it).
-static func _print_dot_sim_status() -> void:
-	if _dot_sim_status_printed:
+static func _print_gs_sim_status() -> void:
+	if _gs_sim_status_printed:
 		return
-	_dot_sim_status_printed = true
-	print(dot_sim_status())
+	_gs_sim_status_printed = true
+	print(gs_sim_status())
 
 
-## [code]dot-sim: native motor=on bots=on snapshot=on[/code], or that the library is not loaded.
-static func dot_sim_status() -> String:
+## [code]gs-sim: native motor=on bots=on snapshot=on[/code], or that the library is not loaded.
+static func gs_sim_status() -> String:
 	var natives := {"motor": &"GSSimFpsBody", "bots": &"GSSimBotSenses", "snapshot": &"GSSimSnapshotCodec"}
 	var parts: PackedStringArray = []
 	var any := false
@@ -132,8 +132,8 @@ static func dot_sim_status() -> String:
 			used = loaded and GSBotWorld.native_enabled
 		parts.append("%s=%s" % [module, ("on" if used else "off") if loaded else "missing"])
 	if not any:
-		return "dot-sim: native library not loaded, the GDScript twins run (bootstrap fetches it; web never has it)"
-	return "dot-sim: native " + " ".join(parts)
+		return "gs-sim: native library not loaded, the GDScript twins run (bootstrap fetches it; web never has it)"
+	return "gs-sim: native " + " ".join(parts)
 
 
 func _exit_tree() -> void:
@@ -156,7 +156,7 @@ func _build_physics() -> GSResult:
 	physics.profile.tick_rate = game.tick_rate
 
 	physics.layout = GSPhysicsLayout.shooter_3d()
-	# The map's loose toys (dot-props'): a ball or a barrel on `toy`, which the level, props and
+	# The map's loose toys (gs-props'): a ball or a barrel on `toy`, which the level, props and
 	# other toys stop and a person never does (they walk through and push it,
 	# `FcGame._advance_toys`).
 	physics.layout.layers.append(GSPhysicsLayer.make(
@@ -240,10 +240,10 @@ func _build_teams() -> void:
 		GSLog.error(CHANNEL, "team roster", {"why": res.error.message})
 		return
 
-	# [b]dot-match is the authority here, and dot-team mirrors it. That is the opposite
-	# direction from dot-team's usual one, and the reason is the arena's.[/b]
+	# [b]gs-match is the authority here, and gs-team mirrors it. That is the opposite
+	# direction from gs-team's usual one, and the reason is the arena's.[/b]
 	#
-	# dot-team can drive a match manager — `bind_match` exists and is the right shape
+	# gs-team can drive a match manager — `bind_match` exists and is the right shape
 	# for a lobby or a server whose sides outlive four map changes. Fatal Contact is not
 	# that: its sides are decided by `GSTeamManager.assign`, which reads a requested
 	# team, balances an uneven pair and refuses a full one, and its spawns are chosen
@@ -251,9 +251,9 @@ func _build_teams() -> void:
 	# reimplementing the balance and the map tags, badly.
 	#
 	# So `bind_match` is deliberately NOT called, and `_on_player_added` adopts the side
-	# dot-match assigned instead. What the session roster still buys is the part
-	# dot-match cannot offer: an assignment that survives a map change, a spectator
-	# side, and one place for dot-combat, dot-chat and dot-spectate to ask "are these
+	# gs-match assigned instead. What the session roster still buys is the part
+	# gs-match cannot offer: an assignment that survives a map change, a spectator
+	# side, and one place for gs-combat, gs-chat and gs-spectate to ask "are these
 	# two enemies".
 	teams.policy.auto_assign = game.match_node.teams == null
 
@@ -271,7 +271,7 @@ func _build_classes() -> void:
 
 	# [b]The one class names its loadout, so the arsenal comes from the document rather
 	# than from a hardcoded pair.[/b] `GSWeaponPlayerBridge.give_class_loadout` reads
-	# `loadout_id` off a class and looks it up in a table the GAME owns — dot-weapon
+	# `loadout_id` off a class and looks it up in a table the GAME owns — gs-weapon
 	# deliberately does not own the id space between a loadout and a weapon — and until
 	# this line neither half had a caller: every player got pistol-and-rifle written into
 	# `FcPlayer.give_default_loadout`, and the class's own field reached nothing.
@@ -330,7 +330,7 @@ func _build_spawns() -> void:
 ##
 ## [b]One duration, three consumers, and they used to be two durations.[/b] Spawn
 ## protection is enforced in three places here: [GSHealth]'s invulnerable window, the
-## `arena_protected` effect, and — since the director started choosing — dot-spawn's own
+## `arena_protected` effect, and — since the director started choosing — gs-spawn's own
 ## ledger. The mode sets `GSMatchRules.spawn_protection_sec` (1.5 s in a free-for-all,
 ## 2.5 s in the horde) and the effect table carried a hardcoded two seconds, so a
 ## free-for-all player was protected for 1.5 s by one gate and 2.0 s by another. Which
@@ -384,8 +384,8 @@ func refresh_spawn_rules() -> void:
 
 ## Re-reads the game's spawn points into the director. Call after a map change.
 ##
-## [b]dot-match's spawn points are the source, and are not replaced.[/b] A mapper
-## places a `GSSpawnPoint`, dot-match picks one for a respawn, and this reads the same
+## [b]gs-match's spawn points are the source, and are not replaced.[/b] A mapper
+## places a `GSSpawnPoint`, gs-match picks one for a respawn, and this reads the same
 ## nodes into `GSSpawnSite` values so that the richer selector — conditions, occupancy,
 ## visibility, protection — can be asked as well. Two systems reading one set of markers
 ## is fine; two systems owning two sets of markers is a map that spawns people in
@@ -402,15 +402,15 @@ func refresh_spawns() -> void:
 		var site := GSSpawnSite.point(
 			StringName(point.name), at.origin, at.basis.get_euler().y
 		)
-		# dot-match calls it `weight` and means the same thing: which point is preferred
-		# when nothing else separates two. Rounded because dot-spawn's is an integer,
+		# gs-match calls it `weight` and means the same thing: which point is preferred
+		# when nothing else separates two. Rounded because gs-spawn's is an integer,
 		# and a weight of 1.0 — the default — has to come out as a priority of 1 rather
 		# than as a floor to zero that makes every point equal.
 		site.priority = int(round(point.weight))
 		site.cooldown_ticks = point.cooldown_ticks
 		site.enabled = point.enabled
 		# [b]And the side it belongs to, which the copy used to leave out.[/b] The map
-		# tags a team's points and dot-match sends each side to its own through
+		# tags a team's points and gs-match sends each side to its own through
 		# `GSTeam.spawn_tag`; a site with no team admits everybody, so once the director
 		# was the one choosing, a team mode spawned both sides out of one pool again —
 		# the thing the tags were written to stop. Found by the first check that looked
@@ -499,7 +499,7 @@ func _on_player_added(player: FcPlayer) -> void:
 
 	var _team := teams.add(key, game.current_tick())
 
-	# Adopt the side dot-match actually gave them, which is not necessarily the one
+	# Adopt the side gs-match actually gave them, which is not necessarily the one
 	# anybody asked for. Reading it back rather than assuming is the same rule
 	# `FcGame.add_player` already follows one line above the signal that got us here.
 	var side := _side_of_id(game.team_of(player.player_id))
@@ -548,7 +548,7 @@ func _on_map_changed(_map: FcMap) -> void:
 
 ## Takes every player's side from the match again, after a change built a new one.
 ##
-## [method _on_player_added] adopts dot-match's assignment at a join, and a map change
+## [method _on_player_added] adopts gs-match's assignment at a join, and a map change
 ## is not a join: the new match re-adds everybody and may put them on other sides, or on
 ## sides at all where the last mode had none. Left alone, the roster answers the
 ## director with the previous mode's side, and a player asks for spawns that belong to
@@ -567,8 +567,8 @@ func _adopt_match_sides() -> void:
 			var _forced := teams.force_team(key, side, &"match")
 		elif teams.teams.is_playing(teams.team_of(key)):
 			# No sides now, so nobody keeps the last mode's. A free-for-all whose roster still
-			# said blue and red was one where dot-team's `are_allies` called old team-mates
-			# friends, to dot-spectate and anything else that asks it.
+			# said blue and red was one where gs-team's `are_allies` called old team-mates
+			# friends, to gs-spectate and anything else that asks it.
 			var _cleared := teams.force_team(key, GSTeamSet.UNASSIGNED, &"match")
 
 
@@ -596,8 +596,8 @@ func drop_player(id: int) -> void:
 
 ## One tick of everything this node runs on its own.
 ##
-## Deliberately small: the respawn timers are dot-match's, not dot-spawn's, because
-## dot-match already owns the round clock and two systems queuing respawns would
+## Deliberately small: the respawn timers are gs-match's, not gs-spawn's, because
+## gs-match already owns the round clock and two systems queuing respawns would
 ## respawn everybody twice. What this drains is spawn protection and the roster's
 ## reconnect windows.
 func tick(current_tick: int) -> void:
@@ -633,16 +633,16 @@ func _ensure_sites_current() -> void:
 ## Where a player should enter the world, and the grant of protection that goes with it.
 ##
 ## [b]This is the live path, and it was not.[/b] `FcGame._on_respawn_due` used
-## dot-match's own choice and this was offered beside it — which meant the director was
+## gs-match's own choice and this was offered beside it — which meant the director was
 ## built, fed every site on the map, ticked every tick, and never asked anything. The
-## visible half of that was harmless (dot-match picks a reasonable point). The invisible
+## visible half of that was harmless (gs-match picks a reasonable point). The invisible
 ## half was not: [GSSpawnProtection] is granted inside [method GSSpawnDirector.choose]
 ## and nowhere else, so `spawns.protection.advance()` in [method tick] was draining a
 ## ledger that was always empty, for ever, while reading exactly like working spawn
 ## protection.
 ##
-## dot-match's points are still the source — see [method refresh_spawns]. What this adds
-## on top of picking one of them is the part dot-match has no model for: enemy distance,
+## gs-match's points are still the source — see [method refresh_spawns]. What this adds
+## on top of picking one of them is the part gs-match has no model for: enemy distance,
 ## line of sight, occupancy, per-site cooldown, and the protection window.
 func choose_spawn(id: int) -> GSResult:
 	_ensure_sites_current()
@@ -731,13 +731,13 @@ func blocks_damage(
 	return spawns.protection.blocks(attacker_key, victim_key, tick, world_damage)
 
 
-## The dot-spectate team number for [param key], derived from the side they are on.
+## The gs-spectate team number for [param key], derived from the side they are on.
 ##
-## [b]An index, not a hash, and zero means "no side".[/b] dot-spectate keys teams by
+## [b]An index, not a hash, and zero means "no side".[/b] gs-spectate keys teams by
 ## [code]int[/code] and treats 0 as no team at all — two entities with no team are never
 ## team-mates, so a free-for-all cannot accidentally become a truce. The playing sides
 ## are numbered from 1 in the order the set declares them, which is the same rule
-## `GSTeamRoster._match_team_id` uses to push an assignment down into dot-match.
+## `GSTeamRoster._match_team_id` uses to push an assignment down into gs-match.
 ##
 ## Somebody unassigned, spectating, or not in the roster at all gets 0. That is the part
 ## a hardcoded `return 1` got wrong: a spectator read as a team-mate of everybody.

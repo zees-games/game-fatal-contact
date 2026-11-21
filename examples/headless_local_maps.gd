@@ -63,7 +63,7 @@ func _run() -> void:
 	_copy_tree(FIXTURE_DIR, USER_FOLDER, ["fixture.json", "fixture.bin"])
 	_test_load(&"fixture_local", "user://maps", true)
 	sections += 1
-	# Drops, zips and `_orig` need dot-map API 24; an older host plays copied folders only (FcLocalMaps.can_drop).
+	# Drops, zips and `_orig` need gs-map API 24; an older host plays copied folders only (FcLocalMaps.can_drop).
 	if FcLocalMaps.can_drop():
 		_clean()
 		_test_drops()
@@ -78,7 +78,7 @@ func _run() -> void:
 		await _test_source_install()
 		sections += 1
 	else:
-		print("-- drops and _orig skipped: dot-map API %d < %d" % [GSAddonApi.build_level("dot_map"), FcLocalMaps.DROP_LEVEL])
+		print("-- drops and _orig skipped: gs-map API %d < %d" % [GSAddonApi.build_level("gs_map"), FcLocalMaps.DROP_LEVEL])
 	var planned := 8 if FcLocalMaps.can_drop() else 4
 	if not _source.is_empty():
 		var name := GSMapLocalMaps.prefix_in(_source).get_file()
@@ -252,7 +252,7 @@ func _test_drops() -> void:
 
 
 ## What the owner dropped: a download's `convert` folder (`<map>.bsp`, SOURCE.txt and `convert/` beside it), a whole download
-## with the pack deeper than dot-map looks, and a map named like a shipped one; each is said on screen and listed in M.
+## with the pack deeper than gs-map looks, and a map named like a shipped one; each is said on screen and listed in M.
 func _test_drop_layouts() -> void:
 	print("-- dropped layouts: a download's convert folder, a deep folder, a shipped map's name")
 	FcMaps.list_local = true
@@ -383,13 +383,13 @@ func _touch(path: String) -> void:
 
 
 ## `GSMapLocalMaps.accept_dropped` (API 24), called so the suite still parses on an older host.
-## The user folder is game-fatal-contact, and the first run copies the old game-arena folder's maps and settings in.
+## The user folder is game-fatal-contact, and the first run copies the old game-fatal-contact folder's maps and settings in.
 func _test_user_dir() -> void:
 	_check(FcUserDir.is_ours(), "project.godot names the user folder %s" % FcUserDir.DIR_NAME,
 		str(ProjectSettings.get_setting("application/config/custom_user_dir_name", "")))
 	_check(OS.get_user_data_dir().get_file() == FcUserDir.DIR_NAME, "user:// is the game-fatal-contact folder",
 		OS.get_user_data_dir())
-	_check(FcUserDir.old_dir().ends_with("app_userdata/game-arena"), "the old folder is Godot's app_userdata/game-arena",
+	_check(FcUserDir.old_dir().ends_with("app_userdata/game-fatal-contact"), "the old folder is Godot's app_userdata/game-fatal-contact",
 		FcUserDir.old_dir())
 	_write(OLD_USER.path_join("settings/video.cfg"), "old")
 	_write(OLD_USER.path_join("maps/gm_fork/convert/manifest.json"), "{}")
@@ -562,7 +562,7 @@ func _test_nothing_valve_in_project(install: String) -> void:
 ## repository's: `.godot`, the linked addons and map repositories (.gitignore), and the suite's own leftovers.
 func _valve_files(dir: String, found: PackedStringArray) -> void:
 	for skip in ["res://.godot", "res://addons", "res://maps/imported", "res://maps/imported_dm", "res://worlds",
-			"res://worlds_dm", "res://dot_cloud", "res://build", "res://lightbake_work", "res://android"]:
+			"res://worlds_dm", "res://gs_cloud", "res://build", "res://lightbake_work", "res://android"]:
 		if dir == skip:
 			return
 	if dir.ends_with("textures/orig"):

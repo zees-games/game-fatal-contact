@@ -14,7 +14,7 @@ const FcTickBudget := preload("fc_tick_budget.gd")
 ## game that built itself in `_ready` would have no way to report that it had not.
 ##
 ## [b]It lives in `game/`, not beside its own scene in `scenes/`.[/b] That is a
-## deployment constraint rather than a preference: `dot-server-deploy/setup.sh`
+## deployment constraint rather than a preference: `gs-server-deploy/setup.sh`
 ## vendors a game by copying its `game/` wholesale and its `scenes/*.tscn` — only the
 ## `.tscn` — so a script under `scenes/` is a script that never reaches the build. The
 ## scene then fails to load with "referenced non-existent resource", the module refuses
@@ -24,7 +24,7 @@ const FcTickBudget := preload("fc_tick_budget.gd")
 ##
 ## The order matters and is the only interesting thing here: the game registers itself
 ## in [GSRegistry] under [constant FcGame.SERVICE] during `setup`, and
-## `FcModule._module_load` refuses to load if it cannot find it. dot-server loads the
+## `FcModule._module_load` refuses to load if it cannot find it. gs-server loads the
 ## scene before the module for exactly that reason.
 
 const CHANNEL := "arena.server"
@@ -133,7 +133,7 @@ static func startup_map() -> FcMap:
 	return map
 
 
-## dot-workbench: the F9 panel in the editor and debug builds, the loopback page when `workbench.enabled` is set in cfg/server.yml.
+## gs-workbench: the F9 panel in the editor and debug builds, the loopback page when `workbench.enabled` is set in cfg/server.yml.
 func _start_workbench(binder: GSGameConfigBinder) -> void:
 	var wb := GSGameWorkbench.new()
 	wb.name = "Workbench"
@@ -150,7 +150,7 @@ func _start_workbench(binder: GSGameConfigBinder) -> void:
 
 
 ## Ids of the delivered packs the server's map list names (`GSGameManager.current_maps`, from cfg/content.yml): known
-## to `--map` though not on the disk yet. Empty outside a dot-server host.
+## to `--map` though not on the disk yet. Empty outside a gs-server host.
 func delivered_ids() -> Array[StringName]:
 	var out: Array[StringName] = []
 	var manager := get_parent()
@@ -165,7 +165,7 @@ func delivered_ids() -> Array[StringName]:
 
 # --- The map changer a host finds under server.games -------------------------
 #
-# dot-server-deploy starts a server on `map:` (server.yml) / `--map` by searching `server.games` for the first node with
+# gs-server-deploy starts a server on `map:` (server.yml) / `--map` by searching `server.games` for the first node with
 # `change_to` + `change_to_map` (and `ensure_map_content` for the fetch). FC's director lives with its module under
 # `server.modules`, so without these the owner's `map: cp_orange_x3` was skipped with "this game has no maps". They
 # forward to the director, which is the path `map`, `fc_map`, the vote and the rotation take: sync host, FC's state

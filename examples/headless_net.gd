@@ -55,7 +55,7 @@ func _run() -> void:
 
 	OS.remove_logger(errors)
 	# Engine errors go to stderr and change no exit code: a toy pulled out of the tree after a
-	# mid-tick rebuild (dot-net history #30) printed `!is_inside_tree()` on green runs elsewhere.
+	# mid-tick rebuild (gs-net history #30) printed `!is_inside_tree()` on green runs elsewhere.
 	var seen := errors.seen()
 	_check(seen.is_empty(), "the engine reported no error over the whole run",
 		"%d: %s" % [seen.size(), ", ".join(seen.slice(0, 3))])
@@ -68,7 +68,7 @@ func _run() -> void:
 func _test_the_remote_workbench() -> void:
 	_section("[a flagged admin edits the server's profiles, and nobody else can]")
 	if not GSGameWorkbench.available():
-		print("  dot-workbench is not linked: skipped")
+		print("  gs-workbench is not linked: skipped")
 		_passed += 18
 		_done()
 		return
@@ -167,7 +167,7 @@ func _test_large_map_state_arrives_whole() -> void:
 
 ## A voice frame, client to server to another client.
 ##
-## [b]Deliberately not through [GSNetManager].[/b] dot-net decodes a bit-packed
+## [b]Deliberately not through [GSNetManager].[/b] gs-net decodes a bit-packed
 ## message against a sealed schema; a voice frame is an opaque blob from a codec and
 ## putting it through would mean a message type per codec — or a schema that changes
 ## when the codec does, and the schema hash is what both ends check to agree they are
@@ -271,17 +271,17 @@ func _test_voice_wire_part2(relayed: Array[Dictionary], heard: Array[PackedByteA
 
 
 func _test_voice_wire_part3(server_link: FcNetLink, client_bridge: FcNetBridge, client_link: FcNetLink, frame: PackedByteArray, held_link: FcNetLink, extras: FcClientExtras, voice: GSVoiceManager) -> void:
-	# [b]The player's block list (sm) reaches Fatal Contact's voice.[/b] dot-chat's GSChatSelfMute
-	# binds whatever is published as dot_voice_client; Fatal Contact's manager did not publish, so
+	# [b]The player's block list (sm) reaches Fatal Contact's voice.[/b] gs-chat's GSChatSelfMute
+	# binds whatever is published as gs_voice_client; Fatal Contact's manager did not publish, so
 	# `sm` muted a player's lines here and never their voice.
-	_check(voice != null and GSRegistry.get_service(&"dot_voice_client") == voice,
-		"the client's voice is published as dot_voice_client")
+	_check(voice != null and GSRegistry.get_service(&"gs_voice_client") == voice,
+		"the client's voice is published as gs_voice_client")
 	var self_mute := GSChatSelfMute.new()
 	self_mute.path = "user://fc_net_self_mute.json"
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(self_mute.path))
 	const TALKER := 1_900_000_001
 	self_mute.set_roster([{"id": 9, "name": "Loud", "key": "loud-key", "peer": TALKER}], 2)
-	self_mute.attach_voice(GSRegistry.get_service(&"dot_voice_client"))
+	self_mute.attach_voice(GSRegistry.get_service(&"gs_voice_client"))
 	var heard_buffer := GSVoiceSinkBuffer.new()
 	if voice != null:
 		heard_buffer.sample_rate = voice.config.sample_rate
@@ -516,7 +516,7 @@ func _test_event_wire_part4() -> void:
 	_check(not bool(FcEvents.read_scores(GSNetReader.new(cut))["ok"]), "and a cut SCORE is not ok")
 
 	# A truncated body must not read as a valid event of nothing. `StreamPeerBuffer`
-	# reads past its end by returning zeros rather than failing, and dot-timer shipped a
+	# reads past its end by returning zeros rather than failing, and gs-timer shipped a
 	# replay that parsed that way; `GSNetReader.ok()` is the equivalent here and it is
 	# sticky, so a decoder that skipped the check gets a plausible value for the field
 	# AFTER the overrun.

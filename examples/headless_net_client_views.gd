@@ -93,7 +93,7 @@ func _test_client_death_camera() -> void:
 		"and the camera is on them"
 	)
 
-	# The server brings them back (its respawn, called directly: when it would is dot-match's business).
+	# The server brings them back (its respawn, called directly: when it would is gs-match's business).
 	# Under test is the client reading "alive again" off the replicated health, having heard no spawn.
 	_server_game.player_for(victim).spawn(_server_game.map.spawns[0], _server_game.current_tick())
 	_server_game.player_for(victim).give_default_loadout()

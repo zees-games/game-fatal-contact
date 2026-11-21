@@ -18,7 +18,7 @@ const FcMapDirector := preload("../game/fc_map_director.gd")
 ## run it from a checkout without the link to prove that.
 
 const MAP := &"surf_10x_reloaded_fixed"
-const PACK := "arena-surf-dm-maps-surf_10x_reloaded_fixed"
+const PACK := "fc-surf-dm-maps-surf_10x_reloaded_fixed"
 const OWNER := "gamemann"
 ## The stripped 1.2.3 (2026-11-07): 1.2.0 and 1.2.1 carried source textures and are to be pulled.
 const VERSION := "1.2.3"
@@ -76,7 +76,7 @@ func _run() -> void:
 	cloud.register_service = false
 	cloud.http_base_urls = settings["urls"]
 	add_child(cloud)
-	GSRegistry.register(&"dot_cloud_client", cloud)
+	GSRegistry.register(&"gs_cloud_client", cloud)
 	await get_tree().process_frame
 
 	var game := FcGame.new()
@@ -100,11 +100,11 @@ func _run() -> void:
 	if not changed.ok:
 		print("  cause: %s" % changed.error)
 	_check(changed.ok, "the change succeeds%s" % ("" if changed.ok else ": " + changed.error.message))
-	_check(cloud.is_mounted(StringName("%s/%s" % [OWNER, PACK]), VERSION), "dot-cloud has the signed pack mounted")
+	_check(cloud.is_mounted(StringName("%s/%s" % [OWNER, PACK]), VERSION), "gs-cloud has the signed pack mounted")
 
 	var map := game.map
 	_check(map != null and map.id == MAP and map.is_imported(), "the game is on the map")
-	_check(map != null and map.manifest_path.begins_with("res://dot_cloud/"), "built from the mount (%s)" % (map.manifest_path if map != null else "none"))
+	_check(map != null and map.manifest_path.begins_with("res://gs_cloud/"), "built from the mount (%s)" % (map.manifest_path if map != null else "none"))
 	_check(map != null and map.manifest_path.find("maps/imported") < 0, "nothing from the maps/imported link")
 	var solid := map.collision_root if map != null else null
 	_check(solid != null and solid.get_child_count() > 100, "with its brushes in the tree (%d)" % (solid.get_child_count() if solid != null else -1))

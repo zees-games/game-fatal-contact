@@ -277,8 +277,8 @@ func _kill_feed_checks(host: FcSimHost, game: Object) -> void:
 ## A map folder dropped onto the window is copied, then the server process is told: M asks that process, so it is
 ## listed there at once, during CTF too (it plays free-for-all when picked).
 func _drop_checks() -> void:
-	if GSAddonApi.build_level("dot_map") < 24 or _client.get("host_console") == null:
-		print("-- drop checks skipped: dot-map API %d" % GSAddonApi.build_level("dot_map"))
+	if GSAddonApi.build_level("gs_map") < 24 or _client.get("host_console") == null:
+		print("-- drop checks skipped: gs-map API %d" % GSAddonApi.build_level("gs_map"))
 		return
 	var source := "user://zz_sim_host_drop_src/convert"
 	DirAccess.make_dir_recursive_absolute(source)

@@ -1,9 +1,9 @@
 extends "fc_client_session_events.gd"
 
-## A browser draws the sun's shadow in one orthogonal map, not in dot-game's web default of 2 splits: each split is another depth pass over every body and gun, the largest single cost of a 16v16 browser frame after the bodies themselves.
+## A browser draws the sun's shadow in one orthogonal map, not in gs-game's web default of 2 splits: each split is another depth pass over every body and gun, the largest single cost of a 16v16 browser frame after the bodies themselves.
 ## Built-in maps already use one (see fc_map_lighting.gd); this covers imported ones. `r_sun_shadow_splits=2`, as a launch argument or URL query, still wins. Native is unchanged.
 const WEB_SUN_SHADOW_SPLITS := 1.0
-const _RenderQuality := preload("res://addons/dot_game/runtime/dot_game_render_quality.gd")
+const _RenderQuality := preload("res://addons/gs_game/runtime/gs_game_render_quality.gd")
 const _UserDir := preload("fc_user_dir.gd")
 
 func _web_render_defaults() -> void:
@@ -15,7 +15,7 @@ func _ready() -> void:
 	if FcSimHost.is_server_child():
 		_become_sim_server()
 		return
-	# Before anything reads user://: the first run under game-fatal-contact copies the game-arena folder in.
+	# Before anything reads user://: the first run under game-fatal-contact copies the game-fatal-contact folder in.
 	_UserDir.migrate()
 	_apply_launch_art()
 	_web_render_defaults()
@@ -102,7 +102,7 @@ func _make_game() -> void:
 ## Part of [method _ready].
 func _apply_launch_art() -> void:
 	# fc-weapons' art is this game's copy of it, wherever this game is mounted. A
-	# delivered pack sits under `res://dot_cloud/<id>/<version>/`, and the pack's art table
+	# delivered pack sits under `res://gs_cloud/<id>/<version>/`, and the pack's art table
 	# names `res://assets/...` — so without this every gun loads invisible, one WARN each.
 	AwModelCache.set_asset_root(FcPaths.root())
 	# Before anything reads the art table: the first read caches it.
@@ -286,7 +286,7 @@ func _warm_figures() -> void:
 	FcLoadTimeline.mark("setup: figure clips, %d ms over %d frames" % [(Time.get_ticks_usec() - started) / 1000, frames])
 
 ## The platform's setup one piece a frame in a client that draws (all of it was one ~200 ms frame on staging02).
-## By name: a linked dot-game older than API 57 has no setup_stepped, and sets up in one go, as headless does.
+## By name: a linked gs-game older than API 57 has no setup_stepped, and sets up in one go, as headless does.
 func _setup_platform() -> GSResult:
 	if not _builds_in_frames() or not platform.has_method(&"setup_stepped"):
 		return platform.setup()
@@ -343,8 +343,8 @@ func _connect_solo_signals() -> void:
 
 
 ## The view key: the other view if the server's `mp_forceview` allows it, a line if not.
-## dot-game's render quality follows `platform.settings`, which Fatal Contact leaves unset, so the menu's
-## quality rows did nothing; the operator's `--render-*` cvars are read again after, as dot-game orders.
+## gs-game's render quality follows `platform.settings`, which Fatal Contact leaves unset, so the menu's
+## quality rows did nothing; the operator's `--render-*` cvars are read again after, as gs-game orders.
 func _follow_render_quality() -> void:
 	var quality := platform.render_quality
 	if quality == null or presentation == null or not quality.has_method(&"follow"):
@@ -404,7 +404,7 @@ func _killcam_frame() -> void:
 			killcam_shots.record(float(killcam.now_fn.call()), bodies)
 		killcam.frame()
 	elif not again.is_empty():
-		if killcam.has_method(&"repose"):  # dot_replay 11: skipped while the replay poses the bodies after this
+		if killcam.has_method(&"repose"):  # gs_replay 11: skipped while the replay poses the bodies after this
 			var _r: Variant = killcam.call(&"repose")
 		else:
 			var _posed: Dictionary = killcam.pose(again[0], again[1], again[2])

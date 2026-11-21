@@ -1,6 +1,6 @@
 extends "fc_bots_world.gd"
 
-## What a bot does with a tick, as the same two commands a client sends: dot-bot's brain,
+## What a bot does with a tick, as the same two commands a client sends: gs-bot's brain,
 ## fed from this game. One brain for every bot Fatal Contact has, solo and on a server.
 ##
 ## [b]Commands, not a second simulation.[/b] A bot is an [FcPlayer] like anybody else and
@@ -35,8 +35,8 @@ extends "fc_bots_world.gd"
 ## [b]Ramps are ridden.[/b] On a combat surf map with a surf cache the routes cross ride edges
 ## between the platforms and walk through the map's teleports, and a bot whose route reaches a
 ## ride hands its legs to the surf pilot until it lands, aiming and shooting as before
-## ([code]fc_surf.gd[/code], loaded only on a shell with dot-bot 4 and
-## dot-player-controller 3).
+## ([code]fc_surf.gd[/code], loaded only on a shell with gs-bot 4 and
+## gs-player-controller 3).
 
 
 ## The world on [param game], made the first time a bot asks.
@@ -137,7 +137,7 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 	return []
 
 
-## dot-bot 0.1.32: a bot stuck on an island with no way off (a surf map with no ride cache) goes back to a spawn. The brain reports again every bot_stranded_sec if that did not free it. Returns whether it respawned.
+## gs-bot 0.1.32: a bot stuck on an island with no way off (a surf map with no ride cache) goes back to a spawn. The brain reports again every bot_stranded_sec if that did not free it. Returns whether it respawned.
 static func unstrand(game: Object, bot: FcPlayer, mind: Mind, intent: GSBotIntent) -> bool:
 	if intent == null or not intent.stranded or game == null or not game.has_method(&"respawn_player"):
 		return false
@@ -265,11 +265,11 @@ static func _write(intent: GSBotIntent, move: GSFpsCommand, fire: GSWeaponComman
 ## Off only for tests that measure the bots without the correction (headless_bot_hitreg).
 static var recoil_compensation := true
 
-## Whether the think tiers come from [code]GSBotThinkTier.schedule[/code] (dot-bot API 27) or, on a host's dot-bot 26
+## Whether the think tiers come from [code]GSBotThinkTier.schedule[/code] (gs-bot API 27) or, on a host's gs-bot 26
 ## (the live shell's pin), from period, until_beat and body_period, which answer the same. headless_botthreads plays both.
-static var tier_schedule := GSAddonApi.build_level("dot_bot") >= 27
-## Whether [code]GSBotBrain[/code] has phase timers (dot-bot API 29) for the sim host's SIM_HOST_PHASES line.
-static var brain_phases := GSAddonApi.build_level("dot_bot") >= 29
+static var tier_schedule := GSAddonApi.build_level("gs_bot") >= 27
+## Whether [code]GSBotBrain[/code] has phase timers (gs-bot API 29) for the sim host's SIM_HOST_PHASES line.
+static var brain_phases := GSAddonApi.build_level("gs_bot") >= 29
 
 ## bot_recoil_control: the share of the recoil a bot pulls its aim back against, 0..1; below 0 (the default, -1)
 ## by difficulty from [constant RECOIL_CONTROL]. A whole share made every bot's burst a laser no person matches.
@@ -288,7 +288,7 @@ static func recoil_share(mind: Mind) -> float:
 
 
 ## The commands with the aim turned against the recoil the next shot will carry. The weapon offsets each bullet by
-## the kick left from the shots before it (dot-weapon's recoil rules); a player pulls the view back against it, but
+## the kick left from the shots before it (gs-weapon's recoil rules); a player pulls the view back against it, but
 ## a bot's view is its command, so held on a target the bullets walked off it: most of a held burst missed a
 ## target dead on the crosshair (headless_bot_hitreg). Only the trigger-down tick is turned, and the stored
 ## last commands the coast repeats are not, so the correction never compounds.
@@ -358,12 +358,12 @@ static func _tier_coastable(mind: Mind, _intent: GSBotIntent) -> bool:
 	return mind.ride == null and mind.throw_stage == 0
 
 
-## A thought bot's think and body tiers: one [code]GSBotThinkTier.schedule[/code] (dot-bot API 27; native in dot-sim when
-## loaded), or on a host's dot-bot 26 the three calls it replaced, which answer the same (headless_botthreads plays both).
+## A thought bot's think and body tiers: one [code]GSBotThinkTier.schedule[/code] (gs-bot API 27; native in gs-sim when
+## loaded), or on a host's gs-bot 26 the three calls it replaced, which answer the same (headless_botthreads plays both).
 static func _schedule_tiers(bot: FcPlayer, mind: Mind, at: Vector3, engaged: bool, idle: bool, tick: int, coastable: bool) -> void:
 	var floor_every := think_floor_engaged if engaged else think_floor
 	if tier_schedule:
-		# Untyped: dot-bot 26 has no schedule, and a typed call would not parse there.
+		# Untyped: gs-bot 26 has no schedule, and a typed call would not parse there.
 		var plan: Vector2i = tiers.call(&"schedule", bot.player_id, at, engaged, idle, tick, mind.seed, floor_every, coastable)
 		mind.every = plan.x
 		mind.coasting = plan.x > 1 and coastable

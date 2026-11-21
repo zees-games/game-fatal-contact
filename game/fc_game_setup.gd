@@ -88,7 +88,7 @@ func _classify_world_collision() -> void:
 		var _n := player_stack.classify_tree(_world_collision, &"world")
 
 ## Puts [member score_limit], [member time_limit_sec], [member warmup_sec] and [member min_players]
-## on the match being played, from the next tick (dot-match reads its rules every tick). The
+## on the match being played, from the next tick (gs-match reads its rules every tick). The
 ## authority's to call; a client is told the score limit and the clock by MATCH.
 ## Capture the flag plays `fc_ctf_teams` sides, from the next map.
 func _apply_ctf_teams() -> void:
@@ -288,7 +288,7 @@ func setup_begin(p_map: FcMap = null) -> GSResult:
 		var _tagged := map.split_spawns_for_teams()
 
 	if mode.is_team_mode() and Array(map.spawn_tags).count("") == map.spawns.size():
-		# Not fatal: dot-match falls back to the shared pool and everyone still spawns.
+		# Not fatal: gs-match falls back to the shared pool and everyone still spawns.
 		GSLog.warn(
 			CHANNEL,
 			"a team mode on a map with no tagged spawns; both sides share one pool",
@@ -346,7 +346,7 @@ func setup_step() -> GSResult:
 		_setup_step = SETUP_STEPS.size()
 	return result
 
-## Keeps this world's combat manager on the server's replicated cvars (dot-combat's
+## Keeps this world's combat manager on the server's replicated cvars (gs-combat's
 ## `mp_teammate_passthrough`), as [param source] reports them: the client's `GSClientLink`.
 ## Remembered, because a map change builds a new manager. True when it is following.
 func follow_server_cvars(source: Object) -> bool:
@@ -694,7 +694,7 @@ func remove_player(id: int) -> void:
 		progress.leave(id)
 
 	if player_stack != null:
-		# Before dot-match forgets them: the stack reads the scoreboard and the match's team for the records it
+		# Before gs-match forgets them: the stack reads the scoreboard and the match's team for the records it
 		# files, and after `match_node.remove_player` there is nothing there to read. A method rather than a
 		# signal, because there is no signal here and adding one for a single subscriber is worse than a call.
 		player_stack.drop_player(id)

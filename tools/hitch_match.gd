@@ -4,7 +4,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 const ClientBench := preload("client_bench.gd")
 
 ## A whole solo match on the real client with bots, every frame over a threshold logged with
-## what changed in it (dot-core's GSHitchLog): respawns, the kill-cam, the match summary.
+## what changed in it (gs-core's GSHitchLog): respawns, the kill-cam, the match summary.
 ## Window it on a GPU, because software GL makes every frame a hitch:
 ##
 ## [codeblock]

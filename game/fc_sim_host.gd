@@ -15,7 +15,7 @@ const SERVER_FLAG := "--sim_server"
 const SERVER_LOG := "user://logs/sim_server.log"
 const ANCHOR := "ArenaSimServer"
 ## The shell's solo session, duck-typed: one with `sim_child_args()` can start this game again in a second process.
-const SOLO_SERVICE := &"dot_solo"
+const SOLO_SERVICE := &"gs_solo"
 const BOOT_LIMIT_SEC := 60.0
 const JOIN_LIMIT_SEC := 30.0
 ## How often the boot and the join are looked at: a coarser step is the average of half of it added to the load, twice.
@@ -55,7 +55,7 @@ static func wanted(launched: bool = false) -> bool:
 static func wanted_for(args: PackedStringArray, launched: bool) -> bool:
 	if GSPlatform.is_web() or not GSPlatform.has_threads():
 		return false
-	if GSRegistry.get_service(&"dot_client_link") != null:
+	if GSRegistry.get_service(&"gs_client_link") != null:
 		return false
 	if forced >= 0:
 		return forced == 1
@@ -159,13 +159,13 @@ func _forward_flags(args: PackedStringArray) -> PackedStringArray:
 	var sim_sections := _arg("--sim_sections")
 	if sim_sections != "":
 		args.append_array(["--sim_sections", sim_sections])
-	# dot-bot's native mind on the server (perf_bench's `--brain-native` names the same switch).
+	# gs-bot's native mind on the server (perf_bench's `--brain-native` names the same switch).
 	var brain_native := _arg("--bot_native_brain")
 	if brain_native == "":
 		brain_native = _arg("--brain-native")
 	if brain_native != "":
 		args.append_array(["--bot_native_brain", brain_native])
-	# dot-sim's native bot loop on the server (perf_bench's `--native-loop` names the same switch).
+	# gs-sim's native bot loop on the server (perf_bench's `--native-loop` names the same switch).
 	var native_loop := _arg("--bot_native_loop")
 	if native_loop == "":
 		native_loop = _arg("--native-loop")

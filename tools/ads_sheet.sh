@@ -6,7 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ "${1:-}" != "--sheet" ]; then
-  ../gpu.sh shot game-arena tools/render_weapons.sh
+  ../gpu.sh shot game-fatal-contact tools/render_weapons.sh
 fi
 dir=screenshots/weapons
 work=$(mktemp -d)

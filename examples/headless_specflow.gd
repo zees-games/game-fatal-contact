@@ -113,7 +113,7 @@ func _test_spectate_and_back() -> void:
 	_step(4)
 	_check(_row(73).spectating and not _game.player_for(73).is_alive(), "Spectate takes her out of play, body gone", " / ".join(out))
 	_check(_row(73).present and _entities(73) == 1, "her scoreboard row stays and there is still one entity")
-	_check(_game.spectate.is_spectating(str(73)), "dot-spectate has her watching")
+	_check(_game.spectate.is_spectating(str(73)), "gs-spectate has her watching")
 	_step(200)
 	_check(not _game.player_for(73).is_alive(), "and she does not respawn by herself while out")
 	var again := await _switch("play")

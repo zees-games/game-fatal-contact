@@ -6,7 +6,7 @@ extends RigidBody3D
 ## physics.[/b] Everything else here — the player's collision, the shot tracing, the
 ## navigation — is analytic geometry from [FcMap], because analytic gives the same
 ## answer on a client replaying a tick and a server that ran it. Rigid bodies do not:
-## a contact solver is not reproducible across machines, which is why dot-props is
+## a contact solver is not reproducible across machines, which is why gs-props is
 ## server-authoritative and unpredicted and says so.
 ##
 ## So a prop is deliberately the exception, and the exception has a cost the game pays

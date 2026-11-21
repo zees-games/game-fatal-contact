@@ -201,7 +201,7 @@ func _test_the_map_menu() -> void:
 	var changed := await client.change_from_menu(StringName("mode:%s" % mode_id))
 	_check(changed.ok and client.game.mode.id == mode_id and client.game.map.id == wanted,
 		"and a mode changes on the same map", "%s: %s" % [mode_id, changed.error.message if not changed.ok else "ok"])
-	# The Tab board draws dot-match's records, not whatever the roster says: the client builds it
+	# The Tab board draws gs-match's records, not whatever the roster says: the client builds it
 	# before the match node is in the tree.
 	var present := client.game.match_node.scoreboard.present_count()
 	menu.close_all()

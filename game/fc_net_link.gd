@@ -1,6 +1,6 @@
 extends Node
 
-const _Perf := preload("res://addons/dot_game/runtime/dot_game_profiler.gd")
+const _Perf := preload("res://addons/gs_game/runtime/gs_game_profiler.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 
 ## The four remote calls this game needs, on one node that exists on both ends.
@@ -30,7 +30,7 @@ const CHANNEL := "arena.link"
 ## The node name both ends must use. It is the routing, so it is a constant.
 const NODE_NAME := &"Arena"
 
-## Everything here rides [constant GSTransport.Channel.STATE], which dot-server
+## Everything here rides [constant GSTransport.Channel.STATE], which gs-server
 ## reserves for exactly this and uses for nothing itself. Sharing chat's channel would
 ## make a burst of snapshots delay a chat line, and a chat line delay a snapshot.
 const CHANNEL_STATE := 1
@@ -264,12 +264,12 @@ func send_voice_frame(payload: PackedByteArray) -> void:
 		_net_voice_frame.rpc_id(1, payload)
 
 
-## One dot-map protocol message, server to one peer.
+## One gs-map protocol message, server to one peer.
 ##
 ## [b]A [Dictionary] rather than bytes, and it is the one thing on this link that is
-## not bit-packed.[/b] dot-map's messages are five kinds of announcement that happen a
+## not bit-packed.[/b] gs-map's messages are five kinds of announcement that happen a
 ## few times an hour — a bit-packed wire for them would be a second schema to keep in
-## step with dot-map's own, for a saving of about forty bytes per map change. The
+## step with gs-map's own, for a saving of about forty bytes per map change. The
 ## bit-packing exists for the snapshot, which is thirty-two of them a second.
 func send_map(peer_id: int, payload: Dictionary) -> void:
 	if peer_id <= 0 or not _can_send():

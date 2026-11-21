@@ -5,7 +5,7 @@ const FcMap := preload("../maps/fc_map.gd")
 
 ## Status effects in Fatal Contact, and the one line that makes them count.
 ##
-## [b]The whole of the integration is `resolver.adjust`.[/b] dot-combat has had that
+## [b]The whole of the integration is `resolver.adjust`.[/b] gs-combat has had that
 ## seam since it was written — "the extension point for a game mode's own arithmetic: a
 ## damage boost pickup, a round-start immunity, a mode where the leader takes double" —
 ## and until now nothing in this game filled it. So an attacker's crit and a victim's
@@ -14,7 +14,7 @@ const FcMap := preload("../maps/fc_map.gd")
 ## scaled damage anywhere else would have to be applied at every damage site, and the
 ## site somebody forgets is the bug.
 ##
-## [b]Nothing here owns a health value.[/b] dot-effects reports an amount and this
+## [b]Nothing here owns a health value.[/b] gs-effects reports an amount and this
 ## applies it through [GSHealth], which is what puts an afterburn tick through the same
 ## armour, the same rules and the same kill feed as a rifle round.
 ##
@@ -124,7 +124,7 @@ func _rules() -> GSEffectRules:
 ## How long `PROTECTED` lasts, from the mode rather than from a constant.
 ##
 ## The table used to carry two seconds. A free-for-all's `spawn_protection_sec` is 1.5
-## and the horde's is 2.5, so the effect disagreed with [GSHealth] and with dot-spawn in
+## and the horde's is 2.5, so the effect disagreed with [GSHealth] and with gs-spawn in
 ## every mode — in one direction in some and the other in the rest. Falls back to the old
 ## two seconds when there is no match to ask, which is what a self-test that builds the
 ## table alone gets.
@@ -152,7 +152,7 @@ static func table(rate: int, protection_ticks: int = 0) -> Array[GSEffectDef]:
 
 	# Spawn protection as an effect rather than as GSHealth's own flag, because this
 	# one has to stop the player CAPTURING as well: standing on a point, untouchable,
-	# is not a fight anybody can have. dot-objective's may_capture_fn is why.
+	# is not a fight anybody can have. gs-objective's may_capture_fn is why.
 	var protected := GSEffectDef.invulnerability(
 		PROTECTED, protection_ticks if protection_ticks > 0 else 2 * rate
 	)
@@ -169,7 +169,7 @@ static func table(rate: int, protection_ticks: int = 0) -> Array[GSEffectDef]:
 
 # --- The seam ---------------------------------------------------------------
 
-## dot-combat's per-hit hook. Mutates the damage in place, or refuses it.
+## gs-combat's per-hit hook. Mutates the damage in place, or refuses it.
 func adjust_damage(damage: GSDamage) -> void:
 	if manager == null or damage == null:
 		return
@@ -177,7 +177,7 @@ func adjust_damage(damage: GSDamage) -> void:
 	# [b]An administrator's slay is not a hit, and nothing here may veto it.[/b]
 	# `FcModTools.slay` switched god, buddha and `GSHealth`'s own spawn window off for
 	# the one event — and then this function refused it anyway, because spawn protection
-	# is three records and two of them are here: the `PROTECTED` effect and dot-spawn's
+	# is three records and two of them are here: the `PROTECTED` effect and gs-spawn's
 	# ledger. So a slay inside the first second and a half of a life answered "The slay
 	# was refused: invulnerable", which is exactly the spawn-camping griefer an admin
 	# reaches for slay to stop. Found writing headless_admin's blind-and-beacon section,
@@ -203,7 +203,7 @@ func adjust_damage(damage: GSDamage) -> void:
 		})
 		return
 
-	# [b]dot-spawn's ledger, asked here because this is the one hook there is.[/b]
+	# [b]gs-spawn's ledger, asked here because this is the one hook there is.[/b]
 	# `GSDamageResolver.adjust` is a single callable and this class owns it, so a second
 	# subsystem that wants a veto is a line in this function rather than a second hook —
 	# and a veto applied anywhere else is one applied at some damage sites and not

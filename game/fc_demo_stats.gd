@@ -1,6 +1,6 @@
 extends RefCounted
 
-## Records where real players stand (`place`) and how they aim (`engage`), for dot-bot's heatmap and aim statistics.
+## Records where real players stand (`place`) and how they aim (`engage`), for gs-bot's heatmap and aim statistics.
 ##
 ## Off unless `bot_record` is on. A bot is never a subject. An engagement starts when a player first has a living enemy in view and ends at their first hit or when the enemy has been out of view for a moment.
 

@@ -8,10 +8,10 @@ extends RefCounted
 ## each other agree because they all read the constants below, which is the only reason
 ## a rename cannot leave two of them counting different things under one name.
 ##
-## dot-stats' own note is worth repeating here because it decides what belongs in this
+## gs-stats' own note is worth repeating here because it decides what belongs in this
 ## file and what does not: [b]a stat is not a board.[/b] A board is one number per
 ## player, ordered; a stat is many numbers per player, accumulated, and nothing in
-## dot-stats orders anything. "Most kills" is a board over the [constant KILLS] stat and
+## gs-stats orders anything. "Most kills" is a board over the [constant KILLS] stat and
 ## it lives in [FcBoards].
 ##
 ## [codeblock]
@@ -23,7 +23,7 @@ extends RefCounted
 ## [/codeblock]
 
 # No `CHANNEL`: this is a schema of ids and two pure functions, and it has nothing to
-# report. The tracker that records against it is dot-stats', and logs there.
+# report. The tracker that records against it is gs-stats', and logs there.
 
 # --- Fighting --------------------------------------------------------------
 
@@ -62,7 +62,7 @@ const STOMPS := &"arena.stomps"
 
 ## Lifetime points, fed by GSStatsPoints (kills, headshots, streaks, assists, pickups).
 const POINTS := &"arena.points"
-## The published skill figure the site orders by (dot-stats' GSStatsRank).
+## The published skill figure the site orders by (gs-stats' GSStatsRank).
 const RANK_SCORE := &"rank_score"
 
 
@@ -85,7 +85,7 @@ static func ids() -> Array[StringName]:
 ## The schema a [GSStatsTracker] is given.
 ##
 ## [b]`publish` is off on everything except the eight figures a player page would
-## show.[/b] dot-stats defaults it off per stat deliberately — a server's counters are
+## show.[/b] gs-stats defaults it off per stat deliberately — a server's counters are
 ## the server's until somebody decides they are public — and the ones left unpublished
 ## here are inputs to an achievement rather than a number anybody reads: shots fired
 ## and shots hit exist so "hit 60% of your shots" is checkable, and publishing two
@@ -142,7 +142,7 @@ static func schema() -> GSStatsSchema:
 ##
 ## Derived rather than stored: a stored percentage is a number that can disagree with
 ## the two counters it came from, and this family has shipped that disagreement (the
-## merge rule duplicated between dot-stats and the backbone) often enough to know what
+## merge rule duplicated between gs-stats and the backbone) often enough to know what
 ## it costs.
 static func accuracy_of(values: GSStatsValues) -> float:
 	var fired := values.get_value(SHOTS_FIRED, 0.0)

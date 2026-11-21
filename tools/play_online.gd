@@ -92,7 +92,7 @@ class Pilot extends Node:
 
 	func _ready() -> void:
 		_rng.seed = 7
-		Input.action_press(&"dot_fps_forward")
+		Input.action_press(&"gs_fps_forward")
 		Input.action_press(&"arena_fire")
 
 	func _process(delta: float) -> void:
@@ -103,12 +103,12 @@ class Pilot extends Node:
 		if _t < _next:
 			return
 		_next = _t + _rng.randf_range(0.3, 1.2)
-		for a: StringName in [&"dot_fps_left", &"dot_fps_right", &"dot_fps_jump"]:
+		for a: StringName in [&"gs_fps_left", &"gs_fps_right", &"gs_fps_jump"]:
 			Input.action_release(a)
 		match _rng.randi_range(0, 3):
-			0: Input.action_press(&"dot_fps_left")
-			1: Input.action_press(&"dot_fps_right")
-			2: Input.action_press(&"dot_fps_jump")
+			0: Input.action_press(&"gs_fps_left")
+			1: Input.action_press(&"gs_fps_right")
+			2: Input.action_press(&"gs_fps_jump")
 
 
 var _profile_ok := false
@@ -117,10 +117,10 @@ var _profile_ok := false
 ## `--profile 1`: with the client connected to the dedicated server, the profiler's overlay, a recording and its report path
 ## must work, and the menu's Performance card must show (frame saved to screenshots/online/profiler_online.png).
 func _check_profiler(link: GSClientLink) -> void:
-	var prof: Object = GSRegistry.get_service(&"dot_profiler")
+	var prof: Object = GSRegistry.get_service(&"gs_profiler")
 	var menu: Object = _client.get(&"game_menu")
 	if prof == null:
-		print("PROFILE FAIL: no dot_profiler service")
+		print("PROFILE FAIL: no gs_profiler service")
 		return
 	prof.call(&"set_overlay_visible", true)
 	var started: GSResult = prof.call(&"start_recording", 3.0)

@@ -1,4 +1,4 @@
-# Fatal Contact: damage multiplier per hit group, over dot-combat's GSHitGroup.defaults() (head 4, neck 2, stomach 1.25,
+# Fatal Contact: damage multiplier per hit group, over gs-combat's GSHitGroup.defaults() (head 4, neck 2, stomach 1.25,
 # arm/leg/knee 0.75, hand/foot 0.5). Only the keys changed; delete one to fall back. fc_head_mult and friends still
 # override at run time.
 #

@@ -25,7 +25,7 @@ func _hud_keys() -> void:
 	if hud == null or presentation == null or presentation.bindings == null:
 		return
 	var table: GSMenuBindings = presentation.bindings
-	hud.keys[&"jump"] = table.key_for(&"dot_fps_jump")
+	hud.keys[&"jump"] = table.key_for(&"gs_fps_jump")
 	hud.keys[&"dash"] = table.key_for(FcBindings.DASH)
 	hud.keys[&"chat"] = table.key_for(FcBindings.CHAT)
 	hud.keys[&"scoreboard"] = table.key_for(FcBindings.SCOREBOARD)
@@ -33,8 +33,8 @@ func _hud_keys() -> void:
 	hud.keys[&"fire_mode"] = table.key_for(FcBindings.FIRE_MODE)
 	hud.keys[&"use"] = table.key_for(FcBindings.USE)
 	hud.keys[&"help"] = table.key_for(GSMenuBindings.HELP_ACTION)
-	hud.keys[&"maps"] = table.key_for(&"dot_menu_maps")
-	hud.keys[&"loadout"] = table.key_for(&"dot_menu_loadout") if loadout_menu != null else ""
+	hud.keys[&"maps"] = table.key_for(&"gs_menu_maps")
+	hud.keys[&"loadout"] = table.key_for(&"gs_menu_loadout") if loadout_menu != null else ""
 	hud.keys[&"launch"] = table.key_for(launch_action())
 	hud.keys[&"roam"] = table.key_for(FcBindings.ROAM)
 	for i in range(FcBindings.SLOTS.size()):
@@ -241,7 +241,7 @@ func _on_killview(clip: Dictionary, info: Dictionary) -> void:
 	shown["weapon"] = def.display_name if def != null and def.display_name != "" else weapon.capitalize()
 	var _started := killview.play(clip, shown)
 
-## Where a roster row's player stands, for dot-game's look-to-gag key (J, K).
+## Where a roster row's player stands, for gs-game's look-to-gag key (J, K).
 func _look_position(row: Dictionary) -> Variant:
 	if game == null:
 		return null
@@ -306,7 +306,7 @@ func _on_view_rules_changed() -> void:
 	if player != null:
 		_set_third_person(game.view_rules.resolve(player.third_person))
 
-## The camera's two guards from dot-core, once a player is adopted.
+## The camera's two guards from gs-core, once a player is adopted.
 func _guard_camera(p: FcPlayer) -> void:
 	if p == null or p.camera == null:
 		return
@@ -491,7 +491,7 @@ func _hear_the_local_player() -> void:
 		# The PREDICTED use, on the client that made it. Waiting for the server's
 		# confirmation would put the bang a round trip after the click, which is the one
 		# piece of feedback a player judges the whole game's responsiveness by -- and it
-		# is safe to predict for exactly the reason dot-fx is built the way it is: a sound
+		# is safe to predict for exactly the reason gs-fx is built the way it is: a sound
 		# never changes the simulation, so a shot the server later refuses cost a noise.
 		#
 		# FcPlayer.used rather than arsenal.used, because FcPlayer already forwards
@@ -527,7 +527,7 @@ func _build_interface() -> void:
 	hud.name = "Hud"
 	add_child(hud)
 	hud.build(game)
-	# The hit pulse at the screen's edge is dot-fx's hurt flash, drawn: so it obeys the
+	# The hit pulse at the screen's edge is gs-fx's hurt flash, drawn: so it obeys the
 	# player's "no flashes" and the flash rate limit like every other flash.
 	if presentation != null:
 		hud.flash_source = presentation.fx
@@ -540,19 +540,19 @@ func _build_interface() -> void:
 	GSLog.result(CHANNEL, "the server browser", listed)
 	browser.join_requested.connect(_on_join_requested)
 
-	# [b]dot-menu's menu, and the client still owns the pointer.[/b] The menu is told not to manage
+	# [b]gs-menu's menu, and the client still owns the pointer.[/b] The menu is told not to manage
 	# it: pointer lock needs a click in a browser, which only this client knows about.
 	game_menu = FcMenus.build(self, presentation, browser if listed.ok else null)
 	# The help card lists the server's commands only when it knows it is on a server; _offline is set before this runs.
 	FcMenus.set_help_online(game_menu.help, not _offline)
-	# The HUD in the menu's theme and at the player's HUD size, switched live (dot-menu 7). By
-	# name, so a client shell older than that still runs the game in dot-ui's dark default.
+	# The HUD in the menu's theme and at the player's HUD size, switched live (gs-menu 7). By
+	# name, so a client shell older than that still runs the game in gs-ui's dark default.
 	if game_menu.has_method(&"follow_hud"):
 		game_menu.call(&"follow_hud", hud, FcHud.accent_theme())
 	_touch = FcTouch.build(self, hud, _sampler, game.mobile_rules, game_menu.menu_button)
 	if GSPlatform.has_touch() and _touch.get(&"buttons") != null and platform.has_method(&"fit_touch_buttons"):
 		platform.call(&"fit_touch_buttons", _touch.buttons, FcTouch.LAYOUT)
-	# M: the maps and the modes (dot-menu's map menu).
+	# M: the maps and the modes (gs-menu's map menu).
 	if game_menu.has_method(&"use_maps"):
 		var maps: Variant = game_menu.call(&"use_maps", map_menu_rows, change_from_menu)
 		if maps is Object:
@@ -639,7 +639,7 @@ func _build_ragdolls() -> void:
 
 ## The profiler's game context and native timers, now if it is up and when it arrives if not.
 func _install_profiler_context() -> void:
-	var prof: Object = GSRegistry.get_service(&"dot_profiler")
+	var prof: Object = GSRegistry.get_service(&"gs_profiler")
 	if prof != null:
 		FcProfilerContext.install(prof, game, _bot_host(), presentation)
 		return
@@ -649,7 +649,7 @@ func _install_profiler_context() -> void:
 
 
 func _on_profiler_registered(svc_name: StringName, inst: Object) -> void:
-	if svc_name != &"dot_profiler":
+	if svc_name != &"gs_profiler":
 		return
 	GSRegistry.signals().service_registered.disconnect(_on_profiler_registered)
 	FcProfilerContext.install(inst, game, _bot_host(), presentation)
