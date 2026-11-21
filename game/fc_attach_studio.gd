@@ -7,6 +7,7 @@ extends "fc_attach_studio_state.gd"
 ## Everything but the 3D studio is drawn in two `_draw` passes: about ten nodes beside the model, nothing rebuilt per pick.
 
 const FcAttachIcons := preload("fc_attach_icons.gd")
+const LN2 := log(2.0)
 
 
 func _init() -> void:
@@ -348,8 +349,9 @@ func _process(delta: float) -> void:
 	if not is_visible_in_tree():
 		return
 	_time += delta
-	var k := 1.0 - exp(-delta * 3.0 / maxf(0.01, ease_seconds))
-	var slow := 1.0 - exp(-delta * 1.5 / maxf(0.01, ease_seconds))
+	var ease_s := maxf(0.01, ease_seconds)
+	var k := DotCameraSmoothing.blend(ease_s * LN2 / 3.0, delta)
+	var slow := DotCameraSmoothing.blend(ease_s * LN2 / 1.5, delta)
 	_open_t = move_toward(_open_t, 1.0, delta / 0.28)
 	_slot_t = move_toward(_slot_t, 1.0, delta / 0.22)
 	var stick := Vector2(Input.get_joy_axis(0, JOY_AXIS_RIGHT_X), Input.get_joy_axis(0, JOY_AXIS_RIGHT_Y))

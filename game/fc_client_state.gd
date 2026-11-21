@@ -157,7 +157,7 @@ var _aim_break := DotFpsAimBreak.new()
 var _hit_wobble_applied := Vector2.ZERO
 ## Degrees of a wall-run attach turn not yet applied to the view.
 var _view_turn_left := 0.0
-const VIEW_TURN_RATE := 22.0
+const VIEW_TURN_HALF_LIFE := 0.0315
 var _fire := DotWeaponCommand.new()
 
 ## A weapon slot the player asked for this tick, or 0 for "no change". Cleared once

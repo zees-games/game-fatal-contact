@@ -1,6 +1,8 @@
 @tool
 extends "fc_player_body.gd"
 
+const LN2 := log(2.0)
+
 ## The controller's state as drawn at [param alpha] through its last tick, from -1 to 2. `DotFpsController.render_state` blends the last two ticks, 0 to 1. A connected client's alpha leaves that range for a fifth of a second after a physics frame that ran no tick or
 ## two (`DotNetClock.render_alpha` keeps the drawing where it was and takes the slip up slowly), and clamped there the eye stood still or jumped a tick, which is what the slip handling is for. Past 1 it goes on along the last tick's step; below 0 it is between the
 ## two ticks before, from [member _position_two_back].
@@ -64,7 +66,7 @@ func _absorb_step(alpha: float, delta: float) -> float:
 	)
 	_step_offset += through * _step_rise - _step_drawn
 	_step_drawn = through * _step_rise
-	_step_offset *= exp(-delta / step_smooth_time)
+	_step_offset = DotCameraSmoothing.damp(_step_offset, 0.0, step_smooth_time * LN2, delta)
 	if absf(_step_offset) < 0.0005:
 		_step_offset = 0.0
 	return _step_offset

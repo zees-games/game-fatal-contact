@@ -325,7 +325,7 @@ func _present_flashlights() -> void:
 func _ease_view_turn(delta: float) -> void:
 	if _sampler == null or is_zero_approx(_view_turn_left):
 		return
-	var step := _view_turn_left if absf(_view_turn_left) < 0.1 else _view_turn_left * (1.0 - exp(-VIEW_TURN_RATE * delta))
+	var step := _view_turn_left if absf(_view_turn_left) < 0.1 else _view_turn_left * DotCameraSmoothing.blend(VIEW_TURN_HALF_LIFE, delta)
 	_view_turn_left -= step
 	_sampler.look_at_angles(_sampler.yaw + step, _sampler.pitch)
 
