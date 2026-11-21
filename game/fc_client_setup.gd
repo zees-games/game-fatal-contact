@@ -404,7 +404,10 @@ func _killcam_frame() -> void:
 			killcam_shots.record(float(killcam.now_fn.call()), bodies)
 		killcam.frame()
 	elif not again.is_empty():
-		var _posed: Dictionary = killcam.pose(again[0], again[1], again[2])
+		if killcam.has_method(&"repose"):  # dot_replay 11: skipped while the replay poses the bodies after this
+			var _r: Variant = killcam.call(&"repose")
+		else:
+			var _posed: Dictionary = killcam.pose(again[0], again[1], again[2])
 	_fade_for_replay(get_process_delta_time())
 	FcFrameProbe.add(&"c_killcam", t_cam)
 	_restore_hud_if_orphaned()
