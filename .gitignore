@@ -133,3 +133,5 @@ textures/orig/
 
 # Old boot screenshot dumps (no current tool writes here; kept out of the repo and packs)
 /shots_boot/
+/addons/dot_sql
+/addons/godot-sqlite
