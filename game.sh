@@ -273,6 +273,12 @@ run_sharded() {
     run_suite "$base" --merge $logs
 }
 
+# The Nightly Performance gate (addons/dot_game/tools/dot_game_perf_gate.sh): the latest recorded run against the budgets. Advisory
+# unless PERF_GATE=strict; PERF_GATE=off skips it. Skipped quietly where there is no `nightly`.
+perf_gate_step() {
+    PERF_GAME=fc bash addons/dot_game/tools/dot_game_perf_gate.sh
+}
+
 do_test() {
     # Everything after a literal `--` goes to each suite as user args (e.g. `test headless_maps -- --map=ID`).
     SUITE_ARGS=()
@@ -312,6 +318,8 @@ do_test() {
         fi
         run_suite "${scene%.tscn}" || fails=$((fails + 1))
     done
+
+    [ $# -eq 0 ] && { perf_gate_step || fails=$((fails + 1)); }
 
     echo
     [ "$fails" -eq 0 ] && { printf '%sall passed%s\n' "$GRN" "$OFF"; return 0; }
@@ -378,6 +386,9 @@ case "$cmd" in
     netchaos)
         [ -x tools/netchaos.sh ] || die "$GAME_NAME has no netchaos rig." 2
         exec tools/netchaos.sh "$@"
+        ;;
+    perf-gate)
+        perf_gate_step
         ;;
     suites)
         if [ "${1:-}" = "--shards" ]; then
