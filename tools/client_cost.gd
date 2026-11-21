@@ -15,6 +15,7 @@ var _seconds := 15.0
 var _variants: PackedStringArray = ["before", "default", "full", "bare"]
 var _client: Node = null
 var _rounds := 3
+var _map := ""
 
 
 func _ready() -> void:
@@ -29,6 +30,7 @@ func _ready() -> void:
 				# Fewer, cheaper sim ticks per frame so the frame is mostly presentation (a GPU machine's 150+ fps).
 				Engine.physics_ticks_per_second = maxi(1, int(args[i + 1]))
 				Engine.max_physics_steps_per_frame = 1
+			"--map": _map = args[i + 1]
 			"--rounds": _rounds = maxi(1, int(args[i + 1]))
 	var _scratch := FcPresentation.use_scratch_settings("client_cost")
 	_run.call_deferred()
@@ -52,6 +54,7 @@ func _run() -> void:
 			remotes += 1
 	print("CLIENT_COST bots %d remotes %d" % [_bots, remotes])
 	_census()
+	_tree_census()
 	# Interleaved rounds, so a machine that speeds up or slows down mid-run hits every variant alike.
 	var acc := {}
 	for round_i in _rounds:
@@ -172,3 +175,48 @@ func _count(node: Node, c: Dictionary) -> void:
 		c.audio += 1
 	for ch in node.get_children():
 		_count(ch, c)
+
+
+## Whole-tree breakdown: nodes per class, and per script/class the nodes that process (process or physics_process on) split into visible-in-tree and hidden-or-offscreen-owner.
+## Lines: `CENSUS_CLASS name count`, `CENSUS_PROC key processing hidden_processing total_with_script` (key = script file or class), `CENSUS_TOTAL nodes processing hidden_processing`.
+func _tree_census() -> void:
+	var classes := {}
+	var procs := {}
+	var tot := [0, 0, 0]
+	_walk(get_tree().root, true, classes, procs, tot)
+	var names := classes.keys()
+	names.sort_custom(func(a, b): return classes[a] > classes[b])
+	for n in names:
+		print("CENSUS_CLASS %s %d" % [n, classes[n]])
+	var keys := procs.keys()
+	keys.sort_custom(func(a, b): return procs[a][0] > procs[b][0])
+	for k in keys:
+		print("CENSUS_PROC %s %d %d %d" % [k, procs[k][0], procs[k][1], procs[k][2]])
+	print("CENSUS_TOTAL %d %d %d (engine node count %d, orphans %d, skeletons %d)" % [tot[0], tot[1], tot[2], Performance.get_monitor(Performance.OBJECT_NODE_COUNT), Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT), classes.get("Skeleton3D", 0)])
+
+
+func _walk(node: Node, vis: bool, classes: Dictionary, procs: Dictionary, tot: Array) -> void:
+	var v := vis
+	if node is Node3D:
+		v = vis and (node as Node3D).visible
+	elif node is CanvasItem:
+		v = vis and (node as CanvasItem).visible
+	var cls := node.get_class()
+	classes[cls] = classes.get(cls, 0) + 1
+	tot[0] += 1
+	var proc := node.is_processing() or node.is_physics_processing()
+	var scr: Script = node.get_script()
+	var key: String = scr.resource_path.get_file() if scr != null and scr.resource_path != "" else cls
+	if proc:
+		tot[1] += 1
+		if not v:
+			tot[2] += 1
+	var e: Array = procs.get(key, [0, 0, 0])
+	if proc:
+		e[0] += 1
+		if not v:
+			e[1] += 1
+	e[2] += 1
+	procs[key] = e
+	for ch in node.get_children(true):
+		_walk(ch, v, classes, procs, tot)

@@ -434,7 +434,7 @@ func _record_begin() -> void:
 				say("proc census remote player %s" % JSON.stringify(ProcSplit.census(p as Node)))
 				say("proc census remote player tree %s" % JSON.stringify(_subtree_sizes(p as Node, 9)))
 				break
-		say("proc census root tree %s" % JSON.stringify(_subtree_sizes(get_tree().root, 3, 20)))
+		say("proc census root tree %s" % JSON.stringify(_subtree_sizes(get_tree().root, 6, 30)))
 		_proc_split = ProcSplit.new()
 		add_child(_proc_split)
 	DotFpsPhysicsBody.profile = _queries
@@ -607,6 +607,12 @@ func _apply_ablate() -> void:
 							c.set("visible", false)
 							hidden += 1
 					say("nohud: %d HUD children hidden" % hidden)
+			"skelmanual":
+				var n_sk := 0
+				for sk in get_tree().root.find_children("*", "Skeleton3D", true, false):
+					(sk as Skeleton3D).modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL
+					n_sk += 1
+				say("skelmanual: %d skeletons set to manual" % n_sk)
 			"nobots":
 				for p: Object in client.get("game").call("players"):
 					if p.get("camera") == null:
