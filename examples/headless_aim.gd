@@ -5,6 +5,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcBindings := preload("../game/fc_bindings.gd")
 const FcScopePrefs := preload("../game/fc_scope_prefs.gd")
+const FcScopeBody := preload("../game/fc_scope_body.gd")
 
 ## Hit registration end to end: a still target at 20, 40 and 80 m, the aim centred on its head, a scoped sniper
 ## fired. The shot must land on the head (a headshot, a confirmed hit), standing and crouched, on the first shot
@@ -16,7 +17,7 @@ const FcScopePrefs := preload("../game/fc_scope_prefs.gd")
 
 const TICK_RATE := 64
 const DISTANCES := [20.0, 40.0, 80.0]
-const EXPECTED_CHECKS := 45
+const EXPECTED_CHECKS := 50
 
 var _checks := 0
 var _failed := 0
@@ -134,6 +135,8 @@ func _run() -> void:
 	_check(FcScopePrefs.default_mode(true) == 2, "web: cl_scope_mode defaults to the full-screen scope (2)")
 	_check(FcScopePrefs.default_mode(false) == 1, "native: cl_scope_mode defaults to the lens (1)")
 	_check(FcScopePrefs.mode == FcScopePrefs.default_mode(OS.has_feature("web")), "cl_scope_mode starts at this platform's default")
+	_check(FcScopeBody.default_body(true) and FcScopeBody.default_body(false), "cl_scope_body defaults on, web and native")
+	_scope_bodies()
 	await _boot()
 	var shooter := _game.player_for(1)
 	var give := shooter.arsenal.give(AwWeaponIds.SNIPER)
@@ -166,6 +169,41 @@ func _run() -> void:
 	var ok := _failed == 0 and _checks == EXPECTED_CHECKS
 	print("%d checks, %d failed (expected %d)" % [_checks, _failed, EXPECTED_CHECKS])
 	get_tree().quit(0 if ok else 1)
+
+
+## Every weapon row equips a view model; every scoped one, aimed in the lens view with this machine's cl_scope_body,
+## keeps its gun drawn with the zoom in its own ocular. Without that the lens view hides the gun and draws a bare circle.
+func _scope_bodies() -> void:
+	var camera := Camera3D.new()
+	add_child(camera)
+	var rows: Dictionary = AwWeaponArt.weapon_rows("")
+	var unequipped: Array[String] = []
+	var bare: Array[String] = []
+	var scoped := 0
+	for id: StringName in rows:
+		var view := AwViewModel.new()
+		view.show_arms = false
+		view.scope_mode = AwViewModel.SCOPE_LENS
+		camera.add_child(view)
+		var art := AwWeaponVisual.make(id)
+		if art != null:
+			AwArtDress.apply(art, rows[id])
+		if art == null or not view.equip(art).ok:
+			unequipped.append(String(id))
+		elif view.has_scope():
+			scoped += 1
+			view.aim(true)
+			for _i in 80:
+				view._process(0.02)
+				FcScopeBody.apply(view)
+			if not (view.is_scoped() and view.scope_body_active() and view._animated.visible):
+				bare.append(String(id))
+		view.queue_free()
+	camera.queue_free()
+	_check(rows.size() > 0, "weapon rows load", str(rows.size()))
+	_check(unequipped.is_empty(), "every weapon equips a view model", ", ".join(unequipped))
+	_check(scoped > 0, "some weapons are scoped", str(scoped))
+	_check(bare.is_empty(), "every scoped weapon keeps its gun in the lens view (scope body, ocular)", ", ".join(bare))
 
 
 func _select_sniper(shooter: FcPlayer) -> void:

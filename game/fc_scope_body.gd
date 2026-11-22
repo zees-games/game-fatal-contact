@@ -3,14 +3,34 @@ extends RefCounted
 ## cl_scope_body: draw a lens-mode scope as the gun's own scope (body, ocular and magnified glass) rather than a
 ## flat circle over a hidden gun. Its own script, not FcScopePrefs: a static var there would sit in dot-weapon's shared prefs.
 
-## On by default off the web; the web build keeps the flat lens it had.
-static var body := not OS.has_feature("web")
+const CHANNEL := &"fc.scope"
+
+## On everywhere. Off, the lens view hides the gun and arms and draws only a flat circle: on the web build (where it was
+## off) a scoped sniper showed a lens over nothing (2026-11-22).
+static var body := default_body(OS.has_feature("web"))
+
+## Scope styles already reported as having no ocular, so the warning prints once per weapon, not every frame.
+static var _warned: Dictionary = {}
+
+
+## The scope-body default for a platform: on for both, so the scoped gun is never hidden behind a bare lens.
+static func default_body(_web: bool) -> bool:
+	return true
 
 
 ## Gives [param model] this machine's scope-body choice; a view model without the setting (an older fc-weapons) is left alone.
+## A scoped lens view that wants the body but cannot draw it (its weapon has no `ocular`) is logged once: that is a bare lens.
 static func apply(model: Object) -> void:
-	if model != null and &"scope_body" in model:
-		model.set(&"scope_body", body)
+	if model == null or not &"scope_body" in model:
+		return
+	model.set(&"scope_body", body)
+	if body and model.has_method(&"scope_body_active") and model.call(&"is_scoped") and model.call(&"scope_is_lens") \
+			and not model.call(&"scope_body_active"):
+		var style: Dictionary = model.call(&"scope_style")
+		var key := str(style.hash())
+		if not _warned.has(key):
+			_warned[key] = true
+			DotLog.error(CHANNEL, "scoped lens view with no scope body: the gun and arms are hidden (the weapon's scope style has no ocular)", {"style": str(style)})
 
 
 ## Registers `cl_scope_body` on [param local] (a DotConsoleLocal).

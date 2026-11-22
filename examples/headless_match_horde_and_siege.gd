@@ -648,6 +648,7 @@ const SPACE_QUERY_FILES := {
 	"game/fc_surf.gd": "tick",
 	"game/fc_client.gd": "client",
 	"game/fc_kill_pov_view.gd": "client",
+	"game/fc_nameplate_view.gd": "client",
 	"game/fc_player.gd": "client",
 	"game/fc_player_build.gd": "client",
 	"game/fc_presentation_vars_and_frame.gd": "client",
