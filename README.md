@@ -241,6 +241,7 @@ The next-map vote is [gs-vote](https://github.com/gamespice-platform/vote). The 
 
 | Asset | Author / source | License | Where |
 | --- | --- | --- | --- |
+| Godot Engine logo (boot splash) | Andrea Calabró, [godotengine.org](https://godotengine.org/press/) | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | `branding/splash.png` |
 | Players and bots | Quaternius, [Zombie Apocalypse Kit](https://quaternius.com/packs/zombieapocalypsekit.html) | CC0 1.0 | [gs-player-char](https://github.com/gamespice-platform/player-char) |
 | Avatar parts and horde monsters | Kenney, character kit skins | CC0 | generated from gs-player-char |
 | Team body "fc_swat" (team avatars, not in this repository) | SpatialNeglect, after bobeer, VassKacsoHunor, Simon Coenen, Bzovius, Albin, Shedmon and h1ggs | CC BY 4.0 | a private `fc_swat.glb` in `fc_team_body_dirs`, [docs/client.md](docs/client.md#avatars) |
