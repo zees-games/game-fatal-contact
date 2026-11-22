@@ -5,6 +5,8 @@ extends "weapon_lab.gd"
 ## The avatar_* clips (walk, strafe, run, crouch, jump) move the player with the weapon held, for the body's locomotion.
 ## Per clip it prints an `ANIMREVIEW {json}` verdict line and an `ANIMFRAMES {json}` line with every frame's numbers (both travel on stdout, since a GPU box only sends PNGs back).
 
+const Solid := preload("anim_review_solid.gd")
+
 ## Your own body draws only in the third-person view; the arms only in the first-person one.
 const BODY_LAYER := 1 << 18
 const ARMS_LAYER := 1 << 17
@@ -291,7 +293,8 @@ func _arm_seen(cam: Camera3D, at: Dictionary, side: String) -> bool:
 
 
 ## How deep the arm bones (elbow to just short of the wrist) sink into any one part of the weapon (receiver, scope,
-## magazine): the union of the parts' boxes takes in the air under a scope, where a forearm belongs.
+## magazine): the union of the parts' boxes takes in the air under a scope, where a forearm belongs, and one part's box
+## takes in the air in its own notches (under an smg's receiver behind its grip), so the part's mesh must close round the point.
 func _inside_weapon(weapon: Node3D, at: Dictionary, sides: Array = [".R", ".L"]) -> float:
 	var worst := 0.0
 	for part in weapon.find_children("*", "MeshInstance3D", true, false):
@@ -307,9 +310,7 @@ func _inside_weapon(weapon: Node3D, at: Dictionary, sides: Array = [".R", ".L"])
 			for k in 7:
 				var p: Vector3 = to_part * (at["LowerArm" + side] as Vector3).lerp(at["Middle1" + side], float(k) / 10.0)
 				if box.has_point(p):
-					var lo := (p - box.position) * scale
-					var hi := (box.end - p) * scale
-					worst = maxf(worst, minf(minf(minf(lo.x, hi.x), minf(lo.y, hi.y)), minf(lo.z, hi.z)))
+					worst = maxf(worst, Solid.depth(mesh.mesh, p, scale))
 	return worst
 
 
