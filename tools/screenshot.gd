@@ -18,6 +18,17 @@ func _initialize() -> void:
 		if not added.ok:
 			push_error("--mounted: %s" % added.error.message)
 	var map: FcMap = FcMap.by_id(id)
+	# `--tier N` renders at the video setting's texture quality N (0 low .. 3 ultra): shots get a `_tN` suffix and the video memory the renderer holds is printed once the frames are out.
+	var tier_at := args.find("--tier")
+	var tier_suffix := ""
+	if tier_at >= 0 and tier_at + 1 < args.size():
+		GSMapTextureTier.current_quality = clampi(int(args[tier_at + 1]), 0, GSMapTextureTier.LEVELS - 1)
+		tier_suffix = "_t%d" % GSMapTextureTier.current_quality
+		create_timer(8.0).timeout.connect(func() -> void:
+			print("TIER_VRAM tier=%d texture_mb=%.1f buffer_mb=%.1f video_mb=%.1f" % [GSMapTextureTier.current_quality,
+					Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
+					Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED) / 1048576.0,
+					Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0]))
 
 	if map == null:
 		push_error("no such map: %s. Known: %s" % [String(id), FcMap.ids()])
@@ -90,17 +101,17 @@ func _initialize() -> void:
 	# whether there is a map; eye level says whether it is a space a person could be inside of.
 	_shots = [
 		{
-			"name": "%s_overview" % String(id),
+			"name": "%s_overview%s" % [String(id), tier_suffix],
 			"from": Vector3(-far, map.extent * 1.15, -far),
 			"at": Vector3.ZERO,
 		},
 		{
-			"name": "%s_eye" % String(id),
+			"name": "%s_eye%s" % [String(id), tier_suffix],
 			"from": Vector3(-map.extent * 0.72, 1.7, -map.extent * 0.55),
 			"at": Vector3(0.0, 3.0, 0.0),
 		},
 		{
-			"name": "%s_roof" % String(id),
+			"name": "%s_roof%s" % [String(id), tier_suffix],
 			"from": Vector3(map.extent * 0.62, 12.0, map.extent * 0.62),
 			"at": Vector3(0.0, 3.0, 0.0),
 		},

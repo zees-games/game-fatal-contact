@@ -223,6 +223,8 @@ class Painter:
 		if ResourceLoader.exists(SURFACES_SCRIPT) \
 				and ResourceLoader.exists(FcPaths.rebase(SURFACES_ROOT) + "/concrete/albedo.jpg"):
 			_surfaces = (load(SURFACES_SCRIPT) as GDScript).new(FcPaths.rebase(SURFACES_ROOT))
+			# The video setting's texture quality caps these photographs too (GSMapTextureTier.follow, FcPresentationSetup).
+			GSMapTextureTier.apply_current(_surfaces)
 		return _surfaces
 
 	func box(colour: Color) -> StandardMaterial3D:

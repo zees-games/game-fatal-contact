@@ -238,6 +238,8 @@ func _build_settings() -> GSResult:
 	if not res.ok:
 		return res.wrap("Fatal Contact's settings")
 	settings.changed.connect(_on_setting_changed)
+	# The video setting's texture quality caps the map art the next map loads (512 / 1024 / 2048 / unlimited).
+	GSMapTextureTier.follow(settings)
 	return GSResult.success(null)
 
 

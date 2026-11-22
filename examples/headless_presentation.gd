@@ -2,6 +2,7 @@ extends "headless_presentation_bodies_and_map_menu.gd"
 
 const FcFlashlight := preload("../game/fc_flashlight.gd")
 const FcTeamBodies := preload("../game/fc_team_bodies.gd")
+const FcMapPaint := preload("../maps/fc_map_paint.gd")
 const FcNewerApi := preload("../game/fc_newer_api.gd")
 
 
@@ -56,6 +57,7 @@ func _run() -> void:
 	await _test_the_loadout_menu()
 	_test_click_keeps_modal_pointer()
 	await _test_the_hud_follows_the_theme()
+	_test_texture_quality_reaches_the_map_art()
 
 	print("")
 	_check(
@@ -440,4 +442,30 @@ func _test_team_bodies_fall_back() -> void:
 		assets.set(&"team_tint", 0.5)
 		_check(is_equal_approx(float(assets.get(&"team_tint")), 0.5), "gs-player-char's team tint is set through its class found by name", str(assets.get(&"team_tint")))
 		assets.set(&"team_tint", was)
+	_done()
+
+
+func _test_texture_quality_reaches_the_map_art() -> void:
+	_section("The video setting's texture quality caps the map art")
+	var p := _make(false)
+	GSMapTextureTier.current_quality = -1
+	p.settings.set_value(&"texture_quality", 3)
+	var q: int = int(p.settings.get_value(&"texture_quality"))
+	GSMapTextureTier.follow(p.settings)
+	_check(GSMapTextureTier.current_quality == int(q), "the presentation's settings drive the tier", str(GSMapTextureTier.current_quality))
+	p.settings.set_value(&"texture_quality", 0)
+	var s := GSMapSurfaces.new()
+	var applied: Dictionary = GSMapTextureTier.apply_current(s)
+	_check(GSMapTextureTier.current_quality == 0 and s.max_texture_size == 512 and not applied.is_empty(), "low texture quality caps the map's surfaces at 512", str(s.max_texture_size))
+	p.settings.set_value(&"texture_quality", 3)
+	var u := GSMapSurfaces.new()
+	GSMapTextureTier.apply_current(u)
+	_check(u.max_texture_size == 0, "ultra leaves them unlimited", str(u.max_texture_size))
+	GSMapTextureTier.current_quality = 1
+	var painter := FcMapPaint.Painter.new()
+	painter.role_box(FcMapPaint.Role.WALL, Color.WHITE)
+	var lib: Object = painter._surfaces
+	_check(lib != null and int(lib.get(&"max_texture_size")) == 1024, "the built-in maps' photographs take the medium cap", str(lib.get(&"max_texture_size")) if lib != null else "no library")
+	GSMapTextureTier.current_quality = -1
+	p.queue_free()
 	_done()
