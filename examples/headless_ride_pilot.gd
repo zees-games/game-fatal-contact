@@ -14,8 +14,9 @@ const FcSurfRides := preload("../game/fc_surf_rides.gd")
 ## line, and since bbd7f76 replanned ski_2 for the 72-unit hull its edge 6 no longer lands at 64 Hz.
 const TICK_RATE := 66
 const RIDE_MAP := &"surf_ski_2"
-## An edge that lands from the lip at rest (same as headless_imported's RECORD_EDGE).
-const EDGE := 6
+## An edge that lands from the lip at rest (headless_imported_rides' RECORD_EDGES). e171d42d replanned ski_2 on the current
+## motor: its edges 2, 5, 6 and 7 find no ride any more (edge 6 was linked before), 0, 1, 3 and 4 do.
+const EDGE := 0
 const SECTIONS := 1
 const CHECKS := 12
 
