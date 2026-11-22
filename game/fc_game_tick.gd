@@ -30,7 +30,7 @@ func _hurt_from_map() -> void:
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
 		var state := player.controller.state
-		if not player.is_alive() or state.mode == GSFpsState.Mode.NOCLIP:
+		if not player.health.alive or state.mode == GSFpsState.Mode.NOCLIP:
 			continue
 
 		for i in map.mechanics.hurts_at(state.position, player.controller.tunables, state.crouch_fraction):
@@ -43,7 +43,7 @@ func _hurt_from_map() -> void:
 			if amount < 0.0:
 				var _healed := player.health.heal(-amount)
 				continue
-			if amount == 0.0 or not player.is_alive():
+			if amount == 0.0 or not player.health.alive:
 				continue
 
 			var damage := GSDamage.make(0, id, amount, combat.damage_type(FcContent.DAMAGE_WORLD))
@@ -79,7 +79,7 @@ func _sync_round_freeze() -> void:
 	_round_frozen_want = want
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
-		if want and player.is_alive():
+		if want and player.health.alive:
 			_freeze_for_round(id, player)
 		elif _round_frozen_ids.has(id):
 			_release_from_round(id, player)
@@ -91,7 +91,7 @@ func _advance_toys(delta: float) -> void:
 		return
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
-		if not player.is_alive():
+		if not player.health.alive:
 			continue
 		var state := player.controller.state
 		var tunables := player.controller.tunables
@@ -143,7 +143,7 @@ func _begin_hull_world() -> Object:
 			_hull_world_data[o + 2] = feet.z
 			_hull_world_data[o + 3] = tunables.radius
 			_hull_world_data[o + 4] = tunables.stand_height
-			flags = 1 | (2 if p.is_alive() else 0)
+			flags = 1 | (2 if p.health.alive else 0)
 			var native := bind and (not lagged or (lags_known and not bool(remote_lags_fn.call(_roster_ids[i]))))
 			if p.use_hull_world(_hull_world, i, native) and native:
 				flags |= 4
@@ -170,7 +170,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
 
-		if not player.is_alive():
+		if not player.health.alive:
 			continue
 
 		if fine:
@@ -202,7 +202,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 			if hull_world != null:
 				var feet := player.controller.state.position
 				hull_world.moved(player.hull_slot, feet.x, feet.y, feet.z)
-				hull_world.set_alive(player.hull_slot, player.is_alive())
+				hull_world.set_alive(player.hull_slot, player.health.alive)
 			if demo_stats != null:
 				demo_stats.call(&"after", id, player, move, fire, _tick)
 			shots.append_array(outcome.shots)
@@ -239,7 +239,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		var id: int = ids[i]
 		var player: FcPlayer = _players[id]
 		_batch_rows[i] = -1
-		if not player.is_alive():
+		if not player.health.alive:
 			continue
 		if fine:
 			t_fine = Time.get_ticks_usec()
@@ -289,7 +289,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		var id: int = ids[i]
 		var player: FcPlayer = _players[id]
 		var controller := player.controller
-		if not player.is_alive():
+		if not player.health.alive:
 			# Killed by an earlier player's turn after its own tick was prepared.
 			FcHullGrid.batch_faults += 1
 			if row >= 0:
@@ -368,7 +368,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 	if fine:
 		t_fine = FcFrameProbe.lap(&"po_grid", t_fine)
 	var feet := controller.state.position
-	var alive := player.is_alive()
+	var alive := player.health.alive
 	if not told or feet != rested:
 		hull_world.moved(player.hull_slot, feet.x, feet.y, feet.z)
 	if not alive:

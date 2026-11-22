@@ -74,7 +74,7 @@ func _add_hulls_local(out: Array, cand: Array, id: int, me_at: Vector3, coarse: 
 		var feet := ctl.state.position
 		if feet.distance_squared_to(me_at) > coarse:
 			continue
-		if not other.is_alive():
+		if not other.health.alive:
 			continue
 		if paired:
 			var known: int = _pair_memo[row + i] if row >= 0 else 0
@@ -118,7 +118,7 @@ func _add_hull(out: Array, i: int, id: int, me_at: Vector3, near: bool, coarse: 
 	var feet := ctl.state.position
 	if near and feet.distance_squared_to(me_at) > coarse:
 		return
-	if not body_rules.blocks(id, other_id) or not other.is_alive():
+	if not body_rules.blocks(id, other_id) or not other.health.alive:
 		return
 	if remote:
 		var at: Variant = remote_feet_fn.call(other_id, id, tick)
@@ -266,7 +266,7 @@ func make_killview_server() -> GSKillViewServer:
 		var eyes: Array = []
 		var eye_up := Vector3(0.0, FcPlayer.eye_height(), 0.0)
 		for p: FcPlayer in players():
-			if not p.is_alive() or p.controller == null or p.controller.state == null:
+			if not p.health.alive or p.controller == null or p.controller.state == null:
 				continue
 			# Only the eyes the ring keeps this tick: one tick in three at 66 ticks and 30 Hz.
 			if not due.check(p.player_id):

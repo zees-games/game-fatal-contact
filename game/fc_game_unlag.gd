@@ -12,7 +12,7 @@ func _resolve_stomps() -> void:
 	var gathered := false
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
-		if not _pre_vy.has(id) or not player.is_alive():
+		if not _pre_vy.has(id) or not player.health.alive:
 			continue
 		if -float(_pre_vy[id]) < stomp.rules.min_speed:
 			continue
@@ -55,7 +55,7 @@ func _gather_stomp_hulls() -> void:
 	var teamed := not teams().is_empty()
 	for id in player_ids():
 		var other: FcPlayer = _players[id]
-		if not other.is_alive() or other.controller == null:
+		if not other.health.alive or other.controller == null:
 			continue
 		_st_ids.append(id)
 		_st_feet.append(other.controller.state.position)
@@ -155,7 +155,7 @@ func _unlag_rewind(view_tick: float) -> void:
 		if id == _unlag_shooter:
 			continue
 		var player: FcPlayer = _players[id]
-		if not player.is_alive():
+		if not player.health.alive:
 			continue
 		# A hitscan shot: where the shooter's screen blended them, when the command named its two snapshots.
 		var then: Variant = shot_feet_fn.call(id, _unlag_shooter, view_tick) if _unlag_shot and shot_feet_fn.is_valid() else null
@@ -215,12 +215,17 @@ func _unlag_record() -> void:
 		# on a copy and the history stays empty (it did, the first time).
 		var positions: PackedVector3Array = ring[0]
 		var ticks: PackedInt32Array = ring[1]
+		var crouches: PackedFloat32Array = ring[2]
+		# The ring's own references are dropped while the three are written, so each write is in place: with them
+		# held, every write copies the whole 128-slot array (three copies per player per tick).
+		ring[0] = null
+		ring[1] = null
+		ring[2] = null
 		var slot := _tick % ticks.size()
 		var before := (_tick - 1) % ticks.size()
 		# A respawn or a teleport: rewinding across it would stand hitboxes where they died.
 		if ticks[before] == _tick - 1 and positions[before].distance_to(player.global_position) > TELEPORT_CUT:
 			ticks.fill(-1)
-		var crouches: PackedFloat32Array = ring[2]
 		positions[slot] = player.global_position
 		ticks[slot] = _tick
 		crouches[slot] = player.controller.state.crouch_fraction if player.controller != null else 0.0
