@@ -407,8 +407,12 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 	for i in frames.size():
 		var f := frames[i]
 		var steady: bool = not f.get("switching", false)
+		var scoped: bool = f.get("scoped", false)
 		for k in ["hand_error", "intersect", "near", "cut"]:
-			if k == "intersect" and (f.get("aim_moving", false) or f.get("scoped", false) or not steady):
+			if k == "intersect" and (f.get("aim_moving", false) or scoped or not steady):
+				continue
+			# Down a scope the arms are not drawn (arms_hidden_by_scope): where they are, and whether the hand holds the grip, is not on screen.
+			if scoped and k in ["hand_error", "near"]:
 				continue
 			if f.has(k) and float(f[k]) > float(worst[k]):
 				worst[k] = float(f[k])
@@ -417,9 +421,9 @@ func _judge(frames: Array[Dictionary]) -> Dictionary:
 		if steady and f.has("weapon") and float(f.get("deploy", 1.0)) >= 0.99 and float(f.get("aim", 0.0)) < 0.02 and -float(f["weapon"][2]) > float(worst["hold_m"]):
 			worst["hold_m"] = -float(f["weapon"][2])
 			first["hold_m"] = i
-		if float(f.get("hand_error", 0.0)) > LIMITS["detach_m"]:
+		if float(f.get("hand_error", 0.0)) > LIMITS["detach_m"] and not scoped:
 			counts["detached"] += 1
-		if float(f.get("hand_swap", 0.0)) > 0.04:
+		if float(f.get("hand_swap", 0.0)) > 0.04 and not scoped:
 			counts["wrong_hand"] += 1
 			first["wrong_hand"] = first.get("wrong_hand", i)
 		# Mid aim-in the gun sweeps across the view and the arm passes through a sideways line for one frame, the hand moving
