@@ -16,7 +16,7 @@ const DrawCensus := preload("draw_census.gd")
 
 ## The 16v16 benchmark: gs-game's GSGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--pilot-view sweep` (the pilot's look turns through the whole compass instead of swaying on one wall: the owner's draw counts need it), `--pilot-view tour` (the pilot is teleported through the spawn points; offline only, a sim host's reconcile puts it back), `--pilot-view fixed` (the drawn camera is the bench's: every spawn point at eye height, one turn each, the whole pass as long as `--seconds`; draws repeat run to run, the perf gate's view), `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--brain-us 1` (GSBotBrain.think phases, as brain.bb_*), `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: gs-player-char's ragdoll bone pose in gs-sim (GSSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: gs-bot's native mind (GSSimBotMind: aim, fight step, perception) off or on; without the gs-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
 ## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--world-shadow 0|1`, `--world-shadow-cell M` (r_world_shadow, r_world_shadow_cell), `--central-tick 0|1` (cl_held_central_tick), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender, rstate). `--census-every S` (`--census-top N`): a `census` line every S seconds of the recorded window, the draws and the geometry groups by triangles (tools/draw_census.gd), so a spike is caught as it happens. `--first-use 1` (gs-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
-## `--first-use-only a,b` for some ids; rows also: hit, kill, death, `reload ID` (`--first-use-reload 0` skips), a thrown weapon's shot over `--first-use-thrown-frames N` frames (default 240: the fuse and blast), `npc ID` and `npc kill ID` with a horde mode such as `--mode siege`); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose); `--proc-ablate a,b --proc-slice N` (with --proc-split 1): each named group off for slices of N frames (default 40) between base slices, its ms/frame against them (tools/proc_slices.gd lists the groups; `own:<script>` / `sub:<script>` for one script's nodes). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (gs-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms. `--lazy-models 1`: the client defers the models of weapons nobody carries until after the cover, as the web build does (FcClient defer_models_everywhere), and the bench does not read them all ahead, so `--first-use 1` prices those first equips. `--warm-list 1`: after the first-use rows, a `WARM_LIST <path>` line for every script loaded so far that the cover warms anyway (GSCloudSliceLoader.cached_scripts; pack scripts and addon classes; tools/record_warm_list.sh turns them into warm.txt).
+## `--first-use-only a,b` for some ids; `--first-use-spans 1`: the kill and death rows print the FcFrameProbe sections of every frame over 18 ms (SPANS lines); rows also: hit, kill, death, `reload ID` (`--first-use-reload 0` skips), a thrown weapon's shot over `--first-use-thrown-frames N` frames (default 240: the fuse and blast), `npc ID` and `npc kill ID` with a horde mode such as `--mode siege`); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose); `--proc-ablate a,b --proc-slice N` (with --proc-split 1): each named group off for slices of N frames (default 40) between base slices, its ms/frame against them (tools/proc_slices.gd lists the groups; `own:<script>` / `sub:<script>` for one script's nodes). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (gs-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms. `--lazy-models 1`: the client defers the models of weapons nobody carries until after the cover, as the web build does (FcClient defer_models_everywhere), and the bench does not read them all ahead, so `--first-use 1` prices those first equips. `--warm-list 1`: after the first-use rows, a `WARM_LIST <path>` line for every script loaded so far that the cover warms anyway (GSCloudSliceLoader.cached_scripts; pack scripts and addon classes; tools/record_warm_list.sh turns them into warm.txt).
 
 var _pilot := true
 var _motor_us := false
@@ -41,6 +41,8 @@ var _proc_split: ProcSplit = null
 var _proc_slices: ProcSlices = null
 var _lazy_models := false
 var _census: Node = null
+## `--first-use-spans 1`: the kill and death rows name the sections of each hitch frame (see _traced).
+var _spans := false
 
 
 func _configure() -> void:
@@ -64,6 +66,7 @@ func _render_cvar_flags() -> void:
 func _ready() -> void:
 	super()
 	_pilot = int(args.get("pilot", 1)) != 0
+	_spans = int(args.get("first-use-spans", 0)) != 0
 	_motor_us = int(args.get("motor-us", 0)) != 0
 	_queries = int(args.get("queries", 0)) != 0
 	_ctl_us = int(args.get("ctl-us", 0)) != 0
@@ -375,7 +378,11 @@ func _first_kill() -> void:
 	var cam: Transform3D = me.camera.global_transform
 	victim.global_position = me.global_position - Vector3(cam.basis.z.x, 0.0, cam.basis.z.z).normalized() * 4.0
 	await wait(0.3)
-	var _row := await time_first_use("kill", func() -> void: _kill(game, int(me.player_id), int(victim.player_id)), Callable(), 0, 90)
+	var kill := func() -> void: _kill(game, int(me.player_id), int(victim.player_id))
+	if _spans:
+		await _traced("kill", kill, 90)
+	else:
+		var _row := await time_first_use("kill", kill, Callable(), 0, 90)
 	await wait(1.0)
 
 
@@ -387,7 +394,39 @@ func _first_death() -> void:
 		return
 	var killer: Variant = _other_player(me, game)
 	me.health.invulnerable = false
-	var _row := await time_first_use("death", func() -> void: _kill(game, int(killer.player_id) if killer != null else 0, int(me.player_id)), Callable(), 0, 120)
+	var death := func() -> void: _kill(game, int(killer.player_id) if killer != null else 0, int(me.player_id))
+	if _spans:
+		await _traced("death", death, 120)
+	else:
+		var _row := await time_first_use("death", death, Callable(), 0, 120)
+
+
+## `--first-use-spans 1`: [param action] then [param frames] frames, each over [param over_ms] printed with the FcFrameProbe sections
+## (DotFrameCost) charged in it, so a hitch row names the section. Replaces time_first_use for the kill and death rows.
+func _traced(what: String, action: Callable, frames: int, over_ms := 17.0) -> void:
+	await wait(0.5)
+	DotFrameCost.enabled = true
+	var _drop := DotFrameCost.take()
+	action.call()
+	var last := Time.get_ticks_usec()
+	for i in frames:
+		await get_tree().process_frame
+		var now := Time.get_ticks_usec()
+		var ms := (now - last) / 1000.0
+		last = now
+		var costs := DotFrameCost.take()
+		if ms < over_ms:
+			continue
+		var parts: Array = []
+		for key: StringName in costs:
+			if float(costs[key].ms) >= 0.8:
+				parts.append([float(costs[key].ms), "%s %.1f" % [key, float(costs[key].ms)]])
+		parts.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0])
+		var text := ""
+		for part: Array in parts.slice(0, 8):
+			text += " | " + String(part[1])
+		say("SPANS %s f%d %.1f ms%s" % [what, i, ms, text])
+	DotFrameCost.enabled = false
 
 
 ## Rows "npc ID" (a monster of each kind placed in sight) and "npc kill ID" (it killed by the player). Needs a mode with a horde

@@ -116,7 +116,9 @@ func _start(cam: Camera3D, weapon: StringName = &"") -> void:
 	_camera = cam
 	_hits = -1.0
 	recoil.clear()
+	var took := Time.get_ticks_usec()
 	hands = _take_rig(weapon)
+	FcFrameProbe.add(&"killview_rig", took)
 	hands.process_mode = Node.PROCESS_MODE_INHERIT
 	hands.visible = true
 	hands.name = "KillerHands"
@@ -433,9 +435,13 @@ func _mount_arms(cam: Camera3D) -> void:
 			arms.set_look_override(FcViewArms.arm_set_look(rules, _arm_set))
 		# Another killer's parked rig: a rebuild with this look, not a new rig.
 		if built_for != key:
+			var rebuilt := Time.get_ticks_usec()
 			arms.build(who[1], 1.8)
+			FcFrameProbe.add(&"killview_arms_rebuild", rebuilt)
 	else:
+		var made := Time.get_ticks_usec()
 		arms = _new_arms(who[1])
+		FcFrameProbe.add(&"killview_arms_new", made)
 	_arms_key = key
 	arms.name = "KillerArms"
 	arms.visible = true
