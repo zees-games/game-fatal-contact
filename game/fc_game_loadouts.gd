@@ -1,6 +1,8 @@
 @tool
 extends "fc_game_combat.gd"
 
+const FcLoadoutGuard := preload("fc_loadout_guard.gd")
+
 func _loadout_key(id: int) -> String:
 	return loadout_identity.key_of(id)
 
@@ -21,6 +23,7 @@ func apply_loadout(id: int, at_spawn := false) -> void:
 		if rolled != null and player != null:
 			player.give_loadout(FcContent.in_give_order(loadouts.resolve(rolled)))
 			arm_for_mode(player)
+			FcLoadoutGuard.ensure_armed(player)
 			if loadout_roll_text:
 				loadout_rolled.emit(id, loadout_command.spawn_text(rolled))
 			return
@@ -35,10 +38,12 @@ func apply_loadout(id: int, at_spawn := false) -> void:
 		})
 		player.give_default_loadout()
 		arm_for_mode(player)
+		FcLoadoutGuard.ensure_armed(player)
 		return
 
 	player.give_loadout(FcContent.in_give_order(loadouts.resolve(res.value)))
 	arm_for_mode(player)
+	FcLoadoutGuard.ensure_armed(player)
 
 ## Gives bot [param player] the next kit it draws from [member bot_loadouts]; false (the bot then
 ## takes the stored or default loadout) when no kit can be drawn. The difficulty filter reads the
@@ -59,6 +64,7 @@ func _give_bot_loadout(player: FcPlayer) -> bool:
 	player.set_meta(&"bot_loadout", drawn.kit.id)
 	_fit_bot_attachments(player, drawn.kit)
 	arm_for_mode(player)
+	FcLoadoutGuard.ensure_armed(player)
 	return true
 
 ## Fits [param kit]'s attachments to the guns [param player] carries, through the arsenal's attachments catalogue.
