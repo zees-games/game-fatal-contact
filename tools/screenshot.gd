@@ -4,21 +4,17 @@ extends "screenshot_glance.gd"
 ## Renders a map to a PNG so a person can look at it.
 
 
-func _initialize() -> void:
-	# A scratch settings document, never this machine's real one (see
-	# `FcPresentation.use_scratch_settings`): a render must not save into a player's file.
-	var _scratch := FcPresentation.use_scratch_settings("screenshot")
-	var args := OS.get_cmdline_user_args()
-	var map_index := args.find("--map")
-	var id := StringName(args[map_index + 1]) if map_index >= 0 and map_index + 1 < args.size() else &"dm_box"
+## A delivered map's directory (pack files unpacked), as `ensure` mounts it.
+func _mount_delivered(args: PackedStringArray, id: StringName) -> void:
 	var mounted_at := args.find("--mounted")
 	if mounted_at >= 0 and mounted_at + 1 < args.size():
-		# A delivered map's directory (pack files unpacked), as `ensure` mounts it.
 		var added := FcImportedMaps.add_mounted(id, args[mounted_at + 1])
 		if not added.ok:
 			push_error("--mounted: %s" % added.error.message)
-	var map: FcMap = FcMap.by_id(id)
-	# `--tier N` renders at the video setting's texture quality N (0 low .. 3 ultra): shots get a `_tN` suffix and the video memory the renderer holds is printed once the frames are out.
+
+
+## `--tier N` renders at the video setting's texture quality N (0 low .. 3 ultra): shots get a `_tN` suffix and the video memory the renderer holds is printed once the frames are out.
+func _apply_tier(args: PackedStringArray) -> String:
 	var tier_at := args.find("--tier")
 	var tier_suffix := ""
 	if tier_at >= 0 and tier_at + 1 < args.size():
@@ -29,6 +25,19 @@ func _initialize() -> void:
 					Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
 					Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED) / 1048576.0,
 					Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0]))
+	return tier_suffix
+
+
+func _initialize() -> void:
+	# A scratch settings document, never this machine's real one (see
+	# `FcPresentation.use_scratch_settings`): a render must not save into a player's file.
+	var _scratch := FcPresentation.use_scratch_settings("screenshot")
+	var args := OS.get_cmdline_user_args()
+	var map_index := args.find("--map")
+	var id := StringName(args[map_index + 1]) if map_index >= 0 and map_index + 1 < args.size() else &"dm_box"
+	_mount_delivered(args, id)
+	var map: FcMap = FcMap.by_id(id)
+	var tier_suffix := _apply_tier(args)
 
 	if map == null:
 		push_error("no such map: %s. Known: %s" % [String(id), FcMap.ids()])
