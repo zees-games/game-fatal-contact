@@ -177,6 +177,9 @@ var _tag_name: String = ""
 var _tag_friend: bool = false
 var _tag_tone: Color = Color(0, 0, 0, 0)
 var _tag_scale: float = 1.0
+## Seconds since the cursor was last on this body (999 = never), for an enemy's hover tag to linger and fade; and the opacity the tag was told.
+var _hover_age: float = 999.0
+var _tag_opacity: float = 1.0
 ## The scale the tag is drawn at this frame: [member _tag_scale] after [method TagRules.distance_scale]'s limits on its size on screen.
 var _tag_draw_scale: float = 1.0
 ## Where [method _place_health_tag] left the tag (as read back) and the eye it faced then; [member _tag_placed] false = place it again.

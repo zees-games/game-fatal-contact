@@ -211,11 +211,27 @@ func _fold_alpha() -> void:
 		return
 	player.drawn_alpha = float(net.clock.call(&"render_alpha"))
 
+## The server's tag look (RULES) into [FcNameTagRules]'s statics; a handful of dictionary reads, once a frame.
+func _sync_tag_look() -> void:
+	TagRules.enemy_bar_mode = int(game.rule("enemy_bar_mode"))
+	TagRules.enemy_name_mode = int(game.rule("enemy_name_mode"))
+	TagRules.hover_range = game.rule("hover_range")
+	TagRules.hover_hold = game.rule("hover_hold")
+	TagRules.hover_fade = game.rule("hover_fade")
+	TagRules.team_offset_y = game.rule("team_bar_offset_y")
+	TagRules.team_bar_width = game.rule("team_bar_width")
+	TagRules.team_bar_height = game.rule("team_bar_height")
+	TagRules.team_bar_style = int(game.rule("team_bar_style"))
+	TagRules.show_team_names = game.rule("show_team_names") != 0.0
+	TagRules.fade_start = game.rule("tag_fade_start")
+	TagRules.fade_end = game.rule("tag_fade_end")
+
+
 ## Tells the name tags and health bars what this player picked, what the server allows and who is looking.
 func sync_name_tags(world_mask: int) -> void:
 	var settings: Object = presentation.settings if presentation != null else null
 	if settings != null:
-		TagRules.client_names = maxi(TagRules.parse(settings.get_string(&"name_tags", "team")), 0)
+		TagRules.client_names = maxi(TagRules.parse(settings.get_string(&"name_tags", "team_hover")), 0)
 		TagRules.client_bars = maxi(TagRules.parse(settings.get_string(&"health_bars", "smart")), 0)
 		TagRules.screen_scale_min = maxf(float(settings.get_float(&"nametag_min_scale", TagRules.screen_scale_min)), 0.0)
 		TagRules.screen_scale_max = maxf(float(settings.get_float(&"nametag_max_scale", TagRules.screen_scale_max)), 0.0)
@@ -225,6 +241,7 @@ func sync_name_tags(world_mask: int) -> void:
 		TagRules.bar_colour_mode = &"health" if settings.get_string(&"health_bar_colour", "team") == "health" else &"team"
 	TagRules.server_names = int(game.rule("nametags"))
 	TagRules.server_bars = int(game.rule("hpbars"))
+	_sync_tag_look()
 	TagRules.viewer_id = player.player_id if player != null else -1
 	var shown := game.displayed_mode()
 	var sided := shown != null and shown.is_team_mode() and not game.teams().is_empty()

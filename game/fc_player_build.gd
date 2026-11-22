@@ -698,18 +698,35 @@ func _present_health_tag(delta: float) -> void:
 	show = show and (body_mesh == null or body_mesh.is_visible_in_tree())
 	var bar := false
 	var named := false
+	var opacity := 1.0
 	var friend := TagRules.is_teammate(player_id, team)
 	if show:
 		var hurt := _hurt_age < HEALTH_TAG_SEC
-		bar = TagRules.shows(TagRules.client_bars, TagRules.server_bars, friend, false, hurt)
-		named = TagRules.shows(TagRules.client_names, TagRules.server_names, friend, false, false)
-		# The cursor test (a ray, and the sums before it) only where being under the cursor could still add a bar or a
-		# name: a team-mate's tag or a hurt body's bar is shown already, and hovering never hides anything.
-		if ((not bar and TagRules.needs_hover(TagRules.client_bars, TagRules.server_bars))
-				or (not named and TagRules.needs_hover(TagRules.client_names, TagRules.server_names))) \
-				and _under_cursor(camera_now):
-			bar = TagRules.shows(TagRules.client_bars, TagRules.server_bars, friend, true, hurt)
-			named = TagRules.shows(TagRules.client_names, TagRules.server_names, friend, true, false)
+		if friend:
+			bar = TagRules.shows(TagRules.client_bars, TagRules.server_bars, true, false, hurt)
+			named = TagRules.shows(TagRules.client_names, TagRules.server_names, true, false, false) and TagRules.show_team_names
+		else:
+			# An enemy: the server's own modes (never / on hover / always) inside the ceilings of the masks. The cursor ray
+			# runs only when a mode is "hover"; the reveal then lingers and fades with the age since the cursor left.
+			var hover_mode := TagRules.enemy_bar_mode == 1 or TagRules.enemy_name_mode == 1
+			var hovered := false
+			if hover_mode and _under_cursor(camera_now):
+				_hover_age = 0.0
+			elif hover_mode:
+				_hover_age += delta
+			var linger := TagRules.hover_opacity(_hover_age) if hover_mode else 0.0
+			hovered = linger > 0.0
+			bar = TagRules.enemy_shows(TagRules.enemy_bar_mode, hovered) \
+				and TagRules.shows(TagRules.client_bars, TagRules.server_bars, false, true, true)
+			named = TagRules.enemy_shows(TagRules.enemy_name_mode, hovered) \
+				and TagRules.shows(TagRules.client_names, TagRules.server_names, false, true, true)
+			var steady := (bar and TagRules.enemy_bar_mode >= 2) or (named and TagRules.enemy_name_mode >= 2)
+			opacity = 1.0 if steady else linger
+	if (bar or named) and camera_now != null and TagRules.fade_end > 0.0:
+		opacity *= TagRules.distance_opacity(camera_now.global_position.distance_to(global_position))
+	if opacity <= 0.003:
+		bar = false
+		named = false
 	if not (bar or named):
 		if _health_tag != null:
 			_health_tag.visible = false
@@ -722,7 +739,7 @@ func _present_health_tag(delta: float) -> void:
 
 	# Over the body as drawn, which an offline bot's is between ticks (`interpolate_body`).
 	var over := body_mesh.global_position if body_mesh != null else global_position
-	var tag_at := over + Vector3(0.0, TagRules.tag_height, 0.0)
+	var tag_at := over + Vector3(0.0, TagRules.tag_height + (TagRules.team_offset_y if friend else 0.0), 0.0)
 	_tag_draw_scale = TagRules.distance_scale(TagRules.tag_scale, camera_now.global_position.distance_to(tag_at) if camera_now != null else 0.0)
 	_place_health_tag(tag_at, camera_now)
 	var tone := TagRules.bar_tone(friend, team) if TagRules.bar_colour_mode == &"team" else Color(0, 0, 0, 0)
@@ -732,13 +749,16 @@ func _present_health_tag(delta: float) -> void:
 	var tag_scale := _tag_draw_scale
 	var settled := (
 		_tag_told and frac == _tag_frac and bar == _tag_bar and named == _tag_named and friend == _tag_friend
-		and tag_scale == _tag_scale and tone == _tag_tone and display_name == _tag_name
+		and tag_scale == _tag_scale and opacity == _tag_opacity and tone == _tag_tone and display_name == _tag_name
 		and _health_tag.shown_fraction == clampf(frac, 0.0, 1.0) and _health_tag.trail_fraction == _health_tag.shown_fraction
 		and _health_tag.visible
 	)
 	if settled:
 		return
-	_health_tag.update(frac, bar, named, display_name, friend, delta, tone, _tag_draw_scale)
+	# Older dot-ui builds (the shell's) have no configure: the classic bar stays.
+	if _health_tag.has_method(&"configure"):
+		_health_tag.configure(TagRules.team_bar_width, TagRules.team_bar_height, TagRules.team_bar_style == 1)
+	_health_tag.update(frac, bar, named, display_name, friend, delta, tone, _tag_draw_scale, opacity)
 	_tag_told = true
 	_tag_frac = frac
 	_tag_bar = bar
@@ -746,6 +766,7 @@ func _present_health_tag(delta: float) -> void:
 	_tag_friend = friend
 	_tag_tone = tone
 	_tag_scale = tag_scale
+	_tag_opacity = opacity
 	_tag_name = display_name
 
 
@@ -781,7 +802,7 @@ func _under_cursor(camera_now: Camera3D) -> bool:
 	var eye := camera_now.global_position
 	var forward := -camera_now.global_basis.z
 	var feet := body_mesh.global_position if body_mesh != null else global_position
-	if not TagRules.ray_hits_body(eye, forward, feet, stand_height()):
+	if not TagRules.ray_hits_body(eye, forward, feet, stand_height(), TagRules.hover_range):
 		return false
 	if TagRules.occluder_mask == 0 or not is_inside_tree():
 		return true
