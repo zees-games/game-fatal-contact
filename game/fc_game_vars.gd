@@ -53,6 +53,9 @@ const BOT_SESSION_BASE := 900_000_000
 ## `nametags` and `hpbars` are the server's ceilings on when those tags draw (`mp_nametags`, `mp_hpbars`;
 ## masks of `fc_name_tag_rules.gd`, 1 = no limit).
 ##
+## The tags' look is rules too (`mp_enemy_bar_mode`, `mp_enemy_name_mode`, `mp_hover_range`, `mp_hover_hold`, `mp_hover_fade`, `mp_team_bar_*`,
+## `mp_show_team_names`, `mp_tag_fade_*`; see `fc_name_tag_rules.gd`).
+##
 ## `fp_arms` is the arm set every first-person view draws (`fc_fp_arms`): 0 each player's own look, N one stock set.
 ##
 ## `team_avatars` forces each side's body in a team mode (`fc_team_avatars`, 1) and `team_tint` is how far it
@@ -62,8 +65,8 @@ const BOT_SESSION_BASE := 900_000_000
 ##
 ## `killcam` is the final killcam's seconds (`mp_killcam_time`, 0 off): clients play it, and the
 ## authority adds it to the match's end ([method _override_rules]).
-const SHOW_RULES: PackedStringArray = ["break_mode", "break_limbs", "break_criticals_only", "fp_body", "mode_index", "surf", "surf_air_accelerate", "killcam", "max_unlag_ms", "fire_buffer", "nametags", "hpbars", "fp_arms", "team_avatars", "team_tint", "team_body_a", "team_body_b"]
-const SHOW_DEFAULTS := {"break_mode": 1.0, "break_limbs": 1.0, "break_criticals_only": 1.0, "fp_body": 0.0, "surf": 1.0, "surf_air_accelerate": 150.0, "killcam": 7.0, "nametags": 1.0, "hpbars": 1.0, "fp_arms": 0.0, "team_avatars": 1.0, "team_tint": 0.65, "team_body_a": -1.0, "team_body_b": -1.0}
+const SHOW_RULES: PackedStringArray = ["break_mode", "break_limbs", "break_criticals_only", "fp_body", "mode_index", "surf", "surf_air_accelerate", "killcam", "max_unlag_ms", "fire_buffer", "nametags", "hpbars", "fp_arms", "team_avatars", "team_tint", "team_body_a", "team_body_b", "enemy_bar_mode", "enemy_name_mode", "hover_range", "hover_hold", "hover_fade", "team_bar_offset_y", "team_bar_width", "team_bar_height", "team_bar_style", "show_team_names", "tag_fade_start", "tag_fade_end"]
+const SHOW_DEFAULTS := {"break_mode": 1.0, "break_limbs": 1.0, "break_criticals_only": 1.0, "fp_body": 0.0, "surf": 1.0, "surf_air_accelerate": 150.0, "killcam": 7.0, "nametags": 1.0, "hpbars": 1.0, "fp_arms": 0.0, "team_avatars": 1.0, "team_tint": 0.65, "team_body_a": -1.0, "team_body_b": -1.0, "enemy_bar_mode": 0.0, "enemy_name_mode": 1.0, "hover_range": 80.0, "hover_hold": 0.35, "hover_fade": 0.25, "team_bar_offset_y": -0.3, "team_bar_width": 0.8, "team_bar_height": 0.065, "team_bar_style": 1.0, "show_team_names": 1.0, "tag_fade_start": 25.0, "tag_fade_end": 60.0}
 
 ## The mode a client is told is being played, for its banner and its keys. A client's own
 ## [member mode] is whatever it was built with and is never replaced — logic reads it —

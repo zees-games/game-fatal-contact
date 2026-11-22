@@ -77,6 +77,8 @@ func _run() -> void:
 		# The last move the AI wrote stays in force once it is skipped; a bot that walks on is a moving target.
 		bots[id].set_meta(&"bot_move", GSFpsCommand.new())
 		bots[id].set_meta(&"bot_fire", GSWeaponCommand.new())
+	# Enemy bars are off by default (mp_enemy_bar_mode 0); this test is about the replay camera hiding them, so turn them on.
+	gm.set_movement_rules({"enemy_bar_mode": 2.0})
 	await _wait(4.0)
 	var killer: Object = bots.values()[0]
 	var hurt := GSDamage.make(me.player_id, killer.player_id, 5.0, gm.combat.damage_type(FcContent.DAMAGE_BULLET))

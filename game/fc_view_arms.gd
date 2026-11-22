@@ -25,6 +25,7 @@ static var hand_min_depth := 0.1
 ## GSPlayerViewArms' own hand size, for a weapon whose profile does not say.
 const DEFAULT_HAND_SCALE := 0.5
 const FcTeamBodies := preload("fc_team_bodies.gd")
+const Fallback := preload("fc_view_arms_fallback.gd")
 ## The kit bones a team body's first-person arms keep (by prefix, both sides): [method not_arm].
 const ARM_BONES: Array[String] = ["Shoulder.", "UpperArm.", "LowerArm.", "Hand", "Thumb", "Index", "Middle", "Ring", "Pinky"]
 
@@ -64,6 +65,8 @@ var _depth := 1.0
 var _art_model := 0
 var _art: Array = []
 var _look_override := false
+## Keeps the arms drawable ([Fallback]).
+var fallback := Fallback.new()
 
 
 static func available() -> bool:
@@ -240,6 +243,9 @@ func _process(delta: float) -> void:
 	if &"throw_grip" in arms:
 		var windup: float = body.get(&"windup") if &"windup" in body else -1.0
 		arms.throw_grip = clampf(windup, 0.0, 1.0) if windup >= 0.0 else 0.0
+	if not fallback.tick(arms, model, camera, _depth if draw_at_gun_depth and holding() else 1.0):
+		set_process(false)
+		return
 	arms.tick(Vector2(v.x, v.z).length(), delta)
 
 

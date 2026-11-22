@@ -1,6 +1,5 @@
-extends GSModule
+extends "fc_nameplate_cvars.gd"
 
-const FcGame := preload("fc_game.gd")
 const FcPlayer := preload("fc_player.gd")
 const FcNetAoi := preload("fc_net_aoi.gd")
 const FcPlayerNet := preload("fc_player_net.gd")
@@ -12,13 +11,11 @@ const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
-const TagRules := preload("fc_name_tag_rules.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const FcAvatarLibrary := preload("fc_avatar_library.gd")
 
 ## Base of [FcModule]: the operator-facing cvars that map onto a rule table, so the module itself
 ## holds the lifecycle. Split out for the size gate; the state they read lives here too.
-var game: FcGame = null
 ## The netcode. Owned here rather than by the game, because a headless match and a
 ## dedicated server are different deployments of the same game and only one replicates.
 var net: GSNetManager = null
@@ -132,31 +129,6 @@ func _add_hit_group_cvars() -> void:
 	if groups == null:
 		return
 	groups.bind_cvars(add_cvar, "fc", GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY)
-
-
-## cvar -> the rule key whose value is a TagRules mask, and what it means.
-const TAG_CVARS := {
-	"mp_nametags": ["nametags", "Who gets a name tag over their head for players: always, team, hover (cursor on the body), hurt, off, or a list like team,hover. A player's own choice can only narrow it"],
-	"mp_hpbars": ["hpbars", "Who gets a health bar over their head: always, team, hover, hurt, smart, off, or a list like team,hover. A player's own choice can only narrow it"],
-}
-
-
-func _add_tag_cvars() -> void:
-	for cvar in TAG_CVARS:
-		var key: String = TAG_CVARS[cvar][0]
-		var start := int(FcGame.SHOW_DEFAULTS[key])
-		add_cvar(
-			cvar, TagRules.describe(start), TAG_CVARS[cvar][1],
-			GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED
-		).changed.connect(
-			func(old: String, new_value: String) -> void:
-				var mask := TagRules.parse(new_value)
-				if mask < 0:
-					log_info("tag rule refused", {"rule": key, "value": new_value, "kept": old})
-					return
-				game.set_movement_rules({key: float(mask)})
-				log_info("tag rule changed", {"rule": key, "value": TagRules.describe(mask)})
-		)
 
 
 ## cvar -> the key in `FcGame.jail_rules` it sets, and what it means.

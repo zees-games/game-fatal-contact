@@ -109,8 +109,9 @@ static func make() -> GSFpsTunables:
 	# Touching a wall in the air starts a run (the heading turns along it); a press jumps off.
 	tunables.wall_run_auto = true
 	tunables.wall_run_on_jump = false
-	tunables.wall_run_turn_view = true
-	tunables.wall_run_turn_view_max_angle = 180.0
+	# Off: auto runs start on every in-air touch and a view turn on each snapped the camera (fc-native-via-gs-app-1). fc_wall_run_turn_view 1 opts in.
+	tunables.wall_run_turn_view = false
+	tunables.wall_run_turn_view_max_angle = 90.0
 	tunables.wall_run_cooldown = 0.4
 	tunables.wall_jump_enabled = true
 	tunables.wall_slide_speed = 2.5
