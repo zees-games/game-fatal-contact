@@ -64,6 +64,8 @@ func _ready() -> void:
 	if _lazy_models:
 		preload("../game/fc_client_prewarm.gd").defer_models_everywhere = true
 	FcFrameProbe.fine_on_record = _fine
+	if int(args.get("objlog", 0)) != 0:
+		add_child(preload("obj_probe.gd").new())
 	_tick = int(args.get("tick", 0))
 	if _max_steps > 0:
 		preload("../game/fc_tick_budget.gd").max_steps = _max_steps
@@ -109,6 +111,8 @@ func _ready() -> void:
 	if int(args.get("carry", 1)) == 0:
 		# By name: a no-op against an fc-weapons older than the switch.
 		(AwWorldModel as Script).set(&"person_carry", false)
+	if args.has("bot-threads"):
+		preload("../game/fc_bot_threads.gd").threads = int(args["bot-threads"])
 	if args.has("brain-native"):
 		FcPlayerStack.set_brain_native(int(args["brain-native"]) != 0)
 	say("brain: %s" % ("native" if FcPlayerStack.brain_native() else "script"))
@@ -587,7 +591,26 @@ func _shadow_cap(mode: String) -> void:
 
 func _apply_ablate() -> void:
 	for a in _ablate:
+		if a.begins_with("own:"):
+			var want := a.substr(4)
+			var stack: Array[Node] = [get_tree().root]
+			var hit := 0
+			while not stack.is_empty():
+				var n: Node = stack.pop_back()
+				stack.append_array(n.get_children())
+				var sc: Script = n.get_script()
+				if sc != null and sc.resource_path.get_file() == want:
+					n.set_process(false)
+					n.set_physics_process(false)
+					hit += 1
+			say("own %s: %d nodes stopped" % [want, hit])
+			continue
 		match a:
+			"nosound":
+				for n in get_tree().root.find_children("*", "", true, false):
+					var snk: Variant = n.get("sink")
+					if snk is DotAudioSinkGodot:
+						(snk as DotAudioSinkGodot).host = null
 			"noshadow":
 				for l in get_tree().root.find_children("*", "Light3D", true, false):
 					(l as Light3D).shadow_enabled = false
@@ -625,6 +648,14 @@ func _apply_ablate() -> void:
 					(sk as Skeleton3D).modifier_callback_mode_process = Skeleton3D.MODIFIER_CALLBACK_MODE_PROCESS_MANUAL
 					n_sk += 1
 				say("skelmanual: %d skeletons set to manual" % n_sk)
+			"invuln":
+				for p: Object in client.get("game").call("players"):
+					p.health.invulnerable = true
+			"nodmgsig":
+				var cm: Object = client.get("game").combat
+				for c in cm.damage_applied.get_connections():
+					cm.damage_applied.disconnect(c["callable"])
+				say("nodmgsig: disconnected")
 			"nobots":
 				for p: Object in client.get("game").call("players"):
 					if p.get("camera") == null:
@@ -657,3 +688,4 @@ static func _count_nodes(node: Node) -> int:
 	for c: Node in node.get_children(true):
 		n += _count_nodes(c)
 	return n
+
