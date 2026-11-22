@@ -19,13 +19,13 @@ const TOKENS := {
 	"hover": HOVER, "cursor": HOVER, "aim": HOVER, "hurt": HURT, "smart": TEAM | HOVER | HURT,
 }
 
-## Farthest a body can be and still count as under the cursor, metres.
+## Farthest a body can be and still count as under the cursor, metres, unless the server's `mp_hover_range` says otherwise.
 const MAX_RANGE := 80.0
 ## Half-width of the body the cursor must touch to count as over it, metres.
 const BODY_RADIUS := 0.55
 
 ## The player's own picks, the server's ceilings, and who is looking. Written each frame by the client.
-static var client_names: int = TEAM
+static var client_names: int = TEAM | HOVER
 static var client_bars: int = TEAM | HOVER | HURT
 static var server_names: int = ALL
 static var server_bars: int = ALL
@@ -49,6 +49,25 @@ const ENEMY_COLOUR := Color(1.0, 0.25, 0.22)
 const FRIEND_COLOUR := Color(0.55, 1.0, 0.55)
 static var occluder_mask: int = 0  # physics layers that hide a body from the cursor; 0 skips the test
 
+## The server's look of the tags (cvars `mp_enemy_*`, `mp_hover_*`, `mp_team_*`, `mp_show_team_names`, `mp_tag_fade_*`; RULES): synced each frame
+## with the masks above. An ENEMY's bar and name are their own modes: 0 never, 1 only while the cursor is on them (then it lingers
+## [member hover_hold] seconds and fades over [member hover_fade]), 2 always. The defaults show an enemy's name on hover and no bar.
+static var enemy_bar_mode: int = 0
+static var enemy_name_mode: int = 1
+static var hover_range: float = MAX_RANGE  # metres; 0 = unlimited
+static var hover_hold: float = 0.35
+static var hover_fade: float = 0.25
+## A team-mate's tag hangs [member team_offset_y] metres from the head anchor ([member tag_height]; negative = lower), its bar is
+## [member team_bar_width] by [member team_bar_height] metres, styled 0 classic glass or 1 modern slim, and wears the name when [member show_team_names].
+static var team_offset_y: float = -0.3
+static var team_bar_width: float = 0.8
+static var team_bar_height: float = 0.065
+static var team_bar_style: int = 1
+static var show_team_names: bool = true
+## Tags fade out between these distances (metres) from the eye; [member fade_end] 0 turns the fade off.
+static var fade_start: float = 25.0
+static var fade_end: float = 60.0
+
 
 ## The world scale a tag of [param base] gets at [param distance] metres from the eye, so that its size on screen stays within
 ## [member screen_scale_min] and [member screen_scale_max] times its size at [constant REFERENCE_DISTANCE]. On screen a tag is
@@ -63,6 +82,35 @@ static func distance_scale(base: float, distance: float) -> float:
 	if screen_scale_min > 0.0:
 		held = maxf(held, screen_scale_min)
 	return base * held / multiple
+
+
+## Whether an enemy's tag part set to [param mode] (0 never, 1 on hover, 2 always) draws when the cursor is [param hovered].
+static func enemy_shows(mode: int, hovered: bool) -> bool:
+	return mode >= 2 or (mode == 1 and hovered)
+
+
+## Whether the player's own mask lets enemies be seen at all (a team-only or off mask narrows them away).
+static func client_allows_enemy(mask: int) -> bool:
+	return (mask & (ALL | HOVER | HURT)) != 0
+
+
+## Opacity of a hover reveal [param age] seconds after the cursor left: 1 for [member hover_hold], then down to 0 over [member hover_fade].
+static func hover_opacity(age: float) -> float:
+	if age <= hover_hold:
+		return 1.0
+	if hover_fade <= 0.0 or age >= hover_hold + hover_fade:
+		return 0.0
+	return 1.0 - (age - hover_hold) / hover_fade
+
+
+## Opacity of a tag [param distance] metres from the eye: 1 up to [member fade_start], 0 from [member fade_end], smooth between (no fade when [member fade_end] is 0).
+static func distance_opacity(distance: float) -> float:
+	if fade_end <= 0.0 or distance <= fade_start:
+		return 1.0
+	if distance >= fade_end:
+		return 0.0
+	var t := (distance - fade_start) / (fade_end - fade_start)
+	return 1.0 - t * t * (3.0 - 2.0 * t)
 
 
 ## A mask from [param text] (a preset or tokens split on , + | space _), or -1 when anything in it is unknown.
@@ -123,8 +171,8 @@ static func is_teammate(other_id: int, other_team: int) -> bool:
 
 
 ## Whether the ray [param from] along [param dir] (unit) passes within [constant BODY_RADIUS] of the upright
-## body standing at [param feet] and [param height] tall, in front of the eye and within [constant MAX_RANGE].
-static func ray_hits_body(from: Vector3, dir: Vector3, feet: Vector3, height: float) -> bool:
+## body standing at [param feet] and [param height] tall, in front of the eye and within [param max_range] (0 = unlimited).
+static func ray_hits_body(from: Vector3, dir: Vector3, feet: Vector3, height: float, max_range: float = MAX_RANGE) -> bool:
 	# Closest points of a ray and a vertical segment: solve for the segment's parameter, clamp, then the ray's.
 	var w := from - feet
 	var denom := height * (dir.y * dir.y - 1.0)
@@ -132,7 +180,7 @@ static func ray_hits_body(from: Vector3, dir: Vector3, feet: Vector3, height: fl
 	s = clampf(s, 0.0, 1.0)
 	var on_segment := feet + Vector3(0.0, height * s, 0.0)
 	var t := dir.dot(on_segment - from)
-	if t <= 0.0 or t > MAX_RANGE:
+	if t <= 0.0 or (max_range > 0.0 and t > max_range):
 		return false
 	return (from + dir * t).distance_to(on_segment) <= BODY_RADIUS
 
@@ -141,6 +189,6 @@ static func ray_hits_body(from: Vector3, dir: Vector3, feet: Vector3, height: fl
 static func declare_settings(s: DotSettingsSchema) -> void:
 	s.add(DotSettingsDef.number(&"nametag_min_scale", screen_scale_min, 0.0, 10.0, &"video").with_description("Smallest a name tag may look on screen, against its size 10 m away. Far tags stop shrinking here. 0 is no limit."))
 	s.add(DotSettingsDef.number(&"nametag_max_scale", screen_scale_max, 0.0, 10.0, &"video").with_description("Largest a name tag may look on screen, against its size 10 m away. Close tags stop growing here. 0 is no limit."))
-	s.add(DotSettingsDef.choice(&"name_tags", &"team", [&"always", &"team", &"team_hover", &"hover", &"off"], &"video").with_description("Names over other players' heads: everybody, team-mates, team-mates and whoever your cursor is on, only the cursor, or none. A server may allow fewer (mp_nametags)."))
+	s.add(DotSettingsDef.choice(&"name_tags", &"team_hover", [&"always", &"team", &"team_hover", &"hover", &"off"], &"video").with_description("Names over other players' heads: everybody, team-mates, team-mates and whoever your cursor is on, only the cursor, or none. A server may allow fewer (mp_nametags)."))
 	s.add(DotSettingsDef.choice(&"health_bar_colour", &"team", [&"team", &"health"], &"video").with_description("Health bar colour: team colours (enemies red, team-mates light green, a side's own colour with more than two sides) or by how much health is left."))
 	s.add(DotSettingsDef.choice(&"health_bars", &"smart", [&"always", &"smart", &"team", &"team_hover", &"hover", &"off"], &"video").with_description("Health bars over other players: smart is team-mates, whoever your cursor is on and anybody just hurt. A server may allow fewer (mp_hpbars)."))

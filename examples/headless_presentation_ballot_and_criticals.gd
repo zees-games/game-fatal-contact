@@ -284,6 +284,9 @@ func _test_criticals_and_the_body() -> void:
 
 ## Somebody else, hurt: a bar over their head for a few seconds.
 func _check_health_tag(player: FcPlayer) -> void:
+	var Rules := preload("res://game/fc_name_tag_rules.gd")
+	var saved_mode: int = Rules.enemy_bar_mode
+	Rules.enemy_bar_mode = 2  # an enemy's bar is off by default (mp_enemy_bar_mode 0); the bar's own look is under test
 	player.health.health = player.health.max_health
 	player.present(0.016)
 	player.health.health = player.health.max_health * 0.4
@@ -295,9 +298,51 @@ func _check_health_tag(player: FcPlayer) -> void:
 		player.present(0.016)
 	_check(tag != null and absf(tag.shown_fraction - 0.4) < 0.01 and absf(tag.trail_fraction - 0.4) < 0.01,
 		"filled to what is left, the trail caught up")
+	Rules.enemy_bar_mode = saved_mode
 	player.present(FcPlayer.HEALTH_TAG_SEC + 0.1)
-	_check(not player._health_tag.visible, "and it goes after a few seconds")
+	_check(not player._health_tag.visible, "and with the server's default (no enemy bar) it is gone")
 	player.health.health = player.health.max_health
+
+
+## The server's look: defaults, the enemy modes, the hover linger and fade, the distance fade, the teammate offset.
+func _check_enemy_modes(Rules, player: FcPlayer, tag: Node) -> void:
+	_check(Rules.enemy_bar_mode == 0 and Rules.enemy_name_mode == 1 and Rules.hover_range == 80.0
+		and Rules.team_offset_y < 0.0 and Rules.team_bar_style == 1 and Rules.show_team_names,
+		"the tag look's defaults: no enemy bar, an enemy name on hover, a lower modern team-mate bar")
+	_check(not Rules.enemy_shows(0, true) and Rules.enemy_shows(1, true) and not Rules.enemy_shows(1, false)
+		and Rules.enemy_shows(2, false), "enemy modes: never, on hover, always")
+	_check(Rules.hover_opacity(0.0) == 1.0 and Rules.hover_opacity(Rules.hover_hold) == 1.0
+		and Rules.hover_opacity(Rules.hover_hold + Rules.hover_fade * 0.5) == 0.5
+		and Rules.hover_opacity(Rules.hover_hold + Rules.hover_fade + 0.01) == 0.0,
+		"a hover reveal holds, fades linearly and ends")
+	_check(Rules.distance_opacity(Rules.fade_start - 1.0) == 1.0 and Rules.distance_opacity(Rules.fade_end) == 0.0
+		and Rules.distance_opacity((Rules.fade_start + Rules.fade_end) * 0.5) > 0.0, "tags fade between the fade distances")
+	var saved_end: float = Rules.fade_end
+	Rules.fade_end = 0.0
+	_check(Rules.distance_opacity(1000.0) == 1.0, "and fade_end 0 turns the fade off")
+	Rules.fade_end = saved_end
+	var feet := Vector3(0.0, 0.0, -100.0)
+	_check(not Rules.ray_hits_body(Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), feet, 1.8, 80.0)
+		and Rules.ray_hits_body(Vector3(0.0, 1.0, 0.0), Vector3(0.0, 0.0, -1.0), feet, 1.8, 0.0),
+		"the hover range cuts the cursor test off; 0 is unlimited")
+	var cfg: Array = [Rules.enemy_bar_mode, Rules.enemy_name_mode]
+	Rules.client_names = Rules.ALL
+	Rules.client_bars = Rules.ALL
+	Rules.enemy_name_mode = 2
+	player.present(0.016)
+	_check(tag.visible and tag.get_node("Name").visible and not tag.get_node("Bar").visible,
+		"enemy_name_mode 2 shows an enemy's name alone")
+	Rules.enemy_bar_mode = 2
+	player.present(0.016)
+	_check(tag.visible and tag.get_node("Bar").visible, "enemy_bar_mode 2 adds the bar")
+	Rules.enemy_bar_mode = cfg[0]
+	Rules.enemy_name_mode = 0
+	player.present(0.016)
+	_check(not tag.visible, "and both at 0 hide the enemy again")
+	Rules.enemy_name_mode = cfg[1]
+	_check(FcGame.SHOW_DEFAULTS["enemy_bar_mode"] == 0.0 and FcGame.SHOW_DEFAULTS["enemy_name_mode"] == 1.0
+		and FcGame.SHOW_DEFAULTS["team_bar_offset_y"] == Rules.team_offset_y and FcGame.SHOW_RULES.has("tag_fade_end"),
+		"the replicated rule defaults match the rules' own")
 
 
 ## When tags draw: the player's pick, the server's ceiling, team, cursor and a recent hit.
@@ -357,7 +402,8 @@ func _check_tag_rules(player: FcPlayer) -> void:
 	_check(not tag.visible, "a stranger, unhurt and not under the cursor, gets no tag")
 	player.health.health = player.health.max_health * 0.5
 	player.present(0.016)
-	_check(tag.visible, "until they are hurt")
+	_check(not tag.visible, "and hurt too: an enemy's bar is off by default (mp_enemy_bar_mode 0)")
+	_check_enemy_modes(Rules, player, tag)
 	player.health.health = player.health.max_health
 	_check_tag_colours(Rules)
 	Rules.client_names = saved[0]
