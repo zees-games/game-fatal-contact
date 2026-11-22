@@ -18,7 +18,8 @@ content_id: gamemann/game-fatal-contact
 version: 0.0.0
 kind: pack
 
-name: "Zee's Fatal Contact"
+name: "Fatal Contact"
+icon: branding/icon.png
 max_players: 16
 
 scene: scenes/fc_server.tscn
