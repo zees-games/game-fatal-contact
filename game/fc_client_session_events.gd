@@ -561,10 +561,18 @@ func _build_presentation() -> void:
 
 # --- The mouse -------------------------------------------------------------
 
+## Whether the cursor may be captured at load-in. A native window that is not focused (a game launched by
+## the app shell while the shell keeps focus) must not capture: the OS recentres a captured cursor the
+## player is not driving, and the stream of garbage motion became random yaw and pitch (nightly
+## fc-native-via-gs-app-1). It waits for a click instead, like a browser.
+static func mouse_capture_now(is_web: bool, window_focused: bool) -> bool:
+	return not is_web and window_focused
+
+
 ## Asks a browser for the cursor rather than telling it. Pointer lock needs **transient user
 ## activation** — a real click — and `_ready()` is the one moment guaranteed not to have one.
 func _grab_mouse() -> void:
-	if not GSPlatform.is_web():
+	if mouse_capture_now(GSPlatform.is_web(), DisplayServer.window_is_focused()):
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		return
 
