@@ -61,7 +61,7 @@ var _arm_set: Array = []
 var _team_set: Array = []
 ## Fit the arms' clearance to the weapon's mesh (GSViewGrip.hull_points: GSViewArmsSolid, a non-convex voxel solid that keeps
 ## the notch behind the grip) instead of its box. Off: measured on the smg (anim_review) the solid is still worse than the box
-## (reload_empty 0.042 m against 0.032, avatar_run 0.043 against 0.027, avatar_walk 0.032 to 0.042 against 0), because the box
+## (solid alone: reload_empty 0.042 m against 0.032, avatar_run 0.043 against 0.027, avatar_walk 0.032 against 0; solid plus twice the box score: box parity, reload_empty 0.033, avatar_strafe 0.048 against 0), because the box
 ## path swings the elbow clear of the metric's wrist and hand samples while the solid scan only avoids the forearm. See nightly gs-player-char-hull-1.
 static var hull_fit := false
 
