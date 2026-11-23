@@ -59,16 +59,15 @@ var rules: Object = null
 var _arm_set: Array = []
 ## [wear key, look] of the side's body the arms last wore ([method team_look]).
 var _team_set: Array = []
-## Fit the arms' clearance to the weapon's mesh (GSViewGrip.hull_points: GSViewArmsSolid, a non-convex voxel solid that keeps
-## the notch behind the grip) instead of its box. Off: measured on the smg (anim_review) the solid is still worse than the box
-## (reload_empty 0.042 m against 0.032, avatar_run 0.043 against 0.027, avatar_walk 0.032 to 0.042 against 0), because the box
-## path swings the elbow clear of the metric's wrist and hand samples while the solid scan only avoids the forearm. See nightly gs-player-char-hull-1.
+## Fit the arms' clearance to the weapon's mesh (GSViewGrip.hull_points) instead of its box. Off: measured on the smg
+## (anim_review, gs-player-char-hull 32b2303) the convex fit is worse than the box on every clip (reload_empty 0.036 m
+## against 0.032, avatar_run 0.036 against 0.027, avatar_walk 0.022 against 0), because the fit closes over the notch
+## behind an L-shaped gun's grip where the wrist and forearm belong, and dropping that notch (the hand's surroundings, or
+## everything behind the grip) was worse still (0.044 m on every clip). It wants a non-convex solid in the addon.
 static var hull_fit := false
 
 var _boxes: Dictionary = {}
 var _hulls: Dictionary = {}
-var _hull_weapon := -1
-var _hull_grip: GSViewGrip = null
 ## How many times further off than the hands frame the weapon is drawn ([method drawn_depth]); the arms draw their depth at it.
 var _depth := 1.0
 var _art_model := 0
@@ -136,13 +135,7 @@ func _on_hands(anchor: Node3D, grip: Vector3, fore: Vector3, pose: StringName) -
 		_grip.forward = f if axes else Vector3.FORWARD
 		_grip.up = u if axes else Vector3.UP
 	if hull_fit and "hull_points" in _grip:
-		var weapon: Node3D = model.weapon_node() if model != null and pose != &"melee" else null
-		var weapon_id := weapon.get_instance_id() if weapon != null else 0
-		if weapon_id != _hull_weapon or _grip != _hull_grip:
-			_hull_weapon = weapon_id
-			_hull_grip = _grip
-			_grip.hull_points = PackedVector3Array() if weapon == null else weapon_hull(model, _hulls)
-		_grip.hull_pose = weapon_hull_pose(model)
+		_grip.hull_points = PackedVector3Array() if pose == &"melee" else weapon_hull(model, _hulls)
 
 
 ## The hand pose [param art] is held in: its id's in [member hand_kinds], else its art pose's ([constant POSE_KINDS]),
@@ -207,25 +200,9 @@ static func weapon_hull(model: AwViewModel, hulls: Dictionary) -> PackedVector3A
 		if hulls.size() > 32:
 			hulls.clear()
 		var points := PackedVector3Array()
-		# Scaled to the frame's units (the radius the arms keep is metres there) but left where the weapon sits in it:
-		# [method weapon_hull_pose] places it each frame.
-		var scale := (animated.global_transform.affine_inverse() * weapon.global_transform).basis.get_scale()
-		GSViewGrip._collect(weapon, Transform3D(Basis.from_scale(scale), Vector3.ZERO), points)
+		GSViewGrip._collect(weapon, animated.global_transform.affine_inverse() * weapon.global_transform, points)
 		hulls[key] = points
 	return hulls[key]
-
-
-## Where [method weapon_hull]'s points (the weapon's own space) sit in the frame [method weapon_bounds] is in, this frame: the
-## weapon moves against its animated root through a deploy or a reload, so points fixed at the first frame went stale.
-static func weapon_hull_pose(model: AwViewModel) -> Transform3D:
-	var weapon: Node3D = model.weapon_node() if model != null else null
-	if weapon == null or not weapon.is_inside_tree():
-		return Transform3D.IDENTITY
-	var animated: Node3D = weapon
-	while animated.get_parent() != model and animated.get_parent() is Node3D:
-		animated = animated.get_parent() as Node3D
-	var rel := animated.global_transform.affine_inverse() * weapon.global_transform
-	return Transform3D(rel.basis.orthonormalized(), rel.origin)
 
 
 ## The look the server's `fp_arms` rule draws on every player's arms (a stock set, seeded by its value); null for
