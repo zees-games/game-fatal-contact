@@ -160,3 +160,25 @@ func classify_tree(root: Node, layer_id: StringName) -> int:
 		done += classify_tree(child, layer_id)
 
 	return done
+
+
+## Spawn sites closer than this to a living player count as occupied, in metres.
+const SPAWN_OCCUPIED_RADIUS := 1.5
+
+
+## Tells gs-spawn who stands on which site; only needed for the strict `one_per_spawn` rule, which refuses an occupied site. The spawning player does not occupy a site against themselves.
+func _push_spawn_occupancy(director: GSSpawnDirector, except_key: String) -> void:
+	var standing: Array[Vector3] = []
+
+	for player in game.players():
+		if player.is_alive() and player.controller != null and str(player.player_id) != except_key:
+			standing.append(player.controller.state.position)
+
+	for site in director.sites():
+		var count := 0
+
+		for at in standing:
+			if at.distance_to(site.position) <= SPAWN_OCCUPIED_RADIUS:
+				count += 1
+
+		director.set_occupancy(site.id, count)
