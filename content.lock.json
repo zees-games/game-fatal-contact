@@ -7,9 +7,9 @@
 			"id": "gamemann/game-fatal-contact",
 			"into": "",
 			"kind": "pack",
-			"manifest_sha256": "3dd668bf7716aba6a04bed202d14e50033817abf12058f2ed05c0d498e57fac6",
+			"manifest_sha256": "71f91c1cb80aefb61896a30a2216ba6a12bd8e5f253768ebeba3efdaaedd3f9d",
 			"optional": true,
-			"version": "0.1.73"
+			"version": "0.1.82"
 		}
 	]
 }
