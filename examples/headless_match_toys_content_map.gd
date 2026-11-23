@@ -226,7 +226,7 @@ func _test_content() -> void:
 		"and refuses a knife as a primary"
 	)
 
-	# The launcher is the one paid item, so an unentitled player must not get it — which is dot-
+	# The launcher is the one paid item, so an unentitled player must not get it — which is gs-
 	# loadout's default and is worth checking here because this game's entitlement source is the.
 	var unowned := GSLoadout.empty(&"arena")
 	_test_content_rest(schema, unowned)

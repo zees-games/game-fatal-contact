@@ -299,7 +299,7 @@ func _test_party_is_sandboxed() -> void:
 	add_child(party)
 	_check(party.setup().ok, "a party sets up")
 
-	# The decision this game makes and the lobby does not: Fatal Contact reports to gs-stats, unlocks dot-
+	# The decision this game makes and the lobby does not: Fatal Contact reports to gs-stats, unlocks gs-
 	# achievements and files to gs-leaderboard.
 	_check(
 		party.session.config.trust == GSP2PConfig.Trust.SANDBOXED,

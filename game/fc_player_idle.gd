@@ -63,7 +63,7 @@ func _post_native() -> bool:
 	return true
 
 
-## A configured dot-sim [code]GSSimPlayerPost[/code] (the library must have it: [code]GSSim.has(&"players")[/code]),
+## A configured gs-sim [code]GSSimPlayerPost[/code] (the library must have it: [code]GSSim.has(&"players")[/code]),
 ## for one player's [method _idle_row] or for FcGame's batched loop, which fills every idle player's row in one call.
 static func make_native_post() -> Object:
 	var post: Object = ClassDB.instantiate(&"GSSimPlayerPost")
