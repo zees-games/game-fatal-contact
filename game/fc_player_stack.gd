@@ -300,9 +300,10 @@ func _build_classes() -> void:
 ## - `min_enemy`: the hard floor for "avoid", in metres.
 ## - `sight_penalty`: what an enemy being able to see a site costs it.
 ## - `enemy_weight`: what each metre from the nearest enemy is worth.
+## - `one_per_spawn`: false (the default) shares spawns, so a map with 19 spawns holds more than 19 players; true is gs-spawn's strict one occupant per spawn (`GSSpawnRules.one_per_spawn`), and a player with every spawn taken shares one anyway.
 ##
 ## A mode may name its own (`FcMode.spawn_mode`); empty takes this one.
-var spawn_settings := {"mode": "scatter", "min_enemy": 10.0, "sight_penalty": 500.0, "enemy_weight": 1.5}
+var spawn_settings := {"mode": "scatter", "min_enemy": 10.0, "sight_penalty": 500.0, "enemy_weight": 1.5, "one_per_spawn": false}
 
 const SPAWN_MODES := ["avoid", "weighted", "furthest", "random"]
 
@@ -370,6 +371,7 @@ func refresh_spawn_rules() -> void:
 
 	spawns.rules.visible_penalty = maxf(float(spawn_settings.get("sight_penalty", 500.0)), 0.0)
 	spawns.rules.enemy_distance_weight = float(spawn_settings.get("enemy_weight", 1.5))
+	spawns.rules.one_per_spawn = bool(spawn_settings.get("one_per_spawn", false))
 
 	# [b]Off, and not because breaking on attack is wrong.[/b] It is the behaviour a
 	# deathmatch wants — firing out of your own spawn should end the window. But only
@@ -651,7 +653,33 @@ func choose_spawn(id: int) -> GSResult:
 	var request := GSSpawnRequest.make(
 		key, teams.team_of(key), classes.class_of(key), game.current_tick()
 	)
+
+	if spawns.rules.one_per_spawn:
+		_push_spawn_occupancy(key)
+
 	return spawns.choose(request)
+
+
+## Spawn sites closer than this to a living player count as occupied, in metres.
+const SPAWN_OCCUPIED_RADIUS := 1.5
+
+
+## Tells gs-spawn who stands on which site; only needed for the strict `one_per_spawn` rule, which refuses an occupied site. The spawning player does not occupy a site against themselves.
+func _push_spawn_occupancy(except_key: String) -> void:
+	var standing: Array[Vector3] = []
+
+	for player in game.players():
+		if player.is_alive() and player.controller != null and str(player.player_id) != except_key:
+			standing.append(player.controller.state.position)
+
+	for site in spawns.sites():
+		var count := 0
+
+		for at in standing:
+			if at.distance_to(site.position) <= SPAWN_OCCUPIED_RADIUS:
+				count += 1
+
+		spawns.set_occupancy(site.id, count)
 
 
 ## Writes the player's class numbers onto their health and their movement.

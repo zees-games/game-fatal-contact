@@ -178,6 +178,7 @@ const SPAWN_CVARS := {
 	"fc_spawn_min_enemy": ["min_enemy", "In avoid mode, the nearest an enemy may be to a site, in metres"],
 	"fc_spawn_sight_penalty": ["sight_penalty", "What an enemy being able to see a site costs it"],
 	"fc_spawn_enemy_weight": ["enemy_weight", "What each metre from the nearest enemy is worth"],
+	"fc_spawn_one_per_spawn": ["one_per_spawn", "Spawns are shared by default (0), so a map with 19 spawns holds more than 19 players; 1 is strictly one player per spawn, and once every spawn is taken the next player shares one anyway"],
 }
 
 
@@ -574,9 +575,17 @@ func _add_spawn_cvars() -> void:
 
 	for cvar in SPAWN_CVARS:
 		var key: String = SPAWN_CVARS[cvar][0]
-		add_cvar(cvar, str(stack.spawn_settings[key]), SPAWN_CVARS[cvar][1], GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY).changed.connect(
+		add_cvar(cvar, ("1" if stack.spawn_settings[key] else "0") if key == "one_per_spawn" else str(stack.spawn_settings[key]), SPAWN_CVARS[cvar][1], GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY).changed.connect(
 			func(_old: String, new_value: String) -> void:
-				if key == "mode":
+				if key == "one_per_spawn":
+					var asked := new_value.strip_edges().to_lower()
+
+					if not ["0", "1", "true", "false"].has(asked):
+						GSLog.error("fc_module_cvars", "fc_spawn_one_per_spawn takes 0, 1, true or false, kept the old value", {"asked": new_value})
+						return
+
+					stack.spawn_settings[key] = asked == "1" or asked == "true"
+				elif key == "mode":
 					if not stack.SPAWN_MODES.has(new_value):
 						log_info("unknown spawn mode, kept the old one", {"asked": new_value, "modes": stack.SPAWN_MODES})
 						return

@@ -29,7 +29,7 @@ func _run() -> void:
 			continue
 		await _one(id)
 		ran += 1
-	_report_sections(maps.size(), ran, maps.size(), ran * 4)
+	_report_sections(maps.size(), ran, maps.size(), ran * 7)
 
 
 func _one(id: StringName) -> void:
@@ -102,6 +102,24 @@ func _one(id: StringName) -> void:
 	_check(share <= maxf(0.12, 3.0 / maxf(points, 1)), "%s: no point over its share" % id, "%s %.1f%%" % [topid, share * 100.0])
 	_check(counts.size() >= int(points * 0.9), "%s: nearly every point used" % id, "%d of %d" % [counts.size(), points])
 	_check_apart(game, id, dupes, total)
+	_check_one_per_spawn(game, id)
+
+
+## Shared by default (more players than points all spawn); strict one-per-spawn never leaves a player unspawned either, it shares once every point is taken.
+func _check_one_per_spawn(game: FcGame, id: StringName) -> void:
+	var stack: Object = game.player_stack
+	_check(not stack.spawns.rules.one_per_spawn, "%s: spawns are shared by default" % id)
+	stack.spawn_settings["one_per_spawn"] = true
+	stack.refresh_spawn_rules()
+	_check(stack.spawns.rules.one_per_spawn, "%s: the one_per_spawn setting reaches the rules" % id)
+	var spawned := 0
+	for b in PLAYERS:
+		var res: GSResult = game.respawn_player(b + 1)
+		if res == null or res.ok:
+			spawned += 1
+	_check(spawned == PLAYERS, "%s: strict one-per-spawn still spawns everyone" % id, "%d of %d" % [spawned, PLAYERS])
+	stack.spawn_settings["one_per_spawn"] = false
+	stack.refresh_spawn_rules()
 
 ## Points at least 2 m apart decide how strict the repeat check is.
 func _check_apart(game: FcGame, id: StringName, dupes: int, total: int) -> void:
