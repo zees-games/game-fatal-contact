@@ -8,6 +8,12 @@
 #   tools/publish.sh --version V [publish_pack.sh flags, e.g. --site URL --token-file F --lock F --dry-run]
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# publish_pack.sh --lock rewrites the lock to the site it published to (a dev origin). The lock ships inside the pack and the release gate
+# (check-pack-static --deny tmcdev) rejects it: never commit that. Warn loudly when the lock now names a non-prod origin.
+lock_guard() {
+    local o; o=$(python3 -I -c 'import json,sys;print(json.load(open(sys.argv[1])).get("origin",""))' "$HERE/content.lock.json" 2>/dev/null || true)
+    case $o in https://content.gamespice.net/*) ;; *) echo "publish: WARNING content.lock.json origin is now '$o', not the prod origin. Do NOT commit it: git checkout -- content.lock.json (the release gate rejects dev origins)." >&2 ;; esac
+}
 MAP_LINKS=(maps/imported maps/imported_dm worlds worlds_dm .stores)
 X=(); for d in examples tests tools docs images screenshots shots_boot ci .github addons "${MAP_LINKS[@]}"; do X+=(--exclude-dir "$d"); done
 # A delivered pack mounts under res://gs_cloud/<id>/<version>/: every path to its own files must be rebased.
@@ -15,4 +21,5 @@ X=(); for d in examples tests tools docs images screenshots shots_boot ci .githu
 # The client shell carries its own pinned addons: a shipped script naming newer addon API does not compile there.
 # SHELL_PARSE=0 skips this (only for a pack no shell loads).
 [ "${SHELL_PARSE:-1}" = 0 ] || "$HERE/tools/check_shell_parse.sh" || { echo "publish: shipped scripts do not compile on the client shell (tools/check_shell_parse.sh)" >&2; exit 1; }
-exec "$HERE/../gs-cloud/tools/publish_pack.sh" publish --source "$HERE" --id game-fatal-contact "${X[@]}" --lock "$HERE/content.lock.json" "$@"
+trap lock_guard EXIT
+"$HERE/../gs-cloud/tools/publish_pack.sh" publish --source "$HERE" --id game-fatal-contact "${X[@]}" --lock "$HERE/content.lock.json" "$@"
