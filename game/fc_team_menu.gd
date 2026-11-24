@@ -171,6 +171,8 @@ func _bring_back(id: int) -> GSResult:
 func _silent_kill(id: int) -> void:
 	var record := game.match_node.scoreboard.record_for(str(id))
 	var deaths := record.deaths
+	# A player placed in the warmup still wears their spawn protection; choosing a side ends it.
+	game.end_spawn_protection(id)
 	var damage := GSDamage.make(0, id, 100000.0, game.combat.damage_type(&"world"))
 	damage.tick = game._tick
 	var _dealt := game.combat.apply_damage(damage)

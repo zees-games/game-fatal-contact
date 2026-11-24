@@ -94,6 +94,20 @@ func _run() -> void:
 	Input.action_release(&"gs_fps_forward")
 	Input.action_release(&"gs_fps_left")
 	Input.action_release(&"gs_fps_right")
+	# The native window without focus (the app shell keeps it): the mouse is not captured ("Click to play"), the OS
+	# recentres the cursor and the game gets a stream of motion. The view holds still, keeps its weapon, and does not
+	# alternate between the server's pose and the predicted one.
+	_client.set("mouse_capture_override", false)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	var spin := RandomNumberGenerator.new()
+	spin.seed = 11
+	await _watch("unfocused", func(_t: float) -> void:
+		var motion := InputEventMouseMotion.new()
+		motion.relative = Vector2(spin.randf_range(-400.0, 400.0), spin.randf_range(-300.0, 300.0))
+		motion.position = Vector2(640, 360)
+		Input.parse_input_event(motion))
+	_check(not bool(_client.call("mouse_drives_view")), "unfocused: the mouse does not drive the view")
+	_check_weapon()
 	_end()
 
 
@@ -157,7 +171,11 @@ func _watch(phase: String, drive: Callable) -> void:
 	var turns := 0
 	var shown := 0
 	var last := Transform3D.IDENTITY
+	var last2 := Transform3D.IDENTITY
 	var have := false
+	var have2 := false
+	var flips := 0
+	var round_seen := -1
 	var started := Time.get_ticks_msec()
 	var quiet := 0.0
 	var last_bad := -QUIET_SEC
@@ -175,6 +193,11 @@ func _watch(phase: String, drive: Callable) -> void:
 			continue
 		var cam: Camera3D = p.get("camera")
 		var gate: Object = _client.get("gate")
+		# The round starting (the end of the warmup) puts every player on a round spawn: a teleport by design.
+		var round_now := int(_client.get("game").get("match_node").get("round_number"))
+		if round_seen != -1 and round_now != round_seen:
+			last_bad = t
+		round_seen = round_now
 		# Under the loading cover the view is not on screen; a jump there is the join, not a flash.
 		if cam == null or t - last_bad < QUIET_SEC or (gate != null and not bool(gate.call("is_open"))):
 			have = false
@@ -190,17 +213,24 @@ func _watch(phase: String, drive: Callable) -> void:
 			var jump := last.origin.distance_to(now.origin)
 			worst_turn = maxf(worst_turn, turn)
 			worst_jump = maxf(worst_jump, jump)
+			# A, B, A: the pose goes away and comes back the next frame (server state against predicted state).
+			if have2 and (turn > 1.0 or jump > 0.2) and last2.origin.distance_to(now.origin) < 0.05 \
+					and rad_to_deg((-last2.basis.z).angle_to(-now.basis.z)) < 0.5:
+				flips += 1
 			if turn > MAX_TURN_DEG:
 				turns += 1
 			if (turn > MAX_TURN_DEG or jump > MAX_JUMP_M) and shown < 40:  # the first few say where
 				shown += 1
 				print("  frame %d t=%.2fs: turn %.1f deg, jump %.2f m, from %s to %s, cam current %s, state tick %s, gate open %s" % [
 					frames, t, turn, jump, last.origin, now.origin, str(cam.current), str(p.get_node("Net").get("last_state_tick")), str(gate.call("is_open"))])
+		last2 = last
+		have2 = have
 		last = now
 		have = true
 	print("  [%s] %d frames, worst turn %.2f deg, %d turns over %.0f, worst jump %.2f m, %d frames on another camera" % [
 		phase, frames, worst_turn, turns, MAX_TURN_DEG, worst_jump, foreign])
 	_check(frames > 20, phase + ": the player was watched", str(frames))
+	_check(flips == 0, phase + ": the view never alternates between two poses", str(flips))
 	_check(foreign == 0, phase + ": the viewport shows the player's own camera every frame", str(foreign))
 	_check(worst_turn <= MAX_TURN_DEG, phase + ": view never turns between frames", "%.2f deg" % worst_turn)
 	_check(worst_jump <= MAX_JUMP_M, phase + ": eye never jumps between frames", "%.2f m" % worst_jump)

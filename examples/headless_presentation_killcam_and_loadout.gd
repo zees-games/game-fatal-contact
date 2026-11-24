@@ -90,6 +90,9 @@ func _test_the_loadout_menu() -> void:
 	game.match_node.state = GSMatch.State.LIVE
 	me.health.spawn_protection_ticks = 0
 	me.health.invulnerable_until_tick = -1
+	# A joiner is spawned in the warmup now, and the instant-swap rule's window runs from that spawn: they are past it.
+	var spawned: Dictionary = game.get("_spawned_tick")
+	spawned.erase(me.player_id)
 	var later: Dictionary = await client.choose_loadout({"primary": "carbine"})
 	_check(bool(later.get("ok", false)) and not bool(later.get("now", true)) and not me.arsenal.carries(&"carbine"),
 		"mid-round it waits for the next spawn", str(later))
