@@ -192,6 +192,9 @@ func _first_use(_game: Object) -> void:
 		for s in String(args["first-use-only"]).split(",", false):
 			ids.append(StringName(s))
 	var at_gate := GSCloudSliceLoader.cached_scripts("res://", GSCloudClient.WARM_SKIP_DIRS).size()
+	await _first_blood()
+	await _first_decal()
+	await _first_impact()
 	await _first_hit()
 	await _first_footsteps()
 	await _first_kill()
@@ -242,6 +245,46 @@ func _first_use(_game: Object) -> void:
 				print("WARM_LIST " + path)
 				kept += 1
 		say("warm list: %d scripts loaded at the gate, %d after the first uses, %d listed" % [at_gate, scripts.size(), kept])
+
+
+## A point [param metres] in front of the player's camera and a transform there facing back at it: where a decal or an impact is drawn.
+func _in_front(metres: float) -> Transform3D:
+	var me: Variant = client.get("player")
+	var cam: Transform3D = me.camera.global_transform
+	return Transform3D(cam.basis, cam.origin - cam.basis.z * metres)
+
+
+## Row "blood": the first blood splatter (its decal pool, material and texture) at a point in sight, without the ray or the hit handler.
+func _first_blood() -> void:
+	var me: Variant = client.get("player")
+	var pres: Variant = client.get("presentation")
+	if me == null or pres == null or me.camera == null or pres.blood == null:
+		return
+	var at := _in_front(3.0)
+	var _row := await time_first_use("blood", func() -> void: pres.blood.decals.splatter(at.origin, at.basis.z), Callable(), 0, 30)
+	await wait(0.3)
+
+
+## Row "decal": the first bullet hole (the decal sheet's first draw), alone.
+func _first_decal() -> void:
+	var me: Variant = client.get("player")
+	var pres: Variant = client.get("presentation")
+	if me == null or pres == null or me.camera == null or pres.fx == null:
+		return
+	var at := _in_front(4.0)
+	var _row := await time_first_use("decal", func() -> void: var _hole: Variant = pres.fx.spawn_decal(&"bullet_hole", at), Callable(), 0, 30)
+	await wait(0.3)
+
+
+## Row "impact": the first impact through the presentation's own handler (hole, impact sound, spark), after the decal row, so it prices the sound and the spark.
+func _first_impact() -> void:
+	var me: Variant = client.get("player")
+	var pres: Variant = client.get("presentation")
+	if me == null or pres == null or me.camera == null:
+		return
+	var at := _in_front(5.0)
+	var _row := await time_first_use("impact", func() -> void: pres.on_impact(at, false, &"rifle"), Callable(), 0, 30)
+	await wait(0.3)
 
 
 ## Row "hit": the server's HIT event for a body in front of the player, before any shot, through the client's own handler
@@ -341,7 +384,7 @@ func _first_npcs() -> void:
 			at = point
 	for def: GSNpcDef in FcNpcs.catalogue().in_faction(FcNpcs.FACTION):
 		var held: Array = []
-		var _spawned := await time_first_use("npc %s" % def.id, func() -> void: held.append(horde.spawn_one(def.id, at)), Callable(), 0, 45)
+		var _spawned := await time_first_use("npc %s" % def.id, func() -> void: _place_npc(horde, def.id, at, held), Callable(), 0, 45)
 		await wait(0.5)
 		var npc: GSNpcInstance = held[0] if not held.is_empty() else null
 		if npc == null:
@@ -349,6 +392,12 @@ func _first_npcs() -> void:
 			continue
 		var _killed := await time_first_use("npc kill %s" % def.id, func() -> void: _kill(game, int(me.player_id), horde.entity_id_for(npc)), Callable(), 0, 90)
 		await wait(1.0)
+
+
+## The siege director keeps the world at its NPC budget, which refuses a hand-placed monster: clear the world and place at once.
+func _place_npc(horde: Variant, id: StringName, at: Vector3, held: Array) -> void:
+	var _cleared: int = horde.clear()
+	held.append(horde.spawn_one(id, at))
 
 
 func _start_pilot(_game: Object) -> void:
