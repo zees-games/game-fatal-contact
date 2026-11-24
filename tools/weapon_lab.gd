@@ -275,6 +275,20 @@ func _fp_animation(a: String, me, id: StringName, def: GSWeaponDef, wdir: String
 				elif i >= _f(32) and i < _f(56) and (i - _f(32)) % _f(8) == _f(3):
 					Input.action_release(&"arena_fire"), res)
 			Input.action_release(&"arena_fire")
+		"bolt":
+			# One shot and then the hand's work: a bolt or pump cycles itself after the shot, so this is the cycle alone, close up.
+			var art: AwWeaponVisual = AwWeaponArtTable.get_art(id)
+			if art == null or art.cycle_time <= 0.0:
+				res = {"status": "n/a", "why": "weapon has no cycle"}
+			else:
+				await _ensure_in_hand(me, id, def)
+				_refill(me, def)
+				await _clip(wdir, key, _f(60), func(i: int) -> void:
+					if i == _f(2):
+						Input.action_press(&"arena_fire")
+					elif i == _f(4):
+						Input.action_release(&"arena_fire"), res)
+				Input.action_release(&"arena_fire")
 		"ads":
 			await _ensure_in_hand(me, id, def)
 			if not _art_can_aim(id):

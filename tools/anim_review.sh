@@ -13,7 +13,7 @@ set -euo pipefail
 game=${1:?usage: anim_review.sh <game-dir> <weapon|all> [--anim X] [--soft]}
 weapons=${2:?usage: anim_review.sh <game-dir> <weapon|all> [--anim X] [--soft]}
 shift 2
-anims="idle,draw,holster,fire,ads,reload_empty,reload_tactical,sprint,inspect"
+anims="idle,draw,holster,fire,ads,reload_empty,reload_tactical,sprint,inspect,bolt"
 soft=0
 frames=0
 fps=60
