@@ -11,6 +11,13 @@ const OPENS := 4
 var _checks := 0
 var _failed := 0
 var _client: Node = null
+var _menu: Object = null
+var _gm: GSMenu = null
+var _previews: AwWeaponPreview = null
+var _ids: Array = []
+var _screen: GSMenuLoadoutScreen = null
+var _ports_before := 0
+var _views_before := 0
 
 
 func _ready() -> void:
@@ -72,57 +79,71 @@ func _run() -> void:
 		_check(false, "the loading cover lifts")
 		get_tree().quit(1)
 		return
-	var menu: Object = _client.get("loadout_menu")
-	var gm: GSMenu = _client.get("game_menu")
-	var previews: AwWeaponPreview = _client.call(&"weapon_previews")
-	var ids := _art_ids()
-	_check(ids.size() >= 20, "the arsenal has weapons with art to draw", str(ids.size()))
+	_menu = _client.get("loadout_menu")
+	_gm = _client.get("game_menu")
+	_previews = _client.call(&"weapon_previews")
+	_ids = _art_ids()
+	_check(_ids.size() >= 20, "the arsenal has weapons with art to draw", str(_ids.size()))
+	await _phase_warmup()
+	await _phase_first_open()
+	_phase_slots()
+	await _phase_reopens()
+	print("headless_loadout_open: %d checks, %d failed" % [_checks, _failed])
+	get_tree().quit(1 if _failed > 0 else 0)
 
-	# What the load cover does: every picture, one viewport, a frame each.
-	var ports0 := previews.ports_made()
-	previews.warm()
-	_check(previews.is_warming(), "the warm-up is spread over frames, not done in the call")
+
+## What the load cover does: every picture, one viewport, a frame each.
+func _phase_warmup() -> void:
+	var ports0 := _previews.ports_made()
+	_previews.warm()
+	_check(_previews.is_warming(), "the warm-up is spread over frames, not done in the call")
 	var done := [false]
-	var _c := previews.warmed.connect(func() -> void: done[0] = true)
+	var _c := _previews.warmed.connect(func() -> void: done[0] = true)
 	_check(await _until(func() -> bool: return done[0], 120.0), "the warm-up finishes")
 	await _frames(2)
-	_check(not previews.is_warming(), "and is no longer ticking")
-	_check(previews.cached_count() >= ids.size(), "every weapon with art has its picture cached", "%d of %d" % [previews.cached_count(), ids.size()])
+	_check(not _previews.is_warming(), "and is no longer ticking")
+	_check(_previews.cached_count() >= _ids.size(), "every weapon with art has its picture cached", "%d of %d" % [_previews.cached_count(), _ids.size()])
 	# Headless has no pixels to read back, so it falls back to a viewport per id; a display uses one for all.
-	var ports_for_warm := previews.ports_made() - ports0
-	_check(ports_for_warm <= (ids.size() if DisplayServer.get_name() == "headless" else 1), "the warm-up made %d viewports" % ports_for_warm)
-	print("  warm-up made %d viewports for %d weapons" % [ports_for_warm, ids.size()])
+	var ports_for_warm := _previews.ports_made() - ports0
+	_check(ports_for_warm <= (_ids.size() if DisplayServer.get_name() == "headless" else 1), "the warm-up made %d viewports" % ports_for_warm)
+	print("  warm-up made %d viewports for %d weapons" % [ports_for_warm, _ids.size()])
 
-	# And the screen drawn hidden on the offer, as the cover's last step.
-	if menu.has_method(&"prepare"):
-		await menu.call(&"prepare")
-	var views_before := _viewports(get_tree().root)
-	var ports_before := previews.ports_made()
+
+## The screen drawn hidden on the offer, then the first open costs nothing.
+func _phase_first_open() -> void:
+	if _menu.has_method(&"prepare"):
+		await _menu.call(&"prepare")
+	_views_before = _viewports(get_tree().root)
+	_ports_before = _previews.ports_made()
 	var first_added := [0]
 	# A spawned, armed player grows its own held-gun effect nodes by itself; the menu is what is counted.
 	var count_first := func(_node: Node) -> void:
 		if not _is_world_body(_node):
 			first_added[0] += 1
 	get_tree().node_added.connect(count_first)
-	await menu.call(&"open")
+	await _menu.call(&"open")
 	await _frames(2)
 	get_tree().node_added.disconnect(count_first)
-	var screen: GSMenuLoadoutScreen = gm.loadout_screen
-	_check(screen != null and screen.is_open(), "B opens the loadout screen")
-	_check(previews.ports_made() == ports_before, "the first open renders no weapon", "%d new" % (previews.ports_made() - ports_before))
-	_check(_viewports(get_tree().root) == views_before, "the first open makes no viewport", "%d -> %d" % [views_before, _viewports(get_tree().root)])
-	_check(first_added[0] == 0 or not menu.has_method(&"prepare"), "the first open puts no node into the tree", "%d entered" % first_added[0])
-	screen.close()
+	_screen = _gm.loadout_screen
+	_check(_screen != null and _screen.is_open(), "B opens the loadout screen")
+	_check(_previews.ports_made() == _ports_before, "the first open renders no weapon", "%d new" % (_previews.ports_made() - _ports_before))
+	_check(_viewports(get_tree().root) == _views_before, "the first open makes no viewport", "%d -> %d" % [_views_before, _viewports(get_tree().root)])
+	_check(first_added[0] == 0 or not _menu.has_method(&"prepare"), "the first open puts no node into the tree", "%d entered" % first_added[0])
+	_screen.close()
 	await _frames(3)
 
-	# Every slot's pictures too: a click on another tab renders nothing either.
-	var slot_count := screen.slots().size()
-	for s in slot_count:
-		screen.show_slot(s)
-	_check(previews.ports_made() == ports_before and _viewports(get_tree().root) == views_before, "paging every slot (%d) renders nothing" % slot_count)
-	screen.show_slot(0)
 
-	# Second and later opens: the same nodes, nothing new.
+## Every slot's pictures too: a click on another tab renders nothing either.
+func _phase_slots() -> void:
+	var slot_count := _screen.slots().size()
+	for s in slot_count:
+		_screen.show_slot(s)
+	_check(_previews.ports_made() == _ports_before and _viewports(get_tree().root) == _views_before, "paging every slot (%d) renders nothing" % slot_count)
+	_screen.show_slot(0)
+
+
+## Second and later opens: the same nodes, nothing new.
+func _phase_reopens() -> void:
 	var settled_nodes := -1
 	for n in OPENS:
 		var added := [0]
@@ -130,21 +151,19 @@ func _run() -> void:
 			if not _is_world_body(_node):
 				added[0] += 1
 		get_tree().node_added.connect(count)
-		await menu.call(&"open")
+		await _menu.call(&"open")
 		await _frames(3)
 		get_tree().node_added.disconnect(count)
 		var nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) - _body_nodes(get_tree().root)
-		_check(previews.ports_made() == ports_before, "open %d makes no preview viewport" % (n + 2))
-		_check(_viewports(get_tree().root) == views_before, "open %d makes no viewport" % (n + 2))
+		_check(_previews.ports_made() == _ports_before, "open %d makes no preview viewport" % (n + 2))
+		_check(_viewports(get_tree().root) == _views_before, "open %d makes no viewport" % (n + 2))
 		if settled_nodes >= 0:
 			_check(nodes == settled_nodes, "open %d leaves the node count where it was" % (n + 2), "%d -> %d" % [settled_nodes, nodes])
 		settled_nodes = nodes
 		_check(added[0] == 0, "open %d puts no node into the tree" % (n + 2), "%d entered" % added[0])
 		print("  open %d: %d nodes entered the tree, tree holds %d" % [n + 2, added[0], nodes])
-		screen.close()
+		_screen.close()
 		await _frames(3)
-	print("headless_loadout_open: %d checks, %d failed" % [_checks, _failed])
-	get_tree().quit(1 if _failed > 0 else 0)
 
 
 ## A node under a player's body in the game world: not something the menu put there.
