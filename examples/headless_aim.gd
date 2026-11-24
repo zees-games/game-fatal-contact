@@ -17,7 +17,7 @@ const FcScopeBody := preload("../game/fc_scope_body.gd")
 
 const TICK_RATE := 64
 const DISTANCES := [20.0, 40.0, 80.0]
-const EXPECTED_CHECKS := 50
+const EXPECTED_CHECKS := 51
 
 var _checks := 0
 var _failed := 0
@@ -289,6 +289,7 @@ func _probe_client() -> void:
 	for act in [FcBindings.FIRE, FcBindings.AIM]:
 		if not InputMap.has_action(act):
 			InputMap.add_action(act)
+	_check(int(client.call(&"cycle_scope_zoom")) == -1, "the scope zoom key does nothing off a scope (hip, no scoped weapon aimed)")
 	var sounds: Array = []
 	var asked: Array = []
 	var audio: GSAudioManager = client.get("presentation").audio

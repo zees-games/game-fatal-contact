@@ -55,6 +55,8 @@ const SLOT_NAMES: Array[String] = ["melee", "sidearm", "primary", "heavy", "thro
 const WEAPON_PREVIOUS := &"arena_weapon_previous"
 const WEAPON_NEXT := &"arena_weapon_next"
 const WEAPON_LAST := &"arena_weapon_last"
+## Steps a scope to its next zoom level (fc-weapons AwViewModel.cycle_zoom, API 37). The wheel does the same while scoped.
+const SCOPE_ZOOM := &"arena_scope_zoom"
 const PUNT := &"arena_punt"
 const FIRE_MODE := &"arena_fire_mode"
 ## The attachments menu on the gun in hand (gs-weapon's action, so its menu closes on the same key).
@@ -96,6 +98,7 @@ static func make() -> GSMenuBindings:
 	keys.add(WEAPON_PREVIOUS, &"bind_weapon_previous", "Previous weapon", "Wheel up", "Weapons")
 	keys.add(WEAPON_NEXT, &"bind_weapon_next", "Next weapon", "Wheel down", "Weapons")
 	keys.add(WEAPON_LAST, &"bind_weapon_last", "Last weapon", "Z", "Weapons")
+	keys.add(SCOPE_ZOOM, &"bind_scope_zoom", "Scope zoom level (the wheel does it too while scoped)", "Mouse 3", "Weapons")
 	keys.add(WEAPON_DROP, &"bind_weapon_drop", "Drop the weapon in hand (picks up the one at your feet)", "Q", "Weapons")
 	keys.add(USE, &"bind_use", "Pick up the dropped weapon you are looking at", "E", "Weapons")
 	keys.add(PUNT, &"bind_punt", "Punt a prop", "G", "Weapons")

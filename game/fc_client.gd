@@ -216,6 +216,16 @@ func inspect_weapon() -> bool:
 		return false
 	return view_model.inspect()
 
+## Steps the scope in hand to its next zoom level (the Scope zoom key, or the wheel while scoped); the level, or -1 off a scope.
+## Only the local view model changes: nothing goes to the server.
+func cycle_scope_zoom() -> int:
+	if _watching_other() or player == null or not player.is_alive() or view_model == null or not view_model.has_method(&"cycle_zoom"):
+		return -1
+	return view_model.cycle_zoom() if _scoped() else -1
+
+func _scoped() -> bool:
+	return view_model != null and view_model.has_method(&"is_scoped") and view_model.is_scoped()
+
 ## Whether [param event] is on [param action], pressed or released. False for an action the
 ## InputMap does not have, which `InputEvent.is_action` reports as an error.
 static func _is(event: InputEvent, action: StringName) -> bool:
@@ -353,6 +363,13 @@ func _press_action(event: InputEvent) -> void:
 		if _is(event, FcBindings.SLOTS[i]):
 			_wanted_slot = i + 1
 			return
+	# The zoom key, and the wheel while scoped (a client-side view change, like inspect): the next zoom level.
+	if _is(event, FcBindings.SCOPE_ZOOM) and event.is_pressed():
+		var _l := cycle_scope_zoom()
+		return
+	if (_is(event, FcBindings.WEAPON_PREVIOUS) or _is(event, FcBindings.WEAPON_NEXT)) and event.is_pressed() and _scoped():
+		var _w := cycle_scope_zoom()
+		return
 	# The wheel walks the carried slots, by the same request.
 	if _is(event, FcBindings.WEAPON_PREVIOUS):
 		_wanted_slot = _cycled_slot(-1)
