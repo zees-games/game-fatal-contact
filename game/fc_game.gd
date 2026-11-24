@@ -204,6 +204,13 @@ func add_player(
 		# player. See `FcProgress.begin`.
 		progress.begin(id, display_name)
 
+	# [b]Warmup is not a reason to stand at the origin with empty hands.[/b] gs-match spawns nobody until the countdown, so
+	# a player who joined a 10 s warmup was alive at (0, 0, 0) with no weapon, then teleported ~18 m with a gun when the
+	# round was set up (nightly fc-native-via-gs-app-1: the owner's native solo showed exactly that). They are put in the
+	# world now, armed; the countdown places everybody again, as it always did.
+	if match_node.state == GSMatch.State.WARMUP:
+		var _placed := respawn_player(id)
+
 	# Last, and only once the player is fully in: a handler runs synchronously inside
 	# this and the first thing a client's does is hang a camera off them.
 	player_added.emit(player)

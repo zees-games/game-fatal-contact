@@ -36,6 +36,23 @@ func _arm_adopted_in_frames(body: FcPlayer) -> void:
 	await get_tree().process_frame
 	await _restore_loadout()
 
+## How long the cover waits for the local player's first server state before it lets go anyway.
+const FIRST_STATE_LIMIT_SEC := 8.0
+
+## A joined client's own player is alive at the map origin until the server's first state moves it to its spawn, so
+## the eye was drawn there and teleported ~18 m about 2 s after join (nightly fc-native-via-gs-app-1). The load gate's
+## cover stays up until that state arrives. An offline game has no net behaviour and no wait.
+func _hold_for_first_state(body: FcPlayer) -> void:
+	var net := body.get_node_or_null("Net")
+	if net == null or int(net.get("last_state_tick")) >= 0 or gate == null:
+		return
+	gate.hold(&"first_state", "Joining the match")
+	var release := func() -> void:
+		if gate != null and gate.is_holding(&"first_state"):
+			gate.release(&"first_state")
+	net.connect(&"first_state_applied", release, CONNECT_ONE_SHOT)
+	get_tree().create_timer(FIRST_STATE_LIMIT_SEC).timeout.connect(release)
+
 func _adopt(candidate: FcPlayer) -> void:
 	if candidate == null or player != null:
 		return
@@ -47,6 +64,7 @@ func _adopt(candidate: FcPlayer) -> void:
 	# saved, so leaving the server gives it back rather than editing their settings.
 	player.attach_camera(_field_of_view())
 	_guard_camera(player)
+	_hold_for_first_state(player)
 	if presentation != null:
 		presentation.bind_camera_motion(player)
 	var spread := not _arm_after_adopt and _builds_in_frames() and bridge != null and bridge.event_budget_usec > 0

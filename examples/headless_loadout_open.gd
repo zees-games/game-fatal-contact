@@ -99,7 +99,10 @@ func _run() -> void:
 	var views_before := _viewports(get_tree().root)
 	var ports_before := previews.ports_made()
 	var first_added := [0]
-	var count_first := func(_node: Node) -> void: first_added[0] += 1
+	# A spawned, armed player grows its own held-gun effect nodes by itself; the menu is what is counted.
+	var count_first := func(_node: Node) -> void:
+		if not _is_world_body(_node):
+			first_added[0] += 1
 	get_tree().node_added.connect(count_first)
 	await menu.call(&"open")
 	await _frames(2)
@@ -123,12 +126,14 @@ func _run() -> void:
 	var settled_nodes := -1
 	for n in OPENS:
 		var added := [0]
-		var count := func(_node: Node) -> void: added[0] += 1
+		var count := func(_node: Node) -> void:
+			if not _is_world_body(_node):
+				added[0] += 1
 		get_tree().node_added.connect(count)
 		await menu.call(&"open")
 		await _frames(3)
 		get_tree().node_added.disconnect(count)
-		var nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+		var nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)) - _body_nodes(get_tree().root)
 		_check(previews.ports_made() == ports_before, "open %d makes no preview viewport" % (n + 2))
 		_check(_viewports(get_tree().root) == views_before, "open %d makes no viewport" % (n + 2))
 		if settled_nodes >= 0:
@@ -140,3 +145,26 @@ func _run() -> void:
 		await _frames(3)
 	print("headless_loadout_open: %d checks, %d failed" % [_checks, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)
+
+
+## A node under a player's body in the game world: not something the menu put there.
+func _is_world_body(node: Node) -> bool:
+	return str(node.get_path()).contains("/Game/Player")
+
+
+## Nodes under the players' bodies in the game world, which grow on their own as a held gun is used.
+func _body_nodes(node: Node) -> int:
+	var total := 0
+	for child in node.get_children():
+		if child.name.begins_with("Player") and child.get_parent().name == "Game":
+			total += _subtree_size(child)
+		else:
+			total += _body_nodes(child)
+	return total
+
+
+func _subtree_size(node: Node) -> int:
+	var total := 1
+	for child in node.get_children():
+		total += _subtree_size(child)
+	return total

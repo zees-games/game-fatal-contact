@@ -178,6 +178,9 @@ var last_view_targets_tick: int = -1
 ## Newest tick whose state this behaviour has adopted. Client side, for reconciliation.
 var last_state_tick: int = -1
 
+## The first authoritative state this behaviour adopted (emitted once). A joining client's own player is alive at the map origin until it, so the client keeps its loading cover up until this.
+signal first_state_applied()
+
 ## The newest tick this client has simulated, so a replayed one can be told from it.
 var _newest_simulated: int = -1
 
@@ -569,6 +572,7 @@ func _net_state_applied(tick: int) -> void:
 	if player == null:
 		return
 
+	var first := last_state_tick < 0
 	last_state_tick = tick
 
 	_push_fps(player.controller.state)
@@ -602,6 +606,9 @@ func _net_state_applied(tick: int) -> void:
 	# there has never been a client to feel it.
 	if identity == null or not identity.is_predicted():
 		player.global_position = player.controller.state.position
+
+	if first:
+		first_state_applied.emit()
 
 	if not player.health.alive and player.hitboxes.enabled:
 		# The server's word that this player is dead. `make_dead` is what takes them
