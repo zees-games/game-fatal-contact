@@ -9,7 +9,7 @@ const MOUNT_ROOT := "res://gs_cloud/"
 
 ## Where packs signed before the dot -> gs rename mount: the root is a field of the signed manifest, so a map pack
 ## published then (every fc-surf-dm-maps pack up to 1.2.4) mounts under it whatever this build calls its own.
-const LEGACY_MOUNT_ROOT := "res://dot_cloud/"
+const LEGACY_MOUNT_ROOT := "res://dot_cloud/"  # pack-paths: host (a delivered map pack signed before the rename; the host mounts it)
 
 
 ## Pack key -> why it failed: a delivered map whose fetch or mount failed this session, for ANY reason
