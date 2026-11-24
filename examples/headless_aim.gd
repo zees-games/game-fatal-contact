@@ -131,9 +131,9 @@ func _trial(dist: float, crouch: bool, follow_up: bool) -> Dictionary:
 
 
 func _run() -> void:
-	# The browser's SubViewport lens draws flat grey (no light, no sRGB step), so the web build starts in the full-screen scope.
+	# The lens is too small to aim through (and flat grey in the browser), so every build starts in the full-screen scope.
 	_check(FcScopePrefs.default_mode(true) == 2, "web: cl_scope_mode defaults to the full-screen scope (2)")
-	_check(FcScopePrefs.default_mode(false) == 1, "native: cl_scope_mode defaults to the lens (1)")
+	_check(FcScopePrefs.default_mode(false) == 2, "native: cl_scope_mode defaults to the full-screen scope (2) too")
 	_check(FcScopePrefs.mode == FcScopePrefs.default_mode(OS.has_feature("web")), "cl_scope_mode starts at this platform's default")
 	_check(FcScopeBody.default_body(true) and FcScopeBody.default_body(false), "cl_scope_body defaults on, web and native")
 	_scope_bodies()
@@ -333,7 +333,7 @@ func _shoot_bot(client: Node, g: FcGame, me: FcPlayer, bot: FcPlayer, audio: GSA
 		sampler.look_at_angles(a.x, a.y)
 	var hud = client.get("hud")
 	_check(not scoped or me.aim_zoom() < 0.9, "client: the sights are up before the shot" if scoped else "client: hip fire")
-	_check(not scoped or is_equal_approx(float(me.get("_view_fov_scale")), 1.0), "client: with the scope lens (cl_scope_mode 1) the camera keeps the hip's field of view")
+	_check(not scoped or float(me.get("_view_fov_scale")) < 0.9, "client: with the full-screen scope (cl_scope_mode 2, the default) the camera takes the scope's zoom")
 	Input.action_press(FcBindings.FIRE)
 	var marker := 0.0
 	for _i in 90:
