@@ -68,6 +68,18 @@ func _on_detonated(at: Vector3, spawn: GSWeaponSpawn) -> void:
 	if presentation != null:
 		presentation.on_explosion(at, camera_position(), spawn.id)
 
+## Where [param id]'s gun muzzle is: the first-person rig's for you (the gun you see), the held gun's for everyone else.
+func _muzzle_of_entity(id: int) -> Variant:
+	var who: FcPlayer = player if player != null and player.player_id == id else (game.player_for(id) if game != null else null)
+	if who == null:
+		return null
+	if who == player and who.weapons != null:
+		return who.weapons.muzzle_transform().origin
+	var held: Variant = who.get(&"held")
+	if held is Object and (held as Object).has_method(&"muzzle_transform"):
+		return ((held as Object).call(&"muzzle_transform") as Transform3D).origin
+	return null
+
 ## Points the drawing and the explosions at whichever projectile layer the game has now. Every frame
 ## and cheap, because a map change builds a new layer on the authority and a layer connected once at
 ## boot would go deaf after the first `changelevel`.
@@ -76,6 +88,8 @@ func _watch_projectiles() -> void:
 
 	if projectile_view != null:
 		projectile_view.projectiles = layer
+		if not projectile_view.muzzle_of.is_valid():
+			projectile_view.muzzle_of = _muzzle_of_entity
 
 	if layer == _heard_projectiles:
 		return

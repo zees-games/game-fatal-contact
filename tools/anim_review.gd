@@ -113,9 +113,29 @@ func _stage_views() -> void:
 		body.global_rotation = Vector3(0.0, deg_to_rad(float(me.controller.state.yaw)), 0.0)
 		# The gun in the body's hands, as everyone else sees it; the first-person present hides it.
 		me._present_held()
+		_hide_own_shot_fx(me)
 		_step_shown_body(me)
 		var _body := GSGameVisualQaViews.tag_layers(body, BODY_LAYER, cam)
 	_views.place(me.controller.state.position, deg_to_rad(float(me.controller.state.yaw)))
+
+
+## The first-person rig's own flash and casings hang in the world at the camera's muzzle, so the outside cameras drew them
+## beside the body. An opponent's client draws the held gun's remote flash and casings at the world model's muzzle: the
+## rig's effects go to the first-person-only layer, and the held gun plays its own, as it does on that client.
+func _hide_own_shot_fx(me: Node) -> void:
+	var rig: Variant = me.get(&"weapons")
+	if rig == null or not rig.has_method(&"shot_fx"):
+		return
+	var fx: Variant = rig.call(&"shot_fx")
+	if fx is Node:
+		var _tagged := GSGameVisualQaViews.tag_layers(fx as Node, VIEW_LAYER)
+	var held: Variant = me.get(&"held")
+	if held is Object and (held as Object).get(&"_draws_own") != null:
+		held.set(&"_draws_own", false)
+		held.set(&"_draws_own_epoch", held.get(&"rig_epoch"))
+		var own: Variant = held.get(&"_fx")
+		if own is Node and is_instance_valid(own as Node):
+			var _own_tagged := GSGameVisualQaViews.tag_layers(own as Node, BODY_LAYER)
 
 
 func _stage_between() -> void:

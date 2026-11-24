@@ -30,6 +30,12 @@ const FUSE_COLOUR := Color(1.0, 0.18, 0.12)
 ## The layer whose list is drawn. Re-pointed by the client whenever the game builds a new
 ## one, which a map change does.
 var projectiles: FcProjectiles = null
+## Entity id -> where that entity's gun muzzle is now (a Vector3), or null; set by the client. A missile is launched
+## from the shooter's eye, so it is drawn leaving the muzzle and easing onto its true path over [constant MUZZLE_EASE].
+var muzzle_of: Callable = Callable()
+const MUZZLE_EASE := 0.18
+## Entry -> its launch offset (muzzle minus true origin) and the seconds it has been drawn.
+var _from_muzzle: Dictionary = {}
 
 ## One drawn node per flying entry, keyed by the entry.
 var _drawn: Dictionary = {}
@@ -60,13 +66,13 @@ func _ready() -> void:
 		_missile_art = load(MISSILE_ART) as Script
 
 
-func _process(_delta: float) -> void:
-	present()
+func _process(delta: float) -> void:
+	present(delta)
 
 
 ## Moves every drawn node to where its entry is, adding and freeing as they come and go.
 ## Public so a suite can step it with no frame.
-func present() -> void:
+func present(delta: float = 0.0) -> void:
 	var live: Array = projectiles.flying() if projectiles != null else []
 	var seen := {}
 
@@ -78,8 +84,9 @@ func present() -> void:
 			node = _make(f)
 			add_child(node)
 			_drawn[f] = node
+			_note_muzzle_start(f)
 
-		node.global_position = f.position
+		node.global_position = f.position + _muzzle_offset(f, delta)
 
 		# A rocket points where it is going; a grenade tumbles, which is what a thrown
 		# object does and what tells a watcher it is not a rocket.
@@ -91,6 +98,30 @@ func present() -> void:
 	for f in _drawn.keys():
 		if not seen.has(f):
 			_release(f)
+
+
+## A rocket launched this frame starts at the shooter's muzzle, not the eye the shot is simulated from.
+func _note_muzzle_start(f: FcProjectiles.Flying) -> void:
+	if f.spawn.fuse_ticks > 0 or not muzzle_of.is_valid():
+		return
+	var at: Variant = muzzle_of.call(f.spawn.owner_entity)
+	if at is Vector3 and (at as Vector3).is_finite():
+		var offset: Vector3 = (at as Vector3) - f.position
+		if offset.length() < 3.0:
+			_from_muzzle[f] = [offset, 0.0]
+
+
+## The launch offset of [param f] at this frame: all of it at launch, none after [constant MUZZLE_EASE].
+func _muzzle_offset(f: FcProjectiles.Flying, delta: float) -> Vector3:
+	var held: Variant = _from_muzzle.get(f)
+	if held == null:
+		return Vector3.ZERO
+	var age: float = float(held[1]) + delta
+	held[1] = age
+	if age >= MUZZLE_EASE:
+		_from_muzzle.erase(f)
+		return Vector3.ZERO
+	return (held[0] as Vector3) * (1.0 - age / MUZZLE_EASE)
 
 
 func drawn_count() -> int:
@@ -112,6 +143,7 @@ func _release(f: Variant) -> void:
 		(_missiles[node.get_meta(&"missile_id")] as Array).append(missile)
 	node.queue_free()
 	_drawn.erase(f)
+	_from_muzzle.erase(f)
 
 
 func _make(f: FcProjectiles.Flying) -> Node3D:
