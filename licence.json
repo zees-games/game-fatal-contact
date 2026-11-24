@@ -36,15 +36,6 @@
  },
  {
   "paths": [
-   "assets/blaster-kit"
-  ],
-  "licence": "CC0-1.0",
-  "author": "Kenney",
-  "url": "https://kenney.nl/assets/blaster-kit",
-  "title": "Blaster Kit"
- },
- {
-  "paths": [
    "assets/ammo"
   ],
   "licence": "CC0-1.0",
