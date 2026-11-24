@@ -167,7 +167,9 @@ static func weapon_bounds(model: AwViewModel, boxes: Dictionary) -> AABB:
 	if not boxes.has(key):
 		if boxes.size() > 32:
 			boxes.clear()
-		boxes[key] = GSViewGrip.one_hand(weapon, Vector3.ZERO).bounds_local()
+		# An art with its own clearance box (an L-shaped single mesh whose bounds take in the air behind the grip) names it.
+		var art_box: AABB = model.art_clear_box() if model.has_method(&"art_clear_box") else AABB()
+		boxes[key] = art_box if art_box.has_volume() else GSViewGrip.one_hand(weapon, Vector3.ZERO).bounds_local()
 	var box: AABB = boxes[key]
 	if not box.has_volume():
 		return AABB()
