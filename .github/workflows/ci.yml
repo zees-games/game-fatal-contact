@@ -29,9 +29,8 @@ jobs:
             suites: 'examples/headless_match examples/headless_net examples/headless_presentation examples/headless_stack examples/headless_admin examples/headless_imported examples/dedicated examples/headless_lossy'
             hygiene: true
             # The release's pack gates, run on every push: the static gate hard-fails (it
-            # always fails the release), server-compat only warns until the addon is tagged.
+            # always fails the release), server-compat (default true) only warns until the addon is tagged.
             pack: true
             pack-deny: 'tmcdev(?:games)?\.net|x-tmc-dev'
-            server-compat: advisory
         secrets:
             DEPS_TOKEN: ${{ secrets.GS_DEPS_TOKEN }}
