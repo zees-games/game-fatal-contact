@@ -44,9 +44,9 @@ const STAGE := "res://.godot/fc_delivered_stage"
 var PACK_ROOT := "user://fc_pack_maps_check_%d" % OS.get_process_id()
 ## Where the per-map groups section publishes and mounts its stand-in pack.
 var GROUPS_ROOT := "user://fc_map_groups_check_%d" % OS.get_process_id()
-const SECTIONS := 8
+const SECTIONS := 9
 ## Without a frame; two more with `--shot`.
-const CHECKS := 38
+const CHECKS := 40
 ## The groups section's mount checks, skipped (and not expected) on a gs-cloud before API 22.
 const GROUP_MOUNT_CHECKS := 5
 
@@ -82,6 +82,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	_line("arena — a combat surf map delivered as a signed pack")
+	_test_legacy_mount()
 	_test_game_pack_leaves_maps_out()
 	_test_solo_start_map()
 	var source_manifest := FcImportedMaps.manifest_path(MAP)
@@ -487,6 +488,20 @@ func _test_surf_keys() -> void:
 	var listed := FcMaps.standalone_keys(null)
 	_check("gamemann/fc-surf-dm-maps-surf_10x_final@1.2.3" in listed, "standalone_keys() lists a surf pack")
 	_check(listed.size() >= surf, "standalone_keys() lists at least all of them (%d)" % listed.size())
+	_done()
+
+
+## A pack signed before the dot -> gs rename mounts under `res://dot_cloud/` (the root is in the signed manifest), where every
+## surf pack up to 1.2.4 sits: "The delivered map has no manifest" on a live server until the mount was looked up there too.
+func _test_legacy_mount() -> void:
+	_section("a pack signed before the rename mounts under dot_cloud")
+	var def := FcMaps.delivered_def("gamemann/fc-surf-dm-maps-surf_10x_final@1.2.3")
+	var legacy := "%s%s/%s" % [FcMaps.LEGACY_MOUNT_ROOT, String(def.content_id), def.effective_content_version()]
+	_check(FcMaps.mounted_dir(def) == FcMaps.mount_of(def), "with nothing mounted the pack's mount is the gs_cloud one (%s, %s)" % [FcMaps.mounted_dir(def), FcMaps.mount_of(def)])
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(legacy))
+	var found := FcMaps.mounted_dir(def)
+	GSPaths.remove_tree(FcMaps.LEGACY_MOUNT_ROOT.trim_suffix("/"))
+	_check(found == legacy, "a pack mounted under dot_cloud is found there (%s)" % found)
 	_done()
 
 

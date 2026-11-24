@@ -7,6 +7,10 @@ extends "fc_maps_catalogue.gd"
 ## parses in a build that does not link it.
 const MOUNT_ROOT := "res://gs_cloud/"
 
+## Where packs signed before the dot -> gs rename mount: the root is a field of the signed manifest, so a map pack
+## published then (every fc-surf-dm-maps pack up to 1.2.4) mounts under it whatever this build calls its own.
+const LEGACY_MOUNT_ROOT := "res://dot_cloud/"
+
 
 ## Pack key -> why it failed: a delivered map whose fetch or mount failed this session, for ANY reason
 ## (404, a browser's opaque "Failed to fetch" with status 0, another HTTP error, a pack missing files it
@@ -196,7 +200,7 @@ static func mount_delivered(
 	var key := str(map.meta.get("key", "%s@%s" % [String(map.content_id), map.effective_content_version()]))
 
 	if FcImportedMaps.is_mounted(map.id) \
-			and FcImportedMaps.manifest_path(map.id) == manifest_in_mount(map):
+			and FcImportedMaps.manifest_path(map.id) == mounted_dir(map).path_join("%s.json" % String(map.id)):
 		refresh_delivered_meta(map)
 		return GSResult.success(null)
 
@@ -233,7 +237,7 @@ static func mount_delivered(
 		GSLog.warn(CHANNEL, "a delivered map could not be fetched", {"map": String(map.id), "pack": key, "why": str(fetched.error)})
 		return fetched.wrap("could not fetch the map %s: %s" % [String(map.id), why])
 
-	var dir := mount_of(map)
+	var dir := mounted_dir(map)
 	var added := FcImportedMaps.add_mounted(map.id, dir)
 
 	if added.ok:
@@ -248,7 +252,7 @@ static func mount_delivered(
 
 	if not added.ok:
 		if added.error.code == GSError.CODE_INVALID:
-			refuse(key, FcImportedMaps.kind_at(manifest_in_mount(map)))
+			refuse(key, FcImportedMaps.kind_at(dir.path_join("%s.json" % String(map.id))))
 
 			if catalogue != null:
 				catalogue.remove(map.id)
@@ -390,6 +394,18 @@ static func latest_version(content_id: String) -> String:
 ## `res://gs_cloud/<content id>/<version>`, where [param def]'s pack mounts.
 static func mount_of(def: GSMapDef) -> String:
 	return "%s%s/%s" % [MOUNT_ROOT, String(def.content_id), def.effective_content_version()]
+
+
+## The directory [param def]'s pack really mounted in: [method mount_of], or the same path under
+## [constant LEGACY_MOUNT_ROOT] when only that one exists (a pack signed before the rename). Asked after the fetch.
+static func mounted_dir(def: GSMapDef) -> String:
+	var dir := mount_of(def)
+
+	if DirAccess.dir_exists_absolute(dir):
+		return dir
+
+	var legacy := "%s%s/%s" % [LEGACY_MOUNT_ROOT, String(def.content_id), def.effective_content_version()]
+	return legacy if DirAccess.dir_exists_absolute(legacy) else dir
 
 
 ## `<mount>/<id>.json`: the manifest a delivered map is built from.

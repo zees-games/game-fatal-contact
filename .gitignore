@@ -53,6 +53,7 @@
 
 # gs-cloud mounts packs here; headless_imported writes a fake one and deletes it.
 /gs_cloud/
+/dot_cloud/
 
 # Exports
 build/
