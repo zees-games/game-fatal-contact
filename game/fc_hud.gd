@@ -730,7 +730,8 @@ func present_abilities(state: GSFpsState, tunables: GSFpsTunables) -> void:
 			b["pips_max"] = tunables.wall_jump_max_per_air
 			b["pips"] = maxi(0, tunables.wall_jump_max_per_air - state.wall_jumps_in_air)
 			buttons.append(b)
-	abilities.visible = not buttons.is_empty()
+	# The full-screen scope is the whole picture: the ability tiles would sit on its black surround.
+	abilities.visible = not buttons.is_empty() and not _scope_full
 	abilities.show_buttons(buttons)
 
 
