@@ -1,15 +1,15 @@
 {
 	"format": 1,
 	"mirrors": [],
-	"origin": "https://tmcdevgames.net/content",
+	"origin": "https://content.gamespice.net/content",
 	"packs": [
 		{
 			"id": "gamemann/game-fatal-contact",
 			"into": "",
 			"kind": "pack",
-			"manifest_sha256": "71f91c1cb80aefb61896a30a2216ba6a12bd8e5f253768ebeba3efdaaedd3f9d",
+			"manifest_sha256": "9bd4d63aa34c7bbc3e0376042bba827d1426a8b2f213169296d60405beec0f78",
 			"optional": true,
-			"version": "0.1.82"
+			"version": "0.1.73"
 		}
 	]
 }
