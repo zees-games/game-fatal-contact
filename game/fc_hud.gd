@@ -453,7 +453,7 @@ func present_gear() -> void:
 	var key_sig := keys.hash()
 	if slots != null:
 		# On a phone the right edge belongs to Fire, Jump and Next; the held weapon is on the ammunition plate.
-		slots.visible = not GSPlatform.has_touch()
+		slots.visible = not GSPlatform.has_touch() and not _scope_full
 		var arsenal: GSWeaponArsenal = player.arsenal if live else null
 		var row_sig := hash([key_sig, live, arsenal.get_instance_id() if arsenal != null else 0])
 		if arsenal != null:
@@ -551,6 +551,21 @@ func present_throw_meter(delta: float, live: bool) -> float:
 	return fill
 
 
+## Whether the full-screen scope is up this frame, so the score strip, the portraits, the slot list and the kill feed give way to it.
+var _scope_full := false
+
+
+## Shows or hides what the full-screen scope covers: the score strip and portraits (only with a match), and the kill feed.
+## The slot list follows [member _scope_full] in [method present_gear], which sets its own visibility.
+func _show_over_scope(shown: bool) -> void:
+	if strip != null:
+		strip.visible = shown and game != null
+	if portraits != null:
+		portraits.visible = shown and game != null
+	if feed != null:
+		feed.visible = shown
+
+
 ## The scope, the hurt edge, the launch's readiness and the slide prompt, from the
 ## followed player. Public so a suite can drive it without a frame.
 func present_body() -> void:
@@ -561,6 +576,10 @@ func present_body() -> void:
 	)
 	# The scope's view comes up over the aim-in (aw_ads_rules), so the crosshair gives way as it does.
 	var scope_up := hands != null and hands.scope_fraction() > 0.0
+
+	# Over the full-screen scope (cl_scope_mode 2) the scores, the slot list and the kill feed are hidden: the scope is the whole picture.
+	_scope_full = scope_up and scope != null and scope.mode == 2
+	_show_over_scope(not _scope_full)
 
 	if scope != null:
 		if hands != null:

@@ -206,6 +206,18 @@ func _check_crosshair_sights(client: FcClient, me: FcPlayer, game: FcGame) -> vo
 		_check(hip > 0.99 and aimed < 0.01 and hud.crosshair.aim_opacity > 0.99,
 			"the crosshair is drawn at the hip, gone down the sights, and back after",
 			"hip %.2f, aimed %.2f (fraction %.2f, scoped %s), after %.2f" % [hip, aimed, hands.aim_fraction(), hands.is_scoped(), hud.crosshair.aim_opacity])
+		# Full-screen scope: the feed and slot list give way to it, and come back when it lowers.
+		if hud.scope != null and hands.has_scope():
+			hud.scope.mode = 2
+			hands.set(&"_aim_fraction", 1.0)
+			hud.present_body()
+			hud.present_gear()
+			_check(not hud.feed.visible and (hud.slots == null or not hud.slots.visible),
+				"the kill feed and slot list are hidden over the full-screen scope")
+			hands.set(&"_aim_fraction", 0.0)
+			hud.present_body()
+			hud.present_gear()
+			_check(hud.feed.visible, "and the kill feed is back with the scope down")
 		me.health.alive = false
 		hud.crosshair.call(&"_process", 0.016)
 		_check(not hud.crosshair.is_shown(), "a dead player's crosshair is not drawn")
