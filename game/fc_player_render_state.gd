@@ -86,6 +86,7 @@ func _kick_landing(drawn: GSFpsState) -> void:
 func _present_view_model(drawn: GSFpsState) -> void:
 	_aim_fov_scale = 1.0
 	_view_fov_scale = 1.0
+	_scope_breath = Vector2.ZERO
 	if weapons == null or weapons.view_model() == null:
 		return
 
@@ -111,6 +112,7 @@ func _present_view_model(drawn: GSFpsState) -> void:
 		FcScopeBody.apply(hands)
 		_aim_fov_scale = hands.aim_fov_scale()
 		_view_fov_scale = hands.view_fov_scale()
+		_scope_breath = hands.scope_breath_angles()
 
 
 ## The process frame the last [GSSpawnBubble3D] was made on: [method _present_bubble] makes one a frame.

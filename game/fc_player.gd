@@ -66,7 +66,7 @@ func present(delta: float) -> void:
 		var shift := camera_motion.eye_shift() if camera_motion != null else Vector3.ZERO
 		camera.global_position = view.global_position + camera_offset + Vector3(0.0, dip, 0.0) + shift
 		camera.global_rotation = Vector3(
-			deg_to_rad(drawn.pitch + punch.x + nod), deg_to_rad(drawn.yaw + punch.y),
+			deg_to_rad(drawn.pitch + punch.x + nod + _scope_breath.y), deg_to_rad(drawn.yaw + punch.y + _scope_breath.x),
 			camera_roll + deg_to_rad(lean)
 		)
 		if third_person and camera.current:

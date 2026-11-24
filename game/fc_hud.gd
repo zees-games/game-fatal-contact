@@ -551,13 +551,18 @@ func present_throw_meter(delta: float, live: bool) -> float:
 	return fill
 
 
-## Whether the full-screen scope is up this frame, so the score strip, the portraits, the slot list and the kill feed give way to it.
+## Whether the full-screen scope has taken the screen this frame (the pieces below have faded out), so the score strip, the portraits, the slot list and the kill feed give way to it.
 var _scope_full := false
+## How much of the HUD shows over the full-screen scope: 1 clear of it, falling to 0 as the scope's surround comes in (it fades with it rather than snapping off).
+var _scope_hud := 1.0
 
 
 ## Shows or hides what the full-screen scope covers: the score strip and portraits (only with a match), and the kill feed.
 ## The slot list follows [member _scope_full] in [method present_gear], which sets its own visibility.
 func _show_over_scope(shown: bool) -> void:
+	for piece: Control in [strip, portraits, feed, slots, abilities]:
+		if piece != null:
+			piece.modulate.a = _scope_hud
 	if strip != null:
 		strip.visible = shown and game != null
 	if portraits != null:
@@ -578,7 +583,9 @@ func present_body() -> void:
 	var scope_up := hands != null and hands.scope_fraction() > 0.0
 
 	# Over the full-screen scope (cl_scope_mode 2) the scores, the slot list and the kill feed are hidden: the scope is the whole picture.
-	_scope_full = scope_up and scope != null and scope.mode == 2
+	var over := scope_up and scope != null and scope.mode == 2
+	_scope_hud = 1.0 - hands.scope_fraction() if over else 1.0
+	_scope_full = over and _scope_hud <= 0.01
 	_show_over_scope(not _scope_full)
 
 	if scope != null:
