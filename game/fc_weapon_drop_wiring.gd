@@ -83,15 +83,16 @@ static func warm_looks(ids: Array, from: int, until_msec: int, into: Array) -> i
 ## Parks a body per weapon on a layer that draws nothing, a few ms a frame, so the first throw of each only takes one. Ends when the layer leaves the tree.
 static func warm_server(layer: GSWeaponDrops, slice_msec: int = 4) -> void:
 	var ids := prewarm_ids()
-	var pending := request_models(ids)
+	# [path of the one model loading on a thread, or ""]: one at a time, because the headless renderer's texture
+	# and mesh tables are not thread-safe, and two loads building textures at once leaked RIDs at exit.
+	var loading := [""]
 	var held: Array[Resource] = []
-	# A layer gone before the warm ends (a test's quit, a map change) still collects every load it asked for: one
+	# A layer gone before the warm ends (a test's quit, a map change) still collects the load it asked for: one
 	# never collected keeps its scene alive past exit.
 	var drain := func() -> void:
-		for real: String in pending.values():
-			if ResourceLoader.load_threaded_get_status(real) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-				var _done: Resource = ResourceLoader.load_threaded_get(real)
-		pending.clear()
+		if loading[0] != "" and ResourceLoader.load_threaded_get_status(loading[0]) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			var _done: Resource = ResourceLoader.load_threaded_get(loading[0])
+		loading[0] = ""
 		held.clear()
 	var _c := layer.tree_exiting.connect(drain, CONNECT_ONE_SHOT)
 	var next := 0
@@ -100,7 +101,7 @@ static func warm_server(layer: GSWeaponDrops, slice_msec: int = 4) -> void:
 		if not is_instance_valid(layer) or not layer.is_inside_tree():
 			return
 		var until := Time.get_ticks_msec() + slice_msec
-		while next < ids.size() and Time.get_ticks_msec() < until and model_ready(pending, ids[next], held):
+		while next < ids.size() and Time.get_ticks_msec() < until and model_ready(ids[next], loading, held):
 			layer.prewarm(ids[next], 1)
 			next += 1
 	held.clear()
@@ -118,36 +119,34 @@ static func server_warming(game) -> bool:
 	return game != null and game.weapon_drops != null and not game.weapon_drops.draws and not game.weapon_drops.has_meta(SERVER_WARM)
 
 
-## Starts a background load of the world model of each weapon of [param ids]; returns id -> path for those started.
-## A weapon GLB took 65 to 1200 ms to load on the main thread of a headless host, a tick lost for each.
-static func request_models(ids: Array) -> Dictionary:
-	var started := {}
-	for id: Variant in ids:
-		var art: Variant = AwWeaponArtTable.table().get(id)
-		if not art is AwWeaponVisual or (art as AwWeaponVisual).model_path == "":
-			continue
-		var real := AwModelCache.resolve((art as AwWeaponVisual).model_path)
-		if not ResourceLoader.exists(real) or ResourceLoader.has_cached(real):
-			continue
-		if ResourceLoader.load_threaded_request(real) == OK:
-			started[id] = real
-	return started
-
-
-## Whether the background load of weapon [param id] (in [param pending], from [method request_models]) is done, or
-## there is none. Collects it into [param held] once done and takes it out of [param pending]: the resource cache
-## keeps a model only while something holds it, and the main-thread load that follows then costs nothing.
-static func model_ready(pending: Dictionary, id: Variant, held: Array[Resource]) -> bool:
-	if not pending.has(id):
-		return true
-	var real: String = pending[id]
-	var status := ResourceLoader.load_threaded_get_status(real)
+## Whether the world model of weapon [param id] is loaded, or needs no load. Starts its load on a thread when
+## none is running ([param loading] holds the path of the one that is) and answers false until it is done, then
+## collects it into [param held]: the resource cache keeps a model only while something holds it, and the
+## main-thread load that follows then costs nothing. A weapon GLB took 65 to 1200 ms on the main thread of a headless host.
+static func model_ready(id: Variant, loading: Array, held: Array[Resource]) -> bool:
+	if loading[0] == "":
+		var real := model_path(id)
+		if real == "" or not ResourceLoader.exists(real) or ResourceLoader.has_cached(real):
+			return true
+		if ResourceLoader.load_threaded_request(real) != OK:
+			return true
+		loading[0] = real
+		return false
+	var status := ResourceLoader.load_threaded_get_status(loading[0])
 	if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
 		return false
 	if status == ResourceLoader.THREAD_LOAD_LOADED:
-		held.append(ResourceLoader.load_threaded_get(real))
-	pending.erase(id)
+		held.append(ResourceLoader.load_threaded_get(loading[0]))
+	loading[0] = ""
 	return true
+
+
+## The world model path of weapon [param id], or "" when it has none.
+static func model_path(id: Variant) -> String:
+	var art: Variant = AwWeaponArtTable.table().get(id)
+	if not art is AwWeaponVisual or (art as AwWeaponVisual).model_path == "":
+		return ""
+	return AwModelCache.resolve((art as AwWeaponVisual).model_path)
 
 
 static func teardown(game) -> void:
