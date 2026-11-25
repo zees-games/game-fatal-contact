@@ -69,29 +69,37 @@ static func configure(host: GSKillcamHost, yard_fn: Callable = Callable(), shots
 ## the frame the victim's row turns dead.
 static func replay_events(p: Node, ra: Array, rb: Array, alpha: float, is_victim: bool, yard: Variant, shots: KillcamShots = null, at: float = -1.0) -> void:
 	var row := rb if alpha >= 0.5 else ra
-	var body: Node3D = p.get(&"body_mesh")
-	var held: Node3D = p.get(&"held")
 	if row.size() > ROW_FIRE_KIND:
 		var seq := int(row[ROW_FIRE_SEQ])
-		var seen: int = p.get_meta(SEQ_META, seq)
-		p.set_meta(SEQ_META, seq)
-		var fresh := posmod(seq - seen, SEQ_RANGE)
-		if fresh > 0 and fresh < SEQ_RANGE / 2 and body != null and body.visible and held != null:
-			var kind := int(row[ROW_FIRE_KIND])
-			var recoil: Vector2 = FcPlayer.WATCHED_RECOIL.get(kind, Vector2(0.6, 0.1))
-			# The recorded shot (where the gun stood and pointed) draws the flash, tracer and spark; without one the
-			# held weapon draws its own from where it points now.
-			var shot := shots.take(int(p.get(&"player_id")), at) if shots != null and at >= 0.0 else {}
-			if shot.is_empty():
-				held.call(&"on_fired", recoil, kind)
-			else:
-				held.call(&"on_fired", recoil, kind, false)
-				shots.play(shot, p, kind)
-	var alive: bool = row[3]
-	var was: bool = p.get_meta(ALIVE_META, alive)
-	p.set_meta(ALIVE_META, alive)
-	if is_victim and was and not alive and yard is GSPlayerRagdolls and body != null and not p.has_meta(FALL_META):
-		_fall(p, body, ra, rb, alpha, yard as GSPlayerRagdolls)
+		var seen: int = p.get_meta(SEQ_META, -1)
+		# Most calls see no new shot: the meta is only written when the counter moved (or on the first sight).
+		if seen != seq:
+			p.set_meta(SEQ_META, seq)
+			if seen < 0:
+				seen = seq
+			var fresh := posmod(seq - seen, SEQ_RANGE)
+			var body: Node3D = p.get(&"body_mesh")
+			var held: Node3D = p.get(&"held")
+			if fresh < SEQ_RANGE / 2 and body != null and body.visible and held != null:
+				var kind := int(row[ROW_FIRE_KIND])
+				var recoil: Vector2 = FcPlayer.WATCHED_RECOIL.get(kind, Vector2(0.6, 0.1))
+				# The recorded shot (where the gun stood and pointed) draws the flash, tracer and spark; without one the
+				# held weapon draws its own from where it points now.
+				var shot := shots.take(int(p.get(&"player_id")), at) if shots != null and at >= 0.0 else {}
+				if shot.is_empty():
+					held.call(&"on_fired", recoil, kind)
+				else:
+					held.call(&"on_fired", recoil, kind, false)
+					shots.play(shot, p, kind)
+	# Only the victim's death turns into a ragdoll, so only its alive flag is tracked.
+	if is_victim:
+		var alive: bool = row[3]
+		var was: bool = p.get_meta(ALIVE_META, alive)
+		p.set_meta(ALIVE_META, alive)
+		if was and not alive and yard is GSPlayerRagdolls and not p.has_meta(FALL_META):
+			var body: Node3D = p.get(&"body_mesh")
+			if body != null:
+				_fall(p, body, ra, rb, alpha, yard as GSPlayerRagdolls)
 
 
 static func _fall(p: Node, body: Node3D, ra: Array, rb: Array, alpha: float, yard: GSPlayerRagdolls) -> void:

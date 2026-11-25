@@ -274,6 +274,8 @@ func _check_events(killer: Object, me: Object) -> void:
 	Bodies.replay_events(bot, row.call(4.0, true), row.call(4.0, true), 0.0, false, yard)
 	_check(flashes.call() == after, "the same count does not flash twice")
 	var live := yard.live().size() if yard != null else 0
+	# A replay names its victim in every call, so the alive flag is tracked from the first.
+	Bodies.replay_events(bot, row.call(4.0, true), row.call(4.0, true), 0.0, true, yard)
 	Bodies.replay_events(bot, row.call(4.0, true), row.call(4.0, false), 1.0, true, yard)
 	_check(yard != null and yard.live().size() == live + 1 and bot.has_meta(Bodies.FALL_META), "the victim's row turning dead drops a ragdoll")
 	await _check_shots(bot, row, yard)
