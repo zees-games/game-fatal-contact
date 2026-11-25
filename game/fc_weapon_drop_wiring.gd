@@ -82,7 +82,10 @@ static func warm_looks(ids: Array, from: int, until_msec: int, into: Array) -> i
 
 ## Parks a body per weapon on a layer that draws nothing, a few ms a frame, so the first throw of each only takes one. Ends when the layer leaves the tree.
 static func warm_server(layer: GSWeaponDrops, slice_msec: int = 4) -> void:
-	var ids := prewarm_ids()
+	# The weapons players start with first: early deaths drop those, and one not yet loaded is loaded inside the tick.
+	var start := FcContent.default_loadout()
+	var ids := prewarm_ids().filter(func(id: Variant) -> bool: return id in start)
+	ids.append_array(prewarm_ids().filter(func(id: Variant) -> bool: return id not in start))
 	# [path of the one model loading on a thread, or ""]: one at a time, because the headless renderer's texture
 	# and mesh tables are not thread-safe, and two loads building textures at once leaked RIDs at exit.
 	var loading := [""]
