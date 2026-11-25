@@ -105,6 +105,8 @@ func _ready() -> void:
 		preload("../game/fc_player.gd").occlusion_enabled = false
 	if int(args.get("anim-gate", 1)) == 0:
 		preload("../game/fc_player.gd").anim_gate_enabled = false
+	if int(args.get("present-native", 1)) == 0:
+		preload("../game/fc_player.gd").present_schedule_native = false
 	if int(args.get("carry", 1)) == 0:
 		# By name: a no-op against an fc-weapons older than the switch.
 		(AwWorldModel as Script).set(&"person_carry", false)

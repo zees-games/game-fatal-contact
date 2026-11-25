@@ -197,7 +197,7 @@ func _nearest_bot(bots: Dictionary, me: Object) -> Object:
 func _thinned_now() -> int:
 	var n := 0
 	for p: Node in _game.players():
-		if int(p.get(&"_lod_frames")) > 0:
+		if p.call(&"lod_held"):
 			n += 1
 	return n
 

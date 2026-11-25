@@ -254,6 +254,12 @@ func _add_remote_vars(local: GSConsoleLocal) -> void:
 			FcPlayer.present_native = str(v).strip_edges() != "0"
 			return GSResult.success(1 if FcPlayer.present_native else 0)
 	)
+	local.add_var(&"cl_remote_present_native", "1 thins every remote player's presents in the same native object and calls script only for the players drawn this frame (with cl_remote_lod_native and a gs-sim library that has it); 0 thins each in script. Same presents either way.",
+		func() -> Variant: return 1 if FcPlayer.present_schedule_native else 0,
+		func(v: Variant) -> Variant:
+			FcPlayer.present_schedule_native = str(v).strip_edges() != "0"
+			return GSResult.success(1 if FcPlayer.present_schedule_native else 0)
+	)
 	local.add_var(&"cl_remote_lod_frustum", "1 judges a remote player out of sight by the camera's real view frustum, 0 by a wide cone round the view axis.",
 		func() -> Variant: return 1 if FcPlayer.lod_frustum else 0,
 		func(v: Variant) -> Variant:

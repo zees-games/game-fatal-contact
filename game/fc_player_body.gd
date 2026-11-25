@@ -294,6 +294,9 @@ func _hold_weapon() -> void:
 	# Hidden until a present says it may show: a body built for a joiner while its player is dead
 	# drew its gun at the hand's rest, in mid-air, until the first present reached it.
 	held.visible = false
+	# A new gun processes; the thinning's record of the old one would keep the next switch from reaching it.
+	_held_thin = false
+	_refresh_crowd_bits()
 
 ## What the drawn body wears for its side ([method FcTeamBodies.wear_key]; "" its own look), and the
 ## team and [member FcTeamBodies.version] it was last judged for.
@@ -394,6 +397,7 @@ func attach_body_mesh(colour: Color, avatar: GSAvatar = null) -> void:
 	body_mesh = Node3D.new()
 	body_mesh.name = "Body"
 	add_child(body_mesh)
+	_refresh_crowd_bits()
 
 	if _wear(avatar):
 		_hold_weapon()

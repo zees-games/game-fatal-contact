@@ -556,6 +556,16 @@ static var present_native: bool = true
 static var _crowd_lod: RefCounted = null
 static var _crowd_positions := PackedVector3Array()
 static var _crowd_planes: Array[Plane] = []
+## `cl_remote_present_native`: with [member present_native], thin the whole crowd in the same gs-sim object
+## ([method present_crowd]): it keeps every body's frame count between frames and hands back only the bodies to present, so a
+## skipped body costs no script call at all. Off, or with an older library, each body thins itself ([method present_lod_coded]).
+static var present_schedule_native: bool = true
+## One id per body of the last [method classify_crowd]: its instance id, 0 for the viewer's own (never thinned).
+static var _crowd_ids := PackedInt64Array()
+static var _crowd_hidden := PackedInt32Array()
+## Whether the native object holds this crowd's thinning: false after a frame thinned in script, so the next native frame
+## starts every body afresh rather than from counts and bits the script has since moved on from.
+static var _crowd_scheduled := false
 
 ## One code per body of [param bodies] (see `gs_sim_present`: tier in the low three bits, [constant CODE_BEYOND_FIGURE],
 ## [constant CODE_OCCLUSION]) judged from [param eye] along [param forward], from this frame's tier distances, or an empty
@@ -569,19 +579,76 @@ static func classify_crowd(bodies: Array, eye: Vector3, forward: Vector3, frustu
 		_crowd_lod = ClassDB.instantiate(&"GSSimPresentLod")
 	var n := bodies.size()
 	_crowd_positions.resize(n)
+	_crowd_ids.resize(n)
 	for i in n:
-		_crowd_positions[i] = (bodies[i] as Node3D).global_position
+		var body: Node3D = bodies[i]
+		_crowd_positions[i] = body.global_position
+		_crowd_ids[i] = 0 if body.get(&"camera") != null else body.get_instance_id()
 	_crowd_planes.assign(frustum)
 	var range2 := figure_draw_range * figure_draw_range if figure_draw_range > 0.0 else 0.0
 	return _crowd_lod.classify(_crowd_positions, eye, forward, _crowd_planes, PackedFloat64Array([
 		LOD_NEAR * LOD_NEAR, LOD_CONE, LOD_RADIUS, _lod_farthest2, _lod_far2, _anim_far2, _anim_near2, range2,
 		1.0 if lod_frustum and not frustum.is_empty() else 0.0, 1.0 if occlusion_enabled else 0.0]))
 
+## Presents this frame's crowd by the codes of the [method classify_crowd] just made for the same [param bodies], thinned in
+## gs-sim: the same bodies presented with the same deltas and gates, the same held-gun and figure-range switches, as each body's
+## [method present_lod_coded]. Returns false, having presented nothing, when the native thinning is off or absent or remote
+## bodies are paused: the caller then presents per body.
+static func present_crowd(bodies: Array, delta: float, eye: Vector3) -> bool:
+	if not present_schedule_native or present_remote_paused or _crowd_lod == null or not _crowd_lod.has_method(&"schedule") \
+			or _crowd_ids.size() != bodies.size():
+		forget_crowd()
+		return false
+	if not _crowd_scheduled:
+		_crowd_lod.reset()
+		_crowd_scheduled = true
+	_crowd_hidden.clear()
+	for i: int in _crowd_lod.occlusion_candidates():
+		if _crowd_ids[i] != 0 and bodies[i]._behind_world(eye):
+			_crowd_hidden.append(i)
+	var rows: PackedFloat64Array = _crowd_lod.schedule(_crowd_ids, _crowd_hidden, delta, PackedFloat64Array([
+		lod_off_every, LOD_OFF_DT, LOD_FARTHEST_DT, LOD_FAR_DT, ANIM_GATE_OFF_DT, ANIM_GATE_FAR_DT, ANIM_GATE_DT,
+		1.0 if anim_gate_enabled else 0.0]))
+	for bit: int in _crowd_lod.beyond_changes():
+		var b = bodies[bit >> 1]
+		b._set_beyond_figure(b.figure != null and (bit & 1) != 0)
+	for bit: int in _crowd_lod.held_changes():
+		bodies[bit >> 1]._set_held_lod((bit & 1) != 0)
+	var r := 0
+	while r < rows.size():
+		var b = bodies[int(rows[r])]
+		var anim := rows[r + 2]
+		if not is_nan(anim):
+			b._anim_min_dt = anim
+		b.present(rows[r + 1])
+		r += 3
+	return true
+
+## Marks the native thinning stale: the next [method present_crowd] starts every body afresh.
+static func forget_crowd() -> void:
+	_crowd_scheduled = false
+
 ## Drops the native judge and its scratch arrays (a suite's exit, a library reload).
 static func release_crowd() -> void:
 	_crowd_lod = null
+	_crowd_scheduled = false
 	_crowd_positions = PackedVector3Array()
 	_crowd_planes = []
+	_crowd_ids = PackedInt64Array()
+
+## Whether this body's present is being held back by the thinning right now (a frame or more owed).
+func lod_held() -> bool:
+	if _crowd_scheduled and _crowd_lod != null:
+		var slot: PackedFloat64Array = _crowd_lod.slot_state(get_instance_id())
+		if not slot.is_empty():
+			return slot[0] > 0.0
+	return _lod_frames > 0
+
+## Tells the native thinning to hand this body its held-gun and figure-range bits again: the figure or gun they act on was
+## just rebuilt. The script path needs nothing (it sets both on every present).
+func _refresh_crowd_bits() -> void:
+	if _crowd_scheduled and _crowd_lod != null and _crowd_lod.has_method(&"refresh"):
+		_crowd_lod.refresh(get_instance_id())
 
 const CODE_BEYOND_FIGURE := 8
 const CODE_OCCLUSION := 16

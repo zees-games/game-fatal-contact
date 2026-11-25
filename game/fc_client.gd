@@ -78,9 +78,18 @@ func _present_bodies(delta: float) -> void:
 	var view_forward := -view_cam.global_transform.basis.z if view_cam != null else Vector3.FORWARD
 	var codes := FcPlayer.classify_crowd(bodies, view_eye, view_forward, frustum) if view_cam != null else PackedInt32Array()
 	var coded := codes.size() == bodies.size()
+	if coded:
+		for body in bodies:
+			body.follow_team_body()
+		if FcPlayer.present_crowd(bodies, delta, view_eye):
+			FcFrameProbe.add(&"bodies", t)
+			return
+	else:
+		FcPlayer.forget_crowd()
 	var at := 0
 	for body in bodies:
-		body.follow_team_body()
+		if not coded:
+			body.follow_team_body()
 		if coded:
 			body.present_lod_coded(delta, codes[at], view_eye)
 		elif view_cam != null:
