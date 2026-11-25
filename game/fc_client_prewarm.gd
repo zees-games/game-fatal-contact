@@ -212,6 +212,8 @@ func _late_views_tick() -> void:
 	if _late_views.is_empty():
 		_late_views_end()
 		return
+	if _late_groups_pending():
+		return
 	var cam: Camera3D = player.camera if is_instance_valid(player) else null
 	if gate == null or not gate.is_open() or cam == null or view_model == null:
 		return
@@ -668,6 +670,11 @@ func _cover_weapon_ids(body: FcPlayer, everyone: bool) -> Dictionary:
 					wanted[held.id()] = true
 	return wanted
 
+## True while the shell is still fetching the addon groups a web start left out (gs_cloud/late_groups/pending, set by the shell and cleared
+## when they are mounted): the late builds and reads wait, or they would find those models missing and remember that.
+static func _late_groups_pending() -> bool:
+	return bool(ProjectSettings.get_setting("gs_cloud/late_groups/pending", false))
+
 ## True while the local player is away (dead, or spectating): a long frame then is not a hitch in play.
 func player_away() -> bool:
 	if not is_instance_valid(player):
@@ -726,7 +733,7 @@ func _models_late() -> void:
 	if _model_paths_next >= _model_paths.size():
 		_models_end()
 		return
-	if gate == null or not gate.is_open():
+	if gate == null or not gate.is_open() or _late_groups_pending():
 		return
 	if not _model_reads_threaded():
 		_model_late_gap += 1
