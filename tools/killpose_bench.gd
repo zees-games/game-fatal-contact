@@ -10,6 +10,7 @@ const BOTS := 32
 var _client: Node = null
 var _game: Object = null
 var _acc := {}
+var _shots := []
 
 
 func _ready() -> void:
@@ -95,6 +96,8 @@ func _run() -> void:
 		var fresh := row.size() > 8 and int(row[7]) != int(p.get_meta(&"killcam_seen_seq", int(row[7])))
 		var t0 := Time.get_ticks_usec()
 		ev.call(p, ra, rb, al, v)
+		if fresh:
+			_shots.append(Time.get_ticks_usec() - t0)
 		_add("event_shot" if fresh else ("event_victim" if v else "event_idle"), t0)
 	print("BENCH native pose: %s" % GSHumanoidPoseRecord.native_available())
 	var frames := 0
@@ -107,10 +110,17 @@ func _run() -> void:
 	cl.kv.moment.connect(func(sec: float) -> void:
 		var t0 := Time.get_ticks_usec()
 		cl._on_moment(sec)
-		moments.append(Time.get_ticks_usec() - t0))
+		moments.append(Time.get_ticks_usec() - t0)
+		if moments.size() <= 3:
+			var split := ""
+			for k: String in _acc:
+				split += " %s=%dus/%d" % [k, _acc[k][0], _acc[k][1]]
+			print("BENCH moment #%d: %d us (cumulative hooks:%s)" % [moments.size(), moments[-1], split]))
 	while kv.is_active():
 		await get_tree().process_frame
 		frames += 1
+	print("BENCH first _on_moment calls (us): %s" % str(moments.slice(0, 6)))
+	print("BENCH event_shot calls in order (us): %s" % str(_shots))
 	moments.sort()
 	var sum := 0
 	for m: int in moments:
