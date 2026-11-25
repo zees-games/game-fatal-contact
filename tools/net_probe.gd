@@ -84,6 +84,8 @@ func _ready() -> void:
 			"--map": _map_id = args[i + 1]
 			"--port": _port = int(args[i + 1])
 			"--control": _control = int(args[i + 1])
+	if args.has("--no-snapshot-batch"):
+		GSNetSnapshotBatch.enabled = false
 	_fields = args.has("--fields")
 	if _port != PORT:
 		_data = "%s_%d" % [DATA, _port]
