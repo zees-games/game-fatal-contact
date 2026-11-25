@@ -188,6 +188,9 @@ class Burner extends Node:
 ## moving target that shoots back, and the client's prediction covers firing, reloads,
 ## switches, damage, deaths and respawns: what a match is, and what an idle bench never was.
 class Pilot extends Node:
+	## Set (with `client`) by `--pilot-view sweep`: the look is driven round the whole compass instead of the mouse sway, which parks the camera on one wall.
+	var sweep := false
+	var client: Node = null
 	var _t := 0.0
 	var _rng := RandomNumberGenerator.new()
 	var _next := 0.0
@@ -199,9 +202,14 @@ class Pilot extends Node:
 
 	func _process(delta: float) -> void:
 		_t += delta
-		var turn := InputEventMouseMotion.new()
-		turn.relative = Vector2(sin(_t * 0.7) * 6.0, sin(_t * 1.3) * 1.5)
-		Input.parse_input_event(turn)
+		var sampler: Variant = client.get("_sampler") if sweep and client != null else null
+		if sampler != null:
+			# A full turn about every 8 s with a slow wobble (degrees), so the walk loops wide and the gaze crosses open ground, as a player's does.
+			sampler.look_at_angles(rad_to_deg(_t * 0.8 + 1.5 * sin(_t * 0.13)), sin(_t * 0.4) * 7.0)
+		else:
+			var turn := InputEventMouseMotion.new()
+			turn.relative = Vector2(sin(_t * 0.7) * 6.0, sin(_t * 1.3) * 1.5)
+			Input.parse_input_event(turn)
 		if _t < _next:
 			return
 		_next = _t + _rng.randf_range(0.3, 1.2)
