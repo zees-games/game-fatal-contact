@@ -424,8 +424,7 @@ func _measure_and_report() -> void:
 		AwWeaponRig.phase_timers = true
 		GSWeaponArsenal.phase_timers = true
 	var tick_ms := PackedFloat64Array()
-	var last_cost := int(perf0[&"server_sim_usec"]) + int(perf0[&"server_send_usec"])
-	var last_ticks := int(perf0[&"server_ticks"])
+	var tick_last := PackedInt64Array([int(perf0[&"server_sim_usec"]) + int(perf0[&"server_send_usec"]), int(perf0[&"server_ticks"])])
 	var sum_down := 0.0
 	var n_down := 0
 	var t := 0.0
@@ -442,13 +441,7 @@ func _measure_and_report() -> void:
 		last = now
 		frames += 1
 		if _sections:
-			var pc: Dictionary = net.perf_counters()
-			var cost := int(pc[&"server_sim_usec"]) + int(pc[&"server_send_usec"])
-			var ticks := int(pc[&"server_ticks"])
-			if ticks > last_ticks and t > 2.0:
-				tick_ms.append((cost - last_cost) / 1000.0 / (ticks - last_ticks))
-			last_cost = cost
-			last_ticks = ticks
+			tick_last = _sample_tick(tick_ms, t, tick_last)
 		t += get_process_delta_time()
 		if t >= next_print:
 			next_print += 1.0
@@ -479,6 +472,7 @@ func _measure_and_report() -> void:
 		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1]])
 	if _sections:
 		_print_sections(tick_ms)
+		_print_engine()
 	FcFrameProbe.set_interval(0.0)
 	var snaps := maxi(1, int(perf1[&"snap_snapshots"]) - int(perf0[&"snap_snapshots"]))
 	var ph := ""
@@ -492,6 +486,15 @@ func _measure_and_report() -> void:
 	print("PHASES clients=%d native=%s workers=%d ms/snapshot:%s fake_bytes_per_snapshot=%d" % [
 		1 + _fake, net._native_note, net.config.snapshot_workers, ph,
 		int(_fake_sent[1] / maxf(float(snaps) * maxf(_fake, 1), 1.0))])
+
+
+## One process hosts the server and the probe's one real client, so the sections hold both. These are only the client's
+## (the dedicated server never runs them): chasing "physics" or "predict" here cuts nothing from a server's tick.
+const CLIENT_SECTIONS := ["physics", "predict", "present", "bodies", "interpolate", "net_snapshot", "net_event", "w_spectate", "draw", "audio"]
+
+
+func _is_client_section(name: String) -> bool:
+	return name in CLIENT_SECTIONS or name.begins_with("c_") or name.begins_with("r_")
 
 
 ## SERVER_TICK percentiles over the per-frame mean tick cost, and every probe section as ms per tick (sum over calls / ticks).
@@ -509,10 +512,27 @@ func _print_sections(tick_ms: PackedFloat64Array) -> void:
 		rows.append([String(k), row[0] / 1000.0 / ticks, row[1] / float(ticks)])
 	rows.sort_custom(func(a, b): return a[1] > b[1])
 	for r in rows:
-		print("SECTION %-22s %7.3f ms/tick %6.2f calls/tick" % [r[0], r[1], r[2]])
+		print("SECTION %-22s %7.3f ms/tick %6.2f calls/tick%s" % [r[0], r[1], r[2], "  [probe's client]" if _is_client_section(r[0]) else ""])
 	for w in [["pw_", AwWeaponRig], ["pa_", GSWeaponArsenal]]:
 		var names: Array = (w[1] as GDScript).get(&"PHASES")
 		var us: PackedInt64Array = (w[1] as GDScript).get(&"phase_us")
 		for i in names.size():
 			print("PHASE %s%-20s %7.3f ms/tick" % [w[0], names[i], us[i] / 1000.0 / ticks])
 	print("PHASE_CALLS idle=%d full=%d" % [AwWeaponRig.phase_calls[0], AwWeaponRig.phase_calls[1]])
+
+## Godot's own physics step and tree, which no FcFrameProbe section sees (last frame's values; the client's bodies included).
+func _print_engine() -> void:
+	print("ENGINE physics_process_ms=%.3f process_ms=%.3f active3d=%d pairs3d=%d islands3d=%d nodes=%d" % [
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		int(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS)), int(Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS)),
+		int(Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT)), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+
+
+## One frame's mean server tick cost (sim + send) into [param tick_ms], after 2 s of warm-up; returns [cost usec, ticks] to pass next frame.
+func _sample_tick(tick_ms: PackedFloat64Array, t: float, last: PackedInt64Array) -> PackedInt64Array:
+	var pc: Dictionary = _net.perf_counters()
+	var cost := int(pc[&"server_sim_usec"]) + int(pc[&"server_send_usec"])
+	var ticks := int(pc[&"server_ticks"])
+	if ticks > last[1] and t > 2.0:
+		tick_ms.append((cost - last[0]) / 1000.0 / (ticks - last[1]))
+	return PackedInt64Array([cost, ticks])
