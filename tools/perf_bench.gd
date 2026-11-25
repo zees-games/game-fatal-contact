@@ -191,10 +191,12 @@ func _first_use(_game: Object) -> void:
 		for s in String(args["first-use-only"]).split(",", false):
 			ids.append(StringName(s))
 	var at_gate := GSCloudSliceLoader.cached_scripts("res://", GSCloudClient.WARM_SKIP_DIRS).size()
+	await _first_control("control 1")
 	await _first_blood()
 	await _first_decal()
 	await _first_impact()
 	await _first_hit()
+	await _first_control("control 2")
 	await _first_footsteps()
 	await _first_kill()
 	await _first_npcs()
@@ -251,6 +253,12 @@ func _in_front(metres: float) -> Transform3D:
 	var me: Variant = client.get("player")
 	var cam: Transform3D = me.camera.global_transform
 	return Transform3D(cam.basis, cam.origin - cam.basis.z * metres)
+
+
+## Rows "control N": the window of a first use with nothing done in it, so the worst frame of a bot-fight spike (a killcam moment, a bot's shot) is not read as the first use's cost.
+func _first_control(what: String) -> void:
+	var _row := await time_first_use(what, func() -> void: pass, Callable(), 0, 30)
+	await wait(0.3)
 
 
 ## Row "blood": the first blood splatter (its decal pool, material and texture) at a point in sight, without the ray or the hit handler.
