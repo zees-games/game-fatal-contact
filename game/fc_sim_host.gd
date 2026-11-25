@@ -103,6 +103,7 @@ func start(bots: int) -> GSResult:
 	_pid = OS.create_process(OS.get_executable_path(), args)
 	if _pid <= 0:
 		return GSResult.fail(GSError.CODE_INVALID, "the server process did not start")
+	raise_priority(_pid)
 
 	var t := 0.0
 	while not FileAccess.file_exists(_ready_path) and t < BOOT_LIMIT_SEC:
@@ -140,6 +141,22 @@ func start(bots: int) -> GSResult:
 	up = true
 	live = self
 	return GSResult.success({"port": port, "pid": _pid, "boot_sec": t})
+
+
+## The PowerShell command that lifts process [param pid] to AboveNormal, or "" off Windows.
+## A child starts at the client's priority, and on Windows a 16-bot render client's threads then
+## win the cores from the 66 Hz sim; AboveNormal needs no rights and leaves the desktop responsive.
+static func priority_command(pid: int, os_name: String) -> String:
+	if os_name != "Windows" or pid <= 0:
+		return ""
+	return "(Get-Process -Id %d).PriorityClass = 'AboveNormal'" % pid
+
+
+## Raises the sim host child's priority (Windows only; a failure leaves the default, nothing else depends on it).
+static func raise_priority(pid: int) -> void:
+	var command := priority_command(pid, OS.get_name())
+	if command != "":
+		var _started := OS.create_process("powershell", ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command])
 
 
 ## The launch flags this process was given that the server child takes too, appended to [param args].

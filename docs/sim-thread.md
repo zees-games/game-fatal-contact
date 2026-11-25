@@ -62,3 +62,7 @@ Console lines, chat commands, admin actions and the map sync's peer reports also
 1. The same server in a thread of the client process, joined through an in-memory transport instead of a socket. It needs the simulation free of scene-tree calls (today `FcPlayer` bodies are nodes), which is the real work; it buys web-with-threads and delivered packs.
 2. Double-buffered snapshots for presentation: the simulation writes buffer A while the frame reads buffer B, swapped at the tick boundary with one atomic index, so drawing never waits for a tick.
 3. Fork-join inside a tick: `WorkerThreadPool.add_group_task` over players for the movement step, joined before weapons resolve, so results stay ordered and identical. Smaller win than moving the tick, and only once the bodies are thread-owned.
+
+## Falling behind on Windows
+
+The child is started at the client's priority, so a 16-bot render client's threads can win cores from the 66 Hz sim. `FcSimHost.raise_priority` lifts the child to AboveNormal on Windows (PowerShell, fire and forget). The child's frame cap (`max_fps` = tick rate, set by gs-server for a headless process) is not the cause: physics catches up from its accumulator, 16 steps a frame since v0.1.85. Not measured on Windows (no Windows box on gpu.sh); the owner's next run should show `SIM_HOST_TICK` p95 and the behind line.

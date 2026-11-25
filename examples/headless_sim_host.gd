@@ -53,6 +53,8 @@ func _run() -> void:
 	OS.add_logger(_errors)
 	_check_wanted_rules()
 	_check_tick_tiers()
+	_check(FcSimHost.priority_command(42, "Windows").contains("-Id 42") and FcSimHost.priority_command(42, "Windows").contains("AboveNormal"), "Windows raises the sim host's priority")
+	_check(FcSimHost.priority_command(42, "Linux") == "" and FcSimHost.priority_command(0, "Windows") == "", "other systems and a failed start leave it")
 
 	FcSimHost.forced = 1
 	FcSimHost.ask_map = "dm_box"
