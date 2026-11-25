@@ -549,6 +549,43 @@ static func set_lod_crowd(players: int) -> void:
 	_anim_far2 = ANIM_GATE_FAR * ANIM_GATE_FAR * s2
 	_anim_near2 = ANIM_GATE_NEAR * ANIM_GATE_NEAR * s2
 
+## `cl_remote_lod_native`: judge every remote body's tier, beyond-figure bit and need for an occluder ray in one gs-sim call per
+## frame ([method classify_crowd]) instead of per body in script. The answers are the script's to the bit; off, or with no
+## `GSSimPresentLod` in the library, [method present_lod] judges each body itself.
+static var present_native: bool = true
+static var _crowd_lod: RefCounted = null
+static var _crowd_positions := PackedVector3Array()
+static var _crowd_planes: Array[Plane] = []
+
+## One code per body of [param bodies] (see `gs_sim_present`: tier in the low three bits, [constant CODE_BEYOND_FIGURE],
+## [constant CODE_OCCLUSION]) judged from [param eye] along [param forward], from this frame's tier distances, or an empty
+## array when the native pass is off or absent. Call [method set_lod_crowd] first.
+static func classify_crowd(bodies: Array, eye: Vector3, forward: Vector3, frustum: Array) -> PackedInt32Array:
+	if not present_native or not present_lod_enabled:
+		return PackedInt32Array()
+	if _crowd_lod == null:
+		if not GSSim.has(&"present"):
+			return PackedInt32Array()
+		_crowd_lod = ClassDB.instantiate(&"GSSimPresentLod")
+	var n := bodies.size()
+	_crowd_positions.resize(n)
+	for i in n:
+		_crowd_positions[i] = (bodies[i] as Node3D).global_position
+	_crowd_planes.assign(frustum)
+	var range2 := figure_draw_range * figure_draw_range if figure_draw_range > 0.0 else 0.0
+	return _crowd_lod.classify(_crowd_positions, eye, forward, _crowd_planes, PackedFloat64Array([
+		LOD_NEAR * LOD_NEAR, LOD_CONE, LOD_RADIUS, _lod_farthest2, _lod_far2, _anim_far2, _anim_near2, range2,
+		1.0 if lod_frustum and not frustum.is_empty() else 0.0, 1.0 if occlusion_enabled else 0.0]))
+
+## Drops the native judge and its scratch arrays (a suite's exit, a library reload).
+static func release_crowd() -> void:
+	_crowd_lod = null
+	_crowd_positions = PackedVector3Array()
+	_crowd_planes = []
+
+const CODE_BEYOND_FIGURE := 8
+const CODE_OCCLUSION := 16
+
 var _figure_motion: Dictionary = {}
 var _anim_min_dt: float = 0.0
 var _anim_owed: float = 0.0
