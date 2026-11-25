@@ -10,6 +10,14 @@
 			"manifest_sha256": "9bd4d63aa34c7bbc3e0376042bba827d1426a8b2f213169296d60405beec0f78",
 			"optional": true,
 			"version": "0.1.73"
+		},
+		{
+			"id": "gamemann/fc-player-classes",
+			"into": "assets/team_bodies",
+			"kind": "store",
+			"manifest_sha256": "aed74e542c8075ed32c66e80dcdf1948574dc8ce575414c38b403eb47b393ec8",
+			"optional": true,
+			"version": "0.1.0"
 		}
 	]
 }

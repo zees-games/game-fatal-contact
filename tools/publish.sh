@@ -15,7 +15,7 @@ lock_guard() {
     case $o in https://content.gamespice.net/*) ;; *) echo "publish: WARNING content.lock.json origin is now '$o', not the prod origin. Do NOT commit it: git checkout -- content.lock.json (the release gate rejects dev origins)." >&2 ;; esac
 }
 MAP_LINKS=(maps/imported maps/imported_dm worlds worlds_dm .stores)
-X=(); for d in examples tests tools docs images screenshots shots_boot ci .github addons "${MAP_LINKS[@]}"; do X+=(--exclude-dir "$d"); done
+X=(); for d in examples tests tools docs images screenshots shots_boot ci .github addons team_bodies "${MAP_LINKS[@]}"; do X+=(--exclude-dir "$d"); done
 # A delivered pack mounts under res://gs_cloud/<id>/<version>/: every path to its own files must be rebased.
 "$HERE/tools/check_pack_paths.sh" || { echo "publish: a shipped script loads a res:// path the pack mount does not have (tools/check_pack_paths.sh)" >&2; exit 1; }
 # The client shell carries its own pinned addons: a shipped script naming newer addon API does not compile there.

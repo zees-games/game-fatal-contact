@@ -131,6 +131,8 @@ textures/orig/
 
 # Team bodies prepared from other people's art (fc_team_bodies.gd): kept out of the repository.
 /private/
+# fc-player-classes team bodies, fetched by content.lock.json (kind store).
+/assets/team_bodies/
 
 # Old boot screenshot dumps (no current tool writes here; kept out of the repo and packs)
 /shots_boot/

@@ -85,11 +85,11 @@ func validate() -> GSResult:
 ## Metres in a map unit. 0.01905 is the scale imported maps are drawn at, so a 72 unit player is 1.37 m beside a 2.13 m door; 0.0254 makes the player 1.83 m but 96 map units tall.
 @export_range(0.005, 0.1, 0.00005) var avatar_unit_metres: float = 0.01905
 
-## Team avatars: the body each side wears in a team mode, in team order (comma list; an empty entry leaves that side its own looks). Each is <id>.glb in team_body_dirs; a missing one falls back to the player's own look. The server's fc_team_avatars turns them on or off.
+## Team avatars: the body each side wears in a team mode, in team order (comma list; an empty entry leaves that side its own looks). Each is <id>.glb (web builds: <id>.webp.glb first) in team_body_dirs; a missing one falls back to the player's own look. The server's fc_team_avatars turns them on or off.
 @export var team_bodies: String = "fc_swat,fc_military"
 
-## Directories searched in order for the team bodies' <id>.glb (comma list). The files are not in this repository.
-@export var team_body_dirs: String = "user://team_bodies,res://private/team_bodies"
+## Directories searched in order for the team bodies' <id>.glb (comma list). The files are not in this repository: content.lock.json pins them from the fc-player-classes pack into res://assets/team_bodies.
+@export var team_body_dirs: String = "user://team_bodies,res://assets/team_bodies"
 
 @export_group("Kill rewards")
 ## Health a headshot kill gives its killer (default 5). 0 gives none.

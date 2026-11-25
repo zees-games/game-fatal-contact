@@ -4,8 +4,10 @@ extends RefCounted
 ## (gs-player-char's registered bodies, `GSHumanoidAssets.register_body`), tinted the side's colour.
 ##
 ## The bodies are other people's art prepared on the kit rig (gs-player-char docs/avatar-prep.md) and are
-## not in this repository: each is a `<id>.glb` in one of [member FcConfig.team_body_dirs], registered
-## the first time a look asks. A side whose body is missing, a free-for-all, or the server's
+## not in this repository: they come from the fc-player-classes pack (a store entry in content.lock.json,
+## fetched into `res://assets/team_bodies` by `./fetch-content.sh`/gs-bootstrap). Each is a `<id>.glb`
+## (web builds take the `<id>.webp.glb` the pack ships for them) in one of [member FcConfig.team_body_dirs],
+## registered the first time a look asks. A side whose body is missing, a free-for-all, or the server's
 ## `team_avatars` rule at 0 draw each player's own look ([method FcAvatars.look_of]), the library people.
 ##
 ## Static, like the name tags' rules: the client follows the server's rules and sides once a frame
@@ -64,7 +66,7 @@ static func register(ids: String, dirs: String) -> Array[StringName]:
 		if id == &"":
 			_bodies.append(&"")
 			continue
-		var path := _find(String(id), dirs)
+		var path := _find(String(id), dirs, OS.has_feature("web"))
 		if path == "":
 			GSLog.warn(CHANNEL, "team body not found; that side wears its own looks", {"id": String(id), "dirs": dirs})
 			_bodies.append(&"")
@@ -79,15 +81,22 @@ static func has_bodies() -> bool:
 	return GSAddonApi.build_level("gs_player_char") >= BODIES_LEVEL
 
 
-## The first `<dir>/<id>.glb` that exists, else "".
-static func _find(id: String, dirs: String) -> String:
+## The file names a body may have, best first: a web build prefers the pack's WebP-texture body
+## (fc-player-classes `model.web_file`, `<id>.webp.glb`), every build falls back to `<id>.glb`.
+static func file_names(id: String, web: bool) -> PackedStringArray:
+	return PackedStringArray([id + ".webp.glb", id + ".glb"]) if web else PackedStringArray([id + ".glb"])
+
+
+## The first `<dir>/<file>` of [method file_names] that exists, searching the directories in order, else "".
+static func _find(id: String, dirs: String, web := false) -> String:
 	for raw in dirs.split(",", false):
 		var dir := raw.strip_edges()
 		if dir == "":
 			continue
-		var path := dir.path_join(id + ".glb")
-		if FileAccess.file_exists(path):
-			return path
+		for file in file_names(id, web):
+			var path := dir.path_join(file)
+			if FileAccess.file_exists(path):
+				return path
 	return ""
 
 

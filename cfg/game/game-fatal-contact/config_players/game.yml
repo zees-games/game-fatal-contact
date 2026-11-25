@@ -21,7 +21,7 @@
 # Team avatars: the body each side wears in a team mode, in team order (comma list; an empty entry leaves tha...
 # team_bodies: "fc_swat,fc_military"
 # Directories searched in order for the team bodies' <id>.glb (comma list). The files are not in this reposit...
-# team_body_dirs: "user://team_bodies,res://private/team_bodies"
+# team_body_dirs: "user://team_bodies,res://assets/team_bodies"
 
 # --- Kill rewards
 # Health a headshot kill gives its killer (default 5). 0 gives none. [0.0..1000.0]

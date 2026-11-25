@@ -4,6 +4,7 @@ const FcFlashlight := preload("../game/fc_flashlight.gd")
 const FcTeamBodies := preload("../game/fc_team_bodies.gd")
 const FcMapPaint := preload("../maps/fc_map_paint.gd")
 const FcNewerApi := preload("../game/fc_newer_api.gd")
+const FcConfigScript := preload("../game/fc_config.gd")
 
 
 func _ready() -> void:
@@ -51,6 +52,7 @@ func _run() -> void:
 	_test_feedback_from_the_wire()
 	_test_stock_avatars_differ()
 	_test_team_bodies_fall_back()
+	_test_team_bodies_from_pack()
 	await _test_hud_fits_the_frame()
 	_test_hud_makes_room_for_a_ballot()
 	await _test_the_map_menu()
@@ -442,6 +444,36 @@ func _test_team_bodies_fall_back() -> void:
 		assets.set(&"team_tint", 0.5)
 		_check(is_equal_approx(float(assets.get(&"team_tint")), 0.5), "gs-player-char's team tint is set through its class found by name", str(assets.get(&"team_tint")))
 		assets.set(&"team_tint", was)
+	_done()
+
+
+## The team bodies arrive from the fc-player-classes pack (content.lock.json store entry into res://assets/team_bodies),
+## not from a private folder: the default search path names that folder, a web build prefers the pack's WebP body, and
+## the fetched files (when fetched) are found and registered.
+func _test_team_bodies_from_pack() -> void:
+	_section("Team bodies come from the fc-player-classes pack")
+	var dirs := String(FcConfigScript.new().team_body_dirs)
+	_check(dirs.contains("res://assets/team_bodies") and not dirs.contains("private"), "the default dirs name the fetched pack folder, no private one", dirs)
+	_check(FcTeamBodies.file_names("fc_swat", false) == PackedStringArray(["fc_swat.glb"]), "a desktop build wants <id>.glb")
+	_check(FcTeamBodies.file_names("fc_swat", true) == PackedStringArray(["fc_swat.webp.glb", "fc_swat.glb"]), "a web build wants <id>.webp.glb first, then <id>.glb")
+	var lock: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://content.lock.json"))
+	var pinned := false
+	if lock is Dictionary:
+		for entry: Dictionary in lock.get("packs", []):
+			if entry.get("id") == "gamemann/fc-player-classes" and entry.get("kind") == "store" and entry.get("into") == "assets/team_bodies":
+				pinned = true
+	_check(pinned, "content.lock.json pins gamemann/fc-player-classes as a store into assets/team_bodies")
+	if not FileAccess.file_exists("res://assets/team_bodies/fc_swat.glb"):
+		print("  SKIP: res://assets/team_bodies is not fetched here (gs-bootstrap tools/fetch_lock.sh content.lock.json)")
+		_done()
+		return
+	for id in ["fc_swat", "fc_military"]:
+		_check(FcTeamBodies._find(id, dirs, false) == "res://assets/team_bodies/%s.glb" % id, "%s is found as a fetched .glb" % id)
+		_check(FcTeamBodies._find(id, dirs, true) == "res://assets/team_bodies/%s.webp.glb" % id, "%s is found as the fetched WebP body on the web" % id)
+	if FcTeamBodies.has_bodies():
+		var got := FcTeamBodies.register("fc_swat,fc_military", dirs)
+		_check(got.size() == 2 and got[0] == &"fc_swat" and got[1] == &"fc_military", "both fetched bodies register with gs-player-char", str(got))
+		var _reset := FcTeamBodies.register("", "")
 	_done()
 
 
