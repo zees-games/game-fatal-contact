@@ -25,6 +25,8 @@ var _port := PORT
 var _data := DATA
 
 var _bots := 8
+## --sections: the server's FcFrameProbe sections per tick (fine level) and SERVER_TICK p50/p95 (sim + send, ms per tick).
+var _sections := false
 var _seconds := 20.0
 var _budget := -1
 var _pps := -1
@@ -87,6 +89,7 @@ func _ready() -> void:
 	if args.has("--no-snapshot-batch"):
 		GSNetSnapshotBatch.enabled = false
 	_fields = args.has("--fields")
+	_sections = args.has("--sections")
 	if _port != PORT:
 		_data = "%s_%d" % [DATA, _port]
 	GSLog.set_level(GSLog.Level.ERROR)
@@ -416,6 +419,13 @@ func _measure_and_report() -> void:
 		net.snapshot_sent.connect(_count_fields)
 	# The client's own sections (arena.net_snapshot is its whole snapshot apply), with a report interval no run reaches.
 	FcFrameProbe.set_interval(1.0e9)
+	FcFrameProbe.fine = _sections
+	if _sections:
+		AwWeaponRig.phase_timers = true
+		GSWeaponArsenal.phase_timers = true
+	var tick_ms := PackedFloat64Array()
+	var last_cost := int(perf0[&"server_sim_usec"]) + int(perf0[&"server_send_usec"])
+	var last_ticks := int(perf0[&"server_ticks"])
 	var sum_down := 0.0
 	var n_down := 0
 	var t := 0.0
@@ -431,6 +441,14 @@ func _measure_and_report() -> void:
 		worst_frame = maxf(worst_frame, (now - last) / 1000.0)
 		last = now
 		frames += 1
+		if _sections:
+			var pc: Dictionary = net.perf_counters()
+			var cost := int(pc[&"server_sim_usec"]) + int(pc[&"server_send_usec"])
+			var ticks := int(pc[&"server_ticks"])
+			if ticks > last_ticks and t > 2.0:
+				tick_ms.append((cost - last_cost) / 1000.0 / (ticks - last_ticks))
+			last_cost = cost
+			last_ticks = ticks
 		t += get_process_delta_time()
 		if t >= next_print:
 			next_print += 1.0
@@ -459,6 +477,8 @@ func _measure_and_report() -> void:
 	var applied: PackedInt64Array = FcFrameProbe._sections.get(&"net_snapshot", PackedInt64Array([0, 0, 0]))
 	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d" % [
 		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1]])
+	if _sections:
+		_print_sections(tick_ms)
 	FcFrameProbe.set_interval(0.0)
 	var snaps := maxi(1, int(perf1[&"snap_snapshots"]) - int(perf0[&"snap_snapshots"]))
 	var ph := ""
@@ -472,3 +492,27 @@ func _measure_and_report() -> void:
 	print("PHASES clients=%d native=%s workers=%d ms/snapshot:%s fake_bytes_per_snapshot=%d" % [
 		1 + _fake, net._native_note, net.config.snapshot_workers, ph,
 		int(_fake_sent[1] / maxf(float(snaps) * maxf(_fake, 1), 1.0))])
+
+
+## SERVER_TICK percentiles over the per-frame mean tick cost, and every probe section as ms per tick (sum over calls / ticks).
+func _print_sections(tick_ms: PackedFloat64Array) -> void:
+	tick_ms.sort()
+	var n := tick_ms.size()
+	if n > 0:
+		print("SERVER_TICK bots=%d p50=%.2f p95=%.2f max=%.2f samples=%d" % [
+			_bots, tick_ms[n / 2], tick_ms[mini(n - 1, int(n * 0.95))], tick_ms[n - 1], n])
+	var perf: Dictionary = _net.perf_counters()
+	var ticks := maxi(1, int(perf[&"server_ticks"]))
+	var rows: Array = []
+	for k in FcFrameProbe._sections:
+		var row: PackedInt64Array = FcFrameProbe._sections[k]
+		rows.append([String(k), row[0] / 1000.0 / ticks, row[1] / float(ticks)])
+	rows.sort_custom(func(a, b): return a[1] > b[1])
+	for r in rows:
+		print("SECTION %-22s %7.3f ms/tick %6.2f calls/tick" % [r[0], r[1], r[2]])
+	for w in [["pw_", AwWeaponRig], ["pa_", GSWeaponArsenal]]:
+		var names: Array = (w[1] as GDScript).get(&"PHASES")
+		var us: PackedInt64Array = (w[1] as GDScript).get(&"phase_us")
+		for i in names.size():
+			print("PHASE %s%-20s %7.3f ms/tick" % [w[0], names[i], us[i] / 1000.0 / ticks])
+	print("PHASE_CALLS idle=%d full=%d" % [AwWeaponRig.phase_calls[0], AwWeaponRig.phase_calls[1]])
