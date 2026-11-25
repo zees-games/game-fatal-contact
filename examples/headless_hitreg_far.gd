@@ -17,6 +17,10 @@ const FAR_LINKS: Array = [
 	["jitter 0-30 ms, a snapshot lost before each tap", 30.0, true],
 ]
 const BOTS := 64
+## `-- --shard NAME` plays one part as a run of its own (the first three the far taps of that link, "lossy" with the cone and rings-off rows, "rest" the recording's other cases); each fills the room first. `-- --merge LOG...` holds that none went missing.
+const SHARD_NAMES: Array[String] = ["clean", "jitter", "lossy", "rest"]
+## The sections the four shards enter in all (counted from a passing run: 6 + 6 + 13 + 16; every shard fills the room first).
+const ALL_SECTIONS := 41
 const SCOPED_RANGE := 46.8
 const SHOTGUN_RANGES: Array[float] = [2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 14.0]
 ## The share of all far taps that must hit; what misses is the client's resume ease (GSNetInterpolator._ease_resume), the client's alone.
@@ -40,6 +44,9 @@ const BOT_SPAWN_WAIT_TICKS := 2000
 
 
 func _run() -> void:
+	if GSGameShardArgs.is_merge():
+		_merge()
+		return
 	print("game-fatal-contact headless far hit registration: relevance rings, sparse samples, 64 bots")
 	_build()
 	_damage_hook()
@@ -50,30 +57,47 @@ func _run() -> void:
 	_add_bots()
 	_done()
 
+	var shard := GSGameShardArgs.shard()
 	_mode = "far"
-	for link: Array in FAR_LINKS:
-		for rtt in FAR_RTTS:
-			_far_section(link, rtt, 0.0, FAR_RANGES)
+	for li in FAR_LINKS.size():
+		if shard == "" or shard == SHARD_NAMES[li]:
+			for rtt in FAR_RTTS:
+				_far_section(FAR_LINKS[li], rtt, 0.0, FAR_RANGES)
 	# The same at 46.8 m with the aim cone at its shipped 8 degrees, and with the rings off: what the rings cost.
-	var lossy: Array = FAR_LINKS[2]
-	for rtt in FAR_RTTS:
-		_far_section(lossy, rtt, 8.0, [SCOPED_RANGE])
-	_aoi.min_players = 9999
-	var _off := _aoi.refresh(_server_net.interest, _server_game.players().size())
-	for rtt in FAR_RTTS:
-		_far_section(lossy, rtt, -1.0, [SCOPED_RANGE])
-	_aoi.min_players = 32
-	var _on := _aoi.refresh(_server_net.interest, _server_game.players().size())
+	if shard == "" or shard == "lossy":
+		var lossy: Array = FAR_LINKS[2]
+		for rtt in FAR_RTTS:
+			_far_section(lossy, rtt, 8.0, [SCOPED_RANGE])
+		_aoi.min_players = 9999
+		var _off := _aoi.refresh(_server_net.interest, _server_game.players().size())
+		for rtt in FAR_RTTS:
+			_far_section(lossy, rtt, -1.0, [SCOPED_RANGE])
+		_aoi.min_players = 32
+		var _on := _aoi.refresh(_server_net.interest, _server_game.players().size())
 	_mode = ""
-	_far_summary()
+	if not _far.is_empty():
+		_far_summary()
 
-	_scoped_bot_sections()
-	_bots_recorded_section()
-	_burst_section()
-	_shotgun_section()
-	_ease_wire_section()
-	_counters_section()
+	if shard == "" or shard == "rest":
+		_scoped_bot_sections()
+		_bots_recorded_section()
+		_burst_section()
+		_shotgun_section()
+		_ease_wire_section()
+	# The counters read the rewinds of the far taps just fired (lossy) or of the scoped and shotgun ones (rest).
+	if shard == "" or shard == "lossy" or shard == "rest":
+		_counters_section()
 	_report_sections(_entered, _completed, _entered, -1)
+
+
+## `-- --merge LOG...`: every shard's log is there and together they entered every section (each shard also fills the room).
+func _merge() -> void:
+	var logs := GSGameShardArgs.merge_logs()
+	var missing := GSGameShardArgs.missing(logs)
+	_check(logs.size() == SHARD_NAMES.size() and missing.is_empty(), "every shard's log is there (%d logs)" % logs.size(), "missing %s" % [missing])
+	var entered := GSGameShardArgs.sections_entered(logs)
+	_check(entered == ALL_SECTIONS, "the shards entered every section (%d of %d)" % [entered, ALL_SECTIONS])
+	_report_sections(1, 1, 1)
 
 
 # The room.
