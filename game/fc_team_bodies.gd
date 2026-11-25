@@ -22,6 +22,14 @@ const BODIES_LEVEL := 26
 
 const CHANNEL := &"arena.team_bodies"
 
+## The pack the bodies come from and the folder a client mounts it in. A desktop checkout has the files fetched into
+## `res://assets/team_bodies` (content.lock.json); the packed game, the web build and the shell have no such folder
+## (the pack leaves `team_bodies` out), so [method _fetch_pack] fetches this pack through gs-cloud at runtime. Keep
+## [constant PACK_VERSION] equal to the content.lock.json pin (headless_presentation checks it).
+const PACK_ID := &"gamemann/fc-player-classes"
+const PACK_VERSION := "0.1.0"
+const PACK_MOUNT := "res://gs_cloud/gamemann/fc-player-classes/0.1.0"
+
 ## The server rules that bind a registered body to the first and second playing side (the app's
 ## `team:<body>:a` / `team:<body>:b` avatar slots); -1 keeps the config order.
 const SIDE_RULES: PackedStringArray = ["team_body_a", "team_body_b"]
@@ -48,6 +56,8 @@ static var _registered_for := ""
 static var _bodies: Array[StringName] = []
 ## Changes whenever what a team look depends on changed, so a drawn body knows to be rebuilt.
 static var version := 0
+## Whether the runtime fetch of the pack was started (once per process; a failure is logged and the sides keep their looks).
+static var _fetch_started := false
 ## The tint followed from the server's `team_tint` rule; gs-player-char's `GSHumanoidAssets.team_tint` follows it.
 static var _tint := 0.35
 
@@ -56,6 +66,7 @@ static var _tint := 0.35
 ## leaves that side its own looks) from the first of [param dirs] (comma list) holding `<id>.glb`.
 ## Returns the ids it registered; a missing file is logged once and that side falls back.
 static func register(ids: String, dirs: String) -> Array[StringName]:
+	dirs = dirs + "," + PACK_MOUNT
 	var key := ids + "|" + dirs
 	if key == _registered_for:
 		return _bodies
@@ -73,7 +84,33 @@ static func register(ids: String, dirs: String) -> Array[StringName]:
 			continue
 		_bodies.append(id if has_bodies() and bool(FcNewerApi.call_static(&"GSHumanoidAssets", &"register_body", [id, path])) else &"")
 	version += 1
+	if _bodies.has(&"") and _wants_any(ids):
+		_fetch_pack()
 	return _bodies
+
+
+static func _wants_any(ids: String) -> bool:
+	for raw in ids.split(","):
+		if raw.strip_edges() != "":
+			return true
+	return false
+
+
+## Fetches and mounts the fc-player-classes pack through gs-cloud when a wanted body was not found on disk, then
+## registers again. Never refuses: no gs-cloud client, an offline origin or an old pack leave each side its own looks.
+static func _fetch_pack() -> void:
+	if _fetch_started or not has_bodies():
+		return
+	var cloud: Object = GSRegistry.get_service(&"gs_cloud_client")
+	if cloud == null or not cloud.has_method(&"ensure"):
+		return
+	_fetch_started = true
+	var result: Variant = await cloud.call(&"ensure", PACK_ID, PACK_VERSION)
+	if result is GSResult and (result as GSResult).ok:
+		_registered_for = ""
+		version += 1
+	else:
+		GSLog.warn(CHANNEL, "the team bodies pack could not be fetched; the sides wear their own looks", {"pack": "%s@%s" % [PACK_ID, PACK_VERSION], "why": str(result)})
 
 
 ## Whether this build's gs-player-char draws registered bodies ([constant BODIES_LEVEL]).

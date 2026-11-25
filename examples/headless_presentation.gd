@@ -462,6 +462,8 @@ func _test_team_bodies_from_pack() -> void:
 		for entry: Dictionary in lock.get("packs", []):
 			if entry.get("id") == "gamemann/fc-player-classes" and entry.get("kind") == "store" and entry.get("into") == "assets/team_bodies":
 				pinned = true
+				_check(String(entry.get("version")) == FcTeamBodies.PACK_VERSION, "the runtime fetch (web, shell, packed game) wants the version content.lock.json pins", "%s vs %s" % [entry.get("version"), FcTeamBodies.PACK_VERSION])
+	_check(FcTeamBodies.PACK_MOUNT == "res://gs_cloud/%s/%s" % [FcTeamBodies.PACK_ID, FcTeamBodies.PACK_VERSION], "the pack mounts at gs-cloud's prefix for its id and version", FcTeamBodies.PACK_MOUNT)
 	_check(pinned, "content.lock.json pins gamemann/fc-player-classes as a store into assets/team_bodies")
 	if not FileAccess.file_exists("res://assets/team_bodies/fc_swat.glb"):
 		print("  SKIP: res://assets/team_bodies is not fetched here (gs-bootstrap tools/fetch_lock.sh content.lock.json)")
