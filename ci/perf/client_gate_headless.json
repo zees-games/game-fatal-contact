@@ -1,0 +1,56 @@
+{
+ "limits": {
+  "count_pct": 5.0,
+  "ms_floor": 0.1,
+  "ms_pct": 10.0,
+  "noise_k": 1.0
+ },
+ "logs": [
+  "20261125-170502-ph-game-fatal-contact-perf-gate-gate1-headless.log",
+  "20261125-172308-ph-game-fatal-contact-perf-gate-gate2-headless.log",
+  "20261125-173559-ph-game-fatal-contact-perf-gate-gate3-headless.log"
+ ],
+ "median": {
+  "frame_p50_ms": 25.671,
+  "frame_p95_ms": 58.231,
+  "frame_p99_ms": 94.843,
+  "net_snapshot_ms": 1.4269,
+  "nodes_count": 4139.0,
+  "objects_count": 23989.0,
+  "pf_nodes_ms": 16.3936,
+  "physics_ms": 10.2052,
+  "predict_ms": 1.4153,
+  "present_ms": 9.7888,
+  "render_ms": 0.0,
+  "script_ms": 19.4517
+ },
+ "note": "origin/main 63e585f9, PH headless via hv",
+ "runs": 3,
+ "scenario": {
+  "bots": 31,
+  "cpu": "QEMU Virtual CPU version 2.5+",
+  "gpu": "",
+  "map": "cp-orange-x3",
+  "mode": "ffa",
+  "pilot": true,
+  "players": 32,
+  "renderer": "forward_plus",
+  "seconds": 60.0,
+  "seed": 1,
+  "sim_host": true
+ },
+ "spread": {
+  "frame_p50_ms": 0.329,
+  "frame_p95_ms": 0.5917,
+  "frame_p99_ms": 0.7667,
+  "net_snapshot_ms": 0.3722,
+  "nodes_count": 0.0114,
+  "objects_count": 0.0084,
+  "pf_nodes_ms": 0.3455,
+  "physics_ms": 0.5248,
+  "predict_ms": 0.2011,
+  "present_ms": 0.3532,
+  "render_ms": 0.0,
+  "script_ms": 0.3445
+ }
+}

@@ -1,0 +1,64 @@
+{
+ "limits": {
+  "count_pct": 5.0,
+  "ms_floor": 0.1,
+  "ms_pct": 10.0,
+  "noise_k": 1.0
+ },
+ "logs": [
+  "20261125-164237-staging02-game-fatal-contact-perf-gate-gate2.log",
+  "20261125-171425-staging02-game-fatal-contact-perf-gate-gate3.log",
+  "20261125-172315-staging02-game-fatal-contact-perf-gate-gate4.log"
+ ],
+ "median": {
+  "draw_calls_count": 268.0,
+  "frame_p50_ms": 12.334,
+  "frame_p95_ms": 18.029,
+  "frame_p99_ms": 22.212,
+  "net_snapshot_ms": 0.4871,
+  "nodes_count": 5835.0,
+  "objects_count": 29169.0,
+  "objects_drawn_count": 540.0,
+  "pf_nodes_ms": 6.1569,
+  "pf_tail_ms": 0.7342,
+  "physics_ms": 2.8493,
+  "predict_ms": 0.6352,
+  "present_ms": 2.9752,
+  "primitives_count": 76664.0,
+  "render_ms": 1.6211,
+  "script_ms": 7.6095
+ },
+ "note": "origin/main 63e585f9, staging02 RTX 2070 windowed, seeded pilot (no fixed camera yet)",
+ "runs": 3,
+ "scenario": {
+  "bots": 31,
+  "cpu": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
+  "gpu": "NVIDIA GeForce RTX 2070",
+  "map": "cp-orange-x3",
+  "mode": "ffa",
+  "pilot": true,
+  "players": 32,
+  "renderer": "forward_plus",
+  "seconds": 60.0,
+  "seed": 1,
+  "sim_host": true
+ },
+ "spread": {
+  "draw_calls_count": 0.8209,
+  "frame_p50_ms": 0.0247,
+  "frame_p95_ms": 0.1028,
+  "frame_p99_ms": 0.2068,
+  "net_snapshot_ms": 0.0297,
+  "nodes_count": 0.0272,
+  "objects_count": 0.0065,
+  "objects_drawn_count": 0.5333,
+  "pf_nodes_ms": 0.0088,
+  "pf_tail_ms": 0.0476,
+  "physics_ms": 0.1139,
+  "predict_ms": 0.1966,
+  "present_ms": 0.0482,
+  "primitives_count": 1.6428,
+  "render_ms": 0.1686,
+  "script_ms": 0.0143
+ }
+}

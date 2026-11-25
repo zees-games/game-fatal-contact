@@ -160,6 +160,32 @@ Every report's `context` names the machine, GPU and driver, the build's commit a
 
 The numbers are only comparable on the same box at the same resolution, so the baseline is the GTX 1660 Ti laptop (`staging`, the typical player); `GPU_BOX=staging02` is a different card and is refused. The box's lock is exclusive: nothing else runs beside a measurement. Nightly it is the `Perf budget` schedule of the nightly panel (03:30), which posts to `/qa` with kind `perf`; see the nightly README.
 
+## Client perf gate
+
+`tools/perf_gate.sh` exists so that a client frame regression fails a check instead of being noticed weeks later in an owner profile. Between Nov 15 and Nov 25 the 32-player frame went from 96 to 65 fps, with three times the objects drawn, and nothing failed. The gate runs the 32-player benchmark (`tools/perf_bench.sh`) three times in one fixed scenario: cp-orange-x3 ffa, 31 bots, the local sim host, seed 1, the seeded pilot, 20 s of warm-up, then 60 s recorded at 1152x650. It takes the median of each metric and compares it with the baseline in `ci/perf/client_gate_<tier>.json`.
+
+| Tier | Command | Box | Measures |
+| --- | --- | --- | --- |
+| headless (default) | `tools/perf_gate.sh` | PH, in a shared suite slot through `hv` (`GPU_BOX=ph`) | frame p50/p95/p99, script and physics ms, the spans `present`, `net_snapshot`, `predict`, `pf_nodes`, `pf_tail`, node and object counts |
+| windowed | `tools/perf_gate.sh --tier windowed` | staging02 (Xorg, one GPU job under gpu.sh's lock) | the same plus render ms, objects drawn, draw calls and primitives |
+
+Run it as gamedev from a checkout. Each run is 80 s of bench plus the upload and the wait for a box, so three runs take 10 to 30 minutes. That is too slow for pre-push, so run it before a tag or after any change to presentation, LOD or the scene tree. Do not edit the checkout while it runs: gpu.sh uploads the tree for every run and starts the upload again when the tree changes under it. A run that never produced a report (a failed upload, a lost box) is retried, up to twice the runs asked for. The headless tier shares PH with other suites, so its ms metrics carry some noise; the counts do not. The windowed tier waits for staging02's exclusive GPU lock. What fails:
+
+| Metric kind | Fails when the median grows by more than |
+| --- | --- |
+| counts (`*_count`: nodes, objects, objects drawn, draw calls, primitives; per-run p50) | 5%, or the baseline's own spread if that is larger |
+| times (`*_ms`) | 10%, or the baseline's own spread across its runs if that is larger, and by more than 0.1 ms in absolute terms |
+
+The counts are the strong signal: they do not depend on how busy the box is. Node and object counts hold within a few percent from run to run. The windowed draw counts (objects drawn, draw calls, primitives) do not yet: the seeded pilot's camera follows the fight, so two runs can differ twofold. Their limit is therefore the baseline's spread, which still fails a Nov 25-sized jump (three times the objects drawn). They tighten to 5% once the bench has a fixed camera path; see the `client-perf-gate-1` item on Nightly. The headless times swing 20 to 75% between runs because neighbouring suites share the PH slot, so a headless ms limit only catches a large regression. Use the windowed tier's times, which hold within about 5 to 20%, for anything finer. The limits are stored in the baseline file (`limits`), so you can tighten them there. Exit codes: 0 pass, 1 regression, 2 a run or log is missing, 3 not comparable. Exit 3 covers a baseline from another GPU or scenario, and an inert run in which nobody fought. Logs go to `/home/gamedev/perf-bench/gate/<time>-<tier>-<checkout>/`. To compare existing logs again without running anything, use `--logs DIR`.
+
+**Updating the baseline on purpose.** A change that is meant to cost more, a new scenario or a new box is a new baseline, never a widened limit:
+
+1. Run `tools/perf_gate.sh [--tier windowed] --update --note "why"` on the commit that should become the reference.
+2. Read the printed medians and spreads. A spread above about 5% on a count means the scenario is not deterministic enough; find out why before you commit.
+3. Commit `ci/perf/client_gate_<tier>.json` with the reason in the message.
+
+`--update` keeps the file's `limits` and records which logs it came from.
+
 ## headless_ctf
 
 Capture the flag on a real `FcGame`: scripted bots (placed with `_stand`, not walking) take, carry, drop and return flags, two and three teams, both limits, the stand fallbacks and the server-to-client state. Run `./game.sh test headless_ctf`.
