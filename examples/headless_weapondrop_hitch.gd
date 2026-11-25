@@ -93,7 +93,7 @@ func _run() -> void:
 	# The server's own warm-up (FcWeaponDropWiring.build starts it on a layer that draws nothing):
 	# afterwards the first throw of any weapon, even one never thrown, builds nothing.
 	var served := _layer(world, false)
-	await Wiring.warm_server(served, 1000)
+	Wiring.warm_server(served)
 	var last: StringName = ids[ids.size() - 1]
 	var parked_all := 0
 	for id: StringName in ids:
