@@ -93,8 +93,20 @@ func _run() -> void:
 	# The server's own warm-up (FcWeaponDropWiring.build starts it on a layer that draws nothing):
 	# afterwards the first throw of any weapon, even one never thrown, builds nothing.
 	var served := _layer(world, false)
+	var t_first := Time.get_ticks_usec()
 	Wiring.warm_server(served)
+	var first_ms := (Time.get_ticks_usec() - t_first) / 1000.0
 	var last: StringName = ids[ids.size() - 1]
+	var again := _layer(world, false)
+	var t0 := Time.get_ticks_usec()
+	Wiring.warm_server(again)
+	var again_ms := (Time.get_ticks_usec() - t0) / 1000.0
+	print("  server warm: first layer %.0f ms, next layer %.1f ms (remembered boxes)" % [first_ms, again_ms])
+	var same := true
+	for id: StringName in ids:
+		same = same and again._fits.get(id) == served._fits.get(id)
+	_check(same, "a layer warmed from the remembered boxes rests the boxes the measured one did")
+	_check(again_ms < 250.0, "warm_server of a later layer loads no model", "%.1f ms" % again_ms)
 	var parked_all := 0
 	for id: StringName in ids:
 		parked_all += (served._parked.get(id, []) as Array).size()

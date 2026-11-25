@@ -5,6 +5,7 @@ const FcContent := preload("fc_content.gd")
 
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const KillPovRules := preload("fc_kill_pov.gd")
+const FitCache := preload("fc_drop_fit_cache.gd")
 
 ## The weapon layer, on both sides: the server simulates it, a client draws what it is told.
 static func build(game) -> void:
@@ -83,11 +84,23 @@ static func warm_looks(ids: Array, from: int, until_msec: int, into: Array) -> i
 
 ## Parks a body per weapon on a layer that draws nothing, all at once: the first throw of a weapon loads and measures its
 ## model (150 to 1150 ms), and a death can drop any weapon a bot or player picked, so none may be left for a tick. Runs
-## in [method build], before the first tick; a threaded warm-up stayed behind the early deaths.
+## in [method build], before the first tick; a threaded warm-up stayed behind the early deaths. A weapon whose box
+## [FitCache] remembers is parked without loading its model, so only the first boot of a host measures them (9.5 s on PH).
 static func warm_server(layer: GSWeaponDrops) -> void:
+	var started := Time.get_ticks_msec()
+	var measured := 0
 	for id in prewarm_ids():
+		var sig := FitCache.signature(id)
+		var fit := FitCache.recall(id, sig)
+		if not fit.is_empty():
+			layer._fits[id] = fit
 		layer.prewarm(id, 1)
+		if fit.is_empty():
+			measured += 1
+			FitCache.keep(id, sig, layer._fits.get(id, []))
+	FitCache.save()
 	layer.set_meta(SERVER_WARM, true)
+	GSLog.info("fc.drops", "server drop warm", {"weapons": prewarm_ids().size(), "measured": measured, "msec": Time.get_ticks_msec() - started})
 
 
 ## Set on a server drop layer once [method warm_server] has parked a body for every weapon.
