@@ -67,20 +67,31 @@ func _prewarm_phase3(tick_start: int) -> void:
 	# What the first bot, the first hit and the first kill would otherwise load mid-match:
 	# a few people's figures (rig, art, materials), the health bar's mesh and the hit sounds.
 	FcPlayer.warm_health_tag()
-	var slice_end := Time.get_ticks_msec() + (int(gate.call(&"slice_msec", 8)) if gate.has_method(&"slice_msec") else 8)
-	while int(_warm.get("figures", 0)) < PREWARM_FIGURES and Time.get_ticks_msec() < slice_end:
-		var figure_began := Time.get_ticks_usec()
-		var key := StringName("prewarm-%d" % int(_warm.get("figures", 0)))
+	# A figure, then the first-person arms of that body, one step a tick: the arms build strips the gear off a body's mesh
+	# and makes its hands, 20-40 ms of GDScript once per body, which a first death would pay in the killer's view.
+	if int(_warm.get("figures", 0)) < PREWARM_FIGURES:
+		var began := Time.get_ticks_usec()
+		var index := int(_warm.get("figures", 0))
+		var key := StringName("prewarm-%d" % index)
+		var look := FcAvatars.look_of(FcAvatars.stock_avatar(key), key)
 		var host := Node3D.new()
 		add_child(host)
-		var person := GSHumanoidFigure.new()
-		host.add_child(person)
-		person.build(FcAvatars.look_of(FcAvatars.stock_avatar(key), key), 1.8)
-		# The skin arrays a death reads, read now so the first death per model is not the one that pays (8.1 to 2.6 ms).
-		GSSkinSurfaces.warm(person)
+		if not bool(_warm.get("arms_due", false)):
+			var person := GSHumanoidFigure.new()
+			host.add_child(person)
+			person.build(look, 1.8)
+			# The skin arrays a death reads, read now so the first death per model is not the one that pays (8.1 to 2.6 ms).
+			GSSkinSurfaces.warm(person)
+			_warm.arms_due = true
+			_step_mark("figure %d" % index, began)
+		else:
+			var arms := GSPlayerViewArms.new()
+			host.add_child(arms)
+			arms.build(look, 1.8)
+			_warm.arms_due = false
+			_warm.figures = index + 1
+			_step_mark("arms %d" % index, began)
 		host.queue_free()
-		_step_mark("figure %d" % int(_warm.get("figures", 0)), figure_began)
-		_warm.figures = int(_warm.get("figures", 0)) + 1
 	if int(_warm.get("figures", 0)) >= PREWARM_FIGURES:
 		_warm.phase = 4
 		FcLoadTimeline.mark("prewarm 3 done: figures, own work %d ms" % (int(_warm_work_usec.get(3, 0) + Time.get_ticks_usec() - tick_start) / 1000))
