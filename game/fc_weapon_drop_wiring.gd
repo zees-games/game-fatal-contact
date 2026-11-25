@@ -85,16 +85,27 @@ static func warm_server(layer: GSWeaponDrops, slice_msec: int = 4) -> void:
 	var ids := prewarm_ids()
 	var pending := request_models(ids)
 	var held: Array[Resource] = []
+	# A layer gone before the warm ends (a test's quit, a map change) still collects every load it asked for: one
+	# never collected keeps its scene alive past exit.
+	var drain := func() -> void:
+		for real: String in pending.values():
+			if ResourceLoader.load_threaded_get_status(real) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+				var _done: Resource = ResourceLoader.load_threaded_get(real)
+		pending.clear()
+		held.clear()
+	var _c := layer.tree_exiting.connect(drain, CONNECT_ONE_SHOT)
 	var next := 0
 	while next < ids.size():
 		await layer.get_tree().process_frame
 		if not is_instance_valid(layer) or not layer.is_inside_tree():
 			return
 		var until := Time.get_ticks_msec() + slice_msec
-		while next < ids.size() and Time.get_ticks_msec() < until and model_ready(pending.get(ids[next], ""), held):
+		while next < ids.size() and Time.get_ticks_msec() < until and model_ready(pending, ids[next], held):
 			layer.prewarm(ids[next], 1)
 			next += 1
 	held.clear()
+	if layer.tree_exiting.is_connected(drain):
+		layer.tree_exiting.disconnect(drain)
 	layer.set_meta(SERVER_WARM, true)
 
 
@@ -123,17 +134,19 @@ static func request_models(ids: Array) -> Dictionary:
 	return started
 
 
-## Whether the background load of [param real] (from [method request_models]) is done, or there is none.
-## Collects it into [param held] once done: the resource cache keeps a model only while something holds it, and the
-## main-thread load that follows then costs nothing.
-static func model_ready(real: String, held: Array[Resource]) -> bool:
-	if real == "":
+## Whether the background load of weapon [param id] (in [param pending], from [method request_models]) is done, or
+## there is none. Collects it into [param held] once done and takes it out of [param pending]: the resource cache
+## keeps a model only while something holds it, and the main-thread load that follows then costs nothing.
+static func model_ready(pending: Dictionary, id: Variant, held: Array[Resource]) -> bool:
+	if not pending.has(id):
 		return true
+	var real: String = pending[id]
 	var status := ResourceLoader.load_threaded_get_status(real)
 	if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
 		return false
 	if status == ResourceLoader.THREAD_LOAD_LOADED:
 		held.append(ResourceLoader.load_threaded_get(real))
+	pending.erase(id)
 	return true
 
 
