@@ -4,6 +4,9 @@ extends RefCounted
 ## `--ablate rstate` in tools/perf_bench.gd prints it, so a bench on one box can be diffed against another's (the owner's Windows 3090 Ti run
 ## shows 4166 objects where the staging02 bench shows 719; the profile header carries none of this).
 
+## The digits, @ and _ _group strips from node names, compiled once.
+static var _digits: RegEx
+
 
 static func lines(root: Node) -> PackedStringArray:
 	var out := PackedStringArray()
@@ -27,11 +30,31 @@ static func lines(root: Node) -> PackedStringArray:
 	for k: String in keys:
 		parts.append("%s=%s" % [k.get_file(), ProjectSettings.get_setting(k, "-")])
 	out.append("project " + " ".join(parts))
+	out.append_array(_envs(root))
+	out.append_array(_lights(root))
+	out.append_array(_subviewports(root))
+	out.append(_fxpools(root))
+	out.append_array(_geometry(root))
+	return out
+
+
+static func _envs(root: Node) -> PackedStringArray:
+	var out := PackedStringArray()
+	var envs := {}
 	for we in root.find_children("*", "WorldEnvironment", true, false):
-		out.append(_env("world", (we as WorldEnvironment).environment))
+		var wl := _env("world", (we as WorldEnvironment).environment)
+		envs[wl] = int(envs.get(wl, 0)) + 1
 	for cam in root.find_children("*", "Camera3D", true, false):
 		if (cam as Camera3D).environment != null:
-			out.append(_env("cam " + String(cam.name), (cam as Camera3D).environment))
+			var cl := _env("cam", (cam as Camera3D).environment)
+			envs[cl] = int(envs.get(cl, 0)) + 1
+	for k: String in envs:
+		out.append("%s x%d" % [k, envs[k]])
+	return out
+
+
+static func _lights(root: Node) -> PackedStringArray:
+	var out := PackedStringArray()
 	var by := {}
 	for l in root.find_children("*", "Light3D", true, false):
 		var li := l as Light3D
@@ -46,12 +69,24 @@ static func lines(root: Node) -> PackedStringArray:
 			var d := li as DirectionalLight3D
 			out.append("sun mode=%d max_distance=%.0f shadow=%s" % [d.directional_shadow_mode, d.directional_shadow_max_distance, d.shadow_enabled])
 	out.append("lights (visible, shadowed) %s" % by)
-	var subs := root.find_children("*", "SubViewport", true, false)
-	var live := 0
-	for s in subs:
-		if (s as SubViewport).render_target_update_mode != SubViewport.UPDATE_DISABLED:
-			live += 1
-	out.append("subviewports %d (updating %d)" % [subs.size(), live])
+	return out
+
+
+static func _subviewports(root: Node) -> PackedStringArray:
+	var out := PackedStringArray()
+	var modes := {}
+	for sv in root.find_children("*", "SubViewport", true, false):
+		var port := sv as SubViewport
+		var mk := "%s mode=%d visible_in_tree=%s size=%s" % [_group(sv), port.render_target_update_mode, _shown(port), port.size]
+		modes[mk] = int(modes.get(mk, 0)) + 1
+	for k: String in modes:
+		out.append("subviewport %s x%d" % [k, modes[k]])
+	return out
+
+
+static func _geometry(root: Node) -> PackedStringArray:
+	var out := PackedStringArray()
+	var groups := {}
 	var meshes := 0
 	var casters := 0
 	var multis := 0
@@ -59,11 +94,45 @@ static func lines(root: Node) -> PackedStringArray:
 		var g := m as GeometryInstance3D
 		if not g.is_visible_in_tree():
 			continue
+		var cast := g.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var surfs := 1
+		if g is MeshInstance3D and (g as MeshInstance3D).mesh != null:
+			surfs = maxi(1, (g as MeshInstance3D).mesh.get_surface_count())
 		meshes += 1
-		casters += 1 if g.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF else 0
+		casters += 1 if cast else 0
 		multis += 1 if g is MultiMeshInstance3D else 0
+		var gk := _group(g)
+		var row: Array = groups.get(gk, [0, 0, 0])
+		row[0] += 1
+		row[1] += surfs
+		row[2] += surfs if cast else 0
+		groups[gk] = row
 	out.append("geometry visible=%d casters=%d multimesh=%d" % [meshes, casters, multis])
+	# Draw attribution: a surface is one main-pass draw and, when it casts, one more per shadow view it lands in.
+	var ranked := groups.keys()
+	ranked.sort_custom(func(x: String, y: String) -> bool: return groups[x][1] > groups[y][1])
+	for k: String in ranked.slice(0, 24):
+		out.append("draws group %s nodes=%d surfaces=%d caster_surfaces=%d" % [k, groups[k][0], groups[k][1], groups[k][2]])
 	return out
+
+
+## Effect quad pools: an idle quad should be hidden and none should cast a shadow.
+static func _fxpools(root: Node) -> String:
+	var pools := 0
+	var pooled := [0, 0, 0, 0, 0]
+	for pool in root.find_children("*", "GSFxMeshPool", true, false):
+		pools += 1
+		var idle: Array = pool.get("_free") if pool.get("_free") != null else []
+		for q in pool.get_children():
+			if not (q is MeshInstance3D):
+				continue
+			var mi := q as MeshInstance3D
+			pooled[0] += 1
+			pooled[1] += 1 if idle.has(mi) else 0
+			pooled[2] += 1 if idle.has(mi) and mi.visible else 0
+			pooled[3] += 1 if mi.is_visible_in_tree() else 0
+			pooled[4] += 1 if mi.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF else 0
+	return "fxpools %d quads=%d idle=%d idle_visible=%d drawn=%d casting=%d" % [pools, pooled[0], pooled[1], pooled[2], pooled[3], pooled[4]]
 
 
 static func _env(label: String, e: Environment) -> String:
@@ -72,3 +141,35 @@ static func _env(label: String, e: Environment) -> String:
 	return "env %s ssao=%s ssil=%s sdfgi=%s glow=%s fog=%s vfog=%s adjust=%s tonemap=%d" % [
 		label, e.ssao_enabled, e.ssil_enabled, e.sdfgi_enabled, e.glow_enabled, e.fog_enabled, e.volumetric_fog_enabled,
 		e.adjustment_enabled, e.tonemap_mode]
+
+
+## The node's place in the tree with the numbers taken out ("Level/Bot7/Figure" becomes "Level/Bot/Figure"): its first four ancestors
+## under the root and its last two, so 31 bots count as one group.
+static func _group(n: Node) -> String:
+	var names := PackedStringArray()
+	var cur := n.get_parent()
+	while cur != null and cur != n.get_tree().root:
+		names.append(String(cur.name))
+		cur = cur.get_parent()
+	names.reverse()
+	if _digits == null:
+		_digits = RegEx.create_from_string("[0-9@_]+")
+	var re := _digits
+	var out := PackedStringArray()
+	for nm in names.slice(0, 4):
+		out.append(re.sub(nm, "", true))
+	# The owner's two levels up, so a player's figure, held gun and name tag are told apart.
+	if names.size() > 4:
+		out.append("..")
+		for nm in names.slice(maxi(4, names.size() - 2)):
+			out.append(re.sub(nm, "", true))
+	return "/".join(out) + "|" + n.get_class()
+
+
+static func _shown(port: SubViewport) -> bool:
+	var cur: Node = port.get_parent()
+	while cur != null:
+		if cur is CanvasItem and not (cur as CanvasItem).visible:
+			return false
+		cur = cur.get_parent()
+	return true

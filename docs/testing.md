@@ -148,6 +148,16 @@ The web client holds the cover only for the weapon models somebody in the match 
 5. The files are in `%APPDATA%\game-fatal-contact\profiles` (Linux: `~/.local/share/game-fatal-contact/profiles`; a build from before 2026-11-13 wrote to `...\Godot\app_userdata\game-fatal-contact\profiles`): `<stamp>.json` (send this one), `.txt` (readable) and `.folded` (flame graph).
 6. Compare two runs with `profiler_compare a.json b.json`.
 
+#### The 16v16 client run in one command (Windows)
+
+The owner's reference profile is a pure client of a sim host (`bots_hosted 0`, 32 players) on cp-orange-x3. From the gs-bootstrap checkout:
+
+```powershell
+.\bootstrap.ps1 -PlayExport arena -PlayArgs "--map cp-orange-x3 --mode ffa --bots 31 +bot_quota 32 +profiler_capture_seconds 30"
+```
+
+A launched game is hosted unless `--sim_host 0`, so the bots live in the server child and this process is only the client. Press F10 once you have spawned. The `.json` lands in `%APPDATA%\game-fatal-contact\profiles`. Its context line should read `players=32, bots=31, bots_hosted=0`. The same run on staging02 is `tools/perf_bench.sh --release -- --map cp-orange-x3 --mode ffa --bots 31 --pilot-view sweep --sim-host 1`. Without `--sim-host 1` the bench hosts the bots in its own process, and that does not reproduce the client's draw counts.
+
 Every report's `context` names the machine, GPU and driver, the build's commit and each addon's, the launch arguments, every console variable and which were changed, map, mode, players and bots, the sound driver, and whether the gs-sim natives loaded, so a file needs no covering note. `arena.audio` in the system table is the game thread's share of sound (starting and reaping voices), not the mix thread. `--no-profiler` on the command line removes the profiler for an A/B. In a release build `profiler_script_top` has nothing to show (the engine keeps per-function script times only under the debugger); the system table, frame times and spikes are the same.
 
 ## Fuzz sweep

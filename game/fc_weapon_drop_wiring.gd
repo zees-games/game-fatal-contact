@@ -275,6 +275,8 @@ static func look(weapon_id: StringName) -> Node3D:
 	var model := AwWorldModel.new()
 	# Its wall probe would slide the mesh out of the collision box beside any wall or step.
 	model.wall_response = false
+	# A lying weapon is a few centimetres of metal: its shadow is not worth a draw in every cascade (128 of them lay in the 32-bot bench).
+	model.cast_shadow = false
 	var _drawn := model.equip(art as AwWeaponVisual)
 	return model
 
