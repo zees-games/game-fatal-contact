@@ -218,6 +218,7 @@ func _present_held(remote: bool = false) -> void:
 		if held.has_method(&"on_charge"):
 			held.call(&"on_charge", charge)
 	FcFrameProbe.lap(&"r_held_hooks", t_hooks)
+	_present_inspect(alive)
 
 	var fired := AwWeaponNet.uses_between(_seen_fire_seq, seq)
 	_seen_fire_seq = seq
@@ -228,6 +229,17 @@ func _present_held(remote: bool = false) -> void:
 		var t_fired := Time.get_ticks_usec()
 		held.on_fired(WATCHED_RECOIL.get(kind, Vector2(0.6, 0.1)), kind)
 		FcFrameProbe.add(&"r_held_fired", t_fired)
+
+## Turns the held gun through the first-person inspect playing on this client's hands (fc-weapons API 42), so the
+## third-person view and the lab's outside cameras see the gun looked over. Not replicated, like aiming: only a
+## body this client drives has a view model to read, and a fraction not told again lets the held gun go.
+func _present_inspect(alive: bool) -> void:
+	if mirrored or weapons == null or not alive or not held.has_method(&"on_inspect"):
+		return
+	var hands: Variant = weapons.view_model()
+	if hands is Object and (hands as Object).has_method(&"inspect_fraction"):
+		held.call(&"on_inspect", float(hands.call(&"inspect_fraction")))
+
 
 ## Draws the held gun's attachments, and marks the hand (and the local rig) suppressed for FcAttach.wrap_report.
 func _present_fitting(id: StringName) -> void:
