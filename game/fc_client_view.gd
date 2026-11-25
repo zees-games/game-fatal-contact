@@ -673,6 +673,18 @@ func _on_vote(info: Dictionary) -> void:
 		presentation.on_vote_cue(StringName(str(info.get("cue", ""))))
 
 
+## Builds the killer's arm rig for the kill view a beat after the local player's death, off the view's first frame.
+func _prepare_killer_arms(killer_id: int, victim_id: int) -> void:
+	if player == null or victim_id != player.player_id or killer_id == 0:
+		return
+	var screen := get_node_or_null("KillViewScreen")
+	if screen == null or not screen.has_method(&"prepare_killer_arms"):
+		return
+	await get_tree().create_timer(0.25).timeout
+	if is_instance_valid(screen):
+		screen.call(&"prepare_killer_arms", killer_id)
+
+
 func _on_kill(info: Dictionary) -> void:
 	# The feed is gs-ui's and takes an entry, not a dictionary. Rebuilt here rather
 	# than replicated as one, because a `GSKillFeed.Entry` has ten fields and three of
@@ -687,6 +699,7 @@ func _on_kill(info: Dictionary) -> void:
 	entry.headshot = bool(info["headshot"])
 	if killcam != null:
 		killcam.note_kill(int(info["killer_id"]), int(info["victim_id"]), String(info["weapon"]), entry.headshot)
+	_prepare_killer_arms(int(info["killer_id"]), int(info["victim_id"]))
 
 	var killer := game.player_for(int(info["killer_id"]))
 	var victim := game.player_for(int(info["victim_id"]))
@@ -747,6 +760,8 @@ func _on_solo_kill(entry: GSKillFeed.Entry) -> void:
 		return
 	if killcam != null and String(entry.killer_key).is_valid_int():
 		killcam.note_kill(int(entry.killer_key), int(entry.victim_key), String(entry.cause), entry.headshot)
+	if String(entry.killer_key).is_valid_int():
+		_prepare_killer_arms(int(entry.killer_key), int(entry.victim_key))
 	if solo_killview != null and String(entry.killer_key).is_valid_int():
 		var named := game.player_for(int(entry.killer_key))
 		var noted := solo_killview.note_kill(int(entry.killer_key), int(entry.victim_key), {
