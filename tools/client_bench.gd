@@ -191,6 +191,10 @@ class Pilot extends Node:
 	## Set (with `client`) by `--pilot-view sweep`: the look is driven round the whole compass instead of the mouse sway, which parks the camera on one wall.
 	var sweep := false
 	var client: Node = null
+	## Set by `--pilot-view tour`: the player is put at each of the map's spawn points in turn (`tour_every` s apiece), the sweep look on, so the camera sees every district and not only the spawn area.
+	var tour: Array[Vector3] = []
+	var tour_every := 4.0
+	var _stop := -1
 	var _t := 0.0
 	var _rng := RandomNumberGenerator.new()
 	var _next := 0.0
@@ -202,6 +206,12 @@ class Pilot extends Node:
 
 	func _process(delta: float) -> void:
 		_t += delta
+		if not tour.is_empty() and int(_t / tour_every) != _stop:
+			_stop = int(_t / tour_every)
+			var me: Variant = client.get("player") if client != null else null
+			if me != null and me.controller != null:
+				var at := tour[_stop % tour.size()]
+				me.controller.teleport(at + Vector3.UP * 0.2, me.controller.state.yaw, me.controller.state.pitch)
 		var sampler: Variant = client.get("_sampler") if sweep and client != null else null
 		if sampler != null:
 			# A full turn about every 8 s with a slow wobble (degrees), so the walk loops wide and the gaze crosses open ground, as a player's does.

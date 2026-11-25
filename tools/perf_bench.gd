@@ -413,12 +413,33 @@ func _place_npc(horde: Variant, id: StringName, at: Vector3, held: Array) -> voi
 func _start_pilot(_game: Object) -> void:
 	if _pilot:
 		var pilot := ClientBench.Pilot.new()
-		pilot.sweep = String(args.get("pilot-view", "")) == "sweep"
+		var view := String(args.get("pilot-view", ""))
+		pilot.sweep = view == "sweep" or view == "tour"
+		if view == "tour":
+			pilot.tour = _tour_points()
 		pilot.client = client
 		pilot.process_priority = -999
 		add_child(pilot)
 		if args.has("hold"):
 			_hold_weapon(StringName(String(args["hold"])))
+
+
+## The map's spawn points, ordered by a stride that is coprime with their count so successive stops are far apart: a walk through every district.
+func _tour_points() -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	var spawns: Array = client.get("game").get("map").spawns
+	var n := spawns.size()
+	var stride := maxi(1, n / 3)
+	while n > 1 and absi(_gcd(stride, n)) != 1:
+		stride += 1
+	for i in range(n):
+		out.append((spawns[(i * stride) % n] as Transform3D).origin)
+	say("tour: %d stops" % out.size())
+	return out
+
+
+static func _gcd(a: int, b: int) -> int:
+	return a if b == 0 else _gcd(b, a % b)
 
 
 ## `--hold ID`: the pilot carries weapon ID (a scoped rifle shows the scope glass's second scene render).
