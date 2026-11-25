@@ -46,6 +46,16 @@ class Sentinel extends Node:
 
 
 var _t0 := 0
+## --nodeprobe: a stamp after each physics-processing node; each spike tick keeps the gap ending at each stamp.
+var _stamps: Array = []
+
+
+class Stamp extends Node:
+	var bench: Node
+	var label := ""
+	func _physics_process(_d: float) -> void:
+		if bench._recording:
+			bench._stamps.append([label, Time.get_ticks_usec()])
 
 
 func _sentinel(is_start: bool) -> void:
@@ -59,8 +69,12 @@ func _sentinel(is_start: bool) -> void:
 		_count += 1
 		if _cellab > 0:
 			_ab_ticks[_ab_side] += 1
+		if _spikes:
+			_spike_open(now)
 	else:
 		_script_us.append(float(now - _t0))
+		if _spikes:
+			_spike_close(now - _t0)
 		if _cellab > 0:
 			_ab_script[_ab_side] += float(now - _t0)
 		_phys_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
@@ -218,6 +232,18 @@ func _ready() -> void:
 				_cellab = int(args[i + 1])
 				_ab_gate = _cellab > 0
 			"--idlegate": GSWeaponBehaviour.idle_gate = int(args[i + 1])
+			# --engaged 1: the firefight preset (dm_box, everyone spawned and respawned), so the bots meet within seconds.
+			"--engaged":
+				if args[i + 1] != "0":
+					_map = "dm_box"
+					_spawn = true
+			"--settle": _settle = float(args[i + 1])
+			# --spikes 1: keeps the worst ticks with the sections each one spent (a dictionary snapshot per tick: opt-in).
+			"--spikes": _spikes = args[i + 1] != "0"
+			# --pin 2-5: pins every thread of this process to those cores (taskset), away from the host's other work.
+			"--pin": _pin = args[i + 1]
+	if not _pin_threads():
+		return
 	GSLog.set_level(GSLog.Level.ERROR)
 	var _scratch := FcPresentation.use_scratch_settings("scale128_" + _role)
 	for is_start in [true, false]:
@@ -230,6 +256,62 @@ func _ready() -> void:
 		_offline.call_deferred()
 	else:
 		_serve.call_deferred()
+
+
+## --pin: taskset every thread of this process to [member _pin]; false (and quits) when taskset fails.
+func _pin_threads() -> bool:
+	if _pin == "":
+		return true
+	var out := []
+	var rc := OS.execute("taskset", ["-a", "-p", "-c", _pin, str(OS.get_process_id())], out, true)
+	if rc != 0:
+		push_error("scale128: taskset -c %s failed (%d): %s" % [_pin, rc, out])
+		get_tree().quit(1)
+		return false
+	return true
+
+
+## --spikes: the [constant SPIKE_KEEP] slowest recorded ticks, each with the sections it spent and the combat in it.
+const SPIKE_KEEP := 8
+var _spikes := false
+var _pin := ""
+var _spike_snap := {}
+var _spike_combat := PackedInt64Array([0, 0, 0])
+var _worst: Array[Dictionary] = []
+## Wall time between the starts of consecutive recorded ticks: what the engine did outside the physics step shows here.
+var _gap_ms := PackedFloat64Array()
+var _last_start := 0
+
+
+func _spike_open(now: int) -> void:
+	if _last_start > 0:
+		_gap_ms.append((now - _last_start) / 1000.0)
+	_last_start = now
+	_spike_snap.clear()
+	for k in FcFrameProbe._sections:
+		_spike_snap[k] = (FcFrameProbe._sections[k] as PackedInt64Array)[0]
+	_spike_combat = PackedInt64Array([_shots, _kills, _respawns])
+	_stamps.clear()
+
+
+func _spike_close(spent: int) -> void:
+	if _worst.size() >= SPIKE_KEEP and spent <= int(_worst[-1]["us"]):
+		return
+	var parts := {}
+	for k in FcFrameProbe._sections:
+		var d: int = (FcFrameProbe._sections[k] as PackedInt64Array)[0] - int(_spike_snap.get(k, 0))
+		if d >= 500:
+			parts[String(k)] = snappedf(d / 1000.0, 0.1)
+	var prev := _t0
+	for st: Array in _stamps:
+		if int(st[1]) - prev >= 500:
+			parts["@" + String(st[0])] = snappedf((int(st[1]) - prev) / 1000.0, 0.1)
+		prev = int(st[1])
+	_worst.append({"us": spent, "tick": _count, "ms": snappedf(spent / 1000.0, 0.1), "sections": parts,
+		"shots": _shots - _spike_combat[0], "kills": _kills - _spike_combat[1], "respawns": _respawns - _spike_combat[2]})
+	_worst.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["us"]) > int(b["us"]))
+	if _worst.size() > SPIKE_KEEP:
+		_worst.resize(SPIKE_KEEP)
 
 
 static func _stats(a: PackedFloat64Array, scale := 1.0) -> Dictionary:
@@ -246,6 +328,15 @@ static func _stats(a: PackedFloat64Array, scale := 1.0) -> Dictionary:
 		"p95": snappedf(s[mini(n - 1, int(n * 0.95))] * scale, 0.001),
 		"p99": snappedf(s[mini(n - 1, int(n * 0.99))] * scale, 0.001), "max": snappedf(s[n - 1] * scale, 0.001),
 	}
+
+
+func _spike_report(out: Dictionary) -> void:
+	if not _spikes:
+		return
+	out["gap_ms"] = _stats(_gap_ms)
+	for w in _worst:
+		w.erase("us")
+	out["worst_ticks"] = _worst
 
 
 func _rss_mb() -> float:
@@ -290,7 +381,12 @@ func _report(extra: Dictionary) -> void:
 	out["tiers"] = FcBots.tiers.describe()
 	# What the bots did while recorded, so a think-rate change shows its cost in play (shots per hit, kills).
 	out["combat"] = {"shots": _shots, "hits": _hits, "headshots": _heads, "kills": _kills,
-		"hit_rate": snappedf(float(_hits) / maxi(1, _shots), 0.001)}
+		"hit_rate": snappedf(float(_hits) / maxi(1, _shots), 0.001), "respawns": _respawns}
+	var minutes := maxf(wall, 0.001) / 60.0
+	out["per_min"] = {"shots": snappedf(_shots / minutes, 0.1), "kills": snappedf(_kills / minutes, 0.1),
+		"respawns": snappedf(_respawns / minutes, 0.1)}
+	out["over_budget_ticks"] = _over(budget_ms * 1000.0)
+	_spike_report(out)
 	out["native_scan"] = GSBotWorld.native_available()
 	out["motor_native"] = GSFpsPhysicsBody.native_enabled and ClassDB.class_exists(&"GSSimFpsBody")
 	out.merge(extra)
@@ -334,6 +430,17 @@ func _report(extra: Dictionary) -> void:
 		"on_net": _pvs_net, "on_game": _pvs_game, "asks": pv[0], "ruled_out": pv[1], "ruled_out_clear": pv[2], "native_mismatch": pv[3],
 	}
 	print("SCALE128 ", JSON.stringify(out))
+	# One greppable line per run (tools/engaged_bench.sh reads it).
+	print("SERVER_TICK bots=%d p50=%.2f p95=%.2f p99=%.2f mean=%.2f tps=%.1f over=%d shots/min=%.0f kills/min=%.0f respawns/min=%.0f" % [
+		_bots, script.get("p50", 0.0), script.get("p95", 0.0), script.get("p99", 0.0), script.get("mean", 0.0),
+		_count / wall, out["over_budget_ticks"], _shots / minutes, _kills / minutes, _respawns / minutes])
+
+
+func _over(limit_us: float) -> int:
+	var n := 0
+	for v in _script_us:
+		n += int(v > limit_us)
+	return n
 
 
 ## Whether the map's PVS was on the netcode and on the game (for the bots) when the record began.
@@ -350,12 +457,14 @@ func _respawn_dead(game: Node, all: bool) -> void:
 	for p in game.players():
 		if all or not p.is_alive():
 			var _r: GSResult = game.respawn_player(p.player_id)
+			_respawns += int(_recording)
 
 
 var _shots := 0
 var _hits := 0
 var _heads := 0
 var _kills := 0
+var _respawns := 0
 
 
 func _tally_on(g: Object) -> void:
@@ -404,6 +513,9 @@ func _begin_record() -> void:
 		(GSBotBrain as GDScript).set(&"phase_us", b_us)
 	_script_us.clear()
 	_phys_ms.clear()
+	_gap_ms.clear()
+	_worst.clear()
+	_last_start = 0
 	_count = 0
 	_t_start = Time.get_ticks_usec()
 	_ab_begin()
@@ -411,6 +523,16 @@ func _begin_record() -> void:
 
 
 # server
+
+func _add_stamps() -> void:
+	for n in get_tree().root.find_children("*", "", true, false):
+		if n.is_physics_processing() and not (n is Sentinel) and n.get_parent() != null:
+			var st := Stamp.new()
+			st.bench = self
+			st.label = "%s:%s" % [n.name, n.get_script().resource_path.get_file() if n.get_script() else n.get_class()]
+			st.process_physics_priority = n.process_physics_priority
+			n.add_sibling(st)
+
 
 func _serve() -> void:
 	var data := "user://scale128_server"
@@ -465,6 +587,8 @@ func _serve() -> void:
 	_pvs_game = game.has_meta(FcBotPvs.META)
 	var before: Dictionary = net.perf_counters()
 	_ab_net = net
+	if "--nodeprobe" in OS.get_cmdline_user_args():
+		_add_stamps()
 	_begin_record()
 	_tally_on(game)
 	var t_end := Time.get_ticks_usec() + int(_seconds * 1.0e6)
