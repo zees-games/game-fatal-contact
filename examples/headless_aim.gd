@@ -133,7 +133,7 @@ func _trial(dist: float, crouch: bool, follow_up: bool) -> Dictionary:
 func _run() -> void:
 	# The lens is too small to aim through (and flat grey in the browser), so every build starts in the full-screen scope.
 	_check(FcScopePrefs.default_mode(true) == 2, "web: cl_scope_mode defaults to the full-screen scope (2)")
-	_check(FcScopePrefs.default_mode(false) == 2, "native: cl_scope_mode defaults to the full-screen scope (2) too")
+	_check(FcScopePrefs.default_mode(false) == 1, "native: cl_scope_mode defaults to the lens view (1), the rifle stays drawn")
 	_check(FcScopePrefs.mode == FcScopePrefs.default_mode(OS.has_feature("web")), "cl_scope_mode starts at this platform's default")
 	_check(FcScopeBody.default_body(true) and FcScopeBody.default_body(false), "cl_scope_body defaults on, web and native")
 	_scope_bodies()
@@ -306,6 +306,8 @@ func _probe_client() -> void:
 
 ## One pass of [method _probe_client]: [param me] fires at the still [param bot], hip or scoped, and the hit, marker and sound are checked.
 func _shoot_bot(client: Node, g: FcGame, me: FcPlayer, bot: FcPlayer, audio: GSAudioManager, sounds: Array, asked: Array, scoped: bool) -> void:
+	if scoped:
+		FcScopePrefs.mode = 2  # the full-screen scope is the one that zooms the main camera; the native default is the lens view
 	# The hip shot uses a rifle: the sniper's 8 degree hip cone (a missed shot at 6 m, now that the body is
 	# the 72 unit one and a third smaller in area) tests the weapon's inaccuracy, not that the shot registers.
 	var _fill := me.arsenal.give(AwWeaponIds.SNIPER if scoped else AwWeaponIds.RIFLE)
@@ -334,7 +336,7 @@ func _shoot_bot(client: Node, g: FcGame, me: FcPlayer, bot: FcPlayer, audio: GSA
 		sampler.look_at_angles(a.x, a.y)
 	var hud = client.get("hud")
 	_check(not scoped or me.aim_zoom() < 0.9, "client: the sights are up before the shot" if scoped else "client: hip fire")
-	_check(not scoped or float(me.get("_view_fov_scale")) < 0.9, "client: with the full-screen scope (cl_scope_mode 2, the default) the camera takes the scope's zoom")
+	_check(not scoped or float(me.get("_view_fov_scale")) < 0.9, "client: with the full-screen scope (cl_scope_mode 2) the camera takes the scope's zoom")
 	Input.action_press(FcBindings.FIRE)
 	var marker := 0.0
 	for _i in 90:
