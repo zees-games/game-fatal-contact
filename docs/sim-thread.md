@@ -66,3 +66,11 @@ Console lines, chat commands, admin actions and the map sync's peer reports also
 ## Falling behind on Windows
 
 The child is started at the client's priority, so a 16-bot render client's threads can win cores from the 66 Hz sim. `FcSimHost.raise_priority` lifts the child to AboveNormal on Windows (PowerShell, fire and forget). The child's frame cap (`max_fps` = tick rate, set by gs-server for a headless process) is not the cause: physics catches up from its accumulator, 16 steps a frame since v0.1.85. Not measured on Windows (no Windows box on gpu.sh); the owner's next run should show `SIM_HOST_TICK` p95 and the behind line.
+
+### Pacing and the behind line's cause
+
+The child paces its own frames (`FcSimPacer`, `game/fc_sim_pacer.gd`; `-- --sim_pace 0` gives it back to the engine's `max_fps`). The engine sleeps with the OS timer, which on Windows rounds to its 15.6 ms tick unless the resolution was raised, so a 15.15 ms frame could become 16 to 31 ms and the ticks arrived in bunches. The pacer sleeps in 1 ms steps while they land on time and spins the last stretch to the deadline; when sleeps overshoot, its margin grows (to the whole wait) and decays again once they behave, so a good timer costs about 8% of a core in the spin and a coarse one about 75%.
+
+A coarse timer alone does not lower ticks per second: the physics accumulator catches up, and `tools/timer_repro/run.sh --coarse 1` (an `LD_PRELOAD` that rounds sleeps to 15.625 ms) held 66.0 of 66 on both pacings. It shows as jitter: late ticks (gap over 1.5 periods) 42 to 51 of 330 a window with the engine's pacing, 0 to 1 with the pacer, and with `--cores 0-1 --hog 3` (three busy threads on two cores) 46 against 25. `SIM_HOST_PACE` prints each window's tick gap p50/p95/max, late ticks, the worst sleep overshoot, the spin loop's stalls (the thread descheduled), the spin share and frames that took over a period. The `SIM_HOST BEHIND` line ends in `likely cause:` from them: ticks too dear, frames too dear, starved (a stall of a quarter period or more), or timer (an overshoot of the same). A log that says "timer" or "starved" is not the simulation's cost.
+
+Windows is still unmeasured. A native `timeBeginPeriod(1)` would drop the spin to the good-timer 8%, but no addon (gs-sim, gs-server) exposes one and this repository cannot add it.

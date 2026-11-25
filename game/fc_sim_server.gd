@@ -12,6 +12,7 @@ const FcPlayerStack := preload("fc_player_stack.gd")
 const FcMaps := preload("fc_maps.gd")
 const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
 const FcPaths := preload("fc_paths.gd")
+const FcSimPacer := preload("fc_sim_pacer.gd")
 
 ## The authoritative game of a solo session in its own process (`--sim_host 1`, [FcSimHost]): a loopback dedicated server the solo client spawns and joins, so the 66 Hz simulation never runs on the render thread. The same [FcModule] a public server runs.
 ## Launch flags (after `--`): `--port N --bots N --map ID --mode ID --ready PATH --bot_threads N --sim_load_us N --sim_sections 1 --bot_native_brain 0|1 --bot_native_loop 0|1 --cvar name=value`. It writes PATH once it accepts players, and quits a few seconds after its player left.
@@ -37,6 +38,8 @@ var _behind_said_ms := -1
 ## The longest gap between two frames in this report window (usec): a stall outside the tick shows here and not in SIM_HOST_TICK.
 var _frame_at_usec := 0
 var _frame_gap_max_usec := 0
+## Paces the frames to the tick rate with a sleep then a spin (the OS timer may be coarse) and measures late ticks; `--sim_pace 0` leaves it to the engine.
+var _pacer := FcSimPacer.new()
 
 
 func _ready() -> void:
@@ -48,6 +51,7 @@ func _ready() -> void:
 		_die("no --port")
 		return
 	_apply_bench_flags()
+	_pacer.enabled = _arg("--sim_pace", "1") != "0"
 	var data := "user://sim_host"
 	var _made := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(data))
 
@@ -166,7 +170,7 @@ func _apply_bench_flags() -> void:
 		# By name: gs-bot 26 (the live shell's) has no native tier to switch.
 		FcBots.tiers.set(&"native", native_loop.to_int() != 0)
 	_load_us = maxi(0, int(_arg("--sim_load_us", "0")))
-	set_physics_process(_load_us > 0)
+	set_physics_process(true)
 	# Where a tick goes: the [FcFrameProbe] sections the server's tick records (srv_*, tick_*, p_*, bot_*, w_*),
 	# printed per tick beside each SIM_HOST line. Off by default: each section costs two clock reads.
 	# `2` adds the sub-spans inside them (`pl_pre`, `p_hitbox`, `p_wctx`, `br_*`; [member FcFrameProbe.fine]): a clock read each, so read shares.
@@ -218,6 +222,10 @@ func _process(delta: float) -> void:
 	# A solo client that crashed cannot tell its server to stop: the server ends once its one remote
 	# player is gone for a while, or when none ever came. (A process cannot ask after its parent.)
 	_since_check += delta
+	if _pacer.enabled:
+		# gs-server sets the engine's cap at every tick rate change; the pacer is the only limiter.
+		Engine.max_fps = 0
+		_pacer.pace(Engine.physics_ticks_per_second)
 	if _since_check < 1.0 or _server == null:
 		return
 	_alone_sec = 0.0 if _remote_players() > 0 else _alone_sec + _since_check
@@ -228,6 +236,7 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	_pacer.note_tick()
 	var until := Time.get_ticks_usec() + _load_us
 	while Time.get_ticks_usec() < until:
 		pass
@@ -259,7 +268,14 @@ func _report(net: GSNetManager) -> void:
 		print("SIM_HOST %.1f ticks/s of %d | sim %.3f ms/tick send %.3f ms/tick" % [  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			held, Engine.physics_ticks_per_second, sim_ms,
 			(int(now[&"server_send_usec"]) - int(last[&"server_send_usec"])) / 1000.0 / ticks])
-		var behind := behind_line(held, Engine.physics_ticks_per_second, sim_ms)
+		var rate := Engine.physics_ticks_per_second
+		var period := 1000000 / maxi(rate, 1)
+		var costs: PackedInt32Array = _module.tick_costs if _module != null else PackedInt32Array()
+		var over := 0
+		for c in costs:
+			if c > period:
+				over += 1
+		var behind := behind_line(held, rate, sim_ms, FcSimPacer.cause(over, costs.size(), _pacer.frames_over, _pacer.frames, _pacer.stall_max_usec, _pacer.over_max_usec, period) if _pacer.enabled else "")
 		if behind != "" and not boot:
 			GSLog.warn(CHANNEL, behind)
 		if not boot:
@@ -268,6 +284,7 @@ func _report(net: GSNetManager) -> void:
 			print("%s | frame gap max %.1f ms%s" % [tick_line(_module.tick_costs, Engine.physics_ticks_per_second), _frame_gap_max_usec / 1000.0, " | boot warm" if boot else ""])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			_module.tick_costs.clear()
 		_frame_gap_max_usec = 0
+		print(_pacer.window_line(rate))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		# server_tick's own sections (a gs-net without them reports 0): input before sim, the
 		# still-registered check inside sim, the rewind history record inside send.
 		print("SIM_HOST_NET ms/tick | input %.3f, check %.3f, hist %.3f" % [  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
@@ -304,11 +321,13 @@ const BEHIND_SHARE := 0.95
 
 ## The loud line for a window that held [param held] ticks a second of [param rate], or "" while it kept real time.
 ## The solo client follows this server's pace, so a short window is a game (gravity included) slowed by that share.
-static func behind_line(held: float, rate: int, sim_ms: float) -> String:
+## [param cause] (from [method FcSimPacer.cause]) is appended when given, so a log says why: tick cost, timer or starvation.
+static func behind_line(held: float, rate: int, sim_ms: float, cause: String = "") -> String:
 	if rate <= 0 or held >= rate * BEHIND_SHARE:
 		return ""
-	return "SIM_HOST BEHIND real time: %.1f of %d ticks/s, the game runs at %d%% speed (a tick costs %.1f ms of %.1f); lower solo_tick_tiers or the bots" % [
-		held, rate, roundi(held * 100.0 / rate), sim_ms, 1000.0 / rate]
+	return "SIM_HOST BEHIND real time: %.1f of %d ticks/s, the game runs at %d%% speed (a tick costs %.1f ms of %.1f); %s" % [
+		held, rate, roundi(held * 100.0 / rate), sim_ms, 1000.0 / rate,
+		"likely cause: " + cause if cause != "" else "lower solo_tick_tiers or the bots"]
 
 
 ## Whether a report window overlapped the boot's one-off work (the server drop warm, [param warming_at_start] or
