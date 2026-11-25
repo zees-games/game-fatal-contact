@@ -83,15 +83,58 @@ static func warm_looks(ids: Array, from: int, until_msec: int, into: Array) -> i
 ## Parks a body per weapon on a layer that draws nothing, a few ms a frame, so the first throw of each only takes one. Ends when the layer leaves the tree.
 static func warm_server(layer: GSWeaponDrops, slice_msec: int = 4) -> void:
 	var ids := prewarm_ids()
+	var pending := request_models(ids)
+	var held: Array[Resource] = []
 	var next := 0
 	while next < ids.size():
 		await layer.get_tree().process_frame
 		if not is_instance_valid(layer) or not layer.is_inside_tree():
 			return
 		var until := Time.get_ticks_msec() + slice_msec
-		while next < ids.size() and Time.get_ticks_msec() < until:
+		while next < ids.size() and Time.get_ticks_msec() < until and model_ready(pending.get(ids[next], ""), held):
 			layer.prewarm(ids[next], 1)
 			next += 1
+	held.clear()
+	layer.set_meta(SERVER_WARM, true)
+
+
+## Set on a server drop layer once [method warm_server] has parked a body for every weapon.
+const SERVER_WARM := &"fc_drops_server_warm"
+
+
+## Whether the server drop layer of [param game] is still warming (false once done, or when it has none).
+static func server_warming(game) -> bool:
+	return game != null and game.weapon_drops != null and not game.weapon_drops.draws and not game.weapon_drops.has_meta(SERVER_WARM)
+
+
+## Starts a background load of the world model of each weapon of [param ids]; returns id -> path for those started.
+## A weapon GLB took 65 to 1200 ms to load on the main thread of a headless host, a tick lost for each.
+static func request_models(ids: Array) -> Dictionary:
+	var started := {}
+	for id: Variant in ids:
+		var art: Variant = AwWeaponArtTable.table().get(id)
+		if not art is AwWeaponVisual or (art as AwWeaponVisual).model_path == "":
+			continue
+		var real := AwModelCache.resolve((art as AwWeaponVisual).model_path)
+		if not ResourceLoader.exists(real) or ResourceLoader.has_cached(real):
+			continue
+		if ResourceLoader.load_threaded_request(real) == OK:
+			started[id] = real
+	return started
+
+
+## Whether the background load of [param real] (from [method request_models]) is done, or there is none.
+## Collects it into [param held] once done: the resource cache keeps a model only while something holds it, and the
+## main-thread load that follows then costs nothing.
+static func model_ready(real: String, held: Array[Resource]) -> bool:
+	if real == "":
+		return true
+	var status := ResourceLoader.load_threaded_get_status(real)
+	if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		return false
+	if status == ResourceLoader.THREAD_LOAD_LOADED:
+		held.append(ResourceLoader.load_threaded_get(real))
+	return true
 
 
 static func teardown(game) -> void:

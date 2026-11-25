@@ -10,6 +10,7 @@ const FcBotThreads := preload("fc_bot_threads.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 const FcPlayerStack := preload("fc_player_stack.gd")
 const FcMaps := preload("fc_maps.gd")
+const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
 const FcPaths := preload("fc_paths.gd")
 
 ## The authoritative game of a solo session in its own process (`--sim_host 1`, [FcSimHost]): a loopback dedicated server the solo client spawns and joins, so the 66 Hz simulation never runs on the render thread. The same [FcModule] a public server runs.
@@ -33,9 +34,6 @@ var _game: FcGame = null
 var _module: FcModule = null
 ## When the in-game behind line was last said (msec), or -1 while the server keeps its rate.
 var _behind_said_ms := -1
-## Since when (usec) a remote player has been spawned, 0 while none is: a window that began before it is the boot
-## (frames of 100-800 ms for several seconds), which the player never plays through.
-var _playing_since_usec := 0
 ## The longest gap between two frames in this report window (usec): a stall outside the tick shows here and not in SIM_HOST_TICK.
 var _frame_at_usec := 0
 var _frame_gap_max_usec := 0
@@ -225,10 +223,6 @@ func _process(delta: float) -> void:
 	_alone_sec = 0.0 if _remote_players() > 0 else _alone_sec + _since_check
 	_since_check = 0.0
 	_joined = _joined or _alone_sec == 0.0
-	if not _remote_spawned():
-		_playing_since_usec = 0
-	elif _playing_since_usec == 0:
-		_playing_since_usec = Time.get_ticks_usec()
 	if _alone_sec >= (GONE_SEC if _joined else NEVER_SEC):
 		get_tree().quit(0)
 
@@ -237,13 +231,6 @@ func _physics_process(_delta: float) -> void:
 	var until := Time.get_ticks_usec() + _load_us
 	while Time.get_ticks_usec() < until:
 		pass
-
-
-func _remote_spawned() -> bool:
-	for session: GSClientSession in _server.sessions():
-		if not session.local and session.is_playing():
-			return true
-	return false
 
 
 func _remote_players() -> int:
@@ -261,7 +248,9 @@ func _report(net: GSNetManager) -> void:
 		_module.keep_tick_costs = true
 	var t0 := Time.get_ticks_usec()
 	while is_inside_tree():
+		var warm_from := FcWeaponDropWiring.server_warming(_game)
 		await get_tree().create_timer(REPORT_SEC).timeout
+		var boot := booting(warm_from, FcWeaponDropWiring.server_warming(_game))
 		var now: Dictionary = net.perf_counters()
 		var secs := (Time.get_ticks_usec() - t0) / 1.0e6
 		var ticks := maxi(1, int(now[&"server_ticks"]) - int(last[&"server_ticks"]))
@@ -271,12 +260,12 @@ func _report(net: GSNetManager) -> void:
 			held, Engine.physics_ticks_per_second, sim_ms,
 			(int(now[&"server_send_usec"]) - int(last[&"server_send_usec"])) / 1000.0 / ticks])
 		var behind := behind_line(held, Engine.physics_ticks_per_second, sim_ms)
-		if behind != "":
+		if behind != "" and not boot:
 			GSLog.warn(CHANNEL, behind)
-		if played_through(_playing_since_usec, t0):
+		if not boot:
 			_tell_player(held, Engine.physics_ticks_per_second)
 		if _module != null:
-			print("%s | frame gap max %.1f ms" % [tick_line(_module.tick_costs, Engine.physics_ticks_per_second), _frame_gap_max_usec / 1000.0])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
+			print("%s | frame gap max %.1f ms%s" % [tick_line(_module.tick_costs, Engine.physics_ticks_per_second), _frame_gap_max_usec / 1000.0, " | boot warm" if boot else ""])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			_module.tick_costs.clear()
 		_frame_gap_max_usec = 0
 		# server_tick's own sections (a gs-net without them reports 0): input before sim, the
@@ -322,9 +311,11 @@ static func behind_line(held: float, rate: int, sim_ms: float) -> String:
 		held, rate, roundi(held * 100.0 / rate), sim_ms, 1000.0 / rate]
 
 
-## Whether a report window that began at [param window_from_usec] is one the player played all of: spawned before it began.
-static func played_through(playing_since_usec: int, window_from_usec: int) -> bool:
-	return playing_since_usec > 0 and playing_since_usec <= window_from_usec
+## Whether a report window overlapped the boot's one-off work (the server drop warm, [param warming_at_start] or
+## [param warming_at_end]): its numbers are printed, but it is not counted as behind nor told to the player.
+## Every window after it is, played or not: a sim truly behind in play always says so.
+static func booting(warming_at_start: bool, warming_at_end: bool) -> bool:
+	return warming_at_start or warming_at_end
 
 
 ## Says in the game, as a server line, that it runs slower than the clock: once as it falls behind, then every

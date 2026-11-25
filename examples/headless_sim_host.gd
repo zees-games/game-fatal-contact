@@ -166,8 +166,8 @@ func _check_tick_tiers() -> void:
 	_check(tick.contains("p50 1.50") and tick.contains("max 40.00") and tick.contains("over 1/100"),
 		"the tick line has the median, the worst tick and the ticks over the 15 ms budget", tick)
 	_check(FcSimServer.tick_line(PackedInt32Array(), 66).contains("no ticks"), "an empty window says so")
-	_check(not FcSimServer.played_through(0, 5000) and not FcSimServer.played_through(6000, 5000)
-		and FcSimServer.played_through(4000, 5000), "the player hears only of windows they were spawned through, not the boot and load")
+	_check(FcSimServer.booting(true, false) and FcSimServer.booting(false, true) and not FcSimServer.booting(false, false),
+		"a window that overlapped the boot warm is not counted behind; every later one is, so a slow sim in play is told")
 
 
 ## The client is built on the server's map, so its announcement keeps that world instead of rebuilding it.
