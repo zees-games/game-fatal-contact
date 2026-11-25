@@ -468,8 +468,10 @@ func _measure_and_report() -> void:
 		(int(perf1[&"server_sim_usec"]) - int(perf0[&"server_sim_usec"])) / 1000.0 / nticks,
 		nticks, net.registry.all().size()])
 	var applied: PackedInt64Array = FcFrameProbe._sections.get(&"net_snapshot", PackedInt64Array([0, 0, 0]))
-	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d" % [
-		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1]])
+	# tracks_only: remote samples live only in gs-sim's interpolator (GSNetConfig.sim_interp_tracks_only took effect).
+	var tracks_only: bool = cnet.interpolator != null and bool(cnet.interpolator.get(&"_native_only"))
+	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d tracks_only=%s" % [
+		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1], "on" if tracks_only else "off"])
 	if _sections:
 		_print_sections(tick_ms)
 		_print_engine()

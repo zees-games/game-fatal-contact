@@ -162,13 +162,11 @@ func _trace_feet(other_id: int, mover: FcPlayerNet, tick: int, lag: float, at: V
 			var p: Variant = game.unlag_position_at(other_id, float(k))
 			near += " %d:%s" % [k, ("%.3f" % (p as Vector3).x) if p is Vector3 else "-"]
 	elif other.identity != null:
-		var track: Variant = (net.interpolator.get(&"_tracks") as Dictionary).get(other.identity.net_id)
-		newest = track.newest_tick() if track != null else -1
-		if track != null:
-			for sample: Dictionary in track.samples:
-				if absi(int(sample["tick"]) - view) <= 4:
-					var p: Variant = (sample["values"] as Dictionary).get(&"net_position")
-					near += " %d:%s" % [int(sample["tick"]), ("%.3f" % (p as Vector3).x) if p is Vector3 else "-"]
+		newest = net.interpolator.newest_tick(other.identity.net_id)
+		for sample: Dictionary in net.interpolator.track_samples(other.identity.net_id):
+			if absi(int(sample["tick"]) - view) <= 4:
+				var p: Variant = (sample["values"] as Dictionary).get(&"net_position")
+				near += " %d:%s" % [int(sample["tick"]), ("%.3f" % (p as Vector3).x) if p is Vector3 else "-"]
 	print("SOLIDTRACE %s t=%d mover=%d other=%d lag=%.2f raw=%.2f null=%d feet=%.3f,%.3f,%.3f mover_at=%.3f,%.3f,%.3f newest=%d near=%s" % [
 		"S" if net.is_server else "C", tick, mover.player.player_id, other_id, lag, mover.last_view_lag,
 		1 if at == null else 0, feet.x, feet.y, feet.z, from.x, from.y, from.z, newest, near])

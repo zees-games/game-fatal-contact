@@ -244,8 +244,7 @@ func _command_for(tick: int, move: GSFpsCommand, fire: GSWeaponCommand) -> FcNet
 ## that the interpolator drew across a sample pair of its own other than the room's ([member _back_for], [member _span_for]), or ran on past its newest sample.
 func _view_targets(tick: int, render: float, move: GSFpsCommand) -> Array:
 	var out: Array = []
-	var tracks: Variant = net.interpolator.get(&"_tracks") if net.interpolator != null else null
-	if not (tracks is Dictionary) or game == null:
+	if net.interpolator == null or game == null:
 		return out
 	var room := Vector2i(tick - _back_for, tick - _back_for + _span_for) if _back_for >= 0 else Vector2i(-1, -1)
 	var yaw := deg_to_rad(move.yaw)
@@ -264,10 +263,10 @@ func _view_targets(tick: int, render: float, move: GSFpsCommand) -> Array:
 		var to := other.player.global_position + Vector3.UP - eye
 		if eye != Vector3.INF and cone > -1.5 and to.length_squared() > 0.01 and aim.dot(to.normalized()) < cone:
 			continue
-		var track: Object = (tracks as Dictionary).get(other.identity.net_id)
-		var own := _own_pair(track.get(&"samples"), render, newest) if track != null else Vector2i(-1, -1)
+		var samples: Array = net.interpolator.track_samples(other.identity.net_id)
+		var own := _own_pair(samples, render, newest)
 		var drawn: Variant = _drawn_feet.get(other.identity.net_id) if fresh and own.x >= 0 else null
-		var ease := _drawn_ease(drawn, track.get(&"samples"), own) if drawn is Vector3 else Vector3i.ZERO
+		var ease := _drawn_ease(drawn, samples, own) if drawn is Vector3 else Vector3i.ZERO
 		if own.x >= 0 and (own != room or render >= float(own.y) or ease != Vector3i.ZERO):
 			var entry := [other.identity.net_id, tick - own.x, own.y - own.x]
 			if ease != Vector3i.ZERO:

@@ -272,10 +272,10 @@ func _sample_render() -> void:
 			_w["max_freeze_ms"] = maxi(int(_w["max_freeze_ms"]), now_ms - int(_w["freeze_since"]))
 			if _verbose and now_ms - int(_w["freeze_since"]) > 150:
 				var b_identity := (a["bridge"] as FcNetBridge).behaviour_for(b_session)
-				var b_track: Variant = net.interpolator.get("_tracks").get(b_identity.identity.net_id) if b_identity != null else null
+				var b_newest: int = net.interpolator.newest_tick(b_identity.identity.net_id) if b_identity != null else -1
 				print("      FREEZE %d ms: render %.2f received %d server %d newest-B %s applied %d drawn %s truth %s" % [
 					now_ms - int(_w["freeze_since"]), render_tick, net.clock.received_tick(), _game.current_tick(),
-					str(b_track.newest_tick()) if b_track != null else "-", net.ack_tick(), drawn, truth])
+					str(b_newest) if b_newest >= 0 else "-", net.ack_tick(), drawn, truth])
 		else:
 			_w["freeze_since"] = -1
 

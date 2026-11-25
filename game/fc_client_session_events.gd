@@ -368,6 +368,10 @@ func _client_net_config() -> GSNetConfig:
 	# every FC `_net_interpolated` only copies net_* onto the node. `cl_interp_always 1` writes every frame.
 	if &"skip_settled_interp" in config:
 		config.set(&"skip_settled_interp", FcFrameProbe.launch_value("cl_interp_always") != "1")
+	# And remote samples kept only in gs-sim's interpolator, fed straight from the native snapshot decode (no GDScript track per
+	# entity); every FC read goes through GSNetInterpolator.track_samples. `cl_interp_script_tracks 1` keeps the GDScript tracks.
+	if &"sim_interp_tracks_only" in config:
+		config.set(&"sim_interp_tracks_only", FcFrameProbe.launch_value("cl_interp_script_tracks") != "1")
 	return config
 
 
