@@ -29,6 +29,10 @@ static func hz_for(players: int) -> float:
 static var pose_lod: bool = true
 # Player instance id -> the process frame of its body's last pose read, for [member pose_lod].
 static var _pose_read_at: Dictionary = {}
+## Where each body was last put, [feet, yaw], so an unchanged frame writes nothing.
+static var _placed: Dictionary = {}
+## Marks a body built hidden ahead of the replay (see [method prewarm_body]).
+const PREWARM_META := &"killcam_body_prewarmed"
 static var _pose_read_pruned: int = 16
 
 const SKIP_ACTIONS: PackedStringArray = ["gs_fps_jump", "arena_fire", "ui_cancel"]
@@ -121,6 +125,7 @@ static func _fall(p: Node, body: Node3D, ra: Array, rb: Array, alpha: float, yar
 
 ## Puts back what [method replay_events] changed on [param p]: the ragdoll it made, the ones it hid, its counters.
 static func _forget(p: Node) -> void:
+	_placed.erase(p.get_instance_id())
 	var made: Variant = p.get_meta(FALL_META) if p.has_meta(FALL_META) else null
 	if is_instance_valid(made) and made is Node:
 		(made as Node).queue_free()
@@ -221,6 +226,17 @@ static func _stance_of(p: Node) -> Vector2:
 	return Vector2(controller.state.crouch_fraction, 1.0 if controller.state.is_sliding() else 0.0)
 
 
+## Builds a first-person player's own body now, hidden, so the replay's first frame does not (it is the one node-building cost of the kill view's switch).
+static func prewarm_body(p: Node) -> void:
+	if p.get(&"body_mesh") != null:
+		return
+	p.call(&"attach_body_mesh", Color.WHITE, p.get(&"avatar"))
+	var body: Node3D = p.get(&"body_mesh")
+	if body != null:
+		body.visible = false
+		p.set_meta(PREWARM_META, true)
+
+
 static func place_body(p: Node, feet: Vector3, yaw: float, shown: bool, pitch: float, speed: float, touched: Dictionary) -> void:
 	var body: Node3D = p.get(&"body_mesh")
 	var attached := false
@@ -234,17 +250,25 @@ static func place_body(p: Node, feet: Vector3, yaw: float, shown: bool, pitch: f
 			return
 	if not touched.has(p):
 		# A body attached only for the replay (a first-person player's own) goes back hidden.
+		attached = attached or (p.has_meta(PREWARM_META) and not body.visible)
 		touched[p] = [body.transform, false if attached else body.visible] + ([true] if attached else [])
 	body.visible = shown
 	if not shown:
+		_placed.erase(p.get_instance_id())
 		return
-	body.global_position = feet
-	body.global_basis = Basis(Vector3.UP, deg_to_rad(yaw))
 	var figure: Node3D = p.get(&"figure")
+	var id := p.get_instance_id()
+	var last: Array = _placed.get(id, [])
+	var same: bool = last.size() == 2 and last[0] == feet and last[1] == yaw and body.global_position == feet
+	if not same:
+		body.global_position = feet
+		body.global_basis = Basis(Vector3.UP, deg_to_rad(yaw))
+		_placed[id] = [feet, yaw]
 	if figure == null:
 		return
-	figure.set(&"hide_head", false)
-	figure.position = Vector3.ZERO
+	if not same:
+		figure.set(&"hide_head", false)
+		figure.position = Vector3.ZERO
 	# A body hidden before the replay had no pose recorded: animated here by the frame's real
 	# time, since a clip switched with none left to blend in draws the rest pose.
 	if not bool(touched[p][1]):

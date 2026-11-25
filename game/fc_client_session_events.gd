@@ -512,6 +512,11 @@ func _build_due_bodies() -> void:
 		_share_shots_of(next)
 		if slice.due() and not _bodies_due.is_empty():
 			await slice.pause()
+	# The replay builds the player's own body at its first frame (7 ms); build it hidden now, after the bots, in a slice of its own.
+	if is_instance_valid(player) and player.body_mesh == null:
+		await slice.pause()
+		if is_instance_valid(player):
+			FcKillcamBodies.prewarm_body(player)
 	if gate != null and gate.is_holding(&"bodies"):
 		gate.release(&"bodies")
 

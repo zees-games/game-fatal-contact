@@ -203,10 +203,16 @@ func _check_recoil(screen: Node, killer: Object) -> void:
 func _check_poses(host: Node, killer: Object, me: Object) -> void:
 	var at := [NAN]
 	var mark := func(s: Dictionary) -> void: at[0] = s["time"]
+	# gs-replay 11 leaves bodies outside the replay camera unposed (cull_unseen); this compares every body, so pose them all.
+	var culled: Variant = host.get(&"cull_unseen")
+	if culled != null:
+		host.set(&"cull_unseen", false)
 	host.killcam.frame_drawn.connect(mark)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	host.killcam.frame_drawn.disconnect(mark)
+	if culled != null:
+		host.set(&"cull_unseen", culled)
 	var drawn: Dictionary = host.poses.sample(at[0]) if not is_nan(at[0]) else {}
 	var compared := 0
 	var worst := 0.0
