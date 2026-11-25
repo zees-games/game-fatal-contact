@@ -10,6 +10,8 @@ const Wiring := preload("../game/fc_weapon_drop_wiring.gd")
 const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 
 const TOLERANCE := 0.02
+## Seeds the drop layers' roll and spin streams (see _course); the same seed makes the same run.
+const SEED := 1
 const RUN_TICKS := 640
 const JITTER_TICKS := 128
 const MAPS: Array[StringName] = [&"crackhouse", &"surf_10x_reloaded_fixed"]
@@ -114,8 +116,11 @@ func _course(course: String, world: Node3D, ids: Array, spots: Array, velocity: 
 	server.look_of = Wiring.look
 	server.rules.lifetime = 0.0
 	server.rules.max_count = 0
+	# Roll and spin come from the layer's own stream, randomised when made: seeded per course so every run is the same run.
+	server.seed_rng(SEED + hash(course))
 	var client := GSWeaponDrops.new()
 	client.is_authority = false
+	client.seed_rng(SEED + hash(course) + 1)
 	client.draws = true
 	client.look_of = Wiring.look
 	client.rules.lifetime = 0.0

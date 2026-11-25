@@ -62,7 +62,7 @@ MIN_TIMEOUTS="headless_imported=3000 headless_bots=2400 headless_hitreg_far=2400
 # suite once more as `-- --merge LOG...` over the shards' logs, which holds the whole-run checks.
 # `test NAME.SHARD` plays one shard; `test NAME.merge` only the merge over logs already in .godot/test-logs.
 # `suites --shards` lists the shards instead of the suite (`hv shard` runs them as separate jobs, then NAME.merge).
-SUITE_SHARDS="headless_bots=easy,medium,hard,nightmare headless_imported=rest,maps0,maps1,maps2,maps3 headless_hitbox=stand_still,stand_strafe,crouch_still,crouch_strafe headless_viewarms=w0,w1,w2,w3 headless_bot_hitreg=direct,brain,crowd headless_lossy=windows,moves,rest headless_attach_all=w0,w1"
+SUITE_SHARDS="headless_bots=easy,medium,hard,nightmare headless_imported=rest,maps0,maps1,maps2,maps3 headless_hitbox=stand_still,stand_strafe,crouch_still,crouch_strafe headless_viewarms=w0,w1,w2,w3 headless_bot_hitreg=direct,brain,crowd headless_lossy=windows,moves,rest headless_attach_all=w0,w1 headless_hitreg_far=clean,jitter,lossy,rest"
 # A suite whose frames are stepped at a fixed rate instead of on the wall clock, as
 # name=frames-per-second (the engine's --fixed-fps): what it measures between a frame and
 # a tick is then the same on an idle box and a starved one.
