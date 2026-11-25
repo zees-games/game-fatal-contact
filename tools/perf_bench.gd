@@ -11,6 +11,7 @@ const ProcSlices := preload("proc_slices.gd")
 # Loaded with this script, so its _static_init (native brain on) runs before --brain-native.
 const FcPlayerStack := preload("../game/fc_player_stack.gd")
 const FcNpcs := preload("../game/fc_npcs.gd")
+const RenderState := preload("render_state.gd")
 
 ## The 16v16 benchmark: gs-game's GSGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--pilot-view sweep` (the pilot's look turns through the whole compass instead of swaying on one wall: the owner's draw counts need it), `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--brain-us 1` (GSBotBrain.think phases, as brain.bb_*), `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: gs-player-char's ragdoll bone pose in gs-sim (GSSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: gs-bot's native mind (GSSimBotMind: aim, fight step, perception) off or on; without the gs-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
 ## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (gs-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
@@ -669,6 +670,9 @@ func _apply_ablate() -> void:
 					(l as Light3D).shadow_enabled = false
 			"shadowcensus", "smallcast", "smallcast2":
 				_shadow_cap(a)
+			"rstate":
+				for line in RenderState.lines(get_tree().root):
+					say("rstate " + line)
 			"nofx":
 				var envs: Array[Environment] = []
 				for we in get_tree().root.find_children("*", "WorldEnvironment", true, false):
