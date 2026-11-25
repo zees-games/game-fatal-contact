@@ -252,6 +252,11 @@ var _frame_at_usec := 0
 var _warm := {}
 ## The weapon views a web client builds after the cover drops ([method _late_views_tick]); empty when none are left.
 var _late_views := {}
+## Ids of the weapons whose views are built (under the cover, late, or for a carried slot), so none is built twice.
+var _views_done := {}
+## The job that builds the views of weapons the local player carries that no view was built for yet ([method _carried_tick]); empty when idle.
+var _carried := {}
+var _carried_frames := 0
 ## Shot effects, charge balls and muzzle flashes built under the cover for every other player's hand
 ## ([method _fill_fx_pool]). A child of the client, so a map change keeps what is still parked.
 var fx_pool: AwFxPool = null

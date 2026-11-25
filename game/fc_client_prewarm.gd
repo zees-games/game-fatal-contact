@@ -159,16 +159,21 @@ func _view_step(w: Dictionary) -> void:
 	var arts: Array = w.arts
 	var step_began := Time.get_ticks_usec()
 	var stepping := bool(w.get("stepping", false))
+	if not stepping and _views_done.has((arts[int(w.next)] as AwWeaponVisual).id):
+		w.next = int(w.next) + 1
+		return
 	var stage_now := int(w.get("stage", 0)) if stepping else 0
 	w.stage = stage_now + 1
 	var step_of := "view %d stage %d" % [int(w.next), stage_now]
 	if stepping:
 		if not spare.prewarm_step():
 			w.stepping = false
+			_views_done[(arts[int(w.next)] as AwWeaponVisual).id] = true
 			w.next = int(w.next) + 1
 	else:
 		w.stepping = spare.prewarm_begin(arts[int(w.next)] as AwWeaponVisual)
 		if not w.stepping:
+			_views_done[(arts[int(w.next)] as AwWeaponVisual).id] = true
 			w.next = int(w.next) + 1
 	_step_mark(step_of, step_began)
 
@@ -184,6 +189,7 @@ const LATE_VIEW_GAP := 2
 func _cover_arts(body: FcPlayer) -> Array:
 	var arts: Array = AwWeaponArtTable.table().values()
 	_late_views = {}
+	_views_done = {}
 	if not defer_views_on_web or not GSPlatform.is_web():
 		return arts
 	var wanted := _cover_weapon_ids(body, false)
@@ -252,6 +258,70 @@ func _late_views_tick() -> void:
 	FcLoadTimeline.mark("late views built", built)
 	GSLog.info("arena.load", "late weapon views built", built)
 	_late_views_end()
+
+## Web only. The views of the weapons the local player carries, built in play too: the cover ran before the loadout was
+## rolled, so a carried weapon outside the default loadout would otherwise build its whole view (1.3 s) on its first equip.
+## Checks the arsenal every [constant CARRIED_CHECK_FRAMES] frames; builds one stage a quick frame, on a spare view of its own.
+const CARRIED_CHECK_FRAMES := 10
+func _carried_tick() -> void:
+	if _late_views.is_empty() and _carried.is_empty() and _carried_idle():
+		if get_tree().process_frame.is_connected(_carried_tick):
+			get_tree().process_frame.disconnect(_carried_tick)
+		return
+	var cam: Camera3D = player.camera if is_instance_valid(player) else null
+	if gate == null or not gate.is_open() or cam == null or view_model == null or not _warm.is_empty():
+		return
+	if _carried.is_empty():
+		_carried_frames += 1
+		if _carried_frames < CARRIED_CHECK_FRAMES:
+			return
+		_carried_frames = 0
+		var arts := _carried_arts()
+		if arts.is_empty():
+			return
+		_carried = {"arts": arts, "next": 0, "gap": 0, "stepping": false, "spare": _spare_view(cam), "began": Time.get_ticks_usec()}
+	if get_process_delta_time() * 1000.0 > LATE_VIEW_QUICK_MSEC and not player_away():
+		return
+	if not is_instance_valid(_carried.spare) or (_carried.spare as Node).get_parent() != cam:
+		if is_instance_valid(_carried.spare):
+			(_carried.spare as Node).queue_free()
+		_carried.stepping = false
+		_carried.spare = _spare_view(cam)
+	_view_step(_carried)
+	if int(_carried.next) >= (_carried.arts as Array).size():
+		var items: Array = []
+		for material: Variant in AwViewModel.prepared_materials():
+			if not (_late_views.get("drawn", {}) as Dictionary).has(material):
+				items.append(material)
+		if not items.is_empty():
+			var warm := GSRenderWarmup.new()
+			warm.name = "CarriedViewWarmup"
+			warm.budget_msec = 4.0
+			warm.add_items(items)
+			cam.add_child(warm)
+			warm.start()
+		FcLoadTimeline.mark("carried views built", {"weapons": (_carried.arts as Array).size(), "ms": (Time.get_ticks_usec() - int(_carried.began)) / 1000})
+		(_carried.spare as Node).queue_free()
+		_carried = {}
+
+## Whether the carried check has nothing to watch for: no web deferral, or this is not a web client.
+func _carried_idle() -> bool:
+	return not (defer_views_on_web and GSPlatform.is_web())
+
+## The arts of the carried weapons that have no view built yet, in slot order.
+func _carried_arts() -> Array:
+	var out: Array = []
+	if not is_instance_valid(player) or player.arsenal == null:
+		return out
+	var arsenal: Variant = player.arsenal
+	for slot: int in arsenal.slots():
+		var held: Variant = arsenal.slot_at(slot)
+		if held == null or _views_done.has(held.id()):
+			continue
+		var art: Variant = AwWeaponArtTable.table().get(held.id(), null)
+		if art is AwWeaponVisual:
+			out.append(art)
+	return out
 
 ## The weapon ids of [param arts] (weapon visuals).
 static func _late_ids(arts: Array) -> Array:
@@ -490,6 +560,8 @@ func _prewarm_end() -> void:
 		gate.release(&"weapons")
 	if not _late_views.is_empty() and not get_tree().process_frame.is_connected(_late_views_tick):
 		get_tree().process_frame.connect(_late_views_tick)
+	if not _carried_idle() and not get_tree().process_frame.is_connected(_carried_tick):
+		get_tree().process_frame.connect(_carried_tick)
 
 ## Builds every weapon's first-person view once on a spare view model, under the loading cover.
 func _prewarm_weapons(body: FcPlayer) -> void:
