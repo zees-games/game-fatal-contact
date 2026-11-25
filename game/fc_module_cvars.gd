@@ -436,7 +436,7 @@ func _add_tick_budget_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcTickBudget.max_steps = maxi(int(new_value.to_float()), 0))
 	var server_steps := add_cvar("sv_max_physics_steps", str(FcTickBudget.SERVER_STEPS),
-		"Server: the most ticks one frame may run to catch up with wall-clock time (8, the engine default); 0 = no limit",
+		"Server: the most ticks one frame may run to catch up with wall-clock time (16, a quarter second at 66 Hz; the engine's 8 drops ticks after a stall); 0 = no limit",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0)
 	server_steps.changed.connect(func(_old: String, new_value: String) -> void:
 		FcTickBudget.apply_server_steps(int(new_value.to_float())))

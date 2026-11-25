@@ -40,9 +40,10 @@ static var shed_now := 0.0
 static var shed_slow_frames := GSPlatform.is_web()
 const SLOW_FRAME_TICKS := 4.0
 
-## Cvar `sv_max_physics_steps`: the most ticks a server-only process's frame runs to catch up (the engine's 8 by
-## default); 0 = no limit. Set only where [member server_process] is true, so a client in the same process keeps its cap.
-const SERVER_STEPS := 8
+## Cvar `sv_max_physics_steps`: the most ticks a server-only process's frame runs to catch up (16, a quarter second
+## at 66 Hz; the engine's 8 dropped every tick a 130 ms stall owed, so a sim host fell behind real time after a boot or
+## shot hitch and never made it up); 0 = no limit. Set only where [member server_process] is true, so a client in the same process keeps its cap.
+const SERVER_STEPS := 16
 ## The engine refuses 0, so "no limit" is a count no frame reaches.
 const UNLIMITED_STEPS := 1 << 30
 ## True in a process that only serves (FcServer, the sim host): set before the module loads.
