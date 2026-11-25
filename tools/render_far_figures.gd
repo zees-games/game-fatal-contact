@@ -1,10 +1,7 @@
 extends "render_base.gd"
 
-## Remote figures near and far through the real offline client: its three bots, frozen along one clear line of sight at
-## 8, 28 and 36 m (both far ones past the 22 m lift range), photographed with cl_figure_lift_range at 22 m (the FC default) and at 0 (every frame), with a
-## close crop of each bot beside the whole frame, so a person can see the lifted far figures still read as players.
-## Frames in screenshots/far_figures/; exit 1 on a failed check. Run:
-##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_far_figures.gd
+## Remote figures near and far through the real offline client: its three bots, frozen along one clear line of sight at 8, 28 and 36 m (both far ones past the 22 m lift range), photographed with cl_figure_lift_range at 22 m (the FC default) and at 0 (every frame), with a close crop of each bot beside the whole frame, so a person can see the lifted far figures still read as players.
+## Frames in screenshots/far_figures/; exit 1 on a failed check. Run: `xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_far_figures.gd`
 
 const FcPlayer := preload("../game/fc_player.gd")
 const DISTANCES: Array[float] = [8.0, 28.0, 36.0]

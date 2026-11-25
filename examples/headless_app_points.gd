@@ -1,12 +1,8 @@
 extends GSGameCheckSuite
 
-## FC's per-app customisation (game/fc_app_wiring.gd) with fakes: every part off with no
-## config, the avatars settings turning into rules and back, the earn events and who earns them,
-## the site's points on the player and the HUD label hidden and shown.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_app_points.tscn
-## [/codeblock]
+## FC's per-app customisation (game/fc_app_wiring.gd) with fakes: every part off with no config, the avatars settings turning into rules and back,
+## the earn events and who earns them, the site's points on the player and the HUD label hidden and shown.
+## [codeblock] godot --headless --path . res://examples/headless_app_points.tscn [/codeblock]
 
 const FcAppWiring := preload("../game/fc_app_wiring.gd")
 const FcHudAppPoints := preload("../game/fc_hud_app_points.gd")

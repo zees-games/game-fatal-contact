@@ -70,13 +70,8 @@ func _animate_windup() -> void:
 	_windup_was = windup
 
 
-## Moves the camera from the eye to behind it, and draws the body where the eye is.
-##
-## [b]Swept from the eye, not set.[/b] gs-core's [GSCameraProbe] pulls the camera in ahead
-## of a wall it is swinging toward and eases it back out; a camera simply placed 2.6 m back
-## spends every corner inside the corner (the play test's death camera was exactly that).
-## The body is placed on the drawn feet every frame, not left on this node: this node is
-## moved by the tick, and a body drawn at the tick under a camera drawn per frame shakes.
+## Moves the camera from the eye to behind it, and draws the body where the eye is. Swept from the eye, not set: gs-core's [GSCameraProbe] pulls the camera in ahead of a wall it is swinging toward and eases it back out; a camera simply placed 2.6 m back spends every corner inside the corner.
+## The body is placed on the drawn feet every frame, not left on this node: this node is moved by the tick, and a body drawn at the tick under a camera drawn per frame shakes.
 func _place_third_person(drawn: GSFpsState, delta: float) -> void:
 	if _tp_probe == null:
 		_tp_probe = GSCameraProbe.new(camera.get_world_3d(), third_person_mask)

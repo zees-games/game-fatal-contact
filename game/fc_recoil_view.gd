@@ -1,10 +1,7 @@
 extends RefCounted
 
-## The camera's half of the recoil: the kick each of the local player's shots turns the view by, piling up along a burst and settling once the trigger is let go. Same numbers as the bullet, so no desync:
-## the server offsets each bullet by the kick left from earlier shots (GSWeaponRecoilRules, sv_recoil_*); this adds the kick of the same outcomes, decaying at the same recovery rate, to the camera.
-## [b]All of it, and nothing else turns the camera for a shot[/b], so the crosshair is where the next bullet goes. It used to draw 70% and leave the rest to the weapon pose's spring
-## (AwWeaponPose.view_punch), but that spring is a transient with its own share (0.12 on automatics), not the pattern: a held rifle burst put the bullets a degree above and beside
-## the crosshair (fc-hitreg-vertical-1, chest hits with the crosshair on the legs). The hands still kick on their own spring.
+## The camera's half of the recoil: the kick each of the local player's shots turns the view by, piling up along a burst and settling once the trigger is let go. Same numbers as the bullet, so no desync: the server offsets each bullet by the kick left from earlier shots (GSWeaponRecoilRules, sv_recoil_*); this adds the kick of the same outcomes, decaying at the same recovery rate, to the camera.
+## [b]All of it, and nothing else turns the camera for a shot[/b], so the crosshair is where the next bullet goes: the weapon pose's spring (AwWeaponPose.view_punch) is a transient with its own share (0.12 on automatics), not the pattern, and leaving a share of the kick to it put a held rifle burst a degree above and beside the crosshair (fc-hitreg-vertical-1). The hands still kick on their own spring.
 ## Presentation only: added where the camera is written, never to the command. Fed by the rig's used signal, which is silent while a correction replays, so a reconciliation never kicks twice.
 
 ## cl_recoil_view: multiplies the drawn kick. 0 keeps the crosshair still (the bullets still climb), 1 is the profile's.

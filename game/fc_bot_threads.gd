@@ -21,15 +21,12 @@ static var threads: int = launch_default()
 const WEB_THREADS := 4
 
 
-## Most brain threads [method native_default] gives; the cvar sets any count. On staging02 at 64 players
-## (2026-11-16) 3 threads took the sim from 24.7 to 22.3 ms/tick and 6 gave nothing more.
+## Most brain threads [method native_default] gives; the cvar sets any count. On staging02 at 64 players 3 threads took the sim from 24.7 to 22.3 ms/tick and 6 gave nothing more.
 const NATIVE_THREADS_MAX := 4
 
 
-## [member threads] before the cvar says otherwise: [constant WEB_THREADS] (at most the browser's
-## cores) on a threaded web engine, [method native_default] on a desktop or dedicated server, 0 on the
-## single-threaded web engine, which always thinks on the main thread. The page's `?bot_threads=N`
-## overrides the web count, so a browser measurement can compare counts from a URL.
+## [member threads] before the cvar says otherwise: [constant WEB_THREADS] (at most the browser's cores) on a threaded web engine, [method native_default] on a desktop or dedicated server, 0 on the
+## single-threaded web engine, which always thinks on the main thread. The page's `?bot_threads=N` overrides the web count, so a browser measurement can compare counts from a URL.
 static func launch_default() -> int:
 	if not GSPlatform.is_web():
 		return native_default() if GSPlatform.has_threads() else 0

@@ -1,12 +1,7 @@
 extends "render_base.gd"
 
-## The single-missile RPG, a bouncing grenade and a Rocketjump in the real offline client, each from the shooter's
-## eye and from outside: frames to judge whether they look like a game (owner batch 2026-11-15 items 2, 3, 9, 10).
-##
-##     tools/render_rockets.sh [map]      # frames in screenshots/rockets/<map>_<shot>_NN.png
-##
-## Everything goes through the player's own input (`arena_fire`, `gs_fps_jump`), so the missile, the bounce and
-## the launch are the game's, not a stand-in.
+## The single-missile RPG, a bouncing grenade and a Rocketjump in the real offline client, each from the shooter's eye and from outside: frames to judge whether they look like a game. `tools/render_rockets.sh [map]` puts frames in screenshots/rockets/<map>_<shot>_NN.png.
+## Everything goes through the player's own input (`arena_fire`, `gs_fps_jump`), so the missile, the bounce and the launch are the game's, not a stand-in.
 
 const FcPlayer := preload("../game/fc_player.gd")
 

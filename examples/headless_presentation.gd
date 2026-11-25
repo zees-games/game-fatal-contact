@@ -67,7 +67,7 @@ func _run() -> void:
 		"the player's own settings file was not touched",
 		FcPresentation.PLAYER_SETTINGS
 	)
-	_report_sections(_entered, _completed, SECTIONS, CHECKS)
+	_report_sections(_entered, _completed, SECTIONS, CHECKS - _skipped)
 
 
 ## The levels of the addons the live shell ships, `requires.pins.json` (refresh it when a shell ships; same shape as requires.floor.json), so a floor is judged against what the shell has, not the linked head. Where gs-server-deploy's addons.lock is reachable it must pin at least these levels, or the file claims more than any shell will have.
@@ -230,8 +230,8 @@ func _check_floors() -> void:
 	var pins := _pinned_levels()
 	var behind := _lock_covers(pins)
 	_check(not pins.is_empty() and behind == "", "requires.pins.json is read and addons.lock pins nothing lower", behind)
-	# A floor with no pin is judged against the linked head, not the shell: gs-weapon 42 and fc-weapons 31 went in that way
-	# (2026-11-16), the pack asked for levels no shell had, and on Gamespice the bot brain and the HUD did not compile.
+	# A floor with no pin is judged against the linked head, not the shell: gs-weapon 42 and fc-weapons 31 went in that way, the pack asked
+	# for levels no shell had, and on Gamespice the bot brain and the HUD did not compile.
 	var unpinned: Array[String] = []
 	for addon in (floors.value as Dictionary if floors.ok else {}):
 		if not pins.has(addon):
@@ -447,9 +447,12 @@ func _test_team_bodies_fall_back() -> void:
 	_done()
 
 
+const FETCHED_PACK_CHECKS := 5
+
+
 ## The team bodies arrive from the fc-player-classes pack (content.lock.json store entry into res://assets/team_bodies),
 ## not from a private folder: the default search path names that folder, a web build prefers the pack's WebP body, and
-## the fetched files (when fetched) are found and registered.
+## the fetched files (when fetched) are found and registered; when not fetched, [constant FETCHED_PACK_CHECKS] checks come out of the expected total.
 func _test_team_bodies_from_pack() -> void:
 	_section("Team bodies come from the fc-player-classes pack")
 	var dirs := String(FcConfigScript.new().team_body_dirs)
@@ -467,6 +470,7 @@ func _test_team_bodies_from_pack() -> void:
 	_check(pinned, "content.lock.json pins gamemann/fc-player-classes as a store into assets/team_bodies")
 	if not FileAccess.file_exists("res://assets/team_bodies/fc_swat.glb"):
 		print("  SKIP: res://assets/team_bodies is not fetched here (gs-bootstrap tools/fetch_lock.sh content.lock.json)")
+		_skipped = FETCHED_PACK_CHECKS
 		_done()
 		return
 	for id in ["fc_swat", "fc_military"]:

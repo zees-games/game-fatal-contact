@@ -1,11 +1,7 @@
 extends GSGameCheckSuite
-## Every attachment on every gun it fits, through the attachments menu of a real offline client: each one is
-## hovered (its live preview and stat bars), picked, drawn on the view model, aimed down and fired, then taken off;
-## last, every mount of the gun is filled at once. The engine must report no error and the process must live
-## (the owner's client died picking the Laser Sight on the Marksman Rifle, 2026-11-16).
-##   godot --headless --path . res://examples/headless_attach_all.tscn
-## `-- --shard wN` plays every SHARDS-th gun of the sorted catalogue; `-- --merge LOG...` joins the shards.
-## `-- --only=marksman,rifle` plays those guns; `-- --shots=DIR` (windowed, tools/attach_menu_shot.sh) saves a frame per pick.
+## Every attachment on every gun it fits, through the attachments menu of a real offline client: hovered, picked, drawn on the view model, aimed down, fired, taken off; last, every mount at once. The engine must report no error and the process must live.
+## godot --headless --path . res://examples/headless_attach_all.tscn  `-- --shard wN` plays every SHARDS-th gun; `-- --merge LOG...` joins the shards; `-- --only=marksman,rifle` plays those guns;
+## `-- --shots=DIR` (windowed, tools/attach_menu_shot.sh) saves a frame per pick.
 
 const FcPresentation := preload("../game/fc_presentation.gd")
 const FcAttach := preload("../game/fc_attach.gd")

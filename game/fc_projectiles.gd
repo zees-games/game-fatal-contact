@@ -4,7 +4,7 @@ const FcRocketJump := preload("fc_rocket_jump.gd")
 
 ## Rockets and grenades in flight, and what happens where they land.
 ##
-## [b]This is new, and the reason it is new is a bug.[/b] The rocket launcher used to be
+## [b]Why this file exists.[/b] The rocket launcher was once
 ## a `GSWeapon` with `delivery = PROJECTILE`, and gs-combat resolved one by recording
 ## an impact at `origin + direction * max_range` and applying the splash there. Max
 ## range was 220 metres, so every rocket in this game has detonated 220 metres away in
@@ -22,7 +22,7 @@ const FcRocketJump := preload("fc_rocket_jump.gd")
 ## [b]Lag compensation deliberately does not apply.[/b] A rocket takes a third of a
 ## second to cross a room, and by the time it arrives everybody already agrees where
 ## everybody is — rewinding the world for it would let a rocket hit somebody where they
-## used to be, which is the one thing players notice immediately.
+## were, which is the one thing players notice immediately.
 ##
 ## [b]A client flies its own copies, and they decide nothing.[/b] The server tells every
 ## client about a launch (`FcEvents.Kind.LAUNCH`) and the client flies the same spawn
@@ -76,9 +76,7 @@ const REST_SPEED := 1.2
 const MAX_BOUNCES := 12
 
 ## Seconds a thrown grenade ignores its thrower (8 ticks at 66; the same time at any rate), against one tick for a rocket.
-##
-## Longer, because a grenade lobbed while running forward is overtaken by its thrower's
-## own hull on the second or third tick, and then bounces off their face.
+## Longer, because a grenade lobbed while running forward is overtaken by its thrower's own hull on the second or third tick, and then bounces off their face.
 const THROWER_GRACE_SEC := 0.12
 
 ## How far off the surface it struck an impact goes off, in metres: enough that the splash's line-of-sight rays
@@ -236,8 +234,8 @@ func clear() -> void:
 ## [b]Two kinds of spawn, told apart by the fuse.[/b] A spawn with no fuse — the
 ## launcher's — goes off on contact. A spawn with one — a grenade — goes off when the fuse
 ## runs out, wherever it has got to, and contact only changes where that is: a frag
-## bounces and rolls, a sticky stops dead on the first thing it touches. This file used to
-## know only the first kind, so a thrown grenade would have gone off on the first wall it
+## bounces and rolls, a sticky stops dead on the first thing it touches. This file
+## knew only the first kind, so a thrown grenade would have gone off on the first wall it
 ## met, and one cooked in the hand floated where it was for twelve seconds.
 func tick(delta: float) -> void:
 	_tick_seconds = maxf(delta, 0.0001)
@@ -280,7 +278,7 @@ func tick(delta: float) -> void:
 ##
 ## [b]A rocket into the floor hurt nobody.[/b] Splash needs a line of sight from the blast to each body, and a ray
 ## that starts exactly on the floor is blocked by that floor: a missile at somebody's feet did no splash at all,
-## the shooter's included. Found by the first check that fired one at the floor and asked the health.
+## the shooter's included.
 func _off_surface(hit: GSHitbox.Hit) -> Vector3:
 	if hit.normal == Vector3.ZERO:
 		return hit.point
@@ -455,7 +453,7 @@ func _detonate(f: Flying, at: Vector3) -> void:
 		# grenade that went off more than 2.5 m from its owner exploded in the OWNER'S
 		# FACE: the launcher hurt nobody but the person firing it, for as long as it had
 		# existed, and a frag thrown fifteen metres took half its damage off the thrower.
-		# Found by the first check here that asked the thrower's health. The believed
+		# The believed
 		# origin is pinned to the blast for this one resolution and put back after.
 		var eye: Variant = origin_of.call(f.spawn.owner_entity) if origin_of.is_valid() else null
 

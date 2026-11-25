@@ -1,13 +1,12 @@
 extends GSGameCheckSuite
 
-## anim_review's "forearm inside weapon" depth (tools/anim_review_solid.gd). It took a part's box for the part, so the
-## smg's one-mesh mac10 (an L: receiver over a grip) read the air behind its grip as solid and failed avatar_run and
-## reload_empty with the wrist 0.046-0.056 m "inside" while the hand only held the grip
-## (nightly game-arena-visual-qa-rest-1). A point counts only where the mesh closes round it.  gs-rename: keep (nightly item key)
+## anim_review's "forearm inside weapon" depth (tools/anim_review_solid.gd): a point counts only where the mesh closes round it, not
+## where the part's box does, so a one-mesh grip (the smg's mac10) no longer reads as solid air (nightly game-arena-visual-qa-rest-1).
+## gs-rename: keep (nightly item key)
 
 const Solid := preload("../tools/anim_review_solid.gd")
 const SMG := "res://addons/fc_weapons/assets/models/smg.glb"
-## Wrist points the old box check put 0.034-0.046 m inside the mac10 (capture of 2026-11-22, smg avatar_run #100).
+## Wrist points the box check put 0.034-0.046 m inside the mac10 (smg avatar_run #100).
 const SMG_WRIST: Array[Vector3] = [Vector3(-0.029268, -0.036866, -0.0041), Vector3(-0.023916, -0.028877, 0.00047), Vector3(-0.023172, -0.038684, 0.000372)]
 const SMG_SCALE := Vector3(1.64345, 3.421247, 3.346062)
 

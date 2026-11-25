@@ -1,8 +1,6 @@
 # FC at 64 players: measurements and plan
 
-Measured 2026-11-16 on the GPU test box (RTX 2070, i7-8700K), windowed, editor binary (about 27% slower than a
-release export), 1152x648, cp-orange-x3 CTF, `tools/perf_bench.sh -- --bots N --sim-host 1` (server as a child
-process, so snapshots flow). n=1 per size; treat differences under 0.6 ms as noise. Raw logs: `~/perf-bench/`.
+Measured 2026-11-16 on the GPU test box (RTX 2070, i7-8700K), windowed, editor binary (about 27% slower than a release export), 1152x648, cp-orange-x3 CTF, `tools/perf_bench.sh -- --bots N --sim-host 1` (server as a child process, so snapshots flow). n=1 per size; treat differences under 0.6 ms as noise. Raw logs: `~/perf-bench/`.
 
 ## Client frame
 
@@ -12,9 +10,7 @@ process, so snapshots flow). n=1 per size; treat differences under 0.6 ms as noi
 | 32 | 8.9 | 13.5 | 16.2 | 109 | 66 Hz |
 | 64 | 14.2 | 21.6 | 25.9 | 69 | 33 Hz (solo tier `<=64:33`) |
 
-Compat renderer (browser approximation, `--compat --web-defaults 1`): 32 players p50 10.3 ms (p95 14.8),
-64 players p50 12.7 ms (p95 18.7). Compat render_cpu is 2.0-2.4 ms against 0.9-1.2 ms in Forward+.
-The frame is main-thread script bound, not GPU bound.
+Compat renderer (browser approximation, `--compat --web-defaults 1`): 32 players p50 10.3 ms (p95 14.8), 64 players p50 12.7 ms (p95 18.7). Compat render_cpu is 2.0-2.4 ms against 0.9-1.2 ms in Forward+. The frame is main-thread script bound, not GPU bound.
 
 ## Per-system ms per frame (16 / 32 / 64 players)
 
@@ -39,9 +35,7 @@ The frame is main-thread script bound, not GPU bound.
 | arena.r_pose | 0.02 | 0.07 | 0.16 |
 | arena.audio | 0.01 | 0.02 | 0.03 |
 
-Scene: draw calls 525 / 528 / 682, primitives 184k / 188k / 443k, nodes 3558 / 4617 / 6849 (about 70-80 nodes per
-remote player), objects 871 / 877 / 1132. Primitives grow about 4k per added player; 8-12k triangle avatars will
-multiply that, so body LOD is the first dependency.
+Scene: draw calls 525 / 528 / 682, primitives 184k / 188k / 443k, nodes 3558 / 4617 / 6849 (about 70-80 nodes per remote player), objects 871 / 877 / 1132. Primitives grow about 4k per added player; 8-12k triangle avatars will multiply that, so body LOD is the first dependency.
 
 ## Server tick (child process, ms per tick)
 
@@ -51,10 +45,7 @@ multiply that, so body LOD is the first dependency.
 | 32 | 66 | 10.7 | 70% | 0.57 |
 | 64 | 33 | 23 | 76% | 2.0 |
 
-At 64 players the server uses three quarters of a 33 Hz tick and could not hold 66 Hz (PH scale128, about 2x slower
-than the GPU box: 36.6 ticks/s at 26.6 ms/tick). Breakdown there: srv_net 27, srv_game 17.6, tick_players 16.4,
-srv_bots 7.3, p_controller 6.8, bot_brain 3.3, p_weapons 3.3, bot_los 1.4. Hit reg, lag comp, p_controller and
-p_weapons are authoritative sim and are not candidates; the levers are the net layer, bot scheduling and tiers.
+At 64 players the server uses three quarters of a 33 Hz tick and could not hold 66 Hz (PH scale128, about 2x slower than the GPU box: 36.6 ticks/s at 26.6 ms/tick). Breakdown there: srv_net 27, srv_game 17.6, tick_players 16.4, srv_bots 7.3, p_controller 6.8, bot_brain 3.3, p_weapons 3.3, bot_los 1.4. Hit reg, lag comp, p_controller and p_weapons are authoritative sim and are not candidates; the levers are the net layer, bot scheduling and tiers.
 
 ## Snapshot cost (net_probe, `--bots N --fake N`, ms per snapshot, 4 workers)
 
@@ -64,18 +55,11 @@ p_weapons are authoritative sim and are not candidates; the levers are the net l
 | 32 | 0.20 | 0.98 | 0.46 | 0.25 | 0.53 | 0.35 | 317 |
 | 64 | 0.26 | 1.92 | 0.91 | 0.45 | 1.90 | 0.91 | 623 |
 
-Per-client bytes roughly triple from 16 to 64 clients, and begin/join grow superlinearly: this is where interest
-management (`sv_net_aoi_players`, currently above 32) pays. At 64 players 623 B x 33 Hz is about 20 KB/s per
-client down.
+Per-client bytes roughly triple from 16 to 64 clients, and begin/join grow superlinearly: this is where interest management (`sv_net_aoi_players`, currently above 32) pays. At 64 players 623 B x 33 Hz is about 20 KB/s per client down.
 
 ### Interest at 64 (fc-64p-3)
 
-The rows above use fakes with no entity of their own, so interest never applied to them: 623 B is the cost with
-no relevance at all. `net_probe` now gives each fake an eye riding a player (`--fake`), adds blind fakes in the
-same run as a control (`--control N`, printed as `CONTROL eyed_bytes_per_snapshot=... control_bytes_per_snapshot=...`),
-and takes `--map <id>`, `--port N` (parallel runs) and a sixth `--aoi` field (coherent). Same-run eyed/control
-pairs cancel the fight-to-fight noise that made two separate runs differ by 50%. 64 bots, 56 eyed + 8 control
-fakes, 30 s, PH (timings there are noise; bytes are not):
+The rows above use fakes with no entity of their own, so interest never applied to them: 623 B is the cost with no relevance at all. `net_probe` now gives each fake an eye riding a player (`--fake`), adds blind fakes in the same run as a control (`--control N`, printed as `CONTROL eyed_bytes_per_snapshot=... control_bytes_per_snapshot=...`), and takes `--map <id>`, `--port N` (parallel runs) and a sixth `--aoi` field (coherent). Same-run eyed/control pairs cancel the fight-to-fight noise that made two separate runs differ by 50%. 64 bots, 56 eyed + 8 control fakes, 30 s, PH (timings there are noise; bytes are not):
 
 | Map | sv_net_far_every / tiers / far m | eyed B | control B | real client B/s |
 | --- | --- | --- | --- | --- |
@@ -114,49 +98,17 @@ fakes, 30 s, PH (timings there are noise; bytes are not):
 | cp-orange-x3 | 2 / 2 / 15 + hold, aim cone 8 (default) | 217 | 463 | - |
 | cp-orange-x3 | 2 / 2 / 20 + sub-quantum hold | 258 | 518 | - |
 
-Before dotnet-thin-ack-sync, far-ring thinning cost bytes: at far_every 2 a peer got about 30% more than with no
-thinning. The cause was in gs-net: a per-peer view was synced to the peer's acks only while its entity was in the
-snapshot, so with wired (strict) acks a thinned entity's pending fields were older than `last_ack` when it came back,
-counted as lost (`relost`) and went out again. gs-net now keeps a per-peer ring of acked ticks and promotes any send
-whose own snapshot was acked (no wire change). With that, the rings save bytes (rows marked "thinned-ack sync", same
-probe, 2026-11-16): dm_atrium 560 B against 635 unthinned, cp-orange-x3 283 against 307. `sv_net_far_every` defaults
-to 2 again (tiers 2, 40 m). On cp-orange-x3, the map 64 players are for, a peer is at 283 B against 523 unfiltered,
-under the 350 B goal; small DM maps stay near 560 B because most players there are within 40 m and in view.
+Before dotnet-thin-ack-sync, far-ring thinning cost bytes: at far_every 2 a peer got about 30% more than with no thinning. The cause was in gs-net: a per-peer view was synced to the peer's acks only while its entity was in the snapshot, so with wired (strict) acks a thinned entity's pending fields were older than `last_ack` when it came back, counted as lost (`relost`) and went out again. gs-net now keeps a per-peer ring of acked ticks and promotes any send whose own snapshot was acked (no wire change). With that, the rings save bytes (rows marked "thinned-ack sync", same probe, 2026-11-16): dm_atrium 560 B against 635 unthinned, cp-orange-x3 283 against 307. `sv_net_far_every` defaults to 2 again (tiers 2, 40 m). On cp-orange-x3, the map 64 players are for, a peer is at 283 B against 523 unfiltered, under the 350 B goal; small DM maps stay near 560 B because most players there are within 40 m and in view.
 
-**dm_atrium bytes (fc-dmatrium-bytes-1, 2026-11-16).** `net_probe --fields` counts what each changed field costs
-before interest, and how much of it a receiver could tell apart (`FIELDS wire ...`, only changes whose quantised code
-moved). On dm_atrium every peer is a player (65 entities, about 33 changed a snapshot): position 153 B, the 36-bit entity
-headers 158, velocity 108, yaw 78, pitch 64, flags 40. 61% of pitch writes, 8% of yaw and 7% of velocity carried the
-same codes as the last send: gs-net marks a field dirty on any raw change. `FcPlayerNet.hold_subquantum`
-(`sv_net_hold_subquantum`, default 1) keeps the previous value when the new one quantises the same, so receivers decode
-exactly what they did and the repeat is not sent; position is not held (the server reads it back), and neither lag-comp
-history nor the owner's rewind (`net_exact`) reads these fields. That alone took the unfiltered control from 616 B to
-528-563, and dm_atrium at the old rings from 541-549 to 498.
+**dm_atrium bytes (fc-dmatrium-bytes-1, 2026-11-16).** `net_probe --fields` counts what each changed field costs before interest, and how much of it a receiver could tell apart (`FIELDS wire ...`, only changes whose quantised code moved). On dm_atrium every peer is a player (65 entities, about 33 changed a snapshot): position 153 B, the 36-bit entity headers 158, velocity 108, yaw 78, pitch 64, flags 40. 61% of pitch writes, 8% of yaw and 7% of velocity carried the same codes as the last send: gs-net marks a field dirty on any raw change. `FcPlayerNet.hold_subquantum` (`sv_net_hold_subquantum`, default 1) keeps the previous value when the new one quantises the same, so receivers decode exactly what they did and the repeat is not sent; position is not held (the server reads it back), and neither lag-comp history nor the owner's rewind (`net_exact`) reads these fields. That alone took the unfiltered control from 616 B to 528-563, and dm_atrium at the old rings from 541-549 to 498.
 
-The rest is distance: 70% of player pairs on dm_atrium are 10-50 m apart (`FIELDS pair distances`), so a 40 m band
-thinned almost nobody. A quarter-rate band is what reaches 350 B (20 m with two tiers: 341-347), but a scoped shot at
-60 m drawn from every fourth snapshot misses the rewind tolerance (`headless_hitreg_scope`: marksman and sniper worst
-0.10-0.20 m against 0.025). The default is therefore one band, `sv_net_far_distance` 20 and `sv_net_far_tiers` 1: full
-rate to 20 m, every second snapshot to 120 m (the half rate the scope suite already held at 40-80 m). dm_atrium is at
-406-411 B against 541-549, cp-orange-x3 at 260 against 283. The last ~60 B to 350 on small DM maps needs either a
-quarter rate that leaves scoped targets alone (an observer-aware tier in gs-net interest) or cheaper observer velocity;
-both are on the nightly board.
+The rest is distance: 70% of player pairs on dm_atrium are 10-50 m apart (`FIELDS pair distances`), so a 40 m band thinned almost nobody. A quarter-rate band is what reaches 350 B (20 m with two tiers: 341-347), but a scoped shot at 60 m drawn from every fourth snapshot misses the rewind tolerance (`headless_hitreg_scope`: marksman and sniper worst 0.10-0.20 m against 0.025). The default is therefore one band, `sv_net_far_distance` 20 and `sv_net_far_tiers` 1: full rate to 20 m, every second snapshot to 120 m (the half rate the scope suite already held at 40-80 m). dm_atrium is at 406-411 B against 541-549, cp-orange-x3 at 260 against 283. The last ~60 B to 350 on small DM maps needs either a quarter rate that leaves scoped targets alone (an observer-aware tier in gs-net interest) or cheaper observer velocity; both are on the nightly board.
 
-**Aim cone (fc-dmatrium-bytes-2, 2026-11-16).** gs-net interest (API 22) takes an observer aim,
-`GSNetIdentity.interest_aim`, and `GSNetInterest.aim_cone_deg`: a far entity inside that cone of the observer's aim
-is sent at most every `far_every`-th snapshot (the first band's rate), never the quarter rate; native core and GDScript
-agree (netcode_demo parity). FC's authority sets `interest_aim` from `FcPlayer.aim_direction()` each pull, and
-`sv_net_aim_cone` (default 8 degrees, 0 = off, outside 0-180 refused) sets the cone. What you aim at, scoped or not,
-stays at half rate, so the quarter band no longer reaches a scoped shot: the default is now two bands from 15 m
-(`sv_net_far_distance` 15, `sv_net_far_tiers` 2), and `headless_hitreg_scope` passes with the rings on at 30 m and
-60 m. dm_atrium is at 326 B against 406-411 (the cone itself costs about 3 B), cp-orange-x3 at 217 against 260.
+**Aim cone (fc-dmatrium-bytes-2, 2026-11-16).** gs-net interest (API 22) takes an observer aim, `GSNetIdentity.interest_aim`, and `GSNetInterest.aim_cone_deg`: a far entity inside that cone of the observer's aim is sent at most every `far_every`-th snapshot (the first band's rate), never the quarter rate; native core and GDScript agree (netcode_demo parity). FC's authority sets `interest_aim` from `FcPlayer.aim_direction()` each pull, and `sv_net_aim_cone` (default 8 degrees, 0 = off, outside 0-180 refused) sets the cone. What you aim at, scoped or not, stays at half rate, so the quarter band no longer reaches a scoped shot: the default is now two bands from 15 m (`sv_net_far_distance` 15, `sv_net_far_tiers` 2), and `headless_hitreg_scope` passes with the rings on at 30 m and 60 m. dm_atrium is at 326 B against 406-411 (the cone itself costs about 3 B), cp-orange-x3 at 217 against 260.
 
 ## Release, 1080p, ablations and combat (fc-64p-8)
 
-Remeasured 2026-11-16 afternoon on main (4866422) on the GPU test box (RTX 2070, i7-8700K), windowed,
-`tools/perf_bench.sh [--release] -- --bots 63 --sim-host 1` on cp-orange-x3 (64 players, 33 Hz), 20 s warm-up and
-30 s recorded. Server ms/tick is the server process's main-thread run time per tick (`sched.server`). Logs:
-`~/perf-bench/20261116-1[456]*-fc64p-478-meas-*.log`.
+Remeasured 2026-11-16 afternoon on main (4866422) on the GPU test box (RTX 2070, i7-8700K), windowed, `tools/perf_bench.sh [--release] -- --bots 63 --sim-host 1` on cp-orange-x3 (64 players, 33 Hz), 20 s warm-up and 30 s recorded. Server ms/tick is the server process's main-thread run time per tick (`sched.server`). Logs: `~/perf-bench/20261116-1[456]*-fc64p-478-meas-*.log`.
 
 ### Release against editor, 1152x648 against 1920x1080 (n=3, alternating)
 
@@ -181,8 +133,7 @@ Remeasured 2026-11-16 afternoon on main (4866422) on the GPU test box (RTX 2070,
 
 ### Ablations (release, 1152x648, applied after the warm-up)
 
-Runs from nohud on shared the box with another agent's eight suites. They are compared with a release baseline
-taken under the same load (`base-loaded`, p50 9.16, server 24.2 ms/tick).
+Runs from nohud on shared the box with another agent's eight suites. They are compared with a release baseline taken under the same load (`base-loaded`, p50 9.16, server 24.2 ms/tick).
 
 | Ablation | What it removes | p50 ms | render_cpu | render_gpu | draws | Read |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -195,9 +146,7 @@ taken under the same load (`base-loaded`, p50 9.16, server 24.2 ms/tick).
 | no3d | 3D scene not drawn | 6.27 / 6.20 | 0.42 | 0.30 | 258 | 3D drawing is about 2-3 ms of a frame |
 | norender | RenderingServer.draw off | 6.96 / 6.90 | - | - | - | about 2 ms; monitors keep their last values |
 
-The remaining main-thread cost with nothing drawn is scripts (present, bodies, interpolate, snapshot apply)
-at about 6 ms. Render settings (shadows, environment effects, resolution) are not where 64 players spend
-their time on desktop. The levers are the per-remote-player script cost and the server tick.
+The remaining main-thread cost with nothing drawn is scripts (present, bodies, interpolate, snapshot apply) at about 6 ms. Render settings (shadows, environment effects, resolution) are not where 64 players spend their time on desktop. The levers are the per-remote-player script cost and the server tick.
 
 ### Combat (dm_atrium DM, 64 players, release, n=2)
 
@@ -206,17 +155,13 @@ their time on desktop. The levers are the per-remote-player script cost and the 
 | 1 | 9.40 | 18.55 | 22.93 | 56.8 | 28.3 | 467 | 315k | 2.41 |
 | 2 | 10.47 | 20.67 | 29.39 | 59.0 | 28.3 | 548 | 475k | 2.66 |
 
-On a small map where everyone is in a fight, the client is 1-2 ms over the goal, and p99 doubles against
-cp-orange-x3. The server uses 28.3 of its 30.3 ms tick at 33 Hz (93%), so 64-player DM on small maps has
-no server headroom. An 11 ms tick (66 Hz) is about 2.6x away.
+On a small map where everyone is in a fight, the client is 1-2 ms over the goal, and p99 doubles against cp-orange-x3. The server uses 28.3 of its 30.3 ms tick at 33 Hz (93%), so 64-player DM on small maps has no server headroom. An 11 ms tick (66 Hz) is about 2.6x away.
 
 ### Node census and growth ("GC")
 
-Godot has no tracing collector: objects are refcounted or freed explicitly, so there are no GC pauses to
-measure. What can drift is node, object and video memory growth over a match.
+Godot has no tracing collector: objects are refcounted or freed explicitly, so there are no GC pauses to measure. What can drift is node, object and video memory growth over a match.
 
-`tools/perf_bench.gd` now prints `proc census remote player tree` and `proc census root tree`. At 64 players
-there are 6500-6950 nodes:
+`tools/perf_bench.gd` now prints `proc census remote player tree` and `proc census root tree`. At 64 players there are 6500-6950 nodes:
 
 - **FcClient (6483):**
   - Game: 4778
@@ -235,9 +180,7 @@ there are 6500-6950 nodes:
   - SpawnBubble: 2 (lazy, kept for its 26 ms shader compile)
   - Eight one-node components.
 
-FC-side cuts left are under 3 nodes per player. The nodes goal (5000) needs fc-weapons to share remote ShotFx
-and trim pool idle (about 1450 nodes, nightly `fcw-remote-shotfx-nodes`). Parked and hidden nodes cost
-almost nothing per frame, so node count is a proxy, not a frame cost.
+FC-side cuts left are under 3 nodes per player. The nodes goal (5000) needs fc-weapons to share remote ShotFx and trim pool idle (about 1450 nodes, nightly `fcw-remote-shotfx-nodes`). Parked and hidden nodes cost almost nothing per frame, so node count is a proxy, not a frame cost.
 
 Growth per minute in the recorded 30 s:
 
@@ -246,8 +189,7 @@ Growth per minute in the recorded 30 s:
 - **dm_atrium:** with everyone already fighting, nodes are flat (+2 and -210 per minute). Objects grow
   +540 to +640 per minute, with a net of about 300.
 
-Static memory reads 0 in release exports (not tracked), so use the editor build for it. A soak longer than
-one minute is needed to tell pool warm-up from a slow leak (`./game.sh soak`).
+Static memory reads 0 in release exports (not tracked), so use the editor build for it. A soak longer than one minute is needed to tell pool warm-up from a slow leak (`./game.sh soak`).
 
 ## Ranking (64 players)
 
@@ -262,11 +204,8 @@ Not measured as separate rows: audio (0.03 ms, negligible) and decals/gibs. Comb
 
 ## Status
 
-The first pass measured only. Since then, fc-64p-8 added the release, 1080p, ablation and combat rows above, and
-the node census in `tools/perf_bench.gd`. The client meets the 9 ms goal in release on cp-orange-x3, but not in
-dm_atrium combat (9.4-10.5).
+The first pass measured only. Since then, fc-64p-8 added the release, 1080p, ablation and combat rows above, and the node census in `tools/perf_bench.gd`. The client meets the 9 ms goal in release on cp-orange-x3, but not in dm_atrium combat (9.4-10.5).
 
 The server tick (22-28 ms against the 11 ms goal) is now the main gap.
 
-Nodes (fc-64p-4) wait on fc-weapons (`fcw-remote-shotfx-nodes`). The browser measurement (fc-64p-7) waits on a
-threaded web export with native gs-sim and a 64-player browser bench (`web-threads-native-dlink`).
+Nodes (fc-64p-4) wait on fc-weapons (`fcw-remote-shotfx-nodes`). The browser measurement (fc-64p-7) waits on a threaded web export with native gs-sim and a 64-player browser bench (`web-threads-native-dlink`).

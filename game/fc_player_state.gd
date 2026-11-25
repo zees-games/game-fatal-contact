@@ -505,10 +505,9 @@ static var anim_gate_every: int = WEB_ANIM_GATE_EVERY if GSPlatform.is_web() els
 const LOD_FAR_DT := 1.0 / 45.0
 const LOD_FARTHEST_DT := 1.0 / 30.0
 
-## `cl_remote_still_anim_hz`: a remote body standing still (no speed, the same yaw, pitch, crouch and shots as last
-## present, for [constant STILL_AFTER_SEC]) past [constant ANIM_GATE_NEAR] steps its clip at most this many times a
-## second: Source's cached SetupBones, where unchanged inputs reuse last frame's bones. Only an idle loop is thinned;
-## any change wakes it the same present, with the skipped time carried. 0 turns it off.
+## `cl_remote_still_anim_hz`: a remote body standing still (no speed, the same yaw, pitch, crouch and shots as last present, for [constant STILL_AFTER_SEC]) past [constant ANIM_GATE_NEAR] steps its
+## clip at most this many times a second: Source's cached SetupBones, where unchanged inputs reuse last frame's bones. Only an idle loop is thinned; any change wakes it the same present, with the
+## skipped time carried. 0 turns it off.
 static var still_anim_hz: float = 10.0
 ## Seconds a body must stay still before it is thinned, so the blend into the idle (a stop, a landing) plays at full rate.
 const STILL_AFTER_SEC := 0.4

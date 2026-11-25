@@ -87,10 +87,8 @@ func _classify_world_collision() -> void:
 	if _world_collision != null and player_stack != null:
 		var _n := player_stack.classify_tree(_world_collision, &"world")
 
-## Puts [member score_limit], [member time_limit_sec], [member warmup_sec] and [member min_players]
-## on the match being played, from the next tick (gs-match reads its rules every tick). The
-## authority's to call; a client is told the score limit and the clock by MATCH.
-## Capture the flag plays `fc_ctf_teams` sides, from the next map.
+## Puts [member score_limit], [member time_limit_sec], [member warmup_sec] and [member min_players] on the match being played, from the next tick (gs-match reads its rules every tick).
+## The authority's to call; a client is told the score limit and the clock by MATCH. Capture the flag plays `fc_ctf_teams` sides, from the next map.
 func _apply_ctf_teams() -> void:
 	if mode != null and mode.objective_layout == &"ctf":
 		mode.team_count = ctf_rules.team_count

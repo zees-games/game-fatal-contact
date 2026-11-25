@@ -1,9 +1,8 @@
 extends "weapon_lab.gd"
 
-## The animation review: the weapon lab's first-person clips, plus two outside views of your own body (behind-right, and an
-## opponent's view from in front) and numeric glitch metrics per frame, judged per clip. See docs/anim-review.md; run through tools/anim_review.sh.
-## The avatar_* clips (walk, strafe, run, crouch, jump) move the player with the weapon held, for the body's locomotion.
-## Per clip it prints an `ANIMREVIEW {json}` verdict line and an `ANIMFRAMES {json}` line with every frame's numbers (both travel on stdout, since a GPU box only sends PNGs back).
+## The animation review: the weapon lab's first-person clips, plus two outside views of your own body (behind-right, and an opponent's view from in front) and numeric glitch metrics per frame, judged
+## per clip. See docs/anim-review.md; run through tools/anim_review.sh. The avatar_* clips (walk, strafe, run, crouch, jump) move the player with the weapon held, for the body's locomotion. Per clip
+## it prints an `ANIMREVIEW {json}` verdict line and an `ANIMFRAMES {json}` line with every frame's numbers (both travel on stdout, since a GPU box only sends PNGs back).
 
 const Solid := preload("anim_review_solid.gd")
 

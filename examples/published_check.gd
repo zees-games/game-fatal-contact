@@ -5,22 +5,14 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcMode := preload("../game/fc_mode.gd")
 const FcMapDirector := preload("../game/fc_map_director.gd")
 
-## A combat surf map as a real client gets it: fetched over HTTPS from the CDN a standalone client
-## uses (`GSGameStandaloneContent.settings()`: content.json's `content_urls`, else content.gamespice.net), verified
-## against the shipped trust list, mounted and built, with no `maps/imported` link.
-##
-## [codeblock]
-## godot --headless --path . res://examples/published_check.tscn
-## [/codeblock]
-##
-## Not in `game.sh test`: it needs the network and the published packs. Skips (exit 0), saying so,
-## when the origin is unreachable. Reads nothing from the `maps/imported` link by construction:
-## run it from a checkout without the link to prove that.
+## A combat surf map as a real client gets it: fetched over HTTPS from the CDN a standalone client uses (`GSGameStandaloneContent.settings()`: content.json's `content_urls`, else content.gamespice.net), verified against the shipped trust list, mounted and built, with no `maps/imported` link.
+## Not in `game.sh test`: it needs the network and the published packs. Skips (exit 0), saying so, when the origin is unreachable; run it from a checkout without the link to prove it reads nothing from `maps/imported`.
+## [codeblock] godot --headless --path . res://examples/published_check.tscn [/codeblock]
 
 const MAP := &"surf_10x_reloaded_fixed"
 const PACK := "fc-surf-dm-maps-surf_10x_reloaded_fixed"
 const OWNER := "gamemann"
-## The stripped 1.2.3 (2026-11-07): 1.2.0 and 1.2.1 carried source textures and are to be pulled.
+## The stripped 1.2.3: 1.2.0 and 1.2.1 carried source textures and are to be pulled.
 const VERSION := "1.2.3"
 var ROOT := "user://fc_published_check_%d" % OS.get_process_id()
 const SECTIONS := 1

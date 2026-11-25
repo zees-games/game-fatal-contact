@@ -8,25 +8,9 @@ const FcNetBridge := preload("../game/fc_net_bridge.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcTestPorts := preload("test_ports.gd")
 
-## A real FC server on a published combat surf map, and a real client that joins it over ENet and
-## builds that map from the pack it fetched itself.
-##
-## [codeblock]
-## godot --headless --path . res://examples/published_net.tscn
-## [/codeblock]
-##
-## Two processes, because gs-cloud's registry entry and its `res://gs_cloud/` mount are
-## process-wide: in one process the client would find the server's mount and prove nothing. This
-## one starts `published_net_host.tscn` (a dedicated server whose game names
-## `gamemann/fc-surf-dm-maps-surf_10x_reloaded_fixed@1.2.3`, as cfg/content.yml's `maps:` does on a
-## real one, and which changes to that map before anybody joins), then joins it as `FcClient`
-## does: a `GSClientLink` on ENet, the netcode, and `FcClientExtras`' map sync. The server's
-## READY admit announces its map; the client fetches the pack from the CDN a standalone client uses
-## (`GSGameStandaloneContent.settings()`), checks it against the shipped trust list, mounts it in
-## its own cache and builds the level, with no `maps/imported` link anywhere.
-##
-## Not in `game.sh test`: it needs the network and the published packs. Skips (exit 0), saying so,
-## when the CDN is unreachable.
+## A real FC server on a published combat surf map, and a real client that joins it over ENet and builds that map from the pack it fetched itself. [codeblock] godot --headless --path . res://examples/published_net.tscn [/codeblock]
+## Two processes, because gs-cloud's registry entry and its `res://gs_cloud/` mount are process-wide. This one starts `published_net_host.tscn` (a dedicated server whose game names `gamemann/fc-surf-dm-maps-surf_10x_reloaded_fixed@1.2.3`, as cfg/content.yml's `maps:` does, and which changes to that map before anybody joins), then joins it as `FcClient` does: a `GSClientLink` on ENet and `FcClientExtras`' map sync. The server's READY admit announces its map; the client fetches the pack from the CDN a standalone client uses, checks it against the shipped trust list, mounts it in its own cache and builds the level, with no `maps/imported` link.
+## Not in `game.sh test`: it needs the network and the published packs. Skips (exit 0), saying so, when the CDN is unreachable.
 
 const MAP := &"surf_10x_reloaded_fixed"
 const OWNER := "gamemann"

@@ -1,9 +1,8 @@
 extends GSBotBrain
 
-## gs-bot's brain with a cheaper candidate scan (cvar `bot_fast_sense`). The stock scan runs aim_point(), is_enemy(), a subtraction, length(), angle_to() and rad_to_deg() for every contact on every think: O(bots^2) per tick,
-## a large part of the brain's ~200 us per bot at 128 bots. This rejects the bodies plainly out of range or cone on squared distance and the cone's cosine first,
-## then runs the stock test on the rest, so its candidates and scores are the stock scan's (and gs-sim's native one's) to the bit: brains on worker threads
-## (cvar `bot_threads`) scan here while the serial loop scans natively, and any difference would play a different match.
+## gs-bot's brain with a cheaper candidate scan (cvar `bot_fast_sense`). The stock scan runs aim_point(), is_enemy(), a subtraction, length(), angle_to() and rad_to_deg() for every contact on every think: O(bots^2) per tick, a large part of the brain's ~200 us per bot at 128 bots.
+## This rejects the bodies plainly out of range or cone on squared distance and the cone's cosine first, then runs the stock test on the rest, so its candidates and scores are the stock scan's (and gs-sim's native one's) to the bit:
+## brains on worker threads (cvar `bot_threads`) scan here while the serial loop scans natively, and any difference would play a different match.
 
 ## false runs the stock [method GSBotBrain._candidates].
 static var fast_sense: bool = true

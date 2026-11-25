@@ -1,8 +1,6 @@
 extends GSGameCheckSuite
 ## The first-person arms never disappear (fc_view_arms_fallback.gd): the web build (Compatibility renderer, no per-instance
-## shader uniforms) drew the AK with no arms at all. Stock arms are drawable, their material needs no instance uniform
-## where the renderer has none, and arms that cannot be drawn are rebuilt as the stock person, then give way to the view
-## model's own hands.
+## shader uniforms) drew the AK with no arms. Arms that cannot be drawn are rebuilt as the stock person, then give way to the view model's hands.
 ## Run: [code]godot --headless --path . res://examples/headless_arms_fallback.tscn[/code]
 
 const Fallback := preload("../game/fc_view_arms_fallback.gd")

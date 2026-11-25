@@ -1,10 +1,7 @@
 extends GSGameCheckSuite
 
-## "Crosshair on his chest at 65 m and nothing": does the body the client draws stand inside the hit zones the server traces? For every stock avatar and each way a player moves (idle, walking away, strafing, walking at you, aiming up and down, crouched still, crouch walking), a shot from
-## 65 m at the drawn skeleton's head, neck, torso, belly and hips (and arms when standing) must land in a zone, on every tick of the walk cycle. Only the hit zones' own fit is measured here; the netcode and the gun are headless_hitreg_ping's and headless_hitreg_scope's.
-## The crouch walk once drew the head higher than standing while the zones squeezed to crouch height (head shots missed 43-64 of 64); gs-player-char's made CROUCH_WALK now holds the hips at the crouch's height (dpc-crouch-walk-pose-fit-1), so it is asserted like the rest.
-## A shot at the middle of the drawn head ("HeadMid") is asserted too: at the original 36 unit crouch the zones squeezed under it and all 64 such shots missed on every
-## avatar, crouched or crouch walking (the head bone, the head's base, still landed). The crouch is 54 units now and the figure crouches with its knees near square.
+## "Crosshair on his chest at 65 m and nothing": does the body the client draws stand inside the hit zones the server traces? For every stock avatar and each way a player moves (idle, walking away, strafing, walking at you, aiming up and down, crouched still, crouch walking), a shot from 65 m at the drawn skeleton's head, neck, torso, belly and hips (and arms when standing) must land in a zone, on every tick of the walk cycle. Only the hit zones' own fit is measured; the netcode and the gun are headless_hitreg_ping's and headless_hitreg_scope's.
+## The crouch walk is asserted like the rest (gs-player-char's CROUCH_WALK holds the hips at the crouch's height, dpc-crouch-walk-pose-fit-1), and so is a shot at the middle of the drawn head ("HeadMid"): the crouch is 54 units and the figure crouches with its knees near square.
 
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
@@ -34,7 +31,7 @@ const CASES: Array = [
 	["crouch", Vector2.ZERO, true, 0.0, false],
 	["crouch walk", Vector2(1, 0), true, 0.0, false],
 	# A run at the shooter, then crouch: the slide (leant back, legs forward) on the crouch hull. Only the ticks drawn
-	# sliding are sampled, after the clip's blend; the 2026-11-18 footage showed slide shots passing over the drawn body.
+	# sliding are sampled, after the clip's blend; slide shots must hit the drawn body.
 	["slide", Vector2(0, 1), true, 0.0, false, true],
 ]
 ## Ticks into a slide before it is sampled: the figure blends into the slide clip over these.

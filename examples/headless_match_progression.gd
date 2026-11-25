@@ -44,7 +44,7 @@ func _test_progression() -> void:
 		", ".join(undeclared)
 	)
 
-	# --- What the match actually filed -----------------------------------
+	# What the match actually filed
 
 	var total_kills := 0.0
 	var total_fired := 0.0
@@ -324,12 +324,10 @@ func _players_inside_boxes(map: FcMap) -> Array[int]:
 
 	return out
 
-# --- Lag compensation and stance ---------------------------------------------
+# Lag compensation and stance
 
-## A rewound shot meets the stance the shooter drew, not the server's present one: B crouched (or stood up) after the
-## tick A saw, and the rewind used to move B's feet back but leave the hit zones at today's height, so a shot at the drawn
-## standing head flew over the crouched zones, and one at the drawn crouched head met a standing chest (nightly
-## bot-crouch-rewind-60m-1; footage 2026-11-15).
+## A rewound shot meets the stance the shooter drew, not the server's present one: B crouched (or stood up) after the tick A saw, and the rewind moves B's feet back
+## and the hit zones with them, so a shot at the drawn standing head meets the standing zones and one at the drawn crouched head the crouched ones (nightly bot-crouch-rewind-60m-1).
 func _test_lag_compensation_stance() -> void:
 	_section("lag compensation carries the crouch")
 	var game := _weapon_mode_game(FcMode.free_for_all(25), [942, 943])

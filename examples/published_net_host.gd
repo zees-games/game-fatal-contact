@@ -4,17 +4,9 @@ const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcModule := preload("../game/fc_module.gd")
 
-## The server half of `published_net`: a real dedicated FC server, in its own process, whose game
-## names one published combat surf pack and which changes to that map before anybody joins.
-##
-## [codeblock]
-## godot --headless --path . res://examples/published_net_host.tscn -- --port=27500 --status=user://x.json
-## [/codeblock]
-##
-## Started by `published_net.tscn`, not by hand: it writes what it did to `--status` (JSON:
-## `{ok, map, manifest_path, mounted, error}`) and quits after `--seconds` (default 240) or when
-## the status file is removed. Its own [GSCloudClient] (side "both", its own cache), so the pack a
-## client later builds is not the one this process fetched.
+## The server half of `published_net`: a real dedicated FC server, in its own process, whose game names one published combat surf pack and which changes to that map before anybody joins. Started by `published_net.tscn`, not by hand:
+## [codeblock] godot --headless --path . res://examples/published_net_host.tscn -- --port=27500 --status=user://x.json [/codeblock] It writes what it did to `--status` (JSON: `{ok, map, manifest_path, mounted, error}`) and quits after `--seconds` (default 240) or when the status file is removed.
+## Its own [GSCloudClient] (side "both", its own cache), so the pack a client later builds is not the one this process fetched.
 
 const MAP := &"surf_10x_reloaded_fixed"
 const OWNER := "gamemann"

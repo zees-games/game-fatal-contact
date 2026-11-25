@@ -1,9 +1,7 @@
 extends RefCounted
 
-## A living player is never left with an empty arsenal (nightly fc-native-via-gs-app-1: a native client played a whole
-## life with no gun and no ammo counter). Every loadout path ends here: a saved loadout that resolved to nothing, a
-## mode that armed nobody, a weapon pack that delivered late. The repair is the default loadout, then any weapon the
-## catalogue has, and it is logged on the `loadout` channel with the catalogue's size, so a log says which gap it was.
+## A living player is never left with an empty arsenal (nightly fc-native-via-gs-app-1: a native client played a whole life with no gun and no ammo counter). Every loadout path ends here: a saved loadout that resolved to nothing, a mode that armed nobody, a weapon pack that delivered late.
+## The repair is the default loadout, then any weapon the catalogue has, and it is logged on the `loadout` channel with the catalogue's size, so a log says which gap it was.
 
 const CHANNEL := &"loadout"
 

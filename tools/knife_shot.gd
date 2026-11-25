@@ -1,14 +1,8 @@
 extends SceneTree
 
-## A knife thrown into a bot, then one thrown at the floor: frames of it in flight, stuck in the falling body, the body at rest, and the miss lying where it bounced to.
-## `tools/knife_shot.sh [map]` writes screenshots/knife_throw/; `--boomerang` first throws a Boomerang knife where its whole
-## loop is clear and films it three times: from above the loop (`<map>_5_boomerang_<n>`: out the configured distance, the
-## circle, back to the throw point), chasing the knife (`_6_chase_<n>`: spin and streak) and through the thrower's own eyes
-## (`_7_catch_<n>`: the hand empty until the knife comes back into it). `--distance M` / `--radius M` set
-## fc_knife_boomerang_distance / _radius for the run, `--slow F` the time scale while filming (default 0.1), `--frames N`
-## stops each pass after N frames (default 0: when the knife is caught or lands).
-## Fails (exit 1) when the farthest point is off the distance, it does not come back, does not spin or is not caught.
-## The bots are frozen and nobody can die; the tool's camera wins over the client's (which re-asserts its own every frame).
+## A knife thrown into a bot, then one thrown at the floor: frames of it in flight, stuck in the falling body, the body at rest, and the miss lying where it bounced to. `tools/knife_shot.sh [map]` writes screenshots/knife_throw/.
+## `--boomerang` first throws a Boomerang knife where its whole loop is clear and films it three times: from above the loop (`<map>_5_boomerang_<n>`: out the configured distance, the circle, back to the throw point), chasing the knife (`_6_chase_<n>`: spin and streak) and through the thrower's own eyes (`_7_catch_<n>`: the hand empty until the knife comes back into it). `--distance M` / `--radius M` set fc_knife_boomerang_distance / _radius for the run, `--slow F` the time scale while filming (default 0.1), `--frames N` stops each pass after N frames (default 0: when the knife is caught or lands).
+## Fails (exit 1) when the farthest point is off the distance, it does not come back, does not spin or is not caught. The bots are frozen and nobody can die; the tool's camera wins over the client's (which re-asserts its own every frame).
 
 const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "res://screenshots/knife_throw"
@@ -320,10 +314,9 @@ func _loop_points(game, eye: Vector3, dir: Vector3) -> PackedVector3Array:
 	return out
 
 
-## Throws a Boomerang from [param spot] the way the aim key does (knife in hand, out of the arsenal, into the air) and
-## films it with [param shoot] (called with the knife each frame grabbed and the grab's index) until it is caught or
-## lands; [param frames_max] stops sooner (0 = until then). Returns what it saw: farthest along the throw, closest
-## return to the throw point and to the hand, spin, caught, the hand empty all the way.
+## Throws a Boomerang from [param spot] the way the aim key does (knife in hand, out of the arsenal, into the air) and films it with [param shoot] (called with the knife each frame grabbed and the
+## grab's index) until it is caught or lands; [param frames_max] stops sooner (0 = until then). Returns what it saw: farthest along the throw, closest return to the throw point and to the hand, spin,
+## caught, the hand empty all the way.
 func _fly_once(game, me, spot: Dictionary, shoot: Callable, name: String, frames_max: int) -> Dictionary:
 	var dir: Vector3 = spot["dir"]
 	var yaw := rad_to_deg(atan2(-dir.x, -dir.z))  # the controller keeps degrees

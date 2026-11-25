@@ -282,11 +282,9 @@ func _extend(id: int, t: Track, state: GSFpsState, command: GSFpsCommand, tick: 
 	if lost:
 		_drop(id, t, "fell, pit or timed out")
 		return
-	# Standing, or nearly (the course's own rule): a slope the motor slides down is a landing too. Unlike the
-	# course, which only asks about its landing, the recorder asks about every floor on the way, so it also
-	# wants the rider over the island seen from above (the nearest-polygon reach takes a rider on the ramp
-	# beside a ledge), not rising, and still there SETTLE_SECONDS on: ski_2's riders cross island 33 (a 1 m
-	# strip atop a ramp) on every line down, and skid over island 9's rim into the pit, island 3.
+	# Standing, or nearly (the course's own rule): a slope the motor slides down is a landing too. Unlike the course, which only asks about its landing, the recorder asks about every floor on the way, so
+	# it also wants the rider over the island seen from above (the nearest-polygon reach takes a rider on the ramp beside a ledge), not rising, and still there SETTLE_SECONDS on: ski_2's riders cross
+	# island 33 (a 1 m strip atop a ramp) on every line down, and skid over island 9's rim into the pit, island 3.
 	var down := nav.island_at(state.position, 0.6)
 	if down >= 0 and not nav.on_island(down, state.position, 0.6):
 		down = -1

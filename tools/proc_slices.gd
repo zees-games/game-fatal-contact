@@ -1,11 +1,8 @@
 extends Node
 
-## Paired in-run ablation of the process phase: the recording is cut into slices of `slice` frames that rotate
-## base, lever 1, base, lever 2, ... A lever stops processing (PROCESS_MODE_DISABLED) or hides one group of nodes for
-## its slice; its cost is its slice's time less the mean of the base slices on either side, so a box whose load drifts
-## during the run still gives a fair difference. Reads tools/proc_split.gd's running sums (early_flush, process_pass,
-## late_flush, to_pre_draw) and the wall clock. perf_bench.gd: `--proc-split 1 --proc-ablate fx,hud,... --proc-slice N`.
-## Bench only: a group's state is wrong for its slice and is restored after it.
+## Paired in-run ablation of the process phase: the recording is cut into slices of `slice` frames that rotate base, lever 1, base, lever 2, ... A lever stops processing (PROCESS_MODE_DISABLED) or hides one group of nodes for its slice;
+## its cost is its slice's time less the mean of the base slices on either side, so a box whose load drifts during the run still gives a fair difference. Reads tools/proc_split.gd's running sums (early_flush, process_pass, late_flush, to_pre_draw) and the wall clock.
+## perf_bench.gd: `--proc-split 1 --proc-ablate fx,hud,... --proc-slice N`. Bench only: a group's state is wrong for its slice and is restored after it.
 
 ## Script file names (without .gd) per lever; a node matches when its script's file name is in the list.
 const SCRIPTS := {

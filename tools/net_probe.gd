@@ -270,7 +270,7 @@ func _install_fakes() -> void:
 	if net.interest is GSNetInterestDistance:
 		(net.interest as GSNetInterestDistance).radius_by_tag["probe_eye"] = 0.0
 	else:
-		push_warning("net_probe: the interest is not a distance interest; fakes see everything")
+		GSLog.warn("net_probe", "the interest is not a distance interest; fakes see everything")
 	for i in _fake:
 		var fid := 5000 + i
 		net.add_peer(fid)

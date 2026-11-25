@@ -1,12 +1,8 @@
 extends GSGameVisualQaCapture
 
-## FC's visual QA capture for the horde monsters (npcs/) and the 20 avatar bodies (`avatar_<part>`, the document's
-## BODIES): each idles, walks and runs a circle on the default stage, seen from the victim's eye (an avatar: first
-## person free, the eye is a close front-left three-quarter view), behind-right and the front, at 60 fps. The loop and the checklist are gs-game's
-## docs/visual-qa.md; the weapons and the player's own locomotion are tools/anim_review.gd (docs/anim-review.md).
-## A monster's figure animates from how far its body moves (`auto_animate`), so a clip moves the body at that pace.
-##   bash tools/visual_qa_shot.sh [--only grunt,brute] [--clips walk,run]
-##   bash tools/visual_qa_shot.sh --only avatar_kenney_a,avatar_scout --clips walk,run,sprint,crouch_walk,jump
+## FC's visual QA capture for the horde monsters (npcs/) and the 20 avatar bodies (`avatar_<part>`, the document's BODIES): each idles, walks and runs a circle on the default stage, seen from the victim's eye (an avatar: first person free, the eye is a close front-left three-quarter view), behind-right and the front, at 60 fps.
+## The loop and the checklist are gs-game's docs/visual-qa.md; the weapons and the player's own locomotion are tools/anim_review.gd (docs/anim-review.md). A monster's figure animates from how far its body moves (`auto_animate`), so a clip moves the body at that pace.
+##   bash tools/visual_qa_shot.sh [--only grunt,brute] [--clips walk,run]; bash tools/visual_qa_shot.sh --only avatar_kenney_a,avatar_scout --clips walk,run,sprint,crouch_walk,jump
 
 const KINDS: PackedStringArray = ["grunt", "gunner", "brute", "stalker"]
 ## Metres per second for each clip: the horde's walk and run pace.

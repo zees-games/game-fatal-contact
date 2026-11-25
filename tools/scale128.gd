@@ -430,7 +430,7 @@ func _serve() -> void:
 		var _st := GSBotSettings.of(game).set_value("styles", _botstyles)
 	var map: FcMap = FcMap.by_id(StringName(_map))
 	if map == null and _map != "dm_box":
-		# Loud: an unknown id (cp_orange_x3 for cp-orange-x3) used to profile dm_box under the asked name.
+		# Loud: an unknown id (cp_orange_x3 for cp-orange-x3) profiled dm_box under the asked name.
 		push_error("scale128: no map '%s' (converted maps use dashes, e.g. cp-orange-x3)" % _map)
 		get_tree().quit(2)
 		return

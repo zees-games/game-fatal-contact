@@ -1,9 +1,7 @@
 extends GSGameCheckSuite
 
-## Maps handed to Fatal Contact outside the window (FcMapDrop, gs-map's GSMapDropIntake, API 30): dropped on the
-## executable or named by `--map-path=`, through the same intake and the same on-screen answer as a window drop. A path
-## that holds no converted map is refused out loud with what the game takes. Window drops: headless_local_maps.
-## [codeblock] ./game.sh test headless_mapdrop [/codeblock]
+## Maps handed to Fatal Contact outside the window (FcMapDrop, gs-map's GSMapDropIntake, API 30): dropped on the executable or named by `--map-path=`, through the same intake and the same on-screen answer as a window drop.
+## A path that holds no converted map is refused out loud with what the game takes. Window drops: headless_local_maps. [codeblock] ./game.sh test headless_mapdrop [/codeblock]
 
 const FcClient := preload("../game/fc_client.gd")
 const FcMaps := preload("../game/fc_maps.gd")

@@ -1,9 +1,6 @@
 extends "fc_attach_studio_state.gd"
-## The attachments screen (docs/client.md, the Attachments key): the gun in hand large in its own little studio, a chip per
-## mount on a leader line to its socket, the choices of the chosen mount in a column on the right and six stat bars at the
-## bottom left. Moving onto a choice (mouse, keys or pad) dresses the studio's gun with it and slides the bars to what it
-## would do; a press asks for it through [signal requested]. Like GSWeaponAttachMenu it changes nothing itself: the panel
-## sends the request and calls [method show_fitting] with the server's answer.
+## The attachments screen (docs/client.md, the Attachments key): the gun in hand large in its own little studio, a chip per mount on a leader line to its socket, the choices of the chosen mount in a column on the right and six stat bars at the bottom left.
+## Moving onto a choice (mouse, keys or pad) dresses the studio's gun with it and slides the bars to what it would do; a press asks for it through [signal requested]. Like GSWeaponAttachMenu it changes nothing itself: the panel sends the request and calls [method show_fitting] with the server's answer.
 ## Everything but the 3D studio is drawn in two `_draw` passes: about ten nodes beside the model, nothing rebuilt per pick.
 
 const FcAttachIcons := preload("fc_attach_icons.gd")
@@ -241,7 +238,7 @@ func _socket(mount: StringName) -> Node3D:
 	return _model.find_child(String(AwAttachmentArt.socket_name(mount)), true, false) as Node3D
 
 
-# --- stats -------------------------------------------------------------------------------------------------------------
+# stats
 
 ## The six bar values (0..1) of [param def] against the catalogue.
 func _scores(def: GSWeaponDef) -> Array[float]:
@@ -343,7 +340,7 @@ func _name_of(id: StringName) -> String:
 	return att.display_name if att != null and att.display_name != "" else String(id).capitalize()
 
 
-# --- frame -------------------------------------------------------------------------------------------------------------
+# frame
 
 func _process(delta: float) -> void:
 	if not is_visible_in_tree():
@@ -494,7 +491,7 @@ func _stats_rect() -> Rect2:
 	return Rect2(Vector2(40.0 * u, size.y * 0.635), Vector2(440.0 * u, size.y * 0.835 - size.y * 0.635))
 
 
-# --- drawing -----------------------------------------------------------------------------------------------------------
+# drawing
 
 func _draw() -> void:
 	# The backdrop: dark over the game, falling away over the bottom so the health and ammo stay readable.
@@ -700,7 +697,7 @@ static func _ease_out(t: float) -> float:
 	return 1.0 - pow(1.0 - clampf(t, 0.0, 1.0), 3.0)
 
 
-# --- input -------------------------------------------------------------------------------------------------------------
+# input
 
 func _equip() -> void:
 	var options := _options()

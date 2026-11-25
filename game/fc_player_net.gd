@@ -35,7 +35,7 @@ static var skip_idle_pull := true
 ## codes (`sv_net_hold_subquantum`, default on). gs-net marks a property dirty on any change of its raw value, so a
 ## yaw that moved a twentieth of a 12-bit step was written again, bits identical to what every receiver already
 ## had: on dm_atrium at 64 players, 61% of pitch writes, 8% of yaw and 7% of velocity (tools/net_probe.gd
-## --fields, 2026-11-16). Holding the old value keeps what each receiver decodes exactly as it was, just without
+## --fields). Holding the old value keeps what each receiver decodes exactly as it was, just without
 ## the repeat. Only the observer's copy is held: the owner rewinds from [member net_exact], and the lag-comp
 ## history records the node, not these properties. Position is never held: the server reads it back.
 static var hold_subquantum := true
@@ -65,7 +65,7 @@ var net_timers2: int = 0
 ## The owner's own movement exactly: position, velocity and crouch as float32, to the
 ## owning client alone (a [code]PACKED_FLOAT32[/code] of [constant EXACT_FLOATS]).
 ##
-## [b]Why the quantised copy above is not enough to rewind from[/b] (2026-10-18). A predicting
+## [b]Why the quantised copy above is not enough to rewind from[/b]. A predicting
 ## client rewinds to the snapshot and replays its unacknowledged commands, and the replay only
 ## lands where the server did if it starts where the server was. `net_position` is a 1 cm grid
 ## and `net_velocity` 5 cm/s steps, and the motor is not smooth in either near a wall, a step
@@ -164,10 +164,9 @@ var last_view_lag: float = -1.0
 var last_view_back: int = -1
 var last_view_span: int = 0
 
-## The tick the view lag and bracket above were measured for, or -1. The server repeats a
-## command over a tick whose packet was lost: the lag still holds for that tick (shots and
-## collision use it as it is), the bracket's two snapshot ticks stay where they were
-## ([method FcNetBridge.remote_feet]).
+## The tick the view lag and bracket above were measured for, or -1. The server repeats a command over a tick
+## whose packet was lost: the lag still holds for that tick (shots and collision use it as it is), the
+## bracket's two snapshot ticks stay where they were ([method FcNetBridge.remote_feet]).
 var last_view_tick: int = -1
 
 ## The newest firing command's targets drawn across a sample pair of their own, `{net_id: Vector2i(older, newer)}` in absolute ticks
@@ -360,8 +359,8 @@ func _net_simulate(tick: int, delta: float) -> void:
 ## a second of latency is several times per shot. `AwWeaponRig.begin_replay` is the
 ## pack's switch for exactly this: the simulation re-runs and the drawing does not.
 ##
-## The movement is marked too (`GSFpsController.begin_replay`), and it was not until
-## 2026-10-10: every replayed tick re-emitted the controller's own signals and re-counted
+## The movement is marked too (`GSFpsController.begin_replay`), and without it
+## every replayed tick re-emitted the controller's own signals and re-counted
 ## its statistics. The wall moves found it, one wall run heard six times and one wall
 ## jump seven over 20% loss (`headless_lossy`); the slide's and the dash's signals and the
 ## jump count had the same fault with nothing listening closely enough to say.
@@ -370,7 +369,7 @@ func _net_simulate(tick: int, delta: float) -> void:
 ## the tick's: after the clock snaps back (a lead given back, a re-anchored timeline) the
 ## next fresh ticks are below the newest one simulated. Read off the tick, they were taken
 ## for replays until the clock passed its old lead again, with the rig's presentation and
-## the weapon's signals held the whole while: the 2026-11-18 footage's knife that stayed in
+## the weapon's signals held the whole while: a knife stayed in
 ## the hand after its throw, under a HUD already reading PISTOL, until the next left click.
 ## A gs-net without the flag still gets the old reading.
 func _predict(tick: int, delta: float) -> void:
@@ -396,7 +395,7 @@ func _predict(tick: int, delta: float) -> void:
 
 ## Whether a replay would simulate anything: not while dead, when `simulate_tick` returns
 ## at once and the server's word is all there is. gs-net then keeps the rewind and skips
-## the replay (`GSNetBehaviour._net_predicts`, API 10), where it used to replay the whole
+## the replay (`GSNetBehaviour._net_predicts`, API 10), where older ones replayed the whole
 ## lead on every snapshot of a death, because the server's body moves and the client's
 ## does not, so none of them matched.
 func _net_predicts() -> bool:
@@ -673,10 +672,8 @@ func _push_weapons() -> void:
 var _owner_slot_was := 0
 
 
-## The owner's arsenal lowers its weapon when the server emptied the hand: a Boomerang thrower waits for the catch
-## bare-handed (gs-weapon rule `boomerang_empty_hand`), where the carry's take alone would draw the next weapon.
-## Only on the snapshot that took a weapon away or emptied the hand, so a draw the owner predicts from an empty
-## hand is not undone while the server catches up.
+## The owner's arsenal lowers its weapon when the server emptied the hand: a Boomerang thrower waits for the catch bare-handed (gs-weapon rule `boomerang_empty_hand`), where the carry's take alone
+## would draw the next weapon. Only on the snapshot that took a weapon away or emptied the hand, so a draw the owner predicts from an empty hand is not undone while the server catches up.
 func _follow_empty_hand(carry_changed: bool) -> void:
 	var was := _owner_slot_was
 	_owner_slot_was = net_slot

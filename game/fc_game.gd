@@ -5,10 +5,9 @@ extends "fc_game_setup.gd"
 ## held for the next server tick; armed only by [code]FcModule[/code]. See gs_tick_gate.gd.
 var tick_gate := GSTickGate.new()
 
-## The standing hulls player [param id] stops at: every other living player's, where they
-## stand now; none while `mp_solidplayers` is 0. Asked per sweep by the movement body, so a
-## player moved earlier in this tick is met where it moved to (the same on every machine:
-## players tick in one order).
+## The standing hulls player [param id] stops at: every other living player's, where they stand now; none
+## while `mp_solidplayers` is 0. Asked per sweep by the movement body, so a player moved earlier in this tick
+## is met where it moved to (the same on every machine: players tick in one order).
 func solid_hulls_for(id: int, tick: int = -1) -> Array:
 	var t_h := Time.get_ticks_usec()
 	var got := _solid_hulls_for(id, tick)

@@ -188,10 +188,8 @@ static func state_of(p: Node) -> Array:
 			pitch = (look as Vector2).y
 		feet = view.global_position - Vector3(0.0, eye_h, 0.0)
 	elif body != null and bool(p.get(&"interpolate_body")) and p.has_method(&"_render_position"):
-		# Where present() draws this body, from the controller and not from the body: a kill view
-		# poses bodies from history, and one the remote LOD skips this frame still stands where the
-		# replay put it. Reading that back recorded seconds-old positions as now, more of them the
-		# more bots are thinned, and the next replay drew bodies jumping between the two.
+		# Where present() draws this body, from the controller and not from the body: a kill view poses bodies from history, and one the remote LOD skips this frame still stands where the replay put it.
+		# Reading that back recorded seconds-old positions as now, more of them the more bots are thinned, and the next replay drew bodies jumping between the two.
 		feet = p.call(&"_render_position", float(p.get(&"drawn_alpha")))
 	return [feet, yaw, pitch, bool(p.call(&"is_alive")), eye_h] + Array(KillPov.aux_of_tick(p))
 

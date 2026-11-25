@@ -39,6 +39,7 @@ const CHECKS := 465
 
 var _entered := 0
 var _completed := 0
+var _skipped := 0
 
 
 ## The player's own settings file as it was before this run: its modification time, or -1

@@ -242,10 +242,9 @@ class Climb:
 	## which is a step across rather than a jump.
 	var gap: float = 0.0
 
-	## The two boxes, kept so that the gap between them is known to be a JUMP. The
-	## survey's slot rule reads them: 0.5 m of air between two crates is a slot nobody
-	## can walk through and is not meant to be walked through, and the only thing that
-	## says which of the two it is is this declaration.
+	## The two boxes, kept so that the gap between them is known to be a JUMP. The survey's slot rule reads them:
+	## 0.5 m of air between two crates is a slot nobody can walk through and is not meant to be walked through,
+	## and the only thing that says which of the two it is is this declaration.
 	var from_box: AABB = AABB()
 	var to_box: AABB = AABB()
 

@@ -26,11 +26,9 @@ const FcMap := preload("fc_map.gd")
 # No `CHANNEL`: this measures and returns, and says nothing to an operator. The suite
 # that asserts on it is the one with something to say.
 
-## Metres. The width this family sizes gaps against: `headless_match`'s spawn column,
-## and the "0.8 m a player is" dm_pit's shelf comment is written in. The motor's own
-## hull is narrower — `GSFpsTunables.radius` 0.35, a 0.7 m box — so a slot between
-## the two numbers is one the motor passes and a player cannot see is passable; the
-## survey calls those slots too, which is the conservative side to be wrong on.
+## Metres. The width this family sizes gaps against: `headless_match`'s spawn column, and the "0.8 m a player is" dm_pit's shelf comment is written in. The motor's own hull is narrower —
+## `GSFpsTunables.radius` 0.35, a 0.7 m box — so a slot between the two numbers is one the motor passes and a player cannot see is passable; the survey calls those slots too, which is the conservative
+## side to be wrong on.
 const PLAYER_WIDTH := 0.8
 
 const FcPlayerTunables := preload("../game/fc_player_tunables.gd")

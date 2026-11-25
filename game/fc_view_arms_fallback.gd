@@ -1,11 +1,8 @@
 extends RefCounted
 
-## Arms never disappear (fc_view_arms.gd). Where the arms cannot be drawn, because the body model is missing
-## (gs-player-char falls back to a skinless capsule) or its meshes did not load, they are rebuilt as the stock person
-## (TMC's default arms), and if that cannot be drawn either the view model's own hands come back.
-## It also covers the Compatibility renderer (every browser): it has no per-instance shader uniforms, so
-## GSViewArmsMaterial's `instance uniform draw_depth` does not compile and the arms drew as nothing at all while the
-## view model's hands were off. There the arms' material is swapped for a copy with plain uniforms, set each frame.
+## Arms never disappear (fc_view_arms.gd). Where the arms cannot be drawn, because the body model is missing (gs-player-char falls back to a skinless capsule) or its meshes did not load, they are rebuilt as the stock person (TMC's default arms), and if that cannot be drawn either the view model's own hands come back.
+## It also covers the Compatibility renderer (every browser): it has no per-instance shader uniforms, so GSViewArmsMaterial's `instance uniform draw_depth` does not compile and the arms drew as nothing at all while the view model's hands were off.
+## There the arms' material is swapped for a copy with plain uniforms, set each frame.
 
 ## Set from a test to take the plain-material path without the Compatibility renderer.
 static var force_plain_material := false

@@ -579,10 +579,8 @@ func _build_presentation() -> void:
 
 # --- The mouse -------------------------------------------------------------
 
-## Whether the cursor may be captured at load-in. A native window that is not focused (a game launched by
-## the app shell while the shell keeps focus) must not capture: the OS recentres a captured cursor the
-## player is not driving, and the stream of garbage motion became random yaw and pitch (nightly
-## fc-native-via-gs-app-1). It waits for a click instead, like a browser.
+## Whether the cursor may be captured at load-in. A native window that is not focused (a game launched by the app shell while the shell keeps focus) must not capture: the OS recentres a captured cursor the player is not driving,
+## and the stream of garbage motion became random yaw and pitch (nightly fc-native-via-gs-app-1). It waits for a click instead, like a browser.
 static func mouse_capture_now(is_web: bool, window_focused: bool) -> bool:
 	return not is_web and window_focused
 

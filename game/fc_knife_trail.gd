@@ -1,11 +1,6 @@
 extends Node3D
-## A thrown knife's streak: a fading ribbon behind it while it flies, so a spinning knife (a Boomerang above all) reads
-## from across the map instead of as a dark sliver. Put under the knife's model; it draws in world space, follows its
-## parent and empties itself once the knife stops (lying or stuck). Presentation only.
-##
-## Three things make a flying knife readable from the overview or a third-person camera, where the blade is a few pixels:
-## the streak is never thinner on screen than [member min_angle] (it widens with the camera's distance), a small glint rides
-## the knife at a fixed screen size, and the model itself is drawn [member flight_scale] times larger while it flies.
+## A thrown knife's streak: a fading ribbon behind it while it flies, so a spinning knife (a Boomerang above all) reads from across the map instead of as a dark sliver. Put under the knife's model; it draws in world space, follows its parent and empties itself once the knife stops (lying or stuck). Presentation only.
+## Three things make a flying knife readable from the overview or a third-person camera: the streak is never thinner on screen than [member min_angle] (it widens with the camera's distance), a small glint rides the knife at a fixed screen size, and the model itself is drawn [member flight_scale] times larger while it flies.
 
 ## How long a point of the streak lasts (seconds) and how wide it starts (metres).
 @export var life: float = 0.35
@@ -21,10 +16,8 @@ extends Node3D
 @export var glint_color: Color = Color(1.0, 0.97, 0.85, 1.0)
 ## The knife model's scale while it flies, eased back to 1 as it slows (1 leaves the model alone).
 @export var flight_scale: float = 1.6
-## Near the camera the flight look is wrong: a knife leaves the thrower's eye (the knives layer throws from the camera),
-## so its first frames drew the model, enlarged by [member flight_scale], filling the screen, and the streak as a pale
-## band across it. Closer than [member near_hide] metres the model and streak are not drawn (the view model shows the
-## throw); out to [member near_full] the enlargement grows in with the distance.
+## Near the camera the flight look is wrong: a knife leaves the thrower's eye (the knives layer throws from the camera), so its first frames drew the model, enlarged by [member flight_scale], filling the screen, and the streak as a pale band across it.
+## Closer than [member near_hide] metres the model and streak are not drawn (the view model shows the throw); out to [member near_full] the enlargement grows in with the distance.
 @export var near_hide: float = 0.9
 @export var near_full: float = 3.0
 ## Only for this long after the knife appears (seconds): a knife lying or stuck near the camera later is drawn as it is.

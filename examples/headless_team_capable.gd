@@ -5,9 +5,8 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcMaps := preload("../game/fc_maps.gd")
 const FcMode := preload("../game/fc_mode.gd")
 
-## Every map can host a team deathmatch: a map with no tagged sides has its spawns split into two halves that start apart.
-## Checks the capability (what the ballot, the map menu and the refusals read) for every map in the catalogue, that the split gives each side spawns
-## and puts the halves apart, and that a running free-for-all game changes onto a map and into a team mode (gg-canyon when linked).
+## Every map can host a team deathmatch: a map with no tagged sides has its spawns split into two halves that start apart. Checks the capability (what the ballot, the map menu and the refusals read) for every map in the catalogue,
+## that the split gives each side spawns and puts the halves apart, and that a running free-for-all game changes onto a map and into a team mode (gg-canyon when linked).
 ## Run: [code]godot --headless --path . res://examples/headless_team_capable.tscn[/code]
 
 var _n := 0

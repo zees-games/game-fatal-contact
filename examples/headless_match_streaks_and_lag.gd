@@ -1,6 +1,6 @@
 extends "headless_match_modes_and_drops.gd"
 
-# --- Weapon modes ------------------------------------------------------------
+# Weapon modes
 
 func _weapon_mode_game(mode: FcMode, ids: Array) -> FcGame:
 	var game := FcGame.new()
@@ -41,7 +41,7 @@ func _kill_through_combat(game: FcGame, killer: int, victim: int, weapon: String
 	if applied != null and applied.lethal:
 		game.combat.entity_killed.emit(victim, applied)
 
-# --- Streaks -----------------------------------------------------------------
+# Streaks
 
 func _test_streaks() -> void:
 	_section("kill streaks and their rewards")
@@ -83,7 +83,7 @@ func _test_streaks() -> void:
 	await get_tree().process_frame
 	_done()
 
-# --- Kill rewards ------------------------------------------------------------
+# Kill rewards
 
 ## Reads the victim's replacement state: a fresh victim for every kill.
 func _revive_victim(game: FcGame, victim: int) -> void:
@@ -158,7 +158,7 @@ func _test_kill_rewards() -> void:
 	await get_tree().process_frame
 	_done()
 
-# --- Medals ------------------------------------------------------------------
+# Medals
 
 ## One kill's facts for the medal rules, at [param tick] on a 64-tick server.
 func _facts(killer: int, victim: int, tick: int, extra: Dictionary = {}) -> FcAwards.KillFacts:

@@ -63,11 +63,8 @@ func _test_bot_routes() -> void:
 ## Its starts, and how many must land.
 const RIDE_STARTS := 3
 const RIDE_LANDING := 2
-## The edges the recorded-ride check records, each its own section: ones whose live rides
-## land from the lip at rest, never "the first linked", which moves on every replan. Replanned
-## on the motor of 2026-11-17 (a wall jump no longer adds push to carried speed): edge 0 lands
-## in the pit; 1 lands on the rim's edge and slides off, 3 and 4 mostly fall, and 2, 5, 6 and 7
-## find no ride at all.
+## The edges the recorded-ride check records, each its own section: ones whose live rides land from the lip at rest, never "the first linked", which moves on every replan.
+## On the current motor (a wall jump adds no push to carried speed): edge 0 lands in the pit; 1 lands on the rim's edge and slides off, 3 and 4 mostly fall, and 2, 5, 6 and 7 find no ride at all.
 const RECORD_EDGES := [0]
 ## The rate the ride caches were planned at (FcContent.TICK_RATE, the game's default), which the
 ## recorded rides are ridden at: a cache stepped at another rate drifts off its line and the ride dies.

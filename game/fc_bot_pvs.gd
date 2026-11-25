@@ -1,13 +1,6 @@
 extends RefCounted
-## The map's PVS before a bot's sight ray (cvar `fc_bot_pvs`), as the Source engine asks it before its own trace
-## (`CCSBot::IsVisible`): a cluster pair that no position can see between needs no ray. The PVS is the one gs-net
-## already holds for snapshot interest (`GSNetVisibility`, attached by the module on a converted map with vis data).
-## [b]Same answers:[/b] the set only says "no" where the map's world brushes block every line between the two clusters
-## (doors count as open), so the ray it saves would have come back blocked; `fc_bot_pvs_verify` (scale128 `--pvsverify`)
-## casts it anyway and counts every disagreement. gs-sim's `GSSimPvs` asks the same set natively (cvar
-## `fc_bot_pvs_native`, bit for bit with the script). Without the library no set is asked: the script set costs more
-## than the rays it saves (scale128 A/B, blackhawkdown 32 bots: bot_los 0.50 ms off, 0.36 native, 0.65 script), so it
-## answers only when `fc_bot_pvs_native` is 0 (the reference and the A/B arm).
+## The map's PVS before a bot's sight ray (cvar `fc_bot_pvs`), as the Source engine asks it before its own trace (`CCSBot::IsVisible`): a cluster pair that no position can see between needs no ray. The PVS is the one gs-net already holds for snapshot interest (`GSNetVisibility`, attached by the module on a converted map with vis data). Same answers: the set only says "no" where the map's world brushes block every line between the two clusters (doors count as open); `fc_bot_pvs_verify` (scale128 `--pvsverify`) casts the ray anyway and counts every disagreement.
+## gs-sim's `GSSimPvs` asks the same set natively (cvar `fc_bot_pvs_native`, bit for bit with the script). Without the library no set is asked: the script set costs more than the rays it saves (scale128 A/B, blackhawkdown 32 bots: bot_los 0.50 ms off, 0.36 native, 0.65 script), so it answers only when `fc_bot_pvs_native` is 0 (the reference and the A/B arm).
 ## Typed loosely on purpose: a build whose gs-net lacks the class still parses this file.
 
 ## The game's meta holding the map's set, written by the module when it attaches the set to its netcode.

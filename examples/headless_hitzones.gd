@@ -26,11 +26,8 @@ const BOT_RANGE := 12.0
 ## Bots aim at the chest, so a head hit only comes of recoil and spread: more than this share of a bot's hits in the
 ## head (measured 0 to 21%) would be the one-shot headshots owners report.
 const BOT_MAX_HEAD_SHARE := 0.30
-## Shots to kill a fresh player (100 health, no armour) at 10 m, per weapon: [head min, head max, chest min, chest max].
-## Every round of a shotgun counts as all its pellets on the zone. The bands are what an FPS player expects:
-## automatics need three or more head rounds (so one head and one body round never kill) and four to six to the
-## body (the minigun trades damage for rate), heavy single shots two to the head, and only the sniper, the
-## marksman, the derringer and a point-blank shotgun kill with one round to the head.
+## Shots to kill a fresh player (100 health, no armour) at 10 m, per weapon: [head min, head max, chest min, chest max]. Every round of a shotgun counts as all its pellets on the zone.
+## The bands an FPS player expects: automatics need three or more head rounds and four to six to the body (the minigun trades damage for rate), heavy single shots two to the head, and only the sniper, the marksman, the derringer and a point-blank shotgun kill with one head round.
 const STK_BOUNDS := {
 	"pistol": [3, 4, 4, 6], "revolver": [2, 2, 3, 3], "derringer": [1, 1, 2, 2],
 	"machine_pistol": [3, 5, 6, 8], "smg": [3, 4, 5, 7], "carbine": [3, 4, 4, 6], "rifle": [3, 3, 4, 6],
@@ -208,10 +205,8 @@ func _table() -> void:
 		_completed += 1
 
 
-## A muzzle inside the target's head box is a point-blank head hit. The hitbox rays are analytic and count a start
-## inside a box as a hit at distance zero (GSHitbox._ray_box/_ray_capsule/_ray_sphere); the physics world ray's
-## hit_from_inside = false is for walls only. Same code on the client and the server, no randomness: spread changes
-## the direction, and from inside the box every direction hits it.
+## A muzzle inside the target's head box is a point-blank head hit: the analytic hitbox rays count a start inside a box as a hit at distance zero (GSHitbox._ray_box/_ray_capsule/_ray_sphere;
+## the physics ray's hit_from_inside = false is for walls only). Same code on the client and the server, no randomness: spread changes the direction, and from inside the box every direction hits it.
 func _inside() -> void:
 	_section("a muzzle inside the target's head box hits the head; a normal head round is unchanged")
 	for weapon: StringName in [&"pistol", &"sniper", &"shotgun"]:
@@ -263,10 +258,8 @@ func _head_box(id: int) -> GSHitbox:
 	return null
 
 
-## Shots to kill per weapon and body part, deterministic: every round lands where it is meant to, so the numbers are
-## the damage data's (catalogue tuning with FC's overrides, the hit-group multipliers from cfg, falloff, armour and the
-## game's adjust hook), not the trace's spread. TTK is the time from the first to the killing round at the weapon's
-## refire interval.
+## Shots to kill per weapon and body part, deterministic: every round lands where it is meant to, so the numbers are the damage data's (catalogue tuning with FC's overrides, the hit-group multipliers from cfg, falloff, armour and the game's adjust hook), not the trace's spread.
+## TTK is the time from the first to the killing round at the weapon's refire interval.
 func _shots_to_kill() -> void:
 	var catalogue := FcPlayer.weapon_catalogue()
 	_section("shots to kill (TTK ms) per body part at 10 m, chest at 40 / 70 m and with armour 100; head x%.2f leg x%.2f" % [

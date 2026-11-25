@@ -1,12 +1,8 @@
 extends RefCounted
 
 ## How deep a point sits inside a weapon part's mesh, for anim_review's "forearm inside weapon" check.
-##
-## The part's box alone is not the part: a one-mesh gun (the smg's mac10: receiver, grip and magazine in one mesh) is an L
-## whose box takes in the air under the receiver behind the grip, exactly where the hand's wrist and forearm belong, and
-## read 0.04-0.06 m "inside" on every frame the hand held the grip. A point counts as inside only when the mesh closes
-## round it: a ray along each of the six axes hits one of its faces. Its depth is the shortest of those six hits, in
-## metres ([param scale] is the part's world scale per axis).
+## The part's box alone is not the part: a one-mesh gun (the smg's mac10: receiver, grip and magazine in one mesh) is an L whose box takes in the air under the receiver behind the grip, exactly where the hand's wrist and forearm belong, and read 0.04-0.06 m "inside" on every frame the hand held the grip.
+## A point counts as inside only when the mesh closes round it: a ray along each of the six axes hits one of its faces. Its depth is the shortest of those six hits, in metres ([param scale] is the part's world scale per axis).
 
 const AXES: Array[Vector3] = [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD]
 

@@ -21,10 +21,8 @@ func _hurt_from_map() -> void:
 
 	var interval := maxi(1, roundi(FcMap.FcMapMechanics.HURT_INTERVAL * float(tick_rate)))
 
-	# Due ticks are per player AND per volume, and kept when the player steps out: the
-	# half second belongs to the volume, so a hull bobbing across a thin sheet's edge (a
-	# hop, water) takes one pulse per interval rather than one per re-entry. An entry whose
-	# tick has passed means the same as none, so those go, and the table stays small.
+	# Due ticks are per player AND per volume, and kept when the player steps out: the half second belongs to the volume, so a hull bobbing across a thin sheet's edge (a hop, water)
+	# takes one pulse per interval rather than one per re-entry. An entry whose tick has passed means the same as none, so those go, and the table stays small.
 	for key: Vector2i in _hurt_due.keys():
 		if int(_hurt_due[key]) <= _tick:
 			var _gone: bool = _hurt_due.erase(key)
@@ -385,6 +383,9 @@ func _flush_posts(shots: Array[GSShot]) -> void:
 	_post_moves.clear()
 
 
+## Advances the whole game one tick. The order is the point: players simulate and produce shots; the shots are resolved against the world as it is after everyone has moved;
+## the match's clock and win check run last, so a kill scored on this tick can end the round on this tick. [param commands] is `{player id: [GSFpsCommand, GSWeaponCommand]}`;
+## a player with no entry repeats their last command, as a dropped input packet should look.
 func tick(commands: Dictionary = {}) -> void:
 	_tick += 1
 	_sync_round_freeze()

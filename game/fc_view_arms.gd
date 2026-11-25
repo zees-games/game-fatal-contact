@@ -17,10 +17,8 @@ const HANDS_MIN_DISTANCE := 0.3
 ## Added to it with real hands (gs-player-char 28), whose wrist sits this far behind the grip the fingers close on:
 ## at 0.3 alone an aimed revolver's wrist came 0.041 m from the eye, inside the camera's near plane (0.04 still 0.048).
 static var real_hand_setback := 0.06
-## Nearest a hand's wrist comes to the eye along the view (metres, gs-player-char 30's GSPlayerViewArms.hand_min_depth):
-## a reload that pulls the launcher to the chest, or a wall that pushes the gun back, slides the hand out along the gun
-## instead of into the camera's near plane (0.05); at 0 a launcher reload's support fingers came 0.012 m from the eye.
-## 0 is off.
+## Nearest a hand's wrist comes to the eye along the view (metres, gs-player-char 30's GSPlayerViewArms.hand_min_depth): a reload that pulls the launcher to the chest, or a wall that pushes the gun
+## back, slides the hand out along the gun instead of into the camera's near plane (0.05); at 0 a launcher reload's support fingers came 0.012 m from the eye. 0 is off.
 static var hand_min_depth := 0.1
 ## GSPlayerViewArms' own hand size, for a weapon whose profile does not say.
 const DEFAULT_HAND_SCALE := 0.5
@@ -137,10 +135,9 @@ static func hand_kind(pose: StringName, art: Resource) -> StringName:
 	return POSE_KINDS.get(pose, &"rifle")
 
 
-## How many times further off than [param anchor] the weapon is drawn: the hands frame is the drawn gun (its sibling
-## "Animated") shrunk about the eye to life size so life-size arms reach it, which put the arms at a third of the gun's
-## depth, in front of all of it: no finger wrapped behind a grip and the support palm and sleeve drew over the gun.
-## [member GSPlayerViewArms.draw_depth] draws the arms' depth that much further (same pixels). 1 for any other anchor.
+## How many times further off than [param anchor] the weapon is drawn: the hands frame is the drawn gun (its sibling "Animated") shrunk about the eye to life size so life-size arms reach it, which put
+## the arms at a third of the gun's depth, in front of all of it: no finger wrapped behind a grip and the support palm and sleeve drew over the gun. [member GSPlayerViewArms.draw_depth] draws the
+## arms' depth that much further (same pixels). 1 for any other anchor.
 static func drawn_depth(anchor: Node3D) -> float:
 	if anchor == null or anchor.name != &"HandsFrame" or not anchor.is_inside_tree():
 		return 1.0

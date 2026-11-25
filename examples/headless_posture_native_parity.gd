@@ -2,11 +2,8 @@ extends GSGameCheckSuite
 
 const FcPlayerIdle := preload("../game/fc_player_idle.gd")
 
-## An idle weapon tick's posture row and flinch check (FcPlayerIdle._idle_row, cvar `fc_posture_native`): gs-sim's
-## `GSSimPlayerPost` gives the script's row and still flag to the bit over seeded controller states (moving, air,
-## crouch edges, slide, wall run, sprint, hurt ticks around the flinch window, arsenal rates and none, no health),
-## one player at a time and as packed rows (`run_rows`). Without the library only the script lane runs, and the suite
-## says so.
+## An idle weapon tick's posture row and flinch check (FcPlayerIdle._idle_row, cvar `fc_posture_native`): gs-sim's `GSSimPlayerPost` gives the script's row and still flag to the bit over seeded controller states (moving, air, crouch edges, slide, wall run, sprint, hurt ticks around the flinch window, arsenal rates and none, no health),
+## one player at a time and as packed rows (`run_rows`). Without the library only the script lane runs, and the suite says so.
 
 const STATES := 20000
 const SEED := 4242

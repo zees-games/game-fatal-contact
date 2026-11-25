@@ -602,10 +602,8 @@ static func _mode_ids() -> PackedStringArray:
 	return out
 
 
-## `fc_mode <id>` — what is played. Live, in place on the current map, only when that is safe: no map change underway and the map hosts
-## the mode. Otherwise it is held by the map session and the next map change plays it (`map`, `fc_map`, the rotation, a vote, or the
-## server.yml startup map), on a map that can host it; the rotation then prefers such maps. The cvar shows the chosen mode meanwhile.
-## An unknown id never gets here: the cvar's validator refuses it and names the valid ids (`_validate_mode`).
+## `fc_mode <id>` — what is played. Live, in place on the current map, only when that is safe: no map change underway and the map hosts the mode. Otherwise it is held by the map session and the next map change plays it (`map`, `fc_map`, the rotation, a vote, or the server.yml startup map), on a map that can host it; the rotation then prefers such maps.
+## The cvar shows the chosen mode meanwhile. An unknown id never gets here: the cvar's validator refuses it and names the valid ids (`_validate_mode`).
 func _change_mode(old_value: String, new_value: String) -> void:
 	if _reverting_mode or new_value == old_value:
 		return

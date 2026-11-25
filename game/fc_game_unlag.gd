@@ -149,7 +149,7 @@ func unlag_crouch_at(id: int, at: float) -> float:
 
 
 ## gs-combat's rewind: every other living player, put where they were at [param view_tick], in the stance they had then:
-## the zones fit the present crouch, and a target that crouched since was traced a standing head too short (footage 2026-11-15).
+## the zones fit the present crouch, and a target that crouched since would be traced a standing head too short.
 func _unlag_rewind(view_tick: float) -> void:
 	for id in _players:
 		if id == _unlag_shooter:
@@ -189,16 +189,6 @@ func _unlag_restore() -> void:
 	_unlag_refit.clear()
 
 
-## Advances the whole game one tick.
-##
-## [b]The order is the point of this method.[/b] Players simulate and produce shots;
-## the shots are resolved against the world as it is *after* everyone has moved; the
-## match's clock and win check run last, so a kill scored on this tick can end the
-## round on this tick rather than the next one.
-##
-## [param commands] is `{player id: [GSFpsCommand, GSWeaponCommand]}`. A player with
-## no entry repeats their last command, which is what a dropped input packet should
-## look like.
 ## Slots in a position ring: [constant UNLAG_SECONDS] of ticks at this game's rate (never under [constant UNLAG_HISTORY]).
 func unlag_history() -> int:
 	return maxi(UNLAG_HISTORY, ceili(UNLAG_SECONDS * float(tick_rate)) + 2)

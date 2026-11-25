@@ -1,15 +1,8 @@
 extends RefCounted
 
-## Fatal Contact's side of the site's avatar library: what a member may equip here, and equipping it.
-##
-## gs-user-avatar's [GSAvatarLibraryClient] does the calls; this adds what only the game knows. The app id
-## ([member app_id], the `sv_avatar_app_id` cvar) goes on every call, and the app's own switches
-## ([GSAvatarAppRules]: emotes, poses and gestures each, wearables, and a rule per wearable) are honoured on this side
-## as well as the site's. A value of 0 for the equip cap means unlimited. Nothing is clamped: a list over the cap, a kind
-## the app has off, a wearable the app hid and an app id that was never set are each a failed [GSResult] that names the
-## setting, never a shorter list.
-
-const CHANNEL := "fc.avatar.library"
+## Fatal Contact's side of the site's avatar library: what a member may equip here, and equipping it. gs-user-avatar's [GSAvatarLibraryClient] does the calls; this adds what only the game knows: the app id ([member app_id], the `sv_avatar_app_id` cvar) goes on every call,
+## and the app's own switches ([GSAvatarAppRules]: emotes, poses and gestures each, wearables, and a rule per wearable) are honoured on this side as well as the site's. A value of 0 for the equip cap means unlimited.
+## Nothing is clamped: a list over the cap, a kind the app has off, a wearable the app hid and an app id never set are each a failed [GSResult] that names the setting, never a shorter list.
 
 ## The action kinds the library hands out.
 const KINDS: Array[StringName] = [GSAvatarAppRules.EMOTE, GSAvatarAppRules.POSE, GSAvatarAppRules.GESTURE]

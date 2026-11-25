@@ -4,10 +4,8 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 const FcContent := preload("../game/fc_content.gd")
 const FcSimHost := preload("../game/fc_sim_host.gd")
 
-## The owner's native solo game is hosted (a loopback server process, the client predicts and draws).
-## With no mouse and no key, the local player's view must hold still: the drawn camera may not turn or
-## jump from one frame to the next, and the viewport's current camera is the player's own every frame
-## (nightly fc-native-via-gs-app-1: the footage shows the view flipping between a few poses).
+## The owner's native solo game is hosted (a loopback server process, the client predicts and draws). With no mouse and no key, the local player's view must hold still:
+## the drawn camera may not turn or jump from one frame to the next, and the viewport's current camera is the player's own every frame (nightly fc-native-via-gs-app-1).
 
 const BOTS := 4
 const WATCH_SEC := 10.0

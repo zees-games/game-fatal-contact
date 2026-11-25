@@ -1,18 +1,8 @@
 extends RefCounted
 
-## The rocket launchers' server cvars (`sv_rocket_*`) and the Rocketjump warhead, on FC's side.
-##
-## fc-weapons (API level 27) owns the numbers and the maths: `AwRocketRules` holds the single-missile launcher's
-## tube and blast and the Rocketjump's damage cut and launch, `AwRocketJump.launch_velocity` says where a blast
-## throws its own shooter. This file is the glue: it re-applies the cvars to the shared weapon and attachment
-## catalogues when they change, gives a Rocketjump blast a self-damage scale of its own, and turns the launch
-## velocity into a push on the shooter's controller.
-##
-## [b]Everything is reached by path.[/b] FC's floor for fc-weapons is below 27 (it may not be above the shell's
-## pin), so the classes are never named here: below 27 the files do not exist and every function is a no-op.
-##
-## [b]Server only.[/b] The push is applied on the authority, before the shooter's next motor step; a client sees
-## it through the snapshot correction, not predicted.
+## The rocket launchers' server cvars (`sv_rocket_*`) and the Rocketjump warhead, on FC's side. fc-weapons (API level 27) owns the numbers and the maths: `AwRocketRules` holds the single-missile launcher's tube and blast and the Rocketjump's damage cut and launch, `AwRocketJump.launch_velocity` says where a blast throws its own shooter.
+## This file is the glue: it re-applies the cvars to the shared weapon and attachment catalogues when they change, gives a Rocketjump blast a self-damage scale of its own, and turns the launch velocity into a push on the shooter's controller. Server only: the push is applied on the authority, before the shooter's next motor step; a client sees it through the snapshot correction, not predicted.
+## [b]Everything is reached by path.[/b] FC's floor for fc-weapons is below 27 (it may not be above the shell's pin), so the classes are never named here: below 27 the files do not exist and every function is a no-op.
 
 const MIN_LEVEL := 27
 

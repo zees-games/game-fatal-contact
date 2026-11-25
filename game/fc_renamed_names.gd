@@ -1,12 +1,7 @@
 extends RefCounted
 
-## The console names that were `arena_*` before the game became Fatal Contact, kept as loud
-## shims for one release: typing an old name runs the new one, after an ERR in the log and a
-## reply that both name the new name. Nothing old works silently, and nothing old is listed
-## (every shim is a hidden command, so `cvarlist` and `cmdlist` show only the new names).
-##
-## [b]Remove this file[/b] (and its call at the end of `FcModule._module_load`) once the
-## deployed configs say `fc_*`; the nightly board tracks it.
+## The console names that were `arena_*` before the game became Fatal Contact, kept as loud shims for one release: typing an old name runs the new one, after an ERR in the log and a reply that both name the new name. Nothing old works silently, and nothing old is listed (every shim is a hidden command, so `cvarlist` and `cmdlist` show only the new names).
+## [b]Remove this file[/b] (and its call at the end of `FcModule._module_load`) once the deployed configs say `fc_*`; the nightly board tracks it.
 
 const OLD_PREFIX := "arena_"
 const NEW_PREFIX := "fc_"

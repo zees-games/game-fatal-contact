@@ -1,8 +1,6 @@
 extends CanvasLayer
-## The attachments screen over the game (docs/client.md, the Attachments key): the gun in hand in a studio of its own,
-## what fits each mount and what it does to the stats (fc_attach_studio.gd).
-## A pick goes to the server as Ask.ATTACH through [member send_fn]; offline, with no server, it is served here
-## by the same `FcAttach.serve`. The rows follow the arsenal, which takes the server's fitting from the snapshot.
+## The attachments screen over the game (docs/client.md, the Attachments key): the gun in hand in a studio of its own, what fits each mount and what it does to the stats (fc_attach_studio.gd).
+## A pick goes to the server as Ask.ATTACH through [member send_fn]; offline, it is served here by the same `FcAttach.serve`. The rows follow the arsenal, which takes the server's fitting from the snapshot.
 
 const FcAttach := preload("fc_attach.gd")
 const FcAttachStudio := preload("fc_attach_studio.gd")

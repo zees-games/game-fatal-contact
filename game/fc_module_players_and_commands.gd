@@ -635,9 +635,8 @@ func _add_extra_commands() -> void:
 		)
 
 		# `map`, `maps` and `mapinfo` come from gs-map itself (gs-server's `map` changed the GAME, which is not what an operator typing `map` means); gs-server's game change is `changelevel`, `game` and `gamechange`.
-		# The map change is gs-map's `map` (CHANGEMAP, like Airdrift's): a map change ends every round in progress, which is about who may do it, not where they typed it. `sv_chat_commands 0` makes it console-only.
-		# `allow_chat_change` stays at its default, ON: CHANGEMAP decides who may end a round in progress, wherever typed. A relayed website command arrives as `Source.CHAT`;
-		# `GSChatRelayConfig.command_source` can promote a relay to RCON. The SYNC HOST is the changer, not the session: `FcMapDirector.session` alone swaps the world in this process and tells nobody.
+		# The map change is gs-map's `map` (CHANGEMAP, like Airdrift's): it ends every round in progress, so it is about who may do it, not where they typed it. `sv_chat_commands 0` makes it console-only; `allow_chat_change` stays ON. A relayed website command arrives as `Source.CHAT`; `GSChatRelayConfig.command_source` can promote a relay to RCON.
+		# The SYNC HOST is the changer, not the session: `FcMapDirector.session` alone swaps the world in this process and tells nobody.
 		var map_commands := GSMapCommands.new()
 		map_commands.session = maps.session
 		map_commands.changer = maps.sync

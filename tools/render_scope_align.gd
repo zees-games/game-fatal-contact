@@ -1,9 +1,8 @@
 extends SceneTree
 
-## Where a scoped weapon's optic sits on screen at the window's size: for each scoped role the aimed frame
-## (screenshots/scope_align/<role>_<W>x<H>.png) and one line of numbers (ring centre and radius, the overlay's size,
-## the offset of the ring's centre from the screen's middle) in screenshots/scope_align/<W>x<H>.csv.
-## tools/render_scope_align.sh runs it at several window sizes. SCOPE_ROLES=sniper,marksman,charge_rifle narrows the roles.
+## Where a scoped weapon's optic sits on screen at the window's size: for each scoped role the aimed frame (screenshots/scope_align/<role>_<W>x<H>.png) and one line of numbers (ring centre and radius,
+## the overlay's size, the offset of the ring's centre from the screen's middle) in screenshots/scope_align/<W>x<H>.csv. tools/render_scope_align.sh runs it at several window sizes.
+## SCOPE_ROLES=sniper,marksman,charge_rifle narrows the roles.
 
 const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "screenshots/scope_align"

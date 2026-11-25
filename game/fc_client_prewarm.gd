@@ -375,10 +375,8 @@ func _take_flash_scenes() -> bool:
 	_warm.flash_asked = []
 	return true
 
-## Draws every flash scene's materials on tiny quads, rounds sized to the gate's warm budget, and
-## true once done: drawn first as four whole flashes, their compiles were 200-540 ms frames.
-## Done means its [signal GSRenderWarmup.finished], not merely gone: freed with the first body's camera it had
-## drawn 1 of 13 items and the rest compiled on the first shots (staging02, 2026-11-18).
+## Draws every flash scene's materials on tiny quads, rounds sized to the gate's warm budget, and true once done: drawn first as four whole flashes, their compiles were 200-540 ms frames.
+## Done means its [signal GSRenderWarmup.finished], not merely gone: freed with the first body's camera it had drawn 1 of 13 items and the rest compiled on the first shots.
 func _warm_flash_materials(body: Variant) -> bool:
 	if _warm.has("flash_warm"):
 		return bool((_warm.flash_done as Array)[0])
@@ -541,10 +539,8 @@ static var defer_models_on_web := true
 ## True: every client defers them and reads them inline, as the web does (perf_bench `--lazy-models 1`, to price the first equips after the cover).
 static var defer_models_everywhere := false
 
-## Reads weapon model files once, a few ms a frame under the loading cover (also headless: it is only file reads), so the
-## first equip of each - a bot picking one up, a pickup, a drop - does not pay 90-110 ms for the load in the middle of a fight.
-## Hitch capture: AwModelCache.warm was never called. Those [method _cover_weapon_ids] names come first and hold the gate;
-## where models are deferred the rest are read after it opens, see [method _models_late].
+## Reads weapon model files once, a few ms a frame under the loading cover (also headless: it is only file reads), so the first equip of each - a bot picking one up, a pickup, a drop - does not pay 90-110 ms for the load in the middle of a fight.
+## Those [method _cover_weapon_ids] names come first and hold the gate; where models are deferred the rest are read after it opens, see [method _models_late].
 func _prewarm_models() -> void:
 	if _model_paths_next >= 0 or gate == null or gate.is_open():
 		return
@@ -652,10 +648,8 @@ func _read_next_model() -> bool:
 	_model_paths_next += 1
 	return true
 
-## After the cover drops, the deferred models: a threaded read is taken once it has landed (a cache hit, a few ms), in any
-## frame. An inline read (the web) is one 50-400 ms frame, so it runs as a late view does: only while the player is away, after a
-## frame quicker than [constant LATE_VIEW_QUICK_MSEC], at most one every [constant LATE_VIEW_GAP] frames. A weapon equipped before
-## its turn loads its model on that equip, as before the prewarm; the read here is then a cache hit.
+## After the cover drops, the deferred models: a threaded read is taken once it has landed (a cache hit, a few ms), in any frame. An inline read (the web) is one 50-400 ms frame, so it runs as a late view does: only while the player is away,
+## after a frame quicker than [constant LATE_VIEW_QUICK_MSEC], at most one every [constant LATE_VIEW_GAP] frames. A weapon equipped before its turn loads its model on that equip; the read here is then a cache hit.
 func _models_late() -> void:
 	if _model_paths_next >= _model_paths.size():
 		_models_end()

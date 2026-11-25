@@ -1,26 +1,8 @@
 extends Node
 
-## FC's per-app customisation from Gamespice, on the dedicated server: the app's avatars settings,
-## the earn events that feed the app's points, the balance the HUD shows, and the store items a
-## player equipped. Built by the module on the authority ([code]_build_app[/code] in
-## fc_module_build.gd); a client never builds one and never holds a balance of its own.
-##
-## [b]Every part is off until its operator configures it, and off is quiet:[/b] one log line, no
-## crash, nothing sent.
-## [codeblock]
-## earn events    GSPointsReporter        user://app_points.json, GS_POINTS_*, --points-*
-##                                         (app_id, server_id, private_key_path)
-## settings       GSLoadoutSiteSettings   a backbone client (gs_backbone_client)
-## points, items  GSLoadoutSiteSource     user://app_loadout.json, GS_LOADOUT_*, --loadout-*
-##                                         (no key: follows the site's list; site_public_key_path pins)
-## [/codeblock]
-##
-## [b]No amounts here.[/b] The game names what happened ([constant EVENT_KEYS]); the app's points
-## rules decide what each is worth, its caps, and whether play against bots counts (`vsBot`).
-##
-## [b]Reached by name, not by class.[/b] The web client shell and the server pin older addons that
-## lack these classes, and a script naming one does not compile there (fc_newer_api.gd). So every
-## new addon class is looked up at run time, and a build without one leaves that part off.
+## FC's per-app customisation from Gamespice, on the dedicated server: the app's avatars settings, the earn events that feed its points, the balance the HUD shows, and the store items a player equipped. Built by the module on the authority (`_build_app` in fc_module_build.gd); a client never builds one. Every part is off until its operator configures it (user://app_points.json, GS_POINTS_*; user://app_loadout.json, GS_LOADOUT_*), and off is quiet: one log line, no crash, nothing sent.
+## No amounts here: the game names what happened ([constant EVENT_KEYS]); the app's points rules decide what each is worth, its caps, and whether play against bots counts (`vsBot`).
+## Reached by name, not by class: the web client shell and the server pin older addons that lack these classes, so every new addon class is looked up at run time (fc_newer_api.gd) and a build without one leaves that part off.
 
 const FcNewerApi := preload("fc_newer_api.gd")
 const FcLoadoutIdentity := preload("fc_loadout_identity.gd")
@@ -32,12 +14,9 @@ const CHANNEL := &"arena.app"
 const POINTS_CONFIG_PATH := "user://app_points.json"
 const LOADOUT_CONFIG_PATH := "user://app_loadout.json"
 
-## The earn events FC reports, one per player per moment (count 1). The keys are the contract with
-## the app's points rules (`eventKey`); append, never rename. See docs/services.md.
-## kill       killed an opponent (not themself, not a team mate); meta.vsBot when the victim is a bot
-## headshot   that kill was a headshot (sent beside `kill`)
-## round_win  on the winning side (or the leader, in a free-for-all) when a round ended
-## match_win  the same when the match ended
+## The earn events FC reports, one per player per moment (count 1); the keys are the contract with the app's points rules (`eventKey`): append, never rename (docs/services.md).
+## kill (an opponent, not themself or a team mate; meta.vsBot when the victim is a bot), headshot (that kill, sent beside `kill`),
+## round_win (winning side, or the leader in a free-for-all, when a round ended), match_win (the same when the match ended).
 const EVENT_KILL := "kill"
 const EVENT_HEADSHOT := "headshot"
 const EVENT_ROUND_WIN := "round_win"
@@ -108,7 +87,7 @@ func _exit_tree() -> void:
 		reporter.call(&"flush")
 
 
-# --- Earn events ---------------------------------------------------------------------
+# Earn events
 
 func _setup_reporter(cfg: Object) -> void:
 	var script := FcNewerApi.script_of(&"GSPointsReporter")
@@ -249,7 +228,7 @@ func _won(player_id: int, winner: int) -> bool:
 	return leader != null and String(leader.get(&"key")) == str(player_id)
 
 
-# --- Avatars settings ------------------------------------------------------------------
+# Avatars settings
 
 func _loadout_config() -> GSLoadoutConfig:
 	var cfg := GSLoadoutConfig.new()
@@ -280,10 +259,8 @@ func _on_section_changed(section: String, values: Dictionary, _version: int) -> 
 		apply_avatars(values)
 
 
-## Applies the app's `avatars` section. `appOnly` forces every side into its team body (the
-## `team_avatars` rule, put back when it goes off), and the `team:<name>:a` / `:b` slots bind an
-## avatar to each side by its place in the config's `team_bodies`. A slot or an avatar FC has no
-## place for is logged once and ignored. Returns the rules it set.
+## Applies the app's `avatars` section. `appOnly` forces every side into its team body (the `team_avatars` rule, put back when it goes off), and the `team:<name>:a` / `:b` slots bind an avatar to each side by its place in the config's `team_bodies`.
+## A slot or an avatar FC has no place for is logged once and ignored. Returns the rules it set.
 func apply_avatars(values: Dictionary) -> Dictionary:
 	var rules := {}
 	if bool(values.get("appOnly", false)):
@@ -333,7 +310,7 @@ func _body_ids() -> PackedStringArray:
 	return out
 
 
-# --- Points and store items ------------------------------------------------------------
+# Points and store items
 
 func _setup_site(cfg: Object) -> void:
 	var script := FcNewerApi.script_of(&"GSLoadoutSiteSource")

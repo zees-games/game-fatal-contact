@@ -1,9 +1,7 @@
 extends Node
 
-## Every weapon model dropped onto a stair run under many RNG seeds: time until it rests, within the bound the drop rules give
-## (sv_weapon_drop_settle_max per fall, sv_weapon_drop_refall_max falls again). SEEDS=n sets the seed count; VERBOSE=1 prints every check.
-## Deterministic: each seed seeds the drops' own stream (randomized otherwise); time is physics ticks, not the wall clock.
-## Run: [code]godot --headless --path . res://examples/headless_weapondrop_settle.tscn[/code].
+## Every weapon model dropped onto a stair run under many RNG seeds: time until it rests, within the bound the drop rules give (sv_weapon_drop_settle_max per fall, sv_weapon_drop_refall_max falls again). SEEDS=n sets the seed count; VERBOSE=1 prints every check.
+## Deterministic: each seed seeds the drops' own stream (randomized otherwise); time is physics ticks, not the wall clock. Run: [code]godot --headless --path . res://examples/headless_weapondrop_settle.tscn[/code].
 
 const FcWeaponRoles := preload("../game/fc_weapon_roles.gd")
 ## Support-check period (a rest may be woken by it) and the ticks a forced rest is grounded for.

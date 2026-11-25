@@ -1,8 +1,6 @@
 extends Control
-## The medals of the followed player's last kills: icon, name, scale in, hold, fade. Its own file
-## (it was an inner class of fc_hud_base.gd) because the HUD's functions named it, and an outer
-## script naming its inner class from a function body made the parser depend on itself: a cycle
-## GDScript never frees (CI perf-smoke mem_mb). The HUD reaches it as `MedalRow`.
+## The medals of the followed player's last kills: icon, name, scale in, hold, fade. Its own file because the HUD's functions named it, and an outer script naming its inner class from a function body made the parser depend on itself:
+## a cycle GDScript never frees (CI perf-smoke mem_mb). The HUD reaches it as `MedalRow`.
 
 const FcAwards := preload("fc_awards.gd")
 const FcHudGlance := preload("fc_hud_glance.gd")

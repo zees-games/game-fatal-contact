@@ -38,12 +38,9 @@ func _idle_still() -> bool:
 	return _posture_tick - hurt > ceili(GSWeaponAccuracyClass.FLINCH_SEC * float(rate))
 
 
-## [method _idle_posture] as the packed row of [method AwWeaponRig.simulate_idle_row] ([code][speed, airborne, crouched,
-## aiming, sliding, sprinting, wall_running, tick, hurt_tick][/code], aiming never set there), written into
-## [member _posture_row], with [method _idle_still]'s answer returned: one read of the controller state for both.
-## Needs a controller (the caller checks). gs-sim's [code]GSSimPlayerPost[/code] answers it where the library has it
-## (bit for bit: [code]headless_posture_native_parity[/code]); [method _idle_row_script] is the fallback (web without the
-## library, [member posture_native] off).
+## [method _idle_posture] as the packed row of [method AwWeaponRig.simulate_idle_row] ([code][speed, airborne, crouched, aiming, sliding, sprinting, wall_running, tick, hurt_tick][/code], aiming never set there), written into [member _posture_row], with [method _idle_still]'s answer returned: one read of the controller state for both.
+## Needs a controller (the caller checks). gs-sim's [code]GSSimPlayerPost[/code] answers it where the library has it (bit for bit: [code]headless_posture_native_parity[/code]);
+## [method _idle_row_script] is the fallback (web without the library, [member posture_native] off).
 func _idle_row() -> bool:
 	if posture_native and _post_native():
 		var state := controller.state
@@ -71,11 +68,8 @@ static func make_native_post() -> Object:
 	return post
 
 
-## The input row of [code]GSSimPlayerPost.run_rows[/code] for this player, 10 floats at [param at] in [param into],
-## after [method tick_post_head] answered true. [param batch] (a [GSFpsMotorBatch] with [code]post_row[/code], API 34, or
-## null) and [param row] are the batched loop's motor row: its
-## first 7 columns come from the batch's answer ([method GSFpsMotorBatch.post_row]) unless something after the motor
-## moved the state ([member _post_moved]); else from the state. With [member posture_verify] the row is checked here.
+## The input row of [code]GSSimPlayerPost.run_rows[/code] for this player, 10 floats at [param at] in [param into], after [method tick_post_head] answered true. [param batch] (a [GSFpsMotorBatch] with [code]post_row[/code], API 34, or null) and [param row] are the batched loop's motor row:
+## its first 7 columns come from the batch's answer ([method GSFpsMotorBatch.post_row]) unless something after the motor moved the state ([member _post_moved]); else from the state. With [member posture_verify] the row is checked here.
 func post_input(into: PackedFloat64Array, at: int, batch: Object, row: int) -> void:
 	var state := controller.state
 	if row < 0 or _post_moved or batch == null:

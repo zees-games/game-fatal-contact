@@ -5,12 +5,8 @@ const FcMaps := preload("../game/fc_maps.gd")
 const FcModes := preload("../game/fc_modes.gd")
 const FcServer := preload("../game/fc_server.gd")
 
-## Every way Fatal Contact's map changes takes ONE path, the module's map director (sync host, FC's state reset,
-## `map_changed`, which applies the map config, the map list's `mode:`/`cfg:` and a pending `fc_mode`):
-## `map`, `fc_map`, the rotation's next map, and a host's startup map (gs-server-deploy's `map:` in server.yml,
-## which looks for `change_to` under `server.games`, where the game scene is and the module is not).
-## And `fc_mode` is a cvar that refuses an unknown id, listing the valid ones, and waits for a map that can host it.
-## Run `./game.sh test headless_map_path`.
+## Every way Fatal Contact's map changes takes ONE path, the module's map director (sync host, FC's state reset, `map_changed`, which applies the map config, the map list's `mode:`/`cfg:` and a pending `fc_mode`): `map`, `fc_map`, the rotation's next map, and a host's startup map (gs-server-deploy's `map:` in server.yml).
+## And `fc_mode` is a cvar that refuses an unknown id, listing the valid ones, and waits for a map that can host it. Run `./game.sh test headless_map_path`.
 
 var PORT := FcTestPorts.free_port()
 const SERVER_DIR := "user://fc_map_path"

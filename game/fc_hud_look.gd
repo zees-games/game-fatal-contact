@@ -1,8 +1,6 @@
 extends RefCounted
-## How the FC HUD feedback is drawn: fonts, icons, colours, outlined text. Its own file (it was an
-## inner class of fc_hud_base.gd) because the HUD's own functions called it, and an outer script
-## naming its inner class from a function body made the parser depend on itself: a cycle GDScript
-## never frees (CI perf-smoke mem_mb). The HUD and its widgets reach it as `Look`.
+## How the FC HUD feedback is drawn: fonts, icons, colours, outlined text. Its own file because the HUD's own functions called it, and an outer script naming its inner class from a function body made the parser depend on itself:
+## a cycle GDScript never frees (CI perf-smoke mem_mb). The HUD and its widgets reach it as `Look`.
 
 const FcAwards := preload("fc_awards.gd")
 const FcHudGlance := preload("fc_hud_glance.gd")

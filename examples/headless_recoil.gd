@@ -204,10 +204,8 @@ func _angles(dir: Vector3) -> Vector2:
 	return Vector2(rad_to_deg(asin(clampf(dir.y, -1.0, 1.0))), rad_to_deg(atan2(-dir.x, -dir.z)))
 
 
-## The owner's footage (fc-hitreg-vertical-1): in a held rifle burst the bullets landed on the chest with the crosshair on
-## the legs. The crosshair is the camera's centre, so the camera's recoil must be the server's bullet offset at every
-## shot. The view drew only 70% of the climb and left the rest to the weapon pose's spring, which is a transient and
-## not the pattern, so a long burst put the bullets about a degree above and beside where the player was looking.
+## The owner's footage (fc-hitreg-vertical-1): in a held rifle burst the bullets landed on the chest with the crosshair on the legs. The crosshair is the camera's centre, so the camera's recoil must be the server's bullet offset at every shot:
+## the view must draw the whole climb, not 70% of it with the rest left to the weapon pose's spring (a transient, not the pattern).
 func _test_crosshair() -> void:
 	_entered += 1
 	print("== the crosshair is where a held burst's bullets go")

@@ -129,10 +129,8 @@ static var sight_far_reuse: float = 0.15
 static var _sight_lod_split := -1
 
 
-## The sight LOD distance the brains get this tick: [member sight_far], or 0 (off) on a gs_sim whose bot mind has no
-## sight LOD. A brain with a native mind perceives and caches sight there without the LOD, while a brain in script
-## (every brain on a worker thread when gs_sim cannot think there, cvar `bot_threads`) holds far bodies unseen: the
-## two would see different bots and play a different match (dm-morpheus at 16 bots, threads 0 vs 4, 2026-11-17).
+## The sight LOD distance the brains get this tick: [member sight_far], or 0 (off) on a gs_sim whose bot mind has no sight LOD. A brain with a native mind perceives and caches sight there without the LOD, while a brain in script
+## (every brain on a worker thread when gs_sim cannot think there, cvar `bot_threads`) holds far bodies unseen: the two would see different bots and play a different match (dm-morpheus at 16 bots, threads 0 vs 4).
 static func sight_far_now() -> float:
 	if _sight_lod_split < 0:
 		_sight_lod_split = 1 if ClassDB.class_exists(&"GSSimBotMind") and not ClassDB.class_has_method(&"GSSimBotMind", &"sight_cached_far") else 0

@@ -1,17 +1,8 @@
 extends RefCounted
 
-## FC's team avatars: in a team mode every player on a side is drawn as that side's own body
-## (gs-player-char's registered bodies, `GSHumanoidAssets.register_body`), tinted the side's colour.
-##
-## The bodies are other people's art prepared on the kit rig (gs-player-char docs/avatar-prep.md) and are
-## not in this repository: they come from the fc-player-classes pack (a store entry in content.lock.json,
-## fetched into `res://assets/team_bodies` by `./fetch-content.sh`/gs-bootstrap). Each is a `<id>.glb`
-## (web builds take the `<id>.webp.glb` the pack ships for them) in one of [member FcConfig.team_body_dirs],
-## registered the first time a look asks. A side whose body is missing, a free-for-all, or the server's
-## `team_avatars` rule at 0 draw each player's own look ([method FcAvatars.look_of]), the library people.
-##
-## Static, like the name tags' rules: the client follows the server's rules and sides once a frame
-## ([method follow]) and every look built after asks here, the own view's arms and the portraits included.
+## FC's team avatars: in a team mode every player on a side is drawn as that side's own body (gs-player-char's registered bodies, `GSHumanoidAssets.register_body`), tinted the side's colour.
+## The bodies are other people's art prepared on the kit rig (gs-player-char docs/avatar-prep.md) and are not in this repository: they come from the fc-player-classes pack (a store entry in content.lock.json, fetched into `res://assets/team_bodies` by `./fetch-content.sh`/gs-bootstrap). Each is a `<id>.glb` (web builds take the `<id>.webp.glb` the pack ships for them) in one of [member FcConfig.team_body_dirs], registered the first time a look asks. A side whose body is missing, a free-for-all, or the server's `team_avatars` rule at 0 draw each player's own look ([method FcAvatars.look_of]), the library people.
+## Static, like the name tags' rules: the client follows the server's rules and sides once a frame ([method follow]) and every look built after asks here, the own view's arms and the portraits included.
 
 const FcAvatars := preload("fc_avatars.gd")
 const FcNewerApi := preload("fc_newer_api.gd")
@@ -22,10 +13,9 @@ const BODIES_LEVEL := 26
 
 const CHANNEL := &"arena.team_bodies"
 
-## The pack the bodies come from and the folder a client mounts it in. A desktop checkout has the files fetched into
-## `res://assets/team_bodies` (content.lock.json); the packed game, the web build and the shell have no such folder
-## (the pack leaves `team_bodies` out), so [method _fetch_pack] fetches this pack through gs-cloud at runtime. Keep
-## [constant PACK_VERSION] equal to the content.lock.json pin (headless_presentation checks it).
+## The pack the bodies come from and the folder a client mounts it in. A desktop checkout has the files fetched into `res://assets/team_bodies` (content.lock.json); the packed game, the web build and
+## the shell have no such folder (the pack leaves `team_bodies` out), so [method _fetch_pack] fetches this pack through gs-cloud at runtime. Keep [constant PACK_VERSION] equal to the content.lock.json
+## pin (headless_presentation checks it).
 const PACK_ID := &"gamemann/fc-player-classes"
 const PACK_VERSION := "0.1.0"
 const PACK_MOUNT := "res://gs_cloud/gamemann/fc-player-classes/0.1.0"
@@ -166,10 +156,8 @@ static func follow(game: Object) -> void:
 		version += 1
 
 
-## Which registered body (index into the config's `team_bodies`) the [param at]th playing side wears:
-## the server's `team_body_a` / `team_body_b` rule when the app's avatars settings bound one
-## (`FcAppWiring`), else the side's own place in the list. A rule past the list is logged by the
-## server when it is set and draws the side's own looks here.
+## Which registered body (index into the config's `team_bodies`) the [param at]th playing side wears: the server's `team_body_a` / `team_body_b` rule when the app's avatars settings bound one
+## (`FcAppWiring`), else the side's own place in the list. A rule past the list is logged by the server when it is set and draws the side's own looks here.
 static func _pick(game: Object, at: int) -> int:
 	if at < SIDE_RULES.size():
 		var bound := int(float(game.call(&"rule", SIDE_RULES[at])))

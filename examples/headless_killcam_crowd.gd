@@ -14,11 +14,9 @@ const RECORD_TOLERANCE_M := 0.6
 ## A body that moved more than this between two of our samples respawned or teleported: not compared.
 const JUMP_M := 1.5
 
-## The kill view and the final killcam replay from rows recorded as the match runs. With many bots,
-## a kill view used to record the bodies it had posed from history as where they were now (the remote
-## LOD skips presenting most of them each frame), so the next replay drew bodies seconds out of place.
-## Every bot's tick position is kept here as the authority, every recorded row is checked against it,
-## and every body a replay poses is checked against the row it was posed from.
+## The kill view and the final killcam replay from rows recorded as the match runs. With many bots, a recorded row must be where the body was then
+## (the remote LOD skips presenting most of them each frame), not where it was last posed. Every bot's tick position is kept here as the authority,
+## every recorded row is checked against it, and every body a replay poses is checked against the row it was posed from.
 var _client: Node = null
 var _host: Node = null
 var _game: Object = null

@@ -9,7 +9,7 @@ const CHANNEL := &"fc.scope"
 const FULL_SCOPE := 2
 
 ## On everywhere. Off, the lens view hides the gun and arms and draws only a flat circle: on the web build (where it was
-## off) a scoped sniper showed a lens over nothing (2026-11-22).
+## off) a scoped sniper showed a lens over nothing.
 static var body := default_body(OS.has_feature("web"))
 
 ## Scope styles already reported as having no ocular, so the warning prints once per weapon, not every frame.
@@ -21,10 +21,9 @@ static func default_body(_web: bool) -> bool:
 	return true
 
 
-## Gives [param model] this machine's scope-body choice; a view model without the setting (an older fc-weapons) is left alone.
-## A scoped lens view that wants the body but cannot draw it (the weapon's own scope style has no `ocular`: a 6x Scope
-## attachment on a gun that has no scope of its own) would hide the gun and arms behind a bare lens circle, so that view
-## is the full-screen scope instead (logged once per style at info level: it is the design, not a fault).
+## Gives [param model] this machine's scope-body choice; a view model without the setting (an older fc-weapons) is left alone. A scoped lens view that wants the body but cannot draw it (the weapon's
+## own scope style has no `ocular`: a 6x Scope attachment on a gun that has no scope of its own) would hide the gun and arms behind a bare lens circle, so that view is the full-screen scope instead
+## (logged once per style at info level: it is the design, not a fault).
 static func apply(model: Object) -> void:
 	if model == null or not &"scope_body" in model:
 		return

@@ -376,10 +376,8 @@ static func from_site(foreign: GSAvatar) -> GSAvatar:
 	return avatar
 
 
-## The letter of the site's skin in [param slot] of its `builtin` document, or "".
-##
-## The site's avatar is the Kenney kit's eighteen painted skins, `skin-a` to `skin-r`,
-## chosen per face, top and legs — the same atlases this game draws, spelt the site's way.
+## The letter of the site's skin in [param slot] of its `builtin` document, or "". The site's avatar is the Kenney kit's eighteen painted skins, `skin-a` to `skin-r`,
+## chosen per face, top and legs: the same atlases this game draws, spelt the site's way.
 static func _site_skin(foreign: GSAvatar, slot: StringName) -> String:
 	if foreign == null or foreign.schema_id != &"builtin":
 		return ""

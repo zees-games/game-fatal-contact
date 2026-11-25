@@ -52,10 +52,9 @@ func _ready() -> void:
 	game.name = "Game"
 	game.is_authority = true
 	game.stats_file = "user://arena_stats.json"
-	# HEADLESS: analytic geometry from the box list rather than a physics space. Not a
-	# degraded mode — it is exact, it needs no physics server, and it gives the same
-	# answer as a client replaying the same tick, which is what makes reconciliation
-	# converge at all.
+	# HEADLESS: analytic geometry from the box list rather than a physics space. Not a degraded mode — it is
+	# exact, it needs no physics server, and it gives the same answer as a client replaying the same tick, which
+	# is what makes reconciliation converge at all.
 	game.headless = true
 	game.tick_rate = host_tick_rate()
 
@@ -163,7 +162,7 @@ func delivered_ids() -> Array[StringName]:
 	return out
 
 
-# --- The map changer a host finds under server.games -------------------------
+# The map changer a host finds under server.games
 #
 # gs-server-deploy starts a server on `map:` (server.yml) / `--map` by searching `server.games` for the first node with
 # `change_to` + `change_to_map` (and `ensure_map_content` for the fetch). FC's director lives with its module under

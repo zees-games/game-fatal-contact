@@ -1,10 +1,7 @@
 extends GSGameCheckSuite
 
-## Walking into walls never snaps the first-person view. A wall-dense map (brick walls, steps) with the
-## auto wall run on touched a wall in the air and turned the view along it, up to 180 degrees each
-## time (nightly fc-native-via-gs-app-1: the camera "spazzed", the yaw jumping tens of degrees every
-## ~0.1 s). The probe drives a jumping player through a field of walls at many headings and records
-## every `view_turn` the motor asks the camera for and the wall-run starts.
+## Walking into walls never snaps the first-person view. A wall-dense map (brick walls, steps) with the auto wall run on touched a wall in the air and turned the view along it, up to 180 degrees each time (nightly fc-native-via-gs-app-1).
+## The probe drives a jumping player through a field of walls at many headings and records every `view_turn` the motor asks the camera for and the wall-run starts.
 
 const FcPlayer := preload("../game/fc_player.gd")
 const STEP := 1.0 / 66.0

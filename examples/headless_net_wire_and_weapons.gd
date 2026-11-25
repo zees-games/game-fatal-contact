@@ -289,8 +289,8 @@ func _test_replays_are_silent(own: FcPlayerNet) -> void:
 	)
 
 	# The clock snapping back: fresh ticks below the newest one simulated. Taken for
-	# replays, they held the rig and the weapon's signals until the clock caught up (the
-	# 2026-11-18 footage's thrown knife left in the hand).
+	# replays, they held the rig and the weapon's signals until the clock caught up (a
+	# thrown knife stayed in the hand).
 	_check(own.get(&"net_replaying") != null, "gs-net says which ticks are replays (API 23)")
 	for i in range(TICK_RATE):
 		t += 1

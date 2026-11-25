@@ -29,10 +29,9 @@ var net_aoi: FcNetAoi = null
 var team_menu: RefCounted = null
 
 
-## cvar -> the movement tunable it sets, with what it means. Each defaults to what
-## `FcPlayer.fc_tunables()` already says, so a server that sets none of them plays
-## exactly as before; a change reaches every player now and later and, through RULES,
-## every client, so a client never predicts a slide the server does not make.
+## cvar -> the movement tunable it sets, with what it means. Each defaults to what `FcPlayer.fc_tunables()`
+## already says, so a server that sets none of them plays exactly as before; a change reaches every player now
+## and later and, through RULES, every client, so a client never predicts a slide the server does not make.
 const _OTHER_MOVEMENT_CVARS := {
 	"fc_speed_scale": ["speed_scale", "Multiplier on every ground speed, 1 as set (a server-wide slowdown or speed-up)"],
 	"fc_run_speed": ["max_speed", "Running speed, m/s"],

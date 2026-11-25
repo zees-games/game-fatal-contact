@@ -73,10 +73,8 @@ static func clear_eye(space: PhysicsDirectSpaceState3D, eye: Vector3, forward: V
 	return step_out(space, eye, f, mask, placed)
 
 
-## An eye sunk in a solid sideways or deeper than [constant CLEAR_BACK] (a recording that cut a corner, a body
-## pressed into a wall): the nearest clear spot around it, behind the eye first, then the sides, then above, out to
-## [constant CLEAR_STEP_OUT] metres; [param fallback] when nothing that near is clear. Only runs when the swept lens
-## is still inside, so a clear eye costs nothing more.
+## An eye sunk in a solid sideways or deeper than [constant CLEAR_BACK] (a recording that cut a corner, a body pressed into a wall): the nearest clear spot around it, behind the eye first, then the sides, then above, out to
+## [constant CLEAR_STEP_OUT] metres; [param fallback] when nothing that near is clear. Only runs when the swept lens is still inside, so a clear eye costs nothing more.
 static func step_out(space: PhysicsDirectSpaceState3D, eye: Vector3, forward: Vector3, mask: int, fallback: Vector3) -> Vector3:
 	var flat := Vector3(forward.x, 0.0, forward.z)
 	flat = flat.normalized() if flat.length() > 0.001 else Vector3.FORWARD

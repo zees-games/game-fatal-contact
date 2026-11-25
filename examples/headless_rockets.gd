@@ -9,15 +9,8 @@ const FcRocketJump := preload("../game/fc_rocket_jump.gd")
 const FcProjectileView := preload("../game/fc_projectile_view.gd")
 const FcProjectiles := preload("../game/fc_projectiles.gd")
 
-## The launchers and grenades of fc-weapons level 27 through the whole FC game: the single-missile launcher's
-## one-missile tube and bigger blast under `sv_rocket_*`, grenades bouncing off the floor under `sv_grenade_*`
-## (a sticky still sticks), the Rocketjump warhead's damage cut, its blast throwing its own shooter up without
-## hurting them while a plain missile hurts and does not throw, each launcher drawn with its own missile, and
-## the loadout menu's Warhead row.
-##
-## [codeblock]
-## godot --headless --path . res://examples/headless_rockets.tscn
-## [/codeblock]
+## The launchers and grenades of fc-weapons level 27 through the whole FC game: the single-missile launcher's one-missile tube and bigger blast under `sv_rocket_*`, grenades bouncing off the floor under `sv_grenade_*` (a sticky still sticks), the Rocketjump warhead's damage cut and self-throw (a plain missile hurts and does not throw), each launcher drawn with its own missile, and the loadout menu's Warhead row.
+## [codeblock] godot --headless --path . res://examples/headless_rockets.tscn [/codeblock]
 
 const TICK_RATE := 64
 const EXPECTED_SECTIONS := 4

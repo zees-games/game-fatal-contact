@@ -4,10 +4,8 @@ const FcAttach := preload("res://game/fc_attach.gd")
 const FcPlayerNet := preload("res://game/fc_player_net.gd")
 const EXPECTED_CHECKS := 26
 
-## A knife thrown is out of the arsenal until picked up or caught; a death and respawn hands slot 1 back, on the SERVER and on
-## the CLIENT's own predicted arsenal, over a real ENet link (as headless_net_attach). The owner's 2026-11-16 footage showed
-## slot 1 gone from the weapon bar for the rest of the match after a throw, through deaths and respawns. Three throw-and-respawn
-## rounds, so a one-off cannot pass: the client must regain the knife, and its drawn weapon must be one its arsenal carries.
+## A knife thrown is out of the arsenal until picked up or caught; a death and respawn hands slot 1 back, on the SERVER and on the CLIENT's own predicted arsenal, over a real ENet link (as headless_net_attach).
+## Three throw-and-respawn rounds, so a one-off cannot pass: the client must regain the knife, and its drawn weapon must be one its arsenal carries.
 
 
 func _ready() -> void:
@@ -124,7 +122,7 @@ func _body(a: Dictionary) -> bool:
 	return true
 
 
-## The armed client's drawn weapon after its knife leaves the hand: the 2026-11-18 footage kept the knife drawn while the HUD read PISTOL.
+## The armed client's drawn weapon after its knife leaves the hand: it must not stay the knife while the HUD reads PISTOL.
 func _drawn_follows_throw(served: FcPlayer, own: FcPlayerNet, knife: StringName) -> void:
 	_section("the client's drawn weapon follows a throw out of the hand")
 	# This bare client draws nothing; arm it as the game's client does on adoption, so its rig is the LOCAL one that equips.

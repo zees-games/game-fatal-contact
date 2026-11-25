@@ -1,9 +1,7 @@
 extends Node
 
-## The timed stats flush writes the stats file once, not once per player. This flushes 24 players
-## through the addon's write-behind `GSStatsStoreFile` and a write-through one (`write_behind = false`), and
-## asserts no file write on the flush's own frame (none on the main thread per player), one write per flush, the same file, and
-## nothing lost; the achievement autosave gets the same checks.
+## The timed stats flush writes the stats file once, not once per player. This flushes 24 players through the addon's write-behind `GSStatsStoreFile` and a write-through one (`write_behind = false`),
+## and asserts no file write on the flush's own frame (none on the main thread per player), one write per flush, the same file, and nothing lost; the achievement autosave gets the same checks.
 
 const FcAwards := preload("../game/fc_awards.gd")
 const FcAwardStore := preload("../game/fc_award_store.gd")
