@@ -37,7 +37,7 @@ func _add(key: String, t0: int) -> void:
 	_acc[key] = [v[0] + Time.get_ticks_usec() - t0, v[1] + 1]
 
 
-func _run() -> void:
+func _boot() -> void:
 	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)
 	_client.set("offline_bots", BOTS)
@@ -54,6 +54,76 @@ func _run() -> void:
 	await _until(func() -> bool:
 		var me: Object = _client.get("player")
 		return me != null and me.is_alive() and _game.match_node.state == GSMatch.State.LIVE, 120.0)
+
+
+## Times the per-body replay pieces of the kill view at its kill moment, then quits.
+func _bodies_bench(host: Node, kill_at: float) -> void:
+	var Bodies := preload("../game/fc_killcam_bodies.gd")
+	var smp: Dictionary = host.buffer.sample(kill_at + 0.2)
+	var yard: Variant = _client.get("ragdolls")
+	var shots: Variant = host.get("shots") if host.get("shots") != null else _client.get("killcam_shots")
+	var ps: Array = []
+	for id in smp["b"]:
+		var pn: Node = host._player(id)
+		if pn != null:
+			ps.append([pn, smp["a"].get(id, smp["b"][id]), smp["b"][id]])
+	var parts := {"again": 0, "meta": 0, "replay": 0, "get2": 0}
+	for r in 100:
+		for e: Array in ps:
+			var t0 := Time.get_ticks_usec()
+			var again: Array = host.get(&"_again")
+			var _at: float = float((again[0] as Dictionary).get("time", -1.0)) if not again.is_empty() else -1.0
+			parts["again"] += Time.get_ticks_usec() - t0
+			t0 = Time.get_ticks_usec()
+			var _b: Node3D = e[0].get(&"body_mesh")
+			var _h: Node3D = e[0].get(&"held")
+			parts["get2"] += Time.get_ticks_usec() - t0
+			t0 = Time.get_ticks_usec()
+			var _m: Variant = e[0].get_meta(&"zz_bench", 1)
+			e[0].set_meta(&"zz_bench", 1)
+			parts["meta"] += Time.get_ticks_usec() - t0
+			t0 = Time.get_ticks_usec()
+			Bodies.replay_events(e[0], e[1], e[2], smp["alpha"], false, yard, shots, kill_at + 0.2)
+			parts["replay"] += Time.get_ticks_usec() - t0
+	var sh: RefCounted = shots
+	var tk := 0
+	var pl := 0
+	var of := 0
+	var cnt := 0
+	var fx_full := 0
+	for e: Array in ps:
+		var pn: Node = e[0]
+		var t0 := Time.get_ticks_usec()
+		for r in 20:
+			sh._played.clear()
+			var got: Dictionary = sh.take(int(pn.get(&"player_id")), kill_at + 0.2)
+		tk += Time.get_ticks_usec() - t0
+		var held: Node3D = pn.get(&"held")
+		if held == null:
+			continue
+		cnt += 1
+		t0 = Time.get_ticks_usec()
+		for r in 5:
+			held.call(&"on_fired", Vector2(0.6, 0.1), 0, false)
+		of += Time.get_ticks_usec() - t0
+		var t1 := Time.get_ticks_usec()
+		for r in 5:
+			held.call(&"on_fired", Vector2(0.6, 0.1), 0)
+		fx_full += Time.get_ticks_usec() - t1
+		var fake := {"dir": Vector3.FORWARD, "origin": Vector3(0, 1, 0), "serial": 1}
+		t0 = Time.get_ticks_usec()
+		for r in 5:
+			sh.play(fake, pn, 0)
+		pl += Time.get_ticks_usec() - t0
+	print("BENCH on_fired with fx %.2f us" % (fx_full / 5.0 / maxf(cnt, 1)))
+	print("BENCH shots held=%d size=%d: take %.2f us, on_fired(no fx) %.2f us, shots.play %.2f us" % [cnt, sh.shots.size(), tk / 20.0 / ps.size(), of / 5.0 / maxf(cnt, 1), pl / 5.0 / maxf(cnt, 1)])
+	var n := 100.0 * maxf(ps.size(), 1)
+	print("BENCH per body us: again %.2f get2 %.2f meta %.2f replay_events %.2f (%d bodies)" % [parts["again"] / n, parts["get2"] / n, parts["meta"] / n, parts["replay"] / n, ps.size()])
+	get_tree().quit(0)
+
+
+func _run() -> void:
+	await _boot()
 	var host: Node = _client.get("killcam")
 	await _wait(5.0)
 	var me: Object = _client.get("player")
@@ -128,66 +198,4 @@ func _run() -> void:
 	print("BENCH kill view %d frames, _on_moment n=%d avg %.3f ms median %.3f p90 %.3f max %.3f" % [frames, moments.size(), sum / 1000.0 / maxf(moments.size(), 1), moments[moments.size() / 2] / 1000.0, moments[moments.size() * 9 / 10] / 1000.0, moments[-1] / 1000.0])
 	for k: String in _acc:
 		print("BENCH   %s: %.3f ms/frame (%d calls/frame)" % [k, _acc[k][0] / 1000.0 / maxf(moments.size(), 1), _acc[k][1] / maxi(moments.size(), 1)])
-	kill_at = kill_at
-	var Bodies := preload("../game/fc_killcam_bodies.gd")
-	var smp: Dictionary = host.buffer.sample(kill_at + 0.2)
-	var yard: Variant = _client.get("ragdolls")
-	var shots: Variant = host.get("shots") if host.get("shots") != null else _client.get("killcam_shots")
-	var ps: Array = []
-	for id in smp["b"]:
-		var pn: Node = host._player(id)
-		if pn != null:
-			ps.append([pn, smp["a"].get(id, smp["b"][id]), smp["b"][id]])
-	var parts := {"again": 0, "meta": 0, "replay": 0, "get2": 0}
-	for r in 100:
-		for e: Array in ps:
-			var t0 := Time.get_ticks_usec()
-			var again: Array = host.get(&"_again")
-			var _at: float = float((again[0] as Dictionary).get("time", -1.0)) if not again.is_empty() else -1.0
-			parts["again"] += Time.get_ticks_usec() - t0
-			t0 = Time.get_ticks_usec()
-			var _b: Node3D = e[0].get(&"body_mesh")
-			var _h: Node3D = e[0].get(&"held")
-			parts["get2"] += Time.get_ticks_usec() - t0
-			t0 = Time.get_ticks_usec()
-			var _m: Variant = e[0].get_meta(&"zz_bench", 1)
-			e[0].set_meta(&"zz_bench", 1)
-			parts["meta"] += Time.get_ticks_usec() - t0
-			t0 = Time.get_ticks_usec()
-			Bodies.replay_events(e[0], e[1], e[2], smp["alpha"], false, yard, shots, kill_at + 0.2)
-			parts["replay"] += Time.get_ticks_usec() - t0
-	var sh: RefCounted = shots
-	var tk := 0
-	var pl := 0
-	var of := 0
-	var cnt := 0
-	var fx_full := 0
-	for e: Array in ps:
-		var pn: Node = e[0]
-		var t0 := Time.get_ticks_usec()
-		for r in 20:
-			sh._played.clear()
-			var got: Dictionary = sh.take(int(pn.get(&"player_id")), kill_at + 0.2)
-		tk += Time.get_ticks_usec() - t0
-		var held: Node3D = pn.get(&"held")
-		if held == null:
-			continue
-		cnt += 1
-		t0 = Time.get_ticks_usec()
-		for r in 5:
-			held.call(&"on_fired", Vector2(0.6, 0.1), 0, false)
-		of += Time.get_ticks_usec() - t0
-		var t1 := Time.get_ticks_usec()
-		for r in 5:
-			held.call(&"on_fired", Vector2(0.6, 0.1), 0)
-		fx_full += Time.get_ticks_usec() - t1
-		var fake := {"dir": Vector3.FORWARD, "origin": Vector3(0, 1, 0), "serial": 1}
-		t0 = Time.get_ticks_usec()
-		for r in 5:
-			sh.play(fake, pn, 0)
-		pl += Time.get_ticks_usec() - t0
-	print("BENCH on_fired with fx %.2f us" % (fx_full / 5.0 / maxf(cnt, 1)))
-	print("BENCH shots held=%d size=%d: take %.2f us, on_fired(no fx) %.2f us, shots.play %.2f us" % [cnt, sh.shots.size(), tk / 20.0 / ps.size(), of / 5.0 / maxf(cnt, 1), pl / 5.0 / maxf(cnt, 1)])
-	var n := 100.0 * maxf(ps.size(), 1)
-	print("BENCH per body us: again %.2f get2 %.2f meta %.2f replay_events %.2f (%d bodies)" % [parts["again"] / n, parts["get2"] / n, parts["meta"] / n, parts["replay"] / n, ps.size()])
-	get_tree().quit(0)
+	await _bodies_bench(host, kill_at)
