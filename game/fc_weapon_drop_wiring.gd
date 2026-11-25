@@ -119,10 +119,9 @@ static func server_warming(game) -> bool:
 	return game != null and game.weapon_drops != null and not game.weapon_drops.draws and not game.weapon_drops.has_meta(SERVER_WARM)
 
 
-## Whether the world model of weapon [param id] is loaded, or needs no load. Starts its load on a thread when
-## none is running ([param loading] holds the path of the one that is) and answers false until it is done, then
-## collects it into [param held]: the resource cache keeps a model only while something holds it, and the
-## main-thread load that follows then costs nothing. A weapon GLB took 65 to 1200 ms on the main thread of a headless host.
+## Whether weapon [param id]'s world model is loaded or needs none. Starts its load on a thread when none runs ([param loading]),
+## answers false until done, then keeps it in [param held] (the resource cache is weak), so the main-thread load after costs
+## nothing. A weapon GLB took 65 to 1200 ms on the main thread of a headless host.
 static func model_ready(id: Variant, loading: Array, held: Array[Resource]) -> bool:
 	if loading[0] == "":
 		var real := model_path(id)
