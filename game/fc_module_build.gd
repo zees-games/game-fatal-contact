@@ -32,6 +32,10 @@ var mod_commands: GSModToolCommands = null
 ## The authoritative tick. Counted here because the module is what drives it.
 var _tick: int = 0
 
+## Set by the sim host's report: each tick's [code]bridge.server_tick[/code] cost in usec, appended here until it reads and clears them.
+var keep_tick_costs := false
+var tick_costs := PackedInt32Array()
+
 
 ## Binds gs-audio's sv_surf_* cvars with the `surf_*` profile values as their defaults, which every client follows.
 func _bind_surf_cvars(flags: int) -> void:
@@ -474,7 +478,12 @@ func _physics_process(delta: float) -> void:
 	_tick += 1
 	if loading != null:
 		loading.poll_loading()
-	bridge.server_tick(_tick)
+	if keep_tick_costs:
+		var t_tick := Time.get_ticks_usec()
+		bridge.server_tick(_tick)
+		var _n := tick_costs.push_back(Time.get_ticks_usec() - t_tick)
+	else:
+		bridge.server_tick(_tick)
 
 	_since_bot_check += delta
 	if _since_bot_check >= BOT_CHECK_SEC:

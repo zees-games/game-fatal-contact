@@ -33,6 +33,12 @@ var _game: FcGame = null
 var _module: FcModule = null
 ## When the in-game behind line was last said (msec), or -1 while the server keeps its rate.
 var _behind_said_ms := -1
+## Since when (usec) a remote player has been spawned, 0 while none is: a window that began before it is the boot
+## (frames of 100-800 ms for several seconds), which the player never plays through.
+var _playing_since_usec := 0
+## The longest gap between two frames in this report window (usec): a stall outside the tick shows here and not in SIM_HOST_TICK.
+var _frame_at_usec := 0
+var _frame_gap_max_usec := 0
 
 
 func _ready() -> void:
@@ -207,6 +213,10 @@ static func _server_config(port: int, tickrate: int, data: String) -> GSServerCo
 
 
 func _process(delta: float) -> void:
+	var now_usec := Time.get_ticks_usec()
+	if _frame_at_usec > 0:
+		_frame_gap_max_usec = maxi(_frame_gap_max_usec, now_usec - _frame_at_usec)
+	_frame_at_usec = now_usec
 	# A solo client that crashed cannot tell its server to stop: the server ends once its one remote
 	# player is gone for a while, or when none ever came. (A process cannot ask after its parent.)
 	_since_check += delta
@@ -215,6 +225,10 @@ func _process(delta: float) -> void:
 	_alone_sec = 0.0 if _remote_players() > 0 else _alone_sec + _since_check
 	_since_check = 0.0
 	_joined = _joined or _alone_sec == 0.0
+	if not _remote_spawned():
+		_playing_since_usec = 0
+	elif _playing_since_usec == 0:
+		_playing_since_usec = Time.get_ticks_usec()
 	if _alone_sec >= (GONE_SEC if _joined else NEVER_SEC):
 		get_tree().quit(0)
 
@@ -223,6 +237,13 @@ func _physics_process(_delta: float) -> void:
 	var until := Time.get_ticks_usec() + _load_us
 	while Time.get_ticks_usec() < until:
 		pass
+
+
+func _remote_spawned() -> bool:
+	for session: GSClientSession in _server.sessions():
+		if not session.local and session.is_playing():
+			return true
+	return false
 
 
 func _remote_players() -> int:
@@ -236,6 +257,8 @@ func _remote_players() -> int:
 ## Every few seconds, one line: the tick rate held and what a tick cost (gs-net server counters).
 func _report(net: GSNetManager) -> void:
 	var last: Dictionary = net.perf_counters()
+	if _module != null:
+		_module.keep_tick_costs = true
 	var t0 := Time.get_ticks_usec()
 	while is_inside_tree():
 		await get_tree().create_timer(REPORT_SEC).timeout
@@ -250,7 +273,12 @@ func _report(net: GSNetManager) -> void:
 		var behind := behind_line(held, Engine.physics_ticks_per_second, sim_ms)
 		if behind != "":
 			GSLog.warn(CHANNEL, behind)
-		_tell_player(held, Engine.physics_ticks_per_second)
+		if played_through(_playing_since_usec, t0):
+			_tell_player(held, Engine.physics_ticks_per_second)
+		if _module != null:
+			print("%s | frame gap max %.1f ms" % [tick_line(_module.tick_costs, Engine.physics_ticks_per_second), _frame_gap_max_usec / 1000.0])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
+			_module.tick_costs.clear()
+		_frame_gap_max_usec = 0
 		# server_tick's own sections (a gs-net without them reports 0): input before sim, the
 		# still-registered check inside sim, the rewind history record inside send.
 		print("SIM_HOST_NET ms/tick | input %.3f, check %.3f, hist %.3f" % [  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
@@ -264,6 +292,23 @@ func _report(net: GSNetManager) -> void:
 		t0 = Time.get_ticks_usec()
 
 
+## `SIM_HOST_TICK`: the whole server tick's cost per tick in a window ([param costs], usec), p50/p95/max against the budget
+## of [param rate] and how many ticks went over it: a mean hides the spikes that make a tick late.
+static func tick_line(costs: PackedInt32Array, rate: int) -> String:
+	var budget_ms := 1000.0 / maxi(rate, 1)
+	if costs.is_empty():
+		return "SIM_HOST_TICK no ticks | budget %.2f ms" % budget_ms
+	var sorted := costs.duplicate()
+	sorted.sort()
+	var n := sorted.size()
+	var over := 0
+	for c in sorted:
+		if c / 1000.0 > budget_ms:
+			over += 1
+	return "SIM_HOST_TICK ms | p50 %.2f p95 %.2f max %.2f over %d/%d | budget %.2f ms" % [
+		sorted[int(n * 0.5)] / 1000.0, sorted[mini(n - 1, int(n * 0.95))] / 1000.0, sorted[n - 1] / 1000.0, over, n, budget_ms]
+
+
 ## Under this share of its rate a report window says the game ran slower than the clock.
 const BEHIND_SHARE := 0.95
 
@@ -275,6 +320,11 @@ static func behind_line(held: float, rate: int, sim_ms: float) -> String:
 		return ""
 	return "SIM_HOST BEHIND real time: %.1f of %d ticks/s, the game runs at %d%% speed (a tick costs %.1f ms of %.1f); lower solo_tick_tiers or the bots" % [
 		held, rate, roundi(held * 100.0 / rate), sim_ms, 1000.0 / rate]
+
+
+## Whether a report window that began at [param window_from_usec] is one the player played all of: spawned before it began.
+static func played_through(playing_since_usec: int, window_from_usec: int) -> bool:
+	return playing_since_usec > 0 and playing_since_usec <= window_from_usec
 
 
 ## Says in the game, as a server line, that it runs slower than the clock: once as it falls behind, then every

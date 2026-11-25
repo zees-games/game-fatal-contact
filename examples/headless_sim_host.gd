@@ -158,6 +158,16 @@ func _check_tick_tiers() -> void:
 	_check(FcSimServer.notice_due(1000, -1, 60.0) and not FcSimServer.notice_due(30000, 1000, 60.0)
 		and FcSimServer.notice_due(61000, 1000, 60.0), "the player's line is said as it falls behind, then once a minute")
 	_check(FcSimServer.notice_due(6000, 1000, 0.0), "behind_notice_sec 0 says it on every behind report")
+	var costs := PackedInt32Array()
+	for i in 100:
+		var _n := costs.push_back(1000 + i * 10)
+	costs[99] = 40000
+	var tick := FcSimServer.tick_line(costs, 66)
+	_check(tick.contains("p50 1.50") and tick.contains("max 40.00") and tick.contains("over 1/100"),
+		"the tick line has the median, the worst tick and the ticks over the 15 ms budget", tick)
+	_check(FcSimServer.tick_line(PackedInt32Array(), 66).contains("no ticks"), "an empty window says so")
+	_check(not FcSimServer.played_through(0, 5000) and not FcSimServer.played_through(6000, 5000)
+		and FcSimServer.played_through(4000, 5000), "the player hears only of windows they were spawned through, not the boot and load")
 
 
 ## The client is built on the server's map, so its announcement keeps that world instead of rebuilding it.
