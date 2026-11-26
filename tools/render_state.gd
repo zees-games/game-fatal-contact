@@ -183,6 +183,11 @@ static func _group(n: Node) -> String:
 	return "/".join(out) + "|" + n.get_class()
 
 
+## [method _group]'s name for [param n], for tools/draw_census.gd.
+static func group_of(n: Node) -> String:
+	return _group(n)
+
+
 ## Whether [param port]'s picture can be on screen: no hidden CanvasItem or CanvasLayer above it (a CanvasLayer is not a CanvasItem, and a
 ## hidden one hides its TextureRect, so a port under it with UPDATE_WHEN_VISIBLE does not render).
 static func _shown(port: SubViewport) -> bool:
