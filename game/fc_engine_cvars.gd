@@ -71,6 +71,15 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			(GSFpsNetSync as Script).set(&"native_pack", new_value.to_float() >= 0.5))
+	# The controller's direct reads: FcPlayer.body_delta's state columns and, by name (gs-player-controller 44),
+	# GSFpsController.direct_getters for its collider sizing. A no-op on builds without either.
+	add_cvar("ctl_native", "1" if FcPlayer.body_cols else "0",
+		"1: each player's controller reads its packed state columns and engine getters directly (the same values; cheaper per player per tick); 0: through the properties",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			var on := new_value.to_float() >= 0.5
+			FcPlayer.body_cols = on and GSAddonApi.build_level("gs_player_controller") >= 36
+			(GSFpsController as Script).set(&"direct_getters", on))
 
 
 ## The players' hull grid (its fast, native and batched gathers) and the bots' PVS sight pre-cull.
