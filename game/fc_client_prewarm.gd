@@ -18,6 +18,7 @@ func weapon_draws_shots() -> bool:
 ## the explosion in front of the camera (the first shot cost 375-420 ms, the first explosion 95).
 ## How many throwaway people the warm-up builds, so their art and materials are loaded before the first bot.
 const PREWARM_FIGURES := 4
+const DEATH_BURST_SCENE := "res://scenes/fx/death_burst.tscn"
 ## Effects parked for other players' hands: one per seat of a full 16 v 16, and a charge ball for a squad's worth.
 const FX_POOL_SHOTS := 32
 const FX_POOL_CHARGES := 12
@@ -78,6 +79,8 @@ func _prewarm_phase3(tick_start: int) -> void:
 		person.build(FcAvatars.look_of(FcAvatars.stock_avatar(key), key), 1.8)
 		# The skin arrays a death reads, read now so the first death per model is not the one that pays (8.1 to 2.6 ms).
 		GSSkinSurfaces.warm(person)
+		# Drawn, not only built: the first bot's and the first killer's skins compiled on first sight.
+		gate.warm_up(GSRenderWarmup.collect(person))
 		host.queue_free()
 		_step_mark("figure %d" % int(_warm.get("figures", 0)), figure_began)
 		_warm.figures = int(_warm.get("figures", 0)) + 1
@@ -404,11 +407,20 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 		if ragdolls != null:
 			ragdolls.prewarm()
 	else:
-		what = "explosion, impact spark"
+		what = "explosion, impact spark, death burst, hurt flash"
 		if presentation != null and presentation.fx != null:
 			var cam: Transform3D = body.camera.global_transform
 			var at := Transform3D(Basis.IDENTITY, cam.origin - cam.basis.z * 6.0)
-			presentation.fx.warm([FcPresentation.EXPLOSION, &"impact_spark"], at)
+			# The first death and the first stomp compiled their effects mid-match (death frame 1.1-1.35 s on staging02).
+			presentation.fx.warm([FcPresentation.EXPLOSION, &"impact_spark", &"death_burst", &"stomp_puff"], at)
+		# The burst's mist and drops drawn whatever the quality gate lets spawn, and the hurt overlay's shader.
+		var burst: PackedScene = load(DEATH_BURST_SCENE) if ResourceLoader.exists(DEATH_BURST_SCENE) else null
+		if burst != null:
+			var made := burst.instantiate()
+			gate.warm_up(GSRenderWarmup.collect(made))
+			made.free()
+		if hud != null and hud.has_method(&"warm_hurt"):
+			hud.call(&"warm_hurt")
 	_step_mark(what, began)
 	return true
 
