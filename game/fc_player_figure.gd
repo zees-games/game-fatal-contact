@@ -1,6 +1,56 @@
 @tool
 extends "fc_player_build.gd"
 
+const FcNewerApi := preload("fc_newer_api.gd")
+## gs-player-char's first level with `GSHumanoidFigureBatch`.
+const FIGURE_BATCH_LEVEL := 50
+
+## `cl_figure_batch`: 1 steps every body's figure of a frame in one `GSHumanoidFigureBatch.animate_all` (one native restore,
+## upper and lower call for them all) between [method open_figure_batch] and [method close_figure_batch]; 0, or a
+## gs-player-char before [constant FIGURE_BATCH_LEVEL], steps each figure where its body presents. The same poses either way.
+static var figure_batch := true
+static var _batch_script: Script = null
+static var _batch_open := false
+static var _batch_figures: Array = []
+static var _batch_speeds := PackedFloat64Array()
+static var _batch_deltas := PackedFloat64Array()
+
+
+## Starts queueing the figure steps of this frame's presents (with [member figure_batch] and a gs-player-char that has it).
+static func open_figure_batch() -> void:
+	if figure_batch and _batch_script == null and GSAddonApi.build_level("gs_player_char") >= FIGURE_BATCH_LEVEL:
+		_batch_script = FcNewerApi.script_of(&"GSHumanoidFigureBatch")
+	_batch_open = figure_batch and _batch_script != null
+
+
+## Steps every figure queued since [method open_figure_batch] in one batch, each with its own speed and delta.
+static func close_figure_batch() -> void:
+	if not _batch_open:
+		return
+	_batch_open = false
+	# A body rebuilt or freed after its present queued the figure it had then.
+	for i in range(_batch_figures.size() - 1, -1, -1):
+		if not is_instance_valid(_batch_figures[i]):
+			_batch_figures.remove_at(i)
+			_batch_speeds.remove_at(i)
+			_batch_deltas.remove_at(i)
+	if _batch_figures.is_empty():
+		return
+	_batch_script.call(&"animate_all", _batch_figures, _batch_speeds, _batch_deltas)
+	_batch_figures.clear()
+	_batch_speeds.resize(0)
+	_batch_deltas.resize(0)
+
+
+## [method GSHumanoidFigure.animate] now, or queued for [method close_figure_batch] while a batch is open.
+func _step_figure(speed: float, delta: float) -> void:
+	if not _batch_open:
+		figure.animate(speed, delta)
+		return
+	_batch_figures.append(figure)
+	_batch_speeds.append(speed)
+	_batch_deltas.append(delta)
+
 ## Tells the person how this player moves, and advances its clip. Client side. [b]From the drawn state[/b], the same one the body is placed from, so the stride matches the ground covered this frame.
 ## The weapon kind picks the arms: a gun, a melee weapon (a swing plays the slash over the legs), or empty hands.
 func _animate_figure(drawn: GSFpsState, delta: float) -> void:
@@ -52,7 +102,7 @@ func _animate_figure(drawn: GSFpsState, delta: float) -> void:
 	_figure_fire_seq = seq
 
 	_animate_windup()
-	figure.animate(Vector2(v.x, v.z).length(), delta)
+	_step_figure(Vector2(v.x, v.z).length(), delta)
 
 
 ## The knife throw's wind-up on the figure and the view model, and the release when it ends with the knife away
