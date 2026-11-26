@@ -150,7 +150,7 @@ func _still(drawn: GSFpsState, delta: float) -> bool:
 ## Probe only: the remote half of [method present] with the parts [member present_ablate] names left out.
 func _ablated_present(drawn: GSFpsState, delta: float) -> void:
 	if held != null and (present_ablate & 4) != 0:
-		held.set_process(false)
+		held.set_ticking(false)
 	if (present_ablate & 8) == 0:
 		_pose_body(drawn, drawn.yaw, delta)
 		_present_health_tag(delta)
@@ -299,7 +299,7 @@ func _set_beyond_figure(far: bool) -> void:
 func _set_held_lod(thin: bool) -> void:
 	if held != null and thin != _held_thin:
 		_held_thin = thin
-		held.set_process(not thin)
+		held.set_ticking(not thin)
 
 ## The wall-run lean as drawn this frame, in degrees (positive leans left). For a check
 ## and for the frame-sequence render.

@@ -88,7 +88,7 @@ func _apply(variant: String) -> void:
 	if variant in ["default", "before", "off8", "full", "nogate"]:
 		for p: FcPlayer in _client.game.players():
 			if p.held != null:
-				p.held.set_process(true)
+				p.held.set_ticking(true)
 
 
 func _frames_for(seconds: float) -> void:

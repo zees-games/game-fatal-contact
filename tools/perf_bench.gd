@@ -14,7 +14,7 @@ const FcNpcs := preload("../game/fc_npcs.gd")
 const RenderState := preload("render_state.gd")
 
 ## The 16v16 benchmark: gs-game's GSGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--pilot-view sweep` (the pilot's look turns through the whole compass instead of swaying on one wall: the owner's draw counts need it), `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--brain-us 1` (GSBotBrain.think phases, as brain.bb_*), `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: gs-player-char's ragdoll bone pose in gs-sim (GSSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: gs-bot's native mind (GSSimBotMind: aim, fight step, perception) off or on; without the gs-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
-## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (gs-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
+## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--world-shadow 0|1`, `--world-shadow-cell M` (r_world_shadow, r_world_shadow_cell), `--central-tick 0|1` (cl_held_central_tick), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender). `--first-use 1` (gs-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
 ## `--first-use-only a,b` for some ids; rows also: hit, kill, death, `reload ID` (`--first-use-reload 0` skips), a thrown weapon's shot over `--first-use-thrown-frames N` frames (default 240: the fuse and blast), `npc ID` and `npc kill ID` with a horde mode such as `--mode siege`); `--prewarm 0` skips the client's weapon warm-up, so `--ab DIR DIR::--prewarm 0 -- --first-use 1` prices it. `--proc-split 1`: the process phase split by wall clock and a census of what processes (tools/proc_split.gd); `--present-ablate N` (FcPlayer.present_ablate bits: 1 no figure animation, 2 no held, 4 held not processing, 8 no pose); `--proc-ablate a,b --proc-slice N` (with --proc-split 1): each named group off for slices of N frames (default 40) between base slices, its ms/frame against them (tools/proc_slices.gd lists the groups; `own:<script>` / `sub:<script>` for one script's nodes). `--script-top N`: the N GDScript functions with the most self time in the report's script_functions (gs-profiler's profiler_script_top); needs the engine started with -d, which slows scripts, so read shares, not ms. `--lazy-models 1`: the client defers the models of weapons nobody carries until after the cover, as the web build does (FcClient defer_models_everywhere), and the bench does not read them all ahead, so `--first-use 1` prices those first equips. `--warm-list 1`: after the first-use rows, a `WARM_LIST <path>` line for every script loaded so far that the cover warms anyway (GSCloudSliceLoader.cached_scripts; pack scripts and addon classes; tools/record_warm_list.sh turns them into warm.txt).
 
 var _pilot := true
@@ -47,6 +47,16 @@ func _configure() -> void:
 	mode = "ctf"
 	preload("../game/fc_weapon_roles.gd").ensure()
 	var _scratch := FcPresentation.use_scratch_settings("perf_bench")
+
+
+## `--world-shadow`, `--world-shadow-cell`, `--central-tick`: FcRenderCvars' values, pushed before the map is drawn.
+func _render_cvar_flags() -> void:
+	var rc := preload("../game/fc_render_cvars.gd")
+	rc.world_shadow = int(args.get("world-shadow", 1 if rc.world_shadow else 0)) != 0
+	rc.world_shadow_cell = float(args.get("world-shadow-cell", rc.world_shadow_cell))
+	rc.held_central_tick = int(args.get("central-tick", 1 if rc.held_central_tick else 0)) != 0
+	rc.apply()
+	say("world shadow %s cell %.0f, held central tick %s" % [rc.world_shadow, rc.world_shadow_cell, rc.held_central_tick])
 
 
 func _ready() -> void:
@@ -108,6 +118,7 @@ func _ready() -> void:
 		preload("../game/fc_player.gd").anim_gate_enabled = false
 	if int(args.get("present-native", 1)) == 0:
 		preload("../game/fc_player.gd").present_schedule_native = false
+	_render_cvar_flags()
 	if int(args.get("carry", 1)) == 0:
 		# By name: a no-op against an fc-weapons older than the switch.
 		(AwWorldModel as Script).set(&"person_carry", false)

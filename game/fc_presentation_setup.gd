@@ -71,6 +71,7 @@ func setup() -> GSResult:
 		return drawn
 	# cl_fx_pool_idle: one shot fx pool per player, so trim each one's idle meshes.
 	_addon_static(GSFxMeshPool, &"max_idle", 0, fx_pool_idle)
+	preload("fc_render_cvars.gd").apply()
 	_build_chat()
 	net_stat = GSMenuNetStat.follow(self, settings)
 

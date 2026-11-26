@@ -3,6 +3,8 @@ extends "screenshot_glance.gd"
 
 ## Renders a map to a PNG so a person can look at it.
 
+const _RenderQuality := preload("res://addons/gs_game/runtime/gs_game_render_quality.gd")
+
 
 ## A delivered map's directory (pack files unpacked), as `ensure` mounts it.
 func _mount_delivered(args: PackedStringArray, id: StringName) -> void:
@@ -62,6 +64,9 @@ func _initialize() -> void:
 
 	# Drawn under the lighting the client builds for it: a sun of this tool's own says nothing about the game.
 	root.add_child(FcMapLighting.build(map))
+	# `--r_sun_shadow_splits=1` style arguments, capped onto the sun as the client does, so a render setting can be judged by eye.
+	_RenderQuality.apply_cmdline()
+	_RenderQuality.apply(root, root)
 
 	_camera = Camera3D.new()
 	_camera.fov = 70.0
