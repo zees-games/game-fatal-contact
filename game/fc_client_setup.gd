@@ -161,9 +161,11 @@ func _share_fx_pools() -> void:
 	fx_pool = AwFxPool.new()
 	fx_pool.name = "FxPool"
 	if GSPlatform.is_headless():
-		# Nothing is drawn, so no lights; the quads keep their prewarm (shared_meshes) and are never trimmed below it, or
-		# bots firing later (a loadout reopen, headless_loadout_open) grow the tree. Past it, spares go past cl_fx_pool_idle.
-		fx_pool.shared_lights = 0
+		# Nothing is drawn, but the flashes still take lights up to the cap and quads by the burst: both are prewarmed to what
+		# the bots use (the old per-shooter 24 quads each) and the quads are never trimmed below it, or bots firing later
+		# (a loadout reopen, headless_loadout_open) grow the tree. Past it, spares go past cl_fx_pool_idle.
+		fx_pool.shared_lights = GSFxLightBudget.config.effective_max_lights()
+		fx_pool.shared_meshes = maxi(fx_pool.shared_meshes, fx_pool.shared_meshes * _launch_bots())
 		fx_pool.shared_idle = 0 if FcPresentation.fx_pool_idle < 0 else maxi(FcPresentation.fx_pool_idle, fx_pool.shared_meshes)
 	add_child(fx_pool)
 
