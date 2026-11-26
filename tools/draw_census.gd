@@ -9,16 +9,21 @@ const RenderState := preload("render_state.gd")
 var every := 1.0
 var top := 12
 var say: Callable
-var _left := 0.0
 ## Triangles by mesh instance id: a mesh's arrays are read once.
 var _tris := {}
 
 
-func _process(delta: float) -> void:
-	_left -= delta
-	if _left > 0.0:
-		return
-	_left = every
+## A Timer drives the census, so its tree scan and strings never run inside `_process` (the frame-hazards gate).
+func _ready() -> void:
+	var t := Timer.new()
+	t.wait_time = every
+	t.timeout.connect(_census)
+	add_child(t)
+	t.start()
+	_census.call_deferred()
+
+
+func _census() -> void:
 	var groups := {}
 	for m in get_tree().root.find_children("*", "GeometryInstance3D", true, false):
 		var g := m as GeometryInstance3D
