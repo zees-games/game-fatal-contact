@@ -10,9 +10,9 @@ const ProcSplit := preload("proc_split.gd")
 const ProcSlices := preload("proc_slices.gd")
 # Loaded with this script, so its _static_init (native brain on) runs before --brain-native.
 const FcPlayerStack := preload("../game/fc_player_stack.gd")
-const FcNpcs := preload("../game/fc_npcs.gd")
 const RenderState := preload("render_state.gd")
 const DrawCensus := preload("draw_census.gd")
+const FirstUse := preload("perf_bench_first_use.gd")
 
 ## The 16v16 benchmark: gs-game's GSGamePerfBench (flags, recording, sidecar; see it) on Fatal Contact's client. Windowed on a GPU box (tools/perf_bench.sh) or headless through hv: `godot --path . res://tools/perf_bench.tscn -- --map cp-orange-x3 --mode ctf --bots 31 --seconds 30`. Fatal Contact's flags: `--pilot 0`, `--pilot-view sweep` (the pilot's look turns through the whole compass instead of swaying on one wall: the owner's draw counts need it), `--pilot-view tour` (the pilot is teleported through the spawn points; offline only, a sim host's reconcile puts it back), `--pilot-view fixed` (the drawn camera is the bench's: every spawn point at eye height, one turn each, the whole pass as long as `--seconds`; draws repeat run to run, the perf gate's view), `--motor-us 1`, `--queries 1` (script query timers; native body off), `--ctl-us 1`, `--brain-us 1` (GSBotBrain.think phases, as brain.bb_*), `--max-steps N`, `--native-us 1`, `--batch 0` (`fc_motor_batch` off), `--hull-min N`, `--sim-host 1` (solo game as a loopback server; its cost is the `SIM_HOST` log lines; `--boot-map dm_box` boots there and times a menu map change to the map). `--ragdoll-native 0|1`: gs-player-char's ragdoll bone pose in gs-sim (GSSimRagdollPose) or script; without the library it is script either way (the sidecar's `ragdoll_native` says which ran). `--brain-native 0|1`: gs-bot's native mind (GSSimBotMind: aim, fight step, perception) off or on; without the gs-sim library it is script either way (the sidecar's `brain_native` says which ran). `--tier-idle-seen N`: ticks between thinks of an idle bot a person only sees (bot_tier_every_idle_seen; 1 is the old every tick).
 ## `--sight-far M`, `--sight-far-reuse S`: bot sight LOD (bot_sight_far, bot_sight_far_reuse; default 20 m and 0.15 s, 0 turns it off). `--tier-body-near N`, `--tier-body-far N`: ticks between motor ticks of a coasting bot nobody sees (bot_tier_body_every_near/far; 1, the default, every tick). `--web-defaults 1`: the browser build's defaults (cl_remote_lod_every 8). Render knobs: `--res 1920x1080`, `--killcam-hz N`, `--killcam-crowd N` (cl_killcam_crowd; 0 never), `--lod-crowd N` (cl_remote_lod_crowd; 0 never), `--lod-scale F` (cl_remote_lod_scale), `--figure-lift-range M` (cl_figure_lift_range; 0 every frame), `--lod 0` (FcPlayer.present_lod_enabled off), `--anim-gate 0` (cl_remote_anim_gate off), `--occl 0` (cl_remote_occlusion off), `--carry 0` (AwWorldModel.person_carry off: the held gun's own kick and reload dip, no humanoid carry), `--world-shadow 0|1`, `--world-shadow-cell M` (r_world_shadow, r_world_shadow_cell), `--central-tick 0|1` (cl_held_central_tick), `--ablate a,b` (after the warm-up: shadowcensus, smallcast, smallcast2, noshadow, nofx, nohud, nobots, no3d, norender, rstate). `--census-every S` (`--census-top N`): a `census` line every S seconds of the recorded window, the draws and the geometry groups by triangles (tools/draw_census.gd), so a spike is caught as it happens. `--first-use 1` (gs-game's first-use rows): every weapon equipped, fired once cold and once warm, before the warm-up (offline only;
@@ -41,8 +41,6 @@ var _proc_split: ProcSplit = null
 var _proc_slices: ProcSlices = null
 var _lazy_models := false
 var _census: Node = null
-## `--first-use-spans 1`: the kill and death rows name the sections of each hitch frame (see _traced).
-var _spans := false
 
 
 func _configure() -> void:
@@ -66,7 +64,6 @@ func _render_cvar_flags() -> void:
 func _ready() -> void:
 	super()
 	_pilot = int(args.get("pilot", 1)) != 0
-	_spans = int(args.get("first-use-spans", 0)) != 0
 	_motor_us = int(args.get("motor-us", 0)) != 0
 	_queries = int(args.get("queries", 0)) != 0
 	_ctl_us = int(args.get("ctl-us", 0)) != 0
@@ -209,16 +206,17 @@ func _first_use(_game: Object) -> void:
 		ids.clear()
 		for s in String(args["first-use-only"]).split(",", false):
 			ids.append(StringName(s))
+	var rows := FirstUse.new(self, int(args.get("first-use-spans", 0)) != 0)
 	var at_gate := GSCloudSliceLoader.cached_scripts("res://", GSCloudClient.WARM_SKIP_DIRS).size()
-	await _first_control("control 1")
-	await _first_blood()
-	await _first_decal()
-	await _first_impact()
-	await _first_hit()
-	await _first_control("control 2")
-	await _first_footsteps()
-	await _first_kill()
-	await _first_npcs()
+	await rows.control("control 1")
+	await rows.blood()
+	await rows.decal()
+	await rows.impact()
+	await rows.hit()
+	await rows.control("control 2")
+	await rows.footsteps()
+	await rows.kill_row()
+	await rows.npcs()
 	var reloads := int(args.get("first-use-reload", 1)) != 0
 	var thrown_frames := int(args.get("first-use-thrown-frames", 240))
 	for id in ids:
@@ -250,7 +248,7 @@ func _first_use(_game: Object) -> void:
 			var _reload := await time_first_use("reload %s" % id, func() -> void: Input.action_press(&"arena_reload"),
 				func() -> void: Input.action_release(&"arena_reload"), 10, 90)
 			await wait(float(def.reload_ticks) / float(maxi(def.authored_tick_rate, 66)) + 0.5)
-	await _first_death()
+	await rows.death()
 	if int(args.get("warm-list", 0)) != 0:
 		var scripts := GSCloudSliceLoader.cached_scripts("res://", GSCloudClient.WARM_SKIP_DIRS)
 		# Only what the cover warms anyway: the pack's own scripts and the addon classes. A listed script the cover's scan does not
@@ -266,200 +264,6 @@ func _first_use(_game: Object) -> void:
 				kept += 1
 		say("warm list: %d scripts loaded at the gate, %d after the first uses, %d listed" % [at_gate, scripts.size(), kept])
 
-
-## A point [param metres] in front of the player's camera and a transform there facing back at it: where a decal or an impact is drawn.
-func _in_front(metres: float) -> Transform3D:
-	var me: Variant = client.get("player")
-	var cam: Transform3D = me.camera.global_transform
-	return Transform3D(cam.basis, cam.origin - cam.basis.z * metres)
-
-
-## Rows "control N": the window of a first use with nothing done in it, so the worst frame of a bot-fight spike (a killcam moment, a bot's shot) is not read as the first use's cost.
-func _first_control(what: String) -> void:
-	var _row := await time_first_use(what, func() -> void: pass, Callable(), 0, 30)
-	await wait(0.3)
-
-
-## Row "blood": the first blood splatter (its decal pool, material and texture) at a point in sight, without the ray or the hit handler.
-func _first_blood() -> void:
-	var me: Variant = client.get("player")
-	var pres: Variant = client.get("presentation")
-	if me == null or pres == null or me.camera == null or pres.blood == null:
-		return
-	var at := _in_front(3.0)
-	var _row := await time_first_use("blood", func() -> void: pres.blood.decals.splatter(at.origin, at.basis.z), Callable(), 0, 30)
-	await wait(0.3)
-
-
-## Row "decal": the first bullet hole (the decal sheet's first draw), alone.
-func _first_decal() -> void:
-	var me: Variant = client.get("player")
-	var pres: Variant = client.get("presentation")
-	if me == null or pres == null or me.camera == null or pres.fx == null:
-		return
-	var at := _in_front(4.0)
-	var _row := await time_first_use("decal", func() -> void: var _hole: Variant = pres.fx.spawn_decal(&"bullet_hole", at), Callable(), 0, 30)
-	await wait(0.3)
-
-
-## Row "impact": the first impact through the presentation's own handler (hole, impact sound, spark), after the decal row, so it prices the sound and the spark.
-func _first_impact() -> void:
-	var me: Variant = client.get("player")
-	var pres: Variant = client.get("presentation")
-	if me == null or pres == null or me.camera == null:
-		return
-	var at := _in_front(5.0)
-	var _row := await time_first_use("impact", func() -> void: pres.on_impact(at, false, &"rifle"), Callable(), 0, 30)
-	await wait(0.3)
-
-
-## Row "hit": the server's HIT event for a body in front of the player, before any shot, through the client's own handler
-## (hit marker, damage number, blood decal, body impact), as an in-process host runs it inside the first resolved shot.
-func _first_hit() -> void:
-	var me: Variant = client.get("player")
-	var game: Variant = client.get("game")
-	if me == null or game == null or me.camera == null:
-		return
-	var victim := 0
-	for p: Variant in game.players():
-		if p != me:
-			victim = int(p.player_id)
-			break
-	var cam: Transform3D = me.camera.global_transform
-	var point := cam.origin - cam.basis.z * 3.0
-	var _row := await time_first_use("hit", func() -> void:
-		client.call(&"_on_hit", {"point": point, "victim_id": victim, "amount": 25.0, "headshot": false, "lethal": false}), Callable(), 0, 30)
-
-
-## Rows "footstep SURFACE": the first step sound of each surface through the client's audio manager (stream load and decode).
-func _first_footsteps() -> void:
-	var me: Variant = client.get("player")
-	var heard: Variant = client.get("presentation").audio if client.get("presentation") != null else null
-	if me == null or heard == null:
-		return
-	for surface: StringName in GSAudioStock.SURFACES:
-		var id := GSAudioStock.footstep_id(surface)
-		var _row := await time_first_use("footstep %s" % surface, func() -> void: heard.play_at(id, me.global_position), Callable(), 0, 20)
-		await wait(0.3)
-
-
-## The bot nearest to the player (another seat), or null.
-func _other_player(me: Variant, game: Variant) -> Variant:
-	for p: Variant in game.players():
-		if p != me:
-			return p
-	return null
-
-
-## Lethal damage from [param attacker] to [param victim] through the game's own combat (feed, award, ragdoll, drop), protection off.
-func _kill(game: Variant, attacker: int, victim: int) -> void:
-	var health: GSHealth = game.combat.health_of(victim)
-	if health == null:
-		return
-	health.invulnerable = false
-	health.invulnerable_until_tick = -1
-	var type: GSDamageType = game.combat.damage_type(&"bullet")
-	var hit := GSDamage.make(attacker, victim, health.health + health.armour + 50.0, type)
-	hit.tick = game.current_tick()
-	hit.weapon_id = &"rifle"
-	game.combat.apply_damage(hit)
-
-
-## Row "kill": a bot put a few metres in front of the player and killed by them (kill feed, award, ragdoll, weapon drop).
-func _first_kill() -> void:
-	var me: Variant = client.get("player")
-	var game: Variant = client.get("game")
-	if me == null or game == null or me.camera == null:
-		return
-	var victim: Variant = _other_player(me, game)
-	if victim == null:
-		say("first use: kill skipped (no bot)")
-		return
-	var cam: Transform3D = me.camera.global_transform
-	victim.global_position = me.global_position - Vector3(cam.basis.z.x, 0.0, cam.basis.z.z).normalized() * 4.0
-	await wait(0.3)
-	var kill := func() -> void: _kill(game, int(me.player_id), int(victim.player_id))
-	if _spans:
-		await _traced("kill", kill, 90)
-	else:
-		var _row := await time_first_use("kill", kill, Callable(), 0, 90)
-	await wait(1.0)
-
-
-## Rows "death" (the player killed by a bot: death view, killview, respawn screen) and "respawn". Last: the player is down after it.
-func _first_death() -> void:
-	var me: Variant = client.get("player")
-	var game: Variant = client.get("game")
-	if me == null or game == null:
-		return
-	var killer: Variant = _other_player(me, game)
-	me.health.invulnerable = false
-	var death := func() -> void: _kill(game, int(killer.player_id) if killer != null else 0, int(me.player_id))
-	if _spans:
-		await _traced("death", death, 120)
-	else:
-		var _row := await time_first_use("death", death, Callable(), 0, 120)
-
-
-## `--first-use-spans 1`: [param action] then [param frames] frames, each over [param over_ms] printed with the FcFrameProbe sections
-## (DotFrameCost) charged in it, so a hitch row names the section. Replaces time_first_use for the kill and death rows.
-func _traced(what: String, action: Callable, frames: int, over_ms := 17.0) -> void:
-	await wait(0.5)
-	DotFrameCost.enabled = true
-	var _drop := DotFrameCost.take()
-	action.call()
-	var last := Time.get_ticks_usec()
-	for i in frames:
-		await get_tree().process_frame
-		var now := Time.get_ticks_usec()
-		var ms := (now - last) / 1000.0
-		last = now
-		var costs := DotFrameCost.take()
-		if ms < over_ms:
-			continue
-		var parts: Array = []
-		for key: StringName in costs:
-			if float(costs[key].ms) >= 0.8:
-				parts.append([float(costs[key].ms), "%s %.1f" % [key, float(costs[key].ms)]])
-		parts.sort_custom(func(a: Array, b: Array) -> bool: return a[0] > b[0])
-		var text := ""
-		for part: Array in parts.slice(0, 8):
-			text += " | " + String(part[1])
-		say("SPANS %s f%d %.1f ms%s" % [what, i, ms, text])
-	DotFrameCost.enabled = false
-
-
-## Rows "npc ID" (a monster of each kind placed in sight) and "npc kill ID" (it killed by the player). Needs a mode with a horde
-## (`--mode siege`); other modes have no monsters and say so.
-func _first_npcs() -> void:
-	var me: Variant = client.get("player")
-	var game: Variant = client.get("game")
-	var horde: Variant = game.get("horde") if game != null else null
-	if me == null or horde == null or horde.nav == null or me.camera == null:
-		say("first use: npc rows skipped (no horde in mode %s)" % mode)
-		return
-	var cam: Transform3D = me.camera.global_transform
-	var want := cam.origin - cam.basis.z * 8.0
-	var at: Vector3 = horde.nav.points[0]
-	for point: Vector3 in horde.nav.points:
-		if point.distance_squared_to(want) < at.distance_squared_to(want):
-			at = point
-	for def: GSNpcDef in FcNpcs.catalogue().in_faction(FcNpcs.FACTION):
-		var held: Array = []
-		var _spawned := await time_first_use("npc %s" % def.id, func() -> void: _place_npc(horde, def.id, at, held), Callable(), 0, 45)
-		await wait(0.5)
-		var npc: GSNpcInstance = held[0] if not held.is_empty() else null
-		if npc == null:
-			say("first use: npc %s did not spawn" % def.id)
-			continue
-		var _killed := await time_first_use("npc kill %s" % def.id, func() -> void: _kill(game, int(me.player_id), horde.entity_id_for(npc)), Callable(), 0, 90)
-		await wait(1.0)
-
-
-## The siege director keeps the world at its NPC budget, which refuses a hand-placed monster: clear the world and place at once.
-func _place_npc(horde: Variant, id: StringName, at: Vector3, held: Array) -> void:
-	var _cleared: int = horde.clear()
-	held.append(horde.spawn_one(id, at))
 
 
 func _start_pilot(_game: Object) -> void:
