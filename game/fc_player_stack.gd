@@ -308,7 +308,9 @@ const SPAWN_MODES := ["avoid", "weighted", "furthest", "random"]
 
 
 func _build_spawns() -> void:
-	spawns = GSSpawnDirector.new()
+	var director := FcSpawnDirector.new()
+	director.seen_any_fn = _site_seen_by_any
+	spawns = director
 	spawns.name = "Spawns"
 	spawns.tick_rate = game.tick_rate
 	spawns.register_service = false

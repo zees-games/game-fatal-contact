@@ -76,6 +76,7 @@ func _release_from_round(id: int, player: FcPlayer) -> void:
 ## lets exactly those go afterwards; an admin's own freeze or god mode is left alone.
 func _sync_round_freeze() -> void:
 	var want := round_frozen()
+	_round_frozen_want = want
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
 		if want and player.is_alive():
@@ -669,7 +670,13 @@ func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 	_fired_tick.erase(id)
 	if _round_frozen_ids.has(id):
 		_release_from_round(id, player)
-	_sync_round_freeze()
+	# Everybody else already holds the last sync's answer: a round start respawning 32 walked all 32 per respawn.
+	var want := round_frozen()
+	if want != _round_frozen_want:
+		_sync_round_freeze()
+	elif want and player.is_alive():
+		_freeze_for_round(id, player)
+	t_lap = FcFrameProbe.lap(&"sp_freeze", t_lap)
 
 	# [b]`FcEffects.on_spawn` was written, documented, and called by nothing.[/b] It
 	# clears what survived the last life, stands the player up, and applies `PROTECTED` —

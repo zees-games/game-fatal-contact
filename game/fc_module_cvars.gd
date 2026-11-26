@@ -11,6 +11,7 @@ const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
+const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const FcAvatarLibrary := preload("fc_avatar_library.gd")
@@ -444,6 +445,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotPvs.native = new_value.to_float() >= 0.5)
+	add_cvar("fc_spawn_native", "1" if FcSpawnPick.native else "0",
+		"1: a free-for-all (scatter) spawn draws its weights in gs-sim where its library has GSSimSpawnPick and asks every enemy's sight of a site in one trace call (the same picks as gs-spawn); 0: gs-spawn's own pick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcSpawnPick.native = new_value.to_float() >= 0.5)
 	add_cvar("fc_posture_native", "1" if FcPlayer.posture_native else "0",
 		"1: an idle weapon tick's posture row and flinch check run in gs-sim where its library has GSSimPlayerPost (bit for bit with the script); 0: the script",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(

@@ -454,6 +454,8 @@ var player_stack: FcPlayerStack = null
 ## player id -> [FcPlayer].
 var _players: Dictionary = {}
 var _round_frozen_ids: Dictionary = {}
+## What the last whole `_sync_round_freeze` held everybody to: a respawn under the same answer syncs only its own player.
+var _round_frozen_want := false
 var _freeze_overridden := false
 
 ## A team mode on a map that tags no spawn for both sides cuts the map's spawns into two halves by
