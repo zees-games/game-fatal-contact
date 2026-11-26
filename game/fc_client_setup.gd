@@ -161,10 +161,12 @@ func _share_fx_pools() -> void:
 	fx_pool = AwFxPool.new()
 	fx_pool.name = "FxPool"
 	if GSPlatform.is_headless():
-		# Nothing is drawn: the shared quads and lights are built by demand, and a burst's spares freed past cl_fx_pool_idle.
-		fx_pool.shared_meshes = 0
-		fx_pool.shared_lights = 0
-		fx_pool.shared_idle = maxi(FcPresentation.fx_pool_idle, 0)
+		# Nothing is drawn, but the flashes still take lights up to the cap and quads by the burst: both are prewarmed to what
+		# the bots use (the old per-shooter 24 quads each) and the quads are never trimmed below it, or bots firing later
+		# (a loadout reopen, headless_loadout_open) grow the tree. Past it, spares go past cl_fx_pool_idle.
+		fx_pool.shared_lights = GSFxLightBudget.config.effective_max_lights()
+		fx_pool.shared_meshes = maxi(fx_pool.shared_meshes, fx_pool.shared_meshes * _launch_bots())
+		fx_pool.shared_idle = 0 if FcPresentation.fx_pool_idle < 0 else maxi(FcPresentation.fx_pool_idle, fx_pool.shared_meshes)
 	add_child(fx_pool)
 
 ## Part of [method _ready].
@@ -267,9 +269,10 @@ func _warm_weapon_table() -> void:
 		FcLoadTimeline.mark("setup: weapon table %d-%d, %d ms" % [first, step - 1, (Time.get_ticks_usec() - started) / 1000])
 
 ## The first figure built paid for the stock body models and the clip set (249 ms, in the killcam's spare
-## arms on staging02). The models start loading on the loader's threads here, at the start of setup.
+## arms on staging02). The models start loading on the loader's threads here, at the start of setup. Not where
+## loader threads stall on the frame (the threaded web engine, [method loader_threads_usable]).
 func _request_figures() -> void:
-	if not _builds_in_frames():
+	if not _builds_in_frames() or not loader_threads_usable():
 		return
 	var paths: Array[String] = [GSHumanoidAssets.real_clips_path()]
 	for body: StringName in [GSHumanoidLook.stock(1).body, GSHumanoidAssets.CLIP_BODY]:
