@@ -585,6 +585,8 @@ func _prewarm_end() -> void:
 		var began := Time.get_ticks_usec()
 		var _drawn: Variant = loadout_menu.call(&"prepare")
 		FcLoadTimeline.mark("prewarm: loadout screen drawn hidden, %d ms" % ((Time.get_ticks_usec() - began) / 1000))
+	if _model_paths_next < 0 or _model_paths_next >= _model_paths_cover:
+		_warm_previews()
 	FcLoadTimeline.mark("prewarm end")
 	if gate != null:
 		gate.release(&"weapons")
@@ -603,8 +605,9 @@ func _prewarm_weapons(body: FcPlayer) -> void:
 	_prewarm_sounds()
 	# The loadout menu's weapon pictures, one a frame beside the view models below (they wait on the renderer, this on a frame each), so B finds them drawn.
 	if loadout_menu != null:
-		weapon_previews().warmed.connect(func() -> void: FcLoadTimeline.mark("prewarm: %d weapon pictures, own work %d ms" % [weapon_previews().cached_count(), int(weapon_previews().warm_msec())]), CONNECT_ONE_SHOT)
-		weapon_previews().warm()
+		_previews_wait = true
+		if not _previews_after_reads():
+			_warm_previews()
 	_warm = {"body": body, "spare": spare, "arts": _cover_arts(body), "next": 0, "phase": 0, "frames": 0, "rig": null}
 	_request_flash_scenes()
 	# A tick on process_frame, not an await: a coroutine resumed after this client was freed is an
@@ -640,6 +643,19 @@ func _prewarm_sounds() -> void:
 static var defer_models_on_web := true
 ## True: every client defers them and reads them inline, as the web does (perf_bench `--lazy-models 1`, to price the first equips after the cover).
 static var defer_models_everywhere := false
+var _previews_wait := false
+## Whether the loadout pictures wait for the threaded model reads under the cover: a picture's plain load of a file still in a read
+## waits for it, one 0.3-1.25 s frame on staging (dm_box). `cl_previews_after_reads 0` (launch argument) starts them with the views.
+func _previews_after_reads() -> bool:
+	return _model_reads_threaded() and FcFrameProbe.launch_value("cl_previews_after_reads") != "0"
+
+## Starts drawing the loadout screen's weapon pictures, once: a frame each beside the rest of the cover's work.
+func _warm_previews() -> void:
+	if not _previews_wait or loadout_menu == null:
+		return
+	_previews_wait = false
+	weapon_previews().warmed.connect(func() -> void: FcLoadTimeline.mark("prewarm: %d weapon pictures, own work %d ms" % [weapon_previews().cached_count(), int(weapon_previews().warm_msec())]), CONNECT_ONE_SHOT)
+	weapon_previews().warm()
 
 ## Reads weapon model files once, a few ms a frame under the loading cover (also headless: it is only file reads), so the first equip of each - a bot picking one up, a pickup, a drop - does not pay 90-110 ms for the load in the middle of a fight.
 ## Those [method _cover_weapon_ids] names come first and hold the gate; where models are deferred the rest are read after it opens, see [method _models_late].
@@ -738,6 +754,7 @@ func _prewarm_models_tick() -> void:
 			break
 	if _model_paths_next >= _model_paths_cover:
 		FcLoadTimeline.mark("model reads under the cover done: %d files" % _model_paths_cover)
+		_warm_previews()
 		if gate != null:
 			gate.release(&"weapon_models")
 		if _model_paths_next >= _model_paths.size():
