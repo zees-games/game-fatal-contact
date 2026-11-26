@@ -86,7 +86,7 @@ var net_timers2: int = 0
 ## so the declaration comes from the pack on both ends, whatever addon the client's shell has.
 var net_exact: PackedFloat32Array = PackedFloat32Array()
 
-const EXACT_FLOATS := 14
+const EXACT_FLOATS := GSFpsNetSync.EXACT_FLOATS
 
 # --- Health from GSCombatNetSync, weapons from GSWeaponNetSync ---
 var net_health: int = 0
@@ -525,7 +525,7 @@ func _pull_exact(state: GSFpsState) -> void:
 	# server tick differed from a replay by an ulp, and every such snapshot replayed the whole lead.
 	# Only a player some client predicts: a bot's planned surf rides are open-loop and miss rounded.
 	if identity != null and (identity.is_predicted() or (identity.is_authoritative and identity.owner_peer_id != 0)):
-		_push_exact(state)
+		var _pushed := GSFpsNetSync.push_exact(state, net_exact)
 
 
 ## [method GSFpsNetSync.push] for this behaviour, which declares net_timers2 and neither net_timers nor
@@ -533,28 +533,13 @@ func _pull_exact(state: GSFpsState) -> void:
 ## modifier list left alone when it is empty and the mask is zero (the usual case).
 func _push_fps(state: GSFpsState) -> void:
 	# Position, velocity, yaw, flags and timers2 in one call (native with GSFpsNetSync.native_pack).
-	GSFpsNetSync.push_core(state, net_position, net_velocity, net_yaw, net_flags, net_timers2)
+	# The owner's exact copy ([member net_exact]) goes over the quantised one in the same call.
+	GSFpsNetSync.push_core(state, net_position, net_velocity, net_yaw, net_flags, net_timers2, net_exact)
 	state.pitch = net_pitch
-	state.crouch_fraction = net_crouch
+	if net_exact.size() != EXACT_FLOATS:
+		state.crouch_fraction = net_crouch
 	if net_modifiers != 0 or not state.modifiers.is_empty():
 		GSFpsNetSync.unpack_modifiers(state, net_modifiers)
-
-
-## Puts the exact copy over what [method GSFpsNetSync.push] restored from the quantised one.
-## Empty on everybody but the owner (and before the first snapshot), which keeps the push.
-func _push_exact(state: GSFpsState) -> void:
-	if net_exact.size() != EXACT_FLOATS:
-		return
-	state.position = Vector3(net_exact[0], net_exact[1], net_exact[2])
-	state.velocity = Vector3(net_exact[3], net_exact[4], net_exact[5])
-	state.crouch_fraction = net_exact[6]
-	state.time_since_grounded = net_exact[7]
-	state.time_since_jump = net_exact[8]
-	state.time_since_jump_pressed = net_exact[9]
-	state.wall_run_cooldown_left = net_exact[10]
-	state.stamina = net_exact[11]
-	state.stamina_exhausted = net_exact[12] > 0.5
-	state.stamina_delay_left = net_exact[13]
 
 
 ## Copies received state back into the simulation. Receiving side.
@@ -572,7 +557,6 @@ func _net_state_applied(tick: int) -> void:
 	last_state_tick = tick
 
 	_push_fps(player.controller.state)
-	_push_exact(player.controller.state)
 	GSCombatNetSync.push(self, player.health)
 	_push_weapons()
 
@@ -630,7 +614,7 @@ func _push_weapons() -> void:
 	var owned: bool = identity != null and identity.is_predicted()
 
 	if owned:
-		var changed := FcContent.apply_carry(player.arsenal, net_carry)
+		var changed := FcContent.apply_carry_memo(player.arsenal, net_carry, _carry_memo)
 		_follow_empty_hand(changed > 0)
 
 	# The owner's own selector is predicted; only a remote copy adopts and clicks.
@@ -690,6 +674,10 @@ var _pushed_mode := 0
 var _pushed_fitted := 0
 var _pushed_index := 0
 var _pushed_fitting := 0
+
+
+## [method FcContent.apply_carry_memo]'s memory of the owner's arsenal.
+var _carry_memo: Array = []
 
 
 func _remote_push_unchanged() -> bool:

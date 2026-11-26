@@ -7,6 +7,7 @@ const FcBotBrain := preload("fc_bot_brain.gd")
 const FcBotThreads := preload("fc_bot_threads.gd")
 const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
+const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
@@ -72,6 +73,11 @@ func _add_bot_engine_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			(GSFpsNetSync as Script).set(&"native_pack", new_value.to_float() >= 0.5))
 
+	add_cvar("net_carry_fast", "1" if FcContent.carry_fast else "0",
+		"1: a client checks its own carried weapons against the received set in one pass, and not at all while its arsenal is unchanged since the set last matched (the same arsenal either way); 0: the full give/take pass every frame",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcContent.carry_fast = new_value.to_float() >= 0.5)
 
 ## The players' hull grid (its fast, native and batched gathers) and the bots' PVS sight pre-cull.
 func _add_hull_and_pvs_cvars() -> void:

@@ -214,6 +214,41 @@ static func carry_bits() -> int:
 	return mini(Roles.wire_ids().size(), 62)
 
 
+## Every bit [method carry_mask] can set.
+static func carry_full() -> int:
+	return (1 << carry_bits()) - 1
+
+
+## Whether [method apply_carry] checks in one pass that nothing needs giving or taking before the full
+## pass, and [method apply_carry_memo] skips an unchanged arsenal (the [code]net_carry_fast[/code] cvar; off
+## is the reference). Either way the arsenal ends up the same.
+static var carry_fast := true
+
+
+## Whether [param arsenal] is ready and carries exactly [param mask].
+static func carries_exactly(arsenal: GSWeaponArsenal, mask: int) -> bool:
+	return arsenal != null and arsenal.is_ready() and carry_mask(arsenal) == mask & carry_full()
+
+
+## [method apply_carry] for a caller that applies a mask every frame (a client's own player): [param memo],
+## an Array the caller keeps, remembers the arsenal, its gs-weapon [code]revision()[/code] and the mask it
+## was last found to carry, and while all three hold nothing is scanned at all (the revision moves on every
+## give, take, drop, refit, ammo change and restore). Plain [method apply_carry] without the revision (gs-weapon
+## before API 51) or with [member carry_fast] off.
+static func apply_carry_memo(arsenal: GSWeaponArsenal, mask: int, memo: Array) -> int:
+	if not carry_fast or arsenal == null or not arsenal.has_method(&"revision"):
+		return apply_carry(arsenal, mask)
+	var id := arsenal.get_instance_id()
+	if memo.size() == 3 and memo[0] == id and memo[2] == mask and memo[1] == int(arsenal.call(&"revision")):
+		return 0
+	var changed := apply_carry(arsenal, mask)
+	if carries_exactly(arsenal, mask):
+		memo.assign([id, int(arsenal.call(&"revision")), mask])
+	else:
+		memo.clear()
+	return changed
+
+
 ## Everything [param arsenal] carries, one bit per weapon.
 static func carry_mask(arsenal: GSWeaponArsenal) -> int:
 	if arsenal == null:
@@ -259,8 +294,15 @@ static func carry_mask_by_id(arsenal: GSWeaponArsenal) -> int:
 ##
 ## [b]Full magazines on a give[/b]: the ammunition is corrected from the snapshot right
 ## after, and a weapon given empty would read as a reload the player did not ask for.
+##
+## [b]One pass first[/b] ([member carry_fast]): an arsenal that already carries [param mask] (the case on
+## all but a handful of frames) gives and takes nothing in the full pass either, so [method carry_mask]'s
+## one pass over the carried weapons answers instead of two catalogue scans of every wire id (141 us a
+## call on PH). headless_roles holds the two ways together over random sequences.
 static func apply_carry(arsenal: GSWeaponArsenal, mask: int) -> int:
 	if arsenal == null or not arsenal.is_ready():
+		return 0
+	if carry_fast and carry_mask(arsenal) == mask & carry_full():
 		return 0
 
 	var ids := Roles.wire_ids()
