@@ -2,6 +2,7 @@ extends GSNetBehaviour
 
 const FcContent := preload("fc_content.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcNetCommand := preload("fc_net_command.gd")
 const FcPlayer := preload("fc_player.gd")
 
@@ -39,6 +40,7 @@ static var skip_idle_pull := true
 ## the repeat. Only the observer's copy is held: the owner rewinds from [member net_exact], and the lag-comp
 ## history records the node, not these properties. Position is never held: the server reads it back.
 static var hold_subquantum := true
+
 ## gs-net API 22's GSNetIdentity.interest_aim, looked up once (older gs-net has no aim cone).
 static var _has_interest_aim: bool = _script_has(GSNetIdentity, &"interest_aim")
 
@@ -187,6 +189,8 @@ var _newest_simulated: int = -1
 var _velocity_var: GSNetVar = null
 var _yaw_var: GSNetVar = null
 var _pitch_var: GSNetVar = null
+## The movement pull through gs-sim, and the widths it holds through (fc_net_pull_native.gd).
+var _native_pull := FcNetPullNative.new()
 
 
 func _register_net_vars() -> void:
@@ -439,9 +443,10 @@ func pull() -> void:
 	var held_velocity := net_velocity
 	var held_yaw := net_yaw
 	var held_pitch := net_pitch
-	GSFpsNetSync.pull(player.controller.state, self)
-	if hold_subquantum:
-		_hold_subquantum(held_velocity, held_yaw, held_pitch)
+	if not (FcNetPullNative.enabled and _native_pull.pull(self, hold_subquantum, held_velocity, held_yaw, held_pitch)):
+		GSFpsNetSync.pull(player.controller.state, self)
+		if hold_subquantum:
+			_hold_subquantum(held_velocity, held_yaw, held_pitch)
 	lap = FcFrameProbe.lap(&"np_fps", lap)
 	_pull_exact(player.controller.state)
 	lap = FcFrameProbe.lap(&"np_exact", lap)
