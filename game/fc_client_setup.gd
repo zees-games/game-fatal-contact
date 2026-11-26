@@ -267,9 +267,10 @@ func _warm_weapon_table() -> void:
 		FcLoadTimeline.mark("setup: weapon table %d-%d, %d ms" % [first, step - 1, (Time.get_ticks_usec() - started) / 1000])
 
 ## The first figure built paid for the stock body models and the clip set (249 ms, in the killcam's spare
-## arms on staging02). The models start loading on the loader's threads here, at the start of setup.
+## arms on staging02). The models start loading on the loader's threads here, at the start of setup. Not where
+## loader threads stall on the frame (the threaded web engine, [method loader_threads_usable]).
 func _request_figures() -> void:
-	if not _builds_in_frames():
+	if not _builds_in_frames() or not loader_threads_usable():
 		return
 	var paths: Array[String] = [GSHumanoidAssets.real_clips_path()]
 	for body: StringName in [GSHumanoidLook.stock(1).body, GSHumanoidAssets.CLIP_BODY]:
