@@ -37,6 +37,8 @@ const KOTH := &"koth"
 
 const RED := 1
 const BLUE := 2
+## The gs-objective level that has `GSObjectivePresence.living_fn`.
+const LIVING_LEVEL := 2
 
 ## Typed as its native base on purpose: a typed reference back to fc_game.gd closes a
 ## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
@@ -334,7 +336,24 @@ func _presence() -> GSObjectivePresence:
 		if game.effects == null:
 			return true
 		return game.effects.may_capture(int(key))
+	# gs-objective 2 asks for the living in one call per tick (the CTF flag poll and
+	# counts_in) instead of three callables per player; same answer as the above.
+	if GSAddonApi.build_level("gs_objective") >= LIVING_LEVEL:
+		presence.set(&"living_fn", _living)
 	return presence
+
+
+## gs-objective's `living_fn`: `[keys, positions]` of every living player with a body.
+func _living() -> Array:
+	var keys := PackedStringArray()
+	var at := PackedVector3Array()
+	for id in game.player_ids():
+		var player: FcPlayer = game.player_for(id)
+		if player == null or player.controller == null or not player.is_alive():
+			continue
+		keys.append(str(id))
+		at.append(player.controller.state.position)
+	return [keys, at]
 
 
 ## A layout, from a map's own geometry.
