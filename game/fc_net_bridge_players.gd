@@ -297,6 +297,7 @@ func _commands() -> Dictionary:
 	# A bot's commands are made here, in the slot a client's input lands in, so the game
 	# ticks it exactly as it ticks a person. It sees the present, so no view lag.
 	var t_lap := FcFrameProbe.lap_start()
+	var t_part := FcBotThreads.phase_start()
 	var driven: Array = []
 	var players: Array = []
 	var minds: Array = []
@@ -308,7 +309,9 @@ func _commands() -> Dictionary:
 		players.append(behaviour.player)
 		minds.append(_bot_minds[session_id])
 	# bot_threads: every brain decides at once on worker threads; 0 thinks one bot after another.
+	t_part = FcBotThreads.phase(FcBotThreads.SB_GATHER, t_part)
 	var made_all: Array = FcBotThreads.think_all(game, players, minds, _tick, float(game.tick_rate)) if FcBotThreads.active(players.size()) else []
+	t_part = FcBotThreads.phase_start()
 	for i in driven.size():
 		var behaviour: FcPlayerNet = driven[i]
 		var made: Array = made_all[i] if not made_all.is_empty() else FcBots.think(game, players[i], minds[i], _tick, float(game.tick_rate))
@@ -317,6 +320,8 @@ func _commands() -> Dictionary:
 		behaviour.last_view_lag = -1.0
 		behaviour.last_view_back = -1
 		behaviour.last_view_tick = -1
+	# The serial path's thinks are in this loop too: sb_apply is the apply alone only under bot_threads.
+	FcBotThreads.phase(FcBotThreads.SB_APPLY, t_part)
 	t_lap = FcFrameProbe.lap(&"bc_bots", t_lap)
 
 	for session_id in _behaviours:
