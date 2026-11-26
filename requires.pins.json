@@ -3,7 +3,7 @@
   "addons": {
     "gs_audio": 22,
     "gs_camera": 1,
-    "gs_bot": 41,
+    "gs_bot": 48,
     "gs_combat": 6,
     "gs_fx": 11,
     "gs_game": 62,
@@ -18,7 +18,7 @@
     "gs_replay": 12,
     "gs_server": 19,
     "gs_ui": 27,
-    "gs_weapon": 40,
+    "gs_weapon": 59,
     "fc_weapons": 43
   }
 }
