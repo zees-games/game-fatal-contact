@@ -749,6 +749,10 @@ func _read_next_model() -> bool:
 		FcLoadTimeline.mark("model read %s" % str(_model_paths[_model_paths_next]).get_file(), Time.get_ticks_msec() - read_began)
 	landed = null
 	_model_paths_next += 1
+	# Each file read is progress: the gate's timeout then counts from here, not from its closing, so a slow box that
+	# reads the 19 models inline past 20 s of cover (PH: 15 of 19 left, every first equip a 50-110 ms load) still has them all.
+	if gate != null and gate.has_method(&"advance"):
+		gate.call(&"advance", &"weapon_models")
 	return true
 
 ## After the cover drops, the deferred models: a threaded read is taken once it has landed (a cache hit, a few ms), in any frame. An inline read (the web) is one 50-400 ms frame, so it runs as a late view does: only while the player is away,

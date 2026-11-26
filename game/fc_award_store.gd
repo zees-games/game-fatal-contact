@@ -9,6 +9,11 @@ const LOG := "arena.award_store"
 ## How many files have been written; the suite counts it.
 var writes: int = 0
 
+## Where progress goes when the game names no directory; empty is the tracker's own user:// store.
+## A suite on scratch settings sets it to one of its process alone ([method FcPresentation.use_scratch_settings]):
+## every suite plays as arena-player-000 in the one user:// of the machine, and four of them writing one file broke its reads.
+static var suite_directory: String = ""
+
 # player -> the dictionary to write. A newer save replaces an older one that has not gone out.
 var _pending: Dictionary = {}
 # Saves whose write failed: they go out again with the next save, not every frame.
