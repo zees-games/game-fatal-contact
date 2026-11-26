@@ -96,17 +96,20 @@ static func filter_command(player, cmd: GSWeaponCommand) -> void:
 ## Both ends, each tick: who carries, for [method filter_command] (the server's rule; a client has it from the wire).
 static func mark_carriers(objectives) -> void:
 	var game = objectives.game
-	var ctf: GSObjectiveCtf = objectives.ctf
-	# One flags() pass a tick instead of one carried_by (a new flags() array) per player.
-	var carriers := {}
-	if one_hand and ctf != null:
-		for f in ctf.flags():
-			if f.state == GSObjectiveFlag.State.CARRIED:
-				carriers[f.carrier] = true
-	for id in game.player_ids():
+	# Only the carriers are touched: last tick's are unmarked and this tick's marked (a pass over every player
+	# was a str(id) and a player_for each a tick). Marked every tick, so a carrier's new body is marked too.
+	var now: Array[int] = []
+	if one_hand:
+		now = objectives.carrier_ids()
+	for id: int in objectives.one_hand_ids:
+		var player = game.player_for(id) if not now.has(id) else null
+		if player != null:
+			player.flag_one_hand = false
+	for id in now:
 		var player = game.player_for(id)
 		if player != null:
-			player.flag_one_hand = carriers.has(str(id))
+			player.flag_one_hand = true
+	objectives.one_hand_ids = now
 
 
 ## Server: the drop key while carrying drops the flag ahead of the aim. True when it did (the weapon stays in hand).

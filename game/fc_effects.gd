@@ -47,6 +47,8 @@ const SLOWED := &"arena_slowed"
 ## A key in [member GSDamage.context] that says an administrator's slay: no effect and no
 ## spawn-protection ledger may refuse it. See [method adjust_damage].
 const ADMIN_KILL := &"arena_admin_kill"
+## The map's own max_speed, kept on a player's tunables so a movement effect re-derives from it ([method _apply_movement]).
+const BASE_SPEED := &"fc_base_speed"
 
 ## Typed as its native base on purpose: a typed reference back to fc_game.gd closes a
 ## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
@@ -278,6 +280,12 @@ func tick(_delta: float) -> void:
 ## correct. The base is the map's own tunables and the scale is re-derived from
 ## scratch, which is the only arrangement that survives an effect expiring.
 func _apply_movement() -> void:
+	# The carriers found once a tick from the flags, where a speed_scale per player made a str(id) and walked the set.
+	var carriers: Array[int] = []
+	var carry := 1.0
+	if game.objectives != null and game.objectives.ctf != null:
+		carriers = game.objectives.carrier_ids()
+		carry = game.objectives.ctf.rules.carrier_speed
 	for id in game.player_ids():
 		var player: FcPlayer = game.player_for(id)
 		if player == null or player.controller == null:
@@ -286,23 +294,17 @@ func _apply_movement() -> void:
 		if tunables == null:
 			continue
 		var scale := manager.move_speed_scale(id)
-		if game.objectives != null:
-			scale *= game.objectives.speed_scale(id)
-		# has_meta first: Object.get_meta's default parameter IS null, so passing null
-		# explicitly is indistinguishable from passing nothing — and the engine pushes
-		# "the object does not have any 'meta' values with the key" once per player per
-		# tick. Four errors a tick on a four-player server buries every other line in
-		# the log, which is the file docs/testing.md says to read.
-		var base: Variant = (
-			tunables.get_meta("fc_base_speed")
-			if tunables.has_meta("fc_base_speed") else null
-		)
-		if base == null:
+		if carriers.has(id):
+			scale *= carry
+		# A non-null default: Object.get_meta's default parameter IS null, so passing null is passing nothing, and the
+		# engine then pushes "the object does not have any 'meta' values with the key" once per player per tick.
+		var base := float(tunables.get_meta(BASE_SPEED, -1.0))
+		if base < 0.0:
 			base = tunables.max_speed
-			tunables.set_meta("fc_base_speed", base)
+			tunables.set_meta(BASE_SPEED, base)
 		# Written only when it moves: every write bumps the tunables' revision, which drops the motor's cached native
 		# settings (two arrays rebuilt per player per tick when this assigned the same value every tick).
-		var speed := float(base) * scale
+		var speed := base * scale
 		if tunables.max_speed != speed:
 			tunables.max_speed = speed
 
