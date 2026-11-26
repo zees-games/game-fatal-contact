@@ -305,6 +305,9 @@ static var brains_per_tick := 4
 static var tier_schedule := GSAddonApi.build_level("gs_bot") >= 27
 ## Whether [code]GSBotBrain[/code] has phase timers (gs-bot API 29) for the sim host's SIM_HOST_PHASES line.
 static var brain_phases := GSAddonApi.build_level("gs_bot") >= 29
+## Whether brains on worker threads time too (gs-bot API 40: a clock per brain, [code]GSBotBrain.merge_phases[/code]
+## after the join), so the brain phases stay on with bot threads.
+static var brain_merge := GSAddonApi.build_level("gs_bot") >= 40
 
 ## bot_recoil_control: the share of the recoil a bot pulls its aim back against, 0..1; below 0 (the default, -1)
 ## by difficulty from [constant RECOIL_CONTROL]. A whole share made every bot's burst a laser no person matches.

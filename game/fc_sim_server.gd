@@ -196,11 +196,12 @@ func _apply_bench_flags() -> void:
 		sections = "1"
 	if sections == "1" or sections == "2":
 		FcFrameProbe.set_interval(1.0e9)
-		# The addons' own phases, in a SIM_HOST_PHASES line: the controller's always, the brain's on one thread only.
+		# The addons' own phases, in a SIM_HOST_PHASES line: the controller's always, the brain's on one thread only
+		# unless gs-bot times threaded brains (API 40, FcBots.brain_merge).
 		GSFpsController.phase_timers = true
 		if FcBots.brain_phases:
 			# By name: gs-bot 26 (the live shell's) has no brain phase timers.
-			(GSBotBrain as GDScript).set(&"phase_timers", FcBotThreads.threads == 0)
+			(GSBotBrain as GDScript).set(&"phase_timers", FcBotThreads.threads == 0 or FcBots.brain_merge)
 		FcFrameProbe.fine = sections == "2"
 		# p_weapons split by the rig's and the arsenal's own clocks (pw_*, pa_*), on the fine level only: a clock read a part.
 		for w in _weapon_phase_clocks():
@@ -472,6 +473,15 @@ static func phases_line(ticks: int) -> String:
 		parts.append("%s %.3f" % [brain_names[i], brain_us[i] / 1000.0 / ticks])
 	brain_us.fill(0)
 	brain.set(&"phase_us", brain_us)
+	# gs-bot 40: the world queries' calls per tick beside their time (bq_*_n).
+	var brain_calls: Variant = brain.get(&"phase_calls")
+	if brain_calls is PackedInt64Array:
+		var calls: PackedInt64Array = brain_calls
+		for i in brain_names.size():
+			if String(brain_names[i]).begins_with("bq_"):
+				parts.append("%s_n %.2f" % [brain_names[i], calls[i] / float(ticks)])
+		calls.fill(0)
+		brain.set(&"phase_calls", calls)
 	return "SIM_HOST_PHASES ms/tick | " + ", ".join(parts)
 
 

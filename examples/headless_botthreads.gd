@@ -16,8 +16,8 @@ const BOTS := 24
 const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
-const SECTIONS := 4
-const CHECKS := 19
+const SECTIONS := 5
+const CHECKS := 22
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -57,6 +57,10 @@ func _run() -> void:
 	var fresh := await _play(0)
 	FcBots.reuse_commands = true
 	_check(fresh[0] == digests[0], "bot_native_think 0 (new commands every tick) plays the match its reused pair plays (%d kills)" % fresh[1])
+	_done()
+
+	_section("the brain profile (--brain-us) times brains on bot threads")
+	await _brain_phases_threaded(digests[0])
 	_done()
 
 	_section("an imported map, sight through the physics space")
@@ -235,3 +239,40 @@ static func _sum(counts: Dictionary) -> int:
 	for k: Variant in counts:
 		total += int(counts[k])
 	return total
+
+
+## gs-bot 40: with bot_threads 4 the brains' phases (bb_*) and world queries (bq_*) are timed on the workers and
+## merged after the join, where they read 0 before; and timing changes nothing the bots do. By name: older gs-bot has neither.
+func _brain_phases_threaded(match_digests: PackedStringArray) -> void:
+	if not FcBots.brain_merge:
+		for i in 3:
+			_check(true, "(skipped: gs-bot %d has no threaded brain timers)" % GSAddonApi.build_level("gs_bot"))
+		return
+	var brain: GDScript = GSBotBrain
+	var us: PackedInt64Array = brain.get(&"phase_us")
+	var calls: PackedInt64Array = brain.get(&"phase_calls")
+	us.fill(0)
+	calls.fill(0)
+	brain.set(&"phase_us", us)
+	brain.set(&"phase_calls", calls)
+	brain.set(&"phase_timers", true)
+	var played := await _play(4)
+	brain.set(&"phase_timers", false)
+	var names: Array = brain.get(&"PHASES")
+	us = brain.get(&"phase_us")
+	calls = brain.get(&"phase_calls")
+	var bb := 0
+	var bq := 0
+	for i in names.size():
+		if String(names[i]).begins_with("bb_"):
+			bb += us[i]
+		else:
+			bq += calls[i]
+	var thinks := calls[0]
+	us.fill(0)
+	calls.fill(0)
+	brain.set(&"phase_us", us)
+	brain.set(&"phase_calls", calls)
+	_check(played[2] > 100, "the profiled match ran through the parallel path (%d ticks)" % played[2])
+	_check(bb > 0 and thinks > 0, "its brain phases are non-zero (%d us over %d thinks)" % [bb, thinks])
+	_check(bq > 0 and played[0] == match_digests, "its world queries were counted (%d), and the timed match is the untimed one" % bq)
