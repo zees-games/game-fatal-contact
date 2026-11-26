@@ -437,7 +437,7 @@ static func _flash_scene_paths() -> Array[String]:
 func _request_flash_scenes() -> void:
 	# No loader threads (the web build): a request reads inline, every scene in this one frame. Left to
 	# GSMuzzleFlash.pin_scenes instead, which reads them a slice at a time.
-	if not GSMuzzleFlash.available() or not GSPlatform.has_threads():
+	if not GSMuzzleFlash.available() or not loader_threads_usable():
 		return
 	var asked: Array[String] = []
 	for path in _flash_scene_paths():
@@ -661,7 +661,16 @@ func _prewarm_models() -> void:
 ## Whether the model reads run on the loader's threads (see [method _prewarm_models]). Not with [member defer_models_everywhere]:
 ## that stands in for the web build, whose reads are inline.
 static func _model_reads_threaded() -> bool:
-	return DisplayServer.get_name() != "headless" and GSPlatform.has_threads() and not defer_models_everywhere
+	return DisplayServer.get_name() != "headless" and loader_threads_usable() and not defer_models_everywhere
+
+## Whether a threaded resource read really runs beside the frame. Not on the threaded web engine: a worker's file
+## reads are passed to the browser's main thread, which serves them only between frames, so a model read there took
+## many frames (time to in-game 91-172 s threaded against 79-81 s single-threaded, staging02). There the reads run
+## inline a slice at a time, as on the single-threaded engine. The page's `?web_loader_threads=1` puts them back for a measurement.
+static func loader_threads_usable() -> bool:
+	if not GSPlatform.has_threads():
+		return false
+	return not GSPlatform.is_web() or FcFrameProbe.launch_value("web_loader_threads") == "1"
 
 ## The weapon ids whose views or models are made under the cover where the rest wait for it to drop: the default loadout's,
 ## those [param body] carries and, with [param everyone] (models: their world models are built at once), those every other
