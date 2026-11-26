@@ -155,17 +155,22 @@ func _load_results(paths: PackedStringArray) -> void:
 	_check(_results.size() == GSBotProfile.PRESETS.size(), "every preset's shard log is there", "%d of %d" % [_results.size(), GSBotProfile.PRESETS.size()])
 
 
-func _play(preset: String) -> void:
-	_section("%s against the reference player" % preset)
-
-	var kills: Array[int] = [0, 0]
+## The per-preset tallies the judge reads, cleared before a preset's seeds play.
+func _reset_tallies() -> void:
 	_reactions = []
 	_first_errors = []
 	_blind_shots = 0
 	_shots = 0
-	var thrown: Array[int] = [0]
 	_fastest = 0.0
 	_fastest_at = ""
+
+
+func _play(preset: String) -> void:
+	_section("%s against the reference player" % preset)
+
+	var kills: Array[int] = [0, 0]
+	_reset_tallies()
+	var thrown: Array[int] = [0]
 	var per_seed := []
 	var game: FcGame
 	var settings: GSBotSettings
