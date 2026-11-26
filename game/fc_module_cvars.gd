@@ -11,6 +11,7 @@ const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
+const FcBotContacts := preload("fc_bot_contacts.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const FcAvatarLibrary := preload("fc_avatar_library.gd")
@@ -367,6 +368,11 @@ func _add_bot_engine_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcBotRows.enabled = new_value.to_float() >= 0.5
 			FcBots.reuse_commands = FcBotRows.enabled)
+	add_cvar("bot_native_contacts", "1",
+		"1: the bots' worlds build their contacts and sight rows in gs-sim when its library has them (GSSimBotContacts; the same contacts to the bit, one call a tick); 0, or without the library: the script loop",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.enabled = new_value.to_float() >= 0.5)
 	add_cvar("motor_native", "1" if GSFpsPhysicsBody.native_enabled else "0",
 		"1: the players' movement collision queries (sweep, rest contact, overlap) run in gs-sim when its library is installed (bit-identical to the script, so web and native clients still agree; cheaper); 0: in script. Without the library it is script either way",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
