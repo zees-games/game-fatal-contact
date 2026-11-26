@@ -300,17 +300,7 @@ static func camera_motion_picks() -> GSFpsViewMotion:
 func set_camera_motion_scales(landing: float, strafe: float, wall: float, widen: float) -> void:
 	if camera_motion == null:
 		return
-	var picks := camera_motion_picks()
-	camera_motion.landing_dip = picks.landing_dip * maxf(landing, 0.0)
-	camera_motion.landing_pitch = picks.landing_pitch * maxf(landing, 0.0)
-	camera_motion.strafe_roll = picks.strafe_roll * maxf(strafe, 0.0)
-	camera_motion.slide_roll = picks.slide_roll * maxf(strafe, 0.0)
-	camera_motion.wall_run_roll = picks.wall_run_roll * maxf(wall, 0.0)
-	camera_motion.wall_run_eye_shift = picks.wall_run_eye_shift * clampf(wall, 0.0, 1.0)
-	camera_motion.roll_limit = picks.roll_limit * maxf(maxf(strafe, wall), 0.0)
-	camera_motion.fov_speed_gain = picks.fov_speed_gain * maxf(widen, 0.0)
-	camera_motion.slide_fov_gain = picks.slide_fov_gain * maxf(widen, 0.0)
-	camera_motion.wall_run_fov_gain = picks.wall_run_fov_gain * maxf(widen, 0.0)
+	camera_motion.apply_scales(camera_motion_picks(), landing, strafe, wall, widen)
 
 ## Holds a landing until the drawn eye reaches the floor ([method _kick_landing]).
 ##
