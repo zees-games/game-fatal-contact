@@ -1,6 +1,8 @@
 @tool
 extends "fc_game_loadouts.gd"
 
+const FcWeaponCensus := preload("fc_weapon_census.gd")
+
 ## The idle weapons' native batch of the tick's posture flush ([member FcPlayer.weapon_idle_batch]); split out of
 ## fc_game_tick.gd for file size.
 
@@ -24,6 +26,8 @@ func _idle_batch_ticks(out: PackedFloat64Array, count: int) -> Array:
 		var size := _idle_entries.size()
 		var outcome := player.tick_idle_batch(_idle_entries, k)
 		if outcome == null:
+			if FcWeaponCensus.on:
+				FcWeaponCensus.not_joined(player)
 			var at := k * 10
 			outcome = player.tick_idle_row(out.slice(at, at + 10), out[at + 9] != 0.0)
 		elif _idle_entries.size() > size:
@@ -35,4 +39,8 @@ func _idle_batch_ticks(out: PackedFloat64Array, count: int) -> Array:
 		for e in declined:
 			_idle_owners[e].weapons.idle_batch_declined()
 		FcFrameProbe.add(&"p_weapons", t_wp)
+		if FcWeaponCensus.on:
+			FcFrameProbe.add(&"pwx_batch_run", t_wp)
+			FcFrameProbe.count(&"wc_joined", _idle_owners.size())
+			FcFrameProbe.count(&"wc_declined", declined.size())
 	return _idle_outs

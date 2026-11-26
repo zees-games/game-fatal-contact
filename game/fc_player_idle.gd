@@ -1,6 +1,8 @@
 @tool
 extends "fc_player_state.gd"
 
+const FcWeaponCensus := preload("fc_weapon_census.gd")
+
 ## The arsenal's [member GSWeaponArsenal.idle_posture] (set in [method _build_arsenal]): the posture fields
 ## of the full context [method simulate_tick] builds, from the same simulated state, so an idle tick's
 ## spread state matches a full tick's.
@@ -152,7 +154,7 @@ static var posture_native := true
 
 
 ## Cvar [code]fc_weapon_idle_batch[/code]: 1 joins every idle server weapon's native idle call into one gs-sim call per
-## tick ([code]GSSimWeaponIdleBatch[/code], fc-weapons 45, gs-weapon API 57) where the library has it (bit for bit:
+## tick ([code]GSSimWeaponIdleBatch[/code], fc-weapons 45, gs-weapon API 58) where the library has it (bit for bit:
 ## [code]headless_weapon_idle_batch[/code]); 0 ticks each weapon on its own ([method tick_idle_row]).
 static var weapon_idle_batch := true
 
@@ -170,6 +172,8 @@ func tick_idle_batch(entries: Array, k: int) -> GSWeaponOutcome:
 	if hands != null:
 		hands.set_sprinting(controller.state.sprinting)
 	FcFrameProbe.add(&"p_weapons", t_wp)
+	if FcWeaponCensus.on:
+		FcFrameProbe.add(&"pwx_batch_join", t_wp)
 	return out
 
 

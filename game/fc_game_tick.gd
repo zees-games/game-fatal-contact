@@ -342,6 +342,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 	FcFrameProbe.add(&"p_controller", t_ctl - player.ctl_usec)
 	var outcome: GSWeaponOutcome = null
 	if not player.tick_post_head(_tick, delta, fire):
+		if FcWeaponCensus.on: FcWeaponCensus.active(player)
 		# A weapon tick that does more than idle can reach other players: the waiting idle ones tick first, in order.
 		_flush_posts(shots)
 		outcome = player.tick_weapons(_tick)
@@ -353,7 +354,9 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		_post_players.append(player)
 		_post_ids.append(id)
 		_post_moves.append(move)
+		if FcWeaponCensus.on: FcFrameProbe.count(&"wc_posted")
 	else:
+		if FcWeaponCensus.on: FcFrameProbe.count(&"wc_idle_alone")
 		var still := player._idle_row()
 		outcome = player.tick_idle_row(player._posture_row, still)
 	if fine:
@@ -406,6 +409,7 @@ func _flush_posts(shots: Array[GSShot]) -> void:
 	if count == 0:
 		return
 	FcHullGrid.post_flushes += 1
+	if FcWeaponCensus.on: FcFrameProbe.count(&"wc_flush")
 	var input := _post_in if _post_in.size() == count * 10 else _post_in.slice(0, count * 10)
 	var out: PackedFloat64Array = _post_native.run_rows(input)
 	if FcPlayer.weapon_idle_batch and _idle_batch_ready():

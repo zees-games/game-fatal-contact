@@ -10,6 +10,7 @@ const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
+const FcWeaponTickCvars := preload("fc_weapon_tick_cvars.gd")
 
 
 ## The native/threaded switches of the bot and motor engines.
@@ -119,11 +120,7 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcPlayer.posture_native = new_value.to_float() >= 0.5)
-	add_cvar("fc_weapon_idle_batch", "1" if FcPlayer.weapon_idle_batch else "0",
-		"1: every idle server weapon's native idle step runs in one gs-sim call per tick where its library has GSSimWeaponIdleBatch (bit for bit with one call each); 0: one call each",
-		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
-		func(_old: String, new_value: String) -> void:
-			FcPlayer.weapon_idle_batch = new_value.to_float() >= 0.5)
+	FcWeaponTickCvars.add_to(self)
 	add_cvar("fc_bot_pvs_verify", "1" if FcBotPvs.verify else "0",
 		"1: every sight the PVS rules out is cast anyway and every native ask is put to the script too, disagreements counted (a check, not for play)",
 		0).with_min(0.0).with_max(1.0).changed.connect(

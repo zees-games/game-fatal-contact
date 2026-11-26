@@ -700,6 +700,8 @@ func tick_idle_row(row: PackedFloat64Array, still: bool) -> GSWeaponOutcome:
 	var out: GSWeaponOutcome = weapons.call(&"simulate_idle_row", _command, _posture_tick, row, still)
 	_idle_hands()
 	FcFrameProbe.add(&"p_weapons", t_wp)
+	if FcWeaponCensus.on:
+		FcFrameProbe.add(&"pwx_idle_row", t_wp)
 	if FcFrameProbe.fine:
 		FcFrameProbe.charge_weapon_phases()
 	return out
@@ -715,6 +717,8 @@ func tick_weapons(tick: int) -> GSWeaponOutcome:
 		out = weapons.simulate_idle(_command, tick) if idle_tick else weapons.simulate_tick(_command, tick, null)
 		_idle_hands()
 		FcFrameProbe.add(&"p_weapons", t_wp)
+		if FcWeaponCensus.on:
+			FcFrameProbe.add(&"pwx_idle_ctx", t_wp)
 		if FcFrameProbe.fine:
 			FcFrameProbe.charge_weapon_phases()
 		return out
@@ -727,6 +731,8 @@ func tick_weapons(tick: int) -> GSWeaponOutcome:
 	# command itself, for the same edge triggers the arsenal used to be handed it for.
 	out = weapons.simulate_tick(_command, tick, ctx)
 	FcFrameProbe.add(&"p_weapons", t_wp)
+	if FcWeaponCensus.on:
+		FcFrameProbe.add(&"pwx_full", t_wp)
 	if FcFrameProbe.fine:
 		FcFrameProbe.charge_weapon_phases()
 	return out

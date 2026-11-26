@@ -8,14 +8,14 @@ const FcPlayerIdle := preload("../game/fc_player_idle.gd")
 ## `fc_weapon_idle_batch`: the idle weapons' native idle calls joined into one gs-sim call per tick
 ## (`GSSimWeaponIdleBatch`) play exactly the match one call per weapon plays. The same 16 bots on dm_box play a
 ## deathmatch with the batch off, off again and on; every bot's position, view, health and commands, hashed every
-## few ticks, are identical. Without the library only the script lane runs, and the suite says so.
+## few ticks, are identical; so is a fourth run with the lean join off (`fc_weapon_idle_lean` 0). Without the library only the script lane runs, and the suite says so.
 
 const TICK_RATE := 33
 const BOTS := 16
 const SECONDS := 15.0
 
 const SECTIONS := 1
-const CHECKS := 4
+const CHECKS := 5
 
 var _entered := 0
 var _completed := 0
@@ -38,6 +38,12 @@ func _run() -> void:
 	var again := await _play()
 	FcPlayerIdle.weapon_idle_batch = true
 	var on := await _play()
+	# fc_weapon_idle_lean 0, written the way the cvar writes it: the joins go through the rig's idle helpers.
+	var rig_script: Script = AwWeaponRig
+	rig_script.set(&"idle_batch_lean", false)
+	var unlean := await _play()
+	var flag_seen: bool = AwWeaponRig.idle_batch_lean
+	rig_script.set(&"idle_batch_lean", true)
 	_check(off[0].size() > 10, "the match was played (%d digests, %d kills)" % [off[0].size(), off[1]])
 	_check(off[0] == again[0], "two runs with the batch off are identical (the match is deterministic)")
 	_check(on[0] == off[0], "the batch on plays the match the batch off plays (%d kills, %d batched weapon ticks)" % [on[1], on[2]])
@@ -45,6 +51,8 @@ func _run() -> void:
 		_check(on[2] > 100 and off[2] == 0, "the weapons really ran through the batch (%d weapon ticks), and never with it off" % on[2])
 	else:
 		_check(on[2] == 0, "(skipped: no weapon_idle module) nothing batched")
+	_check(not flag_seen and AwWeaponRig.idle_batch_lean and unlean[0] == on[0] and unlean[2] == on[2],
+		"the lean batch join plays the match the helper join plays (%d batched weapon ticks)" % unlean[2])
 	_completed += 1
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
