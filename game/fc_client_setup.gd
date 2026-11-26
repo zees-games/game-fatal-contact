@@ -161,10 +161,10 @@ func _share_fx_pools() -> void:
 	fx_pool = AwFxPool.new()
 	fx_pool.name = "FxPool"
 	if GSPlatform.is_headless():
-		# Nothing is drawn: the shared quads and lights are built by demand, and a burst's spares freed past cl_fx_pool_idle.
-		fx_pool.shared_meshes = 0
+		# Nothing is drawn, so no lights; the quads keep their prewarm (shared_meshes) and are never trimmed below it, or
+		# bots firing later (a loadout reopen, headless_loadout_open) grow the tree. Past it, spares go past cl_fx_pool_idle.
 		fx_pool.shared_lights = 0
-		fx_pool.shared_idle = maxi(FcPresentation.fx_pool_idle, 0)
+		fx_pool.shared_idle = 0 if FcPresentation.fx_pool_idle < 0 else maxi(FcPresentation.fx_pool_idle, fx_pool.shared_meshes)
 	add_child(fx_pool)
 
 ## Part of [method _ready].
