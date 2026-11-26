@@ -93,7 +93,7 @@ Thumbs.db
 /addons/gs_game
 # gs-sim: optional native library (movement motor, bot senses, snapshot codec); without its built library the GDScript twins run.
 # bootstrap fetches this release's library for the machine (gs-bootstrap: bootstrap-natives); the log says "gs-sim: native ...".
-# bootstrap-natives: gs-sim v0.2.26
+# bootstrap-natives: gs-sim v0.2.30
 /addons/gs_sim
 /addons/gs_workbench
 # Maps copied in by hand to play solo (see maps/fc_local_maps.gd). No leading slash: tools read "/addons/<name>" lines as addons to link.
