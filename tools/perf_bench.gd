@@ -150,6 +150,8 @@ func _setup_client(c: Node) -> void:
 		# `--boot-map ID`: the server boots there, and the bench changes to the map from the menu (a timed map change).
 		FcSimHost.ask_map = String(args.get("boot-map", map))
 		FcSimHost.ask_mode = mode
+		# The bots think in the server: `--brain-us 1` times their phases there (its SIM_HOST_PHASES lines), not in this client.
+		FcSimHost.ask_sections = "1" if int(args.get("brain-us", 0)) != 0 else ""
 
 
 func _select(game: Object) -> void:
@@ -181,12 +183,15 @@ func _select_hosted() -> void:
 	await wait_gate(120.0)
 	if not _lazy_models:
 		var _warmed := AwModelCache.warm(AwWeaponArtTable.model_paths())
-	# Booted elsewhere (`--boot-map`, or a map the server could not mount): change to the map from the menu as a
-	# player would; the client's timeline reports the change ("map change map:ID to playable").
+	# Booted elsewhere (`--boot-map`): change to the map from the menu as a player would (timed: "map change map:ID").
 	if String(client.get("game").get("map").id) != map:
 		var picked: GSResult = await client.call("change_from_menu", StringName("map:" + map), StringName("mode:" + mode))
 		say("sim host: map change to %s mode %s: %s" % [map, mode, "ok" if picked.ok else picked.error.message])
 		await wait_gate(120.0)
+		if String(client.get("game").get("map").id) != map:  # never bench the boot map's numbers for the asked map's
+			say("sim host: FAIL hosted map %s, asked %s" % [client.get("game").get("map").id, map])
+			get_tree().quit(1)
+			await get_tree().create_timer(3600.0).timeout
 	t = 0.0
 	while _players(client.get("game")) < bots + 1 and t < 30.0:
 		await wait(0.25)

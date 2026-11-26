@@ -26,6 +26,8 @@ static var forced := -1
 ## The map and mode a tool asks for; "" reads `--map` and `--mode` from the command line.
 static var ask_map := ""
 static var ask_mode := ""
+## The `--sim_sections` level a tool asks the server for ("" reads the command line): a bench's `--brain-us 1` sets "1", since the bots think in the server.
+static var ask_sections := ""
 ## Seconds a suite holds the joined client before it builds: the window a slow machine's 30 s load is, in which the server already sends.
 static var hold_joined_sec := 0.0
 
@@ -174,6 +176,8 @@ func _forward_flags(args: PackedStringArray) -> PackedStringArray:
 	if load_us != "":
 		args.append_array(["--sim_load_us", load_us])
 	var sim_sections := _arg("--sim_sections")
+	if sim_sections == "":
+		sim_sections = ask_sections
 	if sim_sections != "":
 		args.append_array(["--sim_sections", sim_sections])
 	var slow_tick := _arg("--sim_slow_tick")
