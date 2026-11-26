@@ -399,6 +399,12 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			GSFpsMotor.native_full = new_value.to_float() >= 0.5)
+	# By name: a no-op against a gs-player-controller older than API 38.
+	add_cvar("net_pack_native", "0" if (GSFpsNetSync as Script).get(&"native_pack") == false else "1",
+		"1: the server packs each player's replicated flags, timers and stamina in gs-sim when its library is installed (the same integers as the script, to the bit; cheaper); 0: in script. Without the library it is script either way",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			(GSFpsNetSync as Script).set(&"native_pack", new_value.to_float() >= 0.5))
 
 
 ## The players' hull grid (its fast, native and batched gathers) and the bots' PVS sight pre-cull.
