@@ -58,6 +58,8 @@ class NavWorld:
 	var _ray_lock := Mutex.new()
 	## Any player's arsenal, taken on the main thread (walking the roster is not for a worker).
 	var _par_arsenal: Array = [null]
+	## Player id -> projectile speed, written by par_begin on the main thread, read lock-free by workers.
+	var _par_proj_speed: Dictionary = {}
 	## The trace's ray observer (dropped weapons nudged by a shot) is called on the main thread: a worker's wall
 	## rays are logged per job and replayed in job order by [method par_end].
 	var _par_observe: bool = false
