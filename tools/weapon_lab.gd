@@ -276,19 +276,7 @@ func _fp_animation(a: String, me, id: StringName, def: GSWeaponDef, wdir: String
 					Input.action_release(&"arena_fire"), res)
 			Input.action_release(&"arena_fire")
 		"bolt":
-			# One shot and then the hand's work: a bolt or pump cycles itself after the shot, so this is the cycle alone, close up.
-			var art: AwWeaponVisual = AwWeaponArtTable.get_art(id)
-			if art == null or art.cycle_time <= 0.0:
-				res = {"status": "n/a", "why": "weapon has no cycle"}
-			else:
-				await _ensure_in_hand(me, id, def)
-				_refill(me, def)
-				await _clip(wdir, key, _f(60), func(i: int) -> void:
-					if i == _f(2):
-						Input.action_press(&"arena_fire")
-					elif i == _f(4):
-						Input.action_release(&"arena_fire"), res)
-				Input.action_release(&"arena_fire")
+			res = await _fp_bolt(me, id, def, wdir, key, res)
 		"ads":
 			await _ensure_in_hand(me, id, def)
 			if not _art_can_aim(id):
@@ -328,6 +316,22 @@ func _fp_animation(a: String, me, id: StringName, def: GSWeaponDef, wdir: String
 			res = await _fp_inspect(me, id, def, wdir, key)
 		_:
 			res = {"status": "n/a", "why": "unknown animation"}
+	return res
+
+
+## One shot and then the hand's work: a bolt or pump cycles itself after the shot, so this is the cycle alone, close up.
+func _fp_bolt(me, id: StringName, def: GSWeaponDef, wdir: String, key: String, res: Dictionary) -> Dictionary:
+	var art: AwWeaponVisual = AwWeaponArtTable.get_art(id)
+	if art == null or art.cycle_time <= 0.0:
+		return {"status": "n/a", "why": "weapon has no cycle"}
+	await _ensure_in_hand(me, id, def)
+	_refill(me, def)
+	await _clip(wdir, key, _f(60), func(i: int) -> void:
+		if i == _f(2):
+			Input.action_press(&"arena_fire")
+		elif i == _f(4):
+			Input.action_release(&"arena_fire"), res)
+	Input.action_release(&"arena_fire")
 	return res
 
 
