@@ -117,8 +117,8 @@ func _build_netcode() -> GSResult:
 	config.tick_rate = game.tick_rate
 	config.snapshot_rate = FcGame.snapshot_rate_for(game.tick_rate, snapshot_target())
 	config.enable_prediction = true
-	# On: a player shoots where they SEE someone, which is where that player was half a round trip ago.
-	config.enable_lag_compensation = true
+	# Off: FC rewinds shots with its own ring (fc_game_unlag.gd) and nothing reads gs-net's history; sv_net_lagcomp 1 records it again.
+	config.enable_lag_compensation = false
 	config.max_entities_per_snapshot = 0  # unlimited: interest management and the mtu bound a snapshot
 	# Unlimited: tools/net_probe.gd measured ~6 kB/s steady and ~16 kB/s at a join, so a cap
 	# could only hold a packet back (see _add_rate_cvar).
