@@ -30,7 +30,6 @@ signal physics_applied(profile: GSPhysicsProfile)
 
 
 var classes: GSPlayerClassManager = null
-var spawns: GSSpawnDirector = null
 var spectate: GSTeamSpectate = null
 
 var _registered: bool = false
@@ -517,18 +516,23 @@ func _on_player_spawned(player: FcPlayer) -> void:
 		return
 
 	var key := str(player.player_id)
+	var t_lap := FcFrameProbe.lap_start()
 
 	# Before the alive flag: a pending class change lands on the spawn, and anything
 	# reading the class in an `alive_changed` handler should read the new one.
 	var landed := classes.apply_pending(key)
 	apply_class_numbers(player)
+	t_lap = FcFrameProbe.lap(&"sg_class", t_lap)
 	class_applied.emit(player.player_id, landed)
+	t_lap = FcFrameProbe.lap(&"sg_class_emit", t_lap)
 
 	var _alive := roster.set_alive(key, true)
+	t_lap = FcFrameProbe.lap(&"sg_alive", t_lap)
 	spawns.cancel_respawn(key)
 
 	if spectate.is_spectating(key):
 		spectate.end(key)
+	FcFrameProbe.lap(&"sg_cancel", t_lap)
 
 
 func _on_player_killed(entry: GSKillFeed.Entry) -> void:

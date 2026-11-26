@@ -291,7 +291,7 @@ func _watch_slow_ticks(module: FcModule) -> void:
 		if _slow_left <= 0:
 			return
 		_slow_left -= 1
-		print(FcFrameProbe.slow_tick_line(tick, usec, 8, " | objects %+d | ticks this frame %d" % [objects, _ticks_this_frame]))  # check-logging: allow print (bench output)
+		print(FcFrameProbe.slow_tick_line(tick, usec, 16, " | objects %+d | ticks this frame %d" % [objects, _ticks_this_frame]))  # check-logging: allow print (bench output)
 	var game := module.game
 	if game == null:
 		return

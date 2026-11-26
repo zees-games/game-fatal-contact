@@ -1,7 +1,6 @@
 extends "fc_module_cmds.gd"
 
 const FcPaths := preload("fc_paths.gd")
-const FcFrameProbe := preload("fc_frame_probe.gd")
 
 
 const FcEvents := preload("fc_events.gd")

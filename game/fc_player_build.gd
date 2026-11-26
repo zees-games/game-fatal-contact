@@ -358,7 +358,9 @@ func apply_class_movement(def: GSPlayerClassDef) -> void:
 		return
 
 	if _class_base == null:
-		_class_base = controller.tunables.duplicate()
+		_class_base = ClassBase.new()
+		_class_base.max_speed = controller.tunables.max_speed
+		_class_base.jump_height = controller.tunables.jump_height
 
 	var _n := GSPlayerClassApply.to_movement(def, controller.tunables, _class_base)
 	FcPlayerTunables.apply_class_attributes(def, controller.tunables)
@@ -459,7 +461,7 @@ func _apply_body_rules() -> void:
 	for key in _body_rules:
 		body_motion.set(key, _body_rules[key])
 
-static func _set_rule(tunables: GSFpsTunables, key: String, value: Variant) -> void:
+static func _set_rule(tunables: Object, key: String, value: Variant) -> void:
 	if key.ends_with("_enabled") or typeof(tunables.get(key)) == TYPE_BOOL:
 		tunables.set(key, float(value) != 0.0)
 	elif typeof(tunables.get(key)) == TYPE_INT:

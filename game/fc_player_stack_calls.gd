@@ -18,6 +18,7 @@ var game: Node = null
 var physics: GSPhysicsWorld = null
 var roster: GSPlayerRoster = null
 var teams: GSTeamRoster = null
+var spawns: GSSpawnDirector = null
 ## [method _can_see_site]'s answers this tick, keyed by [code][from, to][/code], and the tick.
 var _seen := {}
 var _seen_tick := -1
@@ -142,8 +143,12 @@ func _traced_sight(from: Vector3, to: Vector3) -> bool:
 	if trace != null:
 		var span := head - eye
 		var length := span.length()
-		if length < 0.01:
+		if length <= 0.05:
 			return true
+		# A flat trace's line_of_sight is the same world ray, native and with no hit built; shortened by the 5 cm a hit at the very end was always forgiven.
+		# Not the physics trace's: FcGlassTrace's sight query lets the jail glass through, which ray() does not, and spawns have always used ray().
+		if trace is GSTraceFlat:
+			return trace.line_of_sight(eye, eye + span * ((length - 0.05) / length))
 		var hit := trace.ray(eye, span / length, length)
 		return not hit.ok() or hit.distance >= length - 0.05
 
@@ -190,17 +195,27 @@ const SPAWN_OCCUPIED_RADIUS := 1.5
 
 ## Tells gs-spawn who stands on which site; only needed for the strict `one_per_spawn` rule, which refuses an occupied site. The spawning player does not occupy a site against themselves.
 func _push_spawn_occupancy(director: GSSpawnDirector, except_key: String) -> void:
+	var t_lap := FcFrameProbe.lap_start()
 	var standing: Array[Vector3] = []
 
 	for player in game.players():
 		if player.is_alive() and player.controller != null and str(player.player_id) != except_key:
 			standing.append(player.controller.state.position)
 
-	for site in director.sites():
+	# Written onto the sites, not through `set_occupancy`: that walks every site to find the id, so pushing all of them was sites squared
+	# id compares a spawn (32 sites, 32 spawns at a round start: 32k a tick). Same result: a shared id gets the count of its last site, as the last call gave it.
+	var sites := director.sites()
+	var by_id := {}
+
+	for site in sites:
 		var count := 0
 
 		for at in standing:
 			if at.distance_to(site.position) <= SPAWN_OCCUPIED_RADIUS:
 				count += 1
 
-		director.set_occupancy(site.id, count)
+		by_id[site.id] = count
+
+	for site in sites:
+		site.occupants = maxi(0, by_id[site.id])
+	FcFrameProbe.lap(&"sp_occupancy", t_lap)

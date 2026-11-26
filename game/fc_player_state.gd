@@ -303,8 +303,18 @@ var flashlight_map: String = ""
 
 ## The movement this player was built with, before any class scaled it. See [method
 ## apply_class_movement]. Captured on the first application rather than at build time, so a game
-## that never uses classes never duplicates a tunables object.
-var _class_base: GSFpsTunables = null
+## that never uses classes never builds one.
+var _class_base: ClassBase = null
+
+
+## The numbers a class scales, as they were before it scaled them: `GSPlayerClassApply.to_movement`
+## reads nothing else from its base (`move_speed_scale` on `max_speed`, `jump_scale` on `jump_height`).
+## [b]Not a duplicate of the tunables[/b]: a round start is every player's first spawn in one tick,
+## and 31 `GSFpsTunables.duplicate()` calls (every property read and written through the script)
+## were most of the spawn signal. A new scaled field in gs-player-class is a field added here.
+class ClassBase extends RefCounted:
+	var max_speed := 0.0
+	var jump_height := 0.0
 
 ## Swimming, in an imported map's water.
 var swim := GSFpsSwimMode.new()
