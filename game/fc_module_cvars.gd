@@ -272,7 +272,7 @@ func _add_avatar_library_cvars() -> void:
 			var _r := FcAvatarLibrary.apply_loadout_limits(GSGameAvatarLoadoutMessage.max_entries, int(new_value.to_float())))
 
 
-## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_native`: gs-sim's sight scan; `bot_native_brain`: gs-bot's native mind (on); `bot_native_think`: the contact table handed to the native sight scan (on); `motor_native`: gs-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in gs-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: gs-sim's ragdoll bone pose.
+## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_native`: gs-sim's sight scan; `bot_native_brain`: gs-bot's native mind (on); `bot_native_think`: the contact table handed to the native sight scan (on); `bot_native_contacts_delta`: gs-sim's contact build writes only changed kept fields (on); `motor_native`: gs-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in gs-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: gs-sim's ragdoll bone pose.
 func _add_bot_think_cvars() -> void:
 	add_cvar("bot_think_every", str(FcBots.think_every),
 		"A bot far from every enemy runs its brain one tick in this many (1 = every tick, 0 = 2 above 16 players)",
@@ -373,6 +373,11 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.enabled = new_value.to_float() >= 0.5)
+	add_cvar("bot_native_contacts_delta", "1",
+		"1: gs-sim's contact build writes the fields a player keeps from tick to tick (heights, alive, team, motion flags, health) only when they change (GSSimBotContacts.fill_changed; the same contacts to the bit, fewer property writes); 0: every field every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.delta = new_value.to_float() >= 0.5)
 	add_cvar("motor_native", "1" if GSFpsPhysicsBody.native_enabled else "0",
 		"1: the players' movement collision queries (sweep, rest contact, overlap) run in gs-sim when its library is installed (bit-identical to the script, so web and native clients still agree; cheaper); 0: in script. Without the library it is script either way",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
