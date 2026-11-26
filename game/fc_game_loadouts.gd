@@ -57,7 +57,10 @@ func _give_bot_loadout(player: FcPlayer) -> bool:
 	var difficulty := ""
 	if has_meta(GSBotSettings.META):
 		difficulty = GSBotSettings.of(self).difficulty()
+	# sl_* laps (--sim_sections 2): where a respawning bot's kit give spends its time.
+	var t_lap := FcFrameProbe.lap_start()
 	var drawn := bot_loadouts.draw(loadouts, _loadout_key(player.player_id), player.player_id, difficulty)
+	t_lap = FcFrameProbe.lap(&"sl_draw", t_lap)
 	if drawn == null:
 		return false
 	if FcBotLoadouts.regive_supported:
@@ -65,9 +68,13 @@ func _give_bot_loadout(player: FcPlayer) -> bool:
 		player.arsenal.set(&"reuse_behaviours", FcBotLoadouts.regive)
 	player.give_loadout(drawn.entries)
 	player.set_meta(&"bot_loadout", drawn.kit.id)
+	t_lap = FcFrameProbe.lap(&"sl_give", t_lap)
 	_fit_bot_attachments(player, drawn.kit)
+	t_lap = FcFrameProbe.lap(&"sl_fit", t_lap)
 	arm_for_mode(player)
+	t_lap = FcFrameProbe.lap(&"sl_arm", t_lap)
 	FcLoadoutGuard.ensure_armed(player)
+	FcFrameProbe.lap(&"sl_guard", t_lap)
 	return true
 
 ## Fits [param kit]'s attachments to the guns [param player] carries, through the arsenal's attachments catalogue.

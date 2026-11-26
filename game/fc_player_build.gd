@@ -593,7 +593,10 @@ func hold(slot: int) -> void:
 ## Gives the weapons a resolved loadout names. [param entries] is what [method
 ## GSLoadoutManager.resolve] returns: dictionaries of `slot`, `arsenal_slot`, `item` and `count`.
 func give_loadout(entries: Array[Dictionary]) -> void:
+	# sg_* laps (--sim_sections 2) split sl_give: clear, the item gives, the melee fallback, the hold.
+	var t_lap := FcFrameProbe.lap_start()
 	arsenal.clear()
+	t_lap = FcFrameProbe.lap(&"sg_clear", t_lap)
 
 	var catalogue := arsenal.catalogue
 	var hand := 0
@@ -629,11 +632,14 @@ func give_loadout(entries: Array[Dictionary]) -> void:
 	# Something under the 1 key whatever the document said. A loadout from before the
 	# melee slot names none, and a player whose last magazine runs dry should still have
 	# something to swing.
+	t_lap = FcFrameProbe.lap(&"sg_items", t_lap)
 	if not arsenal.has_slot(AwWeaponIds.SLOT_MELEE):
 		var _knife := arsenal.give(FcContent.melee_id())
+	t_lap = FcFrameProbe.lap(&"sg_melee", t_lap)
 
 	if hand > 0:
 		hold(hand)
+	FcFrameProbe.lap(&"sg_hold", t_lap)
 
 ## The default loadout, for a player who has not chosen one.
 func give_default_loadout() -> void:
