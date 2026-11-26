@@ -72,11 +72,24 @@ class NavWorld:
 	static func near_key(x: float, z: float, cell: float) -> int:
 		return (int(floorf(x / cell)) + 4096) * 8192 + int(floorf(z / cell)) + 4096
 
-	## Files the live [param contacts] into [member near_cells]; built only with [param grid] on and above 16 contacts.
+	## Files the live [param contacts] into [member near_cells]; built only with [param grid] on and above 16 contacts. With this
+	## tick's [GSBotContactTable], the cells hold its rows (ints), read from its columns.
 	func _near_refresh(contacts: Array, grid: bool) -> void:
 		near_cells.clear()
 		near_cell = 0.0
-		if grid and near_reach > 0.0 and contacts.size() > 16:
+		var t := table()
+		if t != null and grid and near_reach > 0.0 and t.size() > 16:
+			near_cell = near_reach
+			for i in t.size():
+				if t.flags[i] & GSBotContactTable.ALIVE != 0:
+					var at := t.positions[i]
+					var k := near_key(at.x, at.z, near_cell)
+					var cell: Variant = near_cells.get(k)
+					if cell == null:
+						near_cells[k] = [i]
+					else:
+						(cell as Array).append(i)
+		elif t == null and grid and near_reach > 0.0 and contacts.size() > 16:
 			near_cell = near_reach
 			for c: GSBotContact in contacts:
 				if c.alive:
