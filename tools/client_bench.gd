@@ -548,11 +548,17 @@ func _print_mismatches() -> void:
 		print("    tick %d %-20s %.4f alive %s pred %s recv %s" % r)
 
 
+## The remote-present sub-spans (r_pose, r_held, r_tag, r_anim) are laps; `--fine 0` leaves them off to measure without the clock reads.
 func _measure() -> void:
-	FcFrameProbe.set_interval(1.0e9)
-	# The remote-present sub-spans (r_pose, r_held, r_tag, r_anim) are laps; `--fine 0` leaves them off to measure without the clock reads.
 	var fine_was := FcFrameProbe.fine
 	FcFrameProbe.fine = _fine
+	FcFrameProbe.set_interval(1.0e9)
+	await _measure_frames()
+	FcFrameProbe.set_interval(0.0)
+	FcFrameProbe.fine = fine_was
+
+
+func _measure_frames() -> void:
 	var frames := PackedFloat32Array()
 	var steps := PackedInt32Array()
 	var calls := 0.0
@@ -625,10 +631,7 @@ func _measure() -> void:
 			print("  %-12s %.1f/frame max %d" % [key, float(row[0]) / n, row[2]])
 		else:
 			print("  %-12s %.3f ms/frame  max %.2f  x%.2f" % [key, float(row[0]) / n / 1000.0, row[2] / 1000.0, float(row[1]) / n])
-	var cnet_interp: Object = net.interpolator if net != null else null
-	print("  " + FcFrameProbe.stages_line(n, cnet_interp))
-	FcFrameProbe.set_interval(0.0)
-	FcFrameProbe.fine = fine_was
+	print("  " + FcFrameProbe.stages_line(n, net.interpolator if net != null else null))
 	print("  physics3d active %d pairs %d | nodes %d" % [
 		int(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS)),
 		int(Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS)),
