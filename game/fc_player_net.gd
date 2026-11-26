@@ -3,6 +3,7 @@ extends GSNetBehaviour
 const FcContent := preload("fc_content.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
+const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
 const FcNetCommand := preload("fc_net_command.gd")
 const FcPlayer := preload("fc_player.gd")
 
@@ -453,18 +454,12 @@ func pull() -> void:
 	GSCombatNetSync.pull(player.health, self)
 	lap = FcFrameProbe.lap(&"np_combat", lap)
 
-	# The rig's pull is gs-weapon's three and the pack's four.
-	if player.weapons != null:
-		AwWeaponNet.pull(player.weapons, self)
-	else:
-		GSWeaponNetSync.pull(player.arsenal, self)
-	# The knife throw's wind-up rides the charge draw: at least 1 while winding, so 0 still means not winding.
-	if player.windup >= 0.0:
-		net_charge = maxi(1, roundi(clampf(player.windup, 0.0, 1.0) * AwWeaponNet.CHARGE_MAX))
+	# The rig's pull (gs-weapon's three, the pack's four, the knife's wind-up), with the held weapon's wire number, in
+	# one gs-sim call where cvars sv_net_pull_weapons_native and sv_net_pull_content_native allow; else the script.
+	var weapon_code := FcNetPullWeapons.pull_weapons(self, player.weapons, player.arsenal, player.windup)
 	lap = FcFrameProbe.lap(&"np_weapons", lap)
 
-	var def := player.arsenal.current_def() if player.arsenal != null else null
-	net_weapon = FcContent.weapon_index(def.id if def != null else &"")
+	FcNetPullWeapons.pull_content(self, player.arsenal, weapon_code)
 	# Owner-only, and a bot has no owner: 33 shelf scans a bot a tick for a mask nobody receives.
 	if not _server_owned():
 		net_carry = FcContent.carry_mask(player.arsenal)

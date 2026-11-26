@@ -3,6 +3,7 @@ extends "fc_engine_cvars.gd"
 const FcNetAoi := preload("fc_net_aoi.gd")
 const FcPlayerNet := preload("fc_player_net.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
+const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
 const FcBots := preload("fc_bots.gd")
 const FcBotLoadouts := preload("fc_bot_loadouts.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
@@ -656,6 +657,7 @@ func _add_aoi_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcNetPullNative.enabled = new_value.to_float() >= 0.5)
+	FcNetPullWeapons.bind_cvars(add_cvar)
 
 
 ## Once a second from the module: turns the rings on or off for the current player count.
