@@ -104,8 +104,7 @@ func _ready() -> void:
 		return
 	var module := server.modules.get_module("arena") as FcModule
 	_module = module
-	if _slow_tick_ms > 0:
-		_watch_slow_ticks(module)
+	_watch_slow_ticks(module)
 	var quota: GSBotQuota = module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("fixed")
@@ -278,6 +277,8 @@ func _remote_players() -> int:
 
 ## The slow-tick dump: the module tells each tick over `--sim_slow_tick`, and the game's events are noted on the tick they happen in.
 func _watch_slow_ticks(module: FcModule) -> void:
+	if _slow_tick_ms <= 0:
+		return
 	module.slow_tick_report = func(tick: int, usec: int, objects: int) -> void:
 		if _slow_left <= 0:
 			return

@@ -103,15 +103,9 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 	if mind.brain != null and mind.persona_epoch >= 0 and mind.persona_epoch != world.persona_epoch:
 		mind.brain = null
 	if mind.brain == null:
-		# A full server's bots all join on one tick, and 31 brains built together were about 12 ms of tick 1 (bt_brain_new).
-		# Past brains_per_tick this tick the bot stands still and is built on a later one.
-		if world.brains_tick != tick:
-			world.brains_tick = tick
-			world.brains_made = 0
-		if brains_per_tick > 0 and world.brains_made >= brains_per_tick:
+		if not _take_brain_slot(world, tick):
 			FcFrameProbe.lap(&"bt_setup", t_setup)
 			return [GSFpsCommand.new(), GSWeaponCommand.new()]
-		world.brains_made += 1
 		var t_new := FcFrameProbe.lap_start()
 		var bot_seed := mind.seed if mind.seed != 0 else bot.player_id
 		var base := GSBotSettings.of(game)
@@ -150,6 +144,18 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 	mind.t_world = world
 	FcFrameProbe.lap(&"bt_setup", t_setup)
 	return []
+
+
+## A full server's bots all join on one tick, and 31 brains built together were about 12 ms of tick 1 (bt_brain_new).
+## Past brains_per_tick this tick the bot stands still (false) and is built on a later one.
+static func _take_brain_slot(world: World, tick: int) -> bool:
+	if world.brains_tick != tick:
+		world.brains_tick = tick
+		world.brains_made = 0
+	if brains_per_tick > 0 and world.brains_made >= brains_per_tick:
+		return false
+	world.brains_made += 1
+	return true
 
 
 ## gs-bot 0.1.32: a bot stuck on an island with no way off (a surf map with no ride cache) goes back to a spawn. The brain reports again every bot_stranded_sec if that did not free it. Returns whether it respawned.
