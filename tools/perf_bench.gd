@@ -120,6 +120,9 @@ func _ready() -> void:
 		preload("../game/fc_player.gd").anim_gate_enabled = false
 	if int(args.get("present-native", 1)) == 0:
 		preload("../game/fc_player.gd").present_schedule_native = false
+	if int(args.get("figure-batch", 1)) == 0:
+		# cl_figure_batch 0: every body's figure steps on its own instead of in one animate_all a frame.
+		preload("../game/fc_player.gd").figure_batch = false
 	_render_cvar_flags()
 	if int(args.get("carry", 1)) == 0:
 		# By name: a no-op against an fc-weapons older than the switch.
