@@ -14,6 +14,11 @@ class NavWorld:
 
 	var game: Object = null
 	var brains: Dictionary = {}
+	## The live contacts filed by cell of [member FcBots.think_near] metres (key -> contacts), for [method FcBots._nobody_near]; empty cell size: not built.
+	var near_cells: Dictionary = {}
+	var near_cell: float = 0.0
+	## [member FcBots.think_near], set by the thinking bot before [method refresh].
+	var near_reach: float = 0.0
 	var _tick: int = -1
 	## The drop list of [member _drops_tick]: drops lie still while the brains of a tick think, and every brain asks.
 	var _drops_held: Array = []
@@ -58,6 +63,24 @@ class NavWorld:
 	var _par_observe: bool = false
 	var _par_job: Dictionary = {}
 	var _par_rays: Dictionary = {}
+
+	static func near_key(x: float, z: float, cell: float) -> int:
+		return (int(floorf(x / cell)) + 4096) * 8192 + int(floorf(z / cell)) + 4096
+
+	## Files the live [param contacts] into [member near_cells]; built only with [param grid] on and above 16 contacts.
+	func _near_refresh(contacts: Array, grid: bool) -> void:
+		near_cells.clear()
+		near_cell = 0.0
+		if grid and near_reach > 0.0 and contacts.size() > 16:
+			near_cell = near_reach
+			for c: GSBotContact in contacts:
+				if c.alive:
+					var k := near_key(c.position.x, c.position.z, near_cell)
+					var cell: Variant = near_cells.get(k)
+					if cell == null:
+						near_cells[k] = [c]
+					else:
+						(cell as Array).append(c)
 
 	func par_end() -> void:
 		par = false
