@@ -61,6 +61,8 @@ var _lives: Dictionary = {}
 ## [kit, schema, catalogue, rules, unrestricted, entitlement ids, default ids] -> [loadout, entries],
 ## see [method built_for].
 var _built: Dictionary = {}
+## Difficulty -> [method candidates]' read-only list, until [method load_from] or [member mode] changes it.
+var _candidates: Dictionary = {}
 
 
 ## The profile schema.
@@ -86,6 +88,7 @@ func load_from(profiles: GSProfileSet = null) -> int:
 		profiles = GSProfileSet.create("", "game-fatal-contact", KIND, schema())
 	kits.clear()
 	_built.clear()
+	_candidates.clear()
 	_override_text = "\u0001"
 	for id in profiles.list_ids():
 		var res := profiles.load_profile(id)
@@ -131,9 +134,20 @@ static func parse_mode(text: String) -> Dictionary:
 
 
 ## The kits a bot at [param difficulty] can draw under [member mode]. A difficulty no kit
-## allows is ignored rather than leaving the bot nothing.
+## allows is ignored rather than leaving the bot nothing. Memoed per difficulty and read-only:
+## a respawn wave filters the kits once instead of once per bot.
 func candidates(difficulty: String = "") -> Array[Kit]:
 	_refresh_override()
+	var hit: Variant = _candidates.get(difficulty)
+	if hit != null:
+		return hit
+	var out := _filter(difficulty)
+	out.make_read_only()
+	_candidates[difficulty] = out
+	return out
+
+
+func _filter(difficulty: String) -> Array[Kit]:
 	var out: Array[Kit] = []
 	for kit in kits:
 		if weight_of(kit) <= 0.0:
@@ -249,6 +263,7 @@ func _refresh_override() -> void:
 		return
 	_override_text = mode
 	_override = parse_mode(mode)
+	_candidates.clear()
 	for id: StringName in _override:
 		var found := false
 		for kit in kits:
