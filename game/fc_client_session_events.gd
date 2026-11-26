@@ -89,6 +89,8 @@ func _adopt(candidate: FcPlayer) -> void:
 		# `GSFpsController.teleport` turns the controller's OWN sampler, and this client samples
 		# with its own.
 		player.spawned.connect(func(at: Transform3D) -> void:
+			if FcLoadTimeline.seen("death"):
+				FcLoadTimeline.first_use("respawn")
 			if _sampler != null:
 				_sampler.look_at_angles(rad_to_deg(at.basis.get_euler().y), 0.0)
 		)

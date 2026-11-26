@@ -25,6 +25,12 @@
 // --cpuprofile (needs --steady-s) records a CDP CPU profile over the same window and prints CPU_PROFILE: the top
 // self-time functions. Wasm frames show as wasm-function[N] because the web export strips names; map N with
 // wasm-objdump/`wasm-tools print` on a build that keeps its name section (the dlink threads engine's debug build).
+//
+// --first-use [S] (default 90 s) plays after the drop, pressing fire (left button) for 300 ms every 2 s so the client
+// shoots, dies to the bots, sees the kill view and respawns, until FcLoadTimeline.first_use has published all of
+// FIRST_USE or S seconds pass. Prints one FIRST_USE line per run: time to in-game (the drop) and, for each first
+// moment, the worst browser frame from 50 ms before it to 700 ms after, with the client's own report (worst engine
+// frame, pipelines compiled). Use solo mode with bots: `embed.html?solo=gamemann/game-fatal-contact&bot_quota=8&cl_perf=5`.
 const pw = (await import(process.env.PLAYWRIGHT_CORE ?? '/home/christian/.local/share/mcp/playwright-mcp/node_modules/playwright-core/index.js')).default;
 const args = process.argv.slice(2);
 const num = (flag, dflt) => args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : dflt;
@@ -34,6 +40,9 @@ const phases = args.includes('--phases');
 const steadyS = num('--steady-s', 0);
 const glCount = args.includes('--gl-count');
 const cpuProf = args.includes('--cpuprofile');
+const firstUse = args.includes('--first-use');
+const firstUseS = firstUse && /^\d+$/.test(args[args.indexOf('--first-use') + 1] ?? '') ? Number(args[args.indexOf('--first-use') + 1]) : 90;
+const FIRST_USE = ['shot', 'remote_shot', 'death', 'killview', 'respawn'];
 if (!(steadyS >= 0)) { console.error('--steady-s needs seconds (0 is off)'); process.exit(2); }
 const pct = (d, q) => +d[Math.min(d.length - 1, Math.floor(q * d.length))].toFixed(2);
 const url = args.find(a => a.startsWith('http')) ?? 'http://127.0.0.1:8099/embed.html?server=ws://127.0.0.1:6174&cl_perf=5';
@@ -80,6 +89,17 @@ async function run(i) {
   for (let s = 0; s < 180 && open === null; s++) { await page.waitForTimeout(1000); open = await page.evaluate(() => window.gsWeb?.publishedAt?.arena_gate_open ?? null); }
   for (let s = 0; s < 12; s++) { await page.waitForTimeout(1000); if (await page.evaluate(() => window.gsWeb?.publishedAt?.arena_after_open != null)) break; }
   await page.waitForTimeout(1000);
+  if (open !== null && firstUse) {
+    const box = await page.locator('canvas').first().boundingBox();
+    if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    const until = Date.now() + firstUseS * 1000;
+    while (Date.now() < until) {
+      await page.mouse.down(); await page.waitForTimeout(300); await page.mouse.up();
+      if (await page.evaluate((names) => names.every(n => window.gsWeb?.published?.[`fc_first_${n}_frames`] != null), FIRST_USE)) break;
+      await page.waitForTimeout(1700);
+    }
+    await page.waitForTimeout(1000);
+  }
   let cdp = null, frames0 = 0;
   if (open !== null && steadyS > 0 && (glCount || cpuProf)) {
     frames0 = await page.evaluate(() => { if (window.__gl) { window.__gl.n = {}; window.__gl.on = true; } return window.__frames.length; });
@@ -100,7 +120,7 @@ async function run(i) {
     return { frames: window.__frames, gpu: gl.getParameter(gl.getExtension('WEBGL_debug_renderer_info').UNMASKED_RENDERER_WEBGL),
       download: packs.length ? Math.max(...packs.map(e => e.responseEnd)) : null,
       engine: window.__TMC_ENGINE__ ?? null, natives: window.__TMC_NATIVES__ ?? null, isolated: self.crossOriginIsolated === true,
-      boot: [...performance.getEntriesByType('navigation').flatMap(n => [[n.requestStart, 'page request'], [n.responseEnd, 'page received'], [n.domContentLoadedEventEnd, 'page parsed']]), ...files, ...(window.__boot ?? [])], load: w.published.arena_load, loadAt: w.publishedAt.arena_load, after: w.published.arena_after_open, afterAt: w.publishedAt.arena_after_open };
+      boot: [...performance.getEntriesByType('navigation').flatMap(n => [[n.requestStart, 'page request'], [n.responseEnd, 'page received'], [n.domContentLoadedEventEnd, 'page parsed']]), ...files, ...(window.__boot ?? [])], first: Object.fromEntries(Object.keys(w.publishedAt ?? {}).filter(k => k.startsWith('fc_first_')).map(k => [k, [w.publishedAt[k], w.published[k]]])), load: w.published.arena_load, loadAt: w.publishedAt.arena_load, after: w.published.arena_after_open, afterAt: w.publishedAt.arena_after_open };
   });
   await page.close();
   if (gln) {
@@ -141,6 +161,18 @@ async function run(i) {
       fps: +(d.length / (d.reduce((s, x) => s + x, 0) / 1000)).toFixed(1), engine: r.engine, natives: r.natives, isolated: r.isolated } : null;
     console.log('BROWSER_BENCH', JSON.stringify({ run: i + 1, seconds: steadyS, ...(out.bench ?? { frames: 0 }) }));
   }
+  if (firstUse) {
+    const fu = { run: i + 1, engine: r.engine, isolated: r.isolated, in_game_ms: out.open_ms, download_ms: out.download_ms };
+    for (const n of FIRST_USE) {
+      const at = r.first[`fc_first_${n}`]?.[0]; const rep = r.first[`fc_first_${n}_frames`]?.[1];
+      if (at == null) { fu[n] = null; continue; }
+      const win = r.frames.filter(f => f[0] >= at - 50 && f[0] <= at + 700).map(f => f[1]);
+      const own = rep ? JSON.parse(rep) : {};
+      fu[n] = { at_ms: +(at - open).toFixed(0), worst_ms: win.length ? +Math.max(...win).toFixed(0) : null, engine_worst_ms: own.worst_frame_ms ?? null, pipelines: own.pipelines ?? null, worst_frame: own.worst_frame ?? null };
+    }
+    out.firstUse = fu;
+    console.log('FIRST_USE', JSON.stringify(fu));
+  }
   const errs = [...errors].sort((a, b) => b[1] - a[1]);
   console.log(`  console errors/warnings: ${errs.reduce((s, e) => s + e[1], 0)}`, errs.slice(0, 4).map(([k, n]) => `${n}x ${k}`).join(' | '));
   if (phases) for (const t of raw) console.log('    err:', t);
@@ -158,5 +190,6 @@ const ok = all.filter(Boolean);
 if (runs > 1 && ok.length) console.log('median', JSON.stringify({ runs: ok.length, open_after_download_ms: median(ok.map(o => o.open_after_download_ms)),
   first_smooth_after_open_ms: median(ok.map(o => o.first_smooth_after_open_ms)), play2s_worst: median(ok.map(o => o.play2s?.worst)),
   play2s_fps: median(ok.map(o => o.play2s?.fps)), cover_worst: median(ok.map(o => o.cover?.worst)),
+  ...(firstUse ? Object.fromEntries(FIRST_USE.map(n => [`first_${n}_worst_ms`, median(ok.map(o => o.firstUse?.[n]?.worst_ms))])) : {}),
   ...(steadyS > 0 ? { bench_p50_ms: median(ok.map(o => o.bench?.p50_ms)), bench_p95_ms: median(ok.map(o => o.bench?.p95_ms)) } : {}) }));
 process.exit(ok.length < runs || (budget > 0 && ok.some(o => o.play2s && o.play2s.worst > budget)) ? 1 : 0);

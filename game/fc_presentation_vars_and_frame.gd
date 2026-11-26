@@ -1,6 +1,7 @@
 extends "fc_presentation_fields.gd"
 
 const FcScopePrefs := preload("fc_scope_prefs.gd")
+const FcLoadTimeline := preload("fc_load_timeline.gd")
 const FcScopeBody := preload("fc_scope_body.gd")
 const FcNetLink := preload("fc_net_link.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
@@ -427,6 +428,7 @@ static func facing(at: Vector3, direction: Vector3) -> Transform3D:
 func on_used(outcome: GSWeaponOutcome, weapon_draws: bool = false) -> void:
 	if outcome == null or not outcome.used:
 		return
+	FcLoadTimeline.first_use("shot")
 
 	for shot in outcome.shots:
 		if not weapon_draws:
@@ -710,6 +712,7 @@ func use_shot_rules(rules: GSShotRules) -> void:
 ## The report of somebody else's gun (`AwShotFx.shot_sound`) through this presentation's one layered player. Without it each shooter's `AwShotFx` made its own audio manager, enclosure and shot player on its first shot:
 ## 40 ms a shooter, thirty-one times a match at 16 v 16. A gun's own report when fc-weapons ships one, else its class's stock; false for a class with neither (the single sound plays).
 func remote_shot(id: StringName, kind: StringName, at: Vector3, _indoors: bool) -> bool:
+	FcLoadTimeline.first_use("remote_shot")
 	var t_shot := Time.get_ticks_usec()
 	var done := _remote_shot(id, kind, at)
 	FcFrameProbe.add(&"fx_remote_shot", t_shot)

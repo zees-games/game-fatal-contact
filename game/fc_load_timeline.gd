@@ -63,7 +63,97 @@ static func mark(label: String, detail: Variant = null) -> void:
 	_marks.append([Time.get_ticks_msec(), Engine.get_process_frames(), label, detail])
 
 
+## Each first-use moment seen ([method first_use]), to its watch.
+static var _first_seen: Dictionary = {}
+## The timeline in the tree, so a first-use moment can trace its frames ([method trace_frames]); null before its _ready and after it leaves.
+static var _live: WeakRef = null
+## Frames a first-use moment traces: its watch window at 60 fps, so its worst frame names its ticks, slow sections and draw.
+const FIRST_USE_TRACE_FRAMES := 45
+## How long after a first-use moment its frames are watched: long enough for a death's ragdoll and the kill view's first draw.
+const FIRST_USE_MSEC := 700
+
+
+## The first time this client does [param event] (`shot`, `remote_shot`, `death`, `killview`, `respawn`): stamped,
+## published at once as `window.gsWeb.published.fc_first_<event>` (its publishedAt is the page's clock), and
+## the next [const FIRST_USE_MSEC] of frames watched: their worst frame, slow frames and the pipelines compiled
+## in them go to `fc_first_<event>_frames` (JSON) and the log. Later calls are a dictionary lookup.
+static func seen(event: String) -> bool:
+	return _first_seen.has(event)
+
+
+static func first_use(event: String) -> void:
+	if _first_seen.has(event):
+		return
+	var watch := FirstUseWatch.new(event, _marks)
+	_first_seen[event] = watch
+	mark("first " + event)
+	if GSWeb.available():
+		GSWeb.publish("fc_first_" + event, str(Time.get_ticks_msec()))
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		tree.process_frame.connect(watch.on_frame)
+	var live: Object = _live.get_ref() if _live != null else null
+	if live != null and (live as Node).is_inside_tree():
+		live.call(&"trace_frames", FIRST_USE_TRACE_FRAMES)
+
+
+## One first-use moment's frames, until [const FIRST_USE_MSEC] have passed.
+class FirstUseWatch extends RefCounted:
+	var event: String
+	var start_usec := 0
+	var last_usec := 0
+	var worst_usec := 0
+	var slow := 0
+	var frames := 0
+	var pipelines_at := 0
+	## Where [member _marks] stood at the last frame, and the stamps made in the worst frame (its ticks, slow sections, draw).
+	var marks: Array = []
+	var marks_at := 0
+	var worst_marks: PackedStringArray = []
+	const WORST_MARKS := 16
+
+	## [param stamps]: the timeline's own [member _marks] (shared, not copied), which an inner class cannot name.
+	func _init(name: String, stamps: Array) -> void:
+		event = name
+		marks = stamps
+		start_usec = Time.get_ticks_usec()
+		last_usec = start_usec
+		pipelines_at = FirstUseWatch.pipelines()
+		marks_at = marks.size()
+
+	static func pipelines() -> int:
+		var n := 0
+		for info: int in PIPELINE_SOURCES:
+			n += int(RenderingServer.get_rendering_info(info))
+		return n
+
+	func on_frame() -> void:
+		var now := Time.get_ticks_usec()
+		if now - last_usec > worst_usec:
+			worst_usec = now - last_usec
+			worst_marks = []
+			for i in range(marks_at, mini(marks.size(), marks_at + WORST_MARKS)):
+				var m: Array = marks[i]
+				worst_marks.append(str(m[2]) if m[3] == null else "%s: %s" % [m[2], m[3]])
+		marks_at = marks.size()
+		if now - last_usec >= SETTLE_SLOW_MS * 1000:
+			slow += 1
+		last_usec = now
+		frames += 1
+		if now - start_usec < FIRST_USE_MSEC * 1000:
+			return
+		var tree := Engine.get_main_loop() as SceneTree
+		if tree != null and tree.process_frame.is_connected(on_frame):
+			tree.process_frame.disconnect(on_frame)
+		var report := {"worst_frame_ms": worst_usec / 1000, "slow_frames": slow, "frames": frames, "pipelines": FirstUseWatch.pipelines() - pipelines_at,
+			"worst_frame": worst_marks}
+		GSLog.info(CHANNEL, "first %s" % event, report)
+		if GSWeb.available():
+			GSWeb.publish("fc_first_%s_frames" % event, JSON.stringify(report))
+
+
 func _ready() -> void:
+	_live = weakref(self)
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	# Last of every node's physics: a traced tick's node time runs from the tree's physics signal to here.
 	process_physics_priority = 1 << 30
