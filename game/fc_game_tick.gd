@@ -267,7 +267,10 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		var t_ctl := Time.get_ticks_usec()
 		# -2: the controller does not tick (not started, or a far bot's body sitting this tick out); the rest of the player's tick still runs.
 		var d := player.body_delta(_tick, delta, controller.current_command)
-		_batch_rows[i] = _motor_batch.add(controller.motor, controller.state, controller.current_command, d) if d > 0.0 and controller.begin_tick(_tick, d) else -2
+		if fine:
+			_batch_rows[i] = _fine_add(player, controller, d, t_ctl)
+		else:
+			_batch_rows[i] = _motor_batch.add(controller.motor, controller.state, controller.current_command, d) if d > 0.0 and controller.begin_tick(_tick, d) else -2
 		player.ctl_usec = Time.get_ticks_usec() - t_ctl
 		if fine:
 			FcFrameProbe.add(&"pl_sim", t_fine)
@@ -298,6 +301,20 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	_motor_batch.rows = 0
 
 
+## The first half of the controller's batched tick with [code]c_*[/code] laps (fine probe only): body gap, begin, motor row.
+func _fine_add(player: FcPlayer, controller: GSFpsController, d: float, t_ctl: int) -> int:
+	var t := FcFrameProbe.lap(&"c_delta", t_ctl)
+	if d <= 0.0:
+		return -2
+	if not controller.begin_tick(_tick, d):
+		FcFrameProbe.lap(&"c_begin", t)
+		return -2
+	t = FcFrameProbe.lap(&"c_begin", t)
+	var row := _motor_batch.add(controller.motor, controller.state, controller.current_command, d)
+	FcFrameProbe.lap(&"c_add", t)
+	return row
+
+
 ## The second half of one player's batched tick: the motor's answer, the rest of the player's tick and what it did.
 func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, delta: float, hull_world: Object, shots: Array[GSShot],
 		fine: bool, post_lane: bool, post_from: Object) -> void:
@@ -313,7 +330,11 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		if controller.has_external_velocity():
 			FcHullGrid.batch_faults += 1
 		told = _motor_batch.finish(row)
+		if fine:
+			t_fine = FcFrameProbe.lap(&"c_finish", t_ctl)
 		controller.end_tick(_tick, player.body_d)
+		if fine:
+			FcFrameProbe.lap(&"c_end", t_fine)
 	var rested := controller.state.position
 	FcFrameProbe.add(&"p_controller", t_ctl - player.ctl_usec)
 	var outcome: GSWeaponOutcome = null

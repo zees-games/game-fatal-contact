@@ -321,8 +321,11 @@ class World:
 				c.wall_running = false
 				c.air_jump_ready = false
 			c.health = p.health.health / p.health.max_health if p.health != null and p.health.max_health > 0.0 else 1.0
+			var t_c := FcFrameProbe.lap_start()
 			c.loadout = _loadout_of(p, tick)
+			t_c = FcFrameProbe.lap(&"brc_loadout", t_c)
 			_weapon_of(c, p)
+			FcFrameProbe.lap(&"brc_weapon", t_c)
 			_contacts.append(c)
 			_players[c.id] = p
 		if _by_id.size() != _contacts.size():
@@ -330,7 +333,9 @@ class World:
 			_by_id.clear()
 			for c: GSBotContact in _contacts:
 				_by_id[c.id] = c
+		var t_obj := FcFrameProbe.lap_start()
 		_objective_refresh(teams)
+		FcFrameProbe.lap(&"brc_objective", t_obj)
 		t_lap = FcFrameProbe.lap(&"br_contacts", t_lap)
 		if tiers != null and tiers.applies(_contacts.size()):
 			_tier_begin()

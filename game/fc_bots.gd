@@ -80,7 +80,10 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 	_tier_on = tiers.applies(players)
 	if (_every > 1 or _tier_on) and _coasts(mind, tick, world, bot.player_id):
 		t_gate = FcFrameProbe.lap(&"bt_gate", t_gate)
-		var coasted := _recoil_comp(bot, mind, _coast(mind, tick), tick, tick_rate)
+		var moved := _coast(mind, tick)
+		var t_move := FcFrameProbe.lap(&"bt_coast_move", t_gate)
+		var coasted := _recoil_comp(bot, mind, moved, tick, tick_rate)
+		FcFrameProbe.lap(&"bt_coast_recoil", t_move)
 		FcFrameProbe.lap(&"bt_coast", t_gate)
 		return coasted
 	FcFrameProbe.lap(&"bt_gate", t_gate)
@@ -274,6 +277,8 @@ static var brain_phases := GSAddonApi.build_level("gs_bot") >= 29
 ## bot_recoil_control: the share of the recoil a bot pulls its aim back against, 0..1; below 0 (the default, -1)
 ## by difficulty from [constant RECOIL_CONTROL]. A whole share made every bot's burst a laser no person matches.
 static var recoil_control := -1.0
+## Weapon id -> recoil seed, for [method _recoil_seed].
+static var _recoil_seeds: Dictionary = {}
 const RECOIL_CONTROL := {"easy": 0.3, "medium": 0.55, "hard": 0.75, "nightmare": 0.9}
 
 
@@ -324,9 +329,21 @@ static func next_recoil_offset(bot: FcPlayer, tick: int, tick_rate: float) -> Ve
 	var n := int(state.get(&"recoil_n", 0)) if elapsed <= rr.reset else 0
 	var residual := Vector2(float(state.get(&"recoil_ax", 0.0)), float(state.get(&"recoil_ay", 0.0))) * exp(-b.recoil_recovery * rr.recovery * elapsed)
 	var grow := 1.0 + minf(b.recoil_build * rr.build * float(n), b.recoil_build_max * rr.build)
-	var kick := Vector2(b.recoil_pitch * rr.vertical * grow, b.recoil_yaw * rr.horizontal * grow * GSWeaponRecoilRules.drift(GSWeaponRecoilRules.seed_for(b, slot.behaviour.def.id), n))
+	var kick := Vector2(b.recoil_pitch * rr.vertical * grow, b.recoil_yaw * rr.horizontal * grow * GSWeaponRecoilRules.drift(_recoil_seed(b, slot.behaviour.def.id), n))
 	var share := b.recoil_camera if b.recoil_camera >= 0.0 else rr.punch
 	return (residual + kick) * (1.0 - share) + residual * share * rr.follow
+
+
+## [method GSWeaponRecoilRules.seed_for], with the hash of a weapon id kept: it is worked from the id's bytes on every
+## call, and a coasting bot asks for it each tick it holds the trigger.
+static func _recoil_seed(b: GSWeaponBallistics, id: StringName) -> int:
+	if b.recoil_seed != 0:
+		return b.recoil_seed
+	var cached: Variant = _recoil_seeds.get(id)
+	if cached == null:
+		cached = GSWeaponRecoilRules.seed_for(b, id)
+		_recoil_seeds[id] = cached
+	return cached
 
 
 ## Degrees from [param a] to [param b] the short way round.
