@@ -402,20 +402,9 @@ class World:
 	## Hands the tiers the live people's eyes and views and the bots' positions (a person is a contact with no brain),
 	## or empty lists when the tiers do not apply at this many contacts.
 	func _tier_begin() -> void:
-		var eyes := PackedVector3Array()
-		var looks := PackedVector3Array()
-		var ids := PackedInt32Array()
-		var at := PackedVector3Array()
-		if tiers.applies(_contacts.size()):
-			for c: GSBotContact in _contacts:
-				if brains.has(c.id):
-					if c.alive:
-						ids.append(c.id)
-						at.append(c.position)
-				elif c.alive:
-					eyes.append(c.eye())
-					looks.append(GSBotIntent.direction(c.view_yaw, c.view_pitch))
-		tiers.begin(_contacts.size(), eyes, looks, ids, at)
+		var t := table()
+		var rows := FcBotContacts.tier_rows(t, _contacts, brains, tiers.applies(t.size() if t != null else _contacts.size()))
+		tiers.begin(_contacts.size(), rows[0], rows[1], rows[2], rows[3])
 
 	## What the player carries, rated: 33 slot reads and ratings per player for what only a pickup, a shot or a
 	## reload changes. Kept until the arsenal's [code]revision()[/code] (gs-weapon API 51) or the arsenal itself
@@ -558,14 +547,17 @@ class World:
 	func now() -> float:
 		return float(maxi(_tick, 0)) / tick_rate
 
+	## Through this tick's [GSBotContactTable] when gs-sim filled one (cvar `bot_contact_table`): its view, written on this read.
 	func contact(id: int) -> GSBotContact:
-		return _by_id.get(id)
+		var t := table()
+		return t.contact_by_id(id) if t != null else _by_id.get(id)
 
 	func contacts() -> Array:
-		return _contacts
+		var t := table()
+		return t.contacts() if t != null else _contacts
 
 	func contact_of(all: Array, id: int) -> GSBotContact:
-		return _by_id.get(id) if is_same(all, _contacts) else GSBotWorld.find(all, id)
+		return contact(id) if is_same(all, _contacts) or (all.is_empty() and table() != null) else GSBotWorld.find(all, id)
 
 	func line_of_sight(from: Vector3, to: Vector3) -> bool:
 		if par:

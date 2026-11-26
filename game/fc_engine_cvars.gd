@@ -53,6 +53,12 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.delta = new_value.to_float() >= 0.5)
+	add_cvar("bot_contact_table", "1",
+		"1: gs-sim fills the bots' contacts as one packed table (GSBotContactTable, gs-bot 41; the same decisions, a contact object written only when read); 0, or a gs-sim without fill_table: it writes every contact object every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.table = new_value.to_float() >= 0.5
+			GSBotWorld.table_enabled = FcBotContacts.table)
 	add_cvar("motor_native", "1" if GSFpsPhysicsBody.native_enabled else "0",
 	add_cvar("motor_native", "1" if GSFpsPhysicsBody.native_enabled else "0",
 		"1: the players' movement collision queries (sweep, rest contact, overlap) run in gs-sim when its library is installed (bit-identical to the script, so web and native clients still agree; cheaper); 0: in script. Without the library it is script either way",

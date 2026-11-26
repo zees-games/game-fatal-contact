@@ -293,25 +293,8 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 		for i in 5:
 			_check(true, "(skipped: no gs-sim contact build)")
 		return
-	FcBotThreads.threads = 0
-	var game := FcGame.new()
-	game.name = "Contacts"
-	game.tick_rate = TICK_RATE
-	game.headless = true
-	game.is_authority = true
-	game.register_service = false
-	add_child(game)
-	var _setup := game.setup(FcMap.dm_box())
-	game.match_node.rules.warmup_sec = 0.0
-	game.match_node.rules.countdown_sec = 0.0
 	var players: Array = []
-	for i in BOTS:
-		var made := game.add_player(100 + i, "Bot%d" % i)
-		if made.ok:
-			players.append(made.value)
-	game.start(0)
-	game.tick({})
-	await get_tree().process_frame
+	var game := await _contacts_game(players)
 	var world := FcBots.world_for(game)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
@@ -319,14 +302,27 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	var same := [0, 0]
 	var first := -1
 	var built := FcBotContacts.built
+	var tabled := [0, 0]
+	var table_first := -1
+	var has_table := false
 	for round_index in rounds:
 		var held: Variant = _scramble(players, rng, round_index == rounds - 1)
+		FcBotContacts.table = false
 		FcBotContacts.enabled = false
-		world.refresh(1000 + 2 * round_index, float(TICK_RATE))
+		world.refresh(1000 + 3 * round_index, float(TICK_RATE))
 		var script := _snapshot(world)
+		var packed := GSBotContactTable.from_contacts(0, world.get(&"_contacts")).digest()
 		FcBotContacts.enabled = true
-		world.refresh(1001 + 2 * round_index, float(TICK_RATE))
+		world.refresh(1001 + 3 * round_index, float(TICK_RATE))
 		var native := _snapshot(world)
+		var row := _table_round(world, 1002 + 3 * round_index, packed, script[0])
+		has_table = row >= 0
+		if has_table and row & 1:
+			tabled[0] += 1
+		elif has_table and table_first < 0:
+			table_first = round_index
+		if has_table and row & 2:
+			tabled[1] += 1
 		if held != null:
 			players[0].controller = held
 		for k in 2:
@@ -337,7 +333,9 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	built = FcBotContacts.built - built
 	var native_contacts: Object = world.get(&"_native_contacts")
 	var delta_rounds := 30
+	FcBotContacts.table = false
 	var delta_same := _delta_rounds(world, players, rng, delta_rounds)
+	FcBotContacts.table = true
 	remove_child(game)
 	game.queue_free()
 	await get_tree().process_frame
@@ -351,9 +349,63 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	_check(bool(native_contacts.get(&"_has_delta")) and delta_same == delta_rounds,
 		"bot_native_contacts_delta: writing only changed kept fields leaves every field and row of a full write in %d of %d rounds" % [delta_same, delta_rounds])
 	FcBotContacts.delta = false
+	FcBotContacts.table = false
 	played = await _play(0)
 	FcBotContacts.delta = true
 	_check(played[0] == expected, "bot_native_contacts_delta 0 (every field every tick) plays the same match (%d kills)" % played[1])
+	await _table_checks(expected, tabled, rounds, table_first, has_table)
+
+## The match [method _contacts_parity] refreshes, started and ticked once; its players appended to [param players].
+func _contacts_game(players: Array) -> FcGame:
+	FcBotThreads.threads = 0
+	var game := FcGame.new()
+	game.name = "Contacts"
+	game.tick_rate = TICK_RATE
+	game.headless = true
+	game.is_authority = true
+	game.register_service = false
+	add_child(game)
+	var _setup := game.setup(FcMap.dm_box())
+	game.match_node.rules.warmup_sec = 0.0
+	game.match_node.rules.countdown_sec = 0.0
+	for i in BOTS:
+		var made := game.add_player(100 + i, "Bot%d" % i)
+		if made.ok:
+			players.append(made.value)
+	game.start(0)
+	game.tick({})
+	await get_tree().process_frame
+	return game
+
+
+## `bot_contact_table`: one refresh at [param tick] with gs-sim filling the columns. -1 without a table; else bit 1 when they
+## digest as the script's contacts pack ([param packed]), bit 2 when every view read from them is the script's ([param script]).
+func _table_round(world: Object, tick: int, packed: int, script: Variant) -> int:
+	FcBotContacts.table = true
+	world.refresh(tick, float(TICK_RATE))
+	var t: GSBotContactTable = world.call(&"table")
+	if t == null:
+		return -1
+	var _all: Array = world.call(&"contacts")
+	return (1 if t.digest() == packed else 0) | (2 if _snapshot(world)[0] == script else 0)
+
+
+## The `bot_contact_table` checks of [method _contacts_parity]'s rounds, and the match with it off.
+func _table_checks(expected: PackedStringArray, tabled: Array, rounds: int, table_first: int, has_table: bool) -> void:
+	print("contact table: first differing round %d" % table_first)
+	if not has_table:
+		print("skip: this gs-sim has no fill_table")
+		for i in 3:
+			_check(true, "(skipped: no gs-sim contact table)")
+		FcBotContacts.table = true
+		return
+	_check(tabled[0] == rounds, "bot_contact_table: gs-sim's columns digest as the script's contacts pack in %d of %d randomized rounds" % [tabled[0], rounds])
+	_check(tabled[1] == rounds, "and every view read from them equals the script's contact field for field, in %d of %d" % [tabled[1], rounds])
+	var tabled_before := FcBotContacts.tabled
+	var played: Array = await _play(0)
+	FcBotContacts.table = true
+	_check(played[0] == expected and FcBotContacts.tabled == tabled_before,
+		"bot_contact_table 0 (the objects) plays the match the table plays (%d kills)" % played[1])
 
 
 ## `bot_native_contacts_delta`: the kept fields written only when they change. Each round builds with it on (against what the
