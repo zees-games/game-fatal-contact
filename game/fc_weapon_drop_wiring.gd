@@ -196,9 +196,12 @@ static func update_panel(client, pressed: bool, delta: float) -> void:
 	var fill := hold.progress
 	if client.hud != null:
 		view.key_text = String(client.hud.keys.get(&"use", "E"))
-	view.name_of = func(id: StringName) -> String:
-		var def: Variant = player.arsenal.catalogue.get_def(id)
-		return def.name_or_id() if def != null else String(id)
+	# Bound once, not a new closure each frame; it reads the client's player at call time, so a respawn needs no rebind.
+	if not view.name_of.is_valid():
+		view.name_of = func(id: StringName) -> String:
+			var p = client.player
+			var def: Variant = p.arsenal.catalogue.get_def(id) if p != null and p.arsenal != null else null
+			return def.name_or_id() if def != null else String(id)
 	# One ring: the crosshair's. The panel's own world circle stays off (fill 0), or two rings fill at once.
 	view.show_prompt(info, 0.0)
 	if client.hud != null and client.hud.crosshair != null:
