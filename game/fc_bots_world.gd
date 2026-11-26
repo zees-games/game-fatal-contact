@@ -35,9 +35,6 @@ const STYLE_CLASS := {
 	&"grenade_launcher": &"launcher", &"beamer": &"heavy", &"charge_rifle": &"sniper",
 	&"frag": &"throw", &"sticky": &"throw", &"flash": &"throw", &"smoke": &"throw", &"incendiary": &"throw",
 }
-## gs-bot API level of [code]GSBotContact.weapon_class[/code] and [code]magazine[/code] (weapon play styles). Below it the
-## contact has neither and the bot plays the generic style, so [code]requires.floor.json[/code] keeps gs_bot at 26.
-const STYLE_LEVEL := 32
 ## Metres inside which a scoped gun gives way to the sidearm.
 const GUN_CLOSE := 10.0
 
@@ -111,10 +108,6 @@ class Mind:
 	var t_intent: GSBotIntent = null
 
 
-## Ticks between rebuilds of a contact's loadout (see [method World._loadout_of]).
-const LOADOUT_EVERY := 4
-
-
 ## Think-rate staggering (cvar `bot_think_every`, `bot_think_near`). A bot with no enemy within [member think_near] metres, no target, no ride, no throw, a plain walk and nothing pressed runs its brain one tick in
 ## [member think_every], offset by its id so the thinkers spread over the ticks, and repeats its last commands in between; 1 turns it off. Far from a fight a brain only picks a waypoint and walks it; the nearby enemy gets every tick.
 static var think_every: int = 0
@@ -185,11 +178,10 @@ class World:
 	var tick_rate: float = float(FcContent.TICK_RATE)
 	## The map's PVS before each sight ray (cvar `fc_bot_pvs`), bound by [method refresh].
 	var pvs := FcBotPvs.new()
+	## A [GSBotLoadout] by player id: each player's loadout kept between ticks (see [method _loadout_of]).
 	var _loadouts: Dictionary = {}
 	## [constant STYLE_CLASS] by weapon definition, so a contact's class is one lookup a tick.
 	var _classes: Dictionary = {}
-	## Whether this build's gs-bot has play styles ([constant STYLE_LEVEL]); asked once per world, not per contact.
-	var _styled: bool = GSAddonApi.build_level("gs_bot") >= STYLE_LEVEL
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
 	var _contacts: Array = []
@@ -407,46 +399,30 @@ class World:
 		tiers.begin(_contacts.size(), rows[0], rows[1], rows[2], rows[3])
 
 	## What the player carries, rated: 33 slot reads and ratings per player for what only a pickup, a shot or a
-	## reload changes. Kept until the arsenal's [code]revision()[/code] (gs-weapon API 51) or the arsenal itself
-	## changes; an older gs-weapon falls back to one rebuild in [constant LOADOUT_EVERY] ticks (offset by id).
-	func _loadout_of(p: FcPlayer, tick: int) -> Dictionary:
-		var held: Variant = _loadouts.get(p.player_id)
-		var arsenal: Object = p.arsenal
-		# Kept for this arsenal (an entry of three is only written for one with revision()): no has_method a player a tick.
-		if arsenal != null and held is Array and (held as Array).size() == 3 and (held as Array)[2] == arsenal.get_instance_id():
-			if (held as Array)[0] == arsenal.call(&"revision"):
-				return (held as Array)[1]
-		if arsenal != null and arsenal.has_method(&"revision"):
-			var rev: int = arsenal.call(&"revision")
-			var id := arsenal.get_instance_id()
-			if held is Array and (held as Array).size() == 3 and (held as Array)[0] == rev and (held as Array)[2] == id:
-				return (held as Array)[1]
-			var fresh := GSBotArms.loadout_of(arsenal, _rater)
-			_loadouts[p.player_id] = [rev, fresh, id]
-			return fresh
-		if held is Array and (held as Array).size() == 2 and (tick + p.player_id) % LOADOUT_EVERY != 0 and tick >= (held as Array)[0] and tick - (held as Array)[0] < LOADOUT_EVERY:
-			return (held as Array)[1]
-		var made := GSBotArms.loadout_of(arsenal, _rater)
-		_loadouts[p.player_id] = [tick, made]
-		return made
+	## reload changes. A [GSBotLoadout] (gs-bot API 48) keeps it while the arsenal's [code]revision()[/code] holds,
+	## rebuilds it only when [code]weapons_revision()[/code] (gs-weapon API 59) moves and patches the ammunition in
+	## place after a shot or reload (cvar `bot_loadout_incremental` 0: rebuilt on every revision, as before).
+	func _loadout_of(p: FcPlayer, _tick: int) -> Dictionary:
+		var kept: GSBotLoadout = _loadouts.get(p.player_id)
+		if kept == null:
+			kept = GSBotLoadout.new()
+			_loadouts[p.player_id] = kept
+		return kept.of(p.arsenal, _rater)
 
 	## The class of the weapon in hand and how full its magazine is, for the bot's play style.
-	## Set by name: the fields exist from gs-bot [constant STYLE_LEVEL], and a host below it still parses this file.
 	func _weapon_of(c: GSBotContact, p: FcPlayer) -> void:
-		if not _styled:
-			return
 		var slot: GSWeaponSlot = p.arsenal.current() if p.arsenal != null else null
 		if slot == null or slot.def == null:
-			c.set(&"weapon_class", &"")
-			c.set(&"magazine", -1.0)
+			c.weapon_class = &""
+			c.magazine = -1.0
 			return
 		var def := slot.def
 		var klass: Variant = _classes.get(def)
 		if klass == null:
 			klass = _class_of(def)
 			_classes[def] = klass
-		c.set(&"weapon_class", klass)
-		c.set(&"magazine", float(slot.magazine) / float(def.magazine) if def.magazine > 0 else -1.0)
+		c.weapon_class = klass
+		c.magazine = float(slot.magazine) / float(def.magazine) if def.magazine > 0 else -1.0
 
 	## A weapon's style class: its id (with or without a pack's `aw_` prefix) in [constant STYLE_CLASS], else its tags.
 	static func _class_of(def: GSWeaponDef) -> StringName:

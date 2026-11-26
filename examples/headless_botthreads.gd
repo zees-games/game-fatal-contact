@@ -18,8 +18,8 @@ const BOTS := 24
 const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
-const SECTIONS := 6
-const CHECKS := 31
+const SECTIONS := 7
+const CHECKS := 34
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -64,6 +64,8 @@ func _run() -> void:
 	_section("bot_native_contacts: gs-sim builds the script's contacts")
 	await _contacts_parity(digests[0])
 	_done()
+
+	await _loadout_parity(digests[0])
 
 	_section("the brain profile (--brain-us) times brains on bot threads")
 	await _brain_phases_threaded(digests[0])
@@ -477,3 +479,23 @@ func _snapshot(world: Object) -> Array:
 	for c: Object in rows.get(&"_sensed"):
 		table.append_array(var_to_bytes(c.get_instance_id()))
 	return [fields, table]
+
+
+## Every loadout a contact gets, kept and patched (bot_loadout_incremental 1), against a fresh GSBotArms.loadout_of
+## on every call of a whole match (GSBotLoadout.verify); 0 rebuilds on every revision and plays the same match.
+func _loadout_parity(expected: PackedStringArray) -> void:
+	_section("bot_loadout_incremental: the kept loadouts are fresh builds every tick")
+	var was := GSBotLoadout.incremental
+	GSBotLoadout.incremental = true
+	GSBotLoadout.verify = true
+	var misses := GSBotLoadout.misses
+	var patches := GSBotLoadout.patches
+	var kept := await _play(0)
+	GSBotLoadout.verify = false
+	_check(GSBotLoadout.misses == misses, "every kept loadout equals a fresh build on every tick (%d differ)" % (GSBotLoadout.misses - misses))
+	_check(GSBotLoadout.patches - patches > 50 and kept[0] == expected, "shots and reloads patched in place (%d patches), the same match (%d kills)" % [GSBotLoadout.patches - patches, kept[1]])
+	GSBotLoadout.incremental = false
+	var full := await _play(0)
+	GSBotLoadout.incremental = was
+	_check(full[0] == expected, "bot_loadout_incremental 0 (a rebuild on every revision) plays the same match (%d kills)" % full[1])
+	_done()

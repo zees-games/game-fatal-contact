@@ -335,6 +335,7 @@ func _add_bot_think_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcBots.recoil_control = new_value.to_float())
 	_add_bot_engine_cvars()
+	_add_bot_cache_cvars()
 	_add_hull_and_pvs_cvars()
 	_add_tick_budget_cvars()
 

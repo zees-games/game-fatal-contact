@@ -96,6 +96,15 @@ func _add_bot_engine_cvars() -> void:
 			(GSFpsNetSync as Script).set(&"native_pack", new_value.to_float() >= 0.5))
 
 
+## The bots' script-side caches of what they read off the players.
+func _add_bot_cache_cvars() -> void:
+	add_cvar("bot_loadout_incremental", "1",
+		"1: a bot's view of each player's weapons is rebuilt only when the weapons carried change, a shot or reload patches the ammunition in place (GSBotLoadout, gs-bot 48 with gs-weapon 59; the same loadouts); 0: rebuilt whole on every magazine change",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			GSBotLoadout.incremental = new_value.to_float() >= 0.5)
+
+
 ## The players' hull grid (its fast, native and batched gathers) and the bots' PVS sight pre-cull.
 func _add_hull_and_pvs_cvars() -> void:
 	add_cvar("fc_hull_grid", "1" if FcHullGrid.enabled else "0",
