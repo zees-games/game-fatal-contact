@@ -63,20 +63,25 @@ func setup() -> GSResult:
 	var settled := _build_settings()
 	if not settled.ok:
 		return settled
+	FcLoadTimeline.mark("presentation: settings")
 	var heard := _build_audio()
 	if not heard.ok:
 		return heard
+	FcLoadTimeline.mark("presentation: audio")
 	var drawn := _build_fx()
 	if not drawn.ok:
 		return drawn
+	FcLoadTimeline.mark("presentation: fx")
 	# cl_fx_pool_idle: one shot fx pool per player, so trim each one's idle meshes.
 	_addon_static(GSFxMeshPool, &"max_idle", 0, fx_pool_idle)
 	preload("fc_render_cvars.gd").apply()
 	_build_chat()
 	net_stat = GSMenuNetStat.follow(self, settings)
+	FcLoadTimeline.mark("presentation: chat")
 
 	# Every value pushed once, after everything exists.
 	apply_all()
+	FcLoadTimeline.mark("presentation: applied")
 	return GSResult.success(null)
 
 
@@ -379,6 +384,7 @@ func _build_audio() -> GSResult:
 	var res := audio.setup()
 	if not res.ok:
 		return res.wrap("Fatal Contact's audio")
+	FcLoadTimeline.mark("audio: manager")
 
 	steps = GSAudioFootsteps.new()
 	steps.name = "Footsteps"
@@ -416,6 +422,7 @@ func _build_audio() -> GSResult:
 	ambient.rules = FcAmbience.make_rules()
 	ambient.beds = ambience
 	add_child(ambient)
+	FcLoadTimeline.mark("audio: shots registered")
 	var _moods := ambient.setup()
 	ambient.follow_settings(settings)
 	if ambient.has_moods():
@@ -423,6 +430,7 @@ func _build_audio() -> GSResult:
 	else:
 		ambience.set_map_bed(bed_for(&""))
 
+	FcLoadTimeline.mark("audio: ambience")
 	_start_bake()
 	return GSResult.success(null)
 
