@@ -80,6 +80,12 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.delta = new_value.to_float() >= 0.5)
+	add_cvar("bot_contact_table", "1",
+		"1: gs-sim fills the bots' contacts as one packed table (GSBotContactTable, gs-bot 41; the same decisions, a contact object written only when read); 0, or a gs-sim without fill_table: it writes every contact object every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.table = new_value.to_float() >= 0.5
+			GSBotWorld.table_enabled = FcBotContacts.table)
 	_add_motor_engine_cvars()
 
 

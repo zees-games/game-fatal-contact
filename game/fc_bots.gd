@@ -529,6 +529,7 @@ static func _coasts(mind: Mind, tick: int, world: World, id: int) -> bool:
 ## Whether no live enemy of [param me] is within [member think_near] metres.
 static func _nobody_near(me: GSBotContact, world: World) -> bool:
 	var near_sq := think_near * think_near
+	var t := world.table()
 	if world.near_cell > 0.0 and world.near_cell == think_near:
 		var cx := int(floorf(me.position.x / think_near)) + 4096
 		var cz := int(floorf(me.position.z / think_near)) + 4096
@@ -537,9 +538,19 @@ static func _nobody_near(me: GSBotContact, world: World) -> bool:
 				var cell: Variant = world.near_cells.get((cx + dx) * 8192 + cz + dz)
 				if cell == null:
 					continue
+				if t != null:
+					for i: int in cell:
+						if t.live_enemy(i, me) and t.positions[i].distance_squared_to(me.position) < near_sq:
+							return false
+					continue
 				for item: GSBotContact in cell:
 					if item.id != me.id and me.is_enemy(item) and item.position.distance_squared_to(me.position) < near_sq:
 						return false
+		return true
+	if t != null:
+		for i in t.size():
+			if t.live_enemy(i, me) and t.positions[i].distance_squared_to(me.position) < near_sq:
+				return false
 		return true
 	for item: GSBotContact in world.contacts():
 		if item.alive and item.id != me.id and me.is_enemy(item) and item.position.distance_squared_to(me.position) < near_sq:

@@ -6,6 +6,8 @@ extends RefCounted
 ## randomized player states). Off, without the library (the web) or when the records do not fit, the script loop builds them.
 ## With [member delta], gs-sim writes the fields a player keeps from tick to tick only when they change ([code]fill_changed[/code]);
 ## a tick the script loop built makes the next native build write every field again.
+## With [member table] (gs-bot 41, a gs-sim with fill_table), gs-sim writes no contact object at all: it fills packed columns that
+## become the world's [GSBotContactTable], and a contact object is written from its row only when something reads it.
 
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcPlayer := preload("fc_player.gd")
@@ -23,11 +25,18 @@ static var enabled: bool = true
 static var delta: bool = true
 ## Ticks whose contacts gs-sim built, for the suites.
 static var built: int = 0
+## Whether gs-sim fills the contact table instead of the objects (cvar `bot_contact_table`; needs fill_table).
+static var table: bool = true
+## Ticks whose contacts gs-sim filled as a table, for the suites.
+static var tabled: int = 0
 
 var _sim: Object = null
 var _tried: bool = false
 ## Whether gs-sim has fill_changed.
 var _has_delta: bool = false
+## Whether gs-sim has fill_table.
+var _has_table: bool = false
+var _table: GSBotContactTable = null
 ## Whether the last build was gs-sim's, so what it remembers writing is what the contacts hold.
 var _fresh: bool = false
 var _head := PackedFloat64Array()
@@ -44,6 +53,7 @@ func sim() -> Object:
 		if GSSim.has(&"contacts"):
 			_sim = ClassDB.instantiate(&"GSSimBotContacts")
 			_has_delta = _sim.has_method(&"fill_changed")
+			_has_table = _sim.has_method(&"fill_table")
 			_head.resize(HEAD)
 			_bare.resize(int(_sim.call(&"stride")) - HEAD)
 	return _sim
@@ -105,18 +115,67 @@ func build(world: Object, players: Array, tick: int, eye: float, aim: float, tea
 			tunables = world.call(&"_body_tunables")
 			world.set(&"_tunables", tunables)
 		launch = tunables != null and (tunables as GSFpsTunables).launch_enabled
-	var changed_only := delta and _has_delta
+	var tabling := table and _has_table
+	var changed_only := delta and _has_delta and not tabling
 	if changed_only and not _fresh:
 		native.call(&"forget")
 	_fresh = false
-	if not bool(native.call(&"fill_changed" if changed_only else &"fill", contacts, records, eye, aim, launch)):
+	var fits: bool
+	if tabling:
+		fits = native.call(&"fill_table", records, eye, aim, launch)
+	else:
+		fits = native.call(&"fill_changed" if changed_only else &"fill", contacts, records, eye, aim, launch)
+	if not fits:
 		push_error("bot contacts: gs-sim's contact build does not fit these players' state; the script builds them from now on")
 		_sim = null
 		contacts.clear()
 		by_player.clear()
 		return false
-	_fresh = true
 	built += 1
+	if tabling:
+		_take_table(world, native, tick, contacts, ids)
+	else:
+		_fresh = true
 	if rows:
 		(world.get(&"_bot_rows") as Object).call(&"take", contacts.duplicate(), ids, native)
 	return true
+
+
+## Hands gs-sim's filled columns to [param world] as its [GSBotContactTable]. The objects hold only what a read of their row
+## wrote, so the next delta build writes every field again (_fresh stays false).
+func _take_table(world: Object, native: Object, tick: int, contacts: Array, ids: PackedInt64Array) -> void:
+	if _table == null:
+		_table = GSBotContactTable.new()
+	_table.take(tick, contacts, ids, native.call(&"positions"), native.call(&"velocities"), native.call(&"floats"),
+		native.call(&"teams"), native.call(&"flags"), native.call(&"points"), native.call(&"eyes"), native.call(&"alive"))
+	world.call(&"set_table", _table)
+	tabled += 1
+
+
+## The tiers' rows [eyes, looks, ids, at]: the live people's eyes and views and the live bots' ids and positions, from
+## [param t] when there is a table, else from [param all]; empty lists when not [param applies].
+static func tier_rows(t: GSBotContactTable, all: Array, brains: Dictionary, applies: bool) -> Array:
+	var eyes := PackedVector3Array()
+	var looks := PackedVector3Array()
+	var ids := PackedInt32Array()
+	var at := PackedVector3Array()
+	if applies and t != null:
+		for i in t.size():
+			if t.flags[i] & GSBotContactTable.ALIVE == 0:
+				continue
+			if brains.has(int(t.ids[i])):
+				ids.append(t.ids[i])
+				at.append(t.positions[i])
+			else:
+				eyes.append(t.eyes[i])
+				looks.append(GSBotIntent.direction(t.floats[i * GSBotContactTable.FLOATS + 2], t.floats[i * GSBotContactTable.FLOATS + 3]))
+	elif applies:
+		for c: GSBotContact in all:
+			if brains.has(c.id):
+				if c.alive:
+					ids.append(c.id)
+					at.append(c.position)
+			elif c.alive:
+				eyes.append(c.eye())
+				looks.append(GSBotIntent.direction(c.view_yaw, c.view_pitch))
+	return [eyes, looks, ids, at]
