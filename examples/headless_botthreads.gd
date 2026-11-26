@@ -19,7 +19,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 6
-const CHECKS := 31
+const CHECKS := 34
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -383,7 +383,7 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	var rounds := 40
 	var same := [0, 0]
 	var first := -1
-	var built := FcBotContacts.built
+	var built := 0  # the object rounds' gs-sim builds; the table round's fill counts too and is left out
 	var tabled := [0, 0]
 	var table_first := -1
 	var has_table := false
@@ -395,7 +395,9 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 		var script := _snapshot(world)
 		var packed := GSBotContactTable.from_contacts(0, world.get(&"_contacts")).digest()
 		FcBotContacts.enabled = true
+		var built_before := FcBotContacts.built
 		world.refresh(1001 + 3 * round_index, float(TICK_RATE))
+		built += FcBotContacts.built - built_before
 		var native := _snapshot(world)
 		var row := _table_round(world, 1002 + 3 * round_index, packed, script[0])
 		has_table = row >= 0
@@ -412,7 +414,6 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 				same[k] += 1
 			elif first < 0:
 				first = round_index
-	built = FcBotContacts.built - built
 	var native_contacts: Object = world.get(&"_native_contacts")
 	var delta_rounds := 30
 	FcBotContacts.table = false
