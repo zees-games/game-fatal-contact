@@ -111,10 +111,29 @@ var _st_height := PackedFloat64Array()
 var _st_radius := PackedFloat64Array()
 
 
+## Cvar [code]fc_unlag_native[/code]: 1 keeps the rewind history in gs-sim's [code]GSSimUnlagRing[/code] where its library has it,
+## recorded for every player in one call a tick (the same answers: [code]headless_unlag_native_parity[/code]); 0 keeps
+## the script rings in [member _unlag]. A game reads it when it records its first tick and keeps that choice.
+static var unlag_native := true
+
+
 ## Where player [param id] was at [param at] (a fractional tick), between the two
 ## recorded ticks either side; null when the history does not reach that far.
 func unlag_position_at(id: int, at: float) -> Variant:
-	var ring: Array = _unlag.get(id, [])
+	if _unlag_ring != null:
+		return _unlag_ring.call(&"position_at", id, at)
+	return ring_position_at(_unlag.get(id, []), at)
+
+
+## Player [param id]'s crouch fraction at [param at], lerped as [method unlag_position_at] is; -1 when not recorded.
+func unlag_crouch_at(id: int, at: float) -> float:
+	if _unlag_ring != null:
+		return _unlag_ring.call(&"crouch_at", id, at)
+	return ring_crouch_at(_unlag.get(id, []), at)
+
+
+## A script ring's position at [param at] (see [method unlag_position_at]); null when it is empty or not recorded there.
+static func ring_position_at(ring: Array, at: float) -> Variant:
 	# Below tick 0, -1 % 128 indexes the last slot, whose unfilled tag is -1 too.
 	if ring.is_empty() or at < 0.0:
 		return null
@@ -131,9 +150,8 @@ func unlag_position_at(id: int, at: float) -> Variant:
 	return positions[a].lerp(positions[b], at - float(lo))
 
 
-## Player [param id]'s crouch fraction at [param at], lerped as [method unlag_position_at] is; -1 when not recorded.
-func unlag_crouch_at(id: int, at: float) -> float:
-	var ring: Array = _unlag.get(id, [])
+## A script ring's crouch fraction at [param at] (see [method unlag_crouch_at]); -1 when not recorded.
+static func ring_crouch_at(ring: Array, at: float) -> float:
 	if ring.size() < 3 or at < 0.0:
 		return -1.0
 	var crouches: PackedFloat32Array = ring[2]
@@ -196,43 +214,73 @@ func unlag_history() -> int:
 
 ## Records every player's position for this tick, for [method _unlag_rewind].
 func _unlag_record() -> void:
+	if not _unlag_decided:
+		_unlag_decided = true
+		if unlag_native and GSSim.has(&"unlag"):
+			_unlag_ring = ClassDB.instantiate(&"GSSimUnlagRing")
+			_unlag_ring.call(&"set_history", unlag_history())
+	if _unlag_ring != null:
+		_unlag_record_native()
+		return
 	for id in _players:
 		var player: FcPlayer = _players[id]
-		var ring: Array = _unlag.get(id, [])
-		if ring.is_empty():
-			var positions := PackedVector3Array()
-			positions.resize(unlag_history())
-			var ticks := PackedInt32Array()
-			ticks.resize(unlag_history())
-			ticks.fill(-1)
-			ring = [positions, ticks]
-			_unlag[id] = ring
-		if ring.size() < 3:
-			var fresh := PackedFloat32Array()
-			fresh.resize((ring[1] as PackedInt32Array).size())
-			ring.append(fresh)
-		# Packed arrays are values: taken out, written, and put back, or the write lands
-		# on a copy and the history stays empty (it did, the first time).
-		var positions: PackedVector3Array = ring[0]
-		var ticks: PackedInt32Array = ring[1]
-		var crouches: PackedFloat32Array = ring[2]
-		# The ring's own references are dropped while the three are written, so each write is in place: with them
-		# held, every write copies the whole 128-slot array (three copies per player per tick).
-		ring[0] = null
-		ring[1] = null
-		ring[2] = null
-		var slot := _tick % ticks.size()
-		var before := (_tick - 1) % ticks.size()
-		# A respawn or a teleport: rewinding across it would stand hitboxes where they died.
-		if ticks[before] == _tick - 1 and positions[before].distance_to(player.global_position) > TELEPORT_CUT:
-			ticks.fill(-1)
-		positions[slot] = player.global_position
-		ticks[slot] = _tick
-		crouches[slot] = player.controller.state.crouch_fraction if player.controller != null else 0.0
-		ring[0] = positions
-		ring[1] = ticks
-		ring[2] = crouches
-		_unlag[id] = ring
+		var crouch: float = player.controller.state.crouch_fraction if player.controller != null else 0.0
+		_unlag[id] = ring_record(_unlag.get(id, []), _tick, unlag_history(), player.global_position, crouch)
+
+
+## [method _unlag_record] in gs-sim: every player's feet and crouch gathered into packed rows, one call.
+func _unlag_record_native() -> void:
+	var n := _players.size()
+	if _unlag_ids.size() != n:
+		_unlag_ids.resize(n)
+		_unlag_feet.resize(n)
+		_unlag_crouch.resize(n)
+	var i := 0
+	for id in _players:
+		var player: FcPlayer = _players[id]
+		_unlag_ids[i] = id
+		_unlag_feet[i] = player.global_position
+		_unlag_crouch[i] = player.controller.state.crouch_fraction if player.controller != null else 0.0
+		i += 1
+	_unlag_ring.call(&"record", _tick, _unlag_ids, _unlag_feet, _unlag_crouch, TELEPORT_CUT)
+
+
+## Writes tick [param tick] into a script ring (a new one of [param history] slots when [param ring] is empty) and returns it:
+## the script lane of [code]GSSimUnlagRing.record[/code]. A respawn or teleport since the previous tick clears it first.
+static func ring_record(ring: Array, tick: int, history: int, feet: Vector3, crouch: float) -> Array:
+	if ring.is_empty():
+		var positions := PackedVector3Array()
+		positions.resize(history)
+		var ticks := PackedInt32Array()
+		ticks.resize(history)
+		ticks.fill(-1)
+		ring = [positions, ticks]
+	if ring.size() < 3:
+		var fresh := PackedFloat32Array()
+		fresh.resize((ring[1] as PackedInt32Array).size())
+		ring.append(fresh)
+	# Packed arrays are values: taken out, written, and put back, or the write lands
+	# on a copy and the history stays empty (it did, the first time).
+	var positions: PackedVector3Array = ring[0]
+	var ticks: PackedInt32Array = ring[1]
+	var crouches: PackedFloat32Array = ring[2]
+	# The ring's own references are dropped while the three are written, so each write is in place: with them
+	# held, every write copies the whole 128-slot array (three copies per player per tick).
+	ring[0] = null
+	ring[1] = null
+	ring[2] = null
+	var slot := tick % ticks.size()
+	var before := (tick - 1) % ticks.size()
+	# A respawn or a teleport: rewinding across it would stand hitboxes where they died.
+	if ticks[before] == tick - 1 and positions[before].distance_to(feet) > TELEPORT_CUT:
+		ticks.fill(-1)
+	positions[slot] = feet
+	ticks[slot] = tick
+	crouches[slot] = crouch
+	ring[0] = positions
+	ring[1] = ticks
+	ring[2] = crouches
+	return ring
 
 
 func player_ids() -> Array[int]:

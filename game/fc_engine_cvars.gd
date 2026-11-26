@@ -120,6 +120,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcPlayer.posture_native = new_value.to_float() >= 0.5)
+	add_cvar("fc_unlag_native", "1" if FcGame.unlag_native else "0",
+		"1: the shot rewind history is kept in gs-sim where its library has GSSimUnlagRing, every player recorded in one call (the same answers); 0: the script rings. A game keeps the choice it made at its first tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcGame.unlag_native = new_value.to_float() >= 0.5)
 	FcWeaponTickCvars.add_to(self)
 	add_cvar("fc_mechanics_native", "1" if FcPlayer.mechanics_native else "0",
 		"1: the batched tick asks gs-sim (GSSimVolumes, one call) which players are clear of every map volume and skips their pushes, ladders, water and pits (the same states as the script); 0: every player runs them",

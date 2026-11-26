@@ -512,6 +512,14 @@ const TELEPORT_CUT := 10.0
 
 ## id -> [PackedVector3Array positions, PackedInt32Array ticks, PackedFloat32Array crouch fractions], a ring per player.
 var _unlag: Dictionary = {}
+## gs-sim's GSSimUnlagRing holding the rings instead of [member _unlag] (cvar [code]fc_unlag_native[/code]), or null.
+var _unlag_ring: Object = null
+## Whether the first record has picked [member _unlag_ring] or the script rings.
+var _unlag_decided := false
+## The native record's packed rows, reused each tick.
+var _unlag_ids := PackedInt64Array()
+var _unlag_feet := PackedVector3Array()
+var _unlag_crouch := PackedFloat32Array()
 ## id -> the position a rewind moved a player from, until it is restored.
 var _unlag_moved: Dictionary = {}
 ## id -> true for a player whose hit zones a rewind fitted to the crouch it had then, until it is restored.
