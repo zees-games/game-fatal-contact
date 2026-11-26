@@ -2,6 +2,7 @@ extends "fc_engine_cvars.gd"
 
 const FcNetAoi := preload("fc_net_aoi.gd")
 const FcPlayerNet := preload("fc_player_net.gd")
+const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcBots := preload("fc_bots.gd")
 const FcBotLoadouts := preload("fc_bot_loadouts.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
@@ -650,6 +651,11 @@ func _add_aoi_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcPlayerNet.hold_subquantum = new_value.to_float() != 0.0
 			log_info("sub-quantum hold changed", {"on": FcPlayerNet.hold_subquantum}))
+	add_cvar("sv_net_pull_native", "1" if FcNetPullNative.enabled else "0",
+		"1: a player's movement pull and sub-quantum hold run in one gs-sim call where its library has GSSimFpsNetPack.pull (bit for bit with the script); 0: the script",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcNetPullNative.enabled = new_value.to_float() >= 0.5)
 
 
 ## Once a second from the module: turns the rings on or off for the current player count.
