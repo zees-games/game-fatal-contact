@@ -13,7 +13,8 @@ const FcVolumePrefilter := preload("../game/fc_volume_prefilter.gd")
 const POINTS := 20000
 const SEED := 4243
 const MAPS: Array[StringName] = [&"crackhouse", &"cp-orange-x3"]
-const PLAYERS := 8
+## At least FcHullGrid.MIN_PLAYERS: below it the game ticks players one by one and nobody is ever marked.
+const PLAYERS := 14
 const ROUNDS := 120
 const TICKS_PER_ROUND := 6
 
@@ -112,6 +113,7 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator) -> int:
 		_game.respawn_player(10 + i)
 	FcPlayer.mechanics_verify = true
 	FcPlayer.mechanics_checked = 0
+	var rows_before := FcHullGrid.batch_rows
 	FcPlayer.mechanics_misses = 0
 	var bounds := AABB()
 	for b in boxes:
@@ -131,17 +133,16 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator) -> int:
 						* (b.size * 0.5 + reach)
 			player.controller.teleport(at, rng.randf_range(-180, 180), 0.0)
 		await _ticks(TICKS_PER_ROUND)
-	var pre: Object = _game.get(&"_volume_pre")
-	var p0 := _game.player_for(10)
-	print("  diag: usable %s marked %d batch_rows %d clear_tick %d tick %d skips %d" % [pre.get(&"_usable"), pre.get(&"_marked").size(),
-			FcHullGrid.batch_rows, p0.get(&"_volumes_clear_tick") if p0 else -9, _game.get(&"_tick"), FcPlayer.mechanics_skips])
 	FcPlayer.mechanics_verify = false
 	var checked := FcPlayer.mechanics_checked
-	print("  %s: %d boxes, %d clear player ticks verified, %d changed" % [id, boxes.size(), checked, FcPlayer.mechanics_misses])
+	var rows := FcHullGrid.batch_rows - rows_before
+	print("  %s: %d boxes, %d batched rows, %d clear player ticks verified, %d changed" % [id, boxes.size(), rows, checked,
+			FcPlayer.mechanics_misses])
+	_check(rows > 0, "%s: the batched tick ran (it marks the clear players)" % id, "%d rows" % rows)
 	_check(checked > ROUNDS, "%s: players were marked clear" % id, "%d" % checked)
 	_check(FcPlayer.mechanics_misses == 0, "%s: no clear tick's full mechanics changed the player" % id,
 			"%d of %d" % [FcPlayer.mechanics_misses, checked])
 	_game.queue_free()
 	_game = null
 	await get_tree().physics_frame
-	return 3
+	return 4

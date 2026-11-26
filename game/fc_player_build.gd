@@ -494,9 +494,12 @@ func _volumes_skip(tick: int, start: Vector3) -> bool:
 		return false
 	var t := controller.motor.tunables
 	var slack := FcVolumePrefilter.SLACK
+	# The hull reaches sideways (radius, ladder reach) on x and z, and up from the feet (height, waist) under a box.
+	var side := t.radius + ladder.reach + slack
+	var up := maxf(t.stand_height, swim.waist) + slack
 	return start.distance_squared_to(controller.state.position) <= slack * slack \
-		and t.radius + ladder.reach + slack <= FcVolumePrefilter.BELOW.x \
-		and maxf(t.stand_height, swim.waist) + slack <= FcVolumePrefilter.ABOVE.y
+		and side <= minf(minf(FcVolumePrefilter.BELOW.x, FcVolumePrefilter.BELOW.z), minf(FcVolumePrefilter.ABOVE.x, FcVolumePrefilter.ABOVE.z)) \
+		and up <= FcVolumePrefilter.BELOW.y and slack <= FcVolumePrefilter.ABOVE.y
 
 
 func _verify_clear(start: Vector3, delta: float) -> void:
