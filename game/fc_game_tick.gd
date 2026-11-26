@@ -289,6 +289,13 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 			continue
 		_finish_batched_player(_batch_pairs[i], row, id, player, delta, hull_world, shots, fine, post_lane, post_from)
 	_flush_posts(shots)
+	if fine:
+		FcFrameProbe.count(&"cn_runs", _motor_batch.runs)
+		FcFrameProbe.count(&"cn_retakes", _motor_batch.retakes)
+		FcFrameProbe.count(&"cn_stale", _motor_batch.stale)
+		FcFrameProbe.count(&"cn_rows", _motor_batch.rows)
+		_motor_batch.runs = 0
+		_motor_batch.retakes = 0
 	FcHullGrid.batch_faults += _motor_batch.stale
 	FcHullGrid.batch_rows += _motor_batch.rows
 	_motor_batch.stale = 0
@@ -324,8 +331,11 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 	if row >= 0:
 		if controller.has_external_velocity():
 			FcHullGrid.batch_faults += 1
+		var runs0 := _motor_batch.runs
 		told = _motor_batch.finish(row)
 		if fine:
+			# c_finish split: the row that ran the batch's native call (c_fin_run) or only took its answer (c_fin_apply).
+			FcFrameProbe.add(&"c_fin_run" if _motor_batch.runs != runs0 else &"c_fin_apply", t_ctl)
 			t_fine = FcFrameProbe.lap(&"c_finish", t_ctl)
 		controller.end_tick(_tick, player.body_d)
 		if fine:

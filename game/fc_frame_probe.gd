@@ -47,6 +47,10 @@ static var _profiled_names: Dictionary = {}
 static var fine: bool = false
 ## Whether a profiler recording turns [member fine] on for its length (`profiler_fine 0` or the bench's `--fine 0` say no).
 static var fine_on_record: bool = true
+## Whether [member fine] also turns the rig's and the arsenal's phase clocks on (pw_*, pa_*; `--sim_weapon_phases 1`).
+## Off by default: an armed clock makes AwWeaponRig.idle_batch and GSWeaponArsenal.idle_batch_add decline, so a
+## fine profile with them on times the per-weapon fallback, not the batched idle path production runs.
+static var weapon_phases: bool = false
 
 
 ## `cl_perf_split 1` (`--cl_perf_split 1`, `?cl_perf_split=1`): the report also splits `p_controller` into its phases
