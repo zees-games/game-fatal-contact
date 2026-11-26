@@ -1,6 +1,8 @@
 @tool
 extends "fc_nameplate_view.gd"
 
+const FcVolumePrefilter := preload("fc_volume_prefilter.gd")
+
 func _solid_hulls() -> Array:
 	return solid_hulls_fn.call(player_id, _hull_tick) if solid_hulls_fn.is_valid() else []
 
@@ -399,19 +401,21 @@ func _forget_drawn() -> void:
 
 ## Sends this player through a teleport volume of an imported map, or back to a spawn when they have
 ## fallen out of the bottom of it.
-func _follow_map_volumes() -> void:
+## [param clear]: FcVolumePrefilter found the player clear of every pit this tick ([method _volumes_skip]).
+func _follow_map_volumes(clear := false) -> void:
 	if _map == null or not _map.is_imported():
 		return
 
 	var feet := controller.state.position
 
 	# On the game tick, never controller.state.tick: the jail's gate opened on it (jail-sim-tick-1).
-	var pit := _map.pit_at(feet, _hull_tick)
-	if not pit.is_empty():
-		controller.teleport(pit["to"], float(pit["yaw"]), 0.0)
-		_post_moved = true
-		_forget_drawn()
-		return
+	if not clear:
+		var pit := _map.pit_at(feet, _hull_tick)
+		if not pit.is_empty():
+			controller.teleport(pit["to"], float(pit["yaw"]), 0.0)
+			_post_moved = true
+			_forget_drawn()
+			return
 
 	if feet.y < _map.bounds.position.y - _fall_out_depth and not _map.spawns.is_empty():
 		var at: Transform3D = _map.spawns[0]
@@ -432,28 +436,77 @@ func apply_vitals(max_health: float, max_armour: float, regen: float, fall_out_d
 		health.health = minf(health.health, max_health) if health.alive else health.health
 
 ## What the map's brush entities do to this player this tick: its pushes, gravity and conveyors,
-## then into the water or onto a ladder.
-func _run_map_mechanics(start: Vector3, delta: float) -> void:
+## then into the water or onto a ladder. [param clear]: none of them can reach the player this tick ([method _volumes_skip]).
+func _run_map_mechanics(start: Vector3, delta: float, clear := false) -> void:
 	if _map == null or _map.mechanics == null or controller.motor == null:
 		return
 
 	var state := controller.state
 	if _map.mechanics.acts() or not ladder.volumes.is_empty() or not swim.volumes.is_empty():
 		_post_moved = true
-	_map.mechanics.simulate(controller.motor, state, start, delta)
-
-	if not ladder.volumes.is_empty():
-		ladder.update(controller.motor, state)
-
-	if not swim.volumes.is_empty() and state.mode != ladder.mode_id:
-		swim.update(controller.motor, state)
+	var t_lap := FcFrameProbe.lap_start()
+	if clear and mechanics_verify:
+		_verify_clear(start, delta)
+	elif clear:
+		mechanics_skips += 1
+	else:
+		_map_volumes_act(start, delta)
+	t_lap = FcFrameProbe.lap(&"pm_sim", t_lap)
 
 	# A push moved the state after the controller wrote it out; the node follows, as the
 	# controller's own publish does, so the muzzle and the hitboxes are where the player is.
 	# Nothing moved it (most ticks): the node is already there, and a write would only send every child's transform round again.
 	if lean_tick and global_position == state.position:
+		FcFrameProbe.lap(&"pm_pos", t_lap)
 		return
 	global_position = state.position
+	FcFrameProbe.lap(&"pm_pos", t_lap)
+
+## The map's pushes, gravity and conveyors on the state, then the ladder and the water.
+func _map_volumes_act(start: Vector3, delta: float) -> void:
+	var state := controller.state
+	_map.mechanics.simulate(controller.motor, state, start, delta)
+	if not ladder.volumes.is_empty():
+		ladder.update(controller.motor, state)
+	if not swim.volumes.is_empty() and state.mode != ladder.mode_id:
+		swim.update(controller.motor, state)
+
+
+## Cvar [code]fc_mechanics_native[/code]: 1 lets FcGame's batched loop mark the players gs-sim finds clear of every
+## map volume ([code]GSSimVolumes[/code], one call a tick), whose ticks then skip [method _map_volumes_act] and the
+## pit lookup; 0 runs them for everyone (the reference and the A/B arm).
+static var mechanics_native := true
+## For the parity suite: a marked player runs the full path anyway and [member mechanics_misses] counts the ticks
+## it changed the position, velocity or mode, or found a pit. Off in play.
+static var mechanics_verify := false
+static var mechanics_skips: int = 0
+static var mechanics_checked: int = 0
+static var mechanics_misses: int = 0
+
+## The game tick FcVolumePrefilter last found this player's tick start clear of every map volume on.
+var _volumes_clear_tick := -1
+
+
+## Whether this tick may skip the map's volumes: marked clear on [param tick], moved at most the prefilter's slack
+## from [param start], and a body inside the reaches it was asked with.
+func _volumes_skip(tick: int, start: Vector3) -> bool:
+	if _volumes_clear_tick != tick or controller.motor == null:
+		return false
+	var t := controller.motor.tunables
+	var slack := FcVolumePrefilter.SLACK
+	return start.distance_squared_to(controller.state.position) <= slack * slack \
+		and t.radius + ladder.reach + slack <= FcVolumePrefilter.BELOW.x \
+		and maxf(t.stand_height, swim.waist) + slack <= FcVolumePrefilter.ABOVE.y
+
+
+func _verify_clear(start: Vector3, delta: float) -> void:
+	var state := controller.state
+	var before := [state.position, state.velocity, state.mode]
+	_map_volumes_act(start, delta)
+	mechanics_checked += 1
+	if [state.position, state.velocity, state.mode] != before or not _map.pit_at(state.position, _hull_tick).is_empty():
+		mechanics_misses += 1
+
 
 func _apply_body_rules() -> void:
 	if body_motion == null:
