@@ -79,8 +79,25 @@ static func _subviewports(root: Node) -> PackedStringArray:
 		var port := sv as SubViewport
 		var mk := "%s mode=%d visible_in_tree=%s size=%s" % [_group(sv), port.render_target_update_mode, _shown(port), port.size]
 		modes[mk] = int(modes.get(mk, 0)) + 1
+		# The port's last render (main pass + shadow passes): the engine keeps it until the port draws again, so a
+		# DISABLED port shows what it drew last, not this frame. Read with mode: 0 disabled, 1 once, 2 when its texture
+		# was drawn last frame, 3 when the parent drew, 4 always.
+		var rid := port.get_viewport_rid()
+		var vis_d := RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+		var sh_d := RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_SHADOW, RenderingServer.VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME)
+		var vis_o := RenderingServer.viewport_get_render_info(rid, RenderingServer.VIEWPORT_RENDER_INFO_TYPE_VISIBLE, RenderingServer.VIEWPORT_RENDER_INFO_OBJECTS_IN_FRAME)
+		if vis_d + sh_d > 0:
+			out.append("subviewport_last %s mode=%d draws=%d shadow_draws=%d objects=%d" % [_group(sv), port.render_target_update_mode, vis_d, sh_d, vis_o])
 	for k: String in modes:
 		out.append("subviewport %s x%d" % [k, modes[k]])
+	# Every camera, and whether it is the one its viewport draws through (a camera that is not current renders nothing).
+	var cams := {}
+	for c in root.find_children("*", "Camera3D", true, false):
+		var cam := c as Camera3D
+		var ck := "%s current=%s in_port=%s mask=%x" % [_group(cam), cam.current, cam.get_viewport() != root.get_viewport(), cam.cull_mask]
+		cams[ck] = int(cams.get(ck, 0)) + 1
+	for k: String in cams:
+		out.append("camera %s x%d" % [k, cams[k]])
 	return out
 
 
@@ -166,10 +183,14 @@ static func _group(n: Node) -> String:
 	return "/".join(out) + "|" + n.get_class()
 
 
+## Whether [param port]'s picture can be on screen: no hidden CanvasItem or CanvasLayer above it (a CanvasLayer is not a CanvasItem, and a
+## hidden one hides its TextureRect, so a port under it with UPDATE_WHEN_VISIBLE does not render).
 static func _shown(port: SubViewport) -> bool:
 	var cur: Node = port.get_parent()
 	while cur != null:
 		if cur is CanvasItem and not (cur as CanvasItem).visible:
+			return false
+		if cur is CanvasLayer and not (cur as CanvasLayer).visible:
 			return false
 		cur = cur.get_parent()
 	return true
