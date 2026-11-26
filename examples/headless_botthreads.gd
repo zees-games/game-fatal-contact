@@ -18,7 +18,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 5
-const CHECKS := 22
+const CHECKS := 23
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -230,6 +230,7 @@ func _older_api() -> void:
 	var line_now := FcSimServer.phases_line(1)
 	_check(line_old.begins_with("SIM_HOST_PHASES") and not line_old.contains("bb_"), "the sim host's phase line leaves out the brain on gs-bot 26: " + line_old)
 	_check(line_now.contains("bb_setup") == (GSAddonApi.build_level("gs_bot") >= 29), "and has the brain's phases from gs-bot 29: " + line_now)
+	_check(line_now.contains("bb_setup_n ") == (GSAddonApi.build_level("gs_bot") >= 40), "and the thinks per tick (bb_setup_n) from gs-bot 40: " + line_now)
 
 
 ## The tier's answers above 1 so far, the native tier's included (flushed by name: not every gs-bot level has it).
