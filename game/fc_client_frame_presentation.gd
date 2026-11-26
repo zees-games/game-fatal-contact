@@ -225,7 +225,7 @@ func _fold_alpha() -> void:
 		return
 	player.drawn_alpha = float(net.clock.call(&"render_alpha"))
 
-## The server's tag look (RULES) into [FcNameTagRules]'s statics; a handful of dictionary reads, once a frame.
+## The server's tag look (RULES) into [FcNameTagRules]'s statics; a handful of dictionary reads, every few frames.
 func _sync_tag_look() -> void:
 	TagRules.enemy_bar_mode = int(game.rule("enemy_bar_mode"))
 	TagRules.enemy_name_mode = int(game.rule("enemy_name_mode"))
@@ -242,7 +242,25 @@ func _sync_tag_look() -> void:
 
 
 ## Tells the name tags and health bars what this player picked, what the server allows and who is looking.
+## The settings, the server's rules and the team colours change seldom: they are re-read every [code]TAG_SYNC_FRAMES[/code]
+## frames (about 40 string lookups and an array walk each), while who is looking is read every frame.
+const TAG_SYNC_FRAMES := 15
+var _tag_sync_frame := -TAG_SYNC_FRAMES
+
+
 func sync_name_tags(world_mask: int) -> void:
+	var frame := Engine.get_process_frames()
+	if frame - _tag_sync_frame >= TAG_SYNC_FRAMES or frame < _tag_sync_frame:
+		_tag_sync_frame = frame
+		_sync_tag_settings()
+	TagRules.viewer_id = player.player_id if player != null else -1
+	var shown := game.displayed_mode()
+	var sided := shown != null and shown.is_team_mode() and not game.teams().is_empty()
+	TagRules.viewer_team = game.team_of(TagRules.viewer_id) if sided and player != null else -1
+	TagRules.occluder_mask = world_mask
+
+
+func _sync_tag_settings() -> void:
 	var settings: Object = presentation.settings if presentation != null else null
 	if settings != null:
 		TagRules.client_names = maxi(TagRules.parse(settings.get_string(&"name_tags", "team_hover")), 0)
@@ -256,17 +274,14 @@ func sync_name_tags(world_mask: int) -> void:
 	TagRules.server_names = int(game.rule("nametags"))
 	TagRules.server_bars = int(game.rule("hpbars"))
 	_sync_tag_look()
-	TagRules.viewer_id = player.player_id if player != null else -1
 	var shown := game.displayed_mode()
 	var sided := shown != null and shown.is_team_mode() and not game.teams().is_empty()
-	TagRules.viewer_team = game.team_of(TagRules.viewer_id) if sided and player != null else -1
 	TagRules.team_colours.clear()
 	TagRules.team_count = 0
 	for t in game.teams():
 		if sided and not t.is_spectator:
 			TagRules.team_count += 1
 			TagRules.team_colours[t.id] = t.colour
-	TagRules.occluder_mask = world_mask
 
 
 ## How much of their own body the local player sees in first person (GSPlayerViewRules.BODY_*):
