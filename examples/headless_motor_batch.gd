@@ -24,7 +24,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 30
+const CHECKS := 31
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -242,7 +242,7 @@ func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> vo
 
 	_section("body tiers: far coasting bots tick their motor every few ticks, the time made up")
 	if kept == &"":
-		for i in 3:
+		for i in 4:
 			_check(true, "(skipped: no imported map is linked)")
 	else:
 		# The bots think once with the tiers on; each tick's motor period is recorded with its commands and replayed.
@@ -265,6 +265,16 @@ func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> vo
 		_check(sat_off > SMALL_BOTS and sat_on == sat_off, "bodies sat out ticks (%d, batched %d)" % [sat_off, sat_on])
 		_check(on[0] == off[0] and off[0].size() > 5, "both loops play the same stepped match (%s)" % _first_diff(off[0], on[0]))
 		_check(on[2] > 0 and on[3] == 0, "through the batch with no fault (%d rows)" % on[2])
+		# cvar ctl_native 0: body_delta and the collider sizing through the properties, not the columns and engine getters.
+		var cols := FcPlayer.body_cols
+		FcPlayer.body_cols = false
+		(GSFpsController as Script).set(&"direct_getters", false)
+		var sat_props := FcPlayer.body_skipped
+		var props: Array = await _play(true, kept, SMALL_BOTS, SMALL_SECONDS, stepped, false)
+		sat_props = FcPlayer.body_skipped - sat_props
+		FcPlayer.body_cols = cols
+		(GSFpsController as Script).set(&"direct_getters", true)
+		_check(props[0] == on[0] and sat_props == sat_on, "ctl_native 0 plays the same stepped match, %d bodies sat out (%s)" % [sat_props, _first_diff(on[0], props[0])])
 	_done()
 	FcHullGrid.batch = was
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)

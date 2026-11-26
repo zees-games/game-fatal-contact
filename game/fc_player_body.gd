@@ -587,6 +587,9 @@ var body_last_tick: int = -1
 static var body_skipped := 0
 ## A gap longer than this (a death, a map change) is not made up.
 const BODY_MAX_GAP := 8
+## [method body_delta] reads the state's packed columns (gs-player-controller 36: previous buttons 13, mode 9, slide 17,
+## wall run 22, yaw 12) instead of six property calls per bot per tick; false is the property path (cvar ctl_native).
+static var body_cols := GSAddonApi.build_level("gs_player_controller") >= 36
 ## What [method body_delta] answered last, for the batched loop's [method GSFpsController.end_tick].
 var body_d := 0.0
 
@@ -602,12 +605,22 @@ func body_delta(tick: int, delta: float, command: GSFpsCommand) -> float:
 		body_d = delta
 		return delta
 	var s := controller.state
-	if gap >= body_every or command.buttons != s.previous_buttons or controller.has_external_velocity() \
+	if body_cols:
+		# The state's columns ([code]GSFpsStateColumns[/code], gs-player-controller 36), fetched by name so older builds parse.
+		var f: PackedFloat64Array = s.get(&"_f")
+		if gap >= body_every or command.buttons != int(f[13]) or controller.has_external_velocity() \
+				or int(f[9]) != GSFpsState.Mode.GROUND or f[17] >= 0.0 or f[22] >= 0.0:
+			body_last_tick = tick
+			body_d = delta * float(gap)
+			return body_d
+		f[12] = command.yaw
+	elif gap >= body_every or command.buttons != s.previous_buttons or controller.has_external_velocity() \
 			or not s.is_grounded() or s.is_sliding() or s.is_wall_running():
 		body_last_tick = tick
 		body_d = delta * float(gap)
 		return body_d
-	s.yaw = command.yaw
+	else:
+		s.yaw = command.yaw
 	s.pitch = command.pitch
 	s.tick += 1
 	body_skipped += 1
