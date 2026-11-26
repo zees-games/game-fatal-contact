@@ -273,7 +273,8 @@ func _build() -> GSResult:
 	achievements.register_as = GSAchievementTracker.SERVICE
 
 	# The tracker's own default is a file store in its store_directory; this is the same files, written behind the frame.
-	achievements.store = FcAwardStore.new(progress_dir if progress_dir != "" else achievements.store_directory)
+	var store_dir := progress_dir if progress_dir != "" else FcAwardStore.suite_directory
+	achievements.store = FcAwardStore.new(store_dir if store_dir != "" else achievements.store_directory)
 
 	add_child(achievements)
 
