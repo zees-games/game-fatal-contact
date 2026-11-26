@@ -75,6 +75,11 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.enabled = new_value.to_float() >= 0.5)
+	add_cvar("bot_native_contacts_delta", "1",
+		"1: gs-sim's contact build writes the fields a player keeps from tick to tick (heights, alive, team, motion flags, health) only when they change (GSSimBotContacts.fill_changed; the same contacts to the bit, fewer property writes); 0: every field every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.delta = new_value.to_float() >= 0.5)
 	_add_motor_engine_cvars()
 
 
