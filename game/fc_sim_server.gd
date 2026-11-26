@@ -239,8 +239,7 @@ func _process(delta: float) -> void:
 		_frame_gap_max_usec = maxi(_frame_gap_max_usec, now_usec - _frame_at_usec)
 		if _slow_tick_ms > 0 and now_usec - _frame_at_usec >= _slow_tick_ms * 4000 and _slow_left > 0:
 			_slow_left -= 1
-			print("SIM_HOST_SLOW_FRAME %.1f ms | ticks %d | objects %d | static mem %.1f MB" % [(now_usec - _frame_at_usec) / 1000.0, _ticks_this_frame,  # check-logging: allow print (bench output)
-				Performance.get_monitor(Performance.OBJECT_COUNT), Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0])
+			_report_slow_frame(now_usec - _frame_at_usec)
 	_frame_at_usec = now_usec
 	_ticks_this_frame = 0
 	# A solo client that crashed cannot tell its server to stop: the server ends once its one remote
@@ -257,6 +256,13 @@ func _process(delta: float) -> void:
 	_joined = _joined or _alone_sec == 0.0
 	if _alone_sec >= (GONE_SEC if _joined else NEVER_SEC):
 		get_tree().quit(0)
+
+
+# Only on a slow frame (--slow-tick-ms), at most _slow_left times: kept out of _process's every-frame path.
+func _report_slow_frame(gap_usec: int) -> void:
+	print("SIM_HOST_SLOW_FRAME ", snappedf(gap_usec / 1000.0, 0.1), " ms | ticks ", _ticks_this_frame,  # check-logging: allow print (bench output)
+		" | objects ", int(Performance.get_monitor(Performance.OBJECT_COUNT)), " | static mem ",
+		snappedf(Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, 0.1), " MB")
 
 
 func _physics_process(_delta: float) -> void:
