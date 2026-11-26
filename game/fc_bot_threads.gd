@@ -109,6 +109,13 @@ static func _decide(pending: Array[int], minds: Array) -> void:
 			WorkerThreadPool.wait_for_group_task_completion(group)
 		world.par_end()
 	FcFrameProbe.add(&"bot_brain", started)
+	# The --brain-us profile: threaded brains timed into their own clocks; the main thread adds them up here, after
+	# the join and outside bot_brain (gs-bot 40). Off: one static read a tick.
+	if FcBots.brain_merge and (GSBotBrain as GDScript).get(&"phase_timers"):
+		var brains: Array = []
+		for mind: FcBots.Mind in jobs:
+			brains.append(mind.brain)
+		(GSBotBrain as GDScript).call(&"merge_phases", brains)
 
 
 ## Takes brains off the shared queue until it is empty.
