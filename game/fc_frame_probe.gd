@@ -161,6 +161,18 @@ static func launch_value(option: String) -> String:
 	return GSWeb.query_param(option) if GSWeb.available() else ""
 
 
+## Whether a threaded resource read really runs beside the frame. Not on the threaded web engine: a worker's file
+## reads are passed to the browser's main thread, which serves them only between frames, so a model read there took
+## many frames (time to in-game 91-172 s threaded against 79-81 s single-threaded, staging02). There the reads run
+## inline a slice at a time, as on the single-threaded engine. The page's `?web_loader_threads=1` puts them back for a measurement.
+## The one switch for every load_threaded_request whose point is to keep a read off the frame (the client's
+## warm-up, the level's textures, the setup's figures).
+static func loader_threads_usable() -> bool:
+	if not GSPlatform.has_threads():
+		return false
+	return not GSPlatform.is_web() or launch_value("web_loader_threads") == "1"
+
+
 static func set_interval(seconds: float) -> void:
 	interval = maxf(0.0, seconds)
 	_last_usec = 0

@@ -1,6 +1,7 @@
 extends "fc_map_imported.gd"
 
 const FcLoadTimeline := preload("../game/fc_load_timeline.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 
 ## One box as a static body, with a mesh when there is a material to draw it with.
 ##
@@ -141,9 +142,11 @@ func to_scene_async(slice: GSFrameSlice) -> Node3D:
 	return root
 
 ## Reads [param paths] on loader threads, a frame at a time, and returns what loaded. Missing paths are skipped.
+## Nothing where loader threads do not run beside the frame ([method FcFrameProbe.loader_threads_usable]:
+## not on the threaded web engine either), so the Painter reads them inline as on the single-threaded build.
 static func _read_threaded(paths: PackedStringArray, slice: GSFrameSlice) -> Array[Resource]:
 	var held: Array[Resource] = []
-	if not GSPlatform.has_threads():
+	if not FcFrameProbe.loader_threads_usable():
 		return held
 	var asked: PackedStringArray = []
 	for path in paths:
