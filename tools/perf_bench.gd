@@ -188,9 +188,11 @@ func _select(game: Object) -> void:
 
 ## Exits 3 when the game is not on the asked map and mode: a worktree without the `maps/imported` link fell back to
 ## dm_box, and its report still named the asked map, so an A/B compared two different matches (nightly #12448).
-func _require_asked_map(game: Object) -> void:
+## `check_mode` false: a `--sim-host` client never learns the mode (the server's own process runs it and prints it on
+## its `SIM_HOST ready` line), so only the map is checked there.
+func _require_asked_map(game: Object, check_mode := true) -> void:
 	var on_map := String(game.get("map").id)
-	var on_mode := String(game.get("mode").id)
+	var on_mode := String(game.get("mode").id) if check_mode else mode
 	if on_map == map and on_mode == mode:
 		return
 	say("FAIL: asked for map %s mode %s, playing %s %s; no report" % [map, mode, on_map, on_mode])
@@ -221,7 +223,7 @@ func _select_hosted() -> void:
 		await wait(0.25)
 		t += 0.25
 	say("sim host: hosted %s, map %s, players %d" % [client.get("_sim_host") != null, String(client.get("game").get("map").id), _players(client.get("game"))])
-	await _require_asked_map(client.get("game"))
+	await _require_asked_map(client.get("game"), false)
 
 
 ## Each weapon id: equip it (the draw), fire it cold, then again warm, the player invulnerable. Rows "equip ID", "shot ID", "shot2 ID".
