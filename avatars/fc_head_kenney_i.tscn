@@ -1,6 +1,6 @@
 [gd_scene format=4]
 
-[ext_resource type="Texture2D" path="res://avatars/kenney/Textures/texture-i.png" id="1_1rnlp"]
+[ext_resource type="Texture2D" path="kenney/Textures/texture-i.png" id="1_1rnlp"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s81qe"]
 resource_name = "texture-i"
