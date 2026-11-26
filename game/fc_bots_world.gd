@@ -416,14 +416,23 @@ class World:
 	static func near_key(x: float, z: float, cell: float) -> int:
 		return (int(floorf(x / cell)) + 4096) * 8192 + int(floorf(z / cell)) + 4096
 
-	## What the player carries, rated, rebuilt one tick in [constant LOADOUT_EVERY] (offset by id)
-	## and repeated between: it is 33 slot reads and ratings per player per tick for what only a
-	## pickup, a shot or a reload changes, and a bot picks a weapon over tens of ticks.
+	## What the player carries, rated: 33 slot reads and ratings per player for what only a pickup, a shot or a
+	## reload changes. Kept until the arsenal's [code]revision()[/code] (gs-weapon API 51) or the arsenal itself
+	## changes; an older gs-weapon falls back to one rebuild in [constant LOADOUT_EVERY] ticks (offset by id).
 	func _loadout_of(p: FcPlayer, tick: int) -> Dictionary:
 		var held: Variant = _loadouts.get(p.player_id)
-		if held is Array and (tick + p.player_id) % LOADOUT_EVERY != 0 and tick >= (held as Array)[0] and tick - (held as Array)[0] < LOADOUT_EVERY:
+		var arsenal: Object = p.arsenal
+		if arsenal != null and arsenal.has_method(&"revision"):
+			var rev: int = arsenal.call(&"revision")
+			var id := arsenal.get_instance_id()
+			if held is Array and (held as Array).size() == 3 and (held as Array)[0] == rev and (held as Array)[2] == id:
+				return (held as Array)[1]
+			var fresh := GSBotArms.loadout_of(arsenal, _rater)
+			_loadouts[p.player_id] = [rev, fresh, id]
+			return fresh
+		if held is Array and (held as Array).size() == 2 and (tick + p.player_id) % LOADOUT_EVERY != 0 and tick >= (held as Array)[0] and tick - (held as Array)[0] < LOADOUT_EVERY:
 			return (held as Array)[1]
-		var made := GSBotArms.loadout_of(p.arsenal, _rater)
+		var made := GSBotArms.loadout_of(arsenal, _rater)
 		_loadouts[p.player_id] = [tick, made]
 		return made
 
