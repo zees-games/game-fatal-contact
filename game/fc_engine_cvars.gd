@@ -48,6 +48,12 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.enabled = new_value.to_float() >= 0.5)
+	add_cvar("bot_native_contacts_delta", "1",
+		"1: gs-sim's contact build writes the fields a player keeps from tick to tick (heights, alive, team, motion flags, health) only when they change (GSSimBotContacts.fill_changed; the same contacts to the bit, fewer property writes); 0: every field every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.delta = new_value.to_float() >= 0.5)
+	add_cvar("motor_native", "1" if GSFpsPhysicsBody.native_enabled else "0",
 	add_cvar("motor_native", "1" if GSFpsPhysicsBody.native_enabled else "0",
 		"1: the players' movement collision queries (sweep, rest contact, overlap) run in gs-sim when its library is installed (bit-identical to the script, so web and native clients still agree; cheaper); 0: in script. Without the library it is script either way",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(

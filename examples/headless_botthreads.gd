@@ -19,7 +19,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 6
-const CHECKS := 25
+const CHECKS := 27
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -290,7 +290,7 @@ func _brain_phases_threaded(match_digests: PackedStringArray) -> void:
 func _contacts_parity(expected: PackedStringArray) -> void:
 	if not GSSim.has(&"contacts"):
 		print("skip: this gs-sim has no contact build")
-		for i in 3:
+		for i in 5:
 			_check(true, "(skipped: no gs-sim contact build)")
 		return
 	FcBotThreads.threads = 0
@@ -335,6 +335,9 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 			elif first < 0:
 				first = round_index
 	built = FcBotContacts.built - built
+	var native_contacts: Object = world.get(&"_native_contacts")
+	var delta_rounds := 30
+	var delta_same := _delta_rounds(world, players, rng, delta_rounds)
 	remove_child(game)
 	game.queue_free()
 	await get_tree().process_frame
@@ -345,6 +348,35 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	var played := await _play(0)
 	FcBotContacts.enabled = true
 	_check(played[0] == expected, "bot_native_contacts 0 (the script loop) plays the match gs-sim's contacts play (%d kills)" % played[1])
+	_check(bool(native_contacts.get(&"_has_delta")) and delta_same == delta_rounds,
+		"bot_native_contacts_delta: writing only changed kept fields leaves every field and row of a full write in %d of %d rounds" % [delta_same, delta_rounds])
+	FcBotContacts.delta = false
+	played = await _play(0)
+	FcBotContacts.delta = true
+	_check(played[0] == expected, "bot_native_contacts_delta 0 (every field every tick) plays the same match (%d kills)" % played[1])
+
+
+## `bot_native_contacts_delta`: the kept fields written only when they change. Each round builds with it on (against what the
+## last native build wrote, or after a script tick), then again with it off on the same states. Returns the rounds whose
+## contacts and sight rows came out the same.
+func _delta_rounds(world: Object, players: Array, rng: RandomNumberGenerator, rounds: int) -> int:
+	var same := 0
+	for round_index in rounds:
+		if round_index % 3 != 2:
+			_scramble(players, rng, false)
+		FcBotContacts.enabled = round_index % 5 != 4
+		world.refresh(2000 + 3 * round_index, float(TICK_RATE))
+		FcBotContacts.enabled = true
+		if round_index % 2 == 0:
+			_scramble(players, rng, false)
+		world.refresh(2001 + 3 * round_index, float(TICK_RATE))
+		var changed: Array = _snapshot(world)
+		FcBotContacts.delta = false
+		world.refresh(2002 + 3 * round_index, float(TICK_RATE))
+		FcBotContacts.delta = true
+		if changed == _snapshot(world):
+			same += 1
+	return same
 
 
 ## Gives every player a random state; with [param bare], takes player 0's controller away. Returns that controller, to put back, or null.
