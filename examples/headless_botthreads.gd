@@ -7,6 +7,7 @@ const FcBotCoast := preload("../game/fc_bot_coast.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
+const FcBotContacts := preload("../game/fc_bot_contacts.gd")
 
 ## `bot_threads`: 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8 with
 ## bot_native_think's reused command pair off; every bot's position, view, health and commands,
@@ -17,8 +18,8 @@ const BOTS := 24
 const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
-const SECTIONS := 5
-const CHECKS := 26
+const SECTIONS := 6
+const CHECKS := 29
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -54,6 +55,10 @@ func _run() -> void:
 	_check(parallel[2] > 100 and parallel[3] > 100 and parallel[4] > 100, "the brains really ran through the parallel path (%d, %d, %d ticks)" % [parallel[2], parallel[3], parallel[4]])
 	_check(parallel[0] == 0, "and bot_threads 0 never did")
 	await _switches_play_the_same(digests[0])
+	_done()
+
+	_section("bot_native_contacts: gs-sim builds the script's contacts")
+	await _contacts_parity(digests[0])
 	_done()
 
 	_section("the brain profile (--brain-us) times brains on bot threads")
@@ -359,3 +364,112 @@ func _brain_phases_threaded(match_digests: PackedStringArray) -> void:
 	_check(played[2] > 100, "the profiled match ran through the parallel path (%d ticks)" % played[2])
 	_check(bb > 0 and thinks > 0, "its brain phases are non-zero (%d us over %d thinks)" % [bb, thinks])
 	_check(bq > 0 and played[0] == match_digests, "its world queries were counted (%d), and the timed match is the untimed one" % bq)
+
+
+## `bot_native_contacts`: gs-sim's contact build writes every contact field and sight row the script loop writes, to the bit, over
+## randomized player states (fractions no 32-bit float holds, both zeros, fractional and NaN modes, no max health, one player
+## without a controller), and the script loop plays the match gs-sim's contacts played.
+func _contacts_parity(expected: PackedStringArray) -> void:
+	if not GSSim.has(&"contacts"):
+		print("skip: this gs-sim has no contact build")
+		for i in 3:
+			_check(true, "(skipped: no gs-sim contact build)")
+		return
+	FcBotThreads.threads = 0
+	var game := FcGame.new()
+	game.name = "Contacts"
+	game.tick_rate = TICK_RATE
+	game.headless = true
+	game.is_authority = true
+	game.register_service = false
+	add_child(game)
+	var _setup := game.setup(FcMap.dm_box())
+	game.match_node.rules.warmup_sec = 0.0
+	game.match_node.rules.countdown_sec = 0.0
+	var players: Array = []
+	for i in BOTS:
+		var made := game.add_player(100 + i, "Bot%d" % i)
+		if made.ok:
+			players.append(made.value)
+	game.start(0)
+	game.tick({})
+	await get_tree().process_frame
+	var world := FcBots.world_for(game)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var rounds := 40
+	var same := [0, 0]
+	var first := -1
+	var built := FcBotContacts.built
+	for round_index in rounds:
+		var held: Variant = _scramble(players, rng, round_index == rounds - 1)
+		FcBotContacts.enabled = false
+		world.refresh(1000 + 2 * round_index, float(TICK_RATE))
+		var script := _snapshot(world)
+		FcBotContacts.enabled = true
+		world.refresh(1001 + 2 * round_index, float(TICK_RATE))
+		var native := _snapshot(world)
+		if held != null:
+			players[0].controller = held
+		for k in 2:
+			if script[k] == native[k]:
+				same[k] += 1
+			elif first < 0:
+				first = round_index
+	built = FcBotContacts.built - built
+	remove_child(game)
+	game.queue_free()
+	await get_tree().process_frame
+	print("contacts: first differing round %d" % first)
+	_check(same[0] == rounds and built == rounds, "every contact field equals the script's to the bit in %d of %d randomized rounds (%d built in gs-sim)" % [same[0], rounds, built])
+	_check(same[1] == rounds, "and the sight rows handed to the native scan, in %d of %d" % [same[1], rounds])
+	FcBotContacts.enabled = false
+	var played := await _play(0)
+	FcBotContacts.enabled = true
+	_check(played[0] == expected, "bot_native_contacts 0 (the script loop) plays the match gs-sim's contacts play (%d kills)" % played[1])
+
+
+## Gives every player a random state; with [param bare], takes player 0's controller away. Returns that controller, to put back, or null.
+func _scramble(players: Array, rng: RandomNumberGenerator, bare: bool) -> Variant:
+	var modes := [0.0, -0.0, 0.5, -0.5, 1.0, 2.0, 3.0, NAN]
+	var times := [-1.0, -0.0, 0.0, 0.25, -0.25]
+	for p: Object in players:
+		var state: GSFpsState = p.get(&"controller").state
+		var f := state.columns()
+		for k in 3:
+			f[k] = rng.randf_range(-500.0, 500.0) + rng.randf() * 1e-7
+			f[3 + k] = rng.randf_range(-20.0, 20.0) + rng.randf() * 1e-7
+		f[9] = modes[rng.randi() % modes.size()]
+		f[12] = rng.randf_range(-720.0, 720.0) + rng.randf() * 1e-7
+		f[17] = times[rng.randi() % times.size()]
+		f[19] = times[rng.randi() % times.size()]
+		f[22] = times[rng.randi() % times.size()]
+		state.set(&"_f", f)
+		state.pitch = rng.randf_range(-89.0, 89.0) + rng.randf() * 1e-7
+		var health: GSHealth = p.get(&"health")
+		if health != null:
+			health.health = rng.randf_range(-10.0, 120.0) + rng.randf() * 1e-7
+			health.max_health = 0.0 if rng.randi() % 8 == 0 else 100.0
+			health.alive = rng.randi() % 4 != 0
+	if not bare:
+		return null
+	var held: Variant = players[0].get(&"controller")
+	players[0].set(&"controller", null)
+	(players[0] as Node3D).global_position = Vector3(1.5 + 1e-7, -2.25, 3.0)
+	return held
+
+
+## [param world]'s contacts, every field, and its sight row table, as bytes.
+func _snapshot(world: Object) -> Array:
+	var fields := PackedByteArray()
+	for c: GSBotContact in world.get(&"_contacts"):
+		fields.append_array(var_to_bytes([c.id, c.eye_height, c.aim_height, c.alive, c.team, c.position, c.velocity, c.view_yaw,
+				c.view_pitch, c.grounded, c.sliding, c.wall_running, c.air_jump_ready, c.health, c.loadout,
+				c.get(&"weapon_class"), c.get(&"magazine")]))
+	var rows: Object = world.get(&"_bot_rows")
+	var table := PackedByteArray()
+	for key: StringName in [&"_ids", &"_points", &"_teams", &"_alive", &"_eyes", &"_positions"]:
+		table.append_array(var_to_bytes(rows.get(key)))
+	for c: Object in rows.get(&"_sensed"):
+		table.append_array(var_to_bytes(c.get_instance_id()))
+	return [fields, table]

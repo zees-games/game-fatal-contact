@@ -11,6 +11,7 @@ const FcNativeTick := preload("fc_native_tick.gd")
 const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
+const FcBotContacts := preload("fc_bot_contacts.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcWeaponTickCvars := preload("fc_weapon_tick_cvars.gd")
 const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
@@ -69,6 +70,11 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotRows.set_native_think(new_value.to_float() >= 0.5))
+	add_cvar("bot_native_contacts", "1",
+		"1: the bots' worlds build their contacts and sight rows in gs-sim when its library has them (GSSimBotContacts; the same contacts to the bit, one call a tick); 0, or without the library: the script loop",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.enabled = new_value.to_float() >= 0.5)
 	_add_motor_engine_cvars()
 
 
