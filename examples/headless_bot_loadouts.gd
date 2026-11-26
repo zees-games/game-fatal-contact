@@ -18,6 +18,8 @@ const SHARE_SLACK := 0.025
 const SPAWNED := 12
 const FIGHT_SECONDS := 120.0
 
+## Chained gives per path in the sv_bot_regive section: enough for reserve ammo to reach its cap.
+const REGIVES := 4
 const SECTIONS := 8
 const CHECKS := 27
 
@@ -190,21 +192,31 @@ func _regive(game: FcGame) -> void:
 	var was := FcBotLoadouts.regive
 	# Each draw is a new life with its own kit; both gives draw the same life so they give the same kit.
 	var life := int(game.bot_loadouts._lives.get(bot.player_id, 0))
-	# Reserve ammo carries over between gives, so both compared gives start from the state a give of this kit leaves.
-	FcBotLoadouts.regive = false
-	for i in 2:
-		game.bot_loadouts._lives[bot.player_id] = life
-		var _old := game._give_bot_loadout(bot)
-	var fresh := var_to_str(bot.arsenal.snapshot())
-	game.bot_loadouts._lives[bot.player_id] = life
-	FcBotLoadouts.regive = true
-	var reused_before: int = bot.arsenal.get(&"behaviours_reused")
-	var _new := game._give_bot_loadout(bot)
-	var again := var_to_str(bot.arsenal.snapshot())
+	# Reserve ammo carries over between gives on both paths (clear() keeps the pools; a give tops them up to the
+	# cap), so each chain of gives starts from one restored state and the two are compared give by give.
+	var start := bot.arsenal.snapshot()
+	var chains: Array[PackedStringArray] = []
+	var reused_before := 0
+	for reuse: bool in [false, true]:
+		var _restored := bot.arsenal.restore(start)
+		FcBotLoadouts.regive = reuse
+		reused_before = int(bot.arsenal.get(&"behaviours_reused"))
+		var chain := PackedStringArray()
+		for i in REGIVES:
+			game.bot_loadouts._lives[bot.player_id] = life
+			var _given := game._give_bot_loadout(bot)
+			chain.append(var_to_str(bot.arsenal.snapshot()))
+		chains.append(chain)
 	FcBotLoadouts.regive = was
-	_check(int(bot.arsenal.get(&"behaviours_reused")) > reused_before, "the re-give reused the bot's behaviours",
-		"%d -> %d" % [reused_before, int(bot.arsenal.get(&"behaviours_reused"))])
-	_check(again == fresh, "and its arsenal snapshot equals the fresh give's", "%s vs %s" % [fresh, again])
+	var reused := int(bot.arsenal.get(&"behaviours_reused")) - reused_before
+	_check(reused >= REGIVES - 1, "the re-gives reused the bot's behaviours", "%d reused" % reused)
+	var first_bad := -1
+	for i in REGIVES:
+		if chains[0][i] != chains[1][i]:
+			first_bad = i
+			break
+	_check(first_bad < 0, "each of %d chained re-gives' snapshot (reserve ammo too) equals the fresh path's" % REGIVES,
+		"give %d: %s vs %s" % [first_bad, chains[0][first_bad], chains[1][first_bad]] if first_bad >= 0 else "")
 	_done()
 
 
