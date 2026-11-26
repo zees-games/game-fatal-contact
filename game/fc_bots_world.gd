@@ -7,6 +7,7 @@ const FcPlayer := preload("fc_player.gd")
 const FcBotBrain := preload("fc_bot_brain.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
+const FcBotRows := preload("fc_bot_rows.gd")
 
 
 ## The behaviour of a weapon whose shot flies (a rocket, a bolt); every other one is led as
@@ -191,6 +192,8 @@ class World:
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
 	var _contacts: Array = []
+	## The native sight scan's table of [member _contacts], filled in [method refresh]'s loop (cvar `bot_native_think`).
+	var _bot_rows := FcBotRows.new()
 	## The contacts by id, kept from tick to tick and rewritten whole by [method refresh] (a brain keeps ids, never a contact).
 	var _by_id: Dictionary = {}
 	var _players: Dictionary = {}
@@ -293,6 +296,7 @@ class World:
 		var teams := _team_mode()
 		var eye := FcPlayer.eye_height()
 		var aim := CHEST * FcPlayer.stand_height() / 1.8
+		var rows := _bot_rows.begin()
 		for p: FcPlayer in game.call("players"):
 			# Last tick's contact, every field written again: as a fresh one, without a new object per player per tick.
 			var c: GSBotContact = _by_id.get(p.player_id)
@@ -327,12 +331,15 @@ class World:
 			_weapon_of(c, p)
 			FcFrameProbe.lap(&"brc_weapon", t_c)
 			_contacts.append(c)
+			if rows:
+				_bot_rows.add(c)
 			_players[c.id] = p
 		if _by_id.size() != _contacts.size():
 			# Someone left: only this tick's players have a contact.
 			_by_id.clear()
 			for c: GSBotContact in _contacts:
 				_by_id[c.id] = c
+		_bot_rows.hand(self, tick)
 		var t_obj := FcFrameProbe.lap_start()
 		_objective_refresh(teams)
 		FcFrameProbe.lap(&"brc_objective", t_obj)
