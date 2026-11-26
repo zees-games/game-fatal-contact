@@ -96,7 +96,7 @@ static func _static_init() -> void:
 ## from now on. By name: an older gs-bot has no such switches, and the set is then a no-op.
 static func set_brain_native(on: bool) -> void:
 	(GSBotAim as Script).set(&"native_enabled", on)
-	for k: StringName in [&"native_perceive", &"native_hear", &"native_act"]:
+	for k: StringName in [&"native_perceive", &"native_hear", &"native_act", &"native_pickup"]:
 		(GSBotBrain as Script).set(k, on)
 
 

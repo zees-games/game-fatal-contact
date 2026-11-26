@@ -38,6 +38,13 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcPlayerStack.set_brain_native(new_value.to_float() >= 0.5))
+	# gs-bot 46: a quiet bot chooses a weapon off the floor in gs-sim over drops packed once per tick (the same drop to the
+	# bit); set by name, so an older gs-bot ignores it.
+	add_cvar("bot_native_pickup", "1",
+		"1: a quiet bot chooses which weapon on the floor to walk to in gs-sim, over the drops packed once per tick, when its library has the choice (the same drop to the bit); 0: in script, reading the drops every time",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			(GSBotBrain as Script).set(&"native_pickup", new_value.to_float() >= 0.5))
 	add_cvar("bot_native_think", "1",
 		"1: the bots' world hands gs-sim's sight scan its contact table, filled while the contacts are built (gs-bot 37; the same answers, one walk of the contacts fewer per tick), every bot hands out one pair of commands of its own, overwritten every tick, and the movement tricks run in gs-sim (gs-bot 39, the same choices); 0: gs-bot packs the contacts itself, every tick makes new commands and runs the tricks in script",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
