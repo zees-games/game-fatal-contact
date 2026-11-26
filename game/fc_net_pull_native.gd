@@ -1,8 +1,7 @@
 extends RefCounted
-## A player's movement pull in one gs-sim call ([code]GSSimFpsNetPack.pull[/code]): the values
-## [method GSFpsNetSync.pull] then [method FcPlayerNet._hold_subquantum] write, to the bit
-## ([code]headless_netpull_native_parity[/code]). One per FcPlayerNet, for the widths it holds through. Takes the
-## net as an Object: a typed reference back would make the two scripts a compile cycle.
+## A player's movement pull in one gs-sim call ([code]GSSimFpsNetPack.pull[/code]), writing what [method GSFpsNetSync.pull] then
+## [method FcPlayerNet._hold_subquantum] write, to the bit ([code]headless_netpull_native_parity[/code]). One per FcPlayerNet; takes the net
+## as an Object because a typed reference back would make the two scripts a compile cycle.
 
 ## Whether [method FcPlayerNet.pull] goes through gs-sim where the library has it (cvar [code]sv_net_pull_native[/code],
 ## default on). Off, no library, or a declaration this cannot mirror runs the script.

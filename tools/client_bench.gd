@@ -186,10 +186,8 @@ class Burner extends Node:
 			pass
 
 
-## `--play`: a player rather than a statue. Runs and strafes in bursts, turns, jumps, holds
-## the trigger most of the time and swaps weapons now and then, so the bench's bots have a
-## moving target that shoots back, and the client's prediction covers firing, reloads,
-## switches, damage, deaths and respawns: what a match is, and what an idle bench never was.
+## `--play`: a player rather than a statue. Runs, strafes, turns, jumps, mostly holds the trigger and swaps weapons now and then, so the bots
+## have a moving target that shoots back and prediction covers firing, reloads, switches, damage, deaths and respawns.
 class Pilot extends Node:
 	## Set (with `client`) by `--pilot-view sweep`: the look is driven round the whole compass instead of the mouse sway, which parks the camera on one wall.
 	var sweep := false

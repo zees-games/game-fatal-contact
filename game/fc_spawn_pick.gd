@@ -1,10 +1,7 @@
 extends RefCounted
-## gs-spawn's `scatter` draw (`GSSpawnScoring.pick_scatter`), the same picks from the same rng, with its two costs moved:
-## the weights come from gs-sim's `GSSimSpawnPick` where the library has it (bit for bit with the script; the script's
-## `scatter_damping` per site otherwise), and the sight check is one batched question per drawn site ([param seen_any]:
-## every enemy's ray to it in one native trace call) instead of a call per enemy.
-## Cvar `fc_spawn_native`: 0 leaves the whole pick to gs-spawn, the reference the parity check compares against.
-## Typed loosely on purpose: a build whose gs-sim lacks the class still parses this file.
+## gs-spawn's `scatter` draw (`GSSpawnScoring.pick_scatter`), the same picks from the same rng, with the weights from gs-sim's `GSSimSpawnPick`
+## (bit for bit; the script's `scatter_damping` otherwise) and one batched sight question per drawn site ([param seen_any]). Cvar `fc_spawn_native`
+## 0 leaves the pick to gs-spawn, the parity reference. Typed loosely so a build whose gs-sim lacks the class still parses.
 
 ## Cvar `fc_spawn_native`: 0 is gs-spawn's own scatter pick.
 static var native := true

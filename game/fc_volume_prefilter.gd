@@ -1,13 +1,8 @@
 extends RefCounted
 
-## Which players are clear of every map volume this tick, asked of gs-sim's [code]GSSimVolumes[/code] in one
-## call for the whole batched loop, or per player in the one-by-one loop ([method mark_one], tick start and end)
-## (cvar [code]fc_mechanics_native[/code]). On an imported map with no volumes everyone is clear without a call. A player marked clear skips the map's
-## pushes, gravity, conveyors, ladders, water and pits in [method FcPlayerBuild.tick_post_head]: none of them can
-## touch a hull that started the tick this far from every box and moved at most [constant SLACK] since.
-## The reaches are generous on purpose (a hull reaches 0.5 m sideways, 1.8 m up and 0.05 m down); the player's
-## own check ([method FcPlayerBuild._volumes_fit]) refuses the skip for a body that outgrows them.
-## Bit for bit with the script's [method clear_of_script]: [code]headless_mechanics_native_parity[/code].
+## Which players are clear of every map volume this tick (cvar [code]fc_mechanics_native[/code]), asked of gs-sim's [code]GSSimVolumes[/code] once per batched loop or per player ([method mark_one]).
+## A player marked clear skips the pushes, gravity, conveyors, ladders, water and pits in [method FcPlayerBuild.tick_post_head]; the reaches are generous ([constant SLACK]) and
+## [method FcPlayerBuild._volumes_fit] refuses a body that outgrows them. Bit for bit with [method clear_of_script]: [code]headless_mechanics_native_parity[/code].
 
 ## The furthest a player may have moved from where the tick started and still take the skip, in metres.
 const SLACK := 1.0

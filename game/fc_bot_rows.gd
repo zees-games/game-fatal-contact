@@ -1,10 +1,8 @@
 extends RefCounted
 
-## The bots' contact table (gs-bot API 37, [code]GSBotWorld.set_rows[/code]): the columns the native sight scan loads, filled in
-## [method FcBots.World.refresh]'s own contact loop, so gs-bot's senses() does not walk every contact a second time on the main thread.
-## Off (cvar `bot_native_think` 0) or on an older gs-bot the world hands nothing and gs-bot packs the contacts itself, as before.
-## The columns are what gs-bot's [code]GSBotWorld.rows_of[/code] makes of the same contacts, to the bit: the aim point and eye are
-## written as [code]GSBotContact.aim_point()[/code] and [code]eye()[/code] write them. See gs-bot's docs/native-bot-brain.md.
+## The bots' contact table (gs-bot API 37, [code]GSBotWorld.set_rows[/code]), filled in [method FcBots.World.refresh]'s contact loop so senses() does not walk the contacts again.
+## Off (cvar `bot_native_think` 0) or on an older gs-bot, gs-bot packs the contacts itself. The columns are, to the bit, what
+## [code]GSBotWorld.rows_of[/code] makes of the same contacts. See gs-bot's docs/native-bot-brain.md.
 
 ## gs-bot API level of [code]GSBotWorld.set_rows[/code].
 const LEVEL := 37

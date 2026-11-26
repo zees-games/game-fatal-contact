@@ -207,10 +207,8 @@ func draw(manager: GSLoadoutManager, key: String, bot_id: int, difficulty: Strin
 	return out
 
 
-## [method build] and the manager's resolve in give order, memoed: [loadout, entries], the same
-## pair for every bot that draws [param kit] while the schema, its catalogue, the rules instance
-## ([method GSLoadoutManager.set_rules] replaces it), [param key]'s entitlements and the default
-## loadout are unchanged. A round start conforms and resolves each kit once instead of once per
+## [method build] and the manager's resolve in give order, memoed per [param kit]: [loadout, entries], kept while the schema, catalogue,
+## rules instance, [param key]'s entitlements and default loadout are unchanged, so a round start resolves each kit once, not once per
 ## bot. The entries are read-only, so an edit fails loudly instead of reaching other bots.
 func built_for(kit: Kit, manager: GSLoadoutManager, key: String) -> Array:
 	var ents := manager.entitlements_for(key)

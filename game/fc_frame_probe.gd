@@ -61,9 +61,8 @@ static func on() -> bool:
 	return interval > 0.0
 
 
-## The slow-tick dump (the sim host's `--sim_slow_tick MS`): while above 0, every [method add], [method lap] and
-## [method count] is also kept for the current tick alone ([method tick_begin] clears it), with the events a tick had
-## ([method tick_event]: kills, spawns, match states), so a tick over this many microseconds can say where it went
+## The slow-tick dump (`--sim_slow_tick MS`): above 0, every [method add], [method lap] and [method count] is also kept for the current tick
+## ([method tick_begin] clears it) with its [method tick_event]s, so a tick over this many microseconds says where it went
 ## ([method slow_tick_line]). 0, the default, keeps nothing: one test per span.
 static var slow_tick_usec: int = 0
 ## Section (or count) -> PackedInt64Array([usec, calls]) for the current tick.
@@ -161,12 +160,9 @@ static func launch_value(option: String) -> String:
 	return GSWeb.query_param(option) if GSWeb.available() else ""
 
 
-## Whether a threaded resource read really runs beside the frame. Not on the threaded web engine: a worker's file
-## reads are passed to the browser's main thread, which serves them only between frames, so a model read there took
-## many frames (time to in-game 91-172 s threaded against 79-81 s single-threaded, staging02). There the reads run
-## inline a slice at a time, as on the single-threaded engine. The page's `?web_loader_threads=1` puts them back for a measurement.
-## The one switch for every load_threaded_request whose point is to keep a read off the frame (the client's
-## warm-up, the level's textures, the setup's figures).
+## Whether a threaded resource read really runs beside the frame: the one switch for every load_threaded_request meant to keep a read off it.
+## Not on the threaded web engine, whose worker reads wait for the main thread between frames (time to in-game 91-172 s against 79-81 s),
+## so there the reads run inline a slice at a time. The page's `?web_loader_threads=1` puts them back for a measurement.
 static func loader_threads_usable() -> bool:
 	if not GSPlatform.has_threads():
 		return false

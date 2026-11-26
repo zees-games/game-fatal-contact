@@ -1,14 +1,8 @@
 extends RefCounted
 
-## Paces the sim host's frames to its tick rate and records why a tick came late. Godot's own frame limiter
-## sleeps with the OS timer, which on Windows rounds up to its 15.6 ms tick unless something raised the
-## resolution: a 15.15 ms frame became 16 to 31 ms, ticks bunched up and the client saw bursty snapshots.
-## This sleeps in 1 ms steps while the sleeps land on time, and spins the last stretch to the deadline; when
-## sleeps overshoot steadily (a coarse timer) the margin grows, up to spinning the whole wait, and shrinks
-## again once they behave; a busy box's occasional late wake does not make it spin. It owns the pacing (`Engine.max_fps` 0), so it costs a spinning core only while the timer is bad.
-## With gs-sim's `GSSimTimer` loaded (by name: nothing needs the library) it sleeps the whole wait but the margin in
-## one native sleep that wakes on time whatever the OS tick (Windows' high-resolution waitable timer), so a coarse
-## timer no longer grows the margin: about 0.6 ms of spin a frame instead of the whole period.
+## Paces the sim host's frames to its tick rate and records why a tick came late. Godot's limiter sleeps on the OS timer (15.6 ms on Windows),
+## which bunched ticks; this sleeps in 1 ms steps and spins the last stretch, growing the margin while sleeps overshoot (`Engine.max_fps` 0).
+## With gs-sim's `GSSimTimer` loaded (by name) it waits in one native high-resolution sleep: about 0.6 ms of spin a frame, whatever the OS tick.
 
 ## The share of the period a frame may wake late of the tick (usec): a tick only runs once the accumulator holds a whole period.
 const WAKE_LATE_USEC := 150
@@ -169,10 +163,9 @@ func reset_window() -> void:
 	_window_start_usec = Time.get_ticks_usec()
 
 
-## The likely cause of a window that fell behind, from what it measured: a tick dearer than its budget, a thread
-## descheduled (CPU contention), sleeps overshooting (a coarse timer), or none of these seen.
-## [param over] of [param n] server ticks, or [param frames_over] of [param frames] frames (everything between two waits),
-## cost more than the budget; the times are usec against [param period].
+## The likely cause of a window that fell behind: a tick dearer than its budget, a descheduled thread (CPU contention), overshooting sleeps
+## (a coarse timer), or none seen. [param over] of [param n] ticks, or [param frames_over] of [param frames] frames, cost more than the
+## budget; the times are usec against [param period].
 static func cause(over: int, n: int, frames_over: int, frames: int, stall_max: int, over_max: int, period: int) -> String:
 	if n > 0 and over * 20 >= n:
 		return "ticks too dear (%d of %d over the budget): fewer bots or a lower solo_tick_tiers" % [over, n]

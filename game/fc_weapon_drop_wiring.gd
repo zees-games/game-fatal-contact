@@ -82,10 +82,9 @@ static func warm_looks(ids: Array, from: int, until_msec: int, into: Array) -> i
 	return next
 
 
-## Parks a body per weapon on a layer that draws nothing, all at once: the first throw of a weapon loads and measures its
-## model (150 to 1150 ms), and a death can drop any weapon a bot or player picked, so none may be left for a tick. Runs
-## in [method build], before the first tick; a threaded warm-up stayed behind the early deaths. A weapon whose box
-## [FitCache] remembers is parked without loading its model, so only the first boot of a host measures them (9.5 s on PH).
+## Parks a body per weapon on a layer that draws nothing, in [method build] before the first tick: a death can drop any weapon, and a first throw
+## loads and measures its model (150 to 1150 ms). A weapon whose box [FitCache] remembers is parked without loading its model, so only a host's
+## first boot measures them (9.5 s on PH).
 static func warm_server(layer: GSWeaponDrops) -> void:
 	var started := Time.get_ticks_msec()
 	var measured := 0

@@ -1,9 +1,7 @@
 extends RefCounted
-## A player's weapon pull in one gs-sim call ([code]GSSimFpsWeaponNet.pull[/code]): the slot, fire mode, magazine,
-## reserve, fire counter, kind and charge [method AwWeaponNet.pull] and the knife's wind-up write, and the held
-## weapon's wire number [method FcContent.weapon_index] gives, to the bit ([code]headless_netpull_weapons_parity[/code]).
-## Static: the wire table is one per process, like [method FcWeaponRoles.wire_ids]. Takes the net as an Object: a
-## typed reference back to [code]FcPlayerNet[/code] would make the two scripts a compile cycle.
+## A player's weapon pull in one gs-sim call ([code]GSSimFpsWeaponNet.pull[/code]): the fields [method AwWeaponNet.pull], the knife's wind-up
+## and [method FcContent.weapon_index] write, to the bit ([code]headless_netpull_weapons_parity[/code]). Static, like the wire table; takes the
+## net as an Object because a typed reference back to [code]FcPlayerNet[/code] would make the two scripts a compile cycle.
 
 const FcContent := preload("fc_content.gd")
 const Roles := preload("fc_weapon_roles.gd")

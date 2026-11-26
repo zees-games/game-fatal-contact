@@ -3,11 +3,7 @@ extends Node
 const FcContent := preload("../game/fc_content.gd")
 
 ## The groups a web client starts on (web_early_groups.json) are the default loadout's, so the first seconds of play draw every weapon the
-## player carries; the rest are topped up after the gate opens.
-##
-## [codeblock]
-## ./game.sh --no-parse test headless_web_early_groups
-## [/codeblock]
+## player carries; the rest are topped up after the gate opens. Run: [code]./game.sh --no-parse test headless_web_early_groups[/code]
 
 var _checks := 0
 var _failed := 0

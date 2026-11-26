@@ -1,8 +1,7 @@
 extends Node
-## `--census-every S` in tools/perf_bench.gd: every S seconds of the recorded window, one `census` line with the frame's draw calls,
-## objects and primitives and the video memory, then the geometry groups (tools/render_state.gd's names) with their visible nodes,
-## surfaces, caster surfaces and thousands of triangles. A run that spikes (one in five gate runs draws 1000 calls instead of 630) is
-## caught as it happens, and two runs' lines diff group by group.
+## `--census-every S` in tools/perf_bench.gd: every S seconds of the window, one `census` line (draw calls, objects, primitives, video memory)
+## and then tools/render_state.gd's geometry groups with their visible nodes, surfaces, caster surfaces and kilo-triangles, so a spiking run is
+## caught as it happens and two runs' lines diff group by group.
 
 const RenderState := preload("render_state.gd")
 

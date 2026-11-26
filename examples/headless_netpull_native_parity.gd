@@ -6,11 +6,9 @@ const FcMode := preload("../game/fc_mode.gd")
 const FcPlayerNet := preload("../game/fc_player_net.gd")
 const FcNetPullNative := preload("../game/fc_net_pull_native.gd")
 
-## A player's movement pull (FcPlayerNet.pull, cvar `sv_net_pull_native`): gs-sim's `GSSimFpsNetPack.pull` writes the same
-## net_* values as GSFpsNetSync.pull then FcPlayerNet._hold_subquantum, to the bit, over seeded states and held values (unchanged,
-## a sub-quantum step, a step across a code boundary, whole codes, wrapped and negative angles), several velocity configs and
-## angle widths, and the hold off. A declaration the native lane cannot mirror falls back to the script. Without the library
-## only the script lane runs, and the suite says so.
+## A player's movement pull (FcPlayerNet.pull, cvar `sv_net_pull_native`): gs-sim's `GSSimFpsNetPack.pull` writes the same net_* values
+## as GSFpsNetSync.pull then FcPlayerNet._hold_subquantum, to the bit, over seeded states, held values, velocity configs, angle widths and
+## the hold off; a declaration the native lane cannot mirror falls back to the script. Without the library only the script lane runs, and the suite says so.
 
 const STATES := 20000
 const SEED := 6060

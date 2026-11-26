@@ -690,10 +690,8 @@ func apply_class_numbers(player: FcPlayer) -> void:
 
 	var def := classes.def_of(str(player.player_id))
 
-	# Before the null return: no class must clear what the last spawn wrote. Not through
-	# `GSGameClassImmunity.apply`: that checks, loads and lists the bridge script's methods on
-	# every call, which at a round start is 32 times in one tick, and this game calls
-	# `GSPlayerClassApply` directly anyway.
+	# Before the null return: no class must clear what the last spawn wrote. Not through `GSGameClassImmunity.apply`, which checks, loads and
+	# lists the bridge script's methods on every call (32 times in a round start's tick); this game calls `GSPlayerClassApply` directly anyway.
 	var immunity := GSGameClassImmunity.ensure(game.combat)
 
 	if def == null:

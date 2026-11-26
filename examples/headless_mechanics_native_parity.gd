@@ -1,9 +1,8 @@
 extends "imported_base.gd"
 
-## The map-volume skip (cvar `fc_mechanics_native`): gs-sim's `GSSimVolumes.clear_of` gives the script's
-## `FcVolumePrefilter.clear_of_script` answer byte for byte over seeded boxes and points (faces, one step off them,
-## inside, far, not finite), and on a converted map with ladders, water or pushes every tick a player was marked clear
-## runs the full mechanics anyway (`mechanics_verify`) and changes nothing. Without the library only the script runs.
+## The map-volume skip (cvar `fc_mechanics_native`): gs-sim's `GSSimVolumes.clear_of` matches `FcVolumePrefilter.clear_of_script`
+## byte for byte over seeded boxes and points, and on a converted map a player marked clear runs the full mechanics anyway
+## (`mechanics_verify`) and changes nothing. Without the library only the script runs.
 
 const FcMode := preload("../game/fc_mode.gd")
 const FcPlayer := preload("../game/fc_player.gd")

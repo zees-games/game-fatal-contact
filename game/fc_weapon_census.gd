@@ -1,10 +1,9 @@
 @tool
 extends RefCounted
 
-## A per-tick census of the server's weapon tick (cvar `fc_weapon_census`, off in play; read with `--sim_sections 1` or 2):
-## which path each player's weapon takes, why a non-idle one is not idle and why an idle one stays off gs-sim's idle batch.
-## Each is a `wc_*` count in the SIM_HOST_SECTIONS line (its xN/tick is the number per tick); the `pwx_*` spans split
-## p_weapons by path. Reads the rig's and the arsenal's fields by name: diagnostics only, never game logic.
+## A per-tick census of the server's weapon tick (cvar `fc_weapon_census`, read with `--sim_sections 1` or 2): each player's weapon path, why a
+## non-idle one is not idle and why an idle one stays off the idle batch, as `wc_*` counts in SIM_HOST_SECTIONS, with `pwx_*` spans splitting
+## p_weapons by path. Reads fields by name: diagnostics only, never game logic.
 
 const FcFrameProbe := preload("fc_frame_probe.gd")
 

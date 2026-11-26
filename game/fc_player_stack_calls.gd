@@ -116,11 +116,9 @@ func _friend_positions(team: StringName, key: String = "") -> Array:
 	return out
 
 
-## Whether an enemy standing at [param from] can see a site: eye height to head height, walls in the way. [b]Through the map's own trace, the one shots use[/b] (`combat.trace`: the box list on a built-in map, the brushes on an imported one).
-## Godot's physics space holds no built-in map on a dedicated server or in any headless game (the level is analytic there), so every site was "seen" by every enemy and `sight_penalty` decided nothing.
-## Props are not in the trace; a prop is not cover a spawn should count on. The physics query stays as the fallback for a game with no combat yet.
-## Answers are kept for the tick: a round start respawns everybody in one tick, and each spawn asked again about the pairs the ones before it asked (the map and the
-## standing players do not move inside a tick, so the answer is the same).
+## Whether an enemy at [param from] can see a site (eye height to head height) [b]through the map's own trace, the one shots use[/b]: a headless game's physics space holds no built-in map.
+## Props are not in the trace (not cover a spawn should count on); the physics query is the fallback for a game with no combat yet.
+## Answers are kept for the tick: a round start respawns everybody at once and the map and players do not move inside a tick.
 func _can_see_site(from: Vector3, to: Vector3) -> bool:
 	var tick: int = game.current_tick() if game != null else -1
 	if tick != _seen_tick or tick < 0:
