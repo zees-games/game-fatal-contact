@@ -19,6 +19,8 @@ func weapon_draws_shots() -> bool:
 ## How many throwaway people the warm-up builds, so their art and materials are loaded before the first bot.
 const PREWARM_FIGURES := 4
 const DEATH_BURST_SCENE := "res://scenes/fx/death_burst.tscn"
+## How long the prewarm's HEADSHOT tag stays drawn under the cover: a few frames, even on a slow web frame.
+const HEADSHOT_WARM_SEC := 0.25
 ## Effects parked for other players' hands: one per seat of a full 16 v 16, and a charge ball for a squad's worth.
 const FX_POOL_SHOTS := 32
 const FX_POOL_CHARGES := 12
@@ -407,7 +409,7 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 		if ragdolls != null:
 			ragdolls.prewarm()
 	else:
-		what = "explosion, impact spark, death burst, hurt flash"
+		what = "explosion, impact spark, death burst, hurt flash, headshot tag"
 		if presentation != null and presentation.fx != null:
 			var cam: Transform3D = body.camera.global_transform
 			var at := Transform3D(Basis.IDENTITY, cam.origin - cam.basis.z * 6.0)
@@ -421,6 +423,12 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 			made.free()
 		if hud != null and hud.has_method(&"warm_hurt"):
 			hud.call(&"warm_hurt")
+		# The first headshot's tag compiled its shader and rasterized its outlined glyphs mid-match. Drawn
+		# for real (not collected) six metres ahead under the cover, then dropped.
+		var tag := headshot_tag()
+		body.camera.add_child(tag)
+		tag.position = Vector3(0.0, 0.0, -6.0)
+		get_tree().create_timer(HEADSHOT_WARM_SEC).timeout.connect(tag.queue_free)
 	_step_mark(what, began)
 	return true
 

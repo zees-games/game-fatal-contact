@@ -685,6 +685,18 @@ func _prepare_killer_arms(killer_id: int, victim_id: int) -> void:
 		screen.call(&"prepare_killer_arms", killer_id)
 
 
+## The "HEADSHOT!" tag over a body you headshot. Built here so the prewarm (a subclass) draws the same label
+## (shader, outline and size-48 glyphs) as the real one: GSRenderWarmup.collect skips a Label3D.
+static func headshot_tag() -> Label3D:
+	var tag := Label3D.new()
+	tag.text = "HEADSHOT!"
+	tag.modulate = Color(1.0, 0.25, 0.2)
+	tag.outline_modulate = Color(0.0, 0.0, 0.0, 0.8)
+	tag.font_size = 48
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.no_depth_test = true
+	return tag
+
 func _on_kill(info: Dictionary) -> void:
 	# The feed is gs-ui's and takes an entry, not a dictionary. Rebuilt here rather
 	# than replicated as one, because a `GSKillFeed.Entry` has ten fields and three of
@@ -715,13 +727,7 @@ func _on_kill(info: Dictionary) -> void:
 		player != null and victim != null and int(info["killer_id"]) == player.player_id
 		and bool(info["headshot"])
 	):
-		var tag := Label3D.new()
-		tag.text = "HEADSHOT!"
-		tag.modulate = Color(1.0, 0.25, 0.2)
-		tag.outline_modulate = Color(0.0, 0.0, 0.0, 0.8)
-		tag.font_size = 48
-		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		tag.no_depth_test = true
+		var tag := headshot_tag()
 		victim.get_parent().add_child(tag)
 		tag.global_position = victim.global_position + Vector3(0.0, 2.3, 0.0)
 		var rise := tag.create_tween()
