@@ -1,5 +1,5 @@
 @tool
-extends "fc_game_loadouts.gd"
+extends "fc_game_idle.gd"
 
 ## Deals an imported map's hurt volumes (`trigger_hurt`) to everybody standing in one, as
 ## world damage through gs-combat.
@@ -408,14 +408,26 @@ func _flush_posts(shots: Array[GSShot]) -> void:
 	FcHullGrid.post_flushes += 1
 	var input := _post_in if _post_in.size() == count * 10 else _post_in.slice(0, count * 10)
 	var out: PackedFloat64Array = _post_native.run_rows(input)
-	for k in range(count):
-		var player: FcPlayer = _post_players[k]
-		var at := k * 10
-		var outcome := player.tick_idle_row(out.slice(at, at + 10), out[at + 9] != 0.0)
-		_post_outcome(_post_ids[k], player, _post_moves[k], outcome, shots)
+	if FcPlayer.weapon_idle_batch and _idle_batch_ready():
+		_flush_idle_batch(out, count, shots)
+	else:
+		for k in range(count):
+			var player: FcPlayer = _post_players[k]
+			var at := k * 10
+			var outcome := player.tick_idle_row(out.slice(at, at + 10), out[at + 9] != 0.0)
+			_post_outcome(_post_ids[k], player, _post_moves[k], outcome, shots)
 	_post_players.clear()
 	_post_ids.clear()
 	_post_moves.clear()
+
+
+## [method _flush_posts] with the weapons' native idle calls batched ([method _idle_batch_ticks]); the outcomes are
+## posted in roster order as before.
+func _flush_idle_batch(out: PackedFloat64Array, count: int, shots: Array[GSShot]) -> void:
+	var outs := _idle_batch_ticks(out, count)
+	for k in range(count):
+		_post_outcome(_post_ids[k], _post_players[k], _post_moves[k], outs[k], shots)
+	outs.fill(null)
 
 
 ## Advances the whole game one tick. The order is the point: players simulate and produce shots; the shots are resolved against the world as it is after everyone has moved;

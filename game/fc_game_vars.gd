@@ -98,6 +98,12 @@ var _post_in := PackedFloat64Array()
 var _post_players: Array = []
 var _post_ids := PackedInt64Array()
 var _post_moves: Array = []
+## The idle weapons' batch ([member FcPlayer.weapon_idle_batch]): gs-sim's runner, its flat entries, each entry's player
+## and each posted player's outcome.
+var _idle_batch: Object = null
+var _idle_entries: Array = []
+var _idle_owners: Array = []
+var _idle_outs: Array = []
 var _demo_gated := false
 
 

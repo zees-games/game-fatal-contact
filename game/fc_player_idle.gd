@@ -151,6 +151,28 @@ var _posture_ctx := GSWeaponContext.new()
 static var posture_native := true
 
 
+## Cvar [code]fc_weapon_idle_batch[/code]: 1 joins every idle server weapon's native idle call into one gs-sim call per
+## tick ([code]GSSimWeaponIdleBatch[/code], fc-weapons 45, gs-weapon API 57) where the library has it (bit for bit:
+## [code]headless_weapon_idle_batch[/code]); 0 ticks each weapon on its own ([method tick_idle_row]).
+static var weapon_idle_batch := true
+
+
+## [method tick_idle_row] with the weapon's native idle call left in [param entries] (entry for posture row [param k])
+## for the caller's one batch run. Null when the rig cannot join (an older pack, a weapon without a twin, timers on).
+func tick_idle_batch(entries: Array, k: int) -> GSWeaponOutcome:
+	if not weapons.has_method(&"idle_batch"):
+		return null
+	var t_wp := Time.get_ticks_usec()
+	var out: GSWeaponOutcome = weapons.call(&"idle_batch", _command, _posture_tick, entries, k)
+	if out == null:
+		return null
+	var hands: Object = weapons.view_model()
+	if hands != null:
+		hands.set_sprinting(controller.state.sprinting)
+	FcFrameProbe.add(&"p_weapons", t_wp)
+	return out
+
+
 ## Checks every row FcGame's batched loop hands gs-sim against the script ([method post_input]), counting
 ## [member posture_batched_rows] and [member posture_misses]. For the parity suites; off in play.
 static var posture_verify := false
