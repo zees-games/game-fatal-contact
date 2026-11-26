@@ -5,10 +5,9 @@ const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcPlayerIdle := preload("../game/fc_player_idle.gd")
 
-## `fc_weapon_idle_batch`: the idle weapons' native idle calls joined into one gs-sim call per tick
-## (`GSSimWeaponIdleBatch`) play exactly the match one call per weapon plays. The same 16 bots on dm_box play a
-## deathmatch with the batch off, off again and on; every bot's position, view, health and commands, hashed every
-## few ticks, are identical; so is a fourth run with the lean join off (`fc_weapon_idle_lean` 0). Without the library only the script lane runs, and the suite says so.
+## `fc_weapon_idle_batch`: the idle weapons' native calls joined into one gs-sim call per tick (`GSSimWeaponIdleBatch`) play exactly the
+## match one call per weapon plays: 16 bots on dm_box hash identically with the batch off, off again, on, and with `fc_weapon_idle_lean` 0.
+## Without the library only the script lane runs, and the suite says so.
 
 const TICK_RATE := 33
 const BOTS := 16

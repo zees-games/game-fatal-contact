@@ -736,10 +736,9 @@ func _net_interpolated(_tick: int) -> void:
 	player.global_position = state.position
 
 
-## Whether gs-sim's interpolator does [method _net_interpolated]'s copy itself, in its one call per frame
-## ([method GSNetInterpolator.bind_mirror], gs-net 25), instead of calling this script once per remote player.
-## Bit-identical (gs-sim's interp_selftest); `cl_present_script 1` keeps the script copy. The web client has no
-## library, so it always runs the script.
+## Whether gs-sim's interpolator does [method _net_interpolated]'s copy in its one call per frame ([method GSNetInterpolator.bind_mirror],
+## gs-net 25) instead of calling this script per remote player. Bit-identical (gs-sim's interp_selftest); `cl_present_script 1` keeps the
+## script copy, which the library-less web client always runs.
 static var native_present := true
 
 ## Set once the interpolator cannot mirror (no library, an older gs-net): the script copy stays, unasked.

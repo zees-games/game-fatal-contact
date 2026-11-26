@@ -1,8 +1,7 @@
 extends RefCounted
-## What the renderer is told, as one line each: the display and rendering device, the viewport's anti-aliasing and scale, the project's shadow
-## settings, every environment's screen effects, and a census of the lights by type with how many cast shadows.
-## `--ablate rstate` in tools/perf_bench.gd prints it, so a bench on one box can be diffed against another's (the owner's Windows 3090 Ti run
-## shows 4166 objects where the staging02 bench shows 719; the profile header carries none of this).
+## What the renderer is told, a line each: display and device, the viewport's anti-aliasing and scale, shadow settings, every environment's
+## screen effects and the lights by type with their shadow casters. `--ablate rstate` in tools/perf_bench.gd prints it, so a bench on one box
+## diffs against another's (the profile header carries none of this).
 
 ## The digits, @ and _ _group strips from node names, compiled once.
 static var _digits: RegEx

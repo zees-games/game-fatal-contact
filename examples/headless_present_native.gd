@@ -2,11 +2,9 @@ extends GSGameCheckSuite
 
 const FcPlayer := preload("../game/fc_player.gd")
 
-## The native present pass (one GSSimPresentLod call a frame) judges every remote body exactly as FcPlayer.present_lod does
-## itself: three crowds of bare bodies at the same seeded spots, presented by the script, by the native codes body by body,
-## and by the native thinning (FcPlayer.present_crowd), keep the same thinning counters and animation gates frame after
-## frame. Skips when the library has no GSSimPresentLod (and the third crowd when it has no schedule).
-## Run: [code]godot --headless --path . res://examples/headless_present_native.tscn[/code]
+## The native present pass (one GSSimPresentLod call a frame) judges every remote body as FcPlayer.present_lod does: three seeded crowds,
+## presented by the script, by the native codes and by the native thinning (FcPlayer.present_crowd), keep the same thinning counters and animation
+## gates every frame. Skips without GSSimPresentLod (the third crowd without its schedule). Run: ./game.sh --no-parse test headless_present_native
 
 const BODIES := 200
 const FRAMES := 40

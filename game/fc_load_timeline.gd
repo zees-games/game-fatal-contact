@@ -73,10 +73,9 @@ const FIRST_USE_TRACE_FRAMES := 45
 const FIRST_USE_MSEC := 700
 
 
-## The first time this client does [param event] (`shot`, `remote_shot`, `death`, `killview`, `respawn`): stamped,
-## published at once as `window.gsWeb.published.fc_first_<event>` (its publishedAt is the page's clock), and
-## the next [const FIRST_USE_MSEC] of frames watched: their worst frame, slow frames and the pipelines compiled
-## in them go to `fc_first_<event>_frames` (JSON) and the log. Later calls are a dictionary lookup.
+## The first time this client does [param event] (`shot`, `remote_shot`, `death`, `killview`, `respawn`): published at once as
+## `window.gsWeb.published.fc_first_<event>`, then the next [const FIRST_USE_MSEC] of frames (worst frame, slow frames, pipelines compiled)
+## go to `fc_first_<event>_frames` (JSON) and the log. Later calls are a dictionary lookup.
 static func seen(event: String) -> bool:
 	return _first_seen.has(event)
 

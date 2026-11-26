@@ -307,11 +307,9 @@ var flashlight_map: String = ""
 var _class_base: ClassBase = null
 
 
-## The numbers a class scales, as they were before it scaled them: `GSPlayerClassApply.to_movement`
-## reads nothing else from its base (`move_speed_scale` on `max_speed`, `jump_scale` on `jump_height`).
-## [b]Not a duplicate of the tunables[/b]: a round start is every player's first spawn in one tick,
-## and 31 `GSFpsTunables.duplicate()` calls (every property read and written through the script)
-## were most of the spawn signal. A new scaled field in gs-player-class is a field added here.
+## The numbers a class scales, as they were before it scaled them (`GSPlayerClassApply.to_movement` reads only `max_speed` and `jump_height`
+## from its base). [b]Not a duplicate of the tunables[/b]: 31 `GSFpsTunables.duplicate()` calls at a round start were most of the spawn
+## signal. A new scaled field in gs-player-class is a field added here.
 class ClassBase extends RefCounted:
 	var max_speed := 0.0
 	var jump_height := 0.0
@@ -600,9 +598,8 @@ static func classify_crowd(bodies: Array, eye: Vector3, forward: Vector3, frustu
 		LOD_NEAR * LOD_NEAR, LOD_CONE, LOD_RADIUS, _lod_farthest2, _lod_far2, _anim_far2, _anim_near2, range2,
 		1.0 if lod_frustum and not frustum.is_empty() else 0.0, 1.0 if occlusion_enabled else 0.0]))
 
-## Presents this frame's crowd by the codes of the [method classify_crowd] just made for the same [param bodies], thinned in
-## gs-sim: the same bodies presented with the same deltas and gates, the same held-gun and figure-range switches, as each body's
-## [method present_lod_coded]. Returns false, having presented nothing, when the native thinning is off or absent or remote
+## Presents this frame's crowd by the codes [method classify_crowd] just made for the same [param bodies], thinned in gs-sim exactly as each
+## body's [method present_lod_coded] would. Returns false, having presented nothing, when the native thinning is off or absent or remote
 ## bodies are paused: the caller then presents per body.
 static func present_crowd(bodies: Array, delta: float, eye: Vector3) -> bool:
 	if not present_schedule_native or present_remote_paused or _crowd_lod == null or not _crowd_lod.has_method(&"schedule") \

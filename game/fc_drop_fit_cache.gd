@@ -1,9 +1,7 @@
 extends RefCounted
-## The collision box of each weapon's dropped body, remembered so a server does not load every weapon model to measure it.
-##
-## A server draws no drop, but it must rest the same box a client's model fills, and measuring it loads the model (80 to
-## 1800 ms a weapon, 9.5 s for the set on PH). The box is kept for the process (a map change builds a new drop layer) and
-## in a file, keyed by what the box depends on, so only a weapon whose art or model file changed is loaded again.
+## The collision box of each weapon's dropped body, remembered so a server does not load every weapon model (80 to 1800 ms each,
+## 9.5 s for the set on PH) to measure it. Kept for the process and in a file keyed by what the box depends on, so only a weapon whose
+## art or model file changed is loaded again.
 
 const PATH := "user://fc_drop_fits.json"
 ## Bump when the way a fit is measured changes: every saved box is then dropped.

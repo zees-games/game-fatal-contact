@@ -1,11 +1,8 @@
 extends Node
 
-## A portrait per player: their avatar's head, rendered once (`UPDATE_ONCE`) into a small viewport and
-## drawn in the ranked row; re-rendered only when what they wear changes. Nothing is built with no
-## display (every suite): the row draws initials instead.
-## Every portrait shares one world, one environment (the world's) and one sun. The sun is in the tree only
-## while a portrait renders, and each figure is freed once its picture is taken (the viewport keeps it),
-## so between builds the cache adds no light, instance or environment to any frame.
+## A portrait per player: their avatar's head rendered once (`UPDATE_ONCE`) into a small viewport, re-rendered when what they wear changes;
+## with no display (every suite) the row draws initials. All portraits share one world, environment and sun; the sun is in the tree only
+## while a portrait renders and each figure is freed once taken, so between builds the cache adds nothing to any frame.
 
 const FcAvatars := preload("fc_avatars.gd")
 const SIDE := 96

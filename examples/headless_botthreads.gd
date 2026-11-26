@@ -7,10 +7,9 @@ const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
 
-## `bot_threads`: the bots' brains on worker threads play exactly what they play on one. The same
-## 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8; every bot's position,
-## view, health and commands, hashed every few ticks, are identical in all of them, and with bot_native_think's
-## reused command pair off (new commands every tick).
+## `bot_threads`: 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8 with
+## bot_native_think's reused command pair off; every bot's position, view, health and commands,
+## hashed every few ticks, are identical in all of them.
 
 const TICK_RATE := 33
 const BOTS := 24

@@ -1,9 +1,8 @@
 extends Node
 
-## Windowed trace of the kill-view switch: kills the local player with 32 bots around and prints every frame from the
-## death to 1.5 s after it (wall ms, draws, objects, nodes, physics steps, vram, render cpu/gpu ms, kill view active),
-## then the worst frame. Run on a GPU box: ../gpu.sh run game-fatal-contact res://tools/killview_hitch.tscn
-## (add -- --rendering-driver opengl3 for the web path). Prints HITCH lines; not a suite.
+## Windowed trace of the kill-view switch: kills the local player with 32 bots around and prints every frame from the death to 1.5 s after
+## (wall ms, draws, objects, nodes, physics steps, vram, render cpu/gpu ms, kill view), then the worst. Prints HITCH lines; not a suite.
+## Run on a GPU box: ../gpu.sh run game-fatal-contact res://tools/killview_hitch.tscn (-- --rendering-driver opengl3 for the web path).
 
 const FcContent := preload("../game/fc_content.gd")
 const BOTS := 32

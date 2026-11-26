@@ -25,10 +25,9 @@ static var batch := true
 static var batch_faults := 0
 ## Motor ticks the batch ran, for the tests and the bench.
 static var batch_rows := 0
-## Whether the batched loop may skip flushing the waiting idle weapon ticks before the game's `demo_stats.after` when
-## that object has `after_reads(player)` and it answers false: FcDemoStats only reads, and only a human's tick while it
-## records. A stats object without the method (a test's meddler) is flushed for every time. Off (`fc_demo_flush_gate 0`),
-## every player's turn flushes first, so the idle ticks run as gs-sim calls of one row each.
+## Whether the batched loop may skip flushing the waiting idle weapon ticks before `demo_stats.after` when its `after_reads(player)` answers
+## false (FcDemoStats reads only a recording human's tick); without the method it flushes every time. Off (`fc_demo_flush_gate 0`), every
+## player's turn flushes first, so the idle ticks run as one-row gs-sim calls.
 static var demo_flush_gate := true
 ## Non-empty idle-tick flushes (one gs-sim posture call each), for the parity suite.
 static var post_flushes := 0

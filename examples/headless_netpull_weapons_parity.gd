@@ -9,11 +9,8 @@ const Roles := preload("../game/fc_weapon_roles.gd")
 const W := preload("../game/fc_net_pull_weapons.gd")
 
 ## A player's weapon pull (FcPlayerNet.pull, cvars `sv_net_pull_weapons_native`, `sv_net_pull_content_native`): gs-sim's
-## `GSSimFpsWeaponNet.pull` writes the same net_* weapon fields and net_weapon as AwWeaponNet.pull, the wind-up and
-## FcContent.weapon_index, to the bit, over seeded arsenals and rigs (slots in and out of range, magazines, reserves and
-## fire modes past their widths, negative and wrapping fire counters, charges on the rounding halves, the wind-up), with
-## either switch off, without a rig, and for every wire id plus an unknown and an empty one. Without the library only the
-## script lane runs, and the suite says so.
+## `GSSimFpsWeaponNet.pull` writes the same net_* weapon fields, net_weapon and wind-up as AwWeaponNet.pull and FcContent.weapon_index, to the
+## bit, over seeded arsenals and rigs, either switch off, no rig, and every wire id. Without the library only the script lane runs, and the suite says so.
 
 const STATES := 20000
 const SEED := 6161
