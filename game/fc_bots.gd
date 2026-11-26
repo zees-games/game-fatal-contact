@@ -153,8 +153,10 @@ static func unstrand(game: Object, bot: FcPlayer, mind: Mind, intent: GSBotInten
 
 ## The part of [method think] after the brain ran, on the main thread: the bot's commands from [member Mind.t_intent].
 static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float) -> Array:
-	var move := GSFpsCommand.new()
-	var fire := GSWeaponCommand.new()
+	var made := _out_pair(mind)
+	var move: GSFpsCommand = made[0]
+	var fire: GSWeaponCommand = made[1]
+	_clear(move, fire)
 	var world: World = mind.t_world
 	var me: GSBotContact = mind.t_me
 	var intent: GSBotIntent = mind.t_intent
@@ -221,7 +223,7 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 		# A tiered coast repeats only held buttons: a jump or a weapon switch is pressed on the think tick, then let go.
 		mind.last_move.buttons &= _COAST_MOVE if intent.state != &"dead" else 0
 		mind.last_fire.buttons &= _COAST_FIRE if intent.state != &"dead" else 0
-	var made := _recoil_comp(bot, mind, [move, fire], tick, tick_rate)
+	made = _recoil_comp(bot, mind, made, tick, tick_rate)
 	FcFrameProbe.lap(&"ba_tail", t_tail)
 	return made
 
@@ -267,6 +269,9 @@ static func _write(intent: GSBotIntent, move: GSFpsCommand, fire: GSWeaponComman
 
 ## Off only for tests that measure the bots without the correction (headless_bot_hitreg).
 static var recoil_compensation := true
+## bot_native_think: every bot hands out one pair of commands of its own, overwritten every tick (Mind.out), instead
+## of two new commands and an array a tick; 0 makes new ones. headless_botthreads plays both to the same digests.
+static var reuse_commands := true
 
 ## Whether the think tiers come from [code]GSBotThinkTier.schedule[/code] (gs-bot API 27) or, on a host's gs-bot 26
 ## (the live shell's pin), from period, until_beat and body_period, which answer the same. headless_botthreads plays both.
@@ -354,13 +359,37 @@ static func _turn(a: float, b: float) -> float:
 ## The commands of a tick the brain sits out: the last ones, with the view carried on towards where the last think turned it.
 static func _coast(mind: Mind, tick: int) -> Array:
 	var step := tick - mind.last_think_tick
-	var move := mind.last_move.duplicate_command()
+	var made := _out_pair(mind)
+	var move := _keep_move(made[0], mind.last_move)
 	var fraction := float(step + 1) / float(mind.every)
 	move.yaw = mind.view_from.x + _turn(mind.view_from.x, mind.view_to.x) * fraction
 	move.pitch = mind.view_from.y + (mind.view_to.y - mind.view_from.y) * fraction
 	mind.last_move.yaw = move.yaw
 	mind.last_move.pitch = move.pitch
-	return [move, mind.last_fire.duplicate_command()]
+	made[1] = _keep_fire(made[1], mind.last_fire)
+	return made
+
+
+## The pair [param mind]'s bot hands out this tick: its own, overwritten every tick with [member reuse_commands],
+## else two new commands (the commands' four fields each are all the pair carries; a consumer copies what it keeps).
+static func _out_pair(mind: Mind) -> Array:
+	if not reuse_commands:
+		return [GSFpsCommand.new(), GSWeaponCommand.new()]
+	if mind.out.is_empty():
+		mind.out = [GSFpsCommand.new(), GSWeaponCommand.new()]
+	return mind.out
+
+
+## [param move] and [param fire] as new commands are.
+static func _clear(move: GSFpsCommand, fire: GSWeaponCommand) -> void:
+	move.move = Vector2.ZERO
+	move.yaw = 0.0
+	move.pitch = 0.0
+	move.buttons = 0
+	fire.slot = 0
+	fire.buttons = 0
+	fire.yaw = 0.0
+	fire.pitch = 0.0
 
 
 ## Whether a bot that just thought may sit out the next ticks: nothing in hand but a walk.

@@ -362,10 +362,11 @@ func _add_bot_engine_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcPlayerStack.set_brain_native(new_value.to_float() >= 0.5))
 	add_cvar("bot_native_think", "1",
-		"1: the bots' world hands gs-sim's sight scan its contact table, filled while the contacts are built (gs-bot 37; the same answers, one walk of the contacts fewer per tick); 0: gs-bot packs the contacts itself",
+		"1: the bots' world hands gs-sim's sight scan its contact table, filled while the contacts are built (gs-bot 37; the same answers, one walk of the contacts fewer per tick), and every bot hands out one pair of commands of its own, overwritten every tick; 0: gs-bot packs the contacts itself and every tick makes new commands",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
-			FcBotRows.enabled = new_value.to_float() >= 0.5)
+			FcBotRows.enabled = new_value.to_float() >= 0.5
+			FcBots.reuse_commands = FcBotRows.enabled)
 	add_cvar("motor_native", "1" if GSFpsPhysicsBody.native_enabled else "0",
 		"1: the players' movement collision queries (sweep, rest contact, overlap) run in gs-sim when its library is installed (bit-identical to the script, so web and native clients still agree; cheaper); 0: in script. Without the library it is script either way",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(

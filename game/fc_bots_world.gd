@@ -83,14 +83,14 @@ class Mind:
 	var throw_back: int = 0
 	var throw_at: int = 0
 	var throw_cook_from: int = 0
-	## The ride under way (gs-bot's GSBotSurfRide, untyped so an older shell still compiles
-	## this), or null.
+	## The ride under way (gs-bot's GSBotSurfRide, untyped so an older shell still compiles this), or null.
 	var ride: Variant = null
 	## Where the bot was last tick, to see a teleport.
 	var last_position: Vector3 = Vector3.INF
 	## The commands of the last tick the brain thought, repeated on the ticks it coasts (see [constant THINK_EVERY]).
 	var last_move: GSFpsCommand = null
 	var last_fire: GSWeaponCommand = null
+	var out: Array = []  # The [move, fire] pair handed out every tick with FcBots.reuse_commands (bot_native_think).
 	## Whether nobody was within [member think_near] metres at the last think.
 	var far: bool = false
 	## The view the last think moved from and to, which the coast ticks walk along.

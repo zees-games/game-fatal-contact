@@ -8,7 +8,8 @@ const FcSimServer := preload("../game/fc_sim_server.gd")
 
 ## `bot_threads`: the bots' brains on worker threads play exactly what they play on one. The same
 ## 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8; every bot's position,
-## view, health and commands, hashed every few ticks, are identical in all of them.
+## view, health and commands, hashed every few ticks, are identical in all of them, and with bot_native_think's
+## reused command pair off (new commands every tick).
 
 const TICK_RATE := 33
 const BOTS := 24
@@ -16,7 +17,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 4
-const CHECKS := 18
+const CHECKS := 19
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -51,6 +52,11 @@ func _run() -> void:
 		_check(digests[i] == digests[0], "bot_threads %d plays the match thread 0 plays (%d kills)" % [THREADS[i], kills[i]])
 	_check(parallel[2] > 100 and parallel[3] > 100 and parallel[4] > 100, "the brains really ran through the parallel path (%d, %d, %d ticks)" % [parallel[2], parallel[3], parallel[4]])
 	_check(parallel[0] == 0, "and bot_threads 0 never did")
+	# bot_native_think 0: new commands every tick, the pre-reuse path; the same match to the digest.
+	FcBots.reuse_commands = false
+	var fresh := await _play(0)
+	FcBots.reuse_commands = true
+	_check(fresh[0] == digests[0], "bot_native_think 0 (new commands every tick) plays the match its reused pair plays (%d kills)" % fresh[1])
 	_done()
 
 	_section("an imported map, sight through the physics space")
