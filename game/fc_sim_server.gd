@@ -345,6 +345,8 @@ func _report(net: GSNetManager) -> void:
 			_per_tick(now, last, &"server_history_usec", ticks)])
 		if FcFrameProbe.on():
 			print(sections_line(FcFrameProbe._sections, ticks))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
+			print(net_split_line(FcFrameProbe._sections, ticks, _per_tick(now, last, &"server_input_usec", ticks),  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
+				_per_tick(now, last, &"server_check_usec", ticks), _per_tick(now, last, &"server_send_usec", ticks)))
 			FcFrameProbe._reset()
 			print(phases_line(ticks))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		last = now
@@ -434,6 +436,31 @@ static func sections_line(sections: Dictionary, ticks: int) -> String:
 	for r: Array in rows:
 		parts.append("%s %.3f x%.1f" % [r[1], r[0], r[2]])
 	return "SIM_HOST_SECTIONS ms/tick | " + ", ".join(parts)
+
+
+## What `srv_net` holds, as parts that do add up. gs-net's server tick runs every entity's `_net_simulate`, and the
+## first player's runs the whole game, so `srv_net` wraps `srv_bots` and `srv_game` (siblings, not nested in each
+## other), the kill view, the toy pulls and each player's own `srv_netpull`, then gs-net's input, check and send
+## (send includes the history record). `rest` is what none of them owns: the registry walk, every behaviour's
+## `_net_simulate` call around those spans, and the probes' own bookkeeping.
+## `SIM_HOST_NET_SPLIT ms/tick | srv_net 19.01 = srv_game 11.58 + srv_bots 4.97 + ... + rest 0.35`.
+static func net_split_line(sections: Dictionary, ticks: int, input_ms: float, check_ms: float, send_ms: float) -> String:
+	var ms := func(key: StringName) -> float:
+		var row: PackedInt64Array = sections.get(key, PackedInt64Array([0]))
+		return row[0] / 1000.0 / maxi(ticks, 1)
+	var total: float = ms.call(&"srv_net")
+	var rest := total - input_ms - check_ms - send_ms
+	var parts := PackedStringArray()
+	for key: StringName in NET_SPLIT:
+		var spent: float = ms.call(key)
+		rest -= spent
+		parts.append("%s %.3f" % [key, spent])
+	parts.append_array(PackedStringArray(["send %.3f" % send_ms, "input %.3f" % input_ms, "check %.3f" % check_ms, "rest %.3f" % rest]))
+	return "SIM_HOST_NET_SPLIT ms/tick | srv_net %.3f = %s" % [total, " + ".join(parts)]
+
+
+## The FcFrameProbe spans nested directly in `srv_net` ([method net_split_line]).
+const NET_SPLIT: Array[StringName] = [&"srv_game", &"srv_bots", &"srv_netpull", &"srv_killview", &"srv_pulls"]
 
 
 ## [prefix, script] of the weapon sub-phase clocks this build's addons have: AwWeaponRig's from fc-weapons API 10,
