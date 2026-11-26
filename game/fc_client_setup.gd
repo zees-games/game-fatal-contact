@@ -199,6 +199,7 @@ func _setup_interface_and_net() -> void:
 		# The netcode build installs it for a connected client; an offline one never builds netcode.
 		_install_profiler_context()
 	else:
+		await _prepare_extras()
 		var netted := _build_netcode()
 		GSLog.result(CHANNEL, "netcode", netted)
 		if netted.ok and link != null:
@@ -214,6 +215,15 @@ func _setup_interface_and_net() -> void:
 		presentation.use_shot_rules(game.shot_rules)
 	# The first draw's pipeline compile and the netcode share the frame above; the platform gets its own.
 	await _setup_frame()
+
+## Chat and the map layer a frame each before the netcode, in a client that draws (they were 302 + 259 ms of
+## the netcode's one frame on dm_box). `cl_slice_extras 0` (launch argument or URL query) builds them inside it, as before.
+func _prepare_extras() -> void:
+	if not _builds_in_frames() or FcFrameProbe.launch_value("cl_slice_extras") == "0":
+		return
+	extras = _new_extras()
+	var prepared: Variant = extras
+	await prepared.prepare(game, _setup_frame)
 
 ## Part of [method _ready].
 func _setup_finish(timeline: FcLoadTimeline) -> void:
