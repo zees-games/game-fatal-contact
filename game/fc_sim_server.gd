@@ -199,6 +199,7 @@ func _apply_bench_flags() -> void:
 		# The addons' own phases, in a SIM_HOST_PHASES line: the controller's always, the brain's on one thread only
 		# unless gs-bot times threaded brains (API 40, FcBots.brain_merge).
 		GSFpsController.phase_timers = true
+		FcBotThreads.phase_timers = true
 		if FcBots.brain_phases:
 			# By name: gs-bot 26 (the live shell's) has no brain phase timers.
 			(GSBotBrain as GDScript).set(&"phase_timers", FcBotThreads.threads == 0 or FcBots.brain_merge)
@@ -464,6 +465,10 @@ static func phases_line(ticks: int) -> String:
 		w_us.fill(0)
 		script.set(&"phase_us", w_us)
 	GSFpsController.phase_us.fill(0)
+	# srv_bots outside the brains (sb_*, FcBotThreads.PHASES).
+	for i in FcBotThreads.PHASES.size():
+		parts.append("%s %.3f" % [FcBotThreads.PHASES[i], FcBotThreads.phase_us[i] / 1000.0 / ticks])
+	FcBotThreads.phase_us.fill(0)
 	if not FcBots.brain_phases:
 		return "SIM_HOST_PHASES ms/tick | " + ", ".join(parts)
 	var brain: GDScript = GSBotBrain
