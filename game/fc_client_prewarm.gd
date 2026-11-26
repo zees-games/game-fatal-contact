@@ -134,7 +134,7 @@ func _prewarm_phase1(body: Variant, tick_start: int) -> void:
 		FcLoadTimeline.mark("prewarm 1 done: flash scenes, muzzle pools, explosion, own work %d ms" % (int(_warm_work_usec.get(1, 0) + Time.get_ticks_usec() - tick_start) / 1000))
 
 
-## Phase 0: the view models of every weapon art (on the web the carried ones, see [member defer_views_on_web]), a slice a frame.
+## Phase 0: the view models of every weapon art (the carried ones where [method _defers_views]), a slice a frame.
 func _prewarm_phase0(tick_start: int) -> void:
 	var arts: Array = _warm.arts
 	var until := Time.get_ticks_msec() + (int(gate.call(&"slice_msec", 8)) if gate.has_method(&"slice_msec") else 8)
@@ -183,8 +183,16 @@ func _view_step(w: Dictionary) -> void:
 	_step_mark(step_of, step_began)
 
 ## True: a web client builds under the cover only the views of the weapons the local player carries (and the default loadout's), and every other weapon's after the cover drops, a stage at a time in quick frames ([method _late_views_tick]).
-## All 27 under the cover were 14-20 s of a 36-62 s web load on staging02, each frame a stage of 60-400 ms plus the match's ticks. A desktop client builds them all under the cover as before. False: the web builds them all there too.
+## All 27 under the cover were 14-20 s of a 36-62 s web load on staging02, each frame a stage of 60-400 ms plus the match's ticks. False: the web builds them all there too.
 static var defer_views_on_web := true
+
+## Whether this client builds only the carried weapons' views under the cover and the rest after it ([member defer_views_on_web]
+## on the web). A desktop client does too since fc-load-2: all 27 under the cover were ~10.8 s of the ~17 s to the gate on staging
+## (218 frames, 4.35 s of own work). `cl_defer_views 0` (launch argument) builds them all under the cover, as before. Headless draws nothing.
+func _defers_views() -> bool:
+	if GSPlatform.is_web():
+		return defer_views_on_web
+	return not GSPlatform.is_headless() and FcFrameProbe.launch_value("cl_defer_views") != "0"
 ## A late view stage runs only while the player is away (dead, or spectating), after a frame this quick (msec), and at
 ## most one every [constant LATE_VIEW_GAP] frames: a stage is one 70-400 ms frame, which in play is a hitch.
 const LATE_VIEW_QUICK_MSEC := 25.0
@@ -195,7 +203,7 @@ func _cover_arts(body: FcPlayer) -> Array:
 	var arts: Array = AwWeaponArtTable.table().values()
 	_late_views = {}
 	_views_done = {}
-	if not defer_views_on_web or not GSPlatform.is_web():
+	if not _defers_views():
 		return arts
 	var wanted := _cover_weapon_ids(body, false)
 	var now: Array = []
@@ -266,7 +274,7 @@ func _late_views_tick() -> void:
 	GSLog.info("arena.load", "late weapon views built", built)
 	_late_views_end()
 
-## Web only. The views of the weapons the local player carries, built in play too: the cover ran before the loadout was
+## With deferred views ([method _defers_views]). The views of the weapons the local player carries, built in play too: the cover ran before the loadout was
 ## rolled, so a carried weapon outside the default loadout would otherwise build its whole view (1.3 s) on its first equip.
 ## Checks the arsenal every [constant CARRIED_CHECK_FRAMES] frames; builds one stage a quick frame, on a spare view of its own.
 const CARRIED_CHECK_FRAMES := 10
@@ -311,9 +319,9 @@ func _carried_tick() -> void:
 		(_carried.spare as Node).queue_free()
 		_carried = {}
 
-## Whether the carried check has nothing to watch for: no web deferral, or this is not a web client.
+## Whether the carried check has nothing to watch for: this client builds every view under the cover.
 func _carried_idle() -> bool:
-	return not (defer_views_on_web and GSPlatform.is_web())
+	return not _defers_views()
 
 ## The arts of the carried weapons that have no view built yet, in slot order.
 func _carried_arts() -> Array:

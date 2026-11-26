@@ -6,6 +6,10 @@ const GATE_WARM_BUDGET_MSEC := 100.0
 const SPAWN_ARTS: Array[StringName] = [&"pistol", &"knife"]
 ## The load gate's give-up time in a browser (GSLoadGate's default is 20 s); see setup's use.
 const WEB_GATE_TIMEOUT_SEC := 60.0
+## The per-frame slice a desktop client's warm-up steps take under the cover ([method GSLoadGate.slice_msec]), against gs-core's 8 ms
+## where threads exist: a load frame is also the match's ticks and a draw (~30 ms on staging), so 8 ms slices stretched the
+## view-model prewarm over 218 frames. `cl_cover_slice_msec N` (launch argument) sets it; -1 keeps gs-core's default, as before.
+const NATIVE_COVER_SLICE_MSEC := 32
 var _rest_paths: Array[String] = []
 
 ## The client's platform build and the warm-up of what the gate does not cover (spawn models, weapons) after it lifts. Split out of fc_client_session_events.gd for file size.
@@ -79,6 +83,7 @@ func _build_platform() -> void:
 	platform.spawned_fn = func() -> bool: return player != null and player.camera != null
 	add_child(platform)
 	gate = platform.gate
+	_widen_cover_slice()
 	# A browser's first start compiles every shader while the weapons warm (slow frames of 0.3 to 3 s): the
 	# "weapons" hold, progressing all along, ended 19.9 s after the gate closed, past the 20 s default.
 	if GSPlatform.is_web():
@@ -108,3 +113,13 @@ func _build_platform() -> void:
 	# this every frame, so there is no signal to forward from each of them.
 	platform.busy_fn = _input_busy
 	platform.input_blocked_changed.connect(_suspend_input)
+
+
+## Sets the gate's cover slice on a desktop client (see [constant NATIVE_COVER_SLICE_MSEC]); the web keeps gs-core's 24 ms.
+func _widen_cover_slice() -> void:
+	if GSPlatform.is_web() or not (&"cover_slice_msec" in gate):
+		return
+	var asked := FcFrameProbe.launch_value("cl_cover_slice_msec")
+	var slice := NATIVE_COVER_SLICE_MSEC if asked.is_empty() else int(asked)
+	if slice >= 0:
+		gate.set(&"cover_slice_msec", slice)
