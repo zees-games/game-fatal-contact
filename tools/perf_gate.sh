@@ -32,7 +32,7 @@ if [[ -z $logs_dir ]]; then
 	logs_dir=${PERF_GATE_LOGS:-/home/gamedev/perf-bench/gate}/$(date +%Y%m%d-%H%M%S)-$tier-$(basename "$here")
 	mkdir -p "$logs_dir"
 	# The fixed scenario. Changing any of it needs a new baseline: perf_gate.py refuses to compare across scenarios.
-	args=(--map cp-orange-x3 --mode ffa --bots 31 --seed 1 --sim-host 1 --pilot 1 --warmup 20 --seconds 60 --res 1152x650)
+	args=(--map cp-orange-x3 --mode ffa --bots 31 --seed 1 --sim-host 1 --pilot 1 --pilot-view fixed --warmup 20 --seconds 60 --res 1152x650)
 	# A run that never reached the bench (a failed upload, a lost box) is retried, up to twice the runs asked for.
 	for ((i = 1, good = 0; good < runs && i <= 2 * runs; i++)); do
 		echo "perf_gate: run $i ($((good + 1))/$runs) on $box ($tier) -> $logs_dir" >&2

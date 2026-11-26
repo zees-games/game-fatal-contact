@@ -172,7 +172,7 @@ The numbers are only comparable on the same box at the same resolution, so the b
 
 ## Client perf gate
 
-`tools/perf_gate.sh` exists so that a client frame regression fails a check instead of being noticed weeks later in an owner profile. Between Nov 15 and Nov 25 the 32-player frame went from 96 to 65 fps, with three times the objects drawn, and nothing failed. The gate runs the 32-player benchmark (`tools/perf_bench.sh`) three times in one fixed scenario: cp-orange-x3 ffa, 31 bots, the local sim host, seed 1, the seeded pilot, 20 s of warm-up, then 60 s recorded at 1152x650. It takes the median of each metric and compares it with the baseline in `ci/perf/client_gate_<tier>.json`.
+`tools/perf_gate.sh` exists so that a client frame regression fails a check instead of being noticed weeks later in an owner profile. Between Nov 15 and Nov 25 the 32-player frame went from 96 to 65 fps, with three times the objects drawn, and nothing failed. The gate runs the 32-player benchmark (`tools/perf_bench.sh`) three times in one fixed scenario: cp-orange-x3 ffa, 31 bots, the local sim host, seed 1, the seeded pilot with a fixed camera (`--pilot-view fixed`), 20 s of warm-up, then 60 s recorded at 1152x650. It takes the median of each metric and compares it with the baseline in `ci/perf/client_gate_<tier>.json`.
 
 | Tier | Command | Box | Measures |
 | --- | --- | --- | --- |
@@ -186,7 +186,7 @@ Run it as gamedev from a checkout. Each run is 80 s of bench plus the upload and
 | counts (`*_count`: nodes, objects, objects drawn, draw calls, primitives; per-run p50) | 5%, or the baseline's own spread if that is larger |
 | times (`*_ms`) | 10%, or the baseline's own spread across its runs if that is larger, and by more than 0.1 ms in absolute terms |
 
-The counts are the strong signal: they do not depend on how busy the box is. Node and object counts hold within a few percent from run to run. The windowed draw counts (objects drawn, draw calls, primitives) do not yet: the seeded pilot's camera follows the fight, so two runs can differ twofold. Their limit is therefore the baseline's spread, which still fails a Nov 25-sized jump (three times the objects drawn). They tighten to 5% once the bench has a fixed camera path; see the `client-perf-gate-1` item on Nightly. The headless times swing 20 to 75% between runs because neighbouring suites share the PH slot, so a headless ms limit only catches a large regression. Use the windowed tier's times, which hold within about 5 to 20%, for anything finer. The limits are stored in the baseline file (`limits`), so you can tighten them there. Exit codes: 0 pass, 1 regression, 2 a run or log is missing, 3 not comparable. Exit 3 covers a baseline from another GPU or scenario, and an inert run in which nobody fought. Logs go to `/home/gamedev/perf-bench/gate/<time>-<tier>-<checkout>/`. To compare existing logs again without running anything, use `--logs DIR`.
+The counts are the strong signal: they do not depend on how busy the box is. Node and object counts hold within a few percent from run to run. With the fixed camera the windowed draw counts hold too. Over three runs on staging02 the spread was 7.5% for draw calls, 8.2% for objects drawn and 2.1% for primitives; under the following pilot's camera it was 82%, 53% and 164%. About one run in five still draws far more (about 1000 calls instead of 630) because the bots' fight is not deterministic. The gate takes a median of at least three runs, so one such run does not fail it. A baseline must not include one; move its log out of the directory before `--update --logs`. The headless times swing 20 to 75% between runs because neighbouring suites share the PH slot, so a headless ms limit only catches a large regression. Use the windowed tier's times, which hold within about 7 to 25% (predict up to 40%), for anything finer. The limits are stored in the baseline file (`limits`), so you can tighten them there. Exit codes: 0 pass, 1 regression, 2 a run or log is missing, 3 not comparable. Exit 3 covers a baseline from another GPU or scenario, and an inert run in which nobody fought. Logs go to `/home/gamedev/perf-bench/gate/<time>-<tier>-<checkout>/`. To compare existing logs again without running anything, use `--logs DIR`.
 
 **Updating the baseline on purpose.** A change that is meant to cost more, a new scenario or a new box is a new baseline, never a widened limit:
 
@@ -195,6 +195,12 @@ The counts are the strong signal: they do not depend on how busy the box is. Nod
 3. Commit `ci/perf/client_gate_<tier>.json` with the reason in the message.
 
 `--update` keeps the file's `limits` and records which logs it came from.
+
+### Before a tag
+
+Run `tools/pre_tag.sh` as gamedev before `git tag` on this repository. It runs gs-ci's `scripts/pre-tag.sh` (the pack the tag would build, with `check-pack-static.py` and `server-compat.sh` strict) and then `tools/perf_gate.sh --tier windowed`. It exits with the first failing gate's code: for the perf gate, 1 is a regression and 3 is a baseline to re-take on purpose (see above). It takes 20 to 40 minutes, most of it the wait for staging02's GPU lock. `--no-pack` or `--no-perf` runs one gate alone, and arguments after `--` go to `perf_gate.sh`. gs-ci's `pre-tag.sh` does not call it yet: that is left on the `client-perf-gate-1` item on Nightly.
+
+**The fixed camera.** `--pilot-view fixed` keeps the seeded pilot playing (its prediction, fire and hits stay in the frame), but a node with the highest process priority (`ClientBench.FixedView`) puts its camera at each of the map's spawn points in turn. It holds each spot for an equal share of the recorded seconds and makes one full turn there, starting from a fixed yaw, so every run sees the same views. The pilot's own camera followed the fight, and two runs differed in draw calls by 2x.
 
 ## headless_ctf
 

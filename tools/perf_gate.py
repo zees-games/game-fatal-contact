@@ -20,7 +20,7 @@ COUNTS = ["nodes", "objects", "objects_drawn", "draw_calls", "primitives"]
 # Spans, matched on the name after the first dot ('arena.present' and 'fc.present' are one span).
 SYSTEMS = ["present", "net_snapshot", "predict"]
 TREE = ["pf_nodes", "pf_tail"]
-SCENARIO = ["map", "mode", "bots", "players", "seconds", "seed", "sim_host", "pilot", "renderer"]
+SCENARIO = ["map", "mode", "bots", "players", "seconds", "seed", "sim_host", "pilot", "pilot_view", "renderer"]
 DEFAULT_LIMITS = {"count_pct": 5.0, "ms_pct": 10.0, "noise_k": 1.0, "ms_floor": 0.1}
 
 

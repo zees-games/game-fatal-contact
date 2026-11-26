@@ -241,6 +241,36 @@ class Pilot extends Node:
 				Input.parse_input_event(wheel)
 
 
+## `--pilot-view fixed` (the perf gate's view): what is drawn is the bench's, not the fight's. After the game wrote the
+## player's camera this frame, it is put at each of `stops` in turn at eye height, turning one level circle per stop,
+## so draws and objects repeat run to run (the seeded pilot's own camera follows the fight and swung 2x). The pilot
+## still plays: its prediction, shots and deaths cost what they did. One pass takes `cycle` s, the recording's length,
+## so a recording sees every stop and heading once whatever phase it starts at. Runs last (process_priority).
+class FixedView extends Node:
+	const EYE := 1.6
+	## Golden angle (radians): each stop starts its turn on a different heading.
+	const START_STEP := 2.39996
+	var client: Node = null
+	var stops: Array[Vector3] = []
+	var cycle := 60.0
+	var _t := 0.0
+
+	func _process(delta: float) -> void:
+		_t += delta
+		var me: Variant = client.get("player") if client != null else null
+		if me == null or stops.is_empty():
+			return
+		var cam: Camera3D = me.get("camera")
+		if cam == null or not cam.is_inside_tree():
+			return
+		var k := fposmod(_t, cycle) * stops.size() / cycle
+		var i := mini(int(k), stops.size() - 1)
+		var yaw := TAU * (k - i) + START_STEP * i
+		cam.global_transform = Transform3D(Basis(Vector3.UP, yaw), stops[i] + Vector3.UP * EYE)
+		if not cam.current:
+			cam.current = true
+
+
 ## `--wallrun`, client side: drives the route the server keeps putting the player at, through
 ## the real input actions and the look sampler, so the prediction runs it as a player's would.
 class WallPilot extends Node:
