@@ -494,6 +494,9 @@ class WeaponSlots extends GSLoadoutBar:
 	## A picture that had not loaded when the rows were handed over; the bar is rebuilt until it has.
 	var _icons_pending := false
 
+	## The slot dictionaries handed to the bar, reused: the bar copies them, so a rebuild allocates no array.
+	var _scratch: Array = []
+
 	func _init() -> void:
 		super._init()
 		set_layout(GSLoadoutBar.Layout.STACK)
@@ -523,14 +526,14 @@ class WeaponSlots extends GSLoadoutBar:
 	## Hands the generic bar the rows [method layout] picked, at the pitch it picked.
 	func _sync() -> void:
 		var laid := layout()
-		var slots: Array = []
 		_icons_pending = false
+		_scratch.clear()
 		for r in laid["rows"]:
 			var tex := Ink.weapon_icon(r["id"])
 			_icons_pending = _icons_pending or tex == null
-			slots.append({"key": str(r.get("key", r["slot"])), "icon": tex, "name": str(r["name"]), "id": r["id"], "selected": int(r["slot"]) == current})
+			_scratch.append({"key": r["key"] if r.has("key") else r["slot"], "icon": tex, "name": r["name"], "id": r["id"], "selected": int(r["slot"]) == current})
 		set_stack_pitch(float(laid["pitch"]))
-		set_slots(slots)
+		set_slots(_scratch)
 
 	func _draw() -> void:
 		FcWeaponIcons.shared.filter(self)
