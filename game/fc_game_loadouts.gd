@@ -60,7 +60,7 @@ func _give_bot_loadout(player: FcPlayer) -> bool:
 	var drawn := bot_loadouts.draw(loadouts, _loadout_key(player.player_id), player.player_id, difficulty)
 	if drawn == null:
 		return false
-	player.give_loadout(FcContent.in_give_order(loadouts.resolve(drawn.loadout)))
+	player.give_loadout(drawn.entries)
 	player.set_meta(&"bot_loadout", drawn.kit.id)
 	_fit_bot_attachments(player, drawn.kit)
 	arm_for_mode(player)

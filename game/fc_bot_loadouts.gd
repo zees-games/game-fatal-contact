@@ -38,9 +38,13 @@ class Kit extends RefCounted:
 
 
 ## What a draw gave: the kit and the loadout built from it, already conformed to the owner's rules.
+## Both [member loadout] and [member entries] are shared by every bot that draws the same kit
+## under the same rules (see [method built_for]): read them, never edit them.
 class Draw extends RefCounted:
 	var kit: Kit = null
 	var loadout: GSLoadout = null
+	## [member loadout] resolved by the manager, in [method FcContent.in_give_order]; read-only.
+	var entries: Array[Dictionary] = []
 
 
 var kits: Array[Kit] = []
@@ -48,6 +52,9 @@ var _override: Dictionary = {}
 var _override_text := "\u0001"
 ## Bot id -> lives drawn so far, so each life rolls afresh and a run still repeats.
 var _lives: Dictionary = {}
+## [kit, schema, catalogue, rules, unrestricted, entitlement ids, default ids] -> [loadout, entries],
+## see [method built_for].
+var _built: Dictionary = {}
 
 
 ## The profile schema.
@@ -72,6 +79,7 @@ func load_from(profiles: GSProfileSet = null) -> int:
 	if profiles == null:
 		profiles = GSProfileSet.create("", "game-fatal-contact", KIND, schema())
 	kits.clear()
+	_built.clear()
 	_override_text = "\u0001"
 	for id in profiles.list_ids():
 		var res := profiles.load_profile(id)
@@ -173,20 +181,53 @@ func draw(manager: GSLoadoutManager, key: String, bot_id: int, difficulty: Strin
 		return null
 	var out := Draw.new()
 	out.kit = kit
-	out.loadout = build(kit, manager, key)
+	var built := built_for(kit, manager, key)
+	out.loadout = built[0]
+	out.entries = built[1]
 	return out
+
+
+## [method build] and the manager's resolve in give order, memoed: [loadout, entries], the same
+## pair for every bot that draws [param kit] while the schema, its catalogue, the rules instance
+## ([method GSLoadoutManager.set_rules] replaces it), [param key]'s entitlements and the default
+## loadout are unchanged. A round start conforms and resolves each kit once instead of once per
+## bot. The entries are read-only, so an edit fails loudly instead of reaching other bots.
+func built_for(kit: Kit, manager: GSLoadoutManager, key: String) -> Array:
+	var ents := manager.entitlements_for(key)
+	var defaults := FcContent.default_loadout()
+	var memo := [kit, manager.schema, manager.schema.catalogue, manager.rules, ents.unrestricted, ents.to_list(), defaults]
+	var hit: Array = _built.get(memo, [])
+	if not hit.is_empty():
+		return hit
+	var loadout := _build(kit, manager, ents, defaults)
+	var entries := FcContent.in_give_order(manager.resolve(loadout))
+	for e in entries:
+		e.make_read_only()
+	entries.make_read_only()
+	hit = [loadout, entries]
+	_built[memo] = hit
+	return hit
+
+
+## How many (kit, rules, entitlements) pairs [method built_for] holds.
+func built_count() -> int:
+	return _built.size()
 
 
 ## [param kit] over the default loadout, conformed to [param manager]'s schema, the owner's rules and
 ## [param key]'s entitlements: an unknown or forbidden item falls back to its slot's default.
+## Always a new loadout; [method draw] memoes it through [method built_for].
 static func build(kit: Kit, manager: GSLoadoutManager, key: String) -> GSLoadout:
+	return _build(kit, manager, manager.entitlements_for(key), FcContent.default_loadout())
+
+
+static func _build(kit: Kit, manager: GSLoadoutManager, ents: GSLoadoutEntitlements, defaults: Array[StringName]) -> GSLoadout:
 	var loadout := GSLoadout.empty(manager.schema.id)
-	var defaults := FcContent.default_loadout()
 	for i in DEFAULT_SLOTS.size():
 		loadout.set_item(DEFAULT_SLOTS[i], defaults[i])
 	for slot: StringName in kit.items:
 		loadout.set_item(slot, kit.items[slot])
-	for c in GSLoadoutValidator.conform(loadout, manager.schema, manager.entitlements_for(key), manager.rules):
+	for c in GSLoadoutValidator.conform(loadout, manager.schema, ents, manager.rules):
 		if c.was != &"":
 			GSLog.debug(CHANNEL, "a bot loadout item was replaced", {"kit": String(kit.id), "change": str(c)})
 	return loadout

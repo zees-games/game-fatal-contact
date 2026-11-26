@@ -2,6 +2,7 @@ extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcBotLoadouts := preload("../game/fc_bot_loadouts.gd")
+const FcContent := preload("../game/fc_content.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
@@ -18,7 +19,7 @@ const SPAWNED := 12
 const FIGHT_SECONDS := 120.0
 
 const SECTIONS := 7
-const CHECKS := 23
+const CHECKS := 25
 
 var _entered := 0
 var _completed := 0
@@ -61,7 +62,31 @@ func _profiles(game: FcGame, pool: FcBotLoadouts) -> void:
 		primaries[kit.items.get(&"primary", &"")] = true
 	_check(unfit.is_empty(), "no profile item is replaced by the rules", ", ".join(unfit))
 	_check(primaries.size() >= 8, "the kits carry at least eight different primaries", "%d" % primaries.size())
+	_check_built_memo(game, pool)
 	_done()
+
+
+## [method FcBotLoadouts.built_for] memoes each kit once, and what it hands out equals a fresh
+## build and resolve entry for entry.
+func _check_built_memo(game: FcGame, pool: FcBotLoadouts) -> void:
+	var key := game._loadout_key(FcGame.BOT_SESSION_BASE)
+	var differ: Array[String] = []
+	var shared := true
+	for kit in pool.kits:
+		var built := pool.built_for(kit, game.loadouts, key)
+		shared = shared and pool.built_for(kit, game.loadouts, key)[1] == built[1] and is_same(pool.built_for(kit, game.loadouts, key)[0], built[0])
+		var fresh := FcContent.in_give_order(game.loadouts.resolve(FcBotLoadouts.build(kit, game.loadouts, key)))
+		if _entries_text(built[1]) != _entries_text(fresh):
+			differ.append("%s: %s vs %s" % [kit.id, _entries_text(built[1]), _entries_text(fresh)])
+	_check(shared and pool.built_count() == pool.kits.size(), "a kit is built once and shared", "%d for %d kits" % [pool.built_count(), pool.kits.size()])
+	_check(differ.is_empty(), "the memoed entries equal a fresh build field for field", "; ".join(differ))
+
+
+func _entries_text(entries: Array) -> String:
+	var parts := PackedStringArray()
+	for e: Dictionary in entries:
+		parts.append("%s/%d/%s/%d" % [e["slot"], int(e["arsenal_slot"]), (e["item"] as GSItem).id, int(e["count"])])
+	return ",".join(parts)
 
 
 func _distribution(pool: FcBotLoadouts) -> void:
