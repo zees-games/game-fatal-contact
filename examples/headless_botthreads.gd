@@ -18,7 +18,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 5
-const CHECKS := 22
+const CHECKS := 23
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
