@@ -542,6 +542,19 @@ func _add_snapshot_workers_cvar() -> void:
 				net.config.snapshot_workers = int(new_value.to_float()))
 
 
+## `sv_net_lagcomp`: gs-net's own rewind history ([member GSNetConfig.enable_lag_compensation]), off by default. FC rewinds with its own ring
+## (fc_game_unlag.gd, combat.rewind_fn) and nothing reads `net.history`, so recording it only cost 0.185 ms/tick at 31 bots (fc-srv-netlagcomp-off-1).
+func _add_net_lagcomp_cvar() -> void:
+	add_cvar("sv_net_lagcomp", "1" if net != null and net.config != null and net.config.enable_lag_compensation else "0",
+		"Record gs-net's rewind history every snapshot (1) or not (0, default); FC's shots rewind with their own ring either way",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			if net != null and net.config != null:
+				net.config.enable_lag_compensation = new_value.to_float() != 0.0
+				if not net.config.enable_lag_compensation and net.history != null:
+					net.history.clear())
+
+
 ## The snapshot workers a server starts with: env ARENA_SNAPSHOT_WORKERS when set, else a quarter of the machine's threads, at most
 ## [constant SNAPSHOT_WORKERS_MAX], and 0 (inline) under 8 threads, where the bots' threads and the tick already want the cores.
 static func default_snapshot_workers() -> int:
