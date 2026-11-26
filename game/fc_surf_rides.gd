@@ -442,11 +442,15 @@ func harvest_on(controller: GSFpsController) -> GSBotRideHarvest:
 
 # --- State as plain values ------------------------------------------------------------
 
-## Every field of the motor state as JSON-safe values.
+## Every field of the motor state as JSON-safe values. A name starting with "_" is the
+## state's own storage (gs-player-controller 37's packed `_f`), already written through
+## the named fields that read it, so it is skipped.
 static func encode_state(state: GSFpsState) -> Dictionary:
 	var out := {}
 	for prop: Dictionary in state.get_property_list():
 		if int(prop["usage"]) & PROPERTY_USAGE_SCRIPT_VARIABLE == 0:
+			continue
+		if String(prop["name"]).begins_with("_"):
 			continue
 		var v: Variant = state.get(prop["name"])
 		match typeof(v):
@@ -465,6 +469,8 @@ static func encode_state(state: GSFpsState) -> Dictionary:
 static func decode_state(data: Dictionary) -> GSFpsState:
 	var state := GSFpsState.new()
 	for name: String in data:
+		if name.begins_with("_"):
+			continue  # storage an older encoder wrote beside the named fields
 		var v: Variant = data[name]
 		var have: Variant = state.get(name)
 		match typeof(have):
