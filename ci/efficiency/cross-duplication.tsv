@@ -4,7 +4,7 @@ examples/dedicated.gd	52
 examples/dedicated_vote_and_query.gd	34
 examples/headless_avatar_library.gd	125
 examples/headless_presentation_base.gd	32
-game/fc_avatar_library.gd	39
+game/fc_avatar_library.gd	38
 game/fc_npc_net.gd	36
 game/fc_party.gd	36
 game/fc_services.gd	53
