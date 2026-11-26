@@ -245,6 +245,13 @@ func _on_match(info: Dictionary) -> void:
 
 # --- Offline ---------------------------------------------------------------
 
+## An `fc_client_extras.gd` under this client, loaded by path (see [constant FC_CLIENT_EXTRAS]).
+func _new_extras() -> Node:
+	var made := (load(FcPaths.rebase(FC_CLIENT_EXTRAS)) as GDScript).new() as Node
+	made.name = "Extras"
+	add_child(made)
+	return made
+
 func _build_netcode() -> GSResult:
 	# The server's `mp_teammate_passthrough` through the link (FcGame.follow_server_cvars).
 	if link != null:
@@ -289,10 +296,10 @@ func _build_netcode() -> GSResult:
 	net.messages.seal()
 	FcLoadTimeline.mark("netcode: messages sealed")
 
-	# The client halves, built here because each needs the bridge.
-	extras = (load(FcPaths.rebase(FC_CLIENT_EXTRAS)) as GDScript).new()
-	extras.name = "Extras"
-	add_child(extras)
+	# The client halves, built here because each needs the bridge (or prepared a frame each by `_prepare_extras`).
+	if extras == null:
+		extras = _new_extras()
+	move_child(extras, -1)
 
 	var extra: GSResult = extras.attach(bridge, game)
 	GSLog.result(CHANNEL, "the client's chat, voice and map layers", extra)

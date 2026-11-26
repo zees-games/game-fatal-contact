@@ -408,12 +408,10 @@ func _build_audio() -> GSResult:
 	add_child(shots)
 	# Every stock class, not only the local weapons': other players' guns play through this one player
 	# (`remote_shot`), so none of them builds a manager, a player and thirteen registrations (40 ms) on its first shot.
-	for weapon_class in AwShotLayers.STOCK_CLASSES:
-		var _registered := shots.register(GSAudioShotStock.shot(weapon_class))
-	for gun: StringName in AwWeaponPack.SOUND_CLASSES:
-		var own := AwShotLayers.gun_shot(gun) as GSShotDef
-		if own != null:
-			var _own_registered := shots.register(own)
+	_shot_queue = shot_queue()
+	var sliced := slices_shots()
+	if not sliced:
+		_register_shots(-1)
 	ambient = GSAmbienceDirector.new()
 	ambient.name = "Ambient"
 	ambient.manager = audio
@@ -422,7 +420,7 @@ func _build_audio() -> GSResult:
 	ambient.rules = FcAmbience.make_rules()
 	ambient.beds = ambience
 	add_child(ambient)
-	FcLoadTimeline.mark("audio: shots registered")
+	FcLoadTimeline.mark("audio: shots queued" if sliced else "audio: shots registered")
 	var _moods := ambient.setup()
 	ambient.follow_settings(settings)
 	if ambient.has_moods():
@@ -431,8 +429,60 @@ func _build_audio() -> GSResult:
 		ambience.set_map_bed(bed_for(&""))
 
 	FcLoadTimeline.mark("audio: ambience")
-	_start_bake()
+	if sliced:
+		# The bake reads the catalogue the shots fill, so it starts once the last one is in ([method _shot_slice]).
+		_bake_hold(true)
+	else:
+		_start_bake()
 	return GSResult.success(null)
+
+
+## Each stock shot class and each gun's own layers, in registration order, as [code][kind, key][/code] pairs for
+## [method _register_shots].
+static func shot_queue() -> Array:
+	var out: Array = []
+	for weapon_class: Variant in AwShotLayers.STOCK_CLASSES:
+		out.append([&"stock", weapon_class])
+	for gun: StringName in AwWeaponPack.SOUND_CLASSES:
+		out.append([&"gun", gun])
+	return out
+
+
+## Registering every shot class was one 372 ms step of the presentation's setup frame on dm_box: in a client that
+## draws, the classes register a slice a frame under the cover instead, which holds until they and the heard stand-ins
+## are in. `cl_slice_shots 0` (launch argument or URL query) registers them all in setup, as before.
+func slices_shots() -> bool:
+	return client != null and is_inside_tree() and not GSPlatform.is_headless() \
+		and FcFrameProbe.launch_value("cl_slice_shots") != "0"
+
+
+## Registers queued shot classes until [param budget_msec] is spent (all of them when negative); one class is never
+## split, so a slice overruns by at most one.
+func _register_shots(budget_msec: int) -> void:
+	var until := Time.get_ticks_msec() + budget_msec
+	while not _shot_queue.is_empty() and (budget_msec < 0 or Time.get_ticks_msec() < until):
+		var item: Array = _shot_queue.pop_front()
+		var shot: GSShotDef = null
+		if item[0] == &"stock":
+			shot = GSAudioShotStock.shot(item[1])
+		else:
+			shot = AwShotLayers.gun_shot(item[1]) as GSShotDef
+		if shot != null and shots != null:
+			var _registered := shots.register(shot)
+
+
+## One frame's slice of [method _register_shots]; after the last class the bake starts, and the cover is let go
+## at once if nothing heard is left to bake.
+func _shot_slice() -> void:
+	var gate: Object = client.get(&"gate") if client != null else null
+	var budget := int(gate.call(&"slice_msec", BAKE_BUDGET_MSEC)) if gate != null and gate.has_method(&"slice_msec") else BAKE_BUDGET_MSEC
+	_register_shots(budget)
+	if not _shot_queue.is_empty():
+		return
+	FcLoadTimeline.mark("audio: shots registered")
+	_start_bake()
+	if _bake_ids.size() <= _bake_shadowed:
+		_bake_hold(false)
 
 
 # Only on a real sink, and only after setup: a headless server has nothing to bake for.

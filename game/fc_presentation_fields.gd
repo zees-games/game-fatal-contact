@@ -109,6 +109,14 @@ var _bake_ids: Array = []
 ## the cover is down and the player is away ([method _bake_slice]), the rest (stand-ins that are heard) hold the cover.
 var _bake_shadowed := 0
 
+## Shot classes still to register, a slice a frame under the cover (fc_presentation_setup.gd `_shot_slice`); empty once all are.
+var _shot_queue: Array = []
+
+
+## One frame of [member _shot_queue]; fc_presentation_setup.gd registers them (the shot player is declared after this file).
+func _shot_slice() -> void:
+	_shot_queue.clear()
+
 
 ## The recipe ids of [param recipes] in bake order ([method bake_into] takes them from the end): first those whose sound
 ## files are all there (the sink plays the file, so their stand-ins are only a fallback), then those a stand-in is heard
@@ -254,7 +262,9 @@ func _fit_chat() -> void:
 
 
 func _process(_delta: float) -> void:
-	if not _bake_ids.is_empty():
+	if not _shot_queue.is_empty():
+		_shot_slice()
+	elif not _bake_ids.is_empty():
 		_bake_slice()
 	# Polled rather than on `size_changed`: this node can be set up before it is in a tree,
 	# and one Vector2 compare a frame is cheaper than tracking when it enters one.
