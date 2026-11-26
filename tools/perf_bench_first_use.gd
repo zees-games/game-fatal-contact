@@ -150,11 +150,11 @@ func death() -> void:
 
 
 ## `--first-use-spans 1`: [param action] then [param frames] frames, each over [param over_ms] printed with the FcFrameProbe sections
-## (DotFrameCost) charged in it, so a hitch row names the section. Replaces time_first_use for the kill and death rows.
+## (GSFrameCost) charged in it, so a hitch row names the section. Replaces time_first_use for the kill and death rows.
 func traced(what: String, action: Callable, frames: int, over_ms := 17.0) -> void:
 	await bench.wait(0.5)
-	DotFrameCost.enabled = true
-	var _drop := DotFrameCost.take()
+	GSFrameCost.enabled = true
+	var _drop := GSFrameCost.take()
 	action.call()
 	var last := Time.get_ticks_usec()
 	for i in frames:
@@ -162,7 +162,7 @@ func traced(what: String, action: Callable, frames: int, over_ms := 17.0) -> voi
 		var now := Time.get_ticks_usec()
 		var ms := (now - last) / 1000.0
 		last = now
-		var costs := DotFrameCost.take()
+		var costs := GSFrameCost.take()
 		if ms < over_ms:
 			continue
 		var parts: Array = []
@@ -174,7 +174,7 @@ func traced(what: String, action: Callable, frames: int, over_ms := 17.0) -> voi
 		for part: Array in parts.slice(0, 8):
 			text += " | " + String(part[1])
 		bench.say("SPANS %s f%d %.1f ms%s" % [what, i, ms, text])
-	DotFrameCost.enabled = false
+	GSFrameCost.enabled = false
 
 
 ## Rows "npc ID" (a monster of each kind placed in sight) and "npc kill ID" (it killed by the player). Needs a mode with a horde
