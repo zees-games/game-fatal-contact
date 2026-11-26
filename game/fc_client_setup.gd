@@ -231,7 +231,15 @@ func _setup_finish(timeline: FcLoadTimeline) -> void:
 	platform.slide_settings = presentation.settings
 	var platform_up: GSResult = await _setup_platform()
 	GSLog.result(CHANNEL, "the platform", platform_up)
+	# The quality piece, the menu's quality settings and the first processed frame each in a frame of their own:
+	# together with the bodies they were one 1.15 s frame on staging (dm_box). `cl_platform_split 0` runs them in one.
+	var split := _builds_in_frames() and FcFrameProbe.launch_value("cl_platform_split") != "0"
+	if split:
+		await _setup_frame()
 	_follow_render_quality()
+	if split:
+		FcLoadTimeline.mark("setup: render quality followed")
+		await _setup_frame()
 	# The starter set: the equipped list needs a credential the client does not hold (the server reads it).
 	GSLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
 	_suspend_input(platform.is_input_blocked())
