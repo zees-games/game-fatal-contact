@@ -17,7 +17,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 5
-const CHECKS := 22
+const CHECKS := 23
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -52,11 +52,7 @@ func _run() -> void:
 		_check(digests[i] == digests[0], "bot_threads %d plays the match thread 0 plays (%d kills)" % [THREADS[i], kills[i]])
 	_check(parallel[2] > 100 and parallel[3] > 100 and parallel[4] > 100, "the brains really ran through the parallel path (%d, %d, %d ticks)" % [parallel[2], parallel[3], parallel[4]])
 	_check(parallel[0] == 0, "and bot_threads 0 never did")
-	# bot_native_think 0: gs-bot packs the contacts, new commands every tick, tricks in script; the same match to the digest.
-	FcBotRows.set_native_think(false)
-	var fresh := await _play(0)
-	FcBotRows.set_native_think(true)
-	_check(fresh[0] == digests[0], "bot_native_think 0 (script contacts, new commands, script tricks) plays the match its reused pair plays (%d kills)" % fresh[1])
+	await _switches_play_the_same(digests[0])
 	_done()
 
 	_section("the brain profile (--brain-us) times brains on bot threads")
@@ -107,6 +103,25 @@ func _run() -> void:
 	await _older_api()
 	_done()
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
+
+
+## The native switches off play the match they play on: bot_native_think's script contacts, commands and tricks;
+## bot_native_pickup's and bot_native_act's script pickup choice and steer.
+func _switches_play_the_same(native: PackedStringArray) -> void:
+	# bot_native_think 0: gs-bot packs the contacts, new commands every tick, tricks in script; the same match to the digest.
+	FcBotRows.set_native_think(false)
+	var fresh := await _play(0)
+	FcBotRows.set_native_think(true)
+	_check(fresh[0] == native, "bot_native_think 0 (script contacts, new commands, script tricks) plays the match its reused pair plays (%d kills)" % fresh[1])
+	# bot_native_pickup 0 and bot_native_act 0 (gs-bot 46/47, by name): the pickup choice and the steer in script, on
+	# workers; the same match to the digest (an older gs-bot has neither switch and plays it anyway).
+	var brain := GSBotBrain as Script
+	brain.set(&"native_pickup", false)
+	brain.set(&"native_act", false)
+	var scripted := await _play(4)
+	brain.set(&"native_pickup", true)
+	brain.set(&"native_act", true)
+	_check(scripted[0] == native, "bot_native_pickup 0 and bot_native_act 0 (script pickup and steer) play the native match (%d kills)" % scripted[1])
 
 
 func _section(title: String) -> void:
