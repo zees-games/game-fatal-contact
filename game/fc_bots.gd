@@ -69,8 +69,10 @@ static func think(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate:
 ## The game's world, the think rate and the world's knobs, once a tick however many bots ask (31 calls a tick at 32
 ## bots were 31 meta lookups, player counts and tier tests); a tick below 0 or another game sets them again.
 static func _tick_world(game: Object, tick: int) -> World:
-	if tick >= 0 and tick == _begun_tick and _begun_world != null and _begun_game == game.get_instance_id():
-		return _begun_world
+	if tick >= 0 and tick == _begun_tick and _begun_game == game.get_instance_id() and _begun_world != null:
+		var held: World = _begun_world.get_ref()
+		if held != null:
+			return held
 	var world := world_for(game)
 	# Counted once a tick for every bot (player_ids is a new array each call).
 	var players := world.player_count(tick)
@@ -82,12 +84,13 @@ static func _tick_world(game: Object, tick: int) -> World:
 	world.tiers = tiers
 	_begun_tick = tick
 	_begun_game = game.get_instance_id()
-	_begun_world = world
+	_begun_world = weakref(world)
 	return world
 
 static var _begun_tick: int = -1
 static var _begun_game: int = 0
-static var _begun_world: World = null
+## Weak: a static World would outlive its game and be freed in script teardown at exit (headless_net aborted, 134).
+static var _begun_world: WeakRef = null
 
 
 ## The part of [method think] before the brain runs, on the main thread: the commands of a tick the bot coasts (or
