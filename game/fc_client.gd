@@ -78,10 +78,13 @@ func _present_bodies(delta: float) -> void:
 	var view_forward := -view_cam.global_transform.basis.z if view_cam != null else Vector3.FORWARD
 	var codes := FcPlayer.classify_crowd(bodies, view_eye, view_forward, frustum) if view_cam != null else PackedInt32Array()
 	var coded := codes.size() == bodies.size()
+	# Every figure stepped below is stepped at the close, all in one batch (cl_figure_batch).
+	FcPlayer.open_figure_batch()
 	if coded:
 		for body in bodies:
 			body.follow_team_body()
 		if FcPlayer.present_crowd(bodies, delta, view_eye):
+			FcPlayer.close_figure_batch()
 			FcFrameProbe.add(&"bodies", t)
 			return
 	else:
@@ -97,6 +100,7 @@ func _present_bodies(delta: float) -> void:
 		else:
 			body.present(delta)
 		at += 1
+	FcPlayer.close_figure_batch()
 	FcFrameProbe.add(&"bodies", t)
 
 

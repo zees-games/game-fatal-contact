@@ -283,6 +283,12 @@ func _add_remote_vars(local: GSConsoleLocal) -> void:
 			FcPlayer.still_anim_hz = text.to_float()
 			return GSResult.success(FcPlayer.still_anim_hz)
 	)
+	local.add_var(&"cl_figure_batch", "1 steps every body's figure in one batch a frame (one native call a stage for them all, with gs-player-char 50 and a gs-sim library that has it); 0 steps each figure on its own. Same poses either way.",
+		func() -> Variant: return 1 if FcPlayer.figure_batch else 0,
+		func(v: Variant) -> Variant:
+			FcPlayer.figure_batch = str(v).strip_edges() != "0"
+			return GSResult.success(1 if FcPlayer.figure_batch else 0)
+	)
 	local.add_var(&"cl_remote_pose_skip", "1 leaves a remote body's placement alone while its drawn turn and lean are unchanged, 0 writes it every frame.",
 		func() -> Variant: return 1 if FcPlayer.pose_skip_enabled else 0,
 		func(v: Variant) -> Variant:
