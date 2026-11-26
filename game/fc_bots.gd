@@ -207,7 +207,7 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 		mind.view_from = from
 		move.yaw = from.x + _turn(from.x, mind.view_to.x) / float(mind.every)
 		move.pitch = from.y + (mind.view_to.y - from.y) / float(mind.every)
-	elif (_every > 1 or _tier_on) and mind.throw_stage == 0 and mind.last_think_tick >= 0 and tick - mind.last_think_tick > 1:
+	elif (_every > 1 or _tier_on) and mind.last_think_tick >= 0 and tick - mind.last_think_tick > 1:
 		# A think after coasted ticks: the brain's turn limit is bot_turn_rate times the time since its last
 		# think, so it turned for the whole gap at once (twice bot_turn_rate in one tick, the headless_bots
 		# turn-rate failure). Held to one tick's turn from the body's view; the aim closes over the next ticks.
@@ -215,6 +215,12 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 		var body := Vector2(me.view_yaw, me.view_pitch)
 		move.yaw = body.x + clampf(_turn(body.x, move.yaw), -rate, rate)
 		move.pitch = body.y + clampf(move.pitch - body.y, -rate, rate)
+		if mind.throw_stage in [THROW_DRAW, THROW_COOK, THROW_RELEASE]:
+			# A throw that starts on this think froze the brain's whole-gap turn as the view it holds
+			# until the grenade leaves; it holds the clamped view instead, so its first tick turns no faster.
+			mind.throw_view = Vector2(move.yaw, move.pitch)
+			fire.yaw = move.yaw
+			fire.pitch = move.pitch
 	mind.last_think_tick = tick
 	# Copied into the bot's own pair, never handed out (a coast returns copies of it), so no two new commands a think.
 	mind.last_move = _keep_move(mind.last_move, move)
