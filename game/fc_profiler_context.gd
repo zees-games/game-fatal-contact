@@ -54,8 +54,9 @@ static func player_count(game: Object) -> int:
 static func begin_fine() -> void:
 	if FcFrameProbe.fine_on_record:
 		FcFrameProbe.fine = true
-		AwWeaponRig.phase_timers = true
-		GSWeaponArsenal.phase_timers = true
+		# Armed, the weapon clocks turn the idle batch off ([member FcFrameProbe.weapon_phases]).
+		AwWeaponRig.phase_timers = FcFrameProbe.weapon_phases
+		GSWeaponArsenal.phase_timers = FcFrameProbe.weapon_phases
 
 
 ## Off again once the recording ended (a read while it runs, for the overlay, leaves them on).

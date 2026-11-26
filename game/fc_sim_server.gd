@@ -204,9 +204,11 @@ func _apply_bench_flags() -> void:
 			# By name: gs-bot 26 (the live shell's) has no brain phase timers.
 			(GSBotBrain as GDScript).set(&"phase_timers", FcBotThreads.threads == 0 or FcBots.brain_merge)
 		FcFrameProbe.fine = sections == "2"
-		# p_weapons split by the rig's and the arsenal's own clocks (pw_*, pa_*), on the fine level only: a clock read a part.
+		# p_weapons split by the rig's and the arsenal's own clocks (pw_*, pa_*), on the fine level and only when asked
+		# ([member FcFrameProbe.weapon_phases]): armed, they turn the idle weapons' batch off.
+		FcFrameProbe.weapon_phases = _arg("--sim_weapon_phases", "0") == "1"
 		for w in _weapon_phase_clocks():
-			(w[1] as GDScript).set(&"phase_timers", FcFrameProbe.fine)
+			(w[1] as GDScript).set(&"phase_timers", FcFrameProbe.fine and FcFrameProbe.weapon_phases)
 
 
 ## The loopback server config for the solo host: [param data] holds its admin, ban and audit files.
