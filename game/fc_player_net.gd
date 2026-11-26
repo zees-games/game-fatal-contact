@@ -532,15 +532,12 @@ func _pull_exact(state: GSFpsState) -> void:
 ## net_stamina: the same writes in the same order, read as properties rather than through `get`, and the
 ## modifier list left alone when it is empty and the mask is zero (the usual case).
 func _push_fps(state: GSFpsState) -> void:
-	state.position = net_position
-	state.velocity = net_velocity
-	state.yaw = net_yaw
+	# Position, velocity, yaw, flags and timers2 in one call (native with GSFpsNetSync.native_pack).
+	GSFpsNetSync.push_core(state, net_position, net_velocity, net_yaw, net_flags, net_timers2)
 	state.pitch = net_pitch
 	state.crouch_fraction = net_crouch
-	GSFpsNetSync.unpack_flags(state, net_flags)
 	if net_modifiers != 0 or not state.modifiers.is_empty():
 		GSFpsNetSync.unpack_modifiers(state, net_modifiers)
-	GSFpsNetSync.unpack_timers2(state, net_timers2)
 
 
 ## Puts the exact copy over what [method GSFpsNetSync.push] restored from the quantised one.
