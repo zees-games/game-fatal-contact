@@ -183,6 +183,22 @@ func _select(game: Object) -> void:
 	if picked != null:
 		say("map %s mode %s: %s" % [map, mode, "ok" if picked.ok else picked.error.message])
 		await wait_gate(120.0)
+	await _require_asked_map(game)
+
+
+## Exits 3 when the game is not on the asked map and mode: a worktree without the `maps/imported` link fell back to
+## dm_box, and its report still named the asked map, so an A/B compared two different matches (nightly #12448).
+func _require_asked_map(game: Object) -> void:
+	var on_map := String(game.get("map").id)
+	var on_mode := String(game.get("mode").id)
+	if on_map == map and on_mode == mode:
+		return
+	say("FAIL: asked for map %s mode %s, playing %s %s; no report" % [map, mode, on_map, on_mode])
+	printerr("perf_bench: asked for map %s mode %s, playing %s %s" % [map, mode, on_map, on_mode])
+	get_tree().quit(3)
+	# The quit lands at the end of this frame: never hand back to the measurement.
+	while true:
+		await wait(1.0)
 
 
 ## The server booted on the map and mode already: wait for the client to exist, load and see the roster.
@@ -205,6 +221,7 @@ func _select_hosted() -> void:
 		await wait(0.25)
 		t += 0.25
 	say("sim host: hosted %s, map %s, players %d" % [client.get("_sim_host") != null, String(client.get("game").get("map").id), _players(client.get("game"))])
+	await _require_asked_map(client.get("game"))
 
 
 ## Each weapon id: equip it (the draw), fire it cold, then again warm, the player invulnerable. Rows "equip ID", "shot ID", "shot2 ID".
