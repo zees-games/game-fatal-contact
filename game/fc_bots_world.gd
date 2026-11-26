@@ -670,6 +670,8 @@ class World:
 				cell_space = _par_space if for_par else (root as Node3D).get_world_3d().direct_space_state
 		var combat: Variant = game.get("combat")
 		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
+		if trace is GSTraceFlat:
+			return _sight_bind_flat(trace as GSTraceFlat, cell, script_sight)
 		if not (trace is GSTracePhysics and _plain_sight_trace(trace as Object)):
 			return script_sight
 		var bound: Variant = (trace as Object).get("_world")
@@ -684,6 +686,18 @@ class World:
 		else:
 			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
 					null, 0, Vector3.ZERO, 0.0, 0.0)
+		return Callable(_sight_native, &"clear")
+
+	## A box world ([GSTraceFlat]): the native ray walks the trace's own box hierarchy, its line_of_sight to the bit,
+	## with no call into script. Script under the PVS or jail glass (asked first), without the native hierarchy, or on
+	## a library without [code]bind_flat[/code]. headless_bot_sight_native checks both answer alike on every map.
+	func _sight_bind_flat(trace: GSTraceFlat, cell: GSMapGlassSight, script_sight: Callable) -> Callable:
+		if cell != null or pvs.active != null or not trace.is_native() or not _sight_native.has_method(&"bind_flat"):
+			return script_sight
+		trace.prepare()
+		var bvh: Variant = trace.get("_bvh")
+		if not bvh is Object or not bool(_sight_native.call(&"bind_flat", bvh, trace.floor_y)):
+			return script_sight
 		return Callable(_sight_native, &"clear")
 
 	const SPAWN_THINNING := 25.0
