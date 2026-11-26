@@ -4,6 +4,7 @@ const FcPlayer := preload("fc_player.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcFlagView := preload("fc_flag_view.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
 
 ## What the round is about, when the mode says it is about something.
 ##
@@ -434,12 +435,17 @@ func tick(delta: float) -> void:
 		return
 
 	if ctf != null:
+		# Sub-spans of the sim host's w_objectives (`--sim_sections 2`): 0 and one test each outside a recording.
+		var t_lap := FcFrameProbe.lap_start()
 		ctf.advance(game.current_tick(), game.match_node != null and game.match_node.is_live())
+		t_lap = FcFrameProbe.lap(&"ob_advance", t_lap)
 		if game.is_authority:
 			FcFlagCarry.step(self, delta)
 		else:
 			_apply_carrier_speed()
+		t_lap = FcFrameProbe.lap(&"ob_step", t_lap)
 		FcFlagCarry.mark_carriers(self)
+		t_lap = FcFrameProbe.lap(&"ob_carriers", t_lap)
 		return
 
 	# Live exactly while the match is being played. A capture made during warmup is one

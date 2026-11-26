@@ -2,6 +2,7 @@ extends Node
 
 const FcPlayer := preload("fc_player.gd")
 const FcMap := preload("../maps/fc_map.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
 
 ## Status effects in Fatal Contact, and the one line that makes them count.
 ##
@@ -261,8 +262,12 @@ func has(id: StringName, entity: int) -> bool:
 func tick(_delta: float) -> void:
 	if manager == null:
 		return
+	# Sub-spans of the sim host's w_effects (`--sim_sections 2`).
+	var t_lap := FcFrameProbe.lap_start()
 	manager.advance(game.current_tick())
+	t_lap = FcFrameProbe.lap(&"ef_advance", t_lap)
 	_apply_movement()
+	t_lap = FcFrameProbe.lap(&"ef_move", t_lap)
 
 
 ## Movement effects reach the controller through its tunables.
