@@ -176,6 +176,9 @@ func _forward_flags(args: PackedStringArray) -> PackedStringArray:
 	var sim_sections := _arg("--sim_sections")
 	if sim_sections != "":
 		args.append_array(["--sim_sections", sim_sections])
+	var slow_tick := _arg("--sim_slow_tick")
+	if slow_tick != "":
+		args.append_array(["--sim_slow_tick", slow_tick])
 	# gs-bot's native mind on the server (perf_bench's `--brain-native` names the same switch).
 	var brain_native := _arg("--bot_native_brain")
 	if brain_native == "":

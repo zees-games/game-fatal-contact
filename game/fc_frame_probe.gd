@@ -61,6 +61,59 @@ static func on() -> bool:
 	return interval > 0.0
 
 
+## The slow-tick dump (the sim host's `--sim_slow_tick MS`): while above 0, every [method add], [method lap] and
+## [method count] is also kept for the current tick alone ([method tick_begin] clears it), with the events a tick had
+## ([method tick_event]: kills, spawns, match states), so a tick over this many microseconds can say where it went
+## ([method slow_tick_line]). 0, the default, keeps nothing: one test per span.
+static var slow_tick_usec: int = 0
+## Section (or count) -> PackedInt64Array([usec, calls]) for the current tick.
+static var _tick_spans: Dictionary = {}
+## Event name -> how many times it happened this tick.
+static var _tick_events: Dictionary = {}
+
+
+## Starts a tick's slow-tick record. From the server's tick, before any span.
+static func tick_begin() -> void:
+	_tick_spans.clear()
+	_tick_events.clear()
+
+
+## Notes that [param event] happened in this tick (a kill, a spawn, a match state); kept only while [member slow_tick_usec] is on.
+static func tick_event(event: StringName) -> void:
+	if slow_tick_usec <= 0:
+		return
+	_tick_events[event] = int(_tick_events.get(event, 0)) + 1
+
+
+static func _tick_add(section: StringName, spent: int) -> void:
+	var row: PackedInt64Array = _tick_spans.get(section, PackedInt64Array([0, 0]))
+	row[0] += spent
+	row[1] += 1
+	_tick_spans[section] = row
+
+
+## `SIM_HOST_SLOW_TICK`: tick [param tick] cost [param usec]; its [param top] costliest sections (they nest: srv_net holds
+## srv_game, which holds tick_players, so read the leaves), its counts (`_n`) and its events, plus [param extra].
+static func slow_tick_line(tick: int, usec: int, top: int, extra: String) -> String:
+	var spans: Array = []
+	var counts: Array = []
+	for key: StringName in _tick_spans:
+		var row: PackedInt64Array = _tick_spans[key]
+		if String(key).ends_with("_n"):
+			counts.append("%s %d" % [key, row[0]])
+		else:
+			spans.append([row[0], "%s %.2f x%d" % [key, row[0] / 1000.0, row[1]]])
+	spans.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) > int(b[0]))
+	var parts: Array = []
+	for i in mini(top, spans.size()):
+		parts.append(spans[i][1])
+	var events: Array = []
+	for key: StringName in _tick_events:
+		events.append("%s x%d" % [key, _tick_events[key]])
+	return "SIM_HOST_SLOW_TICK %d %.2f ms | %s | counts %s | events %s%s" % [tick, usec / 1000.0, ", ".join(parts),
+		", ".join(counts) if not counts.is_empty() else "-", ", ".join(events) if not events.is_empty() else "-", extra]
+
+
 ## Starts the probe from `--cl_perf N` or the page's `?cl_perf=N`, if either is given.
 static func from_launch() -> void:
 	var text := launch_value("cl_perf")
@@ -120,6 +173,8 @@ static func add(section: StringName, since_usec: int) -> void:
 	var spent := Time.get_ticks_usec() - since_usec
 	if spent >= FcLoadTimeline.SLOW_SECTION_USEC and FcLoadTimeline.tracing:
 		FcLoadTimeline.mark("section %s %d ms" % [section, spent / 1000])
+	if slow_tick_usec > 0:
+		_tick_add(section, spent)
 	if interval <= 0.0:
 		if GSFrameCost.enabled:
 			GSFrameCost.add_usec(_profiled(section), spent)
@@ -148,6 +203,8 @@ static func lap(section: StringName, since_usec: int) -> int:
 		GSFrameCost.add_usec(_profiled(section), now - since_usec)
 	if now - since_usec >= FcLoadTimeline.SLOW_SECTION_USEC and FcLoadTimeline.tracing:
 		FcLoadTimeline.mark("lap %s %d ms" % [section, (now - since_usec) / 1000])
+	if slow_tick_usec > 0:
+		_tick_add(section, now - since_usec)
 	# The sim host's `--sim_sections 2` has no recording: its laps go on the sections line.
 	if interval > 0.0:
 		var row: PackedInt64Array = _sections.get(section, PackedInt64Array([0, 0, 0]))
@@ -202,6 +259,8 @@ static func _profiled(section: StringName) -> StringName:
 
 ## Counts [param amount] of something that is not a time (replayed ticks, snapshots).
 static func count(key: StringName, amount: int = 1) -> void:
+	if slow_tick_usec > 0:
+		_tick_add(key, amount)
 	if interval <= 0.0:
 		return
 	var row: PackedInt64Array = _sections.get(key, PackedInt64Array([0, 0, 0]))

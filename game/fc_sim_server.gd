@@ -40,6 +40,14 @@ var _frame_at_usec := 0
 var _frame_gap_max_usec := 0
 ## Paces the frames to the tick rate with a sleep then a spin (the OS timer may be coarse) and measures late ticks; `--sim_pace auto` (default) only on a coarse timer, `1` always, `0` never.
 var _pacer := FcSimPacer.new()
+## `--sim_slow_tick MS`: a tick (or a frame gap) over this prints a `SIM_HOST_SLOW_TICK` (`SIM_HOST_SLOW_FRAME`) line saying where it went; 0 (default) none.
+var _slow_tick_ms := 0
+## Slow-tick lines left in this report window: a stuck server must not flood the log.
+var _slow_left := SLOW_LINES_PER_WINDOW
+## Physics ticks run since the last frame (a slow frame's catch-up).
+var _ticks_this_frame := 0
+## The most slow-tick and slow-frame lines in one report window.
+const SLOW_LINES_PER_WINDOW := 30
 
 
 func _ready() -> void:
@@ -96,6 +104,8 @@ func _ready() -> void:
 		return
 	var module := server.modules.get_module("arena") as FcModule
 	_module = module
+	if _slow_tick_ms > 0:
+		_watch_slow_ticks(module)
 	var quota: GSBotQuota = module.get("_bot_quota")
 	if quota != null and quota.mode_cvar != null:
 		quota.mode_cvar.force_set("fixed")
@@ -180,6 +190,11 @@ func _apply_bench_flags() -> void:
 	# printed per tick beside each SIM_HOST line. Off by default: each section costs two clock reads.
 	# `2` adds the sub-spans inside them (`pl_pre`, `p_hitbox`, `p_wctx`, `br_*`; [member FcFrameProbe.fine]): a clock read each, so read shares.
 	var sections := _arg("--sim_sections", "0")
+	_slow_tick_ms = maxi(0, int(_arg("--sim_slow_tick", "0")))
+	FcFrameProbe.slow_tick_usec = _slow_tick_ms * 1000
+	if _slow_tick_ms > 0 and sections == "0":
+		# The dump reads the sections, so it turns them on.
+		sections = "1"
 	if sections == "1" or sections == "2":
 		FcFrameProbe.set_interval(1.0e9)
 		# The addons' own phases, in a SIM_HOST_PHASES line: the controller's always, the brain's on one thread only.
@@ -223,7 +238,12 @@ func _process(delta: float) -> void:
 	var now_usec := Time.get_ticks_usec()
 	if _frame_at_usec > 0:
 		_frame_gap_max_usec = maxi(_frame_gap_max_usec, now_usec - _frame_at_usec)
+		if _slow_tick_ms > 0 and now_usec - _frame_at_usec >= _slow_tick_ms * 4000 and _slow_left > 0:
+			_slow_left -= 1
+			print("SIM_HOST_SLOW_FRAME %.1f ms | ticks %d | objects %d | static mem %.1f MB" % [(now_usec - _frame_at_usec) / 1000.0, _ticks_this_frame,  # check-logging: allow print (bench output)
+				Performance.get_monitor(Performance.OBJECT_COUNT), Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0])
 	_frame_at_usec = now_usec
+	_ticks_this_frame = 0
 	# A solo client that crashed cannot tell its server to stop: the server ends once its one remote
 	# player is gone for a while, or when none ever came. (A process cannot ask after its parent.)
 	_since_check += delta
@@ -242,6 +262,7 @@ func _process(delta: float) -> void:
 
 func _physics_process(_delta: float) -> void:
 	_pacer.note_tick()
+	_ticks_this_frame += 1
 	var until := Time.get_ticks_usec() + _load_us
 	while Time.get_ticks_usec() < until:
 		pass
@@ -253,6 +274,23 @@ func _remote_players() -> int:
 		if not session.local:
 			count += 1
 	return count
+
+
+## The slow-tick dump: the module tells each tick over `--sim_slow_tick`, and the game's events are noted on the tick they happen in.
+func _watch_slow_ticks(module: FcModule) -> void:
+	module.slow_tick_report = func(tick: int, usec: int, objects: int) -> void:
+		if _slow_left <= 0:
+			return
+		_slow_left -= 1
+		print(FcFrameProbe.slow_tick_line(tick, usec, 8, " | objects %+d | ticks this frame %d" % [objects, _ticks_this_frame]))  # check-logging: allow print (bench output)
+	var game := module.game
+	if game == null:
+		return
+	var _k := game.player_killed.connect(func(_e: Variant) -> void: FcFrameProbe.tick_event(&"kill"))
+	var _s := game.player_spawned.connect(func(_p: Variant) -> void: FcFrameProbe.tick_event(&"spawn"))
+	var _m := game.match_state_changed.connect(func(_f: Variant, to: Variant) -> void: FcFrameProbe.tick_event(StringName("match:%s" % GSMatch.State.keys()[to])))
+	var _c := game.map_changed.connect(func(_map: Variant) -> void: FcFrameProbe.tick_event(&"map"))
+	var _n := game.non_player_killed.connect(func(_id: Variant, _d: Variant) -> void: FcFrameProbe.tick_event(&"npc_kill"))
 
 
 ## Every few seconds, one line: the tick rate held and what a tick cost (gs-net server counters).
@@ -289,6 +327,7 @@ func _report(net: GSNetManager) -> void:
 			print("%s | frame gap max %.1f ms%s" % [tick_line(_module.tick_costs, Engine.physics_ticks_per_second), _frame_gap_max_usec / 1000.0, " | boot warm" if boot else ""])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			_module.tick_costs.clear()
 		_frame_gap_max_usec = 0
+		_slow_left = SLOW_LINES_PER_WINDOW
 		print(_pacer.window_line(rate))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		# server_tick's own sections (a gs-net without them reports 0): input before sim, the
 		# still-registered check inside sim, the rewind history record inside send.

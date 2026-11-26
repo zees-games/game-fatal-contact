@@ -3,6 +3,7 @@ extends Node
 
 
 const FcPlayer := preload("fc_player.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcBspMap := preload("../maps/fc_bsp_map.gd")
 
 ## The player-facing addons, stood up once and bound to the game. Seven addons that each know
@@ -17,6 +18,9 @@ var game: Node = null
 var physics: GSPhysicsWorld = null
 var roster: GSPlayerRoster = null
 var teams: GSTeamRoster = null
+## [method _can_see_site]'s answers this tick, keyed by [code][from, to][/code], and the tick.
+var _seen := {}
+var _seen_tick := -1
 
 
 ## The gs-team side for one of gs-match's team ids. [b]An id, not an index[/b]: gs-match's `standard_pair()` is Red `1` and Blue `2`, a spectator team `31`; treating `team_of()`'s answer as a position would put team 1 on gs-team's first side by luck and a spectator nowhere.
@@ -112,7 +116,25 @@ func _friend_positions(team: StringName, key: String = "") -> Array:
 ## Whether an enemy standing at [param from] can see a site: eye height to head height, walls in the way. [b]Through the map's own trace, the one shots use[/b] (`combat.trace`: the box list on a built-in map, the brushes on an imported one).
 ## Godot's physics space holds no built-in map on a dedicated server or in any headless game (the level is analytic there), so every site was "seen" by every enemy and `sight_penalty` decided nothing.
 ## Props are not in the trace; a prop is not cover a spawn should count on. The physics query stays as the fallback for a game with no combat yet.
+## Answers are kept for the tick: a round start respawns everybody in one tick, and each spawn asked again about the pairs the ones before it asked (the map and the
+## standing players do not move inside a tick, so the answer is the same).
 func _can_see_site(from: Vector3, to: Vector3) -> bool:
+	var tick: int = game.current_tick() if game != null else -1
+	if tick != _seen_tick or tick < 0:
+		_seen_tick = tick
+		_seen.clear()
+	var key := [from, to]
+	var known: Variant = _seen.get(key)
+	if known != null:
+		return bool(known)
+	var t_lap := FcFrameProbe.lap_start()
+	var sees := _traced_sight(from, to)
+	FcFrameProbe.lap(&"sp_see", t_lap)
+	_seen[key] = sees
+	return sees
+
+
+func _traced_sight(from: Vector3, to: Vector3) -> bool:
 	var eye := from + Vector3(0, FcPlayer.eye_height(), 0)
 	var head := to + Vector3(0, FcPlayer.eye_height(), 0)
 	var trace: GSTrace = game.combat.trace if game != null and game.combat != null else null

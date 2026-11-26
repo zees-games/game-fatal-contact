@@ -1,6 +1,7 @@
 extends "fc_module_cmds.gd"
 
 const FcPaths := preload("fc_paths.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
 
 
 const FcEvents := preload("fc_events.gd")
@@ -476,6 +477,25 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_tick += 1
+	# The slow-tick dump (the sim host's `--sim_slow_tick`): this whole call, the once-a-second work too, is one tick's record.
+	if FcFrameProbe.slow_tick_usec <= 0:
+		_server_frame(delta)
+		return
+	FcFrameProbe.tick_begin()
+	var objects := Performance.get_monitor(Performance.OBJECT_COUNT)
+	var t_frame := Time.get_ticks_usec()
+	_server_frame(delta)
+	var spent := Time.get_ticks_usec() - t_frame
+	if spent >= FcFrameProbe.slow_tick_usec and slow_tick_report.is_valid():
+		slow_tick_report.call(_tick, spent, int(Performance.get_monitor(Performance.OBJECT_COUNT) - objects))
+
+
+## Where a tick over [member FcFrameProbe.slow_tick_usec] is told (the sim host's dump): tick, usec, objects made.
+var slow_tick_report := Callable()
+
+
+## The tick and what rides on it: the timed server tick, the once-a-second bot count and interest areas, the map and vote clocks.
+func _server_frame(delta: float) -> void:
 	if loading != null:
 		loading.poll_loading()
 	if keep_tick_costs:
@@ -488,8 +508,12 @@ func _physics_process(delta: float) -> void:
 	_since_bot_check += delta
 	if _since_bot_check >= BOT_CHECK_SEC:
 		_since_bot_check = 0.0
+		var t_slow := Time.get_ticks_usec()
 		_keep_bots()
+		FcFrameProbe.add(&"srv_keep_bots", t_slow)
+		t_slow = Time.get_ticks_usec()
 		_refresh_aoi()
+		FcFrameProbe.add(&"srv_aoi", t_slow)
 	_log_shot_rewinds(delta)
 	# The map clock and the vote clock, from the SIMULATED tick rather than from the frame: a server that stalls should not lose that time off its map, and a test must be able to run an hour of a map in a millisecond.
 	# [b]One clock, and it is the vote's when there is a vote.[/b] The map director's `GSMapTimeLimit` and the vote's `GSVoteClock` both ran here from boot and the first to expire won: the director's reached `_on_map_over`

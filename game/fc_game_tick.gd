@@ -645,6 +645,8 @@ func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 	if spawn != null:
 		at = spawn.spawn_transform()
 
+	# Fine laps (`--sim_sections 2`): a round start respawns everybody in one tick.
+	var t_lap := FcFrameProbe.lap_start()
 	if player_stack != null:
 		var chosen := player_stack.choose_spawn(id)
 
@@ -658,8 +660,10 @@ func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 				"key": key, "why": chosen.error.message
 			})
 
+	t_lap = FcFrameProbe.lap(&"sp_choose", t_lap)
 	player.hitboxes.enabled = true
 	player.spawn(at, tick, match_node.spawn_protection_ticks())
+	t_lap = FcFrameProbe.lap(&"sp_spawn", t_lap)
 	_spawned_tick[id] = _tick
 	_protect_anchor.erase(id)
 	_fired_tick.erase(id)
@@ -675,10 +679,13 @@ func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 	# one respawn path.
 	if effects != null:
 		effects.on_spawn(id)
+	t_lap = FcFrameProbe.lap(&"sp_effects", t_lap)
 
 	_apply_loadout_deferred(id)
+	t_lap = FcFrameProbe.lap(&"sp_loadout", t_lap)
 
 	player_spawned.emit(player)
+	FcFrameProbe.lap(&"sp_signal", t_lap)
 
 func _on_match_state_changed(from: GSMatch.State, to: GSMatch.State) -> void:
 	# A new round has its own first blood, and nobody's revenge carries over from warmup.

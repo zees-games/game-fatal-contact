@@ -47,6 +47,8 @@ class NavWorld:
 	var _joining := false
 	var _join_frame := -1
 	const JOIN_SLICE_USEC := 6000
+	## The edge search is done and the ladder links wait for a frame of their own: the last join slice and the links together were one 40 ms server tick.
+	var _link_due := false
 	## Parallel think (cvar `bot_threads`, FcBotThreads): while true, brains on worker threads ask this world, whose
 	## sight and wall rays then use queries of their own on [member _par_space] and whose other answers take [member _par_lock].
 	var par: bool = false
@@ -204,7 +206,12 @@ class NavWorld:
 			return _surf if nav.is_ready() else null
 		if not _joining and not nav.is_ready():
 			return null
-		if not _join_sliced(nav):
+		if not _link_due:
+			if not _join_sliced(nav):
+				return null
+			_link_due = true
+		# Asked again in the frame of the last join slice (bots ask more than once a frame): still not yet.
+		if _join_frame == Engine.get_process_frames():
 			return null
 		_surf_looked = true
 		var t_link := Time.get_ticks_usec()
@@ -349,6 +356,7 @@ class NavWorld:
 		_ladders = null
 		_edges = null
 		_joining = false
+		_link_due = false
 		var body := _body_tunables()
 		var source: Node3D = (map as Object).call(&"nav_source") if (map as Object).has_method(&"nav_source") else null
 		var started := _nav.bake_in_background(source if source != null else root as Node3D, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height})
