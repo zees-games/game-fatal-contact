@@ -22,10 +22,10 @@ static var mode: String = ALL
 ## Mixed into every draw's seed; a suite sets it to repeat or vary a run.
 static var seed: int = 0
 ## `sv_bot_regive`: a bot's re-give at each spawn reuses the weapon behaviours its last life held
-## (gs-weapon API 55 `GSWeaponArsenal.reuse_behaviours`; the state equals a fresh give's). False builds every one.
+## (gs-weapon API 56 `GSWeaponArsenal.reuse_behaviours`; the state equals a fresh give's). False builds every one.
 static var regive: bool = true
 ## The gs-weapon API level that has `reuse_behaviours`; below it the cvar does nothing.
-const REGIVE_LEVEL := 55
+const REGIVE_LEVEL := 56
 static var regive_supported: bool = GSAddonApi.build_level("gs_weapon") >= REGIVE_LEVEL
 
 

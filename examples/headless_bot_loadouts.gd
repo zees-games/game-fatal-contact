@@ -180,12 +180,12 @@ func _spawned(game: FcGame) -> void:
 	_done()
 
 
-## `sv_bot_regive`: a bot's re-give that reuses its behaviours (gs-weapon API 55) ends where building them all does.
+## `sv_bot_regive`: a bot's re-give that reuses its behaviours (gs-weapon API 56) ends where building them all does.
 func _regive(game: FcGame) -> void:
 	_section("sv_bot_regive re-gives a bot's kit to the state a fresh give makes")
 	var bot := game.player_for(FcGame.BOT_SESSION_BASE + 1)
 	if not FcBotLoadouts.regive_supported:
-		_check(true, "gs-weapon below API 55: sv_bot_regive does nothing")
+		_check(true, "gs-weapon below API 56: sv_bot_regive does nothing")
 		_check(true, "(skipped)")
 		_done()
 		return

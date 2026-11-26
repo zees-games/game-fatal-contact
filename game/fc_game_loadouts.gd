@@ -64,7 +64,7 @@ func _give_bot_loadout(player: FcPlayer) -> bool:
 	if drawn == null:
 		return false
 	if FcBotLoadouts.regive_supported:
-		# By name: the property exists only from gs-weapon API 55.
+		# By name: the property exists only from gs-weapon API 56.
 		player.arsenal.set(&"reuse_behaviours", FcBotLoadouts.regive)
 	player.give_loadout(drawn.entries)
 	player.set_meta(&"bot_loadout", drawn.kit.id)
