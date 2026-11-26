@@ -8,6 +8,7 @@ const FcBotBrain := preload("fc_bot_brain.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
+const FcBotSightSolid := preload("fc_bot_sight_solid.gd")
 
 
 ## The behaviour of a weapon whose shot flies (a rocket, a bolt); every other one is led as
@@ -680,12 +681,11 @@ class World:
 		var glass: Variant = (trace as Object).get("glass")
 		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
 			mask &= ~(glass as GSMapGlassSight).glass_mask
-		if cell != null:
-			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
-					cell_space, cell.glass_mask, cell.centre, cell.radius, cell.radius + cell.margin)
-		else:
-			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
-					null, 0, Vector3.ZERO, 0.0, 0.0)
+		var glass_args: Array = [0, Vector3.ZERO, 0.0, 0.0] if cell == null else \
+				[cell.glass_mask, cell.centre, cell.radius, cell.radius + cell.margin]
+		var exclude: Array = (trace as GSTracePhysics).exclude_rids
+		_sight_native.callv(&"bind", [space, mask, exclude, _ray_lock, cell_space] + glass_args)
+		FcBotSightSolid.bind(_sight_native, game, mask, exclude, _tick)
 		return Callable(_sight_native, &"clear")
 
 	## A box world ([GSTraceFlat]): the native ray walks the trace's own box hierarchy, its line_of_sight to the bit,
