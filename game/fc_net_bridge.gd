@@ -659,7 +659,10 @@ func add_bot(display_name: String) -> int:
 	var mind := FcBots.Mind.new()
 	mind.seed = session_id
 	_bot_minds[session_id] = mind
-	FcBots.world_for(game).warm()
+	var bot_world := FcBots.world_for(game)
+	bot_world.warm()
+	# The persona profiles load once, here as the bot joins: on its first tick they were 32 ms of tick 1.
+	var _pool := bot_world.personas_for(FcBots.personas_mode)
 
 	var payload := join_payload(session_id)
 	player_announced.emit(payload)

@@ -278,6 +278,11 @@ func _add_bot_think_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBots.think_every = maxi(0, int(new_value.to_float())))
+	add_cvar("bot_brains_per_tick", str(FcBots.brains_per_tick),
+		"Bot brains built on one tick at most (a full server's bots join together); a bot past it stands still a tick or two. 0 = no limit",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBots.brains_per_tick = maxi(0, int(new_value.to_float())))
 	add_cvar("bot_personas", FcBots.personas_mode,
 		"Bot characters (cfg/game/game-fatal-contact/bot/*.yml): empty deals every persona by its weight, 'id:weight,...' only those, 'off' one shared bot_difficulty",
 		GSConVar.FLAG_ARCHIVE).changed.connect(

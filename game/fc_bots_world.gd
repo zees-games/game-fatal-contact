@@ -215,6 +215,9 @@ class World:
 	var _personas: GSBotPersonaPool = null
 	var _personas_text: String = ""
 	var persona_epoch: int = 0
+	## The tick [member brains_made] counts brains built in ([member FcBots.brains_per_tick]).
+	var brains_tick: int = -1
+	var brains_made: int = 0
 	var _persona_rng := RandomNumberGenerator.new()
 
 	var _par_glass: bool = false

@@ -47,8 +47,9 @@ class NavWorld:
 	var _joining := false
 	var _join_frame := -1
 	const JOIN_SLICE_USEC := 6000
-	## The edge search is done and the ladder links wait for a frame of their own: the last join slice and the links together were one 40 ms server tick.
-	var _link_due := false
+	## The link pass after the edge search, a stage a frame: 0 while the search runs, then ledge climbs, roam points, ladders.
+	## The last join slice and the whole pass together were one 40 ms server tick, and the pass alone 21 ms.
+	var _link_stage := 0
 	## Parallel think (cvar `bot_threads`, FcBotThreads): while true, brains on worker threads ask this world, whose
 	## sight and wall rays then use queries of their own on [member _par_space] and whose other answers take [member _par_lock].
 	var par: bool = false
@@ -206,17 +207,17 @@ class NavWorld:
 			return _surf if nav.is_ready() else null
 		if not _joining and not nav.is_ready():
 			return null
-		if not _link_due:
+		if _link_stage == 0:
 			if not _join_sliced(nav):
 				return null
-			_link_due = true
-		# Asked again in the frame of the last join slice (bots ask more than once a frame): still not yet.
+			_link_stage = 1
+		# Asked again in the frame of the last join slice or link stage (bots ask more than once a frame): still not yet.
 		if _join_frame == Engine.get_process_frames():
 			return null
+		_join_frame = Engine.get_process_frames()
+		if not _link_step(nav):
+			return null
 		_surf_looked = true
-		var t_link := Time.get_ticks_usec()
-		_link_ladders(nav)
-		FcFrameProbe.add(&"bot_nav_links", t_link)
 		if GSAddonApi.build_level("gs_bot") < 4 or GSAddonApi.build_level("gs_player_controller") < 3:
 			return null
 		var t_surf := Time.get_ticks_usec()
@@ -252,18 +253,32 @@ class NavWorld:
 			n += 1 if l.has("from") else 0
 		return n
 
+	## Runs link stage [member _link_stage] on [param nav]; true once the last one (the ladders) is done.
+	func _link_step(nav: GSBotNav) -> bool:
+		var t_stage := Time.get_ticks_usec()
+		if _link_stage == 1:
+			_ladders = null
+			ladder_fn = Callable()
+			# Drops off the rims and hops over gaps join a spawn island the plain bake leaves cut off.
+			if join_edges and GSAddonApi.build_level("gs_bot") >= 12:
+				if _edges == null:
+					_edges = GSBotLinks.new()
+					_edges.join(nav)
+				_climb_back_ledges(nav)
+			FcFrameProbe.add(&"bot_nav_ledges", t_stage)
+		elif _link_stage == 2:
+			if GSAddonApi.build_level("gs_bot") >= 13:
+				extra_waypoints = nav.spread_points(ROAM_PLACES, GSRandomStream.new(7919, &"roam"))
+			FcFrameProbe.add(&"bot_nav_roam", t_stage)
+		else:
+			_link_ladders(nav)
+			FcFrameProbe.add(&"bot_nav_ladders", t_stage)
+			return true
+		_link_stage += 1
+		return false
+
 	## Joins the imported map's ladders into [param nav] as one-way climbs and hands the brain their geometry (gs-bot 10).
 	func _link_ladders(nav: GSBotNav) -> void:
-		_ladders = null
-		ladder_fn = Callable()
-		# Drops off the rims and hops over gaps join a spawn island the plain bake leaves cut off.
-		if join_edges and GSAddonApi.build_level("gs_bot") >= 12:
-			if _edges == null:
-				_edges = GSBotLinks.new()
-				_edges.join(nav)
-			_climb_back_ledges(nav)
-		if GSAddonApi.build_level("gs_bot") >= 13:
-			extra_waypoints = nav.spread_points(ROAM_PLACES, GSRandomStream.new(7919, &"roam"))
 		var mechanics: Variant = (game.get("map") as Object).get("mechanics")
 		if GSAddonApi.build_level("gs_bot") < 10 or not (mechanics is Object) or (mechanics as Object).get("ladders").is_empty():
 			return
@@ -356,7 +371,7 @@ class NavWorld:
 		_ladders = null
 		_edges = null
 		_joining = false
-		_link_due = false
+		_link_stage = 0
 		var body := _body_tunables()
 		var source: Node3D = (map as Object).call(&"nav_source") if (map as Object).has_method(&"nav_source") else null
 		var started := _nav.bake_in_background(source if source != null else root as Node3D, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height})

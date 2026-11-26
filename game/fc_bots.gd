@@ -98,10 +98,21 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 	var t_setup := FcFrameProbe.lap_start()
 
 	var pool := world.personas_for(personas_mode)
+	t_setup = FcFrameProbe.lap(&"bt_personas", t_setup)
 	# A brain a caller made itself (persona_epoch -1) is never replaced.
 	if mind.brain != null and mind.persona_epoch >= 0 and mind.persona_epoch != world.persona_epoch:
 		mind.brain = null
 	if mind.brain == null:
+		# A full server's bots all join on one tick, and 31 brains built together were about 12 ms of tick 1 (bt_brain_new).
+		# Past brains_per_tick this tick the bot stands still and is built on a later one.
+		if world.brains_tick != tick:
+			world.brains_tick = tick
+			world.brains_made = 0
+		if brains_per_tick > 0 and world.brains_made >= brains_per_tick:
+			FcFrameProbe.lap(&"bt_setup", t_setup)
+			return [GSFpsCommand.new(), GSWeaponCommand.new()]
+		world.brains_made += 1
+		var t_new := FcFrameProbe.lap_start()
 		var bot_seed := mind.seed if mind.seed != 0 else bot.player_id
 		var base := GSBotSettings.of(game)
 		mind.persona = world.deal_persona(pool, bot.player_id) if pool != null else null
@@ -114,6 +125,7 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 		if body_tunables is GSFpsTunables:
 			mind.brain.tricks.slide_speed = body_tunables.slide_min_speed * 1.18
 			mind.brain.tricks.wall_run_speed = body_tunables.wall_run_min_speed * 1.17
+		FcFrameProbe.lap(&"bt_brain_new", t_new)
 	world.brains[bot.player_id] = mind.brain
 	if mind.settings != null:
 		var _resynced := mind.settings.sync()
@@ -278,6 +290,9 @@ static var recoil_compensation := true
 ## bot_native_think: every bot hands out one pair of commands of its own, overwritten every tick (Mind.out), instead
 ## of two new commands and an array a tick; 0 makes new ones. headless_botthreads plays both to the same digests.
 static var reuse_commands := true
+
+## bot_brains_per_tick: brains built on one tick at most; a bot past it stands still until a later tick builds its own. 0 = no limit.
+static var brains_per_tick := 4
 
 ## Whether the think tiers come from [code]GSBotThinkTier.schedule[/code] (gs-bot API 27) or, on a host's gs-bot 26
 ## (the live shell's pin), from period, until_beat and body_period, which answer the same. headless_botthreads plays both.
