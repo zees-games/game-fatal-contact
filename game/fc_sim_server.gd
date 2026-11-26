@@ -465,14 +465,18 @@ static func net_split_line(sections: Dictionary, ticks: int, input_ms: float, ch
 const NET_SPLIT: Array[StringName] = [&"srv_game", &"srv_bots", &"srv_netpull", &"srv_killview", &"srv_pulls"]
 
 
-## [prefix, script] of the weapon sub-phase clocks this build's addons have: AwWeaponRig's from fc-weapons API 10,
-## GSWeaponArsenal's from gs-weapon API 32. Read and set by name, so an older shell's addons still parse.
+## [prefix, script] of the weapon and shot sub-phase clocks this build's addons have: AwWeaponRig's from fc-weapons API 10,
+## GSWeaponArsenal's from gs-weapon API 32, GSCombatManager's and GSTrace's from gs-combat API 7. Read and set by name, so an older shell's addons still parse.
 static func _weapon_phase_clocks() -> Array:
 	var clocks := []
 	if GSAddonApi.build_level("fc_weapons") >= 10:
 		clocks.append(["pw_", AwWeaponRig])
 	if GSAddonApi.build_level("gs_weapon") >= 32:
 		clocks.append(["pa_", GSWeaponArsenal])
+	# s_resolve's parts: GSCombatManager.resolve_shot (sr_*) and GSTrace.ray inside its pellets (st_*), gs-combat API 7.
+	if GSAddonApi.build_level("gs_combat") >= 7:
+		clocks.append(["sr_", GSCombatManager])
+		clocks.append(["st_", GSTrace])
 	return clocks
 
 
