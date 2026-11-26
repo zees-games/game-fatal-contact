@@ -51,6 +51,8 @@ var _control_sent := [0, 0]
 ## --fields: per snapshot, which observer-visible properties changed since the last snapshot (what an in-step watcher is
 ## owed, before interest), summed per property and per behaviour script with its declared size, printed as FIELDS lines.
 var _fields := false
+## --no-skip-hooks: the client calls every remote behaviour's _net_state_applied each snapshot (GSNetConfig.skip_unchanged_state_applied off), the before of that skip.
+var _no_skip_hooks := false
 var _field_last := {}
 var _field_bits := {}
 var _field_count := {}
@@ -85,6 +87,7 @@ func _ready() -> void:
 			"--port": _port = int(args[i + 1])
 			"--control": _control = int(args[i + 1])
 	_fields = args.has("--fields")
+	_no_skip_hooks = args.has("--no-skip-hooks")
 	if _port != PORT:
 		_data = "%s_%d" % [DATA, _port]
 	GSLog.set_level(GSLog.Level.ERROR)
@@ -225,6 +228,8 @@ func _connect_client() -> void:
 		await get_tree().create_timer(0.25).timeout
 		waited += 0.25
 	_cnet = _client.get("net")
+	if _no_skip_hooks and "skip_unchanged_state_applied" in _cnet.config:
+		_cnet.config.skip_unchanged_state_applied = false
 	print("connected after %.1fs, %d players, budget=%d pps=%d" % [
 		waited, -1,
 		_net.config.per_client_budget, _net.config.per_client_packet_rate])
@@ -455,8 +460,9 @@ func _measure_and_report() -> void:
 		(int(perf1[&"server_sim_usec"]) - int(perf0[&"server_sim_usec"])) / 1000.0 / nticks,
 		nticks, net.registry.all().size()])
 	var applied: PackedInt64Array = FcFrameProbe._sections.get(&"net_snapshot", PackedInt64Array([0, 0, 0]))
-	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d" % [
-		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1]])
+	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d skip_hooks=%s" % [
+		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1],
+		_cnet.config.get("skip_unchanged_state_applied")])
 	FcFrameProbe.set_interval(0.0)
 	var snaps := maxi(1, int(perf1[&"snap_snapshots"]) - int(perf0[&"snap_snapshots"]))
 	var ph := ""
