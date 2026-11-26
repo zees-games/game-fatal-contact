@@ -311,10 +311,8 @@ class World:
 		_objective_refresh(teams)
 		FcFrameProbe.lap(&"brc_objective", t_obj)
 		t_lap = FcFrameProbe.lap(&"br_contacts", t_lap)
-		if tiers != null and tiers.applies(_contacts.size()):
+		if tiers != null:
 			_tier_begin()
-		elif tiers != null:
-			tiers.begin(_contacts.size(), PackedVector3Array(), PackedVector3Array(), PackedInt32Array(), PackedVector3Array())
 		t_lap = FcFrameProbe.lap(&"br_tiers", t_lap)
 		_near_refresh(_contacts, FcHullGrid.enabled)
 		FcFrameProbe.lap(&"br_near", t_lap)
@@ -396,20 +394,22 @@ class World:
 		var hill := (manager as GSObjectiveManager).objective(HILL)
 		return hill if hill != null and hill.def != null and hill.def.area != null else null
 
-	## Hands the tiers the live people's eyes and views and the bots' positions (a person is a contact with no brain).
+	## Hands the tiers the live people's eyes and views and the bots' positions (a person is a contact with no brain),
+	## or empty lists when the tiers do not apply at this many contacts.
 	func _tier_begin() -> void:
 		var eyes := PackedVector3Array()
 		var looks := PackedVector3Array()
 		var ids := PackedInt32Array()
 		var at := PackedVector3Array()
-		for c: GSBotContact in _contacts:
-			if brains.has(c.id):
-				if c.alive:
-					ids.append(c.id)
-					at.append(c.position)
-			elif c.alive:
-				eyes.append(c.eye())
-				looks.append(GSBotIntent.direction(c.view_yaw, c.view_pitch))
+		if tiers.applies(_contacts.size()):
+			for c: GSBotContact in _contacts:
+				if brains.has(c.id):
+					if c.alive:
+						ids.append(c.id)
+						at.append(c.position)
+				elif c.alive:
+					eyes.append(c.eye())
+					looks.append(GSBotIntent.direction(c.view_yaw, c.view_pitch))
 		tiers.begin(_contacts.size(), eyes, looks, ids, at)
 
 	## What the player carries, rated: 33 slot reads and ratings per player for what only a pickup, a shot or a

@@ -191,6 +191,11 @@ func _forward_flags(args: PackedStringArray) -> PackedStringArray:
 		native_loop = _arg("--native-loop")
 	if native_loop != "":
 		args.append_array(["--bot_native_loop", native_loop])
+	# `--cvar name=value` (repeatable): a server cvar for a bench A/B of one setting (fc_sim_server applies them).
+	var user := OS.get_cmdline_user_args()
+	for k in user.size() - 1:
+		if user[k] == "--cvar":
+			args.append_array(["--cvar", user[k + 1]])
 	return args
 
 

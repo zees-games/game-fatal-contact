@@ -2,6 +2,7 @@ extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcBotThreads := preload("../game/fc_bot_threads.gd")
+const FcBotRows := preload("../game/fc_bot_rows.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
@@ -52,11 +53,11 @@ func _run() -> void:
 		_check(digests[i] == digests[0], "bot_threads %d plays the match thread 0 plays (%d kills)" % [THREADS[i], kills[i]])
 	_check(parallel[2] > 100 and parallel[3] > 100 and parallel[4] > 100, "the brains really ran through the parallel path (%d, %d, %d ticks)" % [parallel[2], parallel[3], parallel[4]])
 	_check(parallel[0] == 0, "and bot_threads 0 never did")
-	# bot_native_think 0: new commands every tick, the pre-reuse path; the same match to the digest.
-	FcBots.reuse_commands = false
+	# bot_native_think 0: gs-bot packs the contacts, new commands every tick, tricks in script; the same match to the digest.
+	FcBotRows.set_native_think(false)
 	var fresh := await _play(0)
-	FcBots.reuse_commands = true
-	_check(fresh[0] == digests[0], "bot_native_think 0 (new commands every tick) plays the match its reused pair plays (%d kills)" % fresh[1])
+	FcBotRows.set_native_think(true)
+	_check(fresh[0] == digests[0], "bot_native_think 0 (script contacts, new commands, script tricks) plays the match its reused pair plays (%d kills)" % fresh[1])
 	_done()
 
 	_section("the brain profile (--brain-us) times brains on bot threads")

@@ -25,6 +25,15 @@ var _eyes := PackedVector3Array()
 var _positions := PackedVector3Array()
 
 
+## Cvar `bot_native_think`: the contact table, the reused pair of commands and gs-bot's native tricks
+## ([code]GSBotTricks.native_enabled[/code], gs-bot 39; set by name, a no-op on an older gs-bot), all on or all off.
+static func set_native_think(on: bool) -> void:
+	enabled = on
+	# By path: FcBots names this class, so naming FcBots here is a cycle the parser refuses.
+	(load("res://game/fc_bots.gd") as Script).set(&"reuse_commands", on)
+	(GSBotTricks as Script).set(&"native_enabled", on)
+
+
 static func supported() -> bool:
 	if _supported < 0:
 		_supported = 1 if GSAddonApi.build_level("gs_bot") >= LEVEL else 0
