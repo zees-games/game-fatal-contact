@@ -66,6 +66,30 @@ static func think(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate:
 	return think_finish(game, bot, mind, tick, tick_rate)
 
 
+## The game's world, the think rate and the world's knobs, once a tick however many bots ask (31 calls a tick at 32
+## bots were 31 meta lookups, player counts and tier tests); a tick below 0 or another game sets them again.
+static func _tick_world(game: Object, tick: int) -> World:
+	if tick >= 0 and tick == _begun_tick and _begun_world != null and _begun_game == game.get_instance_id():
+		return _begun_world
+	var world := world_for(game)
+	# Counted once a tick for every bot (player_ids is a new array each call).
+	var players := world.player_count(tick)
+	_every = think_every if think_every > 0 else (2 if players > AUTO_STAGGER_ABOVE else 1)
+	_tier_on = tiers.applies(players)
+	world.near_reach = think_near
+	world.sight_far = sight_far_now()
+	world.sight_far_reuse = sight_far_reuse
+	world.tiers = tiers
+	_begun_tick = tick
+	_begun_game = game.get_instance_id()
+	_begun_world = world
+	return world
+
+static var _begun_tick: int = -1
+static var _begun_game: int = 0
+static var _begun_world: World = null
+
+
 ## The part of [method think] before the brain runs, on the main thread: the commands of a tick the bot coasts (or
 ## of no game), else an empty array with [member Mind.t_me] and [member Mind.t_world] set for the brain.
 static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float) -> Array:
@@ -73,11 +97,7 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 		return [GSFpsCommand.new(), GSWeaponCommand.new()]
 
 	var t_gate := FcFrameProbe.lap_start()
-	var world := world_for(game)
-	# Counted once a tick for every bot (player_ids is a new array each call).
-	var players := world.player_count(tick)
-	_every = think_every if think_every > 0 else (2 if players > AUTO_STAGGER_ABOVE else 1)
-	_tier_on = tiers.applies(players)
+	var world := _tick_world(game, tick)
 	if (_every > 1 or _tier_on) and _coasts(mind, tick, world, bot.player_id):
 		t_gate = FcFrameProbe.lap(&"bt_gate", t_gate)
 		var moved := _coast(mind, tick)
@@ -89,10 +109,6 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 	FcFrameProbe.lap(&"bt_gate", t_gate)
 
 	var t_refresh := Time.get_ticks_usec()
-	world.near_reach = think_near
-	world.sight_far = sight_far_now()
-	world.sight_far_reuse = sight_far_reuse
-	world.tiers = tiers
 	world.refresh(tick, tick_rate)
 	FcFrameProbe.add(&"bot_refresh", t_refresh)
 	var t_setup := FcFrameProbe.lap_start()

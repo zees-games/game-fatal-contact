@@ -415,6 +415,10 @@ class World:
 	func _loadout_of(p: FcPlayer, tick: int) -> Dictionary:
 		var held: Variant = _loadouts.get(p.player_id)
 		var arsenal: Object = p.arsenal
+		# Kept for this arsenal (an entry of three is only written for one with revision()): no has_method a player a tick.
+		if arsenal != null and held is Array and (held as Array).size() == 3 and (held as Array)[2] == arsenal.get_instance_id():
+			if (held as Array)[0] == arsenal.call(&"revision"):
+				return (held as Array)[1]
 		if arsenal != null and arsenal.has_method(&"revision"):
 			var rev: int = arsenal.call(&"revision")
 			var id := arsenal.get_instance_id()
