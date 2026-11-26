@@ -38,7 +38,7 @@ var _behind_said_ms := -1
 ## The longest gap between two frames in this report window (usec): a stall outside the tick shows here and not in SIM_HOST_TICK.
 var _frame_at_usec := 0
 var _frame_gap_max_usec := 0
-## Paces the frames to the tick rate with a sleep then a spin (the OS timer may be coarse) and measures late ticks; `--sim_pace 0` leaves it to the engine.
+## Paces the frames to the tick rate with a sleep then a spin (the OS timer may be coarse) and measures late ticks; `--sim_pace auto` (default) only on a coarse timer, `1` always, `0` never.
 var _pacer := FcSimPacer.new()
 
 
@@ -51,7 +51,6 @@ func _ready() -> void:
 		_die("no --port")
 		return
 	_apply_bench_flags()
-	_pacer.enabled = _arg("--sim_pace", "1") != "0"
 	var data := "user://sim_host"
 	var _made := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(data))
 
@@ -170,6 +169,8 @@ func _apply_bench_flags() -> void:
 		# By name: gs-bot 26 (the live shell's) has no native tier to switch.
 		FcBots.tiers.set(&"native", native_loop.to_int() != 0)
 	_load_us = maxi(0, int(_arg("--sim_load_us", "0")))
+	var pace := _arg("--sim_pace", "auto")
+	_pacer.enabled = pace == "1" or (pace == "auto" and FcSimPacer.timer_is_coarse())
 	set_physics_process(true)
 	# Where a tick goes: the [FcFrameProbe] sections the server's tick records (srv_*, tick_*, p_*, bot_*, w_*),
 	# printed per tick beside each SIM_HOST line. Off by default: each section costs two clock reads.

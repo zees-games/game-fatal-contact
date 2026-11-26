@@ -4,8 +4,8 @@ extends RefCounted
 ## sleeps with the OS timer, which on Windows rounds up to its 15.6 ms tick unless something raised the
 ## resolution: a 15.15 ms frame became 16 to 31 ms, ticks bunched up and the client saw bursty snapshots.
 ## This sleeps in 1 ms steps while the sleeps land on time, and spins the last stretch to the deadline; when
-## sleeps overshoot (a coarse timer, a busy box) the margin grows, up to spinning the whole wait, and decays
-## again once they behave. It owns the pacing (`Engine.max_fps` 0), so it costs a spinning core only while the timer is bad.
+## sleeps overshoot steadily (a coarse timer) the margin grows, up to spinning the whole wait, and shrinks
+## again once they behave; a busy box's occasional late wake does not make it spin. It owns the pacing (`Engine.max_fps` 0), so it costs a spinning core only while the timer is bad.
 
 ## The share of the period a frame may wake late of the tick (usec): a tick only runs once the accumulator holds a whole period.
 const WAKE_LATE_USEC := 150
@@ -15,8 +15,16 @@ const STEP_USEC := 1000
 const MIN_MARGIN_USEC := 600
 ## A gap between two reads of the spin loop over this is the thread having been descheduled (usec).
 const STALL_USEC := 1000
-## Decay of the remembered overshoot per frame.
-const HINT_DECAY := 0.995
+## Weights of one sleep's overshoot in the running average the margin follows, rising and falling. An average,
+## not the worst: a coarse timer overshoots every sleep and holds it at a whole period, while a busy box's rare
+## long wake is forgotten within a frame's sleeps (spinning there takes a core from the client and gets the spinner preempted).
+const HINT_UP := 0.5
+const HINT_DOWN := 0.05
+## A timer whose 1 ms sleeps overshoot by more than this (usec, the median of [constant PROBE_SLEEPS]) is coarse.
+const COARSE_USEC := 2000
+const PROBE_SLEEPS := 9
+## Decay per frame of a hint no sleep measured (the whole wait spun), so a timer that got better is tried again.
+const HINT_IDLE_DECAY := 0.999
 
 var enabled := true
 var _deadline := 0
@@ -33,6 +41,19 @@ var frames := 0
 var frames_over := 0
 var _exit_usec := 0
 var _window_start_usec := 0
+
+
+## Whether the OS timer is coarse (Windows' default 15.6 ms tick): the median overshoot of a few 1 ms sleeps.
+## `--sim_pace auto` (the default) paces here only then; a fine timer leaves the engine's own pacing, which on a
+## shared box keeps a core free for the client.
+static func timer_is_coarse() -> bool:
+	var overs: Array[int] = []
+	for i in PROBE_SLEEPS:
+		var t0 := Time.get_ticks_usec()
+		OS.delay_usec(STEP_USEC)
+		overs.append(Time.get_ticks_usec() - t0 - STEP_USEC)
+	overs.sort()
+	return overs[PROBE_SLEEPS / 2] > COARSE_USEC
 
 
 ## Call once per physics tick (from `_physics_process`).
@@ -59,15 +80,19 @@ func pace(rate: int) -> void:
 		_deadline = now
 	_deadline += period
 	var target := _deadline + WAKE_LATE_USEC
-	_over_hint *= HINT_DECAY
 	var margin := mini(maxi(int(_over_hint * 1.25) + MIN_MARGIN_USEC, MIN_MARGIN_USEC), period)
+	var slept := false
 	while target - now > margin + STEP_USEC:
 		OS.delay_usec(STEP_USEC)
 		var after := Time.get_ticks_usec()
 		var over := after - now - STEP_USEC
 		over_max_usec = maxi(over_max_usec, over)
-		_over_hint = maxf(_over_hint, over)
+		var o := maxf(0.0, over)
+		_over_hint += (o - _over_hint) * (HINT_UP if o > _over_hint else HINT_DOWN)
+		slept = true
 		now = after
+	if not slept:
+		_over_hint *= HINT_IDLE_DECAY
 	var spin_from := now
 	var prev := now
 	while now < target:

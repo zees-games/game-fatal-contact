@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Emulates a Windows box's sim host trouble on Linux and prints the SIM_HOST ticks/s and tick lines.
-#   tools/timer_repro/run.sh [--pace 0|1] [--bots N] [--sec S] [--coarse 0|1] [--cores LIST] [--hog N] [--map ID]
+#   tools/timer_repro/run.sh [--pace auto|0|1] [--bots N] [--sec S] [--coarse 0|1] [--cores LIST] [--hog N] [--map ID]
 # --coarse 1 preloads coarse_sleep.c (sleeps wake on a 15.625 ms boundary); --cores pins the sim process
 # (taskset list, e.g. 0-3); --hog N starts N busy threads on the same cores. Run it as `heavy -- ...` / hv local.
 set -uo pipefail
