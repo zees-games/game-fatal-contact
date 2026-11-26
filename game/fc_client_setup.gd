@@ -1,14 +1,18 @@
 extends "fc_client_session_events.gd"
 
-## A browser draws the sun's shadow in one orthogonal map, not in gs-game's web default of 2 splits: each split is another depth pass over every body and gun, the largest single cost of a 16v16 browser frame after the bodies themselves.
-## Built-in maps already use one (see fc_map_lighting.gd); this covers imported ones. `r_sun_shadow_splits=2`, as a launch argument or URL query, still wins. Native is unchanged.
-const WEB_SUN_SHADOW_SPLITS := 1.0
+## Every client draws the sun's shadow in one orthogonal map out to 60 m: each split is another depth pass over every body and gun.
+## Built-in maps already use one split (see fc_map_lighting.gd); this covers imported ones. On staging02 with 32 players (n=3) a native frame was 1.1 ms faster with no visible change.
+## `r_sun_shadow_splits` / `r_shadow_distance`, as a launch argument or URL query, still win.
+const SUN_SHADOW_SPLITS := 1.0
+const SUN_SHADOW_DISTANCE := 60.0
 const _RenderQuality := preload("res://addons/gs_game/runtime/gs_game_render_quality.gd")
 const _UserDir := preload("fc_user_dir.gd")
 
-func _web_render_defaults() -> void:
-	if GSPlatform.is_web() and float(_RenderQuality.values[&"r_sun_shadow_splits"]) < 0.0:
-		_RenderQuality.values[&"r_sun_shadow_splits"] = WEB_SUN_SHADOW_SPLITS
+func _render_defaults() -> void:
+	if float(_RenderQuality.values[&"r_sun_shadow_splits"]) < 0.0:
+		_RenderQuality.values[&"r_sun_shadow_splits"] = SUN_SHADOW_SPLITS
+	if float(_RenderQuality.values[&"r_shadow_distance"]) < 0.0:
+		_RenderQuality.values[&"r_shadow_distance"] = SUN_SHADOW_DISTANCE
 
 func _ready() -> void:
 	# The server a hosted game started runs this same main scene: an export takes no scene path.
@@ -18,7 +22,7 @@ func _ready() -> void:
 	# Before anything reads user://: the first run under game-fatal-contact copies the game-fatal-contact folder in.
 	_UserDir.migrate()
 	_apply_launch_art()
-	_web_render_defaults()
+	_render_defaults()
 
 	if FcSimHost.wanted(get_tree().current_scene == self):
 		await _start_sim_host()
