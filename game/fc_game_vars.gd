@@ -94,6 +94,8 @@ var _batch_pairs: Array = []
 ## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its
 ## `GSSimPlayerPost`, the input rows (10 floats each) and each one's player, id and move command.
 var _post_native: Object = null
+## Which batched players are clear of the map's volumes this tick (cvar fc_mechanics_native).
+var _volume_pre := preload("fc_volume_prefilter.gd").new()
 var _post_in := PackedFloat64Array()
 var _post_players: Array = []
 var _post_ids := PackedInt64Array()

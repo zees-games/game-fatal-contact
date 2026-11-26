@@ -1,5 +1,5 @@
 @tool
-extends "fc_game_idle.gd"
+extends "fc_game_input.gd"
 
 ## Deals an imported map's hurt volumes (`trigger_hurt`) to everybody standing in one, as
 ## world damage through gs-combat.
@@ -245,21 +245,11 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 			t_fine = Time.get_ticks_usec()
 		var pair: Array = commands.get(id, [])
 		_pre_vy[id] = player.controller.state.velocity.y
-		FcWeaponDropWiring.input(self, id, player, pair)
-		var move: GSFpsCommand = pair[0] if pair.size() > 0 else GSFpsCommand.new()
-		var fire: GSWeaponCommand = pair[1] if pair.size() > 1 else GSWeaponCommand.new()
-		if knives != null:
-			knives.input(id, player, fire)
-			player.windup = knives.call(&"charge_of", id) if knife_charge else -1.0
-		if move == null or fire == null:
+		pair = _batched_input(id, player, pair, knife_charge, surfing, t_fine)
+		if pair.is_empty():
 			continue
-		match_node.note_activity(str(id), _tick)
-		if surfing:
-			surf_rides.call(&"before_synced", id, player)
-		elif not lean and surf_rides != null:
-			surf_rides.call(&"before", id, player)
-		# The command pair as it came (move, fire): no new two-item array per player per tick.
-		_batch_pairs[i] = pair if pair.size() == 2 else [move, fire]
+		_batch_pairs[i] = pair
+		var move: GSFpsCommand = pair[0]
 		if fine:
 			FcFrameProbe.add(&"pl_pre", t_fine)
 			t_fine = Time.get_ticks_usec()
@@ -275,6 +265,8 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		player.ctl_usec = Time.get_ticks_usec() - t_ctl
 		if fine:
 			FcFrameProbe.add(&"pl_sim", t_fine)
+	if FcPlayer.mechanics_native:
+		_volume_pre.mark(_tick, ids, _players, _batch_rows)
 	# The idle players' posture rows in one gs-sim call (flushed before anything that could see their weapon ticks):
 	# the controller state is read in GDScript once per player instead of per field.
 	var post_lane := FcPlayer.posture_native and GSSim.has(&"players")

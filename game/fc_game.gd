@@ -157,6 +157,7 @@ func add_player(
 	FcPlayer.configure_body(config.avatar_height_units, config.avatar_crouch_units, config.avatar_radius_units, config.avatar_unit_metres)
 	player.apply_map_movement(map_movement())
 	player.apply_vitals(config.player_health, config.player_armour, config.player_regen, config.fall_out_depth)
+	player.volume_pre = _volume_pre
 	add_child(player)
 
 	# The layout's player mask, rather than `GSFpsTunables`' default of 1. See

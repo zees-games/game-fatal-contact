@@ -121,6 +121,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcPlayer.posture_native = new_value.to_float() >= 0.5)
 	FcWeaponTickCvars.add_to(self)
+	add_cvar("fc_mechanics_native", "1" if FcPlayer.mechanics_native else "0",
+		"1: the batched tick asks gs-sim (GSSimVolumes, one call) which players are clear of every map volume and skips their pushes, ladders, water and pits (the same states as the script); 0: every player runs them",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcPlayer.mechanics_native = new_value.to_float() >= 0.5)
 	add_cvar("fc_bot_pvs_verify", "1" if FcBotPvs.verify else "0",
 		"1: every sight the PVS rules out is cast anyway and every native ask is put to the script too, disagreements counted (a check, not for play)",
 		0).with_min(0.0).with_max(1.0).changed.connect(
