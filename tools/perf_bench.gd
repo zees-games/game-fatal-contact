@@ -28,6 +28,7 @@ var _ctl_us := false
 var _brain_us := false
 ## `--weapon-us 1`: the rig's and the arsenal's parts of p_weapons, in microseconds per call (off by default: the clocks are inside p_weapons).
 var _weapon_us := false
+## `--ctl-native 0|1`: the ctl_native cvar (FcPlayer.body_cols and GSFpsController.direct_getters) for an A/B of the controller's direct reads.
 ## `--tick N`: the game and engine tick rate (default: the game's, 66); 128 for the 128 Hz cost.
 var _tick := 0
 var _max_steps := -1
@@ -61,6 +62,17 @@ func _render_cvar_flags() -> void:
 	say("world shadow %s cell %.0f, held central tick %s" % [rc.world_shadow, rc.world_shadow_cell, rc.held_central_tick])
 
 
+## `--ctl-native 0|1`: what the ctl_native cvar sets, before the players exist (by name: direct_getters is gs-player-controller 44).
+func _ctl_native_flag() -> void:
+	if not args.has("ctl-native"):
+		return
+	var on := int(args["ctl-native"]) != 0
+	var fp := preload("../game/fc_player.gd")
+	fp.body_cols = on and GSAddonApi.build_level("gs_player_controller") >= 36
+	(GSFpsController as Script).set(&"direct_getters", on)
+	say("ctl native %s: body_cols %s" % [on, fp.body_cols])
+
+
 func _ready() -> void:
 	super()
 	_pilot = int(args.get("pilot", 1)) != 0
@@ -87,6 +99,7 @@ func _ready() -> void:
 		var ap := preload("../game/fc_player.gd")
 		ap.lod_off_every = ap.WEB_LOD_OFF_EVERY
 		say("web defaults: lod_off_every %d" % ap.lod_off_every)
+	_ctl_native_flag()
 	if args.has("killcam-hz"):
 		preload("../game/fc_killcam_bodies.gd").record_hz = float(args["killcam-hz"])
 	if args.has("killcam-crowd"):
