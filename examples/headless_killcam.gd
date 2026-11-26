@@ -201,19 +201,28 @@ func _check_recoil(screen: Node, killer: Object) -> void:
 
 ## Every other body in the final killcam wears the pose it was drawn in at the replayed moment, not its rest pose.
 func _check_poses(host: Node, killer: Object, me: Object) -> void:
-	var at := [NAN]
-	var mark := func(s: Dictionary) -> void: at[0] = s["time"]
-	# gs-replay 11 leaves bodies outside the replay camera unposed (cull_unseen); this compares every body, so pose them all.
-	var culled: Variant = host.get(&"cull_unseen")
-	if culled != null:
-		host.set(&"cull_unseen", false)
+	# The bones are read inside the replay's frame_drawn, right after the host posed them: what that frame draws. Read at
+	# the next frame's process_frame they had been through that frame's physics ticks (0-N of them, by wall time), which
+	# is not what was drawn. (frame_pre_draw is not emitted headless.)
+	var at := [NAN, -1]
+	var mark := func(s: Dictionary) -> void:
+		at[0] = s["time"]
+		at[1] = Engine.get_process_frames()
+	# gs-replay 12: the compared bodies are posed although the replay camera is not looking at them (cull_unseen).
+	var kept: Variant = host.get(&"always_posed")
+	if kept != null:
+		var every := {}
+		for p: Object in _client.get("game").call(&"players"):
+			every[p.get(&"player_id")] = true
+		host.set(&"always_posed", every)
 	host.killcam.frame_drawn.connect(mark)
-	await get_tree().process_frame
-	await get_tree().process_frame
+	# Two frames: the replay's first pose culls nothing (the camera is still the game's), the second is the one compared.
+	await host.killcam.frame_drawn
+	await host.killcam.frame_drawn
 	host.killcam.frame_drawn.disconnect(mark)
-	if culled != null:
-		host.set(&"cull_unseen", culled)
-	var drawn: Dictionary = host.poses.sample(at[0]) if not is_nan(at[0]) else {}
+	if kept != null:
+		host.set(&"always_posed", kept)
+	var drawn: Dictionary = host.poses.sample(at[0]) if at[1] == Engine.get_process_frames() else {}
 	var compared := 0
 	var worst := 0.0
 	var off_rest := INF
