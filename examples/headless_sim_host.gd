@@ -172,6 +172,19 @@ func _check_pacer() -> void:
 	var took := Time.get_ticks_usec() - t0
 	_check(took >= 19 * 5000 and took < 20 * 5000 + 40000, "20 frames at 200 Hz take 100 ms, not more or less", "%d usec" % took)
 	_check(pacer.window_line(200).begins_with("SIM_HOST_PACE ms | tick gap"), "the window line says its name")
+	_check(pacer.window_line(200).ends_with("OS.delay_usec 1 ms steps + spin (no native timer)"), "the window line says the wait steps with OS.delay_usec")
+	# gs-sim's precise timer when the library is linked: one sleep for the stretch, the same 100 ms, and the line names it.
+	var native := FcSimPacer.new()
+	var has_native := native.use_native_timer()
+	t0 = Time.get_ticks_usec()
+	for i in 20:
+		native.pace(200)
+	took = Time.get_ticks_usec() - t0
+	_check(took >= 19 * 5000 and took < 20 * 5000 + 40000, "20 frames at 200 Hz on %s take 100 ms" % ("GSSimTimer" if has_native else "the fallback"), "%d usec" % took)
+	var path := native.window_line(200)
+	_check(path.contains("paced here: GSSimTimer") == has_native, "the window line names the native timer exactly when it is used", path)
+	native.enabled = false
+	_check(native.path() == "paced by the engine", "a pacer left off says the engine paces")
 
 
 ## The solo server's rate by player count (FcConfig.solo_tick_tiers), and its loud line when it falls behind the clock.

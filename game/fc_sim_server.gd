@@ -170,7 +170,11 @@ func _apply_bench_flags() -> void:
 		FcBots.tiers.set(&"native", native_loop.to_int() != 0)
 	_load_us = maxi(0, int(_arg("--sim_load_us", "0")))
 	var pace := _arg("--sim_pace", "auto")
+	# The native timer first: its resolution request can make the probe below find a fine timer, leaving the engine's pacing.
+	if _arg("--sim_native_timer", "1") != "0":
+		_pacer.use_native_timer()
 	_pacer.enabled = pace == "1" or (pace == "auto" and FcSimPacer.timer_is_coarse())
+	print("SIM_HOST_PACE path: %s" % _pacer.path())  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 	set_physics_process(true)
 	# Where a tick goes: the [FcFrameProbe] sections the server's tick records (srv_*, tick_*, p_*, bot_*, w_*),
 	# printed per tick beside each SIM_HOST line. Off by default: each section costs two clock reads.

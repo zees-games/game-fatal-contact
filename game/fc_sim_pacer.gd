@@ -6,6 +6,9 @@ extends RefCounted
 ## This sleeps in 1 ms steps while the sleeps land on time, and spins the last stretch to the deadline; when
 ## sleeps overshoot steadily (a coarse timer) the margin grows, up to spinning the whole wait, and shrinks
 ## again once they behave; a busy box's occasional late wake does not make it spin. It owns the pacing (`Engine.max_fps` 0), so it costs a spinning core only while the timer is bad.
+## With gs-sim's `GSSimTimer` loaded (by name: nothing needs the library) it sleeps the whole wait but the margin in
+## one native sleep that wakes on time whatever the OS tick (Windows' high-resolution waitable timer), so a coarse
+## timer no longer grows the margin: about 0.6 ms of spin a frame instead of the whole period.
 
 ## The share of the period a frame may wake late of the tick (usec): a tick only runs once the accumulator holds a whole period.
 const WAKE_LATE_USEC := 150
@@ -27,6 +30,8 @@ const PROBE_SLEEPS := 9
 const HINT_IDLE_DECAY := 0.999
 
 var enabled := true
+## gs-sim's GSSimTimer when loaded (untyped: reached by name), else null and `OS.delay_usec` steps.
+var _timer: Object = null
 var _deadline := 0
 var _over_hint := 0.0
 var _last_tick_usec := 0
@@ -41,6 +46,27 @@ var frames := 0
 var frames_over := 0
 var _exit_usec := 0
 var _window_start_usec := 0
+
+
+## Uses gs-sim's GSSimTimer when the library has it: holds a 1 ms OS timer resolution (Windows, kept while hidden or
+## throttled; Godot's own raise can be ignored there) and sleeps with its precise timer. False without it.
+func use_native_timer() -> bool:
+	if not ClassDB.class_exists(&"GSSimTimer"):
+		return false
+	_timer = ClassDB.instantiate(&"GSSimTimer")
+	if _timer == null:
+		return false
+	_timer.call(&"request_resolution_ms", 1)
+	return true
+
+
+## How the wait sleeps, for the `SIM_HOST_PACE` line.
+func path() -> String:
+	if not enabled:
+		return "paced by the engine"
+	if _timer != null:
+		return "paced here: GSSimTimer %s%s + spin" % [_timer.call(&"sleep_kind"), ", 1 ms resolution held" if int(_timer.call(&"resolution_ms")) > 0 else ""]
+	return "paced here: OS.delay_usec 1 ms steps + spin (no native timer)"
 
 
 ## Whether the OS timer is coarse (Windows' default 15.6 ms tick): the median overshoot of a few 1 ms sleeps.
@@ -83,9 +109,14 @@ func pace(rate: int) -> void:
 	var margin := mini(maxi(int(_over_hint * 1.25) + MIN_MARGIN_USEC, MIN_MARGIN_USEC), period)
 	var slept := false
 	while target - now > margin + STEP_USEC:
-		OS.delay_usec(STEP_USEC)
+		# The native timer wakes on time, so it sleeps the whole stretch at once; OS.delay_usec in steps, as each may overshoot a tick.
+		var ask := STEP_USEC if _timer == null else target - now - margin
+		if _timer == null:
+			OS.delay_usec(ask)
+		else:
+			_timer.call(&"sleep_usec", ask)
 		var after := Time.get_ticks_usec()
-		var over := after - now - STEP_USEC
+		var over := after - now - ask
 		over_max_usec = maxi(over_max_usec, over)
 		var o := maxf(0.0, over)
 		_over_hint += (o - _over_hint) * (HINT_UP if o > _over_hint else HINT_DOWN)
@@ -122,7 +153,7 @@ func window_line(rate: int) -> String:
 		_pick(sorted, 0.5) / 1000.0, _pick(sorted, 0.95) / 1000.0, _pick(sorted, 1.0) / 1000.0, late, n,
 		over_max_usec / 1000.0, stall_count, stall_max_usec / 1000.0, roundi(spin_usec * 100.0 / wall),
 		frames_over, frames,
-		"paced here" if enabled else "paced by the engine"]
+		path()]
 	reset_window()
 	return line
 
