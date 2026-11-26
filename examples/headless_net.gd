@@ -1,11 +1,16 @@
 extends "headless_net_budget_and_sync.gd"
 
+const FcPresentation := preload("../game/fc_presentation.gd")
+
 
 func _ready() -> void:
 	call_deferred("_run")
 
 
 func _run() -> void:
+	# Settings and award progress of this process alone: every suite plays arena-player-000 in the one user:// of the box,
+	# and another run writing that file mid-read was a parse error here.
+	var _scratch := FcPresentation.use_scratch_settings("headless_net")
 	var errors := EngineErrors.new()
 	OS.add_logger(errors)
 
