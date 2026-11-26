@@ -124,6 +124,7 @@ func _setup_pieces(timeline: FcLoadTimeline) -> void:
 	projectile_view = FcProjectileView.new()
 	projectile_view.name = "Projectiles"
 	add_child(projectile_view)
+	_share_fx_pools()
 
 	FcLoadTimeline.mark("setup: projectiles")
 	await _setup_frame()
@@ -151,6 +152,20 @@ func _setup_pieces(timeline: FcLoadTimeline) -> void:
 			pov.call(&"prepare_spare")
 			await _setup_frame()
 	_pov_spares.clear()
+
+## The pool other players' shot effects share their quads and flash lights from, in the tree before any of them fires.
+## Headless never runs the weapon warm-up that made it, so each bot's effects built 24 quads and a light (perf smoke).
+func _share_fx_pools() -> void:
+	if fx_pool != null:
+		return
+	fx_pool = AwFxPool.new()
+	fx_pool.name = "FxPool"
+	if GSPlatform.is_headless():
+		# Nothing is drawn: the shared quads and lights are built by demand, and a burst's spares freed past cl_fx_pool_idle.
+		fx_pool.shared_meshes = 0
+		fx_pool.shared_lights = 0
+		fx_pool.shared_idle = maxi(FcPresentation.fx_pool_idle, 0)
+	add_child(fx_pool)
 
 ## Part of [method _ready].
 func _setup_interface_and_net() -> void:
