@@ -1,5 +1,7 @@
 extends "fc_client_warm_rest.gd"
 
+const _PlayerNet := preload("fc_player_net.gd")
+
 ## A drawing client's share of a frame for the server's events; the join backlog spreads over frames.
 const EVENT_BUDGET_USEC := 8000
 
@@ -372,6 +374,9 @@ func _client_net_config() -> GSNetConfig:
 	# entity); every FC read goes through GSNetInterpolator.track_samples. `cl_interp_script_tracks 1` keeps the GDScript tracks.
 	if &"sim_interp_tracks_only" in config:
 		config.set(&"sim_interp_tracks_only", FcFrameProbe.launch_value("cl_interp_script_tracks") != "1")
+	# And each remote player's per-frame copy onto its node done inside gs-sim's one interpolator call
+	# (FcPlayerNet.native_present); `cl_present_script 1` keeps the script copy per player.
+	_PlayerNet.native_present = FcFrameProbe.launch_value("cl_present_script") != "1"
 	return config
 
 

@@ -737,6 +737,10 @@ func _remote_push_note() -> void:
 func _net_interpolated(_tick: int) -> void:
 	if player == null:
 		return
+	# Deferred: this runs inside the native interpolator's apply, which holds it, and binding there re-enters it (a gdext borrow panic).
+	if native_present and not _no_mirror and not _bind_queued:
+		_bind_queued = true
+		_bind_mirror.call_deferred()
 
 	# Only the interpolated vars: the rest changes per snapshot, and [method _net_state_applied] pushed it.
 	var state := player.controller.state
@@ -745,6 +749,33 @@ func _net_interpolated(_tick: int) -> void:
 	state.pitch = net_pitch
 	state.crouch_fraction = net_crouch
 	player.global_position = state.position
+
+
+## Whether gs-sim's interpolator does [method _net_interpolated]'s copy itself, in its one call per frame
+## ([method GSNetInterpolator.bind_mirror], gs-net 25), instead of calling this script once per remote player.
+## Bit-identical (gs-sim's interp_selftest); `cl_present_script 1` keeps the script copy. The web client has no
+## library, so it always runs the script.
+static var native_present := true
+
+## Set once the interpolator cannot mirror (no library, an older gs-net): the script copy stays, unasked.
+var _no_mirror := false
+## A [method _bind_mirror] is waiting for the end of the frame.
+var _bind_queued := false
+
+
+## Hands this copy to the native interpolator. Called from the copy itself, so it binds only on a client, only
+## for a remote player, and binds again after an interpolator clear dropped the mirror.
+func _bind_mirror() -> void:
+	_bind_queued = false
+	if player == null or not is_instance_valid(player):
+		return
+	var net: Variant = bridge.get(&"net") if bridge != null else null
+	var interpolator: Variant = (net as Object).get(&"interpolator") if net is Object else null
+	if not interpolator is Object or not (interpolator as Object).has_method(&"bind_mirror"):
+		_no_mirror = true
+		return
+	var pairs := {&"net_position": &"position", &"net_yaw": &"yaw", &"net_pitch": &"pitch", &"net_crouch": &"crouch_fraction"}
+	_no_mirror = not bool((interpolator as Object).call(&"bind_mirror", self, player, PackedStringArray(["controller", "state"]), pairs, &"position"))
 
 
 func describe() -> Dictionary:

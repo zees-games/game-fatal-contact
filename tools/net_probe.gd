@@ -25,7 +25,8 @@ var _port := PORT
 var _data := DATA
 
 var _bots := 8
-## --sections: the server's FcFrameProbe sections per tick (fine level) and SERVER_TICK p50/p95 (sim + send, ms per tick).
+## --sections: the server's FcFrameProbe sections per tick (fine level) and SERVER_TICK p50/p95 (sim + send, ms per tick),
+## and the client's STAGES line (predict and each remote-draw stage, ms per client frame; FcFrameProbe.stages_line).
 var _sections := false
 var _seconds := 20.0
 var _budget := -1
@@ -473,6 +474,7 @@ func _measure_and_report() -> void:
 	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d tracks_only=%s" % [
 		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1], "on" if tracks_only else "off"])
 	if _sections:
+		print(FcFrameProbe.stages_line(frames, cnet.interpolator))
 		_print_sections(tick_ms)
 		_print_engine()
 	FcFrameProbe.set_interval(0.0)

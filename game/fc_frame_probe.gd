@@ -277,3 +277,25 @@ static func _reset() -> void:
 	_physics_sum = 0.0
 	_steps_max = 0
 	_elapsed = 0.0
+
+
+## A client frame's stages in the order it runs them: prediction, the snapshot apply, the remote draw (the
+## interpolator and each remote's copy onto its node), the bodies, then the presentation and its remote-player
+## sub-spans (the `r_*` laps need [member fine]).
+const STAGES: Array[StringName] = [&"predict", &"net_snapshot", &"interpolate", &"bodies", &"present", &"r_pose", &"r_held", &"r_tag", &"r_anim"]
+
+
+## One `STAGES` line: each of [constant STAGES] in ms per client frame over [param frames] frames, then whether the
+## remote copy ran natively (`present=mirror`, FcPlayerNet.native_present) and the copies the mirror has done since the
+## interpolator started.
+static func stages_line(frames: int, interpolator: Object) -> String:
+	var n := float(maxi(1, frames))
+	var out := "STAGES frames=%d" % frames
+	for stage in STAGES:
+		var row: PackedInt64Array = _sections.get(stage, PackedInt64Array([0, 0, 0]))
+		out += " %s=%.3f" % [stage, row[0] / 1000.0 / n]
+	var native: Object = interpolator.get(&"_native") if interpolator != null and &"_native" in interpolator else null
+	var mirrored := 0
+	if native != null and native.has_method(&"mirrored_count"):
+		mirrored = int(native.call(&"mirrored_count"))
+	return out + " present=%s mirrored=%d" % ["mirror" if mirrored > 0 else "script", mirrored]
