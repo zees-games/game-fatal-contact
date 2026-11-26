@@ -460,7 +460,7 @@ static func _gcd(a: int, b: int) -> int:
 	return a if b == 0 else _gcd(b, a % b)
 
 
-## `--hold ID`: the pilot carries weapon ID (a scoped rifle shows the scope glass's second scene render).
+## `--hold ID`: the pilot carries weapon ID (a scoped rifle shows the scope glass's second scene render while aiming in). `--aim 1` aims it.
 func _hold_weapon(id: StringName) -> void:
 	await wait(3.0)
 	var def: GSWeaponDef = AwWeaponCatalogue.table().get(id)
@@ -472,6 +472,12 @@ func _hold_weapon(id: StringName) -> void:
 	var _given: Variant = me.arsenal.give(id)
 	me.arsenal.equip(def.slot)
 	say("hold %s" % id)
+	# `--aim 1`: and holds the Aim key from here on (aims down the sights, so a scoped rifle shows its scope view).
+	if int(args.get("aim", 0)) != 0 and InputMap.has_action(&"arena_aim"):
+		await wait(1.0)
+		client.set("mouse_capture_override", true)
+		Input.action_press(&"arena_aim")
+		say("aim held")
 
 
 func _add_counters(game: Object) -> void:
