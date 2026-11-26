@@ -288,6 +288,11 @@ func _add_bot_think_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotLoadouts.mode = new_value.strip_edges())
+	add_cvar("sv_bot_regive", "1" if FcBotLoadouts.regive else "0",
+		"1: a bot's spawn re-give reuses its last life's weapon behaviours (same state as a fresh give, less work); 0: builds every one",
+		GSConVar.FLAG_ARCHIVE).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotLoadouts.regive = new_value.strip_edges() not in ["0", "false", "off", ""])
 	add_cvar("bot_think_near", str(FcBots.think_near),
 		"Metres: a bot with an enemy closer than this thinks every tick",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(

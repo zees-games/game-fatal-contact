@@ -18,8 +18,8 @@ const SHARE_SLACK := 0.025
 const SPAWNED := 12
 const FIGHT_SECONDS := 120.0
 
-const SECTIONS := 7
-const CHECKS := 25
+const SECTIONS := 8
+const CHECKS := 27
 
 var _entered := 0
 var _completed := 0
@@ -42,6 +42,7 @@ func _run() -> void:
 	_difficulty(pool)
 	_determinism(pool)
 	await _spawned(game)
+	_regive(game)
 	_free(game)
 	await _fight()
 	FcBotLoadouts.mode = FcBotLoadouts.ALL
@@ -174,6 +175,36 @@ func _spawned(game: FcGame) -> void:
 	_check(not game.player_for(7).has_meta(&"bot_loadout"), "a human does not draw a bot kit")
 	var bare := _bare_fittings(game)
 	_check(bare.is_empty(), "a kit's attachments are fitted to its guns", bare)
+	_done()
+
+
+## `sv_bot_regive`: a bot's re-give that reuses its behaviours (gs-weapon API 55) ends where building them all does.
+func _regive(game: FcGame) -> void:
+	_section("sv_bot_regive re-gives a bot's kit to the state a fresh give makes")
+	var bot := game.player_for(FcGame.BOT_SESSION_BASE + 1)
+	if not FcBotLoadouts.regive_supported:
+		_check(true, "gs-weapon below API 55: sv_bot_regive does nothing")
+		_check(true, "(skipped)")
+		_done()
+		return
+	var was := FcBotLoadouts.regive
+	# Each draw is a new life with its own kit; both gives draw the same life so they give the same kit.
+	var life := int(game.bot_loadouts._lives.get(bot.player_id, 0))
+	# Reserve ammo carries over between gives, so both compared gives start from the state a give of this kit leaves.
+	FcBotLoadouts.regive = false
+	for i in 2:
+		game.bot_loadouts._lives[bot.player_id] = life
+		var _old := game._give_bot_loadout(bot)
+	var fresh := var_to_str(bot.arsenal.snapshot())
+	game.bot_loadouts._lives[bot.player_id] = life
+	FcBotLoadouts.regive = true
+	var reused_before: int = bot.arsenal.get(&"behaviours_reused")
+	var _new := game._give_bot_loadout(bot)
+	var again := var_to_str(bot.arsenal.snapshot())
+	FcBotLoadouts.regive = was
+	_check(int(bot.arsenal.get(&"behaviours_reused")) > reused_before, "the re-give reused the bot's behaviours",
+		"%d -> %d" % [reused_before, int(bot.arsenal.get(&"behaviours_reused"))])
+	_check(again == fresh, "and its arsenal snapshot equals the fresh give's", "%s vs %s" % [fresh, again])
 	_done()
 
 
