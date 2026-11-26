@@ -92,12 +92,13 @@ static func _static_init() -> void:
 	set_brain_native(true)
 
 
-## gs-bot's native mind (GSSimBotMind: aim, fight step, perception, hearing) on or off for brains made
+## gs-bot's native mind (GSSimBotMind: aim, fight step, perception, hearing, roaming steer) on or off for brains made
 ## from now on. By name: an older gs-bot has no such switches, and the set is then a no-op.
 static func set_brain_native(on: bool) -> void:
 	(GSBotAim as Script).set(&"native_enabled", on)
 	(GSBotBrain as Script).set(&"native_perceive", on)
 	(GSBotBrain as Script).set(&"native_hear", on)
+	(GSBotBrain as Script).set(&"native_act", on)
 
 
 ## Whether new bot brains think in gs-sim (the switch is on and the library has GSSimBotMind).
