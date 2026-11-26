@@ -280,6 +280,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	if post_lane and _post_native == null:
 		_post_native = FcPlayer.make_native_post()
 	var post_from: Object = _motor_batch if post_lane and _motor_batch.has_method(&"post_row") else null
+	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null and demo_stats.has_method(&"after_reads")
 	for i in range(n):
 		var row := _batch_rows[i]
 		if row == -1:
@@ -294,7 +295,9 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 				_motor_batch.skip(row)
 			continue
 		_finish_batched_player(_batch_pairs[i], row, id, player, delta, hull_world, shots, fine, post_lane, post_from)
+	var t_fl := FcFrameProbe.lap_start()
 	_flush_posts(shots)
+	FcFrameProbe.lap(&"tp_flush", t_fl)
 	FcHullGrid.batch_faults += _motor_batch.stale
 	FcHullGrid.batch_rows += _motor_batch.rows
 	_motor_batch.stale = 0
@@ -320,6 +323,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		fine: bool, post_lane: bool, post_from: Object) -> void:
 	var controller := player.controller
 	var t_fine := 0
+	var t_post := 0
 	if fine:
 		t_fine = Time.get_ticks_usec()
 	var move: GSFpsCommand = pair[0]
@@ -356,9 +360,14 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 	if fine:
 		FcFrameProbe.add(&"pl_sim", t_fine)
 		t_fine = Time.get_ticks_usec()
+		t_post = t_fine
 	if surf_rides != null:
 		surf_rides.call(&"after", id, player, move, _tick)
+	if fine:
+		t_fine = FcFrameProbe.lap(&"po_surf", t_fine)
 	_hull_grid.moved(id, player)
+	if fine:
+		t_fine = FcFrameProbe.lap(&"po_grid", t_fine)
 	var feet := controller.state.position
 	var alive := player.is_alive()
 	if not told or feet != rested:
@@ -367,14 +376,19 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		hull_world.set_alive(player.hull_slot, false)
 	if row >= 0 and (feet != rested or not alive):
 		_motor_batch.moved_after(row)
+	if fine:
+		t_fine = FcFrameProbe.lap(&"po_hullw", t_fine)
 	if demo_stats != null:
-		# The demo's meddler may hurt or move anyone: the waiting weapon ticks come first, as one by one.
-		_flush_posts(shots)
+		# The demo's meddler may hurt or move anyone: the waiting weapon ticks come first, as one by one. FcDemoStats only
+		# reads a human's tick while it records; for anyone else the idle ticks keep waiting and stay one gs-sim call.
+		if not _demo_gated or bool(demo_stats.call(&"after_reads", player)):
+			_flush_posts(shots)
 		demo_stats.call(&"after", id, player, move, fire, _tick)
 	if outcome != null:
 		_post_outcome(id, player, move, outcome, shots)
 	if fine:
-		FcFrameProbe.add(&"pl_post", t_fine)
+		FcFrameProbe.lap(&"po_out", t_fine)
+		FcFrameProbe.add(&"pl_post", t_post)
 
 
 ## What a player's weapon tick did, in roster order: its shots, its protection and the horde's and rockets' share.
@@ -392,6 +406,7 @@ func _flush_posts(shots: Array[GSShot]) -> void:
 	var count := _post_players.size()
 	if count == 0:
 		return
+	FcHullGrid.post_flushes += 1
 	var input := _post_in if _post_in.size() == count * 10 else _post_in.slice(0, count * 10)
 	var out: PackedFloat64Array = _post_native.run_rows(input)
 	for k in range(count):
@@ -416,23 +431,30 @@ func tick(commands: Dictionary = {}) -> void:
 
 	_pre_vy.clear()
 	var t_sim := Time.get_ticks_usec()
+	var t_tp := FcFrameProbe.lap_start()
 	_ensure_roster()
 	var use_grid := FcHullGrid.enabled and body_rules.solid and _roster.size() >= FcHullGrid.min_players
 	var hull_world: Object = null
 	if use_grid:
 		_hull_grid.begin(_roster, _roster_ids)
+		t_tp = FcFrameProbe.lap(&"tp_grid", t_tp)
 		hull_world = _begin_hull_world()
+		t_tp = FcFrameProbe.lap(&"tp_hullw", t_tp)
 	if is_authority:
 		# Once a tick, not once per player in the drop wiring's input: the trace is built later than the drop layer.
 		FcWeaponDropWiring.hook_shots(self)
 	if hull_world != null and FcHullGrid.batch and not GSFpsMotor.profile and _start_motor_batch(delta):
+		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players_batched(commands, delta, hull_world, shots)
 	else:
+		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players(commands, delta, use_grid, hull_world, shots)
+	t_tp = FcFrameProbe.lap(&"tp_loop", t_tp)
 
 	_hull_grid.live = false
 	if hull_world != null:
 		hull_world.end()
+	FcFrameProbe.lap(&"tp_end", t_tp)
 	FcFrameProbe.add(&"tick_players", t_sim)
 
 	# The toys after everybody moved: a walk into a ball sends it on. Then every shot that

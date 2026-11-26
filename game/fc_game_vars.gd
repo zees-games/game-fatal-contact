@@ -98,6 +98,7 @@ var _post_in := PackedFloat64Array()
 var _post_players: Array = []
 var _post_ids := PackedInt64Array()
 var _post_moves: Array = []
+var _demo_gated := false
 
 
 ## Rebuilds [member _roster] (the players in join order, and their ids) after a join or a leave.

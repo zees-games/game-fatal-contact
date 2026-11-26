@@ -122,6 +122,12 @@ func process(delta: float) -> void:
 				_refresh_soon()
 
 
+## Whether [method after] reads anything of [param player] (or anyone) this tick: only a human's, while recording.
+## It never changes a player, so FcGame's batched loop keeps the other players' idle weapon ticks waiting when false.
+func after_reads(player: Object) -> bool:
+	return is_on() and not player.has_meta(&"bot")
+
+
 ## After [param player] simulated a tick with [param move] and [param fire].
 func after(id: int, player: Object, move: GSFpsCommand, fire: GSWeaponCommand, tick: int) -> void:
 	if not is_on():

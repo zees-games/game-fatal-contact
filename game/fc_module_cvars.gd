@@ -398,6 +398,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.enabled = new_value.to_float() >= 0.5)
+	add_cvar("fc_demo_flush_gate", "1" if FcHullGrid.demo_flush_gate else "0",
+		"1: the batched loop keeps idle weapon ticks waiting for one gs-sim call past the demo statistics' turn when they read nothing of that player (bots, or not recording); 0: flush before every turn",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcHullGrid.demo_flush_gate = new_value.to_float() >= 0.5)
 	add_cvar("fc_hull_fast", "1" if FcHullGrid.fast else "0",
 		"1: the hull gather tests the grid's candidates in one hoisted loop (same hulls); 0: one call per candidate",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
