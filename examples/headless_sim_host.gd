@@ -210,6 +210,14 @@ func _check_tick_tiers() -> void:
 	_check(tick.contains("p50 1.50") and tick.contains("max 40.00") and tick.contains("over 1/100"),
 		"the tick line has the median, the worst tick and the ticks over the 15 ms budget", tick)
 	_check(FcSimServer.tick_line(PackedInt32Array(), 66).contains("no ticks"), "an empty window says so")
+	# Two ticks: srv_net 20 ms = game 12 + bots 5 + netpull 1 + killview 0.4, and gs-net's own 0.7, leaving 0.9.
+	var spans := {&"srv_net": PackedInt64Array([40000, 2, 0]), &"srv_game": PackedInt64Array([24000, 2, 0]),
+		&"srv_bots": PackedInt64Array([10000, 2, 0]), &"srv_netpull": PackedInt64Array([2000, 33, 0]),
+		&"srv_killview": PackedInt64Array([800, 2, 0]), &"tick_players": PackedInt64Array([20000, 2, 0])}
+	var split := FcSimServer.net_split_line(spans, 2, 0.05, 0.05, 0.6)
+	_check(split.contains("srv_net 20.000 = srv_game 12.000 + srv_bots 5.000") and split.contains("srv_pulls 0.000")
+		and split.contains("send 0.600") and split.ends_with("rest 0.900") and not split.contains("tick_players"),
+		"the net split names srv_net's direct parts, not their children, and what none of them owns", split)
 	_check(FcSimServer.booting(true, false) and FcSimServer.booting(false, true) and not FcSimServer.booting(false, false),
 		"a window that overlapped the boot warm is not counted behind; every later one is, so a slow sim in play is told")
 
