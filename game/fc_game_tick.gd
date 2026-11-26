@@ -295,9 +295,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 				_motor_batch.skip(row)
 			continue
 		_finish_batched_player(_batch_pairs[i], row, id, player, delta, hull_world, shots, fine, post_lane, post_from)
-	var t_fl := FcFrameProbe.lap_start()
 	_flush_posts(shots)
-	FcFrameProbe.lap(&"tp_flush", t_fl)
 	FcHullGrid.batch_faults += _motor_batch.stale
 	FcHullGrid.batch_rows += _motor_batch.rows
 	_motor_batch.stale = 0

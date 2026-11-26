@@ -138,22 +138,7 @@ func _run() -> void:
 	_check(on[3] == 0 and live[3] == 0, "no player was changed by another's turn (%d, %d faults)" % [on[3], live[3]])
 	_check(not GSSim.has(&"players") or (FcPlayer.posture_batched_rows > 0 and FcPlayer.posture_misses == 0),
 			"the batched idle posture rows are the script's (%d rows, %d differ)" % [FcPlayer.posture_batched_rows, FcPlayer.posture_misses])
-	# Demo statistics that read nothing this turn: the idle weapon ticks wait for one call, and the match is the same.
-	FcHullGrid.demo_flush_gate = false
-	FcHullGrid.post_flushes = 0
-	var each := await _play(true, &"", BOTS, SECONDS, streams, false, {passive = true})
-	var each_flushes := FcHullGrid.post_flushes
-	FcHullGrid.demo_flush_gate = true
-	FcHullGrid.post_flushes = 0
-	var gated := await _play(true, &"", BOTS, SECONDS, streams, false, {passive = true})
-	var gated_flushes := FcHullGrid.post_flushes
-	print("demo stats in place: %d idle flushes flushing every turn, %d gated (%d turns)" % [each_flushes, gated_flushes, gated[5]])
-	_check(each[0] == on[0] and gated[0] == on[0], "with demo statistics in place both ways play the recording to the bit (%s; %s)" % [_first_diff(on[0], each[0]), _first_diff(on[0], gated[0])])
-	_check(gated[5] > BOTS and gated[5] == each[5], "their after ran each turn (%d, flushing every turn %d)" % [gated[5], each[5]])
-	# A turn that fires still flushes (its shot reads the posture), so the gate saves the idle ones: about 40% here.
-	_check(not GSSim.has(&"players") or (gated_flushes > 0 and gated_flushes * 3 < each_flushes * 2),
-			"and the idle ticks waited past them: %d gs-sim posture calls, %d flushing every turn" % [gated_flushes, each_flushes])
-	_done()
+	await _check_demo_gate(on, streams)
 
 	_section("a pit: players die and respawn in their own turn")
 	streams = []
@@ -197,6 +182,25 @@ func _run() -> void:
 	_done()
 
 	await _run_part2(was, off, on, rows, kept, kept_streams)
+
+
+## Demo statistics that read nothing this turn ([Passive]): played with fc_demo_flush_gate off and on; ends the section.
+func _check_demo_gate(on: Array, streams: Array) -> void:
+	FcHullGrid.demo_flush_gate = false
+	FcHullGrid.post_flushes = 0
+	var each := await _play(true, &"", BOTS, SECONDS, streams, false, {passive = true})
+	var each_flushes := FcHullGrid.post_flushes
+	FcHullGrid.demo_flush_gate = true
+	FcHullGrid.post_flushes = 0
+	var gated := await _play(true, &"", BOTS, SECONDS, streams, false, {passive = true})
+	var gated_flushes := FcHullGrid.post_flushes
+	print("demo stats in place: %d idle flushes flushing every turn, %d gated (%d turns)" % [each_flushes, gated_flushes, gated[5]])
+	_check(each[0] == on[0] and gated[0] == on[0], "with demo statistics in place both ways play the recording to the bit (%s; %s)" % [_first_diff(on[0], each[0]), _first_diff(on[0], gated[0])])
+	_check(gated[5] > BOTS and gated[5] == each[5], "their after ran each turn (%d, flushing every turn %d)" % [gated[5], each[5]])
+	# A turn that fires still flushes (its shot reads the posture), so the gate saves the idle ones: about 40% here.
+	_check(not GSSim.has(&"players") or (gated_flushes > 0 and gated_flushes * 3 < each_flushes * 2),
+			"and the idle ticks waited past them: %d gs-sim posture calls, %d flushing every turn" % [gated_flushes, each_flushes])
+	_done()
 
 
 func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> void:
