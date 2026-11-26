@@ -89,11 +89,23 @@ static func plain_materials(root: Node) -> Array[ShaderMaterial]:
 	return out
 
 
+## One plain shader per source shader: every arms rebuild reuses it, so its variants link once a session. A fresh
+## Shader per copy re-links all its variants (90-530 ms each in a browser) on every rebuild (fc-first-use-bench-1).
+static var _plain_shaders: Dictionary = {}
+
+
+static func plain_shader(source: Shader) -> Shader:
+	var shader: Shader = _plain_shaders.get(source)
+	if shader == null:
+		shader = Shader.new()
+		shader.code = source.code.replace("instance uniform", "uniform")
+		_plain_shaders[source] = shader
+	return shader
+
+
 static func plain_copy(mat: ShaderMaterial) -> ShaderMaterial:
-	var shader := Shader.new()
-	shader.code = mat.shader.code.replace("instance uniform", "uniform")
 	var copy := ShaderMaterial.new()
-	copy.shader = shader
+	copy.shader = plain_shader(mat.shader)
 	for param in mat.shader.get_shader_uniform_list():
 		var uname: StringName = param["name"]
 		if uname != &"draw_depth" and uname != &"draw_eye":
