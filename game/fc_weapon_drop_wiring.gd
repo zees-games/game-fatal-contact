@@ -97,7 +97,10 @@ static func warm_server(layer: GSWeaponDrops) -> void:
 		layer.prewarm(id, 1)
 		if fit.is_empty():
 			measured += 1
-			FitCache.keep(id, sig, layer._fits.get(id, []))
+			var got: Array = layer._fits.get(id, [])
+			# The no-model box means the model did not load (a box mid-import): remembering it would rest this weapon in the floor on every later boot.
+			if got.size() == 2 and not (got[0] == GSWeaponDrops.DEFAULT_SIZE and got[1] == Vector3.ZERO):
+				FitCache.keep(id, sig, got)
 	FitCache.save()
 	layer.set_meta(SERVER_WARM, true)
 	GSLog.info("fc.drops", "server drop warm", {"weapons": prewarm_ids().size(), "measured": measured, "msec": Time.get_ticks_msec() - started})

@@ -7,7 +7,8 @@ extends RefCounted
 
 const PATH := "user://fc_drop_fits.json"
 ## Bump when the way a fit is measured changes: every saved box is then dropped.
-const FORMAT := 1
+## 2: boxes from a model that failed to load (the no-model default) were kept under a good signature; drop them all.
+const FORMAT := 2
 
 ## StringName -> {sig, fit: [size, centre]}; loaded from the file once per process.
 static var _book: Dictionary = {}
