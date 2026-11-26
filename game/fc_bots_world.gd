@@ -521,6 +521,11 @@ class World:
 		prune_sight_blockers(now())
 		var _heard := sounds_after(1 << 60, now())
 		_sight_par = _sight_bind(true)
+		# Each player's shot speed, once on main: a worker's projectile_speed reads it without a lock (it was the
+		# top world query at 32 bots, 43 us a call waiting on _par_lock). Brains never switch guns while in par.
+		_par_proj_speed.clear()
+		for id: int in _players:
+			_par_proj_speed[id] = _projectile_speed_of(_players[id])
 		par = true
 		return true
 
@@ -745,17 +750,17 @@ class World:
 	## How fast the held weapon's shot flies, m/s; 0 for hitscan, a swing or a throw.
 	func projectile_speed(shooter: GSBotContact) -> float:
 		if par:
-			_par_lock.lock()
-			var held := _projectile_speed(shooter)
-			_par_lock.unlock()
-			return held
+			# Filled by par_begin and only read while par is on: no lock.
+			return _par_proj_speed.get(shooter.id, 0.0) if shooter != null else 0.0
 		var t_lap := FcFrameProbe.lap_start()
 		var speed := _projectile_speed(shooter)
 		FcFrameProbe.lap(&"bot_proj_speed", t_lap)
 		return speed
 
 	func _projectile_speed(shooter: GSBotContact) -> float:
-		var p: FcPlayer = _players.get(shooter.id) if shooter != null else null
+		return _projectile_speed_of(_players.get(shooter.id) if shooter != null else null)
+
+	func _projectile_speed_of(p: FcPlayer) -> float:
 		var def: GSWeaponDef = p.arsenal.current_def() if p != null and p.arsenal != null else null
 		if def == null or not def.behaviour_path.ends_with(PROJECTILE_BEHAVIOUR) or not (def.tuning is GSWeaponBallistics):
 			return 0.0
