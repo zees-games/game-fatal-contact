@@ -659,6 +659,8 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 	if fine:
 		FcFrameProbe.add(&"p_hitbox", t_fine)
 	var t_mech := Time.get_ticks_usec()
+	if _volumes_asked_tick != tick and mechanics_native and volume_pre != null:
+		volume_pre.mark_one(tick, self)
 	var clear := _volumes_skip(tick, _tick_start)
 	_run_map_mechanics(_tick_start, delta, clear)
 	var t_follow := FcFrameProbe.lap_start()

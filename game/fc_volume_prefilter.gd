@@ -1,7 +1,8 @@
 extends RefCounted
 
 ## Which players are clear of every map volume this tick, asked of gs-sim's [code]GSSimVolumes[/code] in one
-## call for the whole batched loop (cvar [code]fc_mechanics_native[/code]). A player marked clear skips the map's
+## call for the whole batched loop, or per player in the one-by-one loop ([method mark_one], tick start and end)
+## (cvar [code]fc_mechanics_native[/code]). On an imported map with no volumes everyone is clear without a call. A player marked clear skips the map's
 ## pushes, gravity, conveyors, ladders, water and pits in [method FcPlayerBuild.tick_post_head]: none of them can
 ## touch a hull that started the tick this far from every box and moved at most [constant SLACK] since.
 ## The reaches are generous on purpose (a hull reaches 0.5 m sideways, 1.8 m up and 0.05 m down); the player's
@@ -18,6 +19,8 @@ const ABOVE := Vector3(3.0, 5.0, 3.0)
 var _native: Object = null
 var _key := PackedInt64Array()
 var _usable := false
+var _boxes := 0
+var _pair := PackedVector3Array([Vector3.ZERO, Vector3.ZERO])
 var _marked: Array = []
 var _points := PackedVector3Array()
 
@@ -67,14 +70,34 @@ func mark(tick: int, ids: Variant, players: Dictionary, rows: PackedInt32Array) 
 		if rows[i] == -1:
 			continue
 		var player: Object = players[ids[i]]
+		player._volumes_asked_tick = tick
 		_marked.append(player)
 		_points.append(player._tick_start)
 	if _marked.is_empty() or not _ready_for(_marked[0]._map):
+		return
+	if _boxes == 0:
+		for player: Object in _marked:
+			player._volumes_clear_tick = tick
 		return
 	var clear: PackedByteArray = _native.clear_of(_points, BELOW, ABOVE)
 	for k in range(_marked.size()):
 		if clear[k] == 1:
 			_marked[k]._volumes_clear_tick = tick
+
+
+## The one-by-one loop's question, after [param player]'s motor ran: clear when both its tick start and where
+## the motor left it are clear (its [code]_volumes_clear_tick[/code] becomes [param tick]).
+func mark_one(tick: int, player: Object) -> void:
+	player._volumes_asked_tick = tick
+	if not _ready_for(player._map):
+		return
+	if _boxes > 0:
+		_pair[0] = player._tick_start
+		_pair[1] = player.controller.state.position
+		var clear: PackedByteArray = _native.clear_of(_pair, BELOW, ABOVE)
+		if clear[0] == 0 or clear[1] == 0:
+			return
+	player._volumes_clear_tick = tick
 
 
 ## Builds the volume set when the map (or what it holds) changed; false when the skip cannot be used here.
@@ -89,9 +112,13 @@ func _ready_for(map: Object) -> bool:
 	if key == _key:
 		return _usable
 	_key = key
-	if _native == null:
-		_native = ClassDB.instantiate(&"GSSimVolumes")
-	_native.clear()
-	_native.add_boxes(boxes_of(map))
-	_usable = true
-	return true
+	var boxes := boxes_of(map)
+	_boxes = boxes.size()
+	# No volumes: nothing to ask, so no library needed. Otherwise without gs-sim's volumes module nobody is marked.
+	_usable = _boxes == 0 or GSSim.has(&"volumes")
+	if _boxes > 0 and _usable:
+		if _native == null:
+			_native = ClassDB.instantiate(&"GSSimVolumes")
+		_native.clear()
+		_native.add_boxes(boxes)
+	return _usable

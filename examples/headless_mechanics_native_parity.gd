@@ -13,8 +13,10 @@ const FcVolumePrefilter := preload("../game/fc_volume_prefilter.gd")
 const POINTS := 20000
 const SEED := 4243
 const MAPS: Array[StringName] = [&"crackhouse", &"cp-orange-x3"]
-## At least FcHullGrid.MIN_PLAYERS: below it the game ticks players one by one and nobody is ever marked.
+## At least FcHullGrid.MIN_PLAYERS (the batched loop marks them all in one call) ...
 const PLAYERS := 14
+## ... and below it (the one-by-one loop asks per player, tick start and end).
+const FEW_PLAYERS := 6
 const ROUNDS := 120
 const TICKS_PER_ROUND := 6
 
@@ -62,7 +64,8 @@ func _run() -> void:
 		checks += 2
 		for id in MAPS:
 			if FcImportedMaps.has(id):
-				checks += await _verify_map(id, rng)
+				checks += await _verify_map(id, rng, PLAYERS)
+				checks += await _verify_map(id, rng, FEW_PLAYERS)
 			else:
 				print("absent here: %s" % id)
 	_report(checks)
@@ -97,7 +100,7 @@ static func nextafter(x: float, toward: float) -> float:
 
 ## Players dropped at seeded spots near and away from a converted map's volumes; every tick one is marked clear,
 ## the full mechanics run anyway and must leave its position, velocity and mode alone and find no pit.
-func _verify_map(id: StringName, rng: RandomNumberGenerator) -> int:
+func _verify_map(id: StringName, rng: RandomNumberGenerator, count: int) -> int:
 	_game = FcGame.new()
 	_game.tick_rate = 64
 	_game.headless = true
@@ -108,7 +111,7 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator) -> int:
 	var res := _game.setup(FcMap.by_id(id))
 	_check(res.ok, "%s: setup succeeds" % id)
 	var boxes := FcVolumePrefilter.boxes_of(_game.map)
-	for i in PLAYERS:
+	for i in count:
 		_game.add_player(10 + i, "p%d" % i)
 		_game.respawn_player(10 + i)
 	FcPlayer.mechanics_verify = true
@@ -120,7 +123,7 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator) -> int:
 		bounds = b.abs() if bounds.size == Vector3.ZERO else bounds.merge(b.abs())
 	bounds = bounds.grow(20.0)
 	for r in ROUNDS:
-		for i in PLAYERS:
+		for i in count:
 			var player := _game.player_for(10 + i)
 			if player == null:
 				_game.respawn_player(10 + i)
@@ -136,11 +139,15 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator) -> int:
 	FcPlayer.mechanics_verify = false
 	var checked := FcPlayer.mechanics_checked
 	var rows := FcHullGrid.batch_rows - rows_before
-	print("  %s: %d boxes, %d batched rows, %d clear player ticks verified, %d changed" % [id, boxes.size(), rows, checked,
-			FcPlayer.mechanics_misses])
-	_check(rows > 0, "%s: the batched tick ran (it marks the clear players)" % id, "%d rows" % rows)
-	_check(checked > ROUNDS, "%s: players were marked clear" % id, "%d" % checked)
-	_check(FcPlayer.mechanics_misses == 0, "%s: no clear tick's full mechanics changed the player" % id,
+	var lane := "batched" if count >= FcHullGrid.MIN_PLAYERS else "one by one"
+	print("  %s, %d players: %d boxes, %d batched rows, %d clear player ticks verified, %d changed" % [id, count, boxes.size(),
+			rows, checked, FcPlayer.mechanics_misses])
+	if count >= FcHullGrid.MIN_PLAYERS:
+		_check(rows > 0, "%s: the batched tick ran (it marks the clear players)" % id, "%d rows" % rows)
+	else:
+		_check(rows == 0, "%s, %d players: the one-by-one tick ran" % [id, count], "%d rows" % rows)
+	_check(checked > ROUNDS, "%s (%s): players were marked clear" % [id, lane], "%d" % checked)
+	_check(FcPlayer.mechanics_misses == 0, "%s (%s): no clear tick's full mechanics changed the player" % [id, lane],
 			"%d of %d" % [FcPlayer.mechanics_misses, checked])
 	_game.queue_free()
 	_game = null

@@ -485,6 +485,10 @@ static var mechanics_misses: int = 0
 
 ## The game tick FcVolumePrefilter last found this player's tick start clear of every map volume on.
 var _volumes_clear_tick := -1
+## The game tick this player was last asked about (marked clear or not): the one-by-one loop asks only the rest.
+var _volumes_asked_tick := -1
+## The game's FcVolumePrefilter, for the one-by-one loop ([method FcVolumePrefilter.mark_one]); null asks nothing.
+var volume_pre: Object = null
 
 
 ## Whether this tick may skip the map's volumes: marked clear on [param tick], moved at most the prefilter's slack
