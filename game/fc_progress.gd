@@ -270,6 +270,9 @@ func _build() -> GSResult:
 
 	# The tracker's own default is a file store in its store_directory; this is the same files, written behind the frame.
 	var store_dir := progress_dir if progress_dir != "" else FcAwardStore.suite_directory
+	if store_dir == "":
+		# game.sh gives each suite run its own (inherited by the servers it spawns); empty outside the runner.
+		store_dir = OS.get_environment(FcAwardStore.PROGRESS_DIR_ENV)
 	achievements.store = FcAwardStore.new(store_dir if store_dir != "" else achievements.store_directory)
 
 	add_child(achievements)

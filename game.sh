@@ -153,8 +153,13 @@ run_suite() {
     for mkv in $FIXED_FPS; do
         [ "${mkv%%=*}" = "$base" ] && fixed=(--fixed-fps "${mkv#*=}")
     done
-    timeout "$limit" "$GODOT" --headless --path . ${fixed[@]+"${fixed[@]}"} "res://examples/$base.tscn" ${extra[@]+-- "${extra[@]}"} >"$log" 2>&1
+    # Achievement progress of this suite run (and of the servers it spawns) goes to a directory of its own:
+    # every suite plays as the same players, and sharded runs on one box all wrote one user:// gs_achievements.
+    local progress_dir
+    progress_dir="$(mktemp -d "${TMPDIR:-/tmp}/fc-progress-$scene.XXXXXX")" || die "could not make a progress directory for $scene"
+    FC_PROGRESS_DIR="$progress_dir" timeout "$limit" "$GODOT" --headless --path . ${fixed[@]+"${fixed[@]}"} "res://examples/$base.tscn" ${extra[@]+-- "${extra[@]}"} >"$log" 2>&1
     status=$?
+    rm -rf "$progress_dir"
     summary="$(grep -Eo '[0-9]+ (passed|checks), [0-9]+ failed' "$log" | tail -1)"
     # Section accounting: "N sections entered, M finished" from GSGameCheckSuite._report_sections.
     local acct entered finished

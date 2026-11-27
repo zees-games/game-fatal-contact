@@ -14,6 +14,9 @@ var writes: int = 0
 ## every suite plays as arena-player-000 in the one user:// of the machine, and four of them writing one file broke its reads.
 static var suite_directory: String = ""
 
+## The environment variable game.sh's suite runner sets to a fresh directory per suite run; a spawned server inherits it.
+const PROGRESS_DIR_ENV := "FC_PROGRESS_DIR"
+
 # player -> the dictionary to write. A newer save replaces an older one that has not gone out.
 var _pending: Dictionary = {}
 # Saves whose write failed: they go out again with the next save, not every frame.
