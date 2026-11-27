@@ -26,7 +26,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 41
+const CHECKS := 43
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -286,6 +286,7 @@ func _check_loop_variants(resident: PackedStringArray, streams: Array) -> void:
 	FcNativeTick.check_weapons = true
 	FcNativeTick.weapon_rows = PackedInt64Array([0, 0, 0])
 	FcNativeTick.native_events = 0
+	FcNativeTick.slot_counts = PackedInt64Array([0, 0])
 	var long_way: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
 	FcNativeTick.check_weapons = false
 	stepped = FcNativeTick.steps - stepped
@@ -301,6 +302,21 @@ func _check_loop_variants(resident: PackedStringArray, streams: Array) -> void:
 	print("  native server tick derives the motor edges (GSSimServerTick API 2): %s, %d events" % [derives, FcNativeTick.native_events])
 	_check(FcNativeTick.native_events > 0 if derives else FcNativeTick.native_events == 0, "with gs-sim's derive the native server tick answers the tick's motor edges from events() (%d events)" % FcNativeTick.native_events)
 	_check(long_way[0] == resident, "the lean players' loop plays it to the bit as the long way (%s)" % _first_diff(long_way[0], resident))
+	# sv_native_slots 1 (the recording above): a batched row's edges come from its resident motor row (gs-sim
+	# GSSimServerTick API 4, gs-player-controller 55); 0 captures them by script, and must play the same match to the bit.
+	var slots_on := has_tick and ClassDB.class_has_method(&"GSSimServerTick", &"derive_slots") \
+		and GSAddonApi.build_level("gs_player_controller") >= 55 and FcHullGrid.events and GSFpsTickEvents.native_enabled
+	var counted := FcNativeTick.slot_counts
+	print("  marker rows from the resident rows (sv_native_slots): %s, %d rows, %d missed" % [slots_on, counted[0], counted[1]])
+	_check((counted[0] > 0 and counted[1] == 0) if slots_on else counted[0] == 0, "sv_native_slots 1 reads the batched rows' edges from gs-sim's resident rows (%d rows, %d missed)" % [counted[0], counted[1]])
+	if slots_on:
+		GSFpsTickEvents.native_slots = false
+		var captured: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
+		GSFpsTickEvents.native_slots = true
+		_check(captured[0] == resident, "sv_native_slots 0 (script captures) plays it to the bit as the marker rows (%s)" % _first_diff(resident, captured[0]))
+	else:
+		# One check either way, so CHECKS holds without gs-sim's API 4.
+		_check(not GSFpsTickEvents.native_slots or counted[0] == 0, "without derive_slots sv_native_slots records no marker row")
 	# sv_native_tick 0: the batch is handed every column each tick instead of keeping the motor state in gs-sim.
 	print("  resident motor state in gs-sim (run_slots): %s" % ClassDB.class_has_method(&"GSSimMotorBatch", &"run_slots"))
 	GSFpsMotorBatch.native_state = false

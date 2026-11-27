@@ -30,6 +30,8 @@ static var check_weapons := false
 static var weapon_rows := PackedInt64Array([0, 0, 0])
 ## Suites only (with [member check_weapons]): events the native tick answered from `events()` after its steps.
 static var native_events := 0
+## With [member check_weapons], the server tick's marker rows and misses so far (counters 5 and 6, gs-sim API 4).
+static var slot_counts := PackedInt64Array([0, 0])
 
 ## gs-player-controller's level with every player's controller tick in one call (`fp/nodes/gs_fps_controller_batch.gd`).
 const PLAYERS_LEVEL := 53
@@ -163,6 +165,9 @@ func step(roster: Array[FcPlayer], ids: PackedInt64Array, hull_world: Object, de
 		if native.has_method(&"derive"):
 			var ev: PackedInt64Array = native.events()
 			native_events += ev.size() / 4
+		if native.has_method(&"derive_slots"):
+			var c: PackedInt64Array = native.counters()
+			slot_counts = PackedInt64Array([c[5], c[6]])
 
 
 ## The table's weapon column for [param p]: the weapon in hand as [method FcContent.weapon_index] (0 for none), what

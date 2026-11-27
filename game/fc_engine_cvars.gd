@@ -159,6 +159,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			GSFpsMotorBatch.native_state = new_value.to_float() >= 0.5
 			FcNativeTick.enabled = GSFpsMotorBatch.native_state)
+	add_cvar("sv_native_slots", "1" if GSFpsTickEvents.native_slots else "0",
+		"1: with sv_native_tick and fc_tick_events 2, a batched player's motor edges are read from its resident motor row in gs-sim instead of captured by script (same edges); 0: the script captures",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			GSFpsTickEvents.native_slots = new_value.to_float() >= 0.5)
 	add_cvar("sv_native_players", "1" if FcNativeTick.players else "0",
 		"1: with fc_motor_batch and fc_tick_events, every player's controller tick is one gs-player-controller call (same states and edges); 0: the players' loop's own two passes",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
