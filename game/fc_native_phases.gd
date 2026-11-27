@@ -15,7 +15,7 @@ const MASTER := "sv_native_tick"
 ## id: the phase. cvars: its switches (1 = native). classes: the gs-sim classes it needs.
 ## methods: [class, method] pairs a too-old library lacks.
 const PHASES: Array[Dictionary] = [
-	{"id": "players", "cvars": ["sv_native_players"],
+	{"id": "players", "cvars": ["sv_native_players", "sv_native_slots"],
 		"classes": ["GSSimServerTick"], "methods": []},
 	{"id": "mirror", "cvars": ["sv_trace_mirror"],
 		"classes": ["GSSimTraceMirror", "GSSimFpsBody"], "methods": [["GSSimFpsBody", "set_trace_mirror"]]},
@@ -29,7 +29,8 @@ const PHASES: Array[Dictionary] = [
 	{"id": "shots", "cvars": ["sv_native_shots", "sv_native_unlag"],
 		"classes": ["GSSimShots", "GSSimUnlagRing"], "methods": []},
 	{"id": "snapshots", "cvars": ["net_pack_native", "sv_net_pull_native", "sv_net_pull_weapons_native",
-		"sv_net_pull_content_native", "sv_native_snapshots", "sv_net_pull_apply_native"],
+		"sv_net_pull_content_native", "sv_native_snapshots", "sv_net_pull_apply_native", "sv_net_pull_batch",
+			"sv_net_pull_rest_native"],
 		"classes": ["GSSimFpsNetPack", "GSSimSnapshotCodec"], "methods": []},
 ]
 
@@ -89,6 +90,12 @@ static func print_calls_once() -> void:
 	print("FC_NATIVE_TICK_CALLS ", calls_line())  # check-logging: allow print (end-of-run summary)
 
 
+## The bench's end-of-run lines: `SIM_HOST_NATIVE <status_line> | end`, then the call counts.
+## Built only when the bench quits, never per frame.
+static func print_bench_end(console: GSConsole) -> void:
+	print("SIM_HOST_NATIVE %s | end" % status_line(console))  # check-logging: allow print (bench end line)
+	print_calls_once()
+
 ## Registers (or adopts) the master, applies it and prints the startup line. Call last in the
 ## module load, after every phase cvar exists.
 static func install(module: GSModule) -> GSConVar:
@@ -110,7 +117,7 @@ static func install(module: GSModule) -> GSConVar:
 	if master.get_bool() or not adopted:
 		apply(console, master.get_bool())
 	var line := status_line(console)
-	print("FC_NATIVE_TICK ", line)
+	print("FC_NATIVE_TICK ", line)  # check-logging: allow print (startup report the benches grep)
 	_warn_fallbacks(console)
 	return master
 
