@@ -4,6 +4,7 @@ extends GSGameCheckSuite
 ## and with the speed rewritten between ticks (the effects and the carrier slowdown do that and drop the native tunables cache).
 
 const FcPlayer := preload("../game/fc_player.gd")
+const FcBindings := preload("../game/fc_bindings.gd")
 const STEP := 1.0 / 33.0
 
 
@@ -44,7 +45,62 @@ func _speed(native: bool, buttons: int, rewrite_speed: bool) -> float:
 	return Vector2(s.velocity.x, s.velocity.z).length()
 
 
+## The server's loop: the motor ticked through [GSFpsMotorBatch] with a hull world, as FcServer runs its players.
+func _batched(buttons: int) -> float:
+	GSFpsMotor.native_tick = true
+	GSFpsMotor.native_full = true
+	GSFpsPhysicsBody.native_enabled = true
+	var t := FcPlayer.fc_tunables()
+	var physics := GSFpsPhysicsBody.for_node(_world)
+	var body: GSFpsBody = GSFpsHullBody.new().wrap(physics, func() -> Array: return [])
+	var world: Object = ClassDB.instantiate(&"GSSimHullWorld")
+	body.set_hull_world(world, 0)
+	var motor := GSFpsMotor.new(t, body)
+	var s := GSFpsState.new()
+	s.mode = GSFpsState.Mode.GROUND
+	var c := GSFpsCommand.new()
+	c.move = Vector2(0.0, 1.0)
+	c.buttons = buttons
+	var batch := GSFpsMotorBatch.new()
+	for i in 120:
+		var p := s.position
+		world.begin(PackedInt64Array([100]), PackedFloat64Array([p.x, p.y, p.z, t.radius, t.stand_height, 7]), Callable(), 1.0e9)
+		batch.start(STEP)
+		var row := batch.add(motor, s, c)
+		var told := batch.finish(row)
+		if not told:
+			world.moved(0, s.position.x, s.position.y, s.position.z)
+		world.end()
+	return Vector2(s.velocity.x, s.velocity.z).length()
+
+
+## The key path: the game's own binding table on its defaults, Shift held, through the sampler the client uses.
+func _shift_sprints() -> void:
+	var keys := FcBindings.make()
+	for row in keys.rows:
+		keys.apply_row(row, str(row["default"]))
+	var t := FcPlayer.fc_tunables()
+	var sampler := GSFpsSampler.new(t)
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_SHIFT
+	key.keycode = KEY_SHIFT
+	key.pressed = true
+	_check(InputMap.event_is_action(key, FcBindings.DASH), "Shift is the Dash row's key on the defaults")
+	Input.action_press(FcBindings.DASH)
+	Input.action_press(&"gs_fps_forward")
+	var command := sampler.sample(STEP)
+	Input.action_release(FcBindings.DASH)
+	Input.action_release(&"gs_fps_forward")
+	_check(command.is_pressed(GSFpsCommand.BUTTON_SPRINT) and command.move != Vector2.ZERO,
+		"holding the Dash action while moving puts the sprint bit on the command", "buttons %d move %s" % [command.buttons, command.move])
+
+
 func _run() -> void:
+	_shift_sprints()
+	if ClassDB.class_exists(&"GSSimHullWorld"):
+		var brun := _batched(0)
+		var bsprint := _batched(GSFpsCommand.BUTTON_SPRINT)
+		_check(bsprint > brun * 1.15, "sprint beats run through the server's batch", "%.2f vs %.2f" % [bsprint, brun])
 	print("fc: sprint is faster than a run")
 	for native: bool in [false, true]:
 		for rewrite: bool in [false, true]:
