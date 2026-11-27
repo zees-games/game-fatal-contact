@@ -4,15 +4,9 @@ const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcSimHost := preload("../game/fc_sim_host.gd")
 const FcNativePhases := preload("../game/fc_native_phases.gd")
 
-## The native server tick's coverage (docs/native-server-tick.md): a dedicated server process plays
-## a short 31-bot CTF match on cp-orange-x3 with `sv_native_tick 1` (the default) and says, per
-## phase, whether it ran native. Any expected phase on the GDScript path fails. A second, short run
-## with `sv_native_tick 0` must put every phase on the fallback. The server's end-of-run
-## FC_NATIVE_TICK_CALLS line (FcNativePhases.tally) must show no script call for any phase with the
-## master on, a native call for every expected phase, and no native call with the master off.
-##
-## Expected: the phases main has always run native, plus every phase the server finds registered
-## (not "absent"), so a landed phase branch is held to native without editing this list.
+## Native server tick coverage (docs/native-server-tick.md): a dedicated server plays 31-bot CTF with
+## `sv_native_tick 1`; every expected phase (main's native ones plus every registered one) must run native,
+## FC_NATIVE_TICK_CALLS must show no script call. A short `sv_native_tick 0` run must be all fallback.
 
 const MAP := &"cp-orange-x3"
 const FALLBACK_MAP := &"dm_box"
