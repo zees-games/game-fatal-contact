@@ -512,44 +512,6 @@ func _flashlight_hands(pressed: bool, delta: float) -> void:
 
 # --- Simulation ------------------------------------------------------------
 
-## Advances the player one tick. [b]The order is not arbitrary.[/b] Movement runs first so the shot
-## leaves from where the player ends the tick rather than where they started it — half a tick of
-## movement at Fatal Contact speeds is fifteen centimetres, which at range is a miss.
-## Squeezes the hit zones down with the body. The zones are authored for a standing player; a crouched one is drawn
-## about a quarter lower, so without this the head zone floated above the crouched head and a shot at the drawn head
-## landed on the chest. Heights (and capsule lengths) scale, widths do not, and the feet stay on the ground.
-func fit_hitboxes_to_stance() -> void:
-	if controller != null:
-		fit_hitboxes_to_crouch(controller.state.crouch_fraction)
-
-## The zones fitted to [param crouch] (0 standing, 1 crouched): the present stance, or the one a rewound shot was drawn at.
-func fit_hitboxes_to_crouch(crouch: float) -> void:
-	if hitboxes == null or controller == null or controller.tunables == null:
-		return
-	var k := crouch_fit_k(crouch)
-	if FcHullGrid.enabled and k == _fit_k:
-		return
-	_fit_k = k
-	for box in hitboxes.hitboxes():
-		if not box.has_meta(&"stand_y"):
-			box.set_meta(&"stand_y", box.position.y)
-			box.set_meta(&"stand_h", box.height)
-		var y: float = box.get_meta(&"stand_y")
-		var h: float = box.get_meta(&"stand_h")
-		box.position.y = y * k
-		if box.shape == GSHitbox.Shape.CAPSULE:
-			box.height = maxf(h * k, box.radius * 2.0 + 0.02)
-
-
-## The height scale [method fit_hitboxes_to_crouch] would fit the zones to for [param crouch], without moving a box:
-## what a posed rewind hands the native tracer (fc_native_shots.gd). [member _fit_k] when nothing could be fitted.
-func crouch_fit_k(crouch: float) -> float:
-	if hitboxes == null or controller == null or controller.tunables == null:
-		return _fit_k
-	var t := controller.tunables
-	return lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(crouch, 0.0, 1.0))
-
-
 ## Sideways speed across the aim (positive right) that bends the wall-shot barrel; zero while wall-running, as the drawn view does.
 static func wall_shot_strafe(state: GSFpsState) -> float:
 	if state.is_wall_running():
@@ -568,6 +530,9 @@ static var idle_tick := GSAddonApi.build_level("fc_weapons") >= 24
 static var idle_row_lane := GSAddonApi.build_level("fc_weapons") >= 33
 
 
+## Advances the player one tick. [b]The order is not arbitrary.[/b] Movement runs first so the shot
+## leaves from where the player ends the tick rather than where they started it — half a tick of
+## movement at Fatal Contact speeds is fifteen centimetres, which at range is a miss.
 func simulate_tick(
 	tick: int,
 	delta: float,

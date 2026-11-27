@@ -158,10 +158,9 @@ func unlag_crouch_at(id: int, at: float) -> float:
 	return lerpf(crouches[a], crouches[b], at - float(lo))
 
 
-## gs-combat's rewind: every other living player, put where they were at [param view_tick], in the stance they had then:
-## the zones fit the present crouch, and a target that crouched since would be traced a standing head too short.
-## When the native tracer walks this shot's pellets and nothing else reads the nodes ([method _unlag_can_pose]), the
-## targets are handed to it as numbers and no node moves; a pellet the script must walk moves them after all.
+## gs-combat's rewind: every other living player put where, and in the stance, they were at [param view_tick]. When
+## the native tracer walks this shot alone ([method _unlag_can_pose]) the targets are handed to it as numbers and no
+## node moves; a pellet the script must walk moves them after all.
 func _unlag_rewind(view_tick: float) -> void:
 	_unlag_pose_ids.resize(0)
 	_unlag_pose_feet.resize(0)

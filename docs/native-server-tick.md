@@ -37,3 +37,20 @@ Each phase is placed in one of three states by checking what the build actually 
 - `FC_NATIVE_TICK_CALLS` shows any script call, or shows no native call for an expected phase.
 
 A second, short run with `sv_native_tick 0` must put every phase on the fallback and make no native calls.
+
+## Shots phase
+
+`game/fc_native_shots.gd` walks walls, sheets, ricochets, bodies and the hitbox shapes in `GSSimShots` and applies the event rows exactly as `GSPelletTracer._step_body` would. Everything is read where it stands once per shot.
+
+- A pellet goes to the script tracer when the switch is off, the library is missing, a hitbox set is laid out other than player root > set > box, or a pane is on its line.
+- A posed unlag rewind (`game/fc_game_unlag.gd`, `sv_native_unlag`) moves no node: it hands each target's rewound feet and crouch fit to the tracer with `pose`. Only a pellet sent to the script makes the game move the nodes (`materialize_fn`), once a shot. The zones fit the present crouch, so a target that crouched since would otherwise be traced a standing head too short.
+
+## Shots suite
+
+`headless_native_shots` compares the damage rows (victim, amounts, group, limb, point, direction, distance, context), impacts, wall passes and ricochets of the native and script tracers, to the bit:
+
+- fans of pellets over a standing target and a crouch-fitted one;
+- a wood wall with bodies behind it, two walls in a row, a grazing metal wall, a one-sided sheet, a breakable pane (handed to the script);
+- seeded shotgun spreads, and a strafing, crouching target rewound by lag compensation to fractional view ticks.
+
+For `sv_native_unlag`, `GSSimUnlagRing` and the script rings are fed one history (a near target strafing and crouching, a far one at 70 m that teleports half-way) and must answer the same feet and crouch at every view a ping from 0 to 900 ms names: before the history, across the cut, between ticks. Fans rewound from each hit and miss alike. Last, the defaults (both switches 1, the rewind posing the native tracer) against the specification (both 0, nodes moved, script tracer) give the same rows; a posed shot a pane sends to the script moves the nodes late, alike.

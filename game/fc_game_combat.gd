@@ -425,6 +425,22 @@ func apply_native_shots() -> void:
 		_native_tracer.enabled = native_shots != 0
 
 
+## Hitscan pellets walk in GameSpice Sim when it is loaded (sv_native_shots), through gs-combat's set_tracer seam;
+## an older gs-combat keeps its script tracer for every shot.
+func _install_native_tracer() -> void:
+	_native_tracer = null
+	if GSAddonApi.build_level("gs_combat") >= TRACER_SEAM_LEVEL:
+		var tracer := FcNativeShots.new(combat)
+		# Through call: this file still parses against an older gs-combat, which never reaches here.
+		if bool(combat.call(&"set_tracer", tracer)):
+			_native_tracer = tracer
+			_native_tracer.materialize_fn = _unlag_materialize
+	elif not _tracer_seam_warned:
+		_tracer_seam_warned = true
+		GSLog.warn("fc.native_shots", "gs-combat is older than API level %d (no set_tracer); hitscan runs the script tracer" % TRACER_SEAM_LEVEL, {})
+	apply_native_shots()
+
+
 func _build_combat() -> GSResult:
 	combat = GSCombatManager.new()
 	combat.name = "Combat"
@@ -449,19 +465,7 @@ func _build_combat() -> GSResult:
 	combat.config = config
 	combat.rewind_fn = _unlag_rewind
 	combat.restore_fn = _unlag_restore
-	# Hitscan pellets walk in GameSpice Sim when it is loaded (sv_native_shots), through gs-combat's set_tracer seam;
-	# an older gs-combat keeps its script tracer for every shot.
-	_native_tracer = null
-	if GSAddonApi.build_level("gs_combat") >= TRACER_SEAM_LEVEL:
-		var tracer := FcNativeShots.new(combat)
-		# Through call: this file still parses against an older gs-combat, which never reaches here.
-		if bool(combat.call(&"set_tracer", tracer)):
-			_native_tracer = tracer
-			_native_tracer.materialize_fn = _unlag_materialize
-	elif not _tracer_seam_warned:
-		_tracer_seam_warned = true
-		GSLog.warn("fc.native_shots", "gs-combat is older than API level %d (no set_tracer); hitscan runs the script tracer" % TRACER_SEAM_LEVEL, {})
-	apply_native_shots()
+	_install_native_tracer()
 
 	add_child(combat)
 

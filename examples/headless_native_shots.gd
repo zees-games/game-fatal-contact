@@ -7,17 +7,9 @@ const FcNativeShots := preload("../game/fc_native_shots.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
-## Hitscan parity: the same shots walked by GameSpice Sim's GSSimShots (sv_native_shots 1) and by
-## gs-combat's script GSPelletTracer give the same damage rows (victim, amounts, group, limb, point,
-## direction, distance, context), impacts, wall passes and ricochets, to the bit. Fans of pellets
-## over a standing target, a crouch-fitted one, a wood wall with bodies behind it, two walls in a row,
-## a grazing metal wall, a one-sided sheet, a breakable pane (handed to the script), seeded shotgun
-## spreads, and a strafing, crouching target rewound by lag compensation to fractional view ticks.
-## sv_native_unlag: GSSimUnlagRing and the script rings, fed one history, answer the same feet and
-## crouch at every view tick a ping names, and the shots rewound from each hit and miss alike. The defaults
-## (both switches 1, the rewind posing the native tracer instead of moving nodes) against the specification (both
-## 0, nodes moved, script tracer): the same rows. A posed shot a pane sends to the script moves the nodes late, alike.
-## Without the native class every comparison FAILS: this suite exists to prove the native path.
+## Hitscan parity: GSSimShots (`sv_native_shots`) and GSSimUnlagRing (`sv_native_unlag`) against gs-combat's script
+## tracer and rings give the same rows, to the bit; scenarios in docs/native-server-tick.md (Shots suite). Without the
+## native class every comparison FAILS: this suite exists to prove the native path.
 
 const TICK_RATE := FcContent.TICK_RATE
 const SHOOTER := 1
@@ -122,7 +114,6 @@ func _section(title: String) -> void:
 	print("-- %s" % title)
 
 
-# --- Scenarios ----------------------------------------------------------------
 
 func _plain() -> void:
 	_section("a fan over a standing target, no penetration")
@@ -340,11 +331,8 @@ func _lagcomp() -> void:
 	_completed += 1
 
 
-## sv_native_unlag: forty ticks of a near target strafing and crouching and a far one (70 m) that
-## teleports half-way, recorded once into the script rings and once into GSSimUnlagRing. Both answer
-## the same feet and crouch at every view a ping from 0 to 900 ms names (before the history, across the
-## cut, between ticks), and fans aimed at where each was, and at where each is, rewound from either
-## ring hit and miss the same bodies with the same rows. The script tracer walks both: only the ring differs.
+## sv_native_unlag: forty ticks of a near target and a far one recorded into both rings; both answer the same feet and
+## crouch at every view a ping from 0 to 900 ms names, and fans rewound from either ring hit and miss alike.
 func _unlag_rings() -> void:
 	_section("lag-comp rings: GSSimUnlagRing against the script rings, near and far, across pings")
 	var near: FcPlayer = _game.player_for(STANDING)
@@ -365,13 +353,7 @@ func _unlag_rings() -> void:
 	for mode in [0, 1]:
 		_game.native_unlag = mode
 		_game.apply_native_unlag()
-		for k in span:
-			var back := float(span - 1 - k)
-			_game._tick = now - span + 1 + k
-			near.global_position = near_was + Vector3.LEFT * 0.3 * back
-			near.controller.state.crouch_fraction = clampf(fmod(0.13 * float(k), 1.4), 0.0, 1.0)
-			far.global_position = far_now + Vector3.RIGHT * 0.2 * back + (Vector3.LEFT * 15.0 if k < 20 else Vector3.ZERO)
-			_game._unlag_record()
+		_unlag_history(near, far, near_was, far_now, now, span)
 		_game._tick = now
 		near.global_position = near_was
 		near.controller.state.crouch_fraction = crouch_was
@@ -383,29 +365,7 @@ func _unlag_rings() -> void:
 			rows.append([_game.unlag_position_at(STANDING, view), _game.unlag_crouch_at(STANDING, view),
 				_game.unlag_position_at(BEHIND, view), _game.unlag_crouch_at(BEHIND, view)])
 		answers[mode] = rows
-		var fired: Array = []
-		for i in views.size():
-			for target in [[STANDING, near_was], [BEHIND, far_now]]:
-				var then: Variant = (answers[0] as Array)[i][0 if target[0] == STANDING else 2]
-				for aim_at in [then, target[1]]:
-					if aim_at == null:
-						continue
-					var shooter: FcPlayer = _game.player_for(SHOOTER)
-					var origin := shooter.muzzle_position()
-					var at: Vector3 = aim_at
-					var aim: Vector3 = at + Vector3.UP * 1.0 * FcPlayerTunables.body_scale()
-					var shot := _shot(origin, (aim - origin).normalized(), null)
-					var tracer_was: RefCounted = _game.combat.get_tracer()
-					var _s := _game.combat.set_tracer(_script)
-					var out := _outputs(shot, views[i])
-					# The defaults: the native rings, the native tracer, the rewind posed.
-					var native_out: Array = []
-					if mode == 1 and _skip == "":
-						_s = _game.combat.set_tracer(_native)
-						_native.enabled = true
-						native_out = _outputs(shot, views[i])
-					_s = _game.combat.set_tracer(tracer_was)
-					fired.append([target[0], out, native_out])
+		var fired := _unlag_fire(views, answers[0], near_was, far_now, mode)
 		shots[mode] = fired
 	_game.native_unlag = 1
 	_game.apply_native_unlag()
@@ -420,6 +380,53 @@ func _unlag_rings() -> void:
 	_check(native_used and ring_diff == "" and unrecorded > 0 and unrecorded < views.size(),
 		"the native rings answer the script rings' feet and crouch at every view, both targets",
 		"native %s, %d views, %d before the history%s" % [native_used, views.size(), unrecorded, "" if ring_diff == "" else "; " + ring_diff])
+	_check_unlag_shots(shots)
+	_completed += 1
+
+
+## Records [param span] ticks of history ending at [param now]: the near target strafing and crouching, the far one
+## teleporting half-way.
+func _unlag_history(near: FcPlayer, far: FcPlayer, near_was: Vector3, far_now: Vector3, now: int, span: int) -> void:
+	for k in span:
+		var back := float(span - 1 - k)
+		_game._tick = now - span + 1 + k
+		near.global_position = near_was + Vector3.LEFT * 0.3 * back
+		near.controller.state.crouch_fraction = clampf(fmod(0.13 * float(k), 1.4), 0.0, 1.0)
+		far.global_position = far_now + Vector3.RIGHT * 0.2 * back + (Vector3.LEFT * 15.0 if k < 20 else Vector3.ZERO)
+		_game._unlag_record()
+
+
+## Fans at where each target was ([param then_rows], the script rings' answers) and is, at every view: script tracer
+## rows, plus the defaults' rows when [param mode] is the native rings.
+func _unlag_fire(views: Array[float], then_rows: Array, near_was: Vector3, far_now: Vector3, mode: int) -> Array:
+	var fired: Array = []
+	for i in views.size():
+		for target in [[STANDING, near_was], [BEHIND, far_now]]:
+			var then: Variant = then_rows[i][0 if target[0] == STANDING else 2]
+			for aim_at in [then, target[1]]:
+				if aim_at == null:
+					continue
+				var shooter: FcPlayer = _game.player_for(SHOOTER)
+				var origin := shooter.muzzle_position()
+				var at: Vector3 = aim_at
+				var aim: Vector3 = at + Vector3.UP * 1.0 * FcPlayerTunables.body_scale()
+				var shot := _shot(origin, (aim - origin).normalized(), null)
+				var tracer_was: RefCounted = _game.combat.get_tracer()
+				var _s := _game.combat.set_tracer(_script)
+				var out := _outputs(shot, views[i])
+				# The defaults: the native rings, the native tracer, the rewind posed.
+				var native_out: Array = []
+				if mode == 1 and _skip == "":
+					_s = _game.combat.set_tracer(_native)
+					_native.enabled = true
+					native_out = _outputs(shot, views[i])
+				_s = _game.combat.set_tracer(tracer_was)
+				fired.append([target[0], out, native_out])
+	return fired
+
+
+## The fans from either ring hit and miss alike, and the defaults (native rings, tracer, posed rewind) match the specification.
+func _check_unlag_shots(shots: Dictionary) -> void:
 	var shot_diff := ""
 	var hits := {STANDING: 0, BEHIND: 0}
 	var misses := 0
@@ -455,7 +462,6 @@ func _unlag_rings() -> void:
 			default_diff = "shot %d at P%d: %s" % [j, shots[0][j][0], default_diff]
 	_check(default_diff == "", "the defaults (native rings, native tracer, posed rewind) give the specification's rows at every view",
 		"%d shots%s" % [(shots[0] as Array).size(), "" if default_diff == "" else "; " + default_diff])
-	_completed += 1
 
 
 ## Not a check: microseconds per traced shot (a 169-pellet penetrating fan at P4 in the open map), script then
@@ -539,7 +545,6 @@ class Pane extends Node:
 		return health <= 0.0
 
 
-# --- Shots --------------------------------------------------------------------
 
 func _shot_at(victim: int, height: float, pen: GSPenetration) -> GSShot:
 	var shooter: FcPlayer = _game.player_for(SHOOTER)
