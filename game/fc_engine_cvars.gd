@@ -150,6 +150,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.batch = new_value.to_float() >= 0.5)
+	add_cvar("sv_native_motor_state", "1" if GSFpsMotorBatch.native_state else "0",
+		"1: with fc_motor_batch, each player's motor state stays in gs-sim across ticks and only script writes are sent (same states); 0: every column is sent each tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			GSFpsMotorBatch.native_state = new_value.to_float() >= 0.5)
 	add_cvar("fc_tick_events", "0" if not FcHullGrid.events else ("2" if GSFpsTickEvents.native_enabled else "1"),
 		"2: with fc_motor_batch, the players' motor edges are one table gs-sim derives after the loop; 1: the same table derived by script; 0: each player's edges inside its own tick",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(2.0).changed.connect(

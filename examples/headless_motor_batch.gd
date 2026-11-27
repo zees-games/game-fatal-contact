@@ -24,7 +24,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 33
+const CHECKS := 34
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -124,16 +124,12 @@ func _run() -> void:
 	var off := await _play(false, &"", BOTS, SECONDS, streams, false)
 	var on := await _play(true, &"", BOTS, SECONDS, streams, false)
 	var live := await _play(true, &"", BOTS, SECONDS, [], true)
-	# The lean loop (FcPlayer.lean_tick) only skips calls that change nothing: the long way must play the same match.
-	FcPlayer.lean_tick = false
-	var long_way := await _play(true, &"", BOTS, SECONDS, streams, false)
-	FcPlayer.lean_tick = true
 	_check(thought[0].size() > 10 and thought[1] > 0, "the match was played (%d digests, %d kills)" % [thought[0].size(), thought[1]])
 	_check(off[0] == thought[0], "the recorded commands replay the match (%s)" % _first_diff(thought[0], off[0]))
 	_check(on[0] == off[0], "the batched loop plays the recording to the bit (%s)" % _first_diff(off[0], on[0]))
 	_check(live[0] == thought[0], "and the bots' own match, thinking on what it gives them (%s)" % _first_diff(thought[0], live[0]))
 	_check(on[1] == off[1], "as many kills (%d, batched %d)" % [off[1], on[1]])
-	_check(long_way[0] == on[0], "the lean players' loop plays it to the bit as the long way (%s)" % _first_diff(long_way[0], on[0]))
+	await _check_loop_variants(on[0], streams)
 	_check(off[2] == 0, "and none with the cvar off")
 	_check(on[3] == 0 and live[3] == 0, "no player was changed by another's turn (%d, %d faults)" % [on[3], live[3]])
 	_check(not GSSim.has(&"players") or (FcPlayer.posture_batched_rows > 0 and FcPlayer.posture_misses == 0),
@@ -299,6 +295,21 @@ func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> vo
 	_done()
 	FcHullGrid.batch = was
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
+
+
+## The batched loop's variants replay the recording to the bit: the long way and sv_native_motor_state 0.
+func _check_loop_variants(resident: PackedStringArray, streams: Array) -> void:
+	# The lean loop (FcPlayer.lean_tick) only skips calls that change nothing: the long way must play the same match.
+	FcPlayer.lean_tick = false
+	var long_way: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
+	FcPlayer.lean_tick = true
+	_check(long_way[0] == resident, "the lean players' loop plays it to the bit as the long way (%s)" % _first_diff(long_way[0], resident))
+	# sv_native_motor_state 0: the batch is handed every column each tick instead of keeping the motor state in gs-sim.
+	print("  resident motor state in gs-sim (run_slots): %s" % ClassDB.class_has_method(&"GSSimMotorBatch", &"run_slots"))
+	GSFpsMotorBatch.native_state = false
+	var copied: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
+	GSFpsMotorBatch.native_state = true
+	_check(copied[0] == resident, "sv_native_motor_state 0 (columns sent each tick) plays it to the bit as the resident state (%s)" % _first_diff(resident, copied[0]))
 
 
 func _section(title: String) -> void:
