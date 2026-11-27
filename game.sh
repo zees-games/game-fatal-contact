@@ -301,6 +301,13 @@ do_test() {
         else
             "$ROOT/tools/check_pack_paths.sh"; fails=$((fails + 1))
         fi
+        # The server hot path keeps to the GDScript practices (ci/efficiency/gd-perf-hot.txt); the
+        # ratchet only shrinks. Source-only.
+        if out=$(python3 "$ROOT/tools/gd_perf_lint.py" 2>&1); then
+            printf '  %sok%s   hot scripts: no new GDScript perf violations\n' "$GRN" "$OFF"
+        else
+            printf '%s\n' "$out" | tail -40; fails=$((fails + 1))
+        fi
     fi
     if [ "$PARSE" = 1 ] && [ $# -eq 0 ]; then
         echo "parsing every script"

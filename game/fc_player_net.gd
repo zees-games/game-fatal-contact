@@ -302,7 +302,7 @@ func _net_apply_input(input: GSNetInput, _tick: int) -> void:
 	if not command.view_targets.is_empty():
 		last_view_targets = command.view_target_pairs()
 	elif not last_view_targets.is_empty():
-		last_view_targets = {}
+		last_view_targets = {}  # perf-lint: allow alloc only when targets stop, never a fresh dict a tick
 	last_view_targets_tick = command.tick
 
 	# A shot whose own command came after its tick fires on this one, aimed where the shooter drew.
