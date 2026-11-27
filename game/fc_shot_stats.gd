@@ -1,5 +1,7 @@
 extends RefCounted
 
+const FcFrameProbe := preload("fc_frame_probe.gd")
+
 ## Shots fired against damage applied, per shooter: the debug counter behind "the bots shoot at me and I take nothing". Every shot the combat resolves (or refuses) is filed under its attacker. Read with [method report]; one signal call per shot.
 ## fired shots handed to the combat; damaged took health or armour; refused turned away before tracing (rate limit, shooter dead); prevented struck a body whose damage was refused (spawn protection, friendly fire)
 ## miss_aim hit nothing, more than BODY_RADIUS from every other player; miss_blocked stopped on the level short of a player in line; miss_on_line hit nothing yet were on line with a player and nothing between: the bug class
@@ -58,6 +60,12 @@ func _on_refused(shot: GSShot, reason: String) -> void:
 
 
 func _on_resolved(shot: GSShot) -> void:
+	var t_lap := FcFrameProbe.lap_start()
+	_resolved(shot)
+	FcFrameProbe.lap(&"st_shotstats", t_lap)
+
+
+func _resolved(shot: GSShot) -> void:
 	var r := row(shot.attacker)
 	r["fired"] += 1
 	var applied := false
