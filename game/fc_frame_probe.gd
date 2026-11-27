@@ -164,6 +164,16 @@ static func launch_value(option: String) -> String:
 	return GSWeb.query_param(option) if GSWeb.available() else ""
 
 
+## The per-frame budget in ms for the warm-ups behind the loading screen (the painter's photo materials, the level's meshes,
+## the gate's warm), from `--cl_warm_frame_ms N` or the page's `?cl_warm_frame_ms=N`: 0 is unlimited (everything in one frame),
+## unset or not a number gives [param fallback], the stage's own default.
+static func warm_frame_ms(fallback: float) -> float:
+	var asked := launch_value("cl_warm_frame_ms")
+	if asked == "" or not asked.is_valid_float():
+		return fallback
+	return maxf(asked.to_float(), 0.0)
+
+
 ## Whether a threaded resource read really runs beside the frame: the one switch for every load_threaded_request meant to keep a read off it.
 ## Not on the threaded web engine, whose worker reads wait for the main thread between frames (time to in-game 91-172 s against 79-81 s),
 ## so there the reads run inline a slice at a time. The page's `?web_loader_threads=1` puts them back for a measurement.

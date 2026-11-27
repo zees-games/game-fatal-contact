@@ -126,10 +126,10 @@ func _warm_level(made: Node3D) -> void:
 			meshes.append(item)
 	var warm := GSRenderWarmup.new()
 	warm.name = "LevelWarmup"
-	warm.budget_msec = LEVEL_WARM_BUDGET_MSEC
+	warm.budget_msec = FcFrameProbe.warm_frame_ms(LEVEL_WARM_BUDGET_MSEC)
 	# Few per round: a round's first draw also uploads its props' textures, and the warm-up's first 16 were 34 pipelines
-	# and +39 MB in one 191 ms frame on staging02.
-	warm.batch_size = LEVEL_WARM_BATCH
+	# and +39 MB in one 191 ms frame on staging02. `cl_warm_frame_ms 0` (unlimited) draws them all in one round.
+	warm.batch_size = LEVEL_WARM_BATCH if warm.budget_msec > 0.0 else 1000
 	# The camera is often under a frozen body, and a disabled warm-up never times out.
 	warm.process_mode = Node.PROCESS_MODE_ALWAYS
 	warm.add_items(meshes)
