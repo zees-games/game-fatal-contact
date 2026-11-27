@@ -25,7 +25,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 36
+const CHECKS := 39
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -311,6 +311,18 @@ func _check_loop_variants(resident: PackedStringArray, streams: Array) -> void:
 	GSFpsMotorBatch.native_state = true
 	_check(off_steps == 0, "sv_native_tick 0 never steps the native server tick (%d steps)" % off_steps)
 	_check(copied[0] == resident, "sv_native_tick 0 (columns sent each tick) plays it to the bit as the resident state (%s)" % _first_diff(resident, copied[0]))
+	# sv_native_players 1 (the recording above): the batched loop's two passes are one gs-player-controller call; 0 plays
+	# them by hand, and must be the same match to the bit.
+	var has_call := FcHullGrid.events and GSAddonApi.build_level("gs_player_controller") >= FcNativeTick.PLAYERS_LEVEL
+	var calls := FcNativeTick.player_calls
+	print("  players' controllers in one call (gs-player-controller %d): %s, %d calls so far" % [FcNativeTick.PLAYERS_LEVEL, has_call, calls])
+	_check(calls > 0 if has_call else calls == 0, "sv_native_players 1 runs the batched loop as one call when gs-player-controller has it (%d calls)" % calls)
+	FcNativeTick.players = false
+	var by_hand: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
+	var hand_calls := FcNativeTick.player_calls - calls
+	FcNativeTick.players = true
+	_check(hand_calls == 0, "sv_native_players 0 never makes the call (%d calls)" % hand_calls)
+	_check(by_hand[0] == resident, "sv_native_players 0 (the loop's two passes) plays it to the bit as the one call (%s)" % _first_diff(resident, by_hand[0]))
 
 
 func _section(title: String) -> void:
