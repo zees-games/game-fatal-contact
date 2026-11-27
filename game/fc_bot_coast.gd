@@ -1,10 +1,10 @@
 extends RefCounted
-## The bots' begin pass of a tick ([method FcBots.think_begin] for every bot) with the coasting bots worked in one
-## native call: gs-sim's [code]GSSimBotCoast[/code] carries each coasting view on and works the recoil each firing
-## coaster's aim is turned against, bit for bit [method FcBots._coast] and [method FcBots.recoil_preview]
-## (headless_botthreads compares them). Off, or without the library, every bot takes [method FcBots.think_begin].
+## The bots' begin pass of a tick ([method FcBots.think_begin] for each bot), the coasting bots' views and recoil in
+## one gs-sim [code]GSSimBotCoast[/code] call, bit for bit [method FcBots._coast] and FcBotRecoil (headless_botthreads
+## compares them). Off, or without the library, every bot takes [method FcBots.think_begin].
 
 const FcBots := preload("fc_bots.gd")
+const FcBotRecoil := preload("fc_bot_recoil.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcPlayer := preload("fc_player.gd")
 
@@ -58,7 +58,7 @@ static func begin_all(coast: Object, game: Object, players: Array, minds: Array,
 		mind.recoil_comp = Vector2.ZERO
 		if FcBots.recoil_compensation and bot.arsenal != null and mind.last_fire != null \
 				and mind.last_fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
-			var row := FcBots.recoil_row(bot, FcBots.recoil_share(mind))
+			var row := FcBotRecoil.row(bot.arsenal, FcBots.recoil_share(mind))
 			if not row.is_empty():
 				firing.append(i)
 				recoil.append_array(row)

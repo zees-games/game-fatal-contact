@@ -1,6 +1,7 @@
 extends "fc_bots_world.gd"
 
 const FcNativePhases := preload("fc_native_phases.gd")
+const FcBotRecoil := preload("fc_bot_recoil.gd")
 
 ## What a bot does with a tick, as the same two commands a client sends: gs-bot's brain,
 ## fed from this game. One brain for every bot Fatal Contact has, solo and on a server.
@@ -452,8 +453,6 @@ static var brain_merge := GSAddonApi.build_level("gs_bot") >= 40
 ## bot_recoil_control: the share of the recoil a bot pulls its aim back against, 0..1; below 0 (the default, -1)
 ## by difficulty from [constant RECOIL_CONTROL]. A whole share made every bot's burst a laser no person matches.
 static var recoil_control := -1.0
-## Weapon id -> recoil seed, for [method _recoil_seed].
-static var _recoil_seeds: Dictionary = {}
 const RECOIL_CONTROL := {"easy": 0.3, "medium": 0.55, "hard": 0.75, "nightmare": 0.9}
 
 
@@ -479,8 +478,8 @@ static func _recoil_comp(bot: FcPlayer, mind: Mind, cmds: Array, tick: int, tick
 	var fire: GSWeaponCommand = cmds[1]
 	if bot == null or bot.arsenal == null or not fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 		return cmds
-	var row := recoil_row(bot, recoil_share(mind))
-	return recoil_turn(mind, cmds, recoil_preview(row, tick, tick_rate) if not row.is_empty() else Vector2.ZERO)
+	var row := FcBotRecoil.row(bot.arsenal, recoil_share(mind))
+	return recoil_turn(mind, cmds, FcBotRecoil.preview(row, tick, tick_rate) if not row.is_empty() else Vector2.ZERO)
 
 
 ## [param cmds] with the view turned back by [param offset] (pitch up, yaw left), kept in [member Mind.recoil_comp].
@@ -497,52 +496,8 @@ static func recoil_turn(mind: Mind, cmds: Array, offset: Vector2) -> Array:
 ## Degrees (pitch up, yaw left) the next bullet of [param bot]'s weapon is turned off its aim by recoil, as
 ## [method GSWeaponRecoilRules.apply] will work it out at [param tick]; zero with recoil patterns off.
 static func next_recoil_offset(bot: FcPlayer, tick: int, tick_rate: float) -> Vector2:
-	var row := recoil_row(bot, 1.0)
-	return recoil_preview(row, tick, tick_rate) if not row.is_empty() else Vector2.ZERO
-
-
-## The numbers [method recoil_preview] works [param bot]'s next recoil from, with [param taken] the share of it kept;
-## empty with recoil patterns off. Raw, in gs-sim's [code]recoil_preview[/code] row order: rules.reset,
-## b.recoil_recovery, rules.recovery, b.recoil_build, rules.build, b.recoil_build_max, b.recoil_pitch, rules.vertical,
-## b.recoil_yaw, rules.horizontal, the camera share, rules.follow, the seed, the burst's last tick, n, ax, ay, taken.
-static func recoil_row(bot: FcPlayer, taken: float) -> PackedFloat64Array:
-	var rr := GSWeaponRecoilRules.of(bot.arsenal)
-	var slot: GSWeaponSlot = bot.arsenal.current()
-	if rr == null or slot == null or slot.behaviour == null or slot.behaviour.def == null:
-		return PackedFloat64Array()
-	var b := slot.behaviour.def.tuning as GSWeaponBallistics
-	if b == null:
-		return PackedFloat64Array()
-	var state: Dictionary = slot.behaviour.state
-	return PackedFloat64Array([rr.reset, b.recoil_recovery, rr.recovery, b.recoil_build, rr.build, b.recoil_build_max,
-		b.recoil_pitch, rr.vertical, b.recoil_yaw, rr.horizontal, b.recoil_camera if b.recoil_camera >= 0.0 else rr.punch,
-		rr.follow, _recoil_seed(b, slot.behaviour.def.id), int(state.get(&"recoil_tick", -1000000)),
-		int(state.get(&"recoil_n", 0)), float(state.get(&"recoil_ax", 0.0)), float(state.get(&"recoil_ay", 0.0)), taken])
-
-
-## Degrees (pitch up, yaw left) the next bullet is turned off its aim by recoil, as [method GSWeaponRecoilRules.apply]
-## will work it out at [param tick] (without the posture), times the row's share: gs-sim's [code]GSSimBotCoast[/code]
-## works the same to the bit (headless_botthreads compares them).
-static func recoil_preview(r: PackedFloat64Array, tick: int, tick_rate: float) -> Vector2:
-	var elapsed := maxf(float(tick - int(r[13])) / maxf(tick_rate, 1.0), 0.0)
-	var n := int(r[14]) if elapsed <= r[0] else 0
-	var residual := Vector2(r[15], r[16]) * exp(-r[1] * r[2] * elapsed)
-	var grow := 1.0 + minf(r[3] * r[4] * float(n), r[5] * r[4])
-	var kick := Vector2(r[6] * r[7] * grow, r[8] * r[9] * grow * GSWeaponRecoilRules.drift(int(r[12]), n))
-	var share := r[10]
-	return ((residual + kick) * (1.0 - share) + residual * share * r[11]) * r[17]
-
-
-## [method GSWeaponRecoilRules.seed_for], with the hash of a weapon id kept: it is worked from the id's bytes on every
-## call, and a coasting bot asks for it each tick it holds the trigger.
-static func _recoil_seed(b: GSWeaponBallistics, id: StringName) -> int:
-	if b.recoil_seed != 0:
-		return b.recoil_seed
-	var cached: Variant = _recoil_seeds.get(id)
-	if cached == null:
-		cached = GSWeaponRecoilRules.seed_for(b, id)
-		_recoil_seeds[id] = cached
-	return cached
+	var row := FcBotRecoil.row(bot.arsenal, 1.0)
+	return FcBotRecoil.preview(row, tick, tick_rate) if not row.is_empty() else Vector2.ZERO
 
 
 ## Degrees from [param a] to [param b] the short way round.

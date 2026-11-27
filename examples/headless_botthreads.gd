@@ -4,6 +4,7 @@ const FcBots := preload("../game/fc_bots.gd")
 const FcBotThreads := preload("../game/fc_bot_threads.gd")
 const FcBotRows := preload("../game/fc_bot_rows.gd")
 const FcBotCoast := preload("../game/fc_bot_coast.gd")
+const BotCoastBits := preload("bot_coast_bits.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
@@ -178,50 +179,15 @@ func _switches_play_the_same(native: PackedStringArray) -> void:
 	_coast_matches_script()
 
 
-## gs-sim's GSSimBotCoast works the coasting views and recoil previews [method FcBots._coast] and
-## [method FcBots.recoil_preview] work, to the bit, over random views, think rates and recoil states.
+## gs-sim's GSSimBotCoast works the coasting views and recoil previews [method FcBots._coast] and FcBotRecoil work,
+## to the bit, over random views, think rates and recoil states (BotCoastBits).
 func _coast_matches_script() -> void:
 	var coast := FcBotCoast.native()
 	if coast == null:
 		_check(true, "no gs-sim bot_coast module: only the script coast runs (bit comparison skipped)")
 		return
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 4242
-	var views := PackedFloat32Array()
-	var steps := PackedInt64Array()
-	var recoil := PackedFloat64Array()
-	var want := PackedFloat64Array()
-	var tick := 50000
-	var mind := FcBots.Mind.new()
-	mind.last_move = GSFpsCommand.new()
-	mind.last_fire = GSWeaponCommand.new()
-	for k in 400:
-		mind.view_from = Vector2(rng.randf_range(-900.0, 900.0), rng.randf_range(-89.0, 89.0))
-		mind.view_to = Vector2(rng.randf_range(-900.0, 900.0), rng.randf_range(-89.0, 89.0)) if k % 7 != 0 else mind.view_from
-		mind.every = rng.randi_range(1, 6)
-		mind.last_think_tick = tick - rng.randi_range(0, mind.every - 1)
-		views.append_array([mind.view_from.x, mind.view_from.y, mind.view_to.x, mind.view_to.y])
-		steps.append_array([tick - mind.last_think_tick, mind.every])
-		var pair := FcBots._coast(mind, tick)
-		want.append((pair[0] as GSFpsCommand).yaw)
-		want.append((pair[0] as GSFpsCommand).pitch)
-	for k in 400:
-		var row := PackedFloat64Array([rng.randf_range(0.05, 1.0), rng.randf_range(0.0, 12.0), rng.randf_range(0.0, 2.0),
-			rng.randf_range(0.0, 0.3), rng.randf_range(0.0, 2.0), rng.randf_range(0.0, 2.0), rng.randf_range(0.0, 3.0),
-			rng.randf_range(0.0, 2.0), rng.randf_range(-2.0, 2.0), rng.randf_range(0.0, 2.0), rng.randf_range(0.0, 1.0),
-			rng.randf_range(0.0, 1.0), rng.randi() & 0x7fffffff, tick - rng.randi_range(0, 60) if k % 9 != 0 else -1000000,
-			rng.randi_range(0, 30), rng.randf_range(-4.0, 4.0), rng.randf_range(-4.0, 4.0), rng.randf_range(0.0, 1.0)])
-		recoil.append_array(row)
-		var offset := FcBots.recoil_preview(row, tick, float(TICK_RATE))
-		want.append(offset.x)
-		want.append(offset.y)
-	var got: PackedFloat64Array = coast.call(&"step", views, steps, recoil, tick, float(TICK_RATE))
-	var first := -1
-	for i in mini(got.size(), want.size()):
-		if var_to_bytes(got[i]) != var_to_bytes(want[i]):
-			first = i
-			break
-	_check(got.size() == want.size() and first < 0, "GSSimBotCoast gives the script's 400 coasting views and 400 recoil previews to the bit (%d values, first difference at %d%s)" % [got.size(), first, "" if first < 0 else ": %s vs %s" % [got[first], want[first]]])
+	var r := BotCoastBits.compare(coast, TICK_RATE)
+	_check(r[0] == r[1] and r[2] < 0, "GSSimBotCoast gives the script's 400 coasting views and 400 recoil previews to the bit (%d values of %d, first difference at %d%s)" % [r[0], r[1], r[2], r[3]])
 
 
 ## bot_native_think_mt 1 (gs-sim perceives for every threaded bot before the workers start) and 0 play [param script]'s

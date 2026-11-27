@@ -48,6 +48,10 @@ A second, short run with `sv_native_tick 0` must put every phase on the fallback
 | table | `bot_contact_table` | gs-bot 44, a gs-sim with `fill_table`. No contact object is written: packed columns become the world's `GSBotContactTable`, and an object is written from its row only when something reads it. |
 | arms | `bot_native_contact_arms` | A gs-sim with `fill_arms`. The weapon in hand (`weapon_class`, `magazine`) is gathered as an interned class and two ints per player and written in one call, instead of one `_weapon_of` call and two property writes per player. |
 
+## Bots coast
+
+`bot_coast_native` (`game/fc_bot_coast.gd`, gs-sim's `GSSimBotCoast`): in `sb_begin`, every bot that sits the tick out gets its carried-on view and, while it fires, its recoil turn-back from one native call. The recoil row and its script preview are in `game/fc_bot_recoil.gd`. `headless_botthreads` compares 400 views and 400 recoil rows bit for bit, and the tiered match with the cvar 0 and 1.
+
 ## Bots perceive_all
 
 `bot_native_think_mt` (`game/fc_bot_think_mt.gd`): each threaded brain hands the row its think would hand the native mind. Rays the minds have no cached answer for are cast on the main thread, and answers go back by index, so the thread count changes nothing.
