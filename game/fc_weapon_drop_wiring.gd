@@ -7,6 +7,10 @@ const FcFlagCarry := preload("fc_flag_carry.gd")
 const KillPovRules := preload("fc_kill_pov.gd")
 const FitCache := preload("fc_drop_fit_cache.gd")
 
+## Cvar [code]fc_drop_idle_skip[/code]: 1 lets a player with no drop or use key down this tick or last go straight to
+## the auto pickup (their key holds are idle, see [method input]); 0 steps both keys anyway (the reference and the A/B arm).
+static var idle_keys_skip := true
+
 ## The weapon layer, on both sides: the server simulates it, a client draws what it is told.
 static func build(game) -> void:
 	var layer := GSWeaponDrops.new()
@@ -156,9 +160,16 @@ static func input(game, id: int, player, pair: Array) -> void:
 	# `auto_pickup` is a server rule, not a class one (not in GSWeaponDropRules.CLASS_KEYS), so it is read off the rules as they are: `resolve(def)` builds a fresh rules object per call, and this ran for every idle player every tick while any drop lay on the floor.
 	var auto_pickup: bool = game.weapon_drops.rules.auto_pickup
 	# Nobody touched a key this tick or last, and nothing here acts without one (the auto pickup needs a drop and its rule on): the use key's hold has nothing to cancel and the prompt query is skipped. This was ~60 us per player per tick at 64 players.
-	if not held and not was and not use_now and not used \
-			and (not auto_pickup or game.weapon_drops.count() == 0):
-		return
+	if not held and not was and not use_now and not used:
+		if not auto_pickup or game.weapon_drops.count() == 0:
+			return
+		# Only the auto pickup can act. Both keys' holds are idle: every tick that skips a key's step (an early return
+		# below) has a key down, so the next tick has `was` or `used` and runs both steps with the key up, which cancels
+		# them. Stepping them now would only cancel again, at two rules resolves and a prompt query per player per tick.
+		if idle_keys_skip:
+			var _picked: int = game.weapon_drops.take_for(player.arsenal, player.controller.state.position + Vector3.UP * 0.5, id,
+				class_def_of(game, id))
+			return
 	var def := class_def_of(game, id)
 	var velocity: Vector3 = player.controller.state.velocity
 	var _thrown: int = _drop_key(game, id).step(game.weapon_drops, player.arsenal, player.muzzle_position(),

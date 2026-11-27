@@ -227,6 +227,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	var knife_charge := knives != null and GSAddonApi.build_level("gs_weapon") >= 41
 	var fine := FcFrameProbe.fine
 	var t_fine := 0
+	var t_tb := FcFrameProbe.lap_start()
 	var ids := player_ids()
 	var n := ids.size()
 	# The surf rides follow the map once a tick, not once per player (~4 us a player a tick of lookups that change nothing).
@@ -235,6 +236,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	if _batch_rows.size() < n:
 		_batch_rows.resize(n)
 		_batch_pairs.resize(n)
+	t_tb = FcFrameProbe.lap(&"tb_setup", t_tb)
 	for i in range(n):
 		var id: int = ids[i]
 		var player: FcPlayer = _players[id]
@@ -265,8 +267,10 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		player.ctl_usec = Time.get_ticks_usec() - t_ctl
 		if fine:
 			FcFrameProbe.add(&"pl_sim", t_fine)
+	t_tb = FcFrameProbe.lap(&"tb_pass1", t_tb)
 	if FcPlayer.mechanics_native:
 		_volume_pre.mark(_tick, ids, _players, _batch_rows)
+	t_tb = FcFrameProbe.lap(&"tb_mark", t_tb)
 	# The idle players' posture rows in one gs-sim call (flushed before anything that could see their weapon ticks):
 	# the controller state is read in GDScript once per player instead of per field.
 	var post_lane := FcPlayer.posture_native and GSSim.has(&"players")
@@ -288,7 +292,9 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 				_motor_batch.skip(row)
 			continue
 		_finish_batched_player(_batch_pairs[i], row, id, player, delta, hull_world, shots, fine, post_lane, post_from)
+	t_tb = FcFrameProbe.lap(&"tb_pass2", t_tb)
 	_flush_posts(shots)
+	FcFrameProbe.lap(&"tb_flush", t_tb)
 	FcHullGrid.batch_faults += _motor_batch.stale
 	FcHullGrid.batch_rows += _motor_batch.rows
 	_motor_batch.stale = 0
@@ -333,7 +339,10 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 	var rested := controller.state.position
 	FcFrameProbe.add(&"p_controller", t_ctl - player.ctl_usec)
 	var outcome: GSWeaponOutcome = null
-	if not player.tick_post_head(_tick, delta, fire):
+	var t_h := FcFrameProbe.lap_start()
+	var head := player.tick_post_head(_tick, delta, fire)
+	t_h = FcFrameProbe.lap(&"pb_head", t_h)
+	if not head:
 		if FcWeaponCensus.on: FcWeaponCensus.active(player)
 		# A weapon tick that does more than idle can reach other players: the waiting idle ones tick first, in order.
 		_flush_posts(shots)
@@ -346,6 +355,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		_post_players.append(player)
 		_post_ids.append(id)
 		_post_moves.append(move)
+		FcFrameProbe.lap(&"pb_postin", t_h)
 		if FcWeaponCensus.on: FcFrameProbe.count(&"wc_posted")
 	else:
 		if FcWeaponCensus.on: FcFrameProbe.count(&"wc_idle_alone")
