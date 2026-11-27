@@ -3,8 +3,8 @@ extends "fc_game_loadouts.gd"
 
 const FcWeaponCensus := preload("fc_weapon_census.gd")
 
-## The idle weapons' native batch of the tick's posture flush ([member FcPlayer.weapon_idle_batch]); split out of
-## fc_game_tick.gd for file size.
+## The tick's posture flush (the waiting idle players' rows and their weapon outcomes in roster order) and the idle
+## weapons' native batch ([member FcPlayer.weapon_idle_batch]); split out of fc_game_tick.gd for file size.
 
 
 ## Whether gs-sim's [code]GSSimWeaponIdleBatch[/code] is there (made once).
@@ -44,3 +44,44 @@ func _idle_batch_ticks(out: PackedFloat64Array, count: int) -> Array:
 			FcFrameProbe.count(&"wc_joined", _idle_owners.size())
 			FcFrameProbe.count(&"wc_declined", declined.size())
 	return _idle_outs
+
+
+## What a player's weapon tick did, in roster order: its shots, its protection and the horde's and rockets' share.
+func _post_outcome(id: int, player: FcPlayer, move: GSFpsCommand, outcome: GSWeaponOutcome, shots: Array[GSShot]) -> void:
+	shots.append_array(outcome.shots)
+	_note_protected_action(id, player, move, not outcome.shots.is_empty())
+	if horde != null and (not outcome.shots.is_empty() or not outcome.spawns.is_empty()):
+		horde.note_fire(id, player.controller.state.position)
+	if projectiles != null:
+		projectiles.accept(outcome)
+
+
+## The waiting idle players' posture rows in one gs-sim call, then each one's weapon tick and outcome in roster order.
+func _flush_posts(shots: Array[GSShot]) -> void:
+	var count := _post_players.size()
+	if count == 0:
+		return
+	FcHullGrid.post_flushes += 1
+	if FcWeaponCensus.on: FcFrameProbe.count(&"wc_flush")
+	var input := _post_in if _post_in.size() == count * 10 else _post_in.slice(0, count * 10)
+	var out: PackedFloat64Array = _post_native.run_rows(input)
+	if FcPlayer.weapon_idle_batch and _idle_batch_ready():
+		_flush_idle_batch(out, count, shots)
+	else:
+		for k in range(count):
+			var player: FcPlayer = _post_players[k]
+			var at := k * 10
+			var outcome := player.tick_idle_row(out.slice(at, at + 10), out[at + 9] != 0.0)
+			_post_outcome(_post_ids[k], player, _post_moves[k], outcome, shots)
+	_post_players.clear()
+	_post_ids.clear()
+	_post_moves.clear()
+
+
+## [method _flush_posts] with the weapons' native idle calls batched ([method _idle_batch_ticks]); the outcomes are
+## posted in roster order as before.
+func _flush_idle_batch(out: PackedFloat64Array, count: int, shots: Array[GSShot]) -> void:
+	var outs := _idle_batch_ticks(out, count)
+	for k in range(count):
+		_post_outcome(_post_ids[k], _post_players[k], _post_moves[k], outs[k], shots)
+	outs.fill(null)

@@ -1,5 +1,7 @@
 extends "fc_bots_world.gd"
 
+const FcNativePhases := preload("fc_native_phases.gd")
+
 ## What a bot does with a tick, as the same two commands a client sends: gs-bot's brain,
 ## fed from this game. One brain for every bot Fatal Contact has, solo and on a server.
 ##
@@ -200,6 +202,8 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 	var me: GSBotContact = mind.t_me
 	var intent: GSBotIntent = mind.t_intent
 	mind.t_me = null
+	if mind.brain != null:
+		FcNativePhases.tally(FcNativePhases.BOTS, mind.brain.aim.is_native())
 	mind.t_world = null
 	mind.t_intent = null
 	var t_after := Time.get_ticks_usec()
@@ -227,6 +231,24 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 	FcFrameProbe.lap(&"ba_sanitise", t_lap)
 	FcFrameProbe.add(&"bot_after", t_after)
 	var t_tail := FcFrameProbe.lap_start()
+	_schedule_beat(bot, mind, world, me, intent, move, fire, tick, tick_rate)
+	mind.last_think_tick = tick
+	# Copied into the bot's own pair, never handed out (a coast returns copies of it), so no two new commands a think.
+	mind.last_move = _keep_move(mind.last_move, move)
+	mind.last_fire = _keep_fire(mind.last_fire, fire)
+	if mind.coasting and _tier_on:
+		# A tiered coast repeats only held buttons: a jump or a weapon switch is pressed on the think tick, then let go.
+		mind.last_move.buttons &= _COAST_MOVE if intent.state != &"dead" else 0
+		mind.last_fire.buttons &= _COAST_FIRE if intent.state != &"dead" else 0
+	made = _recoil_comp(bot, mind, made, tick, tick_rate)
+	FcFrameProbe.lap(&"ba_tail", t_tail)
+	return made
+
+
+## The bot's next beat (its tier's period, or a coast over the ticks until it) and how far its view turns this tick:
+## a coast spreads the brain's turn over the beat, a think after coasted ticks is held to one tick's turn.
+static func _schedule_beat(bot: FcPlayer, mind: Mind, world: World, me: GSBotContact, intent: GSBotIntent,
+		move: GSFpsCommand, fire: GSWeaponCommand, tick: int, tick_rate: float) -> void:
 	world.woken.erase(bot.player_id)
 	if _tier_on and tiers.is_on():
 		mind.far = false
@@ -264,18 +286,6 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 			mind.throw_view = Vector2(move.yaw, move.pitch)
 			fire.yaw = move.yaw
 			fire.pitch = move.pitch
-	mind.last_think_tick = tick
-	# Copied into the bot's own pair, never handed out (a coast returns copies of it), so no two new commands a think.
-	mind.last_move = _keep_move(mind.last_move, move)
-	mind.last_fire = _keep_fire(mind.last_fire, fire)
-	if mind.coasting and _tier_on:
-		# A tiered coast repeats only held buttons: a jump or a weapon switch is pressed on the think tick, then let go.
-		mind.last_move.buttons &= _COAST_MOVE if intent.state != &"dead" else 0
-		mind.last_fire.buttons &= _COAST_FIRE if intent.state != &"dead" else 0
-	made = _recoil_comp(bot, mind, made, tick, tick_rate)
-	FcFrameProbe.lap(&"ba_tail", t_tail)
-	return made
-
 
 ## The part of [method think_finish] before the commands are written: a stranded bot respawned, the surf's steer.
 static func _finish_begin(game: Object, bot: FcPlayer, mind: Mind, intent: GSBotIntent, world: World, tick: int, tick_rate: float) -> void:

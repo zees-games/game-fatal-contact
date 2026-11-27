@@ -2,6 +2,8 @@ extends GSNetBehaviour
 
 const FcContent := preload("fc_content.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcNetCarry := preload("fc_net_carry.gd")
+const FcNativePhases := preload("fc_native_phases.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
 const FcNetCommand := preload("fc_net_command.gd")
@@ -192,6 +194,8 @@ var _yaw_var: GSNetVar = null
 var _pitch_var: GSNetVar = null
 ## The movement pull through gs-sim, and the widths it holds through (fc_net_pull_native.gd).
 var _native_pull := FcNetPullNative.new()
+## A person's carry mask, kept until his arsenal changes (fc_net_carry.gd).
+var _carry := FcNetCarry.new()
 
 
 func _register_net_vars() -> void:
@@ -440,30 +444,34 @@ func pull() -> void:
 	if player == null:
 		return
 
-	var lap := FcFrameProbe.lap_start()
+	# The laps only count in a recording ([member FcFrameProbe.fine]); outside one, six calls a pull were a test each.
+	var fine := FcFrameProbe.fine
+	var lap := FcFrameProbe.lap_start() if fine else 0
 	var held_velocity := net_velocity
 	var held_yaw := net_yaw
 	var held_pitch := net_pitch
-	if not (FcNetPullNative.enabled and _native_pull.pull(self, hold_subquantum, held_velocity, held_yaw, held_pitch)):
+	var native := FcNetPullNative.enabled and _native_pull.pull(self, hold_subquantum, held_velocity, held_yaw, held_pitch)
+	FcNativePhases.tally(FcNativePhases.SNAPSHOTS, native)
+	if not native:
 		GSFpsNetSync.pull(player.controller.state, self)
 		if hold_subquantum:
 			_hold_subquantum(held_velocity, held_yaw, held_pitch)
-	lap = FcFrameProbe.lap(&"np_fps", lap)
+	lap = FcFrameProbe.lap(&"np_fps", lap) if fine else 0
 	_pull_exact(player.controller.state)
-	lap = FcFrameProbe.lap(&"np_exact", lap)
+	lap = FcFrameProbe.lap(&"np_exact", lap) if fine else 0
 	GSCombatNetSync.pull(player.health, self)
-	lap = FcFrameProbe.lap(&"np_combat", lap)
+	lap = FcFrameProbe.lap(&"np_combat", lap) if fine else 0
 
 	# The rig's pull (gs-weapon's three, the pack's four, the knife's wind-up), with the held weapon's wire number, in
 	# one gs-sim call where cvars sv_net_pull_weapons_native and sv_net_pull_content_native allow; else the script.
 	var weapon_code := FcNetPullWeapons.pull_weapons(self, player.weapons, player.arsenal, player.windup)
-	lap = FcFrameProbe.lap(&"np_weapons", lap)
+	lap = FcFrameProbe.lap(&"np_weapons", lap) if fine else 0
 
 	FcNetPullWeapons.pull_content(self, player.arsenal, weapon_code)
 	# Owner-only, and a bot has no owner: 33 shelf scans a bot a tick for a mask nobody receives.
 	if not _server_owned():
-		net_carry = FcContent.carry_mask(player.arsenal)
-	lap = FcFrameProbe.lap(&"np_content", lap)
+		net_carry = _carry.mask(player.arsenal)
+	lap = FcFrameProbe.lap(&"np_content", lap) if fine else 0
 
 	net_blind = player.blinded
 	net_challenge = clampi(player.challenge + 1, 0, 127)
@@ -485,7 +493,7 @@ func pull() -> void:
 		# in it keep the first ring's rate, so a scoped shot has samples to rewind against.
 		if _has_interest_aim:
 			identity.set(&"interest_aim", player.aim_direction())
-	lap = FcFrameProbe.lap(&"np_rest", lap)
+	lap = FcFrameProbe.lap(&"np_rest", lap) if fine else 0
 
 
 ## Whether this player belongs to the server itself (a bot): there is no client to send owner-only state to.

@@ -1,10 +1,8 @@
 extends RefCounted
 
-## `bot_native_think_mt`: before the brain threads start, gs-sim's GSSimBotThinkMt.perceive_all perceives for every
-## threaded bot at once, on its own Rust threads (gs-bot 53). Each brain hands the row its think would hand the native
-## mind; rays the minds have no cached answer for are cast on the main thread, and answers go back by index, so the
-## thread count changes nothing. Each brain's think then takes its answer instead of perceiving again; the match is the
-## script path's to the bit (`headless_botthreads`). Off, or without the class, think perceives on its worker as before.
+## `bot_native_think_mt`: before the brain threads start, GSSimBotThinkMt.perceive_all perceives for every threaded bot
+## at once on Rust threads (gs-bot 53); each think takes its answer, the script path's to the bit (`headless_botthreads`).
+## Off, or without the class, think perceives on its worker. Detail: docs/native-server-tick.md (Bots perceive_all).
 
 const FcBots := preload("fc_bots.gd")
 
