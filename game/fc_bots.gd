@@ -66,6 +66,11 @@ static func think(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate:
 	return think_finish(game, bot, mind, tick, tick_rate)
 
 
+## [method _tick_world], for FcBotCoast's begin pass.
+static func world_this_tick(game: Object, tick: int) -> World:
+	return _tick_world(game, tick)
+
+
 ## The game's world, the think rate and the world's knobs, once a tick however many bots ask (31 calls a tick at 32
 ## bots were 31 meta lookups, player counts and tier tests); a tick below 0 or another game sets them again.
 static func _tick_world(game: Object, tick: int) -> World:
@@ -101,7 +106,7 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 
 	var t_gate := FcFrameProbe.lap_start()
 	var world := _tick_world(game, tick)
-	if (_every > 1 or _tier_on) and _coasts(mind, tick, world, bot.player_id):
+	if coasts_now(world, bot, mind, tick):
 		t_gate = FcFrameProbe.lap(&"bt_gate", t_gate)
 		var moved := _coast(mind, tick)
 		var t_move := FcFrameProbe.lap(&"bt_coast_move", t_gate)
@@ -110,7 +115,18 @@ static func think_begin(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 		FcFrameProbe.lap(&"bt_coast", t_gate)
 		return coasted
 	FcFrameProbe.lap(&"bt_gate", t_gate)
+	return think_setup(game, bot, mind, tick, tick_rate, world)
 
+
+## Whether [param bot] sits this tick out on the commands it has (see [method _coasts]); [param world] is this tick's
+## ([method _tick_world]).
+static func coasts_now(world: World, bot: FcPlayer, mind: Mind, tick: int) -> bool:
+	return (_every > 1 or _tier_on) and _coasts(mind, tick, world, bot.player_id)
+
+
+## [method think_begin] for a bot that does not coast this tick: the world refreshed, the brain made or kept, and
+## [member Mind.t_me] and [member Mind.t_world] set (an empty array), or still commands while no brain slot is free.
+static func think_setup(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float, world: World) -> Array:
 	var t_refresh := Time.get_ticks_usec()
 	world.refresh(tick, tick_rate)
 	FcFrameProbe.add(&"bot_refresh", t_refresh)
@@ -358,7 +374,12 @@ static func _recoil_comp(bot: FcPlayer, mind: Mind, cmds: Array, tick: int, tick
 	var fire: GSWeaponCommand = cmds[1]
 	if bot == null or bot.arsenal == null or not fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 		return cmds
-	var offset := next_recoil_offset(bot, tick, tick_rate) * recoil_share(mind)
+	var row := recoil_row(bot, recoil_share(mind))
+	return recoil_turn(mind, cmds, recoil_preview(row, tick, tick_rate) if not row.is_empty() else Vector2.ZERO)
+
+
+## [param cmds] with the view turned back by [param offset] (pitch up, yaw left), kept in [member Mind.recoil_comp].
+static func recoil_turn(mind: Mind, cmds: Array, offset: Vector2) -> Array:
 	if offset == Vector2.ZERO:
 		return cmds
 	var move: GSFpsCommand = cmds[0]
@@ -371,21 +392,40 @@ static func _recoil_comp(bot: FcPlayer, mind: Mind, cmds: Array, tick: int, tick
 ## Degrees (pitch up, yaw left) the next bullet of [param bot]'s weapon is turned off its aim by recoil, as
 ## [method GSWeaponRecoilRules.apply] will work it out at [param tick]; zero with recoil patterns off.
 static func next_recoil_offset(bot: FcPlayer, tick: int, tick_rate: float) -> Vector2:
+	var row := recoil_row(bot, 1.0)
+	return recoil_preview(row, tick, tick_rate) if not row.is_empty() else Vector2.ZERO
+
+
+## The numbers [method recoil_preview] works [param bot]'s next recoil from, with [param taken] the share of it kept;
+## empty with recoil patterns off. Raw, in gs-sim's [code]recoil_preview[/code] row order: rules.reset,
+## b.recoil_recovery, rules.recovery, b.recoil_build, rules.build, b.recoil_build_max, b.recoil_pitch, rules.vertical,
+## b.recoil_yaw, rules.horizontal, the camera share, rules.follow, the seed, the burst's last tick, n, ax, ay, taken.
+static func recoil_row(bot: FcPlayer, taken: float) -> PackedFloat64Array:
 	var rr := GSWeaponRecoilRules.of(bot.arsenal)
 	var slot: GSWeaponSlot = bot.arsenal.current()
 	if rr == null or slot == null or slot.behaviour == null or slot.behaviour.def == null:
-		return Vector2.ZERO
+		return PackedFloat64Array()
 	var b := slot.behaviour.def.tuning as GSWeaponBallistics
 	if b == null:
-		return Vector2.ZERO
+		return PackedFloat64Array()
 	var state: Dictionary = slot.behaviour.state
-	var elapsed := maxf(float(tick - int(state.get(&"recoil_tick", -1000000))) / maxf(tick_rate, 1.0), 0.0)
-	var n := int(state.get(&"recoil_n", 0)) if elapsed <= rr.reset else 0
-	var residual := Vector2(float(state.get(&"recoil_ax", 0.0)), float(state.get(&"recoil_ay", 0.0))) * exp(-b.recoil_recovery * rr.recovery * elapsed)
-	var grow := 1.0 + minf(b.recoil_build * rr.build * float(n), b.recoil_build_max * rr.build)
-	var kick := Vector2(b.recoil_pitch * rr.vertical * grow, b.recoil_yaw * rr.horizontal * grow * GSWeaponRecoilRules.drift(_recoil_seed(b, slot.behaviour.def.id), n))
-	var share := b.recoil_camera if b.recoil_camera >= 0.0 else rr.punch
-	return (residual + kick) * (1.0 - share) + residual * share * rr.follow
+	return PackedFloat64Array([rr.reset, b.recoil_recovery, rr.recovery, b.recoil_build, rr.build, b.recoil_build_max,
+		b.recoil_pitch, rr.vertical, b.recoil_yaw, rr.horizontal, b.recoil_camera if b.recoil_camera >= 0.0 else rr.punch,
+		rr.follow, _recoil_seed(b, slot.behaviour.def.id), int(state.get(&"recoil_tick", -1000000)),
+		int(state.get(&"recoil_n", 0)), float(state.get(&"recoil_ax", 0.0)), float(state.get(&"recoil_ay", 0.0)), taken])
+
+
+## Degrees (pitch up, yaw left) the next bullet is turned off its aim by recoil, as [method GSWeaponRecoilRules.apply]
+## will work it out at [param tick] (without the posture), times the row's share: gs-sim's [code]GSSimBotCoast[/code]
+## works the same to the bit (headless_botthreads compares them).
+static func recoil_preview(r: PackedFloat64Array, tick: int, tick_rate: float) -> Vector2:
+	var elapsed := maxf(float(tick - int(r[13])) / maxf(tick_rate, 1.0), 0.0)
+	var n := int(r[14]) if elapsed <= r[0] else 0
+	var residual := Vector2(r[15], r[16]) * exp(-r[1] * r[2] * elapsed)
+	var grow := 1.0 + minf(r[3] * r[4] * float(n), r[5] * r[4])
+	var kick := Vector2(r[6] * r[7] * grow, r[8] * r[9] * grow * GSWeaponRecoilRules.drift(int(r[12]), n))
+	var share := r[10]
+	return ((residual + kick) * (1.0 - share) + residual * share * r[11]) * r[17]
 
 
 ## [method GSWeaponRecoilRules.seed_for], with the hash of a weapon id kept: it is worked from the id's bytes on every
@@ -408,13 +448,20 @@ static func _turn(a: float, b: float) -> float:
 ## The commands of a tick the brain sits out: the last ones, with the view carried on towards where the last think turned it.
 static func _coast(mind: Mind, tick: int) -> Array:
 	var step := tick - mind.last_think_tick
+	var fraction := float(step + 1) / float(mind.every)
+	return coast_pair(mind, mind.view_from.x + _turn(mind.view_from.x, mind.view_to.x) * fraction,
+		mind.view_from.y + (mind.view_to.y - mind.view_from.y) * fraction)
+
+
+## The coasting pair of [param mind]'s bot: its last commands with the view at [param yaw] and [param pitch], kept as
+## its last move's too ([method _coast] works them here, [code]GSSimBotCoast[/code] for a whole tick in FcBotCoast).
+static func coast_pair(mind: Mind, yaw: float, pitch: float) -> Array:
 	var made := _out_pair(mind)
 	var move := _keep_move(made[0], mind.last_move)
-	var fraction := float(step + 1) / float(mind.every)
-	move.yaw = mind.view_from.x + _turn(mind.view_from.x, mind.view_to.x) * fraction
-	move.pitch = mind.view_from.y + (mind.view_to.y - mind.view_from.y) * fraction
-	mind.last_move.yaw = move.yaw
-	mind.last_move.pitch = move.pitch
+	move.yaw = yaw
+	move.pitch = pitch
+	mind.last_move.yaw = yaw
+	mind.last_move.pitch = pitch
 	made[1] = _keep_fire(made[1], mind.last_fire)
 	return made
 
