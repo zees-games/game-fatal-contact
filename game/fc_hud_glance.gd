@@ -131,11 +131,15 @@ class Ink:
 	static func keycap_width(key: String, size: int = 13) -> float:
 		return maxf(width(key, size) + 12.0, float(size) + 10.0)
 
-	## A texture under `res://` by path, through the pack rebase; null when missing.
+	## A texture under `res://` by path, through the pack rebase; null when missing. A miss while a web shell's late addon
+	## group is still streaming is not kept: the file may be in the group, so the next ask looks again.
 	static func texture(path: String) -> Texture2D:
 		if not _textures.has(path):
 			var at := FcPaths.rebase(path)
-			_textures[path] = load(at) as Texture2D if ResourceLoader.exists(at) else null
+			var tex := load(at) as Texture2D if ResourceLoader.exists(at) else null
+			if tex == null and bool(ProjectSettings.get_setting("gs_cloud/late_groups/pending", false)):
+				return null
+			_textures[path] = tex
 		return _textures[path]
 
 	static func weapon_icon(id: StringName) -> Texture2D:
