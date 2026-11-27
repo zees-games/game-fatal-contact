@@ -96,7 +96,7 @@ static func active() -> bool:
 
 ## Pulls every net in [param nets] whose [code]batch_wants(tick)[/code] says so, in one gs-sim call, then runs the rest of
 ## each one's pull ([code]_pull_rest[/code]) and marks [param tick] pulled. Returns how many it pulled; the rest are left alone.
-static func pull_all(nets: Array[Object], tick: int) -> int:
+static func pull_all(nets: Array, tick: int) -> int:
 	if not active():
 		return 0
 	_moves.clear()
