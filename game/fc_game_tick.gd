@@ -245,7 +245,9 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		_batch_pairs.resize(n)
 	t_tb = FcFrameProbe.lap(&"tb_setup", t_tb)
 	var rows: GSFpsTickEvents = _tick_events if FcHullGrid.events else null
-	if rows != null and FcNativeTick.players and _players_call_ready():
+	var players_native := rows != null and FcNativeTick.players and _players_call_ready()
+	FcNativePhases.tally(FcNativePhases.PLAYERS, players_native)
+	if players_native:
 		_tick_players_call(commands, delta, hull_world, shots, ids, knife_charge, surfing, rows, fine)
 		t_tb = FcFrameProbe.lap(&"tb_players", t_tb)
 		_flush_posts(shots)
