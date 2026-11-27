@@ -41,6 +41,8 @@ const RIDE_COST := 0.25
 
 ## The longest a ride may run before the bot is told it did not land, seconds.
 const RIDE_SECONDS := 30.0
+## How near a teleport's landing a ride's start is for the ride to be that pad's (see [method pad_ride_at]).
+const PAD_REACH := 3.0
 
 ## How far below the map's bounds a ride has fallen out (what `FcPlayer` catches).
 const FALL_OUT_DEPTH := 10.0
@@ -327,19 +329,40 @@ func landing_points() -> PackedVector3Array:
 	# landing back on the spawn island) is a place to roam to as well: the teleport's door. Nothing
 	# else sends a bot there, so that ride was never taken. The pad itself is no goal: a route to
 	# a point on it ends on the floor beneath, never through the teleport's link.
+	var pads := _teleport_pads()
+	for id in pads:
+		out.append((teleports[id] as Array)[0])
+	return out
+
+
+## Teleport id -> the linked edge that starts on its landing pad, away from the spawn islands.
+func _teleport_pads() -> Dictionary:
 	var spawn_islands := PackedInt32Array()
 	for spawn: Transform3D in map.get("spawns"):
 		# A spawn off the mesh is no island: kept as -1 it matched every pad off the mesh too.
 		var island := nav.island_at(spawn.origin, 2.0)
 		if island >= 0:
 			spawn_islands.append(island)
+	var out := {}
 	for id in teleports:
 		var link: Array = teleports[id]
 		for edge in edges:
-			if edge.linked and edge.from.distance_to(link[1]) < 3.0 and not spawn_islands.has(nav.island_at(edge.from, 2.5)):
-				out.append(link[0])
+			if edge.linked and edge.from.distance_to(link[1]) < PAD_REACH and not spawn_islands.has(nav.island_at(edge.from, 2.5)):
+				out[id] = edge.id
 				break
 	return out
+
+
+## The ride starting on the teleport pad at [param at], or -1. A pad's push (surf_snipers_island's)
+## throws a player down the ramp on the tick after the teleport, before a walked route could reach
+## the ride's corner, and a bot fighting walks no route at all: the ride is the only way off the pad,
+## so a bot a teleport put there takes it.
+func pad_ride_at(at: Vector3) -> int:
+	var pads := _teleport_pads()
+	for id in pads:
+		if edges[pads[id]].from.distance_to(at) < PAD_REACH:
+			return pads[id]
+	return -1
 
 
 ## The legs of [param bot] this tick, when its route reached a ride edge or it is riding one:
@@ -352,6 +375,8 @@ func steer(bot: Object, mind: Object, intent: GSBotIntent, tick: int, tick_rate:
 		state = (controller as GSFpsController).state
 	if ride == null:
 		var id := intent.ride
+		if id < 0 and bool(mind.get(&"teleported")):
+			id = pad_ride_at(state.position if state != null else Vector3.INF)
 		if id < 0 or id >= edges.size() or not edges[id].linked or state == null or not bool(bot.call(&"is_alive")):
 			return
 		var edge := edges[id]
