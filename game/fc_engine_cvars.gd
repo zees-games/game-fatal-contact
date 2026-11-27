@@ -11,6 +11,7 @@ const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
 const FcBotThinkMt := preload("fc_bot_think_mt.gd")
+const FcBotContacts := preload("fc_bot_contacts.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcWeaponTickCvars := preload("fc_weapon_tick_cvars.gd")
 const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
@@ -62,6 +63,22 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotThinkMt.on = new_value.to_float() >= 0.5)
+	add_cvar("bot_native_contacts", "1",
+		"1: the bots' worlds build their contacts and sight rows in gs-sim when its library has them (GSSimBotContacts; the same contacts to the bit, one call a tick); 0, or without the library: the script loop",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.enabled = new_value.to_float() >= 0.5)
+	add_cvar("bot_native_contacts_delta", "1",
+		"1: gs-sim's contact build writes the fields a player keeps from tick to tick (heights, alive, team, motion flags, health) only when they change (GSSimBotContacts.fill_changed; the same contacts to the bit, fewer property writes); 0: every field every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.delta = new_value.to_float() >= 0.5)
+	add_cvar("bot_contact_table", "1",
+		"1: gs-sim fills the bots' contacts as one packed table (GSBotContactTable, gs-bot 41; the same decisions, a contact object written only when read); 0, or a gs-sim without fill_table: it writes every contact object every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.table = new_value.to_float() >= 0.5
+			GSBotWorld.table_enabled = FcBotContacts.table)
 	_add_motor_engine_cvars()
 
 
