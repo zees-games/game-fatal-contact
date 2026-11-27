@@ -4,6 +4,8 @@ extends RefCounted
 ## ([code]headless_netpull_batch_parity[/code]). The bridge runs it once the game has ticked; a player it leaves out (no
 ## library, a cvar off, a declaration or rig only the script handles) pulls alone in [code]_net_simulate[/code]. Takes the
 ## nets as Objects because a typed reference back to [code]FcPlayerNet[/code] would make the scripts a compile cycle.
+## With [code]sv_net_pull_apply_native[/code] gs-sim also writes the answers onto the nets
+## ([code]GSSimFpsNetPullBatch.pull_apply[/code]), so no script runs per field; off, [method _apply] writes them.
 
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
@@ -13,6 +15,11 @@ const Roles := preload("fc_weapon_roles.gd")
 ## cvar [code]sv_net_pull_batch[/code] (default on): one gs-sim call for every player a tick, where the per-player
 ## native pulls are on too; off, each player pulls alone.
 static var enabled := true
+## cvar [code]sv_net_pull_apply_native[/code] (default on): gs-sim writes the batch's net_* fields itself.
+static var apply_native := true
+## Whether the library has [code]pull_apply[/code] with this game's apply row (checked in [method native]).
+static var _can_apply := false
+static var _apply_warned := false
 static var _native: Object = null
 static var _native_tried := false
 static var _min_columns := 0
@@ -29,13 +36,17 @@ static var _ids: Array[StringName] = []
 static var _nets: Array[Object] = []
 ## [code]net_fitted[/code] per row, from the script (gs-sim has no attachment table).
 static var _fitted := PackedInt64Array()
+## [code][crouch_fraction, modifiers, fitted, reloading, switching][/code] per row, for [code]pull_apply[/code].
+static var _extras := PackedFloat64Array()
 
 
-## gs-sim's [code]GSSimFpsNetPullBatch[/code] when the library has it, else null. Made once.
+## gs-sim's [code]GSSimFpsNetPullBatch[/code] when the library has it, else null (said once in the log). Made once.
 static func native() -> Object:
 	if not _native_tried:
 		_native_tried = true
-		if ClassDB.class_exists(&"GSSimFpsNetPullBatch") and ClassDB.class_has_method(&"GSSimFpsNetPullBatch", &"pull"):
+		if not ClassDB.class_exists(&"GSSimFpsNetPullBatch") or not ClassDB.class_has_method(&"GSSimFpsNetPullBatch", &"pull"):
+			push_warning("gs-sim has no GSSimFpsNetPullBatch (library missing or older): sv_net_pull_batch is on but each player pulls alone in script")
+		else:
 			_native = ClassDB.instantiate(&"GSSimFpsNetPullBatch")
 			_min_columns = _native.min_columns()
 			_move_extra = _native.move_extra()
@@ -45,7 +56,21 @@ static func native() -> Object:
 			if _move_extra != 14 or _weapon_stride != 9 or _out_stride != 11:
 				push_warning("gs-sim's GSSimFpsNetPullBatch rows are not this game's; each player pulls alone")
 				_native = null
+			# The apply row [method _gather] builds: 5 values.
+			_can_apply = _native != null and ClassDB.class_has_method(&"GSSimFpsNetPullBatch", &"pull_apply") \
+					and _native.apply_extra() == 5
 	return _native
+
+
+## Whether gs-sim writes the batch's fields ([member apply_native] and a library with [code]pull_apply[/code]); with the
+## cvar on and an older library, says once that the script writes them.
+static func applies_natively() -> bool:
+	if not apply_native or native() == null:
+		return false
+	if not _can_apply and not _apply_warned:
+		_apply_warned = true
+		push_warning("gs-sim's GSSimFpsNetPullBatch has no pull_apply for this game: sv_net_pull_apply_native is on but the script writes the fields")
+	return _can_apply
 
 
 ## Registers the switch on a module ([param add_cvar]: [method GSModule.add_cvar]).
@@ -53,10 +78,17 @@ static func bind_cvars(add_cvar: Callable) -> void:
 	add_cvar.call("sv_net_pull_batch", "1" if enabled else "0",
 		"1: every player's movement and weapon fields are pulled in one gs-sim call a tick where its library has GSSimFpsNetPullBatch (bit for bit with the per-player pulls; needs sv_net_pull_native, sv_net_pull_weapons_native and sv_net_pull_content_native on); 0: each player pulls alone",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(_set_enabled)
+	add_cvar.call("sv_net_pull_apply_native", "1" if apply_native else "0",
+		"1: gs-sim also writes the batched players' movement and weapon net fields (GSSimFpsNetPullBatch.pull_apply, bit for bit with the script); 0: the script writes them",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(_set_apply_native)
 
 
 static func _set_enabled(_old: String, new_value: String) -> void:
 	enabled = new_value.to_float() >= 0.5
+
+
+static func _set_apply_native(_old: String, new_value: String) -> void:
+	apply_native = new_value.to_float() >= 0.5
 
 
 ## Whether [method pull_all] runs at all: the cvar, the three per-player native cvars it stands in for, and the library.
@@ -75,27 +107,35 @@ static func pull_all(nets: Array, tick: int) -> int:
 	_ids.clear()
 	_nets.clear()
 	_fitted.clear()
+	_extras.clear()
 	_columns = 0
+	var natively := applies_natively()
 	for net: Object in nets:
 		if net.batch_wants(tick):
-			_gather(net)
+			_gather(net, natively)
 	if _nets.is_empty():
 		return 0
 	_sync_wire()
-	var out: PackedInt64Array = _native.pull(_moves, _columns, _weapons, _ids, GSFpsNetSync.timer_scale)
-	if out.size() != _nets.size() * _out_stride:
-		return 0
+	if natively:
+		if _native.pull_apply(_nets, _moves, _columns, _weapons, _ids, GSFpsNetSync.timer_scale, _extras) != _nets.size():
+			push_error("GSSimFpsNetPullBatch.pull_apply wrote nobody; these players pull alone this tick")
+			return 0
+	else:
+		var out: PackedInt64Array = _native.pull(_moves, _columns, _weapons, _ids, GSFpsNetSync.timer_scale)
+		if out.size() != _nets.size() * _out_stride:
+			return 0
+		for i in _nets.size():
+			_apply(_nets[i], out, i * _out_stride, _fitted[i])
 	var fine := FcFrameProbe.fine
-	for i in _nets.size():
-		var net := _nets[i]
-		_apply(net, out, i * _out_stride, _fitted[i])
+	for net: Object in _nets:
 		net._batched_tick = tick
 		net._pull_rest(fine, FcFrameProbe.lap_start() if fine else 0)
 	return _nets.size()
 
 
-## Appends [param net]'s rows, or nothing where only its own pull can decide.
-static func _gather(net: Object) -> void:
+## Appends [param net]'s rows (and its apply row where gs-sim writes the fields, [param natively]), or nothing where
+## only its own pull can decide.
+static func _gather(net: Object, natively: bool) -> void:
 	var player: Object = net.player
 	var rig: AwWeaponRig = player.weapons
 	if rig == null or rig.arsenal == null:
@@ -124,7 +164,12 @@ static func _gather(net: Object) -> void:
 	var arsenal: GSWeaponArsenal = player.arsenal
 	var held: GSWeaponDef = arsenal.current_def() if arsenal != null else null
 	_ids.append(held.id if held != null else &"")
-	_fitted.append(FcNetPullWeapons.fitted_code(a, slot))
+	var fitted := FcNetPullWeapons.fitted_code(a, slot)
+	_fitted.append(fitted)
+	if natively:
+		_extras.append_array(PackedFloat64Array([state.crouch_fraction,
+			GSFpsNetSync.pack_modifiers(state) if not state.modifiers.is_empty() else 0, fitted,
+			1.0 if a.is_reloading() else 0.0, 1.0 if a.is_switching() else 0.0]))
 	_nets.append(net)
 
 
