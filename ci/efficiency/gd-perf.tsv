@@ -269,7 +269,7 @@ game/fc_game_unlag.gd::unlag_position_at::untyped_array	1
 game/fc_game_vars.gd::<members>::untyped_array	1
 game/fc_hud.gd::<members>::untyped_array	1
 game/fc_hud.gd::_button::alloc	1
-game/fc_hud.gd::_button::string_build	2
+game/fc_hud.gd::_button::string_build	1
 game/fc_hud.gd::_button::untyped_array	1
 game/fc_hud.gd::_present_hints::alloc	4
 game/fc_hud.gd::_present_hints::dynamic_call	1
@@ -282,7 +282,6 @@ game/fc_hud.gd::footprints::alloc	2
 game/fc_hud.gd::footprints::dynamic_call	1
 game/fc_hud.gd::footprints::untyped_array	1
 game/fc_hud.gd::present_abilities::alloc	1
-game/fc_hud.gd::present_body::dynamic_call	1
 game/fc_hud.gd::present_gear::dynamic_call	1
 game/fc_hud.gd::present_portraits::alloc	5
 game/fc_hud.gd::present_portraits::string_build	1
@@ -520,12 +519,8 @@ game/fc_touch.gd::assist_targets::untyped_array	1
 game/fc_touch.gd::crosshair_kind::dynamic_call	1
 game/fc_touch.gd::crosshair_kind::untyped_array	1
 game/fc_touch.gd::describe::untyped_array	1
-game/fc_view_arms.gd::<members>::untyped_array	4
-game/fc_view_arms.gd::_art_of::alloc	1
-game/fc_view_arms.gd::_art_of::dynamic_call	1
-game/fc_view_arms.gd::_art_of::untyped_array	1
+game/fc_view_arms.gd::<members>::untyped_array	3
 game/fc_view_arms.gd::_on_hands::untyped_array	1
-game/fc_view_arms.gd::_process::dynamic_call	5
 game/fc_view_arms.gd::arm_set_look::alloc	1
 game/fc_view_arms.gd::arm_set_look::dynamic_call	1
 game/fc_view_arms.gd::arm_set_look::untyped_array	1
@@ -535,7 +530,6 @@ game/fc_view_arms.gd::mount::dynamic_call	2
 game/fc_view_arms.gd::team_look::alloc	1
 game/fc_view_arms.gd::team_look::dynamic_call	3
 game/fc_view_arms.gd::team_look::untyped_array	1
-game/fc_view_arms.gd::weapon_bounds::dynamic_call	1
 game/fc_view_arms.gd::weapon_bounds::untyped_array	1
 game/fc_view_arms_fallback.gd::<members>::untyped_array	1
 game/fc_view_arms_fallback.gd::figure::node_lookup	1

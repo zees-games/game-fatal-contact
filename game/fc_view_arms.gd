@@ -60,9 +60,10 @@ var _team_set: Array = []
 var _boxes: Dictionary = {}
 ## How many times further off than the hands frame the weapon is drawn ([method drawn_depth]); the arms draw their depth at it.
 var _depth := 1.0
-var _art_model := 0
-var _art: Array = []
 var _look_override := false
+## The empty hide filter and grip, held so a frame builds neither.
+var _no_hide_fn := Callable()
+const _NO_GRIP: Dictionary = {}
 ## Keeps the arms drawable ([Fallback]).
 var fallback := Fallback.new()
 
@@ -116,7 +117,7 @@ func _on_hands(anchor: Node3D, grip: Vector3, fore: Vector3, pose: StringName) -
 	# Real fingers (gs-player-char 27): which grip they close into and the gun's axes they close round.
 	if "kind" in _grip:
 		_grip.kind = hand_kind(pose, body.weapons.current_art() if body != null and body.weapons != null else null)
-		var held: Dictionary = model.art_hand_grip() if model != null and model.has_method(&"art_hand_grip") else {}
+		var held: Dictionary = model.art_hand_grip() if model != null else _NO_GRIP
 		var to_anchor := anchor.global_transform.basis.orthonormalized().inverse()
 		var f: Vector3 = (to_anchor * (held.get("forward", Vector3.ZERO) as Vector3)).normalized()
 		var u: Vector3 = (to_anchor * (held.get("up", Vector3.ZERO) as Vector3)).normalized()
@@ -165,7 +166,7 @@ static func weapon_bounds(model: AwViewModel, boxes: Dictionary) -> AABB:
 		if boxes.size() > 32:
 			boxes.clear()
 		# An art with its own clearance box (an L-shaped single mesh whose bounds take in the air behind the grip) names it.
-		var art_box: AABB = model.art_clear_box() if model.has_method(&"art_clear_box") else AABB()
+		var art_box: AABB = model.art_clear_box()
 		boxes[key] = art_box if art_box.has_volume() else GSViewGrip.one_hand(weapon, Vector3.ZERO).bounds_local()
 	var box: AABB = boxes[key]
 	if not box.has_volume():
@@ -214,22 +215,20 @@ func _process(delta: float) -> void:
 		arms.draw_depth = _depth if draw_at_gun_depth else 1.0
 	visible = model != null and model.visible and not model.arms_hidden_by_scope() and body.is_alive()
 	if model != null:
-		var art := _art_of(model)
-		if art[0]:
-			var own: float = model.call(&"art_hand_scale")
-			arms.hand_scale = (own if own > 0.0 else DEFAULT_HAND_SCALE) * hand_scale_mult
-		if art[1]:
-			var fore: float = model.call(&"art_forearm_scale")
-			arms.forearm_scale = (fore if fore > 0.0 else 1.0) * forearm_scale_mult
+		# fc-weapons 40 (requires.floor.json has 43) has all three art_* reads.
+		var own := model.art_hand_scale()
+		arms.hand_scale = (own if own > 0.0 else DEFAULT_HAND_SCALE) * hand_scale_mult
+		var fore := model.art_forearm_scale()
+		arms.forearm_scale = (fore if fore > 0.0 else 1.0) * forearm_scale_mult
 		model.scope_arms_hide_override = scope_arms_hide_override
-		var lean: float = model.call(&"art_max_lean") if art[2] else -1.0
+		var lean := model.art_max_lean()
 		arms.max_lean = max_lean_override if max_lean_override >= 0.0 else (lean if lean >= 0.0 else _own_lean)
 	if _look_override:
 		var over := arm_set_look(rules, _arm_set)
 		var team := team_look(body, _team_set) if over == null else null
 		# A team body is a whole prepared figure: its vest and collar reach into the bottom of the view as the
 		# clip breathes, so only its arms are drawn. Set before the override, which rebuilds the mesh with it.
-		arms.hide_vertex_fn = not_arm if team != null else Callable()
+		arms.hide_vertex_fn = not_arm if team != null else _no_hide_fn
 		arms.set_look_override(over if over != null else team)
 	if &"debug_pose" in arms and arms.debug_pose != debug_pose:
 		arms.debug_pose = debug_pose
@@ -240,7 +239,7 @@ func _process(delta: float) -> void:
 		arms.run_phase = model.run_phase()
 	# The knife throw's wind-back turns the knife fist into the throw's pinch.
 	if &"throw_grip" in arms:
-		var windup: float = body.get(&"windup") if &"windup" in body else -1.0
+		var windup: float = body.windup if &"windup" in body else -1.0
 		arms.throw_grip = clampf(windup, 0.0, 1.0) if windup >= 0.0 else 0.0
 	if not fallback.tick(arms, model, camera, _depth if draw_at_gun_depth and holding() else 1.0):
 		set_process(false)
@@ -256,16 +255,6 @@ static func not_arm(bone: StringName, _rest: Vector3) -> bool:
 		if name.begins_with(arm):
 			return false
 	return true
-
-
-## Which of art_hand_scale, art_forearm_scale and art_max_lean [param model] has, asked once per view model
-## rather than three has_method calls a frame.
-func _art_of(model: AwViewModel) -> Array:
-	var id := model.get_instance_id()
-	if id != _art_model:
-		_art_model = id
-		_art = [model.has_method(&"art_hand_scale"), model.has_method(&"art_forearm_scale"), model.has_method(&"art_max_lean")]
-	return _art
 
 
 func holding() -> bool:
