@@ -9,6 +9,7 @@ const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
 const FcBotContacts := preload("../game/fc_bot_contacts.gd")
+const FcBotDropCache := preload("../game/fc_bot_drop_cache.gd")
 const FcBotThinkMt := preload("../game/fc_bot_think_mt.gd")
 
 ## `bot_threads`: 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8 with
@@ -21,7 +22,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 8
-const CHECKS := 48
+const CHECKS := 50
 
 ## `bot_native_refresh`'s parity: seeded matches of this many bots, this long, on these maps, script against gs-sim.
 const REFRESH_BOTS := 31
@@ -165,6 +166,21 @@ func _switches_play_the_same(native: PackedStringArray) -> void:
 	_check(warmed > 0, "the drop table was packed on the main thread before the brains went to workers (%d ticks)" % warmed)
 	_check(unbatched[0] == native and FcBotCoast.finish_batched == finished and FcBotContacts.drops_warmed == warmed,
 		"bot_finish_recoil_native 0 and bot_drops_warm 0 (script recoil turns, drop table packed on a worker) play the native match (%d kills)" % unbatched[1])
+	# bot_drops_cache: the drop table and ratings kept while the drops stand still. Verified, every reuse packs fresh as well and
+	# must equal the kept table to the bit; off, everything is packed and rated every tick. Both play the native match.
+	var reused := FcBotDropCache.reused
+	var mismatched := FcBotDropCache.mismatched
+	FcBotDropCache.verify = true
+	var verified := await _play(4)
+	FcBotDropCache.verify = false
+	var kept := FcBotDropCache.reused - reused
+	FcBotDropCache.enabled = false
+	var uncached := await _play(4)
+	FcBotDropCache.enabled = true
+	_check(kept > 0 and FcBotDropCache.mismatched == mismatched and FcBotDropCache.reused == reused + kept,
+		"bot_drops_cache kept the drop table on %d ticks, each equal to the bit to a fresh pack (%d differed)" % [kept, FcBotDropCache.mismatched - mismatched])
+	_check(verified[0] == native and uncached[0] == native,
+		"bot_drops_cache 1 (verified) and 0 (packed and rated every tick) play the native match (%d, %d kills)" % [verified[1], uncached[1]])
 	# bot_coast_native: with think tiers on (every bot nobody sees coasts) the threaded runs work their coasting bots
 	# in one gs-sim call a tick; 0 works them in script one by one, and plays the same match to the digest.
 	var has_coast := FcBotCoast.native() != null

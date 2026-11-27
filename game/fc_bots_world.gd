@@ -8,6 +8,7 @@ const FcBotBrain := preload("fc_bot_brain.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
 const FcBotContacts := preload("fc_bot_contacts.gd")
+const FcBotDropCache := preload("fc_bot_drop_cache.gd")
 
 
 ## The behaviour of a weapon whose shot flies (a rocket, a bolt); every other one is led as
@@ -199,12 +200,14 @@ class World:
 	## The contacts by id, kept from tick to tick and rewritten whole by [method refresh] (a brain keeps ids, never a contact).
 	var _by_id: Dictionary[int, GSBotContact] = {}
 	var _players: Dictionary[int, FcPlayer] = {}
-	## Weapon ratings (def -> [method GSBotArms.rate]) of this tick: every loadout and drop list rates the same few definitions.
+	## Weapon ratings (def -> [method GSBotArms.rate]), kept across ticks with `bot_drops_cache`: every loadout and drop list rates the same few definitions.
 	var _rated: Dictionary[Object, float] = {}
+	## Definitions [member _rated] holds before [method refresh] starts it again (bot_drops_cache keeps it across ticks).
+	const RATED_KEPT := 512
 	## The tick [method player_count] counted on, and its count.
 	var _count_tick: int = -1
 	var _count: int = 0
-	## [method GSBotArms.rate] once a tick per definition (over [member _rated]), for every loadout and drop list here.
+	## [method GSBotArms.rate] once per definition (over [member _rated]), for every loadout and drop list here.
 	var _rater: Callable = Callable()
 	## The body tunables of this tick, looked up once for all contacts (the lookup walks every player).
 	var _tunables: GSFpsTunables = null
@@ -273,6 +276,10 @@ class World:
 				rated[def] = held
 			return held
 		GSBotArms.wire(self, func() -> Variant: return p_game.get("weapon_drops"), func() -> Object: return box[0] if box[0] != null else _any_arsenal(p_game), _rater)
+		# The drop table kept while the drops stand still (cvar `bot_drops_cache`); the lambda holds the cache, not self.
+		var pack := drop_table_fn
+		var drop_cache := FcBotDropCache.new()
+		drop_table_fn = func() -> Variant: return drop_cache.table(p_game, pack)
 
 	## Players in the game on [param tick], counted once a tick however many bots ask.
 	func player_count(tick: int) -> int:
@@ -291,7 +298,10 @@ class World:
 		contacts_version = tick
 		_contacts.clear()
 		_players.clear()
-		_rated.clear()
+		if not FcBotDropCache.enabled or _rated.size() > RATED_KEPT:
+			# A rating is the definition's alone, so it is kept across ticks; fitted guns are new definitions, so the
+			# table is dropped whole now and then rather than growing for the life of the server.
+			_rated.clear()
 		_tunables = null
 		var t_lap := FcFrameProbe.lap_start()
 		var teams := _team_mode()

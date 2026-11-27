@@ -12,6 +12,7 @@ const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
 const FcBotContacts := preload("fc_bot_contacts.gd")
+const FcBotDropCache := preload("fc_bot_drop_cache.gd")
 const FcBotThinkMt := preload("fc_bot_think_mt.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcWeaponTickCvars := preload("fc_weapon_tick_cvars.gd")
@@ -102,6 +103,11 @@ func _add_bot_contact_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.drops_warm = new_value.to_float() >= 0.5)
+	add_cvar("bot_drops_cache", "1",
+		"1: the bots' drop table and weapon ratings are kept from tick to tick while every drop rests and none was added, taken, emptied, pushed or put down (the same table to the bit); 0: packed and rated again every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotDropCache.enabled = new_value.to_float() >= 0.5)
 	add_cvar("bot_contact_table", "1",
 		"1: gs-sim fills the bots' contacts as one packed table (GSBotContactTable, gs-bot 44; the same decisions, a contact object written only when read); 0, or a gs-sim without fill_table: it writes every contact object every tick",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
