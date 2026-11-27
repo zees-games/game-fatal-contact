@@ -3,6 +3,8 @@ extends "fc_game_unlag.gd"
 
 ## The deathmatch itself: a match, a combat manager, a map, and some players.
 
+const FcNativeShots := preload("fc_native_shots.gd")
+
 ## The snapshot rate at [param rate] ticks a second: the rate nearest [param target] (default
 ## [constant NET_SNAPSHOT_RATE], or `sv_snapshot_rate` on a server) that is an EXACT divisor of the tick rate,
 ## so a snapshot lands on every n-th tick (64 and 128 give 32, 60 gives 30, 66 gives 33, 33 gives 33, 22 gives 22).
@@ -419,6 +421,14 @@ func _build_projectiles() -> void:
 			var _pushed := FcRocketJump.launch(player_for(entity_id), def, rocket_rules, at)
 
 
+## Hands `sv_native_shots` to the combat manager's tracer (fc_native_shots.gd).
+func apply_native_shots() -> void:
+	if combat == null or not (combat._tracer is FcNativeShots):
+		return
+	var tracer := combat._tracer as FcNativeShots
+	tracer.enabled = native_shots != 0
+
+
 func _build_combat() -> GSResult:
 	combat = GSCombatManager.new()
 	combat.name = "Combat"
@@ -443,6 +453,9 @@ func _build_combat() -> GSResult:
 	combat.config = config
 	combat.rewind_fn = _unlag_rewind
 	combat.restore_fn = _unlag_restore
+	# Hitscan pellets walk in GameSpice Sim when it is loaded (sv_native_shots); the script tracer stays the fallback.
+	combat._tracer = FcNativeShots.new(combat)
+	apply_native_shots()
 
 	add_child(combat)
 

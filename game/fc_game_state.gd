@@ -637,6 +637,8 @@ var shot_bracket_max_span: int = 32
 var shot_ease_max: float = 3.0
 ## `cl_shot_view_cone_deg`: a firing command names a target's own sample pair (FcNetCommand.view_targets) only for players within this many degrees of the aim; 0 names every one drawn off the shared pair.
 var shot_view_cone_deg: float = 10.0
+## `sv_native_shots`: 1 walks hitscan pellets (walls, ricochets, bodies, hitbox shapes) in GameSpice Sim's `GSSimShots` and applies its event rows (fc_native_shots.gd); 0 runs gs-combat's script tracer, the specification. Without the library the script runs and an error is logged once.
+var native_shots: int = 1
 ## `sv_shot_rewind_log_sec`: how often, in seconds, the server logs [member shot_rewind_counts] when a fallback or refusal grew since the last line; 0 never.
 var shot_rewind_log_sec: float = 30.0
 ## How each hitscan rewind stood a target, by key: target (its own pair, blended), target_ahead (its own pair, run on past the newer), target_held (past the extrapolation limit, held at the newer), bracket (the shared pair), ring (the server's own tick),
