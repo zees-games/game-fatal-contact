@@ -6,7 +6,7 @@ const Bodies := preload("../game/fc_killcam_bodies.gd")
 const KillcamShots := preload("../game/fc_killcam_shots.gd")
 const KillPovView := preload("../game/fc_kill_pov_view.gd")
 
-const EXPECTED_CHECKS := 70
+const EXPECTED_CHECKS := 72
 
 ## The standalone game, as a player lives it: a bot kills the local player (the kill view of the
 ## killer plays), then a bot's kill ends the match (the final killcam plays its time, a skip key
@@ -479,6 +479,46 @@ func _check_arms_pool(view: KillPovView, cam: Camera3D, aux: PackedFloat32Array)
 		view.present({})
 	_check(view.parked_arms().size() == KillPovView.RIGS, "past the pool's size the oldest arms go", str(view.parked_arms()))
 	view.killer_look_fn = was
+	_check_killer_arms_warm(view)
+
+
+class _WarmPerson:
+	extends RefCounted
+	var player_id := 0
+	var avatar: GSAvatar = null
+	var team := -1
+
+
+class _WarmGame:
+	extends RefCounted
+	var people: Array = []
+	func players() -> Array:
+		return people
+	func player_for(id: int) -> Variant:
+		for person: Variant in people:
+			if int((person as Object).get(&"player_id")) == id:
+				return person
+		return null
+
+
+## Owner's web profile 2026-11-27: the first death by each bot built its arm rig in the kill's frame (146-149 ms). The
+## warm-up builds one rig per player ahead, a call each, and stops when every look is parked.
+func _check_killer_arms_warm(view: KillPovView) -> void:
+	var was_rules: Object = view.rules
+	var game := _WarmGame.new()
+	for id in [31, 32]:
+		var person := _WarmPerson.new()
+		person.player_id = id
+		game.people.append(person)
+	view.rules = game
+	view._exit_tree()  # the pool is full of earlier killers; empty it so the warm-up has room
+	while not view.warm_killers():
+		pass
+	var keys: Array = view.parked_arms()
+	_check(keys.has(KillPovView.look_for(game, 31)[0]) and keys.has(KillPovView.look_for(game, 32)[0]), "warming builds an arm rig for each player's look", str(keys))
+	var before := keys.duplicate()
+	_check(view.warm_killers() and view.parked_arms() == before, "and builds nothing once every look is parked", str(view.parked_arms()))
+	view.rules = was_rules
 
 
 ## Owner video: small dark copies of the player's gun floated in the map, switching and reloading with it, up to one per kill-view rig. A rig parked hidden at a wall kept its wall pass (a CanvasLayer, which no hidden or stopped

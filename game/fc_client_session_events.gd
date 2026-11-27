@@ -419,7 +419,8 @@ func _build_killview() -> void:
 	killview.setup(game.killview_rules)
 	killview.hide_fn = func() -> Array: return [hud, view_model]
 	killview.stage = killcam
-	_pov_spares.append(KillPovView.mount(self, game, killview, "KillViewScreen", not _builds_in_frames()))
+	_killer_arms_pov = KillPovView.mount(self, game, killview, "KillViewScreen", not _builds_in_frames())
+	_pov_spares.append(_killer_arms_pov)
 	killview.respawn_requested.connect(func() -> void:
 		if bridge != null:
 			bridge.send_request(FcEvents.Ask.RESPAWN)

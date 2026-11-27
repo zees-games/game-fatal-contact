@@ -225,6 +225,9 @@ var _changing := false
 var _trace_hosted_change := false
 ## The killer's screens whose spares setup still has to build, one a frame (`KillPovView.mount`).
 var _pov_spares: Array[Node] = []
+## The kill view's screen, whose arm rigs for the other players are built a few frames apart (`_warm_killer_arms_tick`).
+var _killer_arms_pov: Node = null
+var _killer_arms_wait := 0
 ## The stock figure models read on loader threads from the start of setup (`_request_figures`).
 var _figure_loads: PackedStringArray = []
 

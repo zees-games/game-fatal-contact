@@ -452,6 +452,33 @@ func _mount_arms(cam: Camera3D) -> void:
 		hands.hands_reached.connect(_on_hands)
 
 
+## Builds, off any kill, the arm rig of one player whose look no parked rig has, so the kill by them moves nodes and
+## builds nothing (a web frame paid 146-149 ms for it, the first death by each bot, 2026-11-27 owner profile). One rig
+## a call; true when every player's look is parked, the pool is full, or a kill is showing.
+func warm_killers() -> bool:
+	if not is_inside_tree() or _live(arms) or rules == null or not rules.has_method(&"players"):
+		return true
+	if _rigs.is_empty() or not _live(_rigs[0]) or not _shares_arms(_rigs[0]):
+		return false
+	_prune_arms()
+	if _parked_arms.size() >= RIGS:
+		return true
+	var parked_keys: Dictionary = {}
+	for entry: Array in _parked_arms:
+		parked_keys[entry[0]] = true
+	for person: Variant in rules.call(&"players"):
+		var id := int((person as Object).get(&"player_id")) if person is Object else 0
+		if id == 0:
+			continue
+		var who: Array = look_for(rules, id)
+		var key: String = who[0]
+		if parked_keys.has(key):
+			continue
+		_park_arms(key, _new_arms(who[1]))
+		return false
+	return true
+
+
 ## The parked arm rig a kill by [param key] takes: one built with that look; else the stock spare; else, the pool
 ## full, the oldest (rebuilt); else -1 (a new rig, so the parked looks stay for their killers).
 func _arms_pick(key: String) -> int:

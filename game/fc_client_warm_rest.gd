@@ -32,6 +32,23 @@ func _warm_rest_tick() -> void:
 	AwModelCache.scene(_rest_paths.pop_back())
 
 
+## Frames between two arm-rig builds, and between looks at who joined since: one build is 25-33 ms native, 145 on the web.
+const KILLER_ARMS_FRAMES := 24
+
+
+## Builds the arm rigs for the players who may kill the local one, one every [constant KILLER_ARMS_FRAMES] frames, so the
+## first death by each does not build one in its frame (146-149 ms spikes in the first minute of a web match).
+func _warm_killer_arms_tick() -> void:
+	if not is_instance_valid(_killer_arms_pov):
+		get_tree().process_frame.disconnect(_warm_killer_arms_tick)
+		return
+	_killer_arms_wait += 1
+	if _killer_arms_wait < KILLER_ARMS_FRAMES:
+		return
+	_killer_arms_wait = 0
+	var _done: bool = _killer_arms_pov.call(&"warm_killers")
+
+
 func _begin_warm_rest() -> void:
 	var first := _spawn_model_paths()
 	for path in AwWeaponArtTable.model_paths():
@@ -39,6 +56,8 @@ func _begin_warm_rest() -> void:
 			_rest_paths.append(path)
 	if not _rest_paths.is_empty() and not get_tree().process_frame.is_connected(_warm_rest_tick):
 		get_tree().process_frame.connect(_warm_rest_tick)
+	if not GSPlatform.is_headless() and is_instance_valid(_killer_arms_pov) and not get_tree().process_frame.is_connected(_warm_killer_arms_tick):
+		get_tree().process_frame.connect(_warm_killer_arms_tick)
 
 
 func _weapon_warm_items() -> Array:
