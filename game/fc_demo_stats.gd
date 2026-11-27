@@ -1,4 +1,4 @@
-extends RefCounted
+extends "fc_demo_source.gd"
 
 ## Records where real players stand (`place`) and how they aim (`engage`), for gs-bot's heatmap and aim statistics.
 ##

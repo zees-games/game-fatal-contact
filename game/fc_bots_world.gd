@@ -90,7 +90,7 @@ class Mind:
 	## The commands of the last tick the brain thought, repeated on the ticks it coasts (see [constant THINK_EVERY]).
 	var last_move: GSFpsCommand = null
 	var last_fire: GSWeaponCommand = null
-	var out: Array = []  # The [move, fire] pair handed out every tick with FcBots.reuse_commands (bot_native_think).
+	var out: Array[Object] = []  # The [move, fire] pair handed out every tick with FcBots.reuse_commands (bot_native_think).
 	## Whether nobody was within [member think_near] metres at the last think.
 	var far: bool = false
 	## The view the last think moved from and to, which the coast ticks walk along.
@@ -184,21 +184,21 @@ class World:
 	var tick_rate: float = float(FcContent.TICK_RATE)
 	## The map's PVS before each sight ray (cvar `fc_bot_pvs`), bound by [method refresh].
 	var pvs := FcBotPvs.new()
-	var _loadouts: Dictionary = {}
+	var _loadouts: Dictionary[int, Array] = {}
 	## [constant STYLE_CLASS] by weapon definition, so a contact's class is one lookup a tick.
-	var _classes: Dictionary = {}
+	var _classes: Dictionary[GSWeaponDef, StringName] = {}
 	## Whether this build's gs-bot has play styles ([constant STYLE_LEVEL]); asked once per world, not per contact.
 	var _styled: bool = GSAddonApi.build_level("gs_bot") >= STYLE_LEVEL
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
-	var _contacts: Array = []
+	var _contacts: Array[GSBotContact] = []
 	## The native sight scan's table of [member _contacts], filled in [method refresh]'s loop (cvar `bot_native_think`).
 	var _bot_rows := FcBotRows.new()
 	## The contacts by id, kept from tick to tick and rewritten whole by [method refresh] (a brain keeps ids, never a contact).
-	var _by_id: Dictionary = {}
-	var _players: Dictionary = {}
+	var _by_id: Dictionary[int, GSBotContact] = {}
+	var _players: Dictionary[int, FcPlayer] = {}
 	## Weapon ratings (def -> [method GSBotArms.rate]) of this tick: every loadout and drop list rates the same few definitions.
-	var _rated: Dictionary = {}
+	var _rated: Dictionary[Object, float] = {}
 	## The tick [method player_count] counted on, and its count.
 	var _count_tick: int = -1
 	var _count: int = 0
@@ -207,7 +207,7 @@ class World:
 	## The body tunables of this tick, looked up once for all contacts (the lookup walks every player).
 	var _tunables: GSFpsTunables = null
 	## Bots a person hurt since their last think: they think next tick whatever their tier.
-	var woken: Dictionary = {}
+	var woken: Dictionary[int, bool] = {}
 	## [member FcBots.tiers], set by the thinking bot before [method refresh].
 	var tiers: GSBotThinkTier = null
 	## The personas bots are dealt from ([method personas_for]), the `bot_personas` text it was set for, and a count

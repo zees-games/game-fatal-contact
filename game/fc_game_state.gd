@@ -5,6 +5,8 @@ extends Node
 
 const KillPov := preload("fc_kill_pov.gd")
 const FcAmbience := preload("fc_ambience.gd")
+const FcRideSource := preload("fc_ride_source.gd")
+const FcDemoSource := preload("fc_demo_source.gd")
 const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
 const FcConfig := preload("fc_config.gd")
 const FcMapIo := preload("fc_map_io.gd")
@@ -179,7 +181,7 @@ signal mode_shown(shown: FcMode)
 ## A client only: the sides the server announced (player id -> team), from `FcEvents.Kind.TEAM`.
 ## [method FcGame.team_of] answers from it on a client, because the client's own match assigns
 ## sides by its own join order and knows nothing of a menu switch or a rebalance.
-var replicated_teams: Dictionary = {}
+var replicated_teams: Dictionary[int, int] = {}
 
 ## Analytic geometry, or Godot physics. See [enum FcPlayer.Mode].
 @export var headless: bool = true
@@ -281,9 +283,9 @@ var knife_rules: Dictionary = GSWeaponKnives.DEFAULT_RULES.merged({"charge": tru
 var map_io: Node = null
 ## The use key's reach and cooldown for map buttons: one for the game's life, so the owner's cvars outlive a map.
 var map_use: GSMapUse = GSMapUse.new()
-var drop_held: Dictionary = {}
+var drop_held: Dictionary[int, bool] = {}
 ## Per player: whether the use key was down last tick, for its rising edge.
-var use_held: Dictionary = {}
+var use_held: Dictionary[int, bool] = {}
 
 
 ## The player-class def that overrides drop rules for [param id], or null.
@@ -296,7 +298,7 @@ var streaks: Dictionary = {}
 ## Streak -> what reaching it gives: `heal` (full health), `armour`, `haste`,
 ## `empowered` (more damage, a while). Set by `fc_streak_rewards` as "3:heal,5:haste";
 ## empty gives nothing. Applied on the kill that reaches the streak, server side.
-var streak_rewards: Dictionary = {}
+var streak_rewards: Dictionary[int, String] = {}
 
 ## A random-every-spawn loadout was handed to [param player_id]; [param text] names it. Authority side.
 signal loadout_rolled(player_id: int, text: String)
@@ -357,7 +359,7 @@ var jail_rules := {"enabled": true, "open": 10.0, "cooldown": 20.0}
 
 ## What the packs were last placed with, so a rule change that is not about them does not put
 ## every pack back (which would restart its respawn timer). See [method apply_drop_rules].
-var _packs_placed_with: Array = []
+var _packs_placed_with: Array[Variant] = []
 
 ## Statistics, achievements and boards. Null when [member track_progress] is off or
 ## this instance is not the authority.
@@ -392,10 +394,10 @@ var workbench: GSGameWorkbench = null
 var npc_skill: GSNpcAiSkill = GSNpcAiSkill.new()
 
 ## Records and harvests players' surf rides once [method start_ride_recording] has run.
-var surf_rides: RefCounted = null
+var surf_rides: FcRideSource = null
 
 ## Records where players stand and how they aim, and weights the bots' roaming by it; set by [method start_demo_stats].
-var demo_stats: RefCounted = null
+var demo_stats: FcDemoSource = null
 
 ## Whether the monsters' learned map traffic is kept on disk across restarts.
 ##
@@ -452,8 +454,8 @@ var spectate: FcSpectate = null
 var player_stack: FcPlayerStack = null
 
 ## player id -> [FcPlayer].
-var _players: Dictionary = {}
-var _round_frozen_ids: Dictionary = {}
+var _players: Dictionary[int, FcPlayer] = {}
+var _round_frozen_ids: Dictionary[int, Dictionary] = {}
 ## What the last whole `_sync_round_freeze` held everybody to: a respawn under the same answer syncs only its own player.
 var _round_frozen_want := false
 var _freeze_overridden := false
@@ -511,11 +513,11 @@ const COLLISION_LAG_MAX_SEC := 0.485
 const TELEPORT_CUT := 10.0
 
 ## id -> [PackedVector3Array positions, PackedInt32Array ticks, PackedFloat32Array crouch fractions], a ring per player.
-var _unlag: Dictionary = {}
+var _unlag: Dictionary[int, Array] = {}
 ## id -> the position a rewind moved a player from, until it is restored.
-var _unlag_moved: Dictionary = {}
+var _unlag_moved: Dictionary[int, Vector3] = {}
 ## id -> true for a player whose hit zones a rewind fitted to the crouch it had then, until it is restored.
-var _unlag_refit: Dictionary = {}
+var _unlag_refit: Dictionary[int, bool] = {}
 ## The shooter, whom a rewind leaves where they are.
 var _unlag_shooter: int = 0
 ## Flies simulated bullets when `sv_ballistics` is on; null without gs-weapon's ballistics rules.
@@ -525,14 +527,14 @@ var tracers: GSWeaponTracers = null
 ## Client side: flies the server's announced bullets for drawing only; nothing here decides a hit.
 var bullet_mirrors: GSWeaponBullets = null
 ## Server bullet id -> the local id in [member bullet_mirrors].
-var _mirror_ids: Dictionary = {}
+var _mirror_ids: Dictionary[int, int] = {}
 
 ## Movement keys changed from [method FcPlayer.fc_tunables]' defaults, key -> number.
 ##
 ## [b]Kept, and applied to every player who arrives later[/b], because a rule that only
 ## reached the players present when it was set is a rule the next joiner does not have —
 ## and a client and server that disagree about a slide mispredict every slide.
-var movement_rules: Dictionary = {}
+var movement_rules: Dictionary[String, float] = {}
 
 ## The spawn points built from the map, so a map change can take them away again.
 ##
@@ -548,11 +550,11 @@ var _world_collision: Node3D = null
 
 var _tick: int = 0
 ## Player id to the tick of their last spawn and last shot, for the instant loadout swap.
-var _spawned_tick: Dictionary = {}
-var _fired_tick: Dictionary = {}
+var _spawned_tick: Dictionary[int, int] = {}
+var _fired_tick: Dictionary[int, int] = {}
 
 ## Player id -> where their spawn protection started, for `spawn_protection_move_feet`.
-var _protect_anchor: Dictionary = {}
+var _protect_anchor: Dictionary[int, Vector3] = {}
 
 const FEET_TO_METRES := 0.3048
 var _registered_name: StringName = &""
@@ -560,7 +562,7 @@ var _registered_name: StringName = &""
 ## The tick each (player, hurt volume) pair is next hurt on, kept after the player leaves
 ## the volume until it passes. See
 ## [method _hurt_from_map].
-var _hurt_due: Dictionary = {}
+var _hurt_due: Dictionary[Vector2i, int] = {}
 
 ## What [method follow_server_cvars] follows; null on a server and offline.
 var _cvar_source: Object = null
@@ -639,7 +641,7 @@ var shot_view_cone_deg: float = 10.0
 var shot_rewind_log_sec: float = 30.0
 ## How each hitscan rewind stood a target, by key: target (its own pair, blended), target_ahead (its own pair, run on past the newer), target_held (past the extrapolation limit, held at the newer), bracket (the shared pair), ring (the server's own tick),
 ## eased (a target's own pair with the client's resume ease added), refused_ease (over [member shot_ease_max]), held (a repeated command: its pairs no longer name what was drawn), refused_span (over [member shot_bracket_max_span]), refused_view (the view tick outside the pair), unrecorded (no ring entry: not rewound, logged), bullet (a bullet's or projectile's rewind, the ring).
-var shot_rewind_counts: Dictionary = {}
+var shot_rewind_counts: Dictionary[StringName, int] = {}
 
 ## Adds one to [member shot_rewind_counts] under [param key].
 func count_shot_rewind(key: StringName) -> void:
@@ -678,8 +680,8 @@ func drops_weapon_on_death() -> bool:
 
 
 ## "3:heal,5:haste" -> {3: "heal", 5: "haste"}. Unparseable pairs are skipped.
-static func parse_streak_rewards(text: String) -> Dictionary:
-	var out := {}
+static func parse_streak_rewards(text: String) -> Dictionary[int, String]:
+	var out: Dictionary[int, String] = {}
 	for pair in text.split(",", false):
 		var bits := pair.strip_edges().split(":")
 		if bits.size() == 2 and bits[0].is_valid_int() and int(bits[0]) > 0:

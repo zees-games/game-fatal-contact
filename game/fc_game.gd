@@ -354,7 +354,7 @@ func start_ride_recording(add_cvar: Callable = Callable(), config_file: String =
 	var opened: GSResult = store.call(&"open")
 	if not opened.ok:
 		return opened
-	var rides: RefCounted = (load(FcPaths.rebase("res://game/fc_surf_rides.gd")) as GDScript).new()
+	var rides: FcRideSource = (load(FcPaths.rebase("res://game/fc_surf_rides.gd")) as GDScript).new()
 	var ready: GSResult = rides.call(&"setup", self, config, store, float(tick_rate))
 	if not ready.ok:
 		return ready
@@ -368,7 +368,7 @@ func start_demo_stats(config: RefCounted, store: RefCounted) -> GSResult:
 		return GSResult.success(demo_stats)
 	if not ResourceLoader.exists("res://addons/gs_bot/runtime/gs_bot_demo_heatmap.gd") or not ResourceLoader.exists("res://addons/gs_bot/runtime/gs_bot_aim_stats.gd"):
 		return GSResult.fail(GSError.CODE_UNSUPPORTED, "This shell has no heatmap or aim statistics.")
-	var stats: RefCounted = (load(FcPaths.rebase("res://game/fc_demo_stats.gd")) as GDScript).new()
+	var stats: FcDemoSource = (load(FcPaths.rebase("res://game/fc_demo_stats.gd")) as GDScript).new()
 	var ready: GSResult = stats.call(&"setup", self, config, store, float(tick_rate))
 	if not ready.ok:
 		return ready

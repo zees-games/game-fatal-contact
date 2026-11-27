@@ -10,5 +10,5 @@ func steer(_bot: Object, _mind: RefCounted, _intent: GSBotIntent, _tick: int, _t
 
 
 ## A route that may ride or teleport (see [method GSBotNav.route]); empty from this base.
-func route_detail(_from: Vector3, _to: Vector3) -> Dictionary:
-	return {}
+func route_detail(_from: Vector3, _to: Vector3) -> Dictionary:  # perf-lint: allow untyped_array the signature fc_surf.gd and GSBotWorld.route_detail share
+	return {}  # perf-lint: allow alloc never reached: fc_surf.gd overrides it and the base has no rides

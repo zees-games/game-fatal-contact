@@ -187,7 +187,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 		if move != null and fire != null:
 			match_node.note_activity(str(id), _tick)
 			if surf_rides != null:
-				surf_rides.call(&"before", id, player)
+				surf_rides.before(id, player)
 			if fine:
 				FcFrameProbe.add(&"pl_pre", t_fine)
 				t_fine = Time.get_ticks_usec()
@@ -196,7 +196,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 				FcFrameProbe.add(&"pl_sim", t_fine)
 				t_fine = Time.get_ticks_usec()
 			if surf_rides != null:
-				surf_rides.call(&"after", id, player, move, _tick)
+				surf_rides.after(id, player, move, _tick)
 			if use_grid:
 				_hull_grid.moved(id, player)
 			if hull_world != null:
@@ -204,7 +204,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 				hull_world.moved(player.hull_slot, feet.x, feet.y, feet.z)
 				hull_world.set_alive(player.hull_slot, player.health.alive)
 			if demo_stats != null:
-				demo_stats.call(&"after", id, player, move, fire, _tick)
+				demo_stats.after(id, player, move, fire, _tick)
 			shots.append_array(outcome.shots)
 			_note_protected_action(id, player, move, not outcome.shots.is_empty())
 
@@ -232,7 +232,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	var n := ids.size()
 	# The surf rides follow the map once a tick, not once per player (~4 us a player a tick of lookups that change nothing).
 	var lean := FcPlayer.lean_tick
-	var surfing := lean and surf_rides != null and bool(surf_rides.call(&"begin_tick"))
+	var surfing := lean and surf_rides != null and surf_rides.begin_tick()
 	if _batch_rows.size() < n:
 		_batch_rows.resize(n)
 		_batch_pairs.resize(n)
@@ -277,7 +277,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	if post_lane and _post_native == null:
 		_post_native = FcPlayer.make_native_post()
 	var post_from: Object = _motor_batch if post_lane and _motor_batch.has_method(&"post_row") else null
-	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null and demo_stats.has_method(&"after_reads")
+	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null
 	for i in range(n):
 		var row := _batch_rows[i]
 		if row == -1:
@@ -380,7 +380,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		t_fine = Time.get_ticks_usec()
 		t_post = t_fine
 	if surf_rides != null:
-		surf_rides.call(&"after", id, player, move, _tick)
+		surf_rides.after(id, player, move, _tick)
 	if fine:
 		t_fine = FcFrameProbe.lap(&"po_surf", t_fine)
 	_hull_grid.moved(id, player)
@@ -399,9 +399,9 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 	if demo_stats != null:
 		# The demo's meddler may hurt or move anyone: the waiting weapon ticks come first, as one by one. FcDemoStats only
 		# reads a human's tick while it records; for anyone else the idle ticks keep waiting and stay one gs-sim call.
-		if not _demo_gated or bool(demo_stats.call(&"after_reads", player)):
+		if not _demo_gated or demo_stats.after_reads(player):
 			_flush_posts(shots)
-		demo_stats.call(&"after", id, player, move, fire, _tick)
+		demo_stats.after(id, player, move, fire, _tick)
 	if outcome != null:
 		_post_outcome(id, player, move, outcome, shots)
 	if fine:
@@ -477,7 +477,7 @@ func tick(commands: Dictionary = {}) -> void:
 	_tick_world_systems(shots, delta, t_lap)
 
 
-func _tick_world_systems(shots: Array[GSShot], delta, t_lap) -> void:
+func _tick_world_systems(shots: Array[GSShot], delta: float, t_lap: int) -> void:
 	var t_world := Time.get_ticks_usec()
 	t_lap = FcFrameProbe.lap_start()
 	if map_io != null:
@@ -511,7 +511,7 @@ func _tick_world_systems(shots: Array[GSShot], delta, t_lap) -> void:
 	_tick_scene_systems(delta, t_lap, t_world)
 
 
-func _tick_scene_systems(delta, t_lap, t_world) -> void:
+func _tick_scene_systems(delta: float, t_lap: int, t_world: int) -> void:
 	if props != null:
 		props.tick(delta)
 		t_lap = FcFrameProbe.lap(&"w_props", t_lap)
