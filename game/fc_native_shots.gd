@@ -10,6 +10,7 @@ extends GSPelletTracer
 ## after all ([member materialize_fn]), once a shot. Everything else is read where it stands once per shot.
 
 const FcPlayer := preload("fc_player.gd")
+const FcNativePhases := preload("fc_native_phases.gd")
 
 const CHANNEL := "fc.native_shots"
 const CLASS := &"GSSimShots"
@@ -120,6 +121,7 @@ func _script_pellet(shot: GSShot, pellet: int, type: GSDamageType, pen: GSPenetr
 
 
 func trace_pellet(shot: GSShot, pellet: int, type: GSDamageType, pen: GSPenetration, excluded: Array) -> void:
+	FcNativePhases.tally(FcNativePhases.SHOTS, enabled and _native != null)
 	if not enabled:
 		_script_pellet(shot, pellet, type, pen, excluded)
 		return
