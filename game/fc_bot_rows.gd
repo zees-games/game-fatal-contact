@@ -66,7 +66,7 @@ func add(c: GSBotContact) -> void:
 
 ## The whole table at once, from gs-sim's contact build ([code]GSSimBotContacts[/code]): [param sensed] and [param ids] in its
 ## order, the rows from [param sim]'s last fill.
-func take(sensed: Array[GSBotContact], ids: PackedInt64Array, sim: Object) -> void:
+func take(sensed: Array, ids: PackedInt64Array, sim: Object) -> void:
 	if not _on:
 		return
 	_sensed = sensed
