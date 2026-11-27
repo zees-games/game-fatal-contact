@@ -49,3 +49,48 @@ static func reset() -> void:
 	_mirror = null
 	_root_id = 0
 	_synced_frame = -1
+	_bound_mirror = 0
+
+
+## Whether gs-sim's motor body can collide against a mirror ([code]GSSimFpsBody.set_trace_mirror[/code]).
+static func motor_available() -> bool:
+	if _motor_known < 0:
+		_motor_known = 1 if ClassDB.class_has_method(&"GSSimFpsBody", &"set_trace_mirror") else 0
+	return _motor_known == 1
+
+
+static var _motor_known := -1
+static var _bound_mirror := 0
+
+
+## Points [param body]'s native motor (a [GSFpsPhysicsBody]) at [param mirror], or back at its physics space with
+## null. Remembered on the body, so a tick that changes nothing costs one meta read. The flat body of a built-in
+## map is left alone: its analytic world is already native and exact. Whether the body now asks the mirror.
+static func bind_body(body: Object, mirror: Object) -> bool:
+	if not body is GSFpsPhysicsBody or not motor_available():
+		return false
+	var native: Object = body.call(&"_nat") if mirror != null else body.get(&"_native")
+	if native == null:
+		return false
+	var key := Vector2i(native.get_instance_id(), mirror.get_instance_id() if mirror != null else 0)
+	if body.get_meta(&"fc_trace_mirror", Vector2i.ZERO) == key:
+		return mirror != null
+	body.set_meta(&"fc_trace_mirror", key)
+	if mirror != null:
+		native.call(&"set_trace_mirror", mirror)
+	else:
+		native.call(&"clear_flat_world")
+	return mirror != null
+
+
+## Once a tick before the players' loop: every player's native motor collides against the map's mirror while
+## [member enabled] (and gs-sim has it), else against the physics space. [param players] holds FcPlayer nodes.
+static func bind_players(game: Object, players: Array) -> void:
+	var mirror: Object = of_game(game) if motor_available() else null
+	if mirror == null and _bound_mirror == 0:
+		return
+	_bound_mirror = mirror.get_instance_id() if mirror != null else 0
+	for p: Variant in players:
+		var controller: Variant = (p as Object).get(&"controller") if p is Object else null
+		if controller is Object:
+			bind_body((controller as Object).get(&"body"), mirror)
