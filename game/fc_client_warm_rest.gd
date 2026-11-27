@@ -97,7 +97,7 @@ func _build_platform() -> void:
 	# here (the match's ticks and the view) is 56-100 ms on staging02: at gs-core's 40 nothing is
 	# left, every round is 4 items over 2 frames, and the warm-up took 9-11 s of the cover.
 	if &"warm_budget_msec" in gate:
-		gate.set(&"warm_budget_msec", maxf(float(gate.get(&"warm_budget_msec")), GATE_WARM_BUDGET_MSEC))
+		gate.set(&"warm_budget_msec", FcFrameProbe.warm_frame_ms(maxf(float(gate.get(&"warm_budget_msec")), GATE_WARM_BUDGET_MSEC)))
 	link = platform.link as Node
 	gate.ready_to_show.connect(func() -> void: ready_to_show.emit())
 	gate.hold(&"map", "Loading the map")
