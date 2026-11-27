@@ -16,6 +16,7 @@ const API := 1
 const GSPC_LEVEL := 51
 const FcPlayer := preload("fc_player.gd")
 const FcContent := preload("fc_content.gd")
+const FcPaths := preload("fc_paths.gd")
 const CLASS := &"GSSimServerTick"
 const METHODS: Array[StringName] = [&"configure", &"motor", &"bind_world", &"begin", &"run_rows", &"step", &"table", &"digest", &"events", &"counters"]
 
@@ -33,8 +34,11 @@ static var native_events := 0
 ## gs-player-controller's level with every player's controller tick in one call (`fp/nodes/gs_fps_controller_batch.gd`).
 const PLAYERS_LEVEL := 53
 const PLAYERS_SCRIPT := "res://addons/gs_player_controller/fp/nodes/gs_fps_controller_batch.gd"
+## gs-player-controller's level whose end_tick holds its surface, modifier and simulated signals in the event table.
+const ROWS_LEVEL := 54
+const ROWS_SCRIPT := "res://game/fc_tick_rows.gd"
 ## `sv_native_players`: 1 runs the batched loop's two passes as one gs-player-controller call (with `fc_tick_events`;
-## the same states and edges); 0 the loop's own two passes.
+## the same states and edges, the fine probe included); 0 the loop's own two passes.
 static var players := true
 ## Suites only: ticks the batched loop ran as that one call.
 static var player_calls := 0
@@ -43,6 +47,8 @@ static var _checked := false
 static var _ok := false
 static var _players_checked := false
 static var _players_script: GDScript = null
+static var _rows_checked := false
+static var _rows_script: GDScript = null
 
 
 ## A new controllers' batched call, or null when gs-player-controller is older than [constant PLAYERS_LEVEL] (said
@@ -56,6 +62,16 @@ static func make_players() -> RefCounted:
 		else:
 			_players_script = load(PLAYERS_SCRIPT) as GDScript
 	return _players_script.new() if _players_script != null else null
+
+
+## `fc_tick_rows.gd` when gs-player-controller has [constant ROWS_LEVEL] (its end_tick holds the side signals in the
+## event table), else null: the events are dispatched by cursor and the controllers emit their own. Loaded once.
+static func rows_dispatch() -> GDScript:
+	if not _rows_checked:
+		_rows_checked = true
+		if GSAddonApi.build_level("gs_player_controller") >= ROWS_LEVEL:
+			_rows_script = load(FcPaths.rebase(ROWS_SCRIPT)) as GDScript
+	return _rows_script
 
 ## The `GSSimServerTick` (null until [method start] first answers true).
 var native: Object = null
