@@ -91,6 +91,8 @@ var _hull_world_data := PackedFloat64Array()
 var _motor_batch: GSFpsMotorBatch = null
 var _batch_rows := PackedInt32Array()
 var _batch_pairs: Array[Array] = []
+## The batched loop's motor edges for every player ([member FcHullGrid.events]): one row per player's tick, derived and dispatched after the loop.
+var _tick_events := GSFpsTickEvents.new()
 ## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its
 ## `GSSimPlayerPost`, the input rows (10 floats each) and each one's player, id and move command.
 var _post_native: Object = null

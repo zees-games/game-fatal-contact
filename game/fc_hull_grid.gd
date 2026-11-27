@@ -20,6 +20,10 @@ static var native := true
 ## Cvar `fc_motor_batch`: with the hull world, the players' loop prepares every player's tick first and gs-sim ticks
 ## their motors in runs of one call (`GSSimMotorBatch`, same states to the bit); 0 or without it, one call per player.
 static var batch := true
+## Cvar `fc_tick_events` (1 or 2): with the batch, each player's motor edges (landed, jumped, crouch, slide, ...) are one row
+## of `GSFpsTickEvents`, derived for every player in one call after the loop and dispatched in one typed loop; 0, each
+## controller emits its edges inside its own tick as before.
+static var events := true
 ## Players the batched loop found changed by another player's turn (dead, moved or pushed after its own preparation):
 ## the one-by-one loop would have ticked them differently. A match counts none.
 static var batch_faults := 0

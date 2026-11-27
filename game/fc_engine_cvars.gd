@@ -150,6 +150,13 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.batch = new_value.to_float() >= 0.5)
+	add_cvar("fc_tick_events", "0" if not FcHullGrid.events else ("2" if GSFpsTickEvents.native_enabled else "1"),
+		"2: with fc_motor_batch, the players' motor edges are one table gs-sim derives after the loop; 1: the same table derived by script; 0: each player's edges inside its own tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(2.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			var level := new_value.to_float()
+			FcHullGrid.events = level >= 0.5
+			GSFpsTickEvents.native_enabled = level >= 1.5)
 	add_cvar("fc_bot_pvs", "1" if FcBotPvs.enabled else "0",
 		"1: a bot's sight ray is skipped where the map's PVS rules the pair out (same answers: those rays come back blocked); 0: every ray is cast",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
