@@ -123,7 +123,7 @@ func _section(title: String) -> void:
 func _plain() -> void:
 	_section("a fan over a standing target, no penetration")
 	var shot := _shot_at(STANDING, 1.2, null)
-	_compare("standing", shot)
+	var _w := _compare("standing", shot)
 	_completed += 1
 
 
@@ -131,7 +131,7 @@ func _crouched() -> void:
 	_section("a fan over a crouch-fitted target")
 	var p: FcPlayer = _game.player_for(CROUCHED)
 	p.fit_hitboxes_to_crouch(0.6)
-	_compare("crouched", _shot_at(CROUCHED, 0.8, null))
+	var _w := _compare("crouched", _shot_at(CROUCHED, 0.8, null))
 	p.fit_hitboxes_to_crouch(0.0)
 	_completed += 1
 
@@ -155,7 +155,7 @@ func _wall() -> void:
 	pen.min_damage = 0.2
 	pen.max_passes = 4
 	var shot := _shot_at(SHIELD, 1.1, pen)
-	_compare("wall", shot)
+	var _w := _compare("wall", shot)
 	_check(not shot.penetrations.is_empty(), "the wall fan passes the wall", "%d passes" % shot.penetrations.size())
 	flat.boxes.assign(boxes_was)
 	flat.box_materials.assign(mats_was)
@@ -183,7 +183,7 @@ func _ricochet() -> void:
 	pen.max_ricochets = 2
 	var shooter: FcPlayer = _game.player_for(SHOOTER)
 	var shot := _shot(shooter.muzzle_position(), Vector3(-0.12, 0.0, -1.0).normalized(), pen)
-	_compare("ricochet", shot)
+	var _w := _compare("ricochet", shot)
 	_check(not shot.ricochets.is_empty(), "the grazing fan bounces", "%d bounces" % shot.ricochets.size())
 	combat.ricochet_enabled = ricochet_was
 	flat.boxes.assign(boxes_was)
@@ -550,6 +550,7 @@ func _compare(label: String, shot: GSShot, view_tick := -1.0) -> int:
 		"%d damages, %d impacts, %d passes, %d bounces; %d of %d pellets native%s" % [
 			(want[0] as Array).size(), (want[1] as Array).size(), (want[2] as Array).size(), (want[3] as Array).size(),
 			walked, shot.pellets.size(), "" if diff == "" else "; " + diff])
+	return walked
 
 
 ## [damages as value rows, impacts, penetrations, ricochets] after one trace of [param shot], rewound to [param view_tick] when it is not negative.
