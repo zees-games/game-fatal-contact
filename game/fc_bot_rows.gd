@@ -66,7 +66,7 @@ func add(c: GSBotContact) -> void:
 
 ## The whole table at once, from gs-sim's contact build ([code]GSSimBotContacts[/code]): [param sensed] and [param ids] in its
 ## order, the rows from [param sim]'s last fill.
-func take(sensed: Array, ids: PackedInt64Array, sim: Object) -> void:
+func take(sensed: Array, ids: PackedInt64Array, sim: Object) -> void:  # perf-lint: allow untyped_array gs-sim takes a plain VarArray; a typed array fails the call (error 1337, gate 1127)
 	if not _on:
 		return
 	_sensed = sensed

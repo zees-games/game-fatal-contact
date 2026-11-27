@@ -14,8 +14,8 @@ static var _pass: Object = null
 ## Whether gs-bot's brains have think_mt_row (API 53).
 static var _has_rows: bool = GSAddonApi.build_level("gs_bot") >= 53
 ## [method run]'s brains and gs-sim minds, reused call to call (main thread).
-static var _brains: Array = []
-static var _minds: Array = []  # Untyped: perceive_all takes a plain Array (gate 1127).
+static var _brains: Array[Object] = []
+static var _minds: Array = []  # perf-lint: allow untyped_array perceive_all takes a plain VarArray; a typed array fails the call (error 1337, gate 1127)
 
 
 ## The pass over [param jobs] (FcBots.Mind, after their brains' par_ready) with [param threads] Rust threads.
