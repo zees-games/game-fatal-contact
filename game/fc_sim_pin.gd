@@ -24,7 +24,7 @@ const STAMP_OLD := "res://addons/gs_sim/bin/.natives"
 ## Each one missing is a path that silently runs in GDScript.
 const METHODS := {
 	&"GSSimFpsBody": [&"motor_tick", &"motor_pre", &"set_flat_world", &"set_hull_world",
-		&"set_settled_skip", &"push_repeat", &"apply_all", &"runs_after_wall_jump"],
+		&"runs_after_wall_jump"],
 	&"GSSimBotMind": [&"perceive", &"perceive_held", &"hear", &"steer_step", &"sight_cached_far",
 		&"pickup_choose", &"worker_safe", &"unstick_step", &"tricks"],
 	&"GSSimFpsNetPack": [&"pull"],
