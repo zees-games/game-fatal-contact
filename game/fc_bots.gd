@@ -189,7 +189,9 @@ static func unstrand(game: Object, bot: FcPlayer, mind: Mind, intent: GSBotInten
 
 
 ## The part of [method think] after the brain ran, on the main thread: the bot's commands from [member Mind.t_intent].
-static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float) -> Array:
+## [param row] >= 0: [method finish_all] already steered the intent ([method _finish_begin]) and wrote its row of
+## [member _rows_stick], [member _rows_move] and [member _rows_fire] (gs-sim's GSSimBotFinish), copied here for [method _write].
+static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float, row: int = -1) -> Array:
 	var made := _out_pair(mind)
 	var move: GSFpsCommand = made[0]
 	var fire: GSWeaponCommand = made[1]
@@ -202,14 +204,18 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 	mind.t_intent = null
 	var t_after := Time.get_ticks_usec()
 	var t_lap := FcFrameProbe.lap_start()
-	unstrand(_game, bot, mind, intent)
-	var surf := world.surf_at(tick)
-	if surf != null:
-		surf.call(&"steer", bot, mind, intent, tick, tick_rate)
-	elif mind.ride != null:
-		mind.ride = null
-	t_lap = FcFrameProbe.lap(&"ba_surf", t_lap)
-	_write(intent, move, fire)
+	if row < 0:
+		_finish_begin(_game, bot, mind, intent, world, tick, tick_rate)
+		t_lap = FcFrameProbe.lap(&"ba_surf", t_lap)
+		_write(intent, move, fire)
+	else:
+		move.yaw = intent.yaw
+		move.pitch = intent.pitch
+		move.move = _rows_stick[row]
+		move.buttons = _rows_move[row]
+		fire.yaw = intent.yaw
+		fire.pitch = intent.pitch
+		fire.buttons = _rows_fire[row]
 	t_lap = FcFrameProbe.lap(&"ba_write", t_lap)
 	_throw(bot, mind, intent, move, fire, tick, tick_rate)
 	# Only a bot that drew a kit switches; one on the default loadout plays as it always has.
@@ -271,6 +277,72 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 	return made
 
 
+## The part of [method think_finish] before the commands are written: a stranded bot respawned, the surf's steer.
+static func _finish_begin(game: Object, bot: FcPlayer, mind: Mind, intent: GSBotIntent, world: World, tick: int, tick_rate: float) -> void:
+	unstrand(game, bot, mind, intent)
+	var surf := world.surf_at(tick)
+	if surf != null:
+		surf.call(&"steer", bot, mind, intent, tick, tick_rate)
+	elif mind.ride != null:
+		mind.ride = null
+
+
+## [method think_finish] for the bots [param pending] indexes in [param players] and [param minds], into [param out]:
+## every bot steered first, then one gs-sim call (GSSimBotFinish.write) makes all their sticks and buttons, which
+## each bot's finish copies into its commands instead of [method _write]. [method finish_native] says whether it can.
+static func finish_all(game: Object, players: Array, minds: Array, pending: Array[int], out: Array, tick: int, tick_rate: float) -> void:
+	var n := pending.size()
+	var t_after := Time.get_ticks_usec()
+	var t_lap := FcFrameProbe.lap_start()
+	_rows_in_stick.resize(n)
+	_rows_in_bits.resize(n)
+	for k in n:
+		var i := pending[k]
+		var mind: Mind = minds[i]
+		var intent: GSBotIntent = mind.t_intent
+		_finish_begin(game, players[i], mind, intent, mind.t_world, tick, tick_rate)
+		_rows_in_stick[k] = intent.move
+		_rows_in_bits[k] = _intent_bits(intent)
+	t_lap = FcFrameProbe.lap(&"ba_surf", t_lap)
+	var cols: Array = ClassDB.class_call_static(FINISH_CLASS, &"write", _rows_in_stick, _rows_in_bits, _finish_move_map, _finish_fire_map)
+	_rows_stick = cols[0]
+	_rows_move = cols[1]
+	_rows_fire = cols[2]
+	finished_native += n
+	FcFrameProbe.lap(&"ba_write", t_lap)
+	FcFrameProbe.add(&"bot_after", t_after)
+	for k in n:
+		var i := pending[k]
+		out[i] = think_finish(game, players[i], minds[i], tick, tick_rate, k)
+
+
+## [param intent]'s buttons as the bits GSSimBotFinish reads ([member _finish_move_map]'s order; gs-bot's GSBotIntentTable bits).
+static func _intent_bits(intent: GSBotIntent) -> int:
+	var b := 0
+	if intent.fire:
+		b |= 1
+	if intent.crouch:
+		b |= 2
+	if intent.jump:
+		b |= 4
+	if intent.walk:
+		b |= 8
+	if intent.air_jump:
+		b |= 16
+	if intent.use:
+		b |= 64
+	return b
+
+
+## Whether [method finish_all] runs: [member native_finish] on and the loaded gs-sim has GSSimBotFinish.
+static func finish_native() -> bool:
+	if not native_finish:
+		return false
+	if _finish_known < 0:
+		_finish_known = 1 if ClassDB.class_exists(FINISH_CLASS) and ClassDB.class_has_method(FINISH_CLASS, &"write") else 0
+	return _finish_known == 1
+
+
 ## [param from] copied into [param into] (as [method GSFpsCommand.duplicate_command] copies it), or a copy when there is none yet.
 static func _keep_move(into: GSFpsCommand, from: GSFpsCommand) -> GSFpsCommand:
 	if into == null:
@@ -309,6 +381,23 @@ static func _write(intent: GSBotIntent, move: GSFpsCommand, fire: GSWeaponComman
 	fire.set_button(GSWeaponCommand.BUTTON_USE, intent.use)
 	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, intent.fire)
 
+
+## bot_native_finish: with bot_threads on, the threaded bots' sticks and buttons come from one gs-sim call a tick
+## ([method finish_all]); off, or without GSSimBotFinish, each bot's [method _write]. headless_botthreads plays both to the bit.
+static var native_finish := true
+## Rows [method finish_all] wrote through gs-sim, for the suite.
+static var finished_native := 0
+const FINISH_CLASS := &"GSSimBotFinish"
+## Per intent bit (fire, crouch, jump, walk, air jump, throw, use, stranded), the command bit it sets: [method _write]'s buttons.
+static var _finish_move_map := PackedInt32Array([0, GSFpsCommand.BUTTON_CROUCH, GSFpsCommand.BUTTON_JUMP, GSFpsCommand.BUTTON_WALK, GSFpsCommand.BUTTON_USER_0, 0, 0, 0])
+static var _finish_fire_map := PackedInt32Array([GSWeaponCommand.BUTTON_ATTACK, 0, 0, 0, 0, 0, GSWeaponCommand.BUTTON_USE, 0])
+static var _finish_known := -1
+## [method finish_all]'s columns, kept from tick to tick: in (the brains' sticks and bits) and out (gs-sim's).
+static var _rows_in_stick := PackedVector2Array()
+static var _rows_in_bits := PackedInt32Array()
+static var _rows_stick := PackedVector2Array()
+static var _rows_move := PackedInt32Array()
+static var _rows_fire := PackedInt32Array()
 
 ## Off only for tests that measure the bots without the correction (headless_bot_hitreg).
 static var recoil_compensation := true

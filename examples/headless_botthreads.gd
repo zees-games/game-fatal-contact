@@ -18,8 +18,8 @@ const BOTS := 24
 const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
-const SECTIONS := 8
-const CHECKS := 45
+const SECTIONS := 9
+const CHECKS := 54
 
 ## `bot_native_refresh`'s parity: seeded matches of this many bots, this long, on these maps, script against gs-sim.
 const REFRESH_BOTS := 31
@@ -72,6 +72,10 @@ func _run() -> void:
 
 	_section("bot_native_refresh: gs-sim's refresh (contacts, hearing) plays the script's 31-bot matches")
 	await _refresh_parity()
+	_done()
+
+	_section("bot_native_finish: gs-sim's batched sticks and buttons play the script's 31-bot matches")
+	await _finish_parity()
 	_done()
 
 	_section("the brain profile (--brain-us) times brains on bot threads")
@@ -215,6 +219,39 @@ func _refresh_parity() -> void:
 			"%s: the contact table hashes the same on every one of %d ticks, and the match digests the same" % [map_id, script[4].size()])
 		_check(script[1] == native[1] and script[5] == native[5], "%s: the same kills (%d) and every player's score (%s)" % [map_id, native[1], native[5]])
 		_check(built[0] == 0 and built[1] >= int(REFRESH_SECONDS * TICK_RATE), "%s: gs-sim built the contacts of %d ticks, the script run of none (%d)" % [map_id, built[1], built[0]])
+
+
+## `bot_native_finish` 0 and 1 play the same seeded 31-bot match at 4 threads on each of [constant REFRESH_MAPS]: the contact
+## table hashed every tick before the brains think, the command and position digests, the kills and every player's score,
+## all identical; and the native run wrote its bots' commands through GSSimBotFinish while the script run never did.
+func _finish_parity() -> void:
+	var available := ClassDB.class_exists(FcBots.FINISH_CLASS)
+	for map_id: StringName in REFRESH_MAPS:
+		if not available or (map_id != &"dm_box" and FcMap.by_id(map_id) == null):
+			print("skip %s: %s" % [map_id, "not linked" if available else "this gs-sim has no GSSimBotFinish"])
+			for i in 3:
+				_check(true, "(skipped: %s)" % map_id)
+			continue
+		var rows := [0, 0]
+		var runs: Array = []
+		for on: bool in [false, true]:
+			FcBots.native_finish = on
+			var before := FcBots.finished_native
+			runs.append(await _play(4, &"" if map_id == &"dm_box" else map_id, REFRESH_BOTS, REFRESH_SECONDS, true))
+			rows[int(on)] = FcBots.finished_native - before
+		FcBots.native_finish = true
+		var script: Array = runs[0]
+		var native: Array = runs[1]
+		var first := -1
+		for i in mini(script[4].size(), native[4].size()):
+			if script[4][i] != native[4][i]:
+				first = i
+				break
+		print("%s finish: first differing tick %d of %d; kills %d / %d; scores %s / %s; digests %s; native rows %d" % [map_id, first, script[4].size(), script[1], native[1], script[5], native[5], script[0] == native[0], rows[1]])
+		_check(script[4] == native[4] and script[4].size() >= int(REFRESH_SECONDS * TICK_RATE) and script[0] == native[0],
+			"%s: the contact table hashes the same on every one of %d ticks, and the match digests the same" % [map_id, script[4].size()])
+		_check(script[1] == native[1] and script[5] == native[5], "%s: the same kills (%d) and every player's score (%s)" % [map_id, native[1], native[5]])
+		_check(rows[0] == 0 and rows[1] >= int(REFRESH_SECONDS * TICK_RATE), "%s: gs-sim wrote %d bot rows, the script run none (%d)" % [map_id, rows[1], rows[0]])
 
 
 ## Waits until [param world]'s routes are baked and its navigation map synced (an imported map).
