@@ -19,11 +19,12 @@ on:
 
 jobs:
     validate:
-        uses: gamespice-platform/ci/.github/workflows/validate.yml@v1.4.4
+        uses: gamespice-platform/ci/.github/workflows/validate.yml@v1.4.5
         with:
             suite-timeout: 900
             # From v1.4.4 this also runs check-gd-perf.py over ci/efficiency/gd-perf-hot.txt
-            # (ratchet ci/efficiency/gd-perf.tsv), the same gate as ./game.sh test.
+            # (ratchet ci/efficiency/gd-perf.tsv), the same gate as ./game.sh test. From v1.4.5 the
+            # hot list's `addons: linked` also lints the linked addon repos with their own hot lists.
             efficiency: true
             perf: true
             # game.sh's SUITES, so the runner checks what a person checks, and release.yml

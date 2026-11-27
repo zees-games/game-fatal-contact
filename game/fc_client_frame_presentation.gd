@@ -217,10 +217,10 @@ func _present_frame_rest() -> void:
 func _fold_look() -> void:
 	if player == null:
 		return
-	if _sampler == null or not _sampler.has_method(&"look_now"):
+	if _sampler == null:
 		player.view_now = null
 		return
-	player.view_now = _sampler.call(&"look_now")
+	player.view_now = _sampler.look_now()
 
 ## Hands the local player what is left of its prediction corrections, so the eye eases
 ## across one rather than jumping with it. See [member FcPlayer.drawn_offset].
@@ -240,9 +240,9 @@ func _fold_alpha() -> void:
 	if player == null:
 		return
 	player.drawn_alpha = NAN
-	if _offline or net == null or net.clock == null or not net.clock.has_method(&"render_alpha"):
+	if _offline or net == null or net.clock == null:
 		return
-	player.drawn_alpha = float(net.clock.call(&"render_alpha"))
+	player.drawn_alpha = net.clock.render_alpha()
 
 ## The server's tag look (RULES) into [FcNameTagRules]'s statics; a handful of dictionary reads, every few frames.
 func _sync_tag_look() -> void:

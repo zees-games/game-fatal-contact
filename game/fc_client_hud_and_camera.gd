@@ -568,7 +568,7 @@ func _build_interface() -> void:
 	# name, so a client shell older than that still runs the game in gs-ui's dark default.
 	if game_menu.has_method(&"follow_hud"):
 		game_menu.call(&"follow_hud", hud, FcHud.accent_theme())
-	_touch = FcTouch.build(self, hud, _sampler, game.mobile_rules, game_menu.menu_button)
+	_touch = FcTouch.build(self, hud, _sampler, game.mobile_rules, game_menu.menu_button) as FcTouch
 	if GSPlatform.has_touch() and _touch.get(&"buttons") != null and platform.has_method(&"fit_touch_buttons"):
 		platform.call(&"fit_touch_buttons", _touch.buttons, FcTouch.LAYOUT)
 	# M: the maps and the modes (gs-menu's map menu).
