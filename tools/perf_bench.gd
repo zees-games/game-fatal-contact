@@ -125,17 +125,7 @@ func _ready() -> void:
 	if int(args.get("batch", 1)) == 0:
 		FcHullGrid.batch = false
 	FcHullGrid.min_players = int(args.get("hull-min", FcHullGrid.MIN_PLAYERS))
-	if int(args.get("lod", 1)) == 0:
-		preload("../game/fc_player.gd").present_lod_enabled = false
-	if int(args.get("occl", 1)) == 0:
-		preload("../game/fc_player.gd").occlusion_enabled = false
-	if int(args.get("anim-gate", 1)) == 0:
-		preload("../game/fc_player.gd").anim_gate_enabled = false
-	if int(args.get("present-native", 1)) == 0:
-		preload("../game/fc_player.gd").present_schedule_native = false
-	if int(args.get("figure-batch", 1)) == 0:
-		# cl_figure_batch 0: every body's figure steps on its own instead of in one animate_all a frame.
-		preload("../game/fc_player.gd").figure_batch = false
+	_present_flags()
 	_render_cvar_flags()
 	if int(args.get("carry", 1)) == 0:
 		# By name: a no-op against an fc-weapons older than the switch.
@@ -155,6 +145,21 @@ func _ready() -> void:
 	_ablate = String(args.get("ablate", "")).split(",", false)
 	preload("../game/fc_player.gd").present_ablate = int(args.get("present-ablate", 0))
 	preload("../game/fc_client_prewarm.gd").prewarm_weapons_enabled = int(args.get("prewarm", 1)) != 0
+
+
+## FcPlayer presentation switches, each on by default: `--lod 0`, `--occl 0`, `--anim-gate 0`, `--present-native 0`, `--figure-batch 0`.
+func _present_flags() -> void:
+	if int(args.get("lod", 1)) == 0:
+		preload("../game/fc_player.gd").present_lod_enabled = false
+	if int(args.get("occl", 1)) == 0:
+		preload("../game/fc_player.gd").occlusion_enabled = false
+	if int(args.get("anim-gate", 1)) == 0:
+		preload("../game/fc_player.gd").anim_gate_enabled = false
+	if int(args.get("present-native", 1)) == 0:
+		preload("../game/fc_player.gd").present_schedule_native = false
+	if int(args.get("figure-batch", 1)) == 0:
+		# cl_figure_batch 0: every body's figure steps on its own instead of in one animate_all a frame.
+		preload("../game/fc_player.gd").figure_batch = false
 
 
 func _setup_client(c: Node) -> void:
