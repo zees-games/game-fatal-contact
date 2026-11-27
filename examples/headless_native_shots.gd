@@ -7,15 +7,9 @@ const FcNativeShots := preload("../game/fc_native_shots.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
-## Hitscan parity: the same shots walked by GameSpice Sim's GSSimShots (sv_native_shots 1) and by
-## gs-combat's script GSPelletTracer give the same damage rows (victim, amounts, group, limb, point,
-## direction, distance, context), impacts, wall passes and ricochets, to the bit. Fans of pellets
-## over a standing target, a crouch-fitted one, a wood wall with bodies behind it, two walls in a row,
-## a grazing metal wall, a one-sided sheet, a breakable pane (handed to the script), seeded shotgun
-## spreads, and a strafing, crouching target rewound by lag compensation to fractional view ticks.
-## sv_native_unlag: GSSimUnlagRing and the script rings, fed one history, answer the same feet and
-## crouch at every view tick a ping names, and the shots rewound from each hit and miss alike.
-## Without the native class every comparison FAILS: this suite exists to prove the native path.
+## Hitscan parity: GSSimShots (sv_native_shots 1) and gs-combat's GSPelletTracer give the same damage rows, impacts, wall passes and
+## ricochets, to the bit, over pellet fans, walls, sheets, panes, shotgun spreads and lag-compensated targets; and GSSimUnlagRing
+## answers as the script rings (sv_native_unlag). Without the native class every comparison FAILS: the suite proves the native path.
 
 const TICK_RATE := FcContent.TICK_RATE
 const SHOOTER := 1
@@ -117,8 +111,6 @@ func _section(title: String) -> void:
 	print("")
 	print("-- %s" % title)
 
-
-# --- Scenarios ----------------------------------------------------------------
 
 func _plain() -> void:
 	_section("a fan over a standing target, no penetration")
@@ -322,11 +314,9 @@ func _lagcomp() -> void:
 	_completed += 1
 
 
-## sv_native_unlag: forty ticks of a near target strafing and crouching and a far one (70 m) that
-## teleports half-way, recorded once into the script rings and once into GSSimUnlagRing. Both answer
-## the same feet and crouch at every view a ping from 0 to 900 ms names (before the history, across the
-## cut, between ticks), and fans aimed at where each was, and at where each is, rewound from either
-## ring hit and miss the same bodies with the same rows. The script tracer walks both: only the ring differs.
+## sv_native_unlag: a near target strafing and crouching and a far one teleporting, recorded into the script rings and GSSimUnlagRing.
+## Both answer the same feet and crouch at every view a 0 to 900 ms ping names, and fans rewound from either ring hit and miss
+## the same bodies with the same rows. The script tracer walks both: only the ring differs.
 func _unlag_rings() -> void:
 	_section("lag-comp rings: GSSimUnlagRing against the script rings, near and far, across pings")
 	var near: FcPlayer = _game.player_for(STANDING)
@@ -505,8 +495,6 @@ class Pane extends Node:
 	func is_broken() -> bool:
 		return health <= 0.0
 
-
-# --- Shots --------------------------------------------------------------------
 
 func _shot_at(victim: int, height: float, pen: GSPenetration) -> GSShot:
 	var shooter: FcPlayer = _game.player_for(SHOOTER)

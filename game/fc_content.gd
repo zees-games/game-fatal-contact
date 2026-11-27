@@ -165,10 +165,8 @@ static func is_primary_only(id: StringName) -> bool:
 	return PRIMARY_ONLY.has(id)
 
 
-## The whole weapon table, validated as one document.
-##
-## A server checks this at boot, headless, before anybody joins — which is the only
-## moment anybody is watching.
+## The whole weapon table, validated as one document. A server checks this at boot, headless, before anybody joins: the only moment
+## anybody is watching.
 static func weapon_catalogue() -> GSWeaponCatalogue:
 	Roles.ensure()
 	var out := GSWeaponCatalogue.new()

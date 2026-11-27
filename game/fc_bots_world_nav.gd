@@ -15,10 +15,13 @@ class NavWorld:
 	extends GSBotWorld
 
 	var game: Object = null
-	var brains: Dictionary = {}
+	var brains: Dictionary[int, GSBotBrain] = {}
 	## The live contacts filed by cell of [member FcBots.think_near] metres (key -> contacts), for [method FcBots._nobody_near]; empty cell size: not built.
 	var near_cells: Dictionary = {}
 	var near_cell: float = 0.0
+	## The cell arrays [member near_cells] is filed into, kept across ticks; the first [member _cells_used] are this tick's.
+	var _cell_pool: Array[Array] = []
+	var _cells_used: int = 0
 	## [member FcBots.think_near], set by the thinking bot before [method refresh].
 	var near_reach: float = 0.0
 	var _tick: int = -1
@@ -85,6 +88,16 @@ class NavWorld:
 		q.hit_from_inside = false
 		return q
 
+	## Files [param first] into a new cell [param k] of [member near_cells], reusing a kept cell array.
+	func make_near_cell(k: int, first: Variant) -> void:
+		if _cells_used == _cell_pool.size():
+			_cell_pool.append([])
+		var made := _cell_pool[_cells_used]
+		_cells_used += 1
+		made.clear()
+		made.append(first)
+		near_cells[k] = made
+
 	static func near_key(x: float, z: float, cell: float) -> int:
 		return (int(floorf(x / cell)) + 4096) * 8192 + int(floorf(z / cell)) + 4096
 
@@ -92,6 +105,7 @@ class NavWorld:
 	## tick's [GSBotContactTable], the cells hold its rows (ints), read from its columns.
 	func _near_refresh(contacts: Array, grid: bool) -> void:
 		near_cells.clear()
+		_cells_used = 0
 		near_cell = 0.0
 		var t := table()
 		if t != null and grid and near_reach > 0.0 and t.size() > 16:
@@ -102,7 +116,7 @@ class NavWorld:
 					var k := near_key(at.x, at.z, near_cell)
 					var cell: Variant = near_cells.get(k)
 					if cell == null:
-						near_cells[k] = [i]
+						make_near_cell(k, i)
 					else:
 						(cell as Array).append(i)
 		elif t == null and grid and near_reach > 0.0 and contacts.size() > 16:
@@ -112,7 +126,7 @@ class NavWorld:
 					var k := near_key(c.position.x, c.position.z, near_cell)
 					var cell: Variant = near_cells.get(k)
 					if cell == null:
-						near_cells[k] = [c]
+						make_near_cell(k, c)
 					else:
 						(cell as Array).append(c)
 
@@ -381,10 +395,8 @@ class NavWorld:
 			return PackedVector3Array()
 		return graph.find_smooth_path(from, to, -1.0, true)
 
-	## The mesh for an imported map, the bake started on the first route asked on it; null on a built-in map.
-	## [b]Not the graph.[/b] The graph is laid over a box list; an imported map's solid is hundreds of convex brushes with ramps and ledges at every height, so graph bots walked through the walls. gs-bot's [GSBotNav] bakes what a body can stand on
-	## from those brushes ([member FcMap.collision_root]). [b]In the background[/b]: the two default surf maps took 2 to 3 s to bake against a tenth of a second for the map change, so bots walk straight for those seconds and route after.
-	## The tick [method _nav_for_map] last found [member _nav] on, -2 none.
+	## The mesh for an imported map ([GSBotNav] baked in the background from [member FcMap.collision_root] on the first route asked),
+	## null on a built-in map; bots walk straight until it lands. The tick [method _nav_for_map] last found [member _nav] on, -2 none.
 	var _nav_at: int = -2
 	## The tick [method _graph_for_map] last found [member _graph] on, -2 none.
 	var _graph_at: int = -2

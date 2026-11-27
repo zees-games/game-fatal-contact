@@ -120,7 +120,7 @@ var _ur_crouch := PackedFloat32Array()
 func unlag_position_at(id: int, at: float) -> Variant:
 	var native := _unlag_ring()
 	if native != null:
-		return native.call(&"position_at", id, at)
+		return native.position_at(id, at)
 	var ring: Array = _unlag.get(id, [])
 	# Below tick 0, -1 % 128 indexes the last slot, whose unfilled tag is -1 too.
 	if ring.is_empty() or at < 0.0:
@@ -142,7 +142,7 @@ func unlag_position_at(id: int, at: float) -> Variant:
 func unlag_crouch_at(id: int, at: float) -> float:
 	var native := _unlag_ring()
 	if native != null:
-		return float(native.call(&"crouch_at", id, at))
+		return float(native.crouch_at(id, at))
 	var ring: Array = _unlag.get(id, [])
 	if ring.size() < 3 or at < 0.0:
 		return -1.0
@@ -205,7 +205,7 @@ func unlag_history() -> int:
 
 
 ## The native rings (GSSimUnlagRing) while `sv_native_unlag` is on and GameSpice Sim has them; null runs the script rings.
-func _unlag_ring() -> RefCounted:
+func _unlag_ring() -> Object:
 	if native_unlag == 0:
 		return null
 	if _unlag_native == null and not _unlag_native_missing:
@@ -213,7 +213,7 @@ func _unlag_ring() -> RefCounted:
 			_unlag_native = ClassDB.instantiate(&"GSSimUnlagRing")
 		else:
 			_unlag_native_missing = true
-			GSLog.error("fc.unlag", "sv_native_unlag is on but GameSpice Sim has no GSSimUnlagRing; the rewind history stays in script", {})
+			GSLog.error("fc.unlag", "sv_native_unlag is on but GameSpice Sim has no GSSimUnlagRing; the rewind history stays in script")
 	return _unlag_native
 
 
@@ -221,7 +221,7 @@ func _unlag_ring() -> RefCounted:
 func apply_native_unlag() -> void:
 	_unlag.clear()
 	if _unlag_native != null:
-		_unlag_native.call(&"clear")
+		_unlag_native.clear()
 	if native_unlag == 0:
 		_unlag_native = null
 
@@ -284,8 +284,8 @@ func _unlag_record_native(native: RefCounted) -> void:
 		_ur_feet[i] = player.global_position
 		_ur_crouch[i] = player.controller.state.crouch_fraction if player.controller != null else 0.0
 		i += 1
-	native.call(&"set_history", unlag_history())
-	var _ok: bool = native.call(&"record", _tick, _ur_ids, _ur_feet, _ur_crouch, TELEPORT_CUT)
+	native.set_history(unlag_history())
+	var _ok: bool = native.record(_tick, _ur_ids, _ur_feet, _ur_crouch, TELEPORT_CUT)
 
 
 func player_ids() -> Array[int]:

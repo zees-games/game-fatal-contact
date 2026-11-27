@@ -298,7 +298,7 @@ class World:
 		var eye := FcPlayer.eye_height()
 		var aim := CHEST * FcPlayer.stand_height() / 1.8
 		var rows := _bot_rows.begin()
-		var players: Array = game.call(&"players")
+		var players: Array[FcPlayer] = game.players()
 		if not _native_contacts.build(self, players, tick, eye, aim, teams, rows):
 			for p: FcPlayer in players:
 				var c := _contact_of(p, tick, eye, aim, teams)
@@ -403,8 +403,8 @@ class World:
 	## or empty lists when the tiers do not apply at this many contacts.
 	func _tier_begin() -> void:
 		var t := table()
-		var rows := FcBotContacts.tier_rows(t, _contacts, brains, tiers.applies(t.size() if t != null else _contacts.size()))
-		tiers.begin(_contacts.size(), rows[0], rows[1], rows[2], rows[3])
+		FcBotContacts.tier_rows(t, _contacts, brains, tiers.applies(t.size() if t != null else _contacts.size()))
+		tiers.begin(_contacts.size(), FcBotContacts.tier_eyes, FcBotContacts.tier_looks, FcBotContacts.tier_ids, FcBotContacts.tier_at)
 
 	## What the player carries, rated: 33 slot reads and ratings per player for what only a pickup, a shot or a
 	## reload changes. Kept until the arsenal's [code]revision()[/code] (gs-weapon API 51) or the arsenal itself

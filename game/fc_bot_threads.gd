@@ -5,6 +5,7 @@ extends RefCounted
 ## The brains touch no node: sight and wall rays use queries of their own, routes and waypoints take the world's lock ([member FcBots.World.par]); a brain is only its bot's, so answers do not depend on which thread runs which bot.
 
 const FcBots := preload("fc_bots.gd")
+const FcPlayer := preload("fc_player.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcBotCoast := preload("fc_bot_coast.gd")
 const FcBotThinkMt := preload("fc_bot_think_mt.gd")
@@ -89,7 +90,7 @@ static func active(bot_count: int) -> bool:
 
 ## [move, fire] per bot, in order, as [method FcBots.think] gives each one. [param players] and
 ## [param minds] are parallel arrays.
-static func think_all(game: Object, players: Array, minds: Array, tick: int, tick_rate: float) -> Array[Array]:
+static func think_all(game: Object, players: Array[FcPlayer], minds: Array[FcBots.Mind], tick: int, tick_rate: float) -> Array[Array]:
 	var out: Array[Array] = []
 	out.resize(players.size())
 	var pending: Array[int] = []
@@ -114,7 +115,7 @@ static func think_all(game: Object, players: Array, minds: Array, tick: int, tic
 	return out
 
 
-static func _decide(pending: Array[int], minds: Array) -> void:
+static func _decide(pending: Array[int], minds: Array[FcBots.Mind]) -> void:
 	var jobs: Array[FcBots.Mind] = []
 	for i in pending:
 		jobs.append(minds[i])

@@ -1,17 +1,9 @@
 extends RefCounted
-## The bots' contact build in gs-sim ([code]GSSimBotContacts[/code], cvar `bot_native_contacts`): [method build] packs one record per
-## player on the main thread (flags, team, pitch, health, then the [GSFpsState] columns as they are), and gs-sim writes every per-tick
-## [GSBotContact] field and the native sight scan's rows from them in one call. The loadout and the weapon in hand stay here.
-## The same contacts and rows as [method FcBots.World.refresh]'s script loop, to the bit (`headless_botthreads` compares them over
-## randomized player states). Off, without the library (the web) or when the records do not fit, the script loop builds them.
-## With [member delta], gs-sim writes the fields a player keeps from tick to tick only when they change ([code]fill_changed[/code]);
-## a tick the script loop built makes the next native build write every field again.
-## With [member table] (gs-bot 41, a gs-sim with fill_table), gs-sim writes no contact object at all: it fills packed columns that
-## become the world's [GSBotContactTable], and a contact object is written from its row only when something reads it.
-## With [member arms] (a gs-sim with fill_arms), the weapon in hand ([code]weapon_class[/code], [code]magazine[/code]) is gathered
-## here as an interned class and two ints per player and gs-sim writes it in one call (only what changed, with [member delta]),
-## instead of one [code]_weapon_of[/code] call and two property writes per player.
+## The bots' contact build in gs-sim ([code]GSSimBotContacts[/code], `bot_native_contacts`): one packed record per player, and gs-sim writes
+## every per-tick [GSBotContact] field and the sight rows in one call, to the bit the script loop's (`headless_botthreads`). [member delta],
+## [member table] and [member arms] narrow what it writes; off, without the library or when the records do not fit, the script loop builds them.
 
+const CHANNEL := "fc.bots"
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcPlayer := preload("fc_player.gd")
 
@@ -41,6 +33,11 @@ static var armed: int = 0
 static var native_refresh: bool = true
 ## Whether a missing native half of the refresh was reported (once a process).
 static var _refresh_warned: bool = false
+## The rows [method tier_rows] last filled, reused tick to tick.
+static var tier_eyes := PackedVector3Array()
+static var tier_looks := PackedVector3Array()
+static var tier_ids := PackedInt32Array()
+static var tier_at := PackedVector3Array()
 
 var _sim: Object = null
 var _tried: bool = false
@@ -54,7 +51,7 @@ var _has_arms: bool = false
 ## Whether the last build's weapons in hand were gs-sim's, so what it remembers writing is what the contacts hold.
 var _arms_fresh: bool = false
 ## gs-sim's interned style class index by weapon definition.
-var _class_ids: Dictionary = {}
+var _class_ids: Dictionary[GSWeaponDef, int] = {}
 var _arm_classes := PackedInt32Array()
 var _arm_rounds := PackedInt64Array()
 ## Whether the last build was gs-sim's, so what it remembers writing is what the contacts hold.
@@ -69,10 +66,10 @@ var _bare := PackedFloat64Array()
 ## them warns once and that half stays in script.
 static func set_native_refresh(on: bool) -> void:
 	native_refresh = on
-	(GSBotBrain as Script).set(&"native_hear", on)
+	GSBotBrain.native_hear = on
 	if on and not _refresh_warned and not refresh_available():
 		_refresh_warned = true
-		push_warning("bot_native_refresh: this gs-sim has no GSSimBotContacts or GSSimBotMind.hear; that half of the bots' refresh runs in script")
+		GSLog.warn(CHANNEL, "bot_native_refresh: this gs-sim has no GSSimBotContacts or GSSimBotMind.hear; that half of the bots' refresh runs in script")
 
 
 ## Whether gs-sim has both halves of the refresh (the contact build and the hearing).
@@ -88,29 +85,34 @@ func sim() -> Object:
 		_tried = true
 		if not GSSim.has(&"contacts") and not _refresh_warned:
 			_refresh_warned = true
-			push_warning("bot contacts: this gs-sim has no GSSimBotContacts; the script builds the bots' contacts")
+			GSLog.warn(CHANNEL, "bot contacts: this gs-sim has no GSSimBotContacts; the script builds the bots' contacts")
 		if GSSim.has(&"contacts"):
-			_sim = ClassDB.instantiate(&"GSSimBotContacts")
-			_has_delta = _sim.has_method(&"fill_changed")
-			_has_table = _sim.has_method(&"fill_table")
-			_has_arms = _sim.has_method(&"fill_arms")
-			_head.resize(HEAD)
-			_bare.resize(int(_sim.call(&"stride")) - HEAD)
+			_create_sim()
 	return _sim
+
+
+## Makes gs-sim's contact build once and notes which of its fills this library has.
+func _create_sim() -> void:
+	_sim = ClassDB.instantiate(&"GSSimBotContacts")
+	_has_delta = _sim.has_method(&"fill_changed")
+	_has_table = _sim.has_method(&"fill_table")
+	_has_arms = _sim.has_method(&"fill_arms")
+	_head.resize(HEAD)
+	_bare.resize(int(_sim.stride()) - HEAD)
 
 
 ## Builds [param world]'s contacts for [param players] in gs-sim, as [method FcBots.World.refresh]'s loop does, and hands the sight
 ## rows to its row table when [param rows]. False, with the contacts and players cleared again, when gs-sim is off or the records do
 ## not fit it (a state of another stride): the caller's script loop builds them.
-func build(world: Object, players: Array, tick: int, eye: float, aim: float, teams: bool, rows: bool) -> bool:
+func build(world: Object, players: Array[FcPlayer], tick: int, eye: float, aim: float, teams: bool, rows: bool) -> bool:
 	var native := sim()
 	if native == null:
 		_fresh = false
 		_arms_fresh = false
 		return false
-	var contacts: Array = world.get(&"_contacts")
-	var by_id: Dictionary = world.get(&"_by_id")
-	var by_player: Dictionary = world.get(&"_players")
+	var contacts: Array[GSBotContact] = world._contacts
+	var by_id: Dictionary[int, GSBotContact] = world._by_id
+	var by_player: Dictionary[int, FcPlayer] = world._players
 	var records := PackedFloat64Array()
 	var ids := PackedInt64Array()
 	var head := _head
@@ -148,9 +150,9 @@ func build(world: Object, players: Array, tick: int, eye: float, aim: float, tea
 		if arming:
 			continue
 		var t_c := FcFrameProbe.lap_start()
-		c.loadout = world.call(&"_loadout_of", p, tick)
+		c.loadout = world._loadout_of(p, tick)
 		t_c = FcFrameProbe.lap(&"brc_loadout", t_c)
-		world.call(&"_weapon_of", c, p)
+		world._weapon_of(c, p)
 		FcFrameProbe.lap(&"brc_weapon", t_c)
 	var launch := controlled and _launch_enabled(world)
 	var tabling := table and _has_table
@@ -183,22 +185,20 @@ func build(world: Object, players: Array, tick: int, eye: float, aim: float, tea
 
 ## Whether [param world]'s bodies may air-jump (its tunables, made once a tick).
 static func _launch_enabled(world: Object) -> bool:
-	var tunables: Variant = world.get(&"_tunables")
+	var tunables: GSFpsTunables = world._tunables
 	if tunables == null:
-		tunables = world.call(&"_body_tunables")
-		world.set(&"_tunables", tunables)
-	return tunables != null and (tunables as GSFpsTunables).launch_enabled
+		tunables = world._body_tunables()
+		world._tunables = tunables
+	return tunables != null and tunables.launch_enabled
 
 
-## The loadouts, then the weapons in hand of [param contacts] (one per player of [param players]) through gs-sim's fill_arms: each
-## player's style class interned once per weapon definition, its slot's rounds and the definition's magazine size. A gs-sim that
-## declines them leaves it to the world's [code]_weapon_of[/code] from now on. Each half is one probe lap, not one per player.
-## Whether gs-sim wrote them (so it knows what the contacts hold).
-func _arm(world: Object, native: Object, players: Array, contacts: Array, tick: int) -> bool:
+## The loadouts, then the weapons in hand of [param contacts] through gs-sim's fill_arms (each style class interned once per definition);
+## a gs-sim that declines them leaves it to the world's [code]_weapon_of[/code] from now on. Whether gs-sim wrote them.
+func _arm(world: Object, native: Object, players: Array[FcPlayer], contacts: Array[GSBotContact], tick: int) -> bool:
 	var t_c := FcFrameProbe.lap_start()
 	var n := players.size()
 	for i in n:
-		(contacts[i] as GSBotContact).loadout = world.call(&"_loadout_of", players[i], tick)
+		contacts[i].loadout = world._loadout_of(players[i], tick)
 	t_c = FcFrameProbe.lap(&"brc_loadout", t_c)
 	_arm_classes.resize(n)
 	_arm_rounds.resize(n * 2)
@@ -211,43 +211,47 @@ func _arm(world: Object, native: Object, players: Array, contacts: Array, tick: 
 			_arm_rounds[i * 2 + 1] = 0
 			continue
 		var def := slot.def
-		var k: Variant = _class_ids.get(def)
-		if k == null:
-			k = int(native.call(&"intern_class", world.call(&"_class_of", def)))
+		var k: int = _class_ids.get(def, -1)
+		if k < 0:
+			k = int(native.intern_class(world._class_of(def)))
 			_class_ids[def] = k
 		_arm_classes[i] = k
 		_arm_rounds[i * 2] = slot.magazine
 		_arm_rounds[i * 2 + 1] = def.magazine
-	var wrote: bool = native.call(&"fill_arms", contacts, _arm_classes, _arm_rounds, delta and _arms_fresh)
+	var wrote: bool = native.fill_arms(contacts, _arm_classes, _arm_rounds, delta and _arms_fresh)
 	if wrote:
 		armed += 1
 	else:
 		push_error("bot contacts: gs-sim's fill_arms declined these weapons; the script writes them from now on")
 		_has_arms = false
 		for i in n:
-			world.call(&"_weapon_of", contacts[i], players[i])
+			world._weapon_of(contacts[i], players[i])
 	FcFrameProbe.lap(&"brc_weapon", t_c)
 	return wrote
 
 
 ## Hands gs-sim's filled columns to [param world] as its [GSBotContactTable]. The objects hold only what a read of their row
 ## wrote, so the next delta build writes every field again (_fresh stays false).
-func _take_table(world: Object, native: Object, tick: int, contacts: Array, ids: PackedInt64Array) -> void:
+func _take_table(world: Object, native: Object, tick: int, contacts: Array[GSBotContact], ids: PackedInt64Array) -> void:
 	if _table == null:
 		_table = GSBotContactTable.new()
-	_table.take(tick, contacts, ids, native.call(&"positions"), native.call(&"velocities"), native.call(&"floats"),
-		native.call(&"teams"), native.call(&"flags"), native.call(&"points"), native.call(&"eyes"), native.call(&"alive"))
-	world.call(&"set_table", _table)
+	_table.take(tick, contacts, ids, native.positions(), native.velocities(), native.floats(),
+		native.teams(), native.flags(), native.points(), native.eyes(), native.alive())
+	world.set_table(_table)
 	tabled += 1
 
 
-## The tiers' rows [eyes, looks, ids, at]: the live people's eyes and views and the live bots' ids and positions, from
-## [param t] when there is a table, else from [param all]; empty lists when not [param applies].
-static func tier_rows(t: GSBotContactTable, all: Array, brains: Dictionary, applies: bool) -> Array:
-	var eyes := PackedVector3Array()
-	var looks := PackedVector3Array()
-	var ids := PackedInt32Array()
-	var at := PackedVector3Array()
+## Fills the tiers' rows [member tier_eyes], [member tier_looks], [member tier_ids], [member tier_at]: the live people's eyes and views
+## and the live bots' ids and positions, from [param t] when there is a table, else from [param all]; empty when not [param applies].
+static func tier_rows(t: GSBotContactTable, all: Array[GSBotContact], brains: Dictionary[int, GSBotBrain], applies: bool) -> void:
+	var eyes := tier_eyes
+	var looks := tier_looks
+	var ids := tier_ids
+	var at := tier_at
+	eyes.clear()
+	looks.clear()
+	ids.clear()
+	at.clear()
 	if applies and t != null:
 		for i in t.size():
 			if t.flags[i] & GSBotContactTable.ALIVE == 0:
@@ -267,4 +271,7 @@ static func tier_rows(t: GSBotContactTable, all: Array, brains: Dictionary, appl
 			elif c.alive:
 				eyes.append(c.eye())
 				looks.append(GSBotIntent.direction(c.view_yaw, c.view_pitch))
-	return [eyes, looks, ids, at]
+	tier_eyes = eyes
+	tier_looks = looks
+	tier_ids = ids
+	tier_at = at

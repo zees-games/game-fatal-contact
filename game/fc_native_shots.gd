@@ -1,11 +1,7 @@
 extends GSPelletTracer
-## The combat manager's pellet tracer with the walk in GameSpice Sim (`GSSimShots`): walls, sheets, ricochets,
-## bodies and the hitbox shapes run native, and the event rows that come back are applied here exactly as
-## [code]GSPelletTracer._step_body[/code] would (`sv_native_shots`, on by default).
-##
-## The script tracer stays the specification and the fallback: with the switch off, the library missing, a
-## hitbox set laid out other than player root > set > box, or a pane on the pellet's line, the pellet goes to
-## [code]super[/code]. The unlag rewind still moves the nodes; this reads where they stand once per shot.
+## The combat manager's pellet tracer walked in GameSpice Sim (`GSSimShots`, `sv_native_shots`), its event rows applied as
+## [code]GSPelletTracer._step_body[/code] would. The script tracer is the specification and the fallback: switch off, no library,
+## another hitbox layout or a pane on the line, and the pellet goes to [code]super[/code].
 
 const FcPlayer := preload("fc_player.gd")
 
@@ -104,8 +100,6 @@ func trace_pellet(shot: GSShot, pellet: int, type: GSDamageType, pen: GSPenetrat
 		_apply(rows, r * _stride, shot, pellet, type)
 
 
-# --- Per shot ---------------------------------------------------------------
-
 ## Brings the cache, the poses, the round and the exclusions up to this shot. False sends the shot to the script.
 func _sync(pen: GSPenetration, excluded: Array) -> bool:
 	var sets: Array[GSHitboxSet] = m._set_list
@@ -191,8 +185,6 @@ static func _put_basis(out: PackedFloat64Array, at: int, t: Transform3D) -> void
 	out[at + 10] = t.origin.y
 	out[at + 11] = t.origin.z
 
-
-# --- The hitbox cache -------------------------------------------------------
 
 ## Whether the cache still names these sets, their boxes and their entities.
 func _cache_current(sets: Array[GSHitboxSet]) -> bool:
@@ -291,8 +283,6 @@ func _group_of(group: StringName) -> int:
 	return at
 
 
-# --- The world --------------------------------------------------------------
-
 ## The world ray the native walk asks for: [code]m.trace._world_ray[/code], with what this shot's round makes of the material.
 func _world_row(from: Vector3, direction: Vector3, max_distance: float) -> PackedFloat64Array:
 	var hit: GSHitbox.Hit = m.trace._world_ray(from, direction, max_distance)
@@ -335,8 +325,6 @@ func _material_of(material: StringName) -> int:
 		_mat_sheet[at] = float(m.sheet_thickness.get(material, m.sheet_thickness.get(String(material), 0.0)))
 	return at
 
-
-# --- Applying rows ----------------------------------------------------------
 
 static func _v(rows: PackedFloat64Array, at: int) -> Vector3:
 	return Vector3(rows[at], rows[at + 1], rows[at + 2])

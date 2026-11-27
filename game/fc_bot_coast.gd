@@ -1,12 +1,12 @@
 extends RefCounted
-## The bots' begin pass of a tick ([method FcBots.think_begin] for every bot) with the coasting bots worked in one
-## native call: gs-sim's [code]GSSimBotCoast[/code] carries each coasting view on and works the recoil each firing
-## coaster's aim is turned against, bit for bit [method FcBots._coast] and [method FcBots.recoil_preview]
-## (headless_botthreads compares them). Off, or without the library, every bot takes [method FcBots.think_begin].
+## The bots' begin pass ([method FcBots.think_begin]) with the coasting bots in one gs-sim call ([code]GSSimBotCoast[/code]): each coasting
+## view carried on and each firing coaster's recoil turn, bit for bit [method FcBots._coast] and [method FcBots.recoil_preview]
+## (headless_botthreads). Off, or without the library, every bot takes [method FcBots.think_begin].
 
 const FcBots := preload("fc_bots.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcPlayer := preload("fc_player.gd")
+const CHANNEL := "fc.bots"
 
 ## Whether the coasting bots go through gs-sim in one call a tick (cvar [code]bot_coast_native[/code]).
 static var enabled := true
@@ -14,6 +14,10 @@ static var enabled := true
 static var batched := 0
 
 static var _native: Object
+## [method begin_all]'s coasting and firing bot indices and its fault fields, reused call to call (main thread).
+static var _coasting: Array[int] = []
+static var _firing: Array[int] = []
+static var _fault: Dictionary[String, int] = {}
 
 
 ## The native coaster, or null (off, or no gs-sim with the [code]bot_coast[/code] module).
@@ -28,12 +32,14 @@ static func native() -> Object:
 ## [method FcBots.think_begin] for each of [param players]: commands into [param out] for the bots that coast (or
 ## have no body), the index into [param pending] for the ones whose brain runs. Bots that do not coast are set up in
 ## turn as the script does; the coasting ones are gathered and worked by [param coast] in one call.
-static func begin_all(coast: Object, game: Object, players: Array, minds: Array, tick: int, tick_rate: float,
-		out: Array, pending: Array[int]) -> void:
+static func begin_all(coast: Object, game: Object, players: Array[FcPlayer], minds: Array[FcBots.Mind], tick: int,
+		tick_rate: float, out: Array[Array], pending: Array[int]) -> void:
 	var t_gate := FcFrameProbe.lap_start()
 	var world := FcBots.world_this_tick(game, tick)
-	var coasting: Array[int] = []
-	var firing: Array[int] = []
+	var coasting := _coasting
+	var firing := _firing
+	coasting.clear()
+	firing.clear()
 	var views := PackedFloat32Array()
 	var steps := PackedInt64Array()
 	var recoil := PackedFloat64Array()
@@ -66,10 +72,12 @@ static func begin_all(coast: Object, game: Object, players: Array, minds: Array,
 	if coasting.is_empty():
 		return
 	var t_coast := FcFrameProbe.lap_start()
-	var got: PackedFloat64Array = coast.call(&"step", views, steps, recoil, tick, tick_rate)
+	var got: PackedFloat64Array = coast.step(views, steps, recoil, tick, tick_rate)
 	if got.size() != (coasting.size() + firing.size()) * 2:
-		push_error("FcBotCoast: GSSimBotCoast.step gave %d values for %d bots and %d recoil rows" % [got.size(),
-				coasting.size(), firing.size()])
+		_fault["values"] = got.size()
+		_fault["bots"] = coasting.size()
+		_fault["recoil_rows"] = firing.size()
+		GSLog.error(CHANNEL, "FcBotCoast: GSSimBotCoast.step gave the wrong number of values; these bots coast in script", _fault)
 		for i in coasting:
 			out[i] = FcBots.think_begin(game, players[i], minds[i], tick, tick_rate)
 		return

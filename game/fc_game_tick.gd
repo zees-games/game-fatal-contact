@@ -66,10 +66,8 @@ func _advance_toys(delta: float) -> void:
 		var _pushed := toys.push_from(state.position, state.velocity, radius, height)
 	toys.advance(delta)
 
-## Every shot this tick against the toys: the first toy along each pellet, nearer than any wall,
-## is pushed by gs-props' `shot`. [b]The shot goes on[/b]: the combat resolves it against the
-## level and the players as if the toy were not there, so a ball is never cover and never eats
-## a bullet meant for somebody behind it. Authority only.
+## Every shot this tick against the toys: the first toy along each pellet, nearer than any wall, is pushed by gs-props' `shot`. The
+## shot goes on as if the toy were not there, so a ball is never cover. Authority only.
 func _shoot_toys(shots: Array[GSShot]) -> void:
 	# shot_along arrived at gs-props level 6; an older checkout has no such method.
 	if toys == null or toys.count() == 0 or shots.is_empty() or GSAddonApi.build_level("gs_props") < 6:
@@ -120,9 +118,15 @@ func _begin_hull_world() -> Object:
 	return _hull_world
 
 
+## Makes the motor batch once and notes whether its gs-player-controller has post_row.
+func _create_motor_batch() -> void:
+	_motor_batch = GSFpsMotorBatch.new()
+	_motor_post_row = _motor_batch.has_method(&"post_row")
+
+
 func _start_motor_batch(delta: float) -> bool:
 	if _motor_batch == null:
-		_motor_batch = GSFpsMotorBatch.new()
+		_create_motor_batch()
 	var was_on := _native_tick_on
 	_native_tick_on = _native_tick.start(_motor_batch, _tick_events)
 	if _native_tick_on != was_on:
@@ -210,7 +214,9 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	t_tb = FcFrameProbe.lap(&"tb_setup", t_tb)
 	var rows: GSFpsTickEvents = _tick_events if FcHullGrid.events else null
 	if rows != null and FcNativeTick.players and _players_call_ready():
-		_tick_players_call(commands, delta, hull_world, shots, ids, knife_charge, surfing, rows, fine)
+		for i in range(n):
+			_batch_pairs[i] = commands.get(ids[i], _NO_PAIR)
+		_tick_players_call(delta, hull_world, shots, ids, knife_charge, surfing, rows, fine)
 		t_tb = FcFrameProbe.lap(&"tb_players", t_tb)
 		_flush_posts(shots)
 		t_tb = FcFrameProbe.lap(&"tb_flush", t_tb)
@@ -267,7 +273,7 @@ func _batched_pass2(ids: Array[int], n: int, rows: GSFpsTickEvents, delta: float
 	var post_lane := FcPlayer.posture_native and GSSim.has(&"players")
 	if post_lane and _post_native == null:
 		_post_native = FcPlayer.make_native_post()
-	var post_from: Object = _motor_batch if post_lane and _motor_batch.has_method(&"post_row") else null
+	var post_from: Object = _motor_batch if post_lane and _motor_post_row else null
 	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null
 	for i in range(n):
 		var row := _batch_rows[i]
@@ -284,7 +290,7 @@ func _batched_pass2(ids: Array[int], n: int, rows: GSFpsTickEvents, delta: float
 		var controller := player.controller
 		controller.event_rows = rows
 		controller.event_entity = i
-		_finish_batched_player(_batch_pairs[i], row, id, player, delta, hull_world, shots, fine, post_lane, post_from)
+		_finish_batched_player(i, row, id, player, delta, hull_world, shots, fine, post_lane, post_from)
 		controller.event_rows = null
 
 
@@ -299,7 +305,7 @@ func _dispatch_tick_events(events: GSFpsTickEvents, ids: Array[int], t_tb: int) 
 	var count := events.derive()
 	var by_row := FcNativeTick.rows_dispatch()
 	if by_row != null:
-		var _done: Variant = by_row.call(&"dispatch", events, ids, _players)
+		var _done: Variant = by_row.dispatch(events, ids, _players)
 	else:
 		# Below level 54 the controllers emitted their own surface, modifier and simulated signals: only the events.
 		var ints := events.ints

@@ -417,12 +417,9 @@ func _arm_shader_group() -> void:
 		arm.armed.connect(func() -> void: FcLoadTimeline.mark("shader group armed"))
 
 
-## The render quality (anisotropic materials, anti-aliasing, render scale, shadow filter) from the saved settings and
-## the `--render-*` cvars, before the shader-group arm and the warm-ups compile anything. Made by the platform's quality
-## piece and followed in [method _follow_render_quality], it came after them: its first scan turned every level material
-## anisotropic, a new shader variant each, and the frame after "setup: render quality followed" compiled 46 pipelines
-## again (772 ms on staging, dm_box). That follow now finds the same values and changes nothing.
-## `cl_early_render_quality 0` leaves it to the quality piece, as before.
+## The render quality from the saved settings and the `--render-*` cvars, applied before the shader-group arm and the warm-ups compile
+## anything, so [method _follow_render_quality] finds the same values and no pipeline is compiled twice.
+## `cl_early_render_quality 0` leaves it to the platform's quality piece.
 func _apply_render_quality_early() -> void:
 	if GSPlatform.is_headless() or not platform.use_render_quality or platform.gate_only:
 		return

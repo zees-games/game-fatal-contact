@@ -10,13 +10,9 @@ const FcNetPullBatch := preload("../game/fc_net_pull_batch.gd")
 const MoveParity := preload("headless_netpull_native_parity.gd")
 const WeaponParity := preload("headless_netpull_weapons_parity.gd")
 
-## Every player's pull in one gs-sim call a tick (FcNetPullBatch, cvar `sv_net_pull_batch`): after the batch and the
-## per-player pull of whoever it left out, every replicated net_* field and the identity's relevance equal what each
-## player's own FcPlayerNet.pull writes, to the bit, through the script and through the per-player natives. Seeded movement,
-## held values, wire widths (one only the script handles), the hold on and off, arsenals, rigs and wind-ups, over bots and
-## people (seeds as headless_netpull_native_parity and headless_netpull_weapons_parity). Without the library the suite says so.
-## Each lane also compares every player's snapshot state bytes (GSNetBehaviour._encode over all its declarations), and the
-## batch runs twice: gs-sim writing the fields (`sv_net_pull_apply_native`, GSSimFpsNetPullBatch.pull_apply) and the script.
+## The batched pull (FcNetPullBatch, `sv_net_pull_batch`, with and without `sv_net_pull_apply_native`) writes every replicated net_* field,
+## the identity's relevance and the snapshot state bytes as each player's own FcPlayerNet.pull does, to the bit, over seeded bots and
+## people, arsenals, rigs and wind-ups. Without the library the suite says so.
 
 const ROUNDS := 4000
 const SEED := 6262

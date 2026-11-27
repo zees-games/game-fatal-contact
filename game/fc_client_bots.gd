@@ -13,8 +13,8 @@ const FcLaunchCommands := preload("fc_launch_commands.gd")
 ## died twelve times in ninety seconds to it. See FcBots.
 func _drive_bots() -> void:
 	var tick := game.current_tick()
-	var driven: Array = []
-	var minds: Array = []
+	var driven: Array[FcPlayer] = []
+	var minds: Array[FcBots.Mind] = []
 	for id in _bots:
 		var bot: FcPlayer = _bots[id]
 

@@ -107,6 +107,8 @@ const _NO_RECORDING: Dictionary = {}
 
 ## Teleport link id -> [from, to].
 var teleports: Dictionary = {}
+## Teleport id -> the linked edge that starts on its landing pad, built with the teleports' links.
+var _pads: Dictionary[int, int] = {}
 
 ## Rides begun and how they ended, and the microseconds spent steering them, for describe().
 var begun: int = 0
@@ -318,6 +320,7 @@ func _link_teleports() -> void:
 		# Nearly free: the distance a teleport covers is not walked.
 		nav.add_ride(near, landing, id, 0.01)
 	nav.end_batch()
+	_build_teleport_pads()
 
 
 ## A route that may ride or teleport (see [method GSBotNav.route]).
@@ -332,43 +335,36 @@ func landing_points() -> PackedVector3Array:
 	for edge in edges:
 		if edge.linked:
 			out.append(edge.to)
-	# The way up to a ride that starts away from the spawns (a pad a teleport puts a player on, the
-	# landing back on the spawn island) is a place to roam to as well: the teleport's door. Nothing
-	# else sends a bot there, so that ride was never taken. The pad itself is no goal: a route to
-	# a point on it ends on the floor beneath, never through the teleport's link.
-	var pads := _teleport_pads()
-	for id in pads:
+	# The way up to a ride that starts away from the spawns is a place to roam to: the teleport's door, since nothing else sends a
+	# bot there. The pad itself is no goal: a route to it ends on the floor beneath, never through the teleport's link.
+	for id: int in _pads:
 		out.append((teleports[id] as Array)[0])
 	return out
 
 
 ## Teleport id -> the linked edge that starts on its landing pad, away from the spawn islands.
-func _teleport_pads() -> Dictionary:
+func _build_teleport_pads() -> void:
+	_pads.clear()
 	var spawn_islands := PackedInt32Array()
 	for spawn: Transform3D in map.spawns:
 		# A spawn off the mesh is no island: kept as -1 it matched every pad off the mesh too.
 		var island := nav.island_at(spawn.origin, 2.0)
 		if island >= 0:
 			spawn_islands.append(island)
-	var out := {}
-	for id in teleports:
-		var link: Array = teleports[id]
+	for id: int in teleports:
+		var pad: Vector3 = (teleports[id] as Array)[1]
 		for edge in edges:
-			if edge.linked and edge.from.distance_to(link[1]) < PAD_REACH and not spawn_islands.has(nav.island_at(edge.from, 2.5)):
-				out[id] = edge.id
+			if edge.linked and edge.from.distance_to(pad) < PAD_REACH and not spawn_islands.has(nav.island_at(edge.from, 2.5)):
+				_pads[id] = edge.id
 				break
-	return out
 
 
-## The ride starting on the teleport pad at [param at], or -1. A pad's push (surf_snipers_island's)
-## throws a player down the ramp on the tick after the teleport, before a walked route could reach
-## the ride's corner, and a bot fighting walks no route at all: the ride is the only way off the pad,
-## so a bot a teleport put there takes it.
+## The ride starting on the teleport pad at [param at], or -1. A pad's push throws a player down the ramp before a walked route
+## reaches the ride's corner, so the ride is the only way off the pad and a bot a teleport put there takes it.
 func pad_ride_at(at: Vector3) -> int:
-	var pads := _teleport_pads()
-	for id in pads:
-		if edges[pads[id]].from.distance_to(at) < PAD_REACH:
-			return pads[id]
+	for id: int in _pads:
+		if edges[_pads[id]].from.distance_to(at) < PAD_REACH:
+			return _pads[id]
 	return -1
 
 

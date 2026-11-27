@@ -39,16 +39,15 @@ func round_frozen() -> bool:
 func _freeze_for_round(id: int, player: FcPlayer) -> void:
 	if _round_frozen_ids.has(id) or GSFpsAdminModifiers.is_frozen(player.controller):
 		return
-	var held := {"god": player.health.invulnerable}
-	_round_frozen_ids[id] = held
+	_round_frozen_ids[id] = player.health.invulnerable
 	player.health.invulnerable = true
 	player.arsenal.disabled = true
 	var _r := GSFpsAdminModifiers.set_frozen(player.controller, true)
 
 func _release_from_round(id: int, player: FcPlayer) -> void:
-	var held: Dictionary = _round_frozen_ids[id]
+	var god: bool = _round_frozen_ids[id]
 	_round_frozen_ids.erase(id)
-	player.health.invulnerable = bool(held["god"])
+	player.health.invulnerable = god
 	player.arsenal.disabled = false
 	var _r := GSFpsAdminModifiers.set_frozen(player.controller, false)
 

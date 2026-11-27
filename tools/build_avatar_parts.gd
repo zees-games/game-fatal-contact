@@ -50,10 +50,8 @@ func _init() -> void:
 		quit(1)
 		return
 
-	# `get_files()` lists `character-a.glb` AND `character-a.glb.import`, and both
-	# trim to the same name -- so a naive pass does every character twice and reports
-	# 36 of an 18-character kit while writing 18 pairs. Deduplicated, not tolerated:
-	# the second pass was harmless and the count it printed was not.
+	# `get_files()` lists `character-a.glb` and `character-a.glb.import`, which trim to the same name; deduplicated so each
+	# character is done and counted once.
 	var seen: Dictionary = {}
 	var letters := PackedStringArray()
 	for file in dir.get_files():

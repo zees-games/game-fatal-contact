@@ -1,14 +1,8 @@
 extends RefCounted
 
-## FC's native server tick (phase P1): gs-sim's `GSSimServerTick` stepped once per tick, after the batched players' loop.
-##
-## It holds the struct-of-arrays player table later phases read instead of asking each player per field: the roster
-## in order (the hull world's slots), each row's motor part taken from the motor batch's resident row and its origin
-## from the hull world's feet. The players' loop hands it the motor batch ([method GSFpsMotorBatch.use_native]) and
-## its idle posture rows (`run_rows`, the same to the bit as `GSSimPlayerPost`), so nothing is computed twice.
-##
-## [member enabled] is `sv_native_motor_state`. Off, or without the library, the loop runs as before. A library that is
-## present but lacks the class, a method or the API level is said loudly once, never skipped in silence.
+## FC's native server tick (phase P1): gs-sim's `GSSimServerTick` stepped once per tick after the batched players' loop, holding the
+## struct-of-arrays player table later phases read (roster order, motor rows, feet). [member enabled] is `sv_native_motor_state`; off,
+## or without the library, the loop runs in script, and a library missing a class, method or API level is said once.
 
 ## The `GSSimServerTick` API level this needs.
 const API := 1

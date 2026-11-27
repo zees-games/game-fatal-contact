@@ -5,6 +5,9 @@ extends "fc_game_unlag.gd"
 
 const FcNativeShots := preload("fc_native_shots.gd")
 
+## The combat manager's gs-sim tracer (`sv_native_shots`), made with the combat manager.
+var _native_tracer: FcNativeShots = null
+
 ## The snapshot rate at [param rate] ticks a second: the rate nearest [param target] (default
 ## [constant NET_SNAPSHOT_RATE], or `sv_snapshot_rate` on a server) that is an EXACT divisor of the tick rate,
 ## so a snapshot lands on every n-th tick (64 and 128 give 32, 60 gives 30, 66 gives 33, 33 gives 33, 22 gives 22).
@@ -425,9 +428,8 @@ func _build_projectiles() -> void:
 func apply_native_shots() -> void:
 	if combat == null:
 		return
-	var tracer := (combat.call(&"get_tracer") if combat.has_method(&"get_tracer") else combat._tracer) as FcNativeShots
-	if tracer != null:
-		tracer.enabled = native_shots != 0
+	if _native_tracer != null:
+		_native_tracer.enabled = native_shots != 0
 
 
 func _build_combat() -> GSResult:
@@ -456,10 +458,11 @@ func _build_combat() -> GSResult:
 	combat.restore_fn = _unlag_restore
 	# Hitscan pellets walk in GameSpice Sim when it is loaded (sv_native_shots); the script tracer stays the fallback.
 	# gs-combat 8's set_tracer is the seam; an older gs-combat only has the private field.
+	_native_tracer = FcNativeShots.new(combat)
 	if combat.has_method(&"set_tracer"):
-		var _set: bool = combat.call(&"set_tracer", FcNativeShots.new(combat))
+		var _set: bool = combat.call(&"set_tracer", _native_tracer)
 	else:
-		combat._tracer = FcNativeShots.new(combat)
+		combat._tracer = _native_tracer
 	apply_native_shots()
 
 	add_child(combat)

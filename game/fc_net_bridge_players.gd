@@ -29,6 +29,8 @@ var avatar_fn: Callable = Callable()
 
 ## player id -> FcPlayerNet, for the ones this process knows about.
 var _behaviours: Dictionary = {}
+## [member _behaviours]' nets for the batched pull, refilled each tick.
+var _pull_nets: Array[Object] = []
 
 
 ## peer id -> player id.
@@ -292,7 +294,8 @@ func ensure_game_ticked(tick: int) -> void:
 
 	# Every player's movement and weapon fields in one gs-sim call (cvar sv_net_pull_batch); each pulled here skips its own.
 	var t_batch := Time.get_ticks_usec()
-	if FcNetPullBatch.pull_all(_behaviours.values(), tick) > 0:
+	_pull_nets.assign(_behaviours.values())
+	if FcNetPullBatch.pull_all(_pull_nets, tick) > 0:
 		FcFrameProbe.add(&"srv_netpull", t_batch)
 
 
@@ -305,8 +308,8 @@ func _commands() -> Dictionary:
 	var t_lap := FcFrameProbe.lap_start()
 	var t_part := FcBotThreads.phase_start()
 	var driven: Array = []
-	var players: Array = []
-	var minds: Array = []
+	var players: Array[FcPlayer] = []
+	var minds: Array[FcBots.Mind] = []
 	for session_id in _bot_minds:
 		var behaviour: FcPlayerNet = _behaviours.get(session_id)
 		if behaviour == null or behaviour.player == null:

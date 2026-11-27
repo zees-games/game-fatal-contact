@@ -194,10 +194,8 @@ func _select(game: Object) -> void:
 	await _require_asked_map(game)
 
 
-## Exits 3 when the game is not on the asked map and mode: a worktree without the `maps/imported` link fell back to
-## dm_box, and its report still named the asked map, so an A/B compared two different matches (nightly #12448).
-## `check_mode` false: a `--sim-host` client never learns the mode (the server's own process runs it and prints it on
-## its `SIM_HOST ready` line), so only the map is checked there.
+## Exits 3 when the game is not on the asked map and mode (a worktree without `maps/imported` falls back to dm_box, so an A/B would
+## compare two matches). `check_mode` false: a `--sim-host` client never learns the mode, so only the map is checked.
 func _require_asked_map(game: Object, check_mode := true) -> void:
 	var on_map := String(game.get("map").id)
 	var on_mode := String(game.get("mode").id) if check_mode else mode

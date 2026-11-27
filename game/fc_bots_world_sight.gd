@@ -52,7 +52,7 @@ class SightWorld:
 			_los_bind()
 		# Bots inside the jail cell cannot see out through its glass; the trace itself ignores that layer for sight.
 		var root := _cell_root()
-		if root != null and _los_cell.blocks(root.get_world_3d().direct_space_state, from, to):
+		if root != null and _los_cell_space != null and _los_cell.blocks(_los_cell_space, from, to):
 			return false
 		if _los_ray != null:
 			return _sight_ray(_los_ray, from, to)
@@ -80,6 +80,10 @@ class SightWorld:
 		var map: Variant = game.get(&"map")  # perf-lint: allow dynamic_call once a tick, not per ray
 		var root: Variant = (map as Object).get(&"collision_root") if map is Object else null  # perf-lint: allow dynamic_call once a tick, not per ray
 		_los_root = root as Node3D if root is Node3D else null
+		var in_tree := _los_root != null and _los_root.is_inside_tree()
+		_los_cell_space = _los_root.get_world_3d().direct_space_state if in_tree else null  # perf-lint: allow singleton_lookup once a tick, not per ray
+		var ray_world: World3D = _los_ray._world if _los_ray != null else null
+		_los_ray_space = ray_world.direct_space_state if ray_world != null else null  # perf-lint: allow singleton_lookup once a tick, not per ray
 
 	func _shot_trace() -> GSTrace:
 		if _los_at != _tick:
@@ -108,6 +112,9 @@ class SightWorld:
 	## sight ray leaves the glass layer out) take this path; any other trace keeps its own rules.
 	const _GLASS_TRACE := preload("fc_glass_trace.gd")
 	var _sight_query: PhysicsRayQueryParameters3D = null
+	## The collision root's and the sight ray's physics spaces, looked up by _los_bind once a tick.
+	var _los_cell_space: PhysicsDirectSpaceState3D = null
+	var _los_ray_space: PhysicsDirectSpaceState3D = null
 	## The sight mask of [member _mask_trace] on tick [member _mask_at] (its glass is looked up by name).
 	var _mask_trace: GSTracePhysics = null
 	var _mask_at: int = -2
@@ -124,10 +131,8 @@ class SightWorld:
 		var distance := offset.length()
 		if distance <= 0.0001:
 			return true
-		var bound: World3D = trace._world
-		if bound == null:
-			return true
-		var space := bound.direct_space_state
+		# The only caller passes this tick's _los_ray, whose space _los_bind looked up.
+		var space := _los_ray_space
 		if space == null:
 			return true
 		if trace != _mask_trace or _mask_at != _tick:
@@ -135,15 +140,19 @@ class SightWorld:
 			_mask_at = _tick
 			_mask = _sight_mask(trace)
 		if _sight_query == null:
-			_sight_query = PhysicsRayQueryParameters3D.new()
-			_sight_query.collide_with_areas = false
-			_sight_query.collide_with_bodies = true
-			_sight_query.hit_from_inside = false
+			_create_sight_query()
 		_sight_query.from = from
 		_sight_query.to = from + offset / distance * distance
 		_sight_query.collision_mask = _mask
 		_sight_query.exclude = trace.exclude_rids
 		return space.intersect_ray(_sight_query).is_empty()
+
+	## Makes the sight ray's query once a world: bodies only, not from inside.
+	func _create_sight_query() -> void:
+		_sight_query = PhysicsRayQueryParameters3D.new()
+		_sight_query.collide_with_areas = false
+		_sight_query.collide_with_bodies = true
+		_sight_query.hit_from_inside = false
 
 	## The physics trace's collision mask without its sight glass layer.
 	static func _sight_mask(trace: GSTracePhysics) -> int:
@@ -156,6 +165,8 @@ class SightWorld:
 	## The native ray (a GSSimSightRay), made once when the class is loaded; null: script only.
 	var _sight_native: Object = null
 	var _sight_tried: bool = false
+	## The native ray's [code]clear[/code], made with it.
+	var _sight_clear: Callable = Callable()
 	## [method sight_callable]'s answer while a tick's brains think on workers, bound by [method par_begin].
 	var _sight_par: Callable = Callable()
 	## [method sight_callable]'s answer on the main thread, bound once per tick ([member _sight_at]).
@@ -180,8 +191,7 @@ class SightWorld:
 			return script_sight
 		if not _sight_tried:
 			_sight_tried = true
-			if ClassDB.class_exists(&"GSSimSightRay"):
-				_sight_native = ClassDB.instantiate(&"GSSimSightRay")
+			_create_sight_native()
 		if _sight_native == null:
 			return script_sight
 		# The jail glass rule, as _line_of_sight (main thread: the collision root's space) and _los_par
@@ -195,11 +205,16 @@ class SightWorld:
 		var cell: GSMapGlassSight = _los_cell if root != null else null
 		var cell_space: PhysicsDirectSpaceState3D = null
 		if cell != null:
-			cell_space = _par_space if for_par else root.get_world_3d().direct_space_state
-		var bound: World3D = trace._world
-		var space: PhysicsDirectSpaceState3D = bound.direct_space_state if bound != null else null
-		# GSSimSightRay is a native class only some builds have, so it is called by name, once a tick.
-		_sight_native.call(&"bind", space, _sight_mask(trace), trace.exclude_rids, _ray_lock,
+			cell_space = _par_space if for_par else _los_cell_space
+		var space := _los_ray_space
+		# GSSimSightRay is a native class only some builds have, so it is called untyped, once a tick.
+		_sight_native.bind(space, _sight_mask(trace), trace.exclude_rids, _ray_lock,  # perf-lint: allow dynamic_call once a tick, not per ray
 				cell_space, cell.glass_mask if cell != null else 0, cell.centre if cell != null else Vector3.ZERO,
 				cell.radius if cell != null else 0.0, cell.radius + cell.margin if cell != null else 0.0)
-		return Callable(_sight_native, &"clear")
+		return _sight_clear
+
+	## Makes gs-sim's sight ray when this build has it, and its [code]clear[/code] as a callable.
+	func _create_sight_native() -> void:
+		if ClassDB.class_exists(&"GSSimSightRay"):
+			_sight_native = ClassDB.instantiate(&"GSSimSightRay")
+			_sight_clear = Callable(_sight_native, &"clear")

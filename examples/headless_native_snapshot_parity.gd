@@ -7,10 +7,9 @@ const FcNetBridge := preload("../game/fc_net_bridge.gd")
 const FcNetNativeCore := preload("../game/fc_net_native_core.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 
-## gs-sim's snapshot core (GSSimNetCore, cvar `sv_native_snapshots`) against gs-net's GDScript snapshots: two servers in
-## lockstep, the same seeded round of bots on each, one building its snapshots natively (on worker threads) and one in
-## GDScript, and every payload each fake client is sent compared byte for byte, tick by tick. 6 and 31 players, a map
-## change, bots and clients joining and leaving, acks two snapshots late, distance interest. Without gs-sim the suite says so.
+## gs-sim's snapshot core (GSSimNetCore, `sv_native_snapshots`) against gs-net's GDScript snapshots: two lockstep servers with the same
+## seeded bots, every payload each fake client is sent compared byte for byte (6 and 31 players, a map change, joins and leaves, late
+## acks, distance interest). Without gs-sim the suite says so.
 
 const TICKS := 480
 const FAKES_MAX := 12

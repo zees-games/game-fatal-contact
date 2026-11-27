@@ -617,10 +617,8 @@ var _sound_units: Array[Array] = []
 var _sound_streams: Dictionary = {}
 var _sound_files := 0
 
-## Loads and decodes the first-use sounds a fight plays: every variant of each gun class's fire, reload, dry, equip and far
-## report and of the bullet impacts (GSWeaponSound.warm), then footsteps and landings (GSAudioManager.warm). The loads run a
-## class or id at a time within [constant SOUND_WARM_MSEC] a frame ([method _sounds_tick]), under the cover's &"sounds" hold;
-## the decodes then run a slice a frame on their own. Reload, footstep and impact were the first-use hitches.
+## Loads and decodes the first-use sounds of a fight (GSWeaponSound.warm, GSAudioManager.warm), a class or id at a time within
+## [constant SOUND_WARM_MSEC] a frame ([method _sounds_tick]) under the cover's &"sounds" hold; the decodes then run a slice a frame.
 func _prewarm_sounds() -> void:
 	_sound_units.clear()
 	_sound_streams.clear()

@@ -90,6 +90,10 @@ var _hull_world: Object = null
 var _hull_world_data := PackedFloat64Array()
 ## The players' motors ticked in runs of one native call ([method _tick_players_batched]), and each roster slot's row and commands.
 var _motor_batch: GSFpsMotorBatch = null
+## Whether the motor batch's gs-player-controller has post_row, noted when it is made.
+var _motor_post_row := false
+## The commands of a player who sent none this tick, read only.
+const _NO_PAIR: Array[Object] = []
 var _batch_rows := PackedInt32Array()
 var _batch_pairs: Array[Array] = []
 ## gs-sim's server tick (`sv_native_motor_state`): holds the batch's resident motor rows and the player table, stepped once a tick after the batched loop.
@@ -97,14 +101,13 @@ var _native_tick := FcNativeTick.new()
 var _native_tick_on := false
 ## `sv_native_players`: gs-player-controller's batched call over every player's controller (null until first used, or
 ## without it), its controllers column, its three hooks (made once) and the tick's loop state they read.
-var _ctl_batch: RefCounted = null
+var _ctl_batch: Object = null
 var _ctl_controllers: Array[GSFpsController] = []
 var _ctl_tried := false
 var _pc_pre_fn := Callable()
 var _pc_live_fn := Callable()
 var _pc_post_fn := Callable()
 var _pc_ids: Array[int] = []
-var _pc_commands: Dictionary = {}
 var _pc_shots: Array[GSShot] = []
 var _pc_hull_world: Object = null
 var _pc_post_from: Object = null

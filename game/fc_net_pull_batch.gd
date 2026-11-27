@@ -1,12 +1,9 @@
 extends RefCounted
-## Every player's movement and weapon pull in one gs-sim call a tick ([code]GSSimFpsNetPullBatch.pull[/code]), writing what
-## [code]GSSimFpsNetPack.pull[/code] and [code]GSSimFpsWeaponNet.pull[/code] write per player, to the bit
-## ([code]headless_netpull_batch_parity[/code]). The bridge runs it once the game has ticked; a player it leaves out (no
-## library, a cvar off, a declaration or rig only the script handles) pulls alone in [code]_net_simulate[/code]. Takes the
-## nets as Objects because a typed reference back to [code]FcPlayerNet[/code] would make the scripts a compile cycle.
-## With [code]sv_net_pull_apply_native[/code] gs-sim also writes the answers onto the nets
-## ([code]GSSimFpsNetPullBatch.pull_apply[/code]), so no script runs per field; off, [method _apply] writes them.
+## Every player's movement and weapon pull in one gs-sim call a tick ([code]GSSimFpsNetPullBatch.pull[/code], with
+## [code]sv_net_pull_apply_native[/code] also writing the nets), to the bit the per-player pulls ([code]headless_netpull_batch_parity[/code]).
+## A player it leaves out pulls alone in [code]_net_simulate[/code]; the nets are Objects so the scripts make no compile cycle.
 
+const CHANNEL := "fc.net_pull"
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
@@ -45,7 +42,7 @@ static func native() -> Object:
 	if not _native_tried:
 		_native_tried = true
 		if not ClassDB.class_exists(&"GSSimFpsNetPullBatch") or not ClassDB.class_has_method(&"GSSimFpsNetPullBatch", &"pull"):
-			push_warning("gs-sim has no GSSimFpsNetPullBatch (library missing or older): sv_net_pull_batch is on but each player pulls alone in script")
+			GSLog.warn(CHANNEL, "gs-sim has no GSSimFpsNetPullBatch (library missing or older): sv_net_pull_batch is on but each player pulls alone in script")
 		else:
 			_native = ClassDB.instantiate(&"GSSimFpsNetPullBatch")
 			_min_columns = _native.min_columns()
@@ -54,7 +51,7 @@ static func native() -> Object:
 			_out_stride = _native.out_stride()
 			# The rows [method _gather] builds: 10 values then the 4 wire widths after the state's columns.
 			if _move_extra != 14 or _weapon_stride != 9 or _out_stride != 11:
-				push_warning("gs-sim's GSSimFpsNetPullBatch rows are not this game's; each player pulls alone")
+				GSLog.warn(CHANNEL, "gs-sim's GSSimFpsNetPullBatch rows are not this game's; each player pulls alone")
 				_native = null
 			# The apply row [method _gather] builds: 5 values.
 			_can_apply = _native != null and ClassDB.class_has_method(&"GSSimFpsNetPullBatch", &"pull_apply") \
@@ -69,7 +66,7 @@ static func applies_natively() -> bool:
 		return false
 	if not _can_apply and not _apply_warned:
 		_apply_warned = true
-		push_warning("gs-sim's GSSimFpsNetPullBatch has no pull_apply for this game: sv_net_pull_apply_native is on but the script writes the fields")
+		GSLog.warn(CHANNEL, "gs-sim's GSSimFpsNetPullBatch has no pull_apply for this game: sv_net_pull_apply_native is on but the script writes the fields")
 	return _can_apply
 
 
@@ -99,7 +96,7 @@ static func active() -> bool:
 
 ## Pulls every net in [param nets] whose [code]batch_wants(tick)[/code] says so, in one gs-sim call, then runs the rest of
 ## each one's pull ([code]_pull_rest[/code]) and marks [param tick] pulled. Returns how many it pulled; the rest are left alone.
-static func pull_all(nets: Array, tick: int) -> int:
+static func pull_all(nets: Array[Object], tick: int) -> int:
 	if not active():
 		return 0
 	_moves.clear()
@@ -151,25 +148,41 @@ static func _gather(net: Object, natively: bool) -> void:
 		return
 	var held_velocity: Vector3 = net.net_velocity
 	_moves.append_array(f)
-	_moves.append_array(PackedFloat64Array([1.0 if state.crouch_held else 0.0, state.stamina,
-		1.0 if state.stamina_exhausted else 0.0, state.stamina_delay_left, state.pitch, held_velocity.x, held_velocity.y,
-		held_velocity.z, net.net_yaw, net.net_pitch]))
+	# One value at a time: a literal row would be a new array per player per tick.
+	_moves.append(1.0 if state.crouch_held else 0.0)
+	_moves.append(state.stamina)
+	_moves.append(1.0 if state.stamina_exhausted else 0.0)
+	_moves.append(state.stamina_delay_left)
+	_moves.append(state.pitch)
+	_moves.append(held_velocity.x)
+	_moves.append(held_velocity.y)
+	_moves.append(held_velocity.z)
+	_moves.append(net.net_yaw)
+	_moves.append(net.net_pitch)
 	_moves.append_array(wire)
 	var a := rig.arsenal
 	var slot := a.current()
 	var has := slot != null
-	_weapons.append_array(PackedFloat64Array([a.current_slot(), 1.0 if has else 0.0, slot.fire_mode_index if has else 0,
-		slot.magazine if has else 0, a.ammo().count(slot.def.ammo_type) if has else 0, rig.fire_seq, rig.fire_kind,
-		rig.charge_shown, player.windup]))
+	_weapons.append(a.current_slot())
+	_weapons.append(1.0 if has else 0.0)
+	_weapons.append(slot.fire_mode_index if has else 0)
+	_weapons.append(slot.magazine if has else 0)
+	_weapons.append(a.ammo().count(slot.def.ammo_type) if has else 0)
+	_weapons.append(rig.fire_seq)
+	_weapons.append(rig.fire_kind)
+	_weapons.append(rig.charge_shown)
+	_weapons.append(player.windup)
 	var arsenal: GSWeaponArsenal = player.arsenal
 	var held: GSWeaponDef = arsenal.current_def() if arsenal != null else null
 	_ids.append(held.id if held != null else &"")
 	var fitted := FcNetPullWeapons.fitted_code(a, slot)
 	_fitted.append(fitted)
 	if natively:
-		_extras.append_array(PackedFloat64Array([state.crouch_fraction,
-			GSFpsNetSync.pack_modifiers(state) if not state.modifiers.is_empty() else 0, fitted,
-			1.0 if a.is_reloading() else 0.0, 1.0 if a.is_switching() else 0.0]))
+		_extras.append(state.crouch_fraction)
+		_extras.append(GSFpsNetSync.pack_modifiers(state) if not state.modifiers.is_empty() else 0)
+		_extras.append(fitted)
+		_extras.append(1.0 if a.is_reloading() else 0.0)
+		_extras.append(1.0 if a.is_switching() else 0.0)
 	_nets.append(net)
 
 

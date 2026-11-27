@@ -74,7 +74,7 @@ game/fc_bindings.gd::history	1
 game/fc_bindings.gd::long_block	1
 game/fc_boards.gd::long_block	3
 game/fc_bots.gd::history	1
-game/fc_bots.gd::long_block	3
+game/fc_bots.gd::long_block	1
 game/fc_browser.gd::long_block	5
 game/fc_client.gd::long_block	4
 game/fc_client_bots.gd::history	1
@@ -99,7 +99,7 @@ game/fc_drops.gd::banner	1
 game/fc_drops.gd::long_block	1
 game/fc_effects.gd::banner	3
 game/fc_effects.gd::history	1
-game/fc_effects.gd::long_block	10
+game/fc_effects.gd::long_block	9
 game/fc_event.gd::history	1
 game/fc_event.gd::long_block	2
 game/fc_events.gd::banner	13
@@ -145,8 +145,7 @@ game/fc_net_bridge.gd::history	1
 game/fc_net_bridge.gd::long_block	11
 game/fc_net_command.gd::long_block	5
 game/fc_net_link.gd::banner	2
-game/fc_net_link.gd::history	1
-game/fc_net_link.gd::long_block	9
+game/fc_net_link.gd::long_block	7
 game/fc_net_toys.gd::banner	1
 game/fc_net_toys.gd::long_block	1
 game/fc_npc_brain.gd::banner	4
@@ -188,7 +187,7 @@ game/fc_spectate.gd::long_block	4
 game/fc_stats.gd::banner	5
 game/fc_stats.gd::long_block	4
 game/fc_surf.gd::history	1
-game/fc_surf.gd::long_block	2
+game/fc_surf.gd::long_block	1
 game/fc_surf_rides.gd::banner	5
 game/fc_surf_rides.gd::long_block	1
 game/fc_toy_net.gd::long_block	1

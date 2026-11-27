@@ -4,11 +4,9 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 const FcPresentation := preload("../game/fc_presentation.gd")
 
-## What a LightmapGI's first drawn frame costs, by what its data holds and what was drawn before it. One variant per process
-## (the first use is the cost), on a GPU box only: `GPU_BOX=staging GPU_XORG=1 gs-bootstrap/tools/gpu.sh run <worktree>
-## res://tools/lightmap_first_draw.tscn -- --variant <v> [--map dm_box]`. Bake alone: full, none, tinytex, noprobes, proxy.
-## Real level: level, level_nobake, level_lightfirst, level_nolight, level_hidden, level_proxy, level_proxy2, level_arm
-## (a lightmapped box in a SubViewport first), level_arm_main, level_arm_world (arm, then the world shader warm-ups).
+## What a LightmapGI's first drawn frame costs, one variant per process, on a GPU box only: `GPU_BOX=staging GPU_XORG=1
+## gs-bootstrap/tools/gpu.sh run <worktree> res://tools/lightmap_first_draw.tscn -- --variant <v> [--map dm_box]`.
+## Variants: full, none, tinytex, noprobes, proxy, level, level_nobake, level_lightfirst, level_nolight, level_hidden, level_proxy, level_proxy2, level_arm, level_arm_main, level_arm_world.
 
 var _variant := "full"
 var _map := "dm_box"

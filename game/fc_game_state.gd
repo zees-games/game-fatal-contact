@@ -455,7 +455,7 @@ var player_stack: FcPlayerStack = null
 
 ## player id -> [FcPlayer].
 var _players: Dictionary[int, FcPlayer] = {}
-var _round_frozen_ids: Dictionary[int, Dictionary] = {}
+var _round_frozen_ids: Dictionary[int, bool] = {}
 ## What the last whole `_sync_round_freeze` held everybody to: a respawn under the same answer syncs only its own player.
 var _round_frozen_want := false
 var _freeze_overridden := false
@@ -642,7 +642,7 @@ var native_shots: int = 1
 ## `sv_native_unlag`: 1 keeps the lag-compensation rings (every player's recent feet and crouch) in GameSpice Sim's `GSSimUnlagRing`, one bulk record a tick; 0 keeps them in script ([member _unlag]), the specification. Same answers to the bit (headless_native_shots). Without the library the script runs and an error is logged once.
 var native_unlag: int = 1
 ## The native rings while [member native_unlag] is on and the class is loaded, else null.
-var _unlag_native: RefCounted = null
+var _unlag_native: Object = null
 ## Whether the missing `GSSimUnlagRing` was logged (once).
 var _unlag_native_missing := false
 ## `sv_shot_rewind_log_sec`: how often, in seconds, the server logs [member shot_rewind_counts] when a fallback or refusal grew since the last line; 0 never.

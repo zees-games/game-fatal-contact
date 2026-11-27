@@ -455,11 +455,8 @@ static func sections_line(sections: Dictionary, ticks: int) -> String:
 	return "SIM_HOST_SECTIONS ms/tick | " + ", ".join(parts)
 
 
-## What `srv_net` holds, as parts that do add up. gs-net's server tick runs every entity's `_net_simulate`, and the
-## first player's runs the whole game, so `srv_net` wraps `srv_bots` and `srv_game` (siblings, not nested in each
-## other), the kill view, the toy pulls and each player's own `srv_netpull`, then gs-net's input, check and send
-## (send includes the history record). `rest` is what none of them owns: the registry walk, every behaviour's
-## `_net_simulate` call around those spans, and the probes' own bookkeeping.
+## What `srv_net` holds, as parts that add up: `srv_bots`, `srv_game`, the kill view, the toy pulls and each `srv_netpull`, then gs-net's
+## input, check and send; `rest` is what none of them owns. Shaped
 ## `SIM_HOST_NET_SPLIT ms/tick | srv_net 19.01 = srv_game 11.58 + srv_bots 4.97 + ... + rest 0.35`.
 static func net_split_line(sections: Dictionary, ticks: int, input_ms: float, check_ms: float, send_ms: float) -> String:
 	var ms := func(key: StringName) -> float:

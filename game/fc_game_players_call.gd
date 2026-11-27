@@ -11,26 +11,23 @@ func _players_call_ready() -> bool:
 		_ctl_tried = true
 		_ctl_batch = FcNativeTick.make_players()
 		if _ctl_batch != null:
-			_ctl_controllers = _ctl_batch.get(&"controllers")
+			_ctl_controllers = _ctl_batch.controllers
 			_pc_pre_fn = _pc_pre
 			_pc_live_fn = _pc_live
 			_pc_post_fn = _pc_post
 	return _ctl_batch != null
 
 
-## The batched loop's two passes as one gs-player-controller call (`sv_native_players`): [method _pc_pre] is pass one's
-## part before the controller, [method _pc_live] the check before a row finishes (and the volume marks, once, after
-## every row is prepared), [method _pc_post] [method _finish_batched_player]'s part after the controller. Same order,
-## so the same states and edges. [param fine]: the fine probe's per-player laps (`pl_*`, `pp_*`, `po_*`); the
-## controller's own `c_*` laps are inside the one call, so only `p_controller` covers them.
-func _tick_players_call(commands: Dictionary, delta: float, hull_world: Object, shots: Array[GSShot], ids: Array[int],
+## The batched loop's two passes as one gs-player-controller call (`sv_native_players`) in the same order: [method _pc_pre] before the
+## controller, [method _pc_live] before a row finishes, [method _pc_post] after it. [param fine]: the fine probe's per-player laps
+## (`pl_*`, `pp_*`, `po_*`); the controller's own laps are inside the call, under `p_controller`.
+func _tick_players_call(delta: float, hull_world: Object, shots: Array[GSShot], ids: Array[int],
 		knife_charge: bool, surfing: bool, rows: GSFpsTickEvents, fine: bool) -> void:
 	var n := ids.size()
-	var _r: Variant = _ctl_batch.call(&"resize", n)
+	var _r: Variant = _ctl_batch.resize(n)
 	for i in range(n):
 		_ctl_controllers[i] = (_players[ids[i]] as FcPlayer).controller
 	_pc_ids = ids
-	_pc_commands = commands
 	_pc_shots = shots
 	_pc_hull_world = hull_world
 	_pc_delta = delta
@@ -40,16 +37,16 @@ func _tick_players_call(commands: Dictionary, delta: float, hull_world: Object, 
 	_pc_post_lane = FcPlayer.posture_native and GSSim.has(&"players")
 	if _pc_post_lane and _post_native == null:
 		_post_native = FcPlayer.make_native_post()
-	_pc_post_from = _motor_batch if _pc_post_lane and _motor_batch.has_method(&"post_row") else null
-	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null and demo_stats.has_method(&"after_reads")
+	_pc_post_from = _motor_batch if _pc_post_lane and _motor_post_row else null
+	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null
 	_pc_mark_due = FcPlayer.mechanics_native
-	var _motored: Variant = _ctl_batch.call(&"tick", _motor_batch, _tick, rows, _pc_pre_fn, _pc_live_fn, _pc_post_fn)
+	var _motored: Variant = _ctl_batch.tick(_motor_batch, _tick, rows, _pc_pre_fn, _pc_live_fn, _pc_post_fn)
 	if _pc_mark_due:
 		# No row reached its finish: the marks still run, as between the two passes.
 		_pc_mark_due = false
-		_volume_pre.mark(_tick, ids, _players, _ctl_batch.get(&"rows"))
-	FcHullGrid.batch_faults += int(_ctl_batch.get(&"faults"))
-	_ctl_batch.set(&"faults", 0)
+		_volume_pre.mark(_tick, ids, _players, _ctl_batch.rows)
+	FcHullGrid.batch_faults += int(_ctl_batch.faults)
+	_ctl_batch.faults = 0
 	_pc_hull_world = null
 	_pc_post_from = null
 	FcNativeTick.player_calls += 1
@@ -62,9 +59,8 @@ func _pc_pre(i: int) -> float:
 	if not player.health.alive:
 		return -1.0
 	var t_fine := Time.get_ticks_usec() if _pc_fine else 0
-	var pair: Array = _pc_commands.get(id, [])
 	_pre_vy[id] = player.controller.state.velocity.y
-	pair = _batched_input(id, player, pair, _pc_knife, _pc_surfing, t_fine)
+	var pair := _batched_input(id, player, _batch_pairs[i], _pc_knife, _pc_surfing, t_fine)
 	if pair.is_empty():
 		return -1.0
 	_batch_pairs[i] = pair
@@ -87,21 +83,22 @@ func _pc_pre(i: int) -> float:
 func _pc_live(i: int) -> bool:
 	if _pc_mark_due:
 		_pc_mark_due = false
-		_volume_pre.mark(_tick, _pc_ids, _players, _ctl_batch.get(&"rows"))
+		_volume_pre.mark(_tick, _pc_ids, _players, _ctl_batch.rows)
 	return (_players[_pc_ids[i]] as FcPlayer).health.alive
 
 
 ## The rest of row [param i]'s tick after its controller ([param told]: the motor batch's answer).
 func _pc_post(i: int, row: int, told: bool) -> void:
 	var id: int = _pc_ids[i]
-	_finish_batched_player(_batch_pairs[i], row, id, _players[id], _pc_delta, _pc_hull_world, _pc_shots, _pc_fine, _pc_post_lane,
+	_finish_batched_player(i, row, id, _players[id], _pc_delta, _pc_hull_world, _pc_shots, _pc_fine, _pc_post_lane,
 			_pc_post_from, true, told)
 
 
 ## The second half of one player's batched tick: the motor's answer, the rest of the player's tick and what it did.
-## [param ended]: the controller's half already ran (`sv_native_players`), [param told_in] the motor batch's answer.
-func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, delta: float, hull_world: Object, shots: Array[GSShot],
+## [param pair_index]: the row's commands in _batch_pairs. [param ended]: the controller's half already ran (`sv_native_players`), [param told_in] the motor batch's answer.
+func _finish_batched_player(pair_index: int, row: int, id: int, player: FcPlayer, delta: float, hull_world: Object, shots: Array[GSShot],
 		fine: bool, post_lane: bool, post_from: Object, ended: bool = false, told_in: bool = false) -> void:
+	var pair := _batch_pairs[pair_index]
 	var controller := player.controller
 	var t_fine := 0
 	var t_post := 0

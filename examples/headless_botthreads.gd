@@ -1,6 +1,7 @@
 extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 const FcBotThreads := preload("../game/fc_bot_threads.gd")
 const FcBotRows := preload("../game/fc_bot_rows.gd")
 const FcBotCoast := preload("../game/fc_bot_coast.gd")
@@ -368,8 +369,8 @@ func _play(count: int, map_id: StringName = &"", bots: int = 0, seconds: float =
 	game.match_node.rules.respawn_delay_sec = 1.0
 	var kills := [0]
 	game.player_killed.connect(func(_entry: GSKillFeed.Entry) -> void: kills[0] += 1)
-	var players: Array = []
-	var minds: Array = []
+	var players: Array[FcPlayer] = []
+	var minds: Array[FcBots.Mind] = []
 	if bots <= 0:
 		bots = BOTS if map_id == &"" else IMPORTED_BOTS
 	if seconds <= 0.0:
