@@ -73,7 +73,7 @@ So FC already thinks as often as Source and scans no more than Source does. The 
 
 Two bot-only changes. Neither touches human commands, hit reg, lag compensation or the authoritative player sim:
 
-1. **Sight rays skip the hit report** (`game/fc_bots_world.gd`, `_line_of_sight`). When the bots' trace is the plain `GSTracePhysics` or `FcGlassTrace`, the sight test does one `intersect_ray` with a reused `PhysicsRayQueryParameters3D`. It uses the same mask, glass exclusion and exclude RIDs as the trace's own `line_of_sight`, and builds no `Hit` objects and no material lookup. Bullets, rockets and hit reg still use the full trace. `headless_imported` checks 200 seeded rays around the spawns and requires the same answer from both paths.
+1. **Sight rays skip the hit report** (`game/fc_bots_world_sight.gd`, `_line_of_sight`). When the bots' trace is the plain `GSTracePhysics` or `FcGlassTrace`, the sight test does one `intersect_ray` with a reused `PhysicsRayQueryParameters3D`. It uses the same mask, glass exclusion and exclude RIDs as the trace's own `line_of_sight`, and builds no `Hit` objects and no material lookup. Bullets, rockets and hit reg still use the full trace. `headless_imported` checks 200 seeded rays around the spawns and requires the same answer from both paths.
 2. **Kept commands are reused** (`game/fc_bots.gd`, `think_finish`). The bot's `last_move` and `last_fire` are overwritten in place instead of being duplicated twice a think. The coast still hands out copies, so no command is ever shared.
 
 A/B results (n=3 interleaved, staging02, sim host up): see the "A/B" section below.
