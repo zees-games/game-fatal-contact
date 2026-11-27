@@ -3,6 +3,7 @@ extends GSGameCheckSuite
 const FcBots := preload("../game/fc_bots.gd")
 const FcBotThreads := preload("../game/fc_bot_threads.gd")
 const FcBotRows := preload("../game/fc_bot_rows.gd")
+const FcBotCoast := preload("../game/fc_bot_coast.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
@@ -19,7 +20,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 10
-const CHECKS := 63
+const CHECKS := 66
 
 ## `bot_native_refresh`'s parity: seeded matches of this many bots, this long, on these maps, script against gs-sim.
 const REFRESH_BOTS := 31
@@ -159,6 +160,68 @@ func _switches_play_the_same(native: PackedStringArray) -> void:
 	(GSBotWorld as Script).set(&"native_drops", true)
 	(GSBotUnstick as Script).set(&"native_enabled", true)
 	_check(scripted[0] == native, "bot_native_pickup 0, bot_native_act 0, bot_native_drops 0 and bot_native_unstick 0 (script pickup, steer, drop table and stuck watch) play the native match (%d kills)" % scripted[1])
+	# bot_coast_native: with think tiers on (every bot nobody sees coasts) the threaded runs work their coasting bots
+	# in one gs-sim call a tick; 0 works them in script one by one, and plays the same match to the digest.
+	var has_coast := FcBotCoast.native() != null
+	var tiers := FcBots.tiers
+	var was_above: int = tiers.above
+	tiers.above = 0
+	var before := FcBotCoast.batched
+	var tiered := await _play(4)
+	var batched := FcBotCoast.batched - before
+	FcBotCoast.enabled = false
+	var coasted := await _play(4)
+	FcBotCoast.enabled = true
+	tiers.above = was_above
+	_check(not has_coast or batched > 0, "with gs-sim's bot_coast the coasting bots went through it (%d bot ticks, module %s)" % [batched, has_coast])
+	_check(tiered[0].size() > 10 and coasted[0] == tiered[0] and FcBotCoast.batched == before + batched, "bot_coast_native 0 (script coast, one bot at a time) plays the tiered match the native coast plays (%d kills, %d)" % [coasted[1], tiered[1]])
+	_coast_matches_script()
+
+
+## gs-sim's GSSimBotCoast works the coasting views and recoil previews [method FcBots._coast] and
+## [method FcBots.recoil_preview] work, to the bit, over random views, think rates and recoil states.
+func _coast_matches_script() -> void:
+	var coast := FcBotCoast.native()
+	if coast == null:
+		_check(true, "no gs-sim bot_coast module: only the script coast runs (bit comparison skipped)")
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var views := PackedFloat32Array()
+	var steps := PackedInt64Array()
+	var recoil := PackedFloat64Array()
+	var want := PackedFloat64Array()
+	var tick := 50000
+	var mind := FcBots.Mind.new()
+	mind.last_move = GSFpsCommand.new()
+	mind.last_fire = GSWeaponCommand.new()
+	for k in 400:
+		mind.view_from = Vector2(rng.randf_range(-900.0, 900.0), rng.randf_range(-89.0, 89.0))
+		mind.view_to = Vector2(rng.randf_range(-900.0, 900.0), rng.randf_range(-89.0, 89.0)) if k % 7 != 0 else mind.view_from
+		mind.every = rng.randi_range(1, 6)
+		mind.last_think_tick = tick - rng.randi_range(0, mind.every - 1)
+		views.append_array([mind.view_from.x, mind.view_from.y, mind.view_to.x, mind.view_to.y])
+		steps.append_array([tick - mind.last_think_tick, mind.every])
+		var pair := FcBots._coast(mind, tick)
+		want.append((pair[0] as GSFpsCommand).yaw)
+		want.append((pair[0] as GSFpsCommand).pitch)
+	for k in 400:
+		var row := PackedFloat64Array([rng.randf_range(0.05, 1.0), rng.randf_range(0.0, 12.0), rng.randf_range(0.0, 2.0),
+			rng.randf_range(0.0, 0.3), rng.randf_range(0.0, 2.0), rng.randf_range(0.0, 2.0), rng.randf_range(0.0, 3.0),
+			rng.randf_range(0.0, 2.0), rng.randf_range(-2.0, 2.0), rng.randf_range(0.0, 2.0), rng.randf_range(0.0, 1.0),
+			rng.randf_range(0.0, 1.0), rng.randi() & 0x7fffffff, tick - rng.randi_range(0, 60) if k % 9 != 0 else -1000000,
+			rng.randi_range(0, 30), rng.randf_range(-4.0, 4.0), rng.randf_range(-4.0, 4.0), rng.randf_range(0.0, 1.0)])
+		recoil.append_array(row)
+		var offset := FcBots.recoil_preview(row, tick, float(TICK_RATE))
+		want.append(offset.x)
+		want.append(offset.y)
+	var got: PackedFloat64Array = coast.call(&"step", views, steps, recoil, tick, float(TICK_RATE))
+	var first := -1
+	for i in mini(got.size(), want.size()):
+		if var_to_bytes(got[i]) != var_to_bytes(want[i]):
+			first = i
+			break
+	_check(got.size() == want.size() and first < 0, "GSSimBotCoast gives the script's 400 coasting views and 400 recoil previews to the bit (%d values, first difference at %d%s)" % [got.size(), first, "" if first < 0 else ": %s vs %s" % [got[first], want[first]]])
 
 
 ## bot_native_think_mt 1 (gs-sim perceives for every threaded bot before the workers start) and 0 play [param script]'s

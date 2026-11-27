@@ -6,6 +6,7 @@ const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
 const FcBots := preload("fc_bots.gd")
 const FcBotLoadouts := preload("fc_bot_loadouts.gd")
+const FcBotCoast := preload("fc_bot_coast.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const FcAvatarLibrary := preload("fc_avatar_library.gd")
@@ -351,6 +352,11 @@ func _add_bot_think_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY).with_min(-1.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBots.recoil_control = new_value.to_float())
+	add_cvar("bot_coast_native", "1" if FcBotCoast.enabled else "0",
+		"1 (default): the bots that sit a tick out are worked in one gs-sim call (GSSimBotCoast); 0, or without gs-sim: in script, one by one (the same commands)",
+		GSConVar.FLAG_ARCHIVE).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotCoast.enabled = new_value.to_int() != 0)
 	_add_bot_engine_cvars()
 	_add_hull_and_pvs_cvars()
 	_add_tick_budget_cvars()
