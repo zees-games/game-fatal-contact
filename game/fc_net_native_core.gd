@@ -1,8 +1,7 @@
 extends RefCounted
 
-## gs-sim's snapshot core (`GSSimNetCore`, the Rust port of gs-net's `GSNetNativeCore`, the same bytes)
-## handed to the server's [GSNetManager], so a release build, which ships gs-sim but not gs-net's own
-## C++ library, still builds its snapshots natively instead of logging "native snapshots unavailable".
+## gs-sim's snapshot core (`GSSimNetCore`, gs-net's `GSNetNativeCore` in Rust, the same bytes) handed to the server's
+## [GSNetManager], so a release build without gs-net's C++ library still builds snapshots natively.
 ## cvar [code]sv_native_snapshots[/code]: 1 (default) the native core, 0 gs-net's GDScript path.
 
 ## The class, reached by name only: scripts parse and run without gs-sim.
@@ -41,7 +40,7 @@ static func make_core() -> Object:
 				return core
 	if not _missing_warned:
 		_missing_warned = true
-		push_warning("sv_native_snapshots: %s; snapshots are built in GDScript" % why)
+		GSLog.warn("arena.net", "sv_native_snapshots: %s; snapshots are built in GDScript" % why)
 	return null
 
 

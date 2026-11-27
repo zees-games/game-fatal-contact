@@ -9,14 +9,9 @@ const FcNetPullBatch := preload("../game/fc_net_pull_batch.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcPlayerNet := preload("../game/fc_player_net.gd")
 
-## gs-sim's snapshot core (GSSimNetCore, cvar `sv_native_snapshots`) against gs-net's GDScript snapshots: two servers in
-## lockstep, the same seeded round of bots on each, one building its snapshots natively (on worker threads) and one in
-## GDScript, and every payload each fake client is sent compared byte for byte, tick by tick. 6 and 31 players, a map
-## change, bots and clients joining and leaving, acks two snapshots late, distance interest. Without gs-sim the suite says so.
-## The rest of each player's net pull (FcPlayerNet._pull_rest: the exact copy, health, challenge, beacon, carry, the
-## identity's relevance and aim) is gs-sim's GSSimNetRest on the native server and the script on the other; every
-## player's pulled fields are compared tick by tick too, with [constant OWNED] bots handed to fake clients so the
-## owner's exact copy and carry mask are pulled as well.
+## gs-sim's snapshot core (`sv_native_snapshots`) and rest pull (GSSimNetRest) against gs-net's GDScript, two servers in
+## lockstep: every payload each fake client is sent byte for byte, and every player's pulled fields, tick by tick.
+## Scenarios and the owned-bot trick: docs/native-server-tick.md (Snapshot suites). Without gs-sim the suite says so.
 
 const TICKS := 480
 const FAKES_MAX := 12

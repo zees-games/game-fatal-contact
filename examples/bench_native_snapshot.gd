@@ -66,7 +66,7 @@ func _run() -> void:
 			FcNetPullBatch._move_extra)
 		for i in follow:
 			if i >= 0:
-				batched[i].call(&"_pull_rest_owned")
+				FcNetPullBatch.rest_owned(batched[i])
 			else:
 				batched[-1 - i].call(&"_pull_rest", false, 0)
 	var native_us := float(Time.get_ticks_usec() - start) / REST_LAPS

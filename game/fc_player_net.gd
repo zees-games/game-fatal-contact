@@ -68,25 +68,9 @@ var net_modifiers: int = 0
 ## net_flags fields round a rewind half a code off ([method GSFpsNetSync.rewind_specs2], API 24).
 var net_timers2: int = 0
 
-## The owner's own movement exactly: position, velocity and crouch as float32, to the
-## owning client alone (a [code]PACKED_FLOAT32[/code] of [constant EXACT_FLOATS]).
-##
-## [b]Why the quantised copy above is not enough to rewind from[/b]. A predicting
-## client rewinds to the snapshot and replays its unacknowledged commands, and the replay only
-## lands where the server did if it starts where the server was. `net_position` is a 1 cm grid
-## and `net_velocity` 5 cm/s steps, and the motor is not smooth in either near a wall, a step
-## or the floor's skin: half a centimetre is the difference between touching a wall and not,
-## standing on a tread and walking into its face, grounded and falling for a tick. Replaying
-## from the quantised state diverged on 594 of 994 rewinds round dm_atrium in a headless probe
-## (1 of 994 from the exact one), so nearly every snapshot was replayed and corrected and the
-## next replay started from a quantised state again. dm_box hid it: running flat in the open
-## touches nothing. Finer quantisation only shrinks it (20 of 994 at a quarter of a millimetre),
-## because the slack the match is judged with shrinks with it.
-##
-## Owner-only, because nobody else rewinds this player: observers interpolate the quantised
-## copy as before. A [code]PackedFloat32Array[/code] so the match is exact (gs-net compares a
-## custom property after a round trip), and declared here rather than in gs-player-controller
-## so the declaration comes from the pack on both ends, whatever addon the client's shell has.
+## The owner's own movement exactly: position, velocity and crouch as float32 ([constant EXACT_FLOATS]), to the
+## owning client alone, so a rewind starts where the server was; replaying from the 1 cm / 5 cm/s copy diverged on 594
+## of 994 rewinds round dm_atrium. Why owner-only and declared here: docs/netcode.md (The owner rewinds from the exact state).
 var net_exact: PackedFloat32Array = PackedFloat32Array()
 
 const EXACT_FLOATS := GSFpsNetSync.EXACT_FLOATS
@@ -512,15 +496,6 @@ func _pull_rest(fine: bool, lap: int) -> void:
 		if _has_interest_aim:
 			identity.set(&"interest_aim", player.aim_direction())
 	lap = FcFrameProbe.lap(&"np_rest", lap) if fine else 0
-
-
-## The part of [method _pull_rest] gs-sim's [code]GSSimNetRest.pull_rest[/code] leaves to the script, for a player a
-## client owns (FcNetPullBatch): the exact copy pushed back into the state, then the carry mask. The order against
-## the fields gs-sim wrote does not matter: neither reads them.
-func _pull_rest_owned() -> void:
-	if identity != null and (identity.is_predicted() or (identity.is_authoritative and identity.owner_peer_id != 0)):
-		var _pushed := GSFpsNetSync.push_exact(player.controller.state, net_exact)
-	net_carry = _carry.mask(player.arsenal)
 
 
 ## Whether gs-net's identity has [code]interest_aim[/code], for gs-sim's pull of the rest.

@@ -37,3 +37,21 @@ Each phase is placed in one of three states by checking what the build actually 
 - `FC_NATIVE_TICK_CALLS` shows any script call, or shows no native call for an expected phase.
 
 A second, short run with `sv_native_tick 0` must put every phase on the fallback and make no native calls.
+
+## Snapshot batch pull
+
+`game/fc_net_pull_batch.gd` pulls every player's movement and weapons in one `GSSimFpsNetPullBatch.pull` call a tick, writing what `GSSimFpsNetPack.pull` and `GSSimFpsWeaponNet.pull` write per player. The bridge runs it once the game has ticked. A player it leaves out (no library, a cvar off, a declaration or rig only the script handles) pulls alone in `_net_simulate`.
+
+| Cvar | 1 | 0 |
+|---|---|---|
+| `sv_net_pull_batch` | One gs-sim call for every player. | Each player pulls alone. |
+| `sv_net_pull_apply_native` | gs-sim writes the answers onto the nets (`pull_apply`), no script per field. | `_apply` writes them. |
+| `sv_net_pull_rest_native` | `GSSimNetRest.pull_rest_rows` pulls the rest (exact copy, health, challenge, beacon, carry, relevance, aim); the script finishes owned players (`FcNetPullBatch.rest_owned`). | Each player's `_pull_rest`. |
+| `sv_native_snapshots` | gs-sim's `GSSimNetCore` builds snapshots on worker threads, so a release build without gs-net's C++ library is still native. | gs-net's GDScript path. |
+
+## Snapshot suites
+
+| Suite | What it holds |
+|---|---|
+| `headless_native_snapshot_parity` | Two servers in lockstep with the same seeded round of bots, one native and one GDScript. Every payload each fake client is sent is compared byte for byte, tick by tick: 6 and 31 players, a map change, bots and clients joining and leaving, acks two snapshots late, distance interest. Every player's pulled fields are compared too, with `OWNED` bots handed to fake clients so the owner's exact copy and carry mask are pulled. |
+| `headless_netpull_batch_parity` | Seeded movement, held values, wire widths (one only the script handles), the hold on and off, arsenals, rigs and wind-ups, over bots and people (seeds as `headless_netpull_native_parity` and `headless_netpull_weapons_parity`). Each lane compares every player's snapshot state bytes (`GSNetBehaviour._encode`), and the batch runs twice: `pull_apply` and the script. |

@@ -1,11 +1,7 @@
 extends RefCounted
-## Every player's movement and weapon pull in one gs-sim call a tick ([code]GSSimFpsNetPullBatch.pull[/code]), writing what
-## [code]GSSimFpsNetPack.pull[/code] and [code]GSSimFpsWeaponNet.pull[/code] write per player, to the bit
-## ([code]headless_netpull_batch_parity[/code]). The bridge runs it once the game has ticked; a player it leaves out (no
-## library, a cvar off, a declaration or rig only the script handles) pulls alone in [code]_net_simulate[/code]. Takes the
-## nets as Objects because a typed reference back to [code]FcPlayerNet[/code] would make the scripts a compile cycle.
-## With [code]sv_net_pull_apply_native[/code] gs-sim also writes the answers onto the nets
-## ([code]GSSimFpsNetPullBatch.pull_apply[/code]), so no script runs per field; off, [method _apply] writes them.
+## Every player's movement and weapon pull in one gs-sim call a tick ([code]GSSimFpsNetPullBatch[/code]), the per-player
+## natives' writes to the bit; a player it leaves out pulls alone in [code]_net_simulate[/code]. Nets are Objects to avoid a
+## compile cycle with FcPlayerNet. Cvars and the apply mode: docs/native-server-tick.md (Snapshot batch pull).
 
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetNativeCore := preload("fc_net_native_core.gd")
@@ -53,7 +49,7 @@ static func native() -> Object:
 	if not _native_tried:
 		_native_tried = true
 		if not ClassDB.class_exists(&"GSSimFpsNetPullBatch") or not ClassDB.class_has_method(&"GSSimFpsNetPullBatch", &"pull"):
-			push_warning("gs-sim has no GSSimFpsNetPullBatch (library missing or older): sv_net_pull_batch is on but each player pulls alone in script")
+			GSLog.warn("arena.net", "gs-sim has no GSSimFpsNetPullBatch (library missing or older): sv_net_pull_batch is on but each player pulls alone in script")
 		else:
 			_native = ClassDB.instantiate(&"GSSimFpsNetPullBatch")
 			_min_columns = _native.min_columns()
@@ -62,7 +58,7 @@ static func native() -> Object:
 			_out_stride = _native.out_stride()
 			# The rows [method _gather] builds: 10 values then the 4 wire widths after the state's columns.
 			if _move_extra != 14 or _weapon_stride != 9 or _out_stride != 11:
-				push_warning("gs-sim's GSSimFpsNetPullBatch rows are not this game's; each player pulls alone")
+				GSLog.warn("arena.net", "gs-sim's GSSimFpsNetPullBatch rows are not this game's; each player pulls alone")
 				_native = null
 			# The apply row [method _gather] builds: 5 values.
 			_can_apply = _native != null and ClassDB.class_has_method(&"GSSimFpsNetPullBatch", &"pull_apply") \
@@ -77,7 +73,7 @@ static func applies_natively() -> bool:
 		return false
 	if not _can_apply and not _apply_warned:
 		_apply_warned = true
-		push_warning("gs-sim's GSSimFpsNetPullBatch has no pull_apply for this game: sv_net_pull_apply_native is on but the script writes the fields")
+		GSLog.warn("arena.net", "gs-sim's GSSimFpsNetPullBatch has no pull_apply for this game: sv_net_pull_apply_native is on but the script writes the fields")
 	return _can_apply
 
 
@@ -154,12 +150,21 @@ static func pull_all(nets: Array, tick: int) -> int:
 	var follow: PackedInt32Array = rest.pull_rest_rows(_nets, _nets[0]._rest_interest_aim(), _moves, _columns, _move_extra)
 	for i: int in follow:
 		if i >= 0:
-			_nets[i]._pull_rest_owned()
+			rest_owned(_nets[i])
 		else:
 			_nets[-1 - i]._pull_rest(false, 0)
 	if fine:
 		var _lapped := FcFrameProbe.lap(&"np_rest", lap)
 	return _nets.size()
+
+
+## The part of [code]_pull_rest[/code] gs-sim's [code]GSSimNetRest.pull_rest[/code] leaves to the script, for a player a
+## client owns: the exact copy pushed back into the state, then the carry mask. Neither reads the fields gs-sim wrote.
+static func rest_owned(net: Object) -> void:
+	var identity: GSNetIdentity = net.identity
+	if identity != null and (identity.is_predicted() or (identity.is_authoritative and identity.owner_peer_id != 0)):
+		var _pushed := GSFpsNetSync.push_exact(net.player.controller.state, net.net_exact)
+	net.net_carry = net._carry.mask(net.player.arsenal)
 
 
 ## Says gs-sim's rest pull that [param net]'s script wrote its fields (it skips a write it believes is already there).
