@@ -2,6 +2,8 @@
 extends "fc_game_input.gd"
 const FcTraceMirror := preload("fc_trace_mirror.gd")
 
+const FcNativePhases := preload("fc_native_phases.gd")
+
 ## Deals an imported map's hurt volumes (`trigger_hurt`) to everybody standing in one, as
 ## world damage through gs-combat.
 ##
@@ -440,9 +442,12 @@ func tick(commands: Dictionary = {}) -> void:
 	if hull_world != null and FcHullGrid.batch and not GSFpsMotor.profile and _start_motor_batch(delta):
 		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players_batched(commands, delta, hull_world, shots)
+		FcNativePhases.tally(FcNativePhases.MOTOR, true)
 	else:
 		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players(commands, delta, use_grid, hull_world, shots)
+		if not _roster.is_empty():
+			FcNativePhases.tally(FcNativePhases.MOTOR, GSFpsPhysicsBody.native_enabled)
 	t_tp = FcFrameProbe.lap(&"tp_loop", t_tp)
 
 	_hull_grid.live = false
