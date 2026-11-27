@@ -1,0 +1,14 @@
+# Server hot path scripts checked by gs-ci scripts/check-gd-perf.py (tools/gd_perf_lint.py).
+# One fnmatch glob per line over tracked paths. Baseline: ci/efficiency/gd-perf.tsv.
+game/fc_bots*.gd
+game/fc_bot_*.gd
+game/fc_game.gd
+game/fc_game_*.gd
+game/fc_player.gd
+game/fc_player_*.gd
+game/fc_touch.gd
+game/fc_surf*.gd
+game/fc_net_pull*.gd
+game/fc_sim_host.gd
+# fc_sim_host.gd starts and watches the server process: none of it runs per tick.
+cold+: start|_forward_flags|_exit_reason|priority_command|raise_priority|shell_child_args|solo_start_map|_free_port

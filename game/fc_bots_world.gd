@@ -295,7 +295,7 @@ class World:
 		var eye := FcPlayer.eye_height()
 		var aim := CHEST * FcPlayer.stand_height() / 1.8
 		var rows := _bot_rows.begin()
-		for p: FcPlayer in game.call("players"):
+		for p: FcPlayer in game.call(&"players"):
 			var c := _contact_of(p, tick, eye, aim, teams)
 			_contacts.append(c)
 			if rows:
@@ -581,13 +581,13 @@ class World:
 		return seen
 
 	func _line_of_sight(from: Vector3, to: Vector3) -> bool:
-		var combat: Variant = game.get("combat")
-		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		var rules: Variant = game.get("glass_rules")
+		var combat: Variant = game.get(&"combat")
+		var trace: Variant = (combat as Object).get(&"trace") if combat is Object else null
+		var rules: Variant = game.get(&"glass_rules")
 		# Bots inside the jail cell cannot see out through its glass; the trace itself ignores that layer for sight.
 		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
-			var map: Variant = game.get("map")
-			var root: Variant = (map as Object).get("collision_root") if map is Object else null
+			var map: Variant = game.get(&"map")
+			var root: Variant = (map as Object).get(&"collision_root") if map is Object else null
 			if root is Node3D and (root as Node3D).is_inside_tree() \
 					and (rules as GSMapGlassSight).blocks((root as Node3D).get_world_3d().direct_space_state, from, to):
 				return false
@@ -614,14 +614,14 @@ class World:
 		var distance := offset.length()
 		if distance <= 0.0001:
 			return true
-		var bound: Variant = trace.get("_world")
-		if not bound is World3D:
+		var bound: World3D = trace._world
+		if bound == null:
 			return true
-		var space := (bound as World3D).direct_space_state
+		var space := bound.direct_space_state
 		if space == null:
 			return true
 		var mask: int = trace.collision_mask
-		var glass: Variant = trace.get("glass")
+		var glass: Variant = trace.get(&"glass")
 		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
 			mask &= ~(glass as GSMapGlassSight).glass_mask
 		if _sight_query == null:
