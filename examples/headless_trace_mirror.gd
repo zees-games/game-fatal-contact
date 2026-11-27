@@ -261,7 +261,31 @@ func _hull_probe(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParam
 	probe.transform = Transform3D(Basis.IDENTITY, from + motion * float(bracket[1]))
 	var rest := space.get_rest_info(probe)
 	return "godot overlaps %d at start, rest at unsafe %s" % [at_start,
-		"none" if rest.is_empty() else "n %s at %s" % [rest["normal"], rest["point"]]]
+		"none" if rest.is_empty() else "n %s at %s; %s" % [rest["normal"], rest["point"], _rest_shape(rest, from, motion)]]
+
+
+## The shape Godot rests on, as the server holds it, for reproducing a failure off-line: its class, transform
+## and hull vertices, or the trimesh faces near the sweep (failure lines only).
+func _rest_shape(rest: Dictionary, from: Vector3, motion: Vector3) -> String:
+	var body := instance_from_id(int(rest["collider_id"])) as CollisionObject3D
+	if body == null:
+		return "collider gone"
+	var owner_id := body.shape_find_owner(int(rest["shape"]))
+	var node := body.shape_owner_get_owner(owner_id) as CollisionShape3D
+	if node == null or node.shape == null:
+		return "no shape node"
+	var xf := node.global_transform
+	if node.shape is ConcavePolygonShape3D:
+		var near := AABB(from, Vector3.ZERO).expand(from + motion).grow(1.0)
+		var faces: PackedVector3Array = (node.shape as ConcavePolygonShape3D).get_faces()
+		var kept := PackedVector3Array()
+		for k in range(0, faces.size(), 3):
+			var box := AABB(xf * faces[k], Vector3.ZERO).expand(xf * faces[k + 1]).expand(xf * faces[k + 2])
+			if box.intersects(near):
+				kept.append_array([faces[k], faces[k + 1], faces[k + 2]])
+		return "concave of %d faces, xf %s, near faces %s" % [faces.size() / 3, var_to_str(xf), var_to_str(kept)]
+	var data: Variant = PhysicsServer3D.shape_get_data(node.shape.get_rid())
+	return "%s xf %s data %s" % [node.shape.get_class(), var_to_str(xf), var_to_str(data)]
 
 
 func _compare_points(label: String, mirror: Object, space: PhysicsDirectSpaceState3D, rng: RandomNumberGenerator,
