@@ -25,7 +25,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 36
+const CHECKS := 38
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -303,13 +303,23 @@ func _check_loop_variants(resident: PackedStringArray, streams: Array) -> void:
 	# The lean loop (FcPlayer.lean_tick) only skips calls that change nothing: the long way must play the same match.
 	FcPlayer.lean_tick = false
 	var stepped := FcNativeTick.steps
+	FcNativeTick.check_weapons = true
+	FcNativeTick.weapon_rows = PackedInt64Array([0, 0, 0])
+	FcNativeTick.native_events = 0
 	var long_way: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
+	FcNativeTick.check_weapons = false
 	stepped = FcNativeTick.steps - stepped
 	FcPlayer.lean_tick = true
 	# sv_native_motor_state 1 steps gs-sim's server tick once a tick when the library has it (FcNativeTick says loudly what is missing).
 	var has_tick := FcNativeTick.available()
 	print("  native server tick (GSSimServerTick): %s, %d steps" % [has_tick, stepped])
 	_check(stepped > 0 if has_tick else stepped == 0, "sv_native_motor_state 1 steps the native server tick once a tick when gs-sim has it (%d steps, available %s)" % [stepped, has_tick])
+	var w := FcNativeTick.weapon_rows
+	print("  native table weapon column: %d rows, %d differ, %d holding a weapon" % [w[0], w[1], w[2]])
+	_check((w[0] > 0 and w[1] == 0 and w[2] > 0) if has_tick else w[0] == 0, "the native table's weapon column is each player's weapon in hand after every step (%d rows, %d differ, %d armed)" % [w[0], w[1], w[2]])
+	var derives := has_tick and ClassDB.class_has_method(&"GSSimServerTick", &"derive") and GSFpsTickEvents.new().has_method(&"use_native")
+	print("  native server tick derives the motor edges (GSSimServerTick API 2): %s, %d events" % [derives, FcNativeTick.native_events])
+	_check(FcNativeTick.native_events > 0 if derives else FcNativeTick.native_events == 0, "with gs-sim's derive the native server tick answers the tick's motor edges from events() (%d events)" % FcNativeTick.native_events)
 	_check(long_way[0] == resident, "the lean players' loop plays it to the bit as the long way (%s)" % _first_diff(long_way[0], resident))
 	# sv_native_motor_state 0: the batch is handed every column each tick instead of keeping the motor state in gs-sim.
 	print("  resident motor state in gs-sim (run_slots): %s" % ClassDB.class_has_method(&"GSSimMotorBatch", &"run_slots"))
