@@ -123,7 +123,7 @@ func _knife_part() -> void:
 			skips += 1
 		var buttons_ref := -1 if fire_ref == null else fire_ref.buttons
 		var buttons_gated := -1 if fire_gated == null else fire_gated.buttons
-		var same := var_to_bytes(ref_players[k].windup) == var_to_bytes(gated_players[k].windup) \
+		var same: bool = var_to_bytes(ref_players[k].windup) == var_to_bytes(gated_players[k].windup) \
 				and buttons_ref == buttons_gated \
 				and var_to_bytes(ref.charge_of(id)) == var_to_bytes(gated.charge_of(id)) \
 				and bool(ref._aim_held.get(id, false)) == bool(gated._aim_held.get(id, false)) \
