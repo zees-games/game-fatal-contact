@@ -511,10 +511,12 @@ static func phases_line(ticks: int) -> String:
 		parts.append("%s %.3f" % [brain_names[i], brain_us[i] / 1000.0 / ticks])
 	brain_us.fill(0)
 	brain.set(&"phase_us", brain_us)
-	# gs-bot 40: the world queries' calls per tick beside their time (bq_*_n).
+	# gs-bot 40: the world queries' calls per tick beside their time (bq_*_n), and bb_setup_n,
+	# the thinks per tick (lap 0 runs once per think of a live bot), so a bb_* is per think too.
 	var brain_calls: Variant = brain.get(&"phase_calls")
 	if brain_calls is PackedInt64Array:
 		var calls: PackedInt64Array = brain_calls
+		parts.append("bb_setup_n %.2f" % (calls[0] / float(ticks)))
 		for i in brain_names.size():
 			if String(brain_names[i]).begins_with("bq_"):
 				parts.append("%s_n %.2f" % [brain_names[i], calls[i] / float(ticks)])
