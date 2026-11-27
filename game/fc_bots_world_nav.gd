@@ -31,6 +31,9 @@ class NavWorld:
 	## it is for. See [method _nav_for_map].
 	var _nav: GSBotNav = null
 	var _nav_map: Object = null
+	## The map's nav source holder ([code]FcMapImported.nav_source[/code]) while [member _nav]
+	## parses it: the parse is sliced over frames, so it is freed once the bake reports back.
+	var _nav_source: Object = null
 	## The map's ride edges ([code]fc_surf.gd[/code]), once its mesh has landed and if it has
 	## a surf cache; and whether that was looked for on this mesh.
 	var _surf: RefCounted = null
@@ -366,6 +369,7 @@ class NavWorld:
 			return null
 		if _nav != null:
 			_nav.clear()
+		_free_nav_source(_nav_source)
 		_nav = GSBotNav.new()
 		_nav_map = map
 		_surf = null
@@ -376,12 +380,24 @@ class NavWorld:
 		_link_stage = 0
 		var body := _body_tunables()
 		var source: Node3D = (map as Object).call(&"nav_source") if (map as Object).has_method(&"nav_source") else null
-		var started := _nav.bake_in_background(source if source != null else root as Node3D, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height})
-		if source != null:
-			source.free()
+		# gs-bot parses the source over the next frames, so it lives until the bake reports back.
+		_nav_source = source
+		var started := _nav.bake_in_background(source if source != null else root as Node3D, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height}, 0, [], _on_nav_baked.bind(source))
 		if not started.ok:
+			_free_nav_source(source)
 			GSLog.warn(CHANNEL, "bots cannot route on this map", {"map": str((map as Object).get("id")), "error": started.error.message})
 		return _nav
+
+	## The bake's [code]done[/code]: its parse is over, so the source it read can go.
+	func _on_nav_baked(_result: GSResult, source: Variant) -> void:
+		_free_nav_source(source)
+
+	## Untyped: the holder may already be freed (a map change frees the map under it).
+	func _free_nav_source(source: Variant) -> void:
+		if is_instance_valid(source):
+			(source as Object).free()
+		if is_same(_nav_source, source):
+			_nav_source = null
 
 	func walkable_near(at: Vector3) -> Vector3:
 		if par:
