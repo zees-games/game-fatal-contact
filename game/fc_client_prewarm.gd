@@ -686,6 +686,11 @@ func _prewarm_models() -> void:
 	FcLoadTimeline.mark("model reads start: %d files, %d under the cover" % [_model_paths.size(), _model_paths_cover])
 	if _model_paths_cover > 0:
 		gate.hold(&"weapon_models", "Preparing weapon models")
+		# The gate has been closed since the client entered the tree, and its timeout counts from the closing: a headless setup
+		# is one long frame (map, players, arming) that on a loaded box ate most of those 20 s, so the reads started with no time left and
+		# the gate gave up before the first slice ("Preparing weapon models", closed for 21.4 s). The reads' own clock starts here.
+		if gate.has_method(&"advance"):
+			gate.call(&"advance", &"weapon_models")
 	get_tree().process_frame.connect(_prewarm_models_tick)
 
 ## Whether the model reads run on the loader's threads (see [method _prewarm_models]). Not with [member defer_models_everywhere]:
