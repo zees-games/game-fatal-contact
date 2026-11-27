@@ -10,8 +10,9 @@ static var world_shadow := true
 ## r_world_shadow_cell: the cell edge, metres.
 static var world_shadow_cell := 32.0
 ## cl_held_central_tick: every held gun ticked from one node rather than its own _process.
-## Off until a 32-player A/B shows it no slower (nightly fc-cvar-world-shadow-1).
-static var held_central_tick := false
+## On: one dispatch and one loop for every held gun instead of two script calls each (perf-400fps-32bots-1);
+## 0 hands each gun its own _process back (the fallback; aw_selftest's central-tick check holds the two equal).
+static var held_central_tick := true
 
 
 ## Pushes every value at its addon. Safe to call again; a map already drawn keeps its casters.
