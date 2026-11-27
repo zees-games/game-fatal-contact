@@ -208,6 +208,13 @@ func _add_shot_rewind_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			game.shot_rewind_log_sec = new_value.to_float()
 			log_info("shot rewind log period changed", {"sec": game.shot_rewind_log_sec}))
+	add_cvar("sv_native_shots", str(game.native_shots),
+		"1 walks hitscan pellets natively (GameSpice Sim GSSimShots), 0 runs the script tracer",
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.native_shots = new_value.to_int()
+			game.apply_native_shots()
+			log_info("native shots changed", {"on": game.native_shots}))
 	add_cvar("cl_shot_view_cone_deg", str(game.shot_view_cone_deg),
 		"Degrees off the aim within which a shot names a target's own snapshot pair to the server (0 every target)",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
