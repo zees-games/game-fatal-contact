@@ -7,7 +7,7 @@ extends RefCounted
 ## from the hull world's feet. The players' loop hands it the motor batch ([method GSFpsMotorBatch.use_native]) and
 ## its idle posture rows (`run_rows`, the same to the bit as `GSSimPlayerPost`), so nothing is computed twice.
 ##
-## [member enabled] is `sv_native_tick`. Off, or without the library, the loop runs as before. A library that is
+## [member enabled] is `sv_native_motor_state`. Off, or without the library, the loop runs as before. A library that is
 ## present but lacks the class, a method or the API level is said loudly once, never skipped in silence.
 
 ## The `GSSimServerTick` API level this needs.
@@ -19,7 +19,7 @@ const FcContent := preload("fc_content.gd")
 const CLASS := &"GSSimServerTick"
 const METHODS: Array[StringName] = [&"configure", &"motor", &"bind_world", &"begin", &"run_rows", &"step", &"table", &"digest", &"events", &"counters"]
 
-## `sv_native_tick`: 1 steps the native tick (with `fc_motor_batch`); 0 the script loop alone.
+## `sv_native_motor_state`: 1 steps the native tick (with `fc_motor_batch`); 0 the script loop alone.
 static var enabled := true
 ## Ticks stepped natively since start (the suites check it moved).
 static var steps := 0
@@ -86,7 +86,7 @@ static func available() -> bool:
 	if level < GSPC_LEVEL:
 		missing.append("gs_player_controller level %d (have %d)" % [GSPC_LEVEL, level])
 	if not missing.is_empty():
-		push_error("FcNativeTick: sv_native_tick 1 needs %s; the script loop runs instead" % ", ".join(missing))
+		push_error("FcNativeTick: sv_native_motor_state 1 needs %s; the script loop runs instead" % ", ".join(missing))
 		return false
 	_ok = true
 	return true
