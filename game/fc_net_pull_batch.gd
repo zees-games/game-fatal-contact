@@ -9,6 +9,7 @@ extends RefCounted
 
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetNativeCore := preload("fc_net_native_core.gd")
+const FcNativePhases := preload("fc_native_phases.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
 const Roles := preload("fc_weapon_roles.gd")
@@ -140,6 +141,7 @@ static func pull_all(nets: Array, tick: int) -> int:
 			return 0
 		for i in _nets.size():
 			_apply(_nets[i], out, i * _out_stride, _fitted[i])
+	FcNativePhases.tally(FcNativePhases.SNAPSHOTS, true)
 	var fine := FcFrameProbe.fine
 	for net: Object in _nets:
 		net._batched_tick = tick
