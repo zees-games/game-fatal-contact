@@ -372,6 +372,7 @@ func follow_server_cvars(source: Object) -> bool:
 	var _feel := feel_rules.follow_cvars(source)
 	var _ads := ads_rules.follow_cvars(source)
 	combat_feel.follow_cvars(source)
+	var _mirror := FcTraceMirror.follow_cvars(source)
 	return _follow_cvar_source()
 
 func _forget_mirror(local_id: int) -> void:

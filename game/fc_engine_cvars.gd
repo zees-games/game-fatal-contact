@@ -183,8 +183,8 @@ func _add_hull_and_pvs_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcWeaponDropWiring.idle_keys_skip = new_value.to_float() >= 0.5)
 	add_cvar("sv_trace_mirror", "1" if FcTraceMirror.enabled else "0",
-		"1: bot sight and wall rays ask gs-sim's collision mirror of the map's static world (GSSimTraceMirror) instead of the physics space; 0: every ray asks the space",
-		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		"1: bot sight and wall rays, and every player's native motor (server and predicting client), ask gs-sim's collision mirror of the map's static world (GSSimTraceMirror) instead of the physics space; 0: everything asks the space",
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcTraceMirror.enabled = new_value.to_float() >= 0.5)
 	add_cvar("fc_bot_pvs_verify", "1" if FcBotPvs.verify else "0",

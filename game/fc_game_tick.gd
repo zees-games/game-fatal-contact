@@ -424,9 +424,9 @@ func tick(commands: Dictionary = {}) -> void:
 	var t_sim := Time.get_ticks_usec()
 	var t_tp := FcFrameProbe.lap_start()
 	_ensure_roster()
-	if is_authority:
-		# sv_trace_mirror: the server's native motors collide against the map's mirror, the space is the fallback.
-		FcTraceMirror.bind_players(self, _roster)
+	# sv_trace_mirror (replicated): native motors collide against the map's mirror on the server and the predicting
+	# client alike, the space is the fallback.
+	FcTraceMirror.bind_players(self, _roster)
 	var use_grid := FcHullGrid.enabled and body_rules.solid and _roster.size() >= FcHullGrid.min_players
 	var hull_world: Object = null
 	if use_grid:
