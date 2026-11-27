@@ -8,6 +8,10 @@ extends "fc_game_idle.gd"
 ## A player's command input before its controller ticks (weapon drop, knife, activity note, surf ride), with
 ## [code]pp_*[/code] laps from [param t_fine]: the command pair as it came (no new two-item array per player per tick),
 ## or empty when the move or fire command is null.
+## [method GSMatch.note_activity]'s key per player id, so the loop does not build a String per player per tick.
+var _activity_keys: Dictionary = {}
+
+
 func _batched_input(id: int, player: FcPlayer, pair: Array, knife_charge: bool, surfing: bool, t_fine: int) -> Array:
 	var t_lap := t_fine
 	FcWeaponDropWiring.input(self, id, player, pair)
@@ -20,7 +24,11 @@ func _batched_input(id: int, player: FcPlayer, pair: Array, knife_charge: bool, 
 	t_lap = FcFrameProbe.lap(&"pp_knife", t_lap)
 	if move == null or fire == null:
 		return []
-	match_node.note_activity(str(id), _tick)
+	var key: String = _activity_keys.get(id, "")
+	if key.is_empty():
+		key = str(id)
+		_activity_keys[id] = key
+	match_node.note_activity(key, _tick)
 	t_lap = FcFrameProbe.lap(&"pp_note", t_lap)
 	if surfing:
 		surf_rides.call(&"before_synced", id, player)

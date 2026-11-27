@@ -238,6 +238,12 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	if _batch_rows.size() < n:
 		_batch_rows.resize(n)
 		_batch_pairs.resize(n)
+	# The bodies' motor gates and ladder wishes in one gs-sim call (cvar fc_pre_native); the fine laps time per player, so they keep the script.
+	var pre_lane := FcPlayer.pre_native and FcPlayer.body_cols and not fine and _pre_ready()
+	var pre_count := 0
+	if pre_lane and _pre_rows.size() < n * FcPlayer.PRE_IN:
+		_pre_rows.resize(n * FcPlayer.PRE_IN)
+		_pre_index.resize(n)
 	t_tb = FcFrameProbe.lap(&"tb_setup", t_tb)
 	for i in range(n):
 		var id: int = ids[i]
@@ -257,8 +263,13 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		if fine:
 			FcFrameProbe.add(&"pl_pre", t_fine)
 			t_fine = Time.get_ticks_usec()
-		player.tick_pre(_tick, move)
+		player.tick_pre(_tick, move, not pre_lane)
 		var controller := player.controller
+		if pre_lane:
+			player.pre_row(_pre_rows, pre_count * FcPlayer.PRE_IN, _tick, delta, controller.current_command)
+			_pre_index[pre_count] = i
+			pre_count += 1
+			continue
 		var t_ctl := Time.get_ticks_usec()
 		# -2: the controller does not tick (not started, or a far bot's body sitting this tick out); the rest of the player's tick still runs.
 		var d := player.body_delta(_tick, delta, controller.current_command)
@@ -269,6 +280,8 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		player.ctl_usec = Time.get_ticks_usec() - t_ctl
 		if fine:
 			FcFrameProbe.add(&"pl_sim", t_fine)
+	if pre_count > 0:
+		_pre_apply(ids, pre_count)
 	t_tb = FcFrameProbe.lap(&"tb_pass1", t_tb)
 	if FcPlayer.mechanics_native:
 		_volume_pre.mark(_tick, ids, _players, _batch_rows)
@@ -742,3 +755,33 @@ func _build_match() -> GSResult:
 	match_node.state_changed.connect(_on_match_state_changed)
 
 	return GSResult.success(null)
+
+
+## Whether the gs-sim pre lane is there ([code]GSSimServerTick.pre[/code], API 6), making its object on first use; warns
+## once when the cvar asks for it and the library lacks it.
+func _pre_ready() -> bool:
+	if _pre_native != null:
+		return true
+	if _pre_missing:
+		return false
+	if not (ClassDB.class_exists(&"GSSimServerTick") and ClassDB.class_has_method(&"GSSimServerTick", &"pre")):
+		_pre_missing = true
+		GSLog.warn(FcNativePhases.CHANNEL, "fc_pre_native: gs-sim lacks GSSimServerTick.pre (API 6); the body gate and ladder wish stay in script")
+		return false
+	_pre_native = ClassDB.instantiate(&"GSSimServerTick")
+	_pre_native.call(&"configure", GSFpsState.Mode.GROUND, 0.4)
+	return true
+
+
+## The pre lane's second half: one gs-sim call answers every gathered row, then each player applies its row and
+## queues its motor row as the script loop would have.
+func _pre_apply(ids: Array, count: int) -> void:
+	var out: PackedFloat64Array = _pre_native.call(&"pre", _pre_rows, count, FcPlayer.BODY_MAX_GAP)
+	for k: int in count:
+		var i: int = _pre_index[k]
+		var player: FcPlayer = _players[ids[i]]
+		var controller := player.controller
+		var t_ctl := Time.get_ticks_usec()
+		var d := player.pre_apply(out, k * FcPlayer.PRE_OUT, _tick, controller.current_command)
+		_batch_rows[i] = _motor_batch.add(controller.motor, controller.state, controller.current_command, d) if d > 0.0 and controller.begin_tick(_tick, d) else -2
+		player.ctl_usec = Time.get_ticks_usec() - t_ctl

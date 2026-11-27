@@ -14,7 +14,7 @@ const PHASES: Array[Dictionary] = [
 	{"id": "mirror", "cvars": ["sv_trace_mirror"],
 		"classes": ["GSSimTraceMirror", "GSSimFpsBody"], "methods": [["GSSimFpsBody", "set_trace_mirror"]]},
 	{"id": "motor", "cvars": ["motor_native", "sv_native_motor_state", "motor_native_tick", "motor_native_full", "fc_hull_native",
-		"fc_posture_native", "fc_mechanics_native", "fc_tick_events"],
+		"fc_posture_native", "fc_mechanics_native", "fc_tick_events", "fc_pre_native"],
 		"classes": ["GSSimFpsBody", "GSSimMotorBatch"], "methods": []},
 	{"id": "bots", "cvars": ["bot_native", "bot_native_brain", "bot_native_pickup", "bot_native_drops",
 		"bot_native_unstick", "bot_native_act", "bot_native_think", "fc_bot_pvs_native", "bot_native_think_mt",

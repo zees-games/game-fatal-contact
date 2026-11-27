@@ -592,6 +592,13 @@ const BODY_MAX_GAP := 8
 static var body_cols := GSAddonApi.build_level("gs_player_controller") >= 36
 ## What [method body_delta] answered last, for the batched loop's [method GSFpsController.end_tick].
 var body_d := 0.0
+## Cvar [code]fc_pre_native[/code]: 1 lets the batched loop work out [method body_delta] and the ladder wish of
+## [method tick_pre] for every player in one gs-sim call ([method pre_row], [method pre_apply]) where its library
+## has GSSimServerTick.pre; 0 (or no library, or [member body_cols] off) runs them here per player.
+static var pre_native := true
+## Floats per [method pre_row] row and per answer row (gs-sim [code]gs_sim_players::pre[/code] IN and OUT).
+const PRE_IN := 13
+const PRE_OUT := 4
 
 
 ## The delta this tick's motor runs with: [param delta] at full rate; 0.0 when the body sits this tick out under
@@ -633,8 +640,62 @@ var _tick_start := Vector3.ZERO
 var ctl_usec := 0
 
 
+## Packs [method body_delta]'s inputs and [method tick_pre]'s ladder wish inputs into [param rows] at [param at]
+## ([constant PRE_IN] floats), after [method tick_pre] ran with its wish left to [method pre_apply]. Needs
+## [member body_cols].
+func pre_row(rows: PackedFloat64Array, at: int, tick: int, delta: float, command: GSFpsCommand) -> void:
+	var f: PackedFloat64Array = controller.state.get(&"_f")
+	rows[at] = tick
+	rows[at + 1] = body_last_tick
+	rows[at + 2] = body_every
+	rows[at + 3] = delta
+	rows[at + 4] = command.buttons
+	rows[at + 5] = f[13]
+	rows[at + 6] = 1.0 if controller.has_external_velocity() else 0.0
+	rows[at + 7] = f[9]
+	rows[at + 8] = f[17]
+	rows[at + 9] = f[22]
+	rows[at + 10] = _yaw_before_tick
+	rows[at + 11] = _pre_move.x
+	rows[at + 12] = _pre_move.y
+
+
+## Applies gs-sim's answer row at [param at] of [param out] ([constant PRE_OUT] floats: kind 0 reset, 1 run,
+## 2 skip; delta; wish x, z) as [method body_delta] and [method tick_pre]'s wish would have; returns the delta.
+func pre_apply(out: PackedFloat64Array, at: int, tick: int, command: GSFpsCommand) -> float:
+	ladder.wish = Vector3(out[at + 2], 0.0, out[at + 3])
+	var kind := out[at]
+	if kind < 1.5:
+		body_last_tick = tick
+		body_d = out[at + 1]
+		return body_d
+	var s := controller.state
+	var f: PackedFloat64Array = s.get(&"_f")
+	f[12] = command.yaw
+	s.pitch = command.pitch
+	s.tick += 1
+	body_skipped += 1
+	body_d = 0.0
+	return 0.0
+
+
+## [method tick_pre]'s ladder wish: [code]GSFpsMotor._view_basis(yaw, 0)[/code]'s right and forward scaled by
+## [param move], flattened and normalised, to the bit, without the view basis object per player per tick.
+static func ladder_wish(yaw_degrees: float, move: Vector2) -> Vector3:
+	var r := deg_to_rad(yaw_degrees)
+	var s := sin(r)
+	var c := cos(r)
+	var intent: Vector3 = Vector3(c, 0.0, -s) * move.x + Vector3(-s, 0.0, -c) * move.y
+	return Vector3(intent.x, 0.0, intent.z).normalized()
+
+
+## The move [method pre_row] packs: [method tick_pre]'s command move before the controller sanitises it.
+var _pre_move := Vector2.ZERO
+
+
 ## [method simulate_tick] up to the controller's tick; the game's batched loop runs the controller's two halves itself.
-func tick_pre(tick: int, movement_command: GSFpsCommand) -> void:
+## [param wish] false leaves the ladder wish to [method pre_apply] (the batched loop's gs-sim lane).
+func tick_pre(tick: int, movement_command: GSFpsCommand, wish: bool = true) -> void:
 	var fine := FcFrameProbe.fine
 	var t_fine := Time.get_ticks_usec() if fine else 0
 	# Where the tick starts, for the pushes: "was this player in a booster last tick" is
@@ -645,9 +706,10 @@ func tick_pre(tick: int, movement_command: GSFpsCommand) -> void:
 	# previous_position() (gs-player-controller 25) is render_state(0.0).position without duplicating the state, once per player per tick.
 	_position_two_back = controller.previous_position()
 	ladder.now = tick
-	var view := GSFpsMotor._view_basis(controller.state.yaw, 0.0)
-	var intent: Vector3 = view.right * movement_command.move.x + view.forward * movement_command.move.y
-	ladder.wish = Vector3(intent.x, 0.0, intent.z).normalized()
+	if wish:
+		ladder.wish = ladder_wish(_yaw_before_tick, movement_command.move)
+	else:
+		_pre_move = movement_command.move
 	_hull_tick = tick
 	controller.apply_command(movement_command)
 	if fine:

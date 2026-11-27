@@ -91,6 +91,12 @@ var _hull_world_data := PackedFloat64Array()
 var _motor_batch: GSFpsMotorBatch = null
 var _batch_rows := PackedInt32Array()
 var _batch_pairs: Array = []
+## The gs-sim pre lane ([method _tick_players_batched], cvar fc_pre_native): its GSSimServerTick, whether the library lacks
+## it, the packed rows and each row's roster index, kept between ticks.
+var _pre_native: Object = null
+var _pre_missing := false
+var _pre_rows := PackedFloat64Array()
+var _pre_index := PackedInt32Array()
 ## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its
 ## `GSSimPlayerPost`, the input rows (10 floats each) and each one's player, id and move command.
 var _post_native: Object = null
