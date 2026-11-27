@@ -254,29 +254,14 @@ func respawn_player(id: int) -> GSResult:
 
 ## gs-bot-record, loaded by path in [method start_ride_recording] only: a game that never records does not compile it.
 const BOT_RECORD_DIR := "res://addons/gs_bot_record/"
-## FC's kill view server: asks for an eye only when the ring would keep it.
+## FC's kill view server: builds an eye only when the ring keeps it, straight into the ring.
 const FcKillViewServer := preload("fc_killview_server.gd")
 
 ## The kill view's server half over this game: every living eye, respawns held in gs-match's queue.
 func make_killview_server() -> GSKillViewServer:
-	var server := FcKillViewServer.new(killview_rules)
+	var server := FcKillViewServer.new(killview_rules, self)
 	server.tick_rate = tick_rate
 	KillPov.watch_hits(self)
-	var due := server.due
-	server.eyes_fn = func() -> Array:
-		var eyes: Array = []
-		var eye_up := Vector3(0.0, FcPlayer.eye_height(), 0.0)
-		for p: FcPlayer in players():
-			if not p.health.alive or p.controller == null or p.controller.state == null:
-				continue
-			# Only the eyes the ring keeps this tick: one tick in three at 66 ticks and 30 Hz.
-			if not due.check(p.player_id):
-				continue
-			var st: GSFpsState = p.controller.state
-			var eye: Vector3 = p.controller.motor.eye_position(st) if p.controller.motor != null else st.position + eye_up
-			var basis := Basis.from_euler(Vector3(deg_to_rad(st.pitch), deg_to_rad(st.yaw), 0.0))
-			eyes.append({"id": p.player_id, "transform": Transform3D(basis, eye), "fov": KillPov.fov_of(p), "aux": KillPov.aux_of_tick(p, GSKillViewRing.AUX, true)})
-		return eyes
 	server.use_respawn_queue(func() -> Variant: return match_node.respawns if match_node != null else null,
 		func(id: Variant) -> GSResult: return respawn_player(int(id)))
 	return server

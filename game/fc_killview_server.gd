@@ -1,59 +1,86 @@
 extends GSKillViewServer
 
-## The kill view's server over FC: [member eyes_fn] is asked only for the eyes the ring would keep. The ring keeps a sample per [member GSKillViewRules.record_hz] (30) and the tick is 66, so two in three of
-## the eyes built every tick (a dictionary, a basis, a transform, the fov and the aux floats, per living player) were refused by [method GSKillViewRing.record] on its rate check. [member due] is that same
-## check, asked before the eye is built: what the ring holds is unchanged, sample for sample.
+## The kill view's server over FC. [method record] walks the game's living players itself and hands each eye the ring keeps
+## straight to [method GSKillViewRing.record]: no eye dictionary per player, and the aux floats filled into one reused buffer
+## ([method KillPov.fill_aux]). The ring keeps a sample per [member GSKillViewRules.record_hz] (30) and the tick is 66, so an eye
+## is built only when [method GSKillViewRing.is_due] says the ring takes it, the same check [method eye_due] asks: what the
+## ring holds is unchanged, sample for sample. [member eyes_fn] still lists the eyes as dictionaries, for a probe or a test.
 
-## The rate check the eyes ask. Its own object so the [member eyes_fn] closure holding it holds no
-## reference back to this server (a cycle a RefCounted never frees).
-var due: Due = null
+const KillPov := preload("fc_kill_pov.gd")
+const FcPlayer := preload("fc_player.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
+
+## Off builds every living eye and lets the ring refuse the ones it does not keep, as before:
+## headless_bot_pull holds the two to the same samples.
+static var ask_due_only := true
+
+## The FC game whose players are the eyes. A Node, so holding it makes no reference cycle.
+var game: Node = null
 
 
-func _init(p_rules: GSKillViewRules = null) -> void:
+func _init(p_rules: GSKillViewRules = null, p_game: Node = null) -> void:
 	super(p_rules)
-	due = Due.new(ring)
+	game = p_game
+	# A bound method holds no strong reference to this server: no cycle.
+	eyes_fn = _eyes
 
 
 func record(time: float) -> void:
-	due.now = time
-	due.recording = true
-	super.record(time)
-	due.recording = false
+	if not rules.enabled or game == null or not is_instance_valid(game) or GSKillViewRing.AUX != KillPov.SIZE:
+		super.record(time)
+		return
+	var fine: bool = FcFrameProbe.fine
+	var eyes_us := 0
+	var aux_us := 0
+	var ring_us := 0
+	var t := Time.get_ticks_usec() if fine else 0
+	var cursor := Vector2(0.5, 0.5)
+	for p: FcPlayer in game.call(&"players"):
+		if not _alive(p) or (ask_due_only and not ring.is_due(p.player_id, time)):
+			continue
+		var xf := eye_transform(p)
+		var fov := KillPov.fov_of(p)
+		if fine:
+			var now := Time.get_ticks_usec()
+			eyes_us += now - t
+			t = now
+		KillPov.fill_aux(p)
+		KillPov.keep_tick_aux(p)
+		if fine:
+			var now := Time.get_ticks_usec()
+			aux_us += now - t
+			t = now
+		var _kept := ring.record(p.player_id, time, xf, fov, cursor, KillPov.aux_buf)
+		if fine:
+			var now := Time.get_ticks_usec()
+			ring_us += now - t
+			t = now
+	if fine:
+		var now := Time.get_ticks_usec()
+		eyes_us += now - t
+		FcFrameProbe.lap(&"kv_eyes", now - eyes_us)
+		FcFrameProbe.lap(&"kv_aux", now - aux_us)
+		FcFrameProbe.lap(&"kv_ring", now - ring_us)
 
 
-func forget(id: Variant) -> void:
-	due.last.erase(id)
-	super.forget(id)
+## Where [param p]'s eye is and looks: the motor's eye, else eye height above the feet.
+static func eye_transform(p: FcPlayer) -> Transform3D:
+	var st: GSFpsState = p.controller.state
+	var eye: Vector3 = p.controller.motor.eye_position(st) if p.controller.motor != null else st.position + Vector3(0.0, FcPlayer.eye_height(), 0.0)
+	return Transform3D(Basis.from_euler(Vector3(deg_to_rad(st.pitch), deg_to_rad(st.yaw), 0.0)), eye)
 
 
-## [method GSKillViewRing.record]'s rate check, before the sample is built.
-class Due:
-	extends RefCounted
+static func _alive(p: FcPlayer) -> bool:
+	return p.health.alive and p.controller != null and p.controller.state != null
 
-	## Off asks for every eye every tick and lets the ring refuse, as before: headless_bot_pull holds
-	## the two to the same samples.
-	static var ask_due_only := true
 
-	## The time of the [method record] call in progress.
-	var now: float = 0.0
-	## True only inside [method record]: anyone else asking [member eyes_fn] (a test, a probe) gets every eye.
-	var recording := false
-	## The time each id's eye was last handed to the ring.
-	var last: Dictionary = {}
-	var _ring: GSKillViewRing = null
-
-	func _init(p_ring: GSKillViewRing) -> void:
-		_ring = p_ring
-
-	## Whether the ring takes a sample of [param id] at [member now]. An id with no samples (new,
-	## forgotten, cleared, or refused for a full table) is always asked, and the ring decides.
-	func check(id: Variant) -> bool:
-		if not ask_due_only or not recording:
-			return true
-		if _ring.sample_count(id) == 0 or not last.has(id):
-			last[id] = now
-			return true
-		if now - float(last[id]) < 1.0 / _ring.rules.record_hz - 0.0001:
-			return false
-		last[id] = now
-		return true
+## [member eyes_fn]: every living eye the ring keeps now ([method eye_due]; every one outside [method record]), as dictionaries.
+func _eyes() -> Array:
+	var eyes: Array = []
+	if game == null or not is_instance_valid(game):
+		return eyes
+	for p: FcPlayer in game.call(&"players"):
+		if not _alive(p) or (ask_due_only and not eye_due(p.player_id)):
+			continue
+		eyes.append({"id": p.player_id, "transform": eye_transform(p), "fov": KillPov.fov_of(p), "aux": KillPov.aux_of_tick(p, GSKillViewRing.AUX, true)})
+	return eyes
