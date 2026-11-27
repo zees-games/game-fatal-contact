@@ -644,7 +644,8 @@ var ctl_usec := 0
 ## ([constant PRE_IN] floats), after [method tick_pre] ran with its wish left to [method pre_apply]. Needs
 ## [member body_cols].
 func pre_row(rows: PackedFloat64Array, at: int, tick: int, delta: float, command: GSFpsCommand) -> void:
-	var f: PackedFloat64Array = controller.state.get(&"_f")
+	# The state's columns read directly: fc_net_pull_native.gd (preloaded) already needs gs-player-controller 36.
+	var f: PackedFloat64Array = controller.state._f
 	rows[at] = tick
 	rows[at + 1] = body_last_tick
 	rows[at + 2] = body_every
@@ -670,7 +671,7 @@ func pre_apply(out: PackedFloat64Array, at: int, tick: int, command: GSFpsComman
 		body_d = out[at + 1]
 		return body_d
 	var s := controller.state
-	var f: PackedFloat64Array = s.get(&"_f")
+	var f: PackedFloat64Array = s._f
 	f[12] = command.yaw
 	s.pitch = command.pitch
 	s.tick += 1

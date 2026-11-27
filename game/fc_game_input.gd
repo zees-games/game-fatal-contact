@@ -9,7 +9,7 @@ extends "fc_game_idle.gd"
 ## [code]pp_*[/code] laps from [param t_fine]: the command pair as it came (no new two-item array per player per tick),
 ## or empty when the move or fire command is null.
 ## [method GSMatch.note_activity]'s key per player id, so the loop does not build a String per player per tick.
-var _activity_keys: Dictionary = {}
+var _activity_keys: Dictionary[int, String] = {}
 
 
 func _batched_input(id: int, player: FcPlayer, pair: Array, knife_charge: bool, surfing: bool, t_fine: int) -> Array:

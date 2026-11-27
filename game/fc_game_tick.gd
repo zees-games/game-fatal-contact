@@ -769,14 +769,14 @@ func _pre_ready() -> bool:
 		GSLog.warn(FcNativePhases.CHANNEL, "fc_pre_native: gs-sim lacks GSSimServerTick.pre (API 6); the body gate and ladder wish stay in script")
 		return false
 	_pre_native = ClassDB.instantiate(&"GSSimServerTick")
-	_pre_native.call(&"configure", GSFpsState.Mode.GROUND, 0.4)
+	_pre_native.call(&"configure", GSFpsState.Mode.GROUND, 0.4)  # perf-lint: allow dynamic_call optional gs-sim class, once
 	return true
 
 
 ## The pre lane's second half: one gs-sim call answers every gathered row, then each player applies its row and
 ## queues its motor row as the script loop would have.
-func _pre_apply(ids: Array, count: int) -> void:
-	var out: PackedFloat64Array = _pre_native.call(&"pre", _pre_rows, count, FcPlayer.BODY_MAX_GAP)
+func _pre_apply(ids: Array[int], count: int) -> void:
+	var out: PackedFloat64Array = _pre_native.call(&"pre", _pre_rows, count, FcPlayer.BODY_MAX_GAP)  # perf-lint: allow dynamic_call optional gs-sim class, once a tick
 	for k: int in count:
 		var i: int = _pre_index[k]
 		var player: FcPlayer = _players[ids[i]]

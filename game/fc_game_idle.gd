@@ -48,11 +48,15 @@ func _idle_batch_ticks(out: PackedFloat64Array, count: int) -> Array:
 
 ## What a player's weapon tick did, in roster order: its shots, its protection and the horde's and rockets' share.
 func _post_outcome(id: int, player: FcPlayer, move: GSFpsCommand, outcome: GSWeaponOutcome, shots: Array[GSShot]) -> void:
-	shots.append_array(outcome.shots)
-	_note_protected_action(id, player, move, not outcome.shots.is_empty())
-	if horde != null and (not outcome.shots.is_empty() or not outcome.spawns.is_empty()):
+	# Most outcomes here are idle (no shots, no spawns): the array reads are made once and the empty hand-offs skipped.
+	var fired := not outcome.shots.is_empty()
+	var spawned := not outcome.spawns.is_empty()
+	if fired:
+		shots.append_array(outcome.shots)
+	_note_protected_action(id, player, move, fired)
+	if horde != null and (fired or spawned):
 		horde.note_fire(id, player.controller.state.position)
-	if projectiles != null:
+	if spawned and projectiles != null:
 		projectiles.accept(outcome)
 
 
