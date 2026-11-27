@@ -157,6 +157,11 @@ func _begin_hull_world() -> Object:
 func _start_motor_batch(delta: float) -> bool:
 	if _motor_batch == null:
 		_motor_batch = GSFpsMotorBatch.new()
+	var was_on := _native_tick_on
+	_native_tick_on = _native_tick.start(_motor_batch)
+	if _native_tick_on != was_on:
+		# The posture rows go to whichever gs-sim object runs them this tick (the same answer either way).
+		_post_native = _native_tick.native if _native_tick_on else null
 	return _motor_batch.start(delta)
 
 
@@ -461,6 +466,8 @@ func tick(commands: Dictionary = {}) -> void:
 	if hull_world != null and FcHullGrid.batch and not GSFpsMotor.profile and _start_motor_batch(delta):
 		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players_batched(commands, delta, hull_world, shots)
+		if _native_tick_on:
+			_native_tick.step(_roster, _roster_ids, hull_world, delta)
 	else:
 		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players(commands, delta, use_grid, hull_world, shots)
