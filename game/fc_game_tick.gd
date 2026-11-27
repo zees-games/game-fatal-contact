@@ -1,6 +1,8 @@
 @tool
 extends "fc_game_input.gd"
 
+const FcNativePhases := preload("fc_native_phases.gd")
+
 ## Deals an imported map's hurt volumes (`trigger_hurt`) to everybody standing in one, as
 ## world damage through gs-combat.
 ##
@@ -577,9 +579,12 @@ func tick(commands: Dictionary = {}) -> void:
 		_tick_players_batched(commands, delta, hull_world, shots)
 		if _native_tick_on:
 			_native_tick.step(_roster, _roster_ids, hull_world, delta)
+		FcNativePhases.tally(FcNativePhases.MOTOR, true)
 	else:
 		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players(commands, delta, use_grid, hull_world, shots)
+		if not _roster.is_empty():
+			FcNativePhases.tally(FcNativePhases.MOTOR, GSFpsPhysicsBody.native_enabled)
 	t_tp = FcFrameProbe.lap(&"tp_loop", t_tp)
 
 	_hull_grid.live = false

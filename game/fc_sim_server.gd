@@ -13,9 +13,10 @@ const FcMaps := preload("fc_maps.gd")
 const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
 const FcPaths := preload("fc_paths.gd")
 const FcSimPacer := preload("fc_sim_pacer.gd")
+const FcNativePhases := preload("fc_native_phases.gd")
 
 ## The authoritative game of a solo session in its own process (`--sim_host 1`, [FcSimHost]): a loopback dedicated server the solo client spawns and joins, so the 66 Hz simulation never runs on the render thread. The same [FcModule] a public server runs.
-## Launch flags (after `--`): `--port N --bots N --map ID --mode ID --ready PATH --bot_threads N --sim_load_us N --sim_sections 1 --bot_native_brain 0|1 --bot_native_loop 0|1 --cvar name=value`. It writes PATH once it accepts players, and quits a few seconds after its player left.
+## Launch flags (after `--`): `--port N --bots N --map ID --mode ID --ready PATH --bot_threads N --sim_load_us N --sim_sections 1 --sim_bench_sec N --sim_tick_raw 1 --bot_native_brain 0|1 --bot_native_loop 0|1 --cvar name=value`. It writes PATH once it accepts players, and quits a few seconds after its player left.
 
 const FcFrameProbe := preload("fc_frame_probe.gd")
 
@@ -48,6 +49,11 @@ var _slow_left := SLOW_LINES_PER_WINDOW
 var _ticks_this_frame := 0
 ## The most slow-tick and slow-frame lines in one report window.
 const SLOW_LINES_PER_WINDOW := 30
+## `--sim_bench_sec N`: quit N seconds after the server is up, with no client (a bench or a coverage suite); 0 (default) waits for one.
+var _bench_usec := 0
+var _bench_from_usec := 0
+## `--sim_tick_raw 1`: each report window also prints every tick's cost (`SIM_HOST_TICK_US`), so a bench can take its own mean and p99.
+var _tick_raw := false
 
 
 func _ready() -> void:
@@ -126,6 +132,8 @@ func _ready() -> void:
 			var _stored := f.store_string(str(config.effective_enet_port()))
 			f.close()
 	_server = server
+	# --sim_bench_sec counts from here: a slow box can spend longer than the bench loading the map and bots.
+	_bench_from_usec = Time.get_ticks_usec()
 	_print_ready(String(game.map.id), String(game.mode.id), bots)
 	_report(module.net)
 
@@ -176,6 +184,8 @@ func _apply_bench_flags() -> void:
 		# By name: gs-bot 26 (the live shell's) has no native tier to switch.
 		FcBots.tiers.set(&"native", native_loop.to_int() != 0)
 	_load_us = maxi(0, int(_arg("--sim_load_us", "0")))
+	_bench_usec = int(maxf(0.0, _arg("--sim_bench_sec", "0").to_float()) * 1.0e6)
+	_tick_raw = _arg("--sim_tick_raw", "0") == "1"
 	var pace := _arg("--sim_pace", "auto")
 	# The native timer first: its resolution request can make the probe below find a fine timer, leaving the engine's pacing.
 	if _arg("--sim_native_timer", "1") != "0":
@@ -253,10 +263,16 @@ func _process(delta: float) -> void:
 		_pacer.pace(Engine.physics_ticks_per_second)
 	if _since_check < 1.0 or _server == null:
 		return
+	if _bench_usec > 0 and now_usec - _bench_from_usec >= _bench_usec:
+		print("SIM_HOST_NATIVE %s | end" % FcNativePhases.status_line(_module.console))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
+		FcNativePhases.print_calls_once()
+		get_tree().quit(0)
+		return
 	_alone_sec = 0.0 if _remote_players() > 0 else _alone_sec + _since_check
 	_since_check = 0.0
 	_joined = _joined or _alone_sec == 0.0
 	if _alone_sec >= (GONE_SEC if _joined else NEVER_SEC):
+		FcNativePhases.print_calls_once()
 		get_tree().quit(0)
 
 
@@ -332,7 +348,10 @@ func _report(net: GSNetManager) -> void:
 			GSLog.warn(CHANNEL, behind)
 		if not boot:
 			_tell_player(held, Engine.physics_ticks_per_second)
+		if _module != null and _tick_raw:
+			print("SIM_HOST_TICK_US%s %s" % [" boot" if boot else "", ",".join(PackedStringArray(Array(_module.tick_costs)))])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		if _module != null:
+			print("SIM_HOST_NATIVE %s" % FcNativePhases.status_line(_module.console))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			print("%s | frame gap max %.1f ms%s" % [tick_line(_module.tick_costs, Engine.physics_ticks_per_second), _frame_gap_max_usec / 1000.0, " | boot warm" if boot else ""])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			_module.tick_costs.clear()
 		_frame_gap_max_usec = 0
