@@ -164,6 +164,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			GSFpsMotorBatch.native_state = new_value.to_float() >= 0.5
 			FcNativeTick.enabled = GSFpsMotorBatch.native_state)
+	add_cvar("sv_native_players", "1" if FcNativeTick.players else "0",
+		"1: with fc_motor_batch and fc_tick_events, every player's controller tick is one gs-player-controller call (same states and edges); 0: the players' loop's own two passes",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcNativeTick.players = new_value.to_float() >= 0.5)
 	add_cvar("fc_bot_pvs", "1" if FcBotPvs.enabled else "0",
 		"1: a bot's sight ray is skipped where the map's PVS rules the pair out (same answers: those rays come back blocked); 0: every ray is cast",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(

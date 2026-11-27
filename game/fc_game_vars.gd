@@ -95,6 +95,24 @@ var _batch_pairs: Array[Array] = []
 ## gs-sim's server tick (`sv_native_motor_state`): holds the batch's resident motor rows and the player table, stepped once a tick after the batched loop.
 var _native_tick := FcNativeTick.new()
 var _native_tick_on := false
+## `sv_native_players`: gs-player-controller's batched call over every player's controller (null until first used, or
+## without it), its controllers column, its three hooks (made once) and the tick's loop state they read.
+var _ctl_batch: RefCounted = null
+var _ctl_controllers: Array[GSFpsController] = []
+var _ctl_tried := false
+var _pc_pre_fn := Callable()
+var _pc_live_fn := Callable()
+var _pc_post_fn := Callable()
+var _pc_ids: Array[int] = []
+var _pc_commands: Dictionary = {}
+var _pc_shots: Array[GSShot] = []
+var _pc_hull_world: Object = null
+var _pc_post_from: Object = null
+var _pc_delta := 0.0
+var _pc_knife := false
+var _pc_surfing := false
+var _pc_post_lane := false
+var _pc_mark_due := false
 ## The batched loop's motor edges for every player ([member FcHullGrid.events]): one row per player's tick, derived and dispatched after the loop.
 var _tick_events := GSFpsTickEvents.new()
 ## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its

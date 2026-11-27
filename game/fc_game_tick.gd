@@ -242,6 +242,15 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		_batch_rows.resize(n)
 		_batch_pairs.resize(n)
 	t_tb = FcFrameProbe.lap(&"tb_setup", t_tb)
+	var rows: GSFpsTickEvents = _tick_events if FcHullGrid.events else null
+	if rows != null and not fine and FcNativeTick.players and _players_call_ready():
+		_tick_players_call(commands, delta, hull_world, shots, ids, knife_charge, surfing, rows)
+		t_tb = FcFrameProbe.lap(&"tb_players", t_tb)
+		_flush_posts(shots)
+		t_tb = FcFrameProbe.lap(&"tb_flush", t_tb)
+		_dispatch_tick_events(rows, ids, t_tb)
+		_close_batch_counts(fine)
+		return
 	for i in range(n):
 		var id: int = ids[i]
 		var player: FcPlayer = _players[id]
@@ -283,7 +292,6 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		_post_native = FcPlayer.make_native_post()
 	var post_from: Object = _motor_batch if post_lane and _motor_batch.has_method(&"post_row") else null
 	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null
-	var rows: GSFpsTickEvents = _tick_events if FcHullGrid.events else null
 	for i in range(n):
 		var row := _batch_rows[i]
 		if row == -1:
@@ -306,6 +314,90 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	t_tb = FcFrameProbe.lap(&"tb_flush", t_tb)
 	_dispatch_tick_events(rows, ids, t_tb)
 	_close_batch_counts(fine)
+
+
+## Whether `sv_native_players` has gs-player-controller's batched call (made once; FcNativeTick says loudly when not).
+func _players_call_ready() -> bool:
+	if not _ctl_tried:
+		_ctl_tried = true
+		_ctl_batch = FcNativeTick.make_players()
+		if _ctl_batch != null:
+			_ctl_controllers = _ctl_batch.get(&"controllers")
+			_pc_pre_fn = _pc_pre
+			_pc_live_fn = _pc_live
+			_pc_post_fn = _pc_post
+	return _ctl_batch != null
+
+
+## The batched loop's two passes as one gs-player-controller call (`sv_native_players`): [method _pc_pre] is pass one's
+## part before the controller, [method _pc_live] the check before a row finishes (and the volume marks, once, after
+## every row is prepared), [method _pc_post] [method _finish_batched_player]'s part after the controller. Same order,
+## so the same states and edges.
+func _tick_players_call(commands: Dictionary, delta: float, hull_world: Object, shots: Array[GSShot], ids: Array[int],
+		knife_charge: bool, surfing: bool, rows: GSFpsTickEvents) -> void:
+	var n := ids.size()
+	var _r: Variant = _ctl_batch.call(&"resize", n)
+	for i in range(n):
+		_ctl_controllers[i] = (_players[ids[i]] as FcPlayer).controller
+	_pc_ids = ids
+	_pc_commands = commands
+	_pc_shots = shots
+	_pc_hull_world = hull_world
+	_pc_delta = delta
+	_pc_knife = knife_charge
+	_pc_surfing = surfing
+	_pc_post_lane = FcPlayer.posture_native and GSSim.has(&"players")
+	if _pc_post_lane and _post_native == null:
+		_post_native = FcPlayer.make_native_post()
+	_pc_post_from = _motor_batch if _pc_post_lane and _motor_batch.has_method(&"post_row") else null
+	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null and demo_stats.has_method(&"after_reads")
+	_pc_mark_due = FcPlayer.mechanics_native
+	var _motored: Variant = _ctl_batch.call(&"tick", _motor_batch, _tick, rows, _pc_pre_fn, _pc_live_fn, _pc_post_fn)
+	if _pc_mark_due:
+		# No row reached its finish: the marks still run, as between the two passes.
+		_pc_mark_due = false
+		_volume_pre.mark(_tick, ids, _players, _ctl_batch.get(&"rows"))
+	FcHullGrid.batch_faults += int(_ctl_batch.get(&"faults"))
+	_ctl_batch.set(&"faults", 0)
+	_pc_hull_world = null
+	_pc_post_from = null
+	FcNativeTick.player_calls += 1
+
+
+## Pass one's part of row [param i]: the input and the tick start, then the body's delta (-1 leaves the row out).
+func _pc_pre(i: int) -> float:
+	var id: int = _pc_ids[i]
+	var player: FcPlayer = _players[id]
+	if not player.health.alive:
+		return -1.0
+	var pair: Array = _pc_commands.get(id, [])
+	_pre_vy[id] = player.controller.state.velocity.y
+	pair = _batched_input(id, player, pair, _pc_knife, _pc_surfing, 0)
+	if pair.is_empty():
+		return -1.0
+	_batch_pairs[i] = pair
+	player.tick_pre(_tick, pair[0])
+	var t_ctl := Time.get_ticks_usec()
+	# Below zero: the controller does not tick (not started, or a far bot's body sitting this tick out); the rest still runs.
+	var d := player.body_delta(_tick, _pc_delta, player.controller.current_command)
+	player.ctl_usec = Time.get_ticks_usec() - t_ctl
+	return maxf(d, 0.0)
+
+
+## Whether row [param i]'s player is still alive to finish (an earlier turn may have killed it); the first one asked
+## runs the volume marks over every prepared row.
+func _pc_live(i: int) -> bool:
+	if _pc_mark_due:
+		_pc_mark_due = false
+		_volume_pre.mark(_tick, _pc_ids, _players, _ctl_batch.get(&"rows"))
+	return (_players[_pc_ids[i]] as FcPlayer).health.alive
+
+
+## The rest of row [param i]'s tick after its controller ([param told]: the motor batch's answer).
+func _pc_post(i: int, row: int, told: bool) -> void:
+	var id: int = _pc_ids[i]
+	_finish_batched_player(_batch_pairs[i], row, id, _players[id], _pc_delta, _pc_hull_world, _pc_shots, false, _pc_post_lane,
+			_pc_post_from, true, told)
 
 
 ## The batched loop's motor edges: every row derived in one call (gs-sim's `GSSimTickEvents`, or the script), then each player's run
@@ -357,8 +449,9 @@ func _fine_add(player: FcPlayer, controller: GSFpsController, d: float, t_ctl: i
 
 
 ## The second half of one player's batched tick: the motor's answer, the rest of the player's tick and what it did.
+## [param ended]: the controller's half already ran (`sv_native_players`), [param told_in] the motor batch's answer.
 func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, delta: float, hull_world: Object, shots: Array[GSShot],
-		fine: bool, post_lane: bool, post_from: Object) -> void:
+		fine: bool, post_lane: bool, post_from: Object, ended: bool = false, told_in: bool = false) -> void:
 	var controller := player.controller
 	var t_fine := 0
 	var t_post := 0
@@ -366,9 +459,9 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		t_fine = Time.get_ticks_usec()
 	var move: GSFpsCommand = pair[0]
 	var fire: GSWeaponCommand = pair[1]
-	var told := false
+	var told := told_in
 	var t_ctl := Time.get_ticks_usec()
-	if row >= 0:
+	if row >= 0 and not ended:
 		if controller.has_external_velocity():
 			FcHullGrid.batch_faults += 1
 		var runs0 := _motor_batch.runs

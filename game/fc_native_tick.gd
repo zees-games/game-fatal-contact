@@ -30,8 +30,32 @@ static var weapon_rows := PackedInt64Array([0, 0, 0])
 ## Suites only (with [member check_weapons]): events the native tick answered from `events()` after its steps.
 static var native_events := 0
 
+## gs-player-controller's level with every player's controller tick in one call (`fp/nodes/gs_fps_controller_batch.gd`).
+const PLAYERS_LEVEL := 53
+const PLAYERS_SCRIPT := "res://addons/gs_player_controller/fp/nodes/gs_fps_controller_batch.gd"
+## `sv_native_players`: 1 runs the batched loop's two passes as one gs-player-controller call (with `fc_tick_events`;
+## the same states and edges); 0 the loop's own two passes.
+static var players := true
+## Suites only: ticks the batched loop ran as that one call.
+static var player_calls := 0
+
 static var _checked := false
 static var _ok := false
+static var _players_checked := false
+static var _players_script: GDScript = null
+
+
+## A new controllers' batched call, or null when gs-player-controller is older than [constant PLAYERS_LEVEL] (said
+## loudly once; the loop's two passes run instead).
+static func make_players() -> RefCounted:
+	if not _players_checked:
+		_players_checked = true
+		var level := GSAddonApi.build_level("gs_player_controller")
+		if level < PLAYERS_LEVEL or not ResourceLoader.exists(PLAYERS_SCRIPT):
+			push_error("FcNativeTick: sv_native_players 1 needs gs_player_controller level %d (have %d); the loop's two passes run instead" % [PLAYERS_LEVEL, level])
+		else:
+			_players_script = load(PLAYERS_SCRIPT) as GDScript
+	return _players_script.new() if _players_script != null else null
 
 ## The `GSSimServerTick` (null until [method start] first answers true).
 var native: Object = null
