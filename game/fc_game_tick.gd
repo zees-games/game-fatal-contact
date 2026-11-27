@@ -243,8 +243,8 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		_batch_pairs.resize(n)
 	t_tb = FcFrameProbe.lap(&"tb_setup", t_tb)
 	var rows: GSFpsTickEvents = _tick_events if FcHullGrid.events else null
-	if rows != null and not fine and FcNativeTick.players and _players_call_ready():
-		_tick_players_call(commands, delta, hull_world, shots, ids, knife_charge, surfing, rows)
+	if rows != null and FcNativeTick.players and _players_call_ready():
+		_tick_players_call(commands, delta, hull_world, shots, ids, knife_charge, surfing, rows, fine)
 		t_tb = FcFrameProbe.lap(&"tb_players", t_tb)
 		_flush_posts(shots)
 		t_tb = FcFrameProbe.lap(&"tb_flush", t_tb)
@@ -332,9 +332,10 @@ func _players_call_ready() -> bool:
 ## The batched loop's two passes as one gs-player-controller call (`sv_native_players`): [method _pc_pre] is pass one's
 ## part before the controller, [method _pc_live] the check before a row finishes (and the volume marks, once, after
 ## every row is prepared), [method _pc_post] [method _finish_batched_player]'s part after the controller. Same order,
-## so the same states and edges.
+## so the same states and edges. [param fine]: the fine probe's per-player laps (`pl_*`, `pp_*`, `po_*`); the
+## controller's own `c_*` laps are inside the one call, so only `p_controller` covers them.
 func _tick_players_call(commands: Dictionary, delta: float, hull_world: Object, shots: Array[GSShot], ids: Array[int],
-		knife_charge: bool, surfing: bool, rows: GSFpsTickEvents) -> void:
+		knife_charge: bool, surfing: bool, rows: GSFpsTickEvents, fine: bool) -> void:
 	var n := ids.size()
 	var _r: Variant = _ctl_batch.call(&"resize", n)
 	for i in range(n):
@@ -346,6 +347,7 @@ func _tick_players_call(commands: Dictionary, delta: float, hull_world: Object, 
 	_pc_delta = delta
 	_pc_knife = knife_charge
 	_pc_surfing = surfing
+	_pc_fine = fine
 	_pc_post_lane = FcPlayer.posture_native and GSSim.has(&"players")
 	if _pc_post_lane and _post_native == null:
 		_post_native = FcPlayer.make_native_post()
@@ -370,17 +372,24 @@ func _pc_pre(i: int) -> float:
 	var player: FcPlayer = _players[id]
 	if not player.health.alive:
 		return -1.0
+	var t_fine := Time.get_ticks_usec() if _pc_fine else 0
 	var pair: Array = _pc_commands.get(id, [])
 	_pre_vy[id] = player.controller.state.velocity.y
-	pair = _batched_input(id, player, pair, _pc_knife, _pc_surfing, 0)
+	pair = _batched_input(id, player, pair, _pc_knife, _pc_surfing, t_fine)
 	if pair.is_empty():
 		return -1.0
 	_batch_pairs[i] = pair
+	if _pc_fine:
+		FcFrameProbe.add(&"pl_pre", t_fine)
+		t_fine = Time.get_ticks_usec()
 	player.tick_pre(_tick, pair[0])
 	var t_ctl := Time.get_ticks_usec()
 	# Below zero: the controller does not tick (not started, or a far bot's body sitting this tick out); the rest still runs.
 	var d := player.body_delta(_tick, _pc_delta, player.controller.current_command)
 	player.ctl_usec = Time.get_ticks_usec() - t_ctl
+	if _pc_fine:
+		FcFrameProbe.lap(&"c_delta", t_ctl)
+		FcFrameProbe.add(&"pl_sim", t_fine)
 	return maxf(d, 0.0)
 
 
@@ -396,25 +405,32 @@ func _pc_live(i: int) -> bool:
 ## The rest of row [param i]'s tick after its controller ([param told]: the motor batch's answer).
 func _pc_post(i: int, row: int, told: bool) -> void:
 	var id: int = _pc_ids[i]
-	_finish_batched_player(_batch_pairs[i], row, id, _players[id], _pc_delta, _pc_hull_world, _pc_shots, false, _pc_post_lane,
+	_finish_batched_player(_batch_pairs[i], row, id, _players[id], _pc_delta, _pc_hull_world, _pc_shots, _pc_fine, _pc_post_lane,
 			_pc_post_from, true, told)
 
 
-## The batched loop's motor edges: every row derived in one call (gs-sim's `GSSimTickEvents`, or the script), then each player's run
-## of events dispatched to its controller in roster order. [param ids] is the loop's roster; an event's entity is its index.
-## Null [param events] (`fc_tick_events 0`): the controllers emitted their own edges.
+## The batched loop's motor edges: every row derived in one call (gs-sim's `GSSimTickEvents`, or the script), then each row's
+## events and the signals its end_tick held (surface, modifiers, simulated; gs-player-controller 54, `fc_tick_rows.gd`)
+## dispatched to its controller in roster order.
+## [param ids] is the loop's roster; a row's entity is its index. Null [param events] (`fc_tick_events 0`): the controllers
+## emitted their own edges.
 func _dispatch_tick_events(events: GSFpsTickEvents, ids: Array[int], t_tb: int) -> void:
 	if events == null or events.row_count == 0:
 		return
 	var count := events.derive()
-	var ints := events.ints
-	var cursor := 0
-	while cursor < count:
-		var player: FcPlayer = _players.get(ids[ints[cursor * GSFpsTickEvents.INTS]])
-		if player == null:
-			cursor += 1
-			continue
-		cursor = player.controller.dispatch_events(events, cursor)
+	var by_row := FcNativeTick.rows_dispatch()
+	if by_row != null:
+		var _done: Variant = by_row.call(&"dispatch", events, ids, _players)
+	else:
+		# Below level 54 the controllers emitted their own surface, modifier and simulated signals: only the events.
+		var ints := events.ints
+		var cursor := 0
+		while cursor < count:
+			var player: FcPlayer = _players.get(ids[ints[cursor * GSFpsTickEvents.INTS]])
+			if player == null:
+				cursor += 1
+				continue
+			cursor = player.controller.dispatch_events(events, cursor)
 	events.clear()
 	FcFrameProbe.lap(&"tb_events", t_tb)
 

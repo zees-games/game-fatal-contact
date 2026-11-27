@@ -111,6 +111,7 @@ var _pc_post_from: Object = null
 var _pc_delta := 0.0
 var _pc_knife := false
 var _pc_surfing := false
+var _pc_fine := false
 var _pc_post_lane := false
 var _pc_mark_due := false
 ## The batched loop's motor edges for every player ([member FcHullGrid.events]): one row per player's tick, derived and dispatched after the loop.

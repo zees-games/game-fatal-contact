@@ -7,6 +7,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcModTools := preload("../game/fc_mod_tools.gd")
 const FcNativeTick := preload("../game/fc_native_tick.gd")
+const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 
 ## `fc_motor_batch`: the players' motors ticked in runs of one gs-sim call play exactly the
 ## match the loop one player after another plays. A recorded bot match is replayed through both
@@ -25,7 +26,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 39
+const CHECKS := 41
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -323,6 +324,14 @@ func _check_loop_variants(resident: PackedStringArray, streams: Array) -> void:
 	FcNativeTick.players = true
 	_check(hand_calls == 0, "sv_native_players 0 never makes the call (%d calls)" % hand_calls)
 	_check(by_hand[0] == resident, "sv_native_players 0 (the loop's two passes) plays it to the bit as the one call (%s)" % _first_diff(resident, by_hand[0]))
+	# The fine probe (FcFrameProbe.fine) takes the same one call, its laps from the hooks: the same match to the bit.
+	var fine_from := FcNativeTick.player_calls
+	FcFrameProbe.fine = true
+	var probed: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
+	FcFrameProbe.fine = false
+	var fine_calls := FcNativeTick.player_calls - fine_from
+	_check(fine_calls > 0 if has_call else fine_calls == 0, "with the fine probe on, sv_native_players 1 still runs the batched loop as one call (%d calls)" % fine_calls)
+	_check(probed[0] == resident, "the fine probe's one call plays it to the bit as without the probe (%s)" % _first_diff(resident, probed[0]))
 
 
 func _section(title: String) -> void:
