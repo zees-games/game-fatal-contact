@@ -3,12 +3,13 @@
   "addons": {
     "gs_audio": 22,
     "gs_camera": 1,
-    "gs_bot": 47,
+    "gs_bot": 50,
     "gs_combat": 7,
     "gs_core": 50,
     "gs_fx": 12,
     "gs_game": 62,
     "gs_loadout": 2,
+    "gs_objective": 2,
     "gs_map": 33,
     "gs_menu": 23,
     "gs_mobile": 1,
@@ -16,10 +17,11 @@
     "gs_player_char": 50,
     "gs_player_controller": 48,
     "gs_props": 8,
-    "gs_replay": 12,
+    "gs_replay": 13,
     "gs_server": 19,
+    "gs_stats": 2,
     "gs_ui": 27,
-    "gs_weapon": 40,
-    "fc_weapons": 43
+    "gs_weapon": 59,
+    "fc_weapons": 48
   }
 }

@@ -9,7 +9,7 @@ const FcKillViewServer := preload("../game/fc_killview_server.gd")
 
 ## A bot's replicated copy is pulled only on the ticks a snapshot is written (`FcPlayerNet.skip_idle_pull`). The same bots on dm_box play the same match through the server's bridge with it off and on: every bot's
 ## position, view, health and commands every tick, and every replicated property of every bot on every snapshot tick as it goes out on the wire, are identical. Only what is sent is read from those properties, so that is the whole claim.
-## The kill view asks for an eye only on the ticks its ring keeps one (`FcKillViewServer.Due.ask_due_only`): with it off and on, every bot's kill view clip, read every second, is identical too.
+## The kill view asks for an eye only on the ticks its ring keeps one (`FcKillViewServer.ask_due_only`): with it off and on, every bot's kill view clip, read every second, is identical too.
 
 const TICK_RATE := 66
 const SNAPSHOT_RATE := 33
@@ -32,15 +32,15 @@ func _run() -> void:
 	print("game-fatal-contact: a bot's idle pulls are skipped and nothing sent changes")
 	_section("the same match and the same snapshots, every tick pulled or not")
 	var was: bool = FcPlayerNet.skip_idle_pull
-	var was_due: bool = FcKillViewServer.Due.ask_due_only
+	var was_due: bool = FcKillViewServer.ask_due_only
 	FcPlayerNet.skip_idle_pull = false
-	FcKillViewServer.Due.ask_due_only = false
+	FcKillViewServer.ask_due_only = false
 	var every := await _play()
 	FcPlayerNet.skip_idle_pull = true
-	FcKillViewServer.Due.ask_due_only = true
+	FcKillViewServer.ask_due_only = true
 	var skipped := await _play()
 	FcPlayerNet.skip_idle_pull = was
-	FcKillViewServer.Due.ask_due_only = was_due
+	FcKillViewServer.ask_due_only = was_due
 	_check(every[0].size() > 100 and every[1].size() > 100, "the match was played (%d ticks, %d snapshots)" % [every[0].size(), every[1].size()])
 	_check(every[0] == skipped[0], "the simulation is identical, tick for tick", "first differing tick %d%s" % [_first_diff(every[0], skipped[0]), _entry_diff(every[5], skipped[5], _first_diff(every[0], skipped[0]))])
 	_check(every[1] == skipped[1], "every bot's replicated properties are identical on every snapshot tick", "first differing snapshot %d" % _first_diff(every[1], skipped[1]))

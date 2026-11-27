@@ -12,6 +12,7 @@ const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcWeaponTickCvars := preload("fc_weapon_tick_cvars.gd")
+const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
 
 
 ## The native/threaded switches of the bot and motor engines.
@@ -45,6 +46,18 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			(GSBotBrain as Script).set(&"native_pickup", new_value.to_float() >= 0.5))
+	# gs-bot 49, by name (an older gs-bot ignores it); on by default in gs-bot, the same columns to the bit.
+	add_cvar("bot_native_drops", "1",
+		"1: the drops the bots read are packed once per tick in gs-sim, each weapon looked up once, when its library has the pack (the same table to the bit); 0: in script, every weapon looked up per drop",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			(GSBotWorld as Script).set(&"native_drops", new_value.to_float() >= 0.5))
+	# gs-bot 50, by name (an older gs-bot ignores it); on by default in gs-bot, the same answer to the bit.
+	add_cvar("bot_native_unstick", "1",
+		"1: a bot's stuck watch (re-plan, hop, crouch-hop, side-step, the stranded report) steps in gs-sim when its library has it, the state kept in the mind (the same answer to the bit; the nudge's standable-point query stays in script); 0: in script",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			(GSBotUnstick as Script).set(&"native_enabled", new_value.to_float() >= 0.5))
 	add_cvar("bot_native_act", "1",
 		"1: a roaming bot's steer (walk, hold, drift, look, glance, turn and legs) runs in gs-sim when its library has it, the glance kept in the mind between thinks (the same moves to the bit); 0: in script",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
@@ -158,6 +171,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcPlayer.mechanics_native = new_value.to_float() >= 0.5)
+	add_cvar("fc_drop_idle_skip", "1" if FcWeaponDropWiring.idle_keys_skip else "0",
+		"1: a player with no drop or use key down this tick or last only runs the auto pickup (its key holds are idle); 0: both keys step anyway",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcWeaponDropWiring.idle_keys_skip = new_value.to_float() >= 0.5)
 	add_cvar("fc_bot_pvs_verify", "1" if FcBotPvs.verify else "0",
 		"1: every sight the PVS rules out is cast anyway and every native ask is put to the script too, disagreements counted (a check, not for play)",
 		0).with_min(0.0).with_max(1.0).changed.connect(

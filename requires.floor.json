@@ -7,13 +7,14 @@
     "gs_bot": 39,
     "gs_audio": 22,
     "gs_loadout": 2,
+    "gs_objective": 2,
     "gs_map": 24,
     "gs_menu": 5,
     "gs_net": 27,
     "gs_player_char": 47,
     "gs_player_controller": 28,
     "gs_props": 6,
-    "gs_replay": 12,
+    "gs_replay": 13,
     "gs_server": 18,
     "gs_ui": 27
   }

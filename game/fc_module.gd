@@ -152,6 +152,8 @@ func _module_load() -> GSResult:
 	_add_extra_commands()
 	_build_query_provider()
 	_register_game()
+	# After every phase cvar exists: sv_native_tick sets them all, then logs which phases run native.
+	var _phases := FcNativePhases.install(self)
 	# Last, so every fc_* name exists: the old arena_* names become loud, hidden shims.
 	var _renamed := FcRenamedNames.install(self)
 

@@ -4,6 +4,7 @@ const FcPlayer := preload("fc_player.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcFlagView := preload("fc_flag_view.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
 
 ## What the round is about, when the mode says it is about something.
 ##
@@ -37,6 +38,8 @@ const KOTH := &"koth"
 
 const RED := 1
 const BLUE := 2
+## The gs-objective level that has `GSObjectivePresence.living_fn`.
+const LIVING_LEVEL := 2
 
 ## Typed as its native base on purpose: a typed reference back to fc_game.gd closes a
 ## preload cycle, and GDScript never frees the parser trees of scripts in a cycle (CI perf-smoke mem_mb).
@@ -53,6 +56,11 @@ var flag_view: FcFlagView = null
 var flag_motion := {}
 
 var _last_wire := ""
+## The players marked one-handed last tick ([method FcFlagCarry.mark_carriers] unmarks only them).
+var one_hand_ids: Array[int] = []
+## `str(id)` of every player, made once per roster ([method _player_keys]), and the `player_ids()` array it was made for.
+var _keys := PackedStringArray()
+var _keys_for: Array[int] = []
 var _wire_tick := -1000000
 
 ## Which layout is running. Empty when the mode has none.
@@ -302,6 +310,17 @@ func speed_scale(id: int) -> float:
 	return ctf.speed_scale(str(id)) if ctf != null else 1.0
 
 
+## The ids carrying a flag: the flags walked once, for a per-tick pass that asked [method speed_scale] per player.
+func carrier_ids() -> Array[int]:
+	var out: Array[int] = []
+	if ctf == null:
+		return out
+	for f in ctf.flags():
+		if f.state == GSObjectiveFlag.State.CARRIED:
+			out.append(int(f.carrier))
+	return out
+
+
 func _rules() -> GSObjectiveRules:
 	var rules := GSObjectiveRules.new()
 	rules.live = false  # Warmup. The match turns it on.
@@ -313,10 +332,7 @@ func _rules() -> GSObjectiveRules:
 func _presence() -> GSObjectivePresence:
 	var presence := GSObjectivePresence.of(
 		func() -> PackedStringArray:
-			var out := PackedStringArray()
-			for id in game.player_ids():
-				out.append(str(id))
-			return out,
+			return _player_keys(),
 		func(key: String) -> Vector3:
 			var player: FcPlayer = game.player_for(int(key))
 			if player == null or player.controller == null:
@@ -334,7 +350,38 @@ func _presence() -> GSObjectivePresence:
 		if game.effects == null:
 			return true
 		return game.effects.may_capture(int(key))
+	# gs-objective 2 asks for the living in one call per tick (the CTF flag poll and
+	# counts_in) instead of three callables per player; same answer as the above.
+	if GSAddonApi.build_level("gs_objective") >= LIVING_LEVEL:
+		presence.set(&"living_fn", _living)
 	return presence
+
+
+## gs-objective's `living_fn`: `[keys, positions]` of every living player with a body.
+func _living() -> Array:
+	var keys := PackedStringArray()
+	var at := PackedVector3Array()
+	var names := _player_keys()
+	for i in _keys_for.size():
+		var player: FcPlayer = game.player_for(_keys_for[i])
+		if player == null or player.controller == null or not player.is_alive():
+			continue
+		keys.append(names[i])
+		at.append(player.controller.state.position)
+	return [keys, at]
+
+
+## `str(id)` for every id of `player_ids()`, in its order. Made again only when the roster changes (a change
+## replaces that array), where the presence asked for one string per player per tick.
+func _player_keys() -> PackedStringArray:
+	var ids: Array[int] = game.player_ids()
+	if is_same(ids, _keys_for) and _keys.size() == ids.size():
+		return _keys
+	_keys_for = ids
+	_keys = PackedStringArray()
+	for id in ids:
+		_keys.append(str(id))
+	return _keys
 
 
 ## A layout, from a map's own geometry.
@@ -415,12 +462,17 @@ func tick(delta: float) -> void:
 		return
 
 	if ctf != null:
+		# Sub-spans of the sim host's w_objectives (`--sim_sections 2`): 0 and one test each outside a recording.
+		var t_lap := FcFrameProbe.lap_start()
 		ctf.advance(game.current_tick(), game.match_node != null and game.match_node.is_live())
+		t_lap = FcFrameProbe.lap(&"ob_advance", t_lap)
 		if game.is_authority:
 			FcFlagCarry.step(self, delta)
 		else:
 			_apply_carrier_speed()
+		t_lap = FcFrameProbe.lap(&"ob_step", t_lap)
 		FcFlagCarry.mark_carriers(self)
+		t_lap = FcFrameProbe.lap(&"ob_carriers", t_lap)
 		return
 
 	# Live exactly while the match is being played. A capture made during warmup is one
