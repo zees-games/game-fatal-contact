@@ -1,4 +1,4 @@
-extends RefCounted
+extends "fc_surf_pilot.gd"
 
 ## Bots ride the ramps of a combat surf map: ride edges between the platforms in the bots'
 ## routes, and the surf pilot on the legs while a bot rides one.
@@ -26,6 +26,10 @@ extends RefCounted
 const CHANNEL := "arena.surf"
 
 const FcPaths := preload("fc_paths.gd")
+const FcBotsWorld := preload("fc_bots_world.gd")
+const FcPlayer := preload("fc_player.gd")
+const FcRideSource := preload("fc_ride_source.gd")
+const FcMap := preload("../maps/fc_map.gd")
 
 ## Where a map's rides are kept.
 const CACHE := "res://maps/surf/%s.surf.json"
@@ -91,11 +95,14 @@ class Edge:
 	var linked: bool = false
 
 
-var map: Object = null
+var map: FcMap = null
 var nav: GSBotNav = null
 var edges: Array[Edge] = []
 ## Recorded rides ([code]fc_surf_rides.gd[/code]): an edge with a verified recording rides one of them.
-var rides: RefCounted = null
+var rides: FcRideSource = null
+## The empty pick when the map has no recorded rides, shared rather than built each takeoff.
+const _NO_RECORDING: Dictionary = {}
+
 ## Teleport link id -> [from, to].
 var teleports: Dictionary = {}
 
@@ -117,8 +124,8 @@ static func path_for(id: StringName) -> String:
 
 ## The rides of [param p_map] on [param p_nav] (baked and ready), linked into it, or null when
 ## the map has no cache.
-static func load_for(p_map: Object, p_nav: GSBotNav) -> RefCounted:
-	var path := path_for(p_map.get("id"))
+static func load_for(p_map: FcMap, p_nav: GSBotNav) -> RefCounted:
+	var path := path_for(p_map.id)
 	if not FileAccess.file_exists(path):
 		return null
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
@@ -150,7 +157,7 @@ static func bake_id(p_nav: GSBotNav) -> String:
 
 
 ## Builds the edges from [param data] and links them, and the map's teleports, into the mesh.
-func attach(p_map: Object, p_nav: GSBotNav, data: Dictionary) -> void:
+func attach(p_map: FcMap, p_nav: GSBotNav, data: Dictionary) -> void:
 	map = p_map
 	nav = p_nav
 	var units := float(data.get("units", UNITS))
@@ -158,7 +165,7 @@ func attach(p_map: Object, p_nav: GSBotNav, data: Dictionary) -> void:
 	if recorded != "" and recorded != bake_id(nav):
 		# Edges were planned on other polygons: their landings no longer match this mesh.
 		GSLog.warn(CHANNEL, "a surf cache planned on another nav bake, rides skipped; replan with tools/surf_rides_all.py --replan",
-			{"map": str(map.get("id")), "cached": recorded, "bake": bake_id(nav)})
+			{"map": String(map.id), "cached": recorded, "bake": bake_id(nav)})
 		_link_teleports()
 		return
 	nav.begin_batch()
@@ -178,18 +185,18 @@ func attach(p_map: Object, p_nav: GSBotNav, data: Dictionary) -> void:
 			# Found and not planned yet: not ridden, and not routed over.
 			continue
 		if edge.course.landing_island < 0:
-			GSLog.warn(CHANNEL, "a ride edge that lands nowhere on this mesh", {"map": str(map.get("id")), "edge": edge.id})
+			GSLog.warn(CHANNEL, "a ride edge that lands nowhere on this mesh", {"map": String(map.id), "edge": edge.id})
 			continue
 		nav.add_ride(from, to, edge.id, RIDE_COST)
 		edge.linked = true
 	nav.end_batch()
 	_link_teleports()
-	GSLog.info(CHANNEL, "ride edges linked", {"map": str(map.get("id")), "edges": edges.size(), "teleports": teleports.size()})
+	GSLog.info(CHANNEL, "ride edges linked", {"map": String(map.id), "edges": edges.size(), "teleports": teleports.size()})
 
 
 ## The course of a ride from [param from] to the platform under [param to] on [param p_map]:
 ## the tool plans on it and the game rides on it, so both are this one function.
-static func course_for(p_map: Object, p_nav: GSBotNav, from: Vector3, to: Vector3, yaw: float = NAN) -> EdgeCourse:
+static func course_for(p_map: FcMap, p_nav: GSBotNav, from: Vector3, to: Vector3, yaw: float = NAN) -> EdgeCourse:
 	var course := EdgeCourse.new()
 	course.nav = p_nav
 	course.start = from
@@ -197,9 +204,9 @@ static func course_for(p_map: Object, p_nav: GSBotNav, from: Vector3, to: Vector
 	course.landing_island = landing_island_at(p_nav, to)
 	course.landing_islands = landing_floor(p_nav, course.landing_island)
 	course.gravity = 800.0 * UNITS
-	var bounds: AABB = p_map.get("bounds")
+	var bounds: AABB = p_map.bounds
 	course.floor_y = bounds.position.y - FALL_OUT_DEPTH
-	for pit: Dictionary in p_map.get("pits"):
+	for pit: Dictionary in p_map.pits:
 		course.pit_boxes.append(pit["box"])
 	course.unsupported_fn = unsupported_test(p_map)
 	course.toward_goal = true
@@ -251,9 +258,9 @@ const FLOOR_STEP := 3.0
 
 ## `func(state) -> bool`: nothing but the map's floor under the state within a long fall. What
 ## keeps the planner's beam on the ramps (see [member GSBotSurfCourse.unsupported_fn]).
-static func unsupported_test(p_map: Object) -> Callable:
-	var root: Node3D = p_map.get("collision_root")
-	var bounds: AABB = p_map.get("bounds")
+static func unsupported_test(p_map: FcMap) -> Callable:
+	var root: Node3D = p_map.collision_root
+	var bounds: AABB = p_map.bounds
 	var floor := bounds.position.y + SUPPORT_ABOVE_FLOOR
 	return func(state: Variant) -> bool:
 		if root == null or not root.is_inside_tree():
@@ -289,7 +296,7 @@ const SUPPORT_ABOVE_FLOOR := 8.0
 ## Each teleport whose box stands on a platform and whose destination is on one is a walked link:
 ## a bot at the foot of a ramp walks into it and comes out at the top.
 func _link_teleports() -> void:
-	var pits: Array = map.get("pits")
+	var pits: Array[Dictionary] = map.pits
 	nav.begin_batch()
 	for i in range(pits.size()):
 		var box: AABB = pits[i]["box"]
@@ -328,7 +335,7 @@ func landing_points() -> PackedVector3Array:
 	# else sends a bot there, so that ride was never taken. The pad itself is no goal: a route to
 	# a point on it ends on the floor beneath, never through the teleport's link.
 	var spawn_islands := PackedInt32Array()
-	for spawn: Transform3D in map.get("spawns"):
+	for spawn: Transform3D in map.spawns:
 		# A spawn off the mesh is no island: kept as -1 it matched every pad off the mesh too.
 		var island := nav.island_at(spawn.origin, 2.0)
 		if island >= 0:
@@ -344,38 +351,41 @@ func landing_points() -> PackedVector3Array:
 
 ## The legs of [param bot] this tick, when its route reached a ride edge or it is riding one:
 ## [param intent] (the brain's) gets the pilot's move and jump for its own view.
-func steer(bot: Object, mind: Object, intent: GSBotIntent, tick: int, tick_rate: float) -> void:
-	var ride: GSBotSurfRide = mind.get(&"ride")
-	var state: GSFpsState = null
-	var controller: Variant = bot.get(&"controller")
-	if controller is GSFpsController:
-		state = (controller as GSFpsController).state
+func steer(p_bot: Object, p_mind: RefCounted, intent: GSBotIntent, tick: int, tick_rate: float) -> void:
+	var bot := p_bot as FcPlayer
+	var mind := p_mind as FcBotsWorld.Mind
+	var ride: GSBotSurfRide = mind.ride
+	var controller: GSFpsController = bot.controller
+	var state: GSFpsState = controller.state if controller != null else null
+	var alive := state != null and bot.is_alive()
 	if ride == null:
 		var id := intent.ride
-		if id < 0 or id >= edges.size() or not edges[id].linked or state == null or not bool(bot.call(&"is_alive")):
+		if id < 0 or id >= edges.size() or not edges[id].linked or not alive:
 			return
 		var edge := edges[id]
-		var sim := _sim_for(edge, controller as GSFpsController) if edge.veto else null
+		var sim := _sim_for(edge, controller) if edge.veto else null
 		ride = GSBotSurfRide.new().begin(edge.cache, edge.course, sim, tick, tick_rate, RIDE_SECONDS)
 		# A recording starts at the takeoff fc_surf_rides.gd saw (airborne above no island), so the pilot runs up and the recording takes over there.
-		var recorded: Dictionary = rides.call(&"pick", edge.id) if rides != null else {}
+		var recorded: Dictionary = rides.pick(edge.id) if rides != null else _NO_RECORDING
 		if not recorded.is_empty():
 			ride.set_meta(&"recording", recorded)
-		mind.set(&"ride", ride)
+		mind.ride = ride
 		begun += 1
 	if ride != null and ride.has_meta(&"recording") and state != null and not state.is_grounded() and nav.island_at(state.position, 1.0) < 0:
 		var entry: Dictionary = ride.get_meta(&"recording")
 		ride.remove_meta(&"recording")
 		ride.picked = entry
 		ride.recorded = entry["data"]
-		ride.decode = Callable(rides, &"decode")
+		ride.decode = rides.decode
 		ride.ticks = 1
 	var status := GSBotSurfRide.FELL
-	if state != null and bool(bot.call(&"is_alive")):
+	if alive:
 		var began := Time.get_ticks_usec()
 		status = ride.steer(state, intent, tick)
-		steer_usec += Time.get_ticks_usec() - began
-		GSFrameCost.add_usec(&"surf_pilot", Time.get_ticks_usec() - began, "bot steer, ride %d" % intent.ride)
+		var spent := Time.get_ticks_usec() - began
+		steer_usec += spent
+		if GSFrameCost.enabled:
+			GSFrameCost.add_usec(&"surf_pilot", spent, "bot steer, ride %d" % intent.ride)  # perf-lint: allow string_build only while the frame-cost profile is on
 		steer_ticks += 1
 	if status == GSBotSurfRide.RIDING:
 		return
@@ -387,10 +397,9 @@ func steer(bot: Object, mind: Object, intent: GSBotIntent, tick: int, tick_rate:
 		_:
 			fell += 1
 	_tally(ride)
-	mind.set(&"ride", null)
-	var brain: Variant = mind.get(&"brain")
-	if brain is GSBotBrain:
-		(brain as GSBotBrain).ride_ended(status == GSBotSurfRide.LANDED)
+	mind.ride = null
+	if mind.brain != null:
+		mind.brain.ride_ended(status == GSBotSurfRide.LANDED)
 
 
 ## The simulator a ride's veto runs on: the riding player's own motor over the map's brushes
@@ -401,7 +410,7 @@ func _sim_for(edge: Edge, controller: GSFpsController) -> GSFpsSimulator:
 	# stepped at a stale rate vetoes rides that would land and passes ones that fall.
 	if edge.sim != null and is_equal_approx(edge.sim.delta, 1.0 / float(maxi(controller.tick_rate, 1))):
 		return edge.sim
-	var body: GSFpsBody = map.call(&"movement_body")
+	var body: GSFpsBody = map.movement_body()
 	if body == null:
 		return null
 	controller.body.copy_filters_to(body)
@@ -409,10 +418,10 @@ func _sim_for(edge: Edge, controller: GSFpsController) -> GSFpsSimulator:
 	if sim == null:
 		return null
 	sim.oracle = edge.course.event_at
-	var mechanics: Variant = map.get(&"mechanics")
+	var mechanics := map.mechanics
 	if mechanics != null:
 		sim.mechanics = func(state: GSFpsState, motor: GSFpsMotor, delta: float, start: Vector3) -> int:
-			mechanics.call(&"simulate", motor, state, start, delta)
+			mechanics.simulate(motor, state, start, delta)
 			return GSFpsSimulator.EVENT_NONE
 	edge.sim = sim
 	return sim

@@ -205,7 +205,7 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 	unstrand(_game, bot, mind, intent)
 	var surf := world.surf_at(tick)
 	if surf != null:
-		surf.call(&"steer", bot, mind, intent, tick, tick_rate)
+		surf.steer(bot, mind, intent, tick, tick_rate)
 	elif mind.ride != null:
 		mind.ride = null
 	t_lap = FcFrameProbe.lap(&"ba_surf", t_lap)

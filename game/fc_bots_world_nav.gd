@@ -7,6 +7,8 @@ const LEDGE_CLIMB_ID := 5000000
 
 const FcPaths := preload("fc_paths.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcSurfPilot := preload("fc_surf_pilot.gd")
 
 
 class NavWorld:
@@ -36,10 +38,10 @@ class NavWorld:
 	var _nav_source: Object = null
 	## The map's ride edges ([code]fc_surf.gd[/code]), once its mesh has landed and if it has
 	## a surf cache; and whether that was looked for on this mesh.
-	var _surf: RefCounted = null
+	var _surf: FcSurfPilot = null
 	var _surf_looked: bool = false
 	var _surf_tick: int = -1
-	var _surf_now: RefCounted = null
+	var _surf_now: FcSurfPilot = null
 	## The map's ladders joined into [member _nav] as climb edges, and how many got one.
 	var _ladders: GSBotLinks = null
 	## The drop and hop edges found on the mesh (kept so they are not collected).
@@ -198,7 +200,7 @@ class NavWorld:
 	func _route_detail(from: Vector3, to: Vector3) -> Dictionary:
 		var surf := surf_for_map()
 		if surf != null:
-			return surf.call(&"route_detail", from, to)
+			return surf.route_detail(from, to)
 		if _ladders != null and _nav != null and _nav.is_ready():
 			if not _nav.joined(from, to):
 				return {"points": PackedVector3Array(), "rides": PackedInt32Array()}
@@ -210,7 +212,7 @@ class NavWorld:
 		return {"points": points, "rides": rides}
 
 	## [method surf_for_map] as it was at the first ask of [param tick]: the map and nav checks once a tick, not per bot.
-	func surf_at(tick: int) -> RefCounted:
+	func surf_at(tick: int) -> FcSurfPilot:
 		if tick != _surf_tick or tick < 0:
 			_surf_tick = tick
 			_surf_now = surf_for_map()
@@ -218,7 +220,7 @@ class NavWorld:
 
 	## The map's ride edges, linked into its mesh: null on a built-in map, before the mesh lands,
 	## on a map with no surf cache, and on a shell without gs-bot 4 or gs-player-controller 3.
-	func surf_for_map() -> RefCounted:
+	func surf_for_map() -> FcSurfPilot:
 		var nav := _nav_for_map()
 		if nav == null:
 			return null
@@ -298,22 +300,23 @@ class NavWorld:
 
 	## Joins the imported map's ladders into [param nav] as one-way climbs and hands the brain their geometry (gs-bot 10).
 	func _link_ladders(nav: GSBotNav) -> void:
-		var mechanics: Variant = (game.get("map") as Object).get("mechanics")
-		if GSAddonApi.build_level("gs_bot") < 10 or not (mechanics is Object) or (mechanics as Object).get("ladders").is_empty():
+		var map := game.get(&"map") as FcMap
+		var mechanics := map.mechanics if map != null else null
+		if GSAddonApi.build_level("gs_bot") < 10 or mechanics == null or mechanics.ladders.is_empty():
 			return
-		var links := GSBotLinks.link_ladders(nav, (mechanics as Object).get("ladders"))
+		var links := GSBotLinks.link_ladders(nav, mechanics.ladders)
 		if links != null:
 			_ladders = links
 			ladder_fn = links.ladder_of
 
 	## A team map's spawn rooms are walled in, with a ramp that tops out on a ledge over the open floor: bots leave by the drop but, with no way back up, never reach the enemy spawn. Each short drop gets a reverse climb edge, only on a map whose spawns carry a side.
 	func _climb_back_ledges(nav: GSBotNav) -> void:
-		var map: Variant = game.get("map")
-		if not (map is Object) or not (map as Object).has_method(&"spawn_tag"):
+		var map := game.get(&"map") as FcMap
+		if map == null:
 			return
 		var tagged := false
-		for index in (map as Object).get("spawns").size():
-			if (map as Object).call(&"spawn_tag", index) != &"":
+		for index in map.spawns.size():
+			if map.spawn_tag(index) != &"":
 				tagged = true
 				break
 		if not tagged:
@@ -378,8 +381,8 @@ class NavWorld:
 		if _nav_at == _tick and _tick >= 0 and _nav != null:
 			return _nav
 		_nav_at = -2
-		var map: Variant = game.get("map")
-		if not (map is Object) or not (map as Object).has_method(&"is_imported") or not bool((map as Object).call(&"is_imported")):
+		var map := game.get(&"map") as FcMap
+		if map == null or not map.is_imported():
 			return null
 		if _nav != null and _nav_map == map:
 			_nav_at = _tick
@@ -388,8 +391,8 @@ class NavWorld:
 		# its bots walk straight, as they did before.
 		if GSAddonApi.build_level("gs_bot") < 3:
 			return null
-		var root: Variant = (map as Object).get("collision_root")
-		if not (root is Node3D) or not (root as Node3D).is_inside_tree():
+		var root := map.collision_root
+		if root == null or not root.is_inside_tree():
 			return null
 		if _nav != null:
 			_nav.clear()
@@ -403,13 +406,13 @@ class NavWorld:
 		_joining = false
 		_link_stage = 0
 		var body := _body_tunables()
-		var source: Node3D = (map as Object).call(&"nav_source") if (map as Object).has_method(&"nav_source") else null
+		var source := map.nav_source()
 		# gs-bot parses the source over the next frames, so it lives until the bake reports back.
 		_nav_source = source
-		var started := _nav.bake_in_background(source if source != null else root as Node3D, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height}, 0, [], _on_nav_baked.bind(source))
+		var started := _nav.bake_in_background(source if source != null else root, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height}, 0, [], _on_nav_baked.bind(source))
 		if not started.ok:
 			_free_nav_source(source)
-			GSLog.warn(CHANNEL, "bots cannot route on this map", {"map": str((map as Object).get("id")), "error": started.error.message})
+			GSLog.warn(CHANNEL, "bots cannot route on this map", {"map": String(map.id), "error": started.error.message})
 		_nav_at = _tick
 		return _nav
 
@@ -478,8 +481,8 @@ class NavWorld:
 		if _graph_at == _tick and _tick >= 0 and _graph != null:
 			return _graph
 		_graph_at = -2
-		var map: Variant = game.get("map")
-		if not (map is Object) or not (map as Object).has_method(&"is_imported") or bool((map as Object).call(&"is_imported")):
+		var map := game.get(&"map") as FcMap
+		if map == null or map.is_imported():
 			return null
 		if _graph != null and _graph_map == map:
 			_graph_at = _tick
