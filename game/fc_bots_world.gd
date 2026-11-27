@@ -257,6 +257,8 @@ class World:
 			game.connect(&"hit_confirmed", _on_hit)
 		if game.has_signal(&"player_added"):
 			game.connect(&"player_added", _hear_player)
+		if game.has_signal(&"map_changed"):
+			game.connect(&"map_changed", _on_map_changed)
 		for p in game.call("players"):
 			_hear_player(p)
 		walkable_fn = _walkable_near
@@ -488,37 +490,34 @@ class World:
 	## Gets the world ready for brains on other threads; false when the game's trace is one this cannot ask from them.
 	## Starts what a worker would otherwise start (the imported map's mesh bake) on the calling thread first.
 	func par_begin() -> bool:
-		var combat: Variant = game.get("combat")
-		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		if not trace is GSTrace:
+		if _los_at != _tick:
+			_los_bind()
+		if _los_trace == null:
 			return false
-		_par_trace = trace as GSTrace
+		_par_trace = _los_trace
 		_par_observe = _par_trace.ray_observer.is_valid()
 		_par_job.clear()
 		_par_rays.clear()
 		_par_arsenal[0] = _any_arsenal(game)
 		_par_physics = false
 		_par_space = null
-		if trace is GSTracePhysics:
-			var bound: Variant = (trace as Object).get("_world")
-			if not bound is World3D:
+		_par_trace_glass = _trace_glass(_par_trace)
+		if _par_trace is GSTracePhysics:
+			var bound: World3D = (_par_trace as GSTracePhysics)._world
+			if bound == null:
 				return false
-			_par_space = (bound as World3D).direct_space_state
+			_par_space = bound.direct_space_state
 			if _par_space == null:
 				return false
 			_par_physics = true
-		elif not trace is GSTraceFlat:
+		elif not _par_trace is GSTraceFlat:
 			return false
 		# The jail glass rule applies on a map with a collision root, as _line_of_sight has it.
 		_par_glass = false
-		var rules: Variant = game.get("glass_rules")
-		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
-			var map: Variant = game.get("map")
-			var root: Variant = (map as Object).get("collision_root") if map is Object else null
-			if root is Node3D and (root as Node3D).is_inside_tree():
-				if _par_space == null:
-					return false
-				_par_glass = true
+		if _cell_root() != null:
+			if _par_space == null:
+				return false
+			_par_glass = true
 		var _nav_warm := _nav_for_map()
 		var _surf_warm := surf_for_map()
 		# The brain prunes both each think; once here, theirs find nothing to remove.
@@ -534,10 +533,9 @@ class World:
 		return true
 
 	func _los_par(from: Vector3, to: Vector3) -> bool:
-		var rules: Variant = game.get("glass_rules")
 		if _par_glass:
 			_ray_lock.lock()
-			var shut := (rules as GSMapGlassSight).blocks(_par_space, from, to)
+			var shut := _los_cell.blocks(_par_space, from, to)
 			_ray_lock.unlock()
 			if shut:
 				return false
@@ -581,27 +579,70 @@ class World:
 		return seen
 
 	func _line_of_sight(from: Vector3, to: Vector3) -> bool:
-		var combat: Variant = game.get(&"combat")
-		var trace: Variant = (combat as Object).get(&"trace") if combat is Object else null
-		var rules: Variant = game.get(&"glass_rules")
+		if _los_at != _tick:
+			_los_bind()
 		# Bots inside the jail cell cannot see out through its glass; the trace itself ignores that layer for sight.
-		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
-			var map: Variant = game.get(&"map")
-			var root: Variant = (map as Object).get(&"collision_root") if map is Object else null
-			if root is Node3D and (root as Node3D).is_inside_tree() \
-					and (rules as GSMapGlassSight).blocks((root as Node3D).get_world_3d().direct_space_state, from, to):
-				return false
-		if trace is GSTracePhysics and _plain_sight_trace(trace as Object):
-			return _sight_ray(trace as GSTracePhysics, from, to)
-		if trace is GSTrace:
-			return (trace as GSTrace).line_of_sight(from, to)
+		var root := _cell_root()
+		if root != null and _los_cell.blocks(root.get_world_3d().direct_space_state, from, to):
+			return false
+		if _los_ray != null:
+			return _sight_ray(_los_ray, from, to)
+		if _los_trace != null:
+			return _los_trace.line_of_sight(from, to)
 		return true
+
+	## What sight asks of the game, looked up by name once a tick (and again on a map change) rather than on every
+	## ray: the shot trace, that trace when it is a plain physics one ([method _sight_ray]), the jail glass rule and
+	## the map's collision root.
+	var _los_at: int = -2
+	var _los_trace: GSTrace = null
+	var _los_ray: GSTracePhysics = null
+	var _los_cell: GSMapGlassSight = null
+	var _los_root: Node3D = null
+
+	func _los_bind() -> void:
+		_los_at = _tick
+		var combat: Variant = game.get(&"combat")  # perf-lint: allow dynamic_call once a tick, not per ray
+		var trace: Variant = (combat as Object).get(&"trace") if combat is Object else null  # perf-lint: allow dynamic_call once a tick, not per ray
+		_los_trace = trace as GSTrace if trace is GSTrace else null
+		_los_ray = trace as GSTracePhysics if trace is GSTracePhysics and _plain_sight_trace(trace as Object) else null
+		var rules: Variant = game.get(&"glass_rules")  # perf-lint: allow dynamic_call once a tick, not per ray
+		_los_cell = rules as GSMapGlassSight if rules is GSMapGlassSight else null
+		var map: Variant = game.get(&"map")  # perf-lint: allow dynamic_call once a tick, not per ray
+		var root: Variant = (map as Object).get(&"collision_root") if map is Object else null  # perf-lint: allow dynamic_call once a tick, not per ray
+		_los_root = root as Node3D if root is Node3D else null
+
+	func _shot_trace() -> GSTrace:
+		if _los_at != _tick:
+			_los_bind()
+		return _los_trace
+
+	func _on_map_changed(_map: Object) -> void:
+		_los_at = -2
+		_sight_at = -1
+		_nav_at = -2
+		_graph_at = -2
+
+	## The map's collision root when the jail glass rule is on and the root is in the tree, else null.
+	func _cell_root() -> Node3D:
+		if _los_cell == null or not _los_cell.block_sight or _los_root == null or not is_instance_valid(_los_root):
+			return null
+		return _los_root if _los_root.is_inside_tree() else null
+
+	## A trace's sight glass ([code]fc_glass_trace.gd[/code]'s), or null.
+	static func _trace_glass(trace: Object) -> GSMapGlassSight:
+		var g: Variant = trace.get(&"glass") if trace != null else null  # perf-lint: allow dynamic_call once a tick or per par_begin, not per ray
+		return g as GSMapGlassSight if g is GSMapGlassSight and (g as GSMapGlassSight).glass_mask != 0 else null
 
 	## The trace's own line_of_sight is a [GSHitbox.Hit] world ray: two Hit objects and, on a hit, the surface's
 	## material looked up, all of which a yes/no sight drops. Only the plain physics trace and the glass one (whose
 	## sight ray leaves the glass layer out) take this path; any other trace keeps its own rules.
 	const _GLASS_TRACE := preload("fc_glass_trace.gd")
 	var _sight_query: PhysicsRayQueryParameters3D = null
+	## The sight mask of [member _mask_trace] on tick [member _mask_at] (its glass is looked up by name).
+	var _mask_trace: GSTracePhysics = null
+	var _mask_at: int = -2
+	var _mask: int = 0
 
 	static func _plain_sight_trace(trace: Object) -> bool:
 		var script: Variant = trace.get_script()
@@ -620,10 +661,10 @@ class World:
 		var space := bound.direct_space_state
 		if space == null:
 			return true
-		var mask: int = trace.collision_mask
-		var glass: Variant = trace.get(&"glass")
-		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
-			mask &= ~(glass as GSMapGlassSight).glass_mask
+		if trace != _mask_trace or _mask_at != _tick:
+			_mask_trace = trace
+			_mask_at = _tick
+			_mask = _sight_mask(trace)
 		if _sight_query == null:
 			_sight_query = PhysicsRayQueryParameters3D.new()
 			_sight_query.collide_with_areas = false
@@ -631,9 +672,14 @@ class World:
 			_sight_query.hit_from_inside = false
 		_sight_query.from = from
 		_sight_query.to = from + offset / distance * distance
-		_sight_query.collision_mask = mask
+		_sight_query.collision_mask = _mask
 		_sight_query.exclude = trace.exclude_rids
 		return space.intersect_ray(_sight_query).is_empty()
+
+	## The physics trace's collision mask without its sight glass layer.
+	static func _sight_mask(trace: GSTracePhysics) -> int:
+		var glass := _trace_glass(trace)
+		return trace.collision_mask & ~glass.glass_mask if glass != null else trace.collision_mask
 
 	## Whether a native mind may ask sight of gs-sim's [code]GSSimSightRay[/code] (when loaded) in place of
 	## [method line_of_sight]; off: every ray goes through script (scale128 [code]--native-sight 0[/code]).
@@ -660,7 +706,7 @@ class World:
 
 	## The native ray bound to this moment's trace, or [method line_of_sight] when the ray does not answer the same.
 	func _sight_bind(for_par: bool = false) -> Callable:
-		var script_sight := Callable(self, &"line_of_sight")
+		var script_sight := line_of_sight
 		if not native_sight:
 			return script_sight
 		if not _sight_tried:
@@ -671,31 +717,22 @@ class World:
 			return script_sight
 		# The jail glass rule, as _line_of_sight (main thread: the collision root's space) and _los_par
 		# (par_begin's space) ask it: the native ray asks it too, for rays from inside the cell.
-		var cell: GSMapGlassSight = null
-		var cell_space: PhysicsDirectSpaceState3D = null
-		var rules: Variant = game.get("glass_rules")
-		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
-			var map: Variant = game.get("map")
-			var root: Variant = (map as Object).get("collision_root") if map is Object else null
-			if root is Node3D and (root as Node3D).is_inside_tree():
-				cell = rules as GSMapGlassSight
-				cell_space = _par_space if for_par else (root as Node3D).get_world_3d().direct_space_state
-		var combat: Variant = game.get("combat")
-		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		if not (trace is GSTracePhysics and _plain_sight_trace(trace as Object)):
+		if _los_at != _tick:
+			_los_bind()
+		var trace := _los_ray
+		if trace == null:
 			return script_sight
-		var bound: Variant = (trace as Object).get("_world")
-		var space: PhysicsDirectSpaceState3D = (bound as World3D).direct_space_state if bound is World3D else null
-		var mask: int = (trace as GSTracePhysics).collision_mask
-		var glass: Variant = (trace as Object).get("glass")
-		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
-			mask &= ~(glass as GSMapGlassSight).glass_mask
+		var root := _cell_root()
+		var cell: GSMapGlassSight = _los_cell if root != null else null
+		var cell_space: PhysicsDirectSpaceState3D = null
 		if cell != null:
-			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
-					cell_space, cell.glass_mask, cell.centre, cell.radius, cell.radius + cell.margin)
-		else:
-			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
-					null, 0, Vector3.ZERO, 0.0, 0.0)
+			cell_space = _par_space if for_par else root.get_world_3d().direct_space_state
+		var bound: World3D = trace._world
+		var space: PhysicsDirectSpaceState3D = bound.direct_space_state if bound != null else null
+		# GSSimSightRay is a native class only some builds have, so it is called by name, once a tick.
+		_sight_native.call(&"bind", space, _sight_mask(trace), trace.exclude_rids, _ray_lock,
+				cell_space, cell.glass_mask if cell != null else 0, cell.centre if cell != null else Vector3.ZERO,
+				cell.radius if cell != null else 0.0, cell.radius + cell.margin if cell != null else 0.0)
 		return Callable(_sight_native, &"clear")
 
 	const SPAWN_THINNING := 25.0
