@@ -639,6 +639,12 @@ var shot_ease_max: float = 3.0
 var shot_view_cone_deg: float = 10.0
 ## `sv_native_shots`: 1 walks hitscan pellets (walls, ricochets, bodies, hitbox shapes) in GameSpice Sim's `GSSimShots` and applies its event rows (fc_native_shots.gd); 0 runs gs-combat's script tracer, the specification. Without the library the script runs and an error is logged once.
 var native_shots: int = 1
+## `sv_native_unlag`: 1 keeps the lag-compensation rings (every player's recent feet and crouch) in GameSpice Sim's `GSSimUnlagRing`, one bulk record a tick; 0 keeps them in script ([member _unlag]), the specification. Same answers to the bit (headless_native_shots). Without the library the script runs and an error is logged once.
+var native_unlag: int = 1
+## The native rings while [member native_unlag] is on and the class is loaded, else null.
+var _unlag_native: RefCounted = null
+## Whether the missing `GSSimUnlagRing` was logged (once).
+var _unlag_native_missing := false
 ## `sv_shot_rewind_log_sec`: how often, in seconds, the server logs [member shot_rewind_counts] when a fallback or refusal grew since the last line; 0 never.
 var shot_rewind_log_sec: float = 30.0
 ## How each hitscan rewind stood a target, by key: target (its own pair, blended), target_ahead (its own pair, run on past the newer), target_held (past the extrapolation limit, held at the newer), bracket (the shared pair), ring (the server's own tick),

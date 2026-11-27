@@ -672,6 +672,8 @@ func build_map_io_async(slice: GSFrameSlice) -> void:
 func remove_player(id: int) -> void:
 	FcWeaponDropWiring.reset_drop_key(self, id)
 	_unlag.erase(id)
+	if _unlag_native != null:
+		_unlag_native.call(&"forget", id)
 	if block_rules != null:
 		block_rules.forget(id)
 	medals.forget(id)
