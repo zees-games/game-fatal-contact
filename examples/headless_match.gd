@@ -30,6 +30,7 @@ func _run() -> void:
 	await _test_progression()
 	_test_geometry_held()
 	await _test_interface()
+	_check_ink_pending_miss()
 
 	await _test_horde()
 	await _test_siege()

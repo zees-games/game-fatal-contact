@@ -466,6 +466,15 @@ func _test_boards_async(progress) -> void:
 
 ## The HUD and the menus, built and driven headlessly. Nothing is rendered; what is checked is the wiring: a bound widget reads
 ## the right value, the Tab board fills from the finished match, and the Escape menu has this game's pages and drops a held board.
+func _check_ink_pending_miss() -> void:
+	ProjectSettings.set_setting("gs_cloud/late_groups/pending", true)
+	var absent := "res://assets/weapon_icons/late_probe_missing.png"
+	var pending_miss := FcHudGlance.Ink.texture(absent) == null
+	var kept := FcHudGlance.Ink._textures.has(absent)
+	ProjectSettings.set_setting("gs_cloud/late_groups/pending", false)
+	_check(pending_miss and not kept, "a picture missing while the late group streams is not remembered as missing")
+
+
 func _test_interface() -> void:
 	_section("the interface")
 
@@ -638,12 +647,6 @@ func _test_interface() -> void:
 	_check(FcWeaponIcons.shared.set_style(&"silhouette") and FcWeaponIcons.shared.texture(&"pistol") == null and FcHudGlance.Ink.weapon_icon(&"pistol") != null,
 		"the silhouette style turns the sprites off and the old outline answers")
 	var _style_back := FcWeaponIcons.shared.set_style(&"pixel")
-	ProjectSettings.set_setting("gs_cloud/late_groups/pending", true)
-	var absent := "res://assets/weapon_icons/late_probe_missing.png"
-	var pending_miss := FcHudGlance.Ink.texture(absent) == null
-	var kept := FcHudGlance.Ink._textures.has(absent)
-	ProjectSettings.set_setting("gs_cloud/late_groups/pending", false)
-	_check(pending_miss and not kept, "a picture missing while the late group streams is not remembered as missing")
 	FcWeaponIcons.shared.icon_set().override(&"pistol", FcHudGlance.Ink.texture("res://assets/weapon_icons/knife.png"), &"test")
 	FcWeaponIcons.shared.set_profile(&"test")
 	var overridden := FcWeaponIcons.shared.texture(&"pistol") == FcHudGlance.Ink.texture("res://assets/weapon_icons/knife.png")
