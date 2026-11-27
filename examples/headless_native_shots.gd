@@ -396,6 +396,12 @@ func _unlag_rings() -> void:
 	_check(native_used and ring_diff == "" and unrecorded > 0 and unrecorded < views.size(),
 		"the native rings answer the script rings' feet and crouch at every view, both targets",
 		"native %s, %d views, %d before the history%s" % [native_used, views.size(), unrecorded, "" if ring_diff == "" else "; " + ring_diff])
+	_check_unlag_shots(shots)
+	_completed += 1
+
+
+## Both modes' fans from [method _unlag_rings]: the same rows, rewound alike, hitting near and far and missing.
+func _check_unlag_shots(shots: Dictionary) -> void:
 	var shot_diff := ""
 	var hits := {STANDING: 0, BEHIND: 0}
 	var misses := 0
@@ -417,7 +423,6 @@ func _unlag_rings() -> void:
 	_check(shot_diff == "" and hits[STANDING] > 0 and hits[BEHIND] > 0 and misses > 0,
 		"fans rewound from either ring hit and miss alike, near and far",
 		"%d shots: %d near hits, %d far hits, %d misses%s" % [(shots[0] as Array).size(), hits[STANDING], hits[BEHIND], misses, "" if shot_diff == "" else "; " + shot_diff])
-	_completed += 1
 
 
 ## Not a check: microseconds per traced shot (a 169-pellet penetrating fan at P4 in the open map), script then
