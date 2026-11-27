@@ -107,6 +107,9 @@ var _idle_entries: Array = []
 var _idle_owners: Array = []
 var _idle_outs: Array = []
 var _demo_gated := false
+## Whether this batched tick's players hand their move to the surf rides' [code]after[/code]: the tick's
+## [code]begin_tick[/code] answered true, or the lean tick is off and each player syncs on its own.
+var _surf_after := false
 
 
 ## Rebuilds [member _roster] (the players in join order, and their ids) after a join or a leave.

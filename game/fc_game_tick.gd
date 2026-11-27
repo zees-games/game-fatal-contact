@@ -235,6 +235,8 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	# The surf rides follow the map once a tick, not once per player (~4 us a player a tick of lookups that change nothing).
 	var lean := FcPlayer.lean_tick
 	var surfing := lean and surf_rides != null and bool(surf_rides.call(&"begin_tick"))
+	# Off a surf map the rides' after() only answers is_on() false (~3 us a player a tick of a dispatch that does nothing).
+	_surf_after = surf_rides != null and (surfing or not lean)
 	if _batch_rows.size() < n:
 		_batch_rows.resize(n)
 		_batch_pairs.resize(n)
@@ -381,7 +383,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		FcFrameProbe.add(&"pl_sim", t_fine)
 		t_fine = Time.get_ticks_usec()
 		t_post = t_fine
-	if surf_rides != null:
+	if _surf_after:
 		surf_rides.call(&"after", id, player, move, _tick)
 	if fine:
 		t_fine = FcFrameProbe.lap(&"po_surf", t_fine)
