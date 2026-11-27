@@ -527,7 +527,11 @@ func fit_hitboxes_to_crouch(crouch: float) -> void:
 	if hitboxes == null or controller == null or controller.tunables == null:
 		return
 	var t := controller.tunables
-	var k := lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(crouch, 0.0, 1.0))
+	_fit_hitboxes_k(crouch_k(crouch, t.crouch_height, t.stand_height))
+
+
+## The zones fitted to the height factor [param k] ([method crouch_k]); a no-op when it is the last one fitted.
+func _fit_hitboxes_k(k: float) -> void:
 	if FcHullGrid.enabled and k == _fit_k:
 		return
 	_fit_k = k
@@ -655,13 +659,20 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 	var fine := FcFrameProbe.fine
 	var t_fine := Time.get_ticks_usec() if fine else 0
 	_post_moved = false
-	fit_hitboxes_to_stance()
+	if _volumes_asked_tick != tick and mechanics_native and volume_pre != null:
+		volume_pre.mark_one(tick, self)
+	# The fit factor and the volumes skip: one gs-sim call ([method _head_answer]), or the script.
+	var clear: bool
+	var head := _head_answer(tick, _tick_start)
+	if is_nan(head):
+		fit_hitboxes_to_stance()
+		clear = _volumes_skip(tick, _tick_start)
+	else:
+		_fit_hitboxes_k(absf(head))
+		clear = head < 0.0
 	if fine:
 		FcFrameProbe.add(&"p_hitbox", t_fine)
 	var t_mech := Time.get_ticks_usec()
-	if _volumes_asked_tick != tick and mechanics_native and volume_pre != null:
-		volume_pre.mark_one(tick, self)
-	var clear := _volumes_skip(tick, _tick_start)
 	_run_map_mechanics(_tick_start, delta, clear)
 	var t_follow := FcFrameProbe.lap_start()
 	_follow_map_volumes(clear)

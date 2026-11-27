@@ -497,13 +497,69 @@ func _volumes_skip(tick: int, start: Vector3) -> bool:
 	if _volumes_clear_tick != tick or controller.motor == null:
 		return false
 	var t := controller.motor.tunables
+	return volumes_clear_of(t.radius, ladder.reach, t.stand_height, swim.waist, start, controller.state.position)
+
+
+## [method _volumes_skip] past its mark: moved at most the prefilter's slack from [param start] to [param position], and a
+## hull of [param radius] (plus [param reach] sideways) and [param stand_height] (or [param waist]) inside the reaches.
+## The script reference [code]GSSimPlayerHead[/code] is held to ([code]headless_head_native_parity[/code]).
+static func volumes_clear_of(radius: float, reach: float, stand_height: float, waist: float, start: Vector3,
+		position: Vector3) -> bool:
 	var slack := FcVolumePrefilter.SLACK
 	# The hull reaches sideways (radius, ladder reach) on x and z, and up from the feet (height, waist) under a box.
-	var side := t.radius + ladder.reach + slack
-	var up := maxf(t.stand_height, swim.waist) + slack
-	return start.distance_squared_to(controller.state.position) <= slack * slack \
+	var side := radius + reach + slack
+	var up := maxf(stand_height, waist) + slack
+	return start.distance_squared_to(position) <= slack * slack \
 		and side <= minf(minf(FcVolumePrefilter.BELOW.x, FcVolumePrefilter.BELOW.z), minf(FcVolumePrefilter.ABOVE.x, FcVolumePrefilter.ABOVE.z)) \
 		and up <= FcVolumePrefilter.BELOW.y and slack <= FcVolumePrefilter.ABOVE.y
+
+
+## The hit zones' height factor at [param crouch] (0 standing, 1 crouched) for a body of [param crouch_height] and
+## [param stand_height]: the script reference of [method fit_hitboxes_to_crouch] and [code]GSSimPlayerHead[/code].
+static func crouch_k(crouch: float, crouch_height: float, stand_height: float) -> float:
+	return lerpf(1.0, crouch_height / maxf(stand_height, 0.01), clampf(crouch, 0.0, 1.0))
+
+
+## [method tick_post_head]'s fit factor and volumes skip in one gs-sim call ([code]GSSimPlayerHead.head[/code]): the factor,
+## negated when [method _volumes_skip] holds; NAN when the script must answer (no library, cvar off, a part missing, a
+## factor not above 0). [member volume_pre]'s mark for [param tick] must be asked; [param start] is the tick's start.
+func _head_answer(tick: int, start: Vector3) -> float:
+	if not head_native or hitboxes == null or controller == null or controller.tunables == null \
+			or controller.motor == null or ladder == null or swim == null:
+		return NAN
+	if _native_head == null:
+		if not GSSim.has(&"player_head"):
+			return NAN
+		_native_head = make_native_head()
+	var tc := controller.tunables
+	var tm := controller.motor.tunables
+	var state := controller.state
+	var r: float = _native_head.head(state.crouch_fraction, tc.crouch_height, tc.stand_height, tm.radius, ladder.reach,
+			tm.stand_height, swim.waist, start, state.position, _volumes_clear_tick == tick)
+	if head_verify and not is_nan(r):
+		head_checked += 1
+		if absf(r) != crouch_k(state.crouch_fraction, tc.crouch_height, tc.stand_height) \
+				or (r < 0.0) != _volumes_skip(tick, start):
+			head_misses += 1
+	return r
+
+
+## A gs-sim [code]GSSimPlayerHead[/code] with FcVolumePrefilter's reaches (needs [code]GSSim.has(&"player_head")[/code]).
+static func make_native_head() -> Object:
+	var head: Object = ClassDB.instantiate(&"GSSimPlayerHead")
+	head.configure(FcVolumePrefilter.SLACK, FcVolumePrefilter.BELOW, FcVolumePrefilter.ABOVE)
+	return head
+
+
+## Cvar [code]fc_head_native[/code]: 1 answers [method tick_post_head]'s fit factor and volumes skip in gs-sim where its
+## library has [code]GSSimPlayerHead[/code] (bit for bit with the script); 0 runs the script (the reference and the A/B arm).
+static var head_native := true
+## Checks every native answer against the script, counting [member head_checked] and [member head_misses]. Off in play.
+static var head_verify := false
+static var head_checked: int = 0
+static var head_misses: int = 0
+## This player's gs-sim [code]GSSimPlayerHead[/code], made on first use (one per player: no object shared across threads).
+var _native_head: Object = null
 
 
 func _verify_clear(start: Vector3, delta: float) -> void:

@@ -116,6 +116,9 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator, count: int) -> int:
 		_game.respawn_player(10 + i)
 	FcPlayer.mechanics_verify = true
 	FcPlayer.mechanics_checked = 0
+	FcPlayer.head_verify = true
+	FcPlayer.head_checked = 0
+	FcPlayer.head_misses = 0
 	var rows_before := FcHullGrid.batch_rows
 	FcPlayer.mechanics_misses = 0
 	var bounds := AABB()
@@ -137,6 +140,7 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator, count: int) -> int:
 			player.controller.teleport(at, rng.randf_range(-180, 180), 0.0)
 		await _ticks(TICKS_PER_ROUND)
 	FcPlayer.mechanics_verify = false
+	FcPlayer.head_verify = false
 	var checked := FcPlayer.mechanics_checked
 	var rows := FcHullGrid.batch_rows - rows_before
 	var lane := "batched" if count >= FcHullGrid.MIN_PLAYERS else "one by one"
@@ -149,7 +153,15 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator, count: int) -> int:
 	_check(checked > ROUNDS, "%s (%s): players were marked clear" % [id, lane], "%d" % checked)
 	_check(FcPlayer.mechanics_misses == 0, "%s (%s): no clear tick's full mechanics changed the player" % [id, lane],
 			"%d of %d" % [FcPlayer.mechanics_misses, checked])
+	var heads := 0
+	if GSSim.has(&"player_head") and FcPlayer.head_native:
+		# Every player tick's native head (fit factor, volumes skip) against the script, clear and not ([method FcPlayer._head_answer]).
+		_check(FcPlayer.head_checked > ROUNDS * count, "%s (%s): the native head answered the player ticks" % [id, lane],
+				"%d" % FcPlayer.head_checked)
+		_check(FcPlayer.head_misses == 0, "%s (%s): every native head equals the script's" % [id, lane],
+				"%d of %d" % [FcPlayer.head_misses, FcPlayer.head_checked])
+		heads = 2
 	_game.queue_free()
 	_game = null
 	await get_tree().physics_frame
-	return 4
+	return 4 + heads

@@ -122,6 +122,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcPlayer.posture_native = new_value.to_float() >= 0.5)
 	FcWeaponTickCvars.add_to(self)
+	add_cvar("fc_head_native", "1" if FcPlayer.head_native else "0",
+		"1: a player tick's hit zone fit factor and map volumes skip come from one gs-sim call where its library has GSSimPlayerHead (bit for bit with the script); 0: the script",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcPlayer.head_native = new_value.to_float() >= 0.5)
 	add_cvar("fc_mechanics_native", "1" if FcPlayer.mechanics_native else "0",
 		"1: the batched tick asks gs-sim (GSSimVolumes, one call) which players are clear of every map volume and skips their pushes, ladders, water and pits (the same states as the script); 0: every player runs them",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
