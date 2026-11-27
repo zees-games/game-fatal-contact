@@ -93,15 +93,11 @@ game/fc_client.gd::_present_frame::dynamic_call	1
 game/fc_client.gd::_present_roof::alloc	2
 game/fc_client.gd::_present_roof::dynamic_call	3
 game/fc_client.gd::_present_roof::singleton_lookup	1
-game/fc_client.gd::_process::dynamic_call	1
 game/fc_client.gd::_scoped::dynamic_call	1
-game/fc_client.gd::_unhandled_input::dynamic_call	1
 game/fc_client.gd::cycle_scope_zoom::dynamic_call	1
 game/fc_client.gd::describe::untyped_array	1
 game/fc_client.gd::toggle_roam::string_build	2
 game/fc_client_frame_presentation.gd::_fly_free_camera::string_build	1
-game/fc_client_frame_presentation.gd::_fold_alpha::dynamic_call	2
-game/fc_client_frame_presentation.gd::_fold_look::dynamic_call	2
 game/fc_client_frame_presentation.gd::_muzzle_of_entity::dynamic_call	3
 game/fc_client_frame_presentation.gd::_pickup_hint::untyped_array	1
 game/fc_client_frame_presentation.gd::_present_flashlights::alloc	2
@@ -173,8 +169,7 @@ game/fc_drops.gd::set_packs::dynamic_call	1
 game/fc_drops.gd::set_packs::emit_in_loop	1
 game/fc_drops.gd::set_packs::string_build	1
 game/fc_drops.gd::set_packs::untyped_array	2
-game/fc_drops.gd::tick::alloc	2
-game/fc_drops.gd::tick::dynamic_call	5
+game/fc_drops.gd::tick::dynamic_call	3
 game/fc_drops.gd::tick::emit_in_loop	2
 game/fc_drops.gd::tick::untyped_array	2
 game/fc_flag_view.gd::_grounded::untyped_var	1
@@ -387,8 +382,6 @@ game/fc_kill_pov_view.gd::warm::alloc	2
 game/fc_kill_pov_view.gd::warm::untyped_array	2
 game/fc_kill_pov_view.gd::warm_meshes::untyped_array	1
 game/fc_nameplate_view.gd::_present_health_tag::dynamic_call	1
-game/fc_nameplate_view.gd::_tag_shown::alloc	3
-game/fc_nameplate_view.gd::_tag_shown::untyped_array	1
 game/fc_nameplate_view.gd::_under_cursor::alloc	1
 game/fc_nameplate_view.gd::_under_cursor::singleton_lookup	1
 game/fc_net_pull_native.gd::_wire_for::alloc	1

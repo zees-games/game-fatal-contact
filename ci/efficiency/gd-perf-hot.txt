@@ -1,5 +1,8 @@
 # Server hot path scripts checked by gs-ci scripts/check-gd-perf.py (tools/gd_perf_lint.py).
 # One fnmatch glob per line over tracked paths. Baseline: ci/efficiency/gd-perf.tsv.
+# gs-ci v1.4.5: also lint every linked addon repository that has its own hot list, against that
+# repository's hot list and baseline (a new hit in an addon fails this game too).
+addons: linked
 game/fc_bots*.gd
 game/fc_bot_*.gd
 game/fc_game.gd

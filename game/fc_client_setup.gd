@@ -526,11 +526,11 @@ func is_roaming() -> bool:
 	return game.spectate.is_roaming(_roam_key)
 
 func _touch_held(id: StringName) -> bool:
-	return _touch != null and bool(_touch.call(&"is_held", id))
+	return _touch != null and _touch.is_held(id)
 
 ## The overlay is up. Godot then turns every touch into a left click too, which must not read as the Fire key.
 func _touch_on() -> bool:
-	return _touch != null and bool(_touch.call(&"active"))
+	return _touch != null and _touch.active()
 
 
 ## Remembers the slot before the one in hand, for Q.

@@ -80,6 +80,10 @@ var _packs: Array[Dictionary] = []
 ## id -> {"node": Node3D, "value": int, "kind": int, "from": Vector3, "at": Vector3, "age": float,
 ## "taker_at": Variant}. Drawing side.
 var _drawn: Dictionary = {}
+## The players dictionary of the tick in progress (id -> entry, as [method tick] takes it), read by [method _wants].
+var _tick_players := {}
+## Drop ids that expired this tick, reused so a tick allocates nothing for them.
+var _expired: Array[int] = []
 
 ## id -> {"kind", "value"} for every drop this end has been told about, drawn or not: the
 ## point count a HUD shows is kept from it, and a headless client draws nothing.
@@ -230,12 +234,10 @@ func tick(tick: int, players: Dictionary) -> void:
 	# Respawns first, so a pack that comes back this tick can be taken this tick.
 	var _back := field.tick(tick)
 
-	field.wants_fn = func(taker: int, pickup: GSPickup) -> bool:
-		if pickup.item_id == &"health":
-			return bool(_filled(players.get(taker, {})).get("hurt", false))
-		if pickup.item_id == &"ammo_pack":
-			return bool(_filled(players.get(taker, {})).get("needs_ammo", false))
-		return true
+	# One bound method for the field's whole life (not a new lambda every tick); it reads this tick's players.
+	_tick_players = players
+	if not field.wants_fn.is_valid():
+		field.wants_fn = _wants
 
 	for id in players:
 		var entry: Dictionary = players[id]
@@ -262,9 +264,26 @@ func tick(tick: int, players: Dictionary) -> void:
 				(entry["heal"] as Callable).call(float(pickup.count))
 			_forget(drop_id, int(id))
 
-	for drop_id in _live.keys():
+	# Collected first (_forget erases from _live); no keys() copy on the ticks nothing expires.
+	for drop_id: Variant in _live:
 		if tick >= int(_live[drop_id]["expires"]):
-			_forget(int(drop_id), 0)
+			_expired.append(int(drop_id))
+	if not _expired.is_empty():
+		for drop_id: int in _expired:
+			_forget(drop_id, 0)
+		_expired.clear()
+
+
+## The field's wants_fn: whether [param taker] (in this tick's players) wants [param pickup].
+func _wants(taker: int, pickup: GSPickup) -> bool:
+	if pickup.item_id == &"health" or pickup.item_id == &"ammo_pack":
+		var entry: Variant = _tick_players.get(taker)
+		if entry == null:
+			return false
+		var filled := _filled(entry)
+		var key := "hurt" if pickup.item_id == &"health" else "needs_ammo"
+		return filled.has(key) and bool(filled[key])
+	return true
 
 
 ## A sweeper given as {"position", "player"} (the game's, each tick) gets what it lacks and how to give it
@@ -342,6 +361,8 @@ func mirror_taken(id: int, taker: int) -> void:
 
 ## Burst, settle, spin; and a taken point flies to its taker. Frame rate, drawing only.
 func _process(delta: float) -> void:
+	if _drawn.is_empty():
+		return
 	for id in _drawn.keys():
 		var entry: Dictionary = _drawn[id]
 		var node: Node3D = entry["node"]

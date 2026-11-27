@@ -8,6 +8,7 @@ const FcViewArms := preload("fc_view_arms.gd")
 const FcBindings := preload("fc_bindings.gd")
 const FcBots := preload("fc_bots.gd")
 const FcBrowser := preload("fc_browser.gd")
+const FcTouch := preload("fc_touch.gd")
 ## Loaded when a link is built ([method _build_netcode]), never preloaded: the extras pull gs-chat,
 ## gs-voice and the map sync client (about 50 scripts, ~9 MB of MEMORY_STATIC), and an offline
 ## game never builds them.
@@ -165,7 +166,7 @@ var _fire := GSWeaponCommand.new()
 var _wanted_slot: int = 0
 
 ## gs-mobile's overlay ([code]fc_touch.gd[/code]); built on every client, shown only on touch.
-var _touch: RefCounted = null
+var _touch: FcTouch = null
 ## The light on the eye and the other players' beams (gs-flashlight); the server owns on/off.
 var flash: GSFlashlight = null
 var flash_crowd: GSFlashlightCrowd = null

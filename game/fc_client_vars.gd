@@ -4,7 +4,6 @@ const FcFlashlight := preload("fc_flashlight.gd")
 const FcMatchText := preload("fc_match_text.gd")
 const FcTeamMenu := preload("fc_team_menu.gd")
 const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
-const FcTouch := preload("fc_touch.gd")
 
 ## Offline only: the team menu's rules run in this process (online the server's do).
 var _local_team_menu: FcTeamMenu = null

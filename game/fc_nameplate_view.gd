@@ -6,22 +6,28 @@ extends "fc_player_ammo.gd"
 static func warm_health_tag() -> void:
 	GSHealthTag.new().free()
 
-## What the tag draws this frame as [bar, named, opacity]: nothing for a dead body, a replay camera or a hidden mesh,
+## What [method _tag_shown] decided this frame, kept in members so a body's frame allocates no array.
+var _shown_bar := false
+var _shown_named := false
+var _shown_opacity := 1.0
+
+## What the tag draws this frame, into [member _shown_bar], [member _shown_named] and [member _shown_opacity]: nothing for a dead body, a replay camera or a hidden mesh,
 ## the player's and the server's rules for a team-mate, the server's modes for an enemy.
-func _tag_shown(camera_now: Camera3D, friend: bool, delta: float) -> Array:
+func _tag_shown(camera_now: Camera3D, friend: bool, delta: float) -> void:
 	# A replay camera shows a past moment: the live world's tags would hang over it, and a body
 	# the replay hides (the killer's own, at the lens) has no head to float over.
 	var show := health.alive and health.max_health > 0.0 and not FcKillPov.is_replay_camera(camera_now)
 	show = show and (body_mesh == null or body_mesh.is_visible_in_tree())
 	if not show:
-		return [false, false, 1.0]
+		_set_shown(false, false, 1.0)
+		return
 	var hurt := _hurt_age < HEALTH_TAG_SEC
 	if friend:
-		return [
+		_set_shown(
 			TagRules.shows(TagRules.client_bars, TagRules.server_bars, true, false, hurt),
 			TagRules.shows(TagRules.client_names, TagRules.server_names, true, false, false) and TagRules.show_team_names,
-			1.0,
-		]
+			1.0)
+		return
 	# An enemy: the server's own modes (never / on hover / always) inside the ceilings of the masks. The cursor ray
 	# runs only when a mode is "hover"; the reveal then lingers and fades with the age since the cursor left.
 	var hover_mode := TagRules.enemy_bar_mode == 1 or TagRules.enemy_name_mode == 1
@@ -36,7 +42,13 @@ func _tag_shown(camera_now: Camera3D, friend: bool, delta: float) -> Array:
 	var named := TagRules.enemy_shows(TagRules.enemy_name_mode, hovered) \
 		and TagRules.shows(TagRules.client_names, TagRules.server_names, false, true, true)
 	var steady := (bar and TagRules.enemy_bar_mode >= 2) or (named and TagRules.enemy_name_mode >= 2)
-	return [bar, named, 1.0 if steady else linger]
+	_set_shown(bar, named, 1.0 if steady else linger)
+
+
+func _set_shown(bar: bool, named: bool, opacity: float) -> void:
+	_shown_bar = bar
+	_shown_named = named
+	_shown_opacity = opacity
 
 
 ## The tag over a remote player's head: their name and a health bar, each drawn when the player's setting and
@@ -53,10 +65,10 @@ func _present_health_tag(delta: float) -> void:
 
 	var camera_now := get_viewport().get_camera_3d()
 	var friend := TagRules.is_teammate(player_id, team)
-	var shown := _tag_shown(camera_now, friend, delta)
-	var bar: bool = shown[0]
-	var named: bool = shown[1]
-	var opacity: float = shown[2]
+	_tag_shown(camera_now, friend, delta)
+	var bar := _shown_bar
+	var named := _shown_named
+	var opacity := _shown_opacity
 	if (bar or named) and camera_now != null and TagRules.fade_end > 0.0:
 		opacity *= TagRules.distance_opacity(camera_now.global_position.distance_to(global_position))
 	if opacity <= 0.003:

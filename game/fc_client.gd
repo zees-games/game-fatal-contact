@@ -121,6 +121,10 @@ func _report_position(delta: float) -> void:
 			"predicted": _is_predicted(),
 		})
 
+## The rig [method _present_roof] last probed for [code]shot_fx[/code] (older rigs lack it), and the answer.
+var _shot_rig_probed: Object = null
+var _shot_rig_has_fx := false
+
 ## The roof the world's physics layout names, for the name tags, the roof sounds and the shot effects.
 func _present_roof(delta: float, eye: Vector3) -> void:
 	var stack_now := game.player_stack
@@ -132,7 +136,11 @@ func _present_roof(delta: float, eye: Vector3) -> void:
 		sync_name_tags(_tag_mask)
 		presentation.follow_roof(delta, eye, get_viewport().world_3d.direct_space_state, _roof_mask)
 		var shot_rig: Object = player.weapons if player != null else null
-		if shot_rig != null and is_instance_valid(shot_rig) and shot_rig.has_method(&"shot_fx"):
+		if shot_rig != _shot_rig_probed:
+			# The has_method probe runs once per rig, not every frame.
+			_shot_rig_probed = shot_rig
+			_shot_rig_has_fx = shot_rig != null and is_instance_valid(shot_rig) and shot_rig.has_method(&"shot_fx")
+		if _shot_rig_has_fx and is_instance_valid(shot_rig):
 			var shot_fx: Object = shot_rig.call(&"shot_fx")
 			if shot_fx != null:
 				shot_fx.set(&"roof", presentation.shot_roof)
@@ -151,7 +159,7 @@ func _process(delta: float) -> void:
 	if hud != null:
 		hud.overlay_open = _menu_open()
 	if _touch != null:
-		_touch.call(&"sync", _menu_open() or presentation != null and presentation.swallows_input(), _gun_in_hand())
+		_touch.sync(_menu_open() or presentation != null and presentation.swallows_input(), _gun_in_hand())
 	if game != null and game.knives != null:
 		game.knives.bind_view(ragdolls, presentation.blood if presentation != null else null)
 	_present_frame(delta)
@@ -302,7 +310,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventMouseMotion:
-		if mouse_drives_view() and (_touch == null or not bool(_touch.call(&"takes", event))):
+		if mouse_drives_view() and (_touch == null or not _touch.takes(event)):
 			if is_roaming():
 				# The free camera turns on the mouse, and the dead body's view stays put.
 				_roam_look += (event as InputEventMouseMotion).relative
