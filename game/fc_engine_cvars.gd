@@ -66,6 +66,11 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.delta = new_value.to_float() >= 0.5)
+	add_cvar("bot_native_contact_arms", "1",
+		"1: gs-sim's contact build also writes each contact's weapon in hand (weapon_class, magazine) from interned classes, one call a tick (GSSimBotContacts.fill_arms; the same values to the bit); 0, or a gs-sim without fill_arms: one script call and two writes per player",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.arms = new_value.to_float() >= 0.5)
 	add_cvar("bot_contact_table", "1",
 		"1: gs-sim fills the bots' contacts as one packed table (GSBotContactTable, gs-bot 41; the same decisions, a contact object written only when read); 0, or a gs-sim without fill_table: it writes every contact object every tick",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
