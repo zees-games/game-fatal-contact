@@ -7,8 +7,8 @@ const FcBots := preload("fc_bots.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcPlayer := preload("fc_player.gd")
 const CHANNEL := "fc.bots"
-const _EMPTY_VIEWS := PackedFloat32Array()
-const _EMPTY_STEPS := PackedInt64Array()
+static var _EMPTY_VIEWS := PackedFloat32Array()
+static var _EMPTY_STEPS := PackedInt64Array()
 
 ## Whether the coasting bots go through gs-sim in one call a tick (cvar [code]bot_coast_native[/code]).
 static var enabled := true
