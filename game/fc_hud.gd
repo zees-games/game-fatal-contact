@@ -564,15 +564,23 @@ var _scope_hud := 1.0
 ## Shows or hides what the full-screen scope covers: the score strip and portraits (only with a match), and the kill feed.
 ## The slot list follows [member _scope_full] in [method present_gear], which sets its own visibility.
 func _show_over_scope(shown: bool) -> void:
-	for piece: Control in [strip, portraits, feed, slots, abilities]:
-		if piece != null:
-			piece.modulate.a = _scope_hud
+	# Piece by piece, not a loop over an array literal: this runs every frame.
+	_fade(strip)
+	_fade(portraits)
+	_fade(feed)
+	_fade(slots)
+	_fade(abilities)
 	if strip != null:
 		strip.visible = shown and game != null
 	if portraits != null:
 		portraits.visible = shown and game != null
 	if feed != null:
 		feed.visible = shown
+
+
+func _fade(piece: Control) -> void:
+	if piece != null:
+		piece.modulate.a = _scope_hud
 
 
 ## The scope, the hurt edge, the launch's readiness and the slide prompt, from the
@@ -609,7 +617,7 @@ func present_body() -> void:
 		# comes up and back as it goes down (gs-ui's GSCrosshair, API 5; Christian's first
 		# play test had both on screen at once). Hip fire keeps it.
 		if _crosshair_fades:
-			crosshair.call(&"set_aim", hands.aim_fraction() if hands != null and not scope_up else 0.0)
+			crosshair.set_aim(hands.aim_fraction() if hands != null and not scope_up else 0.0)
 
 	_present_hurt(live)
 	present_throw_meter(get_process_delta_time(), live)
@@ -724,8 +732,22 @@ func present_abilities(state: GSFpsState, tunables: GSFpsTunables) -> void:
 func _button(id: StringName, label: String, left: float, total: float, active: bool) -> Dictionary:
 	return {
 		"id": id, "label": label, "key": str(keys.get(id, "")), "left": maxf(left, 0.0), "total": total,
-		"active": active, "icon": FcHudGlance.Ink.texture("%s/%s.png" % [FcHudGlance.HUD_ICON_DIR, String(id)]),
+		"active": active, "icon": _ability_icon(id),
 	}
+
+
+## Each ability's icon, looked up once: the buttons are rebuilt every frame, the path is not.
+var _ability_icons: Dictionary[StringName, Texture2D] = {}
+
+func _ability_icon(id: StringName) -> Texture2D:
+	if not _ability_icons.has(id):
+		_load_ability_icon(id)
+	return _ability_icons[id]
+
+
+## Once per ability id (null when the icon is missing, so a miss is cached too).
+func _load_ability_icon(id: StringName) -> void:
+	_ability_icons[id] = FcHudGlance.Ink.texture("%s/%s.png" % [FcHudGlance.HUD_ICON_DIR, String(id)])
 
 
 ## An empty magazine with rounds in reserve: the moment to say R.
