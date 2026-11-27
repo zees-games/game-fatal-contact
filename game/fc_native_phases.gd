@@ -19,7 +19,7 @@ const PHASES: Array[Dictionary] = [
 		"classes": ["GSSimServerTick"], "methods": []},
 	{"id": "mirror", "cvars": ["sv_trace_mirror"],
 		"classes": ["GSSimTraceMirror", "GSSimFpsBody"], "methods": [["GSSimFpsBody", "set_trace_mirror"]]},
-	{"id": "motor", "cvars": ["motor_native", "motor_native_tick", "motor_native_full", "fc_hull_native",
+	{"id": "motor", "cvars": ["motor_native", "sv_native_motor_state", "motor_native_tick", "motor_native_full", "fc_hull_native",
 		"fc_posture_native", "fc_mechanics_native", "fc_tick_events"],
 		"classes": ["GSSimFpsBody", "GSSimMotorBatch"], "methods": []},
 	{"id": "bots", "cvars": ["bot_native", "bot_native_brain", "bot_native_pickup", "bot_native_drops",
@@ -36,7 +36,57 @@ const PHASES: Array[Dictionary] = [
 ## The class every gs-sim build registers; without it the library is not loaded at all.
 const LIBRARY_PROBE := "GSSimFpsBody"
 
+## Indices into PHASES, native_calls and script_calls (P1 players .. P6 snapshots).
+const PLAYERS := 0
+const MIRROR := 1
+const MOTOR := 2
+const BOTS := 3
+const SHOTS := 4
+const SNAPSHOTS := 5
+
 static var _warned := false
+## Per-phase call counts since the process started (or reset_calls): one per tick or per call the
+## phase's dispatch made, native or GDScript fallback. Printed once at the end of the run.
+static var native_calls := PackedInt64Array([0, 0, 0, 0, 0, 0])
+static var script_calls := PackedInt64Array([0, 0, 0, 0, 0, 0])
+static var _calls_printed := false
+
+
+## Counts one dispatch of [param phase] (PLAYERS .. SNAPSHOTS). Hot path: no allocation.
+static func tally(phase: int, native: bool) -> void:
+	if native:
+		native_calls[phase] += 1
+	else:
+		script_calls[phase] += 1
+
+
+static func reset_calls() -> void:
+	native_calls.fill(0)
+	script_calls.fill(0)
+	_calls_printed = false
+
+
+## `players=native/script mirror=0/0 motor=1500/0 ...` in PHASES order.
+static func calls_line() -> String:
+	var parts := PackedStringArray()
+	for i: int in PHASES.size():
+		parts.append("%s=%d/%d" % [PHASES[i]["id"], native_calls[i], script_calls[i]])
+	return " ".join(parts)
+
+
+## Prints `FC_NATIVE_TICK_CALLS <calls_line>` once per run, only if any phase dispatched.
+static func print_calls_once() -> void:
+	if _calls_printed:
+		return
+	var any := false
+	for i: int in native_calls.size():
+		if native_calls[i] > 0 or script_calls[i] > 0:
+			any = true
+			break
+	if not any:
+		return
+	_calls_printed = true
+	print("FC_NATIVE_TICK_CALLS ", calls_line())  # check-logging: allow print (end-of-run summary)
 
 
 ## Registers (or adopts) the master, applies it and prints the startup line. Call last in the
