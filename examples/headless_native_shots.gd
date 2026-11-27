@@ -155,7 +155,7 @@ func _wall() -> void:
 	pen.min_damage = 0.2
 	pen.max_passes = 4
 	var shot := _shot_at(SHIELD, 1.1, pen)
-	var _w := _compare("wall", shot)
+	var _n := _compare("wall", shot)
 	_check(not shot.penetrations.is_empty(), "the wall fan passes the wall", "%d passes" % shot.penetrations.size())
 	flat.boxes.assign(boxes_was)
 	flat.box_materials.assign(mats_was)
@@ -183,7 +183,7 @@ func _ricochet() -> void:
 	pen.max_ricochets = 2
 	var shooter: FcPlayer = _game.player_for(SHOOTER)
 	var shot := _shot(shooter.muzzle_position(), Vector3(-0.12, 0.0, -1.0).normalized(), pen)
-	var _w := _compare("ricochet", shot)
+	var _n := _compare("ricochet", shot)
 	_check(not shot.ricochets.is_empty(), "the grazing fan bounces", "%d bounces" % shot.ricochets.size())
 	combat.ricochet_enabled = ricochet_was
 	flat.boxes.assign(boxes_was)
