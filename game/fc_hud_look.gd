@@ -38,20 +38,24 @@ static func medal_icon(file: String) -> Texture2D:
 
 ## What each medal looks like: an icon file and a colour. The server's [FcAwards] says
 ## what a medal is called and what it is worth; this is only how it is drawn.
+const MEDAL_LOOKS := {
+	FcAwards.Medal.FIRST_BLOOD: ["splat", Color(0.86, 0.12, 0.18)],
+	FcAwards.Medal.HEADSHOT: ["target", Color(1.0, 0.33, 0.2)],
+	FcAwards.Medal.DOUBLE_KILL: ["skull", Color(1.0, 0.62, 0.1)],
+	FcAwards.Medal.TRIPLE_KILL: ["skull", Color(1.0, 0.45, 0.1)],
+	FcAwards.Medal.MULTI_KILL: ["skull", Color(0.95, 0.25, 0.55)],
+	FcAwards.Medal.REVENGE: ["sword", Color(0.78, 0.1, 0.32)],
+	FcAwards.Medal.SHUTDOWN: ["fire", Color(0.2, 0.52, 1.0)],
+	FcAwards.Medal.POINT_BLANK: ["arrows", Color(0.55, 0.36, 1.0)],
+	FcAwards.Medal.NO_SCOPE: ["zoom_out", Color(0.0, 0.7, 0.62)],
+	FcAwards.Medal.LONG_SHOT: ["arrow", Color(0.16, 0.7, 0.96)],
+	FcAwards.Medal.NEMESIS: ["skull_tile", Color(0.42, 0.12, 0.6)],
+}
+const NO_MEDAL_LOOK := ["", Color(0.5, 0.5, 0.5)]
+
+## Read only: the arrays are shared constants, one per medal, not made on every call.
 static func medal_look(medal: int) -> Array:
-	match medal:
-		FcAwards.Medal.FIRST_BLOOD: return ["splat", Color(0.86, 0.12, 0.18)]
-		FcAwards.Medal.HEADSHOT: return ["target", Color(1.0, 0.33, 0.2)]
-		FcAwards.Medal.DOUBLE_KILL: return ["skull", Color(1.0, 0.62, 0.1)]
-		FcAwards.Medal.TRIPLE_KILL: return ["skull", Color(1.0, 0.45, 0.1)]
-		FcAwards.Medal.MULTI_KILL: return ["skull", Color(0.95, 0.25, 0.55)]
-		FcAwards.Medal.REVENGE: return ["sword", Color(0.78, 0.1, 0.32)]
-		FcAwards.Medal.SHUTDOWN: return ["fire", Color(0.2, 0.52, 1.0)]
-		FcAwards.Medal.POINT_BLANK: return ["arrows", Color(0.55, 0.36, 1.0)]
-		FcAwards.Medal.NO_SCOPE: return ["zoom_out", Color(0.0, 0.7, 0.62)]
-		FcAwards.Medal.LONG_SHOT: return ["arrow", Color(0.16, 0.7, 0.96)]
-		FcAwards.Medal.NEMESIS: return ["skull_tile", Color(0.42, 0.12, 0.6)]
-	return ["", Color(0.5, 0.5, 0.5)]
+	return MEDAL_LOOKS.get(medal, NO_MEDAL_LOOK)
 
 
 ## Text with a dark outline, the way every piece of feedback is drawn over a bright map.

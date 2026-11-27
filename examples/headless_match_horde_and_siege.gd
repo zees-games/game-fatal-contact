@@ -643,6 +643,7 @@ func _test_geometry_held() -> void:
 const SPACE_QUERY_FILES := {
 	"game/fc_bots_world.gd": "tick",
 	"game/fc_bots_world_nav.gd": "tick",
+	"game/fc_bots_world_sight.gd": "tick",
 	"game/fc_map_io.gd": "tick",
 	"game/fc_props.gd": "tick",
 	"game/fc_surf.gd": "tick",

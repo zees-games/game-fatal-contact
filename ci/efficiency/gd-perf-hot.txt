@@ -14,3 +14,21 @@ game/fc_sim_host.gd
 cold+: start|_forward_flags|_exit_reason|priority_command|raise_priority|shell_child_args|solo_start_map|_free_port
 # Once per recorder start, map change, console change or status print, never per tick.
 cold+: start_ride_recording|start_demo_stats|refresh_spawn_rules|refresh_spawns|gs_sim_status|_print_gs_sim_status|describe
+# The client's per-frame path: the frame driver, its presentation, the HUD and the views.
+game/fc_client.gd
+game/fc_client_view.gd
+game/fc_client_frame_presentation.gd
+game/fc_presentation_vars_and_frame.gd
+game/fc_hud.gd
+game/fc_hud_*.gd
+game/fc_*_view.gd
+game/fc_view_arms*.gd
+game/fc_knife_trail.gd
+game/fc_drops.gd
+# The in-process listen server's per-frame step.
+game/fc_sim_server.gd
+# Not per frame: the presentation's console vars are registered once at setup (their lambdas run on a
+# console command), and the listen server's boot steps and its periodic SIM_HOST report lines run at boot
+# or once a report interval.
+cold+: _add_\w+_vars|_apply_cvars|_apply_bench_flags|_server_config|_print_ready|_die|_watch_slow_ticks|solo_tick_rate
+cold+: \w+_line|behind_notice
