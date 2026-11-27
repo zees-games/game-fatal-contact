@@ -423,10 +423,11 @@ func _build_projectiles() -> void:
 
 ## Hands `sv_native_shots` to the combat manager's tracer (fc_native_shots.gd).
 func apply_native_shots() -> void:
-	if combat == null or not (combat._tracer is FcNativeShots):
+	if combat == null:
 		return
-	var tracer := combat._tracer as FcNativeShots
-	tracer.enabled = native_shots != 0
+	var tracer := (combat.call(&"get_tracer") if combat.has_method(&"get_tracer") else combat._tracer) as FcNativeShots
+	if tracer != null:
+		tracer.enabled = native_shots != 0
 
 
 func _build_combat() -> GSResult:
@@ -454,7 +455,11 @@ func _build_combat() -> GSResult:
 	combat.rewind_fn = _unlag_rewind
 	combat.restore_fn = _unlag_restore
 	# Hitscan pellets walk in GameSpice Sim when it is loaded (sv_native_shots); the script tracer stays the fallback.
-	combat._tracer = FcNativeShots.new(combat)
+	# gs-combat 8's set_tracer is the seam; an older gs-combat only has the private field.
+	if combat.has_method(&"set_tracer"):
+		var _set: bool = combat.call(&"set_tracer", FcNativeShots.new(combat))
+	else:
+		combat._tracer = FcNativeShots.new(combat)
 	apply_native_shots()
 
 	add_child(combat)

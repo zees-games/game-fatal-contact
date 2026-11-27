@@ -10,8 +10,12 @@ const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 ## Hitscan parity: the same shots walked by GameSpice Sim's GSSimShots (sv_native_shots 1) and by
 ## gs-combat's script GSPelletTracer give the same damage rows (victim, amounts, group, limb, point,
 ## direction, distance, context), impacts, wall passes and ricochets, to the bit. Fans of pellets
-## over a standing target, a crouch-fitted one, a wood wall with bodies behind it, and a grazing metal
-## wall. Without the native class the comparison is skipped (and says so): the script path is all there is.
+## over a standing target, a crouch-fitted one, a wood wall with bodies behind it, two walls in a row,
+## a grazing metal wall, a one-sided sheet, a breakable pane (handed to the script), seeded shotgun
+## spreads, and a strafing, crouching target rewound by lag compensation to fractional view ticks.
+## sv_native_unlag: GSSimUnlagRing and the script rings, fed one history, answer the same feet and
+## crouch at every view tick a ping names, and the shots rewound from each hit and miss alike.
+## Without the native class every comparison FAILS: this suite exists to prove the native path.
 
 const TICK_RATE := FcContent.TICK_RATE
 const SHOOTER := 1
@@ -23,8 +27,8 @@ const SHIELD := 5
 const FAN := 13
 const SPAN := 5.0
 
-const CHECKS := 9
-const SECTIONS := 4
+const CHECKS := 25
+const SECTIONS := 10
 
 var _entered := 0
 var _completed := 0
@@ -32,6 +36,8 @@ var _game: FcGame = null
 var _native: FcNativeShots = null
 var _script: GSPelletTracer = null
 var _skip := ""
+## Called before each trace of a comparison (a pane mended), when valid.
+var _before_trace := Callable()
 
 
 func _ready() -> void:
@@ -46,6 +52,13 @@ func _run() -> void:
 	_crouched()
 	_wall()
 	_ricochet()
+	_two_walls()
+	_sheet()
+	_pane()
+	_spread()
+	_lagcomp()
+	_unlag_rings()
+	_timing()
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
@@ -91,8 +104,7 @@ func _boot() -> void:
 		_skip = "no FcNativeShots on the combat manager"
 	elif not _native.is_native():
 		_skip = "GameSpice Sim has no GSSimShots in this build"
-	if _skip != "":
-		print("  SKIP native comparison: %s (the script tracer is the only path)" % _skip)
+	_check(_skip == "", "GameSpice Sim's GSSimShots is loaded (the comparisons need it)", _skip)
 
 
 func _spawn(id: int, at: Vector3, tick: int) -> void:
@@ -144,7 +156,7 @@ func _wall() -> void:
 	pen.max_passes = 4
 	var shot := _shot_at(SHIELD, 1.1, pen)
 	_compare("wall", shot)
-	_check(_skip != "" or not shot.penetrations.is_empty(), "the wall fan passes the wall", "%d passes" % shot.penetrations.size())
+	_check(not shot.penetrations.is_empty(), "the wall fan passes the wall", "%d passes" % shot.penetrations.size())
 	flat.boxes.assign(boxes_was)
 	flat.box_materials.assign(mats_was)
 	_completed += 1
@@ -172,11 +184,319 @@ func _ricochet() -> void:
 	var shooter: FcPlayer = _game.player_for(SHOOTER)
 	var shot := _shot(shooter.muzzle_position(), Vector3(-0.12, 0.0, -1.0).normalized(), pen)
 	_compare("ricochet", shot)
-	_check(_skip != "" or not shot.ricochets.is_empty(), "the grazing fan bounces", "%d bounces" % shot.ricochets.size())
+	_check(not shot.ricochets.is_empty(), "the grazing fan bounces", "%d bounces" % shot.ricochets.size())
 	combat.ricochet_enabled = ricochet_was
 	flat.boxes.assign(boxes_was)
 	flat.box_materials.assign(mats_was)
 	_completed += 1
+
+
+func _two_walls() -> void:
+	_section("two wood walls in a row, bodies behind, penetrating round")
+	var flat := _game.combat.trace as GSTraceFlat
+	var boxes_was := flat.boxes.duplicate()
+	var mats_was := flat.box_materials.duplicate()
+	var _a: RefCounted = flat.add_box(AABB(Vector3(-9.0, 0.0, -4.1), Vector3(6.0, 4.0, 0.2)), &"wood")
+	var _b: RefCounted = flat.add_box(AABB(Vector3(-9.0, 0.0, -6.6), Vector3(6.0, 4.0, 0.25)), &"wood")
+	var pen := _wood_round(2.4)
+	var shot := _shot_at(SHIELD, 1.1, pen)
+	var _w := _compare("two walls", shot)
+	var per_pellet := {}
+	for p: Dictionary in shot.penetrations:
+		per_pellet[p["pellet"]] = int(per_pellet.get(p["pellet"], 0)) + 1
+	var most := 0
+	for n: int in per_pellet.values():
+		most = maxi(most, n)
+	_check(most >= 2, "a pellet passes both walls", "%d passes, at most %d by one pellet" % [shot.penetrations.size(), most])
+	flat.boxes.assign(boxes_was)
+	flat.box_materials.assign(mats_was)
+	_completed += 1
+
+
+func _sheet() -> void:
+	_section("a one-sided sheet (no far face; sheet_thickness invents one)")
+	var flat := _game.combat.trace as GSTraceFlat
+	var faced := _faced(flat)
+	faced.sheet_box = faced.boxes.size()
+	var _s: RefCounted = faced.add_box(AABB(Vector3(-3.0, 0.0, -5.05), Vector3(6.0, 4.0, 0.05)), &"sheet_metal")
+	var combat := _game.combat
+	var sheets_was := combat.sheet_thickness.duplicate()
+	combat.sheet_thickness[&"sheet_metal"] = 0.004
+	combat.trace = faced
+	var pen := GSPenetration.new()
+	pen.power = 1.0
+	pen.materials = {&"sheet_metal": 2.0}
+	pen.max_depth = 1.0
+	pen.body_cost = 0.3
+	pen.max_passes = 3
+	var shot := _shot_at(STANDING, 1.2, pen)
+	var _w := _compare("sheet", shot)
+	var sheets := 0
+	for p: Dictionary in shot.penetrations:
+		sheets += 1 if p["sheet"] else 0
+	_check(sheets > 0, "the fan passes the sheet as a sheet", "%d sheet passes of %d" % [sheets, shot.penetrations.size()])
+	combat.trace = flat
+	combat.sheet_thickness = sheets_was
+	_completed += 1
+
+
+func _pane() -> void:
+	_section("a breakable pane: its pellets go to the script, the rest stay native")
+	var flat := _game.combat.trace as GSTraceFlat
+	var faced := _faced(flat)
+	faced.pane_box = faced.boxes.size()
+	var _p: RefCounted = faced.add_box(AABB(Vector3(-1.0, 0.0, -4.005), Vector3(2.0, 3.0, 0.005)), &"glass")
+	faced.pane = Pane.new()
+	var combat := _game.combat
+	combat.trace = faced
+	_before_trace = func() -> void: faced.pane.mend(70.0)
+	var shot := _shot_at(STANDING, 1.2, null)
+	var walked := _compare("pane", shot)
+	_before_trace = Callable()
+	_check(faced.pane.hits > 0 and walked < shot.pellets.size(), "the pane takes pellets and hands them to the script",
+		"%d pane hits, broken %s, %d of %d pellets native" % [faced.pane.hits, faced.pane.is_broken(), walked, shot.pellets.size()])
+	combat.trace = flat
+	faced.pane.free()
+	_completed += 1
+
+
+func _spread() -> void:
+	_section("seeded shotgun spreads: 12 pellets in a 4 degree cone, four targets")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var crouched: FcPlayer = _game.player_for(CROUCHED)
+	crouched.fit_hitboxes_to_crouch(1.0)
+	var targets := [[STANDING, 1.0, null], [CROUCHED, 0.6, null], [SHIELD, 1.3, _wood_round(1.0)], [BEHIND, 0.9, _wood_round(1.6)]]
+	for t: Array in targets:
+		var shooter: FcPlayer = _game.player_for(SHOOTER)
+		var target: FcPlayer = _game.player_for(t[0])
+		var origin := shooter.muzzle_position()
+		var aim := target.global_position + Vector3.UP * float(t[1]) * FcPlayerTunables.body_scale()
+		var shot := _shot(origin, (aim - origin).normalized(), t[2])
+		shot.pellets.clear()
+		var right := shot.direction.cross(Vector3.UP).normalized()
+		var up := right.cross(shot.direction).normalized()
+		for i in 12:
+			var spin := rng.randf() * TAU
+			var off := tan(deg_to_rad(4.0)) * sqrt(rng.randf())
+			shot.pellets.append((shot.direction + (right * cos(spin) + up * sin(spin)) * off).normalized())
+		shot.pellet_count = shot.pellets.size()
+		var _w := _compare("spread at P%d" % t[0], shot)
+	crouched.fit_hitboxes_to_crouch(0.0)
+	_completed += 1
+
+
+## Lag compensation's rewind moves the bodies and refits their crouch before the pellets: the native
+## poses must read both. Twelve recorded ticks of P2 strafing right 0.25 m a tick while crouching in.
+func _lagcomp() -> void:
+	_section("lag comp: a strafing, crouching target rewound to fractional view ticks")
+	var p: FcPlayer = _game.player_for(STANDING)
+	var now: int = _game._tick
+	var start := p.global_position
+	var crouch_was: float = p.controller.state.crouch_fraction
+	for k in 12:
+		var t := now - 11 + k
+		p.global_position = start + Vector3.RIGHT * 0.25 * float(t - now)
+		p.controller.state.crouch_fraction = clampf(0.15 * float(k), 0.0, 1.0) if t < now else crouch_was
+		_game._tick = t
+		_game._unlag_record()
+	_game._tick = now
+	p.global_position = start
+	p.controller.state.crouch_fraction = crouch_was
+	var hits := 0
+	var rewound := true
+	for view in [float(now) - 9.5, float(now) - 4.6]:
+		var then: Vector3 = _game.unlag_position_at(STANDING, view)
+		var shooter: FcPlayer = _game.player_for(SHOOTER)
+		var origin := shooter.muzzle_position()
+		var aim := then + Vector3.UP * 0.7 * FcPlayerTunables.body_scale()
+		var shot := _shot(origin, (aim - origin).normalized(), null)
+		var _w := _compare("rewound to %.1f" % (view - float(now)), shot, view)
+		rewound = rewound and _outputs(shot, view)[4]
+		for d in shot.damages:
+			hits += 1 if d.victim == STANDING else 0
+	_check(rewound and hits > 0 and p.global_position == start, "the rewound fans hit P2 where it was, and it is put back",
+		"rewound %s, %d hits on P2" % [rewound, hits])
+	_completed += 1
+
+
+## sv_native_unlag: forty ticks of a near target strafing and crouching and a far one (70 m) that
+## teleports half-way, recorded once into the script rings and once into GSSimUnlagRing. Both answer
+## the same feet and crouch at every view a ping from 0 to 900 ms names (before the history, across the
+## cut, between ticks), and fans aimed at where each was, and at where each is, rewound from either
+## ring hit and miss the same bodies with the same rows. The script tracer walks both: only the ring differs.
+func _unlag_rings() -> void:
+	_section("lag-comp rings: GSSimUnlagRing against the script rings, near and far, across pings")
+	var near: FcPlayer = _game.player_for(STANDING)
+	var far: FcPlayer = _game.player_for(BEHIND)
+	var near_was := near.global_position
+	var far_was := far.global_position
+	var crouch_was: float = near.controller.state.crouch_fraction
+	var far_now := Vector3(8.0, 0.05, -70.0)
+	var tick_was: int = _game._tick
+	var now: int = tick_was + 200
+	var span := 40
+	var views: Array[float] = [float(now - span - 3), float(now - span) + 0.5, float(now - span + 20) - 0.5, float(now - span + 20) + 0.25]
+	for ping_ms in [0.0, 15.0, 33.0, 50.0, 80.0, 120.0, 180.0, 250.0, 400.0, 600.0, 900.0]:
+		views.append(float(now) - ping_ms / 1000.0 * float(TICK_RATE) - 0.37)
+	var answers := {}
+	var shots := {}
+	var native_used := false
+	for mode in [0, 1]:
+		_game.native_unlag = mode
+		_game.apply_native_unlag()
+		for k in span:
+			var back := float(span - 1 - k)
+			_game._tick = now - span + 1 + k
+			near.global_position = near_was + Vector3.LEFT * 0.3 * back
+			near.controller.state.crouch_fraction = clampf(fmod(0.13 * float(k), 1.4), 0.0, 1.0)
+			far.global_position = far_now + Vector3.RIGHT * 0.2 * back + (Vector3.LEFT * 15.0 if k < 20 else Vector3.ZERO)
+			_game._unlag_record()
+		_game._tick = now
+		near.global_position = near_was
+		near.controller.state.crouch_fraction = crouch_was
+		far.global_position = far_now
+		if mode == 1:
+			native_used = _game._unlag_native != null and _game._unlag.is_empty()
+		var rows: Array = []
+		for view in views:
+			rows.append([_game.unlag_position_at(STANDING, view), _game.unlag_crouch_at(STANDING, view),
+				_game.unlag_position_at(BEHIND, view), _game.unlag_crouch_at(BEHIND, view)])
+		answers[mode] = rows
+		var fired: Array = []
+		for i in views.size():
+			for target in [[STANDING, near_was], [BEHIND, far_now]]:
+				var then: Variant = (answers[0] as Array)[i][0 if target[0] == STANDING else 2]
+				for aim_at in [then, target[1]]:
+					if aim_at == null:
+						continue
+					var shooter: FcPlayer = _game.player_for(SHOOTER)
+					var origin := shooter.muzzle_position()
+					var at: Vector3 = aim_at
+					var aim: Vector3 = at + Vector3.UP * 1.0 * FcPlayerTunables.body_scale()
+					var shot := _shot(origin, (aim - origin).normalized(), null)
+					var tracer_was: RefCounted = _game.combat._tracer
+					_game.combat._tracer = _script
+					var out := _outputs(shot, views[i])
+					_game.combat._tracer = tracer_was
+					fired.append([target[0], out])
+		shots[mode] = fired
+	_game.native_unlag = 1
+	_game.apply_native_unlag()
+	_game._tick = tick_was
+	far.global_position = far_was
+	var ring_diff := ""
+	var unrecorded := 0
+	for i in views.size():
+		if var_to_str(answers[0][i]) != var_to_str(answers[1][i]) and ring_diff == "":
+			ring_diff = "view %.2f: script %s vs native %s" % [views[i] - float(now), var_to_str(answers[0][i]), var_to_str(answers[1][i])]
+		unrecorded += 1 if answers[0][i][0] == null else 0
+	_check(native_used and ring_diff == "" and unrecorded > 0 and unrecorded < views.size(),
+		"the native rings answer the script rings' feet and crouch at every view, both targets",
+		"native %s, %d views, %d before the history%s" % [native_used, views.size(), unrecorded, "" if ring_diff == "" else "; " + ring_diff])
+	var shot_diff := ""
+	var hits := {STANDING: 0, BEHIND: 0}
+	var misses := 0
+	for j in (shots[0] as Array).size():
+		var a: Array = shots[0][j]
+		var b: Array = shots[1][j]
+		var diff := _first_difference(a[1], b[1])
+		if diff == "" and a[1][4] != b[1][4]:
+			diff = "rewound %s (script) vs %s (native)" % [a[1][4], b[1][4]]
+		if diff != "" and shot_diff == "":
+			shot_diff = "shot %d at P%d: %s" % [j, a[0], diff]
+		var hit := false
+		for row in a[1][0]:
+			hit = hit or row[1] == a[0]
+		if hit:
+			hits[a[0]] += 1
+		else:
+			misses += 1
+	_check(shot_diff == "" and hits[STANDING] > 0 and hits[BEHIND] > 0 and misses > 0,
+		"fans rewound from either ring hit and miss alike, near and far",
+		"%d shots: %d near hits, %d far hits, %d misses%s" % [(shots[0] as Array).size(), hits[STANDING], hits[BEHIND], misses, "" if shot_diff == "" else "; " + shot_diff])
+	_completed += 1
+
+
+## Not a check: microseconds per traced shot (a 169-pellet penetrating fan at P4 in the open map), script then
+## native, for the report. Printed only; boxes differ too much for a bound to mean anything.
+func _timing() -> void:
+	if _skip != "":
+		return
+	var shot := _shot_at(BEHIND, 1.0, _wood_round(2.4))
+	var combat := _game.combat
+	var tracer_was: RefCounted = combat._tracer
+	var per := {}
+	_native.enabled = true
+	for tracer in [_script, _native]:
+		combat._tracer = tracer
+		for i in 5:
+			var _warm := _outputs(shot, -1.0)
+		var t0 := Time.get_ticks_usec()
+		for i in 100:
+			var _o := _outputs(shot, -1.0)
+		per[tracer] = float(Time.get_ticks_usec() - t0) / 100.0
+	combat._tracer = tracer_was
+	print("timing: %d pellets a shot, script %.0f us, native %.0f us (%.1fx)" % [shot.pellets.size(), per[_script], per[_native], per[_script] / maxf(per[_native], 0.001)])
+
+
+func _wood_round(power: float) -> GSPenetration:
+	var pen := GSPenetration.new()
+	pen.power = power
+	pen.materials = {&"wood": 1.0}
+	pen.max_depth = 1.0
+	pen.body_cost = 0.3
+	pen.speed = 900.0
+	pen.reference_speed = 850.0
+	pen.min_damage = 0.2
+	pen.max_passes = 4
+	return pen
+
+
+## A copy of [param flat] that can hold a one-sided sheet and a pane.
+func _faced(flat: GSTraceFlat) -> FacedTrace:
+	var faced := FacedTrace.new()
+	faced.floor_y = flat.floor_y
+	faced.boxes.assign(flat.boxes)
+	faced.box_materials.assign(flat.box_materials)
+	faced.native = flat.native
+	faced.repack()
+	return faced
+
+
+## The flat trace with two test fixtures: box [member sheet_box] answers only on its +Z face (a ray
+## from behind finds no far face), and box [member pane_box]'s hits carry [member pane] as the collider.
+class FacedTrace extends GSTraceFlat:
+	var sheet_box := -1
+	var pane_box := -1
+	var pane: Node = null
+
+	func _world_ray(from: Vector3, direction: Vector3, max_distance: float) -> GSHitbox.Hit:
+		var hit := super(from, direction, max_distance)
+		if not hit.ok():
+			return hit
+		if sheet_box >= 0 and boxes[sheet_box].grow(0.0001).has_point(hit.point) and hit.normal != Vector3.BACK:
+			return GSHitbox.Hit.new()
+		if pane_box >= 0 and boxes[pane_box].grow(0.0001).has_point(hit.point):
+			hit.collider = pane
+		return hit
+
+
+## gs-combat's pane contract: hurt() and is_broken().
+class Pane extends Node:
+	var health := 0.0
+	var hits := 0
+
+	func mend(to: float) -> void:
+		health = to
+		hits = 0
+
+	func hurt(amount: float, _point: Vector3, _kind: StringName) -> void:
+		health -= amount
+		hits += 1
+
+	func is_broken() -> bool:
+		return health <= 0.0
 
 
 # --- Shots --------------------------------------------------------------------
@@ -210,19 +530,19 @@ func _shot(origin: Vector3, direction: Vector3, pen: GSPenetration) -> GSShot:
 
 
 ## Traces [param shot] with the script tracer, then a copy with the native one, and checks every output matches.
-func _compare(label: String, shot: GSShot) -> void:
+func _compare(label: String, shot: GSShot, view_tick := -1.0) -> int:
 	var combat := _game.combat
 	var tracer_was: RefCounted = combat._tracer
 	combat._tracer = _script
-	var want := _outputs(shot)
+	var want := _outputs(shot, view_tick)
 	if _skip != "":
 		combat._tracer = tracer_was
-		_check(true, "%s: script tracer ran (%s; native skipped)" % [label, _skip])
-		return
+		_check(false, "%s: native and script give the same hits, damage and passes" % label, "no native path: " + _skip)
+		return 0
 	_native.enabled = true
 	var before := _native.native_pellets
 	combat._tracer = _native
-	var got := _outputs(shot)
+	var got := _outputs(shot, view_tick)
 	combat._tracer = tracer_was
 	var walked := _native.native_pellets - before
 	var diff := _first_difference(want, got)
@@ -232,20 +552,31 @@ func _compare(label: String, shot: GSShot) -> void:
 			walked, shot.pellets.size(), "" if diff == "" else "; " + diff])
 
 
-## [damages as value rows, impacts, penetrations, ricochets] after one trace of [param shot].
-func _outputs(shot: GSShot) -> Array:
+## [damages as value rows, impacts, penetrations, ricochets] after one trace of [param shot], rewound to [param view_tick] when it is not negative.
+func _outputs(shot: GSShot, view_tick: float) -> Array:
 	shot.damages.clear()
-	var _lap := _game.combat._trace_shot(shot)
+	shot.impacts.clear()
+	shot.penetrations.clear()
+	shot.ricochets.clear()
+	if _before_trace.is_valid():
+		_before_trace.call()
+	var combat := _game.combat
+	var rewound := false
+	if view_tick >= 0.0:
+		_game._unlag_shooter = SHOOTER
+		rewound = combat._begin_rewind(shot, view_tick)
+	var _lap := combat._trace_shot(shot)
+	combat._end_rewind(rewound)
 	var rows: Array = []
 	for d in shot.damages:
 		rows.append([d.attacker, d.victim, d.base_amount, d.amount, d.hit_group, d.limb, d.point, d.direction,
 			d.distance, d.weapon_id, d.tick, d.type, d.context])
-	return [rows, shot.impacts.duplicate(), shot.penetrations.duplicate(true), shot.ricochets.duplicate(true)]
+	return [rows, shot.impacts.duplicate(), shot.penetrations.duplicate(true), shot.ricochets.duplicate(true), rewound]
 
 
 static func _first_difference(want: Array, got: Array) -> String:
 	var names := ["damage", "impact", "pass", "ricochet"]
-	for k in want.size():
+	for k in names.size():
 		var a: Array = want[k]
 		var b: Array = got[k]
 		if a.size() != b.size():

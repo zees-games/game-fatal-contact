@@ -215,6 +215,13 @@ func _add_shot_rewind_cvars() -> void:
 			game.native_shots = new_value.to_int()
 			game.apply_native_shots()
 			log_info("native shots changed", {"on": game.native_shots}))
+	add_cvar("sv_native_unlag", str(game.native_unlag),
+		"1 keeps lag-compensation history natively (GameSpice Sim GSSimUnlagRing), 0 in script",
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.native_unlag = new_value.to_int()
+			game.apply_native_unlag()
+			log_info("native unlag changed", {"on": game.native_unlag}))
 	add_cvar("cl_shot_view_cone_deg", str(game.shot_view_cone_deg),
 		"Degrees off the aim within which a shot names a target's own snapshot pair to the server (0 every target)",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
