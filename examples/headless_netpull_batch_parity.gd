@@ -15,6 +15,8 @@ const WeaponParity := preload("headless_netpull_weapons_parity.gd")
 ## player's own FcPlayerNet.pull writes, to the bit, through the script and through the per-player natives. Seeded movement,
 ## held values, wire widths (one only the script handles), the hold on and off, arsenals, rigs and wind-ups, over bots and
 ## people (seeds as headless_netpull_native_parity and headless_netpull_weapons_parity). Without the library the suite says so.
+## Each lane also compares every player's snapshot state bytes (GSNetBehaviour._encode over all its declarations), and the
+## batch runs twice: gs-sim writing the fields (`sv_net_pull_apply_native`, GSSimFpsNetPullBatch.pull_apply) and the script.
 
 const ROUNDS := 4000
 const SEED := 6262
@@ -83,49 +85,26 @@ func _run() -> void:
 	if not native:
 		print("gs-sim has no GSSimFpsNetPullBatch: only the per-player lanes are exercised")
 	var was := [FcPlayerNet.hold_subquantum, FcNetPullBatch.enabled, FcNetPullNative.enabled, FcNetPullWeapons.weapons_enabled,
-			FcNetPullWeapons.content_enabled]
+			FcNetPullWeapons.content_enabled, FcNetPullBatch.apply_native]
+	if native:
+		_check(FcNetPullBatch.applies_natively(), "gs-sim writes the batch's fields (GSSimFpsNetPullBatch.pull_apply)")
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
-	var differ := [0, 0]
-	var first := ""
-	var batched := 0
-	var expect_batched := 0
-	for i in ROUNDS:
-		FcPlayerNet.hold_subquantum = i % 11 != 0
-		var start := rng.state
-		var lanes: Array = []
-		for lane in 3:
-			rng.state = start
-			_seed_round(nets, configs, rng, i, i % 2 == 0)
-			_set_natives(lane != 1, lane == 0)
-			if lane == 0:
-				var n := FcNetPullBatch.pull_all(nets, i)
-				batched += n
-				for net: FcPlayerNet in nets:
-					if net._batched_tick != i:
-						net.pull()
-			else:
-				for net: FcPlayerNet in nets:
-					net.pull()
-			lanes.append(_read(nets))
-		if native:
-			for k in PLAYERS:
-				if FcPlayerNet.hold_subquantum and (i + k) % WIRES.size() == DECLINED:
-					continue
-				expect_batched += 1
-		for other in 2:
-			if var_to_bytes(lanes[0]) != var_to_bytes(lanes[other + 1]):
-				differ[other] += 1
-				if first == "":
-					first = "round %d vs %s: %s" % [i, ["script", "native"][other], _first_diff(lanes[0], lanes[other + 1])]
+	var run := _rounds(nets, configs, rng, native)
+	var differ: Array = run[0]
+	var first: String = run[1]
+	var batched: int = run[2]
+	var expect_batched: int = run[3]
 	FcPlayerNet.hold_subquantum = was[0]
 	FcNetPullBatch.enabled = was[1]
 	FcNetPullNative.enabled = was[2]
 	FcNetPullWeapons.weapons_enabled = was[3]
 	FcNetPullWeapons.content_enabled = was[4]
+	FcNetPullBatch.apply_native = was[5]
 	print("  %d rounds of %d players, %d player pulls through the batch" % [ROUNDS, PLAYERS, batched])
 	_check(differ[0] == 0, "batch net_* equal each player's script pull to the bit", "%d differ; %s" % [differ[0], first])
 	_check(differ[1] == 0, "and each player's native pull", "%d differ; %s" % [differ[1], first])
+	_check(differ[2] == 0, "and the batch with the script writing the fields, snapshot bytes included", "%d differ; %s" % [differ[2], first])
 	if native:
 		_check(batched == expect_batched, "every player the batch can pull went through it, the declined width did not",
 				"%d of %d" % [batched, expect_batched])
@@ -138,10 +117,51 @@ func _run() -> void:
 		net.free()
 	_move.free()
 	_weapon.free()
-	var expected := 6 if native else 4
+	var expected := 8 if native else 5
 	var ok := _failed == 0 and _checks == expected
 	print("%d checks, %d failed (expected %d)" % [_checks, _failed, expected])
 	get_tree().quit(0 if ok else 1)
+
+
+## [constant ROUNDS] seeded rounds in four lanes (batch with gs-sim writing the fields, script, per-player natives, batch
+## with the script writing them): [differences per other lane, the first, players batched, players the batch should take].
+func _rounds(nets: Array, configs: Array, rng: RandomNumberGenerator, native: bool) -> Array:
+	var differ := [0, 0, 0]
+	var first := ""
+	var batched := 0
+	var expect_batched := 0
+	for i in ROUNDS:
+		FcPlayerNet.hold_subquantum = i % 11 != 0
+		var start := rng.state
+		var lanes: Array = []
+		for lane in 4:
+			rng.state = start
+			_seed_round(nets, configs, rng, i, i % 2 == 0)
+			_set_natives(lane != 1, lane == 0 or lane == 3)
+			FcNetPullBatch.apply_native = lane == 0
+			if lane == 0 or lane == 3:
+				var n := FcNetPullBatch.pull_all(nets, i)
+				if lane == 0:
+					batched += n
+				for net: FcPlayerNet in nets:
+					if net._batched_tick != i:
+						net.pull()
+			else:
+				for net: FcPlayerNet in nets:
+					net.pull()
+			lanes.append(_read(nets))
+		if native:
+			for k in PLAYERS:
+				if FcPlayerNet.hold_subquantum and (i + k) % WIRES.size() == DECLINED:
+					continue
+				expect_batched += 1
+		for other in 3:
+			if var_to_bytes(lanes[0]) != var_to_bytes(lanes[other + 1]):
+				differ[other] += 1
+				if first == "":
+					first = "round %d vs %s: %s" % [i, ["script", "native", "script apply"][other],
+						_first_diff(lanes[0], lanes[other + 1])]
+	return [differ, first, batched, expect_batched]
 
 
 ## Seeds every player's movement, held values, wire widths, rig and wind-up from [param rng], then poisons each
@@ -180,22 +200,24 @@ func _set_natives(natives: bool, batch: bool) -> void:
 	FcNetPullBatch.enabled = batch
 
 
-## Every net_* field of every player, then its identity's relevance.
+## Every net_* field of every player, then its identity's relevance and its snapshot state bytes (all declarations).
 func _read(nets: Array) -> Array:
 	var out: Array = []
 	for net: FcPlayerNet in nets:
 		for f in _fields:
 			out.append(net.get(f))
 		out.append(net.identity.always_relevant)
+		out.append(net._encode(net.net_vars)[0])
 	return out
 
 
 func _first_diff(a: Array, b: Array) -> String:
-	var per := _fields.size() + 1
+	var per := _fields.size() + 2
 	for j in a.size():
 		if var_to_bytes(a[j]) != var_to_bytes(b[j]):
 			var f := j % per
-			return "player %d %s: batch %s, other %s" % [j / per, _fields[f] if f < _fields.size() else &"always_relevant", a[j], b[j]]
+			var what: StringName = _fields[f] if f < _fields.size() else [&"always_relevant", &"snapshot bytes"][f - _fields.size()]
+			return "player %d %s: batch %s, other %s" % [j / per, what, a[j], b[j]]
 	return "sizes %d, %d" % [a.size(), b.size()]
 
 
