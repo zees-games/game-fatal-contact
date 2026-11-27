@@ -19,7 +19,7 @@ var fall_rules: GSFallDamageRules = make_fall_rules()
 
 ## Landing on a head (`sv_stomp*`, the cfg `stomp_*` keys); the numbers are copied from [member config] each tick.
 var stomp := GSStomp.new()
-var _pre_vy: Dictionary = {}
+var _pre_vy: Dictionary[int, float] = {}
 ## Where each player's saved loadouts are filed (a stable key when they have one).
 var loadout_identity := FcLoadoutIdentity.new()
 
@@ -77,7 +77,7 @@ var _roster: Array[FcPlayer] = []
 var _roster_ids := PackedInt64Array()
 var _roster_dirty := true
 ## Roster index by player id, rebuilt with [member _roster].
-var _roster_at: Dictionary = {}
+var _roster_at: Dictionary[int, int] = {}
 ## [method _add_hulls_local]'s pair answers this tick, row-major by roster index: 0 unasked, 1 blocks, 2 passes.
 var _pair_memo := PackedByteArray()
 var _pair_memo_tick: int = -1
@@ -90,22 +90,22 @@ var _hull_world_data := PackedFloat64Array()
 ## The players' motors ticked in runs of one native call ([method _tick_players_batched]), and each roster slot's row and commands.
 var _motor_batch: GSFpsMotorBatch = null
 var _batch_rows := PackedInt32Array()
-var _batch_pairs: Array = []
+var _batch_pairs: Array[Array] = []
 ## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its
 ## `GSSimPlayerPost`, the input rows (10 floats each) and each one's player, id and move command.
 var _post_native: Object = null
 ## Which batched players are clear of the map's volumes this tick (cvar fc_mechanics_native).
 var _volume_pre := preload("fc_volume_prefilter.gd").new()
 var _post_in := PackedFloat64Array()
-var _post_players: Array = []
+var _post_players: Array[FcPlayer] = []
 var _post_ids := PackedInt64Array()
-var _post_moves: Array = []
+var _post_moves: Array[GSFpsCommand] = []
 ## The idle weapons' batch ([member FcPlayer.weapon_idle_batch]): gs-sim's runner, its flat entries, each entry's player
 ## and each posted player's outcome.
 var _idle_batch: Object = null
 var _idle_entries: Array = []
-var _idle_owners: Array = []
-var _idle_outs: Array = []
+var _idle_owners: Array[FcPlayer] = []
+var _idle_outs: Array[GSWeaponOutcome] = []
 var _demo_gated := false
 
 

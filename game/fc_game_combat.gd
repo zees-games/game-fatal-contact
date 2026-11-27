@@ -48,10 +48,10 @@ func sim_tick() -> int:
 
 func _exit_tree() -> void:
 	if surf_rides != null:
-		surf_rides.call(&"release")
+		surf_rides.release()
 		surf_rides = null
 	if demo_stats != null:
-		demo_stats.call(&"release")
+		demo_stats.release()
 		demo_stats = null
 	if _registered_name != &"":
 		GSRegistry.unregister_instance(_registered_name, self)
@@ -127,7 +127,7 @@ func apply_drop_rules() -> void:
 	drops.pack_health = float(drop_rules["pack_health"])
 	drops.pack_ammo_share = clampf(float(drop_rules["pack_ammo"]) / 100.0, 0.0, 1.0)
 	drops.pack_respawn_sec = float(drop_rules["pack_respawn"])
-	var wanted: Array = [
+	var wanted: Array[Variant] = [
 		map, drops, drops.packs_enabled, drops.pack_health, drops.pack_ammo_share, drops.pack_respawn_sec,
 	]
 	if map != null and is_authority and (_packs_placed_with.size() != wanted.size() or wanted != _packs_placed_with):
@@ -627,9 +627,9 @@ func _tick_rest(delta: float) -> void:
 		FcFrameProbe.lap(&"st_apply", t_lap)
 
 	if surf_rides != null:
-		surf_rides.call(&"process", delta)
+		surf_rides.process(delta)
 	if demo_stats != null:
-		demo_stats.call(&"process", delta)
+		demo_stats.process(delta)
 
 ## Who can pick up a drop this tick, keyed by player id.
 func _drop_sweepers() -> Dictionary:

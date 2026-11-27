@@ -23,8 +23,8 @@ func _batched_input(id: int, player: FcPlayer, pair: Array, knife_charge: bool, 
 	match_node.note_activity(str(id), _tick)
 	t_lap = FcFrameProbe.lap(&"pp_note", t_lap)
 	if surfing:
-		surf_rides.call(&"before_synced", id, player)
+		surf_rides.before_synced(id, player)
 	elif not FcPlayer.lean_tick and surf_rides != null:
-		surf_rides.call(&"before", id, player)
+		surf_rides.before(id, player)
 	FcFrameProbe.lap(&"pp_surf", t_lap)
 	return pair if pair.size() == 2 else [move, fire]

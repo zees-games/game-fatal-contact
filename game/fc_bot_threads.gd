@@ -87,8 +87,8 @@ static func active(bot_count: int) -> bool:
 
 ## [move, fire] per bot, in order, as [method FcBots.think] gives each one. [param players] and
 ## [param minds] are parallel arrays.
-static func think_all(game: Object, players: Array, minds: Array, tick: int, tick_rate: float) -> Array:
-	var out: Array = []
+static func think_all(game: Object, players: Array, minds: Array, tick: int, tick_rate: float) -> Array[Array]:
+	var out: Array[Array] = []
 	out.resize(players.size())
 	var pending: Array[int] = []
 	var t_part := phase_start()
