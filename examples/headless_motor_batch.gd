@@ -276,19 +276,19 @@ func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> vo
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
-## The batched loop's variants replay the recording to the bit: the long way and sv_native_tick 0.
+## The batched loop's variants replay the recording to the bit: the long way and sv_native_motor_state 0.
 func _check_loop_variants(resident: PackedStringArray, streams: Array) -> void:
 	# The lean loop (FcPlayer.lean_tick) only skips calls that change nothing: the long way must play the same match.
 	FcPlayer.lean_tick = false
 	var long_way: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
 	FcPlayer.lean_tick = true
 	_check(long_way[0] == resident, "the lean players' loop plays it to the bit as the long way (%s)" % _first_diff(long_way[0], resident))
-	# sv_native_tick 0: the batch is handed every column each tick instead of keeping the motor state in gs-sim.
+	# sv_native_motor_state 0: the batch is handed every column each tick instead of keeping the motor state in gs-sim.
 	print("  resident motor state in gs-sim (run_slots): %s" % ClassDB.class_has_method(&"GSSimMotorBatch", &"run_slots"))
 	GSFpsMotorBatch.native_state = false
 	var copied: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
 	GSFpsMotorBatch.native_state = true
-	_check(copied[0] == resident, "sv_native_tick 0 (columns sent each tick) plays it to the bit as the resident state (%s)" % _first_diff(resident, copied[0]))
+	_check(copied[0] == resident, "sv_native_motor_state 0 (columns sent each tick) plays it to the bit as the resident state (%s)" % _first_diff(resident, copied[0]))
 
 
 func _section(title: String) -> void:
