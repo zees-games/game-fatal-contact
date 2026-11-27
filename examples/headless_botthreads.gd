@@ -106,25 +106,27 @@ func _run() -> void:
 
 
 ## The native switches off play the match they play on: bot_native_think's script contacts, commands and tricks;
-## bot_native_pickup's, bot_native_act's and bot_native_drops's script pickup choice, steer and drop table.
+## bot_native_pickup's, bot_native_act's, bot_native_drops's and bot_native_unstick's script pickup choice, steer, drop table and stuck watch.
 func _switches_play_the_same(native: PackedStringArray) -> void:
 	# bot_native_think 0: gs-bot packs the contacts, new commands every tick, tricks in script; the same match to the digest.
 	FcBotRows.set_native_think(false)
 	var fresh := await _play(0)
 	FcBotRows.set_native_think(true)
 	_check(fresh[0] == native, "bot_native_think 0 (script contacts, new commands, script tricks) plays the match its reused pair plays (%d kills)" % fresh[1])
-	# bot_native_pickup 0, bot_native_act 0 and bot_native_drops 0 (gs-bot 46/47/49, by name): the pickup choice, the
-	# steer and the drop table in script, on
+	# bot_native_pickup 0, bot_native_act 0, bot_native_drops 0 and bot_native_unstick 0 (gs-bot 46/47/49/50, by name): the pickup choice, the
+	# steer, the drop table and the stuck watch in script, on
 	# workers; the same match to the digest (an older gs-bot has neither switch and plays it anyway).
 	var brain := GSBotBrain as Script
 	brain.set(&"native_pickup", false)
 	brain.set(&"native_act", false)
 	(GSBotWorld as Script).set(&"native_drops", false)
+	(GSBotUnstick as Script).set(&"native_enabled", false)
 	var scripted := await _play(4)
 	brain.set(&"native_pickup", true)
 	brain.set(&"native_act", true)
 	(GSBotWorld as Script).set(&"native_drops", true)
-	_check(scripted[0] == native, "bot_native_pickup 0, bot_native_act 0 and bot_native_drops 0 (script pickup, steer and drop table) play the native match (%d kills)" % scripted[1])
+	(GSBotUnstick as Script).set(&"native_enabled", true)
+	_check(scripted[0] == native, "bot_native_pickup 0, bot_native_act 0, bot_native_drops 0 and bot_native_unstick 0 (script pickup, steer, drop table and stuck watch) play the native match (%d kills)" % scripted[1])
 
 
 func _section(title: String) -> void:
