@@ -92,7 +92,7 @@ var _hull_world_data := PackedFloat64Array()
 var _motor_batch: GSFpsMotorBatch = null
 var _batch_rows := PackedInt32Array()
 var _batch_pairs: Array = []
-## gs-sim's server tick (`sv_native_tick`): holds the batch's resident motor rows and the player table, stepped once a tick after the batched loop.
+## gs-sim's server tick (`sv_native_motor_state`): holds the batch's resident motor rows and the player table, stepped once a tick after the batched loop.
 var _native_tick := FcNativeTick.new()
 var _native_tick_on := false
 ## The batched loop's motor edges for every player ([member FcHullGrid.events]): one row per player's tick, derived and dispatched after the loop.
