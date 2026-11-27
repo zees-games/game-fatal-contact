@@ -62,13 +62,26 @@ var native: Object = null
 var _begin_rows := PackedFloat64Array()
 var _world: Object = null
 var _motor: Object = null
+## Whether [member native] has `derive` (API 2+), asked once when it is made.
+var _native_derives := false
+## The batch and events [method start] last handed the native objects (null while off): a tick with the same pair
+## makes no calls by name.
+var _wired_batch: GSFpsMotorBatch = null
+var _wired_events: GSFpsTickEvents = null
+## [method table_weapons]' answer, reused.
+var _weapon_out := PackedInt64Array([0, 0, 0])
 
 
 ## Whether the library has a usable server tick. Checked once; says what is missing when the library is there.
 static func available() -> bool:
-	if _checked:
-		return _ok
-	_checked = true
+	if not _checked:
+		_checked = true
+		_ok = _build_status()
+	return _ok
+
+
+## [method available]'s one look at the library; names what is missing when the library is there.
+static func _build_status() -> bool:
 	if not GSSim.has(&"motor"):
 		return false
 	var missing: Array[String] = []
@@ -88,7 +101,6 @@ static func available() -> bool:
 	if not missing.is_empty():
 		push_error("FcNativeTick: sv_native_motor_state 1 needs %s; the script loop runs instead" % ", ".join(missing))
 		return false
-	_ok = true
 	return true
 
 
@@ -96,22 +108,41 @@ static func available() -> bool:
 ## event derive (gs-sim `GSSimServerTick` API 2, gs-player-controller 52; older ones keep their own), or takes both
 ## back when off.
 func start(batch: GSFpsMotorBatch, events: GSFpsTickEvents) -> bool:
-	var derives := events != null and events.has_method(&"use_native")
-	if not (enabled and available()):
-		if _motor != null and batch.native() == _motor:
-			var _taken := batch.use_native(null)
-		if derives and native != null and events.call(&"native_table") == native:
-			var _back: bool = events.call(&"use_native", null)
-		return false
+	var on := enabled and available()
+	if on and _wired_batch == batch and _wired_events == events and batch.native() == _motor:
+		return true
+	return _bind_native(batch, events) if on else _rebind_script(batch, events)
+
+
+## Hands [param batch] and [param events] the native objects; once per change of either, not per tick.
+func _bind_native(batch: GSFpsMotorBatch, events: GSFpsTickEvents) -> bool:
 	if native == null:
 		native = ClassDB.instantiate(CLASS)
 		native.call(&"configure", GSFpsState.Mode.GROUND, GSWeaponAccuracyClass.FLINCH_SEC)
 		_motor = native.call(&"motor")
+		_native_derives = native.has_method(&"derive")
 	if batch.native() != _motor:
 		var _used := batch.use_native(_motor)
-	if derives and native.has_method(&"derive") and events.call(&"native_table") != native:
+	var derives := events != null and events.has_method(&"use_native")
+	if derives and _native_derives and events.call(&"native_table") != native:
 		var _derived: bool = events.call(&"use_native", native)
+	_wired_batch = batch
+	_wired_events = events
 	return true
+
+
+## Takes the native objects back from [param batch] and [param events] when the tick is off; once per change.
+func _rebind_script(batch: GSFpsMotorBatch, events: GSFpsTickEvents) -> bool:
+	if _wired_batch == null and _wired_events == null:
+		return false
+	if _motor != null and batch.native() == _motor:
+		var _taken := batch.use_native(null)
+	var derives := events != null and events.has_method(&"use_native")
+	if derives and native != null and events.call(&"native_table") == native:
+		var _back: bool = events.call(&"use_native", null)
+	_wired_batch = null
+	_wired_events = null
+	return false
 
 
 ## Ends the players' loop: the roster's begin rows (after the loop, so each motor's resident slot is this tick's),
@@ -144,7 +175,7 @@ func step(roster: Array[FcPlayer], ids: PackedInt64Array, hull_world: Object, de
 		var w := table_weapons(roster)
 		for k in range(3):
 			weapon_rows[k] += w[k]
-		if native.has_method(&"derive"):
+		if _native_derives:
 			var ev: PackedInt64Array = native.events()
 			native_events += ev.size() / 4
 
@@ -160,18 +191,19 @@ static func weapon_of(p: FcPlayer) -> int:
 
 ## The last step's table rows against [method weapon_of] the [param roster] player in that row:
 ## `[rows compared, rows differing, rows holding a weapon]`.
+## The answer is one reused array, overwritten by the next call.
 func table_weapons(roster: Array[FcPlayer]) -> PackedInt64Array:
-	var out := PackedInt64Array([0, 0, 0])
+	_weapon_out.fill(0)
 	if native == null:
-		return out
+		return _weapon_out
 	var table: PackedFloat64Array = native.table()
 	var stride: int = ClassDB.class_get_integer_constant(CLASS, &"TABLE_STRIDE")
 	var n := mini(roster.size(), table.size() / stride)
 	for i in range(n):
 		var have := int(table[i * stride + 11])
-		out[0] += 1
+		_weapon_out[0] += 1
 		if have != weapon_of(roster[i]):
-			out[1] += 1
+			_weapon_out[1] += 1
 		if have > 0:
-			out[2] += 1
-	return out
+			_weapon_out[2] += 1
+	return _weapon_out
