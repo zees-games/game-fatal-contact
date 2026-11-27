@@ -7,13 +7,15 @@ const FcPlayerNet := preload("../game/fc_player_net.gd")
 const FcContent := preload("../game/fc_content.gd")
 const Roles := preload("../game/fc_weapon_roles.gd")
 const W := preload("../game/fc_net_pull_weapons.gd")
+const FcNetCarry := preload("../game/fc_net_carry.gd")
 
 ## A player's weapon pull (FcPlayerNet.pull, cvars `sv_net_pull_weapons_native`, `sv_net_pull_content_native`): gs-sim's
 ## `GSSimFpsWeaponNet.pull` writes the same net_* weapon fields and net_weapon as AwWeaponNet.pull, the wind-up and
 ## FcContent.weapon_index, to the bit, over seeded arsenals and rigs (slots in and out of range, magazines, reserves and
 ## fire modes past their widths, negative and wrapping fire counters, charges on the rounding halves, the wind-up), with
 ## either switch off, without a rig, and for every wire id plus an unknown and an empty one. Without the library only the
-## script lane runs, and the suite says so.
+## script lane runs, and the suite says so. A person's carry mask, kept until his arsenal changes (fc_net_carry.gd), equals
+## FcContent.carry_mask through seeded gives and takes.
 
 const STATES := 20000
 const SEED := 6161
@@ -108,11 +110,36 @@ func _run() -> void:
 		_bench(net, rig, arsenal, keys, rng)
 	W.weapons_enabled = was[0]
 	W.content_enabled = was[1]
+	var carry_wrong := _carry_wrong(arsenal, rng)
+	_check(carry_wrong == 0, "the kept carry mask equals FcContent.carry_mask through gives and takes", "%d wrong" % carry_wrong)
 	net.free()
-	var expected := 6 if native else 3
+	var expected := 7 if native else 4
 	var ok := _failed == 0 and _checks == expected
 	print("%d checks, %d failed (expected %d)" % [_checks, _failed, expected])
 	get_tree().quit(0 if ok else 1)
+
+
+## How many reads of a kept carry mask differ from the walk, over seeded carried sets each read twice (the second
+## from the kept mask), then a second arsenal handed in and the first one back.
+func _carry_wrong(arsenal: GSWeaponArsenal, rng: RandomNumberGenerator) -> int:
+	var carry := FcNetCarry.new()
+	var full := FcContent.carry_mask(arsenal)
+	var bits := FcContent.carry_bits()
+	var all := (1 << bits) - 1
+	var wrong := 0
+	for _i in 400:
+		FcContent.apply_carry(arsenal, (rng.randi() | (rng.randi() << 32)) & all)
+		for _read in 2:
+			if carry.mask(arsenal) != FcContent.carry_mask(arsenal):
+				wrong += 1
+	var other := GSWeaponArsenal.new()
+	if carry.mask(other) != FcContent.carry_mask(other):
+		wrong += 1
+	other.free()
+	FcContent.apply_carry(arsenal, full)
+	if carry.mask(arsenal) != full:
+		wrong += 1
+	return wrong
 
 
 ## Seeds the arsenal and rig; returns the wind-up (negative half the time: not winding).
