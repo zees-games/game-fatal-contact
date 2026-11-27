@@ -353,10 +353,9 @@ func _teleport_pads() -> Dictionary:
 	return out
 
 
-## The ride starting on the teleport pad at [param at], or -1. A pad's push (surf_snipers_island's)
-## throws a player down the ramp on the tick after the teleport, before a walked route could reach
-## the ride's corner, and a bot fighting walks no route at all: the ride is the only way off the pad,
-## so a bot a teleport put there takes it.
+## The ride starting on the teleport pad at [param at], or -1. A pad's push (surf_snipers_island's) throws a
+## player down the ramp the tick after the teleport, before a walked route reaches the ride's corner, and a
+## fighting bot walks no route: so a bot a teleport put on a pad takes that pad's ride.
 func pad_ride_at(at: Vector3) -> int:
 	var pads := _teleport_pads()
 	for id in pads:
