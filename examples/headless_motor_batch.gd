@@ -6,6 +6,7 @@ const FcHullGrid := preload("../game/fc_hull_grid.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcModTools := preload("../game/fc_mod_tools.gd")
+const FcDemoSource := preload("../game/fc_demo_source.gd")
 
 ## `fc_motor_batch`: the players' motors ticked in runs of one gs-sim call play exactly the
 ## match the loop one player after another plays. A recorded bot match is replayed through both
@@ -29,7 +30,7 @@ const CHECKS := 31
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
 ## which the loop calls after each player's turn, to a player whose turn that tick is over or still to come.
-class Meddler extends RefCounted:
+class Meddler extends FcDemoSource:
 	var game: FcGame = null
 	## &"between", &"earlier" or &"later".
 	var where: StringName = &""
@@ -48,7 +49,7 @@ class Meddler extends RefCounted:
 		var turn := tick / MEDDLE_EVERY
 		_change(ids[turn % ids.size()], turn)
 
-	func after(id: int, _player: Object, _move: Object, _fire: Object, tick: int) -> void:
+	func after(id: int, _player: Object, _move: GSFpsCommand, _fire: GSWeaponCommand, tick: int) -> void:
 		if where == &"between" or tick % MEDDLE_EVERY != 0:
 			return
 		var ids: Array[int] = game.player_ids()
@@ -75,7 +76,7 @@ class Meddler extends RefCounted:
 
 ## In the place of the demo's statistics while they do not record: reads nothing and says so (`after_reads`), so the
 ## batched loop keeps the idle weapon ticks waiting past each turn (cvar `fc_demo_flush_gate`).
-class Passive extends RefCounted:
+class Passive extends FcDemoSource:
 	var asked := 0
 	var done := 0
 
@@ -89,7 +90,7 @@ class Passive extends RefCounted:
 		asked += 1
 		return false
 
-	func after(_id: int, _player: Object, _move: Object, _fire: Object, _tick: int) -> void:
+	func after(_id: int, _player: Object, _move: GSFpsCommand, _fire: GSWeaponCommand, _tick: int) -> void:
 		done += 1
 
 
