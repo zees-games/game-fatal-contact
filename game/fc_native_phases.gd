@@ -1,13 +1,7 @@
 extends RefCounted
-## The native server tick's master switch and its startup report (docs/native-server-tick.md).
-##
-## `sv_native_tick 1` (the default) sets every per-phase native cvar of this build to 1; `0` sets
-## them all to 0, so each phase runs its GDScript fallback. The phase cvars stay overrides: a later
-## `--cvar motor_native=0` (or a console write) wins until the master is written again.
-##
-## Phases are found by capability, never assumed: a phase whose cvars are not registered in this
-## build is "absent"; one whose gs-sim class or method is missing is "fallback" with that reason.
-## The startup line names every phase and why it is not native; any fallback warns once.
+## The native server tick's master switch and startup report (docs/native-server-tick.md): `sv_native_tick`
+## 1/0 writes every phase cvar of this build; a later phase cvar write overrides until the master is written.
+## A phase is "absent" (cvars unregistered), "fallback" (gs-sim class/method missing; warns once) or native.
 
 const CHANNEL := "arena.native_tick"
 const MASTER := "sv_native_tick"
