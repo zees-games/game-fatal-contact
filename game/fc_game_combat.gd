@@ -3,8 +3,6 @@ extends "fc_game_unlag.gd"
 
 ## The deathmatch itself: a match, a combat manager, a map, and some players.
 
-const FcNativeShots := preload("fc_native_shots.gd")
-
 ## The snapshot rate at [param rate] ticks a second: the rate nearest [param target] (default
 ## [constant NET_SNAPSHOT_RATE], or `sv_snapshot_rate` on a server) that is an EXACT divisor of the tick rate,
 ## so a snapshot lands on every n-th tick (64 and 128 give 32, 60 gives 30, 66 gives 33, 33 gives 33, 22 gives 22).
@@ -423,11 +421,8 @@ func _build_projectiles() -> void:
 
 ## Hands `sv_native_shots` to the combat manager's tracer (fc_native_shots.gd).
 func apply_native_shots() -> void:
-	if combat == null:
-		return
-	var tracer := (combat.call(&"get_tracer") if combat.has_method(&"get_tracer") else combat._tracer) as FcNativeShots
-	if tracer != null:
-		tracer.enabled = native_shots != 0
+	if _native_tracer != null:
+		_native_tracer.enabled = native_shots != 0
 
 
 func _build_combat() -> GSResult:
@@ -454,12 +449,18 @@ func _build_combat() -> GSResult:
 	combat.config = config
 	combat.rewind_fn = _unlag_rewind
 	combat.restore_fn = _unlag_restore
-	# Hitscan pellets walk in GameSpice Sim when it is loaded (sv_native_shots); the script tracer stays the fallback.
-	# gs-combat 8's set_tracer is the seam; an older gs-combat only has the private field.
-	if combat.has_method(&"set_tracer"):
-		var _set: bool = combat.call(&"set_tracer", FcNativeShots.new(combat))
-	else:
-		combat._tracer = FcNativeShots.new(combat)
+	# Hitscan pellets walk in GameSpice Sim when it is loaded (sv_native_shots), through gs-combat's set_tracer seam;
+	# an older gs-combat keeps its script tracer for every shot.
+	_native_tracer = null
+	if GSAddonApi.build_level("gs_combat") >= TRACER_SEAM_LEVEL:
+		var tracer := FcNativeShots.new(combat)
+		# Through call: this file still parses against an older gs-combat, which never reaches here.
+		if bool(combat.call(&"set_tracer", tracer)):
+			_native_tracer = tracer
+			_native_tracer.materialize_fn = _unlag_materialize
+	elif not _tracer_seam_warned:
+		_tracer_seam_warned = true
+		GSLog.warn("fc.native_shots", "gs-combat is older than API level %d (no set_tracer); hitscan runs the script tracer" % TRACER_SEAM_LEVEL, {})
 	apply_native_shots()
 
 	add_child(combat)
@@ -577,12 +578,15 @@ func _override_ctf_rules(rules: GSMatchRules) -> void:
 	rules.assist_points = 0
 
 func _resolve_shot(shot: GSShot, view_tick: float) -> void:
+	# Both ways resolve this shot now: its rewind may pose the targets instead of moving them (fc_game_unlag.gd).
+	_unlag_pose_shot = shot
 	if bullet_bridge == null:
 		combat.resolve_shot(shot, view_tick)
-		return
-	var catalogue := FcPlayer.weapon_catalogue()
-	var def: GSWeaponDef = catalogue.get_def(shot.weapon_id) if catalogue.has(shot.weapon_id) else null
-	var _resolved := bullet_bridge.resolve_shot(shot, def.tuning as GSWeaponBallistics if def != null else null, view_tick)
+	else:
+		var catalogue := FcPlayer.weapon_catalogue()
+		var def: GSWeaponDef = catalogue.get_def(shot.weapon_id) if catalogue.has(shot.weapon_id) else null
+		var _resolved := bullet_bridge.resolve_shot(shot, def.tuning as GSWeaponBallistics if def != null else null, view_tick)
+	_unlag_pose_shot = null
 
 
 ## Whoever stands in the jail's button presses it. Authority side, after everybody has moved.

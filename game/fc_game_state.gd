@@ -13,6 +13,7 @@ const FcBotLoadouts := preload("fc_bot_loadouts.gd")
 const FcEffects := preload("fc_effects.gd")
 const FcHorde := preload("fc_horde.gd")
 const FcLoadoutIdentity := preload("fc_loadout_identity.gd")
+const FcNativeShots := preload("fc_native_shots.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcPaths := preload("fc_paths.gd")
 const FcSolidBody := preload("fc_solid_body.gd")
@@ -518,6 +519,29 @@ var _unlag_moved: Dictionary = {}
 var _unlag_refit: Dictionary = {}
 ## The shooter, whom a rewind leaves where they are.
 var _unlag_shooter: int = 0
+## The shot [member combat] resolves now (FcGame._resolve_shot), so a rewind can tell whether the native tracer may
+## take the rewound poses as numbers instead of moved nodes; null (a bullet in flight, a check calling the rewind): move them.
+var _unlag_pose_shot: GSShot = null
+## The tracer a posed rewind handed its poses to, until the restore; null while the rewind moved the nodes.
+var _unlag_poser: FcNativeShots = null
+## This rewind's targets, in order: player ids, their rewound feet, the crouch to fit (below 0: none).
+var _unlag_pose_ids := PackedInt64Array()
+var _unlag_pose_feet := PackedVector3Array()
+var _unlag_pose_crouch := PackedFloat32Array()
+## Rewinds that posed every target without moving a node, and posed ones a pellet for the script tracer moved after all.
+var unlag_posed_rewinds := 0
+var unlag_materialized_rewinds := 0
+## Whether this posed rewind moved its nodes after all.
+var _unlag_materialized_shot := false
+## Metres beyond a target's bounds radius that a posed rewind still treats as holding the muzzle (rounding headroom).
+const UNLAG_POSE_MARGIN := 0.25
+## The native pellet tracer handed to [member combat] (sv_native_shots), or null when gs-combat is older than
+## [constant TRACER_SEAM_LEVEL]: the stock script tracer then runs every shot and a warning says so once.
+var _native_tracer: FcNativeShots = null
+## gs-combat's API level with GSCombatManager.set_tracer()/get_tracer().
+const TRACER_SEAM_LEVEL := 10
+## Whether the missing tracer seam was logged (once).
+var _tracer_seam_warned := false
 ## Flies simulated bullets when `sv_ballistics` is on; null without gs-weapon's ballistics rules.
 var bullet_bridge: GSWeaponBulletBridge = null
 ## Draws their tracers (client side of a local or listen game).

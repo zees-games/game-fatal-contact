@@ -160,7 +160,12 @@ func unlag_crouch_at(id: int, at: float) -> float:
 
 ## gs-combat's rewind: every other living player, put where they were at [param view_tick], in the stance they had then:
 ## the zones fit the present crouch, and a target that crouched since would be traced a standing head too short.
+## When the native tracer walks this shot's pellets and nothing else reads the nodes ([method _unlag_can_pose]), the
+## targets are handed to it as numbers and no node moves; a pellet the script must walk moves them after all.
 func _unlag_rewind(view_tick: float) -> void:
+	_unlag_pose_ids.resize(0)
+	_unlag_pose_feet.resize(0)
+	_unlag_pose_crouch.resize(0)
 	for id in _players:
 		if id == _unlag_shooter:
 			continue
@@ -176,17 +181,86 @@ func _unlag_rewind(view_tick: float) -> void:
 			then = ring_feet(id, view_tick)
 		if then == null:
 			continue
-		_unlag_moved[id] = player.global_position
-		player.global_position = then
 		if crouch < 0.0:
 			crouch = unlag_crouch_at(id, view_tick)
-		if crouch >= 0.0 and player.controller != null and crouch != player.controller.state.crouch_fraction:
+		_unlag_pose_ids.append(id)
+		_unlag_pose_feet.append(then)
+		_unlag_pose_crouch.append(crouch)
+	if _unlag_can_pose():
+		_unlag_poser = _native_tracer
+		for i in _unlag_pose_ids.size():
+			var player: FcPlayer = _players[_unlag_pose_ids[i]]
+			var crouch := _unlag_pose_crouch[i]
+			var k := player.crouch_fit_k(crouch) if _unlag_refits(player, crouch) else player._fit_k
+			_unlag_poser.pose(player, _unlag_pose_feet[i], k)
+	else:
+		_unlag_place()
+
+
+## Whether this rewind may pose instead of moving nodes: a shot being resolved now, walked by the native tracer, without
+## splash (its sphere test reads the nodes), and no team-mate pass-through rule that could find the muzzle inside a
+## target's bounds where it stands or where it is rewound to (that test reads the nodes before the pellets).
+func _unlag_can_pose() -> bool:
+	var shot := _unlag_pose_shot
+	if shot == null or _native_tracer == null or not _native_tracer.can_pose():
+		return false
+	if combat.call(&"get_tracer") != _native_tracer:  # perf-lint: allow dynamic_call once a shot; parses against gs-combat below API level 10
+		return false
+	if shot.splash_radius > 0.0:
+		return false
+	var rules := combat.rules
+	if not combat.pass_through_fn.is_valid() and (rules == null or not (rules.pass_through_team_mates or rules.pass_through_team_mate_at_muzzle)):
+		return true
+	for i in _unlag_pose_ids.size():
+		var player: FcPlayer = _players[_unlag_pose_ids[i]]
+		var set_node := player.hitboxes
+		if set_node == null:
+			continue
+		var centre := set_node.global_transform * set_node.bounds_offset
+		var reach := set_node.bounds_radius + UNLAG_POSE_MARGIN
+		if centre.distance_to(shot.origin) <= reach or (centre + _unlag_pose_feet[i] - player.global_position).distance_to(shot.origin) <= reach:
+			return false
+	return true
+
+
+## Whether the rewind refits [param player]'s zones to [param crouch]: one rewound to a stance it no longer has.
+static func _unlag_refits(player: FcPlayer, crouch: float) -> bool:
+	return crouch >= 0.0 and player.controller != null and crouch != player.controller.state.crouch_fraction
+
+
+## Moves this rewind's targets (and refits their zones): the rewind itself, or late, for a posed shot the script must trace.
+func _unlag_place() -> void:
+	for i in _unlag_pose_ids.size():
+		var id := _unlag_pose_ids[i]
+		var player: FcPlayer = _players.get(id)
+		if player == null:
+			continue
+		_unlag_moved[id] = player.global_position
+		player.global_position = _unlag_pose_feet[i]
+		var crouch := _unlag_pose_crouch[i]
+		if _unlag_refits(player, crouch):
 			player.fit_hitboxes_to_crouch(crouch)
 			_unlag_refit[id] = true
 
 
+## [member FcNativeShots.materialize_fn]: a posed rewind's pellet went to the script tracer, which reads the nodes.
+func _unlag_materialize() -> void:
+	if _unlag_poser == null:
+		return
+	_unlag_materialized_shot = true
+	_unlag_place()
+
+
 ## And back, after the trace.
 func _unlag_restore() -> void:
+	if _unlag_poser != null:
+		_unlag_poser.end_pose()
+		_unlag_poser = null
+		if _unlag_materialized_shot:
+			unlag_materialized_rewinds += 1
+		else:
+			unlag_posed_rewinds += 1
+	_unlag_materialized_shot = false
 	for id in _unlag_moved:
 		var player: FcPlayer = _players.get(id)
 		if player != null:

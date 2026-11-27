@@ -223,6 +223,10 @@ func _build() -> void:
 		rewind.call(view_tick)
 		var target := _server_game.player_for(_target)
 		_stood = target.global_position if target != null else null
+		# A posed rewind (sv_native_unlag, native tracer) hands the native tracer the feet and leaves the node.
+		var posed := _server_game._unlag_pose_ids.find(_target) if _server_game._unlag_poser != null else -1
+		if posed >= 0:
+			_stood = _server_game._unlag_pose_feet[posed]
 		_stood_view = view_tick
 		_stood_blended = not _server_bridge._shot_source(_target, SHOOTER, view_tick, false).is_empty()
 

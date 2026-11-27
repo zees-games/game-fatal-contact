@@ -5,7 +5,9 @@ extends GSPelletTracer
 ##
 ## The script tracer stays the specification and the fallback: with the switch off, the library missing, a
 ## hitbox set laid out other than player root > set > box, or a pane on the pellet's line, the pellet goes to
-## [code]super[/code]. The unlag rewind still moves the nodes; this reads where they stand once per shot.
+## [code]super[/code]. A posed unlag rewind (fc_game_unlag.gd) moves no node: it hands each target's rewound feet
+## and crouch fit here with [method pose], and only a pellet sent to the script makes the game move the nodes
+## after all ([member materialize_fn]), once a shot. Everything else is read where it stands once per shot.
 
 const FcPlayer := preload("fc_player.gd")
 
@@ -56,6 +58,13 @@ var _row := PackedFloat64Array()
 var _miss := PackedFloat64Array()
 var _world_fn: Callable
 
+# The posed rewind: player -> rewound feet and zone height scale, while [member _posing].
+var _pose_feet: Dictionary[FcPlayer, Vector3] = {}
+var _pose_k: Dictionary[FcPlayer, float] = {}
+var _posing := false
+## Moves the nodes to the poses (the game's rewind, done late): called once when a posed shot's pellet goes to the script tracer.
+var materialize_fn: Callable
+
 
 func _init(manager: GSCombatManager) -> void:
 	super(manager)
@@ -76,28 +85,62 @@ func is_native() -> bool:
 	return _native != null
 
 
+## Whether a rewind may [method pose] instead of moving nodes: this tracer walks the pellets natively.
+func can_pose() -> bool:
+	return enabled and _native != null
+
+
+## The unlag rewind's answer for [param player]: traced with its feet at [param feet] and its zones at height scale [param k].
+func pose(player: FcPlayer, feet: Vector3, k: float) -> void:
+	_pose_feet[player] = feet
+	_pose_k[player] = k
+	_posing = true
+	_synced_shot = null
+
+
+## Forgets the poses (the rewind's restore).
+func end_pose() -> void:
+	if not _posing:
+		return
+	_pose_feet.clear()
+	_pose_k.clear()
+	_posing = false
+	_synced_shot = null
+
+
+## The script tracer reads the nodes: a posed rewind moves them now, and the held bounds are read again where they went.
+func _script_pellet(shot: GSShot, pellet: int, type: GSDamageType, pen: GSPenetration, excluded: Array) -> void:  # perf-lint: allow untyped_array matches GSPelletTracer.trace_pellet
+	if _posing and materialize_fn.is_valid():
+		_posing = false
+		_synced_shot = null
+		materialize_fn.call()  # perf-lint: allow dynamic_call at most once a shot, only when it falls back to the script walk
+		if m.bounds_cache:
+			m.trace.hold_bounds(m._set_list)
+	super.trace_pellet(shot, pellet, type, pen, excluded)
+
+
 func trace_pellet(shot: GSShot, pellet: int, type: GSDamageType, pen: GSPenetration, excluded: Array) -> void:
 	if not enabled:
-		super(shot, pellet, type, pen, excluded)
+		_script_pellet(shot, pellet, type, pen, excluded)
 		return
 	if _native == null:
 		if not _missing_logged:
 			_missing_logged = true
 			GSLog.error(CHANNEL, "sv_native_shots is on but GameSpice Sim has no GSSimShots.walk; hitscan runs the script tracer", {})
-		super(shot, pellet, type, pen, excluded)
+		_script_pellet(shot, pellet, type, pen, excluded)
 		return
 	if shot != _synced_shot or pellet == 0:
 		_synced_shot = shot
 		_shot_ok = _sync(pen, excluded)
 	if not _shot_ok:
-		super(shot, pellet, type, pen, excluded)
+		_script_pellet(shot, pellet, type, pen, excluded)
 		return
 
 	var rows: PackedFloat64Array = _native.call(&"walk", pellet, shot.origin, shot.pellets[pellet], shot.max_range, _skip_sets)
 	var count := rows.size() / _stride
 	for r in count:
 		if rows[r * _stride] == 9.0:
-			super(shot, pellet, type, pen, excluded)
+			_script_pellet(shot, pellet, type, pen, excluded)
 			return
 	native_pellets += 1
 	for r in count:
@@ -126,11 +169,14 @@ func _sync(pen: GSPenetration, excluded: Array) -> bool:
 		if not live:
 			continue
 		var t := root.global_transform
-		_put_basis(_poses, at + 1, t)
 		var player := _players[i]
 		var k := -1.0
 		if player != null:
 			k = player._fit_k
+			if _posing and _pose_feet.has(player):
+				t.origin = _pose_feet[player]
+				k = _pose_k[player]
+		_put_basis(_poses, at + 1, t)
 		_poses[at + 13] = k
 		if _excluded(set_node, excluded):
 			_skip_sets.append(i)
@@ -382,7 +428,14 @@ func _apply_body(rows: PackedFloat64Array, at: int, shot: GSShot, type: GSDamage
 	var damage := GSDamage.make(shot.attacker, _entities[set_index], shot.damage * m.config.damage_scale * rows[at + 11], type)
 	damage.hit_group = hit.group
 	damage.limb = hit.limb
-	GSHitzone.annotate(damage, hit, direction)
+	var posed := _players[set_index]
+	if _posing and posed != null and _pose_feet.has(posed):
+		# The side is read against the body's centre where the pose put it; the node has not moved.
+		var set_node: GSHitboxSet = m._set_list[set_index]
+		var centre := set_node.bounds_centre() + _pose_feet[posed] - _roots[set_index].global_position
+		damage.context[GSHitzone.CONTEXT_SIDE] = GSHitzone.side_of(hit.point, centre, direction, set_node.bounds_radius * 0.25)
+	else:
+		GSHitzone.annotate(damage, hit, direction)
 	damage.context["entity"] = hit.entity
 	if passes > 0:
 		damage.context["penetrated"] = passes

@@ -14,7 +14,9 @@ const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 ## a grazing metal wall, a one-sided sheet, a breakable pane (handed to the script), seeded shotgun
 ## spreads, and a strafing, crouching target rewound by lag compensation to fractional view ticks.
 ## sv_native_unlag: GSSimUnlagRing and the script rings, fed one history, answer the same feet and
-## crouch at every view tick a ping names, and the shots rewound from each hit and miss alike.
+## crouch at every view tick a ping names, and the shots rewound from each hit and miss alike. The defaults
+## (both switches 1, the rewind posing the native tracer instead of moving nodes) against the specification (both
+## 0, nodes moved, script tracer): the same rows. A posed shot a pane sends to the script moves the nodes late, alike.
 ## Without the native class every comparison FAILS: this suite exists to prove the native path.
 
 const TICK_RATE := FcContent.TICK_RATE
@@ -27,7 +29,7 @@ const SHIELD := 5
 const FAN := 13
 const SPAN := 5.0
 
-const CHECKS := 25
+const CHECKS := 30
 const SECTIONS := 10
 
 var _entered := 0
@@ -64,6 +66,7 @@ func _run() -> void:
 
 func _boot() -> void:
 	_game = FcGame.new()
+	var defaults_on: bool = _game.native_shots == 1 and _game.native_unlag == 1
 	_game.name = "Arena"
 	_game.tick_rate = TICK_RATE
 	_game.score_limit = 0
@@ -97,8 +100,9 @@ func _boot() -> void:
 	for _i in 24:
 		_game.tick({})
 	await get_tree().physics_frame
-	_native = _game.combat._tracer as FcNativeShots
-	_check(_native != null, "sv_native_shots builds the native tracer on the combat manager")
+	_check(defaults_on, "sv_native_shots and sv_native_unlag default to 1", "shots %d, unlag %d" % [_game.native_shots, _game.native_unlag])
+	_native = _game._native_tracer
+	_check(_native != null and _game.combat.get_tracer() == _native, "sv_native_shots builds the native tracer on the combat manager (set_tracer)")
 	_script = GSPelletTracer.new(_game.combat)
 	if _native == null:
 		_skip = "no FcNativeShots on the combat manager"
@@ -254,9 +258,16 @@ func _pane() -> void:
 	_before_trace = func() -> void: faced.pane.mend(70.0)
 	var shot := _shot_at(STANDING, 1.2, null)
 	var walked := _compare("pane", shot)
-	_before_trace = Callable()
 	_check(faced.pane.hits > 0 and walked < shot.pellets.size(), "the pane takes pellets and hands them to the script",
 		"%d pane hits, broken %s, %d of %d pellets native" % [faced.pane.hits, faced.pane.is_broken(), walked, shot.pellets.size()])
+	# Rewound: the rewind poses the native tracer, and the first pellet for the script moves the nodes after all.
+	var posed_was := _game.unlag_posed_rewinds
+	var late_was := _game.unlag_materialized_rewinds
+	var walked_late := _compare("pane, rewound", shot, float(_game.current_tick()) - 2.0)
+	_check(_game.unlag_materialized_rewinds == late_was + 1 and _game.unlag_posed_rewinds == posed_was and walked_late > 0,
+		"a posed rewind moves the nodes once a pellet goes to the script",
+		"%d moved late, %d posed" % [_game.unlag_materialized_rewinds - late_was, _game.unlag_posed_rewinds - posed_was])
+	_before_trace = Callable()
 	combat.trace = flat
 	faced.pane.free()
 	_completed += 1
@@ -307,6 +318,8 @@ func _lagcomp() -> void:
 	p.controller.state.crouch_fraction = crouch_was
 	var hits := 0
 	var rewound := true
+	var posed_was := _game.unlag_posed_rewinds
+	var late_was := _game.unlag_materialized_rewinds
 	for view in [float(now) - 9.5, float(now) - 4.6]:
 		var then: Vector3 = _game.unlag_position_at(STANDING, view)
 		var shooter: FcPlayer = _game.player_for(SHOOTER)
@@ -319,6 +332,11 @@ func _lagcomp() -> void:
 			hits += 1 if d.victim == STANDING else 0
 	_check(rewound and hits > 0 and p.global_position == start, "the rewound fans hit P2 where it was, and it is put back",
 		"rewound %s, %d hits on P2" % [rewound, hits])
+	# The native passes were posed: the rewound feet and crouch fit went to GSSimShots as numbers, no node moved.
+	# Two a view: _compare's native pass and the rewound check above, both under the game's own (native) tracer.
+	_check(_game.unlag_posed_rewinds == posed_was + 4 and _game.unlag_materialized_rewinds == late_was,
+		"the native passes pose the rewound targets without moving a node",
+		"%d posed, %d moved late" % [_game.unlag_posed_rewinds - posed_was, _game.unlag_materialized_rewinds - late_was])
 	_completed += 1
 
 
@@ -377,11 +395,17 @@ func _unlag_rings() -> void:
 					var at: Vector3 = aim_at
 					var aim: Vector3 = at + Vector3.UP * 1.0 * FcPlayerTunables.body_scale()
 					var shot := _shot(origin, (aim - origin).normalized(), null)
-					var tracer_was: RefCounted = _game.combat._tracer
-					_game.combat._tracer = _script
+					var tracer_was: RefCounted = _game.combat.get_tracer()
+					var _s := _game.combat.set_tracer(_script)
 					var out := _outputs(shot, views[i])
-					_game.combat._tracer = tracer_was
-					fired.append([target[0], out])
+					# The defaults: the native rings, the native tracer, the rewind posed.
+					var native_out: Array = []
+					if mode == 1 and _skip == "":
+						_s = _game.combat.set_tracer(_native)
+						_native.enabled = true
+						native_out = _outputs(shot, views[i])
+					_s = _game.combat.set_tracer(tracer_was)
+					fired.append([target[0], out, native_out])
 		shots[mode] = fired
 	_game.native_unlag = 1
 	_game.apply_native_unlag()
@@ -417,6 +441,20 @@ func _unlag_rings() -> void:
 	_check(shot_diff == "" and hits[STANDING] > 0 and hits[BEHIND] > 0 and misses > 0,
 		"fans rewound from either ring hit and miss alike, near and far",
 		"%d shots: %d near hits, %d far hits, %d misses%s" % [(shots[0] as Array).size(), hits[STANDING], hits[BEHIND], misses, "" if shot_diff == "" else "; " + shot_diff])
+	# Default-on parity: native rings + native tracer + posed rewind against script rings + script tracer + moved nodes.
+	var default_diff := "" if _skip == "" else "no native path: " + _skip
+	for j in (shots[0] as Array).size():
+		if default_diff != "":
+			break
+		var spec: Array = shots[0][j][1]
+		var got: Array = shots[1][j][2]
+		default_diff = _first_difference(spec, got)
+		if default_diff == "" and spec[4] != got[4]:
+			default_diff = "rewound %s (script) vs %s (native)" % [spec[4], got[4]]
+		if default_diff != "":
+			default_diff = "shot %d at P%d: %s" % [j, shots[0][j][0], default_diff]
+	_check(default_diff == "", "the defaults (native rings, native tracer, posed rewind) give the specification's rows at every view",
+		"%d shots%s" % [(shots[0] as Array).size(), "" if default_diff == "" else "; " + default_diff])
 	_completed += 1
 
 
@@ -427,18 +465,18 @@ func _timing() -> void:
 		return
 	var shot := _shot_at(BEHIND, 1.0, _wood_round(2.4))
 	var combat := _game.combat
-	var tracer_was: RefCounted = combat._tracer
+	var tracer_was: RefCounted = combat.get_tracer()
 	var per := {}
 	_native.enabled = true
 	for tracer in [_script, _native]:
-		combat._tracer = tracer
+		var _s := combat.set_tracer(tracer)
 		for i in 5:
 			var _warm := _outputs(shot, -1.0)
 		var t0 := Time.get_ticks_usec()
 		for i in 100:
 			var _o := _outputs(shot, -1.0)
 		per[tracer] = float(Time.get_ticks_usec() - t0) / 100.0
-	combat._tracer = tracer_was
+	var _r := combat.set_tracer(tracer_was)
 	print("timing: %d pellets a shot, script %.0f us, native %.0f us (%.1fx)" % [shot.pellets.size(), per[_script], per[_native], per[_script] / maxf(per[_native], 0.001)])
 
 
@@ -534,18 +572,18 @@ func _shot(origin: Vector3, direction: Vector3, pen: GSPenetration) -> GSShot:
 ## Traces [param shot] with the script tracer, then a copy with the native one, and checks every output matches.
 func _compare(label: String, shot: GSShot, view_tick := -1.0) -> int:
 	var combat := _game.combat
-	var tracer_was: RefCounted = combat._tracer
-	combat._tracer = _script
+	var tracer_was: RefCounted = combat.get_tracer()
+	var _s := combat.set_tracer(_script)
 	var want := _outputs(shot, view_tick)
 	if _skip != "":
-		combat._tracer = tracer_was
+		_s = combat.set_tracer(tracer_was)
 		_check(false, "%s: native and script give the same hits, damage and passes" % label, "no native path: " + _skip)
 		return 0
 	_native.enabled = true
 	var before := _native.native_pellets
-	combat._tracer = _native
+	_s = combat.set_tracer(_native)
 	var got := _outputs(shot, view_tick)
-	combat._tracer = tracer_was
+	_s = combat.set_tracer(tracer_was)
 	var walked := _native.native_pellets - before
 	var diff := _first_difference(want, got)
 	_check(diff == "" and walked > 0, "%s: native and script give the same hits, damage and passes" % label,
@@ -566,10 +604,13 @@ func _outputs(shot: GSShot, view_tick: float) -> Array:
 	var combat := _game.combat
 	var rewound := false
 	if view_tick >= 0.0:
+		# As FcGame._resolve_shot stands it: the rewind may pose the native tracer instead of moving nodes.
 		_game._unlag_shooter = SHOOTER
+		_game._unlag_pose_shot = shot
 		rewound = combat._begin_rewind(shot, view_tick)
 	var _lap := combat._trace_shot(shot)
 	combat._end_rewind(rewound)
+	_game._unlag_pose_shot = null
 	var rows: Array = []
 	for d in shot.damages:
 		rows.append([d.attacker, d.victim, d.base_amount, d.amount, d.hit_group, d.limb, d.point, d.direction,
@@ -586,5 +627,28 @@ static func _first_difference(want: Array, got: Array) -> String:
 			return "%s count %d (script) vs %d (native)" % [names[k], a.size(), b.size()]
 		for i in a.size():
 			if a[i] != b[i]:
-				return "%s %d: script %s vs native %s" % [names[k], i, var_to_str(a[i]), var_to_str(b[i])]
+				return "%s %d: %s" % [names[k], i, _field_difference(a[i], b[i])]
 	return ""
+
+
+## The first differing field of two rows, printed shallowly: a row may hold objects, typed arrays or itself.
+static func _field_difference(a: Variant, b: Variant) -> String:
+	if a is Array and b is Array and (a as Array).size() == (b as Array).size():
+		for f in (a as Array).size():
+			if (a as Array)[f] != (b as Array)[f]:
+				return "field %d: script %s vs native %s" % [f, _shallow((a as Array)[f]), _shallow((b as Array)[f])]
+	return "script %s vs native %s" % [_shallow(a), _shallow(b)]
+
+
+static func _shallow(v: Variant) -> String:
+	match typeof(v):
+		TYPE_OBJECT:
+			return "<%s>" % (v as Object).get_class() if v != null else "null"
+		TYPE_ARRAY:
+			return "[%d items]" % (v as Array).size()
+		TYPE_DICTIONARY:
+			var parts: PackedStringArray = []
+			for key: Variant in v:
+				parts.append("%s=%s" % [str(key), _shallow((v as Dictionary)[key])])
+			return "{%s}" % ", ".join(parts)
+	return str(v)

@@ -526,8 +526,7 @@ func fit_hitboxes_to_stance() -> void:
 func fit_hitboxes_to_crouch(crouch: float) -> void:
 	if hitboxes == null or controller == null or controller.tunables == null:
 		return
-	var t := controller.tunables
-	var k := lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(crouch, 0.0, 1.0))
+	var k := crouch_fit_k(crouch)
 	if FcHullGrid.enabled and k == _fit_k:
 		return
 	_fit_k = k
@@ -540,6 +539,15 @@ func fit_hitboxes_to_crouch(crouch: float) -> void:
 		box.position.y = y * k
 		if box.shape == GSHitbox.Shape.CAPSULE:
 			box.height = maxf(h * k, box.radius * 2.0 + 0.02)
+
+
+## The height scale [method fit_hitboxes_to_crouch] would fit the zones to for [param crouch], without moving a box:
+## what a posed rewind hands the native tracer (fc_native_shots.gd). [member _fit_k] when nothing could be fitted.
+func crouch_fit_k(crouch: float) -> float:
+	if hitboxes == null or controller == null or controller.tunables == null:
+		return _fit_k
+	var t := controller.tunables
+	return lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(crouch, 0.0, 1.0))
 
 
 ## Sideways speed across the aim (positive right) that bends the wall-shot barrel; zero while wall-running, as the drawn view does.
