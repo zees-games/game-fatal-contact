@@ -367,6 +367,7 @@ func _client_net_config() -> GSNetConfig:
 	config.world_extent = FcGame.NET_WORLD_EXTENT
 	# A shorter ease back onto the blend the server rewinds to (FcGame.CLIENT_RESUME_EASE_SEC).
 	config.resume_ease_sec = FcGame.CLIENT_RESUME_EASE_SEC
+	config.native = false  # a client sends no snapshots: never look for gs-net's library
 	# By name, as a pack runs on whatever gs-net its shell carries (docs/netcode.md, "A frame's cost").
 	if &"reconcile_once_per_frame" in config:
 		config.set(&"reconcile_once_per_frame", FcFrameProbe.launch_value("cl_reconcile_per_snapshot") != "1")

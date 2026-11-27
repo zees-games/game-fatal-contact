@@ -214,6 +214,7 @@ func _bind_commands_and_cvars() -> void:
 	_add_rate_cvar()
 	_add_snapshot_rate_cvar()
 	_add_snapshot_workers_cvar()
+	FcNetNativeCore.bind_cvar(add_cvar, func() -> GSNetManager: return net)
 	_add_net_lagcomp_cvar()
 	_add_tick_rate_cvars()
 	_add_aoi_cvars()
