@@ -126,9 +126,10 @@ func _ready() -> void:
 			var _stored := f.store_string(str(config.effective_enet_port()))
 			f.close()
 	_server = server
-	print("SIM_HOST ready map=%s mode=%s bots=%d bot_threads=%d brain=%s loop=%s" % [String(game.map.id), String(game.mode.id), bots,  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
+	print("SIM_HOST ready map=%s mode=%s bots=%d bot_threads=%d brain=%s loop=%s drops=%s" % [String(game.map.id), String(game.mode.id), bots,  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		FcBotThreads.threads, "native" if FcPlayerStack.brain_native() else "script",
-		"native" if FcBots.tier_schedule and bool(FcBots.tiers.get(&"native")) and ClassDB.class_exists(&"GSSimThinkTier") else "script"])
+		"native" if FcBots.tier_schedule and bool(FcBots.tiers.get(&"native")) and ClassDB.class_exists(&"GSSimThinkTier") else "script",
+		"native" if bool((GSBotWorld as Script).get(&"native_drops")) and ClassDB.class_has_method(&"GSSimBotDrops", &"pack") else "script"])
 	_report(module.net)
 
 
