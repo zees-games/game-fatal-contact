@@ -18,7 +18,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 6
-const CHECKS := 34
+const CHECKS := 36
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -321,6 +321,7 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	var table_first := -1
 	var has_table := false
 	var armed := 0
+	var loaded := 0
 	for round_index in rounds:
 		var held: Variant = _scramble(players, rng, round_index == rounds - 1)
 		FcBotContacts.table = false
@@ -331,9 +332,11 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 		FcBotContacts.enabled = true
 		var built_before := FcBotContacts.built
 		var armed_before := FcBotContacts.armed
+		var loaded_before := FcBotContacts.loaded
 		world.refresh(1001 + 3 * round_index, float(TICK_RATE))
 		built += FcBotContacts.built - built_before
 		armed += FcBotContacts.armed - armed_before
+		loaded += FcBotContacts.loaded - loaded_before
 		var native := _snapshot(world)
 		var row := _table_round(world, 1002 + 3 * round_index, packed, script[0])
 		has_table = row >= 0
@@ -374,6 +377,7 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	_check(played[0] == expected, "bot_native_contacts_delta 0 (every field every tick) plays the same match (%d kills)" % played[1])
 	await _table_checks(expected, tabled, rounds, table_first, has_table)
 	await _arms_checks(expected, native_contacts, armed, rounds)
+	await _loadouts_checks(expected, native_contacts, loaded, rounds)
 
 
 ## `bot_native_contact_arms`: gs-sim wrote the weapons in hand of every object round (the rounds above compare them with the
@@ -389,6 +393,22 @@ func _arms_checks(expected: PackedStringArray, native_contacts: Object, armed: i
 	var played: Array = await _play(0)
 	FcBotContacts.arms = true
 	_check(played[0] == expected, "bot_native_contact_arms 0 (one script call per player) plays the same match (%d kills)" % played[1])
+
+
+## `bot_native_loadouts`: gs-sim sorted the stale loadouts in every object round (the rounds above compare each contact's loadout
+## with the script's over random arsenals, pickups and none), and the match plays the same with it off.
+func _loadouts_checks(expected: PackedStringArray, native_contacts: Object, loaded: int, rounds: int) -> void:
+	if not bool(native_contacts.get(&"_has_arms")) or not (native_contacts.call(&"sim") as Object).has_method(&"loadouts_stale"):
+		print("skip: this gs-sim has no loadouts_stale")
+		for i in 2:
+			_check(true, "(skipped: no gs-sim loadouts_stale)")
+		return
+	_check(loaded == rounds, "bot_native_loadouts: gs-sim named the stale loadouts in %d of %d randomized rounds" % [loaded, rounds])
+	FcBotContacts.loadouts = false
+	var played: Array = await _play(0)
+	FcBotContacts.loadouts = true
+	_check(played[0] == expected, "bot_native_loadouts 0 (one script call per player) plays the same match (%d kills)" % played[1])
+
 
 ## The match [method _contacts_parity] refreshes, started and ticked once; its players appended to [param players].
 func _contacts_game(players: Array) -> FcGame:

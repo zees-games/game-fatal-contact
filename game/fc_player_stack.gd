@@ -130,6 +130,8 @@ static func gs_sim_status() -> String:
 				parts.append("motor_tick=%s" % ("full" if GSFpsMotor.native_full and GSFpsPhysicsBody.native_full_available() else "on"))
 		elif module == "bots":
 			used = loaded and GSBotWorld.native_enabled
+			if loaded:
+				parts.append("bot_loadouts=%s bot_style_places=%s" % ["native" if preload("fc_bot_contacts.gd").loadouts else "script", "native" if (GSBotStyle as Script).get(&"native_enabled") == true and ClassDB.class_has_method(&"GSSimBotMind", &"style_cover") else "script"])
 		parts.append("%s=%s" % [module, ("on" if used else "off") if loaded else "missing"])
 	if not any:
 		return "gs-sim: native library not loaded, the GDScript twins run (bootstrap fetches it; web never has it)"

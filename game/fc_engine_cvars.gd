@@ -71,6 +71,17 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.arms = new_value.to_float() >= 0.5)
+	add_cvar("bot_native_loadouts", "1",
+		"1: gs-sim names the contacts whose arsenal is new or whose revision() moved, and only theirs are rated again, one call a tick (GSSimBotContacts.loadouts_stale; the same loadouts to the bit); 0, or a gs-sim without it: one script call per player a tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.loadouts = new_value.to_float() >= 0.5)
+	# gs-bot 51, by name (an older gs-bot ignores it).
+	add_cvar("bot_native_style_cover", "1",
+		"1: a bot's play style looks for cover and vantage points in gs-sim when its library has them (GSSimBotMind.style_cover/style_vantage; the same spots and draws to the bit); 0: in script",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			(GSBotStyle as Script).set(&"native_enabled", new_value.to_float() >= 0.5))
 	add_cvar("bot_contact_table", "1",
 		"1: gs-sim fills the bots' contacts as one packed table (GSBotContactTable, gs-bot 41; the same decisions, a contact object written only when read); 0, or a gs-sim without fill_table: it writes every contact object every tick",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(

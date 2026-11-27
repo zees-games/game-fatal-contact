@@ -36,6 +36,11 @@ static var tabled: int = 0
 static var arms: bool = true
 ## Ticks whose weapons in hand gs-sim wrote, for the suites.
 static var armed: int = 0
+## Whether gs-sim names the contacts whose loadout must be made again (an arsenal's revision moved), so the world's
+## [code]_loadout_of[/code] runs for those alone (cvar `bot_native_loadouts`; needs loadouts_stale).
+static var loadouts: bool = true
+## Ticks whose loadouts gs-sim sorted, for the suites.
+static var loaded: int = 0
 
 var _sim: Object = null
 var _tried: bool = false
@@ -48,10 +53,14 @@ var _table: GSBotContactTable = null
 var _has_arms: bool = false
 ## Whether the last build's weapons in hand were gs-sim's, so what it remembers writing is what the contacts hold.
 var _arms_fresh: bool = false
+## Whether the last arming sorted the loadouts in gs-sim; with [member _arms_fresh], what it remembers still matches the contacts.
+var _loadouts_fresh: bool = false
 ## gs-sim's interned style class index by weapon definition.
 var _class_ids: Dictionary = {}
 var _arm_classes := PackedInt32Array()
 var _arm_rounds := PackedInt64Array()
+## The arsenal beside each contact, for loadouts_stale.
+var _arm_arsenals: Array = []
 ## Whether the last build was gs-sim's, so what it remembers writing is what the contacts hold.
 var _fresh: bool = false
 var _head := PackedFloat64Array()
@@ -173,8 +182,23 @@ static func _launch_enabled(world: Object) -> bool:
 func _arm(world: Object, native: Object, players: Array, contacts: Array, tick: int) -> bool:
 	var t_c := FcFrameProbe.lap_start()
 	var n := players.size()
-	for i in n:
-		(contacts[i] as GSBotContact).loadout = world.call(&"_loadout_of", players[i], tick)
+	if loadouts and native.has_method(&"loadouts_stale"):
+		# Only the contacts whose arsenal is new or whose revision() moved: the rest already hold what _loadout_of would hand back.
+		# _arms_fresh is still the last build's: false after a build without gs-sim or without arming.
+		if not (_loadouts_fresh and _arms_fresh):
+			native.call(&"forget_loadouts")
+		_arm_arsenals.resize(n)
+		for i in n:
+			_arm_arsenals[i] = (players[i] as FcPlayer).arsenal
+		var stale: PackedInt32Array = native.call(&"loadouts_stale", contacts, _arm_arsenals)
+		for i in stale:
+			(contacts[i] as GSBotContact).loadout = world.call(&"_loadout_of", players[i], tick)
+		_loadouts_fresh = true
+		loaded += 1
+	else:
+		_loadouts_fresh = false
+		for i in n:
+			(contacts[i] as GSBotContact).loadout = world.call(&"_loadout_of", players[i], tick)
 	t_c = FcFrameProbe.lap(&"brc_loadout", t_c)
 	_arm_classes.resize(n)
 	_arm_rounds.resize(n * 2)
