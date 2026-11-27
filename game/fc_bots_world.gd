@@ -87,6 +87,8 @@ class Mind:
 	var ride: Variant = null
 	## Where the bot was last tick, to see a teleport.
 	var last_position: Vector3 = Vector3.INF
+	## Whether this tick's think saw a teleport: fc_surf.gd's steer takes the ride of the pad it landed on.
+	var teleported: bool = false
 	## The commands of the last tick the brain thought, repeated on the ticks it coasts (see [constant THINK_EVERY]).
 	var last_move: GSFpsCommand = null
 	var last_fire: GSWeaponCommand = null
