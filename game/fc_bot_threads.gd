@@ -46,6 +46,11 @@ static func native_default() -> int:
 
 ## Ticks whose brains went through the worker path (for the suite).
 static var par_ticks: int = 0
+## Which hand-over the shell's gs-bot brains have ([constant BRAIN_PAR] from API 34), looked up once; -1 until then.
+static var _brain_api: int = -1
+const BRAIN_NEITHER := 0
+const BRAIN_LEAVE := 1
+const BRAIN_PAR := 2
 
 ## srv_bots outside the brains, by part, for the sim host's SIM_HOST_PHASES line (`--sim_sections` 1 or 2): the
 ## main-thread begin and finish loops, the par hand-off, the main thread's own share of brains, the join and the
@@ -70,7 +75,7 @@ static func phase(part: int, since: int) -> int:
 static func phase_start() -> int:
 	return Time.get_ticks_usec() if phase_timers else 0
 
-var _jobs: Array = []
+var _jobs: Array[FcBots.Mind] = []
 var _next := 0
 var _lock := Mutex.new()
 
@@ -104,10 +109,10 @@ static func think_all(game: Object, players: Array, minds: Array, tick: int, tic
 
 
 static func _decide(pending: Array[int], minds: Array) -> void:
-	var jobs: Array = []
+	var jobs: Array[FcBots.Mind] = []
 	for i in pending:
 		jobs.append(minds[i])
-	var world: FcBots.World = (jobs[0] as FcBots.Mind).t_world
+	var world: FcBots.World = jobs[0].t_world
 	var started := Time.get_ticks_usec()
 	if jobs.size() < MIN_BOTS:
 		for mind: FcBots.Mind in jobs:
@@ -118,10 +123,13 @@ static func _decide(pending: Array[int], minds: Array) -> void:
 	# handle on this tick's packed scan and stays native on its worker (gs-bot API 34 with a
 	# worker-safe gs_sim); without that it moves into script (a no-op once it is).
 	var t_part := phase_start()
+	if _brain_api < 0:
+		var brain := jobs[0].brain
+		_brain_api = BRAIN_PAR if brain.has_method(&"par_ready") else BRAIN_LEAVE if brain.has_method(&"leave_native") else BRAIN_NEITHER  # perf-lint: allow dynamic_call once per process
 	for mind: FcBots.Mind in jobs:
-		if mind.brain.has_method(&"par_ready"):
+		if _brain_api == BRAIN_PAR:
 			mind.brain.par_ready(mind.t_world)
-		elif mind.brain.has_method(&"leave_native"):
+		elif _brain_api == BRAIN_LEAVE:
 			mind.brain.leave_native()
 	t_part = phase(SB_READY, t_part)
 	var began := world.par_begin()

@@ -1,4 +1,4 @@
-extends RefCounted
+extends "fc_ride_source.gd"
 
 ## Records the rides real players take between the platforms of a combat surf map, replays them on
 ## the real motor to keep the ones that land, and gives bots the verified ones to ride.
@@ -70,7 +70,7 @@ var harvest: GSBotRideHarvest = null
 var book: GSBotRideBook = null
 var rng: GSRandomStream = null
 var nav: GSBotNav = null
-var map: Object = null
+var map: FcSurf.FcMap = null
 var tick_rate: float = float(FcContent.TICK_RATE)
 
 ## Players' stretches that ended as a ride kept, and as one thrown away, for describe().
@@ -143,7 +143,7 @@ func setup(p_game: Object, p_config: GSBotDemoConfig, p_store: GSBotDemoStore, p
 
 
 ## Keys the recorder and the book to the game's current map, with its mesh once baked.
-func set_map(p_map: Object, p_nav: GSBotNav) -> void:
+func set_map(p_map: FcSurf.FcMap, p_nav: GSBotNav) -> void:
 	map = p_map
 	nav = p_nav
 	_tracks.clear()
@@ -154,7 +154,7 @@ func set_map(p_map: Object, p_nav: GSBotNav) -> void:
 	_dirty.clear()
 	_attached = false
 	_sim = null
-	var id := str(p_map.get("id"))
+	var id := String(p_map.id)
 	var version := str(p_map.call(&"effective_content_version")) if p_map.has_method(&"effective_content_version") else "0"
 	recorder.set_map(id, version)
 	book.set_map(id, version)
@@ -189,8 +189,8 @@ func is_on() -> bool:
 
 ## Follows the game's map and the bots' mesh, and hands bots the recorded rides once the surf cache is linked.
 func _sync() -> void:
-	var current: Object = game.get("map")
-	if current == null or not current.has_method(&"is_imported") or not bool(current.call(&"is_imported")) or not recorder.config.record:
+	var current := game.get(&"map") as FcSurf.FcMap
+	if current == null or not current.is_imported() or not recorder.config.record:
 		return
 	var world := FcBots.world_for(game)
 	var mesh := world.nav_for_rides()
@@ -203,7 +203,7 @@ func _sync() -> void:
 		_attached = true
 		var surf := world.surf_for_map()
 		if surf != null:
-			surf.set(&"rides", self)
+			(surf as FcSurf).rides = self
 			attach_surf(surf)
 
 ## Once a tick, before the players' loop: what [method before] does first for every player (follow the map and the
@@ -274,9 +274,9 @@ func _extend(id: int, t: Track, state: GSFpsState, command: GSFpsCommand, tick: 
 	var obs := PackedFloat32Array([t.pre_pos.x, t.pre_pos.y, t.pre_pos.z, t.pre_vel.x, t.pre_vel.y, t.pre_vel.z])
 	var act := PackedFloat32Array([command.yaw, command.move.x, command.move.y, 1.0 if command.is_pressed(GSFpsCommand.BUTTON_JUMP) else 0.0])
 	var _kept := recorder.sample(id, obs, act, tick)
-	var bounds: AABB = map.get("bounds")
+	var bounds: AABB = map.bounds
 	var lost := state.position.y < bounds.position.y - FcSurf.FALL_OUT_DEPTH or float(t.ticks) / tick_rate > FcSurf.RIDE_SECONDS
-	for pit: Dictionary in map.get("pits"):
+	for pit: Dictionary in map.pits:
 		if (pit["box"] as AABB).has_point(state.position):
 			lost = true
 	if lost:
