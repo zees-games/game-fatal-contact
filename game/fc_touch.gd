@@ -208,4 +208,11 @@ static func _is_enemy(p: Node3D) -> bool:
 static func _blocked(space: PhysicsDirectSpaceState3D, mask: int, from: Vector3, to: Vector3) -> bool:
 	if space == null or mask == 0:
 		return false
-	return not space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, mask)).is_empty()
+	# One query for every ray (a frame asks one for the crosshair and one an assist candidate): only its ends and mask change.
+	_ray.from = from
+	_ray.to = to
+	_ray.collision_mask = mask
+	return not space.intersect_ray(_ray).is_empty()
+
+
+static var _ray := PhysicsRayQueryParameters3D.new()

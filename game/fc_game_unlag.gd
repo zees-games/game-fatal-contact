@@ -90,8 +90,27 @@ func _sync_stomp_config() -> void:
 	r.same_team = config.stomp_same_team
 	r.bounce = config.stomp_bounce
 	r.cooldown_sec = config.stomp_cooldown_sec
-	r.sound = StringName(config.stomp_sound)
-	r.effect = StringName(config.stomp_effect)
+	# Interned only when the cfg string changes: a StringName from a String hashes it every tick.
+	if not _stomp_names_synced or config.stomp_sound != _stomp_sound_of or config.stomp_effect != _stomp_effect_of:
+		_stomp_names_synced = true
+		_stomp_sound_of = config.stomp_sound
+		_stomp_effect_of = config.stomp_effect
+		r.sound = StringName(_stomp_sound_of)  # perf-lint: allow alloc only when the cfg's sound changes
+		r.effect = StringName(_stomp_effect_of)  # perf-lint: allow alloc only when the cfg's effect changes
+
+
+## The cfg strings [member stomp]'s sound and effect were last interned from.
+var _stomp_sound_of := ""
+
+
+var _stomp_effect_of := ""
+
+
+var _stomp_names_synced := false
+
+
+## What [member _unlag] answers for a player with no ring yet: shared and read-only, so a miss allocates nothing.
+const _NO_RING: Array = []
 
 
 ## Every live player's hull this tick, in roster order, as plain columns: a falling player's
@@ -121,7 +140,7 @@ func unlag_position_at(id: int, at: float) -> Variant:
 	var native := _unlag_ring()
 	if native != null:
 		return native.position_at(id, at)
-	var ring: Array = _unlag.get(id, [])
+	var ring: Array = _unlag.get(id, _NO_RING)  # perf-lint: allow untyped_array a ring holds three packed arrays of different types
 	# Below tick 0, -1 % 128 indexes the last slot, whose unfilled tag is -1 too.
 	if ring.is_empty() or at < 0.0:
 		return null
@@ -143,7 +162,7 @@ func unlag_crouch_at(id: int, at: float) -> float:
 	var native := _unlag_ring()
 	if native != null:
 		return float(native.crouch_at(id, at))
-	var ring: Array = _unlag.get(id, [])
+	var ring: Array = _unlag.get(id, _NO_RING)  # perf-lint: allow untyped_array a ring holds three packed arrays of different types
 	if ring.size() < 3 or at < 0.0:
 		return -1.0
 	var crouches: PackedFloat32Array = ring[2]
@@ -168,10 +187,10 @@ func _unlag_rewind(view_tick: float) -> void:
 		if not player.health.alive:
 			continue
 		# A hitscan shot: where the shooter's screen blended them, when the command named its two snapshots.
-		var then: Variant = shot_feet_fn.call(id, _unlag_shooter, view_tick) if _unlag_shot and shot_feet_fn.is_valid() else null
+		var then: Variant = shot_feet_fn.call(id, _unlag_shooter, view_tick) if _unlag_shot and shot_feet_fn.is_valid() else null  # perf-lint: allow dynamic_call a hook Callable held once, not a lookup by name
 		var crouch := -1.0
 		if then != null and shot_crouch_fn.is_valid():
-			crouch = shot_crouch_fn.call(id, _unlag_shooter, view_tick)
+			crouch = shot_crouch_fn.call(id, _unlag_shooter, view_tick)  # perf-lint: allow dynamic_call as above
 		if then == null:
 			then = ring_feet(id, view_tick)
 		if then == null:
@@ -234,14 +253,14 @@ func _unlag_record() -> void:
 		return
 	for id in _players:
 		var player: FcPlayer = _players[id]
-		var ring: Array = _unlag.get(id, [])
+		var ring: Array = _unlag.get(id, _NO_RING)  # perf-lint: allow untyped_array a ring holds three packed arrays of different types
 		if ring.is_empty():
 			var positions := PackedVector3Array()
 			positions.resize(unlag_history())
 			var ticks := PackedInt32Array()
 			ticks.resize(unlag_history())
 			ticks.fill(-1)
-			ring = [positions, ticks]
+			ring = [positions, ticks]  # perf-lint: allow alloc once a player, the first tick they are recorded
 			_unlag[id] = ring
 		if ring.size() < 3:
 			var fresh := PackedFloat32Array()
@@ -327,7 +346,8 @@ func teams() -> Array[GSTeam]:
 	if match_node != null and match_node.teams != null:
 		return match_node.teams.teams
 
-	return []
+	# A free-for-all asks this several times a tick: one shared empty list, never a fresh one (callers only read it).
+	return _no_sides
 
 
 func player_for(id: int) -> FcPlayer:
@@ -343,3 +363,6 @@ var _shown_sides: Array[GSTeam] = []
 
 
 var _shown_sides_for: FcMode = null
+
+
+var _no_sides: Array[GSTeam] = []

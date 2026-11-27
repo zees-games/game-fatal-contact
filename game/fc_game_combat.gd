@@ -227,7 +227,9 @@ func arm_for_mode(player: FcPlayer) -> void:
 		return
 
 	var catalogue := player.arsenal.catalogue
-	var give: Array[StringName] = []
+	# One list and one generator for the game's life: a round start arms every player at once.
+	var give := _arm_give
+	give.clear()
 
 	if not mode.gun_game.is_empty():
 		var record := match_node.scoreboard.find(str(player.player_id)) if match_node != null else null
@@ -236,11 +238,11 @@ func arm_for_mode(player: FcPlayer) -> void:
 	else:
 		var pool := mode.pool_ids(catalogue)
 		if mode.pool_random and not pool.is_empty():
-			var rng := RandomNumberGenerator.new()
-			rng.seed = player.player_id * 7919 + _tick
-			give.append(pool[rng.randi_range(0, pool.size() - 1)])
+			# Seeding resets the generator's state, so the pick is the one a fresh generator with this seed made.
+			_arm_rng.seed = player.player_id * 7919 + _tick
+			give.append(pool[_arm_rng.randi_range(0, pool.size() - 1)])
 		else:
-			give = pool
+			give.append_array(pool)
 
 	player.arsenal.clear()
 	var hand := 0
@@ -252,6 +254,12 @@ func arm_for_mode(player: FcPlayer) -> void:
 		var _knife := player.arsenal.give(FcContent.melee_id())
 	if hand > 0:
 		player.hold(hand)
+
+var _arm_give: Array[StringName] = []
+
+
+var _arm_rng := RandomNumberGenerator.new()
+
 
 ## What the medal rules are told about a kill: all of it read off the simulation.
 func _kill_facts(damage: GSDamage, victim: FcPlayer, entry: GSKillFeed.Entry) -> FcAwards.KillFacts:
@@ -270,12 +278,17 @@ func _kill_facts(damage: GSDamage, victim: FcPlayer, entry: GSKillFeed.Entry) ->
 	k.aiming = killer.aiming
 	var weapon := damage.weapon_id
 	var def := FcPlayer.weapon_catalogue().get_def(weapon) if weapon != &"" else null
+	# Shared, never copied: the medal rules only ask the tags what they hold.
 	if def != null:
-		k.tags = Array(def.tags)
+		k.tags = def.tags
 	elif weapon == &"":
 		# Not a weapon at all (a world hazard pushed by somebody): no range medals.
-		k.tags = [AwWeaponIds.TAG_THROWN]
+		k.tags = _thrown_tags
 	return k
+
+
+## The tags of a kill by no weapon (a world hazard pushed by somebody), one list for the game's life.
+var _thrown_tags: Array[StringName] = [AwWeaponIds.TAG_THROWN]
 
 ## Gun game: a melee kill costs the victim a gun ([member FcMode.gun_game_melee_demotes]).
 ##
@@ -596,15 +609,18 @@ func _sweep_jail_button() -> void:
 	if not jail.enabled:
 		return
 	var box: AABB = jail.button_box()
+	# The game tick, which every player's pits are asked on and a client predicts on too.
+	var at: int = _tick
+	var by := -1
 	for id in player_ids():
 		var p: FcPlayer = _players[id]
-		if p.is_alive() and box.has_point(p.controller.state.position):
-			# The game tick, which every player's pits are asked on and a client predicts on too.
-			var at: int = _tick
-			if jail.press(at):
-				GSLog.info(CHANNEL, "the jail's gate opened", {"by": id, "tick": at})
-				jail_changed.emit()
-				return
+		if p.is_alive() and box.has_point(p.controller.state.position) and jail.press(at):
+			by = id
+			break
+	if by < 0:
+		return
+	GSLog.info(CHANNEL, "the jail's gate opened", {"by": by, "tick": at})  # perf-lint: allow alloc once a gate opening, not per tick
+	jail_changed.emit()
 
 
 
@@ -655,11 +671,20 @@ func _tick_rest(delta: float) -> void:
 		demo_stats.process(delta)
 
 ## Who can pick up a drop this tick, keyed by player id.
+## One dictionary for the game's life, refilled each tick: the drops read it only inside that tick's sweep.
+## Left empty while the drops have nothing to sweep (most ticks of a map with no packs), as they never read it then.
 func _drop_sweepers() -> Dictionary:
-	var sweepers := {}
+	var sweepers := _sweepers
+	sweepers.clear()
+	if drops != null and not drops.has_work():
+		return sweepers
 	for id in player_ids():
 		var p: FcPlayer = _players[id]
 		if p.is_alive():
 			# The player, asked only when a pickup is in reach: what it lacks is a walk over its slots.
+			# A fresh entry each: the drops fill in what a pickup asks ("hurt", "heal") and must not see last tick's.
 			sweepers[id] = {"position": p.controller.state.position, "player": p}
 	return sweepers
+
+
+var _sweepers: Dictionary[int, Dictionary] = {}

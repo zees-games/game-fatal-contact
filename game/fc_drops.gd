@@ -235,6 +235,12 @@ func _spawn(kind: int, value: int, from: Vector3, at: Vector3, tick: int) -> voi
 	mirror_drop(id, kind, pickup.global_position, from, value)
 
 
+## Whether [method tick] has anything to do: with no live drop and no pack it returns before reading its players,
+## so the game need not build them.
+func has_work() -> bool:
+	return is_authority and field != null and not (_live.is_empty() and _packs.is_empty())
+
+
 ## One tick: every live player sweeps the drops, and old ones go. Authority side.
 ##
 ## [param players] is id -> {"position": Vector3, "hurt": bool, "heal": Callable}.

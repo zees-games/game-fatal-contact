@@ -278,9 +278,21 @@ func make_noblock(strict := GSGameConfigBinder.default_strict()) -> GSResult:
 	return made
 
 ## The side a player blocks as: its team, or "" in a free-for-all (no teammates, so it stays solid).
+## gs-team asks it for both players of every pair it judges, so each side's text is built once and kept.
 func block_side(id: Variant) -> Variant:
 	var team := team_of(int(id)) if not teams().is_empty() else 0
-	return str(team) if team > 0 else ""
+	if team <= 0:
+		return ""
+	if team >= _side_texts.size():
+		var from := _side_texts.size()
+		var _sized := _side_texts.resize(team + 1)
+		for t in range(from, team + 1):
+			_side_texts[t] = str(t)  # perf-lint: allow string_build once a team id for the game's life
+	return _side_texts[team]
+
+
+## [method block_side]'s answers, indexed by team id.
+var _side_texts := PackedStringArray()
 
 ## A storage key that is usable as a filename.
 ##

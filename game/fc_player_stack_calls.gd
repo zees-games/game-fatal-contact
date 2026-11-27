@@ -83,14 +83,16 @@ func _pose_of_key(key: String) -> Transform3D:
 
 ## Everybody alive who is an enemy of the spawning player: in a free-for-all everybody but them, in a team mode the other sides.
 ## The spawning player is never their own enemy: one respawned while alive (a map change, an admin) stood on the site being scored and scored it as the most dangerous place on the map.
-func _enemy_positions(team: StringName, key: String = "") -> Array:
-	var out: Array = []
+func _enemy_positions(team: StringName, key: String = "") -> Array[Vector3]:
+	var out: Array[Vector3] = []  # perf-lint: allow alloc gs-spawn keeps the list in the spawn's context, so it is a fresh one a spawn
 	# The MODE says whether there are sides, not gs-match's team manager: that exists in a free-for-all too, and the roster keeps whatever side a team mode left everybody on,
 	# which told a free-for-all respawner its old team-mates were friends.
 	var sided: bool = game.mode != null and game.mode.is_team_mode() and team != &""
 
+	var skip := _id_of_key(key)
+
 	for player in game.players():
-		if not player.is_alive() or player.controller == null or str(player.player_id) == key:
+		if not player.is_alive() or player.controller == null or player.player_id == skip:
 			continue
 
 		if sided and teams != null and teams.team_of(str(player.player_id)) == team:
@@ -102,18 +104,29 @@ func _enemy_positions(team: StringName, key: String = "") -> Array:
 
 
 ## The spawning player's side, alive, in a team mode; nobody in a free-for-all.
-func _friend_positions(team: StringName, key: String = "") -> Array:
-	var out: Array = []
+func _friend_positions(team: StringName, key: String = "") -> Array[Vector3]:
+	var out: Array[Vector3] = []  # perf-lint: allow alloc as _enemy_positions: the spawn's context keeps it
 
 	if game.mode == null or not game.mode.is_team_mode() or team == &"" or teams == null:
 		return out
 
+	var skip := _id_of_key(key)
+
 	for player in game.players():
-		if player.is_alive() and player.controller != null and str(player.player_id) != key \
+		if player.is_alive() and player.controller != null and player.player_id != skip \
 				and teams.team_of(str(player.player_id)) == team:
 			out.append(player.controller.state.position)
 
 	return out
+
+
+## The player id a spawn key names, so a loop compares ints rather than building every player's key; -1 (nobody) for a key no
+## player id prints as ("", a bot's text key, "007").
+static func _id_of_key(key: String) -> int:
+	if not key.is_valid_int():
+		return -1
+	var id := key.to_int()
+	return id if str(id) == key else -1  # perf-lint: allow string_build once a spawn, not per player
 
 
 ## Whether an enemy at [param from] can see a site (eye height to head height) [b]through the map's own trace, the one shots use[/b]: a headless game's physics space holds no built-in map.
