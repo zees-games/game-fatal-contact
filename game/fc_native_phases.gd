@@ -14,7 +14,7 @@ const PHASES: Array[Dictionary] = [
 	{"id": "mirror", "cvars": ["sv_trace_mirror"],
 		"classes": ["GSSimTraceMirror", "GSSimFpsBody"], "methods": [["GSSimFpsBody", "set_trace_mirror"]]},
 	{"id": "motor", "cvars": ["motor_native", "sv_native_motor_state", "motor_native_tick", "motor_native_full", "fc_hull_native",
-		"fc_posture_native", "fc_mechanics_native", "fc_tick_events", "fc_pre_native"],
+		"fc_posture_native", "fc_mechanics_native", "fc_tick_events", "fc_pre_native", "fc_knife_gate", "fc_flush_idle_skip"],
 		"classes": ["GSSimFpsBody", "GSSimMotorBatch"], "methods": []},
 	{"id": "bots", "cvars": ["bot_native", "bot_native_brain", "bot_native_pickup", "bot_native_drops",
 		"bot_native_unstick", "bot_native_act", "bot_native_think", "fc_bot_pvs_native", "bot_native_think_mt",
@@ -46,6 +46,35 @@ static var native_calls := PackedInt64Array([0, 0, 0, 0, 0, 0])
 static var script_calls := PackedInt64Array([0, 0, 0, 0, 0, 0])
 static var _calls_printed := false
 
+## The lanes inside a phase that keep a GDScript half (docs/native-server-tick.md): their counts are printed
+## on the bench's SIM_HOST_NATIVE line as `lanes=[pre=n/s ...]`, never in FC_NATIVE_TICK_CALLS (a lane's
+## script count is legitimate: a gated player, a fine-probe tick).
+## pre: one per batched tick, the gs-sim pre call (cvar fc_pre_native) or the per-player script.
+## knife: one per live player a batched tick, the knife gate's skip (cvar fc_knife_gate) or the knife calls.
+## flush: one per idle player a batched tick, the unprotected-idle skip (cvar fc_flush_idle_skip) or the full outcome.
+const LANES: PackedStringArray = ["pre", "knife", "flush"]
+const LANE_PRE := 0
+const LANE_KNIFE := 1
+const LANE_FLUSH := 2
+static var lane_native := PackedInt64Array([0, 0, 0])
+static var lane_script := PackedInt64Array([0, 0, 0])
+
+
+## Counts one pass of [param lane] (LANE_*). Hot path: no allocation.
+static func lane(index: int, native: bool) -> void:
+	if native:
+		lane_native[index] += 1
+	else:
+		lane_script[index] += 1
+
+
+## `pre=1500/0 knife=40000/120 flush=...` in LANES order.
+static func lanes_line() -> String:
+	var parts := PackedStringArray()
+	for i: int in LANES.size():
+		parts.append("%s=%d/%d" % [LANES[i], lane_native[i], lane_script[i]])
+	return " ".join(parts)
+
 
 ## Counts one dispatch of [param phase] (PLAYERS .. SNAPSHOTS). Hot path: no allocation.
 static func tally(phase: int, native: bool) -> void:
@@ -58,6 +87,8 @@ static func tally(phase: int, native: bool) -> void:
 static func reset_calls() -> void:
 	native_calls.fill(0)
 	script_calls.fill(0)
+	lane_native.fill(0)
+	lane_script.fill(0)
 	_calls_printed = false
 
 
@@ -84,10 +115,10 @@ static func print_calls_once() -> void:
 	print("FC_NATIVE_TICK_CALLS ", calls_line())  # check-logging: allow print (end-of-run summary)
 
 
-## The bench's end-of-run lines: `SIM_HOST_NATIVE <status_line> | end`, then the call counts.
+## The bench's end-of-run lines: `SIM_HOST_NATIVE <status_line> lanes=[<lanes_line>] | end`, then the call counts.
 ## Built only when the bench quits, never per frame.
 static func print_bench_end(console: GSConsole) -> void:
-	print("SIM_HOST_NATIVE %s | end" % status_line(console))  # check-logging: allow print (bench end line)
+	print("SIM_HOST_NATIVE %s lanes=[%s] | end" % [status_line(console), lanes_line()])  # check-logging: allow print (bench end line)
 	print_calls_once()
 
 ## Registers (or adopts) the master, applies it and prints the startup line. Call last in the

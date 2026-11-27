@@ -12,6 +12,7 @@ const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcWeaponTickCvars := preload("fc_weapon_tick_cvars.gd")
+const FcTickGates := preload("fc_tick_gates.gd")
 const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
 
 
@@ -170,6 +171,16 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcPlayer.pre_native = new_value.to_float() >= 0.5)
+	add_cvar("fc_knife_gate", "1" if FcTickGates.knife_gate else "0",
+		"1: the batched loop skips the knife input and charge calls for a player with the aim key up, not held last tick and not winding up (they change nothing; bit for bit); 0: every live player calls them",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcTickGates.knife_gate = new_value.to_float() >= 0.5)
+	add_cvar("fc_flush_idle_skip", "1" if FcTickGates.flush_idle_skip else "0",
+		"1: the posture flush posts an idle, unprotected player's weapon outcome (no shots, no spawns) in place (bit for bit); 0: every flushed player runs the full post",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcTickGates.flush_idle_skip = new_value.to_float() >= 0.5)
 	FcWeaponTickCvars.add_to(self)
 	add_cvar("fc_mechanics_native", "1" if FcPlayer.mechanics_native else "0",
 		"1: the batched tick asks gs-sim (GSSimVolumes, one call) which players are clear of every map volume and skips their pushes, ladders, water and pits (the same states as the script); 0: every player runs them",

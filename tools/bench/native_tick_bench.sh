@@ -5,13 +5,14 @@
 # dropped), and with --sections the per-section ms/tick averaged over the run.
 #
 #   tools/bench/native_tick_bench.sh [--box ph] [--seconds 60] [--bots 31] [--map cp-orange-x3] [--sections]
-#                                    [--only 1|0] [--logs DIR]
+#                                    [--only 1|0] [--logs DIR] [--cvar NAME=VALUE ...]
 #
 # Runs through gs-bootstrap's gpu.sh like tools/perf_bench.sh (GODOT_ROOT = this checkout's parent), so the box gets
 # this checkout, addons included. One big before/after bench per batch, not an A/B per change.
 set -euo pipefail
 here=$(cd "$(dirname "$0")/../.." && pwd)
 gpu=${GPU_SH:-/home/gamedev/godot/gs-bootstrap/tools/gpu.sh}
+extra=()
 box=ph seconds=60 bots=31 map=cp-orange-x3 sections=0 only="" logs=${NATIVE_TICK_BENCH_LOGS:-/home/gamedev/perf-bench}
 while (($#)); do
 	case $1 in
@@ -22,6 +23,7 @@ while (($#)); do
 	--sections) sections=1; shift ;;
 	--only) only=$2; shift 2 ;;
 	--logs) logs=$2; shift 2 ;;
+	--cvar) extra+=(--cvar "$2"); shift 2 ;;
 	-h | --help) sed -n '2,11p' "$0"; exit 0 ;;
 	*) echo "native_tick_bench: unknown argument $1" >&2; exit 2 ;;
 	esac
@@ -38,7 +40,7 @@ run_one() {
 	GODOT_ROOT=$(dirname "$here") GPU_BOX=$box GPU_XORG=0 GPU_TIMEOUT=${GPU_TIMEOUT:-$((seconds + 600))} \
 		"$gpu" run "$(basename "$here")" --headless -- --sim_server 1 --port $((27100 + master)) --bots "$bots" \
 		--map "$map" --mode ctf --sim_bench_sec "$seconds" --sim_tick_raw 1 --sim_sections "$sections" \
-		--cvar "sv_native_tick=$master" > "$log" 2>&1 || echo "native_tick_bench: run exited $? (see $log)" >&2
+		--cvar "sv_native_tick=$master" "${extra[@]}" > "$log" 2>&1 || echo "native_tick_bench: run exited $? (see $log)" >&2
 	python3 - "$log" "$master" "$map" <<'EOF'
 import re, statistics, sys
 path, master, want_map = sys.argv[1:4]

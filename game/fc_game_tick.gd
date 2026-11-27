@@ -1,7 +1,6 @@
 @tool
 extends "fc_game_input.gd"
 
-const FcNativePhases := preload("fc_native_phases.gd")
 
 ## Deals an imported map's hurt volumes (`trigger_hurt`) to everybody standing in one, as
 ## world damage through gs-combat.
@@ -241,6 +240,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	# The bodies' motor gates and ladder wishes in one gs-sim call (cvar fc_pre_native); the fine laps time per player, so they keep the script.
 	var pre_lane := FcPlayer.pre_native and FcPlayer.body_cols and not fine and _pre_ready()
 	var pre_count := 0
+	FcNativePhases.lane(FcNativePhases.LANE_PRE, pre_lane)
 	if pre_lane and _pre_rows.size() < n * FcPlayer.PRE_IN:
 		_pre_rows.resize(n * FcPlayer.PRE_IN)
 		_pre_index.resize(n)

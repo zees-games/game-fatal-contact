@@ -4,7 +4,7 @@ The FC server tick runs in six phases. Each phase has a gs-sim (Rust) path and a
 |---|---|
 | players | `sv_native_players`, `sv_native_slots` |
 | mirror | `sv_trace_mirror` |
-| motor | `motor_native`, `sv_native_motor_state`, `motor_native_tick`, `motor_native_full`, `fc_hull_native`, `fc_posture_native`, `fc_mechanics_native`, `fc_tick_events` |
+| motor | `motor_native`, `sv_native_motor_state`, `motor_native_tick`, `motor_native_full`, `fc_hull_native`, `fc_posture_native`, `fc_mechanics_native`, `fc_tick_events`, `fc_pre_native`, `fc_knife_gate`, `fc_flush_idle_skip` |
 | bots | `bot_native*`, `fc_bot_pvs_native`, `fc_hull_grid_native` |
 | shots | `sv_native_shots`, `sv_native_unlag` |
 | snapshots | `net_pack_native`, `sv_net_pull_*native`, `sv_native_snapshots`, `sv_net_pull_batch` |
@@ -27,7 +27,19 @@ Each phase is placed in one of three states by checking what the build actually 
 
 - The server prints `FC_NATIVE_TICK master=1 native=[...] fallback=[...] absent=[...]` at load.
 - At the end of a run, it prints `FC_NATIVE_TICK_CALLS players=N/M ...`: native and script dispatches per phase, counted by `FcNativePhases.tally`.
-- A bench (`--sim_bench_sec`) also prints `SIM_HOST_NATIVE <status> | end`.
+- A bench (`--sim_bench_sec`) also prints `SIM_HOST_NATIVE <status> lanes=[pre=n/s knife=n/s flush=n/s] | end`, and the same line without `| end` once a window.
+
+## Lanes
+
+Lanes are pieces of the players' loop inside the motor phase. Each one counts native-or-skipped calls (n) against script calls (s). They are kept apart from `FC_NATIVE_TICK_CALLS`, where any script call fails the coverage suite: a lane's script side is normal play (a player holding the knife's aim key, a protected or firing player).
+
+| Lane | Cvar | Counts | Parity suite |
+|---|---|---|---|
+| pre | `fc_pre_native` | one per batched tick: gs-sim `GSSimServerTick.pre` or the per-player script | `headless_pre_native_parity` |
+| knife | `fc_knife_gate` | one per live player: an idle player's `GSWeaponKnives.input` and `charge_of` skipped, or both called | `headless_tick_gates_parity` |
+| flush | `fc_flush_idle_skip` | one per flushed idle post: an unprotected player's empty outcome handled in place, or `_post_outcome` | `headless_tick_gates_parity` |
+
+The knife and flush gates live in `game/fc_tick_gates.gd`. They are bit-exact skips, not native ports: the heavy per-player weapon work they sit beside belongs to gs_weapon and fc_weapons.
 
 ## Coverage suite
 

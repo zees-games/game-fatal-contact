@@ -19,8 +19,8 @@ func _batched_input(id: int, player: FcPlayer, pair: Array, knife_charge: bool, 
 	var move: GSFpsCommand = pair[0] if pair.size() > 0 else GSFpsCommand.new()
 	var fire: GSWeaponCommand = pair[1] if pair.size() > 1 else GSWeaponCommand.new()
 	if knives != null:
-		knives.input(id, player, fire)
-		player.windup = knives.call(&"charge_of", id) if knife_charge else -1.0
+		# Cvar fc_knife_gate: an idle player's knife calls are skipped (bit for bit, game/fc_tick_gates.gd).
+		FcNativePhases.lane(FcNativePhases.LANE_KNIFE, FcTickGates.step(knives, id, player, fire, knife_charge))
 	t_lap = FcFrameProbe.lap(&"pp_knife", t_lap)
 	if move == null or fire == null:
 		return []

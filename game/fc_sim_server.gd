@@ -350,7 +350,7 @@ func _report(net: GSNetManager) -> void:
 		if _module != null and _tick_raw:
 			print("SIM_HOST_TICK_US%s %s" % [" boot" if boot else "", ",".join(PackedStringArray(Array(_module.tick_costs)))])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 		if _module != null:
-			print("SIM_HOST_NATIVE %s" % FcNativePhases.status_line(_module.console))  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
+			print("SIM_HOST_NATIVE %s lanes=[%s]" % [FcNativePhases.status_line(_module.console), FcNativePhases.lanes_line()])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			print("%s | frame gap max %.1f ms%s" % [tick_line(_module.tick_costs, Engine.physics_ticks_per_second), _frame_gap_max_usec / 1000.0, " | boot warm" if boot else ""])  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
 			_module.tick_costs.clear()
 		_frame_gap_max_usec = 0

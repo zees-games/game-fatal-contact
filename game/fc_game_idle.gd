@@ -1,6 +1,9 @@
 @tool
 extends "fc_game_loadouts.gd"
 
+const FcNativePhases := preload("fc_native_phases.gd")
+const FcTickGates := preload("fc_tick_gates.gd")
+
 const FcWeaponCensus := preload("fc_weapon_census.gd")
 
 ## The tick's posture flush (the waiting idle players' rows and their weapon outcomes in roster order) and the idle
@@ -76,7 +79,7 @@ func _flush_posts(shots: Array[GSShot]) -> void:
 			var player: FcPlayer = _post_players[k]
 			var at := k * 10
 			var outcome := player.tick_idle_row(out.slice(at, at + 10), out[at + 9] != 0.0)
-			_post_outcome(_post_ids[k], player, _post_moves[k], outcome, shots)
+			_post_flushed(_post_ids[k], player, _post_moves[k], outcome, shots)
 	_post_players.clear()
 	_post_ids.clear()
 	_post_moves.clear()
@@ -87,5 +90,18 @@ func _flush_posts(shots: Array[GSShot]) -> void:
 func _flush_idle_batch(out: PackedFloat64Array, count: int, shots: Array[GSShot]) -> void:
 	var outs := _idle_batch_ticks(out, count)
 	for k in range(count):
-		_post_outcome(_post_ids[k], _post_players[k], _post_moves[k], outs[k], shots)
+		_post_flushed(_post_ids[k], _post_players[k], _post_moves[k], outs[k], shots)
 	outs.fill(null)
+
+
+## [method _post_outcome] for a flushed player, or in place for an idle, unprotected one (cvar fc_flush_idle_skip,
+## lane `flush`): with no shots and no spawns the post is only [method _note_protected_action]'s unprotected branch.
+func _post_flushed(id: int, player: FcPlayer, move: GSFpsCommand, outcome: GSWeaponOutcome, shots: Array[GSShot]) -> void:
+	if FcTickGates.flush_idle_skip and FcTickGates.idle_outcome(outcome, player.health, _tick):
+		if not _protect_anchor.is_empty():
+			_protect_anchor.erase(id)
+		player.protected_view = false
+		FcNativePhases.lane(FcNativePhases.LANE_FLUSH, true)
+		return
+	FcNativePhases.lane(FcNativePhases.LANE_FLUSH, false)
+	_post_outcome(id, player, move, outcome, shots)
