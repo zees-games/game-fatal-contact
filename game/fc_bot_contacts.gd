@@ -1,16 +1,7 @@
 extends RefCounted
-## The bots' contact build in gs-sim ([code]GSSimBotContacts[/code], cvar `bot_native_contacts`): [method build] packs one record per
-## player on the main thread (flags, team, pitch, health, then the [GSFpsState] columns as they are), and gs-sim writes every per-tick
-## [GSBotContact] field and the native sight scan's rows from them in one call. The loadout and the weapon in hand stay here.
-## The same contacts and rows as [method FcBots.World.refresh]'s script loop, to the bit (`headless_botthreads` compares them over
-## randomized player states). Off, without the library (the web) or when the records do not fit, the script loop builds them.
-## With [member delta], gs-sim writes the fields a player keeps from tick to tick only when they change ([code]fill_changed[/code]);
-## a tick the script loop built makes the next native build write every field again.
-## With [member table] (gs-bot 41, a gs-sim with fill_table), gs-sim writes no contact object at all: it fills packed columns that
-## become the world's [GSBotContactTable], and a contact object is written from its row only when something reads it.
-## With [member arms] (a gs-sim with fill_arms), the weapon in hand ([code]weapon_class[/code], [code]magazine[/code]) is gathered
-## here as an interned class and two ints per player and gs-sim writes it in one call (only what changed, with [member delta]),
-## instead of one [code]_weapon_of[/code] call and two property writes per player.
+## The bots' contact build in gs-sim (`bot_native_contacts`, [code]GSSimBotContacts[/code]): one record per player packed on the
+## main thread, every [GSBotContact] field and sight row written in one call; the script loop's result to the bit. Modes
+## [member delta], [member table] and [member arms] are described in docs/native-server-tick.md (Bots contact build).
 
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcPlayer := preload("fc_player.gd")
@@ -72,7 +63,7 @@ static func set_native_refresh(on: bool) -> void:
 	(GSBotBrain as Script).set(&"native_hear", on)
 	if on and not _refresh_warned and not refresh_available():
 		_refresh_warned = true
-		push_warning("bot_native_refresh: this gs-sim has no GSSimBotContacts or GSSimBotMind.hear; that half of the bots' refresh runs in script")
+		GSLog.warn("arena.bot_contacts", "bot_native_refresh: this gs-sim has no GSSimBotContacts or GSSimBotMind.hear; that half of the bots' refresh runs in script")
 
 
 ## Whether gs-sim has both halves of the refresh (the contact build and the hearing).
@@ -88,7 +79,7 @@ func sim() -> Object:
 		_tried = true
 		if not GSSim.has(&"contacts") and not _refresh_warned:
 			_refresh_warned = true
-			push_warning("bot contacts: this gs-sim has no GSSimBotContacts; the script builds the bots' contacts")
+			GSLog.warn("arena.bot_contacts", "bot contacts: this gs-sim has no GSSimBotContacts; the script builds the bots' contacts")
 		if GSSim.has(&"contacts"):
 			_sim = ClassDB.instantiate(&"GSSimBotContacts")
 			_has_delta = _sim.has_method(&"fill_changed")
@@ -190,10 +181,9 @@ static func _launch_enabled(world: Object) -> bool:
 	return tunables != null and (tunables as GSFpsTunables).launch_enabled
 
 
-## The loadouts, then the weapons in hand of [param contacts] (one per player of [param players]) through gs-sim's fill_arms: each
-## player's style class interned once per weapon definition, its slot's rounds and the definition's magazine size. A gs-sim that
-## declines them leaves it to the world's [code]_weapon_of[/code] from now on. Each half is one probe lap, not one per player.
-## Whether gs-sim wrote them (so it knows what the contacts hold).
+## The loadouts, then the weapons in hand of [param contacts] (one per player of [param players]) through gs-sim's fill_arms,
+## one probe lap per half; a gs-sim that declines leaves it to the world's [code]_weapon_of[/code] from now on.
+## Returns whether gs-sim wrote them (so it knows what the contacts hold).
 func _arm(world: Object, native: Object, players: Array, contacts: Array, tick: int) -> bool:
 	var t_c := FcFrameProbe.lap_start()
 	var n := players.size()

@@ -37,3 +37,17 @@ Each phase is placed in one of three states by checking what the build actually 
 - `FC_NATIVE_TICK_CALLS` shows any script call, or shows no native call for an expected phase.
 
 A second, short run with `sv_native_tick 0` must put every phase on the fallback and make no native calls.
+
+## Bots contact build
+
+`game/fc_bot_contacts.gd` packs one record per player on the main thread (flags, team, pitch, health, then the `GSFpsState` columns as they are). gs-sim writes every per-tick `GSBotContact` field and the native sight scan's rows from them in one call. The loadout stays in script. `headless_botthreads` compares the result with `FcBots.World.refresh`'s script loop over randomized player states. Off, without the library (the web), or when the records do not fit, the script loop builds them.
+
+| Mode | Cvar | What changes |
+|---|---|---|
+| delta | `bot_native_contacts_delta` | `fill_changed` writes only the fields that changed since the last tick. A tick the script loop built makes the next native build write every field again. |
+| table | `bot_contact_table` | gs-bot 44, a gs-sim with `fill_table`. No contact object is written: packed columns become the world's `GSBotContactTable`, and an object is written from its row only when something reads it. |
+| arms | `bot_native_contact_arms` | A gs-sim with `fill_arms`. The weapon in hand (`weapon_class`, `magazine`) is gathered as an interned class and two ints per player and written in one call, instead of one `_weapon_of` call and two property writes per player. |
+
+## Bots perceive_all
+
+`bot_native_think_mt` (`game/fc_bot_think_mt.gd`): each threaded brain hands the row its think would hand the native mind. Rays the minds have no cached answer for are cast on the main thread, and answers go back by index, so the thread count changes nothing.
