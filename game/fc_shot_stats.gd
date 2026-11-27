@@ -14,6 +14,8 @@ const BODY_HEIGHT := 1.0
 
 const KEEP := 32
 
+const CHEST := Vector3.UP * BODY_HEIGHT
+
 ## Reason -> count, for refused shots and prevented damage.
 var refusals: Dictionary = {}
 
@@ -24,6 +26,10 @@ var by_shooter: Dictionary = {}
 var on_line_log: Array[Dictionary] = []
 
 var _game: Object = null
+
+## Reason -> its refusals key, so a refused shot or damage builds no string.
+var _shot_keys: Dictionary = {}
+var _damage_keys: Dictionary = {}
 
 
 ## Starts counting what [param game]'s combat resolves. Call after the combat is built.
@@ -56,7 +62,11 @@ func _on_refused(shot: GSShot, reason: String) -> void:
 	var r := row(shot.attacker)
 	r["fired"] += 1
 	r["refused"] += 1
-	refusals["shot: " + reason] = int(refusals.get("shot: " + reason, 0)) + 1
+	var key: Variant = _shot_keys.get(reason)
+	if key == null:
+		key = "shot: " + reason
+		_shot_keys[reason] = key
+	refusals[key] = int(refusals.get(key, 0)) + 1
 
 
 func _on_resolved(shot: GSShot) -> void:
@@ -73,7 +83,10 @@ func _resolved(shot: GSShot) -> void:
 	for damage: GSDamage in shot.damages:
 		if damage.refused:
 			prevented = true
-			var key := "damage: " + str(damage.refusal)
+			var key: Variant = _damage_keys.get(damage.refusal)
+			if key == null:
+				key = "damage: " + str(damage.refusal)
+				_damage_keys[damage.refusal] = key
 			refusals[key] = int(refusals.get(key, 0)) + 1
 		elif damage.health_lost + damage.armour_absorbed > 0.0:
 			applied = true
@@ -101,7 +114,7 @@ func _classify_miss(shot: GSShot, r: Dictionary) -> void:
 			var p: Node3D = _game.player_for(id)
 			if p == null or not p.is_alive():
 				continue
-			var v: Vector3 = p.global_position + Vector3.UP * BODY_HEIGHT - shot.origin
+			var v: Vector3 = p.global_position + CHEST - shot.origin
 			var t := v.dot(dir)
 			if t <= 0.0:
 				continue

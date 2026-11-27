@@ -82,6 +82,8 @@ var session_fn: Callable = Callable()
 var stats_keys := GSGameStatsFeed.new()
 
 var _kill_feed: GSStatsEventFeed = null
+## The feed holds hits, penetrations, wall passes and shots until the combat tick applies them.
+var held_stats := false
 ## The one points score; amounts live in gs-stats' source table, the game only reports events.
 var points: GSStatsPoints = null
 ## The skill rank (gs-stats' GSStatsRank): weighted stats or Elo, chosen by the fc_rank cvar.
@@ -239,6 +241,10 @@ func _build() -> GSResult:
 	_kill_feed = GSStatsEventFeed.new(stats)
 	_kill_feed.key_of = func(id: Variant) -> StringName: return StringName(_key_of(int(id)))
 	_kill_feed.is_bot = func(id: Variant) -> bool: return int(id) >= BOT_SESSION_BASE
+	# By name: an older GameSpice Stats (before level 2) has no batched feed and must still parse.
+	held_stats = GSAddonApi.build_level("gs_stats") >= 2
+	if held_stats:
+		_kill_feed.set(&"batched", true)
 	_kill_feed.extra = func() -> Dictionary: return {
 		"map": String(_game.map.id) if _game != null and _game.map != null else "",
 		"mode": String(_game.mode.id) if _game != null and _game.mode != null else "",
