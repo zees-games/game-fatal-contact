@@ -12,6 +12,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 
 var _variant := "full"
 var _map := "dm_box"
+var _versions := 0
 
 
 func _ready() -> void:
@@ -21,6 +22,8 @@ func _ready() -> void:
 			_variant = args[i + 1]
 		elif args[i] == "--map":
 			_map = args[i + 1]
+		elif args[i] == "--versions":
+			_versions = int(args[i + 1])
 	Engine.max_fps = 0
 	if _variant.begins_with("level"):
 		var _scratch := FcPresentation.use_scratch_settings("lightmap_first_draw")
@@ -54,6 +57,23 @@ func _pipes() -> int:
 	return RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_SURFACE) \
 		+ RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_SPECIALIZATION) \
 		+ RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_PIPELINE_COMPILATIONS_DRAW)
+
+
+## `--versions N`: N shader versions (one ShaderMaterial each, distinct code) drawn before the arm or level, to see whether
+## the first lightmapped frame scales with how many 3D shaders exist (ShaderRD::enable_group loads the group for each).
+func _add_versions(at: Vector3) -> void:
+	var box := BoxMesh.new()
+	box.size = Vector3(0.05, 0.05, 0.05)
+	for i in range(_versions):
+		var mat := ShaderMaterial.new()
+		mat.shader = Shader.new()
+		mat.shader.code = "shader_type spatial;\nvoid fragment() { ALBEDO = vec3(%f, 0.5, 0.5); }\n" % (float(i) / 100000.0)
+		var mi := MeshInstance3D.new()
+		mi.mesh = box
+		mi.material_override = mat
+		mi.position = at + Vector3(0.06 * float(i % 20) - 0.6, 0.0, 0.06 * float(i / 20) - 0.6)
+		add_child(mi)
+	await _frames(20, "versions %d" % _versions)
 
 
 func _tiny_texture() -> Texture2DArray:
@@ -120,6 +140,35 @@ func _run_level() -> void:
 	cam.far = extent * 6.0
 	cam.make_current()
 	await _frames(20, "empty")
+	if _versions > 0:
+		await _add_versions(cam.global_position + Vector3(0.0, -4.0, 0.0))
+	await _arm(extent)
+	if _variant == "level_nobake":
+		FcMap.use_bakes = false
+	var level: Node3D = map.call("to_scene")
+	var gi := level.get_node_or_null("LightmapGI") as LightmapGI
+	print("lmfd %s bake %s" % [_variant, gi != null])
+	if gi != null and gi.light_data != null:
+		var tex: TextureLayered = gi.light_data.lightmap_textures[0]
+		print("lmfd tex %dx%d layers %d format %d users %d" % [tex.get_width(), tex.get_height(), tex.get_layers(), tex.get_format(), gi.light_data.get_user_count()])
+	await _proxies(level, gi, extent)
+	var lighting: Node3D = null
+	if _variant != "level_nolight":
+		lighting = FcMapLighting.build(map)
+		add_child(lighting)
+		if _variant == "level_lightfirst":
+			await _frames(20, "lit")
+	if _variant == "level_hidden":
+		for m: Node in level.find_children("*", "MeshInstance3D", true, false):
+			(m as MeshInstance3D).visible = false
+	add_child(level)
+	await _frames(30, "level")
+	get_tree().quit(0)
+
+
+## The arm variants: a lightmapped box drawn before the level (level_arm in a SubViewport, level_arm_main in the main
+## viewport), and level_arm_world: the world shader warm-ups, then a second box.
+func _arm(extent: float) -> void:
 	if _variant.begins_with("level_arm"):
 		var host: Node = self
 		if _variant == "level_arm":
@@ -170,14 +219,10 @@ func _run_level() -> void:
 		add_child(a2)
 		await _frames(10, "arm again")
 		a2.free()
-	if _variant == "level_nobake":
-		FcMap.use_bakes = false
-	var level: Node3D = map.call("to_scene")
-	var gi := level.get_node_or_null("LightmapGI") as LightmapGI
-	print("lmfd %s bake %s" % [_variant, gi != null])
-	if gi != null and gi.light_data != null:
-		var tex: TextureLayered = gi.light_data.lightmap_textures[0]
-		print("lmfd tex %dx%d layers %d format %d users %d" % [tex.get_width(), tex.get_height(), tex.get_layers(), tex.get_format(), gi.light_data.get_user_count()])
+
+
+## level_proxy (a tiny bake of the level's own users) and level_proxy2 (one lightmapped box per level material), drawn first.
+func _proxies(level: Node3D, gi: LightmapGI, extent: float) -> void:
 	if _variant == "level_proxy" and gi != null:
 		var tiny := gi.light_data.duplicate() as LightmapGIData
 		tiny.lightmap_textures = [_tiny_texture()]
@@ -214,15 +259,3 @@ func _run_level() -> void:
 		await _frames(20, "proxy")
 		proxy.free()
 		await _frames(5, "proxy gone")
-	var lighting: Node3D = null
-	if _variant != "level_nolight":
-		lighting = FcMapLighting.build(map)
-		add_child(lighting)
-		if _variant == "level_lightfirst":
-			await _frames(20, "lit")
-	if _variant == "level_hidden":
-		for m: Node in level.find_children("*", "MeshInstance3D", true, false):
-			(m as MeshInstance3D).visible = false
-	add_child(level)
-	await _frames(30, "level")
-	get_tree().quit(0)
