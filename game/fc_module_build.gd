@@ -8,6 +8,7 @@ const GSGameRelevance := preload("res://addons/gs_game/net/gs_game_relevance.gd"
 const FcMode := preload("fc_mode.gd")
 const FcModTools := preload("fc_mod_tools.gd")
 const FcModule := preload("fc_module.gd")
+const FcNetNativeCore := preload("fc_net_native_core.gd")
 
 
 ## The drawn map ballot's notice topic. The client shell draws one menu per topic, and a
@@ -135,6 +136,8 @@ func _build_netcode() -> GSResult:
 
 	if not started.ok:
 		return started
+	# Before the first snapshot: gs-sim's snapshot core, or GDScript (sv_native_snapshots).
+	var _native_on := FcNetNativeCore.install(net)
 
 	# net_skip_idle and net_visibility, the switches gs-game's own games get from GSGameNetcode (gs-game 52; by name, so an older host still parses this).
 	if GSAddonApi.build_level("gs_game") >= 52:
