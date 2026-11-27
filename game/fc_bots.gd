@@ -172,7 +172,8 @@ static func think_setup(game: Object, bot: FcPlayer, mind: Mind, tick: int, tick
 	# A teleport carries the bot further in a tick than anything walks or flies, and its route was
 	# laid from where it stood: walked on, the old corners lead it off the pad it landed on. The
 	# brain is told as it is when a ride ends, and plans from here (a ride the pilot has is not cut).
-	if mind.ride == null and mind.last_position != Vector3.INF and me.position.distance_to(mind.last_position) > TELEPORT_JUMP:
+	mind.teleported = mind.ride == null and mind.last_position != Vector3.INF and me.position.distance_to(mind.last_position) > TELEPORT_JUMP
+	if mind.teleported:
 		mind.brain.ride_ended(true)
 	mind.last_position = me.position
 	mind.t_me = me
