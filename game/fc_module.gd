@@ -209,6 +209,7 @@ func _bind_commands_and_cvars() -> void:
 	_add_fire_buffer_cvar()
 	_add_avatar_library_cvars()
 	_add_bot_think_cvars()
+	_add_bot_par_cvars()
 	_add_grenade_cvars()
 	var _glass_cvars := game.glass_rules.bind_cvars(add_cvar, GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY)
 	_add_rate_cvar()

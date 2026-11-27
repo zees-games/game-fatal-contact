@@ -130,6 +130,11 @@ static func _decide(pending: Array[int], minds: Array) -> void:
 	FcBotThinkMt.run(jobs, threads)
 	t_part = phase(SB_READY, t_part)
 	var began := world.par_begin()
+	if began:
+		# bot_par_route: the warm-up runs here on main, so the workers' routes can skip the world lock.
+		world.par_route_begin(FcBots.par_route)
+		if world.par_route_free():
+			FcBots.routed_free += 1
 	t_part = phase(SB_PAR_BEGIN, t_part)
 	if not began:
 		for mind: FcBots.Mind in jobs:

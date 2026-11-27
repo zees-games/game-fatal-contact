@@ -387,6 +387,12 @@ static func _write(intent: GSBotIntent, move: GSFpsCommand, fire: GSWeaponComman
 static var native_finish := true
 ## Rows [method finish_all] wrote through gs-sim, for the suite.
 static var finished_native := 0
+## bot_par_route: with bot_threads on, a worker's route asks the nav mesh and the navigation server without the world
+## lock once par_begin has built the mesh's lazy answers (gs-bot's GSBotNav.warm_queries) and the map's links are done;
+## off, or on a map with no mesh, each route waits on the lock. headless_botthreads plays both to the bit.
+static var par_route := true
+## Ticks whose worker routes skipped the lock, for the suite.
+static var routed_free := 0
 const FINISH_CLASS := &"GSSimBotFinish"
 ## Per intent bit (fire, crouch, jump, walk, air jump, throw, use, stranded), the command bit it sets: [method _write]'s buttons.
 static var _finish_move_map := PackedInt32Array([0, GSFpsCommand.BUTTON_CROUCH, GSFpsCommand.BUTTON_JUMP, GSFpsCommand.BUTTON_WALK, GSFpsCommand.BUTTON_USER_0, 0, 0, 0])

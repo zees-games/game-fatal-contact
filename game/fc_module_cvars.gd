@@ -266,13 +266,23 @@ func _add_avatar_library_cvars() -> void:
 			var _r := FcAvatarLibrary.apply_loadout_limits(GSGameAvatarLoadoutMessage.max_entries, int(new_value.to_float())))
 
 
-## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_native`: gs-sim's sight scan; `bot_native_brain`: gs-bot's native mind (on); `bot_native_think`: the contact table handed to the native sight scan (on); `motor_native`: gs-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in gs-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: gs-sim's ragdoll bone pose.
-func _add_bot_think_cvars() -> void:
+## `bot_native_finish`: one gs-sim call writes the threaded bots' commands (on); `bot_par_route`: threaded bots' routes skip
+## the world lock once the mesh is warmed on the main thread (on). Both played to the bit by headless_botthreads.
+func _add_bot_par_cvars() -> void:
 	add_cvar("bot_native_finish", "1",
 		"1: with bot_threads on, the threaded bots' sticks and buttons come from one gs-sim call a tick (GSSimBotFinish.write; the same commands to the bit); 0, or without it: each bot writes its own in script",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBots.native_finish = new_value.to_float() >= 0.5)
+	add_cvar("bot_par_route", "1",
+		"1: with bot_threads on, a threaded bot's route asks the nav mesh without the world lock once its lazy answers are built on the main thread (GSBotNav.warm_queries; the same routes to the bit); 0, or with an older gs-bot: each route waits on the lock",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBots.par_route = new_value.to_float() >= 0.5)
+
+
+## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_native`: gs-sim's sight scan; `bot_native_brain`: gs-bot's native mind (on); `bot_native_think`: the contact table handed to the native sight scan (on); `motor_native`: gs-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in gs-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: gs-sim's ragdoll bone pose.
+func _add_bot_think_cvars() -> void:
 	add_cvar("bot_think_every", str(FcBots.think_every),
 		"A bot far from every enemy runs its brain one tick in this many (1 = every tick, 0 = 2 above 16 players)",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(

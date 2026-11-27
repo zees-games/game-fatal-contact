@@ -66,6 +66,9 @@ class NavWorld:
 	## The trace's ray observer (dropped weapons nudged by a shot) is called on the main thread: a worker's wall
 	## rays are logged per job and replayed in job order by [method par_end].
 	var _par_observe: bool = false
+	## bot_par_route (FcBots.par_route): set by [method par_route_begin] when this tick's routes may be asked on workers
+	## without [member _par_lock] (the links are done and the mesh's lazy answers built): the same routes, asked at once.
+	var _par_route_free: bool = false
 	var _par_job: Dictionary = {}
 	var _par_rays: Dictionary = {}
 
@@ -102,6 +105,7 @@ class NavWorld:
 
 	func par_end() -> void:
 		par = false
+		_par_route_free = false
 		if _par_observe:
 			var jobs := _par_rays.keys()
 			jobs.sort()
@@ -182,6 +186,8 @@ class NavWorld:
 	## map's ride edges are linked into it, the walked corners otherwise.
 	func route_detail(from: Vector3, to: Vector3) -> Dictionary:
 		if par:
+			if _par_route_free:
+				return _route_detail_free(from, to)
 			_par_lock.lock()
 			var held := _route_detail(from, to)
 			_par_lock.unlock()
@@ -204,6 +210,40 @@ class NavWorld:
 		rides.resize(points.size())
 		rides.fill(-1)
 		return {"points": points, "rides": rides}
+
+	## Called on the main thread before a tick's brains think on workers: whether their routes may skip [member _par_lock].
+	## Only once the map's links are done ([member _surf_looked], so [method surf_for_map] is a plain read) and the mesh has
+	## built what its queries would build on first ask ([method GSBotNav.warm_queries]); the navigation server answers
+	## path queries from several threads at once. An older gs-bot without warm_queries keeps the lock.
+	func par_route_begin(free: bool) -> void:
+		_par_route_free = false
+		if not free or not _surf_looked or _nav == null or _nav_map != game.get("map") or not _nav.has_method(&"warm_queries"):
+			return
+		_par_route_free = bool(_nav.call(&"warm_queries"))
+		# The pickup's drop table too: built once here, so no worker packs it while the others wait on its lock.
+		if _par_route_free and has_method(&"drop_table"):
+			var _drops_warm: Variant = call(&"drop_table")
+
+	## Whether this tick's worker routes skip the lock ([method par_route_begin]), for the suite's count.
+	func par_route_free() -> bool:
+		return _par_route_free
+
+	## [method _route_detail] and [method _route] for a worker while [member _par_route_free]: the same branches, read only.
+	func _route_detail_free(from: Vector3, to: Vector3) -> Dictionary:
+		if _surf != null:
+			return _surf.call(&"route_detail", from, to)
+		if _ladders != null:
+			if not _nav.joined(from, to):
+				return {"points": PackedVector3Array(), "rides": PackedInt32Array()}
+			return _nav.route(from, to)
+		var points := _route_free(from, to)
+		var rides := PackedInt32Array()
+		rides.resize(points.size())
+		rides.fill(-1)
+		return {"points": points, "rides": rides}
+
+	func _route_free(from: Vector3, to: Vector3) -> PackedVector3Array:
+		return _nav.path(from, to) if _nav.joined(from, to) else PackedVector3Array()
 
 	## [method surf_for_map] as it was at the first ask of [param tick]: the map and nav checks once a tick, not per bot.
 	func surf_at(tick: int) -> RefCounted:
@@ -342,6 +382,8 @@ class NavWorld:
 	## straight) off either, with no way, or while an imported map's mesh is still baking.
 	func route(from: Vector3, to: Vector3) -> PackedVector3Array:
 		if par:
+			if _par_route_free:
+				return _route_free(from, to)
 			_par_lock.lock()
 			var held := _route(from, to)
 			_par_lock.unlock()
