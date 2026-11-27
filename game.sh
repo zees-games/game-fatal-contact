@@ -56,7 +56,7 @@ TIMEOUT=900
 PARSE=1
 # A suite that legitimately needs at least this long, as name=seconds; a larger
 # --timeout still wins.
-MIN_TIMEOUTS="headless_imported=3000 headless_bots=2400 headless_hitreg_far=2400"
+MIN_TIMEOUTS="headless_imported=3000 headless_bots=2400 headless_hitreg_far=2400 headless_hitreg_chaos=1200 headless_bottricks=1200 headless_killcam_crowd=1200"
 # A suite too long for one run, as name=shard,shard,...: `test NAME` plays each shard as its own
 # `examples/NAME.tscn -- --shard SHARD` (up to $SHARD_JOBS at once, default 4) and then runs the
 # suite once more as `-- --merge LOG...` over the shards' logs, which holds the whole-run checks.
