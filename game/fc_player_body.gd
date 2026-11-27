@@ -708,18 +708,20 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 	# [method _idle_posture] for the same fields the context below gets, so a moving player takes this path too.
 	_posture_tick = tick
 	_idle_now = weapons.would_idle(_command)
-	return _idle_now and idle_row_lane and controller != null
+	_cool_now = not _idle_now and _would_cool(tick)
+	return (_idle_now or _cool_now) and idle_row_lane and controller != null
 
 
-## The idle weapon tick of a [method tick_post_head] that answered true: [param row] is [method _idle_row]'s
-## (its first 9 floats), [param still] its still flag.
+## The idle (or cooling, [method _would_cool]) weapon tick of a [method tick_post_head] that answered true: [param row]
+## is [method _idle_row]'s (its first 9 floats), [param still] its still flag.
 func tick_idle_row(row: PackedFloat64Array, still: bool) -> GSWeaponOutcome:
 	var t_wp := Time.get_ticks_usec()
-	var out: GSWeaponOutcome = weapons.call(&"simulate_idle_row", _command, _posture_tick, row, still)
+	var out: GSWeaponOutcome = weapons.call(&"simulate_cooling_row", _command, _posture_tick, row) if _cool_now \
+		else weapons.call(&"simulate_idle_row", _command, _posture_tick, row, still)
 	_idle_hands()
 	FcFrameProbe.add(&"p_weapons", t_wp)
 	if FcWeaponCensus.on:
-		FcFrameProbe.add(&"pwx_idle_row", t_wp)
+		FcFrameProbe.add(&"pwx_cool_row" if _cool_now else &"pwx_idle_row", t_wp)
 	if FcFrameProbe.fine:
 		FcFrameProbe.charge_weapon_phases()
 	return out
