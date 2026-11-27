@@ -278,6 +278,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		_post_native = FcPlayer.make_native_post()
 	var post_from: Object = _motor_batch if post_lane and _motor_batch.has_method(&"post_row") else null
 	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null and demo_stats.has_method(&"after_reads")
+	var rows: GSFpsTickEvents = _tick_events if FcHullGrid.events else null
 	for i in range(n):
 		var row := _batch_rows[i]
 		if row == -1:
@@ -290,11 +291,35 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 			if row >= 0:
 				_motor_batch.skip(row)
 			continue
+		var controller := player.controller
+		controller.event_rows = rows
+		controller.event_entity = i
 		_finish_batched_player(_batch_pairs[i], row, id, player, delta, hull_world, shots, fine, post_lane, post_from)
+		controller.event_rows = null
 	t_tb = FcFrameProbe.lap(&"tb_pass2", t_tb)
 	_flush_posts(shots)
-	FcFrameProbe.lap(&"tb_flush", t_tb)
+	t_tb = FcFrameProbe.lap(&"tb_flush", t_tb)
+	_dispatch_tick_events(rows, ids, t_tb)
 	_close_batch_counts(fine)
+
+
+## The batched loop's motor edges: every row derived in one call (gs-sim's `GSSimTickEvents`, or the script), then each player's run
+## of events dispatched to its controller in roster order. [param ids] is the loop's roster; an event's entity is its index.
+## Null [param events] (`fc_tick_events 0`): the controllers emitted their own edges.
+func _dispatch_tick_events(events: GSFpsTickEvents, ids: Array[int], t_tb: int) -> void:
+	if events == null or events.row_count == 0:
+		return
+	var count := events.derive()
+	var ints := events.ints
+	var cursor := 0
+	while cursor < count:
+		var player: FcPlayer = _players.get(ids[ints[cursor * GSFpsTickEvents.INTS]])
+		if player == null:
+			cursor += 1
+			continue
+		cursor = player.controller.dispatch_events(events, cursor)
+	events.clear()
+	FcFrameProbe.lap(&"tb_events", t_tb)
 
 
 ## The motor batch's tick counters into the probe (fine only) and the hull grid's totals, then zeroed.
