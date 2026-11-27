@@ -42,6 +42,11 @@ func _local_commands() -> GSConsoleLocal:
 		func(v: Variant) -> Variant:
 			return GSResult.success(1 if _addon_static(AwViewArms, &"albedo_cache", false, str(v).strip_edges() != "0") else 0)
 	)
+	local.add_var(&"cl_native_world_hold", "1 hands held guns' pose arithmetic to GameSpice Sim when its library is loaded (the script's answer to the bit); 0 runs the script. Without the library or an fc-weapons that has it, this stays 0.",
+		func() -> Variant: return 1 if _addon_static(AwWorldModel, &"native_hold", false) else 0,
+		func(v: Variant) -> Variant:
+			return GSResult.success(1 if _addon_static(AwWorldModel, &"native_hold", false, str(v).strip_edges() != "0") else 0)
+	)
 	_add_remote_vars(local)
 	_add_killcam_vars(local)
 	local.add_var(&"cl_pose_debug", "1 draws the held weapon's grip sockets, the hand targets and the arm bones over the view.",
