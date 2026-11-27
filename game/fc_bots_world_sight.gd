@@ -131,10 +131,14 @@ class SightWorld:
 		var distance := offset.length()
 		if distance <= 0.0001:
 			return true
-		# The only caller passes this tick's _los_ray, whose space _los_bind looked up.
-		var space := _los_ray_space
+		# The hot caller passes this tick's _los_ray, whose space _los_bind looked up; any other trace (or a call
+		# before this tick's bind) looks its own world up, and with no world asks the trace itself, never "clear".
+		var space: PhysicsDirectSpaceState3D = _los_ray_space if trace == _los_ray and _los_at == _tick else null
 		if space == null:
-			return true
+			var w: World3D = trace._world
+			space = w.direct_space_state if w != null else null  # perf-lint: allow singleton_lookup only off the bound hot path
+			if space == null:
+				return trace.line_of_sight(from, to)
 		if trace != _mask_trace or _mask_at != _tick:
 			_mask_trace = trace
 			_mask_at = _tick
