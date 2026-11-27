@@ -4,6 +4,7 @@ extends "fc_module_build.gd"
 const FcTeamMenu := preload("fc_team_menu.gd")
 const _Content := preload("fc_content.gd")
 const FcRenamedNames := preload("fc_renamed_names.gd")
+const FcNativePhases := preload("fc_native_phases.gd")
 ## fc-weapons' `AwWeaponGroups` (API 14), loaded by path: a build on an older fc-weapons has no such class, and naming it would not parse.
 const WEAPON_GROUPS_SCRIPT := "res://addons/fc_weapons/aw_weapon_groups.gd"
 
@@ -152,6 +153,8 @@ func _module_load() -> GSResult:
 	_add_extra_commands()
 	_build_query_provider()
 	_register_game()
+	# After every phase cvar exists: sv_native_tick sets them all, then logs which phases run native.
+	var _phases := FcNativePhases.install(self)
 	# Last, so every fc_* name exists: the old arena_* names become loud, hidden shims.
 	var _renamed := FcRenamedNames.install(self)
 
