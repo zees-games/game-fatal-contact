@@ -190,6 +190,9 @@ func _seed_round(nets: Array, configs: Array, rng: RandomNumberGenerator, at: in
 			net.set(MoveParity.FIELDS[f], held[f])
 		net._batched_tick = -1
 		net.identity.always_relevant = not poison
+		# The poison is a write outside the pull: say so, as the script pull does, or gs-sim's rest pull skips
+		# writing a value it believes is already there (GSSimNetRest writes only what changed).
+		FcNetPullBatch.rest_scripted(net)
 
 
 ## Batch on ([param batch]) needs the per-player natives on ([param natives]); both off is the script.

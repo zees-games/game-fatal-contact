@@ -50,16 +50,28 @@ func _run() -> void:
 		for n: Object in nets:
 			n.call(&"_pull_rest", false, 0)
 	var script_us := float(Time.get_ticks_usec() - start) / REST_LAPS
+	# The move rows pull_all has gathered for its movement batch by the time it pulls the rest.
+	FcNetPullBatch.native()
+	FcNetPullBatch._moves.clear()
+	FcNetPullBatch._nets.clear()
+	FcNetPullBatch._columns = 0
+	for n: Object in nets:
+		FcNetPullBatch._gather(n, false)
+	var rows := FcNetPullBatch._moves.duplicate()
+	var batched: Array[Object] = FcNetPullBatch._nets.duplicate()
+	var aim: bool = batched[0].call(&"_rest_interest_aim")
 	start = Time.get_ticks_usec()
 	for _l in REST_LAPS:
-		var follow: PackedInt32Array = rest.call(&"pull_rest", nets, nets[0].call(&"_rest_interest_aim"))
+		var follow: PackedInt32Array = rest.call(&"pull_rest_rows", batched, aim, rows, FcNetPullBatch._columns,
+			FcNetPullBatch._move_extra)
 		for i in follow:
 			if i >= 0:
-				nets[i].call(&"_pull_rest_owned")
+				batched[i].call(&"_pull_rest_owned")
 			else:
-				nets[-1 - i].call(&"_pull_rest", false, 0)
+				batched[-1 - i].call(&"_pull_rest", false, 0)
 	var native_us := float(Time.get_ticks_usec() - start) / REST_LAPS
-	print("  rest pull, %d nets: script %.1f us, native %.1f us" % [nets.size(), script_us, native_us])
+	print("  rest pull, %d nets (%d batched): script %.1f us, native %.1f us" % [nets.size(), batched.size(), script_us,
+		native_us])
 	for lane: Dictionary in lanes:
 		(lane.root as Node).queue_free()
 	FcNetNativeCore.enabled = was

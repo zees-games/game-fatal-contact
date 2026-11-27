@@ -174,6 +174,9 @@ func _lane(native: bool, players: int) -> Dictionary:
 	config.per_client_budget = 0
 	config.per_client_packet_rate = 0
 	config.world_extent = FcGame.NET_WORLD_EXTENT
+	# Interest's cache and lingering expire on the tick, not the wall clock: the two servers tick at
+	# different instants, and a wall-clock expiry gave one peer a full set a few ticks before the other.
+	config.snapshot_clock_from_tick = true
 	config.snapshot_workers = 4 if native else 0
 	net.config = config
 	root.add_child(net)

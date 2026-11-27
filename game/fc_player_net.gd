@@ -3,6 +3,7 @@ extends GSNetBehaviour
 const FcContent := preload("fc_content.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetCarry := preload("fc_net_carry.gd")
+const FcNetPullBatch := preload("fc_net_pull_batch.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
 const FcNetCommand := preload("fc_net_command.gd")
@@ -477,6 +478,7 @@ func pull() -> void:
 
 ## [method pull] past the movement and weapon fields (FcNetPullBatch runs it too): exact copy, combat, carry, the rest.
 func _pull_rest(fine: bool, lap: int) -> void:
+	FcNetPullBatch.rest_scripted(self)
 	_pull_exact(player.controller.state)
 	lap = FcFrameProbe.lap(&"np_exact", lap) if fine else 0
 	GSCombatNetSync.pull(player.health, self)
