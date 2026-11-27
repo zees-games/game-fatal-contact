@@ -19,8 +19,9 @@
     "gs_props": 8,
     "gs_replay": 13,
     "gs_server": 19,
+    "gs_stats": 2,
     "gs_ui": 27,
-    "gs_weapon": 40,
-    "fc_weapons": 43
+    "gs_weapon": 59,
+    "fc_weapons": 48
   }
 }
