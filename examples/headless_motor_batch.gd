@@ -24,7 +24,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 31
+const CHECKS := 33
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -184,8 +184,29 @@ func _run() -> void:
 	await _run_part2(was, off, on, rows, kept, kept_streams)
 
 
-## Demo statistics that read nothing this turn ([Passive]): played with fc_demo_flush_gate off and on; ends the section.
+## fc_hull_grid_native: the players filed in gs-sim's hull world cells play the script grid's match, and with
+## FcHullGrid.verify every native answer is checked against the script cells'.
+func _check_native_grid(on: Array, streams: Array) -> void:
+	FcHullGrid.grid_native = false
+	var script_grid := await _play(true, &"", BOTS, SECONDS, streams, false)
+	FcHullGrid.grid_native = true
+	FcHullGrid.verify = true
+	FcHullGrid.grid_native_verified = 0
+	FcHullGrid.grid_native_mismatches = 0
+	var checked := await _play(true, &"", BOTS, SECONDS, streams, false)
+	FcHullGrid.verify = false
+	_check(script_grid[0] == on[0] and checked[0] == on[0],
+			"filed in gs-sim's cells or the script's, the same match to the bit (%s; %s)" % [_first_diff(on[0], script_grid[0]), _first_diff(on[0], checked[0])])
+	var native := ClassDB.class_has_method(&"GSSimHullWorld", &"near")
+	print("native hull grid: %s, %d answers checked, %d differ" % [native, FcHullGrid.grid_native_verified, FcHullGrid.grid_native_mismatches])
+	_check(not native or (FcHullGrid.grid_native_verified > 0 and FcHullGrid.grid_native_mismatches == 0),
+			"gs-sim's cells answer every gather as the script's (%d answers, %d differ)" % [FcHullGrid.grid_native_verified, FcHullGrid.grid_native_mismatches])
+
+
+## [method _check_native_grid], then demo statistics that read nothing this turn ([Passive]): played with
+## fc_demo_flush_gate off and on; ends the section.
 func _check_demo_gate(on: Array, streams: Array) -> void:
+	await _check_native_grid(on, streams)
 	FcHullGrid.demo_flush_gate = false
 	FcHullGrid.post_flushes = 0
 	var each := await _play(true, &"", BOTS, SECONDS, streams, false, {passive = true})

@@ -383,15 +383,9 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		surf_rides.after(id, player, move, _tick)
 	if fine:
 		t_fine = FcFrameProbe.lap(&"po_surf", t_fine)
-	_hull_grid.moved(id, player)
-	if fine:
-		t_fine = FcFrameProbe.lap(&"po_grid", t_fine)
 	var feet := controller.state.position
 	var alive := player.health.alive
-	if not told or feet != rested:
-		hull_world.moved(player.hull_slot, feet.x, feet.y, feet.z)
-	if not alive:
-		hull_world.set_alive(player.hull_slot, false)
+	_hull_grid.turned(hull_world, id, player, feet, not told or feet != rested, alive)
 	if row >= 0 and (feet != rested or not alive):
 		_motor_batch.moved_after(row)
 	if fine:
@@ -426,10 +420,13 @@ func tick(commands: Dictionary = {}) -> void:
 	var use_grid := FcHullGrid.enabled and body_rules.solid and _roster.size() >= FcHullGrid.min_players
 	var hull_world: Object = null
 	if use_grid:
-		_hull_grid.begin(_roster, _roster_ids)
-		t_tp = FcFrameProbe.lap(&"tp_grid", t_tp)
 		hull_world = _begin_hull_world()
 		t_tp = FcFrameProbe.lap(&"tp_hullw", t_tp)
+		if FcHullGrid.can_file(hull_world):
+			_hull_grid.begin_native(hull_world, _roster, _roster_ids)
+		else:
+			_hull_grid.begin(_roster, _roster_ids)
+		t_tp = FcFrameProbe.lap(&"tp_grid", t_tp)
 	if is_authority:
 		# Once a tick, not once per player in the drop wiring's input: the trace is built later than the drop layer.
 		FcWeaponDropWiring.hook_shots(self)

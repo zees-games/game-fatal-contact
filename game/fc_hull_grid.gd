@@ -38,6 +38,13 @@ static var verify := false
 static var verified := 0
 static var mismatches := 0
 
+## Cvar `fc_hull_grid_native`: where the loop has gs-sim's `GSSimHullWorld` with `near`, the players are filed in its
+## cells instead of this script's ([method begin_native]): same answers, the re-file folded into the hull world's
+## `turn` call. With [member verify] both are filed and every answer compared ([member grid_native_mismatches]).
+static var grid_native := true
+static var grid_native_verified := 0
+static var grid_native_mismatches := 0
+
 ## Below this many players a scan is cheaper than the lookups.
 const MIN_PLAYERS := 12
 ## [constant MIN_PLAYERS], for the bench to move (`--hull-min N`).
@@ -48,6 +55,10 @@ var live := false
 var _cells := {}
 var _key_of := PackedInt64Array()
 var _index_of := {}
+## The hull world filing the cells ([method begin_native]), or null: this script's cells.
+var _native: Object = null
+## With [member _native], whether this script's cells are filed too (a [member verify] run).
+var _scripted := true
 
 
 static func key_at(at: Vector3) -> int:
@@ -61,6 +72,8 @@ static func _key_of_player(p: Node3D) -> int:
 
 
 func begin(roster: Array, ids: PackedInt64Array) -> void:
+	_native = null
+	_scripted = true
 	_cells.clear()
 	_index_of.clear()
 	_key_of.resize(roster.size())
@@ -73,6 +86,30 @@ func begin(roster: Array, ids: PackedInt64Array) -> void:
 	live = true
 
 
+## Whether [param world] (the loop's `GSSimHullWorld`, begun with this roster) can file the players: the library has
+## `near` and [member grid_native] is on.
+static func can_file(world: Object) -> bool:
+	return grid_native and world != null and world.has_method(&"near")
+
+
+## Starts the loop with the cells kept in [param world] (it filed the roster in its `begin`, from the same feet); with
+## [member verify] this script's cells are filed too ([param roster], [param ids]), for the comparison.
+func begin_native(world: Object, roster: Array, ids: PackedInt64Array) -> void:
+	if verify:
+		begin(roster, ids)
+	else:
+		_cells.clear()
+		_index_of.clear()
+	_native = world
+	_scripted = verify
+	live = true
+
+
+## Whether the hull world files the cells: the loop then re-files a player with its `turn` and [method moved_script].
+func native_filed() -> bool:
+	return _native != null
+
+
 func _put(k: int, i: int) -> void:
 	var cell: Variant = _cells.get(k)
 	if cell == null:
@@ -83,6 +120,31 @@ func _put(k: int, i: int) -> void:
 
 ## Player [param id] has just ticked: re-file it if it left its cell.
 func moved(id: int, p: Node3D) -> void:
+	if _native != null and p != null and p.controller != null:
+		var at: Vector3 = p.controller.state.position
+		_native.refile(p.hull_slot, at.x, at.z)
+	moved_script(id, p)
+
+
+## The end of [param p]'s turn in the players' loop: re-filed in the cells, standing at [param feet] in [param world]
+## for the gathers when [param move_feet], and not alive there when it died. Where the hull world files the cells, one
+## gs-sim call (`turn`).
+func turned(world: Object, id: int, p: Node3D, feet: Vector3, move_feet: bool, alive: bool) -> void:
+	if _native != null:
+		world.turn(p.hull_slot, feet.x, feet.y, feet.z, move_feet, not alive)
+		moved_script(id, p)
+		return
+	moved(id, p)
+	if move_feet:
+		world.moved(p.hull_slot, feet.x, feet.y, feet.z)
+	if not alive:
+		world.set_alive(p.hull_slot, false)
+
+
+## [method moved] in this script's cells only (none kept when the hull world files them, outside a [member verify] run).
+func moved_script(id: int, p: Node3D) -> void:
+	if not _scripted:
+		return
 	var i: int = _index_of.get(id, -1)
 	if i < 0:
 		return
@@ -99,6 +161,17 @@ func moved(id: int, p: Node3D) -> void:
 
 ## Roster indices, ascending, of every player filed within [param reach_sq] (squared metres) of [param at], and some farther: the caller's own distance test decides.
 func near(at: Vector3, reach_sq: float) -> Array:
+	if _native == null:
+		return _near_script(at, reach_sq)
+	var out := Array(_native.near(at.x, at.z, reach_sq))
+	if _scripted:
+		grid_native_verified += 1
+		if _near_script(at, reach_sq) != out:
+			grid_native_mismatches += 1
+	return out
+
+
+func _near_script(at: Vector3, reach_sq: float) -> Array:
 	var reach := sqrt(reach_sq)
 	var x0 := int(floorf((at.x - reach) / CELL)) + BIAS
 	var x1 := int(floorf((at.x + reach) / CELL)) + BIAS
