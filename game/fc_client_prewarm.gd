@@ -5,17 +5,14 @@ extends "fc_client_vars.gd"
 
 const FcLoadTimeline := preload("fc_load_timeline.gd")
 
-## Whether the local weapon draws its own shot. True on a client shell carrying a
-## fc-weapons with `AwShotFx`; through `has_method`, because an older shell's copy
-## of the rig has no `shot_fx` and a call by name would not compile there.
+## Whether the local weapon draws its own shot: true on a client shell carrying a fc-weapons with `AwShotFx`. Through
+## `has_method`, because an older shell's copy of the rig has no `shot_fx` and a call by name would not compile there.
 func weapon_draws_shots() -> bool:
 	if player == null or player.weapons == null or not player.weapons.has_method(&"shot_fx"):
 		return false
 
 	return player.weapons.call(&"shot_fx") != null
 
-## One frame of the warm-up: weapon views, then the flash scenes, then one draw of every flash and
-## the explosion in front of the camera (the first shot cost 375-420 ms, the first explosion 95).
 ## How many throwaway people the warm-up builds, so their art and materials are loaded before the first bot.
 const PREWARM_FIGURES := 4
 const DEATH_BURST_SCENE := "res://scenes/fx/death_burst.tscn"
@@ -25,8 +22,7 @@ const HEADSHOT_WARM_SEC := 0.25
 const FX_POOL_SHOTS := 32
 const FX_POOL_CHARGES := 12
 const FX_POOL_FLASH_FRAMES := 600
-## False skips the weapon warm-up below (views, flashes, effect pool, drop bodies, kill screens): the perf bench's `--prewarm 0`,
-## for the A/B of what it buys a first shot. Read when the local player first spawns.
+## False skips the weapon warm-up below (views, flashes, effect pool, drop bodies, kill screens; read at the first spawn): `--prewarm 0`.
 static var prewarm_weapons_enabled := true
 
 ## Builds the pool every remote hand takes its first shot, charge and flash from, [param budget_msec] a frame.
@@ -40,6 +36,8 @@ func _fill_fx_pool(budget_msec: float) -> bool:
 	var _drawn := fx_pool.fill_flashes()
 	return full
 
+## One frame of the warm-up: weapon views, then the flash scenes, then one draw of every flash and
+## the explosion in front of the camera (the first shot cost 375-420 ms, the first explosion 95).
 func _prewarm_tick() -> void:
 	var body: Variant = _warm.get("body")
 	if not is_instance_valid(body) or body.camera == null:
@@ -774,8 +772,7 @@ func _read_next_model() -> bool:
 		FcLoadTimeline.mark("model read %s" % str(_model_paths[_model_paths_next]).get_file(), Time.get_ticks_msec() - read_began)
 	landed = null
 	_model_paths_next += 1
-	# Each file read is progress: the gate's timeout then counts from here, not from its closing, so a slow box that
-	# reads the 19 models inline past 20 s of cover (PH: 15 of 19 left, every first equip a 50-110 ms load) still has them all.
+	# Each read is progress, so the gate's timeout counts from here: a slow box reading all 19 inline (PH) still gets them all.
 	if gate != null and gate.has_method(&"advance"):
 		gate.call(&"advance", &"weapon_models")
 	return true

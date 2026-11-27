@@ -55,6 +55,11 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotRows.set_native_think(new_value.to_float() >= 0.5))
+	_add_motor_engine_cvars()
+
+
+## The players' movement, ragdoll, net-pack and controller switches, and the client's carry check.
+func _add_motor_engine_cvars() -> void:
 	add_cvar("motor_native", "1" if GSFpsPhysicsBody.native_enabled else "0",
 		"1: the players' movement collision queries (sweep, rest contact, overlap) run in gs-sim when its library is installed (bit-identical to the script, so web and native clients still agree; cheaper); 0: in script. Without the library it is script either way",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
@@ -98,6 +103,7 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcContent.carry_fast = new_value.to_float() >= 0.5)
+
 
 ## The players' hull grid (its fast, native and batched gathers) and the bots' PVS sight pre-cull.
 func _add_hull_and_pvs_cvars() -> void:
