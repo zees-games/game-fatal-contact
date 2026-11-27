@@ -252,12 +252,15 @@ func _setup_finish(timeline: FcLoadTimeline) -> void:
 	_suspend_input(platform.is_input_blocked())
 	FcLoadTimeline.mark("setup: platform")
 	if not GSPlatform.is_headless():
-		_set_client_processing(true)
 		# The first draw of the built level and HUD compiles their pipelines (672 ms on staging02): marked, so it is not mistaken for setup.
 		RenderingServer.frame_pre_draw.connect(func() -> void: FcLoadTimeline.mark("level draw begins"), CONNECT_ONE_SHOT)
 		RenderingServer.frame_post_draw.connect(func() -> void:
 			FcLoadTimeline.mark("level draw done")
 			timeline.trace_frames(12), CONNECT_ONE_SHOT)
+		# The first processed frame (the bodies' first pass, 420 ms) drawn a frame after that first level draw: together they were one 634 ms frame on staging02.
+		if split:
+			await _setup_frame()
+		_set_client_processing(true)
 
 ## [method FcGame.setup], one step a frame in a client that draws (the steps shared one 222 ms frame on
 ## staging02; combat and loadouts were most of it). The game does not process between steps, so nothing

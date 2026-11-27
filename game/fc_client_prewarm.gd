@@ -612,28 +612,70 @@ func _prewarm_weapons(body: FcPlayer) -> void:
 	# engine error, while a connection to a method dies with the object.
 	get_tree().process_frame.connect(_prewarm_tick)
 
+## The sound warm-up's own share of a frame (ms) when `cl_warm_frame_ms` is not given: one gun class's files is about 25 ms of
+## reads on staging02, so in practice a class a frame. All 185 files in one go were one 455-560 ms frame there.
+const SOUND_WARM_MSEC := 8.0
+## What [method _sounds_tick] still has to load: [kind, name] pairs, kind &"class" (a gun sound class, GSWeaponSound.warm),
+## &"stock" (a stock weapon sound such as an impact, GSWeaponSound.warm_sounds) or &"id" (a footstep or landing id, GSAudioManager.warm).
+var _sound_units: Array[Array] = []
+## The weapon streams loaded so far (keyed by the stream, so a variant two classes share is decoded once), handed to the decoder at the end.
+var _sound_streams: Dictionary = {}
+var _sound_files := 0
+
 ## Loads and decodes the first-use sounds a fight plays: every variant of each gun class's fire, reload, dry, equip and far
-## report and of the bullet impacts (GSWeaponSound.warm), then footsteps and landings (GSAudioManager.warm), a slice a frame.
-## Reload, footstep and impact were the first-use hitches; a 0 pcm_warm_usec cvar is not needed, the slices wait for a free decoder.
+## report and of the bullet impacts (GSWeaponSound.warm), then footsteps and landings (GSAudioManager.warm). The loads run a
+## class or id at a time within [constant SOUND_WARM_MSEC] a frame ([method _sounds_tick]), under the cover's &"sounds" hold;
+## the decodes then run a slice a frame on their own. Reload, footstep and impact were the first-use hitches.
 func _prewarm_sounds() -> void:
-	var classes: Array = []
+	_sound_units.clear()
+	_sound_streams.clear()
+	_sound_files = 0
 	for sound_class: Variant in AwWeaponPack.SOUND_CLASSES.values():
-		if not classes.has(sound_class):
-			classes.append(sound_class)
-	var streams := GSWeaponSound.warm(classes)
+		var unit: Array = [&"class", sound_class]
+		if not _sound_units.has(unit):
+			_sound_units.append(unit)
 	# Impacts are picked by stock name (AwShotFx.impact_stream): flesh, the generic one, and each surface's.
 	var impacts: Array = [&"impact", &"impact_flesh"]
 	impacts.append_array(AwShotFx.SURFACE_IMPACTS.values())
-	streams.append_array(GSWeaponSound.warm_sounds(impacts))
-	var queued := GSAudioSinkGodot.warm_streams(streams)
+	for sound: Variant in impacts:
+		_sound_units.append([&"stock", sound])
 	var ids: Array = []
 	for def in GSAudioStock.footstep_defs():
 		ids.append(def.id)
 	ids.append_array(GSAudioStock.LANDING_IDS)
+	for id: Variant in ids:
+		_sound_units.append([&"id", id])
+	gate.hold(&"sounds", "Preparing sounds")
+	if not get_tree().process_frame.is_connected(_sounds_tick):
+		get_tree().process_frame.connect(_sounds_tick)
+
+## One frame of [method _prewarm_sounds]: units until the frame's share is spent (always one), then, with none left, the decodes queued and the hold released.
+func _sounds_tick() -> void:
+	var began := Time.get_ticks_usec()
+	var budget_usec := int(FcFrameProbe.warm_frame_ms(SOUND_WARM_MSEC) * 1000.0)
 	var heard := presentation.audio if presentation != null else null
-	if heard != null:
-		queued += heard.warm(ids)
-	FcLoadTimeline.mark("prewarm: %d sound files queued (%d weapon streams)" % [queued, streams.size()])
+	while not _sound_units.is_empty():
+		var unit: Array = _sound_units.pop_front()
+		match unit[0]:
+			&"class":
+				for stream in GSWeaponSound.warm([unit[1]]):
+					_sound_streams[stream] = true
+			&"stock":
+				for stream in GSWeaponSound.warm_sounds([unit[1]]):
+					_sound_streams[stream] = true
+			_:
+				if heard != null:
+					_sound_files += heard.warm([unit[1]])
+		if budget_usec > 0 and Time.get_ticks_usec() - began >= budget_usec:
+			break
+	if not _sound_units.is_empty():
+		return
+	get_tree().process_frame.disconnect(_sounds_tick)
+	var weapon_files := GSAudioSinkGodot.warm_streams(_sound_streams.keys())
+	FcLoadTimeline.mark("prewarm: %d sound files queued (%d weapon streams), last slice %d ms" % [_sound_files + weapon_files, _sound_streams.size(), (Time.get_ticks_usec() - began) / 1000])
+	_sound_streams.clear()
+	if gate != null:
+		gate.release(&"sounds")
 
 ## True: a web client holds the cover only for the models of the weapons somebody in the match carries now (and the default
 ## loadout's), and reads every other weapon's after the cover drops ([method _models_late]). On staging02 the 27 reads held the
