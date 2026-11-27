@@ -7,6 +7,7 @@ const SUN_SHADOW_SPLITS := 1.0
 const SUN_SHADOW_DISTANCE := 60.0
 const _RenderQuality := preload("res://addons/gs_game/runtime/gs_game_render_quality.gd")
 const _UserDir := preload("fc_user_dir.gd")
+const FcShaderGroupArm := preload("fc_shader_group_arm.gd")
 
 func _render_defaults() -> void:
 	if float(_RenderQuality.values[&"r_sun_shadow_splits"]) < 0.0:
@@ -36,6 +37,9 @@ func _ready() -> void:
 	timeline.name = "LoadTimeline"
 	timeline.gate = gate
 	add_child(timeline)
+	# Before the weapons, figures and world make their shaders: enabled later, the group loads for all of them in one frame.
+	if FcShaderGroupArm.wanted():
+		add_child(FcShaderGroupArm.new())
 	# Names the process phase's untimed time in a recorded profile (arena.pf_head, pf_nodes, pf_tail).
 	add_child(preload("fc_process_spans.gd").new())
 	_request_figures()
