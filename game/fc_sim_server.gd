@@ -126,10 +126,7 @@ func _ready() -> void:
 			var _stored := f.store_string(str(config.effective_enet_port()))
 			f.close()
 	_server = server
-	print("SIM_HOST ready map=%s mode=%s bots=%d bot_threads=%d brain=%s loop=%s drops=%s" % [String(game.map.id), String(game.mode.id), bots,  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
-		FcBotThreads.threads, "native" if FcPlayerStack.brain_native() else "script",
-		"native" if FcBots.tier_schedule and bool(FcBots.tiers.get(&"native")) and ClassDB.class_exists(&"GSSimThinkTier") else "script",
-		"native" if bool((GSBotWorld as Script).get(&"native_drops")) and ClassDB.class_has_method(&"GSSimBotDrops", &"pack") else "script"])
+	_print_ready(String(game.map.id), String(game.mode.id), bots)
 	_report(module.net)
 
 
@@ -533,3 +530,12 @@ static func _arg(flag: String, fallback: String) -> String:
 	var args := OS.get_cmdline_user_args()
 	var index := args.find(flag)
 	return args[index + 1] if index >= 0 and index + 1 < args.size() else fallback
+
+
+## The bench's ready line: the map, the bots and which bot paths run natively (perf_bench and soak read it).
+static func _print_ready(map_id: String, mode_id: String, bots: int) -> void:
+	print("SIM_HOST ready map=%s mode=%s bots=%d bot_threads=%d brain=%s loop=%s drops=%s unstick=%s" % [map_id, mode_id, bots,  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
+		FcBotThreads.threads, "native" if FcPlayerStack.brain_native() else "script",
+		"native" if FcBots.tier_schedule and bool(FcBots.tiers.get(&"native")) and ClassDB.class_exists(&"GSSimThinkTier") else "script",
+		"native" if bool((GSBotWorld as Script).get(&"native_drops")) and ClassDB.class_has_method(&"GSSimBotDrops", &"pack") else "script",
+		"native" if bool((GSBotUnstick as Script).get(&"native_enabled")) and ClassDB.class_has_method(&"GSSimBotMind", &"unstick_step") else "script"])
