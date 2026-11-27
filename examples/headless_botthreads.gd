@@ -6,6 +6,7 @@ const FcBotRows := preload("../game/fc_bot_rows.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
+const FcBotThinkMt := preload("../game/fc_bot_think_mt.gd")
 
 ## `bot_threads`: 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8 with
 ## bot_native_think's reused command pair off; every bot's position, view, health and commands,
@@ -16,8 +17,8 @@ const BOTS := 24
 const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
-const SECTIONS := 5
-const CHECKS := 23
+const SECTIONS := 6
+const CHECKS := 26
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -53,6 +54,10 @@ func _run() -> void:
 	_check(parallel[2] > 100 and parallel[3] > 100 and parallel[4] > 100, "the brains really ran through the parallel path (%d, %d, %d ticks)" % [parallel[2], parallel[3], parallel[4]])
 	_check(parallel[0] == 0, "and bot_threads 0 never did")
 	await _switches_play_the_same(digests[0])
+	_done()
+
+	_section("bot_native_think_mt: the threaded native perceive plays the script's match")
+	await _think_mt_plays_the_same(digests[0])
 	_done()
 
 	_section("the brain profile (--brain-us) times brains on bot threads")
@@ -124,6 +129,30 @@ func _switches_play_the_same(native: PackedStringArray) -> void:
 	_check(scripted[0] == native, "bot_native_pickup 0 and bot_native_act 0 (script pickup and steer) play the native match (%d kills)" % scripted[1])
 
 
+## bot_native_think_mt 1 (gs-sim perceives for every threaded bot before the workers start) and 0 play [param script]'s
+## match to the digest at 4 threads; the brains took the pass's answers, and never asked it differently.
+func _think_mt_plays_the_same(script: PackedStringArray) -> void:
+	if not ClassDB.class_exists(FcBotThinkMt.CLASS) or GSAddonApi.build_level("gs_bot") < 53:
+		print("skip bot_native_think_mt: gs_sim has no %s or gs-bot is older than 53" % FcBotThinkMt.CLASS)
+		for i in 3:
+			_check(true, "(skipped: no threaded native perceive)")
+		return
+	FcBotThinkMt.on = false
+	var off := await _play(4)
+	FcBotThinkMt.on = true
+	var on := await _play(4)
+	var hits := 0
+	var misses := 0
+	for mind: FcBots.Mind in on[3]:
+		if mind.brain != null:
+			hits += int(mind.brain.get(&"mt_hits"))
+			misses += int(mind.brain.get(&"mt_misses"))
+	print("bot_native_think_mt: %d answers taken, %d asked differently" % [hits, misses])
+	_check(off[0] == script and on[0] == script, "bot_native_think_mt 0 and 1 at 4 threads play thread 0's match (%d, %d kills)" % [off[1], on[1]])
+	_check(hits > 1000, "the brains took the threaded pass's answers (%d)" % hits)
+	_check(misses == 0, "and never asked a perceive the pass had answered differently (%d)" % misses)
+
+
 func _section(title: String) -> void:
 	_entered += 1
 	print("")
@@ -134,7 +163,7 @@ func _done() -> void:
 	_completed += 1
 
 
-## One match with [param count] threads: [digests, kills, parallel ticks].
+## One match with [param count] threads: [digests, kills, parallel ticks, the bots' FcBots.Mind].
 func _play(count: int, map_id: StringName = &"") -> Array:
 	FcBotThreads.threads = count
 	FcBotThreads.par_ticks = 0
@@ -212,7 +241,7 @@ func _play(count: int, map_id: StringName = &"") -> Array:
 	game.queue_free()
 	await get_tree().process_frame
 	FcBotThreads.threads = 0
-	return [digests, kills[0], parallel]
+	return [digests, kills[0], parallel, minds]
 
 
 ## Think and body tiers on (every bot coasts when nobody sees it), played on the current addons' calls, then on the

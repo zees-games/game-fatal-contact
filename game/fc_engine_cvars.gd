@@ -10,6 +10,7 @@ const FcHullGrid := preload("fc_hull_grid.gd")
 const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
+const FcBotThinkMt := preload("fc_bot_think_mt.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcWeaponTickCvars := preload("fc_weapon_tick_cvars.gd")
 
@@ -55,6 +56,11 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotRows.set_native_think(new_value.to_float() >= 0.5))
+	add_cvar("bot_native_think_mt", "1",
+		"1: with bot_threads on, gs-sim perceives for every threaded bot at once on its own threads before the brains start (GSSimBotThinkMt, gs-bot 53; the same choices to the bit); 0: each brain perceives on its worker",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotThinkMt.on = new_value.to_float() >= 0.5)
 	_add_motor_engine_cvars()
 
 
