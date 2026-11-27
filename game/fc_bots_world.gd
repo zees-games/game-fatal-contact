@@ -191,7 +191,7 @@ class World:
 	var _styled: bool = GSAddonApi.build_level("gs_bot") >= STYLE_LEVEL
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
-	var _contacts: Array[GSBotContact] = []
+	var _contacts: Array = []  # perf-lint: allow untyped_array gs-sim takes a plain VarArray; a typed array fails the call (error 1337, gate 1127)
 	## The native sight scan's table of [member _contacts], filled in [method refresh]'s loop (cvar `bot_native_think`).
 	var _bot_rows := FcBotRows.new()
 	## [method refresh]'s contact build in gs-sim (cvar `bot_native_contacts`); the script loop when it declines.

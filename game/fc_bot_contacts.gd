@@ -117,7 +117,7 @@ func build(world: Object, players: Array[FcPlayer], tick: int, eye: float, aim: 
 		_fresh = false
 		_arms_fresh = false
 		return false
-	var contacts: Array[GSBotContact] = world._contacts
+	var contacts: Array = world._contacts  # perf-lint: allow untyped_array gs-sim takes a plain VarArray; a typed array fails the call (error 1337, gate 1127)
 	var by_id: Dictionary[int, GSBotContact] = world._by_id
 	var by_player: Dictionary[int, FcPlayer] = world._players
 	var records := PackedFloat64Array()
@@ -201,7 +201,7 @@ static func _launch_enabled(world: Object) -> bool:
 
 ## The loadouts, then the weapons in hand of [param contacts] through gs-sim's fill_arms (each style class interned once per definition);
 ## a gs-sim that declines them leaves it to the world's [code]_weapon_of[/code] from now on. Whether gs-sim wrote them.
-func _arm(world: Object, native: Object, players: Array[FcPlayer], contacts: Array[GSBotContact], tick: int) -> bool:
+func _arm(world: Object, native: Object, players: Array[FcPlayer], contacts: Array, tick: int) -> bool:  # perf-lint: allow untyped_array gs-sim takes a plain VarArray; a typed array fails the call (error 1337, gate 1127)
 	var t_c := FcFrameProbe.lap_start()
 	var n := players.size()
 	for i in n:
@@ -220,13 +220,12 @@ func _arm(world: Object, native: Object, players: Array[FcPlayer], contacts: Arr
 		var def := slot.def
 		var k: int = _class_ids.get(def, -1)
 		if k < 0:
-			k = int(native.call(&"intern_class", world._class_of(def)))
+			k = native.intern_class(world._class_of(def))
 			_class_ids[def] = k
 		_arm_classes[i] = k
 		_arm_rounds[i * 2] = slot.magazine
 		_arm_rounds[i * 2 + 1] = def.magazine
-	# Through call(): a direct call on the untyped native rejects the typed contacts array (gate 1127, error 1337).
-	var wrote: bool = native.call(&"fill_arms", contacts, _arm_classes, _arm_rounds, delta and _arms_fresh)
+	var wrote: bool = native.fill_arms(contacts, _arm_classes, _arm_rounds, delta and _arms_fresh)
 	if wrote:
 		armed += 1
 	else:
@@ -240,7 +239,7 @@ func _arm(world: Object, native: Object, players: Array[FcPlayer], contacts: Arr
 
 ## Hands gs-sim's filled columns to [param world] as its [GSBotContactTable]. The objects hold only what a read of their row
 ## wrote, so the next delta build writes every field again (_fresh stays false).
-func _take_table(world: Object, native: Object, tick: int, contacts: Array[GSBotContact], ids: PackedInt64Array) -> void:
+func _take_table(world: Object, native: Object, tick: int, contacts: Array, ids: PackedInt64Array) -> void:  # perf-lint: allow untyped_array gs-sim takes a plain VarArray; a typed array fails the call (error 1337, gate 1127)
 	if _table == null:
 		_table = GSBotContactTable.new()
 	_table.take(tick, contacts, ids, native.positions(), native.velocities(), native.floats(),
@@ -251,7 +250,7 @@ func _take_table(world: Object, native: Object, tick: int, contacts: Array[GSBot
 
 ## Fills the tiers' rows [member tier_eyes], [member tier_looks], [member tier_ids], [member tier_at]: the live people's eyes and views
 ## and the live bots' ids and positions, from [param t] when there is a table, else from [param all]; empty when not [param applies].
-static func tier_rows(t: GSBotContactTable, all: Array[GSBotContact], brains: Dictionary[int, GSBotBrain], applies: bool) -> void:
+static func tier_rows(t: GSBotContactTable, all: Array, brains: Dictionary[int, GSBotBrain], applies: bool) -> void:  # perf-lint: allow untyped_array gs-sim takes a plain VarArray; a typed array fails the call (error 1337, gate 1127)
 	var eyes := tier_eyes
 	var looks := tier_looks
 	var ids := tier_ids
