@@ -28,6 +28,13 @@ static var tabled: int = 0
 static var arms: bool = true
 ## Ticks whose weapons in hand gs-sim wrote, for the suites.
 static var armed: int = 0
+## Whether gs-sim reads the think tiers' rows and the near grid's cells off the table it filled (cvar `bot_native_world_rows`;
+## needs world_rows). Off, or without a table this tick, the script walks the table for each.
+static var world_rows: bool = true
+## Ticks whose tier and near rows gs-sim read, for the suites.
+static var world_rowed: int = 0
+## What [method read_world_rows] hands back when the script reads the rows: one empty array, never written.
+static var _NO_ROWS: Array = []  # perf-lint: allow all one empty untyped array for the life of the server, shaped as the seven rows
 ## Whether [method FcBots.World.par_begin] packs this tick's drop table on the main thread (cvar `bot_drops_warm`), so the
 ## brains on workers read it instead of the first one packing it while the rest wait on gs-bot's drop lock.
 static var drops_warm: bool = true
@@ -55,6 +62,11 @@ var _has_table: bool = false
 var _table: GSBotContactTable = null
 ## Whether gs-sim has fill_arms.
 var _has_arms: bool = false
+## Whether gs-sim has world_rows.
+var _has_world_rows: bool = false
+## The tick whose table gs-sim filled last, and that table's player ids.
+var _tabled_tick: int = -1
+var _tabled_ids := PackedInt64Array()
 ## Whether the last build's weapons in hand were gs-sim's, so what it remembers writing is what the contacts hold.
 var _arms_fresh: bool = false
 ## gs-sim's interned style class index by weapon definition.
@@ -104,6 +116,7 @@ func _create_sim() -> void:
 	_has_delta = _sim.has_method(&"fill_changed")
 	_has_table = _sim.has_method(&"fill_table")
 	_has_arms = _sim.has_method(&"fill_arms")
+	_has_world_rows = _sim.has_method(&"world_rows")
 	_head.resize(HEAD)
 	_bare.resize(int(_sim.stride()) - HEAD)
 
@@ -112,6 +125,7 @@ func _create_sim() -> void:
 ## rows to its row table when [param rows]. False, with the contacts and players cleared again, when gs-sim is off or the records do
 ## not fit it (a state of another stride): the caller's script loop builds them.
 func build(world: Object, players: Array[FcPlayer], tick: int, eye: float, aim: float, teams: bool, rows: bool) -> bool:
+	_tabled_tick = -1
 	var native := sim()
 	if native == null:
 		_fresh = false
@@ -246,6 +260,29 @@ func _take_table(world: Object, native: Object, tick: int, contacts: Array, ids:
 		native.teams(), native.flags(), native.points(), native.eyes(), native.alive())
 	world.set_table(_table)
 	tabled += 1
+	_tabled_tick = tick
+	_tabled_ids = ids
+
+
+## gs-sim's read of [param world]'s tier rows into [member tier_eyes], [member tier_looks], [member tier_ids], [member tier_at] (empty
+## when not [param applies]) and its near cells (none when [param cell] is 0), off the table it filled at [param tick], to the bit
+## [method tier_rows] and [code]_near_refresh[/code]. Empty when off, without world_rows or without this tick's table: the script reads them.
+## Else gs-sim's seven rows: the four tier rows, then the near cells as [code]keys, starts, rows[/code] (at 4, 5, 6;
+## [code]rows[starts[k]..starts[k + 1]][/code] in cell [code]keys[k][/code]).
+func read_world_rows(brains: Dictionary[int, GSBotBrain], tick: int, applies: bool, cell: float) -> Array:  # perf-lint: allow untyped_array seven packed arrays of different types, as gs-sim returns them
+	if not world_rows or not _has_world_rows or _sim == null or tick != _tabled_tick:
+		return _NO_ROWS
+	var rows: Array = _sim.call(&"world_rows", _tabled_ids, PackedInt64Array(brains.keys()), applies, cell)  # perf-lint: allow all gs-sim is loaded by name (one call a tick) and hands back seven packed arrays of different types
+	if rows.size() != 7:
+		push_error("bot contacts: gs-sim's world_rows does not fit this table; the script reads the tier and near rows from now on")
+		_has_world_rows = false
+		return _NO_ROWS
+	tier_eyes = rows[0]
+	tier_looks = rows[1]
+	tier_ids = rows[2]
+	tier_at = rows[3]
+	world_rowed += 1
+	return rows
 
 
 ## Fills the tiers' rows [member tier_eyes], [member tier_looks], [member tier_ids], [member tier_at]: the live people's eyes and views

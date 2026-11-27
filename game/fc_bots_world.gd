@@ -185,7 +185,11 @@ class World:
 	extends SightWorld
 
 	var tick_rate: float = float(FcContent.TICK_RATE)
-	var _loadouts: Dictionary[int, Array] = {}
+	## [method _loadout_of]'s cache by player id: the rated loadout, the arsenal revision (or the tick, on an older gs-weapon) it
+	## was rated at, and the arsenal's instance id (0 on an older gs-weapon). Typed, so a hit is no Variant cast.
+	var _loadouts: Dictionary[int, Dictionary] = {}
+	var _loadout_stamps: Dictionary[int, int] = {}
+	var _loadout_arsenals: Dictionary[int, int] = {}
 	## [constant STYLE_CLASS] by weapon definition, so a contact's class is one lookup a tick.
 	var _classes: Dictionary[GSWeaponDef, StringName] = {}
 	## Whether this build's gs-bot has play styles ([constant STYLE_LEVEL]); asked once per world, not per contact.
@@ -326,11 +330,41 @@ class World:
 		_objective_refresh(teams)
 		FcFrameProbe.lap(&"brc_objective", t_obj)
 		t_lap = FcFrameProbe.lap(&"br_contacts", t_lap)
+		if _native_rows(tick):
+			FcFrameProbe.lap(&"br_rows_native", t_lap)
+			return
 		if tiers != null:
 			_tier_begin()
 		t_lap = FcFrameProbe.lap(&"br_tiers", t_lap)
 		_near_refresh(_contacts, FcHullGrid.enabled)
 		FcFrameProbe.lap(&"br_near", t_lap)
+
+	## `bot_native_world_rows`: the tier rows and near cells read by gs-sim off the table it filled this tick, in one call, as
+	## [method _tier_begin] and [code]_near_refresh[/code] read them. False when it did not (the script reads them).
+	func _native_rows(tick: int) -> bool:
+		var t := table()
+		if t == null:
+			return false
+		var n := t.size()
+		var applies := tiers != null and tiers.applies(n)
+		var cell := near_reach if FcHullGrid.enabled and near_reach > 0.0 and n > 16 else 0.0
+		var near: Array = _native_contacts.read_world_rows(brains, tick, applies, cell)  # perf-lint: allow untyped_array seven packed arrays of different types, as gs-sim returns them
+		if near.is_empty():
+			return false
+		if tiers != null:
+			tiers.begin(_contacts.size(), FcBotContacts.tier_eyes, FcBotContacts.tier_looks, FcBotContacts.tier_ids, FcBotContacts.tier_at)
+		near_cells.clear()
+		_cells_used = 0
+		near_cell = cell
+		var keys: PackedInt64Array = near[4]
+		var starts: PackedInt32Array = near[5]
+		var rows: PackedInt32Array = near[6]
+		for k in keys.size():
+			make_near_cell(keys[k], rows[starts[k]])
+			var cell_rows: Array = near_cells[keys[k]]  # perf-lint: allow untyped_array a pooled near cell, as make_near_cell keeps them
+			for j in range(starts[k] + 1, starts[k + 1]):
+				cell_rows.append(rows[j])
+		return true
 
 	## [param p]'s contact for this tick: last tick's object, every field written again, as a fresh one would be, without a
 	## new object per player per tick.
@@ -420,24 +454,29 @@ class World:
 	## reload changes. Kept until the arsenal's [code]revision()[/code] (gs-weapon API 51) or the arsenal itself
 	## changes; an older gs-weapon falls back to one rebuild in [constant LOADOUT_EVERY] ticks (offset by id).
 	func _loadout_of(p: FcPlayer, tick: int) -> Dictionary:
-		var held: Variant = _loadouts.get(p.player_id)
+		var pid := p.player_id
 		var arsenal: Object = p.arsenal
-		# Kept for this arsenal (an entry of three is only written for one with revision()): no has_method a player a tick.
-		if arsenal != null and held is Array and (held as Array).size() == 3 and (held as Array)[2] == arsenal.get_instance_id():
-			if (held as Array)[0] == arsenal.call(&"revision"):
-				return (held as Array)[1]
-		if arsenal != null and arsenal.has_method(&"revision"):
+		var kept_for: int = _loadout_arsenals.get(pid, -1)
+		# Kept for this arsenal (an arsenal id is only kept for one with revision()): no has_method a player a tick.
+		if arsenal != null and kept_for == arsenal.get_instance_id():
 			var rev: int = arsenal.call(&"revision")
-			var id := arsenal.get_instance_id()
-			if held is Array and (held as Array).size() == 3 and (held as Array)[0] == rev and (held as Array)[2] == id:
-				return (held as Array)[1]
-			var fresh := GSBotArms.loadout_of(arsenal, _rater)
-			_loadouts[p.player_id] = [rev, fresh, id]
-			return fresh
-		if held is Array and (held as Array).size() == 2 and (tick + p.player_id) % LOADOUT_EVERY != 0 and tick >= (held as Array)[0] and tick - (held as Array)[0] < LOADOUT_EVERY:
-			return (held as Array)[1]
+			if _loadout_stamps[pid] == rev:
+				return _loadouts[pid]
+			return _rate_loadout(pid, arsenal, rev, kept_for)
+		if arsenal != null and arsenal.has_method(&"revision"):
+			return _rate_loadout(pid, arsenal, arsenal.call(&"revision"), arsenal.get_instance_id())
+		if kept_for == 0 and (tick + pid) % LOADOUT_EVERY != 0:
+			var at: int = _loadout_stamps[pid]
+			if tick >= at and tick - at < LOADOUT_EVERY:
+				return _loadouts[pid]
+		return _rate_loadout(pid, arsenal, tick, 0)
+
+	## Rates [param arsenal] for player [param pid] and keeps it with [param stamp] (a revision, or a tick when [param arsenal_id] is 0).
+	func _rate_loadout(pid: int, arsenal: Object, stamp: int, arsenal_id: int) -> Dictionary:  # perf-lint: allow untyped_array gs-bot's loadout_of hands back a plain Dictionary of mixed values
 		var made := GSBotArms.loadout_of(arsenal, _rater)
-		_loadouts[p.player_id] = [tick, made]
+		_loadouts[pid] = made
+		_loadout_stamps[pid] = stamp
+		_loadout_arsenals[pid] = arsenal_id
 		return made
 
 	## The class of the weapon in hand and how full its magazine is, for the bot's play style.

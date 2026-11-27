@@ -28,17 +28,17 @@ func table(game: Object, pack: Callable) -> Variant:
 	var layer := game.get(&"weapon_drops") as GSWeaponDrops  # perf-lint: allow dynamic_call the world holds its game untyped; once a tick
 	if not enabled or layer == null:
 		_packed = null
-		return pack.call()
+		return pack.call()  # perf-lint: allow dynamic_call the caller's packer Callable, not a method by name; cache off or no drops
 	if layer != _layer:
 		_watch(layer)
 	var n := layer.count()
 	var still := layer.active_count() == 0
 	if still and _packed != null and _packed_rev == _rev and _packed_count == n:
 		reused += 1
-		if verify and pack.call() != _packed:
+		if verify and pack.call() != _packed:  # perf-lint: allow dynamic_call the caller's packer Callable; only when verify is set (tests)
 			mismatched += 1
 		return _packed
-	var packed: Variant = pack.call()
+	var packed: Variant = pack.call()  # perf-lint: allow dynamic_call the caller's packer Callable; only when the drops changed
 	if still and packed is Array:
 		_packed = packed
 		_packed_rev = _rev
@@ -54,11 +54,11 @@ func _watch(layer: GSWeaponDrops) -> void:
 	_layer = layer
 	# The lambdas hold no reference to this cache's owner: only the box of the revision.
 	var bump := _bump
-	layer.dropped.connect(func(_id: int, _state: Dictionary, _at: Transform3D, _v: Vector3, _owner: int) -> void: bump.call())
-	layer.ammo_changed.connect(func(_id: int, _state: Dictionary) -> void: bump.call())
-	layer.removed.connect(func(_id: int, _taker: int) -> void: bump.call())
-	layer.pushed.connect(func(_id: int, _at: Transform3D, _v: Vector3, _spin: Vector3) -> void: bump.call())
-	layer.settled.connect(func(_id: int, _at: Transform3D) -> void: bump.call())
+	layer.dropped.connect(func(_id: int, _state: Dictionary, _at: Transform3D, _v: Vector3, _owner: int) -> void: bump.call())  # perf-lint: allow dynamic_call a bound Callable, fired on a drop change only
+	layer.ammo_changed.connect(func(_id: int, _state: Dictionary) -> void: bump.call())  # perf-lint: allow dynamic_call a bound Callable, fired on a drop change only
+	layer.removed.connect(func(_id: int, _taker: int) -> void: bump.call())  # perf-lint: allow dynamic_call a bound Callable, fired on a drop change only
+	layer.pushed.connect(func(_id: int, _at: Transform3D, _v: Vector3, _spin: Vector3) -> void: bump.call())  # perf-lint: allow dynamic_call a bound Callable, fired on a drop change only
+	layer.settled.connect(func(_id: int, _at: Transform3D) -> void: bump.call())  # perf-lint: allow dynamic_call a bound Callable, fired on a drop change only
 
 
 func _bump() -> void:

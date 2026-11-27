@@ -736,6 +736,8 @@ static func forget(game: Object, id: int) -> void:
 		if held is World:
 			(held as World).brains.erase(id)
 			(held as World)._loadouts.erase(id)
+			(held as World)._loadout_stamps.erase(id)
+			(held as World)._loadout_arsenals.erase(id)
 			(held as World).woken.erase(id)
 			if (held as World).objective != null:
 				(held as World).objective.release(id)

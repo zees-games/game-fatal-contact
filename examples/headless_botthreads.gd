@@ -22,7 +22,7 @@ const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
 const SECTIONS := 8
-const CHECKS := 53
+const CHECKS := 56
 
 ## `bot_native_refresh`'s parity: seeded matches of this many bots, this long, on these maps, script against gs-sim.
 const REFRESH_BOTS := 31
@@ -545,7 +545,7 @@ func _brain_phases_threaded(match_digests: PackedStringArray) -> void:
 func _contacts_parity(expected: PackedStringArray) -> void:
 	if not GSSim.has(&"contacts"):
 		print("skip: this gs-sim has no contact build")
-		for i in 7:
+		for i in 13:
 			_check(true, "(skipped: no gs-sim contact build)")
 		return
 	var players: Array = []
@@ -561,6 +561,9 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	var table_first := -1
 	var has_table := false
 	var armed := 0
+	var rowed := [0, 0, 0]  # rounds whose native tier rows and near cells were the script's; with near cells; bots in the tier rows
+	var has_rows := false
+	var refreshed_rows := 0  # the table rounds' refreshes that read their rows from gs-sim
 	for round_index in rounds:
 		var held: Variant = _scramble(players, rng, round_index == rounds - 1)
 		FcBotContacts.table = false
@@ -575,7 +578,9 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 		built += FcBotContacts.built - built_before
 		armed += FcBotContacts.armed - armed_before
 		var native := _snapshot(world)
+		var rowed_at := FcBotContacts.world_rowed
 		var row := _table_round(world, 1002 + 3 * round_index, packed, script[0])
+		refreshed_rows += FcBotContacts.world_rowed - rowed_at
 		has_table = row >= 0
 		if has_table and row & 1:
 			tabled[0] += 1
@@ -583,6 +588,12 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 			table_first = round_index
 		if has_table and row & 2:
 			tabled[1] += 1
+		var rows_round := _world_rows_round(world)
+		has_rows = rows_round >= 0
+		if has_rows:
+			rowed[0] += rows_round & 1
+			rowed[1] += (rows_round >> 1) & 1
+			rowed[2] += (rows_round >> 2) & 1
 		if held != null:
 			players[0].controller = held
 		for k in 2:
@@ -613,7 +624,58 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	FcBotContacts.delta = true
 	_check(played[0] == expected, "bot_native_contacts_delta 0 (every field every tick) plays the same match (%d kills)" % played[1])
 	await _table_checks(expected, tabled, rounds, table_first, has_table)
+	await _world_rows_checks(expected, has_rows, rowed, rounds, refreshed_rows)
 	await _arms_checks(expected, native_contacts, armed, rounds)
+
+
+## `bot_native_world_rows`: on the table gs-sim filled this round, the tier rows and near cells read by gs-sim against the
+## script's reading of the same table. -1 when this gs-sim has no world_rows; else bit 1 when both equal the script's to the
+## bit (near cells in the same key order, rows in the same order), bit 2 when there were near cells, bit 4 when bots.
+func _world_rows_round(world: Object) -> int:
+	var t: GSBotContactTable = world.call(&"table")
+	var nc: Object = world.get(&"_native_contacts")
+	if t == null or not bool(nc.get(&"_has_world_rows")):
+		return -1
+	var brains: Dictionary[int, GSBotBrain] = world.get(&"brains")
+	var tick: int = nc.get(&"_tabled_tick")
+	FcBotContacts.tier_rows(t, [], brains, true)
+	var script_tiers := [FcBotContacts.tier_eyes, FcBotContacts.tier_looks, FcBotContacts.tier_ids, FcBotContacts.tier_at]
+	world.call(&"_near_refresh", [], FcHullGrid.enabled)
+	var script_near := _near_copy(world)
+	var cell: float = world.get(&"near_cell")
+	if nc.call(&"read_world_rows", brains, tick, true, cell).is_empty() or not bool(world.call(&"_native_rows", tick)):
+		return 0
+	var native_tiers := [FcBotContacts.tier_eyes, FcBotContacts.tier_looks, FcBotContacts.tier_ids, FcBotContacts.tier_at]
+	var native_near := _near_copy(world)
+	var same := native_tiers == script_tiers and native_near == script_near
+	return (1 if same else 0) | (2 if not script_near[0].is_empty() else 0) | (4 if not script_tiers[2].is_empty() else 0)
+
+
+## The world's near cells as [keys in order, rows per key], copied.
+static func _near_copy(world: Object) -> Array:
+	var cells: Dictionary = world.get(&"near_cells")
+	var rows: Array = []
+	for k: int in cells:
+		rows.append((cells[k] as Array).duplicate())
+	return [cells.keys(), rows, world.get(&"near_cell")]
+
+
+## The `bot_native_world_rows` checks of [method _contacts_parity]'s rounds, and the match with it off.
+func _world_rows_checks(expected: PackedStringArray, has_rows: bool, rowed: Array, rounds: int, used: int) -> void:
+	if not has_rows:
+		print("skip: this gs-sim has no world_rows")
+		for i in 3:
+			_check(true, "(skipped: no gs-sim world_rows)")
+		return
+	_check(rowed[0] == rounds and rowed[1] > 0 and rowed[2] > 0,
+		"bot_native_world_rows: gs-sim's tier rows and near cells equal the script's to the bit in %d of %d randomized rounds (%d with near cells, %d with bots)" % [rowed[0], rounds, rowed[1], rowed[2]])
+	_check(used > 0, "and the refreshes read them from gs-sim (%d)" % used)
+	var before := FcBotContacts.world_rowed
+	FcBotContacts.world_rows = false
+	var played: Array = await _play(0)
+	FcBotContacts.world_rows = true
+	_check(played[0] == expected and FcBotContacts.world_rowed == before,
+		"bot_native_world_rows 0 (the script reads them) plays the match gs-sim's rows play (%d kills)" % played[1])
 
 
 ## `bot_native_contact_arms`: gs-sim wrote the weapons in hand of every object round (the rounds above compare them with the

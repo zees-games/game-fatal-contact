@@ -114,6 +114,11 @@ func _add_bot_contact_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.table = new_value.to_float() >= 0.5
 			GSBotWorld.table_enabled = FcBotContacts.table)
+	add_cvar("bot_native_world_rows", "1",
+		"1: with bot_contact_table, gs-sim reads the think tiers' rows and the near grid's cells off its filled table in one call a tick (GSSimBotContacts.world_rows; the same rows in the same order); 0, or a gs-sim without world_rows: the script walks the table for each",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.world_rows = new_value.to_float() >= 0.5)
 	add_cvar("bot_native_think_mt", "1",
 		"1: with bot_threads on, gs-sim perceives for every threaded bot at once on its own threads before the brains start (GSSimBotThinkMt, gs-bot 53; the same choices to the bit); 0: each brain perceives on its worker",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
