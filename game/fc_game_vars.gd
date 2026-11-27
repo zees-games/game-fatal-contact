@@ -114,6 +114,10 @@ var _pc_surfing := false
 var _pc_fine := false
 var _pc_post_lane := false
 var _pc_mark_due := false
+## fc_post_head_native: whether the next row's finish first asks the native tick for every row's post-head answer
+## (again after a row's move reruns the later ones), and the reused input rows.
+var _ph_due := false
+var _ph_rows := PackedFloat64Array()
 ## The batched loop's motor edges for every player ([member FcHullGrid.events]): one row per player's tick, derived and dispatched after the loop.
 var _tick_events := GSFpsTickEvents.new()
 ## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its

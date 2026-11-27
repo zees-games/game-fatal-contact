@@ -8,6 +8,7 @@ const FcMode := preload("../game/fc_mode.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcHullGrid := preload("../game/fc_hull_grid.gd")
 const FcVolumePrefilter := preload("../game/fc_volume_prefilter.gd")
+const FcNativeTick := preload("../game/fc_native_tick.gd")
 
 const POINTS := 20000
 const SEED := 4243
@@ -117,6 +118,9 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator, count: int) -> int:
 	FcPlayer.mechanics_checked = 0
 	var rows_before := FcHullGrid.batch_rows
 	FcPlayer.mechanics_misses = 0
+	FcPlayer.post_head_verify = true
+	FcPlayer.post_head_checked = 0
+	FcPlayer.post_head_misses = 0
 	var bounds := AABB()
 	for b in boxes:
 		bounds = b.abs() if bounds.size == Vector3.ZERO else bounds.merge(b.abs())
@@ -136,6 +140,7 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator, count: int) -> int:
 			player.controller.teleport(at, rng.randf_range(-180, 180), 0.0)
 		await _ticks(TICKS_PER_ROUND)
 	FcPlayer.mechanics_verify = false
+	FcPlayer.post_head_verify = false
 	var checked := FcPlayer.mechanics_checked
 	var rows := FcHullGrid.batch_rows - rows_before
 	var lane := "batched" if count >= FcHullGrid.MIN_PLAYERS else "one by one"
@@ -148,7 +153,17 @@ func _verify_map(id: StringName, rng: RandomNumberGenerator, count: int) -> int:
 	_check(checked > ROUNDS, "%s (%s): players were marked clear" % [id, lane], "%d" % checked)
 	_check(FcPlayer.mechanics_misses == 0, "%s (%s): no clear tick's full mechanics changed the player" % [id, lane],
 			"%d of %d" % [FcPlayer.mechanics_misses, checked])
+	var native_head := FcPlayer.post_head_native and FcNativeTick.enabled and FcNativeTick.players and FcNativeTick.available() \
+		and ClassDB.class_has_method(&"GSSimServerTick", &"post_head")
+	print("  %s, %d players: %d post-head rows checked, %d differ" % [id, count, FcPlayer.post_head_checked, FcPlayer.post_head_misses])
+	var extra := 0
+	if native_head and count >= FcHullGrid.MIN_PLAYERS:
+		extra = 2
+		_check(FcPlayer.post_head_checked > ROUNDS, "%s: the native post-head rows were taken" % id,
+				"%d" % FcPlayer.post_head_checked)
+		_check(FcPlayer.post_head_misses == 0, "%s: every native post-head row equals the script's skip and height scale" % id,
+				"%d of %d" % [FcPlayer.post_head_misses, FcPlayer.post_head_checked])
 	_game.queue_free()
 	_game = null
 	await get_tree().physics_frame
-	return 4
+	return 4 + extra

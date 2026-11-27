@@ -423,7 +423,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 	if not alive:
 		hull_world.set_alive(player.hull_slot, false)
 	if row >= 0 and (feet != rested or not alive):
-		_motor_batch.moved_after(row)
+		_moved_after(row)
 	if fine:
 		t_fine = FcFrameProbe.lap(&"po_hullw", t_fine)
 	if demo_stats != null:
@@ -772,3 +772,9 @@ func _build_match() -> GSResult:
 	match_node.state_changed.connect(_on_match_state_changed)
 
 	return GSResult.success(null)
+
+
+## Row [param row]'s move reruns the later rows of the motor batch, so their post-head answers are asked again.
+func _moved_after(row: int) -> void:
+	_motor_batch.moved_after(row)
+	_ph_due = _ph_due or (FcPlayer.post_head_native and _native_tick_on)

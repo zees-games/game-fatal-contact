@@ -1,5 +1,7 @@
 @tool
 extends "fc_game_tick.gd"
+
+const FcVolumePrefilter := preload("fc_volume_prefilter.gd")
 ## `sv_native_players`: the batched players' loop handed to gs-player-controller as one call (phase P1). The script
 ## loop in fc_game_tick.gd stays the specification and the fallback; this layer only overrides its hook.
 
@@ -55,6 +57,8 @@ func _tick_players_call(commands: Dictionary, delta: float, hull_world: Object, 
 	_pc_post_from = _motor_batch if _pc_post_lane and _motor_batch.has_method(&"post_row") else null
 	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null and demo_stats.has_method(&"after_reads")
 	_pc_mark_due = FcPlayer.mechanics_native
+	_ph_due = FcPlayer.post_head_native and _native_tick_on and _native_tick.native != null \
+		and _native_tick.native.has_method(&"post_head")
 	var _motored: Variant = _ctl_batch.call(&"tick", _motor_batch, _tick, rows, _pc_pre_fn, _pc_live_fn, _pc_post_fn)
 	if _pc_mark_due:
 		# No row reached its finish: the marks still run, as between the two passes.
@@ -105,6 +109,24 @@ func _pc_live(i: int) -> bool:
 
 ## The rest of row [param i]'s tick after its controller ([param told]: the motor batch's answer).
 func _pc_post(i: int, row: int, told: bool) -> void:
+	if _ph_due:
+		_ph_due = false
+		_post_head_rows()
 	var id: int = _pc_ids[i]
 	_finish_batched_player(_batch_pairs[i], row, id, _players[id], _pc_delta, _pc_hull_world, _pc_shots, _pc_fine, _pc_post_lane,
 			_pc_post_from, true, told)
+
+
+## Every row's post-head answer (volume skip, hitbox height scale) from the resident motor rows, in one gs-sim call
+## (`GSSimServerTick.post_head`, cvar fc_post_head_native); each player takes its row in `tick_post_head`.
+func _post_head_rows() -> void:
+	var n := _pc_ids.size()
+	var stride: int = 3
+	if _ph_rows.size() != n * stride:
+		var _r := _ph_rows.resize(n * stride)
+	for i in range(n):
+		var player: FcPlayer = _players[_pc_ids[i]]
+		player.post_head_input(_ph_rows, i * stride, _tick)
+		player.post_head_at = i * 6
+		player.post_head_tick = _tick
+	FcPlayer.post_head_out = _native_tick.native.post_head(_ph_rows, n, FcVolumePrefilter.SLACK)

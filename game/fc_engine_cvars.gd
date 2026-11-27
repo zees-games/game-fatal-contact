@@ -173,6 +173,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcPlayer.mechanics_native = new_value.to_float() >= 0.5)
+	add_cvar("fc_post_head_native", "1" if FcPlayer.post_head_native else "0",
+		"1: the batched call asks gs-sim's server tick (GSSimServerTick.post_head, one call) for every player's volume skip and hitbox height scale after its motor run (bit for bit with the script); 0: each player works them out",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcPlayer.post_head_native = new_value.to_float() >= 0.5)
 	add_cvar("fc_drop_idle_skip", "1" if FcWeaponDropWiring.idle_keys_skip else "0",
 		"1: a player with no drop or use key down this tick or last only runs the auto pickup (its key holds are idle); 0: both keys step anyway",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(

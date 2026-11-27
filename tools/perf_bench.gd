@@ -104,6 +104,8 @@ func _ready() -> void:
 		preload("../game/fc_killcam_bodies.gd").record_hz = float(args["killcam-hz"])
 	if args.has("killcam-crowd"):
 		preload("../game/fc_killcam_bodies.gd").crowd_players = int(args["killcam-crowd"])
+	if args.has("post-head"):
+		preload("../game/fc_player.gd").post_head_native = int(args["post-head"]) != 0
 	if args.has("lod-crowd"):
 		preload("../game/fc_player.gd").lod_crowd_players = int(args["lod-crowd"])
 	if args.has("figure-lift-range"):

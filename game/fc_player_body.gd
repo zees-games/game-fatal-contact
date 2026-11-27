@@ -527,19 +527,7 @@ func fit_hitboxes_to_crouch(crouch: float) -> void:
 	if hitboxes == null or controller == null or controller.tunables == null:
 		return
 	var t := controller.tunables
-	var k := lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(crouch, 0.0, 1.0))
-	if FcHullGrid.enabled and k == _fit_k:
-		return
-	_fit_k = k
-	for box in hitboxes.hitboxes():
-		if not box.has_meta(&"stand_y"):
-			box.set_meta(&"stand_y", box.position.y)
-			box.set_meta(&"stand_h", box.height)
-		var y: float = box.get_meta(&"stand_y")
-		var h: float = box.get_meta(&"stand_h")
-		box.position.y = y * k
-		if box.shape == GSHitbox.Shape.CAPSULE:
-			box.height = maxf(h * k, box.radius * 2.0 + 0.02)
+	_fit_hitboxes_k(lerpf(1.0, t.crouch_height / maxf(t.stand_height, 0.01), clampf(crouch, 0.0, 1.0)))
 
 
 ## Sideways speed across the aim (positive right) that bends the wall-shot barrel; zero while wall-running, as the drawn view does.
@@ -668,13 +656,24 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 	var fine := FcFrameProbe.fine
 	var t_fine := Time.get_ticks_usec() if fine else 0
 	_post_moved = false
-	fit_hitboxes_to_stance()
+	# The batched call's post-head row (fc_post_head_native), taken only when its end feet are the state's.
+	var o := _post_head_row(tick)
+	var native := o >= 0
+	if native and controller.tunables != null:
+		_fit_hitboxes_k(post_head_out[o + 2])
+		post_head_used += 1
+	else:
+		fit_hitboxes_to_stance()
 	if fine:
 		FcFrameProbe.add(&"p_hitbox", t_fine)
 	var t_mech := Time.get_ticks_usec()
-	if _volumes_asked_tick != tick and mechanics_native and volume_pre != null:
+	# Asked before this call, the row's gate already held this tick's marks.
+	var asked := _volumes_asked_tick == tick
+	if not asked and mechanics_native and volume_pre != null:
 		volume_pre.mark_one(tick, self)
-	var clear := _volumes_skip(tick, _tick_start)
+	var clear := post_head_out[o + 1] != 0.0 if native and asked else _volumes_skip(tick, _tick_start)
+	if native and post_head_verify:
+		_verify_post_head(o, tick, _tick_start, clear)
 	_run_map_mechanics(_tick_start, delta, clear)
 	var t_follow := FcFrameProbe.lap_start()
 	_follow_map_volumes(clear)

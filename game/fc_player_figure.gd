@@ -1,5 +1,5 @@
 @tool
-extends "fc_player_build.gd"
+extends "fc_player_post_head.gd"
 
 const FcNewerApi := preload("fc_newer_api.gd")
 ## gs-player-char's first level with `GSHumanoidFigureBatch`.
