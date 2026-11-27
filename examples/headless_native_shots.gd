@@ -245,7 +245,9 @@ func _pane() -> void:
 	var flat := _game.combat.trace as GSTraceFlat
 	var faced := _faced(flat)
 	faced.pane_box = faced.boxes.size()
-	var _p: RefCounted = faced.add_box(AABB(Vector3(-1.0, 0.0, -4.005), Vector3(2.0, 3.0, 0.005)), &"glass")
+	# Left of the line of fire only: the fan is about 0.7 m across here, so half its pellets meet the glass
+	# and go to the script, and the other half must stay native.
+	var _p: RefCounted = faced.add_box(AABB(Vector3(-1.0, 0.0, -4.005), Vector3(1.0, 3.0, 0.005)), &"glass")
 	faced.pane = Pane.new()
 	var combat := _game.combat
 	combat.trace = faced
