@@ -132,7 +132,8 @@ static func gs_sim_status() -> String:
 		parts.append("%s=%s" % [module, ("on" if used else "off") if loaded else "missing"])
 	if not any:
 		return "gs-sim: native library not loaded, the GDScript twins run (bootstrap fetches it; web never has it)"
-	return "gs-sim: native " + " ".join(parts)
+	var stamp := FileAccess.get_file_as_string("res://addons/gs_sim/bin/.natives-linux-x86_64").strip_edges().get_slice(" ", 0)
+	return "gs-sim: native version=%s %s" % [stamp if not stamp.is_empty() else "?", " ".join(parts)]
 
 
 func _exit_tree() -> void:

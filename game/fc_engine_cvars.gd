@@ -96,6 +96,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.native = new_value.to_float() >= 0.5)
+	add_cvar("fc_hull_grid_native", "1" if FcHullGrid.grid_native else "0",
+		"1: with fc_hull_native, the players are filed in gs-sim's hull world cells (same hulls, one call a turn); 0: by script",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcHullGrid.grid_native = new_value.to_float() >= 0.5)
 	add_cvar("fc_motor_batch", "1" if FcHullGrid.batch else "0",
 		"1: with fc_hull_native, gs-sim ticks the players' motors in runs of one call a game tick (same states); 0: one call per player",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
