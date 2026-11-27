@@ -24,7 +24,7 @@ const PHASES: Array[Dictionary] = [
 		"classes": ["GSSimFpsBody", "GSSimMotorBatch"], "methods": []},
 	{"id": "bots", "cvars": ["bot_native", "bot_native_brain", "bot_native_pickup", "bot_native_drops",
 		"bot_native_unstick", "bot_native_act", "bot_native_think", "fc_bot_pvs_native", "bot_native_think_mt",
-		"bot_native_refresh", "bot_native_contacts", "fc_hull_grid_native"],
+		"bot_native_refresh", "bot_native_contacts", "fc_hull_grid_native", "bot_native_finish"],
 		"classes": ["GSSimBotSenses", "GSSimBotMind"], "methods": []},
 	{"id": "shots", "cvars": ["sv_native_shots", "sv_native_unlag"],
 		"classes": ["GSSimShots", "GSSimUnlagRing"], "methods": []},
