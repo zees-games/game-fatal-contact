@@ -13,7 +13,8 @@ const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 ## Each map prints how many bodies part, and for the first parting the tick, both states, the previous states and
 ## the command, so a divergence can be handed on as a sample. Then: two mirrors built apart from the same map (the
 ## server's and a client's) tick to the bit (prediction asks the same world), the client follows the replicated
-## cvar, anything the motor's mirror does not hold sends a body back to the space, and the microseconds per tick of
+## cvar, anything the motor's mirror does not hold sends a body back to the space, movers pushed in one batch a tick
+## (cvar `sv_trace_mirror_movers`) carry and block a body on the mirror as on the space, and the microseconds per tick of
 ## 31 bodies on cp-orange-x3, space against mirror. Imported maps skip when not linked, the suite without gs-sim's
 ## mirror motor or gs-player-controller's trace-world seam (level 53).
 
@@ -58,6 +59,7 @@ func _run() -> void:
 		await _compare(String(id), FcMap.by_id(id))
 	await _prediction(FcMap.dm_pit())
 	await _near(FcMap.dm_pit())
+	await _movers()
 	_follow()
 	_report_sections(_sections, _finished, _sections, -1)
 
@@ -243,6 +245,111 @@ func _near(map: FcMap) -> void:
 	_finished += 1
 
 
+## Movers in the motor's mirror (cvar `sv_trace_mirror_movers`, FC's one batch a tick): on a floor of our own, a lift
+## rises under a standing body and two doors stand across a walking body's path, then swing away. The body ticks
+## against the space and against the mirror in lockstep, the movers posed between ticks; the bar is POS_EPS / VEL_EPS
+## and the mode every tick, the lift carrying the body up, the doors holding it, and clear_near keeping the mirror
+## beside a mover (and giving it up with the cvar at 0).
+func _movers() -> void:
+	_sections += 1
+	print("-- movers: a lift carries and doors block on the mirror as on the space")
+	var root := Node3D.new()
+	add_child(root)
+	var _floor := _box(root, StaticBody3D.new(), Vector3(0.0, -0.5, 0.0), Vector3(60.0, 1.0, 60.0))
+	var lift := _box(root, AnimatableBody3D.new(), Vector3(10.0, 0.1, 0.0), Vector3(3.0, 0.2, 3.0))
+	var doors: Array[Node3D] = [
+		_box(root, AnimatableBody3D.new(), Vector3(0.0, 1.5, -4.0), Vector3(4.0, 3.0, 0.2)),
+		_box(root, AnimatableBody3D.new(), Vector3(0.0, 1.5, 4.0), Vector3(4.0, 3.0, 0.2))]
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	var was := FcTraceMirror.movers_enabled
+	FcTraceMirror.movers_enabled = true
+	FcTraceMirror.reset()
+	var mirror: Object = FcTraceMirror.of(root)
+	var ids := PackedInt64Array()
+	if mirror != null and mirror.has_method(&"mover_ids"):
+		ids = mirror.call(&"mover_ids") as PackedInt64Array
+	if not _check(mirror != null and FcTraceMirror.movers_mirrored() and ids.size() == 3,
+			"movers: the mirror takes the lift and both doors for one batch a tick (%d movers)" % ids.size()):
+		FcTraceMirror.movers_enabled = was
+		FcTraceMirror.reset()
+		_drop(root)
+		_finished += 1
+		return
+	var still := GSFpsCommand.new()
+	var ahead := GSFpsCommand.new()
+	ahead.move = Vector2(0.0, -1.0)
+	# [carry space, carry mirror, walk space, walk mirror]
+	var motors: Array[GSFpsMotor] = [_motor(null), _motor(mirror), _motor(null), _motor(mirror)]
+	var states: Array[GSFpsState] = []
+	for i in 4:
+		var s := GSFpsState.new()
+		s.position = Vector3(10.0, 0.3, 0.0) if i < 2 else Vector3(0.0, 0.1, 0.0)
+		s.mode = GSFpsState.Mode.AIR
+		states.append(s)
+	var parted: Array[int] = [-1, -1]
+	var held_back := true
+	var near_on := true
+	var near_off := true
+	const MOVER_TICKS := 200
+	for t in MOVER_TICKS:
+		if t >= 40 and t < 100:
+			lift.position.y += 0.02
+		if t == 120:
+			for d in doors:
+				d.position.x += 20.0
+		await get_tree().physics_frame
+		var _posed: Object = FcTraceMirror.of(root)
+		if t == 70:
+			var w := FcTraceMirror.world_body(motors[1].body)
+			near_on = w != null and FcTraceMirror.clear_near(w, states[1].position, 1.83, 0.0, root)
+			FcTraceMirror.movers_enabled = false
+			near_off = w != null and not FcTraceMirror.clear_near(w, states[1].position, 1.83, 0.0, root)
+			FcTraceMirror.movers_enabled = true
+		for i in 4:
+			motors[i].simulate(states[i], ahead if i >= 2 else still, STEP)
+		for pair in 2:
+			var a := states[pair * 2]
+			var b := states[pair * 2 + 1]
+			if parted[pair] < 0 and (a.position.distance_to(b.position) > POS_EPS
+					or a.velocity.distance_to(b.velocity) > VEL_EPS or a.mode != b.mode):
+				parted[pair] = t
+				print("     %s parts at tick %d: space pos %s vel %s mode %d, mirror pos %s vel %s mode %d" % [
+					"carry" if pair == 0 else "walk", t, a.position, a.velocity, a.mode, b.position, b.velocity, b.mode])
+		if t < 120 and absf(states[2].position.z) > 3.9:
+			held_back = false
+	var top := lift.global_position.y + 0.1
+	print("     carry: lift top %.3f, space y %.4f, mirror y %.4f; walk: space z %.3f, mirror z %.3f" % [
+		top, states[0].position.y, states[1].position.y, states[2].position.z, states[3].position.z])
+	_check(parted[0] < 0 and parted[1] < 0,
+		"movers: a carried and a walking body, %d ticks, the mirror within %s m / %s m/s of the space (carry parts at %d, walk at %d)" % [
+			MOVER_TICKS, POS_EPS, VEL_EPS, parted[0], parted[1]])
+	_check(absf(states[1].position.y - top) < 0.05 and states[1].mode == GSFpsState.Mode.GROUND,
+		"movers: the lift carries the body on the mirror to its top (%.3f against %.3f)" % [states[1].position.y, top])
+	_check(held_back and absf(states[3].position.z) > 5.0,
+		"movers: the doors hold the walking body back, and once swung away it walks on (z %.3f)" % states[3].position.z)
+	_check(near_on and near_off,
+		"movers: beside a posed mover clear_near keeps the mirror, and sv_trace_mirror_movers 0 gives it up")
+	FcTraceMirror.movers_enabled = was
+	FcTraceMirror.reset()
+	_drop(root)
+	_finished += 1
+
+
+## A box body of [param size] at [param at] under [param parent]; a mover is moved by hand, not synced to physics.
+func _box(parent: Node3D, body: CollisionObject3D, at: Vector3, size: Vector3) -> Node3D:
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	if body is AnimatableBody3D:
+		(body as AnimatableBody3D).sync_to_physics = false
+	body.position = at
+	parent.add_child(body)
+	return body as Node3D
+
+
 ## A client follows the server's replicated sv_trace_mirror through its link.
 func _follow() -> void:
 	_sections += 1
@@ -254,6 +361,10 @@ func _follow() -> void:
 		"follow: the held value 0 turns the client's mirror off")
 	link.replicated_cvar_changed.emit("sv_trace_mirror", "1")
 	_check(FcTraceMirror.enabled, "follow: a change to 1 turns it back on")
+	var movers_was := FcTraceMirror.movers_enabled
+	link.replicated_cvar_changed.emit("sv_trace_mirror_movers", "0")
+	_check(not FcTraceMirror.movers_enabled, "follow: sv_trace_mirror_movers 0 from the server takes the movers out of the client's motor mirror")
+	FcTraceMirror.movers_enabled = movers_was
 	FcTraceMirror.enabled = was
 	_finished += 1
 

@@ -646,6 +646,7 @@ const SPACE_QUERY_FILES := {
 	"game/fc_map_io.gd": "tick",
 	"game/fc_props.gd": "tick",
 	"game/fc_surf.gd": "tick",
+	"game/fc_trace_mirror.gd": "tick",
 	"game/fc_client.gd": "client",
 	"game/fc_kill_pov_view.gd": "client",
 	"game/fc_nameplate_view.gd": "client",

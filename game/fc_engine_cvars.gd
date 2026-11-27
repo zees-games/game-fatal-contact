@@ -187,6 +187,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcTraceMirror.enabled = new_value.to_float() >= 0.5)
+	add_cvar("sv_trace_mirror_movers", "1" if FcTraceMirror.movers_enabled else "0",
+		"1: FC pushes the map's movers' transforms to gs-sim's mirror once a tick in one batch and every player's native motor collides against them there (a lift carries, a door blocks); 0: the mirror re-poses movers itself and a player near one asks the physics space",
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY | GSConVar.FLAG_REPLICATED).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcTraceMirror.movers_enabled = new_value.to_float() >= 0.5)
 	add_cvar("fc_bot_pvs_verify", "1" if FcBotPvs.verify else "0",
 		"1: every sight the PVS rules out is cast anyway and every native ask is put to the script too, disagreements counted (a check, not for play)",
 		0).with_min(0.0).with_max(1.0).changed.connect(

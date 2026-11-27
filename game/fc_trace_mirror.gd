@@ -3,7 +3,9 @@ extends RefCounted
 ## collision root copied once into a native BVH (`GSSimTraceMirror`), so a bot's sight and wall rays cost about a
 ## microsecond instead of a physics-server query under the shared ray lock. Players' native motors collide against it
 ## too, server and predicting client alike (the cvar is replicated), except near anything it does not hold. Moving bodies (AnimatableBody3D, the
-## `trace_dynamic` group) are re-posed once a tick. The mirror holds the map's world and nothing else: a weapon
+## `trace_dynamic` group) are re-posed once a tick: with cvar `sv_trace_mirror_movers` FC pushes their transforms in one
+## batch ([code]update_movers[/code]) and the motor collides against them too (a lift carries, a door blocks); at 0, or
+## with a gs-sim older than the batch, the mirror re-poses itself and a player near a mover asks the space. The mirror holds the map's world and nothing else: a weapon
 ## drop or a toy (RigidBody3D) no longer blocks a bot's line, as Source's world trace ignores entities.
 ## Answers match Godot Physics within float noise (hit or miss, fraction 1e-3, normal 1 degree): the suite
 ## headless_trace_mirror holds that on every map kind. Without the library, or at 0, every ray asks the space.
@@ -11,11 +13,20 @@ extends RefCounted
 
 ## Cvar `sv_trace_mirror`: 0 asks the physics space for every ray (the reference and the fallback).
 static var enabled := true
+## Cvar `sv_trace_mirror_movers`: the motor's mirror holds the movers, posed from one batch a tick; 0 sends a player
+## near a mover back to the space.
+static var movers_enabled := true
 
 static var _mirror: Object = null
 static var _root_id := 0
 static var _synced_frame := -1
 static var _movers := 0
+## The movers' body ids in the mirror's batch order, and the batch (12 floats each: basis x, y, z, origin), reused.
+static var _mover_ids := PackedInt64Array()
+static var _mover_batch := PackedFloat32Array()
+static var _batched := false
+static var _warned_batch := false
+const XFORM_FLOATS := 12
 
 
 ## The mirror of [param root]'s collision, built on the first ask after a map change and re-posed once a physics
@@ -31,10 +42,58 @@ static func of(root: Variant) -> Object:
 		_root_id = id
 		_synced_frame = Engine.get_physics_frames()
 		_movers = int((_mirror.call(&"stats") as Dictionary).get("movers", 0))
+		_cache_movers()
 	elif _movers > 0 and _synced_frame != Engine.get_physics_frames():
 		_synced_frame = Engine.get_physics_frames()
-		_mirror.call(&"sync_dynamic")
+		if movers_enabled and _batched:
+			_push_movers()
+		else:
+			_mirror.call(&"sync_dynamic")
 	return _mirror
+
+
+## Whether the motor's mirror holds the movers this tick (posed from FC's batch).
+static func movers_mirrored() -> bool:
+	return movers_enabled and _batched
+
+
+static func _cache_movers() -> void:
+	_batched = _mirror.has_method(&"update_movers") and _mirror.has_method(&"mover_ids")
+	if not _batched:
+		_mover_ids.clear()
+		if _movers > 0 and not _warned_batch:
+			_warned_batch = true
+			push_warning("FcTraceMirror: gs-sim has no GSSimTraceMirror.update_movers; players near a mover ask the physics space")
+		return
+	_mover_ids = _mirror.call(&"mover_ids") as PackedInt64Array
+	_mover_batch.resize(_mover_ids.size() * XFORM_FLOATS)
+
+
+## Every mover's global transform into the batch, then one native call. A freed mover makes the mirror drop it
+## (sync_dynamic) and the ids are read again.
+static func _push_movers() -> void:
+	var at := 0
+	for id: int in _mover_ids:
+		var node := instance_from_id(id) as Node3D
+		if node == null or not node.is_inside_tree():
+			_mirror.call(&"sync_dynamic")
+			_cache_movers()
+			return
+		var t := node.global_transform
+		_mover_batch[at] = t.basis.x.x
+		_mover_batch[at + 1] = t.basis.x.y
+		_mover_batch[at + 2] = t.basis.x.z
+		_mover_batch[at + 3] = t.basis.y.x
+		_mover_batch[at + 4] = t.basis.y.y
+		_mover_batch[at + 5] = t.basis.y.z
+		_mover_batch[at + 6] = t.basis.z.x
+		_mover_batch[at + 7] = t.basis.z.y
+		_mover_batch[at + 8] = t.basis.z.z
+		_mover_batch[at + 9] = t.origin.x
+		_mover_batch[at + 10] = t.origin.y
+		_mover_batch[at + 11] = t.origin.z
+		at += XFORM_FLOATS
+	var _posed := int(_mirror.call(&"update_movers", _mover_batch))
 
 
 ## The mirror of [param game]'s map ([code]map.collision_root[/code]), or null as [method of].
@@ -54,17 +113,23 @@ static func follow_cvars(source: Object) -> bool:
 	var held := String(source.call(&"replicated_cvar", CVAR, ""))
 	if held != "":
 		enabled = held.to_float() >= 0.5
+	var held_movers := String(source.call(&"replicated_cvar", MOVERS_CVAR, ""))
+	if held_movers != "":
+		movers_enabled = held_movers.to_float() >= 0.5
 	if not source.is_connected(&"replicated_cvar_changed", _on_replicated):
 		source.connect(&"replicated_cvar_changed", _on_replicated)
 	return true
 
 
 const CVAR := "sv_trace_mirror"
+const MOVERS_CVAR := "sv_trace_mirror_movers"
 
 
 static func _on_replicated(cvar_name: String, value: String) -> void:
 	if cvar_name == CVAR:
 		enabled = value.to_float() >= 0.5
+	elif cvar_name == MOVERS_CVAR:
+		movers_enabled = value.to_float() >= 0.5
 
 
 ## Drops the mirror (a test that rebuilds a scene under the same root).
@@ -73,6 +138,9 @@ static func reset() -> void:
 	_root_id = 0
 	_synced_frame = -1
 	_bound_mirror = 0
+	_movers = 0
+	_mover_ids.clear()
+	_batched = false
 
 
 ## Whether a player's native motor can collide against a mirror: gs-sim's body has [code]set_trace_mirror[/code] and
@@ -115,9 +183,10 @@ static func bind_body(body: Object, mirror: Object) -> bool:
 
 
 ## Whether everything [param world] could touch this tick is in the motor's mirror: within [constant NEAR_RADIUS] plus
-## [param travel] of its middle there is only static brush under [param root] that it does not exclude. A mover (the
-## motor's mirror does not follow movers yet), a toy or weapon drop (never mirrored), a physics hull, or a mirrored
-## brush the body excludes sends the body back to the space, so those still collide exactly as before.
+## [param travel] of its middle there is only static brush or (while [method movers_mirrored]) a mover under
+## [param root] that it does not exclude. A mover the mirror is not posing, a toy or weapon drop (never mirrored), a
+## physics hull, or a mirrored brush the body excludes sends the body back to the space, so those still collide exactly
+## as before.
 static func clear_near(world: GSFpsPhysicsBody, feet: Vector3, height: float, travel: float, root: Node3D) -> bool:
 	var space := root.get_world_3d().direct_space_state if root.is_inside_tree() else null
 	if space == null:
@@ -132,10 +201,15 @@ static func clear_near(world: GSFpsPhysicsBody, feet: Vector3, height: float, tr
 	var hits := space.intersect_shape(_near_params, NEAR_MAX)
 	if hits.size() >= NEAR_MAX:
 		return false
+	var movers_ok := movers_mirrored()
 	for hit: Dictionary in hits:
 		var c: Object = hit.get("collider")
-		if not c is StaticBody3D or c is AnimatableBody3D or (c as Node).is_in_group(&"trace_dynamic") \
-				or not root.is_ancestor_of(c as Node) or world.exclude.has(hit.get("rid", RID())):
+		if not c is CollisionObject3D or not root.is_ancestor_of(c as Node) or world.exclude.has(hit.get("rid", RID())):
+			return false
+		if c is AnimatableBody3D or (c as Node).is_in_group(&"trace_dynamic"):
+			if not movers_ok:
+				return false
+		elif not c is StaticBody3D:
 			return false
 	return true
 
