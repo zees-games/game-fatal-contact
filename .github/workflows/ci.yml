@@ -19,7 +19,7 @@ on:
 
 jobs:
     validate:
-        uses: gamespice-platform/ci/.github/workflows/validate.yml@v1.4.3
+        uses: gamespice-platform/ci/.github/workflows/validate.yml@v1.4.4
         with:
             suite-timeout: 900
             efficiency: true
