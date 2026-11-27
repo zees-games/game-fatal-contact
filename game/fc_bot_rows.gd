@@ -1,4 +1,5 @@
 extends RefCounted
+const FcBotFinish := preload("fc_bot_finish.gd")
 
 ## The bots' contact table (gs-bot API 37, [code]GSBotWorld.set_rows[/code]), filled in [method FcBots.World.refresh]'s contact loop so senses() does not walk the contacts again.
 ## Off (cvar `bot_native_think` 0) or on an older gs-bot, gs-bot packs the contacts itself. The columns are, to the bit, what
@@ -24,12 +25,14 @@ var _positions := PackedVector3Array()
 
 
 ## Cvar `bot_native_think`: the contact table, the reused pair of commands and gs-bot's native tricks
-## ([code]GSBotTricks.native_enabled[/code], gs-bot 39; set by name, a no-op on an older gs-bot), all on or all off.
+## ([code]GSBotTricks.native_enabled[/code], gs-bot 39; set by name, a no-op on an older gs-bot) and the intent table's native finish
+## ([member FcBotFinish.native], gs-bot 52), all on or all off.
 static func set_native_think(on: bool) -> void:
 	enabled = on
 	# By path: FcBots names this class, so naming FcBots here is a cycle the parser refuses.
 	(load("res://game/fc_bots.gd") as Script).set(&"reuse_commands", on)
 	(GSBotTricks as Script).set(&"native_enabled", on)
+	FcBotFinish.native = on
 
 
 static func supported() -> bool:

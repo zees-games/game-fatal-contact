@@ -189,7 +189,8 @@ static func unstrand(game: Object, bot: FcPlayer, mind: Mind, intent: GSBotInten
 
 
 ## The part of [method think] after the brain ran, on the main thread: the bot's commands from [member Mind.t_intent].
-static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float) -> Array:
+## With [param fin] (FcBotThreads.think_all, cvar bot_intent_table) the command write copies its row [param row]; a surf-steered intent is written from the intent.
+static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, tick_rate: float, fin: FcBotFinish = null, row := -1) -> Array:
 	var made := _out_pair(mind)
 	var move: GSFpsCommand = made[0]
 	var fire: GSWeaponCommand = made[1]
@@ -209,7 +210,7 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 	elif mind.ride != null:
 		mind.ride = null
 	t_lap = FcFrameProbe.lap(&"ba_surf", t_lap)
-	_write(intent, move, fire)
+	_write_row(fin, row, surf != null, intent, move, fire)
 	t_lap = FcFrameProbe.lap(&"ba_write", t_lap)
 	_throw(bot, mind, intent, move, fire, tick, tick_rate)
 	# Only a bot that drew a kit switches; one on the default loadout plays as it always has.
@@ -291,6 +292,14 @@ static func _keep_fire(into: GSWeaponCommand, from: GSWeaponCommand) -> GSWeapon
 	into.yaw = from.yaw
 	into.pitch = from.pitch
 	return into
+
+
+## [method _write], or row [param row] of [param fin]'s table (FcBotThreads.think_all) for an intent no surf steered.
+static func _write_row(fin: FcBotFinish, row: int, steered: bool, intent: GSBotIntent, move: GSFpsCommand, fire: GSWeaponCommand) -> void:
+	if fin != null and not steered:
+		fin.write(row, move, fire)
+	else:
+		_write(intent, move, fire)
 
 
 ## [method GSBotIntent.write_move] (air jump on BUTTON_USER_0) and [method GSBotIntent.write_fire] for this game's

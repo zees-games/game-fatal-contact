@@ -6,6 +6,7 @@ extends RefCounted
 
 const FcBots := preload("fc_bots.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcBotFinish := preload("fc_bot_finish.gd")
 
 ## Fewer bots than this think on the main thread: the hand-off costs more than it saves.
 const MIN_BOTS := 8
@@ -53,6 +54,8 @@ static var par_ticks: int = 0
 const PHASES := ["sb_gather", "sb_begin", "sb_ready", "sb_par_begin", "sb_main", "sb_join", "sb_par_end", "sb_merge", "sb_finish", "sb_apply"]
 enum { SB_GATHER, SB_BEGIN, SB_READY, SB_PAR_BEGIN, SB_MAIN, SB_JOIN, SB_PAR_END, SB_MERGE, SB_FINISH, SB_APPLY }
 static var phase_timers: bool = false
+## The intent table [method think_all] finishes through (FcBotFinish.on), kept between ticks.
+static var _finish := FcBotFinish.new()
 static var phase_us := PackedInt64Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
 
 
@@ -97,8 +100,13 @@ static func think_all(game: Object, players: Array, minds: Array, tick: int, tic
 	if not pending.is_empty():
 		_decide(pending, minds)
 		t_part = phase_start()
-		for i in pending:
-			out[i] = FcBots.think_finish(game, players[i], minds[i], tick, tick_rate)
+		var fin: FcBotFinish = null
+		if FcBotFinish.on():
+			fin = _finish
+			fin.run(pending, minds)
+		for k in pending.size():
+			var i := pending[k]
+			out[i] = FcBots.think_finish(game, players[i], minds[i], tick, tick_rate, fin, k)
 		phase(SB_FINISH, t_part)
 	return out
 

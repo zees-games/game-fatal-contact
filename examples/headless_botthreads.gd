@@ -3,6 +3,7 @@ extends GSGameCheckSuite
 const FcBots := preload("../game/fc_bots.gd")
 const FcBotThreads := preload("../game/fc_bot_threads.gd")
 const FcBotRows := preload("../game/fc_bot_rows.gd")
+const FcBotFinish := preload("../game/fc_bot_finish.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
@@ -109,10 +110,13 @@ func _run() -> void:
 ## bot_native_pickup's and bot_native_act's script pickup choice and steer.
 func _switches_play_the_same(native: PackedStringArray) -> void:
 	# bot_native_think 0: gs-bot packs the contacts, new commands every tick, tricks in script; the same match to the digest.
+	# bot_intent_table 0 too: each bot's commands written from its intent, not copied from the (native) table's row.
 	FcBotRows.set_native_think(false)
+	FcBotFinish.enabled = false
 	var fresh := await _play(0)
 	FcBotRows.set_native_think(true)
-	_check(fresh[0] == native, "bot_native_think 0 (script contacts, new commands, script tricks) plays the match its reused pair plays (%d kills)" % fresh[1])
+	FcBotFinish.enabled = true
+	_check(fresh[0] == native, "bot_native_think 0 and bot_intent_table 0 (script contacts, new commands, script tricks, commands from the intents) play the match the reused pair and the intent table play (%d kills; table %s)" % [fresh[1], "native" if FcBotFinish.on() and ClassDB.class_exists(&"GSSimBotFinish") else ("script" if FcBotFinish.on() else "absent")])
 	# bot_native_pickup 0 and bot_native_act 0 (gs-bot 46/47, by name): the pickup choice and the steer in script, on
 	# workers; the same match to the digest (an older gs-bot has neither switch and plays it anyway).
 	var brain := GSBotBrain as Script

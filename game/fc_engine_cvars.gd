@@ -6,6 +6,7 @@ const FcPlayer := preload("fc_player.gd")
 const FcBotBrain := preload("fc_bot_brain.gd")
 const FcBotThreads := preload("fc_bot_threads.gd")
 const FcPlayerStack := preload("fc_player_stack.gd")
+const FcBotFinish := preload("fc_bot_finish.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
@@ -55,6 +56,11 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotRows.set_native_think(new_value.to_float() >= 0.5))
+	add_cvar("bot_intent_table", "1",
+		"1: after the brains, every bot's intent is packed into gs-bot's intent table (gs-bot 52) and the command columns made in one call (gs-sim's GSSimBotFinish with bot_native_think 1, else gs-bot's script), each bot's commands copied from its row; 0: each bot's commands written from its intent. The same commands either way",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotFinish.enabled = new_value.to_float() >= 0.5)
 	_add_motor_engine_cvars()
 
 
