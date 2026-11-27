@@ -260,8 +260,9 @@ func add_perimeter(thickness: float = 2.0) -> RefCounted:
 ## thick). Recast, handed that box with the islands inside it, found nowhere to walk at all
 ## (one map: 0 polygons of 63,000 vertices; 7,400 once the box was left out), and the
 ## box's floor and ceiling are not places anybody stands to fight. Returns a holder added beside
-## [member collision_root] that the caller frees after parsing (a bake parses at once), or
-## null when there is no such slab and [member collision_root] itself is the source.
+## [member collision_root] that the caller frees once the parse is over (a background bake
+## parses over several frames, so not before its [code]done[/code]), or null when there is no
+## such slab and [member collision_root] itself is the source.
 func nav_source() -> Node3D:
 	if collision_root == null or not collision_root.is_inside_tree() or collision_root.get_parent() == null:
 		return null
