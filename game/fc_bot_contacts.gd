@@ -213,12 +213,13 @@ func _arm(world: Object, native: Object, players: Array[FcPlayer], contacts: Arr
 		var def := slot.def
 		var k: int = _class_ids.get(def, -1)
 		if k < 0:
-			k = int(native.intern_class(world._class_of(def)))
+			k = int(native.call(&"intern_class", world._class_of(def)))
 			_class_ids[def] = k
 		_arm_classes[i] = k
 		_arm_rounds[i * 2] = slot.magazine
 		_arm_rounds[i * 2 + 1] = def.magazine
-	var wrote: bool = native.fill_arms(contacts, _arm_classes, _arm_rounds, delta and _arms_fresh)
+	# Through call(): a direct call on the untyped native rejects the typed contacts array (gate 1127, error 1337).
+	var wrote: bool = native.call(&"fill_arms", contacts, _arm_classes, _arm_rounds, delta and _arms_fresh)
 	if wrote:
 		armed += 1
 	else:
