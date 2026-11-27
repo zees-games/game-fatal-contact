@@ -397,3 +397,37 @@ func _build_world_layers() -> void:
 		return
 
 	horde.enabled = true
+
+
+## `spawn_protection_break` (config): a player still protected who shoots (bit 1) or moves or jumps (bit 2)
+## loses the protection now, in all three records. Zero, the default, never calls [method end_spawn_protection].
+func _note_protected_action(id: int, player: FcPlayer, move: GSFpsCommand, fired: bool) -> void:
+	if not player.health.is_protected(_tick):
+		_protect_anchor.erase(id)
+		player.protected_view = false
+		return
+	var breaks := config.spawn_protection_break
+	var moved: bool = move.move != Vector2.ZERO or move.is_pressed(GSFpsCommand.BUTTON_JUMP)
+	if (fired and breaks & 1 != 0) or (moved and breaks & 2 != 0):
+		end_spawn_protection(id)
+	elif config.spawn_protection_move_feet > 0.0:
+		# Distance from where the protection started (the first protected tick), any direction.
+		var here := player.global_position
+		if not _protect_anchor.has(id):
+			_protect_anchor[id] = here
+		elif (_protect_anchor[id] as Vector3).distance_to(here) > config.spawn_protection_move_feet * FEET_TO_METRES:
+			end_spawn_protection(id)
+	player.protected_view = config.spawn_protection_bubble and player.health.is_protected(_tick)
+
+## Ends spawn protection for [param id] now: the health window, the `PROTECTED` effect and gs-spawn's ledger.
+func end_spawn_protection(id: int) -> void:
+	var player := player_for(id)
+	if player == null:
+		return
+	player.health.invulnerable_until_tick = -1
+	player.protected_view = false
+	_protect_anchor.erase(id)
+	if effects != null:
+		effects.remove(FcEffects.PROTECTED, id)
+	if player_stack != null and player_stack.spawns != null and player_stack.spawns.protection != null:
+		player_stack.spawns.protection.revoke(str(id), _tick)

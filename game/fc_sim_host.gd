@@ -176,6 +176,10 @@ func _forward_flags(args: PackedStringArray) -> PackedStringArray:
 	var sim_sections := _arg("--sim_sections")
 	if sim_sections != "":
 		args.append_array(["--sim_sections", sim_sections])
+	# The rig's and the arsenal's phase clocks (pw_*, pa_*), read by fc_sim_server only when asked.
+	var weapon_phases := _arg("--sim_weapon_phases")
+	if weapon_phases != "":
+		args.append_array(["--sim_weapon_phases", weapon_phases])
 	var slow_tick := _arg("--sim_slow_tick")
 	if slow_tick != "":
 		args.append_array(["--sim_slow_tick", slow_tick])

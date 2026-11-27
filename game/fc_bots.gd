@@ -1,5 +1,7 @@
 extends "fc_bots_world.gd"
 
+const FcNativePhases := preload("fc_native_phases.gd")
+
 ## What a bot does with a tick, as the same two commands a client sends: gs-bot's brain,
 ## fed from this game. One brain for every bot Fatal Contact has, solo and on a server.
 ##
@@ -200,6 +202,8 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 	var me: GSBotContact = mind.t_me
 	var intent: GSBotIntent = mind.t_intent
 	mind.t_me = null
+	if mind.brain != null:
+		FcNativePhases.tally(FcNativePhases.BOTS, mind.brain.aim.is_native())
 	mind.t_world = null
 	mind.t_intent = null
 	var t_after := Time.get_ticks_usec()

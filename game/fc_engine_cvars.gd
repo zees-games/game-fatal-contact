@@ -48,6 +48,18 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			(GSBotBrain as Script).set(&"native_pickup", new_value.to_float() >= 0.5))
+	# gs-bot 49, by name (an older gs-bot ignores it); on by default in gs-bot, the same columns to the bit.
+	add_cvar("bot_native_drops", "1",
+		"1: the drops the bots read are packed once per tick in gs-sim, each weapon looked up once, when its library has the pack (the same table to the bit); 0: in script, every weapon looked up per drop",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			(GSBotWorld as Script).set(&"native_drops", new_value.to_float() >= 0.5))
+	# gs-bot 50, by name (an older gs-bot ignores it); on by default in gs-bot, the same answer to the bit.
+	add_cvar("bot_native_unstick", "1",
+		"1: a bot's stuck watch (re-plan, hop, crouch-hop, side-step, the stranded report) steps in gs-sim when its library has it, the state kept in the mind (the same answer to the bit; the nudge's standable-point query stays in script); 0: in script",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			(GSBotUnstick as Script).set(&"native_enabled", new_value.to_float() >= 0.5))
 	add_cvar("bot_native_act", "1",
 		"1: a roaming bot's steer (walk, hold, drift, look, glance, turn and legs) runs in gs-sim when its library has it, the glance kept in the mind between thinks (the same moves to the bit); 0: in script",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
