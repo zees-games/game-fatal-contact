@@ -127,7 +127,7 @@ func _test_drop_key() -> void:
 func _test_carry_cvars() -> void:
 	_section("ctf carry: the settings")
 	var cv := FcModule.FLAG_CARRY_CVARS
-	_check(cv.has(&"arena_ctf_one_hand") and cv.has(&"arena_ctf_drop_key") and cv.has(&"arena_ctf_drop_speed") and cv.has(&"arena_ctf_flag_physics"),
+	_check(cv.has("fc_ctf_one_hand") and cv.has("fc_ctf_drop_key") and cv.has("fc_ctf_drop_speed") and cv.has("fc_ctf_flag_physics"),
 		"one-hand, drop key, drop speed and flag physics are cvars")
 	_check(FcFlagCarry.one_hand and FcFlagCarry.drop_key and FcFlagCarry.physics and FcFlagCarry.drop_speed == 4.0, "on by default, 4 m/s")
 
