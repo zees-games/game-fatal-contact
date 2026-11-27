@@ -680,6 +680,7 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 	_follow_map_volumes(clear)
 	FcFrameProbe.lap(&"pm_follow", t_follow)
 	FcFrameProbe.add(&"p_mechanics", t_mech)
+	var t_tail := FcFrameProbe.lap_start()
 
 	var state := controller.state
 
@@ -708,6 +709,7 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 	# [method _idle_posture] for the same fields the context below gets, so a moving player takes this path too.
 	_posture_tick = tick
 	_idle_now = weapons.would_idle(_command)
+	FcFrameProbe.lap(&"ph_tail", t_tail)
 	return _idle_now and idle_row_lane and controller != null
 
 
