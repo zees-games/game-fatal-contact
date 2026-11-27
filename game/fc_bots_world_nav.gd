@@ -7,6 +7,7 @@ const LEDGE_CLIMB_ID := 5000000
 
 const FcPaths := preload("fc_paths.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcTraceMirror := preload("fc_trace_mirror.gd")
 
 
 class NavWorld:
@@ -59,6 +60,8 @@ class NavWorld:
 	var _par_space: PhysicsDirectSpaceState3D = null
 	var _par_trace: GSTrace = null
 	var _par_physics: bool = false
+	## The map's collision mirror ([code]fc_trace_mirror.gd[/code]) a worker's rays ask instead of [member _par_space]; null: the space.
+	var _par_mirror: Object = null
 	var _par_lock := Mutex.new()
 	## GodotPhysics3D answers every query out of buffers the space shares, so rays go one at a time.
 	var _ray_lock := Mutex.new()
@@ -101,6 +104,7 @@ class NavWorld:
 		_par_rays.clear()
 		_par_arsenal[0] = null
 		_par_space = null
+		_par_mirror = null
 		_par_trace = null
 
 	## No native sight scan while brains think in parallel: gs-bot gives it only to the main thread, so the
@@ -113,6 +117,8 @@ class NavWorld:
 		return g as GSMapGlassSight if g is GSMapGlassSight and (g as GSMapGlassSight).glass_mask != 0 else null
 
 	func _ray_par(from: Vector3, to: Vector3, mask: int) -> Dictionary:
+		if _par_mirror != null:
+			return _par_mirror.call(&"ray", from, to, mask)
 		var q := PhysicsRayQueryParameters3D.new()
 		q.from = from
 		q.to = to
@@ -161,6 +167,16 @@ class NavWorld:
 		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
 		if not trace is GSTrace:
 			return {}
+		var mirror := FcTraceMirror.of_game(game) if trace is GSTracePhysics else null
+		if mirror != null:
+			var base: int = (trace as GSTracePhysics).collision_mask
+			var g: Variant = (trace as Object).get("glass")
+			var mask: int = (g as GSMapGlassSight).shot_mask(from, base) \
+					if g is GSMapGlassSight and (g as GSMapGlassSight).glass_mask != 0 else base
+			var found: Dictionary = mirror.call(&"ray", from, from + dir * reach, mask)
+			if (trace as GSTrace).ray_observer.is_valid():
+				(trace as GSTrace).ray_observer.call(from, dir, from.distance_to(found["position"]) if not found.is_empty() else reach)
+			return {} if found.is_empty() else {"normal": found["normal"], "distance": from.distance_to(found["position"])}
 		var hit := (trace as GSTrace).ray(from, dir, reach)
 		if not hit.ok():
 			return {}
@@ -465,3 +481,44 @@ class NavWorld:
 		if (data as GSNpcNavData).validate().ok and graph.rebuild(data).ok:
 			_graph = graph
 		return _graph
+
+	## The trace's own line_of_sight is a [GSHitbox.Hit] world ray: two Hit objects and, on a hit, the surface's
+	## material looked up, all of which a yes/no sight drops. Only the plain physics trace and the glass one (whose
+	## sight ray leaves the glass layer out) take this path; any other trace keeps its own rules.
+	const _GLASS_TRACE := preload("fc_glass_trace.gd")
+	var _sight_query: PhysicsRayQueryParameters3D = null
+
+	static func _plain_sight_trace(trace: Object) -> bool:
+		var script: Variant = trace.get_script()
+		return script == _GLASS_TRACE or script == GSTracePhysics
+
+	## [method GSTrace.line_of_sight] on a [GSTracePhysics] (and [code]fc_glass_trace.gd[/code]'s sight mask), the
+	## same answer from one ray query; headless_bots checks both agree.
+	func _sight_ray(trace: GSTracePhysics, from: Vector3, to: Vector3) -> bool:
+		var offset := to - from
+		var distance := offset.length()
+		if distance <= 0.0001:
+			return true
+		var bound: Variant = trace.get("_world")
+		if not bound is World3D:
+			return true
+		var space := (bound as World3D).direct_space_state
+		if space == null:
+			return true
+		var mask: int = trace.collision_mask
+		var glass: Variant = trace.get("glass")
+		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
+			mask &= ~(glass as GSMapGlassSight).glass_mask
+		var mirror := FcTraceMirror.of_game(game)
+		if mirror != null:
+			return bool(mirror.call(&"clear", from, from + offset / distance * distance, mask))
+		if _sight_query == null:
+			_sight_query = PhysicsRayQueryParameters3D.new()
+			_sight_query.collide_with_areas = false
+			_sight_query.collide_with_bodies = true
+			_sight_query.hit_from_inside = false
+		_sight_query.from = from
+		_sight_query.to = from + offset / distance * distance
+		_sight_query.collision_mask = mask
+		_sight_query.exclude = trace.exclude_rids
+		return space.intersect_ray(_sight_query).is_empty()

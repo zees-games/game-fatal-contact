@@ -499,6 +499,7 @@ class World:
 		_par_arsenal[0] = _any_arsenal(game)
 		_par_physics = false
 		_par_space = null
+		_par_mirror = null
 		if trace is GSTracePhysics:
 			var bound: Variant = (trace as Object).get("_world")
 			if not bound is World3D:
@@ -507,6 +508,7 @@ class World:
 			if _par_space == null:
 				return false
 			_par_physics = true
+			_par_mirror = FcTraceMirror.of_game(game)
 		elif not trace is GSTraceFlat:
 			return false
 		# The jail glass rule applies on a map with a collision root, as _line_of_sight has it.
@@ -597,44 +599,6 @@ class World:
 			return (trace as GSTrace).line_of_sight(from, to)
 		return true
 
-	## The trace's own line_of_sight is a [GSHitbox.Hit] world ray: two Hit objects and, on a hit, the surface's
-	## material looked up, all of which a yes/no sight drops. Only the plain physics trace and the glass one (whose
-	## sight ray leaves the glass layer out) take this path; any other trace keeps its own rules.
-	const _GLASS_TRACE := preload("fc_glass_trace.gd")
-	var _sight_query: PhysicsRayQueryParameters3D = null
-
-	static func _plain_sight_trace(trace: Object) -> bool:
-		var script: Variant = trace.get_script()
-		return script == _GLASS_TRACE or script == GSTracePhysics
-
-	## [method GSTrace.line_of_sight] on a [GSTracePhysics] (and [code]fc_glass_trace.gd[/code]'s sight mask), the
-	## same answer from one ray query; headless_bots checks both agree.
-	func _sight_ray(trace: GSTracePhysics, from: Vector3, to: Vector3) -> bool:
-		var offset := to - from
-		var distance := offset.length()
-		if distance <= 0.0001:
-			return true
-		var bound: Variant = trace.get("_world")
-		if not bound is World3D:
-			return true
-		var space := (bound as World3D).direct_space_state
-		if space == null:
-			return true
-		var mask: int = trace.collision_mask
-		var glass: Variant = trace.get("glass")
-		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
-			mask &= ~(glass as GSMapGlassSight).glass_mask
-		if _sight_query == null:
-			_sight_query = PhysicsRayQueryParameters3D.new()
-			_sight_query.collide_with_areas = false
-			_sight_query.collide_with_bodies = true
-			_sight_query.hit_from_inside = false
-		_sight_query.from = from
-		_sight_query.to = from + offset / distance * distance
-		_sight_query.collision_mask = mask
-		_sight_query.exclude = trace.exclude_rids
-		return space.intersect_ray(_sight_query).is_empty()
-
 	## Whether a native mind may ask sight of gs-sim's [code]GSSimSightRay[/code] (when loaded) in place of
 	## [method line_of_sight]; off: every ray goes through script (scale128 [code]--native-sight 0[/code]).
 	static var native_sight: bool = true
@@ -690,6 +654,8 @@ class World:
 		var glass: Variant = (trace as Object).get("glass")
 		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
 			mask &= ~(glass as GSMapGlassSight).glass_mask
+		if _sight_native.has_method(&"bind_mirror"):
+			_sight_native.call(&"bind_mirror", FcTraceMirror.of_game(game))
 		if cell != null:
 			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
 					cell_space, cell.glass_mask, cell.centre, cell.radius, cell.radius + cell.margin)

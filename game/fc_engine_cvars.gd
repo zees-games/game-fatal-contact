@@ -9,6 +9,7 @@ const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
+const FcTraceMirror := preload("fc_trace_mirror.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcWeaponTickCvars := preload("fc_weapon_tick_cvars.gd")
@@ -176,6 +177,11 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcWeaponDropWiring.idle_keys_skip = new_value.to_float() >= 0.5)
+	add_cvar("sv_trace_mirror", "1" if FcTraceMirror.enabled else "0",
+		"1: bot sight and wall rays ask gs-sim's collision mirror of the map's static world (GSSimTraceMirror) instead of the physics space; 0: every ray asks the space",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcTraceMirror.enabled = new_value.to_float() >= 0.5)
 	add_cvar("fc_bot_pvs_verify", "1" if FcBotPvs.verify else "0",
 		"1: every sight the PVS rules out is cast anyway and every native ask is put to the script too, disagreements counted (a check, not for play)",
 		0).with_min(0.0).with_max(1.0).changed.connect(
