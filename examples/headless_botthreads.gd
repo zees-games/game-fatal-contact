@@ -66,6 +66,7 @@ func _run() -> void:
 
 	_section("bot_native_contacts: gs-sim builds the script's contacts")
 	await _contacts_parity(digests[0])
+	_done()
 	_section("bot_native_think_mt: the threaded native perceive plays the script's match")
 	await _think_mt_plays_the_same(digests[0])
 	_done()
