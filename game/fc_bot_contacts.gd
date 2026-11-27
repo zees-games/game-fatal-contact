@@ -36,6 +36,11 @@ static var tabled: int = 0
 static var arms: bool = true
 ## Ticks whose weapons in hand gs-sim wrote, for the suites.
 static var armed: int = 0
+## The bots' main-thread refresh in gs-sim (cvar `bot_native_refresh`): off, the script builds the contacts whatever
+## [member enabled] says, and the brains hear in script ([code]GSBotBrain.native_hear[/code]). See [method set_native_refresh].
+static var native_refresh: bool = true
+## Whether a missing native half of the refresh was reported (once a process).
+static var _refresh_warned: bool = false
 
 var _sim: Object = null
 var _tried: bool = false
@@ -59,12 +64,31 @@ var _head := PackedFloat64Array()
 var _bare := PackedFloat64Array()
 
 
+## `bot_native_refresh`: [param on] builds the contacts (with [member enabled]) and hears in gs-sim, off both in script; the same
+## contacts, sounds and match to the bit (`headless_botthreads` plays seeded 31-bot matches both ways). A library without one of
+## them warns once and that half stays in script.
+static func set_native_refresh(on: bool) -> void:
+	native_refresh = on
+	(GSBotBrain as Script).set(&"native_hear", on)
+	if on and not _refresh_warned and not refresh_available():
+		_refresh_warned = true
+		push_warning("bot_native_refresh: this gs-sim has no GSSimBotContacts or GSSimBotMind.hear; that half of the bots' refresh runs in script")
+
+
+## Whether gs-sim has both halves of the refresh (the contact build and the hearing).
+static func refresh_available() -> bool:
+	return GSSim.has(&"contacts") and ClassDB.class_exists(GSBotAim.MIND_CLASS) and ClassDB.class_has_method(GSBotAim.MIND_CLASS, &"hear")
+
+
 ## gs-sim's contact build, or null (off, or no library).
 func sim() -> Object:
-	if not enabled:
+	if not enabled or not native_refresh:
 		return null
 	if not _tried:
 		_tried = true
+		if not GSSim.has(&"contacts") and not _refresh_warned:
+			_refresh_warned = true
+			push_warning("bot contacts: this gs-sim has no GSSimBotContacts; the script builds the bots' contacts")
 		if GSSim.has(&"contacts"):
 			_sim = ClassDB.instantiate(&"GSSimBotContacts")
 			_has_delta = _sim.has_method(&"fill_changed")

@@ -71,6 +71,17 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotRows.set_native_think(new_value.to_float() >= 0.5))
+	_add_bot_contact_cvars()
+	_add_motor_engine_cvars()
+
+
+## The bots' main-thread refresh in gs-sim: the contact build, its table and the threaded perceive pass.
+func _add_bot_contact_cvars() -> void:
+	add_cvar("bot_native_refresh", "1",
+		"1: the bots' main-thread refresh runs in gs-sim where its library has it: the contacts (with bot_native_contacts) and the hearing (GSSimBotContacts, GSSimBotMind.hear; the same match to the bit, warned once when a half is missing); 0: both in script, whatever bot_native_contacts says",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.set_native_refresh(new_value.to_float() >= 0.5))
 	add_cvar("bot_native_contacts", "1",
 		"1: the bots' worlds build their contacts and sight rows in gs-sim when its library has them (GSSimBotContacts; the same contacts to the bit, one call a tick); 0, or without the library: the script loop",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
@@ -97,7 +108,6 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotThinkMt.on = new_value.to_float() >= 0.5)
-	_add_motor_engine_cvars()
 
 
 ## The players' movement, ragdoll, net-pack and controller switches, and the client's carry check.
