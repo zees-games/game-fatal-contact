@@ -1,5 +1,6 @@
 extends "fc_player_stack_calls.gd"
 
+const FcSimPin := preload("fc_sim_pin.gd")
 const FcContent := preload("fc_content.gd")
 const FcMap := preload("../maps/fc_map.gd")
 
@@ -112,6 +113,7 @@ static func _print_gs_sim_status() -> void:
 		return
 	_gs_sim_status_printed = true
 	print(gs_sim_status())
+	FcSimPin.complain()
 
 
 ## [code]gs-sim: native motor=on bots=on snapshot=on[/code], or that the library is not loaded.
@@ -132,7 +134,7 @@ static func gs_sim_status() -> String:
 		parts.append("%s=%s" % [module, ("on" if used else "off") if loaded else "missing"])
 	if not any:
 		return "gs-sim: native library not loaded, the GDScript twins run (bootstrap fetches it; web never has it)"
-	return "gs-sim: native " + " ".join(parts)
+	return "gs-sim: native %s %s" % [" ".join(parts), FcSimPin.summary()]
 
 
 func _exit_tree() -> void:

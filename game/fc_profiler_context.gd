@@ -10,9 +10,9 @@ const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcSimPin := preload("fc_sim_pin.gd")
 const FcNetContext := preload("fc_net_context.gd")
 
-const STAMP := "res://addons/gs_sim/bin/.natives"
 const SLOTS := ["cast", "rest", "overlap", "ray", "tick"]
 ## What a player may cost a tick, in microseconds: the report's suspects are rated against it.
 const PLAYER_TARGET_US := 70.0
@@ -116,7 +116,9 @@ static func audio_context(presentation: Object) -> Dictionary:
 ## gs-sim: tag and platform from the bootstrap's stamp, the modules loaded, what runs, and the hull cvar.
 static func natives() -> Dictionary:
 	var out := {"loaded": ClassDB.class_exists(&"GSSimFpsBody")}
-	out["stamp"] = FileAccess.get_file_as_string(STAMP).strip_edges() if FileAccess.file_exists(STAMP) else "unknown"
+	out["stamp"] = FcSimPin.stamped() if FcSimPin.stamped() != "" else "unknown"
+	out["pin"] = FcSimPin.pinned()
+	out["missing"] = FcSimPin.missing()
 	out["status"] = FcPlayerStack.gs_sim_status()
 	out["hull_native"] = FcHullGrid.native
 	out["fc_hull_native"] = "1" if FcHullGrid.native else "0"

@@ -5,6 +5,8 @@ const FcSimHost := preload("../game/fc_sim_host.gd")
 const FcMaps := preload("../game/fc_maps.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
 const FcSimPacer := preload("../game/fc_sim_pacer.gd")
+const FcSimPin := preload("../game/fc_sim_pin.gd")
+const FcPlayerStack := preload("../game/fc_player_stack.gd")
 
 ## `--sim_host 1`: the solo game runs as a loopback server process and this client joins it, so
 ## the simulation is off the render thread. Off unless asked for; the client sees the bots, lives,
@@ -52,6 +54,7 @@ func _run() -> void:
 	print("game-fatal-contact: the solo game hosted beside the client")
 	_errors = RouteErrors.new()
 	OS.add_logger(_errors)
+	_check_gs_sim()
 	_check_offline()
 
 	FcSimHost.forced = 1
@@ -132,6 +135,18 @@ func _synced_checks() -> void:
 	var net: Object = _client.get("net")
 	var synced := await _until(func() -> bool: return net != null and net.get("clock") != null and bool(net.get("clock").call("is_synced")), 20.0)
 	_check(synced, "the clock is synced to the server")
+
+
+## The sim host this suite starts measures the pinned gs-sim, all of it native: an older
+## library loads silently and runs each method it lacks as GDScript.
+func _check_gs_sim() -> void:
+	var status := FcPlayerStack.gs_sim_status()
+	print("  %s (pin %s, stamp %s)" % [status, FcSimPin.pinned(), FcSimPin.stamped()])
+	_check(status.begins_with("gs-sim: native"), "gs-sim's native library is loaded", status)
+	_check(FcSimPin.pinned() != "" and FcSimPin.stamped() == FcSimPin.pinned(), "the loaded gs-sim is the pinned release",
+		"stamp %s, pin %s" % [FcSimPin.stamped(), FcSimPin.pinned()])
+	_check(FcSimPin.missing().is_empty(), "no native class or method the game asks for is missing", " ".join(FcSimPin.missing()))
+	_check(FcSimPin.problem() == "", "the pin check passes", FcSimPin.problem())
 
 
 func _check_priority() -> void:

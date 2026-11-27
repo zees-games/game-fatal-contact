@@ -169,6 +169,9 @@ run_suite() {
         out="did not finish within ${limit}s"
     elif [ "$status" -ne 0 ]; then
         out="exited $status"
+    elif grep -qE 'GS-SIM PIN ERROR|GS-NET NATIVE ERROR' "$log"; then
+        # The gs-sim library is not the pinned one (FcSimPin): the run measured GDScript twins.
+        out="$(grep -m1 -oE '(GS-SIM PIN|GS-NET NATIVE) ERROR.{0,160}' "$log")"
     elif grep -qE 'SCRIPT ERROR|Parse Error|Lambda capture' "$log"; then
         # A script error aborts one test, not the run, so the suite can still exit 0.
         out="script error in the output"
