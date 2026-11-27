@@ -469,6 +469,8 @@ func _register_shots(budget_msec: int) -> void:
 			shot = AwShotLayers.gun_shot(item[1]) as GSShotDef
 		if shot != null and shots != null:
 			var _registered := shots.register(shot)
+			if slices_shots() and shots.has_method(&"warm_shot"):  # gs_audio 25
+				var _queued: Variant = shots.call(&"warm_shot", shot)  # decoded a few ms a frame, not at the first remote_shot
 
 
 ## One frame's slice of [method _register_shots]; after the last class the bake starts, and the cover is let go

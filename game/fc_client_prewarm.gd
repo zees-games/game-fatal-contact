@@ -632,7 +632,7 @@ func _prewarm_sounds() -> void:
 	ids.append_array(GSAudioStock.LANDING_IDS)
 	var heard := presentation.audio if presentation != null else null
 	if heard != null:
-		queued += heard.warm(ids)
+		queued += heard.warm(ids) + (int(heard.call(&"prewarm_pool")) if heard.has_method(&"prewarm_pool") else 0)  # gs_audio 25; sink players made a few a frame, not lazily in the first fight
 	FcLoadTimeline.mark("prewarm: %d sound files queued (%d weapon streams)" % [queued, streams.size()])
 
 ## True: a web client holds the cover only for the models of the weapons somebody in the match carries now (and the default
