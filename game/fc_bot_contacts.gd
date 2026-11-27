@@ -28,6 +28,13 @@ static var tabled: int = 0
 static var arms: bool = true
 ## Ticks whose weapons in hand gs-sim wrote, for the suites.
 static var armed: int = 0
+## Whether [method FcBots.World.par_begin] packs this tick's drop table on the main thread (cvar `bot_drops_warm`), so the
+## brains on workers read it instead of the first one packing it while the rest wait on gs-bot's drop lock.
+static var drops_warm: bool = true
+## Ticks whose drop table was packed on the main thread, for the suites.
+static var drops_warmed: int = 0
+## Whether this gs-bot's world has drop_table (asked once a process); -1 until asked.
+static var _has_drop_table: int = -1
 ## The bots' main-thread refresh in gs-sim (cvar `bot_native_refresh`): off, the script builds the contacts whatever
 ## [member enabled] says, and the brains hear in script ([code]GSBotBrain.native_hear[/code]). See [method set_native_refresh].
 static var native_refresh: bool = true

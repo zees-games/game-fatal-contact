@@ -357,6 +357,11 @@ func _add_bot_think_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotCoast.enabled = new_value.to_int() != 0)
+	add_cvar("bot_finish_recoil_native", "1" if FcBotCoast.finish_native else "0",
+		"1 (default): the threaded bots' finish pass works every firing bot's recoil turn in one gs-sim call (GSSimBotCoast, needs bot_coast_native); 0, or without gs-sim: in script, one by one (the same commands)",
+		GSConVar.FLAG_ARCHIVE).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotCoast.finish_native = new_value.to_int() != 0)
 	_add_bot_engine_cvars()
 	_add_hull_and_pvs_cvars()
 	_add_tick_budget_cvars()

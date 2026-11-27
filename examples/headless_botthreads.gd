@@ -151,6 +151,20 @@ func _switches_play_the_same(native: PackedStringArray) -> void:
 	(GSBotWorld as Script).set(&"native_drops", true)
 	(GSBotUnstick as Script).set(&"native_enabled", true)
 	_check(scripted[0] == native, "bot_native_pickup 0, bot_native_act 0, bot_native_drops 0 and bot_native_unstick 0 (script pickup, steer, drop table and stuck watch) play the native match (%d kills)" % scripted[1])
+	# bot_finish_recoil_native 0 and bot_drops_warm 0: the finish pass's recoil turns in script one bot at a time, and the
+	# drop table packed by the first brain to ask on its worker; the same match to the digest.
+	var has_coast_module := FcBotCoast.native() != null
+	var finished := FcBotCoast.finish_batched
+	var warmed := FcBotContacts.drops_warmed
+	FcBotCoast.finish_native = false
+	FcBotContacts.drops_warm = false
+	var unbatched := await _play(4)
+	FcBotCoast.finish_native = true
+	FcBotContacts.drops_warm = true
+	_check(not has_coast_module or finished > 0, "with gs-sim's bot_coast the finish pass's recoil turns went through it (%d bot ticks)" % finished)
+	_check(warmed > 0, "the drop table was packed on the main thread before the brains went to workers (%d ticks)" % warmed)
+	_check(unbatched[0] == native and FcBotCoast.finish_batched == finished and FcBotContacts.drops_warmed == warmed,
+		"bot_finish_recoil_native 0 and bot_drops_warm 0 (script recoil turns, drop table packed on a worker) play the native match (%d kills)" % unbatched[1])
 	# bot_coast_native: with think tiers on (every bot nobody sees coasts) the threaded runs work their coasting bots
 	# in one gs-sim call a tick; 0 works them in script one by one, and plays the same match to the digest.
 	var has_coast := FcBotCoast.native() != null

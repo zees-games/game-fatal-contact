@@ -285,7 +285,8 @@ static func think_finish(_game: Object, bot: FcPlayer, mind: Mind, tick: int, ti
 		# A tiered coast repeats only held buttons: a jump or a weapon switch is pressed on the think tick, then let go.
 		mind.last_move.buttons &= _COAST_MOVE if intent.state != &"dead" else 0
 		mind.last_fire.buttons &= _COAST_FIRE if intent.state != &"dead" else 0
-	made = _recoil_comp(bot, mind, made, tick, tick_rate)
+	if not defer_recoil:
+		made = _recoil_comp(bot, mind, made, tick, tick_rate)
 	FcFrameProbe.lap(&"ba_tail", t_tail)
 	return made
 
@@ -331,6 +332,9 @@ static func _write(intent: GSBotIntent, move: GSFpsCommand, fire: GSWeaponComman
 
 ## Off only for tests that measure the bots without the correction (headless_bot_hitreg).
 static var recoil_compensation := true
+## Set by [method FcBotCoast.finish_all] around its finish loop: [method think_finish] leaves the recoil turn to it, which
+## works every firing bot's preview in one gs-sim call (cvar `bot_finish_recoil_native`).
+static var defer_recoil := false
 ## bot_native_think: every bot hands out one pair of commands of its own, overwritten every tick (Mind.out), instead
 ## of two new commands and an array a tick; 0 makes new ones. headless_botthreads plays both to the same digests.
 static var reuse_commands := true

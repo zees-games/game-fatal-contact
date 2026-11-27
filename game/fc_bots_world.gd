@@ -521,8 +521,21 @@ class World:
 		_par_proj_speed.clear()
 		for id: int in _players:
 			_par_proj_speed[id] = _projectile_speed_of(_players[id])
+		_warm_drops()
 		par = true
 		return true
+
+	## This tick's drop table packed once here on the main thread (cvar `bot_drops_warm`), before [member par]: the brains'
+	## pickup step reads the packed table instead of one worker packing it while the others wait on the drop lock. The
+	## same table either way (one pack per [member contacts_version]); a gs-bot without drop_table skips it.
+	func _warm_drops() -> void:
+		if not FcBotContacts.drops_warm or contacts_version < 0:
+			return
+		if FcBotContacts._has_drop_table < 0:
+			FcBotContacts._has_drop_table = 1 if has_method(&"drop_table") else 0  # perf-lint: allow dynamic_call once per process
+		if FcBotContacts._has_drop_table == 1:
+			var _packed: Variant = call(&"drop_table")  # perf-lint: allow dynamic_call older gs-bot has no drop_table; once a tick
+			FcBotContacts.drops_warmed += 1
 
 	func now() -> float:
 		return float(maxi(_tick, 0)) / tick_rate

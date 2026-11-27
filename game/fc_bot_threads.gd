@@ -109,8 +109,11 @@ static func think_all(game: Object, players: Array[FcPlayer], minds: Array[FcBot
 	if not pending.is_empty():
 		_decide(pending, minds)
 		t_part = phase_start()
-		for i in pending:
-			out[i] = FcBots.think_finish(game, players[i], minds[i], tick, tick_rate)
+		if coast != null and FcBotCoast.finish_native:
+			FcBotCoast.finish_all(coast, game, players, minds, pending, tick, tick_rate, out)
+		else:
+			for i in pending:
+				out[i] = FcBots.think_finish(game, players[i], minds[i], tick, tick_rate)
 		phase(SB_FINISH, t_part)
 	return out
 

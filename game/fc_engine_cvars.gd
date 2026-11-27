@@ -97,6 +97,11 @@ func _add_bot_contact_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotContacts.arms = new_value.to_float() >= 0.5)
+	add_cvar("bot_drops_warm", "1",
+		"1: the bots' drop table (gs-bot's drop_table, one pack a tick) is packed on the main thread before the brains go to workers, so no brain packs it while the others wait on its lock (the same table); 0: the first brain to ask packs it",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.drops_warm = new_value.to_float() >= 0.5)
 	add_cvar("bot_contact_table", "1",
 		"1: gs-sim fills the bots' contacts as one packed table (GSBotContactTable, gs-bot 44; the same decisions, a contact object written only when read); 0, or a gs-sim without fill_table: it writes every contact object every tick",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
