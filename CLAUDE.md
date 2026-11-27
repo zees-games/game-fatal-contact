@@ -132,7 +132,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - An imported map's solid is in the tree on every machine before any player is bodied; spawns are settled. [imported](docs/imported-maps.md#the-solid-is-the-games-on-every-machine)
 - Bots route on an imported map over a `GSBotNav` baked in the background, never in the tick. [imported](docs/imported-maps.md#bots-route-over-a-mesh-baked-from-the-brushes)
 - Ride edges are planned by `tools/surf_rides.tscn`, never at load; `fc_surf.gd` loads by path only with gs-bot 4, gs-player-controller 3. [imported](docs/imported-maps.md#bots-ride-the-ramps)
-- Map mechanics run inside the simulated tick on both ends; pushes are stateless; swim and ladder modes are registered on every map. [imported](docs/imported-maps.md#the-maps-own-mechanics)
+- Map mechanics run inside the simulated tick on both ends; pushes are stateless; swim and ladder modes are registered on every map. `FcLadderMode` sends GameSpice Sim's ladder tail (`_native_tail`, carry over the top, no dampen), so `requires.floor.json` and `requires.pins.json` carry gs_player_controller 57; a change to its `_simulate` changes gs-sim's `ladder.rs` with it. [imported](docs/imported-maps.md#the-maps-own-mechanics)
 - A Workshop map (solo only, `provides.json` `accepts`) is a JSON box-list document whose id is its entry's id; a bad one is refused and unlisted, the game's ids win. [maps](docs/maps.md#workshop-maps)
 - Fatal Contact needs a shell with gs-player-controller v0.1.5+, the wall moves and `GSFpsViewMotion`. [imported](docs/imported-maps.md#the-solid-is-the-games-on-every-machine)
 

@@ -145,6 +145,26 @@ func _simulate(state: GSFpsState, command: GSFpsCommand, delta: float, motor: GS
 			state.mode = mode_id
 
 
+## GameSpice Sim's ladder tail (gs-player-controller 57) for this mode's [method _simulate]: the library's ladder with
+## no dampen and the carry over the top. None for a subclass, whose tick may differ. The jump-off tick is stamped
+## here, on [member now], for a tick that runs natively, exactly as [method _simulate] would stamp it.
+func _native_tail(
+	state: GSFpsState, command: GSFpsCommand, motor: GSFpsMotor, out: PackedFloat64Array, at: int
+) -> bool:
+	var own := get_script() as Script
+	if own == null or own.get_base_script() != GSFpsMoveMode:
+		return false
+	var t := motor.tunables
+	var height := t.height_at(state.crouch_fraction)
+	if not GSFpsLadderMode.write_native_tail(
+		out, at, mode_id, climb_speed, jump_off_speed, reach, 0.0, true, t.radius, height, state.pitch, volumes
+	):
+		return false
+	if command.is_pressed(GSFpsCommand.BUTTON_JUMP) and touching(state.position, t.radius, height).size != Vector3.ZERO:
+		_jumped_off_tick = now
+	return true
+
+
 ## Horizontal unit vector from the ladder's face out toward the player.
 static func _away(box: AABB, feet: Vector3) -> Vector3:
 	var c := box.get_center()
