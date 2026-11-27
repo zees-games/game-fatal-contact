@@ -37,3 +37,20 @@ Each phase is placed in one of three states by checking what the build actually 
 - `FC_NATIVE_TICK_CALLS` shows any script call, or shows no native call for an expected phase.
 
 A second, short run with `sv_native_tick 0` must put every phase on the fallback and make no native calls.
+
+## Collision mirror
+
+`game/fc_trace_mirror.gd` copies the static bodies under the map's collision root once into a native BVH (`GSSimTraceMirror`). A bot's sight and wall ray then costs about a microsecond instead of a physics-server query under the shared ray lock.
+
+- Players' native motors collide against it too, on the server and the predicting client alike (the cvar is replicated), except near anything it does not hold.
+- Moving bodies (AnimatableBody3D, the `trace_dynamic` group) are re-posed once a tick. With `sv_trace_mirror_movers`, FC pushes their transforms in one batch (`update_movers`) and the motor collides against them (a lift carries, a door blocks). At 0, or with a gs-sim older than the batch, the mirror re-poses itself and a player near a mover asks the space.
+- The mirror holds the map's world and nothing else: a weapon drop or a toy (RigidBody3D) does not block a bot's line, as Source's world trace ignores entities.
+
+## Mirror suites
+
+| Suite | What it holds |
+|---|---|
+| `headless_trace_mirror` | Seeded rays (`intersect_ray`), box hulls (`cast_motion`) and points (`intersect_point`) on box, pit, an imported deathmatch map, a surf map and cp-orange-x3. Every ray agrees on hit or miss, fraction within 1e-3 and normal within 1 degree; every hull contact lies in Godot's safe/unsafe bracket (1e-3 slack); every point agrees on solid or open. Prints microseconds per ray. |
+| `headless_motor_mirror` | Bodies at the map's spawns run seeded random commands and scripted bot-like ones, the whole tick native, against the space and the mirror. Each map prints how many bodies part and, for the first, the tick, both states and the command. Then: two mirrors built apart from one map tick to the bit; the client follows the replicated cvar; anything the mirror does not hold sends a body back to the space; movers carry and block on the mirror as on the space; microseconds per tick of 31 bodies on cp-orange-x3. |
+
+Imported maps skip when not linked. Both suites skip without gs-sim's mirror (and `headless_motor_mirror` without gs-player-controller's trace-world seam, level 53).

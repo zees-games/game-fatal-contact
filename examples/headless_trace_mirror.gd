@@ -4,12 +4,8 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcTraceMirror := preload("../game/fc_trace_mirror.gd")
 
-## gs-sim's collision mirror (`GSSimTraceMirror`, cvar `sv_trace_mirror`) against Godot Physics on the same
-## solid: seeded rays (`intersect_ray`), box hulls (`cast_motion`) and points (`intersect_point`) on box, pit,
-## an imported deathmatch map, a surf map and cp-orange-x3. Every ray agrees on hit or miss, its fraction within
-## 1e-3 and its normal within 1 degree; every hull's contact lies in Godot's [safe, unsafe] bracket (1e-3 slack);
-## every point agrees on solid or open. Prints the microseconds per ray of each, as asked from script. Imported
-## maps skip (say so) when not linked; the whole suite skips without gs-sim's library.
+## gs-sim's collision mirror (`GSSimTraceMirror`, `sv_trace_mirror`) against Godot Physics: seeded rays, box hulls
+## and points on five maps must agree within the bars in docs/native-server-tick.md (Mirror suites); prints us/ray.
 
 const SEED := 20261126
 const RAYS := 10000

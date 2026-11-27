@@ -5,18 +5,9 @@ const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcTraceMirror := preload("../game/fc_trace_mirror.gd")
 const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
-## The native motor (cvar `sv_trace_mirror`) colliding against gs-sim's collision mirror instead of the physics
-## space: the same bodies, inputs and start on the same solid, ticked once against Godot Physics and once against
-## the mirror, the whole tick native both times. Bodies stand at the map's spawns and run seeded random commands
-## (as motor_native_tick_parity) and scripted bot-like ones (run a heading, strafe-jump, turn at walls).
-## The bar: every body, every tick, the mirror's state within POS_EPS / VEL_EPS of the space's and in the same mode.
-## Each map prints how many bodies part, and for the first parting the tick, both states, the previous states and
-## the command, so a divergence can be handed on as a sample. Then: two mirrors built apart from the same map (the
-## server's and a client's) tick to the bit (prediction asks the same world), the client follows the replicated
-## cvar, anything the motor's mirror does not hold sends a body back to the space, movers pushed in one batch a tick
-## (cvar `sv_trace_mirror_movers`) carry and block a body on the mirror as on the space, and the microseconds per tick of
-## 31 bodies on cp-orange-x3, space against mirror. Imported maps skip when not linked, the suite without gs-sim's
-## mirror motor or gs-player-controller's trace-world seam (level 53).
+## The native motor against gs-sim's collision mirror (`sv_trace_mirror`) and against Godot Physics, in lockstep on
+## the same maps: every body, every tick, within POS_EPS / VEL_EPS and the same mode. Also mirror-to-mirror, fallback,
+## movers and a per-tick timing; docs/native-server-tick.md (Mirror suites) has the list and the skips.
 
 const SEED := 20261127
 const BODIES := 12
@@ -245,11 +236,8 @@ func _near(map: FcMap) -> void:
 	_finished += 1
 
 
-## Movers in the motor's mirror (cvar `sv_trace_mirror_movers`, FC's one batch a tick): on a floor of our own, a lift
-## rises under a standing body and two doors stand across a walking body's path, then swing away. The body ticks
-## against the space and against the mirror in lockstep, the movers posed between ticks; the bar is POS_EPS / VEL_EPS
-## and the mode every tick, the lift carrying the body up, the doors holding it, and clear_near keeping the mirror
-## beside a mover (and giving it up with the cvar at 0).
+## Movers in the mirror (`sv_trace_mirror_movers`): a lift rises under a standing body, two doors block a walking one
+## then swing away; space and mirror in lockstep within POS_EPS / VEL_EPS, plus clear_near beside a mover.
 func _movers() -> void:
 	_sections += 1
 	print("-- movers: a lift carries and doors block on the mirror as on the space")
@@ -281,12 +269,7 @@ func _movers() -> void:
 	ahead.move = Vector2(0.0, -1.0)
 	# [carry space, carry mirror, walk space, walk mirror]
 	var motors: Array[GSFpsMotor] = [_motor(null), _motor(mirror), _motor(null), _motor(mirror)]
-	var states: Array[GSFpsState] = []
-	for i in 4:
-		var s := GSFpsState.new()
-		s.position = Vector3(10.0, 0.3, 0.0) if i < 2 else Vector3(0.0, 0.1, 0.0)
-		s.mode = GSFpsState.Mode.AIR
-		states.append(s)
+	var states := _mover_states()
 	var parted: Array[int] = [-1, -1]
 	var held_back := true
 	var near_on := true
@@ -308,14 +291,7 @@ func _movers() -> void:
 			FcTraceMirror.movers_enabled = true
 		for i in 4:
 			motors[i].simulate(states[i], ahead if i >= 2 else still, STEP)
-		for pair in 2:
-			var a := states[pair * 2]
-			var b := states[pair * 2 + 1]
-			if parted[pair] < 0 and (a.position.distance_to(b.position) > POS_EPS
-					or a.velocity.distance_to(b.velocity) > VEL_EPS or a.mode != b.mode):
-				parted[pair] = t
-				print("     %s parts at tick %d: space pos %s vel %s mode %d, mirror pos %s vel %s mode %d" % [
-					"carry" if pair == 0 else "walk", t, a.position, a.velocity, a.mode, b.position, b.velocity, b.mode])
+		_note_parted(states, parted, t)
 		if t < 120 and absf(states[2].position.z) > 3.9:
 			held_back = false
 	var top := lift.global_position.y + 0.1
@@ -334,6 +310,29 @@ func _movers() -> void:
 	FcTraceMirror.reset()
 	_drop(root)
 	_finished += 1
+
+
+## The movers section's four bodies in the air: two on the lift (carry), two before the doors (walk).
+func _mover_states() -> Array[GSFpsState]:
+	var states: Array[GSFpsState] = []
+	for i in 4:
+		var s := GSFpsState.new()
+		s.position = Vector3(10.0, 0.3, 0.0) if i < 2 else Vector3(0.0, 0.1, 0.0)
+		s.mode = GSFpsState.Mode.AIR
+		states.append(s)
+	return states
+
+
+## Records in [param parted] the first tick [param t] each space/mirror pair of [param states] drifts apart.
+func _note_parted(states: Array[GSFpsState], parted: Array[int], t: int) -> void:
+	for pair in 2:
+		var a := states[pair * 2]
+		var b := states[pair * 2 + 1]
+		if parted[pair] < 0 and (a.position.distance_to(b.position) > POS_EPS
+				or a.velocity.distance_to(b.velocity) > VEL_EPS or a.mode != b.mode):
+			parted[pair] = t
+			print("     %s parts at tick %d: space pos %s vel %s mode %d, mirror pos %s vel %s mode %d" % [
+				"carry" if pair == 0 else "walk", t, a.position, a.velocity, a.mode, b.position, b.velocity, b.mode])
 
 
 ## A box body of [param size] at [param at] under [param parent]; a mover is moved by hand, not synced to physics.

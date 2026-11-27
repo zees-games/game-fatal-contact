@@ -1,15 +1,7 @@
 extends RefCounted
-## gs-sim's collision mirror of the map in play (cvar `sv_trace_mirror`): the static bodies under the map's
-## collision root copied once into a native BVH (`GSSimTraceMirror`), so a bot's sight and wall rays cost about a
-## microsecond instead of a physics-server query under the shared ray lock. Players' native motors collide against it
-## too, server and predicting client alike (the cvar is replicated), except near anything it does not hold. Moving bodies (AnimatableBody3D, the
-## `trace_dynamic` group) are re-posed once a tick: with cvar `sv_trace_mirror_movers` FC pushes their transforms in one
-## batch ([code]update_movers[/code]) and the motor collides against them too (a lift carries, a door blocks); at 0, or
-## with a gs-sim older than the batch, the mirror re-poses itself and a player near a mover asks the space. The mirror holds the map's world and nothing else: a weapon
-## drop or a toy (RigidBody3D) no longer blocks a bot's line, as Source's world trace ignores entities.
-## Answers match Godot Physics within float noise (hit or miss, fraction 1e-3, normal 1 degree): the suite
-## headless_trace_mirror holds that on every map kind. Without the library, or at 0, every ray asks the space.
-## Typed loosely on purpose: a build without the class still parses this file.
+## gs-sim's collision mirror of the map in play (`sv_trace_mirror`, `GSSimTraceMirror`): the map's static bodies in a
+## native BVH that bots' rays and players' native motors trace against; movers re-posed once a tick. Without the library,
+## or at 0, every ray asks the space. Typed loosely so a build without the class parses. Detail: docs/native-server-tick.md.
 
 const FcNativePhases := preload("fc_native_phases.gd")
 
@@ -65,7 +57,7 @@ static func _cache_movers() -> void:
 		_mover_ids.clear()
 		if _movers > 0 and not _warned_batch:
 			_warned_batch = true
-			push_warning("FcTraceMirror: gs-sim has no GSSimTraceMirror.update_movers; players near a mover ask the physics space")
+			GSLog.warn("arena.trace_mirror", "FcTraceMirror: gs-sim has no GSSimTraceMirror.update_movers; players near a mover ask the physics space")
 		return
 	_mover_ids = _mirror.call(&"mover_ids") as PackedInt64Array
 	_mover_batch.resize(_mover_ids.size() * XFORM_FLOATS)
@@ -185,10 +177,8 @@ static func bind_body(body: Object, mirror: Object) -> bool:
 
 
 ## Whether everything [param world] could touch this tick is in the motor's mirror: within [constant NEAR_RADIUS] plus
-## [param travel] of its middle there is only static brush or (while [method movers_mirrored]) a mover under
-## [param root] that it does not exclude. A mover the mirror is not posing, a toy or weapon drop (never mirrored), a
-## physics hull, or a mirrored brush the body excludes sends the body back to the space, so those still collide exactly
-## as before.
+## [param travel] of its middle only static brush, or a posed mover under [param root] it does not exclude. Anything
+## else (an unposed mover, a toy, a drop, an excluded brush) sends the body back to the space.
 static func clear_near(world: GSFpsPhysicsBody, feet: Vector3, height: float, travel: float, root: Node3D) -> bool:
 	var space := root.get_world_3d().direct_space_state if root.is_inside_tree() else null
 	if space == null:
@@ -216,10 +206,8 @@ static func clear_near(world: GSFpsPhysicsBody, feet: Vector3, height: float, tr
 	return true
 
 
-## Once a tick before the players' loop, on every end that simulates (the server, and a client predicting its own
-## player, so both ask the same world): every player's native motor collides against the map's mirror while
-## [member enabled] (a replicated cvar) and gs-sim has it, except a player with something unmirrored near
-## ([method clear_near]), who asks the space that tick. [param players] holds FcPlayer nodes.
+## Once a tick before the players' loop, server and predicting client alike: each FcPlayer of [param players] collides
+## against the map's mirror while [member enabled] and gs-sim has it, unless [method clear_near] says ask the space.
 static func bind_players(game: Object, players: Array) -> void:
 	var mirror: Object = of_game(game) if motor_available() else null
 	if not players.is_empty():
