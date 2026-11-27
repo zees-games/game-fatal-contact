@@ -11,6 +11,11 @@ static func add_to(m: GSModule) -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcPlayer.weapon_idle_batch = new_value.to_float() >= 0.5)
+	m.add_cvar("fc_weapon_cooling_row", "1" if FcPlayer.weapon_cooling_row else "0",
+		"1: a server weapon whose held trigger only waits out its cadence ticks from the posture row like an idle one (bit for bit with the full tick); 0: the full weapon context every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcPlayer.weapon_cooling_row = new_value.to_float() >= 0.5)
 	m.add_cvar("fc_weapon_census", "1" if FcWeaponCensus.on else "0",
 		"1: count each tick which path every server weapon tick takes and why (wc_* and pwx_* in SIM_HOST_SECTIONS; a check, not for play)",
 		0).with_min(0.0).with_max(1.0).changed.connect(
