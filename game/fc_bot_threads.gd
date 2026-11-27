@@ -7,6 +7,7 @@ extends RefCounted
 const FcBots := preload("fc_bots.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcBotCoast := preload("fc_bot_coast.gd")
+const FcBotThinkMt := preload("fc_bot_think_mt.gd")
 
 ## Fewer bots than this think on the main thread: the hand-off costs more than it saves.
 const MIN_BOTS := 8
@@ -136,6 +137,7 @@ static func _decide(pending: Array[int], minds: Array) -> void:
 			mind.brain.par_ready(mind.t_world)
 		elif _brain_api == BRAIN_LEAVE:
 			mind.brain.leave_native()
+	FcBotThinkMt.run(jobs, threads)
 	t_part = phase(SB_READY, t_part)
 	var began := world.par_begin()
 	t_part = phase(SB_PAR_BEGIN, t_part)
