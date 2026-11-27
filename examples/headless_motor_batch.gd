@@ -24,7 +24,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 28
+const CHECKS := 32
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -73,6 +73,26 @@ class Meddler extends RefCounted:
 			&"push":
 				victim.controller.apply_external_velocity(PUSH)
 
+## In the place of the demo's statistics while they do not record: reads nothing and says so (`after_reads`), so the
+## batched loop keeps the idle weapon ticks waiting past each turn (cvar `fc_demo_flush_gate`).
+class Passive extends RefCounted:
+	var asked := 0
+	var done := 0
+
+	func process(_delta: float) -> void:
+		pass
+
+	func release() -> void:
+		pass
+
+	func after_reads(_player: Object) -> bool:
+		asked += 1
+		return false
+
+	func after(_id: int, _player: Object, _move: Object, _fire: Object, _tick: int) -> void:
+		done += 1
+
+
 var _entered := 0
 var _completed := 0
 
@@ -114,7 +134,7 @@ func _run() -> void:
 	_check(on[3] == 0 and live[3] == 0, "no player was changed by another's turn (%d, %d faults)" % [on[3], live[3]])
 	_check(not GSSim.has(&"players") or (FcPlayer.posture_batched_rows > 0 and FcPlayer.posture_misses == 0),
 			"the batched idle posture rows are the script's (%d rows, %d differ)" % [FcPlayer.posture_batched_rows, FcPlayer.posture_misses])
-	_done()
+	await _check_demo_gate(on, streams)
 
 	_section("a pit: players die and respawn in their own turn")
 	streams = []
@@ -160,6 +180,25 @@ func _run() -> void:
 	await _run_part2(was, off, on, rows, kept, kept_streams)
 
 
+## Demo statistics that read nothing this turn ([Passive]): played with fc_demo_flush_gate off and on; ends the section.
+func _check_demo_gate(on: Array, streams: Array) -> void:
+	FcHullGrid.demo_flush_gate = false
+	FcHullGrid.post_flushes = 0
+	var each := await _play(true, &"", BOTS, SECONDS, streams, false, {passive = true})
+	var each_flushes := FcHullGrid.post_flushes
+	FcHullGrid.demo_flush_gate = true
+	FcHullGrid.post_flushes = 0
+	var gated := await _play(true, &"", BOTS, SECONDS, streams, false, {passive = true})
+	var gated_flushes := FcHullGrid.post_flushes
+	print("demo stats in place: %d idle flushes flushing every turn, %d gated (%d turns)" % [each_flushes, gated_flushes, gated[5]])
+	_check(each[0] == on[0] and gated[0] == on[0], "with demo statistics in place both ways play the recording to the bit (%s; %s)" % [_first_diff(on[0], each[0]), _first_diff(on[0], gated[0])])
+	_check(gated[5] > BOTS and gated[5] == each[5], "their after ran each turn (%d, flushing every turn %d)" % [gated[5], each[5]])
+	# A turn that fires still flushes (its shot reads the posture), so the gate saves the idle ones: about 40% here.
+	_check(not GSSim.has(&"players") or (gated_flushes > 0 and gated_flushes * 3 < each_flushes * 2),
+			"and the idle ticks waited past them: %d gs-sim posture calls, %d flushing every turn" % [gated_flushes, each_flushes])
+	_done()
+
+
 func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> void:
 	_section("lag compensation: shots judged against the past, lagged movers colliding with it")
 	if kept == &"":
@@ -199,7 +238,7 @@ func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> vo
 
 	_section("body tiers: far coasting bots tick their motor every few ticks, the time made up")
 	if kept == &"":
-		for i in 3:
+		for i in 4:
 			_check(true, "(skipped: no imported map is linked)")
 	else:
 		# The bots think once with the tiers on; each tick's motor period is recorded with its commands and replayed.
@@ -222,6 +261,16 @@ func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> vo
 		_check(sat_off > SMALL_BOTS and sat_on == sat_off, "bodies sat out ticks (%d, batched %d)" % [sat_off, sat_on])
 		_check(on[0] == off[0] and off[0].size() > 5, "both loops play the same stepped match (%s)" % _first_diff(off[0], on[0]))
 		_check(on[2] > 0 and on[3] == 0, "through the batch with no fault (%d rows)" % on[2])
+		# cvar ctl_native 0: body_delta and the collider sizing through the properties, not the columns and engine getters.
+		var cols := FcPlayer.body_cols
+		FcPlayer.body_cols = false
+		(GSFpsController as Script).set(&"direct_getters", false)
+		var sat_props := FcPlayer.body_skipped
+		var props: Array = await _play(true, kept, SMALL_BOTS, SMALL_SECONDS, stepped, false)
+		sat_props = FcPlayer.body_skipped - sat_props
+		FcPlayer.body_cols = cols
+		(GSFpsController as Script).set(&"direct_getters", true)
+		_check(props[0] == on[0] and sat_props == sat_on, "ctl_native 0 plays the same stepped match, %d bodies sat out (%s)" % [sat_props, _first_diff(on[0], props[0])])
 	_done()
 	FcHullGrid.batch = was
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
@@ -261,7 +310,7 @@ func _first_diff(a: PackedStringArray, b: PackedStringArray) -> String:
 
 ## One match, the bots thinking ([param think], commands appended to [param streams]) or
 ## [param streams] replayed: [digests, kills, batch rows, batch faults, hits, rewound changes].
-## [param opts]: `lag`, `collide`, `meddle` (where a [Meddler] acts).
+## [param opts]: `lag`, `collide`, `meddle` (where a [Meddler] acts), `passive` (a [Passive] in the demo statistics' place).
 func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams: Array, think: bool, opts: Dictionary = {}) -> Array:
 	FcHullGrid.batch = batched
 	FcHullGrid.batch_rows = 0
@@ -281,6 +330,10 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 			var lag := _lag_of(mover_id)
 			return game.unlag_position_at(other_id, float(tick) - lag) if lag > 0.0 else null
 	var meddler: Meddler = null
+	var passive: Passive = null
+	if opts.get("passive", false):
+		passive = Passive.new()
+		game.demo_stats = passive
 	if opts.has("meddle"):
 		meddler = Meddler.new()
 		meddler.game = game
@@ -324,7 +377,7 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 		# space queries settled a contact a tenth of a millimetre apart (dm-morpheus, 1 run in 20 on PH). Same in every run here.
 		if tick_index % 8 == 0:
 			await get_tree().physics_frame
-	var out := [digests, kills[0], FcHullGrid.batch_rows, FcHullGrid.batch_faults, counts[0], meddler.done if meddler != null else counts[1]]
+	var out := [digests, kills[0], FcHullGrid.batch_rows, FcHullGrid.batch_faults, counts[0], meddler.done if meddler != null else (passive.done if passive != null else counts[1])]
 	game.demo_stats = null
 	game.remote_feet_fn = Callable()
 	game.remote_lags_fn = Callable()

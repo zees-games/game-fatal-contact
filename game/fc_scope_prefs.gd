@@ -4,11 +4,10 @@ extends "res://addons/gs_weapon/view/gs_weapon_scope_prefs.gd"
 ## Fatal Contact name, so the player script reads them without depending on the view arms (which depend on the player).
 
 
-## Every build starts in the full-screen scope (mode 2), as Counter-Strike: Source draws it: the main camera zoomed to the weapon's field of view and the screen black round a circle as tall as the
-## screen. Mode 1 is a small lens in the middle of a normal screen (the gun's own ocular, a few centimetres wide on a sniper), too small to aim through; on the web its second camera in a SubViewport
-## also came out flat grey (Godot 4.7, WebGL2). `cl_scope_mode 1` still picks the lens; a server scope_mode rule can pin either.
-static func default_mode(_web: bool) -> int:
-	return 2
+## Native builds start in the lens view (mode 1): a normal screen with the rifle drawn and the zoom in its own scope. The web build starts in the full-screen scope (mode 2) because the lens's second
+## camera in a SubViewport came out flat grey there (Godot 4.7, WebGL2). `cl_scope_mode` picks either; a server scope_mode rule can pin one.
+static func default_mode(web: bool) -> int:
+	return 2 if web else 1
 
 
 static func _static_init() -> void:

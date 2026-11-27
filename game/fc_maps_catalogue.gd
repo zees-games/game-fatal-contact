@@ -7,6 +7,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcMapDoc := preload("../maps/fc_map_doc.gd")
 const FcMode := preload("fc_mode.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
 
 ## This game's maps as gs-map content. [b]The awkward part:[/b] gs-map treats a map as content (id, version, scene path) and [FcMap] builds these in code on purpose ("the headless test and the played game must get the same map"), so [member GSMapDef.scene_path] names [b]the script that produces the map[/b] and [code]meta.builder[/code] says so.
 ## That is the seam: rotation, cooldowns, nominations, ballots and the announce/ready/load protocol work on id and version and never open the scene; only [GSMapLoader] reads `scene_path`, and [FcMapDirector] calls [method FcMap.by_id] for a built-in.
@@ -110,7 +111,27 @@ static func add_local(out: GSMapCatalogue, id: StringName) -> bool:
 	return added.ok
 
 
+## A map's row, kept: every catalogue build (director, extras, view) built or read the whole map again for it.
+## An imported row is reused only at the same version, with its rotation re-asked. `cl_map_catalogue_cache 0`
+## (or `?cl_map_catalogue_cache=0`) builds every row every time, as before.
+static var _defs: Dictionary = {}
+
+
+static func _cache_builtin_defs() -> bool:
+	return FcFrameProbe.launch_value("cl_map_catalogue_cache") != "0"
+
+
 static func _list(out: GSMapCatalogue, id: StringName) -> void:
+	var kept: GSMapDef = _defs.get(id)
+	if kept != null and _cache_builtin_defs():
+		var imported: bool = kept.meta.get("imported", false)
+		if not imported or kept.version == FcImportedMaps.version_of(id):
+			var def := kept.duplicate(true) as GSMapDef
+			if imported:
+				def.enabled = in_rotation(id)
+			_add_def(out, id, def)
+			return
+
 	var map: FcMap = FcMap.listing_by_id(id)
 
 	if map == null:
@@ -124,7 +145,14 @@ static func _list(out: GSMapCatalogue, id: StringName) -> void:
 		})
 		return
 
-	var added := out.add(_def_for(id, map))
+	var def := _def_for(id, map)
+	if _cache_builtin_defs():
+		_defs[id] = def.duplicate(true)
+	_add_def(out, id, def)
+
+
+static func _add_def(out: GSMapCatalogue, id: StringName, def: GSMapDef) -> void:
+	var added := out.add(def)
 
 	if not added.ok:
 		GSLog.warn(CHANNEL, "a map could not be catalogued", {

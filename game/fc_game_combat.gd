@@ -620,6 +620,11 @@ func team_def(team_id: int) -> GSTeam:
 
 func _tick_rest(delta: float) -> void:
 	match_node.tick(_tick)
+	# The hits the stats feed held this tick, folded into the sessions once.
+	if progress != null and progress.held_stats and progress.stats != null:
+		var t_lap := FcFrameProbe.lap_start()
+		progress.stats.call(&"apply_pending")
+		FcFrameProbe.lap(&"st_apply", t_lap)
 
 	if surf_rides != null:
 		surf_rides.call(&"process", delta)

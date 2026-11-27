@@ -64,6 +64,8 @@ var _json := false
 var _t_load0 := 0
 var _gate_open_s := -1.0
 var _rec: RefCounted = null
+## `--fine 0`: no remote-present laps (r_pose, r_held, r_tag, r_anim) on the STAGES line, to measure without their clock reads.
+var _fine := true
 
 
 func _ready() -> void:
@@ -81,6 +83,7 @@ func _ready() -> void:
 			"--mode": _mode = args[i + 1]
 			"--tick": _tick = int(args[i + 1])
 			"--startup": _startup_s = float(args[i + 1])
+			"--fine": _fine = args[i + 1] != "0"
 	_play = "--play" in args
 	_wallrun = "--wallrun" in args
 	_json = "--json" in args
@@ -183,11 +186,16 @@ class Burner extends Node:
 			pass
 
 
-## `--play`: a player rather than a statue. Runs and strafes in bursts, turns, jumps, holds
-## the trigger most of the time and swaps weapons now and then, so the bench's bots have a
-## moving target that shoots back, and the client's prediction covers firing, reloads,
-## switches, damage, deaths and respawns: what a match is, and what an idle bench never was.
+## `--play`: a player rather than a statue. Runs, strafes, turns, jumps, mostly holds the trigger and swaps weapons now and then, so the bots
+## have a moving target that shoots back and prediction covers firing, reloads, switches, damage, deaths and respawns.
 class Pilot extends Node:
+	## Set (with `client`) by `--pilot-view sweep`: the look is driven round the whole compass instead of the mouse sway, which parks the camera on one wall.
+	var sweep := false
+	var client: Node = null
+	## Set by `--pilot-view tour`: the player is put at each of the map's spawn points in turn (`tour_every` s apiece), the sweep look on, so the camera sees every district and not only the spawn area.
+	var tour: Array[Vector3] = []
+	var tour_every := 4.0
+	var _stop := -1
 	var _t := 0.0
 	var _rng := RandomNumberGenerator.new()
 	var _next := 0.0
@@ -199,9 +207,20 @@ class Pilot extends Node:
 
 	func _process(delta: float) -> void:
 		_t += delta
-		var turn := InputEventMouseMotion.new()
-		turn.relative = Vector2(sin(_t * 0.7) * 6.0, sin(_t * 1.3) * 1.5)
-		Input.parse_input_event(turn)
+		if not tour.is_empty() and int(_t / tour_every) != _stop:
+			_stop = int(_t / tour_every)
+			var me: Variant = client.get("player") if client != null else null
+			if me != null and me.controller != null:
+				var at := tour[_stop % tour.size()]
+				me.controller.teleport(at + Vector3.UP * 0.2, me.controller.state.yaw, me.controller.state.pitch)
+		var sampler: Variant = client.get("_sampler") if sweep and client != null else null
+		if sampler != null:
+			# A full turn about every 8 s with a slow wobble (degrees), so the walk loops wide and the gaze crosses open ground, as a player's does.
+			sampler.look_at_angles(rad_to_deg(_t * 0.8 + 1.5 * sin(_t * 0.13)), sin(_t * 0.4) * 7.0)
+		else:
+			var turn := InputEventMouseMotion.new()
+			turn.relative = Vector2(sin(_t * 0.7) * 6.0, sin(_t * 1.3) * 1.5)
+			Input.parse_input_event(turn)
 		if _t < _next:
 			return
 		_next = _t + _rng.randf_range(0.3, 1.2)
@@ -221,6 +240,36 @@ class Pilot extends Node:
 				wheel.button_index = MOUSE_BUTTON_WHEEL_UP if _rng.randf() < 0.5 else MOUSE_BUTTON_WHEEL_DOWN
 				wheel.pressed = true
 				Input.parse_input_event(wheel)
+
+
+## `--pilot-view fixed` (the perf gate's view): what is drawn is the bench's, not the fight's. After the game wrote the
+## player's camera this frame, it is put at each of `stops` in turn at eye height, turning one level circle per stop,
+## so draws and objects repeat run to run (the seeded pilot's own camera follows the fight and swung 2x). The pilot
+## still plays: its prediction, shots and deaths cost what they did. One pass takes `cycle` s, the recording's length,
+## so a recording sees every stop and heading once whatever phase it starts at. Runs last (process_priority).
+class FixedView extends Node:
+	const EYE := 1.6
+	## Golden angle (radians): each stop starts its turn on a different heading.
+	const START_STEP := 2.39996
+	var client: Node = null
+	var stops: Array[Vector3] = []
+	var cycle := 60.0
+	var _t := 0.0
+
+	func _process(delta: float) -> void:
+		_t += delta
+		var me: Variant = client.get("player") if client != null else null
+		if me == null or stops.is_empty():
+			return
+		var cam: Camera3D = me.get("camera")
+		if cam == null or not cam.is_inside_tree():
+			return
+		var k := fposmod(_t, cycle) * stops.size() / cycle
+		var i := mini(int(k), stops.size() - 1)
+		var yaw := TAU * (k - i) + START_STEP * i
+		cam.global_transform = Transform3D(Basis(Vector3.UP, yaw), stops[i] + Vector3.UP * EYE)
+		if not cam.current:
+			cam.current = true
 
 
 ## `--wallrun`, client side: drives the route the server keeps putting the player at, through
@@ -497,8 +546,17 @@ func _print_mismatches() -> void:
 		print("    tick %d %-20s %.4f alive %s pred %s recv %s" % r)
 
 
+## The remote-present sub-spans (r_pose, r_held, r_tag, r_anim) are laps; `--fine 0` leaves them off to measure without the clock reads.
 func _measure() -> void:
+	var fine_was := FcFrameProbe.fine
+	FcFrameProbe.fine = _fine
 	FcFrameProbe.set_interval(1.0e9)
+	await _measure_frames()
+	FcFrameProbe.set_interval(0.0)
+	FcFrameProbe.fine = fine_was
+
+
+func _measure_frames() -> void:
 	var frames := PackedFloat32Array()
 	var steps := PackedInt32Array()
 	var calls := 0.0
@@ -571,7 +629,7 @@ func _measure() -> void:
 			print("  %-12s %.1f/frame max %d" % [key, float(row[0]) / n, row[2]])
 		else:
 			print("  %-12s %.3f ms/frame  max %.2f  x%.2f" % [key, float(row[0]) / n / 1000.0, row[2] / 1000.0, float(row[1]) / n])
-	FcFrameProbe.set_interval(0.0)
+	print("  " + FcFrameProbe.stages_line(n, net.interpolator if net != null else null))
 	print("  physics3d active %d pairs %d | nodes %d" % [
 		int(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS)),
 		int(Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS)),

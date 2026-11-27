@@ -116,7 +116,9 @@ func _start(cam: Camera3D, weapon: StringName = &"") -> void:
 	_camera = cam
 	_hits = -1.0
 	recoil.clear()
+	var took := Time.get_ticks_usec()
 	hands = _take_rig(weapon)
+	FcFrameProbe.add(&"killview_rig", took)
 	hands.process_mode = Node.PROCESS_MODE_INHERIT
 	hands.visible = true
 	hands.name = "KillerHands"
@@ -310,6 +312,27 @@ func _prepare_spare() -> void:
 		_spare_label.visible = false
 
 
+## Builds the arm rig of [param killer_id]'s look now and parks it under that key, so the kill view that follows mounts it
+## and builds nothing: the rebuild of the stock spare with the killer's look was 32-38 ms of the view's first frame on
+## staging02. Call it a beat after the kill, in a frame of its own. A rig already parked for that look, or one showing, stays.
+func prepare_killer_arms(killer_id: int) -> void:
+	if not is_inside_tree() or killer_id == 0 or _live(arms) or hands != null or rules == null:
+		return
+	var rig: AwViewModel = null
+	for parked in _rigs:
+		if _live(parked):
+			rig = parked
+			break
+	if rig == null or not _shares_arms(rig):
+		return
+	var who := look_for(rules, killer_id)
+	_prune_arms()
+	for entry: Array in _parked_arms:
+		if entry[0] == who[0]:
+			return
+	_park_arms(String(who[0]), _new_arms(who[1]))
+
+
 ## Builds, under a loading cover, everything a kill would otherwise make on its first frame: a parked view
 ## model holding each of [param weapons] (at most [constant RIGS]), the arms, the flash pool, the crosshair
 ## and the ammo line. Returns the materials and meshes made, for the cover to draw once (their shaders).
@@ -412,9 +435,13 @@ func _mount_arms(cam: Camera3D) -> void:
 			arms.set_look_override(FcViewArms.arm_set_look(rules, _arm_set))
 		# Another killer's parked rig: a rebuild with this look, not a new rig.
 		if built_for != key:
+			var rebuilt := Time.get_ticks_usec()
 			arms.build(who[1], 1.8)
+			FcFrameProbe.add(&"killview_arms_rebuild", rebuilt)
 	else:
+		var made := Time.get_ticks_usec()
 		arms = _new_arms(who[1])
+		FcFrameProbe.add(&"killview_arms_new", made)
 	_arms_key = key
 	arms.name = "KillerArms"
 	arms.visible = true

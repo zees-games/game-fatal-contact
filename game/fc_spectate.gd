@@ -1,6 +1,7 @@
 extends GSSpectatorHost
 
 const FcPlayer := preload("fc_player.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
 
 ## Where a dead player looks.
 ##
@@ -197,7 +198,9 @@ func _on_killed(entry: GSKillFeed.Entry) -> void:
 
 
 func _on_spawned(player: FcPlayer) -> void:
+	var t_lap := FcFrameProbe.lap_start()
 	spawned(str(player.player_id))
+	FcFrameProbe.lap(&"sg_spectate", t_lap)
 
 
 func on_leave(id: int) -> void:

@@ -47,6 +47,10 @@ static var _profiled_names: Dictionary = {}
 static var fine: bool = false
 ## Whether a profiler recording turns [member fine] on for its length (`profiler_fine 0` or the bench's `--fine 0` say no).
 static var fine_on_record: bool = true
+## Whether [member fine] also turns the rig's and the arsenal's phase clocks on (pw_*, pa_*; `--sim_weapon_phases 1`).
+## Off by default: an armed clock makes AwWeaponRig.idle_batch and GSWeaponArsenal.idle_batch_add decline, so a
+## fine profile with them on times the per-weapon fallback, not the batched idle path production runs.
+static var weapon_phases: bool = false
 
 
 ## `cl_perf_split 1` (`--cl_perf_split 1`, `?cl_perf_split=1`): the report also splits `p_controller` into its phases
@@ -59,6 +63,58 @@ const MT_SLOTS := ["cast", "rest", "overlap", "ray", "tick"]
 
 static func on() -> bool:
 	return interval > 0.0
+
+
+## The slow-tick dump (`--sim_slow_tick MS`): above 0, every [method add], [method lap] and [method count] is also kept for the current tick
+## ([method tick_begin] clears it) with its [method tick_event]s, so a tick over this many microseconds says where it went
+## ([method slow_tick_line]). 0, the default, keeps nothing: one test per span.
+static var slow_tick_usec: int = 0
+## Section (or count) -> PackedInt64Array([usec, calls]) for the current tick.
+static var _tick_spans: Dictionary = {}
+## Event name -> how many times it happened this tick.
+static var _tick_events: Dictionary = {}
+
+
+## Starts a tick's slow-tick record. From the server's tick, before any span.
+static func tick_begin() -> void:
+	_tick_spans.clear()
+	_tick_events.clear()
+
+
+## Notes that [param event] happened in this tick (a kill, a spawn, a match state); kept only while [member slow_tick_usec] is on.
+static func tick_event(event: StringName) -> void:
+	if slow_tick_usec <= 0:
+		return
+	_tick_events[event] = int(_tick_events.get(event, 0)) + 1
+
+
+static func _tick_add(section: StringName, spent: int) -> void:
+	var row: PackedInt64Array = _tick_spans.get(section, PackedInt64Array([0, 0]))
+	row[0] += spent
+	row[1] += 1
+	_tick_spans[section] = row
+
+
+## `SIM_HOST_SLOW_TICK`: tick [param tick] cost [param usec]; its [param top] costliest sections (they nest: srv_net holds
+## srv_game, which holds tick_players, so read the leaves), its counts (`_n`) and its events, plus [param extra].
+static func slow_tick_line(tick: int, usec: int, top: int, extra: String) -> String:
+	var spans: Array = []
+	var counts: Array = []
+	for key: StringName in _tick_spans:
+		var row: PackedInt64Array = _tick_spans[key]
+		if String(key).ends_with("_n"):
+			counts.append("%s %d" % [key, row[0]])
+		else:
+			spans.append([row[0], "%s %.2f x%d" % [key, row[0] / 1000.0, row[1]]])
+	spans.sort_custom(func(a: Array, b: Array) -> bool: return int(a[0]) > int(b[0]))
+	var parts: Array = []
+	for i in mini(top, spans.size()):
+		parts.append(spans[i][1])
+	var events: Array = []
+	for key: StringName in _tick_events:
+		events.append("%s x%d" % [key, _tick_events[key]])
+	return "SIM_HOST_SLOW_TICK %d %.2f ms | %s | counts %s | events %s%s" % [tick, usec / 1000.0, ", ".join(parts),
+		", ".join(counts) if not counts.is_empty() else "-", ", ".join(events) if not events.is_empty() else "-", extra]
 
 
 ## Starts the probe from `--cl_perf N` or the page's `?cl_perf=N`, if either is given.
@@ -108,6 +164,15 @@ static func launch_value(option: String) -> String:
 	return GSWeb.query_param(option) if GSWeb.available() else ""
 
 
+## Whether a threaded resource read really runs beside the frame: the one switch for every load_threaded_request meant to keep a read off it.
+## Not on the threaded web engine, whose worker reads wait for the main thread between frames (time to in-game 91-172 s against 79-81 s),
+## so there the reads run inline a slice at a time. The page's `?web_loader_threads=1` puts them back for a measurement.
+static func loader_threads_usable() -> bool:
+	if not GSPlatform.has_threads():
+		return false
+	return not GSPlatform.is_web() or launch_value("web_loader_threads") == "1"
+
+
 static func set_interval(seconds: float) -> void:
 	interval = maxf(0.0, seconds)
 	_last_usec = 0
@@ -120,6 +185,8 @@ static func add(section: StringName, since_usec: int) -> void:
 	var spent := Time.get_ticks_usec() - since_usec
 	if spent >= FcLoadTimeline.SLOW_SECTION_USEC and FcLoadTimeline.tracing:
 		FcLoadTimeline.mark("section %s %d ms" % [section, spent / 1000])
+	if slow_tick_usec > 0:
+		_tick_add(section, spent)
 	if interval <= 0.0:
 		if GSFrameCost.enabled:
 			GSFrameCost.add_usec(_profiled(section), spent)
@@ -148,6 +215,8 @@ static func lap(section: StringName, since_usec: int) -> int:
 		GSFrameCost.add_usec(_profiled(section), now - since_usec)
 	if now - since_usec >= FcLoadTimeline.SLOW_SECTION_USEC and FcLoadTimeline.tracing:
 		FcLoadTimeline.mark("lap %s %d ms" % [section, (now - since_usec) / 1000])
+	if slow_tick_usec > 0:
+		_tick_add(section, now - since_usec)
 	# The sim host's `--sim_sections 2` has no recording: its laps go on the sections line.
 	if interval > 0.0:
 		var row: PackedInt64Array = _sections.get(section, PackedInt64Array([0, 0, 0]))
@@ -202,6 +271,8 @@ static func _profiled(section: StringName) -> StringName:
 
 ## Counts [param amount] of something that is not a time (replayed ticks, snapshots).
 static func count(key: StringName, amount: int = 1) -> void:
+	if slow_tick_usec > 0:
+		_tick_add(key, amount)
 	if interval <= 0.0:
 		return
 	var row: PackedInt64Array = _sections.get(key, PackedInt64Array([0, 0, 0]))
@@ -277,3 +348,25 @@ static func _reset() -> void:
 	_physics_sum = 0.0
 	_steps_max = 0
 	_elapsed = 0.0
+
+
+## A client frame's stages in the order it runs them: prediction, the snapshot apply, the remote draw (the
+## interpolator and each remote's copy onto its node), the bodies, then the presentation and its remote-player
+## sub-spans (the `r_*` laps need [member fine]).
+const STAGES: Array[StringName] = [&"predict", &"net_snapshot", &"interpolate", &"bodies", &"present", &"r_pose", &"r_held", &"r_tag", &"r_anim"]
+
+
+## One `STAGES` line: each of [constant STAGES] in ms per client frame over [param frames] frames, then whether the
+## remote copy ran natively (`present=mirror`, FcPlayerNet.native_present) and the copies the mirror has done since the
+## interpolator started.
+static func stages_line(frames: int, interpolator: Object) -> String:
+	var n := float(maxi(1, frames))
+	var out := "STAGES frames=%d" % frames
+	for stage in STAGES:
+		var row: PackedInt64Array = _sections.get(stage, PackedInt64Array([0, 0, 0]))
+		out += " %s=%.3f" % [stage, row[0] / 1000.0 / n]
+	var native: Object = interpolator.get(&"_native") if interpolator != null and &"_native" in interpolator else null
+	var mirrored := 0
+	if native != null and native.has_method(&"mirrored_count"):
+		mirrored = int(native.call(&"mirrored_count"))
+	return out + " present=%s mirrored=%d" % ["mirror" if mirrored > 0 else "script", mirrored]

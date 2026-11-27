@@ -4,7 +4,6 @@ examples/dedicated_module_and_bots.gd::_test_module_loaded	105
 examples/dedicated_module_and_bots.gd::_test_services	148
 examples/dedicated_vote_and_query.gd::_test_browser	107
 examples/dedicated_vote_and_query.gd::_test_maps_and_vote	213
-examples/headless_bots.gd::_play	81
 examples/headless_feel.gd::_test_moves	140
 examples/headless_imported.gd::_test_hurt	101
 examples/headless_imported.gd::_test_mechanics	141
@@ -46,7 +45,7 @@ game/fc_game_setup.gd::change_map	98
 maps/fc_map_atrium.gd::dm_atrium	570
 maps/fc_map_imported.gd::dm_pit	270
 maps/fc_map_routes_and_dm_box.gd::dm_box	288
-tools/screenshot.gd::_initialize	104
+tools/screenshot.gd::_initialize	103
 tools/screenshot_glance.gd::_play_glance	108
 tools/screenshot_glance.gd::_play_imported	135
 tools/surf_rides.gd::explore	98

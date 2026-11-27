@@ -47,6 +47,21 @@ Scene: draw calls 525 / 528 / 682, primitives 184k / 188k / 443k, nodes 3558 / 4
 
 At 64 players the server uses three quarters of a 33 Hz tick and could not hold 66 Hz (PH scale128, about 2x slower than the GPU box: 36.6 ticks/s at 26.6 ms/tick). Breakdown there: srv_net 27, srv_game 17.6, tick_players 16.4, srv_bots 7.3, p_controller 6.8, bot_brain 3.3, p_weapons 3.3, bot_los 1.4. Hit reg, lag comp, p_controller and p_weapons are authoritative sim and are not candidates; the levers are the net layer, bot scheduling and tiers.
 
+### Engaged firefight bench (bc-bots-tick-cost-1)
+
+`tools/engaged_bench.sh` runs `scale128 --engaged 1` (dm_box, all bots spawned and respawning, about 3500 shots/min at 16 bots and 7300 at 31) n times per bot count, prints SERVER_TICK p50/p95/p99, ticks/s and ticks over the 15.15 ms budget, and gives the spread (min/median/max). `--spikes 1` keeps the 8 worst ticks with their sections; `--nodeprobe` (with `--spikes 1`) adds a stamp after every physics node, so a spike outside the sections names its node; `--pin 2-5` taskset-pins the run.
+
+The "falls behind" spikes came from gs-weapon's drops: a resting drop with no floor within 40 m was re-grounded every 0.5 s check_support pass, and each pass swept 40 m down in 5 cm legs, giving 300-340 ms ticks (`@WeaponDrops` in the nodeprobe). These ticks are intermittent because they need a drop resting over the void. When one hits, a run drops to 46-54 ticks/s with p99 290-460 ms. gs-weapon 8cba7a1 marks such a drop floorless.
+
+Alternating A/B on staging, n=3, 25 s (old / new, min-max):
+
+| Bots | p50 ms | p95 ms | p99 ms | over budget | ticks/s |
+| --- | --- | --- | --- | --- | --- |
+| 16 | 7.75-7.84 / 7.48-8.24 | 11.1-19.6 / 12.4-14.4 | 30.1-32.0 / 16.7-33.2 | 37-107 / 27-62 | 65.0-65.9 / 65.9-66.0 |
+| 31 | 11.1-12.2 / 10.2-12.2 | 33.9-38.3 / 31.7-34.9 | 44.5-51.0 / 34.4-40.6 | 224-277 / 141-275 | 64.6-65.5 / 65.4-66.0 |
+
+At 31 bots the p95 is still about twice the budget. That steady combat cost (p_controller, p_weapons, br_contacts) is the next lever.
+
 ## Snapshot cost (net_probe, `--bots N --fake N`, ms per snapshot, 4 workers)
 
 | Clients | prepare | begin | nint | submit | join | apply | bytes per fake client per snapshot |

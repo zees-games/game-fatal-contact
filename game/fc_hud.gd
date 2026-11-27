@@ -1,5 +1,5 @@
 @tool
-extends "fc_hud_labels.gd"
+extends "fc_hud_overlays.gd"
 
 const FcFlagView := preload("fc_flag_view.gd")
 const FcThrowMeter := preload("fc_throw_meter.gd")
@@ -687,34 +687,9 @@ func _present_points(live: bool) -> void:
 	_points_seen = count
 
 
-## Covers the whole viewport, like the blind: the HUD's own size leaves the safe-area strip showing.
-func _fill_viewport(control: Control) -> void:
-	if not is_inside_tree():
-		return
-	var inverse := get_global_transform().affine_inverse()
-	control.position = inverse * Vector2.ZERO
-	control.size = inverse.basis_xform(get_viewport_rect().size)
-
-
 ## The key a prompt names; none on a touch device, which has no keyboard.
 func _key_label(action: StringName) -> String:
 	return "" if GSPlatform.has_touch() else String(keys[action])
-
-
-## The red edge from low health and from a flash.
-func _present_hurt(live: bool) -> void:
-	if hurt_overlay == null:
-		return
-	var hurt := 0.0
-	if live and player.health != null and player.health.max_health > 0.0:
-		var fraction := player.health.health / player.health.max_health
-		hurt = clampf((HURT_FROM - fraction) / HURT_FROM, 0.0, 1.0)
-	if live and flash_source != null and is_instance_valid(flash_source):
-		var flash: Color = flash_source.get(&"flash_colour")
-		hurt = maxf(hurt, minf(flash.a * HURT_PULSE_GAIN, HURT_PULSE_MAX))
-	hurt_overlay.modulate.a = hurt
-	if hurt > 0.0:
-		_fill_viewport(hurt_overlay)
 
 
 ## The ability buttons from the followed player's movement state: slide, launch and dash

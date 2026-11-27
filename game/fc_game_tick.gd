@@ -1,5 +1,5 @@
 @tool
-extends "fc_game_loadouts.gd"
+extends "fc_game_input.gd"
 
 ## Deals an imported map's hurt volumes (`trigger_hurt`) to everybody standing in one, as
 ## world damage through gs-combat.
@@ -30,7 +30,7 @@ func _hurt_from_map() -> void:
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
 		var state := player.controller.state
-		if not player.is_alive() or state.mode == GSFpsState.Mode.NOCLIP:
+		if not player.health.alive or state.mode == GSFpsState.Mode.NOCLIP:
 			continue
 
 		for i in map.mechanics.hurts_at(state.position, player.controller.tunables, state.crouch_fraction):
@@ -43,7 +43,7 @@ func _hurt_from_map() -> void:
 			if amount < 0.0:
 				var _healed := player.health.heal(-amount)
 				continue
-			if amount == 0.0 or not player.is_alive():
+			if amount == 0.0 or not player.health.alive:
 				continue
 
 			var damage := GSDamage.make(0, id, amount, combat.damage_type(FcContent.DAMAGE_WORLD))
@@ -76,9 +76,10 @@ func _release_from_round(id: int, player: FcPlayer) -> void:
 ## lets exactly those go afterwards; an admin's own freeze or god mode is left alone.
 func _sync_round_freeze() -> void:
 	var want := round_frozen()
+	_round_frozen_want = want
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
-		if want and player.is_alive():
+		if want and player.health.alive:
 			_freeze_for_round(id, player)
 		elif _round_frozen_ids.has(id):
 			_release_from_round(id, player)
@@ -90,7 +91,7 @@ func _advance_toys(delta: float) -> void:
 		return
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
-		if not player.is_alive():
+		if not player.health.alive:
 			continue
 		var state := player.controller.state
 		var tunables := player.controller.tunables
@@ -142,7 +143,7 @@ func _begin_hull_world() -> Object:
 			_hull_world_data[o + 2] = feet.z
 			_hull_world_data[o + 3] = tunables.radius
 			_hull_world_data[o + 4] = tunables.stand_height
-			flags = 1 | (2 if p.is_alive() else 0)
+			flags = 1 | (2 if p.health.alive else 0)
 			var native := bind and (not lagged or (lags_known and not bool(remote_lags_fn.call(_roster_ids[i]))))
 			if p.use_hull_world(_hull_world, i, native) and native:
 				flags |= 4
@@ -169,7 +170,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 	for id in player_ids():
 		var player: FcPlayer = _players[id]
 
-		if not player.is_alive():
+		if not player.health.alive:
 			continue
 
 		if fine:
@@ -201,7 +202,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 			if hull_world != null:
 				var feet := player.controller.state.position
 				hull_world.moved(player.hull_slot, feet.x, feet.y, feet.z)
-				hull_world.set_alive(player.hull_slot, player.is_alive())
+				hull_world.set_alive(player.hull_slot, player.health.alive)
 			if demo_stats != null:
 				demo_stats.call(&"after", id, player, move, fire, _tick)
 			shots.append_array(outcome.shots)
@@ -226,6 +227,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	var knife_charge := knives != null and GSAddonApi.build_level("gs_weapon") >= 41
 	var fine := FcFrameProbe.fine
 	var t_fine := 0
+	var t_tb := FcFrameProbe.lap_start()
 	var ids := player_ids()
 	var n := ids.size()
 	# The surf rides follow the map once a tick, not once per player (~4 us a player a tick of lookups that change nothing).
@@ -234,31 +236,22 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	if _batch_rows.size() < n:
 		_batch_rows.resize(n)
 		_batch_pairs.resize(n)
+	t_tb = FcFrameProbe.lap(&"tb_setup", t_tb)
 	for i in range(n):
 		var id: int = ids[i]
 		var player: FcPlayer = _players[id]
 		_batch_rows[i] = -1
-		if not player.is_alive():
+		if not player.health.alive:
 			continue
 		if fine:
 			t_fine = Time.get_ticks_usec()
 		var pair: Array = commands.get(id, [])
 		_pre_vy[id] = player.controller.state.velocity.y
-		FcWeaponDropWiring.input(self, id, player, pair)
-		var move: GSFpsCommand = pair[0] if pair.size() > 0 else GSFpsCommand.new()
-		var fire: GSWeaponCommand = pair[1] if pair.size() > 1 else GSWeaponCommand.new()
-		if knives != null:
-			knives.input(id, player, fire)
-			player.windup = knives.call(&"charge_of", id) if knife_charge else -1.0
-		if move == null or fire == null:
+		pair = _batched_input(id, player, pair, knife_charge, surfing, t_fine)
+		if pair.is_empty():
 			continue
-		match_node.note_activity(str(id), _tick)
-		if surfing:
-			surf_rides.call(&"before_synced", id, player)
-		elif not lean and surf_rides != null:
-			surf_rides.call(&"before", id, player)
-		# The command pair as it came (move, fire): no new two-item array per player per tick.
-		_batch_pairs[i] = pair if pair.size() == 2 else [move, fire]
+		_batch_pairs[i] = pair
+		var move: GSFpsCommand = pair[0]
 		if fine:
 			FcFrameProbe.add(&"pl_pre", t_fine)
 			t_fine = Time.get_ticks_usec()
@@ -267,35 +260,95 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		var t_ctl := Time.get_ticks_usec()
 		# -2: the controller does not tick (not started, or a far bot's body sitting this tick out); the rest of the player's tick still runs.
 		var d := player.body_delta(_tick, delta, controller.current_command)
-		_batch_rows[i] = _motor_batch.add(controller.motor, controller.state, controller.current_command, d) if d > 0.0 and controller.begin_tick(_tick, d) else -2
+		if fine:
+			_batch_rows[i] = _fine_add(player, controller, d, t_ctl)
+		else:
+			_batch_rows[i] = _motor_batch.add(controller.motor, controller.state, controller.current_command, d) if d > 0.0 and controller.begin_tick(_tick, d) else -2
 		player.ctl_usec = Time.get_ticks_usec() - t_ctl
 		if fine:
 			FcFrameProbe.add(&"pl_sim", t_fine)
+	t_tb = FcFrameProbe.lap(&"tb_pass1", t_tb)
+	if FcPlayer.mechanics_native:
+		_volume_pre.mark(_tick, ids, _players, _batch_rows)
+	t_tb = FcFrameProbe.lap(&"tb_mark", t_tb)
 	# The idle players' posture rows in one gs-sim call (flushed before anything that could see their weapon ticks):
 	# the controller state is read in GDScript once per player instead of per field.
 	var post_lane := FcPlayer.posture_native and GSSim.has(&"players")
 	if post_lane and _post_native == null:
 		_post_native = FcPlayer.make_native_post()
 	var post_from: Object = _motor_batch if post_lane and _motor_batch.has_method(&"post_row") else null
+	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null and demo_stats.has_method(&"after_reads")
+	var rows: GSFpsTickEvents = _tick_events if FcHullGrid.events else null
 	for i in range(n):
 		var row := _batch_rows[i]
 		if row == -1:
 			continue
 		var id: int = ids[i]
 		var player: FcPlayer = _players[id]
-		var controller := player.controller
-		if not player.is_alive():
+		if not player.health.alive:
 			# Killed by an earlier player's turn after its own tick was prepared.
 			FcHullGrid.batch_faults += 1
 			if row >= 0:
 				_motor_batch.skip(row)
 			continue
+		var controller := player.controller
+		controller.event_rows = rows
+		controller.event_entity = i
 		_finish_batched_player(_batch_pairs[i], row, id, player, delta, hull_world, shots, fine, post_lane, post_from)
+		controller.event_rows = null
+	t_tb = FcFrameProbe.lap(&"tb_pass2", t_tb)
 	_flush_posts(shots)
+	t_tb = FcFrameProbe.lap(&"tb_flush", t_tb)
+	_dispatch_tick_events(rows, ids, t_tb)
+	_close_batch_counts(fine)
+
+
+## The batched loop's motor edges: every row derived in one call (gs-sim's `GSSimTickEvents`, or the script), then each player's run
+## of events dispatched to its controller in roster order. [param ids] is the loop's roster; an event's entity is its index.
+## Null [param events] (`fc_tick_events 0`): the controllers emitted their own edges.
+func _dispatch_tick_events(events: GSFpsTickEvents, ids: Array[int], t_tb: int) -> void:
+	if events == null or events.row_count == 0:
+		return
+	var count := events.derive()
+	var ints := events.ints
+	var cursor := 0
+	while cursor < count:
+		var player: FcPlayer = _players.get(ids[ints[cursor * GSFpsTickEvents.INTS]])
+		if player == null:
+			cursor += 1
+			continue
+		cursor = player.controller.dispatch_events(events, cursor)
+	events.clear()
+	FcFrameProbe.lap(&"tb_events", t_tb)
+
+
+## The motor batch's tick counters into the probe (fine only) and the hull grid's totals, then zeroed.
+func _close_batch_counts(fine: bool) -> void:
+	if fine:
+		FcFrameProbe.count(&"cn_runs", _motor_batch.runs)
+		FcFrameProbe.count(&"cn_retakes", _motor_batch.retakes)
+		FcFrameProbe.count(&"cn_stale", _motor_batch.stale)
+		FcFrameProbe.count(&"cn_rows", _motor_batch.rows)
+		_motor_batch.runs = 0
+		_motor_batch.retakes = 0
 	FcHullGrid.batch_faults += _motor_batch.stale
 	FcHullGrid.batch_rows += _motor_batch.rows
 	_motor_batch.stale = 0
 	_motor_batch.rows = 0
+
+
+## The first half of the controller's batched tick with [code]c_*[/code] laps (fine probe only): body gap, begin, motor row.
+func _fine_add(player: FcPlayer, controller: GSFpsController, d: float, t_ctl: int) -> int:
+	var t := FcFrameProbe.lap(&"c_delta", t_ctl)
+	if d <= 0.0:
+		return -2
+	if not controller.begin_tick(_tick, d):
+		FcFrameProbe.lap(&"c_begin", t)
+		return -2
+	t = FcFrameProbe.lap(&"c_begin", t)
+	var row := _motor_batch.add(controller.motor, controller.state, controller.current_command, d)
+	FcFrameProbe.lap(&"c_add", t)
+	return row
 
 
 ## The second half of one player's batched tick: the motor's answer, the rest of the player's tick and what it did.
@@ -303,6 +356,7 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		fine: bool, post_lane: bool, post_from: Object) -> void:
 	var controller := player.controller
 	var t_fine := 0
+	var t_post := 0
 	if fine:
 		t_fine = Time.get_ticks_usec()
 	var move: GSFpsCommand = pair[0]
@@ -312,12 +366,23 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 	if row >= 0:
 		if controller.has_external_velocity():
 			FcHullGrid.batch_faults += 1
+		var runs0 := _motor_batch.runs
 		told = _motor_batch.finish(row)
+		if fine:
+			# c_finish split: the row that ran the batch's native call (c_fin_run) or only took its answer (c_fin_apply).
+			FcFrameProbe.add(&"c_fin_run" if _motor_batch.runs != runs0 else &"c_fin_apply", t_ctl)
+			t_fine = FcFrameProbe.lap(&"c_finish", t_ctl)
 		controller.end_tick(_tick, player.body_d)
+		if fine:
+			FcFrameProbe.lap(&"c_end", t_fine)
 	var rested := controller.state.position
 	FcFrameProbe.add(&"p_controller", t_ctl - player.ctl_usec)
 	var outcome: GSWeaponOutcome = null
-	if not player.tick_post_head(_tick, delta, fire):
+	var t_h := FcFrameProbe.lap_start()
+	var head := player.tick_post_head(_tick, delta, fire)
+	t_h = FcFrameProbe.lap(&"pb_head", t_h)
+	if not head:
+		if FcWeaponCensus.on: FcWeaponCensus.active(player)
 		# A weapon tick that does more than idle can reach other players: the waiting idle ones tick first, in order.
 		_flush_posts(shots)
 		outcome = player.tick_weapons(_tick)
@@ -329,58 +394,44 @@ func _finish_batched_player(pair: Array, row: int, id: int, player: FcPlayer, de
 		_post_players.append(player)
 		_post_ids.append(id)
 		_post_moves.append(move)
+		FcFrameProbe.lap(&"pb_postin", t_h)
+		if FcWeaponCensus.on: FcFrameProbe.count(&"wc_posted")
 	else:
+		if FcWeaponCensus.on: FcFrameProbe.count(&"wc_idle_alone")
 		var still := player._idle_row()
 		outcome = player.tick_idle_row(player._posture_row, still)
 	if fine:
 		FcFrameProbe.add(&"pl_sim", t_fine)
 		t_fine = Time.get_ticks_usec()
+		t_post = t_fine
 	if surf_rides != null:
 		surf_rides.call(&"after", id, player, move, _tick)
+	if fine:
+		t_fine = FcFrameProbe.lap(&"po_surf", t_fine)
 	_hull_grid.moved(id, player)
+	if fine:
+		t_fine = FcFrameProbe.lap(&"po_grid", t_fine)
 	var feet := controller.state.position
-	var alive := player.is_alive()
+	var alive := player.health.alive
 	if not told or feet != rested:
 		hull_world.moved(player.hull_slot, feet.x, feet.y, feet.z)
 	if not alive:
 		hull_world.set_alive(player.hull_slot, false)
 	if row >= 0 and (feet != rested or not alive):
 		_motor_batch.moved_after(row)
+	if fine:
+		t_fine = FcFrameProbe.lap(&"po_hullw", t_fine)
 	if demo_stats != null:
-		# The demo's meddler may hurt or move anyone: the waiting weapon ticks come first, as one by one.
-		_flush_posts(shots)
+		# The demo's meddler may hurt or move anyone: the waiting weapon ticks come first, as one by one. FcDemoStats only
+		# reads a human's tick while it records; for anyone else the idle ticks keep waiting and stay one gs-sim call.
+		if not _demo_gated or bool(demo_stats.call(&"after_reads", player)):
+			_flush_posts(shots)
 		demo_stats.call(&"after", id, player, move, fire, _tick)
 	if outcome != null:
 		_post_outcome(id, player, move, outcome, shots)
 	if fine:
-		FcFrameProbe.add(&"pl_post", t_fine)
-
-
-## What a player's weapon tick did, in roster order: its shots, its protection and the horde's and rockets' share.
-func _post_outcome(id: int, player: FcPlayer, move: GSFpsCommand, outcome: GSWeaponOutcome, shots: Array[GSShot]) -> void:
-	shots.append_array(outcome.shots)
-	_note_protected_action(id, player, move, not outcome.shots.is_empty())
-	if horde != null and (not outcome.shots.is_empty() or not outcome.spawns.is_empty()):
-		horde.note_fire(id, player.controller.state.position)
-	if projectiles != null:
-		projectiles.accept(outcome)
-
-
-## The waiting idle players' posture rows in one gs-sim call, then each one's weapon tick and outcome in roster order.
-func _flush_posts(shots: Array[GSShot]) -> void:
-	var count := _post_players.size()
-	if count == 0:
-		return
-	var input := _post_in if _post_in.size() == count * 10 else _post_in.slice(0, count * 10)
-	var out: PackedFloat64Array = _post_native.run_rows(input)
-	for k in range(count):
-		var player: FcPlayer = _post_players[k]
-		var at := k * 10
-		var outcome := player.tick_idle_row(out.slice(at, at + 10), out[at + 9] != 0.0)
-		_post_outcome(_post_ids[k], player, _post_moves[k], outcome, shots)
-	_post_players.clear()
-	_post_ids.clear()
-	_post_moves.clear()
+		FcFrameProbe.lap(&"po_out", t_fine)
+		FcFrameProbe.add(&"pl_post", t_post)
 
 
 ## Advances the whole game one tick. The order is the point: players simulate and produce shots; the shots are resolved against the world as it is after everyone has moved;
@@ -395,23 +446,30 @@ func tick(commands: Dictionary = {}) -> void:
 
 	_pre_vy.clear()
 	var t_sim := Time.get_ticks_usec()
+	var t_tp := FcFrameProbe.lap_start()
 	_ensure_roster()
 	var use_grid := FcHullGrid.enabled and body_rules.solid and _roster.size() >= FcHullGrid.min_players
 	var hull_world: Object = null
 	if use_grid:
 		_hull_grid.begin(_roster, _roster_ids)
+		t_tp = FcFrameProbe.lap(&"tp_grid", t_tp)
 		hull_world = _begin_hull_world()
+		t_tp = FcFrameProbe.lap(&"tp_hullw", t_tp)
 	if is_authority:
 		# Once a tick, not once per player in the drop wiring's input: the trace is built later than the drop layer.
 		FcWeaponDropWiring.hook_shots(self)
 	if hull_world != null and FcHullGrid.batch and not GSFpsMotor.profile and _start_motor_batch(delta):
+		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players_batched(commands, delta, hull_world, shots)
 	else:
+		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players(commands, delta, use_grid, hull_world, shots)
+	t_tp = FcFrameProbe.lap(&"tp_loop", t_tp)
 
 	_hull_grid.live = false
 	if hull_world != null:
 		hull_world.end()
+	FcFrameProbe.lap(&"tp_end", t_tp)
 	FcFrameProbe.add(&"tick_players", t_sim)
 
 	# The toys after everybody moved: a walk into a ball sends it on. Then every shot that
@@ -549,39 +607,6 @@ func _apply_loadout_deferred(id: int) -> void:
 
 	apply_loadout(id, true)
 
-## `spawn_protection_break` (config): a player still protected who shoots (bit 1) or moves or jumps (bit 2)
-## loses the protection now, in all three records. Zero, the default, never calls [method end_spawn_protection].
-func _note_protected_action(id: int, player: FcPlayer, move: GSFpsCommand, fired: bool) -> void:
-	if not player.health.is_protected(_tick):
-		_protect_anchor.erase(id)
-		player.protected_view = false
-		return
-	var breaks := config.spawn_protection_break
-	var moved: bool = move.move != Vector2.ZERO or move.is_pressed(GSFpsCommand.BUTTON_JUMP)
-	if (fired and breaks & 1 != 0) or (moved and breaks & 2 != 0):
-		end_spawn_protection(id)
-	elif config.spawn_protection_move_feet > 0.0:
-		# Distance from where the protection started (the first protected tick), any direction.
-		var here := player.global_position
-		if not _protect_anchor.has(id):
-			_protect_anchor[id] = here
-		elif (_protect_anchor[id] as Vector3).distance_to(here) > config.spawn_protection_move_feet * FEET_TO_METRES:
-			end_spawn_protection(id)
-	player.protected_view = config.spawn_protection_bubble and player.health.is_protected(_tick)
-
-## Ends spawn protection for [param id] now: the health window, the `PROTECTED` effect and gs-spawn's ledger.
-func end_spawn_protection(id: int) -> void:
-	var player := player_for(id)
-	if player == null:
-		return
-	player.health.invulnerable_until_tick = -1
-	player.protected_view = false
-	_protect_anchor.erase(id)
-	if effects != null:
-		effects.remove(FcEffects.PROTECTED, id)
-	if player_stack != null and player_stack.spawns != null and player_stack.spawns.protection != null:
-		player_stack.spawns.protection.revoke(str(id), _tick)
-
 func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 	var id := int(key)
 	var player := player_for(id)
@@ -604,6 +629,8 @@ func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 	if spawn != null:
 		at = spawn.spawn_transform()
 
+	# Fine laps (`--sim_sections 2`): a round start respawns everybody in one tick.
+	var t_lap := FcFrameProbe.lap_start()
 	if player_stack != null:
 		var chosen := player_stack.choose_spawn(id)
 
@@ -617,14 +644,22 @@ func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 				"key": key, "why": chosen.error.message
 			})
 
+	t_lap = FcFrameProbe.lap(&"sp_choose", t_lap)
 	player.hitboxes.enabled = true
 	player.spawn(at, tick, match_node.spawn_protection_ticks())
+	t_lap = FcFrameProbe.lap(&"sp_spawn", t_lap)
 	_spawned_tick[id] = _tick
 	_protect_anchor.erase(id)
 	_fired_tick.erase(id)
 	if _round_frozen_ids.has(id):
 		_release_from_round(id, player)
-	_sync_round_freeze()
+	# Everybody else already holds the last sync's answer: a round start respawning 32 walked all 32 per respawn.
+	var want := round_frozen()
+	if want != _round_frozen_want:
+		_sync_round_freeze()
+	elif want and player.is_alive():
+		_freeze_for_round(id, player)
+	t_lap = FcFrameProbe.lap(&"sp_freeze", t_lap)
 
 	# [b]`FcEffects.on_spawn` was written, documented, and called by nothing.[/b] It
 	# clears what survived the last life, stands the player up, and applies `PROTECTED` —
@@ -634,10 +669,13 @@ func _on_respawn_due(key: String, spawn: GSSpawnPoint, tick: int) -> void:
 	# one respawn path.
 	if effects != null:
 		effects.on_spawn(id)
+	t_lap = FcFrameProbe.lap(&"sp_effects", t_lap)
 
 	_apply_loadout_deferred(id)
+	t_lap = FcFrameProbe.lap(&"sp_loadout", t_lap)
 
 	player_spawned.emit(player)
+	FcFrameProbe.lap(&"sp_signal", t_lap)
 
 func _on_match_state_changed(from: GSMatch.State, to: GSMatch.State) -> void:
 	# A new round has its own first blood, and nobody's revenge carries over from warmup.

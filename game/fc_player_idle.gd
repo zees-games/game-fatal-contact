@@ -1,6 +1,8 @@
 @tool
 extends "fc_player_state.gd"
 
+const FcWeaponCensus := preload("fc_weapon_census.gd")
+
 ## The arsenal's [member GSWeaponArsenal.idle_posture] (set in [method _build_arsenal]): the posture fields
 ## of the full context [method simulate_tick] builds, from the same simulated state, so an idle tick's
 ## spread state matches a full tick's.
@@ -149,6 +151,47 @@ var _posture_ctx := GSWeaponContext.new()
 ## Cvar [code]fc_posture_native[/code]: 1 runs [method _idle_row] in gs-sim where its library has
 ## [code]GSSimPlayerPost[/code] (bit for bit with the script); 0 runs the script (the reference and the A/B arm).
 static var posture_native := true
+
+
+## Cvar [code]fc_weapon_idle_batch[/code]: 1 joins every idle server weapon's native idle call into one gs-sim call per
+## tick ([code]GSSimWeaponIdleBatch[/code], fc-weapons 45, gs-weapon API 58) where the library has it (bit for bit:
+## [code]headless_weapon_idle_batch[/code]); 0 ticks each weapon on its own ([method tick_idle_row]).
+static var weapon_idle_batch := true
+
+
+## [method tick_idle_row] with the weapon's native idle call left in [param entries] (entry for posture row [param k])
+## for the caller's one batch run. Null when the rig cannot join (an older pack, a weapon without a twin, timers on).
+func tick_idle_batch(entries: Array, k: int) -> GSWeaponOutcome:
+	if not weapons.has_method(&"idle_batch"):
+		return null
+	var t_wp := Time.get_ticks_usec()
+	var out: GSWeaponOutcome = weapons.call(&"cooling_batch", _command, _posture_tick, entries, k) if _cool_now \
+		else weapons.call(&"idle_batch", _command, _posture_tick, entries, k)
+	if out == null:
+		return null
+	var hands: Object = weapons.view_model()
+	if hands != null:
+		hands.set_sprinting(controller.state.sprinting)
+	FcFrameProbe.add(&"p_weapons", t_wp)
+	if FcWeaponCensus.on:
+		FcFrameProbe.add(&"pwx_cool_batch" if _cool_now else &"pwx_batch_join", t_wp)
+	return out
+
+
+## Cvar [code]fc_weapon_cooling_row[/code]: 1 ticks a server weapon whose trigger is held inside its cadence (nothing
+## fires, nothing else changes) from the posture row like an idle one ([method tick_idle_row], the idle batch;
+## fc-weapons 47, gs-weapon API 59; bit for bit: aw_selftest's cooling parity); 0 builds the full context each time.
+static var weapon_cooling_row := true
+static var cooling_lane := GSAddonApi.build_level("fc_weapons") >= 47
+
+
+## Whether this tick's weapon only cools ([member weapon_cooling_row]); set by [method tick_post_head].
+var _cool_now := false
+
+
+func _would_cool(tick: int) -> bool:
+	return weapon_cooling_row and cooling_lane and controller != null and weapons.call(&"would_cool", _command, tick,
+		controller.state.sprinting, not controller.tunables.sprint_can_shoot)
 
 
 ## Checks every row FcGame's batched loop hands gs-sim against the script ([method post_input]), counting

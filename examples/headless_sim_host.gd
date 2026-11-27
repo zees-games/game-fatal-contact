@@ -4,6 +4,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 const FcSimHost := preload("../game/fc_sim_host.gd")
 const FcMaps := preload("../game/fc_maps.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
+const FcSimPacer := preload("../game/fc_sim_pacer.gd")
 
 ## `--sim_host 1`: the solo game runs as a loopback server process and this client joins it, so
 ## the simulation is off the render thread. Off unless asked for; the client sees the bots, lives,
@@ -51,8 +52,7 @@ func _run() -> void:
 	print("game-fatal-contact: the solo game hosted beside the client")
 	_errors = RouteErrors.new()
 	OS.add_logger(_errors)
-	_check_wanted_rules()
-	_check_tick_tiers()
+	_check_offline()
 
 	FcSimHost.forced = 1
 	FcSimHost.ask_map = "dm_box"
@@ -134,6 +134,11 @@ func _synced_checks() -> void:
 	_check(synced, "the clock is synced to the server")
 
 
+func _check_priority() -> void:
+	_check(FcSimHost.priority_command(42, "Windows").contains("-Id 42") and FcSimHost.priority_command(42, "Windows").contains("AboveNormal"), "Windows raises the sim host's priority")
+	_check(FcSimHost.priority_command(42, "Linux") == "" and FcSimHost.priority_command(0, "Windows") == "", "other systems and a failed start leave it")
+
+
 func _check_wanted_rules() -> void:
 	_check(not FcSimHost.wanted(), "a suite's or a tool's client stays in this process")
 	_check(FcSimHost.wanted(true), "the launched game is hosted")
@@ -141,6 +146,45 @@ func _check_wanted_rules() -> void:
 	_check(not FcSimHost.wanted_for(PackedStringArray(["--offline", "--sim_host", "0"]), true), "--sim_host 0 opts out under --offline")
 	FcSimHost.forced = 0
 	_check(not FcSimHost.wanted(true), "and can be told not to be")
+
+
+## The pacer's cause for a window that fell behind (tick cost, starvation, coarse timer), and that it holds the deadline.
+func _check_offline() -> void:
+	_check_wanted_rules()
+	_check_tick_tiers()
+	_check_priority()
+	_check_pacer()
+
+
+func _check_pacer() -> void:
+	var period := 15151
+	_check(FcSimPacer.cause(40, 330, 0, 0, 0, 0, period).contains("ticks too dear"), "a tick dearer than the budget is named first")
+	_check(FcSimPacer.cause(0, 330, 20, 20, 0, 0, period).contains("frames too dear"), "frames over a period with cheap ticks say the rest of the process is dear")
+	_check(FcSimPacer.cause(0, 330, 0, 300, 9000, 0, period).contains("starved"), "a spin loop descheduled for 9 ms is starvation")
+	_check(FcSimPacer.cause(0, 330, 0, 300, 0, 14500, period).contains("timer"), "sleeps overshooting by 14.5 ms are a coarse timer")
+	_check(FcSimPacer.cause(0, 330, 0, 300, 500, 400, period).contains("no stall seen"), "nothing measured says so instead of guessing")
+	var line := FcSimServer.behind_line(40.0, 66, 3.0, "timer: x")
+	_check(line.contains("BEHIND") and line.contains("likely cause: timer: x"), "the behind line carries the cause", line)
+	var pacer := FcSimPacer.new()
+	var t0 := Time.get_ticks_usec()
+	for i in 20:
+		pacer.pace(200)
+	var took := Time.get_ticks_usec() - t0
+	_check(took >= 19 * 5000 and took < 20 * 5000 + 40000, "20 frames at 200 Hz take 100 ms, not more or less", "%d usec" % took)
+	_check(pacer.window_line(200).begins_with("SIM_HOST_PACE ms | tick gap"), "the window line says its name")
+	_check(pacer.window_line(200).ends_with("OS.delay_usec 1 ms steps + spin (no native timer)"), "the window line says the wait steps with OS.delay_usec")
+	# gs-sim's precise timer when the library is linked: one sleep for the stretch, the same 100 ms, and the line names it.
+	var native := FcSimPacer.new()
+	var has_native := native.use_native_timer()
+	t0 = Time.get_ticks_usec()
+	for i in 20:
+		native.pace(200)
+	took = Time.get_ticks_usec() - t0
+	_check(took >= 19 * 5000 and took < 20 * 5000 + 40000, "20 frames at 200 Hz on %s take 100 ms" % ("GSSimTimer" if has_native else "the fallback"), "%d usec" % took)
+	var path := native.window_line(200)
+	_check(path.contains("paced here: GSSimTimer") == has_native, "the window line names the native timer exactly when it is used", path)
+	native.enabled = false
+	_check(native.path() == "paced by the engine", "a pacer left off says the engine paces")
 
 
 ## The solo server's rate by player count (FcConfig.solo_tick_tiers), and its loud line when it falls behind the clock.
@@ -158,6 +202,24 @@ func _check_tick_tiers() -> void:
 	_check(FcSimServer.notice_due(1000, -1, 60.0) and not FcSimServer.notice_due(30000, 1000, 60.0)
 		and FcSimServer.notice_due(61000, 1000, 60.0), "the player's line is said as it falls behind, then once a minute")
 	_check(FcSimServer.notice_due(6000, 1000, 0.0), "behind_notice_sec 0 says it on every behind report")
+	var costs := PackedInt32Array()
+	for i in 100:
+		var _n := costs.push_back(1000 + i * 10)
+	costs[99] = 40000
+	var tick := FcSimServer.tick_line(costs, 66)
+	_check(tick.contains("p50 1.50") and tick.contains("max 40.00") and tick.contains("over 1/100"),
+		"the tick line has the median, the worst tick and the ticks over the 15 ms budget", tick)
+	_check(FcSimServer.tick_line(PackedInt32Array(), 66).contains("no ticks"), "an empty window says so")
+	# Two ticks: srv_net 20 ms = game 12 + bots 5 + netpull 1 + killview 0.4, and gs-net's own 0.7, leaving 0.9.
+	var spans := {&"srv_net": PackedInt64Array([40000, 2, 0]), &"srv_game": PackedInt64Array([24000, 2, 0]),
+		&"srv_bots": PackedInt64Array([10000, 2, 0]), &"srv_netpull": PackedInt64Array([2000, 33, 0]),
+		&"srv_killview": PackedInt64Array([800, 2, 0]), &"tick_players": PackedInt64Array([20000, 2, 0])}
+	var split := FcSimServer.net_split_line(spans, 2, 0.05, 0.05, 0.6)
+	_check(split.contains("srv_net 20.000 = srv_game 12.000 + srv_bots 5.000") and split.contains("srv_pulls 0.000")
+		and split.contains("send 0.600") and split.ends_with("rest 0.900") and not split.contains("tick_players"),
+		"the net split names srv_net's direct parts, not their children, and what none of them owns", split)
+	_check(FcSimServer.booting(true, false) and FcSimServer.booting(false, true) and not FcSimServer.booting(false, false),
+		"a window that overlapped the boot warm is not counted behind; every later one is, so a slow sim in play is told")
 
 
 ## The client is built on the server's map, so its announcement keeps that world instead of rebuilding it.

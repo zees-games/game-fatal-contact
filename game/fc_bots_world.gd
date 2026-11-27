@@ -7,6 +7,7 @@ const FcPlayer := preload("fc_player.gd")
 const FcBotBrain := preload("fc_bot_brain.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
+const FcBotRows := preload("fc_bot_rows.gd")
 
 
 ## The behaviour of a weapon whose shot flies (a rocket, a bolt); every other one is led as
@@ -82,14 +83,14 @@ class Mind:
 	var throw_back: int = 0
 	var throw_at: int = 0
 	var throw_cook_from: int = 0
-	## The ride under way (gs-bot's GSBotSurfRide, untyped so an older shell still compiles
-	## this), or null.
+	## The ride under way (gs-bot's GSBotSurfRide, untyped so an older shell still compiles this), or null.
 	var ride: Variant = null
 	## Where the bot was last tick, to see a teleport.
 	var last_position: Vector3 = Vector3.INF
 	## The commands of the last tick the brain thought, repeated on the ticks it coasts (see [constant THINK_EVERY]).
 	var last_move: GSFpsCommand = null
 	var last_fire: GSWeaponCommand = null
+	var out: Array = []  # The [move, fire] pair handed out every tick with FcBots.reuse_commands (bot_native_think).
 	## Whether nobody was within [member think_near] metres at the last think.
 	var far: bool = false
 	## The view the last think moved from and to, which the coast ticks walk along.
@@ -191,6 +192,8 @@ class World:
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
 	var _contacts: Array = []
+	## The native sight scan's table of [member _contacts], filled in [method refresh]'s loop (cvar `bot_native_think`).
+	var _bot_rows := FcBotRows.new()
 	## The contacts by id, kept from tick to tick and rewritten whole by [method refresh] (a brain keeps ids, never a contact).
 	var _by_id: Dictionary = {}
 	var _players: Dictionary = {}
@@ -203,11 +206,6 @@ class World:
 	var _rater: Callable = Callable()
 	## The body tunables of this tick, looked up once for all contacts (the lookup walks every player).
 	var _tunables: GSFpsTunables = null
-	## The live contacts filed by cell of [member FcBots.think_near] metres (key -> contacts), for [method FcBots._nobody_near]; empty cell size: not built.
-	var near_cells: Dictionary = {}
-	var near_cell: float = 0.0
-	## [member FcBots.think_near], set by the thinking bot before [method refresh].
-	var near_reach: float = 0.0
 	## Bots a person hurt since their last think: they think next tick whatever their tier.
 	var woken: Dictionary = {}
 	## [member FcBots.tiers], set by the thinking bot before [method refresh].
@@ -217,6 +215,9 @@ class World:
 	var _personas: GSBotPersonaPool = null
 	var _personas_text: String = ""
 	var persona_epoch: int = 0
+	## The tick [member brains_made] counts brains built in ([member FcBots.brains_per_tick]).
+	var brains_tick: int = -1
+	var brains_made: int = 0
 	var _persona_rng := RandomNumberGenerator.new()
 
 	var _par_glass: bool = false
@@ -293,63 +294,64 @@ class World:
 		var teams := _team_mode()
 		var eye := FcPlayer.eye_height()
 		var aim := CHEST * FcPlayer.stand_height() / 1.8
+		var rows := _bot_rows.begin()
 		for p: FcPlayer in game.call("players"):
-			# Last tick's contact, every field written again: as a fresh one, without a new object per player per tick.
-			var c: GSBotContact = _by_id.get(p.player_id)
-			if c == null:
-				c = GSBotContact.new()
-				c.id = p.player_id
-				_by_id[c.id] = c
-			c.eye_height = eye
-			c.aim_height = aim
-			c.alive = p.is_alive()
-			c.team = p.team if teams else 0
-			if p.controller != null:
-				var state := p.controller.state
-				c.position = state.position
-				c.velocity = state.velocity
-				c.view_yaw = state.yaw
-				c.view_pitch = state.pitch
-				_motion_of(c, state)
-			else:
-				c.position = p.global_position
-				c.velocity = Vector3.ZERO
-				c.view_yaw = NAN
-				c.view_pitch = NAN
-				c.grounded = true
-				c.sliding = false
-				c.wall_running = false
-				c.air_jump_ready = false
-			c.health = p.health.health / p.health.max_health if p.health != null and p.health.max_health > 0.0 else 1.0
-			c.loadout = _loadout_of(p, tick)
-			_weapon_of(c, p)
+			var c := _contact_of(p, tick, eye, aim, teams)
 			_contacts.append(c)
+			if rows:
+				_bot_rows.add(c)
 			_players[c.id] = p
 		if _by_id.size() != _contacts.size():
 			# Someone left: only this tick's players have a contact.
 			_by_id.clear()
 			for c: GSBotContact in _contacts:
 				_by_id[c.id] = c
+		_bot_rows.hand(self, tick)
+		var t_obj := FcFrameProbe.lap_start()
 		_objective_refresh(teams)
+		FcFrameProbe.lap(&"brc_objective", t_obj)
 		t_lap = FcFrameProbe.lap(&"br_contacts", t_lap)
-		if tiers != null and tiers.applies(_contacts.size()):
+		if tiers != null:
 			_tier_begin()
-		elif tiers != null:
-			tiers.begin(_contacts.size(), PackedVector3Array(), PackedVector3Array(), PackedInt32Array(), PackedVector3Array())
 		t_lap = FcFrameProbe.lap(&"br_tiers", t_lap)
-		near_cells.clear()
-		near_cell = 0.0
-		if FcHullGrid.enabled and near_reach > 0.0 and _contacts.size() > 16:
-			near_cell = near_reach
-			for c: GSBotContact in _contacts:
-				if c.alive:
-					var k := near_key(c.position.x, c.position.z, near_cell)
-					var cell: Variant = near_cells.get(k)
-					if cell == null:
-						near_cells[k] = [c]
-					else:
-						(cell as Array).append(c)
+		_near_refresh(_contacts, FcHullGrid.enabled)
 		FcFrameProbe.lap(&"br_near", t_lap)
+
+	## [param p]'s contact for this tick: last tick's object, every field written again, as a fresh one would be, without a
+	## new object per player per tick.
+	func _contact_of(p: FcPlayer, tick: int, eye: float, aim: float, teams: bool) -> GSBotContact:
+		var c: GSBotContact = _by_id.get(p.player_id)
+		if c == null:
+			c = GSBotContact.new()
+			c.id = p.player_id
+			_by_id[c.id] = c
+		c.eye_height = eye
+		c.aim_height = aim
+		c.alive = p.is_alive()
+		c.team = p.team if teams else 0
+		if p.controller != null:
+			var state := p.controller.state
+			c.position = state.position
+			c.velocity = state.velocity
+			c.view_yaw = state.yaw
+			c.view_pitch = state.pitch
+			_motion_of(c, state)
+		else:
+			c.position = p.global_position
+			c.velocity = Vector3.ZERO
+			c.view_yaw = NAN
+			c.view_pitch = NAN
+			c.grounded = true
+			c.sliding = false
+			c.wall_running = false
+			c.air_jump_ready = false
+		c.health = p.health.health / p.health.max_health if p.health != null and p.health.max_health > 0.0 else 1.0
+		var t_c := FcFrameProbe.lap_start()
+		c.loadout = _loadout_of(p, tick)
+		t_c = FcFrameProbe.lap(&"brc_loadout", t_c)
+		_weapon_of(c, p)
+		FcFrameProbe.lap(&"brc_weapon", t_c)
+		return c
 
 	## The flags as the HUD shows them, or the hill, into [member GSBotWorld.objective], for the bots' team jobs (defend,
 	## attack, support). Outside those modes the objective is empty and every bot roams as in a free-for-all.
@@ -392,33 +394,45 @@ class World:
 		var hill := (manager as GSObjectiveManager).objective(HILL)
 		return hill if hill != null and hill.def != null and hill.def.area != null else null
 
-	## Hands the tiers the live people's eyes and views and the bots' positions (a person is a contact with no brain).
+	## Hands the tiers the live people's eyes and views and the bots' positions (a person is a contact with no brain),
+	## or empty lists when the tiers do not apply at this many contacts.
 	func _tier_begin() -> void:
 		var eyes := PackedVector3Array()
 		var looks := PackedVector3Array()
 		var ids := PackedInt32Array()
 		var at := PackedVector3Array()
-		for c: GSBotContact in _contacts:
-			if brains.has(c.id):
-				if c.alive:
-					ids.append(c.id)
-					at.append(c.position)
-			elif c.alive:
-				eyes.append(c.eye())
-				looks.append(GSBotIntent.direction(c.view_yaw, c.view_pitch))
+		if tiers.applies(_contacts.size()):
+			for c: GSBotContact in _contacts:
+				if brains.has(c.id):
+					if c.alive:
+						ids.append(c.id)
+						at.append(c.position)
+				elif c.alive:
+					eyes.append(c.eye())
+					looks.append(GSBotIntent.direction(c.view_yaw, c.view_pitch))
 		tiers.begin(_contacts.size(), eyes, looks, ids, at)
 
-	static func near_key(x: float, z: float, cell: float) -> int:
-		return (int(floorf(x / cell)) + 4096) * 8192 + int(floorf(z / cell)) + 4096
-
-	## What the player carries, rated, rebuilt one tick in [constant LOADOUT_EVERY] (offset by id)
-	## and repeated between: it is 33 slot reads and ratings per player per tick for what only a
-	## pickup, a shot or a reload changes, and a bot picks a weapon over tens of ticks.
+	## What the player carries, rated: 33 slot reads and ratings per player for what only a pickup, a shot or a
+	## reload changes. Kept until the arsenal's [code]revision()[/code] (gs-weapon API 51) or the arsenal itself
+	## changes; an older gs-weapon falls back to one rebuild in [constant LOADOUT_EVERY] ticks (offset by id).
 	func _loadout_of(p: FcPlayer, tick: int) -> Dictionary:
 		var held: Variant = _loadouts.get(p.player_id)
-		if held is Array and (tick + p.player_id) % LOADOUT_EVERY != 0 and tick >= (held as Array)[0] and tick - (held as Array)[0] < LOADOUT_EVERY:
+		var arsenal: Object = p.arsenal
+		# Kept for this arsenal (an entry of three is only written for one with revision()): no has_method a player a tick.
+		if arsenal != null and held is Array and (held as Array).size() == 3 and (held as Array)[2] == arsenal.get_instance_id():
+			if (held as Array)[0] == arsenal.call(&"revision"):
+				return (held as Array)[1]
+		if arsenal != null and arsenal.has_method(&"revision"):
+			var rev: int = arsenal.call(&"revision")
+			var id := arsenal.get_instance_id()
+			if held is Array and (held as Array).size() == 3 and (held as Array)[0] == rev and (held as Array)[2] == id:
+				return (held as Array)[1]
+			var fresh := GSBotArms.loadout_of(arsenal, _rater)
+			_loadouts[p.player_id] = [rev, fresh, id]
+			return fresh
+		if held is Array and (held as Array).size() == 2 and (tick + p.player_id) % LOADOUT_EVERY != 0 and tick >= (held as Array)[0] and tick - (held as Array)[0] < LOADOUT_EVERY:
 			return (held as Array)[1]
-		var made := GSBotArms.loadout_of(p.arsenal, _rater)
+		var made := GSBotArms.loadout_of(arsenal, _rater)
 		_loadouts[p.player_id] = [tick, made]
 		return made
 
@@ -511,6 +525,11 @@ class World:
 		prune_sight_blockers(now())
 		var _heard := sounds_after(1 << 60, now())
 		_sight_par = _sight_bind(true)
+		# Each player's shot speed, once on main: a worker's projectile_speed reads it without a lock (it was the
+		# top world query at 32 bots, 43 us a call waiting on _par_lock). Brains never switch guns while in par.
+		_par_proj_speed.clear()
+		for id: int in _players:
+			_par_proj_speed[id] = _projectile_speed_of(_players[id])
 		par = true
 		return true
 
@@ -735,17 +754,17 @@ class World:
 	## How fast the held weapon's shot flies, m/s; 0 for hitscan, a swing or a throw.
 	func projectile_speed(shooter: GSBotContact) -> float:
 		if par:
-			_par_lock.lock()
-			var held := _projectile_speed(shooter)
-			_par_lock.unlock()
-			return held
+			# Filled by par_begin and only read while par is on: no lock.
+			return _par_proj_speed.get(shooter.id, 0.0) if shooter != null else 0.0
 		var t_lap := FcFrameProbe.lap_start()
 		var speed := _projectile_speed(shooter)
 		FcFrameProbe.lap(&"bot_proj_speed", t_lap)
 		return speed
 
 	func _projectile_speed(shooter: GSBotContact) -> float:
-		var p: FcPlayer = _players.get(shooter.id) if shooter != null else null
+		return _projectile_speed_of(_players.get(shooter.id) if shooter != null else null)
+
+	func _projectile_speed_of(p: FcPlayer) -> float:
 		var def: GSWeaponDef = p.arsenal.current_def() if p != null and p.arsenal != null else null
 		if def == null or not def.behaviour_path.ends_with(PROJECTILE_BEHAVIOUR) or not (def.tuning is GSWeaponBallistics):
 			return 0.0

@@ -47,6 +47,29 @@ static func native_default() -> int:
 ## Ticks whose brains went through the worker path (for the suite).
 static var par_ticks: int = 0
 
+## srv_bots outside the brains, by part, for the sim host's SIM_HOST_PHASES line (`--sim_sections` 1 or 2): the
+## main-thread begin and finish loops, the par hand-off, the main thread's own share of brains, the join and the
+## merge; sb_gather and sb_apply are the net bridge's loops either side of [method think_all]. A clock read a part.
+const PHASES := ["sb_gather", "sb_begin", "sb_ready", "sb_par_begin", "sb_main", "sb_join", "sb_par_end", "sb_merge", "sb_finish", "sb_apply"]
+enum { SB_GATHER, SB_BEGIN, SB_READY, SB_PAR_BEGIN, SB_MAIN, SB_JOIN, SB_PAR_END, SB_MERGE, SB_FINISH, SB_APPLY }
+static var phase_timers: bool = false
+static var phase_us := PackedInt64Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+
+## Charges the time since [param since] to part [param part] and returns the clock for the next one; 0 and no clock
+## read while [member phase_timers] is off.
+static func phase(part: int, since: int) -> int:
+	if not phase_timers:
+		return 0
+	var now := Time.get_ticks_usec()
+	phase_us[part] += now - since
+	return now
+
+
+## The clock [method phase] counts from; 0 while [member phase_timers] is off.
+static func phase_start() -> int:
+	return Time.get_ticks_usec() if phase_timers else 0
+
 var _jobs: Array = []
 var _next := 0
 var _lock := Mutex.new()
@@ -63,16 +86,20 @@ static func think_all(game: Object, players: Array, minds: Array, tick: int, tic
 	var out: Array = []
 	out.resize(players.size())
 	var pending: Array[int] = []
+	var t_part := phase_start()
 	for i in players.size():
 		var early := FcBots.think_begin(game, players[i], minds[i], tick, tick_rate)
 		if early.is_empty():
 			pending.append(i)
 		else:
 			out[i] = early
+	t_part = phase(SB_BEGIN, t_part)
 	if not pending.is_empty():
 		_decide(pending, minds)
+		t_part = phase_start()
 		for i in pending:
 			out[i] = FcBots.think_finish(game, players[i], minds[i], tick, tick_rate)
+		phase(SB_FINISH, t_part)
 	return out
 
 
@@ -90,12 +117,16 @@ static func _decide(pending: Array[int], minds: Array) -> void:
 	# Before par_begin (the world hands out no native scan once it is on): a native brain takes a
 	# handle on this tick's packed scan and stays native on its worker (gs-bot API 34 with a
 	# worker-safe gs_sim); without that it moves into script (a no-op once it is).
+	var t_part := phase_start()
 	for mind: FcBots.Mind in jobs:
 		if mind.brain.has_method(&"par_ready"):
 			mind.brain.par_ready(mind.t_world)
 		elif mind.brain.has_method(&"leave_native"):
 			mind.brain.leave_native()
-	if not world.par_begin():
+	t_part = phase(SB_READY, t_part)
+	var began := world.par_begin()
+	t_part = phase(SB_PAR_BEGIN, t_part)
+	if not began:
 		for mind: FcBots.Mind in jobs:
 			mind.t_intent = mind.brain.think(mind.t_me, mind.t_world, mind.t_world.now())
 	else:
@@ -105,10 +136,21 @@ static func _decide(pending: Array[int], minds: Array) -> void:
 		var helpers := mini(threads, jobs.size() / CHUNK + 1) - 1
 		var group := WorkerThreadPool.add_group_task(run._work, helpers, helpers, true, "arena bot brains") if helpers > 0 else -1
 		run._work(0)
+		t_part = phase(SB_MAIN, t_part)
 		if group >= 0:
 			WorkerThreadPool.wait_for_group_task_completion(group)
+		t_part = phase(SB_JOIN, t_part)
 		world.par_end()
+		t_part = phase(SB_PAR_END, t_part)
 	FcFrameProbe.add(&"bot_brain", started)
+	# The --brain-us profile: threaded brains timed into their own clocks; the main thread adds them up here, after
+	# the join and outside bot_brain (gs-bot 40). Off: one static read a tick.
+	if FcBots.brain_merge and (GSBotBrain as GDScript).get(&"phase_timers"):
+		var brains: Array = []
+		for mind: FcBots.Mind in jobs:
+			brains.append(mind.brain)
+		(GSBotBrain as GDScript).call(&"merge_phases", brains)
+	phase(SB_MERGE, t_part)
 
 
 ## Takes brains off the shared queue until it is empty.

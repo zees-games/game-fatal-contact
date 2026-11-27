@@ -468,7 +468,7 @@ class KillFeed extends Control:
 
 ## The right edge: one silhouette per weapon carried, with the number that selects it.
 ## The one in hand is bright and larger; the rest wait dimmed.
-class WeaponSlots extends Control:
+class WeaponSlots extends GSLoadoutBar:
 	const ROW_H := 40.0
 	## The tightest pitch a row is drawn at under a ballot: a 24 px plate, which the 22 px
 	## keycap and the 24 px current-weapon icon still fit in.
@@ -491,17 +491,57 @@ class WeaponSlots extends Control:
 	## one are drawn, which is the one a player is looking for.
 	var cover_bottom: float = -INF
 
+	## A picture that had not loaded when the rows were handed over; the bar is rebuilt until it has.
+	var _icons_pending := false
+
+	## The slot dictionaries handed to the bar, reused: the bar copies them, so a rebuild allocates no array.
+	var _scratch: Array = []
+
+	func _init() -> void:
+		super._init()
+		set_layout(GSLoadoutBar.Layout.STACK)
+		stack_foot = ROW_H * 0.5
+
 	func show_slots(p_rows: Array[Dictionary], p_current: int) -> void:
 		if p_current != current or p_rows.size() != rows.size() or str(p_rows) != str(rows):
 			rows.assign(p_rows)
 			current = p_current
-			queue_redraw()
+			_sync()
 
 	## Moves the top of the room the rows have; a redraw only on a change.
 	func set_cover_bottom(y: float) -> void:
 		if not is_equal_approx(y, cover_bottom) and not (is_inf(y) and is_inf(cover_bottom)):
 			cover_bottom = y
-			queue_redraw()
+			_sync()
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_RESIZED:
+			_sync()
+
+	func _process(delta: float) -> void:
+		super._process(delta)
+		if _icons_pending:
+			_sync()
+
+	## Hands the generic bar the rows [method layout] picked, at the pitch it picked.
+	func _sync() -> void:
+		var laid := layout()
+		_icons_pending = false
+		_scratch.clear()
+		for r in laid["rows"]:
+			var tex := Ink.weapon_icon(r["id"])
+			_icons_pending = _icons_pending or tex == null
+			_scratch.append({"key": r["key"] if r.has("key") else r["slot"], "icon": tex, "name": r["name"], "id": r["id"], "selected": int(r["slot"]) == current})
+		set_stack_pitch(float(laid["pitch"]))
+		set_slots(_scratch)
+
+	func _draw() -> void:
+		FcWeaponIcons.shared.filter(self)
+		super._draw()
+
+	## FC's white-gun halo, behind the picture the generic bar draws.
+	func _stack_backdrop(slot: Dictionary, at: Vector2, height: float, alpha: float, max_width: float) -> void:
+		FcWeaponIcons.shared.halo(self, slot["id"], at, height, alpha, max_width)
 
 	## `{rows, pitch}`: the rows drawn, bottom-most last, and the pitch they are drawn at. All
 	## of them at [constant ROW_H] while nothing covers the box; the bottom row's centre never
@@ -527,72 +567,29 @@ class WeaponSlots extends Control:
 		var first := clampi(at - int(float(fit) / 2.0), 0, count - fit)
 		return {"rows": rows.slice(first, first + fit), "pitch": MIN_ROW_H}
 
-	## Every slot's plate drawn, from the bottom up.
-	func footprint() -> Rect2:
-		var laid := layout()
-		var shown: Array = laid["rows"]
-		if shown.is_empty():
-			return Rect2()
-		var pitch: float = laid["pitch"]
-		var plate_h := pitch - PLATE_GAP
-		var left := size.x
-		for r in shown:
-			left = minf(left, size.x - Ink.keycap_width(str(r.get("key", r["slot"])), 12) - 112.0)
-		var top := size.y - ROW_H * 0.5 - float(shown.size() - 1) * pitch - plate_h * 0.5
-		return Rect2(left, top, size.x + 4.0 - left, float(shown.size() - 1) * pitch + plate_h)
-
-	func _draw() -> void:
-		FcWeaponIcons.shared.filter(self)
-		# From the bottom up, so the carried guns sit on the ammunition counter however few
-		# there are, and the top of the box is the one that stays clear of the shell's column.
-		var laid := layout()
-		var shown: Array = laid["rows"]
-		var pitch: float = laid["pitch"]
-		var plate_h := pitch - PLATE_GAP
-		var y := size.y - ROW_H * 0.5 - float(shown.size() - 1) * pitch
-		for r in shown:
-			var on := int(r["slot"]) == current
-			var alpha := 1.0 if on else 0.72
-			var key := str(r.get("key", r["slot"]))
-			var cap_w := Ink.keycap_width(key, 12)
-			var cap_x := size.x - cap_w
-			# A plate per weapon: a white silhouette on a pale wall is no silhouette at all.
-			var plate_x := cap_x - 112.0
-			Ink.plate(self, Rect2(plate_x, y - plate_h * 0.5, size.x - plate_x + 4.0, plate_h),
-				Color(Ink.c(self, &"plate"), 0.8 if on else 0.6), 7, Color(Ink.c(self, &"highlight"), 0.85) if on else Color(Ink.c(self, &"plate_edge"), 0.1), 2 if on else 1)
-			var _w := Ink.keycap(self, Vector2(cap_x, y), key, 12, alpha)
-			var tex := Ink.weapon_icon(r["id"])
-			var h := minf(24.0 if on else 18.0, plate_h - 2.0)
-			if tex != null:
-				var s := tex.get_size()
-				var w := minf(s.x * h / maxf(s.y, 1.0), 90.0)
-				var at := Vector2(cap_x - 10.0 - w, y)
-				# A shadow first, so a white gun reads on a white wall.
-				FcWeaponIcons.shared.halo(self, r["id"], at, h, alpha, 90.0)
-				var _s := Ink.icon(self, tex, at + Vector2(1.5, 1.5), h, Color(0, 0, 0, 0.55 * alpha), 90.0)
-				var _d := Ink.icon(self, tex, at, h, Color(1, 1, 1, alpha), 90.0)
-			else:
-				Ink.text(self, Vector2(0.0, y + 5.0), str(r["name"]), 13, Color(Ink.c(self, &"text"), alpha), HORIZONTAL_ALIGNMENT_RIGHT, cap_x - 10.0, 4)
-			y += pitch
-
 
 ## Bottom centre: one button per movement ability, its key under it. A charging one is
 ## darkened from the top by what is left and says the seconds; a ready one is bright; one
 ## in use (a slide, a wall run) has a gold edge. The wall jump shows its jumps left in the
 ## air as pips.
-class AbilityBar extends Control:
-	const SIDE := 56.0
-	const GAP := 14.0
-
+class AbilityBar extends GSLoadoutBar:
 	## `{id, label, icon, key, left, total, active, pips, pips_max}`, left to right.
 	var buttons: Array[Dictionary] = []
+
+	func _init() -> void:
+		super._init()
+		set_layout(GSLoadoutBar.Layout.BUTTONS)
 
 	func show_buttons(p_buttons: Array[Dictionary]) -> void:
 		# Called every frame with a fresh array: redraw only when a button's state differs.
 		if p_buttons == buttons:
 			return
 		buttons = p_buttons
-		queue_redraw()
+		var slots: Array = []
+		for b in buttons:
+			slots.append({"key": str(b["key"]), "icon": b.get("icon", null), "name": str(b["label"]).substr(0, 5).to_upper(),
+				"left": b["left"], "total": b["total"], "active": b["active"], "pips": b.get("pips", 0), "pips_max": b.get("pips_max", 0)})
+		set_slots(slots)
 
 	## One button as a line of words: "E  LAUNCH" when ready, "E  5.5" while it charges.
 	## What a suite reads.
@@ -606,180 +603,6 @@ class AbilityBar extends Control:
 	func has(id: StringName) -> bool:
 		return line(id) != ""
 
-	## The buttons, the wall jump's pips over them and the keys under them.
-	func footprint() -> Rect2:
-		var count := buttons.size()
-		if count == 0:
-			return Rect2()
-		var total_w := SIDE * float(count) + GAP * float(count - 1)
-		return Rect2(size.x * 0.5 - total_w * 0.5, -14.0, total_w, 14.0 + SIDE + 2.0 + 22.0 + 2.0)
 
-	func _draw() -> void:
-		var count := buttons.size()
-		if count == 0:
-			return
-		var total_w := SIDE * float(count) + GAP * float(count - 1)
-		var x := size.x * 0.5 - total_w * 0.5
-		for b in buttons:
-			_button(Rect2(x, 0.0, SIDE, SIDE), b)
-			x += SIDE + GAP
-
-	func _button(rect: Rect2, b: Dictionary) -> void:
-		var left := float(b["left"])
-		var total := maxf(float(b["total"]), 0.001)
-		var ready := left <= 0.0
-		var active := bool(b["active"])
-		Ink.plate(self, Rect2(rect.position + Vector2(0.0, 3.0), rect.size), Color(0, 0, 0, 0.4), 10, Color(0, 0, 0, 0), 0)
-		# The dark HUD draws a ready button as a deep slate edged in white and a charging one
-		# near black; the bright theme ("Arcade") as the first HUD's saturated blue key.
-		var bright := Ink.bright(self)
-		var fill := Color(0.11, 0.16, 0.26, 0.92).lerp(Color(0.2, 0.55, 0.95, 0.88), bright) if ready \
-			else Color(0.04, 0.05, 0.08, 0.86).lerp(Color(0.16, 0.2, 0.3, 0.85), bright)
-		var edge := Ink.c(self, &"highlight") if active else Color(Ink.c(self, &"text"), (0.7 if ready else 0.22) if bright < 0.5 else (0.55 if ready else 0.25))
-		Ink.plate(self, rect, fill, 10, edge, 3 if active else 2)
-		Ink.plate(self, Rect2(rect.position + Vector2(3.0, 3.0), Vector2(rect.size.x - 6.0, rect.size.y * 0.42)), Color(1, 1, 1, lerpf(0.06, 0.14, bright) if ready else 0.04), 8, Color(0, 0, 0, 0), 0)
-		var tex: Texture2D = b.get("icon", null)
-		if tex != null:
-			var side := SIDE * 0.62
-			draw_texture_rect(tex, Rect2(rect.get_center() - Vector2(side, side) * 0.5, Vector2(side, side)), false, Color(1, 1, 1, 1.0 if ready else 0.45))
-		else:
-			Ink.text(self, Vector2(rect.position.x, rect.get_center().y + 5.0), str(b["label"]).substr(0, 5).to_upper(), 12, Ink.c(self, &"text"), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 3)
-		if not ready:
-			var cover := rect.size.y * clampf(left / total, 0.0, 1.0)
-			Ink.plate(self, Rect2(rect.position, Vector2(rect.size.x, cover)), Color(0.0, 0.0, 0.02, 0.5), 10, Color(0, 0, 0, 0), 0)
-			Ink.text(self, Vector2(rect.position.x, rect.get_center().y + 8.0), "%.1f" % left if left < 10.0 else "%d" % int(left), 20, Ink.c(self, &"text"), HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 5)
-		var pips_max := int(b.get("pips_max", 0))
-		if pips_max > 0:
-			var pips := int(b.get("pips", 0))
-			var px := rect.get_center().x - 8.0 * float(pips_max - 1)
-			for i in range(pips_max):
-				var c := Vector2(px + 16.0 * float(i), rect.position.y - 9.0)
-				draw_circle(c, 5.0, Color(0, 0, 0, 0.55))
-				draw_circle(c, 3.8, Ink.c(self, &"highlight") if i < pips else Color(1, 1, 1, 0.25))
-		var key := str(b["key"])
-		var cap_w := Ink.keycap_width(key, 12)
-		var _w := Ink.keycap(self, Vector2(rect.get_center().x - cap_w * 0.5, rect.end.y + 2.0), key, 12)
-
-
-## A portrait per player: their avatar's head, rendered once (`UPDATE_ONCE`) into a small viewport and
-## drawn in the ranked row; re-rendered only when what they wear changes. Nothing is built with no
-## display (every suite): the row draws initials instead.
-class PortraitCache extends Node:
-	const FcAvatars := preload("fc_avatars.gd")
-	const SIDE := 96
-
-	## `cl_portrait_builds`: most portraits rendered in one frame (0: no limit). Each is a
-	## viewport with its own world, light and figure; a full row at once was one long frame.
-	## A portrait over the limit shows the old face (or initials) until a later pass.
-	static var builds_per_frame: int = 1
-	## `cl_portrait_keep`: portraits kept for players out of the row, so rank churn in a
-	## 16v16 does not rebuild the same faces every few seconds (0: only the shown ones).
-	static var keep_extra: int = 24
-
-	## player id -> [SubViewport, digest, last frame shown]
-	var _made: Dictionary = {}
-	var _build_frame := -1
-	var _builds := 0
-
-	## The portrait for [param id] wearing [param avatar], or null with no display.
-	func portrait(id: int, avatar: GSAvatar) -> Texture2D:
-		if DisplayServer.get_name() == "headless" or avatar == null:
-			return null
-		var digest := avatar.digest()
-		var have: Array = _made.get(id, [])
-		var frame := Engine.get_process_frames()
-		var old: SubViewport = have[0] as SubViewport if not have.is_empty() and is_instance_valid(have[0]) else null
-		if old != null and str(have[1]) == digest:
-			have[2] = frame
-			return old.get_texture()
-		if frame != _build_frame:
-			_build_frame = frame
-			_builds = 0
-		if builds_per_frame > 0 and _builds >= builds_per_frame:
-			return old.get_texture() if old != null else null
-		_builds += 1
-		if old != null:
-			old.queue_free()
-		var view := _render(avatar, id)
-		_made[id] = [view, digest, frame]
-		return view.get_texture()
-
-	## Forgets players out of the row beyond the [member keep_extra] most recently shown.
-	func keep_only(ids: Array) -> void:
-		var out: Array = []
-		for id in _made.keys():
-			if not ids.has(id):
-				out.append(id)
-		if out.size() <= keep_extra:
-			return
-		out.sort_custom(func(a: Variant, b: Variant) -> bool: return int(_made[a][2]) < int(_made[b][2]))
-		for id in out.slice(0, out.size() - keep_extra):
-			var have: Array = _made[id]
-			if is_instance_valid(have[0]):
-				(have[0] as Node).queue_free()
-			_made.erase(id)
-
-	func _render(avatar: GSAvatar, id: int) -> SubViewport:
-		var view := SubViewport.new()
-		view.size = Vector2i(SIDE, SIDE)
-		view.transparent_bg = true
-		view.own_world_3d = true
-		# The rest of the client runs msaa 0 on the web (gl_compatibility); a 4x resolve per glance face is wasted there.
-		view.msaa_3d = Viewport.MSAA_DISABLED if (GSPlatform.is_web() or RenderingServer.get_current_rendering_method() == "gl_compatibility") else Viewport.MSAA_4X
-		view.render_target_update_mode = SubViewport.UPDATE_ONCE
-		add_child(view)
-
-		var env := WorldEnvironment.new()
-		env.environment = Environment.new()
-		env.environment.background_mode = Environment.BG_CLEAR_COLOR
-		env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-		env.environment.ambient_light_color = Color(0.85, 0.87, 0.95)
-		env.environment.ambient_light_energy = 0.7
-		view.add_child(env)
-
-		var sun := DirectionalLight3D.new()
-		# Shining onto the face, which is on the -Z side.
-		sun.rotation_degrees = Vector3(-30.0, 160.0, 0.0)
-		sun.light_energy = 1.1
-		view.add_child(sun)
-
-		# The same person the body is (`FcPlayer` draws `FcAvatars.look_of` of the same
-		# document and key), standing still, so the face in the row is the face in the world.
-		var person := GSHumanoidFigure.new()
-		view.add_child(person)
-		person.build(FcAvatars.look_of(avatar, StringName("arena-player-%08d" % id)), 1.8)
-		person.animate(0.0, 0.0)
-		# Posed once and never animated (`auto_animate` is off): its per-frame `_process` has nothing to do.
-		person.set_process(false)
-		var face := FACE
-		var bones := person.skeleton()
-		if bones != null and bones.find_bone("Head") >= 0:
-			face = _head_of(person, bones)
-
-		# The figure faces -Z, so the camera is on that side, a little to one side so the
-		# head has depth. `look_at_from_position`, because this may run before the viewport
-		# is in the tree.
-		var camera := Camera3D.new()
-		camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-		camera.size = FRAME_SIZE
-		view.add_child(camera)
-		camera.look_at_from_position(face + Vector3(-0.8, 0.15, -3.0), face)
-		camera.current = true
-		return view
-
-	## The middle of the person's head, in the figure's space: the head bone (the bottom of the
-	## head) carried up through the model, plus a third of a head.
-	static func _head_of(person: GSHumanoidFigure, bones: Skeleton3D) -> Vector3:
-		var to_figure := Transform3D.IDENTITY
-		var node: Node = bones
-		while node != null and node != person:
-			if node is Node3D:
-				to_figure = (node as Node3D).transform * to_figure
-			node = node.get_parent()
-		var head := to_figure * bones.get_bone_global_pose(bones.find_bone("Head")).origin
-		return head + Vector3(0.0, 0.2, 0.0)
-
-	## Where the head is when there is no skeleton to ask (the capsule), and how much of it the
-	## frame holds.
-	const FACE := Vector3(0.0, 1.3, 0.0)
-	const FRAME_SIZE := 0.66
+## The ranked row's avatar heads (in `fc_hud_portrait_cache.gd`).
+const PortraitCache := preload("fc_hud_portrait_cache.gd")

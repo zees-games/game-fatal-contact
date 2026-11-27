@@ -5,6 +5,7 @@ extends "weapon_lab.gd"
 ## it prints an `ANIMREVIEW {json}` verdict line and an `ANIMFRAMES {json}` line with every frame's numbers (both travel on stdout, since a GPU box only sends PNGs back).
 
 const Solid := preload("anim_review_solid.gd")
+const FcAttach := preload("../game/fc_attach.gd")
 
 ## Your own body draws only in the third-person view; the arms only in the first-person one.
 const BODY_LAYER := 1 << 18
@@ -29,11 +30,14 @@ var _views: GSGameVisualQaViews = null
 var _frames: Array[Dictionary] = []
 var _body_metrics := GSClipMetrics.new()
 var _clip_key := ""
+## --fit optic=holo,muzzle=suppressor: the attachments every reviewed gun wears for every clip (it must offer them).
+var _fits := ""
 
 
 ## --team red|blue (or a team id) plays team deathmatch on that side, so the body and the arms are the side's team
 ## body (game/fc_team_bodies.gd); without it the lab is the free-for-all and the player's own look.
 func _before_lab(args: PackedStringArray) -> void:
+	_fits = _arg(args, "--fit", "")
 	var asked := _arg(args, "--team", "")
 	if asked == "":
 		return
@@ -336,6 +340,9 @@ func _inside_weapon(weapon: Node3D, at: Dictionary, sides: Array = [".R", ".L"])
 ## A clip the lab cannot play (no magazine, no sights, no inspect animation) is still a line of the report.
 func _fp_animation(a: String, me, id: StringName, def: GSWeaponDef, wdir: String, other_slot: int) -> Dictionary:
 	var res: Dictionary
+	if _fits != "":
+		await _ensure_in_hand(me, id, def)
+		await _wear_fits(me, id)
 	if AVATAR_ANIMS.has(a):
 		res = await _avatar_clip(a, me, id, def, wdir)
 	elif a == "sprint":
@@ -345,6 +352,20 @@ func _fp_animation(a: String, me, id: StringName, def: GSWeaponDef, wdir: String
 	if res.get("status", "") != "ok":
 		print("ANIMREVIEW " + JSON.stringify({"weapon": str(id), "anim": a, "status": res.get("status", ""), "why": res.get("why", "")}))
 	return res
+
+
+## Fits [member _fits] on the gun in hand through the attachments panel's own request path, and says what the arsenal took.
+func _wear_fits(me, id: StringName) -> void:
+	var slot: int = me.arsenal.current_slot()
+	for pair in _fits.split(","):
+		var kv := pair.split("=")
+		if kv.size() == 2:
+			var _served := FcAttach.serve(me.arsenal, GSNetReader.new(FcAttach.write_request(slot, StringName(kv[0]), StringName(kv[1]))))
+	await _wait(0.3)
+	var on: Array[String] = []
+	for mount: StringName in me.arsenal.fitting_at(slot).mounts():
+		on.append("%s=%s" % [mount, me.arsenal.fitting_at(slot).attachment_on(mount)])
+	print("ANIMREVIEW fitted %s: %s" % [id, ",".join(on)])
 
 
 ## A locomotion clip: the keys held from 0.2 s to 1.6 s of a 2.4 s clip (jump: one press), the yaw turned back each time so

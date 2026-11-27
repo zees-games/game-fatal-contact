@@ -8,6 +8,7 @@ const FcGame := preload("fc_game.gd")
 const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
+const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetContext := preload("fc_net_context.gd")
 
@@ -53,8 +54,9 @@ static func player_count(game: Object) -> int:
 static func begin_fine() -> void:
 	if FcFrameProbe.fine_on_record:
 		FcFrameProbe.fine = true
-		AwWeaponRig.phase_timers = true
-		GSWeaponArsenal.phase_timers = true
+		# Armed, the weapon clocks turn the idle batch off ([member FcFrameProbe.weapon_phases]).
+		AwWeaponRig.phase_timers = FcFrameProbe.weapon_phases
+		GSWeaponArsenal.phase_timers = FcFrameProbe.weapon_phases
 
 
 ## Off again once the recording ended (a read while it runs, for the overlay, leaves them on).
@@ -119,6 +121,7 @@ static func natives() -> Dictionary:
 	out["hull_native"] = FcHullGrid.native
 	out["fc_hull_native"] = "1" if FcHullGrid.native else "0"
 	out["fc_bot_pvs"] = ("native" if FcBotPvs.native and GSSim.has(&"pvs") else "script") if FcBotPvs.enabled else "off"
+	out["fc_spawn_native"] = ("native" if FcSpawnPick.has_kernel() else "batched sight") if FcSpawnPick.native else "off"
 	return out
 
 

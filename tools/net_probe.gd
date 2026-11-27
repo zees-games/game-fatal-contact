@@ -25,6 +25,9 @@ var _port := PORT
 var _data := DATA
 
 var _bots := 8
+## --sections: the server's FcFrameProbe sections per tick (fine level) and SERVER_TICK p50/p95 (sim + send, ms per tick),
+## and the client's STAGES line (predict and each remote-draw stage, ms per client frame; FcFrameProbe.stages_line).
+var _sections := false
 var _seconds := 20.0
 var _budget := -1
 var _pps := -1
@@ -51,6 +54,8 @@ var _control_sent := [0, 0]
 ## --fields: per snapshot, which observer-visible properties changed since the last snapshot (what an in-step watcher is
 ## owed, before interest), summed per property and per behaviour script with its declared size, printed as FIELDS lines.
 var _fields := false
+## --no-skip-hooks: the client calls every remote behaviour's _net_state_applied each snapshot (GSNetConfig.skip_unchanged_state_applied off), the before of that skip.
+var _no_skip_hooks := false
 var _field_last := {}
 var _field_bits := {}
 var _field_count := {}
@@ -84,7 +89,11 @@ func _ready() -> void:
 			"--map": _map_id = args[i + 1]
 			"--port": _port = int(args[i + 1])
 			"--control": _control = int(args[i + 1])
+	if args.has("--no-snapshot-batch"):
+		GSNetSnapshotBatch.enabled = false
 	_fields = args.has("--fields")
+	_sections = args.has("--sections")
+	_no_skip_hooks = args.has("--no-skip-hooks")
 	if _port != PORT:
 		_data = "%s_%d" % [DATA, _port]
 	GSLog.set_level(GSLog.Level.ERROR)
@@ -225,6 +234,8 @@ func _connect_client() -> void:
 		await get_tree().create_timer(0.25).timeout
 		waited += 0.25
 	_cnet = _client.get("net")
+	if _no_skip_hooks and "skip_unchanged_state_applied" in _cnet.config:
+		_cnet.config.skip_unchanged_state_applied = false
 	print("connected after %.1fs, %d players, budget=%d pps=%d" % [
 		waited, -1,
 		_net.config.per_client_budget, _net.config.per_client_packet_rate])
@@ -414,6 +425,12 @@ func _measure_and_report() -> void:
 		net.snapshot_sent.connect(_count_fields)
 	# The client's own sections (arena.net_snapshot is its whole snapshot apply), with a report interval no run reaches.
 	FcFrameProbe.set_interval(1.0e9)
+	FcFrameProbe.fine = _sections
+	if _sections:
+		AwWeaponRig.phase_timers = true
+		GSWeaponArsenal.phase_timers = true
+	var tick_ms := PackedFloat64Array()
+	var tick_last := PackedInt64Array([int(perf0[&"server_sim_usec"]) + int(perf0[&"server_send_usec"]), int(perf0[&"server_ticks"])])
 	var sum_down := 0.0
 	var n_down := 0
 	var t := 0.0
@@ -429,6 +446,8 @@ func _measure_and_report() -> void:
 		worst_frame = maxf(worst_frame, (now - last) / 1000.0)
 		last = now
 		frames += 1
+		if _sections:
+			tick_last = _sample_tick(tick_ms, t, tick_last)
 		t += get_process_delta_time()
 		if t >= next_print:
 			next_print += 1.0
@@ -455,8 +474,15 @@ func _measure_and_report() -> void:
 		(int(perf1[&"server_sim_usec"]) - int(perf0[&"server_sim_usec"])) / 1000.0 / nticks,
 		nticks, net.registry.all().size()])
 	var applied: PackedInt64Array = FcFrameProbe._sections.get(&"net_snapshot", PackedInt64Array([0, 0, 0]))
-	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d" % [
-		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1]])
+	# tracks_only: remote samples live only in gs-sim's interpolator (GSNetConfig.sim_interp_tracks_only took effect).
+	var tracks_only: bool = cnet.interpolator != null and bool(cnet.interpolator.get(&"_native_only"))
+	print("CLIENT net_snapshot_ms=%.3f max=%.3f snapshots=%d tracks_only=%s skip_hooks=%s" % [
+		applied[0] / 1000.0 / maxf(applied[1], 1), applied[2] / 1000.0, applied[1], "on" if tracks_only else "off",
+		cnet.config.get("skip_unchanged_state_applied")])
+	if _sections:
+		print(FcFrameProbe.stages_line(frames, cnet.interpolator))
+		_print_sections(tick_ms)
+		_print_engine()
 	FcFrameProbe.set_interval(0.0)
 	var snaps := maxi(1, int(perf1[&"snap_snapshots"]) - int(perf0[&"snap_snapshots"]))
 	var ph := ""
@@ -470,3 +496,53 @@ func _measure_and_report() -> void:
 	print("PHASES clients=%d native=%s workers=%d ms/snapshot:%s fake_bytes_per_snapshot=%d" % [
 		1 + _fake, net._native_note, net.config.snapshot_workers, ph,
 		int(_fake_sent[1] / maxf(float(snaps) * maxf(_fake, 1), 1.0))])
+
+
+## One process hosts the server and the probe's one real client, so the sections hold both. These are only the client's
+## (the dedicated server never runs them): chasing "physics" or "predict" here cuts nothing from a server's tick.
+const CLIENT_SECTIONS := ["physics", "predict", "present", "bodies", "interpolate", "net_snapshot", "net_event", "w_spectate", "draw", "audio"]
+
+
+func _is_client_section(name: String) -> bool:
+	return name in CLIENT_SECTIONS or name.begins_with("c_") or name.begins_with("r_")
+
+
+## SERVER_TICK percentiles over the per-frame mean tick cost, and every probe section as ms per tick (sum over calls / ticks).
+func _print_sections(tick_ms: PackedFloat64Array) -> void:
+	tick_ms.sort()
+	var n := tick_ms.size()
+	if n > 0:
+		print("SERVER_TICK bots=%d p50=%.2f p95=%.2f max=%.2f samples=%d" % [
+			_bots, tick_ms[n / 2], tick_ms[mini(n - 1, int(n * 0.95))], tick_ms[n - 1], n])
+	var perf: Dictionary = _net.perf_counters()
+	var ticks := maxi(1, int(perf[&"server_ticks"]))
+	var rows: Array = []
+	for k in FcFrameProbe._sections:
+		var row: PackedInt64Array = FcFrameProbe._sections[k]
+		rows.append([String(k), row[0] / 1000.0 / ticks, row[1] / float(ticks)])
+	rows.sort_custom(func(a, b): return a[1] > b[1])
+	for r in rows:
+		print("SECTION %-22s %7.3f ms/tick %6.2f calls/tick%s" % [r[0], r[1], r[2], "  [probe's client]" if _is_client_section(r[0]) else ""])
+	for w in [["pw_", AwWeaponRig], ["pa_", GSWeaponArsenal]]:
+		var names: Array = (w[1] as GDScript).get(&"PHASES")
+		var us: PackedInt64Array = (w[1] as GDScript).get(&"phase_us")
+		for i in names.size():
+			print("PHASE %s%-20s %7.3f ms/tick" % [w[0], names[i], us[i] / 1000.0 / ticks])
+	print("PHASE_CALLS idle=%d full=%d" % [AwWeaponRig.phase_calls[0], AwWeaponRig.phase_calls[1]])
+
+## Godot's own physics step and tree, which no FcFrameProbe section sees (last frame's values; the client's bodies included).
+func _print_engine() -> void:
+	print("ENGINE physics_process_ms=%.3f process_ms=%.3f active3d=%d pairs3d=%d islands3d=%d nodes=%d" % [
+		Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0, Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+		int(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS)), int(Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS)),
+		int(Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT)), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
+
+
+## One frame's mean server tick cost (sim + send) into [param tick_ms], after 2 s of warm-up; returns [cost usec, ticks] to pass next frame.
+func _sample_tick(tick_ms: PackedFloat64Array, t: float, last: PackedInt64Array) -> PackedInt64Array:
+	var pc: Dictionary = _net.perf_counters()
+	var cost := int(pc[&"server_sim_usec"]) + int(pc[&"server_send_usec"])
+	var ticks := int(pc[&"server_ticks"])
+	if ticks > last[1] and t > 2.0:
+		tick_ms.append((cost - last[0]) / 1000.0 / (ticks - last[1]))
+	return PackedInt64Array([cost, ticks])

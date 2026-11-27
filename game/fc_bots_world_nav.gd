@@ -14,6 +14,11 @@ class NavWorld:
 
 	var game: Object = null
 	var brains: Dictionary = {}
+	## The live contacts filed by cell of [member FcBots.think_near] metres (key -> contacts), for [method FcBots._nobody_near]; empty cell size: not built.
+	var near_cells: Dictionary = {}
+	var near_cell: float = 0.0
+	## [member FcBots.think_near], set by the thinking bot before [method refresh].
+	var near_reach: float = 0.0
 	var _tick: int = -1
 	## The drop list of [member _drops_tick]: drops lie still while the brains of a tick think, and every brain asks.
 	var _drops_held: Array = []
@@ -26,6 +31,9 @@ class NavWorld:
 	## it is for. See [method _nav_for_map].
 	var _nav: GSBotNav = null
 	var _nav_map: Object = null
+	## The map's nav source holder ([code]FcMapImported.nav_source[/code]) while [member _nav]
+	## parses it: the parse is sliced over frames, so it is freed once the bake reports back.
+	var _nav_source: Object = null
 	## The map's ride edges ([code]fc_surf.gd[/code]), once its mesh has landed and if it has
 	## a surf cache; and whether that was looked for on this mesh.
 	var _surf: RefCounted = null
@@ -42,6 +50,9 @@ class NavWorld:
 	var _joining := false
 	var _join_frame := -1
 	const JOIN_SLICE_USEC := 6000
+	## The link pass after the edge search, a stage a frame: 0 while the search runs, then ledge climbs, roam points, ladders.
+	## The last join slice and the whole pass together were one 40 ms server tick, and the pass alone 21 ms.
+	var _link_stage := 0
 	## Parallel think (cvar `bot_threads`, FcBotThreads): while true, brains on worker threads ask this world, whose
 	## sight and wall rays then use queries of their own on [member _par_space] and whose other answers take [member _par_lock].
 	var par: bool = false
@@ -53,11 +64,31 @@ class NavWorld:
 	var _ray_lock := Mutex.new()
 	## Any player's arsenal, taken on the main thread (walking the roster is not for a worker).
 	var _par_arsenal: Array = [null]
+	## Player id -> projectile speed, written by par_begin on the main thread, read lock-free by workers.
+	var _par_proj_speed: Dictionary = {}
 	## The trace's ray observer (dropped weapons nudged by a shot) is called on the main thread: a worker's wall
 	## rays are logged per job and replayed in job order by [method par_end].
 	var _par_observe: bool = false
 	var _par_job: Dictionary = {}
 	var _par_rays: Dictionary = {}
+
+	static func near_key(x: float, z: float, cell: float) -> int:
+		return (int(floorf(x / cell)) + 4096) * 8192 + int(floorf(z / cell)) + 4096
+
+	## Files the live [param contacts] into [member near_cells]; built only with [param grid] on and above 16 contacts.
+	func _near_refresh(contacts: Array, grid: bool) -> void:
+		near_cells.clear()
+		near_cell = 0.0
+		if grid and near_reach > 0.0 and contacts.size() > 16:
+			near_cell = near_reach
+			for c: GSBotContact in contacts:
+				if c.alive:
+					var k := near_key(c.position.x, c.position.z, near_cell)
+					var cell: Variant = near_cells.get(k)
+					if cell == null:
+						near_cells[k] = [c]
+					else:
+						(cell as Array).append(c)
 
 	func par_end() -> void:
 		par = false
@@ -181,12 +212,17 @@ class NavWorld:
 			return _surf if nav.is_ready() else null
 		if not _joining and not nav.is_ready():
 			return null
-		if not _join_sliced(nav):
+		if _link_stage == 0:
+			if not _join_sliced(nav):
+				return null
+			_link_stage = 1
+		# Asked again in the frame of the last join slice or link stage (bots ask more than once a frame): still not yet.
+		if _join_frame == Engine.get_process_frames():
+			return null
+		_join_frame = Engine.get_process_frames()
+		if not _link_step(nav):
 			return null
 		_surf_looked = true
-		var t_link := Time.get_ticks_usec()
-		_link_ladders(nav)
-		FcFrameProbe.add(&"bot_nav_links", t_link)
 		if GSAddonApi.build_level("gs_bot") < 4 or GSAddonApi.build_level("gs_player_controller") < 3:
 			return null
 		var t_surf := Time.get_ticks_usec()
@@ -222,18 +258,32 @@ class NavWorld:
 			n += 1 if l.has("from") else 0
 		return n
 
+	## Runs link stage [member _link_stage] on [param nav]; true once the last one (the ladders) is done.
+	func _link_step(nav: GSBotNav) -> bool:
+		var t_stage := Time.get_ticks_usec()
+		if _link_stage == 1:
+			_ladders = null
+			ladder_fn = Callable()
+			# Drops off the rims and hops over gaps join a spawn island the plain bake leaves cut off.
+			if join_edges and GSAddonApi.build_level("gs_bot") >= 12:
+				if _edges == null:
+					_edges = GSBotLinks.new()
+					_edges.join(nav)
+				_climb_back_ledges(nav)
+			FcFrameProbe.add(&"bot_nav_ledges", t_stage)
+		elif _link_stage == 2:
+			if GSAddonApi.build_level("gs_bot") >= 13:
+				extra_waypoints = nav.spread_points(ROAM_PLACES, GSRandomStream.new(7919, &"roam"))
+			FcFrameProbe.add(&"bot_nav_roam", t_stage)
+		else:
+			_link_ladders(nav)
+			FcFrameProbe.add(&"bot_nav_ladders", t_stage)
+			return true
+		_link_stage += 1
+		return false
+
 	## Joins the imported map's ladders into [param nav] as one-way climbs and hands the brain their geometry (gs-bot 10).
 	func _link_ladders(nav: GSBotNav) -> void:
-		_ladders = null
-		ladder_fn = Callable()
-		# Drops off the rims and hops over gaps join a spawn island the plain bake leaves cut off.
-		if join_edges and GSAddonApi.build_level("gs_bot") >= 12:
-			if _edges == null:
-				_edges = GSBotLinks.new()
-				_edges.join(nav)
-			_climb_back_ledges(nav)
-		if GSAddonApi.build_level("gs_bot") >= 13:
-			extra_waypoints = nav.spread_points(ROAM_PLACES, GSRandomStream.new(7919, &"roam"))
 		var mechanics: Variant = (game.get("map") as Object).get("mechanics")
 		if GSAddonApi.build_level("gs_bot") < 10 or not (mechanics is Object) or (mechanics as Object).get("ladders").is_empty():
 			return
@@ -319,6 +369,7 @@ class NavWorld:
 			return null
 		if _nav != null:
 			_nav.clear()
+		_free_nav_source(_nav_source)
 		_nav = GSBotNav.new()
 		_nav_map = map
 		_surf = null
@@ -326,14 +377,27 @@ class NavWorld:
 		_ladders = null
 		_edges = null
 		_joining = false
+		_link_stage = 0
 		var body := _body_tunables()
 		var source: Node3D = (map as Object).call(&"nav_source") if (map as Object).has_method(&"nav_source") else null
-		var started := _nav.bake_in_background(source if source != null else root as Node3D, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height})
-		if source != null:
-			source.free()
+		# gs-bot parses the source over the next frames, so it lives until the bake reports back.
+		_nav_source = source
+		var started := _nav.bake_in_background(source if source != null else root as Node3D, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height}, 0, [], _on_nav_baked.bind(source))
 		if not started.ok:
+			_free_nav_source(source)
 			GSLog.warn(CHANNEL, "bots cannot route on this map", {"map": str((map as Object).get("id")), "error": started.error.message})
 		return _nav
+
+	## The bake's [code]done[/code]: its parse is over, so the source it read can go.
+	func _on_nav_baked(_result: GSResult, source: Variant) -> void:
+		_free_nav_source(source)
+
+	## Untyped: the holder may already be freed (a map change frees the map under it).
+	func _free_nav_source(source: Variant) -> void:
+		if is_instance_valid(source):
+			(source as Object).free()
+		if is_same(_nav_source, source):
+			_nav_source = null
 
 	func walkable_near(at: Vector3) -> Vector3:
 		if par:

@@ -170,6 +170,23 @@ func _write(source: Node, letter: String, head_only: bool, scale: float) -> int:
 	if saved != OK:
 		printerr("could not write %s" % path)
 		return 1
+	return _relative_textures(path)
+
+
+## Rewrites the saved scene's Kenney texture paths relative to the scene.
+##
+## ResourceSaver writes `res://avatars/kenney/...`, and a pack mounted under
+## `res://gs_cloud/<owner>/<repo>/<version>/` does not rewrite that, so the web
+## build failed with "No loader found" for texture-e.png. `kenney/...` resolves
+## against the scene's own folder wherever the pack is mounted.
+func _relative_textures(path: String) -> int:
+	var text := FileAccess.get_file_as_string(path)
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		printerr("could not rewrite %s" % path)
+		return 1
+	f.store_string(text.replace('path="%s/' % KENNEY_DIR, 'path="kenney/'))
+	f.close()
 	return 0
 
 

@@ -34,6 +34,7 @@ func _ready() -> void:
 	_check(own_count > 0 and FcContent.weapons().size() == own_count, "catalogue is the own pack's alone: %d" % own_count)
 	_check_groups(false)
 	_check_carry_mask()
+	_check_carry_parity()
 
 	for dir in ["zz_modern_weapons", "fc_weapons"]:
 		if not ResourceLoader.exists("res://addons/%s/spawn_provider.gd" % dir):
@@ -71,13 +72,7 @@ func _ready() -> void:
 ## `FcContent.carry_mask` (one pass over the carried weapons) against the one `carries` per wire id it replaced, empty, held
 ## and with a weapon stowed behind another in its slot.
 func _check_carry_mask() -> void:
-	var arsenal := GSWeaponArsenal.new()
-	arsenal.max_slots = FcPlayer.MAX_SLOTS
-	arsenal.catalogue = FcPlayer.weapon_catalogue()
-	arsenal.carry = GSWeaponCarry.new()
-	arsenal.carry.slot_capacity = 3
-	add_child(arsenal)
-	var _set := arsenal.setup()
+	var arsenal := _carry_arsenal()
 	var ids := Roles.wire_ids()
 	var by_slot: Dictionary = {}
 	for i in range(FcContent.carry_bits()):
@@ -96,6 +91,70 @@ func _check_carry_mask() -> void:
 	_check(same and stowed and FcContent.carry_mask(arsenal) != 0,
 		"carry_mask matches one carries() per wire id, a weapon stowed: %d" % FcContent.carry_mask(arsenal))
 	arsenal.free()
+
+
+func _carry_arsenal() -> GSWeaponArsenal:
+	var arsenal := GSWeaponArsenal.new()
+	arsenal.max_slots = FcPlayer.MAX_SLOTS
+	arsenal.catalogue = FcPlayer.weapon_catalogue()
+	arsenal.carry = GSWeaponCarry.new()
+	arsenal.carry.slot_capacity = 3
+	add_child(arsenal)
+	var _set := arsenal.setup()
+	return arsenal
+
+
+## `FcContent.apply_carry_memo` with `carry_fast` (the one-pass check and the revision memo) against the full
+## two-pass `apply_carry`, over a seeded run of masks (half of them repeats, as a client sees frame to frame)
+## with gives and takes between them that the memo must notice: the same return and the same carry every step.
+func _check_carry_parity() -> void:
+	var fast := _carry_arsenal()
+	var full := _carry_arsenal()
+	var ids := Roles.wire_ids()
+	var bits := FcContent.carry_bits()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 2026_11_26
+	var memo: Array = []
+	var mask := 0
+	var steps := 600
+	var mismatches := 0
+	var repeats := 0
+	var changes := 0
+	for step in range(steps):
+		var roll := rng.randf()
+		if roll < 0.12 and bits > 0:
+			var id: StringName = ids[rng.randi_range(0, bits - 1)]
+			var _a := fast.give(id)
+			var _b := full.give(id)
+			continue
+		if roll < 0.2:
+			var slot := rng.randi_range(0, FcPlayer.MAX_SLOTS - 1)
+			var _a := fast.take(slot)
+			var _b := full.take(slot)
+			continue
+		if roll < 0.6:
+			mask = 0
+			for i in range(bits):
+				if rng.randf() < 0.3:
+					mask |= 1 << i
+		else:
+			repeats += 1
+		FcContent.carry_fast = true
+		var got := FcContent.apply_carry_memo(fast, mask, memo)
+		FcContent.carry_fast = false
+		var want := FcContent.apply_carry(full, mask)
+		FcContent.carry_fast = true
+		changes += want
+		if got != want or FcContent.carry_mask(fast) != FcContent.carry_mask(full):
+			mismatches += 1
+			if mismatches <= 3:
+				print("  carry step %d mask %d: fast %d -> %d, full %d -> %d" % [step, mask, got,
+					FcContent.carry_mask(fast), want, FcContent.carry_mask(full)])
+	_check(mismatches == 0 and repeats > 50 and changes > 50,
+		"apply_carry fast and memo match the full pass over %d steps (%d repeats, %d changes, %d mismatches)"
+		% [steps, repeats, changes, mismatches])
+	fast.free()
+	full.free()
 
 
 ## The download groups the server announces for fc-weapons (`FcModule.addon_groups`): exactly the catalogue's, or everything

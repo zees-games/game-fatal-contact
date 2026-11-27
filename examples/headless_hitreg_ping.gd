@@ -548,21 +548,22 @@ func _ease_vector(net: GSNetManager, bridge: FcNetBridge, render_tick: float) ->
 	if behaviour == null or behaviour.identity == null:
 		return Vector3.ZERO
 	var net_id: int = behaviour.identity.net_id
-	var track: Variant = net.interpolator._tracks.get(net_id)
-	if track == null:
-		return Vector3.ZERO
 	if net.interpolator.is_native():
 		# gs-sim's GSSimInterpolator draws the whole frame, ease included, and keeps its offsets to itself: the GDScript track's offsets stay empty. The ease is how far the drawn position is
 		# off the blend of the same snapshots at the same tick, or off the line through the two newest past them (a new newest sample eases out of the old line, GSNetInterpolator._ease_resume).
-		if track.samples.size() < 2:
+		var samples: Array = net.interpolator.track_samples(net_id)
+		if samples.size() < 2:
 			return Vector3.ZERO
 		var blend: Variant = net.interpolator.value_at(net_id, &"net_position", render_tick)
-		if render_tick >= float(track.newest_tick()):
-			var last: int = track.samples.size() - 1
-			blend = net.interpolator._continue(track.samples[last], track.samples[last - 1], render_tick).get(&"net_position")
+		var last: int = samples.size() - 1
+		if render_tick >= float(samples[last]["tick"]):
+			blend = net.interpolator._continue(samples[last], samples[last - 1], render_tick).get(&"net_position")
 		var drawn: Variant = behaviour.get(&"net_position")
 		if blend is Vector3 and drawn is Vector3:
 			return (drawn as Vector3) - (blend as Vector3)
+		return Vector3.ZERO
+	var track: Variant = net.interpolator._tracks.get(net_id)
+	if track == null:
 		return Vector3.ZERO
 	var most := Vector3.ZERO
 	for property: Variant in track.offsets:

@@ -239,6 +239,8 @@ func _on_killview(clip: Dictionary, info: Dictionary) -> void:
 	var weapon := String(info.get("weapon", ""))
 	var def: GSWeaponDef = FcPlayer.weapon_catalogue().get_def(StringName(weapon)) if weapon != "" else null
 	shown["weapon"] = def.display_name if def != null and def.display_name != "" else weapon.capitalize()
+	# Stamped before the play, so its watch holds the frame the play's own setup lands in.
+	FcLoadTimeline.first_use("killview")
 	var _started := killview.play(clip, shown)
 
 ## Where a roster row's player stands, for gs-game's look-to-gag key (J, K).
@@ -458,6 +460,7 @@ func _note_hit_direction(damage: GSDamage) -> void:
 func _on_local_died(_damage: GSDamage) -> void:
 	if presentation == null or player == null:
 		return
+	FcLoadTimeline.first_use("death")
 	var where := Transform3D.IDENTITY
 	where.origin = player.global_position
 	presentation.on_died(where)

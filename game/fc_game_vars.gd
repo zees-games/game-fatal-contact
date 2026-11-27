@@ -91,13 +91,24 @@ var _hull_world_data := PackedFloat64Array()
 var _motor_batch: GSFpsMotorBatch = null
 var _batch_rows := PackedInt32Array()
 var _batch_pairs: Array = []
+## The batched loop's motor edges for every player ([member FcHullGrid.events]): one row per player's tick, derived and dispatched after the loop.
+var _tick_events := GSFpsTickEvents.new()
 ## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its
 ## `GSSimPlayerPost`, the input rows (10 floats each) and each one's player, id and move command.
 var _post_native: Object = null
+## Which batched players are clear of the map's volumes this tick (cvar fc_mechanics_native).
+var _volume_pre := preload("fc_volume_prefilter.gd").new()
 var _post_in := PackedFloat64Array()
 var _post_players: Array = []
 var _post_ids := PackedInt64Array()
 var _post_moves: Array = []
+## The idle weapons' batch ([member FcPlayer.weapon_idle_batch]): gs-sim's runner, its flat entries, each entry's player
+## and each posted player's outcome.
+var _idle_batch: Object = null
+var _idle_entries: Array = []
+var _idle_owners: Array = []
+var _idle_outs: Array = []
+var _demo_gated := false
 
 
 ## Rebuilds [member _roster] (the players in join order, and their ids) after a join or a leave.

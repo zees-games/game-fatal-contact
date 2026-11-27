@@ -148,6 +148,16 @@ The web client holds the cover only for the weapon models somebody in the match 
 5. The files are in `%APPDATA%\game-fatal-contact\profiles` (Linux: `~/.local/share/game-fatal-contact/profiles`; a build from before 2026-11-13 wrote to `...\Godot\app_userdata\game-fatal-contact\profiles`): `<stamp>.json` (send this one), `.txt` (readable) and `.folded` (flame graph).
 6. Compare two runs with `profiler_compare a.json b.json`.
 
+#### The 16v16 client run in one command (Windows)
+
+The owner's reference profile is a pure client of a sim host (`bots_hosted 0`, 32 players) on cp-orange-x3. From the gs-bootstrap checkout:
+
+```powershell
+.\bootstrap.ps1 -PlayExport arena -PlayArgs "--map cp-orange-x3 --mode ffa --bots 31 +bot_quota 32 +profiler_capture_seconds 30"
+```
+
+A launched game is hosted unless `--sim_host 0`, so the bots live in the server child and this process is only the client. Press F10 once you have spawned. The `.json` lands in `%APPDATA%\game-fatal-contact\profiles`. Its context line should read `players=32, bots=31, bots_hosted=0`. The same run on staging02 is `tools/perf_bench.sh --release -- --map cp-orange-x3 --mode ffa --bots 31 --pilot-view sweep --sim-host 1`. Without `--sim-host 1` the bench hosts the bots in its own process, and that does not reproduce the client's draw counts.
+
 Every report's `context` names the machine, GPU and driver, the build's commit and each addon's, the launch arguments, every console variable and which were changed, map, mode, players and bots, the sound driver, and whether the gs-sim natives loaded, so a file needs no covering note. `arena.audio` in the system table is the game thread's share of sound (starting and reaping voices), not the mix thread. `--no-profiler` on the command line removes the profiler for an A/B. In a release build `profiler_script_top` has nothing to show (the engine keeps per-function script times only under the debugger); the system table, frame times and spikes are the same.
 
 ## Fuzz sweep
@@ -159,6 +169,38 @@ Every report's `context` names the machine, GPU and driver, the build's commit a
 `tools/perf_budget.sh [--maps a,b,c] [--runs 3] [--seconds 20] [--tolerance 0.10] [--update] [--post]` plays each map (default `dm_atrium`, `dm_pit`, `surf_adverse`) three times on the GPU box through `../gpu.sh run` and `tools/client_bench.tscn --json` (the real client, a dedicated server with three bots, a 20 ms relay each way, a scripted player). Per run it records frame p50/p95/p99, the worst frame (`stall_ms`, either side of the loading cover dropping), seconds until the cover drops (`load_s`), peak resident memory (`rss_mb`, VmHWM) and, from the tree, `pack_mb` (the map's imported folder plus its lightmap). The median of the runs is compared with `tests/perf_budget.json`: a metric fails past baseline times `1 + tolerance` (and past the metric's absolute slack, so a 0.3 ms wobble on a 5 ms frame is not a regression) or past its absolute cap. A baseline recorded on another GPU is refused (exit 3), never compared; `--update` records the medians (and the GPU) as the new baseline, after you have looked at them. Exit 0 pass, 1 regression, 2 a run failed. The result with every run and the noise (spread over median, per metric) is `.godot/perf/<timestamp>.json`.
 
 The numbers are only comparable on the same box at the same resolution, so the baseline is the GTX 1660 Ti laptop (`staging`, the typical player); `GPU_BOX=staging02` is a different card and is refused. The box's lock is exclusive: nothing else runs beside a measurement. Nightly it is the `Perf budget` schedule of the nightly panel (03:30), which posts to `/qa` with kind `perf`; see the nightly README.
+
+## Client perf gate
+
+`tools/perf_gate.sh` exists so that a client frame regression fails a check instead of being noticed weeks later in an owner profile. Between Nov 15 and Nov 25 the 32-player frame went from 96 to 65 fps, with three times the objects drawn, and nothing failed. The gate runs the 32-player benchmark (`tools/perf_bench.sh`) three times in one fixed scenario: cp-orange-x3 ffa, 31 bots, the local sim host, seed 1, the seeded pilot with a fixed camera (`--pilot-view fixed`), 20 s of warm-up, then 60 s recorded at 1152x650. It takes the median of each metric and compares it with the baseline in `ci/perf/client_gate_<tier>.json`.
+
+| Tier | Command | Box | Measures |
+| --- | --- | --- | --- |
+| headless (default) | `tools/perf_gate.sh` | PH, in a shared suite slot through `hv` (`GPU_BOX=ph`) | frame p50/p95/p99, script and physics ms, the spans `present`, `net_snapshot`, `predict`, `pf_nodes`, `pf_tail`, node and object counts |
+| windowed | `tools/perf_gate.sh --tier windowed` | staging02 (Xorg, one GPU job under gpu.sh's lock) | the same plus render ms, objects drawn, draw calls and primitives |
+
+Run it as gamedev from a checkout. Each run is 80 s of bench plus the upload and the wait for a box, so three runs take 10 to 30 minutes. That is too slow for pre-push, so run it before a tag or after any change to presentation, LOD or the scene tree. Do not edit the checkout while it runs: gpu.sh uploads the tree for every run and starts the upload again when the tree changes under it. A run that never produced a report (a failed upload, a lost box) is retried, up to twice the runs asked for. The headless tier shares PH with other suites, so its ms metrics carry some noise; the counts do not. The windowed tier waits for staging02's exclusive GPU lock. What fails:
+
+| Metric kind | Fails when the median grows by more than |
+| --- | --- |
+| counts (`*_count`: nodes, objects, objects drawn, draw calls, primitives; per-run p50) | 5%, or the baseline's own spread if that is larger |
+| times (`*_ms`) | 10%, or the baseline's own spread across its runs if that is larger, and by more than 0.1 ms in absolute terms |
+
+The counts are the strong signal: they do not depend on how busy the box is. Node and object counts hold within a few percent from run to run. With the fixed camera the windowed draw counts hold too. Over three runs on staging02 the spread was 7.5% for draw calls, 8.2% for objects drawn and 2.1% for primitives; under the following pilot's camera it was 82%, 53% and 164%. About one run in five still draws far more (about 1000 calls instead of 630) because the bots' fight is not deterministic. The gate takes a median of at least three runs, so one such run does not fail it. A baseline must not include one; move its log out of the directory before `--update --logs`. The headless times swing 20 to 75% between runs because neighbouring suites share the PH slot, so a headless ms limit only catches a large regression. Use the windowed tier's times, which hold within about 7 to 25% (predict up to 40%), for anything finer. The limits are stored in the baseline file (`limits`), so you can tighten them there. Exit codes: 0 pass, 1 regression, 2 a run or log is missing, 3 not comparable. Exit 3 covers a baseline from another GPU or scenario, and an inert run in which nobody fought. Logs go to `/home/gamedev/perf-bench/gate/<time>-<tier>-<checkout>/`. To compare existing logs again without running anything, use `--logs DIR`.
+
+**Updating the baseline on purpose.** A change that is meant to cost more, a new scenario or a new box is a new baseline, never a widened limit:
+
+1. Run `tools/perf_gate.sh [--tier windowed] --update --note "why"` on the commit that should become the reference.
+2. Read the printed medians and spreads. A spread above about 5% on a count means the scenario is not deterministic enough; find out why before you commit.
+3. Commit `ci/perf/client_gate_<tier>.json` with the reason in the message.
+
+`--update` keeps the file's `limits` and records which logs it came from.
+
+### Before a tag
+
+Run `tools/pre_tag.sh` as gamedev before `git tag` on this repository. It runs gs-ci's `scripts/pre-tag.sh` (the pack the tag would build, with `check-pack-static.py` and `server-compat.sh` strict) and then `tools/perf_gate.sh --tier windowed`. It exits with the first failing gate's code: for the perf gate, 1 is a regression and 3 is a baseline to re-take on purpose (see above). It takes 20 to 40 minutes, most of it the wait for staging02's GPU lock. `--no-pack` or `--no-perf` runs one gate alone, and arguments after `--` go to `perf_gate.sh`. gs-ci's `pre-tag.sh` does not call it yet: that is left on the `client-perf-gate-1` item on Nightly.
+
+**The fixed camera.** `--pilot-view fixed` keeps the seeded pilot playing (its prediction, fire and hits stay in the frame), but a node with the highest process priority (`ClientBench.FixedView`) puts its camera at each of the map's spawn points in turn. It holds each spot for an equal share of the recorded seconds and makes one full turn there, starting from a fixed yaw, so every run sees the same views. The pilot's own camera followed the fight, and two runs differed in draw calls by 2x.
 
 ## headless_ctf
 

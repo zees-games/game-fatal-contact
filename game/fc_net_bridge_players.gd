@@ -162,13 +162,11 @@ func _trace_feet(other_id: int, mover: FcPlayerNet, tick: int, lag: float, at: V
 			var p: Variant = game.unlag_position_at(other_id, float(k))
 			near += " %d:%s" % [k, ("%.3f" % (p as Vector3).x) if p is Vector3 else "-"]
 	elif other.identity != null:
-		var track: Variant = (net.interpolator.get(&"_tracks") as Dictionary).get(other.identity.net_id)
-		newest = track.newest_tick() if track != null else -1
-		if track != null:
-			for sample: Dictionary in track.samples:
-				if absi(int(sample["tick"]) - view) <= 4:
-					var p: Variant = (sample["values"] as Dictionary).get(&"net_position")
-					near += " %d:%s" % [int(sample["tick"]), ("%.3f" % (p as Vector3).x) if p is Vector3 else "-"]
+		newest = net.interpolator.newest_tick(other.identity.net_id)
+		for sample: Dictionary in net.interpolator.track_samples(other.identity.net_id):
+			if absi(int(sample["tick"]) - view) <= 4:
+				var p: Variant = (sample["values"] as Dictionary).get(&"net_position")
+				near += " %d:%s" % [int(sample["tick"]), ("%.3f" % (p as Vector3).x) if p is Vector3 else "-"]
 	print("SOLIDTRACE %s t=%d mover=%d other=%d lag=%.2f raw=%.2f null=%d feet=%.3f,%.3f,%.3f mover_at=%.3f,%.3f,%.3f newest=%d near=%s" % [
 		"S" if net.is_server else "C", tick, mover.player.player_id, other_id, lag, mover.last_view_lag,
 		1 if at == null else 0, feet.x, feet.y, feet.z, from.x, from.y, from.z, newest, near])
@@ -299,6 +297,7 @@ func _commands() -> Dictionary:
 	# A bot's commands are made here, in the slot a client's input lands in, so the game
 	# ticks it exactly as it ticks a person. It sees the present, so no view lag.
 	var t_lap := FcFrameProbe.lap_start()
+	var t_part := FcBotThreads.phase_start()
 	var driven: Array = []
 	var players: Array = []
 	var minds: Array = []
@@ -310,7 +309,9 @@ func _commands() -> Dictionary:
 		players.append(behaviour.player)
 		minds.append(_bot_minds[session_id])
 	# bot_threads: every brain decides at once on worker threads; 0 thinks one bot after another.
+	t_part = FcBotThreads.phase(FcBotThreads.SB_GATHER, t_part)
 	var made_all: Array = FcBotThreads.think_all(game, players, minds, _tick, float(game.tick_rate)) if FcBotThreads.active(players.size()) else []
+	t_part = FcBotThreads.phase_start()
 	for i in driven.size():
 		var behaviour: FcPlayerNet = driven[i]
 		var made: Array = made_all[i] if not made_all.is_empty() else FcBots.think(game, players[i], minds[i], _tick, float(game.tick_rate))
@@ -319,6 +320,8 @@ func _commands() -> Dictionary:
 		behaviour.last_view_lag = -1.0
 		behaviour.last_view_back = -1
 		behaviour.last_view_tick = -1
+	# The serial path's thinks are in this loop too: sb_apply is the apply alone only under bot_threads.
+	FcBotThreads.phase(FcBotThreads.SB_APPLY, t_part)
 	t_lap = FcFrameProbe.lap(&"bc_bots", t_lap)
 
 	for session_id in _behaviours:

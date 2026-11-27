@@ -2,21 +2,22 @@ extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcBotThreads := preload("../game/fc_bot_threads.gd")
+const FcBotRows := preload("../game/fc_bot_rows.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
 
-## `bot_threads`: the bots' brains on worker threads play exactly what they play on one. The same
-## 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8; every bot's position,
-## view, health and commands, hashed every few ticks, are identical in all of them.
+## `bot_threads`: 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8 with
+## bot_native_think's reused command pair off; every bot's position, view, health and commands,
+## hashed every few ticks, are identical in all of them.
 
 const TICK_RATE := 33
 const BOTS := 24
 const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
-const SECTIONS := 4
-const CHECKS := 18
+const SECTIONS := 5
+const CHECKS := 23
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -51,6 +52,11 @@ func _run() -> void:
 		_check(digests[i] == digests[0], "bot_threads %d plays the match thread 0 plays (%d kills)" % [THREADS[i], kills[i]])
 	_check(parallel[2] > 100 and parallel[3] > 100 and parallel[4] > 100, "the brains really ran through the parallel path (%d, %d, %d ticks)" % [parallel[2], parallel[3], parallel[4]])
 	_check(parallel[0] == 0, "and bot_threads 0 never did")
+	await _switches_play_the_same(digests[0])
+	_done()
+
+	_section("the brain profile (--brain-us) times brains on bot threads")
+	await _brain_phases_threaded(digests[0])
 	_done()
 
 	_section("an imported map, sight through the physics space")
@@ -97,6 +103,30 @@ func _run() -> void:
 	await _older_api()
 	_done()
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
+
+
+## The native switches off play the match they play on: bot_native_think's script contacts, commands and tricks;
+## bot_native_pickup's, bot_native_act's, bot_native_drops's and bot_native_unstick's script pickup choice, steer, drop table and stuck watch.
+func _switches_play_the_same(native: PackedStringArray) -> void:
+	# bot_native_think 0: gs-bot packs the contacts, new commands every tick, tricks in script; the same match to the digest.
+	FcBotRows.set_native_think(false)
+	var fresh := await _play(0)
+	FcBotRows.set_native_think(true)
+	_check(fresh[0] == native, "bot_native_think 0 (script contacts, new commands, script tricks) plays the match its reused pair plays (%d kills)" % fresh[1])
+	# bot_native_pickup 0, bot_native_act 0, bot_native_drops 0 and bot_native_unstick 0 (gs-bot 46/47/49/50, by name): the pickup choice, the
+	# steer, the drop table and the stuck watch in script, on
+	# workers; the same match to the digest (an older gs-bot has neither switch and plays it anyway).
+	var brain := GSBotBrain as Script
+	brain.set(&"native_pickup", false)
+	brain.set(&"native_act", false)
+	(GSBotWorld as Script).set(&"native_drops", false)
+	(GSBotUnstick as Script).set(&"native_enabled", false)
+	var scripted := await _play(4)
+	brain.set(&"native_pickup", true)
+	brain.set(&"native_act", true)
+	(GSBotWorld as Script).set(&"native_drops", true)
+	(GSBotUnstick as Script).set(&"native_enabled", true)
+	_check(scripted[0] == native, "bot_native_pickup 0, bot_native_act 0, bot_native_drops 0 and bot_native_unstick 0 (script pickup, steer, drop table and stuck watch) play the native match (%d kills)" % scripted[1])
 
 
 func _section(title: String) -> void:
@@ -229,3 +259,40 @@ static func _sum(counts: Dictionary) -> int:
 	for k: Variant in counts:
 		total += int(counts[k])
 	return total
+
+
+## gs-bot 40: with bot_threads 4 the brains' phases (bb_*) and world queries (bq_*) are timed on the workers and
+## merged after the join, where they read 0 before; and timing changes nothing the bots do. By name: older gs-bot has neither.
+func _brain_phases_threaded(match_digests: PackedStringArray) -> void:
+	if not FcBots.brain_merge:
+		for i in 3:
+			_check(true, "(skipped: gs-bot %d has no threaded brain timers)" % GSAddonApi.build_level("gs_bot"))
+		return
+	var brain: GDScript = GSBotBrain
+	var us: PackedInt64Array = brain.get(&"phase_us")
+	var calls: PackedInt64Array = brain.get(&"phase_calls")
+	us.fill(0)
+	calls.fill(0)
+	brain.set(&"phase_us", us)
+	brain.set(&"phase_calls", calls)
+	brain.set(&"phase_timers", true)
+	var played := await _play(4)
+	brain.set(&"phase_timers", false)
+	var names: Array = brain.get(&"PHASES")
+	us = brain.get(&"phase_us")
+	calls = brain.get(&"phase_calls")
+	var bb := 0
+	var bq := 0
+	for i in names.size():
+		if String(names[i]).begins_with("bb_"):
+			bb += us[i]
+		else:
+			bq += calls[i]
+	var thinks := calls[0]
+	us.fill(0)
+	calls.fill(0)
+	brain.set(&"phase_us", us)
+	brain.set(&"phase_calls", calls)
+	_check(played[2] > 100, "the profiled match ran through the parallel path (%d ticks)" % played[2])
+	_check(bb > 0 and thinks > 0, "its brain phases are non-zero (%d us over %d thinks)" % [bb, thinks])
+	_check(bq > 0 and played[0] == match_digests, "its world queries were counted (%d), and the timed match is the untimed one" % bq)

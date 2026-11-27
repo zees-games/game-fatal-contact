@@ -48,6 +48,10 @@ static var _ids_generation := -1
 ## [method aux_of_tick]'s readings for the physics tick [member _tick_frame], by instance id.
 static var _tick_aux: Dictionary = {}
 static var _tick_frame := -1
+## Whether anything has read [member _tick_aux] (a client drawing the killcam bodies): until then the kill view's record keeps no copies.
+static var _tick_read := false
+## The floats [method fill_aux] writes in place, one player at a time: read it before the next fill, copy it to keep it.
+static var aux_buf := PackedFloat32Array()
 
 
 ## Marks [param cam] as showing a replay (the kill view or final killcam) while the view draws it.
@@ -108,58 +112,80 @@ static func aux_of(p: Object, size: int = GSKillViewRing.AUX) -> PackedFloat32Ar
 static func aux_of_tick(p: Object, size: int = GSKillViewRing.AUX, fresh := false) -> PackedFloat32Array:
 	if p == null or size != SIZE:
 		return aux_of(p, size)
-	var frame := Engine.get_physics_frames()
-	if frame != _tick_frame:
-		_tick_frame = frame
-		_tick_aux.clear()
+	_tick_roll()
 	var key := p.get_instance_id()
-	var hit: Variant = null if fresh else _tick_aux.get(key)
-	if hit != null:
-		return hit
+	if not fresh:
+		_tick_read = true
+		var hit: Variant = _tick_aux.get(key)
+		if hit != null:
+			return hit
 	var full := _aux_full(p)
 	_tick_aux[key] = full
 	return full
 
 
+## For the kill view's record, after [method fill_aux]: keeps a copy of [member aux_buf] as [param p]'s [method aux_of_tick] reading,
+## only once something reads those (a dedicated server never does, and copies nothing).
+static func keep_tick_aux(p: Object) -> void:
+	if not _tick_read or p == null:
+		return
+	_tick_roll()
+	_tick_aux[p.get_instance_id()] = aux_buf.duplicate()
+
+
+static func _tick_roll() -> void:
+	var frame := Engine.get_physics_frames()
+	if frame != _tick_frame:
+		_tick_frame = frame
+		_tick_aux.clear()
+
+
 static func _aux_full(p: Object) -> PackedFloat32Array:
-	var out := PackedFloat32Array()
-	out.resize(SIZE)
+	fill_aux(p)
+	return aux_buf.duplicate()
+
+
+## Writes [param p]'s aux floats ([method aux_of]'s, all [constant SIZE]) into [member aux_buf], in place: no array per call.
+static func fill_aux(p: Object) -> void:
+	if aux_buf.size() != SIZE:
+		aux_buf.resize(SIZE)
+	aux_buf.fill(0.0)
 	if p == null:
-		return out
+		return
 	var arsenal: Variant = p.get(&"arsenal")
 	var weapons: Variant = p.get(&"weapons")
-	var id := StringName(p.get(&"mirror_weapon")) if bool(p.get(&"mirrored")) else &""
+	var mirrored := bool(p.get(&"mirrored"))
+	var id := StringName(p.get(&"mirror_weapon")) if mirrored else &""
 	if arsenal != null and arsenal.current() != null:
 		var slot: Variant = arsenal.current()
 		id = slot.def.id
-		out[MAG] = float(slot.magazine) if slot.def.magazine > 0 else 0.0
-		out[RESERVE] = float(arsenal.ammo().count(slot.def.ammo_type)) if slot.def.ammo_type != &"" else 0.0
-		out[SPREAD] = float(p.call(&"spread_degrees"))
+		aux_buf[MAG] = float(slot.magazine) if slot.def.magazine > 0 else 0.0
+		aux_buf[RESERVE] = float(arsenal.ammo().count(slot.def.ammo_type)) if slot.def.ammo_type != &"" else 0.0
+		aux_buf[SPREAD] = float(p.call(&"spread_degrees"))
 	if id != &"":
 		var hashed: Variant = _weapon_hash.get(id)
 		if hashed == null:
 			hashed = float(int(String(id).hash() & 0xFFFFFF))
 			_weapon_hash[id] = hashed
-		out[WEAPON] = hashed
-	out[ADS] = 1.0 if bool(p.get(&"aim_held")) else 0.0
-	if bool(p.get(&"mirrored")):
-		out[FIRE_SEQ] = float(int(p.get(&"mirror_fire_seq")) % 4096)
-		out[FIRE_KIND] = float(int(p.get(&"mirror_fire_kind")))
+		aux_buf[WEAPON] = hashed
+	aux_buf[ADS] = 1.0 if bool(p.get(&"aim_held")) else 0.0
+	if mirrored:
+		aux_buf[FIRE_SEQ] = float(int(p.get(&"mirror_fire_seq")) % 4096)
+		aux_buf[FIRE_KIND] = float(int(p.get(&"mirror_fire_kind")))
 	elif weapons != null:
-		out[FIRE_SEQ] = float(int(weapons.fire_seq) % 4096)
-		out[FIRE_KIND] = float(int(weapons.fire_kind))
+		aux_buf[FIRE_SEQ] = float(int(weapons.fire_seq) % 4096)
+		aux_buf[FIRE_KIND] = float(int(weapons.fire_kind))
 		_watch_recoil(weapons as Object)
 		var kick: Vector3 = (weapons as Object).get_meta(RECOIL_META, Vector3.ZERO)
-		out[KICK_PITCH] = kick.x
-		out[KICK_YAW] = kick.y
-		out[FLAGS] = SIGNED if kick.z > 0.0 else 0
-	out[HITS] = float(int(p.get_meta(HITS_META, 0)) % 4096)
+		aux_buf[KICK_PITCH] = kick.x
+		aux_buf[KICK_YAW] = kick.y
+		aux_buf[FLAGS] = SIGNED if kick.z > 0.0 else 0
+	aux_buf[HITS] = float(int(p.get_meta(HITS_META, 0)) % 4096)
 	var controller: Variant = p.get(&"controller")
 	if controller is GSFpsController and (controller as GSFpsController).state != null:
 		var st := (controller as GSFpsController).state
-		out[FLAGS] += (GROUNDED if st.is_grounded() else 0) + (CROUCHED if st.is_crouched() else 0)
-		out[SPEED] = st.horizontal_speed()
-	return out
+		aux_buf[FLAGS] += (GROUNDED if st.is_grounded() else 0) + (CROUCHED if st.is_crouched() else 0)
+		aux_buf[SPEED] = st.horizontal_speed()
 
 
 ## Keeps the rig's last shot's recoil (pitch, yaw, signed) where [method aux_of] reads it: the per-weapon

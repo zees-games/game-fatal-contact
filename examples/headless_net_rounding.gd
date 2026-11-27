@@ -106,7 +106,7 @@ func _test_replay_stays_consistent() -> void:
 	on_server.pull()
 	# What a snapshot carries: the exact copy. The client rewinds to it, then pulls again for the next tick.
 	on_client.net_exact = on_server.net_exact
-	on_client._push_exact(client_state)
+	var _pushed := GSFpsNetSync.push_exact(client_state, on_client.net_exact)
 	_check(client_state.position == server_state.position, "the rewound client position equals the server's")
 	_check(client_state.velocity == server_state.velocity, "and velocity")
 	_check(client_state.stamina == server_state.stamina, "and stamina")

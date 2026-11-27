@@ -103,6 +103,7 @@ func start(bots: int) -> GSResult:
 	_pid = OS.create_process(OS.get_executable_path(), args)
 	if _pid <= 0:
 		return GSResult.fail(GSError.CODE_INVALID, "the server process did not start")
+	raise_priority(_pid)
 
 	var t := 0.0
 	while not FileAccess.file_exists(_ready_path) and t < BOOT_LIMIT_SEC:
@@ -142,6 +143,22 @@ func start(bots: int) -> GSResult:
 	return GSResult.success({"port": port, "pid": _pid, "boot_sec": t})
 
 
+## The PowerShell command that lifts process [param pid] to AboveNormal, or "" off Windows.
+## A child starts at the client's priority, and on Windows a 16-bot render client's threads then
+## win the cores from the 66 Hz sim; AboveNormal needs no rights and leaves the desktop responsive.
+static func priority_command(pid: int, os_name: String) -> String:
+	if os_name != "Windows" or pid <= 0:
+		return ""
+	return "(Get-Process -Id %d).PriorityClass = 'AboveNormal'" % pid
+
+
+## Raises the sim host child's priority (Windows only; a failure leaves the default, nothing else depends on it).
+static func raise_priority(pid: int) -> void:
+	var command := priority_command(pid, OS.get_name())
+	if command != "":
+		var _started := OS.create_process("powershell", ["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command])
+
+
 ## The launch flags this process was given that the server child takes too, appended to [param args].
 func _forward_flags(args: PackedStringArray) -> PackedStringArray:
 	var map := asked_map_id()
@@ -159,6 +176,13 @@ func _forward_flags(args: PackedStringArray) -> PackedStringArray:
 	var sim_sections := _arg("--sim_sections")
 	if sim_sections != "":
 		args.append_array(["--sim_sections", sim_sections])
+	# The rig's and the arsenal's phase clocks (pw_*, pa_*), read by fc_sim_server only when asked.
+	var weapon_phases := _arg("--sim_weapon_phases")
+	if weapon_phases != "":
+		args.append_array(["--sim_weapon_phases", weapon_phases])
+	var slow_tick := _arg("--sim_slow_tick")
+	if slow_tick != "":
+		args.append_array(["--sim_slow_tick", slow_tick])
 	# gs-bot's native mind on the server (perf_bench's `--brain-native` names the same switch).
 	var brain_native := _arg("--bot_native_brain")
 	if brain_native == "":
@@ -171,6 +195,11 @@ func _forward_flags(args: PackedStringArray) -> PackedStringArray:
 		native_loop = _arg("--native-loop")
 	if native_loop != "":
 		args.append_array(["--bot_native_loop", native_loop])
+	# `--cvar name=value` (repeatable): a server cvar for a bench A/B of one setting (fc_sim_server applies them).
+	var user := OS.get_cmdline_user_args()
+	for k in user.size() - 1:
+		if user[k] == "--cvar":
+			args.append_array(["--cvar", user[k + 1]])
 	return args
 
 

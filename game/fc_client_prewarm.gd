@@ -5,25 +5,24 @@ extends "fc_client_vars.gd"
 
 const FcLoadTimeline := preload("fc_load_timeline.gd")
 
-## Whether the local weapon draws its own shot. True on a client shell carrying a
-## fc-weapons with `AwShotFx`; through `has_method`, because an older shell's copy
-## of the rig has no `shot_fx` and a call by name would not compile there.
+## Whether the local weapon draws its own shot: true on a client shell carrying a fc-weapons with `AwShotFx`. Through
+## `has_method`, because an older shell's copy of the rig has no `shot_fx` and a call by name would not compile there.
 func weapon_draws_shots() -> bool:
 	if player == null or player.weapons == null or not player.weapons.has_method(&"shot_fx"):
 		return false
 
 	return player.weapons.call(&"shot_fx") != null
 
-## One frame of the warm-up: weapon views, then the flash scenes, then one draw of every flash and
-## the explosion in front of the camera (the first shot cost 375-420 ms, the first explosion 95).
 ## How many throwaway people the warm-up builds, so their art and materials are loaded before the first bot.
 const PREWARM_FIGURES := 4
+const DEATH_BURST_SCENE := "res://scenes/fx/death_burst.tscn"
+## How long the prewarm's HEADSHOT tag stays drawn under the cover: a few frames, even on a slow web frame.
+const HEADSHOT_WARM_SEC := 0.25
 ## Effects parked for other players' hands: one per seat of a full 16 v 16, and a charge ball for a squad's worth.
 const FX_POOL_SHOTS := 32
 const FX_POOL_CHARGES := 12
 const FX_POOL_FLASH_FRAMES := 600
-## False skips the weapon warm-up below (views, flashes, effect pool, drop bodies, kill screens): the perf bench's `--prewarm 0`,
-## for the A/B of what it buys a first shot. Read when the local player first spawns.
+## False skips the weapon warm-up below (views, flashes, effect pool, drop bodies, kill screens; read at the first spawn): `--prewarm 0`.
 static var prewarm_weapons_enabled := true
 
 ## Builds the pool every remote hand takes its first shot, charge and flash from, [param budget_msec] a frame.
@@ -37,6 +36,8 @@ func _fill_fx_pool(budget_msec: float) -> bool:
 	var _drawn := fx_pool.fill_flashes()
 	return full
 
+## One frame of the warm-up: weapon views, then the flash scenes, then one draw of every flash and
+## the explosion in front of the camera (the first shot cost 375-420 ms, the first explosion 95).
 func _prewarm_tick() -> void:
 	var body: Variant = _warm.get("body")
 	if not is_instance_valid(body) or body.camera == null:
@@ -78,6 +79,8 @@ func _prewarm_phase3(tick_start: int) -> void:
 		person.build(FcAvatars.look_of(FcAvatars.stock_avatar(key), key), 1.8)
 		# The skin arrays a death reads, read now so the first death per model is not the one that pays (8.1 to 2.6 ms).
 		GSSkinSurfaces.warm(person)
+		# Drawn, not only built: the first bot's and the first killer's skins compiled on first sight.
+		gate.warm_up(GSRenderWarmup.collect(person))
 		host.queue_free()
 		_step_mark("figure %d" % int(_warm.get("figures", 0)), figure_began)
 		_warm.figures = int(_warm.get("figures", 0)) + 1
@@ -129,7 +132,7 @@ func _prewarm_phase1(body: Variant, tick_start: int) -> void:
 		FcLoadTimeline.mark("prewarm 1 done: flash scenes, muzzle pools, explosion, own work %d ms" % (int(_warm_work_usec.get(1, 0) + Time.get_ticks_usec() - tick_start) / 1000))
 
 
-## Phase 0: the view models of every weapon art (on the web the carried ones, see [member defer_views_on_web]), a slice a frame.
+## Phase 0: the view models of every weapon art (the carried ones where [method _defers_views]), a slice a frame.
 func _prewarm_phase0(tick_start: int) -> void:
 	var arts: Array = _warm.arts
 	var until := Time.get_ticks_msec() + (int(gate.call(&"slice_msec", 8)) if gate.has_method(&"slice_msec") else 8)
@@ -159,22 +162,35 @@ func _view_step(w: Dictionary) -> void:
 	var arts: Array = w.arts
 	var step_began := Time.get_ticks_usec()
 	var stepping := bool(w.get("stepping", false))
+	if not stepping and _views_done.has((arts[int(w.next)] as AwWeaponVisual).id):
+		w.next = int(w.next) + 1
+		return
 	var stage_now := int(w.get("stage", 0)) if stepping else 0
 	w.stage = stage_now + 1
 	var step_of := "view %d stage %d" % [int(w.next), stage_now]
 	if stepping:
 		if not spare.prewarm_step():
 			w.stepping = false
+			_views_done[(arts[int(w.next)] as AwWeaponVisual).id] = true
 			w.next = int(w.next) + 1
 	else:
 		w.stepping = spare.prewarm_begin(arts[int(w.next)] as AwWeaponVisual)
 		if not w.stepping:
+			_views_done[(arts[int(w.next)] as AwWeaponVisual).id] = true
 			w.next = int(w.next) + 1
 	_step_mark(step_of, step_began)
 
 ## True: a web client builds under the cover only the views of the weapons the local player carries (and the default loadout's), and every other weapon's after the cover drops, a stage at a time in quick frames ([method _late_views_tick]).
-## All 27 under the cover were 14-20 s of a 36-62 s web load on staging02, each frame a stage of 60-400 ms plus the match's ticks. A desktop client builds them all under the cover as before. False: the web builds them all there too.
+## All 27 under the cover were 14-20 s of a 36-62 s web load on staging02, each frame a stage of 60-400 ms plus the match's ticks. False: the web builds them all there too.
 static var defer_views_on_web := true
+
+## Whether this client builds only the carried weapons' views under the cover and the rest after it ([member defer_views_on_web]
+## on the web). A desktop client does too since fc-load-2: all 27 under the cover were ~10.8 s of the ~17 s to the gate on staging
+## (218 frames, 4.35 s of own work). `cl_defer_views 0` (launch argument) builds them all under the cover, as before. Headless draws nothing.
+func _defers_views() -> bool:
+	if GSPlatform.is_web():
+		return defer_views_on_web
+	return not GSPlatform.is_headless() and FcFrameProbe.launch_value("cl_defer_views") != "0"
 ## A late view stage runs only while the player is away (dead, or spectating), after a frame this quick (msec), and at
 ## most one every [constant LATE_VIEW_GAP] frames: a stage is one 70-400 ms frame, which in play is a hitch.
 const LATE_VIEW_QUICK_MSEC := 25.0
@@ -184,7 +200,8 @@ const LATE_VIEW_GAP := 2
 func _cover_arts(body: FcPlayer) -> Array:
 	var arts: Array = AwWeaponArtTable.table().values()
 	_late_views = {}
-	if not defer_views_on_web or not GSPlatform.is_web():
+	_views_done = {}
+	if not _defers_views():
 		return arts
 	var wanted := _cover_weapon_ids(body, false)
 	var now: Array = []
@@ -205,6 +222,8 @@ func _cover_arts(body: FcPlayer) -> Array:
 func _late_views_tick() -> void:
 	if _late_views.is_empty():
 		_late_views_end()
+		return
+	if _late_groups_pending():
 		return
 	var cam: Camera3D = player.camera if is_instance_valid(player) else null
 	if gate == null or not gate.is_open() or cam == null or view_model == null:
@@ -252,6 +271,70 @@ func _late_views_tick() -> void:
 	FcLoadTimeline.mark("late views built", built)
 	GSLog.info("arena.load", "late weapon views built", built)
 	_late_views_end()
+
+## With deferred views ([method _defers_views]). The views of the weapons the local player carries, built in play too: the cover ran before the loadout was
+## rolled, so a carried weapon outside the default loadout would otherwise build its whole view (1.3 s) on its first equip.
+## Checks the arsenal every [constant CARRIED_CHECK_FRAMES] frames; builds one stage a quick frame, on a spare view of its own.
+const CARRIED_CHECK_FRAMES := 10
+func _carried_tick() -> void:
+	if _late_views.is_empty() and _carried.is_empty() and _carried_idle():
+		if get_tree().process_frame.is_connected(_carried_tick):
+			get_tree().process_frame.disconnect(_carried_tick)
+		return
+	var cam: Camera3D = player.camera if is_instance_valid(player) else null
+	if gate == null or not gate.is_open() or cam == null or view_model == null or not _warm.is_empty():
+		return
+	if _carried.is_empty():
+		_carried_frames += 1
+		if _carried_frames < CARRIED_CHECK_FRAMES:
+			return
+		_carried_frames = 0
+		var arts := _carried_arts()
+		if arts.is_empty():
+			return
+		_carried = {"arts": arts, "next": 0, "gap": 0, "stepping": false, "spare": _spare_view(cam), "began": Time.get_ticks_usec()}
+	if get_process_delta_time() * 1000.0 > LATE_VIEW_QUICK_MSEC and not player_away():
+		return
+	if not is_instance_valid(_carried.spare) or (_carried.spare as Node).get_parent() != cam:
+		if is_instance_valid(_carried.spare):
+			(_carried.spare as Node).queue_free()
+		_carried.stepping = false
+		_carried.spare = _spare_view(cam)
+	_view_step(_carried)
+	if int(_carried.next) >= (_carried.arts as Array).size():
+		var items: Array = []
+		for material: Variant in AwViewModel.prepared_materials():
+			if not (_late_views.get("drawn", {}) as Dictionary).has(material):
+				items.append(material)
+		if not items.is_empty():
+			var warm := GSRenderWarmup.new()
+			warm.name = "CarriedViewWarmup"
+			warm.budget_msec = 4.0
+			warm.add_items(items)
+			cam.add_child(warm)
+			warm.start()
+		FcLoadTimeline.mark("carried views built", {"weapons": (_carried.arts as Array).size(), "ms": (Time.get_ticks_usec() - int(_carried.began)) / 1000})
+		(_carried.spare as Node).queue_free()
+		_carried = {}
+
+## Whether the carried check has nothing to watch for: this client builds every view under the cover.
+func _carried_idle() -> bool:
+	return not _defers_views()
+
+## The arts of the carried weapons that have no view built yet, in slot order.
+func _carried_arts() -> Array:
+	var out: Array = []
+	if not is_instance_valid(player) or player.arsenal == null:
+		return out
+	var arsenal: Variant = player.arsenal
+	for slot: int in arsenal.slots():
+		var held: Variant = arsenal.slot_at(slot)
+		if held == null or _views_done.has(held.id()):
+			continue
+		var art: Variant = AwWeaponArtTable.table().get(held.id(), null)
+		if art is AwWeaponVisual:
+			out.append(art)
+	return out
 
 ## The weapon ids of [param arts] (weapon visuals).
 static func _late_ids(arts: Array) -> Array:
@@ -332,11 +415,26 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 		if ragdolls != null:
 			ragdolls.prewarm()
 	else:
-		what = "explosion, impact spark"
+		what = "explosion, impact spark, death burst, hurt flash, headshot tag"
 		if presentation != null and presentation.fx != null:
 			var cam: Transform3D = body.camera.global_transform
 			var at := Transform3D(Basis.IDENTITY, cam.origin - cam.basis.z * 6.0)
-			presentation.fx.warm([FcPresentation.EXPLOSION, &"impact_spark"], at)
+			# The first death and the first stomp compiled their effects mid-match (death frame 1.1-1.35 s on staging02).
+			presentation.fx.warm([FcPresentation.EXPLOSION, &"impact_spark", &"death_burst", &"stomp_puff"], at)
+		# The burst's mist and drops drawn whatever the quality gate lets spawn, and the hurt overlay's shader.
+		var burst: PackedScene = load(DEATH_BURST_SCENE) if ResourceLoader.exists(DEATH_BURST_SCENE) else null
+		if burst != null:
+			var made := burst.instantiate()
+			gate.warm_up(GSRenderWarmup.collect(made))
+			made.free()
+		if hud != null and hud.has_method(&"warm_hurt"):
+			hud.call(&"warm_hurt")
+		# The first headshot's tag compiled its shader and rasterized its outlined glyphs mid-match. Drawn
+		# for real (not collected) six metres ahead under the cover, then dropped.
+		var tag := headshot_tag()
+		body.camera.add_child(tag)
+		tag.position = Vector3(0.0, 0.0, -6.0)
+		get_tree().create_timer(HEADSHOT_WARM_SEC).timeout.connect(tag.queue_free)
 	_step_mark(what, began)
 	return true
 
@@ -353,7 +451,7 @@ static func _flash_scene_paths() -> Array[String]:
 func _request_flash_scenes() -> void:
 	# No loader threads (the web build): a request reads inline, every scene in this one frame. Left to
 	# GSMuzzleFlash.pin_scenes instead, which reads them a slice at a time.
-	if not GSMuzzleFlash.available() or not GSPlatform.has_threads():
+	if not GSMuzzleFlash.available() or not loader_threads_usable():
 		return
 	var asked: Array[String] = []
 	for path in _flash_scene_paths():
@@ -485,11 +583,15 @@ func _prewarm_end() -> void:
 		var began := Time.get_ticks_usec()
 		var _drawn: Variant = loadout_menu.call(&"prepare")
 		FcLoadTimeline.mark("prewarm: loadout screen drawn hidden, %d ms" % ((Time.get_ticks_usec() - began) / 1000))
+	if _model_paths_next < 0 or _model_paths_next >= _model_paths_cover:
+		_warm_previews()
 	FcLoadTimeline.mark("prewarm end")
 	if gate != null:
 		gate.release(&"weapons")
 	if not _late_views.is_empty() and not get_tree().process_frame.is_connected(_late_views_tick):
 		get_tree().process_frame.connect(_late_views_tick)
+	if not _carried_idle() and not get_tree().process_frame.is_connected(_carried_tick):
+		get_tree().process_frame.connect(_carried_tick)
 
 ## Builds every weapon's first-person view once on a spare view model, under the loading cover.
 func _prewarm_weapons(body: FcPlayer) -> void:
@@ -501,8 +603,9 @@ func _prewarm_weapons(body: FcPlayer) -> void:
 	_prewarm_sounds()
 	# The loadout menu's weapon pictures, one a frame beside the view models below (they wait on the renderer, this on a frame each), so B finds them drawn.
 	if loadout_menu != null:
-		weapon_previews().warmed.connect(func() -> void: FcLoadTimeline.mark("prewarm: %d weapon pictures, own work %d ms" % [weapon_previews().cached_count(), int(weapon_previews().warm_msec())]), CONNECT_ONE_SHOT)
-		weapon_previews().warm()
+		_previews_wait = true
+		if not _previews_after_reads():
+			_warm_previews()
 	_warm = {"body": body, "spare": spare, "arts": _cover_arts(body), "next": 0, "phase": 0, "frames": 0, "rig": null}
 	_request_flash_scenes()
 	# A tick on process_frame, not an await: a coroutine resumed after this client was freed is an
@@ -538,6 +641,19 @@ func _prewarm_sounds() -> void:
 static var defer_models_on_web := true
 ## True: every client defers them and reads them inline, as the web does (perf_bench `--lazy-models 1`, to price the first equips after the cover).
 static var defer_models_everywhere := false
+var _previews_wait := false
+## Whether the loadout pictures wait for the threaded model reads under the cover: a picture's plain load of a file still in a read
+## waits for it, one 0.3-1.25 s frame on staging (dm_box). `cl_previews_after_reads 0` (launch argument) starts them with the views.
+func _previews_after_reads() -> bool:
+	return _model_reads_threaded() and FcFrameProbe.launch_value("cl_previews_after_reads") != "0"
+
+## Starts drawing the loadout screen's weapon pictures, once: a frame each beside the rest of the cover's work.
+func _warm_previews() -> void:
+	if not _previews_wait or loadout_menu == null:
+		return
+	_previews_wait = false
+	weapon_previews().warmed.connect(func() -> void: FcLoadTimeline.mark("prewarm: %d weapon pictures, own work %d ms" % [weapon_previews().cached_count(), int(weapon_previews().warm_msec())]), CONNECT_ONE_SHOT)
+	weapon_previews().warm()
 
 ## Reads weapon model files once, a few ms a frame under the loading cover (also headless: it is only file reads), so the first equip of each - a bot picking one up, a pickup, a drop - does not pay 90-110 ms for the load in the middle of a fight.
 ## Those [method _cover_weapon_ids] names come first and hold the gate; where models are deferred the rest are read after it opens, see [method _models_late].
@@ -575,7 +691,11 @@ func _prewarm_models() -> void:
 ## Whether the model reads run on the loader's threads (see [method _prewarm_models]). Not with [member defer_models_everywhere]:
 ## that stands in for the web build, whose reads are inline.
 static func _model_reads_threaded() -> bool:
-	return DisplayServer.get_name() != "headless" and GSPlatform.has_threads() and not defer_models_everywhere
+	return DisplayServer.get_name() != "headless" and loader_threads_usable() and not defer_models_everywhere
+
+## Whether a threaded resource read really runs beside the frame: [method FcFrameProbe.loader_threads_usable].
+static func loader_threads_usable() -> bool:
+	return FcFrameProbe.loader_threads_usable()
 
 ## The weapon ids whose views or models are made under the cover where the rest wait for it to drop: the default loadout's,
 ## those [param body] carries and, with [param everyone] (models: their world models are built at once), those every other
@@ -595,6 +715,11 @@ func _cover_weapon_ids(body: FcPlayer, everyone: bool) -> Dictionary:
 				if held != null:
 					wanted[held.id()] = true
 	return wanted
+
+## True while the shell is still fetching the addon groups a web start left out (gs_cloud/late_groups/pending, set by the shell and cleared
+## when they are mounted): the late builds and reads wait, or they would find those models missing and remember that.
+static func _late_groups_pending() -> bool:
+	return bool(ProjectSettings.get_setting("gs_cloud/late_groups/pending", false))
 
 ## True while the local player is away (dead, or spectating): a long frame then is not a hitch in play.
 func player_away() -> bool:
@@ -627,6 +752,7 @@ func _prewarm_models_tick() -> void:
 			break
 	if _model_paths_next >= _model_paths_cover:
 		FcLoadTimeline.mark("model reads under the cover done: %d files" % _model_paths_cover)
+		_warm_previews()
 		if gate != null:
 			gate.release(&"weapon_models")
 		if _model_paths_next >= _model_paths.size():
@@ -646,6 +772,9 @@ func _read_next_model() -> bool:
 		FcLoadTimeline.mark("model read %s" % str(_model_paths[_model_paths_next]).get_file(), Time.get_ticks_msec() - read_began)
 	landed = null
 	_model_paths_next += 1
+	# Each read is progress, so the gate's timeout counts from here: a slow box reading all 19 inline (PH) still gets them all.
+	if gate != null and gate.has_method(&"advance"):
+		gate.call(&"advance", &"weapon_models")
 	return true
 
 ## After the cover drops, the deferred models: a threaded read is taken once it has landed (a cache hit, a few ms), in any frame. An inline read (the web) is one 50-400 ms frame, so it runs as a late view does: only while the player is away,
@@ -654,7 +783,7 @@ func _models_late() -> void:
 	if _model_paths_next >= _model_paths.size():
 		_models_end()
 		return
-	if gate == null or not gate.is_open():
+	if gate == null or not gate.is_open() or _late_groups_pending():
 		return
 	if not _model_reads_threaded():
 		_model_late_gap += 1

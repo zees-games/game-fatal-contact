@@ -45,6 +45,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 ## Performance
 
 - Frame time: `tools/perf_bench.sh` (31 bots, windowed on staging02, never `--headless`); [testing](docs/testing.md#performance-measurement)
+- Regression gate: `tools/perf_gate.sh [--tier windowed]` (medians of 3 vs `ci/perf/client_gate_*.json`; `--update` on purpose); [testing](docs/testing.md#client-perf-gate)
 - Calibration and findings are on the nightly item `arena-perf-bench-1`, not in docs.
 
 ## Rules that bite

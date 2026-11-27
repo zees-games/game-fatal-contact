@@ -2,6 +2,9 @@ extends GSNetBehaviour
 
 const FcContent := preload("fc_content.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcNetCarry := preload("fc_net_carry.gd")
+const FcNetPullNative := preload("fc_net_pull_native.gd")
+const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
 const FcNetCommand := preload("fc_net_command.gd")
 const FcPlayer := preload("fc_player.gd")
 
@@ -39,6 +42,7 @@ static var skip_idle_pull := true
 ## the repeat. Only the observer's copy is held: the owner rewinds from [member net_exact], and the lag-comp
 ## history records the node, not these properties. Position is never held: the server reads it back.
 static var hold_subquantum := true
+
 ## gs-net API 22's GSNetIdentity.interest_aim, looked up once (older gs-net has no aim cone).
 static var _has_interest_aim: bool = _script_has(GSNetIdentity, &"interest_aim")
 
@@ -83,7 +87,7 @@ var net_timers2: int = 0
 ## so the declaration comes from the pack on both ends, whatever addon the client's shell has.
 var net_exact: PackedFloat32Array = PackedFloat32Array()
 
-const EXACT_FLOATS := 14
+const EXACT_FLOATS := GSFpsNetSync.EXACT_FLOATS
 
 # --- Health from GSCombatNetSync, weapons from GSWeaponNetSync ---
 var net_health: int = 0
@@ -187,6 +191,10 @@ var _newest_simulated: int = -1
 var _velocity_var: GSNetVar = null
 var _yaw_var: GSNetVar = null
 var _pitch_var: GSNetVar = null
+## The movement pull through gs-sim, and the widths it holds through (fc_net_pull_native.gd).
+var _native_pull := FcNetPullNative.new()
+## A person's carry mask, kept until his arsenal changes (fc_net_carry.gd).
+var _carry := FcNetCarry.new()
 
 
 func _register_net_vars() -> void:
@@ -435,35 +443,32 @@ func pull() -> void:
 	if player == null:
 		return
 
-	var lap := FcFrameProbe.lap_start()
+	# The laps only count in a recording ([member FcFrameProbe.fine]); outside one, six calls a pull were a test each.
+	var fine := FcFrameProbe.fine
+	var lap := FcFrameProbe.lap_start() if fine else 0
 	var held_velocity := net_velocity
 	var held_yaw := net_yaw
 	var held_pitch := net_pitch
-	GSFpsNetSync.pull(player.controller.state, self)
-	if hold_subquantum:
-		_hold_subquantum(held_velocity, held_yaw, held_pitch)
-	lap = FcFrameProbe.lap(&"np_fps", lap)
+	if not (FcNetPullNative.enabled and _native_pull.pull(self, hold_subquantum, held_velocity, held_yaw, held_pitch)):
+		GSFpsNetSync.pull(player.controller.state, self)
+		if hold_subquantum:
+			_hold_subquantum(held_velocity, held_yaw, held_pitch)
+	lap = FcFrameProbe.lap(&"np_fps", lap) if fine else 0
 	_pull_exact(player.controller.state)
-	lap = FcFrameProbe.lap(&"np_exact", lap)
+	lap = FcFrameProbe.lap(&"np_exact", lap) if fine else 0
 	GSCombatNetSync.pull(player.health, self)
-	lap = FcFrameProbe.lap(&"np_combat", lap)
+	lap = FcFrameProbe.lap(&"np_combat", lap) if fine else 0
 
-	# The rig's pull is gs-weapon's three and the pack's four.
-	if player.weapons != null:
-		AwWeaponNet.pull(player.weapons, self)
-	else:
-		GSWeaponNetSync.pull(player.arsenal, self)
-	# The knife throw's wind-up rides the charge draw: at least 1 while winding, so 0 still means not winding.
-	if player.windup >= 0.0:
-		net_charge = maxi(1, roundi(clampf(player.windup, 0.0, 1.0) * AwWeaponNet.CHARGE_MAX))
-	lap = FcFrameProbe.lap(&"np_weapons", lap)
+	# The rig's pull (gs-weapon's three, the pack's four, the knife's wind-up), with the held weapon's wire number, in
+	# one gs-sim call where cvars sv_net_pull_weapons_native and sv_net_pull_content_native allow; else the script.
+	var weapon_code := FcNetPullWeapons.pull_weapons(self, player.weapons, player.arsenal, player.windup)
+	lap = FcFrameProbe.lap(&"np_weapons", lap) if fine else 0
 
-	var def := player.arsenal.current_def() if player.arsenal != null else null
-	net_weapon = FcContent.weapon_index(def.id if def != null else &"")
+	FcNetPullWeapons.pull_content(self, player.arsenal, weapon_code)
 	# Owner-only, and a bot has no owner: 33 shelf scans a bot a tick for a mask nobody receives.
 	if not _server_owned():
-		net_carry = FcContent.carry_mask(player.arsenal)
-	lap = FcFrameProbe.lap(&"np_content", lap)
+		net_carry = _carry.mask(player.arsenal)
+	lap = FcFrameProbe.lap(&"np_content", lap) if fine else 0
 
 	net_blind = player.blinded
 	net_challenge = clampi(player.challenge + 1, 0, 127)
@@ -485,7 +490,7 @@ func pull() -> void:
 		# in it keep the first ring's rate, so a scoped shot has samples to rewind against.
 		if _has_interest_aim:
 			identity.set(&"interest_aim", player.aim_direction())
-	lap = FcFrameProbe.lap(&"np_rest", lap)
+	lap = FcFrameProbe.lap(&"np_rest", lap) if fine else 0
 
 
 ## Whether this player belongs to the server itself (a bot): there is no client to send owner-only state to.
@@ -525,39 +530,21 @@ func _pull_exact(state: GSFpsState) -> void:
 	# server tick differed from a replay by an ulp, and every such snapshot replayed the whole lead.
 	# Only a player some client predicts: a bot's planned surf rides are open-loop and miss rounded.
 	if identity != null and (identity.is_predicted() or (identity.is_authoritative and identity.owner_peer_id != 0)):
-		_push_exact(state)
+		var _pushed := GSFpsNetSync.push_exact(state, net_exact)
 
 
 ## [method GSFpsNetSync.push] for this behaviour, which declares net_timers2 and neither net_timers nor
 ## net_stamina: the same writes in the same order, read as properties rather than through `get`, and the
 ## modifier list left alone when it is empty and the mask is zero (the usual case).
 func _push_fps(state: GSFpsState) -> void:
-	state.position = net_position
-	state.velocity = net_velocity
-	state.yaw = net_yaw
+	# Position, velocity, yaw, flags and timers2 in one call (native with GSFpsNetSync.native_pack).
+	# The owner's exact copy ([member net_exact]) goes over the quantised one in the same call.
+	GSFpsNetSync.push_core(state, net_position, net_velocity, net_yaw, net_flags, net_timers2, net_exact)
 	state.pitch = net_pitch
-	state.crouch_fraction = net_crouch
-	GSFpsNetSync.unpack_flags(state, net_flags)
+	if net_exact.size() != EXACT_FLOATS:
+		state.crouch_fraction = net_crouch
 	if net_modifiers != 0 or not state.modifiers.is_empty():
 		GSFpsNetSync.unpack_modifiers(state, net_modifiers)
-	GSFpsNetSync.unpack_timers2(state, net_timers2)
-
-
-## Puts the exact copy over what [method GSFpsNetSync.push] restored from the quantised one.
-## Empty on everybody but the owner (and before the first snapshot), which keeps the push.
-func _push_exact(state: GSFpsState) -> void:
-	if net_exact.size() != EXACT_FLOATS:
-		return
-	state.position = Vector3(net_exact[0], net_exact[1], net_exact[2])
-	state.velocity = Vector3(net_exact[3], net_exact[4], net_exact[5])
-	state.crouch_fraction = net_exact[6]
-	state.time_since_grounded = net_exact[7]
-	state.time_since_jump = net_exact[8]
-	state.time_since_jump_pressed = net_exact[9]
-	state.wall_run_cooldown_left = net_exact[10]
-	state.stamina = net_exact[11]
-	state.stamina_exhausted = net_exact[12] > 0.5
-	state.stamina_delay_left = net_exact[13]
 
 
 ## Copies received state back into the simulation. Receiving side.
@@ -575,7 +562,6 @@ func _net_state_applied(tick: int) -> void:
 	last_state_tick = tick
 
 	_push_fps(player.controller.state)
-	_push_exact(player.controller.state)
 	GSCombatNetSync.push(self, player.health)
 	_push_weapons()
 
@@ -633,7 +619,7 @@ func _push_weapons() -> void:
 	var owned: bool = identity != null and identity.is_predicted()
 
 	if owned:
-		var changed := FcContent.apply_carry(player.arsenal, net_carry)
+		var changed := FcContent.apply_carry_memo(player.arsenal, net_carry, _carry_memo)
 		_follow_empty_hand(changed > 0)
 
 	# The owner's own selector is predicted; only a remote copy adopts and clicks.
@@ -695,6 +681,10 @@ var _pushed_index := 0
 var _pushed_fitting := 0
 
 
+## [method FcContent.apply_carry_memo]'s memory of the owner's arsenal.
+var _carry_memo: Array = []
+
+
 func _remote_push_unchanged() -> bool:
 	if _pushed_held == 0:
 		return false
@@ -737,6 +727,10 @@ func _remote_push_note() -> void:
 func _net_interpolated(_tick: int) -> void:
 	if player == null:
 		return
+	# Deferred: this runs inside the native interpolator's apply, which holds it, and binding there re-enters it (a gdext borrow panic).
+	if native_present and not _no_mirror and not _bind_queued:
+		_bind_queued = true
+		_bind_mirror.call_deferred()
 
 	# Only the interpolated vars: the rest changes per snapshot, and [method _net_state_applied] pushed it.
 	var state := player.controller.state
@@ -745,6 +739,32 @@ func _net_interpolated(_tick: int) -> void:
 	state.pitch = net_pitch
 	state.crouch_fraction = net_crouch
 	player.global_position = state.position
+
+
+## Whether gs-sim's interpolator does [method _net_interpolated]'s copy in its one call per frame ([method GSNetInterpolator.bind_mirror],
+## gs-net 25) instead of calling this script per remote player. Bit-identical (gs-sim's interp_selftest); `cl_present_script 1` keeps the
+## script copy, which the library-less web client always runs.
+static var native_present := true
+
+## Set once the interpolator cannot mirror (no library, an older gs-net): the script copy stays, unasked.
+var _no_mirror := false
+## A [method _bind_mirror] is waiting for the end of the frame.
+var _bind_queued := false
+
+
+## Hands this copy to the native interpolator. Called from the copy itself, so it binds only on a client, only
+## for a remote player, and binds again after an interpolator clear dropped the mirror.
+func _bind_mirror() -> void:
+	_bind_queued = false
+	if player == null or not is_instance_valid(player):
+		return
+	var net: Variant = bridge.get(&"net") if bridge != null else null
+	var interpolator: Variant = (net as Object).get(&"interpolator") if net is Object else null
+	if not interpolator is Object or not (interpolator as Object).has_method(&"bind_mirror"):
+		_no_mirror = true
+		return
+	var pairs := {&"net_position": &"position", &"net_yaw": &"yaw", &"net_pitch": &"pitch", &"net_crouch": &"crouch_fraction"}
+	_no_mirror = not bool((interpolator as Object).call(&"bind_mirror", self, player, PackedStringArray(["controller", "state"]), pairs, &"position"))
 
 
 func describe() -> Dictionary:

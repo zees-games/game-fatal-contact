@@ -1,5 +1,7 @@
 extends "fc_client_warm_rest.gd"
 
+const _PlayerNet := preload("fc_player_net.gd")
+
 ## A drawing client's share of a frame for the server's events; the join backlog spreads over frames.
 const EVENT_BUDGET_USEC := 8000
 
@@ -89,6 +91,8 @@ func _adopt(candidate: FcPlayer) -> void:
 		# `GSFpsController.teleport` turns the controller's OWN sampler, and this client samples
 		# with its own.
 		player.spawned.connect(func(at: Transform3D) -> void:
+			if FcLoadTimeline.seen("death"):
+				FcLoadTimeline.first_use("respawn")
 			if _sampler != null:
 				_sampler.look_at_angles(rad_to_deg(at.basis.get_euler().y), 0.0)
 		)
@@ -241,6 +245,13 @@ func _on_match(info: Dictionary) -> void:
 
 # --- Offline ---------------------------------------------------------------
 
+## An `fc_client_extras.gd` under this client, loaded by path (see [constant FC_CLIENT_EXTRAS]).
+func _new_extras() -> Node:
+	var made := (load(FcPaths.rebase(FC_CLIENT_EXTRAS)) as GDScript).new() as Node
+	made.name = "Extras"
+	add_child(made)
+	return made
+
 func _build_netcode() -> GSResult:
 	# The server's `mp_teammate_passthrough` through the link (FcGame.follow_server_cvars).
 	if link != null:
@@ -285,10 +296,10 @@ func _build_netcode() -> GSResult:
 	net.messages.seal()
 	FcLoadTimeline.mark("netcode: messages sealed")
 
-	# The client halves, built here because each needs the bridge.
-	extras = (load(FcPaths.rebase(FC_CLIENT_EXTRAS)) as GDScript).new()
-	extras.name = "Extras"
-	add_child(extras)
+	# The client halves, built here because each needs the bridge (or prepared a frame each by `_prepare_extras`).
+	if extras == null:
+		extras = _new_extras()
+	move_child(extras, -1)
 
 	var extra: GSResult = extras.attach(bridge, game)
 	GSLog.result(CHANNEL, "the client's chat, voice and map layers", extra)
@@ -366,6 +377,13 @@ func _client_net_config() -> GSNetConfig:
 	# every FC `_net_interpolated` only copies net_* onto the node. `cl_interp_always 1` writes every frame.
 	if &"skip_settled_interp" in config:
 		config.set(&"skip_settled_interp", FcFrameProbe.launch_value("cl_interp_always") != "1")
+	# And remote samples kept only in gs-sim's interpolator, fed straight from the native snapshot decode (no GDScript track per
+	# entity); every FC read goes through GSNetInterpolator.track_samples. `cl_interp_script_tracks 1` keeps the GDScript tracks.
+	if &"sim_interp_tracks_only" in config:
+		config.set(&"sim_interp_tracks_only", FcFrameProbe.launch_value("cl_interp_script_tracks") != "1")
+	# And each remote player's per-frame copy onto its node done inside gs-sim's one interpolator call
+	# (FcPlayerNet.native_present); `cl_present_script 1` keeps the script copy per player.
+	_PlayerNet.native_present = FcFrameProbe.launch_value("cl_present_script") != "1"
 	return config
 
 
@@ -512,6 +530,11 @@ func _build_due_bodies() -> void:
 		_share_shots_of(next)
 		if slice.due() and not _bodies_due.is_empty():
 			await slice.pause()
+	# The replay builds the player's own body at its first frame (7 ms); build it hidden now, after the bots, in a slice of its own.
+	if is_instance_valid(player) and player.body_mesh == null:
+		await slice.pause()
+		if is_instance_valid(player):
+			FcKillcamBodies.prewarm_body(player)
 	if gate != null and gate.is_holding(&"bodies"):
 		gate.release(&"bodies")
 

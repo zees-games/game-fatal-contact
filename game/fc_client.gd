@@ -52,6 +52,18 @@ func _present_frame(delta: float) -> void:
 	if game == null:
 		return
 
+	_present_bodies(delta)
+
+	var t_flash := Time.get_ticks_usec()
+	_present_flashlights()
+	FcFrameProbe.add(&"c_flashlights", t_flash)
+	var t_rest := Time.get_ticks_usec()
+	_present_frame_rest()
+	FcFrameProbe.add(&"c_rest", t_rest)
+
+
+## Presents every body: the remote ones judged from the viewer's camera in one native pass (or per body in script).
+func _present_bodies(delta: float) -> void:
 	var t := Time.get_ticks_usec()
 	# The camera the viewer sees through (a spectator's or the death view's too), so that no
 	# body is thinned out in front of it. None: everything is drawn in full.
@@ -64,20 +76,32 @@ func _present_frame(delta: float) -> void:
 	# Read once, with the frustum above, not per body: every body is judged from the same eye this frame.
 	var view_eye := view_cam.global_position if view_cam != null else Vector3.ZERO
 	var view_forward := -view_cam.global_transform.basis.z if view_cam != null else Vector3.FORWARD
+	var codes := FcPlayer.classify_crowd(bodies, view_eye, view_forward, frustum) if view_cam != null else PackedInt32Array()
+	var coded := codes.size() == bodies.size()
+	# Every figure stepped below is stepped at the close, all in one batch (cl_figure_batch).
+	FcPlayer.open_figure_batch()
+	if coded:
+		for body in bodies:
+			body.follow_team_body()
+		if FcPlayer.present_crowd(bodies, delta, view_eye):
+			FcPlayer.close_figure_batch()
+			FcFrameProbe.add(&"bodies", t)
+			return
+	else:
+		FcPlayer.forget_crowd()
+	var at := 0
 	for body in bodies:
-		body.follow_team_body()
-		if view_cam != null:
+		if not coded:
+			body.follow_team_body()
+		if coded:
+			body.present_lod_coded(delta, codes[at], view_eye)
+		elif view_cam != null:
 			body.present_lod(delta, view_eye, view_forward, frustum)
 		else:
 			body.present(delta)
+		at += 1
+	FcPlayer.close_figure_batch()
 	FcFrameProbe.add(&"bodies", t)
-
-	var t_flash := Time.get_ticks_usec()
-	_present_flashlights()
-	FcFrameProbe.add(&"c_flashlights", t_flash)
-	var t_rest := Time.get_ticks_usec()
-	_present_frame_rest()
-	FcFrameProbe.add(&"c_rest", t_rest)
 
 
 ## A position report once a second: the only way to see where a browser client thinks it is.

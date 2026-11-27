@@ -57,14 +57,24 @@ func _give_bot_loadout(player: FcPlayer) -> bool:
 	var difficulty := ""
 	if has_meta(GSBotSettings.META):
 		difficulty = GSBotSettings.of(self).difficulty()
+	# sl_* laps (--sim_sections 2): where a respawning bot's kit give spends its time.
+	var t_lap := FcFrameProbe.lap_start()
 	var drawn := bot_loadouts.draw(loadouts, _loadout_key(player.player_id), player.player_id, difficulty)
+	t_lap = FcFrameProbe.lap(&"sl_draw", t_lap)
 	if drawn == null:
 		return false
-	player.give_loadout(FcContent.in_give_order(loadouts.resolve(drawn.loadout)))
+	if FcBotLoadouts.regive_supported:
+		# By name: the property exists only from gs-weapon API 56.
+		player.arsenal.set(&"reuse_behaviours", FcBotLoadouts.regive)
+	player.give_loadout(drawn.entries)
 	player.set_meta(&"bot_loadout", drawn.kit.id)
+	t_lap = FcFrameProbe.lap(&"sl_give", t_lap)
 	_fit_bot_attachments(player, drawn.kit)
+	t_lap = FcFrameProbe.lap(&"sl_fit", t_lap)
 	arm_for_mode(player)
+	t_lap = FcFrameProbe.lap(&"sl_arm", t_lap)
 	FcLoadoutGuard.ensure_armed(player)
+	FcFrameProbe.lap(&"sl_guard", t_lap)
 	return true
 
 ## Fits [param kit]'s attachments to the guns [param player] carries, through the arsenal's attachments catalogue.
@@ -387,3 +397,37 @@ func _build_world_layers() -> void:
 		return
 
 	horde.enabled = true
+
+
+## `spawn_protection_break` (config): a player still protected who shoots (bit 1) or moves or jumps (bit 2)
+## loses the protection now, in all three records. Zero, the default, never calls [method end_spawn_protection].
+func _note_protected_action(id: int, player: FcPlayer, move: GSFpsCommand, fired: bool) -> void:
+	if not player.health.is_protected(_tick):
+		_protect_anchor.erase(id)
+		player.protected_view = false
+		return
+	var breaks := config.spawn_protection_break
+	var moved: bool = move.move != Vector2.ZERO or move.is_pressed(GSFpsCommand.BUTTON_JUMP)
+	if (fired and breaks & 1 != 0) or (moved and breaks & 2 != 0):
+		end_spawn_protection(id)
+	elif config.spawn_protection_move_feet > 0.0:
+		# Distance from where the protection started (the first protected tick), any direction.
+		var here := player.global_position
+		if not _protect_anchor.has(id):
+			_protect_anchor[id] = here
+		elif (_protect_anchor[id] as Vector3).distance_to(here) > config.spawn_protection_move_feet * FEET_TO_METRES:
+			end_spawn_protection(id)
+	player.protected_view = config.spawn_protection_bubble and player.health.is_protected(_tick)
+
+## Ends spawn protection for [param id] now: the health window, the `PROTECTED` effect and gs-spawn's ledger.
+func end_spawn_protection(id: int) -> void:
+	var player := player_for(id)
+	if player == null:
+		return
+	player.health.invulnerable_until_tick = -1
+	player.protected_view = false
+	_protect_anchor.erase(id)
+	if effects != null:
+		effects.remove(FcEffects.PROTECTED, id)
+	if player_stack != null and player_stack.spawns != null and player_stack.spawns.protection != null:
+		player_stack.spawns.protection.revoke(str(id), _tick)

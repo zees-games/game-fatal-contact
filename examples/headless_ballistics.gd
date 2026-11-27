@@ -12,7 +12,7 @@ const FcPlayer := preload("../game/fc_player.gd")
 ## [/codeblock]
 
 const TICK_RATE := 64
-const EXPECTED_CHECKS := 18
+const EXPECTED_CHECKS := 19
 
 var _checks := 0
 var _failed := 0
@@ -183,3 +183,9 @@ func _wallbang_check(shooter: FcPlayer, victim: FcPlayer) -> void:
 	var hits_before := before.get_value(GSStatsPenetration.HITS) if before != null else 0.0
 	_check(now.get_value(GSStatsPenetration.HITS) > hits_before, "wall: penetration_hits is filed", str(now.get_value(GSStatsPenetration.HITS)))
 	_check(now.get_value(GSStatsPenetration.DAMAGE) > 0.0, "wall: penetration_damage is filed")
+	# The feed holds hits until the tick's apply; the addon's selftest proves the folded totals equal per-hit ones.
+	var held: bool = _game.progress.held_stats
+	if held:
+		_game.tick({})
+	_check(not held or (bool(_game.progress._kill_feed.get(&"batched")) and int(_game.progress.stats.call(&"pending_players")) == 0),
+		"stats: the feed holds hits and a tick folds them all", str(held))

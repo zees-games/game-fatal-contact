@@ -2,6 +2,7 @@ extends GSGameCheckSuite
 
 const FcBots := preload("../game/fc_bots.gd")
 const FcBotLoadouts := preload("../game/fc_bot_loadouts.gd")
+const FcContent := preload("../game/fc_content.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
@@ -17,8 +18,10 @@ const SHARE_SLACK := 0.025
 const SPAWNED := 12
 const FIGHT_SECONDS := 120.0
 
-const SECTIONS := 7
-const CHECKS := 23
+## Chained gives per path in the sv_bot_regive section: enough for reserve ammo to reach its cap.
+const REGIVES := 4
+const SECTIONS := 8
+const CHECKS := 27
 
 var _entered := 0
 var _completed := 0
@@ -41,6 +44,7 @@ func _run() -> void:
 	_difficulty(pool)
 	_determinism(pool)
 	await _spawned(game)
+	_regive(game)
 	_free(game)
 	await _fight()
 	FcBotLoadouts.mode = FcBotLoadouts.ALL
@@ -61,7 +65,31 @@ func _profiles(game: FcGame, pool: FcBotLoadouts) -> void:
 		primaries[kit.items.get(&"primary", &"")] = true
 	_check(unfit.is_empty(), "no profile item is replaced by the rules", ", ".join(unfit))
 	_check(primaries.size() >= 8, "the kits carry at least eight different primaries", "%d" % primaries.size())
+	_check_built_memo(game, pool)
 	_done()
+
+
+## [method FcBotLoadouts.built_for] memoes each kit once, and what it hands out equals a fresh
+## build and resolve entry for entry.
+func _check_built_memo(game: FcGame, pool: FcBotLoadouts) -> void:
+	var key := game._loadout_key(FcGame.BOT_SESSION_BASE)
+	var differ: Array[String] = []
+	var shared := true
+	for kit in pool.kits:
+		var built := pool.built_for(kit, game.loadouts, key)
+		shared = shared and pool.built_for(kit, game.loadouts, key)[1] == built[1] and is_same(pool.built_for(kit, game.loadouts, key)[0], built[0])
+		var fresh := FcContent.in_give_order(game.loadouts.resolve(FcBotLoadouts.build(kit, game.loadouts, key)))
+		if _entries_text(built[1]) != _entries_text(fresh):
+			differ.append("%s: %s vs %s" % [kit.id, _entries_text(built[1]), _entries_text(fresh)])
+	_check(shared and pool.built_count() == pool.kits.size(), "a kit is built once and shared", "%d for %d kits" % [pool.built_count(), pool.kits.size()])
+	_check(differ.is_empty(), "the memoed entries equal a fresh build field for field", "; ".join(differ))
+
+
+func _entries_text(entries: Array) -> String:
+	var parts := PackedStringArray()
+	for e: Dictionary in entries:
+		parts.append("%s/%d/%s/%d" % [e["slot"], int(e["arsenal_slot"]), (e["item"] as GSItem).id, int(e["count"])])
+	return ",".join(parts)
 
 
 func _distribution(pool: FcBotLoadouts) -> void:
@@ -149,6 +177,46 @@ func _spawned(game: FcGame) -> void:
 	_check(not game.player_for(7).has_meta(&"bot_loadout"), "a human does not draw a bot kit")
 	var bare := _bare_fittings(game)
 	_check(bare.is_empty(), "a kit's attachments are fitted to its guns", bare)
+	_done()
+
+
+## `sv_bot_regive`: a bot's re-give that reuses its behaviours (gs-weapon API 56) ends where building them all does.
+func _regive(game: FcGame) -> void:
+	_section("sv_bot_regive re-gives a bot's kit to the state a fresh give makes")
+	var bot := game.player_for(FcGame.BOT_SESSION_BASE + 1)
+	if not FcBotLoadouts.regive_supported:
+		_check(true, "gs-weapon below API 56: sv_bot_regive does nothing")
+		_check(true, "(skipped)")
+		_done()
+		return
+	var was := FcBotLoadouts.regive
+	# Each draw is a new life with its own kit; both gives draw the same life so they give the same kit.
+	var life := int(game.bot_loadouts._lives.get(bot.player_id, 0))
+	# Reserve ammo carries over between gives on both paths (clear() keeps the pools; a give tops them up to the
+	# cap), so each chain of gives starts from one restored state and the two are compared give by give.
+	var start := bot.arsenal.snapshot()
+	var chains: Array[PackedStringArray] = []
+	var reused_before := 0
+	for reuse: bool in [false, true]:
+		var _restored := bot.arsenal.restore(start)
+		FcBotLoadouts.regive = reuse
+		reused_before = int(bot.arsenal.get(&"behaviours_reused"))
+		var chain := PackedStringArray()
+		for i in REGIVES:
+			game.bot_loadouts._lives[bot.player_id] = life
+			var _given := game._give_bot_loadout(bot)
+			chain.append(var_to_str(bot.arsenal.snapshot()))
+		chains.append(chain)
+	FcBotLoadouts.regive = was
+	var reused := int(bot.arsenal.get(&"behaviours_reused")) - reused_before
+	_check(reused >= REGIVES - 1, "the re-gives reused the bot's behaviours", "%d reused" % reused)
+	var first_bad := -1
+	for i in REGIVES:
+		if chains[0][i] != chains[1][i]:
+			first_bad = i
+			break
+	_check(first_bad < 0, "each of %d chained re-gives' snapshot (reserve ammo too) equals the fresh path's" % REGIVES,
+		"give %d: %s vs %s" % [first_bad, chains[0][first_bad], chains[1][first_bad]] if first_bad >= 0 else "")
 	_done()
 
 

@@ -1,6 +1,7 @@
 extends "fc_presentation_fields.gd"
 
 const FcScopePrefs := preload("fc_scope_prefs.gd")
+const FcLoadTimeline := preload("fc_load_timeline.gd")
 const FcScopeBody := preload("fc_scope_body.gd")
 const FcNetLink := preload("fc_net_link.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
@@ -117,6 +118,7 @@ func _add_killcam_vars(local: GSConsoleLocal) -> void:
 
 ## Frame-report and per-frame build limits.
 func _add_perf_vars(local: GSConsoleLocal) -> void:
+	preload("fc_render_cvars.gd").add_vars(local)
 	local.add_var(&"cl_perf", "Seconds between frame reports in the log (arena.perf); 0 is off.",
 		func() -> Variant: return FcFrameProbe.interval,
 		func(v: Variant) -> Variant:
@@ -248,6 +250,18 @@ func _add_remote_vars(local: GSConsoleLocal) -> void:
 			FcPlayer.present_lod_enabled = str(v).strip_edges() != "0"
 			return GSResult.success(1 if FcPlayer.present_lod_enabled else 0)
 	)
+	local.add_var(&"cl_remote_lod_native", "1 judges every remote player's present tier in one native call per frame (when the gs-sim library has it); 0 judges each in script. Same answers either way.",
+		func() -> Variant: return 1 if FcPlayer.present_native else 0,
+		func(v: Variant) -> Variant:
+			FcPlayer.present_native = str(v).strip_edges() != "0"
+			return GSResult.success(1 if FcPlayer.present_native else 0)
+	)
+	local.add_var(&"cl_remote_present_native", "1 thins every remote player's presents in the same native object and calls script only for the players drawn this frame (with cl_remote_lod_native and a gs-sim library that has it); 0 thins each in script. Same presents either way.",
+		func() -> Variant: return 1 if FcPlayer.present_schedule_native else 0,
+		func(v: Variant) -> Variant:
+			FcPlayer.present_schedule_native = str(v).strip_edges() != "0"
+			return GSResult.success(1 if FcPlayer.present_schedule_native else 0)
+	)
 	local.add_var(&"cl_remote_lod_frustum", "1 judges a remote player out of sight by the camera's real view frustum, 0 by a wide cone round the view axis.",
 		func() -> Variant: return 1 if FcPlayer.lod_frustum else 0,
 		func(v: Variant) -> Variant:
@@ -268,6 +282,12 @@ func _add_remote_vars(local: GSConsoleLocal) -> void:
 				return GSResult.fail(GSError.CODE_INVALID, "cl_remote_still_anim_hz takes a number of steps a second, 0 (off) or more")
 			FcPlayer.still_anim_hz = text.to_float()
 			return GSResult.success(FcPlayer.still_anim_hz)
+	)
+	local.add_var(&"cl_figure_batch", "1 steps every body's figure in one batch a frame (one native call a stage for them all, with gs-player-char 50 and a gs-sim library that has it); 0 steps each figure on its own. Same poses either way.",
+		func() -> Variant: return 1 if FcPlayer.figure_batch else 0,
+		func(v: Variant) -> Variant:
+			FcPlayer.figure_batch = str(v).strip_edges() != "0"
+			return GSResult.success(1 if FcPlayer.figure_batch else 0)
 	)
 	local.add_var(&"cl_remote_pose_skip", "1 leaves a remote body's placement alone while its drawn turn and lean are unchanged, 0 writes it every frame.",
 		func() -> Variant: return 1 if FcPlayer.pose_skip_enabled else 0,
@@ -414,6 +434,7 @@ static func facing(at: Vector3, direction: Vector3) -> Transform3D:
 func on_used(outcome: GSWeaponOutcome, weapon_draws: bool = false) -> void:
 	if outcome == null or not outcome.used:
 		return
+	FcLoadTimeline.first_use("shot")
 
 	for shot in outcome.shots:
 		if not weapon_draws:
@@ -697,6 +718,7 @@ func use_shot_rules(rules: GSShotRules) -> void:
 ## The report of somebody else's gun (`AwShotFx.shot_sound`) through this presentation's one layered player. Without it each shooter's `AwShotFx` made its own audio manager, enclosure and shot player on its first shot:
 ## 40 ms a shooter, thirty-one times a match at 16 v 16. A gun's own report when fc-weapons ships one, else its class's stock; false for a class with neither (the single sound plays).
 func remote_shot(id: StringName, kind: StringName, at: Vector3, _indoors: bool) -> bool:
+	FcLoadTimeline.first_use("remote_shot")
 	var t_shot := Time.get_ticks_usec()
 	var done := _remote_shot(id, kind, at)
 	FcFrameProbe.add(&"fx_remote_shot", t_shot)

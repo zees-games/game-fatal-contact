@@ -93,6 +93,7 @@ var _first_errors: Array[float] = []
 var _blind_shots := 0
 var _shots := 0
 var _fastest := 0.0
+var _fastest_at := ""
 
 
 func _ready() -> void:
@@ -154,16 +155,22 @@ func _load_results(paths: PackedStringArray) -> void:
 	_check(_results.size() == GSBotProfile.PRESETS.size(), "every preset's shard log is there", "%d of %d" % [_results.size(), GSBotProfile.PRESETS.size()])
 
 
-func _play(preset: String) -> void:
-	_section("%s against the reference player" % preset)
-
-	var kills: Array[int] = [0, 0]
+## The per-preset tallies the judge reads, cleared before a preset's seeds play.
+func _reset_tallies() -> void:
 	_reactions = []
 	_first_errors = []
 	_blind_shots = 0
 	_shots = 0
-	var thrown: Array[int] = [0]
 	_fastest = 0.0
+	_fastest_at = ""
+
+
+func _play(preset: String) -> void:
+	_section("%s against the reference player" % preset)
+
+	var kills: Array[int] = [0, 0]
+	_reset_tallies()
+	var thrown: Array[int] = [0]
 	var per_seed := []
 	var game: FcGame
 	var settings: GSBotSettings
@@ -263,7 +270,7 @@ func _judge_preset(preset: String, kills: Array[int], thrown: Array[int], p: GSB
 		_check(thrown[0] > 0, "%s: throws grenades (bot_grenades %.1f) through the throwable slot" % [preset, p.grenades], "%d thrown" % thrown[0])
 	else:
 		_check(thrown[0] == 0, "%s: throws no grenade (bot_grenades 0)" % preset, "%d thrown" % thrown[0])
-	_check(_fastest <= p.turn_rate * 1.02, "%s: never turns faster than bot_turn_rate (%.0f deg/s)" % [preset, p.turn_rate], "%.0f" % _fastest)
+	_check(_fastest <= p.turn_rate * 1.02, "%s: never turns faster than bot_turn_rate (%.0f deg/s)" % [preset, p.turn_rate], "%.0f at %s" % [_fastest, _fastest_at])
 	_check(_reactions.size() > 0 and reaction >= p.reaction * 0.5 and reaction <= p.reaction + p.notice * 2.0 + 0.3,
 		"%s: first shot about bot_reaction after first sight" % preset, "%.3f over %d" % [reaction, _reactions.size()])
 
@@ -278,6 +285,8 @@ func _play_ticks(game: FcGame, trace: GSTrace, bot_mind: FcBots.Mind, ref_mind: 
 		var bot := game.player_for(BOT)
 		var ref := game.player_for(REFERENCE)
 		var comp_before: Vector2 = bot_mind.recoil_comp
+		var yaw_before: float = bot.controller.state.yaw if bot.controller != null else NAN
+		var coasted_before := bot_mind.coasting
 		var commands := {
 			BOT: FcBots.think(game, bot, bot_mind, tick, float(TICK_RATE)),
 			REFERENCE: FcBots.think(game, ref, ref_mind, tick, float(TICK_RATE)),
@@ -294,7 +303,13 @@ func _play_ticks(game: FcGame, trace: GSTrace, bot_mind: FcBots.Mind, ref_mind: 
 			# Against the view the bot had going into the tick, never the last command: a
 			# spawn turns the view too, and that is the map's doing, not the bot's.
 			# The brain's own turn: the view it steers from and aims at both carry the recoil correction, which is not a turn of its choosing.
-			_fastest = maxf(_fastest, absf(wrapf((move.yaw + bot_mind.recoil_comp.x) - (bot.controller.state.yaw + comp_before.x), -180.0, 180.0)) * TICK_RATE)
+			var rate := absf(wrapf((move.yaw + bot_mind.recoil_comp.x) - (bot.controller.state.yaw + comp_before.x), -180.0, 180.0)) * TICK_RATE
+			if rate > _fastest:
+				# The fastest tick and how the bot got there, so a failure names its path (a coast, a throw, a respawn).
+				_fastest = rate
+				_fastest_at = "tick %d yaw %.2f (%.2f after the think) to %.2f, comp %s to %s, %s, coasting %s to %s, last think %d, throw stage %d" % [
+					tick, yaw_before, bot.controller.state.yaw, move.yaw, comp_before, bot_mind.recoil_comp,
+					brain.last.state if brain.last != null else &"", coasted_before, bot_mind.coasting, bot_mind.last_think_tick, bot_mind.throw_stage]
 			if fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK) and bot_mind.throw_stage == 0:
 				_shots += 1
 				var target := game.player_for(brain.last.target_id) if brain.last.target_id >= 0 else null

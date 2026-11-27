@@ -32,6 +32,10 @@ var mod_commands: GSModToolCommands = null
 ## The authoritative tick. Counted here because the module is what drives it.
 var _tick: int = 0
 
+## Set by the sim host's report: each tick's [code]bridge.server_tick[/code] cost in usec, appended here until it reads and clears them.
+var keep_tick_costs := false
+var tick_costs := PackedInt32Array()
+
 
 ## Binds gs-audio's sv_surf_* cvars with the `surf_*` profile values as their defaults, which every client follows.
 func _bind_surf_cvars(flags: int) -> void:
@@ -112,8 +116,8 @@ func _build_netcode() -> GSResult:
 	config.tick_rate = game.tick_rate
 	config.snapshot_rate = FcGame.snapshot_rate_for(game.tick_rate, snapshot_target())
 	config.enable_prediction = true
-	# On: a player shoots where they SEE someone, which is where that player was half a round trip ago.
-	config.enable_lag_compensation = true
+	# Off: FC rewinds shots with its own ring (fc_game_unlag.gd) and nothing reads gs-net's history; sv_net_lagcomp 1 records it again.
+	config.enable_lag_compensation = false
 	config.max_entities_per_snapshot = 0  # unlimited: interest management and the mtu bound a snapshot
 	# Unlimited: tools/net_probe.gd measured ~6 kB/s steady and ~16 kB/s at a join, so a cap
 	# could only hold a packet back (see _add_rate_cvar).
@@ -472,15 +476,43 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_tick += 1
+	# The slow-tick dump (the sim host's `--sim_slow_tick`): this whole call, the once-a-second work too, is one tick's record.
+	if FcFrameProbe.slow_tick_usec <= 0:
+		_server_frame(delta)
+		return
+	FcFrameProbe.tick_begin()
+	var objects := Performance.get_monitor(Performance.OBJECT_COUNT)
+	var t_frame := Time.get_ticks_usec()
+	_server_frame(delta)
+	var spent := Time.get_ticks_usec() - t_frame
+	if spent >= FcFrameProbe.slow_tick_usec and slow_tick_report.is_valid():
+		slow_tick_report.call(_tick, spent, int(Performance.get_monitor(Performance.OBJECT_COUNT) - objects))
+
+
+## Where a tick over [member FcFrameProbe.slow_tick_usec] is told (the sim host's dump): tick, usec, objects made.
+var slow_tick_report := Callable()
+
+
+## The tick and what rides on it: the timed server tick, the once-a-second bot count and interest areas, the map and vote clocks.
+func _server_frame(delta: float) -> void:
 	if loading != null:
 		loading.poll_loading()
-	bridge.server_tick(_tick)
+	if keep_tick_costs:
+		var t_tick := Time.get_ticks_usec()
+		bridge.server_tick(_tick)
+		var _n := tick_costs.push_back(Time.get_ticks_usec() - t_tick)
+	else:
+		bridge.server_tick(_tick)
 
 	_since_bot_check += delta
 	if _since_bot_check >= BOT_CHECK_SEC:
 		_since_bot_check = 0.0
+		var t_slow := Time.get_ticks_usec()
 		_keep_bots()
+		FcFrameProbe.add(&"srv_keep_bots", t_slow)
+		t_slow = Time.get_ticks_usec()
 		_refresh_aoi()
+		FcFrameProbe.add(&"srv_aoi", t_slow)
 	_log_shot_rewinds(delta)
 	# The map clock and the vote clock, from the SIMULATED tick rather than from the frame: a server that stalls should not lose that time off its map, and a test must be able to run an hour of a map in a millisecond.
 	# [b]One clock, and it is the vote's when there is a vote.[/b] The map director's `GSMapTimeLimit` and the vote's `GSVoteClock` both ran here from boot and the first to expire won: the director's reached `_on_map_over`

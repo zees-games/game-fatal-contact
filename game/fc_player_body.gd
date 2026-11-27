@@ -294,6 +294,9 @@ func _hold_weapon() -> void:
 	# Hidden until a present says it may show: a body built for a joiner while its player is dead
 	# drew its gun at the hand's rest, in mid-air, until the first present reached it.
 	held.visible = false
+	# A new gun processes; the thinning's record of the old one would keep the next switch from reaching it.
+	_held_thin = false
+	_refresh_crowd_bits()
 
 ## What the drawn body wears for its side ([method FcTeamBodies.wear_key]; "" its own look), and the
 ## team and [member FcTeamBodies.version] it was last judged for.
@@ -394,6 +397,7 @@ func attach_body_mesh(colour: Color, avatar: GSAvatar = null) -> void:
 	body_mesh = Node3D.new()
 	body_mesh.name = "Body"
 	add_child(body_mesh)
+	_refresh_crowd_bits()
 
 	if _wear(avatar):
 		_hold_weapon()
@@ -583,6 +587,9 @@ var body_last_tick: int = -1
 static var body_skipped := 0
 ## A gap longer than this (a death, a map change) is not made up.
 const BODY_MAX_GAP := 8
+## [method body_delta] reads the state's packed columns (gs-player-controller 36: previous buttons 13, mode 9, slide 17,
+## wall run 22, yaw 12) instead of six property calls per bot per tick; false is the property path (cvar ctl_native).
+static var body_cols := GSAddonApi.build_level("gs_player_controller") >= 36
 ## What [method body_delta] answered last, for the batched loop's [method GSFpsController.end_tick].
 var body_d := 0.0
 
@@ -598,12 +605,22 @@ func body_delta(tick: int, delta: float, command: GSFpsCommand) -> float:
 		body_d = delta
 		return delta
 	var s := controller.state
-	if gap >= body_every or command.buttons != s.previous_buttons or controller.has_external_velocity() \
+	if body_cols:
+		# The state's columns ([code]GSFpsStateColumns[/code], gs-player-controller 36), fetched by name so older builds parse.
+		var f: PackedFloat64Array = s.get(&"_f")
+		if gap >= body_every or command.buttons != int(f[13]) or controller.has_external_velocity() \
+				or int(f[9]) != GSFpsState.Mode.GROUND or f[17] >= 0.0 or f[22] >= 0.0:
+			body_last_tick = tick
+			body_d = delta * float(gap)
+			return body_d
+		f[12] = command.yaw
+	elif gap >= body_every or command.buttons != s.previous_buttons or controller.has_external_velocity() \
 			or not s.is_grounded() or s.is_sliding() or s.is_wall_running():
 		body_last_tick = tick
 		body_d = delta * float(gap)
 		return body_d
-	s.yaw = command.yaw
+	else:
+		s.yaw = command.yaw
 	s.pitch = command.pitch
 	s.tick += 1
 	body_skipped += 1
@@ -655,9 +672,15 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 	if fine:
 		FcFrameProbe.add(&"p_hitbox", t_fine)
 	var t_mech := Time.get_ticks_usec()
-	_run_map_mechanics(_tick_start, delta)
-	_follow_map_volumes()
+	if _volumes_asked_tick != tick and mechanics_native and volume_pre != null:
+		volume_pre.mark_one(tick, self)
+	var clear := _volumes_skip(tick, _tick_start)
+	_run_map_mechanics(_tick_start, delta, clear)
+	var t_follow := FcFrameProbe.lap_start()
+	_follow_map_volumes(clear)
+	FcFrameProbe.lap(&"pm_follow", t_follow)
 	FcFrameProbe.add(&"p_mechanics", t_mech)
+	var t_tail := FcFrameProbe.lap_start()
 
 	var state := controller.state
 
@@ -686,16 +709,21 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 	# [method _idle_posture] for the same fields the context below gets, so a moving player takes this path too.
 	_posture_tick = tick
 	_idle_now = weapons.would_idle(_command)
-	return _idle_now and idle_row_lane and controller != null
+	_cool_now = not _idle_now and _would_cool(tick)
+	FcFrameProbe.lap(&"ph_tail", t_tail)
+	return (_idle_now or _cool_now) and idle_row_lane and controller != null
 
 
-## The idle weapon tick of a [method tick_post_head] that answered true: [param row] is [method _idle_row]'s
-## (its first 9 floats), [param still] its still flag.
+## The idle (or cooling, [method _would_cool]) weapon tick of a [method tick_post_head] that answered true: [param row]
+## is [method _idle_row]'s (its first 9 floats), [param still] its still flag.
 func tick_idle_row(row: PackedFloat64Array, still: bool) -> GSWeaponOutcome:
 	var t_wp := Time.get_ticks_usec()
-	var out: GSWeaponOutcome = weapons.call(&"simulate_idle_row", _command, _posture_tick, row, still)
+	var out: GSWeaponOutcome = weapons.call(&"simulate_cooling_row", _command, _posture_tick, row) if _cool_now \
+		else weapons.call(&"simulate_idle_row", _command, _posture_tick, row, still)
 	_idle_hands()
 	FcFrameProbe.add(&"p_weapons", t_wp)
+	if FcWeaponCensus.on:
+		FcFrameProbe.add(&"pwx_cool_row" if _cool_now else &"pwx_idle_row", t_wp)
 	if FcFrameProbe.fine:
 		FcFrameProbe.charge_weapon_phases()
 	return out
@@ -711,6 +739,8 @@ func tick_weapons(tick: int) -> GSWeaponOutcome:
 		out = weapons.simulate_idle(_command, tick) if idle_tick else weapons.simulate_tick(_command, tick, null)
 		_idle_hands()
 		FcFrameProbe.add(&"p_weapons", t_wp)
+		if FcWeaponCensus.on:
+			FcFrameProbe.add(&"pwx_idle_ctx", t_wp)
 		if FcFrameProbe.fine:
 			FcFrameProbe.charge_weapon_phases()
 		return out
@@ -723,6 +753,8 @@ func tick_weapons(tick: int) -> GSWeaponOutcome:
 	# command itself, for the same edge triggers the arsenal used to be handed it for.
 	out = weapons.simulate_tick(_command, tick, ctx)
 	FcFrameProbe.add(&"p_weapons", t_wp)
+	if FcWeaponCensus.on:
+		FcFrameProbe.add(&"pwx_full", t_wp)
 	if FcFrameProbe.fine:
 		FcFrameProbe.charge_weapon_phases()
 	return out

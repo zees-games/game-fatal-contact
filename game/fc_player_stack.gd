@@ -30,7 +30,6 @@ signal physics_applied(profile: GSPhysicsProfile)
 
 
 var classes: GSPlayerClassManager = null
-var spawns: GSSpawnDirector = null
 var spectate: GSTeamSpectate = null
 
 var _registered: bool = false
@@ -309,7 +308,9 @@ const SPAWN_MODES := ["avoid", "weighted", "furthest", "random"]
 
 
 func _build_spawns() -> void:
-	spawns = GSSpawnDirector.new()
+	var director := FcSpawnDirector.new()
+	director.seen_any_fn = _site_seen_by_any
+	spawns = director
 	spawns.name = "Spawns"
 	spawns.tick_rate = game.tick_rate
 	spawns.register_service = false
@@ -517,18 +518,23 @@ func _on_player_spawned(player: FcPlayer) -> void:
 		return
 
 	var key := str(player.player_id)
+	var t_lap := FcFrameProbe.lap_start()
 
 	# Before the alive flag: a pending class change lands on the spawn, and anything
 	# reading the class in an `alive_changed` handler should read the new one.
 	var landed := classes.apply_pending(key)
 	apply_class_numbers(player)
+	t_lap = FcFrameProbe.lap(&"sg_class", t_lap)
 	class_applied.emit(player.player_id, landed)
+	t_lap = FcFrameProbe.lap(&"sg_class_emit", t_lap)
 
 	var _alive := roster.set_alive(key, true)
+	t_lap = FcFrameProbe.lap(&"sg_alive", t_lap)
 	spawns.cancel_respawn(key)
 
 	if spectate.is_spectating(key):
 		spectate.end(key)
+	FcFrameProbe.lap(&"sg_cancel", t_lap)
 
 
 func _on_player_killed(entry: GSKillFeed.Entry) -> void:
@@ -684,11 +690,16 @@ func apply_class_numbers(player: FcPlayer) -> void:
 
 	var def := classes.def_of(str(player.player_id))
 
-	# Before the null return: no class must clear what the last spawn wrote.
-	var _kinds := GSGameClassImmunity.apply(game.combat, def, player.player_id)
+	# Before the null return: no class must clear what the last spawn wrote. Not through `GSGameClassImmunity.apply`, which checks, loads and
+	# lists the bridge script's methods on every call (32 times in a round start's tick); this game calls `GSPlayerClassApply` directly anyway.
+	var immunity := GSGameClassImmunity.ensure(game.combat)
 
 	if def == null:
+		if immunity != null:
+			immunity.call(&"clear", player.player_id)
 		return
+
+	var _kinds := GSPlayerClassApply.to_immunity(def, immunity, player.player_id)
 
 	# Not reset to full here: `FcPlayer.spawn` already calls `GSHealth.reset`, and
 	# two resets on one spawn is one of them undoing the other's protection window.

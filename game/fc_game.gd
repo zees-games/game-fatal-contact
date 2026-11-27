@@ -74,7 +74,7 @@ func _add_hulls_local(out: Array, cand: Array, id: int, me_at: Vector3, coarse: 
 		var feet := ctl.state.position
 		if feet.distance_squared_to(me_at) > coarse:
 			continue
-		if not other.is_alive():
+		if not other.health.alive:
 			continue
 		if paired:
 			var known: int = _pair_memo[row + i] if row >= 0 else 0
@@ -118,7 +118,7 @@ func _add_hull(out: Array, i: int, id: int, me_at: Vector3, near: bool, coarse: 
 	var feet := ctl.state.position
 	if near and feet.distance_squared_to(me_at) > coarse:
 		return
-	if not body_rules.blocks(id, other_id) or not other.is_alive():
+	if not body_rules.blocks(id, other_id) or not other.health.alive:
 		return
 	if remote:
 		var at: Variant = remote_feet_fn.call(other_id, id, tick)
@@ -157,6 +157,7 @@ func add_player(
 	FcPlayer.configure_body(config.avatar_height_units, config.avatar_crouch_units, config.avatar_radius_units, config.avatar_unit_metres)
 	player.apply_map_movement(map_movement())
 	player.apply_vitals(config.player_health, config.player_armour, config.player_regen, config.fall_out_depth)
+	player.volume_pre = _volume_pre
 	add_child(player)
 
 	# The layout's player mask, rather than `GSFpsTunables`' default of 1. See
@@ -253,29 +254,14 @@ func respawn_player(id: int) -> GSResult:
 
 ## gs-bot-record, loaded by path in [method start_ride_recording] only: a game that never records does not compile it.
 const BOT_RECORD_DIR := "res://addons/gs_bot_record/"
-## FC's kill view server: asks for an eye only when the ring would keep it.
+## FC's kill view server: builds an eye only when the ring keeps it, straight into the ring.
 const FcKillViewServer := preload("fc_killview_server.gd")
 
 ## The kill view's server half over this game: every living eye, respawns held in gs-match's queue.
 func make_killview_server() -> GSKillViewServer:
-	var server := FcKillViewServer.new(killview_rules)
+	var server := FcKillViewServer.new(killview_rules, self)
 	server.tick_rate = tick_rate
 	KillPov.watch_hits(self)
-	var due := server.due
-	server.eyes_fn = func() -> Array:
-		var eyes: Array = []
-		var eye_up := Vector3(0.0, FcPlayer.eye_height(), 0.0)
-		for p: FcPlayer in players():
-			if not p.is_alive() or p.controller == null or p.controller.state == null:
-				continue
-			# Only the eyes the ring keeps this tick: one tick in three at 66 ticks and 30 Hz.
-			if not due.check(p.player_id):
-				continue
-			var st: GSFpsState = p.controller.state
-			var eye: Vector3 = p.controller.motor.eye_position(st) if p.controller.motor != null else st.position + eye_up
-			var basis := Basis.from_euler(Vector3(deg_to_rad(st.pitch), deg_to_rad(st.yaw), 0.0))
-			eyes.append({"id": p.player_id, "transform": Transform3D(basis, eye), "fov": KillPov.fov_of(p), "aux": KillPov.aux_of_tick(p, GSKillViewRing.AUX, true)})
-		return eyes
 	server.use_respawn_queue(func() -> Variant: return match_node.respawns if match_node != null else null,
 		func(id: Variant) -> GSResult: return respawn_player(int(id)))
 	return server

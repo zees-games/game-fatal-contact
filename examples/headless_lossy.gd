@@ -272,10 +272,10 @@ func _sample_render() -> void:
 			_w["max_freeze_ms"] = maxi(int(_w["max_freeze_ms"]), now_ms - int(_w["freeze_since"]))
 			if _verbose and now_ms - int(_w["freeze_since"]) > 150:
 				var b_identity := (a["bridge"] as FcNetBridge).behaviour_for(b_session)
-				var b_track: Variant = net.interpolator.get("_tracks").get(b_identity.identity.net_id) if b_identity != null else null
+				var b_newest: int = net.interpolator.newest_tick(b_identity.identity.net_id) if b_identity != null else -1
 				print("      FREEZE %d ms: render %.2f received %d server %d newest-B %s applied %d drawn %s truth %s" % [
 					now_ms - int(_w["freeze_since"]), render_tick, net.clock.received_tick(), _game.current_tick(),
-					str(b_track.newest_tick()) if b_track != null else "-", net.ack_tick(), drawn, truth])
+					str(b_newest) if b_newest >= 0 else "-", net.ack_tick(), drawn, truth])
 		else:
 			_w["freeze_since"] = -1
 
@@ -580,7 +580,7 @@ func _check_exact_roundtrip(a: Dictionary, own: FcPlayer) -> void:
 	rewound.time_since_grounded = 0.0
 	rewound.time_since_jump = 0.0
 	rewound.time_since_jump_pressed = 1000.0
-	behaviour.call("_push_exact", rewound)
+	var _pushed_rewound := GSFpsNetSync.push_exact(rewound, behaviour.get("net_exact"))
 	behaviour.set("net_exact", kept)
 	_check(rewound.time_since_grounded == 0.375 and rewound.time_since_jump == 1.25
 			and rewound.time_since_jump_pressed == 0.5,
@@ -600,7 +600,7 @@ func _check_exact_roundtrip(a: Dictionary, own: FcPlayer) -> void:
 	fresh.stamina = 1.0
 	fresh.stamina_exhausted = false
 	fresh.stamina_delay_left = 0.0
-	behaviour.call("_push_exact", fresh)
+	var _pushed_fresh := GSFpsNetSync.push_exact(fresh, behaviour.get("net_exact"))
 	behaviour.set("net_exact", kept)
 	_check(is_equal_approx(fresh.wall_run_cooldown_left, 0.3) and is_equal_approx(fresh.stamina, 0.25)
 			and fresh.stamina_exhausted and is_equal_approx(fresh.stamina_delay_left, 0.5),

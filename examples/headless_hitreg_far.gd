@@ -243,10 +243,9 @@ func _track_view(render_tick: float) -> Dictionary:
 	var behaviour: GSNetBehaviour = (_clients[SHOOTER_PEER]["bridge"] as FcNetBridge)._behaviours.get(_target)
 	if behaviour == null or behaviour.identity == null:
 		return {}
-	var track: Variant = net.interpolator._tracks.get(behaviour.identity.net_id)
-	if track == null or track.samples.size() < 2:
+	var s: Array = net.interpolator.track_samples(behaviour.identity.net_id)
+	if s.size() < 2:
 		return {}
-	var s: Array = track.samples
 	var last := s.size() - 1
 	if render_tick >= float(s[last]["tick"]):
 		return {"older": int(s[last - 1]["tick"]), "newer": int(s[last]["tick"]), "ahead": true}

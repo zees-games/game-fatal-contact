@@ -239,9 +239,9 @@ func _check_floors() -> void:
 	_check(unpinned.is_empty(), "every floored addon has the shell's level in requires.pins.json", str(unpinned))
 	var asked := GSAddonApi.apply_floors(derived, floors.value if floors.ok else {})
 	_check(
-		asked.get("gs_ui") == 23 and asked.get("gs_lighting") == derived.get("gs_lighting") \
+		asked.get("gs_ui") == 27 and asked.get("gs_lighting") == derived.get("gs_lighting") \
 			and int(asked.get("gs_lighting", 0)) >= 3,
-		"so a pack asks a shell for gs-ui 23 (the health tag) and the gs-lighting it was built on (3+, painted())", str(asked)
+		"so a pack asks a shell for gs-ui 27 (the loadout bar layouts) and the gs-lighting it was built on (3+, painted())", str(asked)
 	)
 
 

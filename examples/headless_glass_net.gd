@@ -111,6 +111,12 @@ func _body(a: Dictionary) -> bool:
 	_check(_broken_count(server_panes) == 0 and _broken_count(client_panes) == 0, "none starts broken")
 
 	var trace: GSTrace = _game.combat.trace
+	# One process stands in for two machines, so the client's copies share the server's World3D and stand exactly
+	# where the server's panes stand: a ray ties between the two, and which one the physics space returns is its
+	# broadphase order, not a rule. The server's trace never sees a client's world in a real game; here it skips it.
+	var base_rids := trace.exclude_rids.duplicate()
+	for pane in client_panes:
+		trace.exclude_rids.append((pane as CollisionObject3D).get_rid())
 	var target: Node3D = null
 	var origin := Vector3.ZERO
 	var dir := Vector3.ZERO
@@ -157,6 +163,7 @@ func _body(a: Dictionary) -> bool:
 	_check(_broken_count(client_panes) == 1 and _broken_count(server_panes) == 1, "one pane each, no other",
 			"server %d client %d" % [_broken_count(server_panes), _broken_count(client_panes)])
 	_check(int(mine.get(&"collision_layer")) == 0, "the client's broken pane leaves the collision layers")
+	trace.exclude_rids = base_rids
 	_done()
 
 	return true

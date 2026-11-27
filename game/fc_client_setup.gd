@@ -1,14 +1,18 @@
 extends "fc_client_session_events.gd"
 
-## A browser draws the sun's shadow in one orthogonal map, not in gs-game's web default of 2 splits: each split is another depth pass over every body and gun, the largest single cost of a 16v16 browser frame after the bodies themselves.
-## Built-in maps already use one (see fc_map_lighting.gd); this covers imported ones. `r_sun_shadow_splits=2`, as a launch argument or URL query, still wins. Native is unchanged.
-const WEB_SUN_SHADOW_SPLITS := 1.0
+## Every client draws the sun's shadow in one orthogonal map out to 60 m: each split is another depth pass over every body and gun.
+## Built-in maps already use one split (see fc_map_lighting.gd); this covers imported ones. On staging02 with 32 players (n=3) a native frame was 1.1 ms faster with no visible change.
+## `r_sun_shadow_splits` / `r_shadow_distance`, as a launch argument or URL query, still win.
+const SUN_SHADOW_SPLITS := 1.0
+const SUN_SHADOW_DISTANCE := 60.0
 const _RenderQuality := preload("res://addons/gs_game/runtime/gs_game_render_quality.gd")
 const _UserDir := preload("fc_user_dir.gd")
 
-func _web_render_defaults() -> void:
-	if GSPlatform.is_web() and float(_RenderQuality.values[&"r_sun_shadow_splits"]) < 0.0:
-		_RenderQuality.values[&"r_sun_shadow_splits"] = WEB_SUN_SHADOW_SPLITS
+func _render_defaults() -> void:
+	if float(_RenderQuality.values[&"r_sun_shadow_splits"]) < 0.0:
+		_RenderQuality.values[&"r_sun_shadow_splits"] = SUN_SHADOW_SPLITS
+	if float(_RenderQuality.values[&"r_shadow_distance"]) < 0.0:
+		_RenderQuality.values[&"r_shadow_distance"] = SUN_SHADOW_DISTANCE
 
 func _ready() -> void:
 	# The server a hosted game started runs this same main scene: an export takes no scene path.
@@ -18,7 +22,7 @@ func _ready() -> void:
 	# Before anything reads user://: the first run under game-fatal-contact copies the game-fatal-contact folder in.
 	_UserDir.migrate()
 	_apply_launch_art()
-	_web_render_defaults()
+	_render_defaults()
 
 	if FcSimHost.wanted(get_tree().current_scene == self):
 		await _start_sim_host()
@@ -120,6 +124,7 @@ func _setup_pieces(timeline: FcLoadTimeline) -> void:
 	projectile_view = FcProjectileView.new()
 	projectile_view.name = "Projectiles"
 	add_child(projectile_view)
+	_share_fx_pools()
 
 	FcLoadTimeline.mark("setup: projectiles")
 	await _setup_frame()
@@ -147,6 +152,22 @@ func _setup_pieces(timeline: FcLoadTimeline) -> void:
 			pov.call(&"prepare_spare")
 			await _setup_frame()
 	_pov_spares.clear()
+
+## The pool other players' shot effects share their quads and flash lights from, in the tree before any of them fires.
+## Headless never runs the weapon warm-up that made it, so each bot's effects built 24 quads and a light (perf smoke).
+func _share_fx_pools() -> void:
+	if fx_pool != null:
+		return
+	fx_pool = AwFxPool.new()
+	fx_pool.name = "FxPool"
+	if GSPlatform.is_headless():
+		# Nothing is drawn, but the flashes still take lights up to the cap and quads by the burst: both are prewarmed to what
+		# the bots use (the old per-shooter 24 quads each) and the quads are never trimmed below it, or bots firing later
+		# (a loadout reopen, headless_loadout_open) grow the tree. Past it, spares go past cl_fx_pool_idle.
+		fx_pool.shared_lights = GSFxLightBudget.config.effective_max_lights()
+		fx_pool.shared_meshes = maxi(fx_pool.shared_meshes, fx_pool.shared_meshes * _launch_bots())
+		fx_pool.shared_idle = 0 if FcPresentation.fx_pool_idle < 0 else maxi(FcPresentation.fx_pool_idle, fx_pool.shared_meshes)
+	add_child(fx_pool)
 
 ## Part of [method _ready].
 func _setup_interface_and_net() -> void:
@@ -178,6 +199,7 @@ func _setup_interface_and_net() -> void:
 		# The netcode build installs it for a connected client; an offline one never builds netcode.
 		_install_profiler_context()
 	else:
+		await _prepare_extras()
 		var netted := _build_netcode()
 		GSLog.result(CHANNEL, "netcode", netted)
 		if netted.ok and link != null:
@@ -194,13 +216,30 @@ func _setup_interface_and_net() -> void:
 	# The first draw's pipeline compile and the netcode share the frame above; the platform gets its own.
 	await _setup_frame()
 
+## Chat and the map layer a frame each before the netcode, in a client that draws (they were 302 + 259 ms of
+## the netcode's one frame on dm_box). `cl_slice_extras 0` (launch argument or URL query) builds them inside it, as before.
+func _prepare_extras() -> void:
+	if not _builds_in_frames() or FcFrameProbe.launch_value("cl_slice_extras") == "0":
+		return
+	extras = _new_extras()
+	var prepared: Variant = extras
+	await prepared.prepare(game, _setup_frame)
+
 ## Part of [method _ready].
 func _setup_finish(timeline: FcLoadTimeline) -> void:
 	_grab_mouse()
 	platform.slide_settings = presentation.settings
 	var platform_up: GSResult = await _setup_platform()
 	GSLog.result(CHANNEL, "the platform", platform_up)
+	# The quality piece, the menu's quality settings and the first processed frame each in a frame of their own:
+	# together with the bodies they were one 1.15 s frame on staging (dm_box). `cl_platform_split 0` runs them in one.
+	var split := _builds_in_frames() and FcFrameProbe.launch_value("cl_platform_split") != "0"
+	if split:
+		await _setup_frame()
 	_follow_render_quality()
+	if split:
+		FcLoadTimeline.mark("setup: render quality followed")
+		await _setup_frame()
 	# The starter set: the equipped list needs a credential the client does not hold (the server reads it).
 	GSLog.result(CHANNEL, "avatar actions", platform.add_avatar_actions(net, _avatar_figure))
 	_suspend_input(platform.is_input_blocked())
@@ -248,9 +287,10 @@ func _warm_weapon_table() -> void:
 		FcLoadTimeline.mark("setup: weapon table %d-%d, %d ms" % [first, step - 1, (Time.get_ticks_usec() - started) / 1000])
 
 ## The first figure built paid for the stock body models and the clip set (249 ms, in the killcam's spare
-## arms on staging02). The models start loading on the loader's threads here, at the start of setup.
+## arms on staging02). The models start loading on the loader's threads here, at the start of setup. Not where
+## loader threads stall on the frame (the threaded web engine, [method loader_threads_usable]).
 func _request_figures() -> void:
-	if not _builds_in_frames():
+	if not _builds_in_frames() or not loader_threads_usable():
 		return
 	var paths: Array[String] = [GSHumanoidAssets.real_clips_path()]
 	for body: StringName in [GSHumanoidLook.stock(1).body, GSHumanoidAssets.CLIP_BODY]:

@@ -24,6 +24,7 @@ var _open_name := &""
 var _open_usec := 0
 var _first_usec := 0
 var _last_usec := 0
+var _added := {}
 
 
 func _init() -> void:
@@ -103,6 +104,65 @@ func _put_markers() -> void:
 	var count := [0]
 	_mark_under(get_tree().root, 1, count)
 	GSLog.info(FcFrameProbe.CHANNEL, "process split markers", {"depth": split_depth, "markers": count[0]})
+	# The census of what the engine walks each frame, once, 15 s on (the bots have joined and the bodies are built).
+	get_tree().create_timer(15.0).timeout.connect(census)
+	# And which kinds of node are made while the match runs (each one an add, a ready and a free later).
+	get_tree().create_timer(10.0).timeout.connect(func() -> void: get_tree().node_added.connect(_count_added))
+
+
+## Logs, per script file or class, how many nodes are in the tree and how many of them run `_process` or `_physics_process`
+## (a `PfCensus` line each, the biggest first), plus the skeletons with their bone counts. Diagnostic: `--pf_split N` only.
+func census() -> void:
+	if get_tree().node_added.is_connected(_count_added):
+		get_tree().node_added.disconnect(_count_added)
+	var made := _added.keys()
+	made.sort_custom(func(a: String, b: String) -> bool: return _added[a] > _added[b])
+	for key in made.slice(0, 20):
+		GSLog.info(FcFrameProbe.CHANNEL, "PfCensus added", {"kind": key, "nodes": _added[key], "seconds": 5})
+	var rows := {}
+	# Skeletons, bones, visible skeletons, running Timers, playing mixers, emitting particles.
+	var skeletons := [0, 0, 0, 0, 0, 0]
+	_census_walk(get_tree().root, rows, skeletons)
+	var keys := rows.keys()
+	keys.sort_custom(func(a: String, b: String) -> bool: return rows[a][1] + rows[a][2] > rows[b][1] + rows[b][2] or (rows[a][1] + rows[a][2] == rows[b][1] + rows[b][2] and rows[a][0] > rows[b][0]))
+	for key in keys.slice(0, 40):
+		GSLog.info(FcFrameProbe.CHANNEL, "PfCensus", {"kind": key, "nodes": rows[key][0], "process": rows[key][1], "physics": rows[key][2]})
+	GSLog.info(FcFrameProbe.CHANNEL, "PfCensus skeletons", {"skeletons": skeletons[0], "bones": skeletons[1], "visible": skeletons[2]})
+	GSLog.info(FcFrameProbe.CHANNEL, "PfCensus engine", {"tweens": get_tree().get_processed_tweens().size(), "timers": skeletons[3],
+		"mixers": skeletons[4], "particles": skeletons[5], "nodes": get_tree().get_node_count()})
+
+
+func _count_added(n: Node) -> void:
+	var key := _kind(n)
+	_added[key] = int(_added.get(key, 0)) + 1
+
+
+func _census_walk(n: Node, rows: Dictionary, skeletons: Array) -> void:
+	var key := _kind(n)
+	if not rows.has(key):
+		rows[key] = [0, 0, 0]
+	var row: Array = rows[key]
+	row[0] += 1
+	if n.is_processing():
+		row[1] += 1
+	if n.is_physics_processing():
+		row[2] += 1
+	var skeleton := n as Skeleton3D
+	if skeleton != null:
+		skeletons[0] += 1
+		skeletons[1] += skeleton.get_bone_count()
+		if skeleton.is_visible_in_tree():
+			skeletons[2] += 1
+	var timer := n as Timer
+	if timer != null and not timer.is_stopped():
+		skeletons[3] += 1
+	var mixer := n as AnimationMixer
+	if mixer != null and mixer.active and (not mixer is AnimationPlayer or (mixer as AnimationPlayer).is_playing()):
+		skeletons[4] += 1
+	if (n is GPUParticles3D and (n as GPUParticles3D).emitting) or (n is CPUParticles3D and (n as CPUParticles3D).emitting):
+		skeletons[5] += 1
+	for child in n.get_children():
+		_census_walk(child, rows, skeletons)
 
 
 func _mark_under(parent: Node, depth: int, count: Array) -> void:

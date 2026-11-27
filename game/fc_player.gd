@@ -150,7 +150,7 @@ func _still(drawn: GSFpsState, delta: float) -> bool:
 ## Probe only: the remote half of [method present] with the parts [member present_ablate] names left out.
 func _ablated_present(drawn: GSFpsState, delta: float) -> void:
 	if held != null and (present_ablate & 4) != 0:
-		held.set_process(false)
+		held.set_ticking(false)
 	if (present_ablate & 8) == 0:
 		_pose_body(drawn, drawn.yaw, delta)
 		_present_health_tag(delta)
@@ -188,17 +188,65 @@ func present_lod(delta: float, eye: Vector3, forward: Vector3, frustum: Array = 
 			_anim_min_dt = ANIM_GATE_FAR_DT
 		elif d2 > _anim_near2:
 			_anim_min_dt = ANIM_GATE_DT
-		_set_held_lod(every > 1)
-		if every > 1:
-			_lod_frames += 1
-			_lod_delta += delta
-			# A frame count alone is 300 presents a second at 1200 fps; the minimum game time keeps the thinning a rate.
-			if _lod_frames < every or (anim_gate_enabled and _lod_delta < min_dt):
-				return
-			delta = _lod_delta
+		delta = _thinned(delta, every, min_dt)
+		if delta < 0.0:
+			return
 	_lod_frames = 0
 	_lod_delta = 0.0
 	present(delta)
+
+## [method present_lod] with the judgement already made by [method classify_crowd]: [param code] is this body's entry and
+## [param eye] the viewer's. The same tier, the same thinning, the same present as the script judging it itself.
+func present_lod_coded(delta: float, code: int, eye: Vector3) -> void:
+	if camera == null and present_remote_paused:
+		return
+	if camera == null:
+		_set_beyond_figure(figure != null and (code & CODE_BEYOND_FIGURE) != 0)
+	if camera == null and present_lod_enabled:
+		var tier := code & 7
+		# The one part that is not arithmetic: a body in the frustum and past LOD_NEAR is off if the world hides it.
+		if (code & CODE_OCCLUSION) != 0 and _behind_world(eye):
+			tier = 5
+		var every := 1
+		var min_dt := 0.0
+		match tier:
+			5:
+				every = lod_off_every
+				min_dt = LOD_OFF_DT
+				_anim_min_dt = ANIM_GATE_OFF_DT
+			4:
+				every = 4
+				min_dt = LOD_FARTHEST_DT
+				_anim_min_dt = ANIM_GATE_FAR_DT
+			3:
+				every = 2
+				min_dt = LOD_FAR_DT
+				_anim_min_dt = ANIM_GATE_FAR_DT
+			2:
+				_anim_min_dt = ANIM_GATE_FAR_DT
+			1:
+				_anim_min_dt = ANIM_GATE_DT
+			_:
+				_anim_min_dt = 0.0
+		delta = _thinned(delta, every, min_dt)
+		if delta < 0.0:
+			return
+	_lod_frames = 0
+	_lod_delta = 0.0
+	present(delta)
+
+## The thinning of one body's present: the delta to present with, or -1 when this frame is skipped. A body drawn every
+## [param every] frames and at least [param min_dt] game seconds apart.
+func _thinned(delta: float, every: int, min_dt: float) -> float:
+	_set_held_lod(every > 1)
+	if every > 1:
+		_lod_frames += 1
+		_lod_delta += delta
+		# A frame count alone is 300 presents a second at 1200 fps; the minimum game time keeps the thinning a rate.
+		if _lod_frames < every or (anim_gate_enabled and _lod_delta < min_dt):
+			return -1.0
+		return _lod_delta
+	return delta
 
 ## Whether this body, [param to] metres from the eye, cannot be on screen this frame: outside the camera's real frustum
 ## (the six planes of `Camera3D.get_frustum`, a sphere of [constant LOD_RADIUS] round the chest) when given, else behind
@@ -251,7 +299,7 @@ func _set_beyond_figure(far: bool) -> void:
 func _set_held_lod(thin: bool) -> void:
 	if held != null and thin != _held_thin:
 		_held_thin = thin
-		held.set_process(not thin)
+		held.set_ticking(not thin)
 
 ## The wall-run lean as drawn this frame, in degrees (positive leans left). For a check
 ## and for the frame-sequence render.

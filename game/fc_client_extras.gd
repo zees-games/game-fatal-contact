@@ -80,16 +80,32 @@ func attach(p_bridge: FcNetBridge, p_game: FcGame) -> GSResult:
 	bridge = p_bridge
 	game = p_game
 
-	_build_chat()
-	FcLoadTimeline.mark("extras: chat")
-	_build_maps()
-	FcLoadTimeline.mark("extras: maps")
+	if chat == null:
+		_build_chat()
+		FcLoadTimeline.mark("extras: chat")
+	if maps == null:
+		_build_maps()
+		FcLoadTimeline.mark("extras: maps")
+	_hook_maps()
 
 	if voice_enabled:
 		_build_voice()
 		FcLoadTimeline.mark("extras: voice")
 
 	return GSResult.success(self)
+
+
+## Chat and the map layer built before the bridge exists, [param between] awaited after each, so a client that draws
+## spends one frame on each rather than both in the netcode's (302 + 259 ms in one dm_box frame). [method attach]
+## then only hooks them up. `cl_slice_extras 0` keeps the old single frame.
+func prepare(p_game: FcGame, between: Callable) -> void:
+	game = p_game
+	_build_chat()
+	FcLoadTimeline.mark("extras: chat")
+	await between.call()
+	_build_maps()
+	FcLoadTimeline.mark("extras: maps")
+	await between.call()
 
 
 # --- Chat ------------------------------------------------------------------
@@ -366,6 +382,9 @@ func _build_maps() -> void:
 		if bridge != null and bridge.link != null:
 			bridge.link.send_map_report(payload)
 
+
+## What the server announces reaches the map layer through the bridge.
+func _hook_maps() -> void:
 	bridge.map_in_fn = func(payload: Dictionary) -> void:
 		if maps != null:
 			_prefer_delivered(payload)

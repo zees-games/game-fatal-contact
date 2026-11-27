@@ -5,6 +5,11 @@ const FcContent := preload("fc_content.gd")
 
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const KillPovRules := preload("fc_kill_pov.gd")
+const FitCache := preload("fc_drop_fit_cache.gd")
+
+## Cvar [code]fc_drop_idle_skip[/code]: 1 lets a player with no drop or use key down this tick or last go straight to
+## the auto pickup (their key holds are idle, see [method input]); 0 steps both keys anyway (the reference and the A/B arm).
+static var idle_keys_skip := true
 
 ## The weapon layer, on both sides: the server simulates it, a client draws what it is told.
 static func build(game) -> void:
@@ -22,6 +27,7 @@ static func build(game) -> void:
 	game.add_child(layer)
 	# A client parks its bodies under the loading cover; a server that draws nothing has no cover, and
 	# its first throw of each weapon built and measured the model inside a tick (75 ms for a rifle).
+	# The server parks them here, before its first tick.
 	if not layer.draws and layer.is_authority:
 		warm_server(layer)
 
@@ -80,18 +86,36 @@ static func warm_looks(ids: Array, from: int, until_msec: int, into: Array) -> i
 	return next
 
 
-## Parks a body per weapon on a layer that draws nothing, a few ms a frame, so the first throw of each only takes one. Ends when the layer leaves the tree.
-static func warm_server(layer: GSWeaponDrops, slice_msec: int = 4) -> void:
-	var ids := prewarm_ids()
-	var next := 0
-	while next < ids.size():
-		await layer.get_tree().process_frame
-		if not is_instance_valid(layer) or not layer.is_inside_tree():
-			return
-		var until := Time.get_ticks_msec() + slice_msec
-		while next < ids.size() and Time.get_ticks_msec() < until:
-			layer.prewarm(ids[next], 1)
-			next += 1
+## Parks a body per weapon on a layer that draws nothing, in [method build] before the first tick: a death can drop any weapon, and a first throw
+## loads and measures its model (150 to 1150 ms). A weapon whose box [FitCache] remembers is parked without loading its model, so only a host's
+## first boot measures them (9.5 s on PH).
+static func warm_server(layer: GSWeaponDrops) -> void:
+	var started := Time.get_ticks_msec()
+	var measured := 0
+	for id in prewarm_ids():
+		var sig := FitCache.signature(id)
+		var fit := FitCache.recall(id, sig)
+		if not fit.is_empty():
+			layer._fits[id] = fit
+		layer.prewarm(id, 1)
+		if fit.is_empty():
+			measured += 1
+			var got: Array = layer._fits.get(id, [])
+			# The no-model box means the model did not load (a box mid-import): remembering it would rest this weapon in the floor on every later boot.
+			if got.size() == 2 and not (got[0] == GSWeaponDrops.DEFAULT_SIZE and got[1] == Vector3.ZERO):
+				FitCache.keep(id, sig, got)
+	FitCache.save()
+	layer.set_meta(SERVER_WARM, true)
+	GSLog.info("fc.drops", "server drop warm", {"weapons": prewarm_ids().size(), "measured": measured, "msec": Time.get_ticks_msec() - started})
+
+
+## Set on a server drop layer once [method warm_server] has parked a body for every weapon.
+const SERVER_WARM := &"fc_drops_server_warm"
+
+
+## Whether the server drop layer of [param game] is still warming (false once done, or when it has none).
+static func server_warming(game) -> bool:
+	return game != null and game.weapon_drops != null and not game.weapon_drops.draws and not game.weapon_drops.has_meta(SERVER_WARM)
 
 
 static func teardown(game) -> void:
@@ -135,9 +159,16 @@ static func input(game, id: int, player, pair: Array) -> void:
 	# `auto_pickup` is a server rule, not a class one (not in GSWeaponDropRules.CLASS_KEYS), so it is read off the rules as they are: `resolve(def)` builds a fresh rules object per call, and this ran for every idle player every tick while any drop lay on the floor.
 	var auto_pickup: bool = game.weapon_drops.rules.auto_pickup
 	# Nobody touched a key this tick or last, and nothing here acts without one (the auto pickup needs a drop and its rule on): the use key's hold has nothing to cancel and the prompt query is skipped. This was ~60 us per player per tick at 64 players.
-	if not held and not was and not use_now and not used \
-			and (not auto_pickup or game.weapon_drops.count() == 0):
-		return
+	if not held and not was and not use_now and not used:
+		if not auto_pickup or game.weapon_drops.count() == 0:
+			return
+		# Only the auto pickup can act. Both keys' holds are idle: every tick that skips a key's step (an early return
+		# below) has a key down, so the next tick has `was` or `used` and runs both steps with the key up, which cancels
+		# them. Stepping them now would only cancel again, at two rules resolves and a prompt query per player per tick.
+		if idle_keys_skip:
+			var _picked: int = game.weapon_drops.take_for(player.arsenal, player.controller.state.position + Vector3.UP * 0.5, id,
+				class_def_of(game, id))
+			return
 	var def := class_def_of(game, id)
 	var velocity: Vector3 = player.controller.state.velocity
 	var _thrown: int = _drop_key(game, id).step(game.weapon_drops, player.arsenal, player.muzzle_position(),
@@ -175,9 +206,12 @@ static func update_panel(client, pressed: bool, delta: float) -> void:
 	var fill := hold.progress
 	if client.hud != null:
 		view.key_text = String(client.hud.keys.get(&"use", "E"))
-	view.name_of = func(id: StringName) -> String:
-		var def: Variant = player.arsenal.catalogue.get_def(id)
-		return def.name_or_id() if def != null else String(id)
+	# Bound once, not a new closure each frame; it reads the client's player at call time, so a respawn needs no rebind.
+	if not view.name_of.is_valid():
+		view.name_of = func(id: StringName) -> String:
+			var p = client.player
+			var def: Variant = p.arsenal.catalogue.get_def(id) if p != null and p.arsenal != null else null
+			return def.name_or_id() if def != null else String(id)
 	# One ring: the crosshair's. The panel's own world circle stays off (fill 0), or two rings fill at once.
 	view.show_prompt(info, 0.0)
 	if client.hud != null and client.hud.crosshair != null:
@@ -257,6 +291,8 @@ static func look(weapon_id: StringName) -> Node3D:
 	var model := AwWorldModel.new()
 	# Its wall probe would slide the mesh out of the collision box beside any wall or step.
 	model.wall_response = false
+	# A lying weapon is a few centimetres of metal: its shadow is not worth a draw in every cascade (128 of them lay in the 32-bot bench).
+	model.cast_shadow = false
 	var _drawn := model.equip(art as AwWeaponVisual)
 	return model
 

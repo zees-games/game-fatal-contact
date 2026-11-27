@@ -1,6 +1,7 @@
 extends "fc_module_cvars.gd"
 
 const FcBoards := preload("fc_boards.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
 
 
 const FcAmbience := preload("fc_ambience.gd")
@@ -82,8 +83,10 @@ var _handles_cover: bool = false
 
 
 func _on_player_spawned_for_tools(player: FcPlayer) -> void:
+	var t_lap := FcFrameProbe.lap_start()
 	if services != null and services.mod_tools != null:
 		services.mod_tools.respawned(StringName(str(player.player_id)))
+	FcFrameProbe.lap(&"sg_tools", t_lap)
 
 
 ## maps.yml's `commands:` block (prefix and names), or empty with no file.

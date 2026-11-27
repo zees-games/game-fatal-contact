@@ -20,11 +20,21 @@ static var native := true
 ## Cvar `fc_motor_batch`: with the hull world, the players' loop prepares every player's tick first and gs-sim ticks
 ## their motors in runs of one call (`GSSimMotorBatch`, same states to the bit); 0 or without it, one call per player.
 static var batch := true
+## Cvar `fc_tick_events` (1 or 2): with the batch, each player's motor edges (landed, jumped, crouch, slide, ...) are one row
+## of `GSFpsTickEvents`, derived for every player in one call after the loop and dispatched in one typed loop; 0, each
+## controller emits its edges inside its own tick as before.
+static var events := true
 ## Players the batched loop found changed by another player's turn (dead, moved or pushed after its own preparation):
 ## the one-by-one loop would have ticked them differently. A match counts none.
 static var batch_faults := 0
 ## Motor ticks the batch ran, for the tests and the bench.
 static var batch_rows := 0
+## Whether the batched loop may skip flushing the waiting idle weapon ticks before `demo_stats.after` when its `after_reads(player)` answers
+## false (FcDemoStats reads only a recording human's tick); without the method it flushes every time. Off (`fc_demo_flush_gate 0`), every
+## player's turn flushes first, so the idle ticks run as one-row gs-sim calls.
+static var demo_flush_gate := true
+## Non-empty idle-tick flushes (one gs-sim posture call each), for the parity suite.
+static var post_flushes := 0
 ## With [member verify], native gathers checked against the script's (exact AABB equality) and how many differed.
 static var native_verified := 0
 static var native_mismatches := 0
