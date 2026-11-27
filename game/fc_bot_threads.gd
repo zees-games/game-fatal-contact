@@ -6,6 +6,7 @@ extends RefCounted
 
 const FcBots := preload("fc_bots.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcBotCoast := preload("fc_bot_coast.gd")
 
 ## Fewer bots than this think on the main thread: the hand-off costs more than it saves.
 const MIN_BOTS := 8
@@ -92,12 +93,16 @@ static func think_all(game: Object, players: Array, minds: Array, tick: int, tic
 	out.resize(players.size())
 	var pending: Array[int] = []
 	var t_part := phase_start()
-	for i in players.size():
-		var early := FcBots.think_begin(game, players[i], minds[i], tick, tick_rate)
-		if early.is_empty():
-			pending.append(i)
-		else:
-			out[i] = early
+	var coast: Object = FcBotCoast.native() if game != null else null
+	if coast != null:
+		FcBotCoast.begin_all(coast, game, players, minds, tick, tick_rate, out, pending)
+	else:
+		for i in players.size():
+			var early := FcBots.think_begin(game, players[i], minds[i], tick, tick_rate)
+			if early.is_empty():
+				pending.append(i)
+			else:
+				out[i] = early
 	t_part = phase(SB_BEGIN, t_part)
 	if not pending.is_empty():
 		_decide(pending, minds)
