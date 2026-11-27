@@ -3,6 +3,7 @@ extends "fc_net_bridge_events.gd"
 
 const FcPlayer := preload("fc_player.gd")
 const FcPlayerNet := preload("fc_player_net.gd")
+const FcNetPullBatch := preload("fc_net_pull_batch.gd")
 const FcNpcNet := preload("fc_npc_net.gd")
 
 
@@ -288,6 +289,11 @@ func ensure_game_ticked(tick: int) -> void:
 	for behaviour: FcToyNet in _toy_nets:
 		behaviour.pull()
 	FcFrameProbe.add(&"srv_pulls", t_pull)
+
+	# Every player's movement and weapon fields in one gs-sim call (cvar sv_net_pull_batch); each pulled here skips its own.
+	var t_batch := Time.get_ticks_usec()
+	if FcNetPullBatch.pull_all(_behaviours.values(), tick) > 0:
+		FcFrameProbe.add(&"srv_netpull", t_batch)
 
 
 ## The command table [method FcGame.tick] takes, built from what each peer sent.

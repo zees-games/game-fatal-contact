@@ -64,11 +64,7 @@ static func pull_weapons(net: Object, rig: AwWeaponRig, arsenal: GSWeaponArsenal
 	var a := rig.arsenal
 	var slot := a.current()
 	var has := slot != null
-	var fitted := 0
-	if has and a.attachments != null and slot.fitting != null:
-		var base := a.catalogue.get_def(slot.id())
-		if base != null and a.attachments.code_bits(base) <= GSWeaponNetSync.FITTED_BITS:
-			fitted = a.attachments.encode(base, slot.fitting)
+	var fitted := fitted_code(a, slot)
 	var held: GSWeaponDef = arsenal.current_def() if arsenal != null else null
 	var r: PackedInt64Array = n.pull(a.current_slot(), has, slot.fire_mode_index if has else 0,
 		slot.magazine if has else 0, a.ammo().count(slot.def.ammo_type) if has else 0, rig.fire_seq, rig.fire_kind,
@@ -84,6 +80,17 @@ static func pull_weapons(net: Object, rig: AwWeaponRig, arsenal: GSWeaponArsenal
 	net.net_fire_kind = r[5]
 	net.net_charge = r[6]
 	return r[7] if content_enabled else -1
+
+
+## [member FcPlayerNet.net_fitted] for [param slot] (held in [param a]; null for none): its fitting's code where the
+## attachments' codes fit the wire, else 0.
+static func fitted_code(a: GSWeaponArsenal, slot: GSWeaponSlot) -> int:
+	if slot == null or a.attachments == null or slot.fitting == null:
+		return 0
+	var base := a.catalogue.get_def(slot.id())
+	if base != null and a.attachments.code_bits(base) <= GSWeaponNetSync.FITTED_BITS:
+		return a.attachments.encode(base, slot.fitting)
+	return 0
 
 
 ## The script pull: gs-weapon's three and the pack's four (or gs-weapon's alone without a rig), then the wind-up.
