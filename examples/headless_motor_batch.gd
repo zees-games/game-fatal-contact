@@ -6,6 +6,7 @@ const FcHullGrid := preload("../game/fc_hull_grid.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcModTools := preload("../game/fc_mod_tools.gd")
+const FcNativeTick := preload("../game/fc_native_tick.gd")
 
 ## `fc_motor_batch`: the players' motors ticked in runs of one gs-sim call play exactly the
 ## match the loop one player after another plays. A recorded bot match is replayed through both
@@ -24,7 +25,7 @@ const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
 const SECTIONS := 6
-const CHECKS := 34
+const CHECKS := 36
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -297,18 +298,29 @@ func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> vo
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
-## The batched loop's variants replay the recording to the bit: the long way and sv_native_motor_state 0.
+## The batched loop's variants replay the recording to the bit: the long way and sv_native_motor_state 0 (no native server tick).
 func _check_loop_variants(resident: PackedStringArray, streams: Array) -> void:
 	# The lean loop (FcPlayer.lean_tick) only skips calls that change nothing: the long way must play the same match.
 	FcPlayer.lean_tick = false
+	var stepped := FcNativeTick.steps
 	var long_way: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
+	stepped = FcNativeTick.steps - stepped
 	FcPlayer.lean_tick = true
+	# sv_native_motor_state 1 steps gs-sim's server tick once a tick when the library has it (FcNativeTick says loudly what is missing).
+	var has_tick := FcNativeTick.available()
+	print("  native server tick (GSSimServerTick): %s, %d steps" % [has_tick, stepped])
+	_check(stepped > 0 if has_tick else stepped == 0, "sv_native_motor_state 1 steps the native server tick once a tick when gs-sim has it (%d steps, available %s)" % [stepped, has_tick])
 	_check(long_way[0] == resident, "the lean players' loop plays it to the bit as the long way (%s)" % _first_diff(long_way[0], resident))
 	# sv_native_motor_state 0: the batch is handed every column each tick instead of keeping the motor state in gs-sim.
 	print("  resident motor state in gs-sim (run_slots): %s" % ClassDB.class_has_method(&"GSSimMotorBatch", &"run_slots"))
 	GSFpsMotorBatch.native_state = false
+	FcNativeTick.enabled = false
+	var off_from := FcNativeTick.steps
 	var copied: Array = await _play(true, &"", BOTS, SECONDS, streams, false)
+	var off_steps := FcNativeTick.steps - off_from
+	FcNativeTick.enabled = true
 	GSFpsMotorBatch.native_state = true
+	_check(off_steps == 0, "sv_native_motor_state 0 never steps the native server tick (%d steps)" % off_steps)
 	_check(copied[0] == resident, "sv_native_motor_state 0 (columns sent each tick) plays it to the bit as the resident state (%s)" % _first_diff(resident, copied[0]))
 
 

@@ -4,6 +4,7 @@ extends "fc_game_state.gd"
 const FcFlashlight := preload("fc_flashlight.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
+const FcNativeTick := preload("fc_native_tick.gd")
 const FcShotStats := preload("fc_shot_stats.gd")
 const HULL_NEAR_SQ := 144.0
 
@@ -91,6 +92,9 @@ var _hull_world_data := PackedFloat64Array()
 var _motor_batch: GSFpsMotorBatch = null
 var _batch_rows := PackedInt32Array()
 var _batch_pairs: Array[Array] = []
+## gs-sim's server tick (`sv_native_motor_state`): holds the batch's resident motor rows and the player table, stepped once a tick after the batched loop.
+var _native_tick := FcNativeTick.new()
+var _native_tick_on := false
 ## The batched loop's motor edges for every player ([member FcHullGrid.events]): one row per player's tick, derived and dispatched after the loop.
 var _tick_events := GSFpsTickEvents.new()
 ## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its
