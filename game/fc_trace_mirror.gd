@@ -11,6 +11,8 @@ extends RefCounted
 ## headless_trace_mirror holds that on every map kind. Without the library, or at 0, every ray asks the space.
 ## Typed loosely on purpose: a build without the class still parses this file.
 
+const FcNativePhases := preload("fc_native_phases.gd")
+
 ## Cvar `sv_trace_mirror`: 0 asks the physics space for every ray (the reference and the fallback).
 static var enabled := true
 ## Cvar `sv_trace_mirror_movers`: the motor's mirror holds the movers, posed from one batch a tick; 0 sends a player
@@ -220,6 +222,8 @@ static func clear_near(world: GSFpsPhysicsBody, feet: Vector3, height: float, tr
 ## ([method clear_near]), who asks the space that tick. [param players] holds FcPlayer nodes.
 static func bind_players(game: Object, players: Array) -> void:
 	var mirror: Object = of_game(game) if motor_available() else null
+	if not players.is_empty():
+		FcNativePhases.tally(FcNativePhases.MIRROR, mirror != null)
 	if mirror == null and _bound_mirror == 0:
 		return
 	_bound_mirror = mirror.get_instance_id() if mirror != null else 0
