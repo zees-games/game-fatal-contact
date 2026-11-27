@@ -82,6 +82,7 @@ var _downstream: Array = []
 var _drop_down := 0
 var _drop_up := 0
 var _joins: Array[PackedByteArray] = []
+var _progress_dir := ""  # the per-process achievement folder, see _make_game
 
 
 func _section(title: String) -> void:
@@ -151,6 +152,11 @@ func _make_game(authority: bool) -> FcGame:
 	game.headless = true
 	game.is_authority = authority
 	game.register_service = false
+	# Per-process achievements, not the box-wide user:// store a torn write once broke (code=parse);
+	# taken once, as use() empties the folder and clients join while the server's store is live.
+	if _progress_dir == "":
+		_progress_dir = GSSettingsScratch.use("headless_net_achievements")
+	game.progress_dir = _progress_dir
 	add_child(game)
 
 	FcTestToys.install()
