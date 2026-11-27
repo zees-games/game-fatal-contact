@@ -144,12 +144,15 @@ func _drive_spectator_camera() -> void:
 		return
 
 	var id := player.player_id
+	if id != _spectate_id:
+		_bind_spectate_key(id)
+	var key := _spectate_key
 
 	# [b]A living body owns the view.[/b] The kill is a reliable event sent the moment the shot lands; the health that
 	# says so rides the next snapshot, up to a snapshot interval later. Between the two the client draws the player
 	# alive, and moving the camera to the death cam then threw the view 0.8 m up and 90-120 degrees round for a few
 	# frames before the player was even drawn dead (headless_hosted_view, about one run in two).
-	if not game.spectate.is_spectating(str(id)) or player.is_alive():
+	if not game.spectate.is_spectating(key) or player.is_alive():
 		if hud != null:
 			hud.roam_hint = ""
 		FcWeaponDropWiring.update_panel(self, _held(FcBindings.USE), get_process_delta_time())
@@ -167,19 +170,18 @@ func _drive_spectator_camera() -> void:
 		if hud != null:
 			hud.use_hint = ""
 
+	var roaming := game.spectate.is_roaming(key)
 	if hud != null:
-		var roaming := game.spectate.is_roaming(str(id))
-		hud.roam_hint = "Back to players" if roaming else ("Free camera" if game.spectate.can_roam(str(id)) else "")
+		hud.roam_hint = "Back to players" if roaming else ("Free camera" if game.spectate.can_roam(key) else "")
 
 	# The chase and death cameras are pulled out of the level by gs-spectate, given it.
 	var manager := game.spectate.manager
 	if manager != null and manager.camera_world == null:
-		manager.camera_world = player.camera.get_world_3d()
-		manager.camera_mask = _level_mask()
+		_bind_spectator_world(manager)
 
-	var where := game.spectate.camera_for(str(id))
+	var where := game.spectate.camera_for(key)
 
-	if game.spectate.is_roaming(str(id)):
+	if roaming:
 		where = _fly_free_camera(id, where)
 	else:
 		_free_cam = null
@@ -188,6 +190,19 @@ func _drive_spectator_camera() -> void:
 		return
 
 	player.camera.global_transform = where
+
+## The local player's id as gs-spectate's key, made when the id changes rather than five times a frame.
+var _spectate_id: int = -1
+var _spectate_key: String = ""
+
+func _bind_spectate_key(id: int) -> void:
+	_spectate_id = id
+	_spectate_key = str(id)
+
+## Points gs-spectate's chase and death cameras at the level's world, once.
+func _bind_spectator_world(manager: GSSpectatorManager) -> void:
+	manager.camera_world = player.camera.get_world_3d()
+	manager.camera_mask = _level_mask()
 
 func _present_frame_rest() -> void:
 	_watch_projectiles()

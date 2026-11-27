@@ -5,6 +5,7 @@ const FcFlagView := preload("fc_flag_view.gd")
 const FcThrowMeter := preload("fc_throw_meter.gd")
 const FcHudAppPoints := preload("fc_hud_app_points.gd")
 const FcHudDamageDirs := preload("fc_hud_damage_dirs.gd")
+const FcMode := preload("fc_mode.gd")
 
 ## The knife throw's power bar under the crosshair: shown only while the aim key winds a throw up.
 var throw_bar: GSStatBar = null
@@ -455,12 +456,12 @@ func present_gear() -> void:
 		# On a phone the right edge belongs to Fire, Jump and Next; the held weapon is on the ammunition plate.
 		slots.visible = not GSPlatform.has_touch() and not _scope_full
 		var arsenal: GSWeaponArsenal = player.arsenal if live else null
-		var row_sig := hash([key_sig, live, arsenal.get_instance_id() if arsenal != null else 0])
+		var row_sig := _sig_mix(_sig_mix(key_sig, int(live)), arsenal.get_instance_id() if arsenal != null else 0)
 		if arsenal != null:
-			row_sig = hash([row_sig, arsenal.current_slot()])
+			row_sig = _sig_mix(row_sig, arsenal.current_slot())
 			for index in arsenal.slots():
 				var held := arsenal.slot_at(index)
-				row_sig = hash([row_sig, index, held.def.get_instance_id() if held != null and held.def != null else 0])
+				row_sig = _sig_mix(_sig_mix(row_sig, index), held.def.get_instance_id() if held != null and held.def != null else 0)
 		if row_sig != _rows_sig:
 			_rows_sig = row_sig
 			_present_slots(live)
@@ -468,9 +469,9 @@ func present_gear() -> void:
 	if hints != null:
 		# Keyboard keys mean nothing on a phone, and the list covers the view there.
 		hints.visible = live and not GSPlatform.has_touch() and _hints_wanted()
-		var shown_mode: Variant = game.displayed_mode() if game != null else null
-		var arms := shown_mode != null and bool(shown_mode.call(&"arms_players"))
-		var hint_sig := hash([key_sig, shown_mode == null, arms])
+		var shown_mode: FcMode = game.displayed_mode() if game != null else null
+		var arms := shown_mode != null and shown_mode.arms_players()
+		var hint_sig := _sig_mix(_sig_mix(key_sig, int(shown_mode == null)), int(arms))
 		if hint_sig != _hints_sig:
 			_hints_sig = hint_sig
 			_present_hints(shown_mode == null or not arms)
@@ -496,6 +497,9 @@ func _hints_wanted() -> bool:
 
 ## The signatures of what the slot rows and the key hints last showed ([method present_gear]); -1 forces a rebuild.
 var _rows_sig := -1
+## Folds [param value] into the change signature [param sig]: integer arithmetic, not a hashed array a frame.
+static func _sig_mix(sig: int, value: int) -> int:
+	return (sig ^ value) * 1099511628211 + 0x9E3779B9
 var _hints_sig := -1
 
 ## The rows [method _present_slots] and [method _present_hints] refill on a change; both widgets keep a copy.

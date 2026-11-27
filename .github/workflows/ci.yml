@@ -22,6 +22,8 @@ jobs:
         uses: gamespice-platform/ci/.github/workflows/validate.yml@v1.4.4
         with:
             suite-timeout: 900
+            # From v1.4.4 this also runs check-gd-perf.py over ci/efficiency/gd-perf-hot.txt
+            # (ratchet ci/efficiency/gd-perf.tsv), the same gate as ./game.sh test.
             efficiency: true
             perf: true
             # game.sh's SUITES, so the runner checks what a person checks, and release.yml
