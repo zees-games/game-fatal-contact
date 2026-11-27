@@ -99,11 +99,37 @@ func _compare(label: String, map: FcMap) -> void:
 	_compare_rays(label, mirror, space, rng, bounds, starts)
 	_compare_hulls(label, mirror, space, rng, starts)
 	_compare_points(label, mirror, space, rng, bounds)
+	_check_bake(label, mirror, solid, starts, rng)
 
 	FcTraceMirror.reset()
 	remove_child(solid)
 	solid.free()
 	_finished += 1
+
+
+## The bake hook: the map's blob, loaded back through [method FcTraceMirror.of], writes the same bytes and answers
+## every box sweep as the mirror built from the scene.
+func _check_bake(label: String, mirror: Object, solid: Node3D, starts: PackedVector3Array,
+		rng: RandomNumberGenerator) -> void:
+	var bytes: PackedByteArray = mirror.call(&"to_bytes")
+	var path := "user://trace_mirror_bake_test.gscm"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_buffer(bytes)
+	file.close()
+	FcTraceMirror.reset()
+	var baked: Object = FcTraceMirror.of(solid, path)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	_check(baked != null and baked.call(&"to_bytes") == bytes,
+			"%s: the baked blob (%d bytes) loads back to the same bytes" % [label, bytes.size()])
+	var bad := 0
+	for k in 500:
+		var half := HULL_HALVES[k % HULL_HALVES.size()]
+		var from := starts[rng.randi() % starts.size()] + Vector3(0.0, rng.randf_range(0.0, 1.5), 0.0)
+		var motion := _direction(rng) * rng.randf_range(0.2, 8.0)
+		if baked == null or mirror.call(&"cast_box", from, motion, half, MASK) \
+				!= baked.call(&"cast_box", from, motion, half, MASK):
+			bad += 1
+	_check(bad == 0, "%s: the baked mirror answers 500 box sweeps as the built one (%d differ)" % [label, bad])
 
 
 func _compare_rays(label: String, mirror: Object, space: PhysicsDirectSpaceState3D, rng: RandomNumberGenerator,
