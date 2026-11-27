@@ -99,11 +99,37 @@ func _compare(label: String, map: FcMap) -> void:
 	_compare_rays(label, mirror, space, rng, bounds, starts)
 	_compare_hulls(label, mirror, space, rng, starts)
 	_compare_points(label, mirror, space, rng, bounds)
+	_check_bake(label, mirror, solid, starts, rng)
 
 	FcTraceMirror.reset()
 	remove_child(solid)
 	solid.free()
 	_finished += 1
+
+
+## The bake hook: the map's blob, loaded back through [method FcTraceMirror.of], writes the same bytes and answers
+## every box sweep as the mirror built from the scene.
+func _check_bake(label: String, mirror: Object, solid: Node3D, starts: PackedVector3Array,
+		rng: RandomNumberGenerator) -> void:
+	var bytes: PackedByteArray = mirror.call(&"to_bytes")
+	var path := "user://trace_mirror_bake_test.gscm"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_buffer(bytes)
+	file.close()
+	FcTraceMirror.reset()
+	var baked: Object = FcTraceMirror.of(solid, path)
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	_check(baked != null and baked.call(&"to_bytes") == bytes,
+			"%s: the baked blob (%d bytes) loads back to the same bytes" % [label, bytes.size()])
+	var bad := 0
+	for k in 500:
+		var half := HULL_HALVES[k % HULL_HALVES.size()]
+		var from := starts[rng.randi() % starts.size()] + Vector3(0.0, rng.randf_range(0.0, 1.5), 0.0)
+		var motion := _direction(rng) * rng.randf_range(0.2, 8.0)
+		if baked == null or mirror.call(&"cast_box", from, motion, half, MASK) \
+				!= baked.call(&"cast_box", from, motion, half, MASK):
+			bad += 1
+	_check(bad == 0, "%s: the baked mirror answers 500 box sweeps as the built one (%d differ)" % [label, bad])
 
 
 func _compare_rays(label: String, mirror: Object, space: PhysicsDirectSpaceState3D, rng: RandomNumberGenerator,
@@ -187,6 +213,8 @@ func _compare_hulls(label: String, mirror: Object, space: PhysicsDirectSpaceStat
 	var bad := PackedStringArray()
 	var hits := 0
 	var solid_starts := 0
+	var godot_us := 0.0
+	var mirror_us := 0.0
 	for k in HULLS:
 		var half := HULL_HALVES[k % HULL_HALVES.size()]
 		var box := BoxShape3D.new()
@@ -197,8 +225,12 @@ func _compare_hulls(label: String, mirror: Object, space: PhysicsDirectSpaceStat
 		var motion := _direction(rng) * rng.randf_range(0.2, 8.0)
 		query.transform = Transform3D(Basis.IDENTITY, from)
 		query.motion = motion
+		var t0 := Time.get_ticks_usec()
 		var bracket := space.cast_motion(query)
+		var t1 := Time.get_ticks_usec()
 		var got: Dictionary = mirror.call(&"cast_box", from, motion, half, MASK)
+		godot_us += float(t1 - t0)
+		mirror_us += float(Time.get_ticks_usec() - t1)
 		var f := float(got["fraction"])
 		if bracket[1] < 1.0:
 			hits += 1
@@ -207,12 +239,29 @@ func _compare_hulls(label: String, mirror: Object, space: PhysicsDirectSpaceStat
 		var lo := float(bracket[0]) - FRACTION_EPS
 		var hi := float(bracket[1]) + FRACTION_EPS
 		if f < lo or f > hi:
-			bad.append("hull %d %s half %s motion %s: godot [%.5f, %.5f], mirror %.5f%s" % [k, from, half, motion,
-				bracket[0], bracket[1], f, " (start solid)" if got["start_solid"] else ""])
-	print("     hulls: %d (%d hit, %d start in solid)" % [HULLS, hits, solid_starts])
-	for line in bad.slice(0, 6):
+			bad.append("hull %d %s half %s motion %s: godot [%.5f, %.5f], mirror %.5f n %s%s; %s" % [k, from, half,
+				motion, bracket[0], bracket[1], f, got.get("normal", Vector3.ZERO),
+				" (start solid)" if got["start_solid"] else "", _hull_probe(space, query, from, motion, bracket)])
+	print("     hulls: %d (%d hit, %d start in solid), us per sweep: mirror %.2f, godot %.2f" % [HULLS, hits,
+		solid_starts, mirror_us / HULLS, godot_us / HULLS])
+	for line in bad.slice(0, 16):
 		print("       " + line)
 	_check(bad.is_empty(), "%s: %d box sweeps land in Godot's safe/unsafe bracket (%d off)" % [label, HULLS, bad.size()])
+
+
+## What Godot's space says around a hull that left its bracket: the shapes it touches at the start and at
+## the unsafe end, and the first contact's normal there (for the failure line only).
+func _hull_probe(space: PhysicsDirectSpaceState3D, query: PhysicsShapeQueryParameters3D, from: Vector3,
+		motion: Vector3, bracket: PackedFloat32Array) -> String:
+	var probe := PhysicsShapeQueryParameters3D.new()
+	probe.shape = query.shape
+	probe.collision_mask = query.collision_mask
+	probe.transform = Transform3D(Basis.IDENTITY, from)
+	var at_start := space.intersect_shape(probe, 8).size()
+	probe.transform = Transform3D(Basis.IDENTITY, from + motion * float(bracket[1]))
+	var rest := space.get_rest_info(probe)
+	return "godot overlaps %d at start, rest at unsafe %s" % [at_start,
+		"none" if rest.is_empty() else "n %s at %s" % [rest["normal"], rest["point"]]]
 
 
 func _compare_points(label: String, mirror: Object, space: PhysicsDirectSpaceState3D, rng: RandomNumberGenerator,

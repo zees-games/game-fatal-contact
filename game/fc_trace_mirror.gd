@@ -7,6 +7,8 @@ extends RefCounted
 ## drop or a toy (RigidBody3D) no longer blocks a bot's line, as Source's world trace ignores entities.
 ## Answers match Godot Physics within float noise (hit or miss, fraction 1e-3, normal 1 degree): the suite
 ## headless_trace_mirror holds that on every map kind. Without the library, or at 0, every ray asks the space.
+## A map that ships a baked blob beside its manifest ([method bake_path], written by [code]to_bytes[/code]) loads its
+## static part from it instead of walking the scene; moving bodies are still read from the scene.
 ## Typed loosely on purpose: a build without the class still parses this file.
 
 ## Cvar `sv_trace_mirror`: 0 asks the physics space for every ray (the reference and the fallback).
@@ -19,15 +21,19 @@ static var _movers := 0
 
 
 ## The mirror of [param root]'s collision, built on the first ask after a map change and re-posed once a physics
-## frame; null when off, without gs-sim's class, or with no root in the tree. Main thread only.
-static func of(root: Variant) -> Object:
+## frame; null when off, without gs-sim's class, or with no root in the tree. [param baked] names a blob to load the
+## static part from when it exists and is one; otherwise the scene is walked. Main thread only.
+static func of(root: Variant, baked: String = "") -> Object:
 	if not enabled or not root is Node3D or not (root as Node3D).is_inside_tree() \
 			or not GSSim.has(&"trace_mirror"):
 		return null
 	var id := (root as Node3D).get_instance_id()
 	if _mirror == null or _root_id != id:
 		_mirror = ClassDB.instantiate(&"GSSimTraceMirror")
-		_mirror.call(&"load_scene", root)
+		var bytes := FileAccess.get_file_as_bytes(baked) if baked != "" and FileAccess.file_exists(baked) \
+				else PackedByteArray()
+		if bytes.is_empty() or not bool(_mirror.call(&"load_baked", root, bytes)):
+			_mirror.call(&"load_scene", root)
 		_root_id = id
 		_synced_frame = Engine.get_physics_frames()
 		_movers = int((_mirror.call(&"stats") as Dictionary).get("movers", 0))
@@ -42,7 +48,15 @@ static func of_game(game: Object) -> Object:
 	if not enabled or game == null:
 		return null
 	var map: Variant = game.get("map")
-	return of((map as Object).get("collision_root") if map is Object else null)
+	if not map is Object:
+		return null
+	return of((map as Object).get("collision_root"), bake_path(str((map as Object).get("manifest_path"))))
+
+
+## Where a map's baked mirror lives: beside its manifest, [code]<manifest>.gscm[/code]; empty for a map without
+## one (the built-in boxes are walked, which is quick).
+static func bake_path(manifest_path: String) -> String:
+	return "" if manifest_path.is_empty() or manifest_path == "<null>" else manifest_path.get_basename() + ".gscm"
 
 
 ## A client follows the server's [code]sv_trace_mirror[/code] (replicated), because it predicts its own motor against
