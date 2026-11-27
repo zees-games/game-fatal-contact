@@ -50,40 +50,6 @@ func _hurt_from_map() -> void:
 			damage.tick = _tick
 			var _dealt := combat.apply_damage(damage)
 
-## Whether the round is waiting to go live with everyone held still. The client reads the
-## state MATCH told it; a countdown only exists when its length is above zero.
-func round_frozen() -> bool:
-	return match_node != null and match_node.state == GSMatch.State.COUNTDOWN \
-			and match_node.rules != null and match_node.rules.freeze_during_countdown
-
-func _freeze_for_round(id: int, player: FcPlayer) -> void:
-	if _round_frozen_ids.has(id) or GSFpsAdminModifiers.is_frozen(player.controller):
-		return
-	var held := {"god": player.health.invulnerable}
-	_round_frozen_ids[id] = held
-	player.health.invulnerable = true
-	player.arsenal.disabled = true
-	var _r := GSFpsAdminModifiers.set_frozen(player.controller, true)
-
-func _release_from_round(id: int, player: FcPlayer) -> void:
-	var held: Dictionary = _round_frozen_ids[id]
-	_round_frozen_ids.erase(id)
-	player.health.invulnerable = bool(held["god"])
-	player.arsenal.disabled = false
-	var _r := GSFpsAdminModifiers.set_frozen(player.controller, false)
-
-## Holds every living player still, unarmed and unhurtable while [method round_frozen], and
-## lets exactly those go afterwards; an admin's own freeze or god mode is left alone.
-func _sync_round_freeze() -> void:
-	var want := round_frozen()
-	_round_frozen_want = want
-	for id in player_ids():
-		var player: FcPlayer = _players[id]
-		if want and player.health.alive:
-			_freeze_for_round(id, player)
-		elif _round_frozen_ids.has(id):
-			_release_from_round(id, player)
-
 ## Everybody against the toys this tick, after they moved: a walk into a ball pushes it, then
 ## the box's own tick (the awake cap, the lost sent home). Authority only.
 func _advance_toys(delta: float) -> void:
@@ -295,6 +261,11 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	t_tb = FcFrameProbe.lap(&"tb_pass2", t_tb)
 	_flush_posts(shots)
 	FcFrameProbe.lap(&"tb_flush", t_tb)
+	_tally_motor_batch(fine)
+
+
+## The motor batch's tick counters into the fine probe's cn_* counts (when [param fine]) and the hull grid's totals, then zeroed.
+func _tally_motor_batch(fine: bool) -> void:
 	if fine:
 		FcFrameProbe.count(&"cn_runs", _motor_batch.runs)
 		FcFrameProbe.count(&"cn_retakes", _motor_batch.retakes)

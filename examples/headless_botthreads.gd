@@ -18,8 +18,13 @@ const BOTS := 24
 const SECONDS := 20.0
 const THREADS := [0, 0, 1, 4, 8]
 
-const SECTIONS := 7
-const CHECKS := 36
+const SECTIONS := 8
+const CHECKS := 45
+
+## `bot_native_refresh`'s parity: seeded matches of this many bots, this long, on these maps, script against gs-sim.
+const REFRESH_BOTS := 31
+const REFRESH_SECONDS := 10.0
+const REFRESH_MAPS: Array[StringName] = [&"dm_box", &"dm_pit", &"cp-orange-x3"]
 
 ## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
@@ -65,11 +70,34 @@ func _run() -> void:
 	await _contacts_parity(digests[0])
 	_done()
 
+	_section("bot_native_refresh: gs-sim's refresh (contacts, hearing) plays the script's 31-bot matches")
+	await _refresh_parity()
+	_done()
+
 	_section("the brain profile (--brain-us) times brains on bot threads")
 	await _brain_phases_threaded(digests[0])
 	_done()
 
 	_section("an imported map, sight through the physics space")
+	await _imported_map()
+	_done()
+
+	_section("under the minimum, or off, nothing changes")
+	FcBotThreads.threads = 4
+	_check(not FcBotThreads.active(FcBotThreads.MIN_BOTS - 1), "fewer bots than the minimum think on the main thread")
+	_check(FcBotThreads.active(FcBotThreads.MIN_BOTS), "the minimum goes parallel")
+	FcBotThreads.threads = 0
+	_check(not FcBotThreads.active(64), "bot_threads 0 is off at any count")
+	_done()
+
+	_section("the live shell's gs-bot 26 path plays the same match")
+	await _older_api()
+	_done()
+	_report_sections(_entered, _completed, SECTIONS, CHECKS)
+
+
+## [constant IMPORTED_MAP] played at threads 0 twice, 4 and 1: the same digests, through the parallel path.
+func _imported_map() -> void:
 	if FcMap.by_id(IMPORTED_MAP) == null:
 		print("skip %s: not linked" % IMPORTED_MAP)
 		_check(true, "(skipped: no imported map linked)")
@@ -99,20 +127,6 @@ func _run() -> void:
 		_check(off[0] == off_again[0], "two runs on one thread are identical on %s too" % IMPORTED_MAP)
 		_check(off[0] == on[0] and off[0].size() > 5, "bot_threads 4 plays the %s match thread 0 plays (%d, %d kills)" % [IMPORTED_MAP, off[1], on[1]])
 		_check(on[2] > 50 and off[2] == 0, "through the parallel path (%d ticks)" % on[2])
-	_done()
-
-	_section("under the minimum, or off, nothing changes")
-	FcBotThreads.threads = 4
-	_check(not FcBotThreads.active(FcBotThreads.MIN_BOTS - 1), "fewer bots than the minimum think on the main thread")
-	_check(FcBotThreads.active(FcBotThreads.MIN_BOTS), "the minimum goes parallel")
-	FcBotThreads.threads = 0
-	_check(not FcBotThreads.active(64), "bot_threads 0 is off at any count")
-	_done()
-
-	_section("the live shell's gs-bot 26 path plays the same match")
-	await _older_api()
-	_done()
-	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
 
 ## The native switches off play the match they play on: bot_native_think's script contacts, commands and tricks;
@@ -168,8 +182,109 @@ func _done() -> void:
 	_completed += 1
 
 
-## One match with [param count] threads: [digests, kills, parallel ticks, the bots' FcBots.Mind].
-func _play(count: int, map_id: StringName = &"") -> Array:
+## `bot_native_refresh` 0 and 1 play the same seeded 31-bot match at 4 threads on each of [constant REFRESH_MAPS]: the contact
+## table hashed every tick, the command and position digests, the kills and every player's score, all identical; and the
+## native run really built its contacts in gs-sim while the script run never did. An imported map not linked is skipped.
+func _refresh_parity() -> void:
+	var available := FcBotContacts.refresh_available()
+	for map_id: StringName in REFRESH_MAPS:
+		if not available or (map_id != &"dm_box" and FcMap.by_id(map_id) == null):
+			print("skip %s: %s" % [map_id, "not linked" if available else "this gs-sim has no native refresh"])
+			for i in 3:
+				_check(true, "(skipped: %s)" % map_id)
+			continue
+		var built := [0, 0]
+		var runs: Array = []
+		for on: bool in [false, true]:
+			FcBotContacts.set_native_refresh(on)
+			var before := FcBotContacts.built
+			runs.append(await _play(4, &"" if map_id == &"dm_box" else map_id, REFRESH_BOTS, REFRESH_SECONDS, true))
+			built[int(on)] = FcBotContacts.built - before
+		FcBotContacts.set_native_refresh(true)
+		var script: Array = runs[0]
+		var native: Array = runs[1]
+		var first := -1
+		for i in mini(script[4].size(), native[4].size()):
+			if script[4][i] != native[4][i]:
+				first = i
+				break
+		print("%s refresh: first differing tick %d of %d; kills %d / %d; scores %s / %s; digests %s" % [map_id, first, script[4].size(), script[1], native[1], script[5], native[5], script[0] == native[0]])
+		if first >= 0 and first < mini(script[6].size(), native[6].size()):
+			print("  %s" % _table_diff(script[6][first], native[6][first]))
+		_check(script[4] == native[4] and script[4].size() >= int(REFRESH_SECONDS * TICK_RATE) and script[0] == native[0],
+			"%s: the contact table hashes the same on every one of %d ticks, and the match digests the same" % [map_id, script[4].size()])
+		_check(script[1] == native[1] and script[5] == native[5], "%s: the same kills (%d) and every player's score (%s)" % [map_id, native[1], native[5]])
+		_check(built[0] == 0 and built[1] >= int(REFRESH_SECONDS * TICK_RATE), "%s: gs-sim built the contacts of %d ticks, the script run of none (%d)" % [map_id, built[1], built[0]])
+
+
+## Waits until [param world]'s routes are baked and its navigation map synced (an imported map).
+func _routes_warm(world: FcBots.World) -> void:
+	# The routes start when the mesh bake lands; start every run from there.
+	var _first := world.route(Vector3.ZERO, Vector3.ONE)
+	var frames := 0
+	while world.is_route_pending() and frames < 3000:
+		await get_tree().process_frame
+		frames += 1
+	# The navigation server syncs its map a frame or more after the bake lands; a match that starts before
+	# warm() is true gets its routes and surf on a load-dependent tick, and no two runs then agree.
+	while not world.warm() and frames < 3000:
+		await get_tree().process_frame
+		frames += 1
+
+
+## Every one of [param players]' score on [param game]'s scoreboard (-1 for one it has no record of).
+static func _scores(game: Node, players: Array) -> PackedInt32Array:
+	var scores := PackedInt32Array()
+	for p: Variant in players:
+		var record: GSPlayerScore = game.get(&"match_node").scoreboard.find(str(p.player_id))
+		scores.append(record.score if record != null else -1)
+	return scores
+
+
+## The hash of [param world]'s contacts this tick: gs-sim's table when it filled one, else the contact objects packed as one.
+static func _table_hash(world: Object) -> int:
+	return _table_of(world).digest()
+
+
+static func _table_of(world: Object) -> GSBotContactTable:
+	var t: GSBotContactTable = world.call(&"table")
+	return t if t != null else GSBotContactTable.from_contacts(0, world.get(&"_contacts"))
+
+
+const TABLE_COLUMNS: Array[String] = ["ids", "positions", "velocities", "floats", "teams", "flags", "points", "eyes", "alive"]
+
+
+static func _table_copy(t: GSBotContactTable) -> GSBotContactTable:
+	var copy := GSBotContactTable.new()
+	for column in TABLE_COLUMNS:
+		copy.set(column, t.get(column).duplicate())
+	return copy
+
+
+## The columns [method GSBotContactTable.digest] hashes, by name, where [param a] and [param b] first differ.
+static func _table_diff(a: GSBotContactTable, b: GSBotContactTable) -> String:
+	var out := PackedStringArray()
+	for column in TABLE_COLUMNS:
+		var x: Variant = a.get(column)
+		var y: Variant = b.get(column)
+		if x != y:
+			out.append("%s %s / %s" % [column, str(x).left(400), str(y).left(400)])
+	return "; ".join(out)
+
+
+## [param world]'s contact table at [param tick], refreshed and hashed before any brain writes its own contact object (the
+## script's objects are kept from tick to tick): its digest onto [param tables], a copy of the first 60 onto [param firsts].
+static func _hash_tick(world: FcBots.World, tick: int, tables: PackedInt64Array, firsts: Array) -> void:
+	world.refresh(tick, float(TICK_RATE))
+	var t := _table_of(world)
+	tables.append(t.digest())
+	if firsts.size() < 60:
+		firsts.append(_table_copy(t))
+
+
+## One match with [param count] threads: [digests, kills, parallel ticks, the bots' FcBots.Mind, the contact table's hash every
+## tick (with [param hashes]), every player's score]. [param bots] and [param seconds] default to the map kind's.
+func _play(count: int, map_id: StringName = &"", bots: int = 0, seconds: float = 0.0, hashes: bool = false) -> Array:
 	FcBotThreads.threads = count
 	FcBotThreads.par_ticks = 0
 	var game := FcGame.new()
@@ -189,7 +304,11 @@ func _play(count: int, map_id: StringName = &"") -> Array:
 	game.player_killed.connect(func(_entry: GSKillFeed.Entry) -> void: kills[0] += 1)
 	var players: Array = []
 	var minds: Array = []
-	for i in BOTS if map_id == &"" else IMPORTED_BOTS:
+	if bots <= 0:
+		bots = BOTS if map_id == &"" else IMPORTED_BOTS
+	if seconds <= 0.0:
+		seconds = SECONDS if map_id == &"" else IMPORTED_SECONDS
+	for i in bots:
 		var made := game.add_player(100 + i, "Bot%d" % i)
 		if made.ok:
 			players.append(made.value)
@@ -199,23 +318,17 @@ func _play(count: int, map_id: StringName = &"") -> Array:
 	game.start(0)
 	game.tick({})
 	await get_tree().process_frame
+	var world := FcBots.world_for(game)
 	if map_id != &"":
-		# The routes start when the mesh bake lands; start every run from there.
-		var world := FcBots.world_for(game)
-		var _first := world.route(Vector3.ZERO, Vector3.ONE)
-		var frames := 0
-		while world.is_route_pending() and frames < 3000:
-			await get_tree().process_frame
-			frames += 1
-		# The navigation server syncs its map a frame or more after the bake lands; a match that starts before
-		# warm() is true gets its routes and surf on a load-dependent tick, and no two runs then agree.
-		while not world.warm() and frames < 3000:
-			await get_tree().process_frame
-			frames += 1
+		await _routes_warm(world)
 	var digests := PackedStringArray()
 	var window := PackedStringArray()
-	for tick_index in int((SECONDS if map_id == &"" else IMPORTED_SECONDS) * TICK_RATE):
+	var tables := PackedInt64Array()
+	var firsts: Array = []
+	for tick_index in int(seconds * TICK_RATE):
 		var tick := game.current_tick()
+		if hashes:
+			_hash_tick(world, tick, tables, firsts)
 		var made: Array = []
 		if FcBotThreads.active(players.size()):
 			made = FcBotThreads.think_all(game, players, minds, tick, float(TICK_RATE))
@@ -242,11 +355,12 @@ func _play(count: int, map_id: StringName = &"") -> Array:
 		if tick_index % 8 == 0:
 			await get_tree().physics_frame
 	var parallel := FcBotThreads.par_ticks
+	var scores := _scores(game, players)
 	remove_child(game)
 	game.queue_free()
 	await get_tree().process_frame
 	FcBotThreads.threads = 0
-	return [digests, kills[0], parallel, minds]
+	return [digests, kills[0], parallel, minds, tables, scores, firsts]
 
 
 ## Think and body tiers on (every bot coasts when nobody sees it), played on the current addons' calls, then on the
