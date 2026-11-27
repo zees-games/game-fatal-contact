@@ -1,14 +1,8 @@
 extends RefCounted
 
-## FC's native server tick (phase P1): gs-sim's `GSSimServerTick` stepped once per tick, after the batched players' loop.
-##
-## It holds the struct-of-arrays player table later phases read instead of asking each player per field: the roster
-## in order (the hull world's slots), each row's motor part taken from the motor batch's resident row and its origin
-## from the hull world's feet. The players' loop hands it the motor batch ([method GSFpsMotorBatch.use_native]) and
-## its idle posture rows (`run_rows`, the same to the bit as `GSSimPlayerPost`), so nothing is computed twice.
-##
-## [member enabled] is `sv_native_motor_state`. Off, or without the library, the loop runs as before. A library that is
-## present but lacks the class, a method or the API level is said loudly once, never skipped in silence.
+## FC's native server tick (phase P1): gs-sim's `GSSimServerTick` stepped once per tick after the batched players' loop,
+## holding the player table later phases read. [member enabled] is `sv_native_motor_state`; off, or without the
+## library, the loop runs as before. Details: docs/native-server-tick.md (Players phase).
 
 ## The `GSSimServerTick` API level this needs.
 const API := 1
@@ -74,6 +68,26 @@ static func rows_dispatch() -> GDScript:
 		if GSAddonApi.build_level("gs_player_controller") >= ROWS_LEVEL:
 			_rows_script = load(FcPaths.rebase(ROWS_SCRIPT)) as GDScript
 	return _rows_script
+
+
+## The derived motor edges of every row, dispatched to each row's controller in roster order ([param ids]; a row's
+## entity is its index): by row from gs-player-controller 54 ([code]fc_tick_rows.gd[/code]), else the events alone.
+static func dispatch_events(events: GSFpsTickEvents, ids: Array[int], players: Dictionary) -> void:
+	var count := events.derive()
+	var by_row := rows_dispatch()
+	if by_row != null:
+		var _done: Variant = by_row.call(&"dispatch", events, ids, players)
+	else:
+		# Below level 54 the controllers emitted their own surface, modifier and simulated signals.
+		var ints := events.ints
+		var cursor := 0
+		while cursor < count:
+			var player: FcPlayer = players.get(ids[ints[cursor * GSFpsTickEvents.INTS]])
+			if player == null:
+				cursor += 1
+				continue
+			cursor = player.controller.dispatch_events(events, cursor)
+	events.clear()
 
 ## The `GSSimServerTick` (null until [method start] first answers true).
 var native: Object = null

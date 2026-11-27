@@ -119,7 +119,7 @@ func _add_motor_engine_cvars() -> void:
 			FcContent.carry_fast = new_value.to_float() >= 0.5)
 
 
-## The players' hull grid (its fast, native and batched gathers, `sv_native_motor_state`: the batch's motor state resident in gs-sim) and the bots' PVS sight pre-cull.
+## The players' hull grid (its fast, native and batched gathers), the batched loop's native lanes and the bots' PVS sight pre-cull.
 func _add_hull_and_pvs_cvars() -> void:
 	add_cvar("fc_hull_grid", "1" if FcHullGrid.enabled else "0",
 		"1: players' standing hulls are found through a grid filed once per tick (same hulls, cheaper above 12 players); 0: scan the whole roster per bot",
@@ -146,29 +146,7 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.batch = new_value.to_float() >= 0.5)
-	add_cvar("fc_tick_events", "0" if not FcHullGrid.events else ("2" if GSFpsTickEvents.native_enabled else "1"),
-		"2: with fc_motor_batch, the players' motor edges are one table gs-sim derives after the loop; 1: the same table derived by script; 0: each player's edges inside its own tick",
-		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(2.0).changed.connect(
-		func(_old: String, new_value: String) -> void:
-			var level := new_value.to_float()
-			FcHullGrid.events = level >= 0.5
-			GSFpsTickEvents.native_enabled = level >= 1.5)
-	add_cvar("sv_native_motor_state", "1" if GSFpsMotorBatch.native_state else "0",
-		"1: with fc_motor_batch, each player's motor state stays in gs-sim across ticks, only script writes are sent, and gs-sim's server tick steps the player table once a tick (same states); 0: the script loop alone, every column sent each tick",
-		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
-		func(_old: String, new_value: String) -> void:
-			GSFpsMotorBatch.native_state = new_value.to_float() >= 0.5
-			FcNativeTick.enabled = GSFpsMotorBatch.native_state)
-	add_cvar("sv_native_slots", "1" if GSFpsTickEvents.native_slots else "0",
-		"1: with sv_native_motor_state and fc_tick_events 2, a batched player's motor edges are read from its resident motor row in gs-sim instead of captured by script (same edges); 0: the script captures",
-		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
-		func(_old: String, new_value: String) -> void:
-			GSFpsTickEvents.native_slots = new_value.to_float() >= 0.5)
-	add_cvar("sv_native_players", "1" if FcNativeTick.players else "0",
-		"1: with fc_motor_batch and fc_tick_events, every player's controller tick is one gs-player-controller call (same states and edges); 0: the players' loop's own two passes",
-		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
-		func(_old: String, new_value: String) -> void:
-			FcNativeTick.players = new_value.to_float() >= 0.5)
+	_add_native_player_cvars()
 	add_cvar("fc_bot_pvs", "1" if FcBotPvs.enabled else "0",
 		"1: a bot's sight ray is skipped where the map's PVS rules the pair out (same answers: those rays come back blocked); 0: every ray is cast",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
@@ -205,3 +183,31 @@ func _add_hull_and_pvs_cvars() -> void:
 		0).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotPvs.verify = new_value.to_float() >= 0.5)
+
+
+## The batched players' loop's native lanes: its motor edges as one table, the motor state resident in gs-sim
+## (`sv_native_motor_state`), the edges read from that state, and the controllers' tick as one call (docs/native-server-tick.md).
+func _add_native_player_cvars() -> void:
+	add_cvar("fc_tick_events", "0" if not FcHullGrid.events else ("2" if GSFpsTickEvents.native_enabled else "1"),
+		"2: with fc_motor_batch, the players' motor edges are one table gs-sim derives after the loop; 1: the same table derived by script; 0: each player's edges inside its own tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(2.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			var level := new_value.to_float()
+			FcHullGrid.events = level >= 0.5
+			GSFpsTickEvents.native_enabled = level >= 1.5)
+	add_cvar("sv_native_motor_state", "1" if GSFpsMotorBatch.native_state else "0",
+		"1: with fc_motor_batch, each player's motor state stays in gs-sim across ticks, only script writes are sent, and gs-sim's server tick steps the player table once a tick (same states); 0: the script loop alone, every column sent each tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			GSFpsMotorBatch.native_state = new_value.to_float() >= 0.5
+			FcNativeTick.enabled = GSFpsMotorBatch.native_state)
+	add_cvar("sv_native_slots", "1" if GSFpsTickEvents.native_slots else "0",
+		"1: with sv_native_motor_state and fc_tick_events 2, a batched player's motor edges are read from its resident motor row in gs-sim instead of captured by script (same edges); 0: the script captures",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			GSFpsTickEvents.native_slots = new_value.to_float() >= 0.5)
+	add_cvar("sv_native_players", "1" if FcNativeTick.players else "0",
+		"1: with fc_motor_batch and fc_tick_events, every player's controller tick is one gs-player-controller call (same states and edges); 0: the players' loop's own two passes",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcNativeTick.players = new_value.to_float() >= 0.5)

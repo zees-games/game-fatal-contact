@@ -1,5 +1,5 @@
 @tool
-extends "fc_game_tick.gd"
+extends "fc_game_players_call.gd"
 
 const FcKnifeFollow := preload("fc_knife_follow.gd")
 

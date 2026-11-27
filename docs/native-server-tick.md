@@ -37,3 +37,22 @@ Each phase is placed in one of three states by checking what the build actually 
 - `FC_NATIVE_TICK_CALLS` shows any script call, or shows no native call for an expected phase.
 
 A second, short run with `sv_native_tick 0` must put every phase on the fallback and make no native calls.
+
+## Players phase
+
+`game/fc_native_tick.gd` steps gs-sim's `GSSimServerTick` once per tick, after the batched players' loop. It holds the struct-of-arrays player table later phases read instead of asking each player per field: the roster in order (the hull world's slots), each row's motor part from the motor batch's resident row, and its origin from the hull world's feet.
+
+- The loop hands it the motor batch (`GSFpsMotorBatch.use_native`) and its idle posture rows (`run_rows`, bit-identical to `GSSimPlayerPost`), so nothing is computed twice.
+- A library that is present but lacks the class, a method or the API level is reported loudly once, never skipped in silence.
+
+`sv_native_players` (`game/fc_game_players_call.gd`) hands the loop's two passes to gs-player-controller as one call, in the same order, so the states and edges are the same:
+
+| Callback | Runs |
+|---|---|
+| `_pc_pre` | Pass one's part before the controller: input, tick start, the body's delta (-1 leaves the row out). |
+| `_pc_live` | Before a row finishes: is the player still alive. The first call also runs the volume marks over every prepared row. |
+| `_pc_post` | `_finish_batched_player`'s part after the controller. |
+
+With the fine probe on, the per-player laps (`pl_*`, `pp_*`, `po_*`) still record; the controller's own `c_*` laps are inside the one call, so only `p_controller` covers them.
+
+The loop's motor edges are derived in one call (`GSSimTickEvents`, or the script) and dispatched in roster order (`FcNativeTick.dispatch_events`). From gs-player-controller 54 a controller's end_tick holds its surface, modifier and simulated signals in its row, and `game/fc_tick_rows.gd` emits them row by row.
