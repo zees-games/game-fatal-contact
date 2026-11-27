@@ -509,6 +509,20 @@ func _pull_rest(fine: bool, lap: int) -> void:
 	lap = FcFrameProbe.lap(&"np_rest", lap) if fine else 0
 
 
+## The part of [method _pull_rest] gs-sim's [code]GSSimNetRest.pull_rest[/code] leaves to the script, for a player a
+## client owns (FcNetPullBatch): the exact copy pushed back into the state, then the carry mask. The order against
+## the fields gs-sim wrote does not matter: neither reads them.
+func _pull_rest_owned() -> void:
+	if identity != null and (identity.is_predicted() or (identity.is_authoritative and identity.owner_peer_id != 0)):
+		var _pushed := GSFpsNetSync.push_exact(player.controller.state, net_exact)
+	net_carry = _carry.mask(player.arsenal)
+
+
+## Whether gs-net's identity has [code]interest_aim[/code], for gs-sim's pull of the rest.
+func _rest_interest_aim() -> bool:
+	return _has_interest_aim
+
+
 ## Whether this player belongs to the server itself (a bot): there is no client to send owner-only state to.
 func _server_owned() -> bool:
 	return identity != null and identity.is_authoritative and identity.owner_peer_id == 0

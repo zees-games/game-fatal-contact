@@ -5,16 +5,24 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcMode := preload("../game/fc_mode.gd")
 const FcNetBridge := preload("../game/fc_net_bridge.gd")
 const FcNetNativeCore := preload("../game/fc_net_native_core.gd")
+const FcNetPullBatch := preload("../game/fc_net_pull_batch.gd")
 const FcPlayer := preload("../game/fc_player.gd")
+const FcPlayerNet := preload("../game/fc_player_net.gd")
 
 ## gs-sim's snapshot core (GSSimNetCore, cvar `sv_native_snapshots`) against gs-net's GDScript snapshots: two servers in
 ## lockstep, the same seeded round of bots on each, one building its snapshots natively (on worker threads) and one in
 ## GDScript, and every payload each fake client is sent compared byte for byte, tick by tick. 6 and 31 players, a map
 ## change, bots and clients joining and leaving, acks two snapshots late, distance interest. Without gs-sim the suite says so.
+## The rest of each player's net pull (FcPlayerNet._pull_rest: the exact copy, health, challenge, beacon, carry, the
+## identity's relevance and aim) is gs-sim's GSSimNetRest on the native server and the script on the other; every
+## player's pulled fields are compared tick by tick too, with [constant OWNED] bots handed to fake clients so the
+## owner's exact copy and carry mask are pulled as well.
 
 const TICKS := 480
 const FAKES_MAX := 12
 const PEER_BASE := 5000
+## Bots handed to a fake client (owner_peer_id), so their exact copy and carry mask are pulled.
+const OWNED := 2
 
 var _checks := 0
 var _failed := 0
@@ -36,6 +44,8 @@ func _check(condition: bool, what: String, detail := "") -> void:
 func _run() -> void:
 	print("FC — gs-sim's snapshot core sends the bytes gs-net's GDScript sends")
 	var was := FcNetNativeCore.enabled
+	var rest_was := FcNetPullBatch.rest_enabled
+	FcNetPullBatch.rest_enabled = true
 	if FcNetNativeCore.make_core() == null:
 		print("gs-sim has no GSSimNetCore: nothing to compare")
 		_check(true, "the GDScript path stands alone")
@@ -44,7 +54,8 @@ func _run() -> void:
 	for players: int in [6, 31]:
 		_round(players)
 	FcNetNativeCore.enabled = was
-	_finish(12)
+	FcNetPullBatch.rest_enabled = rest_was
+	_finish(18)
 
 
 func _finish(expected: int) -> void:
@@ -57,13 +68,20 @@ func _finish(expected: int) -> void:
 func _round(players: int) -> void:
 	var lanes := [_lane(true, players), _lane(false, players)]
 	_check(lanes[0].native_on and not lanes[1].native_on, "%d players: one server native (gs-sim), one GDScript" % players,
-		"%s / %s" % [lanes[0].net._native_note, lanes[1].net._native_note])
+		"%s / %s" % [(lanes[0].net as GSNetManager).native_note(), (lanes[1].net as GSNetManager).native_note()])
 	var compared := 0
 	var bytes := 0
 	var differ := 0
 	var world_differ := 0
 	var first := ""
 	var changed_map := true
+	var rest_differ := 0
+	var rest_first := ""
+	var rest_rows := 0
+	var owned_exact := 0
+	FcNetNativeCore.enabled = true
+	_check(FcNetPullBatch.active() and FcNetPullBatch.rest_native() != null,
+		"%d players: the native server pulls the rest in gs-sim (GSSimNetRest), the other in GDScript" % players)
 	for t in range(1, TICKS + 1):
 		if t == TICKS / 3:
 			for lane: Dictionary in lanes:
@@ -75,7 +93,23 @@ func _round(players: int) -> void:
 			for peer: int in lane.sent:
 				(lane.sent[peer] as Array).clear()
 			_move_eyes(lane)
+			# sv_native_snapshots is a static: each server ticks with its own.
+			FcNetNativeCore.enabled = lane.native_on
 			(lane.net as GSNetManager).server_tick(t)
+		var rest_a := _rest(lanes[0])
+		var rest_b := _rest(lanes[1])
+		rest_rows += rest_a.size()
+		for i in rest_a.size():
+			if i < rest_b.size() and var_to_bytes(rest_a[i]) == var_to_bytes(rest_b[i]):
+				continue
+			rest_differ += 1
+			if rest_first == "":
+				rest_first = "tick %d row %d: %s vs %s" % [t, i, rest_a[i], rest_b[i] if i < rest_b.size() else "none"]
+		if rest_b.size() != rest_a.size():
+			rest_differ += 1
+		for row: Array in rest_a:
+			if row[1] and (row[2] as PackedFloat32Array).size() == FcPlayerNet.EXACT_FLOATS:
+				owned_exact += 1
 		if _world(lanes[0]) != _world(lanes[1]):
 			world_differ += 1
 			if first == "":
@@ -100,7 +134,12 @@ func _round(players: int) -> void:
 	_check(world_differ == 0, "%d players: the two servers' worlds stayed in lockstep" % players, "%d ticks differ; %s" % [world_differ, first])
 	_check(compared > TICKS, "%d players: every client was sent snapshots" % players, "%d" % compared)
 	_check(differ == 0, "%d players: every client's bytes identical, native and GDScript" % players, "%d differ; %s" % [differ, first])
-	_check(lanes[0].net._native != null and lanes[0].net.config.native, "%d players: the native core was never dropped" % players)
+	_check((lanes[0].net as GSNetManager).native_core() != null and lanes[0].net.config.native,
+		"%d players: the native core was never dropped" % players)
+	_check(rest_differ == 0 and rest_rows > TICKS * players / 2,
+		"%d players: every player's pulled rest identical, gs-sim and GDScript" % players,
+		"%d rows, %d differ; %s" % [rest_rows, rest_differ, rest_first])
+	_check(owned_exact >= TICKS * OWNED / 2, "%d players: owned bots' exact copies were pulled" % players, "%d" % owned_exact)
 	for lane: Dictionary in lanes:
 		(lane.root as Node).queue_free()
 
@@ -165,6 +204,8 @@ func _lane(native: bool, players: int) -> Dictionary:
 				var _a := net.receive_ack(fid, acked))
 	for i in mini(players, FAKES_MAX):
 		_add_fake(lane, PEER_BASE + i)
+	for k in OWNED:
+		(bridge.behaviour_for(int(lane.bots[k])).identity as GSNetIdentity).owner_peer_id = PEER_BASE + 1 + k
 	return lane
 
 
@@ -221,6 +262,22 @@ func _world(lane: Dictionary) -> PackedByteArray:
 	for p: FcPlayer in (lane.game as FcGame).players():
 		rows.append([p.player_id, p.controller.state.position, p.controller.state.velocity])
 	return var_to_bytes(rows)
+
+
+## Every player's fields FcPlayerNet._pull_rest writes, in session order: [session, owned, net_exact, then the rest].
+func _rest(lane: Dictionary) -> Array:
+	var bridge: FcNetBridge = lane.bridge
+	var rows: Array = []
+	for p: FcPlayer in (lane.game as FcGame).players():
+		var b := bridge.behaviour_for(p.player_id)
+		if b == null:
+			continue
+		var id: GSNetIdentity = b.identity
+		rows.append([p.player_id, id != null and id.owner_peer_id != 0, b.net_exact, b.net_health, b.net_armour,
+			b.net_alive, b.net_blind, b.net_challenge, b.net_challenge_value, b.net_app_points_on, b.net_app_points,
+			b.net_beacon, b.net_flashlight, b.net_protected, b.net_carry,
+			id.always_relevant if id != null else null, id.get(&"interest_aim") if id != null else null])
+	return rows
 
 
 func _sizes(payloads: Array) -> String:

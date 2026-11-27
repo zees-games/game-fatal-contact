@@ -46,25 +46,17 @@ static func make_core() -> Object:
 
 
 ## Points [param net] at gs-sim's core ([member enabled]) or at the GDScript path. Before the first
-## snapshot, so gs-net never looks for its own library; after a switch every view is resent.
+## snapshot, so gs-net never looks for its own library; after a switch every view is resent
+## ([code]GSNetManager.set_native_core[/code], gs-net 27).
 static func install(net: GSNetManager) -> bool:
 	if net == null or net.config == null:
 		return false
 	var core: Object = make_core() if enabled else null
 	if core == null:
 		# GDScript snapshots, said once above; gs-net's own library is not looked for either.
-		net.config.native = false
-		if net._native != null:
-			net._reset_send_views()
-			net._native = null
-		net._native_tried = true
-		net._native_note = "off (sv_native_snapshots 0)" if not enabled else "asked, GDScript in use: no %s" % CORE_CLASS
+		net.set_native_core(null, "off (sv_native_snapshots 0)" if not enabled else "asked, GDScript in use: no %s" % CORE_CLASS)
 		return false
-	net.config.native = true
-	net._reset_send_views()
-	net._native = core
-	net._native_tried = true
-	net._native_note = "on (gs-sim %s)" % CORE_CLASS
+	net.set_native_core(core, "on (gs-sim %s)" % CORE_CLASS)
 	return true
 
 

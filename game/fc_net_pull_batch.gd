@@ -8,6 +8,7 @@ extends RefCounted
 ## ([code]GSSimFpsNetPullBatch.pull_apply[/code]), so no script runs per field; off, [method _apply] writes them.
 
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcNetNativeCore := preload("fc_net_native_core.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
 const Roles := preload("fc_weapon_roles.gd")
@@ -34,6 +35,12 @@ static var _moves := PackedFloat64Array()
 static var _weapons := PackedFloat64Array()
 static var _ids: Array[StringName] = []
 static var _nets: Array[Object] = []
+## gs-sim's pull of the rest ([code]GSSimNetRest[/code]), made on first use; null without it.
+static var _rest: Object = null
+static var _rest_tried := false
+## Cvar [code]sv_net_pull_rest_native[/code]: off by default, as gs-sim's per-property reads measured slower than the
+## script's (P6d bench, 31 nets: 301 us native, 236 us script); on for [code]headless_native_snapshot_parity[/code].
+static var rest_enabled := false
 ## [code]net_fitted[/code] per row, from the script (gs-sim has no attachment table).
 static var _fitted := PackedInt64Array()
 ## [code][crouch_fraction, modifiers, fitted, reloading, switching][/code] per row, for [code]pull_apply[/code].
@@ -81,6 +88,13 @@ static func bind_cvars(add_cvar: Callable) -> void:
 	add_cvar.call("sv_net_pull_apply_native", "1" if apply_native else "0",
 		"1: gs-sim also writes the batched players' movement and weapon net fields (GSSimFpsNetPullBatch.pull_apply, bit for bit with the script); 0: the script writes them",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(_set_apply_native)
+	add_cvar.call("sv_net_pull_rest_native", "1" if rest_enabled else "0",
+		"1: with sv_native_snapshots on, gs-sim pulls every batched player's remaining net fields in one call (GSSimNetRest, bit for bit with the script; measured slower than the script so far); 0: each player's script pulls them",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(_set_rest_enabled)
+
+
+static func _set_rest_enabled(_old: String, new_value: String) -> void:
+	rest_enabled = new_value.to_float() >= 0.5
 
 
 static func _set_enabled(_old: String, new_value: String) -> void:
@@ -129,8 +143,34 @@ static func pull_all(nets: Array, tick: int) -> int:
 	var fine := FcFrameProbe.fine
 	for net: Object in _nets:
 		net._batched_tick = tick
-		net._pull_rest(fine, FcFrameProbe.lap_start() if fine else 0)
+	var rest := rest_native()
+	if rest == null:
+		for net: Object in _nets:
+			net._pull_rest(fine, FcFrameProbe.lap_start() if fine else 0)
+		return _nets.size()
+	var lap := FcFrameProbe.lap_start() if fine else 0
+	var follow: PackedInt32Array = rest.pull_rest(_nets, _nets[0]._rest_interest_aim())
+	for i: int in follow:
+		if i >= 0:
+			_nets[i]._pull_rest_owned()
+		else:
+			_nets[-1 - i]._pull_rest(false, 0)
+	if fine:
+		var _lapped := FcFrameProbe.lap(&"np_rest", lap)
 	return _nets.size()
+
+
+## gs-sim's [code]GSSimNetRest[/code] where cvars [code]sv_net_pull_rest_native[/code] ([member rest_enabled]) and
+## [code]sv_native_snapshots[/code] ([code]FcNetNativeCore.enabled[/code]) are on and gs-sim has it; else null and [method pull_all] runs each
+## player's [code]_pull_rest[/code] (the same values, [code]headless_native_snapshot_parity[/code]).
+static func rest_native() -> Object:
+	if not rest_enabled or not FcNetNativeCore.enabled:
+		return null
+	if not _rest_tried:
+		_rest_tried = true
+		if ClassDB.class_exists(&"GSSimNetRest") and ClassDB.class_has_method(&"GSSimNetRest", &"pull_rest"):
+			_rest = ClassDB.instantiate(&"GSSimNetRest")
+	return _rest
 
 
 ## Appends [param net]'s rows (and its apply row where gs-sim writes the fields, [param natively]), or nothing where
