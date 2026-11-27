@@ -44,7 +44,7 @@ func _run() -> void:
 	for players: int in [6, 31]:
 		_round(players)
 	FcNetNativeCore.enabled = was
-	_finish(10)
+	_finish(12)
 
 
 func _finish(expected: int) -> void:
@@ -209,8 +209,8 @@ func _churn(lane: Dictionary, players: int) -> void:
 	var eye: Node3D = lane.eyes[gone]
 	var _left := net.remove_peer(gone)
 	eye.queue_free()
-	var _e := lane.eyes.erase(gone)
-	var _s := lane.sent.erase(gone)
+	var _e: bool = (lane.eyes as Dictionary).erase(gone)
+	var _s: bool = (lane.sent as Dictionary).erase(gone)
 	for i in 2:
 		_add_fake(lane, PEER_BASE + 100 + players + i)
 
