@@ -6,7 +6,7 @@ extends "headless_ctf.gd"
 const FcBots := preload("../game/fc_bots.gd")
 
 const SECTIONS_SIM := 1
-const CHECKS_SIM := 2
+const CHECKS_SIM := 3
 const SIM_SECONDS := 240
 
 
