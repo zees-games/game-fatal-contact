@@ -331,7 +331,9 @@ func _shot_source(other_id: int, shooter_id: int, view_tick: float, count: bool)
 	if not shooter.last_view_targets.is_empty():
 		var other: FcPlayerNet = _behaviours.get(other_id)
 		var named: Variant = shooter.last_view_targets.get(other.identity.net_id, null) if other != null and other.identity != null else null
-		if named != null and shooter.last_view_targets_tick != shooter.last_view_tick:
+		# Without the tick the pairs were drawn against, a repeated command's pairs no longer name the frame the
+		# shot is traced at; with it ([member FcPlayerNet.last_view_base]) the shot rewinds to that frame and they do.
+		if named != null and shooter.last_view_base < 0 and shooter.last_view_targets_tick != shooter.last_view_tick:
 			_count_shot(&"held", count)
 		elif named != null:
 			var own := _target_source(named[0], view_tick, max_span, count)
@@ -344,14 +346,17 @@ func _shot_source(other_id: int, shooter_id: int, view_tick: float, count: bool)
 		shot_ring_why = "no pair sent"
 		return []
 	var span := shooter.last_view_span
-	var older := shooter.last_view_tick - shooter.last_view_back
+	# The bracket is relative to the tick the client measured it for, not the tick the server applied it on: a late
+	# or repeated command applied on a later tick would otherwise slide the pair, and the rewind with it, forward.
+	var base := shooter.last_view_base if shooter.last_view_base >= 0 else shooter.last_view_tick
+	var older := base - shooter.last_view_back
 	if span < 0 or (max_span > 0 and span > max_span):
 		_count_shot(&"refused_span", count)
 		return []
 	# The view lag goes up in quarter ticks: a drawn tick on a bracket's end rounds up to an eighth past it.
 	if view_tick < float(older) - SHOT_BRACKET_SLACK or view_tick > float(older + span) + SHOT_BRACKET_SLACK:
-		shot_ring_why = "view %s outside %d..%d (command %d, applied %d)" % [str(view_tick), older, older + span,
-			shooter.last_view_targets_tick, shooter.last_view_tick]
+		shot_ring_why = "view %s outside %d..%d (command %d, applied %d, base %d)" % [str(view_tick), older, older + span,
+			shooter.last_view_targets_tick, shooter.last_view_tick, base]
 		return []
 	_count_shot(&"bracket", count)
 	return [&"bracket", older, older + span, clampf(view_tick, float(older), float(older + span))]

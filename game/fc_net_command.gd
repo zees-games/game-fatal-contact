@@ -2,6 +2,7 @@ extends GSNetInput
 
 const FcNetCommand := preload("fc_net_command.gd")
 const FcPlayer := preload("fc_player.gd")
+const FcContent := preload("fc_content.gd")
 
 ## One tick of a player's intent, on the wire.
 ##
@@ -75,6 +76,11 @@ const EASE_PER_M := 1000.0
 ## 32 bits only on a tick the trigger is down. Movement keeps the coarse angles on every other tick (nightly dot-player-9).
 const AIM_BITS := 16
 
+## On a firing command: the weapon the client fired with ([method FcContent.weapon_index], 0 for none or mid-switch), so a server whose copy of a switch
+## runs a tick or more behind (a slot request on a lost or repeated command) settles that weapon in hand before judging the shot
+## (`FcPlayer` `fire_weapon`, `GSWeaponArsenal.settle_in_hand`) instead of refusing it as "Switching." or firing another gun. Six bits, only with the attack button.
+var weapon: int = 0
+
 
 func _write(writer: GSNetWriter) -> void:
 	move.write(writer)
@@ -84,6 +90,7 @@ func _write(writer: GSNetWriter) -> void:
 	if fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 		writer.write_angle(move.yaw, AIM_BITS)
 		writer.write_float_range(move.pitch, -90.0, 90.0, AIM_BITS)
+		writer.write_uint(clampi(weapon, 0, (1 << FcContent.WEAPON_INDEX_BITS) - 1), FcContent.WEAPON_INDEX_BITS)
 	var lagged := (fire.buttons != 0 or lag_always) and view_lag_q >= 0
 	writer.write_bool(lagged)
 	if lagged:
@@ -119,6 +126,9 @@ func _read(reader: GSNetReader) -> void:
 	if fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 		move.yaw = reader.read_angle(AIM_BITS)
 		move.pitch = reader.read_float_range(-90.0, 90.0, AIM_BITS)
+		weapon = reader.read_uint(FcContent.WEAPON_INDEX_BITS)
+	else:
+		weapon = 0
 	fire.yaw = move.yaw
 	fire.pitch = move.pitch
 	view_lag_q = -1
@@ -167,6 +177,7 @@ func _sanitise() -> void:
 	view_lag_q = clampi(view_lag_q, -1, MAX_VIEW_LAG_Q)
 	view_back = clampi(view_back, -1, (1 << VIEW_BACK_BITS) - 1)
 	view_span = clampi(view_span, 0, (1 << VIEW_SPAN_BITS) - 1)
+	weapon = clampi(weapon, 0, (1 << FcContent.WEAPON_INDEX_BITS) - 1) if fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK) else 0
 	# A target's pair is judged by the server's rewind (sv_shot_bracket_max_span, the ring's reach), not here; an entry that cannot be one is dropped.
 	if not view_targets.is_empty():
 		var kept: Array = []
@@ -206,7 +217,8 @@ func _equals(other: GSNetInput) -> bool:
 		return false
 
 	return move.equals(them.move) and fire.equals(them.fire) and view_lag_q == them.view_lag_q \
-		and view_back == them.view_back and view_span == them.view_span and view_targets == them.view_targets
+		and view_back == them.view_back and view_span == them.view_span and view_targets == them.view_targets \
+		and weapon == them.weapon
 
 
 ## Bits one command costs, before gs-net's own framing.
@@ -222,4 +234,5 @@ func describe() -> Dictionary:
 		"view_lag_ticks": view_lag_ticks(),
 		"view_bracket": [view_back, view_span],
 		"view_targets": view_targets,
+		"weapon": weapon,
 	}

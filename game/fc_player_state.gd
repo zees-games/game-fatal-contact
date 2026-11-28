@@ -330,6 +330,15 @@ var _seen_fire_seq: int = 0
 var _command := GSWeaponCommand.new()
 ## A late shot's own aim (yaw, pitch), used for one tick in place of the current view; NAN x means none.
 var late_fire_aim := Vector2(NAN, 0.0)
+## The weapon a client's firing command says it fired with (FcNetCommand.weapon, [method FcContent.weapon_index]), settled in hand
+## before this tick's weapon tick judges the shot; 0 for none. Set on the authority only, used for one tick.
+var fire_weapon: int = 0
+## Ticks a server's switch may trail the client's and still be settled for the client's shot (FcPlayerBody._settle_fired_weapon); 0 settles only a switch
+## run for the whole deploy here. About the input copies' reach under loss.
+var fire_settle_slack_ticks: int = 8
+## Shots whose weapon was settled in hand that way; a server's diagnostic.
+var fire_settled: int = 0
+var _switch_seen_tick: int = -1
 var _tick_rate: int = FcContent.TICK_RATE
 
 ## A [GSFpsController] that collides against analytic geometry rather than physics. `_make_body` is

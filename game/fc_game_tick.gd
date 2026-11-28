@@ -470,13 +470,16 @@ func tick(commands: Dictionary = {}) -> void:
 			_fired_tick[shot.attacker] = _tick
 			var pair: Array = commands.get(shot.attacker, [])
 			var lag: float = float(pair[2]) if pair.size() > 2 else -1.0
+			# The tick the client measured that lag from: a command applied late (or a late tap) is still traced at the
+			# frame the shooter drew, never one tick on per tick of delay (fc-native-jumpy-hitreg-1).
+			var base: int = int(pair[3]) if pair.size() > 3 and int(pair[3]) >= 0 else _tick
 			_unlag_shooter = shot.attacker
 			_unlag_shot = true
 			if shot_debug and lag >= 0.0:
 				_unlag_ray = shot
 				_unlag_nearest = {}
 			_resolving_shot = shot
-			_resolve_shot(shot, float(_tick) - lag if lag >= 0.0 else -1.0)
+			_resolve_shot(shot, float(mini(base, _tick)) - lag if lag >= 0.0 else -1.0)
 			_resolving_shot = null
 			_unlag_shot = false
 			if _unlag_ray != null:

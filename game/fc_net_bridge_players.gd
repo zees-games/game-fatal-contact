@@ -320,6 +320,7 @@ func _commands() -> Dictionary:
 		behaviour.last_view_lag = -1.0
 		behaviour.last_view_back = -1
 		behaviour.last_view_tick = -1
+		behaviour.last_view_base = -1
 	# The serial path's thinks are in this loop too: sb_apply is the apply alone only under bot_threads.
 	FcBotThreads.phase(FcBotThreads.SB_APPLY, t_part)
 	t_lap = FcFrameProbe.lap(&"bc_bots", t_lap)
@@ -328,7 +329,9 @@ func _commands() -> Dictionary:
 		var behaviour: FcPlayerNet = _behaviours[session_id]
 		# The lag as it was sent, on a repeated command too: the client's view runs that far behind
 		# its tick on every tick, so the lost command carried the same (headless_net measures it).
-		out[int(session_id)] = [behaviour.last_move, behaviour.last_fire, behaviour.last_view_lag]
+		# The fourth is the tick that lag was measured from (the command's own tick, -1 for a bot): the shot
+		# rewinds from it, not from the tick the server applied the command on.
+		out[int(session_id)] = [behaviour.last_move, behaviour.last_fire, behaviour.last_view_lag, behaviour.last_view_base]
 	FcFrameProbe.lap(&"bc_table", t_lap)
 
 	return out

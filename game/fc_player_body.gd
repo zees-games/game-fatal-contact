@@ -705,6 +705,10 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 		_command.yaw = late_fire_aim.x
 		_command.pitch = late_fire_aim.y
 		late_fire_aim = Vector2(NAN, 0.0)
+	_note_switch(tick)
+	if fire_weapon > 0:
+		_settle_fired_weapon(fire_weapon, tick)
+		fire_weapon = 0
 	FcFlagCarry.filter_command(self, _command)
 	aiming = _command.is_pressed(BUTTON_AIM)
 	_flashlight_hands(_command.is_pressed(FcFlashlight.BUTTON), delta)
@@ -723,6 +727,41 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 	_cool_now = not _idle_now and _would_cool(tick)
 	FcFrameProbe.lap(&"ph_tail", t_tail)
 	return (_idle_now or _cool_now) and idle_row_lane and controller != null
+
+
+## Settles the weapon a client's firing command says it fired with ([member fire_weapon]) in hand before the weapon tick judges the shot, when this
+## server's copy of the switch runs behind the client's: a slot request carried on a lost or repeated command started the switch a tick or more
+## later here, and the shot the client drew was refused as "Switching." (or fired the holstered gun) while the client counted a hit.
+## Only a switch already under way that this server has run for at least the weapon's deploy less [member fire_settle_slack_ticks] is settled,
+## so a claimed weapon cannot skip a switch: a weapon not carried, or a hand that is not switching to or from it, is left alone.
+func _settle_fired_weapon(index: int, tick: int) -> void:
+	if arsenal == null or not _command.is_pressed(GSWeaponCommand.BUTTON_ATTACK) or not arsenal.has_method(&"settle_in_hand"):
+		return
+	var id := FcContent.weapon_at(index)
+	var current := arsenal.current_def()
+	if id == &"" or (current != null and current.id == id and not arsenal.is_switching()):
+		return
+	if not arsenal.is_switching() or _switch_seen_tick < 0:
+		return
+	for s: int in arsenal.slots():
+		var slot := arsenal.slot_at(s)
+		if slot == null or slot.def == null or slot.def.id != id:
+			continue
+		if s != arsenal.current_slot() and _command.slot != s:
+			return
+		if tick - _switch_seen_tick + fire_settle_slack_ticks < arsenal.ticks_for(slot.def, slot.def.deploy_ticks):
+			return
+		if arsenal.call(&"settle_in_hand", s):
+			fire_settled += 1
+		return
+
+
+## Notes the tick this server's switch was first seen under way, for [method _settle_fired_weapon].
+func _note_switch(tick: int) -> void:
+	if arsenal == null or not arsenal.is_switching():
+		_switch_seen_tick = -1
+	elif _switch_seen_tick < 0:
+		_switch_seen_tick = tick
 
 
 ## The idle (or cooling, [method _would_cool]) weapon tick of a [method tick_post_head] that answered true: [param row]

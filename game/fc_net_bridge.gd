@@ -236,6 +236,8 @@ func _command_for(tick: int, move: GSFpsCommand, fire: GSWeaponCommand) -> FcNet
 			_targets_tick = tick
 			_targets_for = _view_targets(tick, _render_for, move)
 		command.view_targets = _targets_for
+	if fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
+		command.weapon = _local_weapon()
 	command.lag_always = game != null and game.body_rules.solid
 	return command
 
@@ -293,6 +295,20 @@ func _drawn_ease(drawn: Vector3, samples: Array, pair: Vector2i) -> Vector3i:
 	return Vector3i(roundi(off.x), roundi(off.y), roundi(off.z))
 
 ## Where this client's own player's eye is, or [constant Vector3.INF] for none.
+## The [member FcNetCommand.weapon] of a firing command: the predicted player's weapon in hand, 0 while a switch is pending (the server's own switch decides then) or with none.
+## Read before this tick predicts, like the rest of the command: the weapon the prediction fires with unless the command's own slot starts a switch, which holds it.
+func _local_weapon() -> int:
+	for id: int in _behaviours:
+		var mine: FcPlayerNet = _behaviours[id]
+		if mine.identity != null and mine.identity.is_predicted() and mine.player != null:
+			var arsenal: GSWeaponArsenal = mine.player.arsenal
+			if arsenal == null or arsenal.is_switching():
+				return 0
+			var def := arsenal.current_def()
+			return FcContent.weapon_index(def.id) if def != null else 0
+	return 0
+
+
 func _local_eye() -> Vector3:
 	for id: int in _behaviours:
 		var mine: FcPlayerNet = _behaviours[id]
@@ -496,7 +512,7 @@ func _note_late_fires(peer_id: int, buffer: GSNetInput.Buffer, batch: Array) -> 
 				buffer.late_count += 1
 			continue
 		var view := float(command.tick) - command.view_lag_ticks() if command.view_lag_q >= 0 else -1.0
-		(late_fires.get_or_add(peer_id, []) as Array).append([command.tick, view, command.view_back, command.view_span, command.move.yaw, command.move.pitch, command.view_target_pairs()])
+		(late_fires.get_or_add(peer_id, []) as Array).append([command.tick, view, command.view_back, command.view_span, command.move.yaw, command.move.pitch, command.view_target_pairs(), command.weapon])
 	if seen.size() > 256:
 		for tick: int in seen.keys():
 			if tick < consumed - 128:
@@ -504,7 +520,7 @@ func _note_late_fires(peer_id: int, buffer: GSNetInput.Buffer, batch: Array) -> 
 
 
 ## Puts the oldest late shot of [param peer_id] on [param command] (for [param tick]) when that command is not firing itself, with the view lag the shooter drew it at moved to this tick. Returns
-## [fire, lag, back, span, yaw, pitch, targets, the shot's own tick] for the player to use, or an empty array. A late shot that waits too long behind firing commands is dropped and counted.
+## [fire, lag, back, span, yaw, pitch, targets, the shot's own tick, its weapon] for the player to use, or an empty array. A late shot that waits too long behind firing commands is dropped and counted.
 func take_late_fire(peer_id: int, tick: int, command: FcNetCommand) -> Array:
 	var queue: Array = late_fires.get(peer_id, [])
 	if queue.is_empty():
@@ -528,7 +544,7 @@ func take_late_fire(peer_id: int, tick: int, command: FcNetCommand) -> Array:
 	var view: float = late[1]
 	var back: int = int(late[2])
 	return [fire, float(tick) - view if view >= 0.0 else command.view_lag_ticks(),
-		back + behind if back >= 0 else command.view_back, int(late[3]) if back >= 0 else command.view_span, float(late[4]), float(late[5]), late[6], int(late[0])]
+		back + behind if back >= 0 else command.view_back, int(late[3]) if back >= 0 else command.view_span, float(late[4]), float(late[5]), late[6], int(late[0]), int(late[7])]
 
 
 ## Whether [param peer_id] held the trigger on every tick from [param from_tick] up to (not including) [param to_tick], as far as
