@@ -180,6 +180,9 @@ func _bind_commands_and_cvars() -> void:
 	add_command(
 		"fc_maps", _cmd_maps, "List the maps this server can boot", ""
 	)
+	add_command(
+		"kill", _cmd_kill, "Kill yourself (a suicide: a death on the scoreboard, then the usual respawn)", ""
+	)
 
 	_add_match_cvars()
 

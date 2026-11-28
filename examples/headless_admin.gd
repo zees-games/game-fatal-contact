@@ -33,8 +33,8 @@ var PORT := FcTestPorts.free_port()
 const SERVER_DIR := "user://fc_admin"
 const TICK_RATE := 64
 
-const SECTIONS := 10
-const CHECKS := 45
+const SECTIONS := 11
+const CHECKS := 54
 
 
 
@@ -61,6 +61,7 @@ func _run() -> void:
 		await _test_freeze()
 		await _test_slap_and_slay()
 		await _test_respawn_clears()
+		await _test_kill_command()
 		await _test_immunity_and_self()
 		await _test_blind_and_beacon()
 		await _test_return_after_a_map_change()
@@ -326,6 +327,42 @@ func _test_respawn_clears() -> void:
 	_done()
 
 
+## `kill`: open to every player (no permission flag), authoritative, and only ever the
+## caller's own body. A death and a suicide on the scoreboard, then the ordinary respawn.
+func _test_kill_command() -> void:
+	_section("kill (a player's own suicide)")
+
+	_check(_ada().is_alive(), "Ada starts the section alive")
+	var deaths := _deaths_of(73)
+	var suicides := _suicides_of(73)
+	var boss_deaths := _deaths_of(71)
+
+	var said := await _say(_player, "!kill")
+	_check(not _ada().is_alive(), "!kill from a player with no flags kills her", " / ".join(said))
+	_check(_deaths_of(73) == deaths + 1, "and the match counts the death")
+	# A suicide is only scored in a live round; in a warm-up the death still counts.
+	if _game.match_node.is_scoring():
+		_check(_suicides_of(73) == suicides + 1, "as a suicide")
+	else:
+		_check(_suicides_of(73) == suicides, "outside a live round it is a death and no suicide point")
+	_check(_deaths_of(71) == boss_deaths and _game.player_for(71).is_alive(),
+		"and nobody else was touched")
+
+	var again := await _say(_player, "!kill")
+	_check(" ".join(again).contains("already dead"), "a second kill says she is already dead",
+		" / ".join(again))
+	_check(_deaths_of(73) == deaths + 1, "and counts nothing more")
+
+	var no_session := GSCmdContext.console("", PackedStringArray())
+	var _ran := _server.console.execute("kill", no_session)
+	_check(_game.player_for(71).is_alive() and _game.player_for(72).is_alive(),
+		"a console with no session kills nobody")
+
+	var _respawned := await _say(_admin, "!respawn Ada")
+	_check(_ada().is_alive(), "and she respawns the usual way")
+	_done()
+
+
 func _test_immunity_and_self() -> void:
 	_section("immunity, and yourself")
 
@@ -427,7 +464,7 @@ func _test_reporting() -> void:
 	var audited := FileAccess.get_file_as_string("%s/audit.jsonl" % SERVER_DIR)
 	_check(
 		audited.contains("\"noclip\"") and audited.contains("\"slay\""),
-		"every action is in the server's audit log"
+		"every action is in the server's audit log", "%d bytes: %s" % [audited.length(), audited.right(300)]
 	)
 
 	# Under the subject the tools file against — the moderation manager's own peer
@@ -472,6 +509,11 @@ func _test_return_after_a_map_change() -> void:
 		" / ".join(answer)
 	)
 	_done()
+
+
+func _suicides_of(id: int) -> int:
+	var record := _game.match_node.scoreboard.find(str(id))
+	return record.suicides if record != null else -1
 
 
 func _deaths_of(id: int) -> int:

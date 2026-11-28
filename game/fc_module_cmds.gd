@@ -3,6 +3,7 @@ extends "fc_module_players_and_commands.gd"
 const FcMap := preload("../maps/fc_map.gd")
 const FcMaps := preload("fc_maps.gd")
 const FcModes := preload("fc_modes.gd")
+const FcModTools := preload("fc_mod_tools.gd")
 
 func _cmd_modes(ctx: GSCmdContext) -> void:
 	ctx.reply_lines(PackedStringArray(FcModes.describe_lines()))
@@ -72,6 +73,23 @@ func _in_rotation(id: StringName) -> bool:
 	var def := maps.session.catalogue.get_map(id)
 
 	return def != null and def.in_rotation
+
+
+## `kill`: the caller's own player dies, decided here on the authority (a client cannot fake
+## it), through the combat manager like any world death. Open to everyone (empty flag); only
+## ever the caller's own body, so there is no target argument. A console with no session has
+## no player to kill.
+func _cmd_kill(ctx: GSCmdContext) -> void:
+	var session := ctx.session as GSClientSession
+
+	if session == null:
+		ctx.reply("kill needs a player: type it in a game's console or chat.")
+		return
+
+	var result := FcModTools.suicide(game, StringName(str(session.userid)))
+
+	if not result.ok:
+		ctx.reply(result.error.message)
 
 
 func _cmd_score(ctx: GSCmdContext) -> void:

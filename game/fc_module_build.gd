@@ -6,7 +6,6 @@ const FcPaths := preload("fc_paths.gd")
 const FcEvents := preload("fc_events.gd")
 const GSGameRelevance := preload("res://addons/gs_game/net/gs_game_relevance.gd")
 const FcMode := preload("fc_mode.gd")
-const FcModTools := preload("fc_mod_tools.gd")
 const FcModule := preload("fc_module.gd")
 
 

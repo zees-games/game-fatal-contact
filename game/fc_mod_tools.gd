@@ -224,6 +224,18 @@ static func teleport(game: FcGame, id: StringName, to: Variant) -> void:
 ## protection is three records: `GSHealth`'s window is cleared here, and the effect and
 ## the spawn ledger let the damage through on [constant FcEffects.ADMIN_KILL].
 static func slay(game: FcGame, id: StringName) -> GSResult:
+	return _kill_as_world(game, id, &"slay")
+
+
+## A player's own `kill` command: the same world death as a slay (attacker 0, so the match
+## counts a death and a suicide, the kill feed names the world, and the respawn flow is the
+## ordinary one), but the weapon id is `suicide`. Nobody else may trigger it: the console
+## command passes the caller's own session id.
+static func suicide(game: FcGame, id: StringName) -> GSResult:
+	return _kill_as_world(game, id, &"suicide")
+
+
+static func _kill_as_world(game: FcGame, id: StringName, weapon: StringName) -> GSResult:
 	var player := _player(game, id)
 
 	if player == null:
@@ -242,7 +254,7 @@ static func slay(game: FcGame, id: StringName) -> GSResult:
 		0, player.player_id, player.health.health + player.health.armour * 4.0 + 1000.0,
 		game.combat.damage_type(WORLD_DAMAGE)
 	)
-	damage.weapon_id = &"slay"
+	damage.weapon_id = weapon
 	damage.tick = game.current_tick()
 	# The other two thirds of spawn protection — the effect and the ledger — are vetoes in
 	# `FcEffects.adjust_damage`, and this is how that hook knows to let it through.
@@ -253,7 +265,7 @@ static func slay(game: FcGame, id: StringName) -> GSResult:
 	player.health.cannot_die = was_buddha
 
 	if not damage.lethal:
-		return GSResult.fail(GSError.CODE_STATE, "The slay was refused: %s" % damage.refusal)
+		return GSResult.fail(GSError.CODE_STATE, "The %s was refused: %s" % [weapon, damage.refusal])
 
 	return GSResult.success(null)
 
