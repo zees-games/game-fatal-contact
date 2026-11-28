@@ -420,8 +420,29 @@ var late_fire_dropped := 0
 ## The ticks each peer's commands have reached the server on, any copy: a resend of one is not a late shot.
 var _seen_ticks: Dictionary = {}
 
-## A late shot is still fired up to this many ticks after its own (a quarter second at 64 Hz).
+## The least number of ticks after its own a late shot is still fired (a quarter second at 64 Hz); see [method late_fire_max_ticks].
 const LATE_FIRE_MAX_TICKS := 16
+
+
+## How many ticks after its own a late shot is still fired: the shot rewind's window (`fc_max_unlag_ms`, at most
+## [constant FcGame.COLLISION_LAG_MAX_SEC], 32 ticks at 66 Hz), never under [constant LATE_FIRE_MAX_TICKS]. A server running far below
+## its tick rate (64 bots: 4-10 frames a second, 7-16 ticks a frame) hands commands a whole frame late, and a fixed 16 dropped
+## those taps although the rewind could still stand the target where the shooter drew it.
+func late_fire_max_ticks() -> int:
+	if game == null or game.max_unlag_ms <= 0.0:
+		return LATE_FIRE_MAX_TICKS
+	return maxi(LATE_FIRE_MAX_TICKS, ceili(minf(game.max_unlag_ms * 0.001, FcGame.COLLISION_LAG_MAX_SEC) * float(game.tick_rate)))
+
+
+## Counts a late shot fired or dropped, on the bridge and in the game's rewind counts (`late_fired`, `late_dropped`), so a dropped
+## one is in the `sv_shot_rewind_log_sec` line and never silent.
+func _count_late_fire(honoured: bool) -> void:
+	if honoured:
+		late_fire_honoured += 1
+	else:
+		late_fire_dropped += 1
+	if game != null:
+		game.count_shot_rewind(&"late_fired" if honoured else &"late_dropped")
 
 
 ## Finds the shots in [param batch] whose command is new here but for a tick the server has simulated.
@@ -440,8 +461,8 @@ func _note_late_fires(peer_id: int, buffer: GSNetInput.Buffer, batch: Array) -> 
 		if consumed < 0 or command.tick > consumed or not command.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 			continue
 		var age := consumed - command.tick
-		if age >= LATE_FIRE_MAX_TICKS:
-			late_fire_dropped += 1
+		if age >= late_fire_max_ticks():
+			_count_late_fire(false)
 			if i != batch.size() - 1:
 				# The packet's own command is counted late by the buffer.
 				buffer.late_count += 1
@@ -458,13 +479,16 @@ func _note_late_fires(peer_id: int, buffer: GSNetInput.Buffer, batch: Array) -> 
 ## [fire, lag, back, span, yaw, pitch, targets] for the player to use, or an empty array. A late shot that waits too long behind firing commands is dropped and counted.
 func take_late_fire(peer_id: int, tick: int, command: FcNetCommand) -> Array:
 	var queue: Array = late_fires.get(peer_id, [])
-	while not queue.is_empty() and tick - int((queue[0] as Array)[0]) >= LATE_FIRE_MAX_TICKS:
+	if queue.is_empty():
+		return []
+	var window := late_fire_max_ticks()
+	while not queue.is_empty() and tick - int((queue[0] as Array)[0]) >= window:
 		queue.pop_front()
-		late_fire_dropped += 1
+		_count_late_fire(false)
 	if queue.is_empty() or command.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
 		return []
 	var late: Array = queue.pop_front()
-	late_fire_honoured += 1
+	_count_late_fire(true)
 	var fire := command.fire.duplicate_command()
 	fire.set_button(GSWeaponCommand.BUTTON_ATTACK, true)
 	var behind := tick - int(late[0])

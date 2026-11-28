@@ -677,7 +677,7 @@ func _add_bot_tier_cvar(cvar: String, field: String, help: String, min_value: fl
 
 
 ## The counts in [member FcGame.shot_rewind_counts] that mean a shot was not stood where its shooter drew the target.
-const SHOT_FALLBACKS: Array[StringName] = [&"ring", &"held", &"refused_span", &"refused_view", &"unrecorded", &"target_held", &"refused_ease"]
+const SHOT_FALLBACKS: Array[StringName] = [&"ring", &"held", &"refused_span", &"refused_view", &"unrecorded", &"target_held", &"refused_ease", &"late_dropped"]
 var _shot_log_since := 0.0
 var _shot_logged: Dictionary = {}
 

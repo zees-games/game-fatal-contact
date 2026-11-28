@@ -69,12 +69,21 @@ var view_targets: Array = []
 ## Millimetres to the metre for a view target's ease.
 const EASE_PER_M := 1000.0
 
+## Bits each of yaw and pitch take again on a firing command, after [GSFpsCommand]'s 12 and 9 (0.088 and 0.35 degree steps).
+## The client predicts its shot along the angles it sampled and draws the spark there; the server traced the coarse ones, up to
+## 0.18 degrees lower or higher: 18 cm at 60 m, off a scoped torso's edge or a head. 16 bits are 0.0055 and 0.0027 degrees (3 mm at 60 m),
+## 32 bits only on a tick the trigger is down. Movement keeps the coarse angles on every other tick (nightly dot-player-9).
+const AIM_BITS := 16
+
 
 func _write(writer: GSNetWriter) -> void:
 	move.write(writer)
 	# Slot and buttons only. The angles come from `move`; see the class notes.
 	writer.write_uint(clampi(fire.slot, 0, 15), 4)
 	writer.write_uint(fire.buttons, GSWeaponCommand.BUTTON_BITS)
+	if fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
+		writer.write_angle(move.yaw, AIM_BITS)
+		writer.write_float_range(move.pitch, -90.0, 90.0, AIM_BITS)
 	var lagged := (fire.buttons != 0 or lag_always) and view_lag_q >= 0
 	writer.write_bool(lagged)
 	if lagged:
@@ -107,6 +116,9 @@ func _read(reader: GSNetReader) -> void:
 	fire = GSWeaponCommand.new()
 	fire.slot = reader.read_uint(4)
 	fire.buttons = reader.read_uint(GSWeaponCommand.BUTTON_BITS)
+	if fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
+		move.yaw = reader.read_angle(AIM_BITS)
+		move.pitch = reader.read_float_range(-90.0, 90.0, AIM_BITS)
 	fire.yaw = move.yaw
 	fire.pitch = move.pitch
 	view_lag_q = -1

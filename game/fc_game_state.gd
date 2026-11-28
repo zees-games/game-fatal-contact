@@ -638,7 +638,8 @@ var shot_view_cone_deg: float = 10.0
 ## `sv_shot_rewind_log_sec`: how often, in seconds, the server logs [member shot_rewind_counts] when a fallback or refusal grew since the last line; 0 never.
 var shot_rewind_log_sec: float = 30.0
 ## How each hitscan rewind stood a target, by key: target (its own pair, blended), target_ahead (its own pair, run on past the newer), target_held (past the extrapolation limit, held at the newer), bracket (the shared pair), ring (the server's own tick),
-## eased (a target's own pair with the client's resume ease added), refused_ease (over [member shot_ease_max]), held (a repeated command: its pairs no longer name what was drawn), refused_span (over [member shot_bracket_max_span]), refused_view (the view tick outside the pair), unrecorded (no ring entry: not rewound, logged), bullet (a bullet's or projectile's rewind, the ring).
+## eased (a target's own pair with the client's resume ease added), refused_ease (over [member shot_ease_max]), held (a repeated command: its pairs no longer name what was drawn), refused_span (over [member shot_bracket_max_span]), refused_view (the view tick outside the pair), unrecorded (no ring entry: not rewound, logged), bullet (a bullet's or projectile's rewind, the ring),
+## late_fired (a tap whose command came after its tick was simulated, fired on the next command: FcNetBridge.take_late_fire), late_dropped (one older than FcNetBridge.late_fire_max_ticks: not fired, logged).
 var shot_rewind_counts: Dictionary = {}
 
 ## Adds one to [member shot_rewind_counts] under [param key].

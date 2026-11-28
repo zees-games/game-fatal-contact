@@ -8,6 +8,7 @@ const FcContent := preload("../game/fc_content.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcNetBridge := preload("../game/fc_net_bridge.gd")
+const FcNetCommand := preload("../game/fc_net_command.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const FcPlayerTunables := preload("../game/fc_player_tunables.gd")
 
@@ -27,10 +28,11 @@ const SETTLE_TICKS := 90
 const ALPHAS: Array[float] = [0.0, 0.25, 0.5, 0.75, 0.95]
 ## How far inside the drawn torso's edge the edge shots go (the torso is 0.30 m in radius).
 const EDGE_MARGIN_M := 0.05
-## The wire's view angles (GSFpsCommand: yaw 12 bits round, pitch 9 bits over 180 degrees):
-## the server's trace may leave up to half a step from the aim, and no further.
-const YAW_STEP_DEG := 360.0 / 4096.0
-const PITCH_STEP_DEG := 180.0 / 511.0
+## A firing command's view angles (FcNetCommand.AIM_BITS each: yaw round, pitch over 180 degrees; movement's 12 and 9 bits
+## left the trace up to 0.18 degrees off the aim the client drew its spark along): the server's trace may leave up to half a step
+## from the aim, and no further.
+const YAW_STEP_DEG := 360.0 / float((1 << FcNetCommand.AIM_BITS) - 1)
+const PITCH_STEP_DEG := 180.0 / float((1 << FcNetCommand.AIM_BITS) - 1)
 ## How far the server's trace may start from the eye the client aimed from.
 const ORIGIN_M := 0.01
 ## How far the server's rewound body may stand from the one drawn: a quarter-tick step of the wire, and the server's tick ring against the snapshots between.
