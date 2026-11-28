@@ -119,6 +119,7 @@ func _add_killcam_vars(local: GSConsoleLocal) -> void:
 ## Frame-report and per-frame build limits.
 func _add_perf_vars(local: GSConsoleLocal) -> void:
 	preload("fc_render_cvars.gd").add_vars(local)
+	preload("fc_hitch_cvars.gd").add_vars(local)
 	local.add_var(&"cl_perf", "Seconds between frame reports in the log (arena.perf); 0 is off.",
 		func() -> Variant: return FcFrameProbe.interval,
 		func(v: Variant) -> Variant:

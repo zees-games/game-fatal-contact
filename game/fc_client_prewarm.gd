@@ -101,6 +101,9 @@ func _prewarm_phase2(tick_start: int) -> void:
 	# spawn, so the cover drew neither (first drop 163 ms, first held weapon 360 ms in the owner's profile).
 	if _warm.drop_next >= ids.size() and int(_warm.get("look_next", 0)) < ids.size():
 		var looks: Array = []
+		if int(_warm.get("look_next", 0)) == 0 and game.drops != null:
+			# A kill's points and health pack: parked and drawn once here (cl_drop_pool), not built on every kill.
+			game.drops.warm_spares(looks)
 		_warm.look_next = FcWeaponDropWiring.warm_looks(ids, int(_warm.get("look_next", 0)), drops_until, looks)
 		gate.warm_up(looks)
 	elif _warm.drop_next >= ids.size() and int(_warm.get("screens", 0)) < KILL_SCREENS.size():
@@ -519,6 +522,20 @@ func _warm_kill_screen(index: int) -> void:
 		var weapons: Array = FcContent.default_loadout()
 		if index > 0:
 			weapons = [FcContent.Roles.resolve(&"primary")]
+		elif preload("fc_hitch_cvars.gd").killview_cache:
+			# cl_killview_cache: every gun after the starting ones, up to the parked cap, so a kill swaps rather than equips.
+			weapons = weapons.duplicate()
+			var table := AwWeaponArtTable.table()
+			# cl_scope_prewarm: the scoped guns next, so their lens, housing and glass are among the parked (a first scoped kill
+			# view built them inside the frame: 103 ms in the owner's profile).
+			if preload("fc_hitch_cvars.gd").scope_prewarm:
+				for id: Variant in table.keys():
+					var art: Variant = table[id]
+					if art is AwWeaponVisual and (art as AwWeaponVisual).aim_scoped and not weapons.has(id):
+						weapons.append(id)
+			for id: Variant in table.keys():
+				if not weapons.has(id):
+					weapons.append(id)
 		gate.warm_up(screen.call(&"warm", weapons))
 	if index == 0 and killcam_shots != null:
 		gate.warm_up(killcam_shots.warm())

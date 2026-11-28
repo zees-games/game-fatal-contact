@@ -9,6 +9,7 @@ const FcKillPovRecoil := preload("fc_kill_pov_recoil.gd")
 const FcRecoilView := preload("fc_recoil_view.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcTeamBodies := preload("fc_team_bodies.gd")
+const FcHitchCvars := preload("fc_hitch_cvars.gd")
 const AMMO_FONT := 22
 ## Metres per second the lens may slide out of a wall.
 const EASE_SPEED := 6.0
@@ -181,7 +182,7 @@ func _park_rig(rig: AwViewModel) -> void:
 			rig.get_parent().remove_child(rig)
 		add_child(rig, true)
 	_rigs.append(rig)
-	while _rigs.size() > RIGS:
+	while _rigs.size() > rig_cap():
 		var old: AwViewModel = _rigs.pop_front()
 		if _live(old):
 			old.queue_free()
@@ -351,7 +352,7 @@ func warm(weapons: Array) -> Array:
 				rig = parked
 				break
 		if rig == null:
-			if _rigs.size() >= RIGS:
+			if _rigs.size() >= rig_cap():
 				break
 			rig = _new_hands()
 			add_child(rig)
@@ -397,6 +398,45 @@ func warm_meshes(ids: Array, from: int, until_msec: int) -> int:
 		_warm_rig.queue_free()
 		_warm_rig = null
 	return next
+
+
+## View models kept parked: [constant RIGS], or one per weapon up to FcHitchCvars.KILLVIEW_RIGS with cl_killview_cache.
+static func rig_cap() -> int:
+	return FcHitchCvars.KILLVIEW_RIGS if FcHitchCvars.killview_cache else RIGS
+
+
+## Mid-replay, the killer changed gun: the parked view model already holding [param id] takes the place of the
+## one showing, which parks. False when none holds it (the caller equips).
+func _swap_rig(id: StringName) -> bool:
+	if not FcHitchCvars.killview_cache:
+		return false
+	var pick := -1
+	for i in _rigs.size():
+		if _live(_rigs[i]) and _rigs[i].equipped() == id:
+			pick = i
+			break
+	if pick < 0:
+		return false
+	var cam := hands.get_parent()
+	var rig := _rigs[pick]
+	_rigs.remove_at(pick)
+	if hands.has_signal(&"hands_reached") and hands.hands_reached.is_connected(_on_hands):
+		hands.hands_reached.disconnect(_on_hands)
+	_park_rig(hands)
+	hands = rig
+	hands.process_mode = Node.PROCESS_MODE_INHERIT
+	hands.visible = true
+	hands.name = "KillerHands"
+	if feel_rules != null:
+		hands.feel_rules = feel_rules
+	hands.ads_rules = ads_rules
+	if hands.get_parent() != null:
+		hands.get_parent().remove_child(hands)
+	cam.add_child(hands)
+	_grip = null
+	if arms != null and hands.has_signal(&"hands_reached"):
+		hands.hands_reached.connect(_on_hands)
+	return true
 
 
 func _holds(weapon: Variant) -> bool:
@@ -544,8 +584,11 @@ func _move_hands(aux: PackedFloat32Array, cam: Camera3D) -> void:
 		var art: Variant = AwWeaponArtTable.table().get(id)
 		if art is AwWeaponVisual:
 			var began := Time.get_ticks_usec()
-			var _drawn := hands.equip(art as AwWeaponVisual)
-			FcFrameProbe.add(&"killview_equip", began)
+			if _swap_rig(id):
+				FcFrameProbe.add(&"killview_swap", began)
+			else:
+				var _drawn := hands.equip(art as AwWeaponVisual)
+				FcFrameProbe.add(&"killview_equip", began)
 	hands.aim(aux[1] > 0.5)
 	var flags := int(aux[10])
 	var look := cam.global_basis.get_euler()
