@@ -433,6 +433,15 @@ func warm_spares(into: Array) -> void:
 		GSRenderWarmup.collect(list[0] as Node, into)
 
 
+## One fresh model of each kind, for the load cover to draw for real (cl_drop_warm); the caller owns and frees them.
+func warm_samples() -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	if draws:
+		for kind: int in [Kind.POINT, Kind.HEALTH, Kind.AMMO]:
+			out.append(_pooled_model(kind))
+	return out
+
+
 ## Parked models of [param kind] (tests).
 func spare_count(kind: int) -> int:
 	return (_spares.get(kind, []) as Array).size()

@@ -27,6 +27,9 @@ static var equip_reuse := true:
 		apply_store_cap()
 ## cl_trail_share: thrown-knife streaks share one material, gradient and glint (made and drawn under the load cover); 0 builds them per knife.
 static var trail_share := true
+## cl_drop_warm: every weapon's drop look and a kill's point, health and ammo pickups drawn for real ahead of the camera under the load
+## cover, so their lit, fogged pass compiles there (a first battle_rifle drop was 9 shader compiles, 71 ms); 0 leaves only the collected warm-up.
+static var drop_warm := true
 
 const _EquipCache := preload("res://addons/fc_weapons/view/aw_equip_cache.gd")
 ## Shared-store builds allowed per weapon in the art table with [member equip_reuse] on.
@@ -38,7 +41,7 @@ const KILLVIEW_RIG_KEEPS := 1
 const KILLVIEW_RIGS := 10
 
 const VARS: Array[StringName] = [&"cl_scoreboard_reuse", &"cl_killview_cache", &"cl_scope_prewarm", &"cl_drop_pool",
-	&"cl_scope_release", &"cl_equip_reuse", &"cl_trail_share"]
+	&"cl_scope_release", &"cl_equip_reuse", &"cl_trail_share", &"cl_drop_warm"]
 const HELP: Array[String] = [
 	"1 refills the scoreboard's drawn rows on a refresh; 0 builds every row again.",
 	"1 keeps a parked kill-view model per weapon and swaps to it; 0 re-equips one model (a build per new weapon).",
@@ -47,6 +50,7 @@ const HELP: Array[String] = [
 	"1 frees a put-away scope's lens picture and shares one lens environment; 0 keeps both per scope.",
 	"1 hands put-away weapon builds between views (capped shared store); 0 frees them past each view's cache.",
 	"1 shares the thrown-knife streak's material and glint, warmed at load; 0 builds them per knife.",
+	"1 draws every weapon drop and pickup once ahead of the camera at load; 0 compiles them on the first drop.",
 ]
 
 
@@ -76,6 +80,8 @@ static func value(key: StringName) -> bool:
 			return equip_reuse
 		&"cl_trail_share":
 			return trail_share
+		&"cl_drop_warm":
+			return drop_warm
 	return false
 
 
@@ -95,6 +101,8 @@ static func store(key: StringName, on: bool) -> void:
 			equip_reuse = on
 		&"cl_trail_share":
 			trail_share = on
+		&"cl_drop_warm":
+			drop_warm = on
 
 
 static func add_vars(local: GSConsoleLocal) -> void:

@@ -438,6 +438,10 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 		# shader) compiles now, not on the first raised scope (ScopeHousing/ScopeGlass/Lens, 103 ms).
 		if preload("fc_hitch_cvars.gd").scope_prewarm:
 			_prime_lens(body.camera)
+		# cl_drop_warm: the collected warm-up draws a drop's materials on a tiny quad, not in the lit, fogged pass a lying weapon is drawn in;
+		# the first battle_rifle drop still compiled 9 shaders (Drop108/Holder/battle_rifle, 71 ms). Every look drawn for real once here.
+		if preload("fc_hitch_cvars.gd").drop_warm:
+			_prime_drops(body.camera)
 		# The first headshot's tag compiled its shader and rasterized its outlined glyphs mid-match. Drawn
 		# for real (not collected) six metres ahead under the cover, then dropped.
 		var tag := headshot_tag()
@@ -462,6 +466,24 @@ func _prime_lens(camera: Camera3D) -> void:
 		AwViewModel.ScopeGlass.prime(glass, camera)
 		get_tree().create_timer(HEADSHOT_WARM_SEC).timeout.connect(glass.queue_free)
 		return
+
+## Draws every weapon's drop look and a kill's pickups once, side by side six metres ahead of [param camera], then drops them.
+func _prime_drops(camera: Camera3D) -> void:
+	var row := Node3D.new()
+	camera.add_child(row)
+	row.position = Vector3(0.0, 0.0, -6.0)
+	var looks: Array[Node3D] = []
+	for id: Variant in FcWeaponDropWiring.prewarm_ids():
+		var model := FcWeaponDropWiring.look(StringName(str(id)))
+		if model != null:
+			looks.append(model)
+	if game != null and game.drops != null:
+		looks.append_array(game.drops.warm_samples())
+	var step := 0.2
+	for i in looks.size():
+		row.add_child(looks[i])
+		looks[i].position = Vector3((float(i) - float(looks.size() - 1) * 0.5) * step, 0.0, 0.0)
+	get_tree().create_timer(HEADSHOT_WARM_SEC).timeout.connect(row.queue_free)
 
 ## Every muzzle flash scene's path, as [method GSMuzzleFlash.pin_scenes] loads them.
 static func _flash_scene_paths() -> Array[String]:
