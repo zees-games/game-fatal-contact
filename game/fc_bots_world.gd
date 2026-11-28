@@ -135,6 +135,17 @@ static var scan_budget: int = 32
 const SCAN_LEVEL := 54
 ## 1 when the loaded gs-bot has scan_every, 0 when not; -1 unknown.
 static var _scan_known := -1
+## Pair sight (cvar `bot_pair_sight`; gs-bot 55's GSBotWorld.pair_sight): whether A sees B is one ray between their eyes a tick,
+## cast from the lower id's eye and shared by both bots, instead of each bot's own chest-then-head rays (half the sight rays at
+## 64 bots, where every bot looks at every other). Off: each bot casts its own, as before.
+static var pair_sight: bool = true
+## Sight grid cell in metres (cvar `bot_sight_grid`; gs-bot 55's GSBotWorld.sight_grid): the native scan looks only at bodies in the
+## cells within a bot's sight instead of every row of the table. Same answers; 0 is off.
+static var sight_grid: float = 16.0
+## gs-bot level that has GSBotWorld.pair_sight and sight_grid.
+const PAIR_LEVEL := 55
+## 1 when the loaded gs-bot has pair_sight, 0 when not; -1 unknown.
+static var _pair_known := -1
 
 
 ## The perception stride for [param players]: 1 (scan every think) at or under [member scan_budget] or with it off.

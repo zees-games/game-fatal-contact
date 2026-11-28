@@ -266,7 +266,7 @@ func _add_avatar_library_cvars() -> void:
 			var _r := FcAvatarLibrary.apply_loadout_limits(GSGameAvatarLoadoutMessage.max_entries, int(new_value.to_float())))
 
 
-## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_scan_budget`: the perception stride ([member FcBots.scan_budget]); `bot_native`: gs-sim's sight scan; `bot_native_brain`: gs-bot's native mind (on); `bot_native_think`: the contact table handed to the native sight scan (on); `motor_native`: gs-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in gs-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: gs-sim's ragdoll bone pose.
+## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_scan_budget`: the perception stride ([member FcBots.scan_budget]); `bot_pair_sight`, `bot_sight_grid`: shared pair sight rays and the native scan's grid ([member FcBots.pair_sight], [member FcBots.sight_grid]); `bot_native`: gs-sim's sight scan; `bot_native_brain`: gs-bot's native mind (on); `bot_native_think`: the contact table handed to the native sight scan (on); `motor_native`: gs-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in gs-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: gs-sim's ragdoll bone pose.
 func _add_bot_think_cvars() -> void:
 	add_cvar("bot_think_every", str(FcBots.think_every),
 		"A bot far from every enemy runs its brain one tick in this many (1 = every tick, 0 = 2 above 16 players)",
@@ -278,6 +278,16 @@ func _add_bot_think_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBots.scan_budget = maxi(0, int(new_value.to_float())))
+	add_cvar("bot_pair_sight", "1" if FcBots.pair_sight else "0",
+		"1: whether two bots see each other is one eye-to-eye ray a tick, shared by both; 0: each bot casts its own chest-then-head rays",
+		GSConVar.FLAG_ARCHIVE).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBots.pair_sight = new_value.strip_edges() not in ["0", "false", "off", ""])
+	add_cvar("bot_sight_grid", str(FcBots.sight_grid),
+		"Cell size in metres of the grid the native bot sight scan looks up nearby bodies in (same answers, fewer rows read); 0 = scan every row",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBots.sight_grid = maxf(0.0, new_value.to_float()))
 	add_cvar("bot_brains_per_tick", str(FcBots.brains_per_tick),
 		"Bot brains built on one tick at most (a full server's bots join together); a bot past it stands still a tick or two. 0 = no limit",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(

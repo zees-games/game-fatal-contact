@@ -216,6 +216,11 @@ func _ready() -> void:
 			"--pvsverify": FcBotPvs.verify = args[i + 1] != "0"
 			"--wlane": _PlayerBody.idle_row_lane = args[i + 1] != "0"
 			"--native": GSBotWorld.native_enabled = args[i + 1] != "0"
+			# --scanbudget/--pairsight/--sightgrid: the bot perception cvars (bot_scan_budget, bot_pair_sight, bot_sight_grid);
+			# all three 0 is the perception before them.
+			"--scanbudget": FcBots.scan_budget = int(args[i + 1])
+			"--pairsight": FcBots.pair_sight = args[i + 1] != "0"
+			"--sightgrid": FcBots.sight_grid = float(args[i + 1])
 			# --native-sight 0: bot sight rays through script, never gs-sim's native ray (the A/B of World.native_sight).
 			"--native-sight": FcBotsWorld.World.native_sight = args[i + 1] != "0"
 			"--motornative": GSFpsPhysicsBody.native_enabled = args[i + 1] != "0"
