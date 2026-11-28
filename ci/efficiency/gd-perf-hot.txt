@@ -36,4 +36,4 @@ game/fc_sim_server.gd
 cold+: _add_\w+_vars|_apply_cvars|_apply_bench_flags|_server_config|_print_ready|_die|_watch_slow_ticks|solo_tick_rate
 cold+: \w+_line|behind_notice
 # Client load-cover warm-up, drop pool events (per drop, not per tick) and cached one-time builders (fc-hitch).
-cold+: warm_spares|warm_samples|spare_count|warm_killers|_glint_mesh|_streak_material|texture|_take_model|_pooled_model|_give_back
+cold+: warm_spares|warm_samples|spare_count|warm_killers|_glint_mesh|_streak_material|texture|_take_model|_pooled_model|_give_back|warm_items

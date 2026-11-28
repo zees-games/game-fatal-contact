@@ -91,12 +91,12 @@ static func _tick_world(game: Object, tick: int) -> World:
 	if _scan_known < 0:
 		_scan_known = 1 if GSAddonApi.build_level("gs_bot") >= SCAN_LEVEL else 0
 	if _scan_known == 1:
-		world.set(&"scan_every", scan_every_for(players))
+		world.set(&"scan_every", scan_every_for(players))  # perf-lint: allow dynamic_call level-gated by name so an older gs-bot parses; once a tick
 	if _pair_known < 0:
 		_pair_known = 1 if GSAddonApi.build_level("gs_bot") >= PAIR_LEVEL else 0
 	if _pair_known == 1:
-		world.set(&"pair_sight", pair_sight)
-		world.set(&"sight_grid", sight_grid)
+		world.set(&"pair_sight", pair_sight)  # perf-lint: allow dynamic_call level-gated by name so an older gs-bot parses; once a tick
+		world.set(&"sight_grid", sight_grid)  # perf-lint: allow dynamic_call level-gated by name so an older gs-bot parses; once a tick
 	world.tiers = tiers
 	_begun_tick = tick
 	_begun_game = game.get_instance_id()

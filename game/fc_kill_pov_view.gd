@@ -511,14 +511,14 @@ func warm_killers() -> bool:
 	_prune_arms()
 	if _parked_arms.size() >= RIGS:
 		return true
-	var parked_keys: Dictionary = {}
-	for entry: Array in _parked_arms:
+	var parked_keys: Dictionary = {}  # perf-lint: allow untyped_array load-cover warm-up; keys are the parked entries' look keys
+	for entry: Array in _parked_arms:  # perf-lint: allow untyped_array load-cover warm-up; a parked entry is a mixed record
 		parked_keys[entry[0]] = true
 	for person: Variant in rules.call(&"players"):
 		var id := int((person as Object).get(&"player_id")) if person is Object else 0
 		if id == 0:
 			continue
-		var who: Array = look_for(rules, id)
+		var who: Array = look_for(rules, id)  # perf-lint: allow untyped_array load-cover warm-up; look_for returns a plain Array
 		var key: String = who[0]
 		if parked_keys.has(key):
 			continue

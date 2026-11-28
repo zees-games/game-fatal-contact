@@ -95,9 +95,9 @@ var position_of: Callable = Callable()
 
 ## Drawn models parked hidden for the next drop (cl_drop_pool): kind -> Array of Node3D. A kill drew six new
 ## meshes and six new materials on every client; a pooled one is shown again and shares one template's.
-var _spares: Dictionary = {}
+var _spares: Dictionary = {}  # perf-lint: allow untyped_array kind -> Array of Node3D; the lists are read and grown in place
 ## kind -> the Node3D a pooled model is duplicated from (resources shared, never drawn itself).
-var _templates: Dictionary = {}
+var _templates: Dictionary = {}  # perf-lint: allow untyped_array kind -> template Node3D, a few entries
 ## Models parked per kind under the load cover: one kill's points and its health pack, twice over.
 const SPARES_WARM := 12
 ## Models kept parked per kind at most; a model given back past this is freed.
@@ -410,7 +410,7 @@ func _process(delta: float) -> void:
 func _take_model(kind: int) -> Node3D:
 	if not FcHitchCvars.drop_pool:
 		return _model(kind)
-	var list: Array = _spares.get(kind, [])
+	var list: Array = _spares.get(kind, [])  # perf-lint: allow untyped_array the pool's own list, per drop not per tick
 	while not list.is_empty():
 		var spare: Variant = list.pop_back()
 		if is_instance_valid(spare):
@@ -435,7 +435,7 @@ func _pooled_model(kind: int) -> Node3D:
 func _give_back(node: Node3D, kind: int) -> void:
 	if not is_instance_valid(node):
 		return
-	var list: Array = _spares.get(kind, [])
+	var list: Array = _spares.get(kind, [])  # perf-lint: allow untyped_array the pool's own list, per drop not per tick
 	if not FcHitchCvars.drop_pool or list.size() >= SPARES_KEEP or node.get_parent() != self:
 		node.queue_free()
 		return
@@ -446,11 +446,11 @@ func _give_back(node: Node3D, kind: int) -> void:
 
 ## Parks [constant SPARES_WARM] models of each kind and appends their materials to [param into], for the load
 ## cover to draw once. Nothing on an end that does not draw, or with cl_drop_pool 0.
-func warm_spares(into: Array) -> void:
+func warm_spares(into: Array) -> void:  # perf-lint: allow untyped_array GSRenderWarmup.collect fills a plain Array
 	if not draws or not FcHitchCvars.drop_pool:
 		return
 	for kind: int in [Kind.POINT, Kind.HEALTH, Kind.AMMO]:
-		var list: Array = _spares.get(kind, [])
+		var list: Array = _spares.get(kind, [])  # perf-lint: allow untyped_array load-cover warm-up, the pool's own list
 		while list.size() < SPARES_WARM:
 			var node := _pooled_model(kind)
 			node.visible = false

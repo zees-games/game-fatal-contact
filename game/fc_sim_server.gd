@@ -272,7 +272,7 @@ func _process(delta: float) -> void:
 	_joined = _joined or _alone_sec == 0.0
 	if _alone_sec >= (GONE_SEC if _joined else NEVER_SEC):
 		FcNativePhases.print_calls_once()
-		get_tree().quit(0)
+		get_tree().quit(0)  # perf-lint: allow singleton_lookup once, at server exit
 
 
 # Only on a slow frame (--slow-tick-ms), at most _slow_left times: kept out of _process's every-frame path.

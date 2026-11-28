@@ -44,7 +44,7 @@ var _parent_layers: int = 1
 const _Cvars := preload("fc_hitch_cvars.gd")
 ## cl_trail_share: the streak material and glint quad every knife draws, made once (a knife's first flight compiled them: Streak and Glint, 113 ms).
 static var _shared_streak: StandardMaterial3D = null
-static var _shared_glints: Dictionary = {}
+static var _shared_glints: Dictionary = {}  # perf-lint: allow untyped_array built once per process, read at knife draw
 
 
 func _ready() -> void:
@@ -126,7 +126,7 @@ static func _glint_mesh(size: float, tint: Color) -> QuadMesh:
 
 ## What a flying knife draws, for a load cover's [GSRenderWarmup] (cl_trail_share; empty off): a short streak strip in the streak's own
 ## vertex format (colour and UV) and the default glint's quad.
-static func warm_items() -> Array:
+static func warm_items() -> Array:  # perf-lint: allow untyped_array mixed resources for GSRenderWarmup, load cover only
 	if not _Cvars.trail_share:
 		return []
 	var material := _streak_material()

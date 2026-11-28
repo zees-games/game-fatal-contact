@@ -368,7 +368,7 @@ class World:
 			if FcPlayer.body_cols:
 				# One read of the state's columns (GSFpsStateColumns, gs-player-controller 36, by name so older builds
 				# parse) instead of a getter per field, each rebuilding its Vector3: the contact loop is per player per tick.
-				var f: PackedFloat64Array = state.get(&"_f")
+				var f: PackedFloat64Array = state.get(&"_f")  # perf-lint: allow dynamic_call by name so older builds parse; one read replaces six getters
 				c.position = Vector3(f[0], f[1], f[2])
 				c.velocity = Vector3(f[3], f[4], f[5])
 				c.view_yaw = f[12]
