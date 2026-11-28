@@ -358,6 +358,20 @@ class Board extends RefCounted:
 			# rows from the match current while the board is held.
 			board.source = func() -> Dictionary: return {}
 
+	## When each record was first listed, in msec: bots and offline players have no server-side
+	## connect time (the roster says -1), so their Time column counts from the first row instead of staying empty.
+	var _first_listed: Dictionary = {}
+
+
+	func _seconds_on_board(key: String, from_roster: int) -> int:
+		if from_roster >= 0:
+			return from_roster
+		var now := Time.get_ticks_msec()
+		if not _first_listed.has(key):
+			_first_listed[key] = now
+		return (now - int(_first_listed[key])) / 1000
+
+
 	## Which record is this client's. The roster says so online; offline nobody else will.
 	func follow(key: String) -> void:
 		_me = key
@@ -406,7 +420,7 @@ class Board extends RefCounted:
 				"id": record.key, "rank": rank, "name": record.display_name, "team": _team_of(record),
 				"kills": record.kills, "deaths": record.deaths, "assists": record.assists, "score": record.score,
 				"objectives": FcEvents.objectives_of(record),
-				"seconds": int(known.get("seconds", -1)), "ping": int(known.get("ping", -1)),
+				"seconds": _seconds_on_board(record.key, int(known.get("seconds", -1))), "ping": int(known.get("ping", -1)),
 				"you": record.key == _me or (you != "" and record.key == you),
 			})
 			rank += 1
