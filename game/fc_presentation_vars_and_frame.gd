@@ -5,6 +5,8 @@ const FcLoadTimeline := preload("fc_load_timeline.gd")
 const FcScopeBody := preload("fc_scope_body.gd")
 const FcNetLink := preload("fc_net_link.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
+## gs-player-char API level with GSHumanoidFigure.skeleton_self_process.
+const SKELETON_QUIET_LEVEL := 51
 
 func _local_commands() -> GSConsoleLocal:
 	var local := GSConsoleLocal.new()
@@ -74,6 +76,13 @@ func _local_commands() -> GSConsoleLocal:
 	)
 
 	return local
+
+
+## The figure's skeleton switch (gs-player-char 51), read through the script so an older addon still parses: true there.
+func _skeleton_self_process() -> bool:
+	if GSAddonApi.build_level("gs_player_char") < SKELETON_QUIET_LEVEL:
+		return true
+	return bool((GSHumanoidFigure as Script).get(&"skeleton_self_process"))
 
 
 ## Kill-cam recording rate and pose LOD.
@@ -294,6 +303,15 @@ func _add_remote_vars(local: GSConsoleLocal) -> void:
 		func(v: Variant) -> Variant:
 			FcPlayer.pose_skip_enabled = str(v).strip_edges() != "0"
 			return GSResult.success(1 if FcPlayer.pose_skip_enabled else 0)
+	)
+	local.add_var(&"cl_skeleton_self_process", "1 keeps the engine's per-frame modifier scan on every body's skeleton, 0 (default) sets a skeleton with no modifier to manual. Read when a body is built.",
+		func() -> Variant: return 1 if _skeleton_self_process() else 0,
+		func(v: Variant) -> Variant:
+			var on := str(v).strip_edges() != "0"
+			if GSAddonApi.build_level("gs_player_char") < SKELETON_QUIET_LEVEL:
+				return GSResult.fail(GSError.CODE_STATE, "gs_player_char %d has no skeleton_self_process (needs %d)" % [GSAddonApi.build_level("gs_player_char"), SKELETON_QUIET_LEVEL])
+			(GSHumanoidFigure as Script).set(&"skeleton_self_process", on)
+			return GSResult.success(1 if _skeleton_self_process() else 0)
 	)
 	local.add_var(&"cl_snapshot_coalesce", "1 decodes only the newest snapshot a network poll brings and drops older ones as lost (on in a browser), 0 decodes every one.",
 		func() -> Variant: return 1 if FcNetLink.coalesce else 0,

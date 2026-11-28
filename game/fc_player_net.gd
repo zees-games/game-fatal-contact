@@ -738,7 +738,9 @@ func _net_interpolated(_tick: int) -> void:
 	state.yaw = net_yaw
 	state.pitch = net_pitch
 	state.crouch_fraction = net_crouch
-	player.global_position = state.position
+	# A standing player's position repeats: setting it anyway re-sends the move through every node under the player.
+	if player.global_position != state.position:
+		player.global_position = state.position
 
 
 ## Whether gs-sim's interpolator does [method _net_interpolated]'s copy in its one call per frame ([method GSNetInterpolator.bind_mirror],

@@ -83,7 +83,8 @@ func present(delta: float) -> void:
 		# where the tick put it: the hitboxes hang off it and are the simulation's.
 		var yaw := drawn.yaw
 		if interpolate_body:
-			body_mesh.global_position = drawn.position
+			if body_mesh.global_position != drawn.position:
+				body_mesh.global_position = drawn.position
 			var alpha := clampf(Engine.get_physics_interpolation_fraction(), 0.0, 1.0)
 			yaw = rad_to_deg(lerp_angle(deg_to_rad(_yaw_before_tick), deg_to_rad(drawn.yaw), alpha))
 		if present_ablate != 0:
