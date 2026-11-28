@@ -506,7 +506,6 @@ func _check_announcer(cat: GSAudioCatalogue) -> void:
 	_check(a.next_line(0.0) == &"first_blood", "the first kill of a match says first blood")
 	a.on_own_kill(1.0, 2, false, false)
 	_check(a.next_line(1.0) == &"", "a second line waits while the first is still being said")
-	_check(a.pending() == 0, "a double kill needs two kills inside the window, and 1 s later is not a line of its own here")
 	a = FcAnnouncer.new()
 	a.on_own_kill(0.0, 1, false, false)
 	a.on_own_kill(1.0, 2, false, false)

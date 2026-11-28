@@ -409,7 +409,11 @@ static func sound_recipes() -> Dictionary:
 	for grenade in GRENADE_BLASTS:
 		if blast_sound_id(grenade) != EXPLOSION:
 			out[blast_sound_id(grenade)] = GSAudioSynth.Voice.BOOM
-	out[KILL_CONFIRMED] = GSAudioSynth.Voice.BLIP
+	out[KILL_CONFIRMED] = GSAudioSynth.Voice.IMPACT
+	out[&"hit_head"] = GSAudioSynth.Voice.IMPACT
+	out[&"hit_armor"] = GSAudioSynth.Voice.IMPACT
+	for line: StringName in FcAnnouncer.LINES:
+		out[FcAnnouncer.sound_id(line)] = GSAudioSynth.Voice.IMPACT
 	out[STOMP_SOUND] = GSAudioSynth.Voice.IMPACT
 	for id in MEDAL_VOICES:
 		out[id] = MEDAL_VOICES[id]
