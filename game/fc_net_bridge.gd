@@ -237,7 +237,7 @@ func _command_for(tick: int, move: GSFpsCommand, fire: GSWeaponCommand) -> FcNet
 			_targets_for = _view_targets(tick, _render_for, move)
 		command.view_targets = _targets_for
 	if fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
-		command.weapon = _local_weapon()
+		command.weapon = _local_weapon(tick)
 	command.lag_always = game != null and game.body_rules.solid
 	return command
 
@@ -294,21 +294,24 @@ func _drawn_ease(drawn: Vector3, samples: Array, pair: Vector2i) -> Vector3i:
 	var off := (drawn - (a as Vector3).lerp(b as Vector3, maxf(t, 0.0))) * FcNetCommand.EASE_PER_M
 	return Vector3i(roundi(off.x), roundi(off.y), roundi(off.z))
 
-## Where this client's own player's eye is, or [constant Vector3.INF] for none.
-## The [member FcNetCommand.weapon] of a firing command: the predicted player's weapon in hand, 0 while a switch is pending (the server's own switch decides then) or with none.
+## The [member FcNetCommand.weapon] of a firing command at [param tick]: the predicted player's weapon in hand, 0 while a switch is pending (bar a deploy ending at [param tick]; the server's own switch decides then) or with none.
 ## Read before this tick predicts, like the rest of the command: the weapon the prediction fires with unless the command's own slot starts a switch, which holds it.
-func _local_weapon() -> int:
+func _local_weapon(tick: int) -> int:
 	for id: int in _behaviours:
 		var mine: FcPlayerNet = _behaviours[id]
 		if mine.identity != null and mine.identity.is_predicted() and mine.player != null:
 			var arsenal: GSWeaponArsenal = mine.player.arsenal
-			if arsenal == null or arsenal.is_switching():
+			if arsenal == null:
+				return 0
+			# A deploy ending on this very tick finishes before the weapon tick fires: that shot is the new weapon's, not "mid-switch".
+			if arsenal.is_switching() and not (arsenal.has_method(&"in_hand_by") and arsenal.call(&"in_hand_by", tick)):
 				return 0
 			var def := arsenal.current_def()
 			return FcContent.weapon_index(def.id) if def != null else 0
 	return 0
 
 
+## Where this client's own player's eye is, or [constant Vector3.INF] for none.
 func _local_eye() -> Vector3:
 	for id: int in _behaviours:
 		var mine: FcPlayerNet = _behaviours[id]

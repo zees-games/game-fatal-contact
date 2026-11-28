@@ -254,7 +254,8 @@ func _pick(g: Object, me: FcPlayer) -> FcPlayer:
 	var best: FcPlayer = null
 	var best_d := INF
 	for p: FcPlayer in g.call("players"):
-		if p == me or not p.is_alive():
+		# A bot inside its spawn bubble takes no hit by design: the server answers "invulnerable", not HIT.
+		if p == me or not p.is_alive() or p.protected_view:
 			continue
 		var d := eye.distance_to(torso(p))
 		if d < NEAR_M or d > FAR_M:

@@ -339,6 +339,8 @@ var fire_settle_slack_ticks: int = 8
 ## Shots whose weapon was settled in hand that way; a server's diagnostic.
 var fire_settled: int = 0
 var _switch_seen_tick: int = -1
+## The slot in hand when [member _switch_seen_tick] was taken: a switch first seen while it still holstered that weapon owes its holster too.
+var _switch_seen_from: int = -1
 var _tick_rate: int = FcContent.TICK_RATE
 
 ## A [GSFpsController] that collides against analytic geometry rather than physics. `_make_body` is
