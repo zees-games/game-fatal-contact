@@ -145,10 +145,10 @@ func _drive_spectator_camera() -> void:
 
 	var id := player.player_id
 
-	# A networked client hears the KILL event (reliable channel) up to a snapshot before the state that
-	# says the player died: spectating starts while this player is still alive and drawn. The view stays
-	# the player's until the state agrees; otherwise one frame shows the death camera over a living body
-	# and the next the corpse (hosted_view's 0.78 m / 82 deg frame, idle under a bot's fire).
+	# [b]A living body owns the view.[/b] The kill is a reliable event sent the moment the shot lands; the health that
+	# says so rides the next snapshot, up to a snapshot interval later. Between the two the client draws the player
+	# alive, and moving the camera to the death cam then threw the view 0.8 m up and 90-120 degrees round for a few
+	# frames before the player was even drawn dead (headless_hosted_view, about one run in two).
 	if not game.spectate.is_spectating(str(id)) or player.is_alive():
 		if hud != null:
 			hud.roam_hint = ""
