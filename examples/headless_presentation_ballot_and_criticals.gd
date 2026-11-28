@@ -179,15 +179,7 @@ func _test_criticals_and_the_body() -> void:
 	hud.build(null)
 	hud.follow(player)
 
-	player.health.health = player.health.max_health * 0.1
-	hud.present_body()
-	_check(hud.hurt_overlay.modulate.a > 0.3, "hurt to a tenth, a visible rim (%.2f)" % hud.hurt_overlay.modulate.a)
-	player.health.health = player.health.max_health * 0.02
-	hud.present_body()
-	_check(hud.hurt_overlay.modulate.a > 0.7, "badly hurt, the screen's edge goes red (%.2f)" % hud.hurt_overlay.modulate.a)
-	player.health.health = player.health.max_health
-	hud.present_body()
-	_check(hud.hurt_overlay.modulate.a == 0.0, "and healthy, it does not")
+	_check_hurt_edge(hud, player)
 	# Per pixel, never a stretched texture: the play test's edge was a 64-pixel gradient
 	# blown up to the screen, in visible steps.
 	_check(hud.hurt_overlay.material is ShaderMaterial,
@@ -283,6 +275,20 @@ func _test_criticals_and_the_body() -> void:
 	hud.queue_free()
 	player.queue_free()
 	_done()
+
+
+## The red edge's depth at a tenth, at two percent and at full health.
+func _check_hurt_edge(hud: FcHud, player: FcPlayer) -> void:
+	player.health.health = player.health.max_health * 0.1
+	hud.present_body()
+	_check(hud.hurt_overlay.modulate.a > 0.3, "hurt to a tenth, a visible rim (%.2f)" % hud.hurt_overlay.modulate.a)
+	player.health.health = player.health.max_health * 0.02
+	hud.present_body()
+	_check(hud.hurt_overlay.modulate.a > 0.7, "badly hurt, the screen's edge goes red (%.2f)" % hud.hurt_overlay.modulate.a)
+	player.health.health = player.health.max_health
+	hud.present_body()
+	_check(hud.hurt_overlay.modulate.a == 0.0, "and healthy, it does not")
+
 
 
 ## Somebody else, hurt: a bar over their head for a few seconds.
