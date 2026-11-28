@@ -561,9 +561,13 @@ func _net_state_applied(tick: int) -> void:
 	var first := last_state_tick < 0
 	last_state_tick = tick
 
+	var lap := FcFrameProbe.lap_start()
 	_push_fps(player.controller.state)
+	lap = FcFrameProbe.lap(&"ns_fps", lap)
 	GSCombatNetSync.push(self, player.health)
+	lap = FcFrameProbe.lap(&"ns_combat", lap)
 	_push_weapons()
+	lap = FcFrameProbe.lap(&"ns_weapons", lap)
 
 	player.blinded = net_blind
 	player.challenge = net_challenge - 1
@@ -603,6 +607,7 @@ func _net_state_applied(tick: int) -> void:
 	elif player.health.alive and not player.hitboxes.enabled:
 		player.hitboxes.enabled = true
 		player.arsenal.disabled = false
+	var _lap := FcFrameProbe.lap(&"ns_rest", lap)
 
 
 ## The weapon half of a snapshot, on whichever end is not the authority.
