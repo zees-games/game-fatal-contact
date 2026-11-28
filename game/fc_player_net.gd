@@ -43,6 +43,21 @@ static var skip_idle_pull := true
 ## history records the node, not these properties. Position is never held: the server reads it back.
 static var hold_subquantum := true
 
+## Whether a remote player's [method _net_state_applied] skips the pushes whose state groups ([member GSNetBehaviour.state_groups])
+## the snapshot left unchanged (`cl_native_snapshot`, default on): gs-sim's snapshot batch, or gs-net's script read, marks the groups
+## that moved in `_changed_groups`, and a remote copy that pushed the same values last time already holds what a push would write.
+## Off: every hook pushes everything, as before. The predicted local player always does everything (it rewinds from it).
+static var native_snapshot := true
+
+## [member GSNetBehaviour.state_groups] bits: what [method _net_state_applied] pushes per group.
+## Hooks that skipped at least one push group since start (headless_snapshot_groups_parity reads it).
+static var group_skips := 0
+
+const GROUP_FPS := 0
+const GROUP_COMBAT := 1
+const GROUP_WEAPONS := 2
+const GROUP_MISC := 3
+
 ## gs-net API 22's GSNetIdentity.interest_aim, looked up once (older gs-net has no aim cone).
 static var _has_interest_aim: bool = _script_has(GSNetIdentity, &"interest_aim")
 
@@ -277,6 +292,36 @@ func _register_net_vars() -> void:
 	# Appended last, so every var above keeps its place. VARINT: a balance has no ceiling here.
 	replicate(&"net_app_points_on", GSNetVar.Type.BOOL).to_owner_only().server_driven()
 	replicate(&"net_app_points", GSNetVar.Type.VARINT).to_owner_only().server_driven()
+	_assign_state_groups()
+
+
+## Sorts every declaration into a push group for [member GSNetBehaviour.state_groups] (property exists from
+## gs-net 4b016b1; an older gs-net has none and every hook does everything).
+func _assign_state_groups() -> void:
+	if not &"state_groups" in self:
+		return
+	var fps := {&"net_exact": true}
+	for spec in GSFpsNetSync.state_specs() + GSFpsNetSync.rewind_specs2():
+		fps[spec["property"]] = true
+	var combat := {}
+	for spec in GSCombatNetSync.specs():
+		combat[spec["property"]] = true
+	var weapons := {&"net_weapon": true, &"net_carry": true}
+	for spec in AwWeaponNet.all_specs() + AwWeaponNet.charge_specs() + GSWeaponNetSync.fire_mode_specs(false) + GSWeaponNetSync.fitting_specs():
+		weapons[spec["property"]] = true
+	var groups := PackedByteArray()
+	groups.resize(net_vars.size())
+	for i in net_vars.size():
+		var property := net_vars[i].property
+		if fps.has(property):
+			groups[i] = GROUP_FPS
+		elif combat.has(property):
+			groups[i] = GROUP_COMBAT
+		elif weapons.has(property):
+			groups[i] = GROUP_WEAPONS
+		else:
+			groups[i] = GROUP_MISC
+	set(&"state_groups", groups)
 
 
 # --- Input -----------------------------------------------------------------
@@ -561,12 +606,22 @@ func _net_state_applied(tick: int) -> void:
 	var first := last_state_tick < 0
 	last_state_tick = tick
 
+	# The groups this snapshot changed; -1 (everything) for the first, the predicted player, a rewind or the cvar off.
+	var groups := -1
+	if native_snapshot and not first and identity != null and not identity.is_predicted():
+		groups = int(get(&"_changed_groups")) if &"_changed_groups" in self else -1
+		if groups != -1 and (groups & 7) != 7:
+			group_skips += 1
+
 	var lap := FcFrameProbe.lap_start()
-	_push_fps(player.controller.state)
+	if groups & (1 << GROUP_FPS):
+		_push_fps(player.controller.state)
 	lap = FcFrameProbe.lap(&"ns_fps", lap)
-	GSCombatNetSync.push(self, player.health)
+	if groups & (1 << GROUP_COMBAT):
+		GSCombatNetSync.push(self, player.health)
 	lap = FcFrameProbe.lap(&"ns_combat", lap)
-	_push_weapons()
+	if groups & (1 << GROUP_WEAPONS):
+		_push_weapons()
 	lap = FcFrameProbe.lap(&"ns_weapons", lap)
 
 	player.blinded = net_blind

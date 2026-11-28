@@ -658,6 +658,11 @@ func _add_aoi_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcNetPullNative.enabled = new_value.to_float() >= 0.5)
 	FcNetPullWeapons.bind_cvars(add_cvar)
+	add_cvar("cl_native_snapshot", "1" if FcPlayerNet.native_snapshot else "0",
+		"1: a remote player's snapshot hook skips the movement, health and weapon pushes whose values the snapshot left unchanged (gs-sim's batch or gs-net's read marks them); 0: every push on every snapshot",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcPlayerNet.native_snapshot = new_value.to_float() >= 0.5)
 
 
 ## Once a second from the module: turns the rings on or off for the current player count.
