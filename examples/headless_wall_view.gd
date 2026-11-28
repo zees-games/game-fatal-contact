@@ -86,5 +86,17 @@ func _run() -> void:
 	var opted := _probe(capped)
 	print("  measured: opted in at the default angle: %d turns, worst %.0f degrees" % [opted.turns, opted.worst])
 	_check(opted.worst <= shipped.wall_run_turn_view_max_angle + 0.5, "an operator who turns it on still gets at most the capped angle", "worst %.1f" % opted.worst)
+
+	# The eye clears the wall it runs along, by a distance a player can change.
+	var picks := FcPlayer.camera_motion_picks()
+	_check(picks.wall_run_eye_shift >= 0.5, "the wall-run eye shift clears the wall by default", "%.2f m" % picks.wall_run_eye_shift)
+	var p := FcPlayer.new()
+	p.camera_motion = FcPlayer.camera_motion_picks()
+	p.wall_run_eye_shift_m = 0.8
+	p.set_camera_motion_scales(1.0, 1.0, 1.0, 1.0)
+	_check(is_equal_approx(p.camera_motion.wall_run_eye_shift, 0.8), "wall_run_eye_shift_m sets the eye shift", "%.2f" % p.camera_motion.wall_run_eye_shift)
+	p.set_camera_motion_scales(1.0, 1.0, 0.0, 1.0)
+	_check(p.camera_motion.wall_run_eye_shift == 0.0, "the wall-lean setting at 0 turns the shift off")
+	p.free()
 	_report()
 	get_tree().quit(0 if _failed == 0 else 1)

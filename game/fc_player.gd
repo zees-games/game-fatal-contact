@@ -306,6 +306,13 @@ func _set_held_lod(thin: bool) -> void:
 func wall_roll() -> float:
 	return camera_motion.wall_roll() if camera_motion != null else 0.0
 
+## Metres the eye moves away from a wall you run along (at the full wall-lean setting). 0.3 left the
+## lens against the wall; this default clears it. Set [member wall_run_eye_shift_m] to change it.
+const WALL_RUN_EYE_SHIFT_M := 0.55
+
+## The wall-run eye shift in metres: configurable per player, 0 turns it off.
+var wall_run_eye_shift_m := WALL_RUN_EYE_SHIFT_M
+
 ## This game's camera motion, at a setting of 1 (100%). Christian's pick, judged on rendered
 ## frame sequences (`tools/render_feel.sh landing strafe slide`, `render_wall_moves.sh`) and
 ## measured by `headless_feel`; docs/client.md has the reasoning for each number.
@@ -331,7 +338,7 @@ static func camera_motion_picks() -> GSFpsViewMotion:
 	m.strafe_roll_response = 8.0
 	m.slide_roll = 1.5
 	m.wall_run_roll = -3.5
-	m.wall_run_eye_shift = 0.3
+	m.wall_run_eye_shift = WALL_RUN_EYE_SHIFT_M
 	m.wall_run_roll_response = 6.0
 	m.roll_limit = 5.0
 	m.fov_speed_gain = 4.0
@@ -354,7 +361,7 @@ func set_camera_motion_scales(landing: float, strafe: float, wall: float, widen:
 	camera_motion.strafe_roll = picks.strafe_roll * maxf(strafe, 0.0)
 	camera_motion.slide_roll = picks.slide_roll * maxf(strafe, 0.0)
 	camera_motion.wall_run_roll = picks.wall_run_roll * maxf(wall, 0.0)
-	camera_motion.wall_run_eye_shift = picks.wall_run_eye_shift * clampf(wall, 0.0, 1.0)
+	camera_motion.wall_run_eye_shift = wall_run_eye_shift_m * clampf(wall, 0.0, 1.0)
 	camera_motion.roll_limit = picks.roll_limit * maxf(maxf(strafe, wall), 0.0)
 	camera_motion.fov_speed_gain = picks.fov_speed_gain * maxf(widen, 0.0)
 	camera_motion.slide_fov_gain = picks.slide_fov_gain * maxf(widen, 0.0)
