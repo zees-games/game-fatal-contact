@@ -296,6 +296,16 @@ func _demote_for_melee(damage: GSDamage, killer: FcPlayer) -> void:
 	record.score -= 1
 	match_node.scoreboard.score_changed.emit(record)
 
+## Puts the optional respawn delay (`fc_respawn_min` and friends) over the mode's own for this death, and tells the victim.
+func _apply_respawn_delay(victim_id: int) -> void:
+	var sec := respawn_delay.pick(team_of(victim_id), victim_id, _tick)
+	if sec < 0.0 or match_node.respawns == null:
+		return
+	match_node.respawns.enqueue_at(str(victim_id), respawn_delay.hold(victim_id, _tick, sec, tick_rate))
+	respawn_delay.note(victim_id, sec)
+	respawn_wait_started.emit(victim_id, sec)
+
+
 func _on_entity_killed(entity_id: int, damage: GSDamage) -> void:
 	var victim := player_for(entity_id)
 
@@ -319,6 +329,8 @@ func _on_entity_killed(entity_id: int, damage: GSDamage) -> void:
 		_tick,
 		damage.is_headshot()
 	)
+	if is_authority:
+		_apply_respawn_delay(entity_id)
 	# gs-match's entry has no field for it; the bridge reads it to tell every client a
 	# lethal critical happened, which is what breaks a body and what a reward hangs on.
 	entry.set_meta(&"critical", damage.critical)

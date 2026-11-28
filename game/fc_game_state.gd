@@ -9,6 +9,7 @@ const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
 const FcConfig := preload("fc_config.gd")
 const FcMapIo := preload("fc_map_io.gd")
 const FcContent := preload("fc_content.gd")
+const FcRespawnDelay := preload("fc_respawn_delay.gd")
 const FcBotLoadouts := preload("fc_bot_loadouts.gd")
 const FcEffects := preload("fc_effects.gd")
 const FcHorde := preload("fc_horde.gd")
@@ -84,6 +85,9 @@ signal player_killed(entry: GSKillFeed.Entry)
 
 ## A player was put back into the world.
 signal player_spawned(player: FcPlayer)
+
+## The server gave a dead player an optional respawn delay ([FcRespawnDelay]); the bridge tells that client.
+signal respawn_wait_started(victim: int, sec: float)
 
 ## A player exists. Fired by [method add_player], on every machine that has one.
 ##
@@ -462,6 +466,9 @@ var _freeze_overridden := false
 ## position (`FcMap.split_spawns_for_teams`), so each team spawns in its own half. False keeps
 ## the old fallback: both teams share one pool. `fc_team_spawn_split`; read when a map loads.
 var team_spawn_split: bool = true
+
+## The optional respawn delay over the mode's own (`fc_respawn_min` and friends); all 0 leaves the mode's delay alone.
+var respawn_delay := FcRespawnDelay.new()
 
 ## Lag compensation: how far back the server will rewind the other players for a shot,
 ## in milliseconds (`fc_max_unlag_ms`; 0 judges every shot against the present).

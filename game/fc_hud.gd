@@ -633,8 +633,12 @@ func present_body() -> void:
 		_notice_age += delta
 		notice_label.modulate.a = clampf((NOTICE_SEC - _notice_age) / 0.5, 0.0, 1.0)
 
-	death_label.visible = player != null and not player.is_alive() and _death_text != ""
-	death_label.text = _death_text
+	var respawn_left := game.respawn_delay.remaining(player.player_id) if game != null and player != null and not player.is_alive() else 0.0
+	var death_text := _death_text
+	if respawn_left > 0.0:
+		death_text = (death_text + "\n" if death_text != "" else "") + "Respawn in %.1f" % respawn_left
+	death_label.visible = player != null and not player.is_alive() and death_text != ""
+	death_label.text = death_text
 
 	_present_points(live)
 

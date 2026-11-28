@@ -2,9 +2,12 @@ extends "fc_net_host.gd"
 ## The thrown-knife events between server and clients, carried as the KNIFE sub-kind of MORE.
 
 const FcKnifeEvents := preload("fc_knife_events.gd")
+const FcRespawnWire := preload("fc_respawn_wire.gd")
 
 ## The knives layer this bridge last connected to.
 var _watched_knives: Node = null
+## Whether the respawn delay's signal is connected: once for the game, not per map.
+var _watching_respawn_waits := false
 
 
 ## Follows the knives layer; server side, every tick, because a map change builds a new one.
@@ -15,6 +18,10 @@ func _watch_knives() -> void:
 	if layer == _watched_knives:
 		return
 	_watched_knives = layer
+	if not _watching_respawn_waits:
+		_watching_respawn_waits = true
+		game.respawn_wait_started.connect(func(victim: int, sec: float) -> void:
+			_send_event(0, FcEvents.Kind.MORE, FcRespawnWire.write_wait(victim, sec)))
 	if layer != null:
 		layer.changed.connect(_on_knife_changed)
 
@@ -55,3 +62,7 @@ func _apply_more_event(reader: GSNetReader) -> void:
 					game.knives.mirror(int(k["id"]), int(k["owner"]), int(k["phase"]), int(k["victim"]), k["at"], k["motion"])
 		FcKnifeEvents.More.HOST:
 			_apply_host_reply(reader)
+		FcKnifeEvents.More.RESPAWN_WAIT:
+			var wait := FcRespawnWire.read_wait(reader)
+			if bool(wait["ok"]) and game != null:
+				game.respawn_delay.note(int(wait["victim"]), float(wait["sec"]))

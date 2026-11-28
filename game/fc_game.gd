@@ -263,8 +263,16 @@ func make_killview_server() -> GSKillViewServer:
 	server.tick_rate = tick_rate
 	KillPov.watch_hits(self)
 	server.use_respawn_queue(func() -> Variant: return match_node.respawns if match_node != null else null,
-		func(id: Variant) -> GSResult: return respawn_player(int(id)))
+		func(id: Variant) -> GSResult: return _release_held_respawn(int(id)))
 	return server
+
+## The kill view's early release of a held respawn, kept behind the respawn delay's floor: before it, the player stays queued.
+func _release_held_respawn(id: int) -> GSResult:
+	var floor_tick := int(respawn_delay.floors.get(id, 0))
+	if _tick < floor_tick:
+		match_node.respawns.enqueue_at(str(id), floor_tick)
+		return GSResult.fail(GSError.CODE_INVALID, "Player %d is still in the respawn delay." % id)
+	return respawn_player(id)
 
 ## Builds [member noblock] over gs-team's rules (its cfg layers; strict fails the boot) for a server or a solo game.
 func make_noblock(strict := GSGameConfigBinder.default_strict()) -> GSResult:

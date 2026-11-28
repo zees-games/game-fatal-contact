@@ -83,6 +83,107 @@ func _test_streaks() -> void:
 	await get_tree().process_frame
 	_done()
 
+# Respawn delay
+
+const FcRespawnDelay := preload("../game/fc_respawn_delay.gd")
+const FcRespawnWire := preload("../game/fc_respawn_wire.gd")
+const FcKnifeEvents := preload("../game/fc_knife_events.gd")
+
+## Kills [param victim] and returns the respawn wait the queue holds for it, in seconds.
+func _respawn_wait_after_kill(game: FcGame, killer: int, victim: int) -> float:
+	_revive_victim(game, victim)
+	_kill_through_combat(game, killer, victim)
+	var queue := game.match_node.respawns
+	if not queue.is_waiting(str(victim)):
+		return -1.0
+	return float(queue.ready_tick(str(victim)) - game.current_tick()) / float(TICK_RATE)
+
+func _test_respawn_delay() -> void:
+	_section("respawn delay: off keeps the mode's, fixed, range, per team, and the kill view cannot skip it")
+
+	var game := _weapon_mode_game(FcMode.team_deathmatch(50), [970, 971, 972, 973])
+	if game == null:
+		_check(false, "a respawn delay game sets up")
+		return
+	var d: FcRespawnDelay = game.respawn_delay
+	var near := func(a: float, b: float) -> bool: return absf(a - b) < 0.05
+	var waits: Array[String] = []
+	game.respawn_wait_started.connect(func(v: int, sec: float) -> void: waits.append("%d:%.2f" % [v, sec]))
+	var killer := 970
+	var killer_team := game.team_of(killer)
+	var enemy := 0
+	var friend := 0
+	for id in [971, 972, 973]:
+		if game.team_of(id) != killer_team and enemy == 0:
+			enemy = id
+		elif game.team_of(id) == killer_team and friend == 0:
+			friend = id
+	if not _check(enemy != 0 and friend != 0, "the game has two teams with a player on each"):
+		remove_child(game)
+		game.queue_free()
+		return
+
+	_check(not d.active() and d.pick(1, enemy, 5) < 0.0, "nothing set means no delay of its own")
+	var off := _respawn_wait_after_kill(game, killer, enemy)
+	_check(near.call(off, 0.2) and waits.is_empty(), "all 0 leaves the mode's delay and tells no client (%.2f)" % off)
+
+	d.min_sec = 2.0
+	var fixed := _respawn_wait_after_kill(game, killer, enemy)
+	_check(near.call(fixed, 2.0) and waits.size() == 1, "a min with no max is a fixed wait (%.2f)" % fixed)
+	d.max_sec = 2.0
+	_check(near.call(_respawn_wait_after_kill(game, killer, enemy), 2.0), "min equal to max is a fixed wait")
+
+	d.min_sec = 1.0
+	d.max_sec = 3.0
+	var lo := 99.0
+	var hi := 0.0
+	for tick in range(200):
+		var sec := d.pick(1, enemy, tick)
+		lo = minf(lo, sec)
+		hi = maxf(hi, sec)
+	_check(lo >= 1.0 and hi <= 3.0 and hi - lo > 1.0, "a range picks inside it and spreads over it (%.2f to %.2f)" % [lo, hi])
+	_check(d.pick(1, enemy, 7) == d.pick(1, enemy, 7), "the pick is the same for the same victim and tick")
+	var ranged := _respawn_wait_after_kill(game, killer, enemy)
+	_check(ranged >= 0.95 and ranged <= 3.05, "a kill is held for a time inside the range (%.2f)" % ranged)
+	d.min_sec = 0.0
+	d.max_sec = 2.0
+	_check(d.pick(1, enemy, 3) >= 0.0 and d.pick(1, enemy, 3) <= 2.0, "a max alone picks between 0 and it")
+
+	d.min_sec = 2.0
+	d.max_sec = 0.0
+	d.team_min[game.team_of(enemy)] = 5.0
+	_check(near.call(_respawn_wait_after_kill(game, killer, enemy), 5.0), "a team's own min overrides the global one")
+	_check(near.call(_respawn_wait_after_kill(game, enemy, friend), 2.0), "and the other team keeps the global one")
+	d.team_min[game.team_of(enemy)] = 0.0
+	_check(near.call(_respawn_wait_after_kill(game, killer, enemy), 2.0), "a team value of 0 falls through to the global one")
+	d.team_max[game.team_of(enemy)] = 8.0
+	var team_range := _respawn_wait_after_kill(game, killer, enemy)
+	_check(team_range >= 1.95 and team_range <= 8.05, "min and max fall through separately (%.2f)" % team_range)
+	d.team_max.clear()
+
+	var reader := GSNetReader.new(FcRespawnWire.write_wait(enemy, 2.5))
+	var kind := FcKnifeEvents.read_more(reader)
+	var wire := FcRespawnWire.read_wait(reader)
+	_check(kind == FcKnifeEvents.More.RESPAWN_WAIT and bool(wire["ok"]) and int(wire["victim"]) == enemy and near.call(float(wire["sec"]), 2.5),
+		"the wait crosses the wire as a MORE sub-kind")
+	_check(waits.size() >= 2 and waits[0].begins_with("%d:" % enemy), "the game announces each wait it sets")
+
+	var held := _respawn_wait_after_kill(game, killer, enemy)
+	var skipped := game._release_held_respawn(enemy)
+	_check(not skipped.ok and game.match_node.respawns.is_waiting(str(enemy)) and not game.player_for(enemy).is_alive(),
+		"a kill view skip before the wait is over does not respawn (%.2f)" % held)
+	d.floors[enemy] = game.current_tick()
+	_check(game._release_held_respawn(enemy).ok and game.player_for(enemy).is_alive(), "once the wait is over it does")
+
+	var client := FcRespawnDelay.new()
+	client.note(enemy, 30.0)
+	_check(client.remaining(enemy) > 0.0 and client.remaining(friend) == 0.0, "the client counts the wait down for its own player only")
+
+	remove_child(game)
+	game.queue_free()
+	await get_tree().process_frame
+	_done()
+
 # Kill rewards
 
 ## Reads the victim's replacement state: a fresh victim for every kill.

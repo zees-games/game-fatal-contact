@@ -201,6 +201,7 @@ func _bind_commands_and_cvars() -> void:
 	_add_jail_cvars()
 	_add_spawn_cvars()
 	_add_team_spawn_split_cvar()
+	_add_respawn_delay_cvars()
 	_add_loadout_roll_text_cvar()
 	_add_unlag_cvar()
 	_add_shot_rewind_cvars()

@@ -9,6 +9,7 @@ const FcBotLoadouts := preload("fc_bot_loadouts.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const FcAvatarLibrary := preload("fc_avatar_library.gd")
+const FcRespawnDelay := preload("fc_respawn_delay.gd")
 
 ## Base of [FcModule]: the operator-facing cvars that map onto a rule table, so the module itself
 ## holds the lifecycle. Split out for the size gate; the state they read lives here too.
@@ -421,6 +422,39 @@ func _add_team_spawn_split_cvar() -> void:
 		func(_old: String, new_value: String) -> void:
 			game.team_spawn_split = new_value.to_float() != 0.0
 			log_info("team spawn split changed", {"on": game.team_spawn_split}))
+
+
+## `fc_respawn_min`, `fc_respawn_max` and per team `fc_respawn_min_team<N>`, `fc_respawn_max_team<N>`: see [FcRespawnDelay].
+## Seconds; 0 is unset, and every one at 0 leaves the mode's own respawn delay alone. A negative value is refused by the cvar.
+func _add_respawn_delay_cvars() -> void:
+	var delay: FcRespawnDelay = game.respawn_delay
+	var flags := GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY
+	var set_value := func(is_max: bool, team: int, new_value: String) -> void:
+		var sec := maxf(new_value.to_float(), 0.0)
+		if team == 0:
+			if is_max:
+				delay.max_sec = sec
+			else:
+				delay.min_sec = sec
+		else:
+			(delay.team_max if is_max else delay.team_min)[team] = sec
+		var r := delay.range_for(maxi(team, 1))
+		if r.y > 0.0 and r.y < r.x:
+			GSLog.error("fc_module_cvars", "fc_respawn_max is below fc_respawn_min, the minimum is used as a fixed delay", {"team": team, "min": r.x, "max": r.y})
+		log_info("respawn delay changed", {"team": team, "max": is_max, "seconds": sec})
+	add_cvar("fc_respawn_min", "0",
+		"Respawn delay after a death, seconds, overriding the mode's own: the shortest wait, or the fixed wait when fc_respawn_max is 0 or equal; 0 leaves the mode's delay alone",
+		flags).with_min(0.0).changed.connect(func(_old: String, v: String) -> void: set_value.call(false, 0, v))
+	add_cvar("fc_respawn_max", "0",
+		"Respawn delay after a death, seconds: the longest wait, picked at random between fc_respawn_min and this; 0 means a fixed fc_respawn_min",
+		flags).with_min(0.0).changed.connect(func(_old: String, v: String) -> void: set_value.call(true, 0, v))
+	for team in range(1, FcRespawnDelay.TEAMS + 1):
+		add_cvar("fc_respawn_min_team%d" % team, "0",
+			"fc_respawn_min for team %d only; 0 uses fc_respawn_min" % team,
+			flags).with_min(0.0).changed.connect(func(_old: String, v: String) -> void: set_value.call(false, team, v))
+		add_cvar("fc_respawn_max_team%d" % team, "0",
+			"fc_respawn_max for team %d only; 0 uses fc_respawn_max" % team,
+			flags).with_min(0.0).changed.connect(func(_old: String, v: String) -> void: set_value.call(true, team, v))
 
 
 ## `sv_snapshot_rate`: snapshots a second to aim at, 0 for the derived default ([constant FcGame.NET_SNAPSHOT_RATE]).

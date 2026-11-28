@@ -2,7 +2,7 @@ extends RefCounted
 ## The wire format of the MORE event, the last kind the 5-bit field has: a varint sub-kind, then its body.
 ## KNIFE is the first sub-kind; its body is gs-weapon's GSWeaponKnifeWire.
 
-enum More { KNIFE, HOST }
+enum More { KNIFE, HOST, RESPAWN_WAIT }
 
 ## The gs-weapon level whose knife wire carries the Boomerang's glide and turn.
 const GLIDE_LEVEL := 41
