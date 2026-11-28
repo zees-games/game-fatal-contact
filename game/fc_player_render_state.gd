@@ -48,28 +48,37 @@ func _absorb_step(alpha: float, delta: float) -> float:
 	if state.tick != _step_tick:
 		# Moving on to a new tick drew whatever of the last tick's step was left.
 		_step_offset += _step_rise - _step_drawn
+		var skipped := state.tick - _step_tick - 1
 		_step_tick = state.tick
 		_step_rise = 0.0
 		_step_drawn = 0.0
 		var before := controller.previous_position()
-		var rise := state.position.y - before.y
-		var across := Vector2(state.position.x - before.x, state.position.z - before.z).length()
-		var tunables := controller.tunables
-		if (
-			state.is_grounded()
-			and rise > across * tan(tunables.max_slope_radians()) + 0.01
-			and rise <= tunables.step_height + 0.01
-		):
-			_step_rise = rise
+		if state.is_grounded() and skipped > 0 and skipped < 64 and _step_seen_position.is_finite():
+			# The ticks before the last one are drawn whole this frame: any step among them reaches the eye at once unless it is taken up here.
+			_step_offset += _step_rise_between(_step_seen_position, before, skipped)
+		_step_seen_position = state.position
+		if state.is_grounded():
+			_step_rise = _step_rise_between(before, state.position, 1)
 	var through := clampf(
 		alpha if not is_nan(alpha) else Engine.get_physics_interpolation_fraction(), 0.0, 1.0
 	)
 	_step_offset += through * _step_rise - _step_drawn
 	_step_drawn = through * _step_rise
-	_step_offset = GSCameraSmoothing.damp(_step_offset, 0.0, step_smooth_time * LN2, delta)
+	_step_offset = GSCameraSmoothing.damp(
+		_step_offset, 0.0, step_smooth_time * LN2, minf(delta, STEP_RELEASE_MAX_DELTA)
+	)
 	if absf(_step_offset) < 0.0005:
 		_step_offset = 0.0
 	return _step_offset
+
+## How much of the climb from [param from] to [param to] over [param ticks] ticks was stair steps: all of it when it rose more than the steepest walkable floor allows for the ground crossed, and no more than a step a tick; else 0, a ramp's rise being drawn as it is.
+func _step_rise_between(from: Vector3, to: Vector3, ticks: int) -> float:
+	var rise := to.y - from.y
+	var across := Vector2(to.x - from.x, to.z - from.z).length()
+	var tunables := controller.tunables
+	if rise > across * tan(tunables.max_slope_radians()) + 0.01 and rise <= tunables.step_height * ticks + 0.01:
+		return rise
+	return 0.0
 
 ## Kicks a held landing once [param drawn] is on the floor the landing tick left the player
 ## on, or a tick later at the latest.

@@ -178,6 +178,11 @@ func _watch(phase: String, drive: Callable) -> void:
 	var quiet := 0.0
 	var last_bad := -QUIET_SEC
 	var prev_ms := started
+	var trace: Array[String] = []
+	var traced := 0
+	var flips_traced := 0
+	var longest := 0.0
+	var held := 0.0
 	while quiet < QUIET_NEED_SEC and (Time.get_ticks_msec() - started) < int(PHASE_CAP_SEC * 1000.0):
 		await get_tree().process_frame
 		var t := (Time.get_ticks_msec() - started) / 1000.0
@@ -206,6 +211,12 @@ func _watch(phase: String, drive: Callable) -> void:
 		if get_viewport().get_camera_3d() != cam:
 			foreign += 1
 		var now := cam.global_transform
+		longest = maxf(longest, dt)
+		# The stair step the eye is still taking up (fc_player_render_state.gd _absorb_step): what a long frame would otherwise show at once.
+		held = maxf(held, float(p.get("_step_offset")))
+		trace.append(_trace_line(t, dt, p, last.origin.distance_to(now.origin) if have else -1.0))
+		if trace.size() > 12:
+			trace.pop_front()
 		if have:
 			var turn := rad_to_deg((-last.basis.z).angle_to(-now.basis.z))
 			var jump := last.origin.distance_to(now.origin)
@@ -217,6 +228,11 @@ func _watch(phase: String, drive: Callable) -> void:
 				flips += 1
 			if turn > MAX_TURN_DEG:
 				turns += 1
+			# What the clock and the prediction did around a big step or a flip (the first few).
+			if (jump > 0.3 or flips > flips_traced) and traced < 6:
+				traced += 1
+				flips_traced = flips
+				print("  %s trace, jump %.2f m:\n    %s" % [phase, jump, "\n    ".join(trace)])
 			if (turn > MAX_TURN_DEG or jump > MAX_JUMP_M) and shown < 40:  # the first few say where
 				shown += 1
 				print("  frame %d t=%.2fs: turn %.1f deg, jump %.2f m, from %s to %s, cam current %s, state tick %s, gate open %s" % [
@@ -225,13 +241,31 @@ func _watch(phase: String, drive: Callable) -> void:
 		have2 = have
 		last = now
 		have = true
-	print("  [%s] %d frames, worst turn %.2f deg, %d turns over %.0f, worst jump %.2f m, %d frames on another camera" % [
-		phase, frames, worst_turn, turns, MAX_TURN_DEG, worst_jump, foreign])
+	print("  [%s] %d frames, worst turn %.2f deg, %d turns over %.0f, worst jump %.2f m, %d frames on another camera, longest frame %d ms, most step held %.3f m" % [
+		phase, frames, worst_turn, turns, MAX_TURN_DEG, worst_jump, foreign, int(longest * 1000.0), held])
 	_check(frames > 20, phase + ": the player was watched", str(frames))
 	_check(flips == 0, phase + ": the view never alternates between two poses", str(flips))
 	_check(foreign == 0, phase + ": the viewport shows the player's own camera every frame", str(foreign))
 	_check(worst_turn <= MAX_TURN_DEG, phase + ": view never turns between frames", "%.2f deg" % worst_turn)
 	_check(worst_jump <= MAX_JUMP_M, phase + ": eye never jumps between frames", "%.2f m" % worst_jump)
+
+
+## One frame of the net clock and the prediction, for the trace printed around a jump or a flip.
+func _trace_line(t: float, dt: float, p: Object, jump: float) -> String:
+	var net: Object = _client.get("net")
+	if net == null:
+		return "t=%.3f no net" % t
+	var c: Dictionary = net.get("clock").call("describe")
+	var pd: Dictionary = net.get("predictor").call("describe") if net.get("predictor").has_method("describe") else {}
+	var off: Vector3 = p.get("drawn_offset")
+	return "t=%.3f dt=%3dms jump=%.3f tick=%d recv=%d srv=%d snaps=%d cu=%d floors=%d lost=%d replay=%s off=%.3f alpha=%.2f state=%s y=%.3f drawn_y=%.3f view_y=%.3f dip=%.3f shift_y=%.3f cam_y=%.3f gnd=%s crouch=%s step=%.3f" % [
+		t, int(dt * 1000.0), jump, int(c.tick), int(c.received_tick), int(c.server_tick), int(c.snaps), int(c.catch_ups),
+		int(c.floors), int(c.lost_ms), str(pd.get("last_replay_ticks", "?")), off.length(), float(p.get("drawn_alpha")),
+		str(p.get_node("Net").get("last_state_tick")), float(p.get("controller").get("state").position.y),
+		float(p.call("_render_position", float(p.get("drawn_alpha"))).y), float(p.get("view").global_position.y),
+		float(p.get("camera_motion").call("eye_drop")), float(p.get("camera_motion").call("eye_shift").y),
+		float(p.get("camera").global_position.y), str(p.get("controller").get("state").is_grounded()),
+		str(p.get("controller").get("state").is_crouched()), float(p.get("_step_offset"))]
 
 
 ## The loadout lines of the hosted server's own log: the server arms the player, the client only hears of it.

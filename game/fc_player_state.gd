@@ -709,6 +709,10 @@ var _step_offset: float = 0.0
 var _step_tick: int = -1
 var _step_rise: float = 0.0
 var _step_drawn: float = 0.0
+## Where the body was at [member _step_tick]. A frame that runs several ticks draws all but the last of them at once, and their steps are measured from here: on staging02 a 73 ms frame ran four ticks, a dm_box tread (0.37 m) on one of the first three reached the eye whole, and the camera jumped 0.54 m.
+var _step_seen_position: Vector3 = Vector3(NAN, NAN, NAN)
+## The most of a frame that releases [member _step_offset], seconds. A 73 ms frame (staging02) would let 77% of a step out at once, on top of 0.4 m of walking.
+const STEP_RELEASE_MAX_DELTA := 1.0 / 30.0
 
 ## A landing the eye has not reached yet: its impact (0 for none) and the tick it came on.
 var _landing_impact: float = 0.0
