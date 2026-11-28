@@ -77,19 +77,16 @@ static func torso(p: FcPlayer) -> Vector3:
 
 func _run() -> void:
 	print("game-fatal-contact: hosted solo, %d bots, scoped taps at a drawn bot %.0f-%.0f m out; server cvars %s" % [BOTS, NEAR_M, FAR_M, _server_cvars()])
-	FcSimHost.forced = 1
-	FcSimHost.ask_cvars = _server_cvars()
+	FcSimHost.ask_cvars = _server_cvars() + PackedStringArray(["sv_shot_debug=1"])
 	FcSimHost.ask_map = "dm_atrium"
 	FcSimHost.ask_mode = "snipers"
 	FcSimHost.hold_joined_sec = 1.0
 	for act in [FcBindings.FIRE, FcBindings.AIM]:
 		if not InputMap.has_action(act):
 			InputMap.add_action(act)
-	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
-	_client.set("force_offline", true)
-	_client.set("offline_bots", BOTS)
-	_client.set("mouse_capture_override", true)
-	add_child(_client)
+	if not await _start_client():
+		await _end()
+		return
 	var limit := FcSimHost.BOOT_LIMIT_SEC + FcSimHost.JOIN_LIMIT_SEC + FcSimHost.hold_joined_sec + 60.0
 	var built := await _until(func() -> bool: return _client.get("game") != null, limit)
 	_check(built, "the hosted client builds")
@@ -135,11 +132,14 @@ func _taps(g: Object) -> void:
 		if me == null or not me.is_alive() or me.camera == null:
 			Input.action_release(FcBindings.AIM)
 			continue
-		if hooked != me.arsenal:
-			hooked = me.arsenal
-			me.arsenal.used.connect(func(outcome: GSWeaponOutcome) -> void:
-				if not outcome.shots.is_empty():
-					_shot = outcome.shots[0])
+		if hooked != me:
+			hooked = me
+			# The player's `used`, which the spark is drawn from (FcClient._on_local_used), not the arsenal's: that one
+			# also fires on every reconciliation replay. Copied as it is emitted, so a later re-trace of a reused shot
+			# cannot rewrite what this tap drew.
+			me.used.connect(func(outcome: GSWeaponOutcome) -> void:
+				if _shot == null and not outcome.shots.is_empty():
+					_shot = _copy_shot(outcome.shots[0]))
 		var def: GSWeaponDef = me.arsenal.current_def()
 		if def == null or not def.tags.has(&"scoped") or not me.arsenal.is_ready():
 			continue
@@ -172,6 +172,7 @@ func _taps(g: Object) -> void:
 		var pinned := false
 		var cam_deg := 0.0
 		var eye_gap := 0.0
+		var drawn_hit := false
 		Input.action_press(FcBindings.FIRE)
 		for _f in 3:
 			await get_tree().process_frame
@@ -186,21 +187,23 @@ func _taps(g: Object) -> void:
 				if is_instance_valid(target):
 					at = torso(target)
 					feet = target.global_position
+					drawn_hit = _drawn_on(me, _shot, target)
 		Input.action_release(FcBindings.FIRE)
 		var waited := await _until(func() -> bool: return int(_confirmed.get(victim, 0)) > before, CONFIRM_SEC)
 		if _shot == null:
 			continue
 		taps += 1
 		var miss_m := _ray_gap(_shot.origin, _shot.direction, at)
-		var said_hit := _sparked_on(_shot, feet)
+		var said_hit := _sparked_on(_shot, feet) or drawn_hit
 		var is_aimed := miss_m <= AIMED_M
 		predicted += int(said_hit)
 		predicted_confirmed += int(said_hit and waited)
 		aimed += int(is_aimed)
 		aimed_predicted += int(is_aimed and said_hit)
 		aimed_confirmed += int(is_aimed and waited)
-		rows.append("    tap %2d %-9s %5.1f m  bot %d drawn %.1f m/s  ray %.3f m off the torso  crosshair %.3f deg %.2f m off the shot  client %-4s server %s" % [
-			taps, def.id, range_m, victim, speed, miss_m, cam_deg, eye_gap, "HIT" if said_hit else "miss", "HIT" if waited else "nothing"])
+		rows.append("    tap %2d %-9s %5.1f m  bot %d drawn %.1f m/s  ray %.3f m off the torso  crosshair %.3f deg %.2f m off the shot  client %-4s server %s  tick %d feet %s dir %s" % [
+			taps, def.id, range_m, victim, speed, miss_m, cam_deg, eye_gap, "HIT" if said_hit else "miss", "HIT" if waited else "nothing",
+			_shot.tick, feet.snappedf(0.001), _shot.direction.normalized().snappedf(0.00001)])
 		print(rows.back())
 		Input.action_release(FcBindings.AIM)
 		for _f in 6:
@@ -245,6 +248,31 @@ static func _sparked_on(shot: GSShot, feet: Vector3) -> bool:
 	return false
 
 
+## Whether the client's own shot picture lands on [param target]: AwShotFx's ray (from the shot's eye, its mask, its
+## carrier excluded) striking the target's body, which it draws as a flesh impact.
+static func _drawn_on(me: FcPlayer, shot: GSShot, target: FcPlayer) -> bool:
+	if not is_instance_valid(target) or me.weapons == null or not me.weapons.has_method(&"shot_fx"):
+		return false
+	var fx: AwShotFx = me.weapons.call(&"shot_fx")
+	if fx == null or fx.get_world_3d() == null:
+		return false
+	var dir := shot.direction.normalized()
+	var query := PhysicsRayQueryParameters3D.create(shot.origin, shot.origin + dir * 400.0, fx.collision_mask, fx.exclude)
+	var found := fx.get_world_3d().direct_space_state.intersect_ray(query)
+	var node := found.get("collider") as Node
+	return node != null and (node == target or target.is_ancestor_of(node))
+
+
+## What a tap needs of [param shot], taken when it is drawn.
+static func _copy_shot(shot: GSShot) -> GSShot:
+	var copy := GSShot.new()
+	copy.origin = shot.origin
+	copy.direction = shot.direction
+	copy.tick = shot.tick
+	copy.impacts = shot.impacts.duplicate()
+	return copy
+
+
 ## How far the ray from [param origin] along [param direction] passes from [param at].
 static func _ray_gap(origin: Vector3, direction: Vector3, at: Vector3) -> float:
 	var dir := direction.normalized()
@@ -256,10 +284,25 @@ func _print_server_lines() -> void:
 	var text := FileAccess.get_file_as_string(ProjectSettings.globalize_path(FcSimHost.SERVER_LOG))
 	var shown := 0
 	for line in text.split("\n"):
-		if shown < 30 and (line.contains("rewind") or line.contains("refus") or line.contains("overrun") or line.contains("late")):
+		if line.contains("shot debug"):
+			print("  [server] ", line.left(420))
+		elif shown < 30 and (line.contains("rewind") or line.contains("refus") or line.contains("overrun") or line.contains("ERROR")
+				or line.contains("WARNING") or line.contains("at: ")):
 			shown += 1
 			print("  [server] ", line.left(300))
 	print("  [server] log: %d bytes, %d rewind/refusal lines" % [text.length(), shown])
+
+
+## Builds [member _client]: here the solo client, which starts the hosted server process itself and joins it over its
+## local link. False when nothing could be built.
+func _start_client() -> bool:
+	FcSimHost.forced = 1
+	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
+	_client.set("force_offline", true)
+	_client.set("offline_bots", BOTS)
+	_client.set("mouse_capture_override", true)
+	add_child(_client)
+	return true
 
 
 func _end() -> void:

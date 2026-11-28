@@ -642,9 +642,20 @@ var shot_rewind_log_sec: float = 30.0
 ## late_fired (a tap whose command came after its tick was simulated, fired on the next command: FcNetBridge.take_late_fire), late_dropped (one older than FcNetBridge.late_fire_max_ticks: not fired, logged).
 var shot_rewind_counts: Dictionary = {}
 
+## `sv_shot_debug`: logs one line per human hitscan shot (tick, view tick, ray, the nearest rewound target with how it was
+## stood and the ray's gap to its torso, and who was hit); off by default, for chasing a spark the server did not count.
+var shot_debug: bool = false
+## The key [method count_shot_rewind] counted last, so [member shot_debug] can say how a target was stood.
+var _last_rewind_key: StringName = &""
+## The hitscan shot being traced, for [member shot_debug]; null between shots.
+var _unlag_ray: GSShot = null
+## The nearest rewound target to [member _unlag_ray]'s line, for [member shot_debug]'s line.
+var _unlag_nearest: Dictionary = {}
+
 ## Adds one to [member shot_rewind_counts] under [param key].
 func count_shot_rewind(key: StringName) -> void:
 	shot_rewind_counts[key] = int(shot_rewind_counts.get(key, 0)) + 1
+	_last_rewind_key = key
 
 ## Player [param id]'s feet in the rewind ring at [param view_tick], counted as a hitscan shot's ring or a bullet's; null, counted unrecorded, when the ring has none there
 ## (a respawn or teleport since): the body is traced where it stands now, and the `sv_shot_rewind_log_sec` line says so.

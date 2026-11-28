@@ -208,6 +208,11 @@ func _add_shot_rewind_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			game.shot_rewind_log_sec = new_value.to_float()
 			log_info("shot rewind log period changed", {"sec": game.shot_rewind_log_sec}))
+	add_cvar("sv_shot_debug", "1" if game.shot_debug else "0",
+		"Logs one line per human hitscan shot: its ray, the nearest rewound target and who was hit (0 off)",
+		GSConVar.FLAG_NOTIFY).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.shot_debug = new_value.to_int() != 0)
 	add_cvar("cl_shot_view_cone_deg", str(game.shot_view_cone_deg),
 		"Degrees off the aim within which a shot names a target's own snapshot pair to the server (0 every target)",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(

@@ -466,8 +466,13 @@ func tick(commands: Dictionary = {}) -> void:
 			var lag: float = float(pair[2]) if pair.size() > 2 else -1.0
 			_unlag_shooter = shot.attacker
 			_unlag_shot = true
+			if shot_debug and lag >= 0.0:
+				_unlag_ray = shot
+				_unlag_nearest = {}
 			_resolve_shot(shot, float(_tick) - lag if lag >= 0.0 else -1.0)
 			_unlag_shot = false
+			if _unlag_ray != null:
+				_log_shot_debug(shot, lag)
 		t_lap = FcFrameProbe.lap(&"s_resolve", t_lap)
 		if bullet_bridge != null:
 			bullet_bridge.tick(float(_tick))
@@ -475,6 +480,17 @@ func tick(commands: Dictionary = {}) -> void:
 	FcFrameProbe.add(&"tick_shots", t_shots)
 
 	_tick_world_systems(shots, delta, t_lap)
+
+
+## [member shot_debug]'s line for one human hitscan shot, after it was traced and the targets put back.
+func _log_shot_debug(shot: GSShot, lag: float) -> void:
+	var victims: Array = []
+	for damage in shot.damages:
+		victims.append(damage.victim)
+	GSLog.warn(CHANNEL, "shot debug", {"by": shot.attacker, "tick": _tick, "view": snappedf(float(_tick) - lag, 0.001),
+		"origin": shot.origin.snappedf(0.001), "dir": shot.direction.snappedf(0.00001), "hit": victims,
+		"impacts": shot.impacts.slice(0, 3), "nearest": _unlag_nearest})
+	_unlag_ray = null
 
 
 func _tick_world_systems(shots: Array[GSShot], delta, t_lap) -> void:
