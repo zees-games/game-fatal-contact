@@ -412,7 +412,7 @@ func _tell_player(held: float, rate: int) -> void:
 static func behind_notice(held: float, rate: int) -> String:
 	if rate <= 0 or held >= rate * BEHIND_SHARE:
 		return ""
-	return "The server cannot keep up: the game runs at %d%% speed. Fewer bots or a lower fc_solo_tick_tiers helps." % roundi(held * 100.0 / rate)
+	return FcConfig.BEHIND_PREFIX + ": the game runs at %d%% speed. Fewer bots or a lower fc_solo_tick_tiers helps." % roundi(held * 100.0 / rate)
 
 
 ## Whether a behind line is due at [param now_ms] when the last was said at [param last_ms] (-1: not while behind).

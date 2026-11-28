@@ -114,15 +114,15 @@ const HURT_FROM := 0.35
 ## the edge. Read through gs-fx so "no flashes" and the three-a-second limit hold; the gain maps its peak (0.28) to about the max.
 var flash_source: Object = null
 const HURT_PULSE_GAIN := 2.2
-const HURT_PULSE_MAX := 0.6
+const HURT_PULSE_MAX := 0.4
 
 
 ## The edge, per pixel. Distance is measured in the screen's own shape (an ellipse touching the edges), so the clear middle is the same share of a 4:3 and a 21:9 frame; `smoothstep` then a square gives a soft start and a deep rim.
 ## Alpha is the node's modulate, so the strength is one number the HUD writes and the checks read.
 const HURT_SHADER := """
 shader_type canvas_item;
-uniform vec4 tint : source_color = vec4(0.62, 0.0, 0.02, 0.78);
-uniform float inner = 0.7;
+uniform vec4 tint : source_color = vec4(0.62, 0.0, 0.02, 0.55);
+uniform float inner = 0.82;
 uniform float outer = 1.32;
 void fragment() {
 	vec2 p = (UV - vec2(0.5)) * 2.0;

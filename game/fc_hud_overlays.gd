@@ -31,6 +31,8 @@ func _present_hurt(live: bool) -> void:
 	if live and player.health != null and player.health.max_health > 0.0:
 		var fraction := player.health.health / player.health.max_health
 		hurt = clampf((HURT_FROM - fraction) / HURT_FROM, 0.0, 1.0)
+		# Squared: a wounded player sees a thin red rim that deepens near death, never a red screen at a third of health.
+		hurt *= hurt
 	if live and flash_source != null and is_instance_valid(flash_source):
 		var flash: Color = flash_source.get(&"flash_colour")
 		hurt = maxf(hurt, minf(flash.a * HURT_PULSE_GAIN, HURT_PULSE_MAX))

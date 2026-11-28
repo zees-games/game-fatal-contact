@@ -214,7 +214,10 @@ func validate() -> GSResult:
 @export var solo_tick_tiers: String = "players<=32:66,<=64:33,else:22"
 
 ## Solo on its own server process: seconds between repeats of the in-game "server behind" line while the server stays under its tick rate. It is said as the server falls behind and again after it caught up; 0 says it on every 5 s report that is behind.
-@export_range(0.0, 3600.0, 1.0, "or_greater") var behind_notice_sec: float = 60.0
+@export_range(0.0, 3600.0, 1.0, "or_greater") var behind_notice_sec: float = 300.0
+
+## Opens the in-game "server behind" line; the client keeps lines that begin with it in the chat box and off the centre notice.
+const BEHIND_PREFIX := "The server cannot keep up"
 
 ## The surf fields as [method GSAudioSurfRules.apply_values] takes them.
 func surf_values() -> Dictionary:

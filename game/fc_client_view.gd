@@ -593,7 +593,8 @@ func _local_display_name() -> String:
 func _on_said(speaker: String, text: String, kind: String) -> void:
 	# The server's own lines also go on the HUD's centre notice. Only those: every line
 	# used to, which put whatever anybody typed in the middle of the screen.
-	if kind == "system" and hud != null:
+	# The server-behind line is a hint, not an event: chat only, or it printed twice and sat over the killed-by text.
+	if kind == "system" and hud != null and not text.begins_with(FcConfig.BEHIND_PREFIX):
 		hud.notice(text)
 
 	if presentation == null or presentation.chat_window == null:
