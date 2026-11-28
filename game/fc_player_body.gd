@@ -448,7 +448,7 @@ func present_own_body(mode: int, _yaw: float = 0.0) -> void:
 		return
 
 	# Wall running poses the legs against the wall: the thigh and shoe fill the view over the gun. No body then.
-	if mode <= 0 or not is_alive() or camera == null or not camera.current or move_state_wall_running():
+	if mode <= 0 or not is_alive() or camera == null or not camera.current or (controller != null and controller.state != null and controller.state.is_wall_running()):
 		if _first_person != null:
 			_first_person.restore()
 		if figure != null:
@@ -473,10 +473,6 @@ func present_own_body(mode: int, _yaw: float = 0.0) -> void:
 		# What to keep, by name: the box avatars' parts are not named what a hide list would guess.
 		_first_person.shown_names = PackedStringArray(["leg", "foot", "shoe", "boot"])
 	_first_person.apply(body_mesh)
-
-## Whether the body is wall running now, from the controller's state.
-func move_state_wall_running() -> bool:
-	return controller != null and controller.state != null and controller.state.is_wall_running()
 
 ## Where your own body stands behind the eye for a view pitch in degrees (negative is down).
 func own_body_back(pitch: float) -> float:
