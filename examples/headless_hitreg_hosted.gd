@@ -35,7 +35,7 @@ var _confirmed: Dictionary = {}
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	var _scratch := FcPresentation.use_scratch_settings("headless_hitreg_hosted")
+	var _scratch := FcPresentation.use_scratch_settings(_suite())
 	_run.call_deferred()
 
 
@@ -55,6 +55,16 @@ func _until(condition: Callable, seconds: float) -> bool:
 	return bool(condition.call())
 
 
+## This run's name, for its scratch settings and its last line.
+func _suite() -> String:
+	return "headless_hitreg_hosted"
+
+
+## Server cvars (`name=value`) the hosted server is started with; a variant names its own.
+func _server_cvars() -> PackedStringArray:
+	return PackedStringArray()
+
+
 static func angles_to(from: Vector3, to: Vector3) -> Vector2:
 	var d := (to - from).normalized()
 	return Vector2(rad_to_deg(atan2(-d.x, -d.z)), rad_to_deg(asin(d.y)))
@@ -66,8 +76,9 @@ static func torso(p: FcPlayer) -> Vector3:
 
 
 func _run() -> void:
-	print("game-fatal-contact: hosted solo, %d bots, scoped taps at a drawn bot %.0f-%.0f m out" % [BOTS, NEAR_M, FAR_M])
+	print("game-fatal-contact: hosted solo, %d bots, scoped taps at a drawn bot %.0f-%.0f m out; server cvars %s" % [BOTS, NEAR_M, FAR_M, _server_cvars()])
 	FcSimHost.forced = 1
+	FcSimHost.ask_cvars = _server_cvars()
 	FcSimHost.ask_map = "dm_atrium"
 	FcSimHost.ask_mode = "snipers"
 	FcSimHost.hold_joined_sec = 1.0
@@ -159,6 +170,8 @@ func _taps(g: Object) -> void:
 		var feet := target.global_position
 		var range_m := me.camera.global_position.distance_to(at)
 		var pinned := false
+		var cam_deg := 0.0
+		var eye_gap := 0.0
 		Input.action_press(FcBindings.FIRE)
 		for _f in 3:
 			await get_tree().process_frame
@@ -167,6 +180,9 @@ func _taps(g: Object) -> void:
 				sampler.look_at_angles(a.x, a.y)
 			if _shot != null and not pinned:
 				pinned = true
+				# The crosshair is the camera's forward; the shot should leave along it from the eye.
+				cam_deg = rad_to_deg((-me.camera.global_basis.z).angle_to(_shot.direction.normalized()))
+				eye_gap = me.camera.global_position.distance_to(_shot.origin)
 				if is_instance_valid(target):
 					at = torso(target)
 					feet = target.global_position
@@ -183,8 +199,8 @@ func _taps(g: Object) -> void:
 		aimed += int(is_aimed)
 		aimed_predicted += int(is_aimed and said_hit)
 		aimed_confirmed += int(is_aimed and waited)
-		rows.append("    tap %2d %-9s %5.1f m  bot %d drawn %.1f m/s  ray %.3f m off the torso  client %-4s server %s" % [
-			taps, def.id, range_m, victim, speed, miss_m, "HIT" if said_hit else "miss", "HIT" if waited else "nothing"])
+		rows.append("    tap %2d %-9s %5.1f m  bot %d drawn %.1f m/s  ray %.3f m off the torso  crosshair %.3f deg %.2f m off the shot  client %-4s server %s" % [
+			taps, def.id, range_m, victim, speed, miss_m, cam_deg, eye_gap, "HIT" if said_hit else "miss", "HIT" if waited else "nothing"])
 		print(rows.back())
 		Input.action_release(FcBindings.AIM)
 		for _f in 6:
@@ -252,9 +268,10 @@ func _end() -> void:
 	FcSimHost.forced = -1
 	FcSimHost.ask_map = ""
 	FcSimHost.ask_mode = ""
+	FcSimHost.ask_cvars = PackedStringArray()
 	if _client != null:
 		_client.queue_free()
 		await get_tree().process_frame
 		await get_tree().process_frame
-	print("headless_hitreg_hosted: %d checks, %d failed" % [_checks, _failed])
+	print("%s: %d checks, %d failed" % [_suite(), _checks, _failed])
 	get_tree().quit(1 if _failed > 0 else 0)

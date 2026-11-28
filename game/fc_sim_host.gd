@@ -26,6 +26,8 @@ static var forced := -1
 ## The map and mode a tool asks for; "" reads `--map` and `--mode` from the command line.
 static var ask_map := ""
 static var ask_mode := ""
+## Server cvars (`name=value`) a tool asks the child for, as `--cvar` on the command line is (fc_sim_server refuses an unknown name).
+static var ask_cvars := PackedStringArray()
 ## Seconds a suite holds the joined client before it builds: the window a slow machine's 30 s load is, in which the server already sends.
 static var hold_joined_sec := 0.0
 
@@ -200,6 +202,8 @@ func _forward_flags(args: PackedStringArray) -> PackedStringArray:
 	for k in user.size() - 1:
 		if user[k] == "--cvar":
 			args.append_array(["--cvar", user[k + 1]])
+	for pair in ask_cvars:
+		args.append_array(["--cvar", pair])
 	return args
 
 
