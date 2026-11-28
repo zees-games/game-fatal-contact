@@ -240,6 +240,7 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	if _batch_rows.size() < n:
 		_batch_rows.resize(n)
 		_batch_pairs.resize(n)
+	_activity.begin(match_node)
 	t_tb = FcFrameProbe.lap(&"tb_setup", t_tb)
 	for i in range(n):
 		var id: int = ids[i]
@@ -272,6 +273,9 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		if fine:
 			FcFrameProbe.add(&"pl_sim", t_fine)
 	t_tb = FcFrameProbe.lap(&"tb_pass1", t_tb)
+	# Every row that is not -1 went through the activity note (dead, or a null command, is -1).
+	_activity.note(ids, _batch_rows, _tick)
+	t_tb = FcFrameProbe.lap(&"tb_note", t_tb)
 	if FcPlayer.mechanics_native:
 		_volume_pre.mark(_tick, ids, _players, _batch_rows)
 	t_tb = FcFrameProbe.lap(&"tb_mark", t_tb)

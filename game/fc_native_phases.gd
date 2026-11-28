@@ -9,8 +9,8 @@ const MASTER := "sv_native_tick"
 ## id: the phase. cvars: its switches (1 = native). classes: the gs-sim classes it needs.
 ## methods: [class, method] pairs a too-old library lacks.
 const PHASES: Array[Dictionary] = [
-	{"id": "players", "cvars": ["sv_native_players", "sv_native_slots"],
-		"classes": ["GSSimServerTick"], "methods": []},
+	{"id": "players", "cvars": ["sv_native_players", "sv_native_slots", "sv_native_activity"],
+		"classes": ["GSSimServerTick"], "methods": [["GSSimServerTick", "activity_note"]]},
 	{"id": "mirror", "cvars": ["sv_trace_mirror"],
 		"classes": ["GSSimTraceMirror", "GSSimFpsBody"], "methods": [["GSSimFpsBody", "set_trace_mirror"]]},
 	{"id": "motor", "cvars": ["motor_native", "sv_native_motor_state", "motor_native_tick", "motor_native_full", "fc_hull_native",

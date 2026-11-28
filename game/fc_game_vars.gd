@@ -5,6 +5,7 @@ const FcFlashlight := preload("fc_flashlight.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcShotStats := preload("fc_shot_stats.gd")
+const FcActivityLane := preload("fc_activity_lane.gd")
 const HULL_NEAR_SQ := 144.0
 
 ## Beyond this a hull cannot touch one tick's sweep (top speed times a tick, plus both radii, with room to spare).
@@ -75,6 +76,8 @@ var shown_mode: FcMode = null
 
 var _roster: Array[FcPlayer] = []
 var _roster_ids := PackedInt64Array()
+## The players' last-active column (cvar sv_native_activity): the batched loop's activity notes in one gs-sim call.
+var _activity := FcActivityLane.new()
 var _roster_dirty := true
 ## Roster index by player id, rebuilt with [member _roster].
 var _roster_at: Dictionary = {}

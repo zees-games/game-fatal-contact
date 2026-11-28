@@ -7,6 +7,7 @@ const FcBotBrain := preload("fc_bot_brain.gd")
 const FcBotThreads := preload("fc_bot_threads.gd")
 const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
+const FcActivityLane := preload("fc_activity_lane.gd")
 const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
@@ -120,6 +121,11 @@ func _add_motor_engine_cvars() -> void:
 
 ## The players' hull grid (its fast, native and batched gathers) and the bots' PVS sight pre-cull.
 func _add_hull_and_pvs_cvars() -> void:
+	add_cvar("sv_native_activity", "1" if FcActivityLane.enabled else "0",
+		"1: the batched players' loop notes the roster's activity in one gs-sim call, handed to the score records when the idle check reads them (same idle kicks and records); 0: GSMatch.note_activity per player per tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcActivityLane.enabled = new_value.to_float() >= 0.5)
 	add_cvar("fc_hull_grid", "1" if FcHullGrid.enabled else "0",
 		"1: players' standing hulls are found through a grid filed once per tick (same hulls, cheaper above 12 players); 0: scan the whole roster per bot",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(

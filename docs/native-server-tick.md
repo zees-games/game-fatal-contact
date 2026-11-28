@@ -2,12 +2,18 @@ The FC server tick runs in six phases. Each phase has a gs-sim (Rust) path and a
 
 | Phase | Cvars the master writes |
 |---|---|
-| players | `sv_native_players`, `sv_native_slots` |
+| players | `sv_native_players`, `sv_native_slots`, `sv_native_activity` |
 | mirror | `sv_trace_mirror` |
 | motor | `motor_native`, `sv_native_motor_state`, `motor_native_tick`, `motor_native_full`, `fc_hull_native`, `fc_posture_native`, `fc_mechanics_native`, `fc_tick_events` |
 | bots | `bot_native*`, `fc_bot_pvs_native`, `fc_hull_grid_native` |
 | shots | `sv_native_shots`, `sv_native_unlag` |
 | snapshots | `net_pack_native`, `sv_net_pull_*native`, `sv_native_snapshots`, `sv_net_pull_batch` |
+
+## Activity column (`sv_native_activity`)
+
+- The batched players' loop notes the roster's activity in one `GSSimServerTick.activity_note` call (gs-sim API 7) instead of one `GSMatch.note_activity` per player per tick (`game/fc_activity_lane.gd`).
+- Notes reach the score records only when gs-match's idle check could tell the difference (before `match_node.tick`), when a player leaves, at a match start and when the cvar goes to 0. Every `last_active_tick` write is the current tick, so the records hold the same values on the ticks the idle check reads them.
+- `headless_motor_batch` plays one recorded match both ways and compares every idle kick and every record.
 
 ## Master switch
 
