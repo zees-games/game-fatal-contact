@@ -1,5 +1,6 @@
 ## Client cvars for addon-side draw and tick folds: the map's per-cell world shadow casters
-## (gs-map's GSMapWorldShadow) and the held guns' one shared ticker (fc-weapons' AwWorldModel).
+## (gs-map's GSMapWorldShadow) the held guns' one shared ticker (fc-weapons' AwWorldModel)
+## and the player bodies' (gs-player-char's GSHumanoidFigure).
 extends RefCounted
 
 ## By path: an older gs-map has no world shadow fold, and then these cvars do nothing.
@@ -13,6 +14,9 @@ static var world_shadow_cell := 32.0
 ## On: one engine dispatch and one loop for every held gun instead of a `_process` each, which is untimed
 ## per-node time (arena.pf_nodes self) that grows with the player count. 0 hands each gun its own _process back.
 static var held_central_tick := true
+## cl_figure_central_tick: every player body's frame (floor lift, carried pose) from gs-player-char's one ticker
+## node rather than each figure's own _process (more arena.pf_nodes self). 0 hands each figure its _process back.
+static var figure_central_tick := true
 
 
 ## Pushes every value at its addon. Safe to call again; a map already drawn keeps its casters.
@@ -22,6 +26,8 @@ static func apply() -> void:
 		shadow.call(&"configure", world_shadow, world_shadow_cell)
 	if (AwWorldModel as Script).get(&"central_tick") != null:
 		(AwWorldModel as Script).set(&"central_tick", held_central_tick)
+	if (GSHumanoidFigure as Script).get(&"central_tick") != null:
+		(GSHumanoidFigure as Script).set(&"central_tick", figure_central_tick)
 
 
 static func add_vars(local: GSConsoleLocal) -> void:
@@ -48,6 +54,13 @@ static func add_vars(local: GSConsoleLocal) -> void:
 			held_central_tick = str(v).strip_edges() != "0"
 			apply()
 			return GSResult.success(1 if held_central_tick else 0)
+	)
+	local.add_var(&"cl_figure_central_tick", "1 runs every player body's frame from one node; 0 lets each body run its own frame.",
+		func() -> Variant: return 1 if figure_central_tick else 0,
+		func(v: Variant) -> Variant:
+			figure_central_tick = str(v).strip_edges() != "0"
+			apply()
+			return GSResult.success(1 if figure_central_tick else 0)
 	)
 
 

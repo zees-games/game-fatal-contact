@@ -364,7 +364,11 @@ func draw_frame(alpha: float = -1.0) -> void:
 		_drawn_tick = drawn_tick(alpha)
 		var timeline: Variant = net.interpolator.get(&"_timeline")
 		_drawn_newest = timeline[-1] if timeline is PackedInt32Array and not timeline.is_empty() else -1
-		_drawn_feet.clear()
+		# Written over in place: the same keys frame after frame, no rehash. A key left by a player gone or now
+		# predicted is never read (the lag pass looks up only remote players this loop writes), and the set is
+		# trimmed when it outgrows the players.
+		if _drawn_feet.size() > _behaviours.size():
+			_drawn_feet.clear()
 		for id: int in _behaviours:
 			var other: FcPlayerNet = _behaviours[id]
 			if other.identity != null and not other.identity.is_predicted():
