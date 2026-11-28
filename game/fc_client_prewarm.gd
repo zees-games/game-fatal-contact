@@ -432,6 +432,12 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 			made.free()
 		if hud != null and hud.has_method(&"warm_hurt"):
 			hud.call(&"warm_hurt")
+		# cl_trail_share: a thrown knife's streak and glint (its first flight compiled them, 113 ms).
+		gate.warm_up(preload("fc_knife_trail.gd").warm_items())
+		# cl_scope_prewarm: one live lens drawn through this camera, so the lens's own pass (MSAA, its environment, the disc's
+		# shader) compiles now, not on the first raised scope (ScopeHousing/ScopeGlass/Lens, 103 ms).
+		if preload("fc_hitch_cvars.gd").scope_prewarm:
+			_prime_lens(body.camera)
 		# The first headshot's tag compiled its shader and rasterized its outlined glyphs mid-match. Drawn
 		# for real (not collected) six metres ahead under the cover, then dropped.
 		var tag := headshot_tag()
@@ -440,6 +446,22 @@ func _prewarm_one_step(body: Variant, step: int) -> bool:
 		get_tree().create_timer(HEADSHOT_WARM_SEC).timeout.connect(tag.queue_free)
 	_step_mark(what, began)
 	return true
+
+## Builds a scope lens for the first scoped weapon, draws it once ahead of [param camera] and drops it (null headless: nothing to draw).
+func _prime_lens(camera: Camera3D) -> void:
+	var table := AwWeaponArtTable.table()
+	for id: Variant in table.keys():
+		var art: Variant = table[id]
+		if not (art is AwWeaponVisual and (art as AwWeaponVisual).aim_scoped):
+			continue
+		var glass: Node3D = AwViewModel.ScopeGlass.build((art as AwWeaponVisual).scope_style, 0)
+		if glass == null:
+			return
+		camera.add_child(glass)
+		glass.position = Vector3(0.0, 0.0, -1.5)
+		AwViewModel.ScopeGlass.prime(glass, camera)
+		get_tree().create_timer(HEADSHOT_WARM_SEC).timeout.connect(glass.queue_free)
+		return
 
 ## Every muzzle flash scene's path, as [method GSMuzzleFlash.pin_scenes] loads them.
 static func _flash_scene_paths() -> Array[String]:
@@ -612,6 +634,8 @@ func _prewarm_end() -> void:
 
 ## Builds every weapon's first-person view once on a spare view model, under the loading cover.
 func _prewarm_weapons(body: FcPlayer) -> void:
+	# cl_equip_reuse: the shared store of built weapons is capped by the art table (unbounded off), headless too.
+	preload("fc_hitch_cvars.gd").apply_store_cap()
 	# Headless draws nothing, so the spare views only add nodes, memory and frames (perf smoke).
 	if not prewarm_weapons_enabled or GSPlatform.is_headless() or gate == null or gate.is_open() or body == null or body.camera == null or view_model == null:
 		return
