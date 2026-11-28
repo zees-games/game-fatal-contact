@@ -25,4 +25,4 @@
 # Solo on its own server process (FcSimHost): the tick rate by player count (bots and you) in gs-server's `sv...
 # solo_tick_tiers: "players<=32:66,<=64:33,else:22"
 # Solo on its own server process: seconds between repeats of the in-game "server behind" line while the serve... [0.0..]
-# behind_notice_sec: 60.0
+# behind_notice_sec: 300.0
