@@ -168,12 +168,12 @@ func _run_part3(red: int, blue: int) -> void:
 	_check(def != null and not FcMaps.supports_mode(def, FcModes.by_id(&"siege")) and not FcMaps.supports_mode(def, FcModes.by_id(&"koth")),
 		"siege and koth are not")
 	# The web build gets the map as a delivered pack, whose def knows only its key until it is mounted.
-	var listed := ["ffa", "tdm", "ctf", "gungame", "snipers"]
+	var listed := ["ffa", "tdm", "ctf", "gungame", "snipers", "cp"]
 	var delivered := FcMaps.delivered_def("gamemann/cp-orange-x3@1.0.7")
 	_check(_offered(delivered) == ["ffa", "tdm", "gungame", "snipers"], "a delivered def not yet mounted offers the modes about the players, team deathmatch included (no objective modes)", str(_offered(delivered)))
 	FcMaps.refresh_delivered_meta(delivered)
-	_check(_offered(def) == listed, "the linked map offers its five listed modes (%s)" % [_offered(def)])
-	_check(_offered(delivered) == listed, "the delivered def, once its manifest is mounted, offers the same five (%s)" % [_offered(delivered)])
+	_check(_offered(def) == listed, "the linked map offers its six listed (control points too) modes (%s)" % [_offered(def)])
+	_check(_offered(delivered) == listed, "the delivered def, once its manifest is mounted, offers the same six (%s)" % [_offered(delivered)])
 
 	print("-- team deathmatch spawns each side at its own end")
 	_game.match_node.rules.warmup_sec = 0.0
