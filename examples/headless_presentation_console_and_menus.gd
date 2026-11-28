@@ -407,6 +407,11 @@ func _test_look_and_crosshair_part2(p, crosshair: GSCrosshair) -> void:
 	_check(on_right < -1.0 and lean.wall_roll() > 1.0,
 		"the wall-run lean tilts toward the wall: right wall leans right, left wall leans left",
 		"right wall %.2f, left wall %.2f" % [on_right, lean.wall_roll()])
+	p.settings.set_value(&"wall_run_eye_shift_m", 0.9)
+	_check(motion != null and is_equal_approx(motion.wall_run_eye_shift, 0.9),
+		"the wall_run_eye_shift_m setting moves the camera off the wall by that many metres",
+		"%.2f" % (motion.wall_run_eye_shift if motion != null else -1.0))
+	p.settings.reset_value(&"wall_run_eye_shift_m")
 	for key: StringName in [&"camera_landing_dip", &"camera_strafe_roll", &"camera_wall_lean", &"camera_speed_fov"]:
 		p.settings.set_value(key, 0.0)
 	_check(

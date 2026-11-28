@@ -194,6 +194,12 @@ static func _add_chat_and_comfort(s: GSSettingsSchema) -> void:
 			GSSettingsDef.Scope.ACCOUNT
 		).with_description(CAMERA_MOTION_KEYS[key]))
 
+	# How far the camera moves off a wall you run along, in metres (`FcPlayer.WALL_RUN_EYE_SHIFT_M`
+	# is the default); the Wall-run lean slider scales it. 0 keeps the eye where it was.
+	s.add(GSSettingsDef.number(&"wall_run_eye_shift_m", 0.55, 0.0, 1.5, &"accessibility", 0.05).with_scope(
+		GSSettingsDef.Scope.ACCOUNT
+	).with_description("Metres the view moves away from a wall you run along, so the wall does not fill it."))
+
 	# How far the HUD sits in from the edge of the screen, for a television's overscan or a
 	# phone's notch. DEVICE: it is about this screen. Applied live by `FcClient`.
 	s.add(GSSettingsDef.integer(&"hud_safe_area", 16, 0, 120, &"hud")
@@ -295,7 +301,7 @@ func _on_setting_changed(key: StringName, value: Variant, _why: StringName) -> v
 			_bind_chat(chat_window.team_action if chat_window != null else &"", str(value))
 		&"sensitivity", &"invert_pitch":
 			_apply_look()
-		&"camera_landing_dip", &"camera_strafe_roll", &"camera_wall_lean", &"camera_speed_fov":
+		&"camera_landing_dip", &"camera_strafe_roll", &"camera_wall_lean", &"camera_speed_fov", &"wall_run_eye_shift_m":
 			_apply_camera_motion()
 		&"crosshair":
 			_apply_crosshair()
@@ -325,6 +331,7 @@ func bind_camera_motion(player: Node) -> void:
 func _apply_camera_motion() -> void:
 	if settings == null or _camera_player == null or not is_instance_valid(_camera_player):
 		return
+	_camera_player.wall_run_eye_shift_m = settings.get_float(&"wall_run_eye_shift_m", 0.55)
 	_camera_player.set_camera_motion_scales(
 		settings.get_float(&"camera_landing_dip", 1.0),
 		settings.get_float(&"camera_strafe_roll", 1.0),
