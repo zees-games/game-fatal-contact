@@ -26,9 +26,27 @@ const RECORDED := {
 	&"wall_jump": [&"stock", "landing/landing_light", 1, -4.0, 1.12, 1.2],
 	# A short tick for a hit and a two-note chime for a kill: information, not a noise in the world.
 	# The tick is pitched down to about 0.8 (the recording sounded high and thin to the owner).
-	&"hit_marker": [&"stock", "interface/tick", 3, 0.0, 0.78, 0.84],
-	&"kill_confirmed": [&"stock", "interface/confirm", 2, 0.0, 0.98, 1.02],
+	&"hit_marker": [&"fc", "hit_body", 3, 0.0, 0.94, 1.06],
+	&"hit_head": [&"fc", "hit_head", 1, 0.0, 0.97, 1.03],
+	&"hit_armor": [&"fc", "hit_armor", 1, 0.0, 0.95, 1.05],
+	&"kill_confirmed": [&"fc", "hit_kill", 1, 0.0, 0.97, 1.03],
 	# The medals are spoken: a word says which medal, where a pitched sweep only said "good".
+	&"announce_first_blood": [&"fc", "first_blood", 1, 0.0, 1.0, 1.0],
+	&"announce_double_kill": [&"fc", "double_kill", 1, 0.0, 1.0, 1.0],
+	&"announce_multi_kill": [&"fc", "multi_kill", 1, 0.0, 1.0, 1.0],
+	&"announce_mega_kill": [&"fc", "mega_kill", 1, 0.0, 1.0, 1.0],
+	&"announce_ultra_kill": [&"fc", "ultra_kill", 1, 0.0, 1.0, 1.0],
+	&"announce_monster_kill": [&"fc", "monster_kill", 1, 0.0, 1.0, 1.0],
+	&"announce_killing_spree": [&"fc", "killing_spree", 1, 0.0, 1.0, 1.0],
+	&"announce_rampage": [&"fc", "rampage", 1, 0.0, 1.0, 1.0],
+	&"announce_dominating": [&"fc", "dominating", 1, 0.0, 1.0, 1.0],
+	&"announce_unstoppable": [&"fc", "unstoppable", 1, 0.0, 1.0, 1.0],
+	&"announce_godlike": [&"fc", "godlike", 1, 0.0, 1.0, 1.0],
+	&"announce_headshot": [&"fc", "headshot", 1, 0.0, 1.0, 1.0],
+	&"announce_humiliation": [&"fc", "humiliation", 1, 0.0, 1.0, 1.0],
+	&"announce_flawless_victory": [&"fc", "flawless_victory", 1, 0.0, 1.0, 1.0],
+	&"announce_prepare_to_fight": [&"fc", "prepare_to_fight", 1, 0.0, 1.0, 1.0],
+	&"announce_last_man_standing": [&"fc", "last_man_standing", 1, 0.0, 1.0, 1.0],
 	&"medal_first_blood": [&"stock", "announcer/target_eliminated", 1, 0.0, 1.0, 1.0],
 	&"medal_headshot": [&"stock", "announcer/perfect", 1, 0.0, 1.0, 1.0],
 	&"medal_double_kill": [&"stock", "announcer/combo", 1, 0.0, 1.0, 1.0],
@@ -60,6 +78,8 @@ const RECORDED := {
 
 
 const STOMP_SOUND := &"stomp"
+## Fatal Contact's own generated feedback and announcer audio (tools/make_ui_audio.py).
+const FC_AUDIO_DIR := "res://assets/audio"
 
 
 ## Capture the flag's cues (see on_flag_event) and the medals, with the synthesised voice each
@@ -202,22 +222,7 @@ static func sound_catalogue() -> GSAudioCatalogue:
 
 ## Hit, kill, medal, flag, vote, beacon and body-state cues: flat on the interface bus unless noted.
 static func _add_interface_sounds(c: GSAudioCatalogue) -> void:
-	# Flat, not positional: a hit marker is about your own shot and must not fade with distance.
-	var hit := GSAudioDef.new()
-	hit.id = &"hit_marker"
-	hit.bus = &"UI"
-	hit.cooldown_ms = 60
-	hit.max_concurrent = 2
-	hit.priority = 95
-	c.add(recorded(hit))
-
-	# A hit that killed: the same flat information, longer than the tick.
-	var killed := GSAudioDef.new()
-	killed.id = KILL_CONFIRMED
-	killed.bus = &"UI"
-	killed.max_concurrent = 1
-	killed.priority = 96
-	c.add(recorded(killed))
+	_add_hit_sounds(c)
 
 	# The medals: flat, on the interface bus, one at a time each. Information about your
 	# own kill, like the hit marker; louder than the world so a medal is never lost in it.
@@ -264,6 +269,45 @@ static func _add_interface_sounds(c: GSAudioCatalogue) -> void:
 	spawn.priority = 60
 	c.add(recorded(spawn))
 	_add_vote_sounds(c)
+
+
+## The hit marker, its headshot and armour variants, the kill tick and the announcer's lines.
+static func _add_hit_sounds(c: GSAudioCatalogue) -> void:
+	# Flat, not positional: a hit marker is about your own shot and must not fade with distance.
+	var hit := GSAudioDef.new()
+	hit.id = &"hit_marker"
+	hit.bus = &"UI"
+	hit.cooldown_ms = 60
+	hit.max_concurrent = 2
+	hit.priority = 95
+	c.add(recorded(hit))
+
+	# Headshot and armour hits: the same flat marker with its own low sound.
+	for id in [&"hit_head", &"hit_armor"]:
+		var variant := GSAudioDef.new()
+		variant.id = id
+		variant.bus = &"UI"
+		variant.cooldown_ms = 60
+		variant.max_concurrent = 2
+		variant.priority = 95
+		c.add(recorded(variant))
+
+	# The announcer's spoken lines: one at a time (FcAnnouncer queues), on the interface bus.
+	for line: StringName in FcAnnouncer.LINES:
+		var said := GSAudioDef.new()
+		said.id = FcAnnouncer.sound_id(line)
+		said.bus = &"UI"
+		said.max_concurrent = 1
+		said.priority = 97
+		c.add(recorded(said))
+
+	# A hit that killed: the same flat information, longer than the tick.
+	var killed := GSAudioDef.new()
+	killed.id = KILL_CONFIRMED
+	killed.bus = &"UI"
+	killed.max_concurrent = 1
+	killed.priority = 96
+	c.add(recorded(killed))
 
 
 ## The map vote's cues and the administrator's beacon ping.
@@ -358,6 +402,8 @@ static func recorded_directory(folder: StringName) -> String:
 			return GSAudioWeaponStock.directory()
 		&"toys":
 			return GSPropBodySounds.directory()
+		&"fc":
+			return FC_AUDIO_DIR
 	return GSAudioStock.directory()
 
 
@@ -368,7 +414,11 @@ static func sound_recipes() -> Dictionary:
 	for grenade in GRENADE_BLASTS:
 		if blast_sound_id(grenade) != EXPLOSION:
 			out[blast_sound_id(grenade)] = GSAudioSynth.Voice.BOOM
-	out[KILL_CONFIRMED] = GSAudioSynth.Voice.BLIP
+	out[KILL_CONFIRMED] = GSAudioSynth.Voice.IMPACT
+	out[&"hit_head"] = GSAudioSynth.Voice.IMPACT
+	out[&"hit_armor"] = GSAudioSynth.Voice.IMPACT
+	for line: StringName in FcAnnouncer.LINES:
+		out[FcAnnouncer.sound_id(line)] = GSAudioSynth.Voice.IMPACT
 	out[STOMP_SOUND] = GSAudioSynth.Voice.IMPACT
 	for id in MEDAL_VOICES:
 		out[id] = MEDAL_VOICES[id]
@@ -384,7 +434,7 @@ static func _base_recipes() -> Dictionary:
 		&"fire_rail": GSAudioSynth.Voice.SHOT_TIGHT,
 		&"impact": GSAudioSynth.Voice.IMPACT,
 		EXPLOSION: GSAudioSynth.Voice.BOOM,
-		&"hit_marker": GSAudioSynth.Voice.BLIP,
+		&"hit_marker": GSAudioSynth.Voice.IMPACT,
 		&"hurt": GSAudioSynth.Voice.HURT,
 		&"died": GSAudioSynth.Voice.DIE,
 		&"spawned": GSAudioSynth.Voice.SPAWN,

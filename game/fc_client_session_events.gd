@@ -209,6 +209,8 @@ func _on_match(info: Dictionary) -> void:
 
 	var was := game.match_node.state
 	game.match_node.state = int(info["state"]) as GSMatch.State
+	if presentation != null and was != game.match_node.state:
+		presentation.on_match_phase(game.match_node.state == GSMatch.State.LIVE, game.match_node.state == GSMatch.State.MATCH_END)
 	game.match_node.round_number = int(info["round"])
 
 	# The end of the match: the scoreboard comes up by itself, and the notice line names
@@ -704,41 +706,7 @@ func _start_offline() -> void:
 	game.start(0)
 	_start_solo_workbench()
 
-	# Offline this game is the authority, so the confirmations come off it directly; the
-	# same handlers a server's HIT, AWARD and KILL reach. The feed is the HUD's own
-	# `player_killed` connection, so this one leaves the feed alone.
-	game.hit_confirmed.connect(
-		func(attacker: int, victim: int, amount: float, point: Vector3, headshot: bool, lethal: bool) -> void:
-			if player != null and attacker == player.player_id:
-				_on_hit({
-					"victim_id": victim, "amount": amount, "point": point,
-					"headshot": headshot, "lethal": lethal,
-				})
-	)
-	game.stomped.connect(
-		func(_a: int, _v: int, _s: float, point: Vector3, sound: StringName, effect: StringName) -> void:
-			_on_stomp({"point": point, "sound": String(sound), "effect": String(effect)})
-	)
-	game.grenade_effect.connect(_on_grenade_fx)
-	game.medals_awarded.connect(
-		func(killer: int, victim: int, medals: Array, points: int, streak: int) -> void:
-			_on_award({
-				"killer_id": killer, "victim_id": victim, "medals": medals,
-				"points": points, "streak": streak,
-			})
-	)
-	game.player_killed.connect(func(entry: GSKillFeed.Entry) -> void:
-		if hud != null:
-			hud.note_kill(
-				{
-					"killer_id": int(entry.killer_key) if entry.killer_key.is_valid_int() else 0,
-					"victim_id": int(entry.victim_key) if entry.victim_key.is_valid_int() else 0,
-					"weapon": FcHud.cause_label(entry.cause),
-				},
-				player.player_id if player != null else 0,
-				entry.killer_name
-			)
-	)
+	_connect_offline_confirmations()
 
 	# [b]Named as ours BEFORE it exists.[/b] `add_player` emits `player_added`
 	# synchronously, and `_on_player_added` gives every player it does not recognise as

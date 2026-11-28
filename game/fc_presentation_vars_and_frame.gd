@@ -544,13 +544,6 @@ func on_vote_cue(id: StringName) -> int:
 	return audio.play(id)
 
 
-## The server confirmed a hit: the tick, or the heavier kill sound when it was lethal.
-func on_hit_confirmed(lethal: bool = false) -> void:
-	if audio == null:
-		return
-	var _v := audio.play(KILL_CONFIRMED if lethal else &"hit_marker")
-
-
 ## The server confirmed a hit on [param victim]: blood on the surface behind it, seen from [param eye].
 func on_body_hit(victim: int, point: Vector3, eye: Vector3) -> void:
 	var _splat := blood.on_body_hit(victim, point, eye)
@@ -561,6 +554,9 @@ func on_medals(medals: Array) -> void:
 	if audio == null:
 		return
 	for i in range(medals.size()):
+		# The announcer's lines (first blood, headshot, the multi kills) replace these medals' own cues.
+		if ANNOUNCED_MEDALS.has(int(medals[i])):
+			continue
 		var id := FcAwards.medal_sound(int(medals[i]))
 		if i == 0 or not is_inside_tree():
 			var _v := audio.play(id)
@@ -615,6 +611,7 @@ const DEATH_BURST_AHEAD := 1.5
 
 func on_died(where: Transform3D) -> void:
 	audio.play(&"died")
+	announcer.on_own_death()
 	# Read at the moment of the death, so the setting needs no apply step. Only the blood is
 	# gated: bullet holes are not gore.
 	if settings.get_bool(&"gore", true):

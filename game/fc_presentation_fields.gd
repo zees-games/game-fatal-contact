@@ -64,6 +64,8 @@ var settings: GSSettingsManager = null
 
 
 var audio: GSAudioManager = null
+## Which announcer line an event earns and when it may play (read from the announce_* settings).
+var announcer := FcAnnouncer.new()
 
 
 ## Everybody's footsteps by surface and a bed per map: gs-audio's stock (Kenney's footsteps
@@ -261,7 +263,45 @@ func _fit_chat() -> void:
 	fit_chat_screen(_chat_screen, frame)
 
 
+const ANNOUNCED_MEDALS: Array[int] = [
+	FcAwards.Medal.FIRST_BLOOD, FcAwards.Medal.HEADSHOT, FcAwards.Medal.DOUBLE_KILL,
+	FcAwards.Medal.TRIPLE_KILL, FcAwards.Medal.MULTI_KILL,
+]
+
+
+## The server confirmed a hit: the tick, or the heavier kill sound when it was lethal.
+func on_hit_confirmed(lethal: bool = false, headshot: bool = false, armored: bool = false) -> void:
+	if audio == null:
+		return
+	var id := &"hit_marker"
+	if lethal:
+		id = KILL_CONFIRMED
+	elif headshot:
+		id = &"hit_head"
+	elif armored:
+		id = &"hit_armor"
+	var _v := audio.play(id)
+
+
+## You killed somebody: the announcer's streak, multi-kill, first blood and headshot lines.
+## [param streak] is your unbroken count including this kill (the AWARD event's own field).
+func on_own_kill(streak: int, medals: Array) -> void:
+	announcer.on_own_kill(
+		Time.get_ticks_msec() * 0.001, streak,
+		medals.has(FcAwards.Medal.HEADSHOT), medals.has(FcAwards.Medal.FIRST_BLOOD)
+	)
+
+
+## The round went live or the match ended: "prepare to fight", "flawless victory".
+func on_match_phase(live: bool, match_end: bool) -> void:
+	announcer.on_phase(Time.get_ticks_msec() * 0.001, live, match_end)
+
+
 func _process(_delta: float) -> void:
+	if announcer.pending() > 0 and audio != null:
+		var said := announcer.next_line(Time.get_ticks_msec() * 0.001)
+		if said != &"":
+			var _v := audio.play(FcAnnouncer.sound_id(said))
 	if not _shot_queue.is_empty():
 		_shot_slice()
 	elif not _bake_ids.is_empty():

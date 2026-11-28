@@ -161,5 +161,14 @@
   "author": "cyklon698; celestialghost8; Zane Little Music",
   "url": "https://opengameart.org/content/alien-blaster",
   "title": "Alien Blaster (cyklon698), Laser weapon burst fire (celestialghost8, https://opengameart.org/content/laser-weapon-burst-fire), Theremin Laser SFX (Zane Little Music, https://opengameart.org/content/theremin-laser-sfx); all CC0"
+ },
+ {
+  "paths": [
+   "assets/audio"
+  ],
+  "licence": "MIT",
+  "author": "Fatal Contact contributors",
+  "url": "https://github.com/zees-games/game-fatal-contact/blob/main/tools/make_ui_audio.py",
+  "title": "Generated UI, hit and announcer audio (synthesised by tools/make_ui_audio.py; announcer voice is the flite rms text-to-speech voice, BSD-style licence, https://github.com/festvox/flite; no third-party recordings)"
  }
 ]
