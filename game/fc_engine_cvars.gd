@@ -102,6 +102,12 @@ func _add_motor_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			(GSFpsNetSync as Script).set(&"native_pack", new_value.to_float() >= 0.5))
+	# By name: a no-op against a gs-net older than API 29 or a gs-sim core without submit_peers_interest.
+	add_cvar("sv_net_submit_batch", "0" if (GSNetConfig as Script).get(&"native_submit_batch") == false else "1",
+		"1: the server hands every peer's snapshot build to gs-sim's net core in one call per snapshot (the same bytes); 0: one call per peer. Without the library it is script either way",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			(GSNetConfig as Script).set(&"native_submit_batch", new_value.to_float() >= 0.5))
 	# The controller's direct reads: FcPlayer.body_delta's state columns and, by name (gs-player-controller 44),
 	# GSFpsController.direct_getters for its collider sizing. A no-op on builds without either.
 	add_cvar("ctl_native", "1" if FcPlayer.body_cols else "0",

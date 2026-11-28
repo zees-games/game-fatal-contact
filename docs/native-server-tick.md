@@ -7,7 +7,7 @@ The FC server tick runs in six phases. Each phase has a gs-sim (Rust) path and a
 | motor | `motor_native`, `sv_native_motor_state`, `motor_native_tick`, `motor_native_full`, `fc_hull_native`, `fc_posture_native`, `fc_mechanics_native`, `fc_tick_events` |
 | bots | `bot_native*`, `fc_bot_pvs_native`, `fc_hull_grid_native` |
 | shots | `sv_native_shots`, `sv_native_unlag` |
-| snapshots | `net_pack_native`, `sv_net_pull_*native`, `sv_native_snapshots`, `sv_net_pull_batch` |
+| snapshots | `net_pack_native`, `sv_net_pull_*native`, `sv_native_snapshots`, `sv_net_pull_batch`, `sv_net_submit_batch` (every peer's snapshot build handed to gs-sim's net core in one call, gs-net 29) |
 
 ## Activity column (`sv_native_activity`)
 

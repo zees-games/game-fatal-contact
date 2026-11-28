@@ -24,7 +24,7 @@ const PHASES: Array[Dictionary] = [
 		"classes": ["GSSimShots", "GSSimUnlagRing"], "methods": []},
 	{"id": "snapshots", "cvars": ["net_pack_native", "sv_net_pull_native", "sv_net_pull_weapons_native",
 		"sv_net_pull_content_native", "sv_native_snapshots", "sv_net_pull_apply_native", "sv_net_pull_batch",
-			"sv_net_pull_rest_native"],
+			"sv_net_pull_rest_native", "sv_net_submit_batch"],
 		"classes": ["GSSimFpsNetPack", "GSSimSnapshotCodec"], "methods": []},
 ]
 
