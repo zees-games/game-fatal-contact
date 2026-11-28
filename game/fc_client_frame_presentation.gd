@@ -145,7 +145,11 @@ func _drive_spectator_camera() -> void:
 
 	var id := player.player_id
 
-	if not game.spectate.is_spectating(str(id)):
+	# A networked client hears the KILL event (reliable channel) up to a snapshot before the state that
+	# says the player died: spectating starts while this player is still alive and drawn. The view stays
+	# the player's until the state agrees; otherwise one frame shows the death camera over a living body
+	# and the next the corpse (hosted_view's 0.78 m / 82 deg frame, idle under a bot's fire).
+	if not game.spectate.is_spectating(str(id)) or player.is_alive():
 		if hud != null:
 			hud.roam_hint = ""
 		FcWeaponDropWiring.update_panel(self, _held(FcBindings.USE), get_process_delta_time())

@@ -568,6 +568,10 @@ static var _crowd_planes: Array[Plane] = []
 ## ([method present_crowd]): it keeps every body's frame count between frames and hands back only the bodies to present, so a
 ## skipped body costs no script call at all. Off, or with an older library, each body thins itself ([method present_lod_coded]).
 static var present_schedule_native: bool = true
+## `cl_remote_gather_native`: with [member present_native], gs-sim reads every body's position and own-view mark itself
+## (`GSSimPresentLod.classify_nodes`) instead of a script loop over the crowd. Same codes and ids; off, or with a library
+## that lacks it, the script gathers.
+static var gather_native: bool = true
 ## One id per body of the last [method classify_crowd]: its instance id, 0 for the viewer's own (never thinned).
 static var _crowd_ids := PackedInt64Array()
 static var _crowd_hidden := PackedInt32Array()
@@ -585,6 +589,15 @@ static func classify_crowd(bodies: Array, eye: Vector3, forward: Vector3, frustu
 		if not GSSim.has(&"present"):
 			return PackedInt32Array()
 		_crowd_lod = ClassDB.instantiate(&"GSSimPresentLod")
+	_crowd_planes.assign(frustum)
+	var range2 := figure_draw_range * figure_draw_range if figure_draw_range > 0.0 else 0.0
+	var settings := PackedFloat64Array([
+		LOD_NEAR * LOD_NEAR, LOD_CONE, LOD_RADIUS, _lod_farthest2, _lod_far2, _anim_far2, _anim_near2, range2,
+		1.0 if lod_frustum and not frustum.is_empty() else 0.0, 1.0 if occlusion_enabled else 0.0])
+	if gather_native and _crowd_lod.has_method(&"classify_nodes"):
+		var codes: PackedInt32Array = _crowd_lod.classify_nodes(bodies, eye, forward, _crowd_planes, settings)
+		_crowd_ids = _crowd_lod.gathered_ids()
+		return codes
 	var n := bodies.size()
 	_crowd_positions.resize(n)
 	_crowd_ids.resize(n)
@@ -592,11 +605,7 @@ static func classify_crowd(bodies: Array, eye: Vector3, forward: Vector3, frustu
 		var body: Node3D = bodies[i]
 		_crowd_positions[i] = body.global_position
 		_crowd_ids[i] = 0 if body.get(&"camera") != null else body.get_instance_id()
-	_crowd_planes.assign(frustum)
-	var range2 := figure_draw_range * figure_draw_range if figure_draw_range > 0.0 else 0.0
-	return _crowd_lod.classify(_crowd_positions, eye, forward, _crowd_planes, PackedFloat64Array([
-		LOD_NEAR * LOD_NEAR, LOD_CONE, LOD_RADIUS, _lod_farthest2, _lod_far2, _anim_far2, _anim_near2, range2,
-		1.0 if lod_frustum and not frustum.is_empty() else 0.0, 1.0 if occlusion_enabled else 0.0]))
+	return _crowd_lod.classify(_crowd_positions, eye, forward, _crowd_planes, settings)
 
 ## Presents this frame's crowd by the codes [method classify_crowd] just made for the same [param bodies], thinned in gs-sim exactly as each
 ## body's [method present_lod_coded] would. Returns false, having presented nothing, when the native thinning is off or absent or remote
