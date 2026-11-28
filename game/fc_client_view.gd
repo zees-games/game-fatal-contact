@@ -554,7 +554,8 @@ func _attach_open() -> bool:
 ## A `gs_pointer_modal` node (gs-ui's ballot) that has freed the mouse; a click must not recapture it.
 func _pointer_modal_up() -> bool:
 	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
+	# Asked several times a frame; with no ballot in the tree (nearly always) no group array is built.
+	if tree == null or not tree.has_group(&"gs_pointer_modal"):
 		return false
 	for node in tree.get_nodes_in_group(&"gs_pointer_modal"):
 		if node.has_method(&"is_pointer_mode") and bool(node.call(&"is_pointer_mode")):

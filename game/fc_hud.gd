@@ -422,10 +422,12 @@ func present_portraits() -> void:
 
 ## Health, ammunition, the carried weapons and the key hints, from the followed player.
 func present_gear() -> void:
-	var live := _live() and player.is_alive()
+	var shown := _live()
+	var live := shown and player.is_alive()
+	var touch := GSPlatform.has_touch()
 	if vitals != null:
-		vitals.visible = _live()
-		if _live() and player.health != null:
+		vitals.visible = shown
+		if shown and player.health != null:
 			vitals.show_vitals(player.health.health, player.health.max_health, player.health.armour, player.health.max_armour)
 
 	var slot: GSWeaponSlot = player.arsenal.current() if live and player.arsenal != null else null
@@ -454,21 +456,18 @@ func present_gear() -> void:
 	var key_sig := keys.hash()
 	if slots != null:
 		# On a phone the right edge belongs to Fire, Jump and Next; the held weapon is on the ammunition plate.
-		slots.visible = not GSPlatform.has_touch() and not _scope_full
+		slots.visible = not touch and not _scope_full
 		var arsenal: GSWeaponArsenal = player.arsenal if live else null
 		var row_sig := _sig_mix(_sig_mix(key_sig, int(live)), arsenal.get_instance_id() if arsenal != null else 0)
 		if arsenal != null:
-			row_sig = _sig_mix(row_sig, arsenal.current_slot())
-			for index in arsenal.slots():
-				var held := arsenal.slot_at(index)
-				row_sig = _sig_mix(_sig_mix(row_sig, index), held.def.get_instance_id() if held != null and held.def != null else 0)
+			row_sig = _sig_mix(_sig_mix(row_sig, arsenal.current_slot()), _carried_sig(arsenal))
 		if row_sig != _rows_sig:
 			_rows_sig = row_sig
 			_present_slots(live)
 
 	if hints != null:
 		# Keyboard keys mean nothing on a phone, and the list covers the view there.
-		hints.visible = live and not GSPlatform.has_touch() and _hints_wanted()
+		hints.visible = live and not touch and _hints_wanted()
 		var shown_mode: FcMode = game.displayed_mode() if game != null else null
 		var arms := shown_mode != null and shown_mode.arms_players()
 		var hint_sig := _sig_mix(_sig_mix(key_sig, int(shown_mode == null)), int(arms))
@@ -494,6 +493,33 @@ func _hints_wanted() -> bool:
 		_hints_since_msec = Time.get_ticks_msec()
 	return hint_seconds <= 0.0 or float(Time.get_ticks_msec() - _hints_since_msec) / 1000.0 < hint_seconds
 
+
+## The carried weapons as one integer (slot index and definition per row). An arsenal with `revision()` (gs_weapon 51)
+## bumps it on every give, take, drop and refit, so the walk over its slots runs only after one; an older arsenal is
+## walked every call, as before.
+func _carried_sig(arsenal: GSWeaponArsenal) -> int:
+	var revision := -1
+	if arsenal != _carried_arsenal:
+		_carried_arsenal = arsenal
+		_carried_versioned = arsenal.has_method(&"revision")  # perf-lint: allow dynamic_call probed once per arsenal
+		_carried_rev = -1
+	if _carried_versioned:
+		revision = arsenal.call(&"revision")  # perf-lint: allow dynamic_call gs_weapon 51 API behind the probe above
+		if revision == _carried_rev:
+			return _carried_value
+	var sig := 0
+	for index in arsenal.slots():
+		var held := arsenal.slot_at(index)
+		sig = _sig_mix(_sig_mix(sig, index), held.def.get_instance_id() if held != null and held.def != null else 0)
+	_carried_rev = revision
+	_carried_value = sig
+	return sig
+
+
+var _carried_arsenal: GSWeaponArsenal = null
+var _carried_versioned := false
+var _carried_rev := -1
+var _carried_value := 0
 
 ## The signatures of what the slot rows and the key hints last showed ([method present_gear]); -1 forces a rebuild.
 var _rows_sig := -1
@@ -681,7 +707,10 @@ func _present_points(live: bool) -> void:
 	if live and game != null and game.drops != null:
 		count = int(game.drops.points.get(player.player_id, 0))
 	points_label.visible = count > 0
-	points_label.text = points_text(count)
+	# The text is built only when the count moves (or the label is new), not a string a frame.
+	if count != _points_shown or points_label.text == "":
+		_points_shown = count
+		points_label.text = points_text(count)  # perf-lint: allow string_build only when the count changes
 
 	if app_points_label == null:
 		app_points_label = _make_label("AppPoints", Control.PRESET_TOP_LEFT, FcHudAppPoints.OFFSET)
@@ -699,6 +728,10 @@ func _present_points(live: bool) -> void:
 	_points_seen = count
 
 
+## The count [method _present_points] last wrote into its label.
+var _points_shown := -1
+
+
 ## The key a prompt names; none on a touch device, which has no keyboard.
 func _key_label(action: StringName) -> String:
 	return "" if GSPlatform.has_touch() else String(keys[action])
@@ -710,31 +743,51 @@ func _key_label(action: StringName) -> String:
 func present_abilities(state: GSFpsState, tunables: GSFpsTunables) -> void:
 	if abilities == null:
 		return
-	var buttons: Array[Dictionary] = []
+	# Two buffers of reused rows: the bar keeps the one it last took (and compares the next against it), so the rows
+	# are written into the other and no array or row is allocated a frame.
+	var buttons: Array[Dictionary] = _ability_rows_b if is_same(abilities.buttons, _ability_rows_a) else _ability_rows_a
+	var count := 0
 	if state != null and tunables != null:
 		if tunables.slide_enabled:
-			buttons.append(_button(&"slide", "Slide", state.slide_cooldown_left, tunables.slide_cooldown, state.is_sliding()))
+			_button(buttons, count, &"slide", "Slide", state.slide_cooldown_left, tunables.slide_cooldown, state.is_sliding())
+			count += 1
 		if tunables.launch_enabled:
-			buttons.append(_button(&"launch", "Launch", state.launch_cooldown_left, tunables.launch_cooldown, false))
+			_button(buttons, count, &"launch", "Launch", state.launch_cooldown_left, tunables.launch_cooldown, false)
+			count += 1
 		if tunables.dash_enabled:
-			buttons.append(_button(&"dash", "Dash", state.dash_cooldown_left, tunables.dash_cooldown, false))
+			_button(buttons, count, &"dash", "Dash", state.dash_cooldown_left, tunables.dash_cooldown, false)
+			count += 1
 		if tunables.wall_jump_enabled:
-			var b := _button(&"wall_jump", "Wall jump", 0.0, 0.0, state.is_wall_running())
+			var b := _button(buttons, count, &"wall_jump", "Wall jump", 0.0, 0.0, state.is_wall_running())
 			b["key"] = keys[&"jump"]
 			b["pips_max"] = tunables.wall_jump_max_per_air
 			b["pips"] = maxi(0, tunables.wall_jump_max_per_air - state.wall_jumps_in_air)
-			buttons.append(b)
+			count += 1
+	buttons.resize(count)
 	# The full-screen scope is the whole picture: the ability tiles would sit on its black surround.
 	abilities.visible = not buttons.is_empty() and not _scope_full
 	abilities.show_buttons(buttons)
 
 
-func _button(id: StringName, label: String, left: float, total: float, active: bool) -> Dictionary:
-	return {
-		"id": id, "label": label, "key": str(keys.get(id, "")), "left": maxf(left, 0.0), "total": total,
-		"active": active, "icon": _ability_icon(id),
-	}
+## Fills row `index` of `rows` (grown with a new row the first time only) with one ability button and returns it.
+func _button(rows: Array[Dictionary], index: int, id: StringName, label: String, left: float, total: float, active: bool) -> Dictionary:
+	if index >= rows.size():
+		rows.append({})  # perf-lint: allow alloc once per row a buffer ever holds
+	var b := rows[index]
+	b.clear()
+	b["id"] = id
+	b["label"] = label
+	b["key"] = str(keys.get(id, ""))
+	b["left"] = maxf(left, 0.0)
+	b["total"] = total
+	b["active"] = active
+	b["icon"] = _ability_icon(id)
+	return b
 
+
+## The two row buffers [method present_abilities] alternates between.
+var _ability_rows_a: Array[Dictionary] = []
+var _ability_rows_b: Array[Dictionary] = []
 
 ## Each ability's icon, looked up once: the buttons are rebuilt every frame, the path is not.
 var _ability_icons: Dictionary[StringName, Texture2D] = {}

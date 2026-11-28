@@ -79,19 +79,19 @@ var kept: int = 0
 var discarded: int = 0
 var harvested: int = 0
 ## Why stretches were thrown away: reason -> count.
-var why_not: Dictionary = {}
+var why_not: Dictionary[String, int] = {}
 
-var _tracks: Dictionary = {}
+var _tracks: Dictionary[int, Track] = {}
 var _courses: Dictionary = {}
-var _floors: Dictionary = {}
+var _floors: Dictionary[int, int] = {}
 var _replay_course: ReplayCourse = null
 var _sim: GSFpsSimulator = null
-var _dirty: Dictionary = {}
+var _dirty: Dictionary[String, bool] = {}
 var _job: GSBotRideHarvestJob = null
 var _job_key: String = ""
 var _job_loaded: Array = []
 var _busy: bool = false
-var _edge_keys: Dictionary = {}
+var _edge_keys: Dictionary[int, String] = {}
 ## Ride key -> the course of the first attached edge with that key, so the harvest judges and steers a recording on the course a bot rides it on.
 var _edge_courses: Dictionary = {}
 var _attached: bool = false
