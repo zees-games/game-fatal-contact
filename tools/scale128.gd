@@ -46,6 +46,13 @@ class Sentinel extends Node:
 
 
 var _t0 := 0
+var _step_frame := -1
+var _step_start := 0
+var _step_script := 0.0
+var _steps_in_frame := 0
+var _engine_us := PackedFloat64Array()
+## Frames by how many physics steps each ran (index 8 is 8 or more).
+var _steps_hist := PackedInt64Array([0, 0, 0, 0, 0, 0, 0, 0, 0])
 ## --nodeprobe: a stamp after each physics-processing node; each spike tick keeps the gap ending at each stamp.
 var _stamps: Array = []
 
@@ -63,6 +70,20 @@ func _sentinel(is_start: bool) -> void:
 		return
 	var now := Time.get_ticks_usec()
 	if is_start:
+		# Engine time per step, read off two steps run back to back inside one frame (a catch-up):
+		# the gap between their starts less the first one's script half is the work the engine did
+		# between them (physics server step, transform flush, queries). TIME_PHYSICS_PROCESS is the
+		# worst step of the previous frame, script included, so it cannot be split this way.
+		var frame := Engine.get_process_frames()
+		if frame == _step_frame and _step_start > 0:
+			_engine_us.append(float(now - _step_start) - _step_script)
+			_steps_in_frame += 1
+		else:
+			if _step_frame >= 0:
+				_steps_hist[mini(_steps_in_frame, 8)] += 1
+			_steps_in_frame = 1
+		_step_frame = frame
+		_step_start = now
 		if _cellab > 0 and _count > 0 and _count % _cellab == 0:
 			_ab_flip()
 		_t0 = now
@@ -73,6 +94,7 @@ func _sentinel(is_start: bool) -> void:
 			_spike_open(now)
 	else:
 		_script_us.append(float(now - _t0))
+		_step_script = float(now - _t0)
 		if _spikes:
 			_spike_close(now - _t0)
 		if _cellab > 0:
@@ -362,6 +384,15 @@ func _sections_ms(ticks: int) -> Dictionary:
 	return out
 
 
+func _section_sum(keys: Array[StringName]) -> float:
+	var total := 0.0
+	for k in keys:
+		var row: Variant = FcFrameProbe._sections.get(k)
+		if row is PackedInt64Array:
+			total += float((row as PackedInt64Array)[0])
+	return total
+
+
 func _report(extra: Dictionary) -> void:
 	var wall := (Time.get_ticks_usec() - _t_start) / 1.0e6
 	var budget_ms := 1000.0 / _tick
@@ -371,12 +402,19 @@ func _report(extra: Dictionary) -> void:
 		"wall_s": snappedf(wall, 0.1), "ticks": _count, "ticks_per_s": snappedf(_count / wall, 0.1),
 		"tick_ratio": snappedf(_count / wall / _tick, 0.001),
 		"script_ms": script, "physics_frame_ms": _stats(_phys_ms),
+		# Biased high under load: TIME_PHYSICS_PROCESS is the previous frame's worst step, script included, so a frame of
+		# catch-up steps less the mean script half reads as engine time (64 bots: 7-22 ms here, 0.08 ms per step measured).
+		# engine_step_ms below is the engine's own time between two steps of one frame.
 		"engine_ms_mean": snappedf(float(_stats(_phys_ms).get("mean", 0.0)) - float(script.get("mean", 0.0)), 0.001),
 		"per_actor_us": snappedf(float(script.get("mean", 0.0)) * 1000.0 / maxi(1, _bots), 0.1),
 		"mem_static_mb": snappedf(Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, 0.1),
 		"rss_mb": _rss_mb(), "nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
 		"objects": int(Performance.get_monitor(Performance.OBJECT_COUNT)),
 		"sections": _sections_ms(_count),
+		"engine_step_ms": _stats(_engine_us, 0.001), "steps_per_frame_hist": _steps_hist,
+		"phys3d": {"active": int(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS)),
+			"pairs": int(Performance.get_monitor(Performance.PHYSICS_3D_COLLISION_PAIRS)),
+			"islands": int(Performance.get_monitor(Performance.PHYSICS_3D_ISLAND_COUNT))},
 		"verdict_holds": float(script.get("mean", 99999.0)) < 0.7 * budget_ms and float(script.get("p95", 99999.0)) < budget_ms and _count / wall / _tick > 0.97,
 	}
 	out["bot_threads"] = FcBotThreads.threads
@@ -519,6 +557,10 @@ func _begin_record() -> void:
 	_script_us.clear()
 	_phys_ms.clear()
 	_gap_ms.clear()
+	_engine_us.clear()
+	_steps_hist.fill(0)
+	_step_frame = -1
+	_step_start = 0
 	_worst.clear()
 	_last_start = 0
 	_count = 0
@@ -610,12 +652,17 @@ func _serve() -> void:
 	_report({
 		"alive": alive, "bots_made": made, "engine_hz": Engine.physics_ticks_per_second, "players": game.players().size(), "add_bots_ms": snappedf(add_ms, 0.1),
 		"net_sim_ms_per_tick": snappedf((int(after[&"server_sim_usec"]) - int(before[&"server_sim_usec"])) / 1000.0 / nt, 0.001),
+		# net_sim less the FC sections inside it (the bots' commands, the game's tick, the kill view, the toy and player
+		# pulls): what the server tick spends in no section. Needs --fine 1 for srv_netpull to be timed.
+		"net_sim_unsectioned_ms": snappedf((int(after[&"server_sim_usec"]) - int(before[&"server_sim_usec"])) / 1000.0 / nt
+			- _section_sum([&"srv_bots", &"srv_game", &"srv_killview", &"srv_pulls", &"srv_netpull"]) / 1000.0 / maxi(1, _count), 0.001),
 		"net_send_ms_per_tick": snappedf((int(after[&"server_send_usec"]) - int(before[&"server_send_usec"])) / 1000.0 / nt, 0.001),
 		"net_ticks": nt, "snapshot_every_ticks": net.config.ticks_per_snapshot(),
 		"snapshot_hz": net.config.snapshot_rate, "entities": net.registry.all().size(),
 		# Whether gs-sim's hitscan spread tick is loaded: false with a gs-sim build older than its weapon module, where
 		# every weapon tick runs the GDScript fallback (--weapab toggles GSWeaponHitscan.native_tick on top of this).
 		"weapon_native_loaded": ClassDB.class_exists(&"GSSimWeaponSpread"),
+		"census": _census(game, null),
 	})
 	get_tree().quit()
 
