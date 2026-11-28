@@ -2,6 +2,8 @@ extends "fc_map_imported.gd"
 
 const FcLoadTimeline := preload("../game/fc_load_timeline.gd")
 const FcFrameProbe := preload("../game/fc_frame_probe.gd")
+## The default per-frame budget in ms for making the painter's photo materials ahead (`cl_warm_frame_ms` overrides; 0 = unlimited).
+const PAINT_FRAME_MS := 12.0
 
 ## One box as a static body, with a mesh when there is a material to draw it with.
 ##
@@ -125,6 +127,10 @@ func to_scene_async(slice: GSFrameSlice) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Level"
 	var painter := FcMapPaint.Painter.new()
+	# Made in the frame the first box asked, the floor's and boxes' photo materials (their textures and shaders) were one
+	# 104-124 ms frame on staging; made ahead, a few a frame, the boxes below find them in the cache.
+	var frames: int = await painter.prepare_async(FcMapPaint.photo_wanted(self), Engine.get_main_loop() as SceneTree, FcFrameProbe.warm_frame_ms(PAINT_FRAME_MS))
+	FcLoadTimeline.mark("level: materials made over %d frames" % frames)
 	root.add_child(_level_floor(painter, bake_floor))
 	for index in range(boxes.size()):
 		if slice.due():

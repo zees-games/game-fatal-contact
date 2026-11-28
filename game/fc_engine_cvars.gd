@@ -7,9 +7,12 @@ const FcBotBrain := preload("fc_bot_brain.gd")
 const FcBotThreads := preload("fc_bot_threads.gd")
 const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
+const FcNativeTick := preload("fc_native_tick.gd")
 const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
+const FcBotContacts := preload("fc_bot_contacts.gd")
+const FcBotThinkMt := preload("fc_bot_think_mt.gd")
 const FcSpawnPick := preload("fc_spawn_pick.gd")
 const FcWeaponTickCvars := preload("fc_weapon_tick_cvars.gd")
 const FcWeaponDropWiring := preload("fc_weapon_drop_wiring.gd")
@@ -68,7 +71,43 @@ func _add_bot_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotRows.set_native_think(new_value.to_float() >= 0.5))
+	_add_bot_contact_cvars()
 	_add_motor_engine_cvars()
+
+
+## The bots' main-thread refresh in gs-sim: the contact build, its table and the threaded perceive pass.
+func _add_bot_contact_cvars() -> void:
+	add_cvar("bot_native_refresh", "1",
+		"1: the bots' main-thread refresh runs in gs-sim where its library has it: the contacts (with bot_native_contacts) and the hearing (GSSimBotContacts, GSSimBotMind.hear; the same match to the bit, warned once when a half is missing); 0: both in script, whatever bot_native_contacts says",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.set_native_refresh(new_value.to_float() >= 0.5))
+	add_cvar("bot_native_contacts", "1",
+		"1: the bots' worlds build their contacts and sight rows in gs-sim when its library has them (GSSimBotContacts; the same contacts to the bit, one call a tick); 0, or without the library: the script loop",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.enabled = new_value.to_float() >= 0.5)
+	add_cvar("bot_native_contacts_delta", "1",
+		"1: gs-sim's contact build writes the fields a player keeps from tick to tick (heights, alive, team, motion flags, health) only when they change (GSSimBotContacts.fill_changed; the same contacts to the bit, fewer property writes); 0: every field every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.delta = new_value.to_float() >= 0.5)
+	add_cvar("bot_native_contact_arms", "1",
+		"1: gs-sim's contact build also writes each contact's weapon in hand (weapon_class, magazine) from interned classes, one call a tick (GSSimBotContacts.fill_arms; the same values to the bit); 0, or a gs-sim without fill_arms: one script call and two writes per player",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.arms = new_value.to_float() >= 0.5)
+	add_cvar("bot_contact_table", "1",
+		"1: gs-sim fills the bots' contacts as one packed table (GSBotContactTable, gs-bot 44; the same decisions, a contact object written only when read); 0, or a gs-sim without fill_table: it writes every contact object every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotContacts.table = new_value.to_float() >= 0.5
+			GSBotWorld.table_enabled = FcBotContacts.table)
+	add_cvar("bot_native_think_mt", "1",
+		"1: with bot_threads on, gs-sim perceives for every threaded bot at once on its own threads before the brains start (GSSimBotThinkMt, gs-bot 53; the same choices to the bit); 0: each brain perceives on its worker",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotThinkMt.on = new_value.to_float() >= 0.5)
 
 
 ## The players' movement, ragdoll, net-pack and controller switches, and the client's carry check.
@@ -140,11 +179,12 @@ func _add_hull_and_pvs_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcHullGrid.native = new_value.to_float() >= 0.5)
-	add_cvar("fc_motor_batch", "1" if FcHullGrid.batch else "0",
-		"1: with fc_hull_native, gs-sim ticks the players' motors in runs of one call a game tick (same states); 0: one call per player",
+	add_cvar("fc_hull_grid_native", "1" if FcHullGrid.grid_native else "0",
+		"1: with fc_hull_native, the players are filed in gs-sim's hull world cells (same hulls, one call a turn); 0: by script",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
-			FcHullGrid.batch = new_value.to_float() >= 0.5)
+			FcHullGrid.grid_native = new_value.to_float() >= 0.5)
+	_add_motor_tick_cvars()
 	add_cvar("fc_bot_pvs", "1" if FcBotPvs.enabled else "0",
 		"1: a bot's sight ray is skipped where the map's PVS rules the pair out (same answers: those rays come back blocked); 0: every ray is cast",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
@@ -181,3 +221,30 @@ func _add_hull_and_pvs_cvars() -> void:
 		0).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBotPvs.verify = new_value.to_float() >= 0.5)
+
+
+## The players' batched motors, their edge table and the native player tick (split out of the hull cvars for length).
+func _add_motor_tick_cvars() -> void:
+	add_cvar("fc_motor_batch", "1" if FcHullGrid.batch else "0",
+		"1: with fc_hull_native, gs-sim ticks the players' motors in runs of one call a game tick (same states); 0: one call per player",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcHullGrid.batch = new_value.to_float() >= 0.5)
+	add_cvar("fc_tick_events", "0" if not FcHullGrid.events else ("2" if GSFpsTickEvents.native_enabled else "1"),
+		"2: with fc_motor_batch, the players' motor edges are one table gs-sim derives after the loop; 1: the same table derived by script; 0: each player's edges inside its own tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(2.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			var level := new_value.to_float()
+			FcHullGrid.events = level >= 0.5
+			GSFpsTickEvents.native_enabled = level >= 1.5)
+	add_cvar("sv_native_motor_state", "1" if GSFpsMotorBatch.native_state else "0",
+		"1: with fc_motor_batch, each player's motor state stays in gs-sim across ticks, only script writes are sent, and gs-sim's server tick steps the player table once a tick (same states); 0: the script loop alone, every column sent each tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			GSFpsMotorBatch.native_state = new_value.to_float() >= 0.5
+			FcNativeTick.enabled = GSFpsMotorBatch.native_state)
+	add_cvar("sv_native_players", "1" if FcNativeTick.players else "0",
+		"1: with fc_motor_batch and fc_tick_events, every player's controller tick is one gs-player-controller call (same states and edges); 0: the players' loop's own two passes",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcNativeTick.players = new_value.to_float() >= 0.5)

@@ -9,10 +9,9 @@ const Roles := preload("../game/fc_weapon_roles.gd")
 const W := preload("../game/fc_net_pull_weapons.gd")
 const FcNetCarry := preload("../game/fc_net_carry.gd")
 
-## A player's weapon pull (FcPlayerNet.pull, cvars `sv_net_pull_weapons_native`, `sv_net_pull_content_native`): gs-sim's
-## `GSSimFpsWeaponNet.pull` writes the same net_* weapon fields, net_weapon and wind-up as AwWeaponNet.pull and FcContent.weapon_index, to the
-## bit, over seeded arsenals and rigs, either switch off, no rig, and every wire id. Without the library only the script lane runs, and the suite says so. A person's carry mask, kept until his arsenal
-## changes (fc_net_carry.gd), equals FcContent.carry_mask through seeded gives and takes.
+## A player's weapon pull (`sv_net_pull_weapons_native`, `sv_net_pull_content_native`): GSSimFpsWeaponNet.pull writes the same weapon
+## fields as AwWeaponNet.pull and FcContent.weapon_index over seeded arsenals, rigs and wire ids; a person's carry mask (fc_net_carry.gd)
+## equals FcContent.carry_mask. Without the library only the script lane runs, and the suite says so.
 
 const STATES := 20000
 const SEED := 6161

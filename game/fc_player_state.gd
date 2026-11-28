@@ -54,7 +54,14 @@ enum Mode {
 ## Stable id. A gs-server session id in a real deployment; an index in a test. The same value is
 ## the scoreboard key, the combat entity id and the damage attribution, which is what stops three id
 ## spaces having to be mapped onto each other at every seam.
-@export var player_id: int = 0
+@export var player_id: int = 0:
+	set(value):
+		player_id = value
+		score_key = str(value)
+
+## [member player_id] as the scoreboard's String key, made once when the id is set: the per-tick
+## `note_activity` takes it instead of building a new String per player per tick.
+var score_key := "0"
 
 @export var display_name: String = "Player"
 

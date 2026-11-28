@@ -11,7 +11,7 @@
 /addons/gs_entity
 # gs-net: native snapshot codec; without its library for this platform the GDScript path runs ("native snapshots unavailable").
 # bootstrap fetches the release zip into addons/gs_net/native/bin and export copies it beside the exe (gs-bootstrap: bootstrap-natives).
-# bootstrap-natives: gs-net v0.1.44 native/bin
+# bootstrap-natives: gs-net v0.1.45 native/bin
 /addons/gs_net
 /addons/gs_server
 /addons/gs_server_query
@@ -93,7 +93,7 @@ Thumbs.db
 /addons/gs_game
 # gs-sim: optional native library (movement motor, bot senses, snapshot codec); without its built library the GDScript twins run.
 # bootstrap fetches this release's library for the machine (gs-bootstrap: bootstrap-natives); the log says "gs-sim: native ...".
-# bootstrap-natives: gs-sim v0.2.35
+# bootstrap-natives: gs-sim v0.2.38
 /addons/gs_sim
 /addons/gs_workbench
 # Maps copied in by hand to play solo (see maps/fc_local_maps.gd). No leading slash: tools read "/addons/<name>" lines as addons to link.

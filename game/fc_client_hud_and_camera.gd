@@ -230,9 +230,20 @@ func _on_award(info: Dictionary) -> void:
 		presentation.on_medals(info.get("medals", []))
 
 ## The server sent the replay of the view that killed this player. Not over the final killcam.
+## A kill view that arrived while this client still showed its player alive: the kill
+## event leaves the server with the shot, the health that says dead comes a snapshot later.
+## Played from [method _on_local_died]; dropped on respawn.
+var _pending_killview: Array = []
+
 func _on_killview(clip: Dictionary, info: Dictionary) -> void:
 	if killview == null or (killcam != null and killcam.is_playing()):
 		return
+	# A living body owns the camera: playing now would throw the view to the killer's eye
+	# for the snapshot interval before death is known here.
+	if player != null and player.is_alive():
+		_pending_killview = [clip, info]
+		return
+	_pending_killview = []
 	var shown := info.merged({})
 	shown["killer"] = String(info.get("killer", ""))
 	shown["victim_id"] = player.player_id if player != null else 0
@@ -464,6 +475,10 @@ func _on_local_died(_damage: GSDamage) -> void:
 	var where := Transform3D.IDENTITY
 	where.origin = player.global_position
 	presentation.on_died(where)
+	if not _pending_killview.is_empty():
+		var held: Array = _pending_killview
+		_pending_killview = []
+		_on_killview(held[0], held[1])
 
 ## Connects the local player's own noises and pictures.
 ##
@@ -476,6 +491,7 @@ func _hear_the_local_player() -> void:
 		return
 
 	presentation.on_spawned()
+	_pending_killview = []
 
 	if player.health != null and not player.health.damaged.is_connected(_on_local_damaged):
 		player.health.damaged.connect(_on_local_damaged)

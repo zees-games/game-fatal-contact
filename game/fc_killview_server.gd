@@ -1,10 +1,8 @@
 extends GSKillViewServer
 
-## The kill view's server over FC. [method record] walks the game's living players itself and hands each eye the ring keeps
-## straight to [method GSKillViewRing.record]: no eye dictionary per player, and the aux floats filled into one reused buffer
-## ([method KillPov.fill_aux]). The ring keeps a sample per [member GSKillViewRules.record_hz] (30) and the tick is 66, so an eye
-## is built only when [method GSKillViewRing.is_due] says the ring takes it, the same check [method eye_due] asks: what the
-## ring holds is unchanged, sample for sample. [member eyes_fn] still lists the eyes as dictionaries, for a probe or a test.
+## The kill view's server over FC: [method record] hands each living player's eye straight to [method GSKillViewRing.record], aux
+## floats in one reused buffer, and builds an eye only when [method GSKillViewRing.is_due] takes it. [member eyes_fn] still lists the
+## eyes as dictionaries, for a probe or a test.
 
 const KillPov := preload("fc_kill_pov.gd")
 const FcPlayer := preload("fc_player.gd")

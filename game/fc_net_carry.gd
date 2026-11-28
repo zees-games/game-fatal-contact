@@ -1,10 +1,7 @@
 extends RefCounted
-## A person's [member FcPlayerNet.net_carry]: [method FcContent.carry_mask] once per change, not once a tick. The mask
-## only moves with what the arsenal carries or the wire table, so it is kept until the arsenal's [code]revision()[/code]
-## (gs-weapon API 51: a give, take, drop, cycle, refit or count change), the arsenal itself or the table
-## ([method FcWeaponRoles.wire_ids], a new array on each rebuild) moves. It was a shelf walk and a wire lookup per
-## weapon on every server tick per person (~10 us of a ~29 us pull). An arsenal without [code]revision()[/code]
-## (gs-weapon before 51) is walked every time, as before. Bit for bit with the walk ([code]headless_netpull_weapons_parity[/code]).
+## A person's [member FcPlayerNet.net_carry]: [method FcContent.carry_mask] once per change of the arsenal's [code]revision()[/code]
+## (gs-weapon API 51), the arsenal or the wire table, not once a tick; an arsenal without [code]revision()[/code] is walked every time.
+## Bit for bit with the walk ([code]headless_netpull_weapons_parity[/code]).
 
 const FcContent := preload("fc_content.gd")
 const Roles := preload("fc_weapon_roles.gd")

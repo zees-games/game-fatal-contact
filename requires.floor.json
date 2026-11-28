@@ -1,10 +1,10 @@
 {
   "format": 1,
   "addons": {
-    "fc_weapons": 43,
+    "fc_weapons": 48,
     "gs_game": 62,
     "gs_weapon": 40,
-    "gs_bot": 39,
+    "gs_bot": 44,
     "gs_audio": 22,
     "gs_loadout": 2,
     "gs_objective": 2,
@@ -12,7 +12,7 @@
     "gs_menu": 5,
     "gs_net": 25,
     "gs_player_char": 47,
-    "gs_player_controller": 28,
+    "gs_player_controller": 39,
     "gs_props": 6,
     "gs_replay": 13,
     "gs_server": 18,

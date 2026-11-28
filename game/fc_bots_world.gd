@@ -1,4 +1,4 @@
-extends "fc_bots_world_nav.gd"
+extends "fc_bots_world_sight.gd"
 
 const FcContent := preload("fc_content.gd")
 
@@ -6,8 +6,8 @@ const FcContent := preload("fc_content.gd")
 const FcPlayer := preload("fc_player.gd")
 const FcBotBrain := preload("fc_bot_brain.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
-const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
+const FcBotContacts := preload("fc_bot_contacts.gd")
 
 
 ## The behaviour of a weapon whose shot flies (a rocket, a bolt); every other one is led as
@@ -87,10 +87,12 @@ class Mind:
 	var ride: Variant = null
 	## Where the bot was last tick, to see a teleport.
 	var last_position: Vector3 = Vector3.INF
+	## Whether this tick's think saw a teleport: fc_surf.gd's steer takes the ride of the pad it landed on.
+	var teleported: bool = false
 	## The commands of the last tick the brain thought, repeated on the ticks it coasts (see [constant THINK_EVERY]).
 	var last_move: GSFpsCommand = null
 	var last_fire: GSWeaponCommand = null
-	var out: Array = []  # The [move, fire] pair handed out every tick with FcBots.reuse_commands (bot_native_think).
+	var out: Array[Object] = []  # The [move, fire] pair handed out every tick with FcBots.reuse_commands (bot_native_think).
 	## Whether nobody was within [member think_near] metres at the last think.
 	var far: bool = false
 	## The view the last think moved from and to, which the coast ticks walk along.
@@ -179,26 +181,26 @@ const THROW_BACK := 4
 
 ## What the brain may know of this game.
 class World:
-	extends NavWorld
+	extends SightWorld
 
 	var tick_rate: float = float(FcContent.TICK_RATE)
-	## The map's PVS before each sight ray (cvar `fc_bot_pvs`), bound by [method refresh].
-	var pvs := FcBotPvs.new()
-	var _loadouts: Dictionary = {}
+	var _loadouts: Dictionary[int, Array] = {}
 	## [constant STYLE_CLASS] by weapon definition, so a contact's class is one lookup a tick.
-	var _classes: Dictionary = {}
+	var _classes: Dictionary[GSWeaponDef, StringName] = {}
 	## Whether this build's gs-bot has play styles ([constant STYLE_LEVEL]); asked once per world, not per contact.
 	var _styled: bool = GSAddonApi.build_level("gs_bot") >= STYLE_LEVEL
 	var _waypoints_tick: int = -1
 	var _waypoints_held := PackedVector3Array()
-	var _contacts: Array = []
+	var _contacts: Array = []  # perf-lint: allow untyped_array gs-sim takes a plain VarArray; a typed array fails the call (error 1337, gate 1127)
 	## The native sight scan's table of [member _contacts], filled in [method refresh]'s loop (cvar `bot_native_think`).
 	var _bot_rows := FcBotRows.new()
+	## [method refresh]'s contact build in gs-sim (cvar `bot_native_contacts`); the script loop when it declines.
+	var _native_contacts := FcBotContacts.new()
 	## The contacts by id, kept from tick to tick and rewritten whole by [method refresh] (a brain keeps ids, never a contact).
-	var _by_id: Dictionary = {}
-	var _players: Dictionary = {}
+	var _by_id: Dictionary[int, GSBotContact] = {}
+	var _players: Dictionary[int, FcPlayer] = {}
 	## Weapon ratings (def -> [method GSBotArms.rate]) of this tick: every loadout and drop list rates the same few definitions.
-	var _rated: Dictionary = {}
+	var _rated: Dictionary[Object, float] = {}
 	## The tick [method player_count] counted on, and its count.
 	var _count_tick: int = -1
 	var _count: int = 0
@@ -207,7 +209,7 @@ class World:
 	## The body tunables of this tick, looked up once for all contacts (the lookup walks every player).
 	var _tunables: GSFpsTunables = null
 	## Bots a person hurt since their last think: they think next tick whatever their tier.
-	var woken: Dictionary = {}
+	var woken: Dictionary[int, bool] = {}
 	## [member FcBots.tiers], set by the thinking bot before [method refresh].
 	var tiers: GSBotThinkTier = null
 	## The personas bots are dealt from ([method personas_for]), the `bot_personas` text it was set for, and a count
@@ -220,7 +222,6 @@ class World:
 	var brains_made: int = 0
 	var _persona_rng := RandomNumberGenerator.new()
 
-	var _par_glass: bool = false
 	## Which job (brain) the calling thread works on, for the log of its wall rays.
 	func par_job(job: int) -> void:
 		if _par_observe:
@@ -257,6 +258,8 @@ class World:
 			game.connect(&"hit_confirmed", _on_hit)
 		if game.has_signal(&"player_added"):
 			game.connect(&"player_added", _hear_player)
+		if game.has_signal(&"map_changed"):
+			game.connect(&"map_changed", _on_map_changed)
 		for p in game.call("players"):
 			_hear_player(p)
 		walkable_fn = _walkable_near
@@ -295,12 +298,14 @@ class World:
 		var eye := FcPlayer.eye_height()
 		var aim := CHEST * FcPlayer.stand_height() / 1.8
 		var rows := _bot_rows.begin()
-		for p: FcPlayer in game.call("players"):
-			var c := _contact_of(p, tick, eye, aim, teams)
-			_contacts.append(c)
-			if rows:
-				_bot_rows.add(c)
-			_players[c.id] = p
+		var players: Array[FcPlayer] = game.players()
+		if not _native_contacts.build(self, players, tick, eye, aim, teams, rows):
+			for p: FcPlayer in players:
+				var c := _contact_of(p, tick, eye, aim, teams)
+				_contacts.append(c)
+				if rows:
+					_bot_rows.add(c)
+				_players[c.id] = p
 		if _by_id.size() != _contacts.size():
 			# Someone left: only this tick's players have a contact.
 			_by_id.clear()
@@ -397,20 +402,9 @@ class World:
 	## Hands the tiers the live people's eyes and views and the bots' positions (a person is a contact with no brain),
 	## or empty lists when the tiers do not apply at this many contacts.
 	func _tier_begin() -> void:
-		var eyes := PackedVector3Array()
-		var looks := PackedVector3Array()
-		var ids := PackedInt32Array()
-		var at := PackedVector3Array()
-		if tiers.applies(_contacts.size()):
-			for c: GSBotContact in _contacts:
-				if brains.has(c.id):
-					if c.alive:
-						ids.append(c.id)
-						at.append(c.position)
-				elif c.alive:
-					eyes.append(c.eye())
-					looks.append(GSBotIntent.direction(c.view_yaw, c.view_pitch))
-		tiers.begin(_contacts.size(), eyes, looks, ids, at)
+		var t := table()
+		FcBotContacts.tier_rows(t, _contacts, brains, tiers.applies(t.size() if t != null else _contacts.size()))
+		tiers.begin(_contacts.size(), FcBotContacts.tier_eyes, FcBotContacts.tier_looks, FcBotContacts.tier_ids, FcBotContacts.tier_at)
 
 	## What the player carries, rated: 33 slot reads and ratings per player for what only a pickup, a shot or a
 	## reload changes. Kept until the arsenal's [code]revision()[/code] (gs-weapon API 51) or the arsenal itself
@@ -488,37 +482,34 @@ class World:
 	## Gets the world ready for brains on other threads; false when the game's trace is one this cannot ask from them.
 	## Starts what a worker would otherwise start (the imported map's mesh bake) on the calling thread first.
 	func par_begin() -> bool:
-		var combat: Variant = game.get("combat")
-		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		if not trace is GSTrace:
+		if _los_at != _tick:
+			_los_bind()
+		if _los_trace == null:
 			return false
-		_par_trace = trace as GSTrace
+		_par_trace = _los_trace
 		_par_observe = _par_trace.ray_observer.is_valid()
 		_par_job.clear()
 		_par_rays.clear()
 		_par_arsenal[0] = _any_arsenal(game)
 		_par_physics = false
 		_par_space = null
-		if trace is GSTracePhysics:
-			var bound: Variant = (trace as Object).get("_world")
-			if not bound is World3D:
+		_par_trace_glass = _trace_glass(_par_trace)
+		if _par_trace is GSTracePhysics:
+			var bound: World3D = (_par_trace as GSTracePhysics)._world
+			if bound == null:
 				return false
-			_par_space = (bound as World3D).direct_space_state
+			_par_space = bound.direct_space_state
 			if _par_space == null:
 				return false
 			_par_physics = true
-		elif not trace is GSTraceFlat:
+		elif not _par_trace is GSTraceFlat:
 			return false
 		# The jail glass rule applies on a map with a collision root, as _line_of_sight has it.
 		_par_glass = false
-		var rules: Variant = game.get("glass_rules")
-		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
-			var map: Variant = game.get("map")
-			var root: Variant = (map as Object).get("collision_root") if map is Object else null
-			if root is Node3D and (root as Node3D).is_inside_tree():
-				if _par_space == null:
-					return false
-				_par_glass = true
+		if _cell_root() != null:
+			if _par_space == null:
+				return false
+			_par_glass = true
 		var _nav_warm := _nav_for_map()
 		var _surf_warm := surf_for_map()
 		# The brain prunes both each think; once here, theirs find nothing to remove.
@@ -533,170 +524,20 @@ class World:
 		par = true
 		return true
 
-	func _los_par(from: Vector3, to: Vector3) -> bool:
-		var rules: Variant = game.get("glass_rules")
-		if _par_glass:
-			_ray_lock.lock()
-			var shut := (rules as GSMapGlassSight).blocks(_par_space, from, to)
-			_ray_lock.unlock()
-			if shut:
-				return false
-		if not _par_physics:
-			return _par_trace.line_of_sight(from, to)
-		var distance := from.distance_to(to)
-		if distance <= 0.0001:
-			return true
-		var glass := _glass_of_trace()
-		var base: int = _par_trace.collision_mask
-		return _ray_par(from, from + (to - from) / distance * distance, (base & ~glass.glass_mask) if glass != null else base).is_empty()
-
 	func now() -> float:
 		return float(maxi(_tick, 0)) / tick_rate
 
+	## Through this tick's [GSBotContactTable] when gs-sim filled one (cvar `bot_contact_table`): its view, written on this read.
 	func contact(id: int) -> GSBotContact:
-		return _by_id.get(id)
+		var t := table()
+		return t.contact_by_id(id) if t != null else _by_id.get(id)
 
 	func contacts() -> Array:
-		return _contacts
+		var t := table()
+		return t.contacts() if t != null else _contacts
 
 	func contact_of(all: Array, id: int) -> GSBotContact:
-		return _by_id.get(id) if is_same(all, _contacts) else GSBotWorld.find(all, id)
-
-	func line_of_sight(from: Vector3, to: Vector3) -> bool:
-		if par:
-			if pvs.active != null and not pvs.open(from, to):
-				return _pvs_ruled_out(from, to)
-			return _los_par(from, to)
-		var t_los := Time.get_ticks_usec()
-		var seen := _pvs_ruled_out(from, to) if pvs.active != null and not pvs.open(from, to) else _line_of_sight(from, to)
-		FcFrameProbe.add(&"bot_los", t_los)
-		return seen
-
-	## A sight the map's PVS ruled out: blocked; with `fc_bot_pvs_verify`, the ray's own answer, a clear one counted.
-	func _pvs_ruled_out(from: Vector3, to: Vector3) -> bool:
-		if not FcBotPvs.verify:
-			return false
-		var seen := _los_par(from, to) if par else _line_of_sight(from, to)
-		FcBotPvs.ruled_out_but(seen)
-		return seen
-
-	func _line_of_sight(from: Vector3, to: Vector3) -> bool:
-		var combat: Variant = game.get("combat")
-		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		var rules: Variant = game.get("glass_rules")
-		# Bots inside the jail cell cannot see out through its glass; the trace itself ignores that layer for sight.
-		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
-			var map: Variant = game.get("map")
-			var root: Variant = (map as Object).get("collision_root") if map is Object else null
-			if root is Node3D and (root as Node3D).is_inside_tree() \
-					and (rules as GSMapGlassSight).blocks((root as Node3D).get_world_3d().direct_space_state, from, to):
-				return false
-		if trace is GSTracePhysics and _plain_sight_trace(trace as Object):
-			return _sight_ray(trace as GSTracePhysics, from, to)
-		if trace is GSTrace:
-			return (trace as GSTrace).line_of_sight(from, to)
-		return true
-
-	## The trace's own line_of_sight is a [GSHitbox.Hit] world ray: two Hit objects and, on a hit, the surface's
-	## material looked up, all of which a yes/no sight drops. Only the plain physics trace and the glass one (whose
-	## sight ray leaves the glass layer out) take this path; any other trace keeps its own rules.
-	const _GLASS_TRACE := preload("fc_glass_trace.gd")
-	var _sight_query: PhysicsRayQueryParameters3D = null
-
-	static func _plain_sight_trace(trace: Object) -> bool:
-		var script: Variant = trace.get_script()
-		return script == _GLASS_TRACE or script == GSTracePhysics
-
-	## [method GSTrace.line_of_sight] on a [GSTracePhysics] (and [code]fc_glass_trace.gd[/code]'s sight mask), the
-	## same answer from one ray query; headless_bots checks both agree.
-	func _sight_ray(trace: GSTracePhysics, from: Vector3, to: Vector3) -> bool:
-		var offset := to - from
-		var distance := offset.length()
-		if distance <= 0.0001:
-			return true
-		var bound: Variant = trace.get("_world")
-		if not bound is World3D:
-			return true
-		var space := (bound as World3D).direct_space_state
-		if space == null:
-			return true
-		var mask: int = trace.collision_mask
-		var glass: Variant = trace.get("glass")
-		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
-			mask &= ~(glass as GSMapGlassSight).glass_mask
-		if _sight_query == null:
-			_sight_query = PhysicsRayQueryParameters3D.new()
-			_sight_query.collide_with_areas = false
-			_sight_query.collide_with_bodies = true
-			_sight_query.hit_from_inside = false
-		_sight_query.from = from
-		_sight_query.to = from + offset / distance * distance
-		_sight_query.collision_mask = mask
-		_sight_query.exclude = trace.exclude_rids
-		return space.intersect_ray(_sight_query).is_empty()
-
-	## Whether a native mind may ask sight of gs-sim's [code]GSSimSightRay[/code] (when loaded) in place of
-	## [method line_of_sight]; off: every ray goes through script (scale128 [code]--native-sight 0[/code]).
-	static var native_sight: bool = true
-	## The native ray (a GSSimSightRay), made once when the class is loaded; null: script only.
-	var _sight_native: Object = null
-	var _sight_tried: bool = false
-	## [method sight_callable]'s answer while a tick's brains think on workers, bound by [method par_begin].
-	var _sight_par: Callable = Callable()
-	## [method sight_callable]'s answer on the main thread, bound once per tick ([member _sight_at]).
-	var _sight_main: Callable = Callable()
-	var _sight_at: int = -1
-
-	## gs-bot's hook: the native ray's [code]clear[/code] when this world's sight is the one plain engine ray
-	## [method _sight_ray] / [method _los_par] ask (a plain physics or glass trace; the jail glass rule goes with it),
-	## bound to that ray's space, mask and exclusions; else [method line_of_sight]. The same answer to the bit.
-	func sight_callable() -> Callable:
-		if par:
-			return _sight_par
-		if _sight_at != _tick or not _sight_main.is_valid():
-			_sight_at = _tick
-			_sight_main = _sight_bind()
-		return _sight_main
-
-	## The native ray bound to this moment's trace, or [method line_of_sight] when the ray does not answer the same.
-	func _sight_bind(for_par: bool = false) -> Callable:
-		var script_sight := Callable(self, &"line_of_sight")
-		if not native_sight:
-			return script_sight
-		if not _sight_tried:
-			_sight_tried = true
-			if ClassDB.class_exists(&"GSSimSightRay"):
-				_sight_native = ClassDB.instantiate(&"GSSimSightRay")
-		if _sight_native == null:
-			return script_sight
-		# The jail glass rule, as _line_of_sight (main thread: the collision root's space) and _los_par
-		# (par_begin's space) ask it: the native ray asks it too, for rays from inside the cell.
-		var cell: GSMapGlassSight = null
-		var cell_space: PhysicsDirectSpaceState3D = null
-		var rules: Variant = game.get("glass_rules")
-		if rules is GSMapGlassSight and (rules as GSMapGlassSight).block_sight:
-			var map: Variant = game.get("map")
-			var root: Variant = (map as Object).get("collision_root") if map is Object else null
-			if root is Node3D and (root as Node3D).is_inside_tree():
-				cell = rules as GSMapGlassSight
-				cell_space = _par_space if for_par else (root as Node3D).get_world_3d().direct_space_state
-		var combat: Variant = game.get("combat")
-		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		if not (trace is GSTracePhysics and _plain_sight_trace(trace as Object)):
-			return script_sight
-		var bound: Variant = (trace as Object).get("_world")
-		var space: PhysicsDirectSpaceState3D = (bound as World3D).direct_space_state if bound is World3D else null
-		var mask: int = (trace as GSTracePhysics).collision_mask
-		var glass: Variant = (trace as Object).get("glass")
-		if glass is GSMapGlassSight and (glass as GSMapGlassSight).glass_mask != 0:
-			mask &= ~(glass as GSMapGlassSight).glass_mask
-		if cell != null:
-			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
-					cell_space, cell.glass_mask, cell.centre, cell.radius, cell.radius + cell.margin)
-		else:
-			_sight_native.call(&"bind", space, mask, (trace as GSTracePhysics).exclude_rids, _ray_lock,
-					null, 0, Vector3.ZERO, 0.0, 0.0)
-		return Callable(_sight_native, &"clear")
+		return contact(id) if is_same(all, _contacts) or (all.is_empty() and table() != null) else GSBotWorld.find(all, id)
 
 	const SPAWN_THINNING := 25.0
 	static func _near_any(points: PackedVector3Array, at: Vector3, within: float) -> bool:

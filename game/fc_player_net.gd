@@ -43,16 +43,6 @@ static var skip_idle_pull := true
 ## history records the node, not these properties. Position is never held: the server reads it back.
 static var hold_subquantum := true
 
-## gs-net API 22's GSNetIdentity.interest_aim, looked up once (older gs-net has no aim cone).
-static var _has_interest_aim: bool = _script_has(GSNetIdentity, &"interest_aim")
-
-
-static func _script_has(script: Script, property: StringName) -> bool:
-	for entry: Dictionary in script.get_script_property_list():
-		if StringName(entry["name"]) == property:
-			return true
-	return false
-
 # --- Movement, from GSFpsNetSync.state_specs() ---
 var net_position: Vector3 = Vector3.ZERO
 var net_velocity: Vector3 = Vector3.ZERO
@@ -193,6 +183,8 @@ var _yaw_var: GSNetVar = null
 var _pitch_var: GSNetVar = null
 ## The movement pull through gs-sim, and the widths it holds through (fc_net_pull_native.gd).
 var _native_pull := FcNetPullNative.new()
+## The tick FcNetPullBatch last pulled this player for: its own pull skips that tick.
+var _batched_tick := -1
 ## A person's carry mask, kept until his arsenal changes (fc_net_carry.gd).
 var _carry := FcNetCarry.new()
 
@@ -302,7 +294,7 @@ func _net_apply_input(input: GSNetInput, _tick: int) -> void:
 	if not command.view_targets.is_empty():
 		last_view_targets = command.view_target_pairs()
 	elif not last_view_targets.is_empty():
-		last_view_targets = {}
+		last_view_targets = {}  # perf-lint: allow alloc only when targets stop, never a fresh dict a tick
 	last_view_targets_tick = command.tick
 
 	# A shot whose own command came after its tick fires on this one, aimed where the shooter drew.
@@ -350,11 +342,21 @@ func _net_simulate(tick: int, delta: float) -> void:
 	# A bot's copy between snapshots is read by nobody: at 66 ticks and 33 snapshots, half
 	# of 31 bots' pulls a tick were thrown away. A person's is never skipped: _pull_exact
 	# puts his simulation itself back through float32 every tick, as his client's replay does.
-	if skip_idle_pull and bridge != null and _server_owned() and not bridge.snapshot_due():
+	if _batched_tick == tick or not _pulls_now():
 		return
 	var t_pull := Time.get_ticks_usec()
 	pull()
 	FcFrameProbe.add(&"srv_netpull", t_pull)
+
+
+## Whether this tick's pull is read by anybody (see [member skip_idle_pull]).
+func _pulls_now() -> bool:
+	return not (skip_idle_pull and bridge != null and _server_owned() and not bridge.snapshot_due())
+
+
+## Whether [code]FcNetPullBatch.pull_all[/code] should pull this player for [param tick]: the server's copy, not yet pulled, read by somebody.
+func batch_wants(tick: int) -> bool:
+	return player != null and _batched_tick != tick and identity != null and identity.is_authoritative and _pulls_now()
 
 
 ## One predicted tick, which may be a replay.
@@ -454,17 +456,21 @@ func pull() -> void:
 		if hold_subquantum:
 			_hold_subquantum(held_velocity, held_yaw, held_pitch)
 	lap = FcFrameProbe.lap(&"np_fps", lap) if fine else 0
-	_pull_exact(player.controller.state)
-	lap = FcFrameProbe.lap(&"np_exact", lap) if fine else 0
-	GSCombatNetSync.pull(player.health, self)
-	lap = FcFrameProbe.lap(&"np_combat", lap) if fine else 0
-
 	# The rig's pull (gs-weapon's three, the pack's four, the knife's wind-up), with the held weapon's wire number, in
 	# one gs-sim call where cvars sv_net_pull_weapons_native and sv_net_pull_content_native allow; else the script.
 	var weapon_code := FcNetPullWeapons.pull_weapons(self, player.weapons, player.arsenal, player.windup)
 	lap = FcFrameProbe.lap(&"np_weapons", lap) if fine else 0
 
 	FcNetPullWeapons.pull_content(self, player.arsenal, weapon_code)
+	_pull_rest(fine, FcFrameProbe.lap(&"np_content", lap) if fine else 0)
+
+
+## [method pull] past the movement and weapon fields (FcNetPullBatch runs it too): exact copy, combat, carry, the rest.
+func _pull_rest(fine: bool, lap: int) -> void:
+	_pull_exact(player.controller.state)
+	lap = FcFrameProbe.lap(&"np_exact", lap) if fine else 0
+	GSCombatNetSync.pull(player.health, self)
+	lap = FcFrameProbe.lap(&"np_combat", lap) if fine else 0
 	# Owner-only, and a bot has no owner: 33 shelf scans a bot a tick for a mask nobody receives.
 	if not _server_owned():
 		net_carry = _carry.mask(player.arsenal)
@@ -488,8 +494,7 @@ func pull() -> void:
 		identity.always_relevant = player.beacon
 		# Where this player looks, for gs-net's aim cone (FcNetAoi.aim_cone_deg): far players
 		# in it keep the first ring's rate, so a scoped shot has samples to rewind against.
-		if _has_interest_aim:
-			identity.set(&"interest_aim", player.aim_direction())
+		identity.interest_aim = player.aim_direction()
 	lap = FcFrameProbe.lap(&"np_rest", lap) if fine else 0
 
 

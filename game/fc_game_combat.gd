@@ -3,6 +3,11 @@ extends "fc_game_unlag.gd"
 
 ## The deathmatch itself: a match, a combat manager, a map, and some players.
 
+const FcNativeShots := preload("fc_native_shots.gd")
+
+## The combat manager's gs-sim tracer (`sv_native_shots`), made with the combat manager.
+var _native_tracer: FcNativeShots = null
+
 ## The snapshot rate at [param rate] ticks a second: the rate nearest [param target] (default
 ## [constant NET_SNAPSHOT_RATE], or `sv_snapshot_rate` on a server) that is an EXACT divisor of the tick rate,
 ## so a snapshot lands on every n-th tick (64 and 128 give 32, 60 gives 30, 66 gives 33, 33 gives 33, 22 gives 22).
@@ -48,10 +53,10 @@ func sim_tick() -> int:
 
 func _exit_tree() -> void:
 	if surf_rides != null:
-		surf_rides.call(&"release")
+		surf_rides.release()
 		surf_rides = null
 	if demo_stats != null:
-		demo_stats.call(&"release")
+		demo_stats.release()
 		demo_stats = null
 	if _registered_name != &"":
 		GSRegistry.unregister_instance(_registered_name, self)
@@ -127,7 +132,7 @@ func apply_drop_rules() -> void:
 	drops.pack_health = float(drop_rules["pack_health"])
 	drops.pack_ammo_share = clampf(float(drop_rules["pack_ammo"]) / 100.0, 0.0, 1.0)
 	drops.pack_respawn_sec = float(drop_rules["pack_respawn"])
-	var wanted: Array = [
+	var wanted: Array[Variant] = [
 		map, drops, drops.packs_enabled, drops.pack_health, drops.pack_ammo_share, drops.pack_respawn_sec,
 	]
 	if map != null and is_authority and (_packs_placed_with.size() != wanted.size() or wanted != _packs_placed_with):
@@ -419,6 +424,14 @@ func _build_projectiles() -> void:
 			var _pushed := FcRocketJump.launch(player_for(entity_id), def, rocket_rules, at)
 
 
+## Hands `sv_native_shots` to the combat manager's tracer (fc_native_shots.gd).
+func apply_native_shots() -> void:
+	if combat == null:
+		return
+	if _native_tracer != null:
+		_native_tracer.enabled = native_shots != 0
+
+
 func _build_combat() -> GSResult:
 	combat = GSCombatManager.new()
 	combat.name = "Combat"
@@ -443,6 +456,14 @@ func _build_combat() -> GSResult:
 	combat.config = config
 	combat.rewind_fn = _unlag_rewind
 	combat.restore_fn = _unlag_restore
+	# Hitscan pellets walk in GameSpice Sim when it is loaded (sv_native_shots); the script tracer stays the fallback.
+	# gs-combat 8's set_tracer is the seam; an older gs-combat only has the private field.
+	_native_tracer = FcNativeShots.new(combat)
+	if combat.has_method(&"set_tracer"):
+		var _set: bool = combat.call(&"set_tracer", _native_tracer)
+	else:
+		combat._tracer = _native_tracer
+	apply_native_shots()
 
 	add_child(combat)
 
@@ -627,9 +648,9 @@ func _tick_rest(delta: float) -> void:
 		FcFrameProbe.lap(&"st_apply", t_lap)
 
 	if surf_rides != null:
-		surf_rides.call(&"process", delta)
+		surf_rides.process(delta)
 	if demo_stats != null:
-		demo_stats.call(&"process", delta)
+		demo_stats.process(delta)
 
 ## Who can pick up a drop this tick, keyed by player id.
 func _drop_sweepers() -> Dictionary:

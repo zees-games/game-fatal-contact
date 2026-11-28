@@ -1,8 +1,8 @@
 @tool
 extends "fc_game_idle.gd"
 
-## The batched loop's per-player command input (weapon drop, knife, activity, surf ride); split out of
-## fc_game_tick.gd for file size.
+## The batched loop's per-player command input (weapon drop, knife, activity, surf ride) and the countdown's round
+## freeze; split out of fc_game_tick.gd for file size.
 
 
 ## A player's command input before its controller ticks (weapon drop, knife, activity note, surf ride), with
@@ -20,11 +20,45 @@ func _batched_input(id: int, player: FcPlayer, pair: Array, knife_charge: bool, 
 	t_lap = FcFrameProbe.lap(&"pp_knife", t_lap)
 	if move == null or fire == null:
 		return []
-	match_node.note_activity(str(id), _tick)
+	match_node.note_activity(player.score_key if player.player_id == id else str(id), _tick)
 	t_lap = FcFrameProbe.lap(&"pp_note", t_lap)
 	if surfing:
-		surf_rides.call(&"before_synced", id, player)
+		surf_rides.before_synced(id, player)
 	elif not FcPlayer.lean_tick and surf_rides != null:
-		surf_rides.call(&"before", id, player)
+		surf_rides.before(id, player)
 	FcFrameProbe.lap(&"pp_surf", t_lap)
 	return pair if pair.size() == 2 else [move, fire]
+
+
+## Whether the round is waiting to go live with everyone held still. The client reads the
+## state MATCH told it; a countdown only exists when its length is above zero.
+func round_frozen() -> bool:
+	return match_node != null and match_node.state == GSMatch.State.COUNTDOWN \
+			and match_node.rules != null and match_node.rules.freeze_during_countdown
+
+func _freeze_for_round(id: int, player: FcPlayer) -> void:
+	if _round_frozen_ids.has(id) or GSFpsAdminModifiers.is_frozen(player.controller):
+		return
+	_round_frozen_ids[id] = player.health.invulnerable
+	player.health.invulnerable = true
+	player.arsenal.disabled = true
+	var _r := GSFpsAdminModifiers.set_frozen(player.controller, true)
+
+func _release_from_round(id: int, player: FcPlayer) -> void:
+	var god: bool = _round_frozen_ids[id]
+	_round_frozen_ids.erase(id)
+	player.health.invulnerable = god
+	player.arsenal.disabled = false
+	var _r := GSFpsAdminModifiers.set_frozen(player.controller, false)
+
+## Holds every living player still, unarmed and unhurtable while [method round_frozen], and
+## lets exactly those go afterwards; an admin's own freeze or god mode is left alone.
+func _sync_round_freeze() -> void:
+	var want := round_frozen()
+	_round_frozen_want = want
+	for id in player_ids():
+		var player: FcPlayer = _players[id]
+		if want and player.health.alive:
+			_freeze_for_round(id, player)
+		elif _round_frozen_ids.has(id):
+			_release_from_round(id, player)

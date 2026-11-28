@@ -64,6 +64,20 @@ func add(c: GSBotContact) -> void:
 	_positions.append(at)
 
 
+## The whole table at once, from gs-sim's contact build ([code]GSSimBotContacts[/code]): [param sensed] and [param ids] in its
+## order, the rows from [param sim]'s last fill.
+func take(sensed: Array, ids: PackedInt64Array, sim: Object) -> void:  # perf-lint: allow untyped_array gs-sim takes a plain VarArray; a typed array fails the call (error 1337, gate 1127)
+	if not _on:
+		return
+	_sensed = sensed
+	_ids = ids
+	_points = sim.points()
+	_teams = sim.teams()
+	_alive = sim.alive()
+	_eyes = sim.eyes()
+	_positions = sim.positions()
+
+
 ## Hands the table to [param world] for [param version] (its contacts_version). By call: FC parses on gs-bot 26.
 func hand(world: GSBotWorld, version: int) -> void:
 	if _on:

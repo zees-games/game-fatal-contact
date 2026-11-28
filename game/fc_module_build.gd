@@ -7,6 +7,7 @@ const FcEvents := preload("fc_events.gd")
 const GSGameRelevance := preload("res://addons/gs_game/net/gs_game_relevance.gd")
 const FcMode := preload("fc_mode.gd")
 const FcModule := preload("fc_module.gd")
+const FcNetNativeCore := preload("fc_net_native_core.gd")
 
 
 ## The drawn map ballot's notice topic. The client shell draws one menu per topic, and a
@@ -111,29 +112,15 @@ func _build_netcode() -> GSResult:
 	net.auto_tick = false
 	net.config_file = ""
 
-	var config := GSNetConfig.new()
-	config.tick_rate = game.tick_rate
-	config.snapshot_rate = FcGame.snapshot_rate_for(game.tick_rate, snapshot_target())
-	config.enable_prediction = true
-	# Off: FC rewinds shots with its own ring (fc_game_unlag.gd) and nothing reads gs-net's history; sv_net_lagcomp 1 records it again.
-	config.enable_lag_compensation = false
-	config.max_entities_per_snapshot = 0  # unlimited: interest management and the mtu bound a snapshot
-	# Unlimited: tools/net_probe.gd measured ~6 kB/s steady and ~16 kB/s at a join, so a cap
-	# could only hold a packet back (see _add_rate_cvar).
-	config.per_client_budget = _cv_maxrate.get_int() if _cv_maxrate != null else 0
-	config.per_client_packet_rate = 0
-	# From the game, so the client cannot be given a different one. See
-	# FcGame.NET_WORLD_EXTENT.
-	config.world_extent = FcGame.NET_WORLD_EXTENT
-	# Per-peer snapshots on worker threads (sv_snapshot_workers, the same bytes): see default_snapshot_workers.
-	config.snapshot_workers = default_snapshot_workers()
-	net.config = config
+	net.config = _net_config()
 	add_child(net)
 
 	var started := net.setup()
 
 	if not started.ok:
 		return started
+	# Before the first snapshot: gs-sim's snapshot core, or GDScript (sv_native_snapshots).
+	var _native_on := FcNetNativeCore.install(net)
 
 	# net_skip_idle and net_visibility, the switches gs-game's own games get from GSGameNetcode (gs-game 52; by name, so an older host still parses this).
 	if GSAddonApi.build_level("gs_game") >= 52:
@@ -182,6 +169,27 @@ func _build_netcode() -> GSResult:
 	net.peer_schema_refused.connect(_refuse_peer)
 
 	return net.start()
+
+
+## The server's gs-net settings, from the game and the rate cvars.
+func _net_config() -> GSNetConfig:
+	var config := GSNetConfig.new()
+	config.tick_rate = game.tick_rate
+	config.snapshot_rate = FcGame.snapshot_rate_for(game.tick_rate, snapshot_target())
+	config.enable_prediction = true
+	# Off: FC rewinds shots with its own ring (fc_game_unlag.gd) and nothing reads gs-net's history; sv_net_lagcomp 1 records it again.
+	config.enable_lag_compensation = false
+	config.max_entities_per_snapshot = 0  # unlimited: interest management and the mtu bound a snapshot
+	# Unlimited: tools/net_probe.gd measured ~6 kB/s steady and ~16 kB/s at a join, so a cap
+	# could only hold a packet back (see _add_rate_cvar).
+	config.per_client_budget = _cv_maxrate.get_int() if _cv_maxrate != null else 0
+	config.per_client_packet_rate = 0
+	# From the game, so the client cannot be given a different one. See
+	# FcGame.NET_WORLD_EXTENT.
+	config.world_extent = FcGame.NET_WORLD_EXTENT
+	# Per-peer snapshots on worker threads (sv_snapshot_workers, the same bytes): see default_snapshot_workers.
+	config.snapshot_workers = default_snapshot_workers()
+	return config
 
 
 ## Content, profiles, avatars and admission.

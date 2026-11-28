@@ -7,16 +7,21 @@ const LEDGE_CLIMB_ID := 5000000
 
 const FcPaths := preload("fc_paths.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcMap := preload("../maps/fc_map.gd")
+const FcSurfPilot := preload("fc_surf_pilot.gd")
 
 
 class NavWorld:
 	extends GSBotWorld
 
 	var game: Object = null
-	var brains: Dictionary = {}
+	var brains: Dictionary[int, GSBotBrain] = {}
 	## The live contacts filed by cell of [member FcBots.think_near] metres (key -> contacts), for [method FcBots._nobody_near]; empty cell size: not built.
 	var near_cells: Dictionary = {}
 	var near_cell: float = 0.0
+	## The cell arrays [member near_cells] is filed into, kept across ticks; the first [member _cells_used] are this tick's.
+	var _cell_pool: Array[Array] = []
+	var _cells_used: int = 0
 	## [member FcBots.think_near], set by the thinking bot before [method refresh].
 	var near_reach: float = 0.0
 	var _tick: int = -1
@@ -36,10 +41,10 @@ class NavWorld:
 	var _nav_source: Object = null
 	## The map's ride edges ([code]fc_surf.gd[/code]), once its mesh has landed and if it has
 	## a surf cache; and whether that was looked for on this mesh.
-	var _surf: RefCounted = null
+	var _surf: FcSurfPilot = null
 	var _surf_looked: bool = false
 	var _surf_tick: int = -1
-	var _surf_now: RefCounted = null
+	var _surf_now: FcSurfPilot = null
 	## The map's ladders joined into [member _nav] as climb edges, and how many got one.
 	var _ladders: GSBotLinks = null
 	## The drop and hop edges found on the mesh (kept so they are not collected).
@@ -62,6 +67,10 @@ class NavWorld:
 	var _par_lock := Mutex.new()
 	## GodotPhysics3D answers every query out of buffers the space shares, so rays go one at a time.
 	var _ray_lock := Mutex.new()
+	## The ray query of [method _ray_par], made once and only touched under [member _ray_lock].
+	var _par_query := _make_par_query()
+	## The trace's sight glass, looked up once by [method par_begin] (see [method _glass_of_trace]).
+	var _par_trace_glass: GSMapGlassSight = null
 	## Any player's arsenal, taken on the main thread (walking the roster is not for a worker).
 	var _par_arsenal: Array = [null]
 	## Player id -> projectile speed, written by par_begin on the main thread, read lock-free by workers.
@@ -72,21 +81,52 @@ class NavWorld:
 	var _par_job: Dictionary = {}
 	var _par_rays: Dictionary = {}
 
+	static func _make_par_query() -> PhysicsRayQueryParameters3D:
+		var q := PhysicsRayQueryParameters3D.new()
+		q.collide_with_areas = false
+		q.collide_with_bodies = true
+		q.hit_from_inside = false
+		return q
+
+	## Files [param first] into a new cell [param k] of [member near_cells], reusing a kept cell array.
+	func make_near_cell(k: int, first: Variant) -> void:
+		if _cells_used == _cell_pool.size():
+			_cell_pool.append([])
+		var made := _cell_pool[_cells_used]
+		_cells_used += 1
+		made.clear()
+		made.append(first)
+		near_cells[k] = made
+
 	static func near_key(x: float, z: float, cell: float) -> int:
 		return (int(floorf(x / cell)) + 4096) * 8192 + int(floorf(z / cell)) + 4096
 
-	## Files the live [param contacts] into [member near_cells]; built only with [param grid] on and above 16 contacts.
+	## Files the live [param contacts] into [member near_cells]; built only with [param grid] on and above 16 contacts. With this
+	## tick's [GSBotContactTable], the cells hold its rows (ints), read from its columns.
 	func _near_refresh(contacts: Array, grid: bool) -> void:
 		near_cells.clear()
+		_cells_used = 0
 		near_cell = 0.0
-		if grid and near_reach > 0.0 and contacts.size() > 16:
+		var t := table()
+		if t != null and grid and near_reach > 0.0 and t.size() > 16:
+			near_cell = near_reach
+			for i in t.size():
+				if t.flags[i] & GSBotContactTable.ALIVE != 0:
+					var at := t.positions[i]
+					var k := near_key(at.x, at.z, near_cell)
+					var cell: Variant = near_cells.get(k)
+					if cell == null:
+						make_near_cell(k, i)
+					else:
+						(cell as Array).append(i)
+		elif t == null and grid and near_reach > 0.0 and contacts.size() > 16:
 			near_cell = near_reach
 			for c: GSBotContact in contacts:
 				if c.alive:
 					var k := near_key(c.position.x, c.position.z, near_cell)
 					var cell: Variant = near_cells.get(k)
 					if cell == null:
-						near_cells[k] = [c]
+						make_near_cell(k, c)
 					else:
 						(cell as Array).append(c)
 
@@ -102,6 +142,7 @@ class NavWorld:
 		_par_arsenal[0] = null
 		_par_space = null
 		_par_trace = null
+		_par_trace_glass = null
 
 	## No native sight scan while brains think in parallel: gs-bot gives it only to the main thread, so the
 	## brains that happened to run there scanned natively and the rest in script, a mix that changed run to run.
@@ -109,19 +150,16 @@ class NavWorld:
 		return null if par else super(all)
 
 	func _glass_of_trace() -> GSMapGlassSight:
-		var g: Variant = _par_trace.get("glass")
-		return g as GSMapGlassSight if g is GSMapGlassSight and (g as GSMapGlassSight).glass_mask != 0 else null
+		return _par_trace_glass
 
 	func _ray_par(from: Vector3, to: Vector3, mask: int) -> Dictionary:
-		var q := PhysicsRayQueryParameters3D.new()
+		# One query for every worker: it is filled and asked under the ray lock the rays already take.
+		_ray_lock.lock()
+		var q := _par_query
 		q.from = from
 		q.to = to
 		q.collision_mask = mask
 		q.exclude = _par_trace.exclude_rids
-		q.collide_with_areas = false
-		q.collide_with_bodies = true
-		q.hit_from_inside = false
-		_ray_lock.lock()
 		var result := _par_space.intersect_ray(q)
 		_ray_lock.unlock()
 		return result
@@ -157,14 +195,19 @@ class NavWorld:
 		return found
 
 	func _wall_ahead(from: Vector3, dir: Vector3, reach: float) -> Dictionary:
-		var combat: Variant = game.get("combat")
-		var trace: Variant = (combat as Object).get("trace") if combat is Object else null
-		if not trace is GSTrace:
+		var trace := _shot_trace()
+		if trace == null:
 			return {}
-		var hit := (trace as GSTrace).ray(from, dir, reach)
+		var hit := trace.ray(from, dir, reach)
 		if not hit.ok():
 			return {}
 		return {"normal": hit.normal, "distance": hit.distance}
+
+	## The game's shot trace, or null (FcBots' World keeps it a tick at a time).
+	func _shot_trace() -> GSTrace:
+		var combat: Variant = game.get(&"combat")  # perf-lint: allow dynamic_call World overrides this with its once-a-tick lookup
+		var trace: Variant = (combat as Object).get(&"trace") if combat is Object else null  # perf-lint: allow dynamic_call as above
+		return trace as GSTrace if trace is GSTrace else null
 
 	const ROAM_PLACES := 24
 
@@ -184,7 +227,7 @@ class NavWorld:
 	func _route_detail(from: Vector3, to: Vector3) -> Dictionary:
 		var surf := surf_for_map()
 		if surf != null:
-			return surf.call(&"route_detail", from, to)
+			return surf.route_detail(from, to)
 		if _ladders != null and _nav != null and _nav.is_ready():
 			if not _nav.joined(from, to):
 				return {"points": PackedVector3Array(), "rides": PackedInt32Array()}
@@ -196,7 +239,7 @@ class NavWorld:
 		return {"points": points, "rides": rides}
 
 	## [method surf_for_map] as it was at the first ask of [param tick]: the map and nav checks once a tick, not per bot.
-	func surf_at(tick: int) -> RefCounted:
+	func surf_at(tick: int) -> FcSurfPilot:
 		if tick != _surf_tick or tick < 0:
 			_surf_tick = tick
 			_surf_now = surf_for_map()
@@ -204,7 +247,7 @@ class NavWorld:
 
 	## The map's ride edges, linked into its mesh: null on a built-in map, before the mesh lands,
 	## on a map with no surf cache, and on a shell without gs-bot 4 or gs-player-controller 3.
-	func surf_for_map() -> RefCounted:
+	func surf_for_map() -> FcSurfPilot:
 		var nav := _nav_for_map()
 		if nav == null:
 			return null
@@ -284,22 +327,23 @@ class NavWorld:
 
 	## Joins the imported map's ladders into [param nav] as one-way climbs and hands the brain their geometry (gs-bot 10).
 	func _link_ladders(nav: GSBotNav) -> void:
-		var mechanics: Variant = (game.get("map") as Object).get("mechanics")
-		if GSAddonApi.build_level("gs_bot") < 10 or not (mechanics is Object) or (mechanics as Object).get("ladders").is_empty():
+		var map := game.get(&"map") as FcMap
+		var mechanics := map.mechanics if map != null else null
+		if GSAddonApi.build_level("gs_bot") < 10 or mechanics == null or mechanics.ladders.is_empty():
 			return
-		var links := GSBotLinks.link_ladders(nav, (mechanics as Object).get("ladders"))
+		var links := GSBotLinks.link_ladders(nav, mechanics.ladders)
 		if links != null:
 			_ladders = links
 			ladder_fn = links.ladder_of
 
 	## A team map's spawn rooms are walled in, with a ramp that tops out on a ledge over the open floor: bots leave by the drop but, with no way back up, never reach the enemy spawn. Each short drop gets a reverse climb edge, only on a map whose spawns carry a side.
 	func _climb_back_ledges(nav: GSBotNav) -> void:
-		var map: Variant = game.get("map")
-		if not (map is Object) or not (map as Object).has_method(&"spawn_tag"):
+		var map := game.get(&"map") as FcMap
+		if map == null:
 			return
 		var tagged := false
-		for index in (map as Object).get("spawns").size():
-			if (map as Object).call(&"spawn_tag", index) != &"":
+		for index in map.spawns.size():
+			if map.spawn_tag(index) != &"":
 				tagged = true
 				break
 		if not tagged:
@@ -351,21 +395,29 @@ class NavWorld:
 			return PackedVector3Array()
 		return graph.find_smooth_path(from, to, -1.0, true)
 
-	## The mesh for an imported map, the bake started on the first route asked on it; null on a built-in map.
-	## [b]Not the graph.[/b] The graph is laid over a box list; an imported map's solid is hundreds of convex brushes with ramps and ledges at every height, so graph bots walked through the walls. gs-bot's [GSBotNav] bakes what a body can stand on
-	## from those brushes ([member FcMap.collision_root]). [b]In the background[/b]: the two default surf maps took 2 to 3 s to bake against a tenth of a second for the map change, so bots walk straight for those seconds and route after.
+	## The mesh for an imported map ([GSBotNav] baked in the background from [member FcMap.collision_root] on the first route asked),
+	## null on a built-in map; bots walk straight until it lands. The tick [method _nav_for_map] last found [member _nav] on, -2 none.
+	var _nav_at: int = -2
+	## The tick [method _graph_for_map] last found [member _graph] on, -2 none.
+	var _graph_at: int = -2
+
 	func _nav_for_map() -> GSBotNav:
-		var map: Variant = game.get("map")
-		if not (map is Object) or not (map as Object).has_method(&"is_imported") or not bool((map as Object).call(&"is_imported")):
+		# Asked by every bot many times a tick: a mesh found once this tick stands until the next (a map change resets it).
+		if _nav_at == _tick and _tick >= 0 and _nav != null:
+			return _nav
+		_nav_at = -2
+		var map := game.get(&"map") as FcMap
+		if map == null or not map.is_imported():
 			return null
 		if _nav != null and _nav_map == map:
+			_nav_at = _tick
 			return _nav
 		# An older shell's gs-bot has no background bake, and baking in the tick is seconds:
 		# its bots walk straight, as they did before.
 		if GSAddonApi.build_level("gs_bot") < 3:
 			return null
-		var root: Variant = (map as Object).get("collision_root")
-		if not (root is Node3D) or not (root as Node3D).is_inside_tree():
+		var root := map.collision_root
+		if root == null or not root.is_inside_tree():
 			return null
 		if _nav != null:
 			_nav.clear()
@@ -379,13 +431,14 @@ class NavWorld:
 		_joining = false
 		_link_stage = 0
 		var body := _body_tunables()
-		var source: Node3D = (map as Object).call(&"nav_source") if (map as Object).has_method(&"nav_source") else null
+		var source := map.nav_source()
 		# gs-bot parses the source over the next frames, so it lives until the bake reports back.
 		_nav_source = source
-		var started := _nav.bake_in_background(source if source != null else root as Node3D, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height}, 0, [], _on_nav_baked.bind(source))
+		var started := _nav.bake_in_background(source if source != null else root, {"radius": body.radius, "height": body.stand_height, "climb": body.step_height}, 0, [], _on_nav_baked.bind(source))
 		if not started.ok:
 			_free_nav_source(source)
-			GSLog.warn(CHANNEL, "bots cannot route on this map", {"map": str((map as Object).get("id")), "error": started.error.message})
+			GSLog.warn(CHANNEL, "bots cannot route on this map", {"map": String(map.id), "error": started.error.message})
+		_nav_at = _tick
 		return _nav
 
 	## The bake's [code]done[/code]: its parse is over, so the source it read can go.
@@ -450,10 +503,14 @@ class NavWorld:
 		return (load(FcPaths.rebase("res://game/fc_player.gd")) as GDScript).call("fc_tunables")
 
 	func _graph_for_map() -> GSNpcNavGraph:
-		var map: Variant = game.get("map")
-		if not (map is Object) or not (map as Object).has_method(&"is_imported") or bool((map as Object).call(&"is_imported")):
+		if _graph_at == _tick and _tick >= 0 and _graph != null:
+			return _graph
+		_graph_at = -2
+		var map := game.get(&"map") as FcMap
+		if map == null or map.is_imported():
 			return null
 		if _graph != null and _graph_map == map:
+			_graph_at = _tick
 			return _graph
 		_graph_map = map
 		_graph = null
@@ -464,4 +521,5 @@ class NavWorld:
 		var graph := GSNpcNavGraph.new()
 		if (data as GSNpcNavData).validate().ok and graph.rebuild(data).ok:
 			_graph = graph
+		_graph_at = _tick
 		return _graph

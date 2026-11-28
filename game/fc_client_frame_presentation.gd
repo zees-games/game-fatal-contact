@@ -145,7 +145,11 @@ func _drive_spectator_camera() -> void:
 
 	var id := player.player_id
 
-	if not game.spectate.is_spectating(str(id)):
+	# [b]A living body owns the view.[/b] The kill is a reliable event sent the moment the shot lands; the health that
+	# says so rides the next snapshot, up to a snapshot interval later. Between the two the client draws the player
+	# alive, and moving the camera to the death cam then threw the view 0.8 m up and 90-120 degrees round for a few
+	# frames before the player was even drawn dead (headless_hosted_view, about one run in two).
+	if not game.spectate.is_spectating(str(id)) or player.is_alive():
 		if hud != null:
 			hud.roam_hint = ""
 		FcWeaponDropWiring.update_panel(self, _held(FcBindings.USE), get_process_delta_time())

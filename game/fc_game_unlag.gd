@@ -109,11 +109,18 @@ var _st_height := PackedFloat64Array()
 
 
 var _st_radius := PackedFloat64Array()
+## [method _unlag_record_native]'s columns, kept between ticks.
+var _ur_ids := PackedInt64Array()
+var _ur_feet := PackedVector3Array()
+var _ur_crouch := PackedFloat32Array()
 
 
 ## Where player [param id] was at [param at] (a fractional tick), between the two
 ## recorded ticks either side; null when the history does not reach that far.
 func unlag_position_at(id: int, at: float) -> Variant:
+	var native := _unlag_ring()
+	if native != null:
+		return native.position_at(id, at)
 	var ring: Array = _unlag.get(id, [])
 	# Below tick 0, -1 % 128 indexes the last slot, whose unfilled tag is -1 too.
 	if ring.is_empty() or at < 0.0:
@@ -133,6 +140,9 @@ func unlag_position_at(id: int, at: float) -> Variant:
 
 ## Player [param id]'s crouch fraction at [param at], lerped as [method unlag_position_at] is; -1 when not recorded.
 func unlag_crouch_at(id: int, at: float) -> float:
+	var native := _unlag_ring()
+	if native != null:
+		return float(native.crouch_at(id, at))
 	var ring: Array = _unlag.get(id, [])
 	if ring.size() < 3 or at < 0.0:
 		return -1.0
@@ -194,8 +204,34 @@ func unlag_history() -> int:
 	return maxi(UNLAG_HISTORY, ceili(UNLAG_SECONDS * float(tick_rate)) + 2)
 
 
+## The native rings (GSSimUnlagRing) while `sv_native_unlag` is on and GameSpice Sim has them; null runs the script rings.
+func _unlag_ring() -> Object:
+	if native_unlag == 0:
+		return null
+	if _unlag_native == null and not _unlag_native_missing:
+		if ClassDB.class_exists(&"GSSimUnlagRing"):
+			_unlag_native = ClassDB.instantiate(&"GSSimUnlagRing")
+		else:
+			_unlag_native_missing = true
+			GSLog.error("fc.unlag", "sv_native_unlag is on but GameSpice Sim has no GSSimUnlagRing; the rewind history stays in script")
+	return _unlag_native
+
+
+## Applies `sv_native_unlag`: both kinds of ring start empty, so neither answers from history the other recorded.
+func apply_native_unlag() -> void:
+	_unlag.clear()
+	if _unlag_native != null:
+		_unlag_native.clear()
+	if native_unlag == 0:
+		_unlag_native = null
+
+
 ## Records every player's position for this tick, for [method _unlag_rewind].
 func _unlag_record() -> void:
+	var native := _unlag_ring()
+	if native != null:
+		_unlag_record_native(native)
+		return
 	for id in _players:
 		var player: FcPlayer = _players[id]
 		var ring: Array = _unlag.get(id, [])
@@ -233,6 +269,23 @@ func _unlag_record() -> void:
 		ring[1] = ticks
 		ring[2] = crouches
 		_unlag[id] = ring
+
+
+## [method _unlag_record] in one call: the same feet, crouch fractions and teleport cut, in Rust's rings.
+func _unlag_record_native(native: RefCounted) -> void:
+	var n := _players.size()
+	_ur_ids.resize(n)
+	_ur_feet.resize(n)
+	_ur_crouch.resize(n)
+	var i := 0
+	for id in _players:
+		var player: FcPlayer = _players[id]
+		_ur_ids[i] = id
+		_ur_feet[i] = player.global_position
+		_ur_crouch[i] = player.controller.state.crouch_fraction if player.controller != null else 0.0
+		i += 1
+	native.set_history(unlag_history())
+	var _ok: bool = native.record(_tick, _ur_ids, _ur_feet, _ur_crouch, TELEPORT_CUT)
 
 
 func player_ids() -> Array[int]:

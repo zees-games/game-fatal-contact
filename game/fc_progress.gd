@@ -5,6 +5,7 @@ const FcAwards := preload("fc_awards.gd")
 const FcBoards := preload("fc_boards.gd")
 const FcPlayer := preload("fc_player.gd")
 const FcStats := preload("fc_stats.gd")
+const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcLoadoutIdentity := preload("fc_loadout_identity.gd")
 ## Mirrors FcGame.BOT_SESSION_BASE (fc_game_vars.gd); a preload of the game here would close a
 ## parser cycle that GDScript never frees.
@@ -616,6 +617,12 @@ func _report_kill(killer: int, victim: int, entry: GSKillFeed.Entry) -> void:
 
 
 func _on_shot_resolved(shot: GSShot) -> void:
+	var t_lap := FcFrameProbe.lap_start()
+	_shot_resolved(shot)
+	FcFrameProbe.lap(&"st_prog_shot", t_lap)
+
+
+func _shot_resolved(shot: GSShot) -> void:
 	if shot == null or _game == null or _game.player_for(shot.attacker) == null:
 		return
 
@@ -635,6 +642,12 @@ func _on_shot_resolved(shot: GSShot) -> void:
 
 
 func _on_damage_applied(damage: GSDamage) -> void:
+	var t_lap := FcFrameProbe.lap_start()
+	_damage_applied(damage)
+	FcFrameProbe.lap(&"st_prog_dmg", t_lap)
+
+
+func _damage_applied(damage: GSDamage) -> void:
 	if damage.health_lost <= 0.0 or _game == null:
 		return
 

@@ -7,6 +7,10 @@ const SUN_SHADOW_SPLITS := 1.0
 const SUN_SHADOW_DISTANCE := 60.0
 const _RenderQuality := preload("res://addons/gs_game/runtime/gs_game_render_quality.gd")
 const _UserDir := preload("fc_user_dir.gd")
+const _ClientRender := preload("res://addons/gs_game/runtime/gs_game_client_render.gd")
+
+## The saved settings, read again before the presentation exists, that [method _apply_render_quality_early] follows until [method _follow_render_quality] hands the quality to the real ones.
+var _early_settings: GSSettingsManager
 
 func _render_defaults() -> void:
 	if float(_RenderQuality.values[&"r_sun_shadow_splits"]) < 0.0:
@@ -36,6 +40,9 @@ func _ready() -> void:
 	timeline.name = "LoadTimeline"
 	timeline.gate = gate
 	add_child(timeline)
+	_apply_render_quality_early()
+	# Before the weapons, figures and world make their shaders: enabled later, the group loads for all of them in one frame.
+	_arm_shader_group()
 	# Names the process phase's untimed time in a recorded profile (arena.pf_head, pf_nodes, pf_tail).
 	add_child(preload("fc_process_spans.gd").new())
 	_request_figures()
@@ -245,12 +252,15 @@ func _setup_finish(timeline: FcLoadTimeline) -> void:
 	_suspend_input(platform.is_input_blocked())
 	FcLoadTimeline.mark("setup: platform")
 	if not GSPlatform.is_headless():
-		_set_client_processing(true)
 		# The first draw of the built level and HUD compiles their pipelines (672 ms on staging02): marked, so it is not mistaken for setup.
 		RenderingServer.frame_pre_draw.connect(func() -> void: FcLoadTimeline.mark("level draw begins"), CONNECT_ONE_SHOT)
 		RenderingServer.frame_post_draw.connect(func() -> void:
 			FcLoadTimeline.mark("level draw done")
 			timeline.trace_frames(12), CONNECT_ONE_SHOT)
+		# The first processed frame (the bodies' first pass, 420 ms) drawn a frame after that first level draw: together they were one 634 ms frame on staging02.
+		if split:
+			await _setup_frame()
+		_set_client_processing(true)
 
 ## [method FcGame.setup], one step a frame in a client that draws (the steps shared one 222 ms frame on
 ## staging02; combat and loadouts were most of it). The game does not process between steps, so nothing
@@ -391,6 +401,43 @@ func _follow_render_quality() -> void:
 		return
 	quality.call(&"follow", presentation.settings)
 	quality.call(&"load_layers")
+	if _early_settings != null:
+		_early_settings.free()
+		_early_settings = null
+
+
+## GameSpice Core's [GSShaderGroupArm] (dm_box's first level draw went from ~1000 ms to 9 ms on staging), marked
+## "shader group armed" on the timeline. Off with launch value `cl_shader_group_arm 0`: the group is then enabled at the
+## level's first lightmapped frame, as before.
+func _arm_shader_group() -> void:
+	if FcFrameProbe.launch_value("cl_shader_group_arm") == "0":
+		return
+	var arm := GSShaderGroupArm.start(self)
+	if arm != null:
+		arm.armed.connect(func() -> void: FcLoadTimeline.mark("shader group armed"))
+
+
+## The render quality from the saved settings and the `--render-*` cvars, applied before the shader-group arm and the warm-ups compile
+## anything, so [method _follow_render_quality] finds the same values and no pipeline is compiled twice.
+## `cl_early_render_quality 0` leaves it to the platform's quality piece.
+func _apply_render_quality_early() -> void:
+	if GSPlatform.is_headless() or not platform.use_render_quality or platform.gate_only:
+		return
+	if FcFrameProbe.launch_value("cl_early_render_quality") == "0":
+		return
+	_early_settings = GSSettingsManager.new()
+	_early_settings.schema = FcPresentation.schema()
+	_early_settings.local_store = GSSettingsStoreFile.new(FcPresentation.settings_directory)
+	_early_settings.app_namespace = &"game_fatal_contact"
+	_early_settings.persist = false
+	_early_settings.register_as_service = false
+	var read := _early_settings.setup()
+	if not read.ok:
+		GSLog.result(CHANNEL, "the saved render quality", read)
+	platform.render_quality = _ClientRender.add(platform, _early_settings)
+	# The quality piece would find this node and set the platform's reference to null.
+	if platform.render_quality != null:
+		platform.use_render_quality = false
 
 
 func toggle_view() -> void:

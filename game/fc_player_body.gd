@@ -210,13 +210,11 @@ func _present_held(remote: bool = false) -> void:
 		# on_switching sets the model's own visible (hide_while_switching): it may hide the gun, never show one this hides.
 		if not shown:
 			held.visible = false
-		if held.has_method(&"on_reloading"):
-			held.call(&"on_reloading", reloading and alive)
+		# fc-weapons 32 (on_reloading/on_aiming/on_charge) is below the floor in requires.floor.json.
+		held.on_reloading(reloading and alive)
 		# Aiming is not replicated: only a body this client drives shoulders its gun for it (a shot does for all).
-		if held.has_method(&"on_aiming"):
-			held.call(&"on_aiming", aim_held and not mirrored and alive)
-		if held.has_method(&"on_charge"):
-			held.call(&"on_charge", charge)
+		held.on_aiming(aim_held and not mirrored and alive)
+		held.on_charge(charge)
 	FcFrameProbe.lap(&"r_held_hooks", t_hooks)
 	_present_inspect(alive)
 
@@ -234,11 +232,12 @@ func _present_held(remote: bool = false) -> void:
 ## third-person view and the lab's outside cameras see the gun looked over. Not replicated, like aiming: only a
 ## body this client drives has a view model to read, and a fraction not told again lets the held gun go.
 func _present_inspect(alive: bool) -> void:
-	if mirrored or weapons == null or not alive or not held.has_method(&"on_inspect"):
+	if mirrored or weapons == null or not alive:
 		return
-	var hands: Variant = weapons.view_model()
-	if hands is Object and (hands as Object).has_method(&"inspect_fraction"):
-		held.call(&"on_inspect", float(hands.call(&"inspect_fraction")))
+	# fc-weapons 42 (AwWorldModel.on_inspect) is below the floor in requires.floor.json.
+	var hands := weapons.view_model()
+	if hands != null:
+		held.on_inspect(hands.inspect_fraction())
 
 
 ## Draws the held gun's attachments, and marks the hand (and the local rig) suppressed for FcAttach.wrap_report.
@@ -720,7 +719,7 @@ func tick_post_head(tick: int, delta: float, combat_command: GSWeaponCommand) ->
 func tick_idle_row(row: PackedFloat64Array, still: bool) -> GSWeaponOutcome:
 	var t_wp := Time.get_ticks_usec()
 	var out: GSWeaponOutcome = weapons.call(&"simulate_cooling_row", _command, _posture_tick, row) if _cool_now \
-		else weapons.call(&"simulate_idle_row", _command, _posture_tick, row, still)
+		else weapons.simulate_idle_row(_command, _posture_tick, row, still)
 	_idle_hands()
 	FcFrameProbe.add(&"p_weapons", t_wp)
 	if FcWeaponCensus.on:

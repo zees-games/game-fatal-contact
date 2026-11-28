@@ -4,8 +4,10 @@ const FcNetAoi := preload("fc_net_aoi.gd")
 const FcPlayerNet := preload("fc_player_net.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
+const FcNetPullBatch := preload("fc_net_pull_batch.gd")
 const FcBots := preload("fc_bots.gd")
 const FcBotLoadouts := preload("fc_bot_loadouts.gd")
+const FcBotCoast := preload("fc_bot_coast.gd")
 const FcTickBudget := preload("fc_tick_budget.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const FcAvatarLibrary := preload("fc_avatar_library.gd")
@@ -208,6 +210,20 @@ func _add_shot_rewind_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			game.shot_rewind_log_sec = new_value.to_float()
 			log_info("shot rewind log period changed", {"sec": game.shot_rewind_log_sec}))
+	add_cvar("sv_native_shots", str(game.native_shots),
+		"1 walks hitscan pellets natively (GameSpice Sim GSSimShots), 0 runs the script tracer",
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.native_shots = new_value.to_int()
+			game.apply_native_shots()
+			log_info("native shots changed", {"on": game.native_shots}))
+	add_cvar("sv_native_unlag", str(game.native_unlag),
+		"1 keeps lag-compensation history natively (GameSpice Sim GSSimUnlagRing), 0 in script",
+		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.native_unlag = new_value.to_int()
+			game.apply_native_unlag()
+			log_info("native unlag changed", {"on": game.native_unlag}))
 	add_cvar("cl_shot_view_cone_deg", str(game.shot_view_cone_deg),
 		"Degrees off the aim within which a shot names a target's own snapshot pair to the server (0 every target)",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
@@ -336,6 +352,11 @@ func _add_bot_think_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE | GSConVar.FLAG_NOTIFY).with_min(-1.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBots.recoil_control = new_value.to_float())
+	add_cvar("bot_coast_native", "1" if FcBotCoast.enabled else "0",
+		"1 (default): the bots that sit a tick out are worked in one gs-sim call (GSSimBotCoast); 0, or without gs-sim: in script, one by one (the same commands)",
+		GSConVar.FLAG_ARCHIVE).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBotCoast.enabled = new_value.to_int() != 0)
 	_add_bot_engine_cvars()
 	_add_hull_and_pvs_cvars()
 	_add_tick_budget_cvars()
@@ -658,6 +679,7 @@ func _add_aoi_cvars() -> void:
 		func(_old: String, new_value: String) -> void:
 			FcNetPullNative.enabled = new_value.to_float() >= 0.5)
 	FcNetPullWeapons.bind_cvars(add_cvar)
+	FcNetPullBatch.bind_cvars(add_cvar)
 
 
 ## Once a second from the module: turns the rings on or off for the current player count.

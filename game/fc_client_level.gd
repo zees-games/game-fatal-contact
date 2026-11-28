@@ -10,6 +10,8 @@ const LEVEL_WARM_BATCH := 4
 ## Milliseconds a round of the new level's warm-up may cost its frame ([method _warm_level]): a map change's bare
 ## frame is about 18 ms on staging02, so a round leaves room for a compile or two and stays near 33 ms.
 const LEVEL_WARM_BUDGET_MSEC := 30.0
+## Off (launch value `cl_first_draw_warm 0`): the first boot draws its level cold in the frame the camera arrives, as before.
+static var first_draw_warm_enabled := true
 
 ## The level half of the client's boot: entering a map, classifying it and warming its shaders in frame-sized slices. Split out of fc_client_hud_and_camera.gd for file size.
 
@@ -51,7 +53,17 @@ func _enter_level(release: bool) -> void:
 	var made: Node3D = await game.map.to_scene_async(slice)
 	FcLoadTimeline.mark("map_scene_built")
 	var lit := false
-	if _level != null and is_instance_valid(_level):
+	var eye: Camera3D = null
+	if _level == null and _first_draw_warm():
+		# First boot has no camera until the player is adopted, so the level's pipelines all compiled in the frame the
+		# camera arrived. A stand-in eye lets the warm-up compile them here in budgeted rounds, under the map hold.
+		eye = _first_draw_eye(game.map)
+		_light()
+		lit = true
+		FcLoadTimeline.mark("level lit (first boot)")
+		await get_tree().process_frame
+		await _warm_level(made)
+	elif _level != null and is_instance_valid(_level):
 		# The new map's sun and sky first: its fog, ambient and shadow mode are part of every pipeline the warm-up compiles,
 		# and warmed under the old map's, the level's first frame still compiled 26 on staging02.
 		_light()
@@ -70,9 +82,36 @@ func _enter_level(release: bool) -> void:
 	add_child(_level)
 	if not lit:
 		_light()
+	if eye != null:
+		# One frame drawn from the stand-in before the player's camera takes over. Its LightmapGI's first frame stays
+		# about 950 ms on staging whether or not any mesh is visible (a fixed cost, not per material), but under the map hold.
+		await get_tree().process_frame
+		FcLoadTimeline.mark("level drawn (first boot)")
+		eye.free()
 	_level_busy = false
 	if release:
 		gate.release(&"map")
+
+
+## Whether this first boot draws its built-in level from a stand-in eye first; imported maps warm their worlds elsewhere.
+func _first_draw_warm() -> bool:
+	if not first_draw_warm_enabled or GSPlatform.is_headless() or not is_inside_tree():
+		return false
+	if game == null or game.map == null or game.map.is_imported():
+		return false
+	return FcFrameProbe.launch_value("cl_first_draw_warm") != "0" and get_viewport().get_camera_3d() == null
+
+
+## A current camera above the whole map looking down, for [method _enter_level]'s first-boot draw; freed by it.
+func _first_draw_eye(map: Variant) -> Camera3D:
+	var eye := Camera3D.new()
+	eye.name = "FirstDrawEye"
+	add_child(eye)
+	var extent: float = maxf(float(map.extent), 8.0)
+	eye.global_transform = Transform3D(Basis.looking_at(Vector3.DOWN, Vector3.FORWARD), Vector3(0.0, extent * 2.0, 0.0))
+	eye.far = extent * 6.0
+	eye.make_current()
+	return eye
 
 
 ## Draws [param made]'s surfaces once, out of sight in budgeted rounds, before it replaces the shown level. Its first draw compiled every pipeline in one frame (634 ms with a cold shader cache on staging02, 18 ms warm), under a cover
@@ -87,10 +126,10 @@ func _warm_level(made: Node3D) -> void:
 			meshes.append(item)
 	var warm := GSRenderWarmup.new()
 	warm.name = "LevelWarmup"
-	warm.budget_msec = LEVEL_WARM_BUDGET_MSEC
+	warm.budget_msec = FcFrameProbe.warm_frame_ms(LEVEL_WARM_BUDGET_MSEC)
 	# Few per round: a round's first draw also uploads its props' textures, and the warm-up's first 16 were 34 pipelines
-	# and +39 MB in one 191 ms frame on staging02.
-	warm.batch_size = LEVEL_WARM_BATCH
+	# and +39 MB in one 191 ms frame on staging02. `cl_warm_frame_ms 0` (unlimited) draws them all in one round.
+	warm.batch_size = LEVEL_WARM_BATCH if warm.budget_msec > 0.0 else 1000
 	# The camera is often under a frozen body, and a disabled warm-up never times out.
 	warm.process_mode = Node.PROCESS_MODE_ALWAYS
 	warm.add_items(meshes)

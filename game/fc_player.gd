@@ -263,6 +263,9 @@ func _out_of_sight(to: Vector3, d2: float, forward: Vector3, frustum: Array) -> 
 ## Whether the solid world hides the chest, the head and the knee of this body from [param eye]. Cached for
 ## [constant OCCLUSION_RECHECK_MSEC]: a body stepping out from behind a corner is presented at the thinned rate for at
 ## most that long, then in full. A body with no world mask or outside the tree is never hidden.
+const _OCCLUSION_LIFTS: Array[float] = [1.0, 1.7, 0.4]
+var _occlusion_query: PhysicsRayQueryParameters3D = null
+
 func _behind_world(eye: Vector3) -> bool:
 	var now := Time.get_ticks_msec()
 	if now < _occlusion_next_msec:
@@ -273,8 +276,14 @@ func _behind_world(eye: Vector3) -> bool:
 		return false
 	var space := get_world_3d().direct_space_state
 	var feet := global_position
-	for lift in [1.0, 1.7, 0.4]:
-		var query := PhysicsRayQueryParameters3D.create(eye, feet + Vector3(0.0, lift, 0.0), TagRules.occluder_mask)
+	# One query reused: create()'s defaults are new()'s, so only the ends and the mask change.
+	if _occlusion_query == null:
+		_occlusion_query = PhysicsRayQueryParameters3D.new()  # perf-lint: allow alloc once a body
+	var query := _occlusion_query
+	query.from = eye
+	query.collision_mask = TagRules.occluder_mask
+	for lift: float in _OCCLUSION_LIFTS:
+		query.to = feet + Vector3(0.0, lift, 0.0)
 		if space.intersect_ray(query).is_empty():
 			return false
 	_occluded = true
@@ -355,17 +364,9 @@ static func camera_motion_picks() -> GSFpsViewMotion:
 func set_camera_motion_scales(landing: float, strafe: float, wall: float, widen: float) -> void:
 	if camera_motion == null:
 		return
-	var picks := camera_motion_picks()
-	camera_motion.landing_dip = picks.landing_dip * maxf(landing, 0.0)
-	camera_motion.landing_pitch = picks.landing_pitch * maxf(landing, 0.0)
-	camera_motion.strafe_roll = picks.strafe_roll * maxf(strafe, 0.0)
-	camera_motion.slide_roll = picks.slide_roll * maxf(strafe, 0.0)
-	camera_motion.wall_run_roll = picks.wall_run_roll * maxf(wall, 0.0)
+	camera_motion.apply_scales(camera_motion_picks(), landing, strafe, wall, widen)
+	# wall_run_eye_shift_m is per player (main): it replaces the picks' shift after the shared scaling.
 	camera_motion.wall_run_eye_shift = wall_run_eye_shift_m * clampf(wall, 0.0, 1.0)
-	camera_motion.roll_limit = picks.roll_limit * maxf(maxf(strafe, wall), 0.0)
-	camera_motion.fov_speed_gain = picks.fov_speed_gain * maxf(widen, 0.0)
-	camera_motion.slide_fov_gain = picks.slide_fov_gain * maxf(widen, 0.0)
-	camera_motion.wall_run_fov_gain = picks.wall_run_fov_gain * maxf(widen, 0.0)
 
 ## Holds a landing until the drawn eye reaches the floor ([method _kick_landing]).
 ##

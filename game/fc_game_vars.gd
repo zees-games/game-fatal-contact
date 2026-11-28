@@ -4,6 +4,7 @@ extends "fc_game_state.gd"
 const FcFlashlight := preload("fc_flashlight.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
+const FcNativeTick := preload("fc_native_tick.gd")
 const FcShotStats := preload("fc_shot_stats.gd")
 const HULL_NEAR_SQ := 144.0
 
@@ -19,7 +20,7 @@ var fall_rules: GSFallDamageRules = make_fall_rules()
 
 ## Landing on a head (`sv_stomp*`, the cfg `stomp_*` keys); the numbers are copied from [member config] each tick.
 var stomp := GSStomp.new()
-var _pre_vy: Dictionary = {}
+var _pre_vy: Dictionary[int, float] = {}
 ## Where each player's saved loadouts are filed (a stable key when they have one).
 var loadout_identity := FcLoadoutIdentity.new()
 
@@ -77,7 +78,7 @@ var _roster: Array[FcPlayer] = []
 var _roster_ids := PackedInt64Array()
 var _roster_dirty := true
 ## Roster index by player id, rebuilt with [member _roster].
-var _roster_at: Dictionary = {}
+var _roster_at: Dictionary[int, int] = {}
 ## [method _add_hulls_local]'s pair answers this tick, row-major by roster index: 0 unasked, 1 blocks, 2 passes.
 var _pair_memo := PackedByteArray()
 var _pair_memo_tick: int = -1
@@ -89,23 +90,50 @@ var _hull_world: Object = null
 var _hull_world_data := PackedFloat64Array()
 ## The players' motors ticked in runs of one native call ([method _tick_players_batched]), and each roster slot's row and commands.
 var _motor_batch: GSFpsMotorBatch = null
+## Whether the motor batch's gs-player-controller has post_row, noted when it is made.
+var _motor_post_row := false
+## The commands of a player who sent none this tick, read only.
+const _NO_PAIR: Array[Object] = []
 var _batch_rows := PackedInt32Array()
-var _batch_pairs: Array = []
+var _batch_pairs: Array[Array] = []
+## gs-sim's server tick (`sv_native_motor_state`): holds the batch's resident motor rows and the player table, stepped once a tick after the batched loop.
+var _native_tick := FcNativeTick.new()
+var _native_tick_on := false
+## `sv_native_players`: gs-player-controller's batched call over every player's controller (null until first used, or
+## without it), its controllers column, its three hooks (made once) and the tick's loop state they read.
+var _ctl_batch: Object = null
+var _ctl_controllers: Array[GSFpsController] = []
+var _ctl_tried := false
+var _pc_pre_fn := Callable()
+var _pc_live_fn := Callable()
+var _pc_post_fn := Callable()
+var _pc_ids: Array[int] = []
+var _pc_shots: Array[GSShot] = []
+var _pc_hull_world: Object = null
+var _pc_post_from: Object = null
+var _pc_delta := 0.0
+var _pc_knife := false
+var _pc_surfing := false
+var _pc_fine := false
+var _pc_post_lane := false
+var _pc_mark_due := false
+## The batched loop's motor edges for every player ([member FcHullGrid.events]): one row per player's tick, derived and dispatched after the loop.
+var _tick_events := GSFpsTickEvents.new()
 ## The batched loop's idle weapon ticks waiting on one gs-sim posture call ([method _flush_posts]): its
 ## `GSSimPlayerPost`, the input rows (10 floats each) and each one's player, id and move command.
 var _post_native: Object = null
 ## Which batched players are clear of the map's volumes this tick (cvar fc_mechanics_native).
 var _volume_pre := preload("fc_volume_prefilter.gd").new()
 var _post_in := PackedFloat64Array()
-var _post_players: Array = []
+var _post_players: Array[FcPlayer] = []
 var _post_ids := PackedInt64Array()
-var _post_moves: Array = []
+var _post_moves: Array[GSFpsCommand] = []
 ## The idle weapons' batch ([member FcPlayer.weapon_idle_batch]): gs-sim's runner, its flat entries, each entry's player
 ## and each posted player's outcome.
 var _idle_batch: Object = null
 var _idle_entries: Array = []
-var _idle_owners: Array = []
-var _idle_outs: Array = []
+var _idle_owners: Array[FcPlayer] = []
+var _idle_outs: Array[GSWeaponOutcome] = []
 var _demo_gated := false
 
 

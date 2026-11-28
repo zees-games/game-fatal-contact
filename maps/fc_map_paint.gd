@@ -172,6 +172,27 @@ static func texture_paths() -> PackedStringArray:
 	return out
 
 
+## The [code][kind, tint][/code] pairs of every photo material [param map]'s floor and boxes are painted with, each once, in the form
+## [method GSMapSurfaces.prepare_kinds_async] makes ahead ([method Painter.prepare_async]).
+static func photo_wanted(map: Object) -> Array:
+	var wanted: Array = [[KIND_GROUND, Painter.photo_tint(GROUND, PHOTO_PALE_GROUND, PHOTO_GAIN)]]
+	var seen: Dictionary = {}
+	var boxes: Array = map.boxes
+	var extent: float = map.extent
+	for index in range(boxes.size()):
+		var role := role_of(boxes[index], extent)
+		var kind: StringName = KIND_OF_ROLE.get(role, &"")
+		if kind == &"":
+			continue
+		var tint := Painter.photo_tint(colour_of(map, index), PHOTO_PALE[role], PHOTO_GAIN_SLAB if role == Role.SLAB else PHOTO_GAIN)
+		var key := "%s|%s" % [kind, tint.to_html()]
+		if seen.has(key):
+			continue
+		seen[key] = true
+		wanted.append([kind, tint])
+	return wanted
+
+
 ## Builds the materials for a map: one per colour, shared by every box of that colour.
 ##
 ## [b]Shared, because the browser build draws with the Compatibility renderer[/b], where a
@@ -206,15 +227,28 @@ class Painter:
 		var lib := _library()
 		var made: StandardMaterial3D = null
 		if lib != null:
-			var pale := colour.lerp(Color.WHITE, pale_by) * gain
-			pale.a = 1.0
-			var res: GSResult = lib.try_material(kind, pale)
+			var res: GSResult = lib.try_material(kind, photo_tint(colour, pale_by, gain))
 			if res.ok:
 				made = res.value
 		if made == null:
 			made = box(colour)
 		_cache[key] = made
 		return made
+
+	## The tint a photograph of [param colour] is drawn with.
+	static func photo_tint(colour: Color, pale_by: float, gain: float) -> Color:
+		var pale := colour.lerp(Color.WHITE, pale_by) * gain
+		pale.a = 1.0
+		return pale
+
+	## Loads and builds the photo materials [param wanted] lists ([method photo_wanted]) behind the loading screen, as many a frame as
+	## fit [param budget_msec] (0: all in this frame), so the boxes built after find them made. Returns the frames waited;
+	## 0 too with no photographs in this build or a gs-map without the preparer.
+	func prepare_async(wanted: Array, tree: SceneTree, budget_msec: float) -> int:
+		var lib := _library()
+		if lib == null or not lib.has_method(&"prepare_kinds_async"):
+			return 0
+		return await lib.prepare_kinds_async(wanted, tree, budget_msec)
 
 	func _library() -> Object:
 		if _surfaces_tried:
