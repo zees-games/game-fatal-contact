@@ -27,8 +27,16 @@ func _run() -> void:
 	_build_client(2, 11)
 	_build_client(3, 12)
 	_join_everyone()
+	var joined := _joins.size()
 	for i in 3:
 		_check(_server_bridge.add_bot("Grouper%d" % i) != 0, "the server seats bot %d" % i)
+	# _join_everyone hands the clients only the joins made before it. A client that meets an entity it
+	# has no join for stops reading the snapshot there, players and all, so without this no remote
+	# player ever got state and the comparison below ran over nothing.
+	_check(_joins.size() == joined + 3, "the bots' joins were announced", str(_joins.size() - joined))
+	for peer_id in _clients:
+		for k in range(joined, _joins.size()):
+			_check(_clients[peer_id]["bridge"].apply_join(_joins[k]).ok, "client %d mirrors bot join %d" % [peer_id, k])
 	# Client 3 reads through the script: gs-net's _apply_read marks the groups.
 	var script_net: GSNetManager = _clients[3]["net"]
 	if script_net.interpolator != null:
