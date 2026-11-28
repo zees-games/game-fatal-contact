@@ -266,13 +266,18 @@ func _add_avatar_library_cvars() -> void:
 			var _r := FcAvatarLibrary.apply_loadout_limits(GSGameAvatarLoadoutMessage.max_entries, int(new_value.to_float())))
 
 
-## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_native`: gs-sim's sight scan; `bot_native_brain`: gs-bot's native mind (on); `bot_native_think`: the contact table handed to the native sight scan (on); `motor_native`: gs-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in gs-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: gs-sim's ragdoll bone pose.
+## `bot_think_every`, `bot_think_near`: bot think-rate staggering (see [member FcBots.think_every]); `bot_scan_budget`: the perception stride ([member FcBots.scan_budget]); `bot_native`: gs-sim's sight scan; `bot_native_brain`: gs-bot's native mind (on); `bot_native_think`: the contact table handed to the native sight scan (on); `motor_native`: gs-sim's movement collision queries and collide-and-slide; `motor_native_tick`: a plain ground or air tick's start and end in gs-sim; `motor_native_full`: the whole tick there; `ragdoll_native`: gs-sim's ragdoll bone pose.
 func _add_bot_think_cvars() -> void:
 	add_cvar("bot_think_every", str(FcBots.think_every),
 		"A bot far from every enemy runs its brain one tick in this many (1 = every tick, 0 = 2 above 16 players)",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			FcBots.think_every = maxi(0, int(new_value.to_float())))
+	add_cvar("bot_scan_budget", str(FcBots.scan_budget),
+		"Bots looking for a new target each think at most: above it a bot with no visible target looks every ceil(players / this) thinks (0 = every bot every think)",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcBots.scan_budget = maxi(0, int(new_value.to_float())))
 	add_cvar("bot_brains_per_tick", str(FcBots.brains_per_tick),
 		"Bot brains built on one tick at most (a full server's bots join together); a bot past it stands still a tick or two. 0 = no limit",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).changed.connect(
