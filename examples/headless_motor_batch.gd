@@ -372,14 +372,14 @@ func _check_activity() -> void:
 		return
 	var was := FcActivityLane.enabled
 	var stream: Array = []
-	var _recorded: Array = await _play(true, &"", SMALL_BOTS, SMALL_SECONDS, stream, true, {idle = IDLE_SECONDS})
+	var _recorded: Array = await _play(true, &"", SMALL_BOTS, SMALL_SECONDS, stream, true, {idle = IDLE_SECONDS, every = 1})
 	FcActivityLane.enabled = false
 	var native_before := FcNativePhases.native_calls[FcNativePhases.PLAYERS]
-	var off := await _play(true, &"", SMALL_BOTS, SMALL_SECONDS, stream, false, {idle = IDLE_SECONDS})
+	var off := await _play(true, &"", SMALL_BOTS, SMALL_SECONDS, stream, false, {idle = IDLE_SECONDS, every = 1})
 	var native_off := FcNativePhases.native_calls[FcNativePhases.PLAYERS] - native_before
 	FcActivityLane.enabled = true
 	native_before = FcNativePhases.native_calls[FcNativePhases.PLAYERS]
-	var on := await _play(true, &"", SMALL_BOTS, SMALL_SECONDS, stream, false, {idle = IDLE_SECONDS})
+	var on := await _play(true, &"", SMALL_BOTS, SMALL_SECONDS, stream, false, {idle = IDLE_SECONDS, every = 1})
 	var native_on := FcNativePhases.native_calls[FcNativePhases.PLAYERS] - native_before
 	FcActivityLane.enabled = was
 	var idles_off: PackedStringArray = off[6]
@@ -441,6 +441,9 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 		meddler.game = game
 		meddler.where = opts.meddle
 		game.demo_stats = meddler
+	# The activity section compares the column with the per-player note on every tick (sv_activity_every 1).
+	if opts.has("every"):
+		game.activity_every = int(opts.every)
 	var idle: float = opts.get("idle", 0.0)
 	var idles := _watch_idle(game, idle)
 	var players: Array = []

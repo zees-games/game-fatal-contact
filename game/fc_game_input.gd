@@ -5,6 +5,29 @@ extends "fc_game_idle.gd"
 ## freeze; split out of fc_game_tick.gd for file size.
 
 
+## Ticks between two activity notes of one player (`sv_activity_every`; 1 or less = every tick, as before). The idle
+## check ([method GSMatch._check_idle]) only asks whether a player sent a command within `idle_seconds` (180 s by
+## default), so a note every 8 ticks (0.12 s at 66 Hz) gives it the same answer; each note was a [code]str(id)[/code]
+## and a scoreboard lookup per player per tick (pp_note, 0.19 ms a tick at 64 bots). Never more than a quarter of the
+## idle threshold, so a short idle time still sees every active player in time.
+var activity_every := 8
+
+var _activity_tick := -1
+var _activity_stride := 1
+
+
+## [method GSMatch.note_activity] for [param id] (its score key [param key]) on this tick's stride (offset by id, so the notes spread over the ticks).
+func _note_activity(id: int, key: String) -> void:
+	if _activity_tick != _tick:
+		_activity_tick = _tick
+		var config := match_node.config
+		var threshold := int(config.idle_seconds * float(config.tick_rate)) if config != null else 0
+		_activity_stride = clampi(mini(activity_every, threshold / 4), 1, maxi(activity_every, 1))
+	if _activity_stride > 1 and posmod(_tick + id, _activity_stride) != 0:
+		return
+	match_node.note_activity(key, _tick)
+
+
 ## A player's command input before its controller ticks (weapon drop, knife, activity note, surf ride), with
 ## [code]pp_*[/code] laps from [param t_fine]: the command pair as it came (no new two-item array per player per tick),
 ## or empty when the move or fire command is null.
@@ -20,9 +43,10 @@ func _batched_input(id: int, player: FcPlayer, pair: Array, knife_charge: bool, 
 	t_lap = FcFrameProbe.lap(&"pp_knife", t_lap)
 	if move == null or fire == null:
 		return []
-	# With the column on, the whole roster is noted in one call after the loop's first pass.
+	# With the column on (sv_native_activity), the whole roster is noted every tick in one call after the loop's
+	# first pass; off, the script's note on its sv_activity_every stride.
 	if not _activity.active:
-		match_node.note_activity(player.score_key if player.player_id == id else str(id), _tick)
+		_note_activity(id, player.score_key if player.player_id == id else str(id))
 	t_lap = FcFrameProbe.lap(&"pp_note", t_lap)
 	if surfing:
 		surf_rides.before_synced(id, player)
