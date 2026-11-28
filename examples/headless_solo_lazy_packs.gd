@@ -74,12 +74,13 @@ func _run() -> void:
 	var out: Dictionary = await FcMaps.predownload(cat, GSMapLoader.new(), true, progress)
 	var fetched: Array = out["fetched"]
 	var failed: Dictionary = out["failed"]
-	_check(fetched.has(&"lazy-b") and fetched.has(&"lazy-c") and fetched.size() == 2, "lazy-b and lazy-c are fetched", str(fetched))
+	# lazy-a is already mounted: counted as fetched (a no-op), so the three listed packs come back, not the unpublished one.
+	_check(fetched.has(&"lazy-b") and fetched.has(&"lazy-c") and fetched.has(&"lazy-a") and fetched.size() == 3, "lazy-b and lazy-c are fetched", str(fetched))
 	_check(FcImportedMaps.is_mounted(&"lazy-b") and FcImportedMaps.is_mounted(&"lazy-c"), "both are mounted")
 	_check(failed.has(&"lazy-gone2") and str(failed[&"lazy-gone2"]).length() > 0, "the unpublished pack is reported", str(failed))
 	_check(cat.get_map(&"lazy-gone2") == null and cat.get_map(&"lazy-b") != null, "the failed pack leaves the list, the rest stay")
 	_check(not cdn.asked.has("gamemann/lazy-a@1.0.0"), "the already mounted pack is not fetched again")
-	_check(seen.size() == 3 and seen.has(&"lazy-b") and seen.has(&"lazy-c"), "progress is reported before each fetch", str(seen))
+	_check(seen.size() == 4 and seen.has(&"lazy-b") and seen.has(&"lazy-c") and seen.has(&"lazy-gone2"), "progress is reported before each pack", str(seen))
 	cdn.asked = PackedStringArray()
 	var second: Dictionary = await FcMaps.predownload(cat, GSMapLoader.new(), true)
 	_check((second["fetched"] as Array).size() == 3 and (second["failed"] as Dictionary).is_empty() and cdn.asked.is_empty(),
