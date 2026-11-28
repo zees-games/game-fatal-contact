@@ -185,7 +185,7 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 			player.windup = knives.call(&"charge_of", id) if knife_charge else -1.0
 
 		if move != null and fire != null:
-			match_node.note_activity(str(id), _tick)
+			_note_activity(id)
 			if surf_rides != null:
 				surf_rides.call(&"before", id, player)
 			if fine:

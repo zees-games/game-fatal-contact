@@ -369,6 +369,11 @@ func _add_tick_budget_cvars() -> void:
 	server_steps.changed.connect(func(_old: String, new_value: String) -> void:
 		FcTickBudget.apply_server_steps(int(new_value.to_float())))
 	FcTickBudget.apply_server_steps(server_steps.get_int())
+	add_cvar("sv_activity_every", str(game.activity_every),
+		"Ticks between two notes that a player sent a command, for the idle check (8, 0.12 s at 66 Hz; never over a quarter of the idle time); 1 = every tick",
+		GSConVar.FLAG_ARCHIVE).with_min(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			game.activity_every = maxi(int(new_value.to_float()), 1))
 
 
 ## `sv_grenade_*` (fc_weapons' [AwGrenadeRules]) and `sv_grenade_utility`: 0 keeps flash, smoke and incendiary out of

@@ -267,6 +267,8 @@ func _ready() -> void:
 			"--settle": _settle = float(args[i + 1])
 			# --spikes 1: keeps the worst ticks with the sections each one spent (a dictionary snapshot per tick: opt-in).
 			"--spikes": _spikes = args[i + 1] != "0"
+			# --activityevery: sv_activity_every (ticks between two activity notes of a player; 1 = every tick).
+			"--activityevery": _activity_every = int(args[i + 1])
 			# --pin 2-5: pins every thread of this process to those cores (taskset), away from the host's other work.
 			"--pin": _pin = args[i + 1]
 	if not _pin_threads():
@@ -301,6 +303,7 @@ func _pin_threads() -> bool:
 ## --spikes: the [constant SPIKE_KEEP] slowest recorded ticks, each with the sections it spent and the combat in it.
 const SPIKE_KEEP := 8
 var _spikes := false
+var _activity_every := -1
 var _pin := ""
 var _spike_snap := {}
 var _spike_combat := PackedInt64Array([0, 0, 0])
@@ -604,6 +607,8 @@ func _serve() -> void:
 		get_tree().quit(2)
 		return
 	var _set := game.setup(map if map != null else FcMap.dm_box())
+	if _activity_every > 0:
+		game.activity_every = _activity_every
 	var config := LoopbackServer.config("scale128", _port, data, "error", 256)
 	config.tickrate = _tick
 	var server := await LoopbackServer.boot(self, config, "scale128")
