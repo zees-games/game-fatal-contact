@@ -105,6 +105,10 @@ static func schema() -> GSSettingsSchema:
 	if legs_def != null:
 		s.add(legs_def)
 	FcNameTagRules.declare_settings(s)
+	for line: StringName in FcAnnouncer.LINES:
+		s.add(GSSettingsDef.integer(FcAnnouncer.setting_key(line), int((FcAnnouncer.LINES[line] as Array)[0]), 0, 1000, &"audio").with_description("Announcer line \"%s\": the kills or streak that earns it (event lines: 1 on). 0 turns it off." % String(line).replace("_", " ")))
+	s.add(GSSettingsDef.number(&"announce_gap", 0.35, 0.0, 10.0, &"audio").with_description("Seconds of silence after an announcer line; lines never overlap."))
+	s.add(GSSettingsDef.number(&"announce_stale", 3.0, 0.0, 60.0, &"audio").with_description("A waiting announcer line older than this is dropped; 0 never drops."))
 	s.add(GSSettingsDef.boolean(&"ambient", true, &"audio").with_description("Quiet sounds under the map."))
 	s.add(GSSettingsDef.number(&"ambient_volume", 1.0, 0.0, 1.0, &"audio"))
 
@@ -273,6 +277,9 @@ func _on_service_registered(service: StringName, _instance: Object) -> void:
 
 
 func _on_setting_changed(key: StringName, value: Variant, _why: StringName) -> void:
+	if String(key).begins_with("announce_"):
+		announcer.apply_settings(settings)
+		return
 	match key:
 		&"master_volume":
 			audio.mixer.master = float(value)
@@ -375,6 +382,7 @@ func _build_audio() -> GSResult:
 	audio = FcAudioManager.new()
 	audio.name = "Audio"
 	audio.catalogue = sound_catalogue()
+	announcer.apply_settings(settings)
 	audio.mixer = GSAudioMixer.new()
 	audio.mixer.master = settings.get_float(&"master_volume", 0.8)
 	audio.mixer.sfx = settings.get_float(&"sfx_volume", 1.0)

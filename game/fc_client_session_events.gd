@@ -209,6 +209,8 @@ func _on_match(info: Dictionary) -> void:
 
 	var was := game.match_node.state
 	game.match_node.state = int(info["state"]) as GSMatch.State
+	if presentation != null and was != game.match_node.state:
+		presentation.on_match_phase(game.match_node.state == GSMatch.State.LIVE, game.match_node.state == GSMatch.State.MATCH_END)
 	game.match_node.round_number = int(info["round"])
 
 	# The end of the match: the scoreboard comes up by itself, and the notice line names
@@ -719,6 +721,12 @@ func _start_offline() -> void:
 			_on_stomp({"point": point, "sound": String(sound), "effect": String(effect)})
 	)
 	game.grenade_effect.connect(_on_grenade_fx)
+	if game.match_node != null:
+		game.match_node.state_changed.connect(
+			func(_from: GSMatch.State, to: GSMatch.State) -> void:
+				if presentation != null:
+					presentation.on_match_phase(to == GSMatch.State.LIVE, to == GSMatch.State.MATCH_END)
+		)
 	game.medals_awarded.connect(
 		func(killer: int, victim: int, medals: Array, points: int, streak: int) -> void:
 			_on_award({

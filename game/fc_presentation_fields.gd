@@ -64,6 +64,8 @@ var settings: GSSettingsManager = null
 
 
 var audio: GSAudioManager = null
+## Which announcer line an event earns and when it may play (read from the announce_* settings).
+var announcer := FcAnnouncer.new()
 
 
 ## Everybody's footsteps by surface and a bed per map: gs-audio's stock (Kenney's footsteps
@@ -262,6 +264,10 @@ func _fit_chat() -> void:
 
 
 func _process(_delta: float) -> void:
+	if announcer.pending() > 0 and audio != null:
+		var said := announcer.next_line(Time.get_ticks_msec() * 0.001)
+		if said != &"":
+			var _v := audio.play(FcAnnouncer.sound_id(said))
 	if not _shot_queue.is_empty():
 		_shot_slice()
 	elif not _bake_ids.is_empty():

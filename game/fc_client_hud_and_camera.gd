@@ -200,7 +200,7 @@ func _on_hit(info: Dictionary) -> void:
 	var lethal := bool(info.get("lethal", false))
 	hud.note_hit(int(info.get("victim_id", 0)), float(info.get("amount", 0.0)), point, bool(info.get("headshot", false)), lethal)
 	if presentation != null:
-		presentation.on_hit_confirmed(lethal)
+		presentation.on_hit_confirmed(lethal, bool(info.get("headshot", false)), bool(info.get("armored", false)))
 		presentation.on_body_hit(int(info.get("victim_id", 0)), point, camera_position())
 	_draw_body_hit(point)
 
@@ -228,6 +228,7 @@ func _on_award(info: Dictionary) -> void:
 	)
 	if presentation != null and int(info.get("killer_id", 0)) == own and own != 0:
 		presentation.on_medals(info.get("medals", []))
+		presentation.on_own_kill(int(info.get("streak", 0)), info.get("medals", []))
 
 ## The server sent the replay of the view that killed this player. Not over the final killcam.
 func _on_killview(clip: Dictionary, info: Dictionary) -> void:

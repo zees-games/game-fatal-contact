@@ -111,6 +111,8 @@ func _test_audio_is_a_firefight() -> void:
 		+ "would otherwise get quieter the further away you hit somebody"
 	)
 
+	_check_announcer(cat)
+
 	p.audio.listener_position = Vector3.ZERO
 	sink.forget()
 	var muzzle := Transform3D.IDENTITY
@@ -485,3 +487,45 @@ func _check_grenade_blasts() -> void:
 		heard[id] = true
 	_check(heard.size() == FcPresentation.GRENADE_BLASTS.size(), "the five grenades have five different detonation sounds")
 	_check(FcPresentation.blast_sound_id(&"rocket") == FcPresentation.EXPLOSION and FcPresentation.blast_sound_id(&"") == FcPresentation.EXPLOSION, "a rocket or an unnamed blast stays the stock explosion")
+
+
+## The announcer: every line has a catalogue sound and a file, thresholds of 0 silence a line, lines queue and never overlap.
+func _check_announcer(cat: GSAudioCatalogue) -> void:
+	var files := true
+	for line: StringName in FcAnnouncer.LINES:
+		var def := cat.find(FcAnnouncer.sound_id(line))
+		files = files and def != null and ResourceLoader.exists(def.path)
+	_check(files, "every announcer line has a catalogue sound whose file exists")
+	for id in [&"hit_marker", &"hit_head", &"hit_armor", &"kill_confirmed"]:
+		var def := cat.find(id)
+		_check(def != null and def.path.begins_with("res://assets/audio/"), "the %s sound is the generated low hit, not the old stock tick" % id)
+
+	var a := FcAnnouncer.new()
+	a.gap_sec = 0.5
+	a.on_own_kill(0.0, 1, false, true)
+	_check(a.next_line(0.0) == &"first_blood", "the first kill of a match says first blood")
+	a.on_own_kill(1.0, 2, false, false)
+	_check(a.next_line(1.0) == &"", "a second line waits while the first is still being said")
+	_check(a.pending() == 0, "a double kill needs two kills inside the window, and 1 s later is not a line of its own here")
+	a = FcAnnouncer.new()
+	a.on_own_kill(0.0, 1, false, false)
+	a.on_own_kill(1.0, 2, false, false)
+	_check(a.next_line(1.0) == &"double_kill", "two kills inside four seconds are a double kill")
+	a.on_own_kill(2.0, 3, false, false)
+	_check(a.next_line(2.0) == &"", "the triple waits out the double (no overlap)")
+	_check(a.next_line(1.0 + FcAnnouncer.LINE_SEC + a.gap_sec + 0.01) == &"multi_kill", "and plays once the double and its gap are done")
+	a = FcAnnouncer.new()
+	a.thresholds[&"killing_spree"] = 0
+	a.on_own_kill(0.0, 5, false, false)
+	_check(a.next_line(0.0) == &"", "a threshold of 0 turns a line off")
+	a = FcAnnouncer.new()
+	a.on_own_kill(0.0, 5, true, false)
+	_check(a.next_line(0.0) == &"killing_spree", "the fifth kill of a streak is a killing spree, outranking the headshot line")
+	a.on_own_kill(100.0, 1, false, false)
+	a.on_own_death()
+	a.request(&"headshot", 200.0)
+	_check(a.next_line(210.0) == &"", "a line that waited longer than the stale time is dropped, not said late")
+	a = FcAnnouncer.new()
+	a.on_own_kill(0.0, 1, false, false)
+	a.on_phase(10.0, false, true)
+	_check(a.next_line(10.0) == &"flawless_victory", "a match won without dying says flawless victory")
