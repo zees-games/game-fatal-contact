@@ -342,8 +342,12 @@ var ctf_rules := GSObjectiveCtfRules.new()
 ## The flag indicator, server cvars sent to clients with the flag state: `fc_ctf_indicator` (a small team-coloured flag icon and distance over each flag, default on) and `fc_ctf_indicator_seethrough` (the icon shows through walls, default on).
 var ctf_view := {"indicator": true, "see_through": true}
 
-## A line the server announces about the flag (taken, dropped, returned, captured).
+## A line the server announces about an objective (a flag taken, dropped, returned or captured; a control point captured or swept).
 signal ctf_announced(text: String)
+
+## A control point changed hands on this end (what: captured, with the point's id and its new owner; swept, with the
+## winning team and an empty id). Raised by the server's capture and by a client's applied state, so every end hears it once.
+signal cp_seen(what: StringName, point: StringName, team: int)
 
 ## A flag changed hands on this end's screen (what: taken, dropped, returned, captured; team is the flag's team; by is the id of the player who carried it, 0 when nobody). Raised by the flag view from what it draws, so it fires on a client and offline too, not only where the server announces.
 signal ctf_seen(what: StringName, team: int, by: int)

@@ -601,6 +601,13 @@ func on_flag_event(what: StringName, flag_team: int, by_me: bool, my_team: int) 
 		var _v := audio.play(id)
 
 
+## A control point changed hands (what: captured or swept), [param ours] when this player's side took it.
+func on_point_event(what: StringName, ours: bool) -> void:
+	if audio == null or (what != &"captured" and what != &"swept"):
+		return
+	var _v := audio.play(&"flag_captured" if ours else &"flag_lost")
+
+
 ## The grunt scales with the damage (a graze is quieter and higher than a heavy hit) and is left to
 ## the death cry when the damage was lethal, so the two do not stack into one muddy noise.
 func on_hurt(amount: float, lethal: bool = false) -> void:

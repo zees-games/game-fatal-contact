@@ -297,12 +297,13 @@ func _build_spectate() -> void:
 		spectate.queue_free()
 		spectate = null
 
-## A client mirrors the flag layer only: it draws the flags and applies the carrier's slowdown, and the server sends the state.
+## A client mirrors the flag layer (draws the flags, applies the carrier's slowdown) and the control points (the HUD's
+## row); the server sends the state of both.
 func _reconcile_client_objectives() -> void:
 	# The mode the server says (RULES mode_index), not the client's own `mode`, which is never
 	# replaced and read free-for-all on every dedicated server: no flag layer, no flags drawn.
 	var played: FcMode = shown_mode if shown_mode != null else mode
-	if played == null or played.objective_layout != &"ctf":
+	if played == null or not (played.objective_layout in [&"ctf", &"cp"]):
 		if objectives != null:
 			remove_child(objectives)
 			objectives.queue_free()

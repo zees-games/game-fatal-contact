@@ -26,6 +26,8 @@ static func all() -> Array[FcMode]:
 		FcMode.capture_the_flag(),
 		FcMode.gun_game_mode(),
 		FcMode.only_snipers(),
+		# Appended: a mode's index travels in RULES (mode_index).
+		FcMode.control_point(),
 	]
 
 

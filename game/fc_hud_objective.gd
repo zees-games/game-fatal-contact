@@ -19,6 +19,9 @@ func _objective_line() -> String:
 	# Capture the flag says it all in the strip: the captures on each side's plate, its flag's state in the tag.
 	if game.objectives.ctf != null:
 		return ""
+	# Control points draw their own row (`FcHudControlPoints`).
+	if game.objectives.get("layout") == &"cp":
+		return ""
 
 	var parts := PackedStringArray()
 

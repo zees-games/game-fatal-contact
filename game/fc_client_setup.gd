@@ -362,6 +362,11 @@ func _connect_game_signals() -> void:
 		if presentation != null:
 			presentation.on_flag_event(what, team, player != null and by == player.player_id, game.team_of(player.player_id) if player != null else 0)
 	)
+	# A control point's sounds: the flag cues, a capture by this side heard as a capture and one by the other as a loss.
+	game.cp_seen.connect(func(what: StringName, _point: StringName, team: int) -> void:
+		if presentation != null and player != null:
+			presentation.on_point_event(what, team == game.team_of(player.player_id))
+	)
 	# The mode's banner, the moment a client learns it: "Gun Game: every kill gives you a
 	# different gun", the way the genre says it when you spawn into one.
 	game.mode_shown.connect(func(shown: FcMode) -> void:

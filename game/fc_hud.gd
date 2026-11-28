@@ -5,11 +5,15 @@ const FcFlagView := preload("fc_flag_view.gd")
 const FcThrowMeter := preload("fc_throw_meter.gd")
 const FcHudAppPoints := preload("fc_hud_app_points.gd")
 const FcHudDamageDirs := preload("fc_hud_damage_dirs.gd")
+const FcHudControlPoints := preload("fc_hud_control_points.gd")
+const FcControlPoints := preload("fc_control_points.gd")
 
 ## The knife throw's power bar under the crosshair: shown only while the aim key winds a throw up.
 var throw_bar: GSStatBar = null
 var throw_meter := FcThrowMeter.new()
 var _throw_fill: float = 0.0
+## The control point row under the portraits: shown only in that layout.
+var control_points: FcHudControlPoints = null
 
 
 func _build_top() -> void:
@@ -37,6 +41,12 @@ func _build_top() -> void:
 	carry_label.add_theme_font_size_override(&"font_size", 30)
 	carry_label.add_theme_color_override(&"font_color", Color(1.0, 0.9, 0.35))
 	carry_label.visible = false
+
+	control_points = FcHudControlPoints.new()
+	control_points.name = "ControlPoints"
+	control_points.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_place(control_points, Control.PRESET_CENTER_TOP, Rect2(-200.0, 154.0, 400.0, 44.0))
+	control_points.visible = false
 
 
 func build(p_game: FcGame) -> void:
@@ -158,6 +168,7 @@ func footprints() -> Dictionary:
 		"scores": strip, "portraits": portraits, "feed": feed, "vitals": vitals,
 		"ammo": ammo, "slots": slots, "abilities": abilities, "hints": hints,
 		"prompt": slide_label, "medals": medal_row,
+		"control_points": control_points,
 	}
 	for key: String in pieces:
 		var piece: Control = pieces[key]
@@ -303,10 +314,29 @@ func _present_slow() -> void:
 
 	if objective_label != null:
 		objective_label.text = _objective_line()
+	if control_points != null:
+		control_points.present(control_point_rows())
 	if carry_label != null:
 		var carrying := carrying_flag_text()
 		carry_label.text = carrying
 		carry_label.visible = carrying != ""
+
+
+## One row per control point in line order (owner, capturing side, progress, locked), or
+## none outside that layout. Public so a suite can read what the row draws.
+func control_point_rows() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if game.objectives == null or game.objectives.get("layout") != &"cp" or game.objectives.manager == null:
+		return out
+	var manager: GSObjectiveManager = game.objectives.manager
+	for obj in FcControlPoints.line_of(manager):
+		out.append({
+			"label": obj.def.label, "owner": obj.owner_team,
+			"capturing": obj.progressing_team(), "progress": obj.progress(),
+			"locked": not FcControlPoints.open_to(manager, obj, FcControlPoints.RED)
+				and not FcControlPoints.open_to(manager, obj, FcControlPoints.BLUE),
+		})
+	return out
 
 
 ## The clock, the two scores, the target and the mode, into the strip. Public so a render

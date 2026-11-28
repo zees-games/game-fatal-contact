@@ -5,6 +5,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcFlagView := preload("fc_flag_view.gd")
 const FcFlagCarry := preload("fc_flag_carry.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
+const FcControlPoints := preload("fc_control_points.gd")
 
 ## What the round is about, when the mode says it is about something.
 ##
@@ -35,6 +36,7 @@ signal objective_event(id: StringName, what: StringName, data: Dictionary)
 ## Layout ids a mode names.
 const CTF := &"ctf"
 const KOTH := &"koth"
+const CP := &"cp"
 
 const RED := 1
 const BLUE := 2
@@ -105,6 +107,8 @@ func setup() -> GSResult:
 	manager.objective_completed.connect(_on_completed)
 	manager.objective_event.connect(_on_event)
 	manager.round_objective_met.connect(_on_round_met)
+	if layout == CP:
+		_connect_cp()
 
 	# A flag carrier who dies drops it. Connected rather than left to the kill handler,
 	# because there are three ways to stop being alive here — shot, fell, disconnected —
@@ -261,6 +265,8 @@ func _on_ctf_ended(winner: int, reason: StringName) -> void:
 
 ## The replicated state as JSON text when it changed (or every two seconds), else "". The bridge sends it.
 func ctf_wire_text(tick: int, force: bool = false) -> String:
+	if layout == CP:
+		return _cp_wire_text(tick, force)
 	if ctf == null or not game.is_authority:
 		return ""
 	if not force and tick - _wire_tick < maxi(game.tick_rate / 8, 1):
@@ -278,6 +284,9 @@ func ctf_wire_text(tick: int, force: bool = false) -> String:
 
 ## A client applies what the server sent.
 func apply_ctf_text(text: String) -> void:
+	if layout == CP:
+		_apply_cp_text(text)
+		return
 	if ctf == null or game.is_authority:
 		return
 	var parsed: Variant = JSON.parse_string(text)
@@ -288,6 +297,112 @@ func apply_ctf_text(text: String) -> void:
 			game.ctf_view.indicator = int(view.get("i", 1)) != 0
 			game.ctf_view.see_through = int(view.get("x", 1)) != 0
 		FcFlagCarry.read_wire(self, parsed)
+
+
+# --- Control point ----------------------------------------------------------
+
+## Who made the last capture: the player a sweep is credited to.
+var _cp_last_by := ""
+
+## Each point's owner as this end last saw it, to raise `cp_seen` once per change.
+var _cp_owners := {}
+
+
+## The control point hooks, each connected once: the capture, the sweep, and the match going live.
+func _connect_cp() -> void:
+	if not manager.objective_completed.is_connected(_on_cp_captured):
+		manager.objective_completed.connect(_on_cp_captured)
+	if not manager.all_captured.is_connected(_on_cp_swept):
+		manager.all_captured.connect(_on_cp_swept)
+	if not game.match_state_changed.is_connected(_on_cp_match_state):
+		game.match_state_changed.connect(_on_cp_match_state)
+	_cp_owners = _cp_owners_now()
+
+
+func _cp_owners_now() -> Dictionary:
+	var out := {}
+	for obj in FcControlPoints.line_of(manager):
+		out[obj.id()] = obj.owner_team
+	return out
+
+
+## A point changed hands: counted for the capper (no points, the sweep is the score), announced, and heard.
+func _on_cp_captured(id: StringName, team: int, by: String) -> void:
+	if layout != CP:
+		return
+	_cp_last_by = by
+	if by != "" and game.match_node != null:
+		game.match_node.report_objective(by, &"cp_captures", game.current_tick(), 0)
+	var obj := manager.objective(id)
+	var point := obj.def.display_name if obj != null else String(id)
+	var text := "%s captured %s" % [_side_name(team), point]
+	var player: FcPlayer = game.player_for(int(by)) if by.is_valid_int() else null
+	if player != null:
+		text += " (%s)" % String(player.display_name)
+	game.ctf_announced.emit(text)
+	_cp_owners[id] = team
+	game.cp_seen.emit(&"captured", id, team)
+
+
+## One side holds every point: the round's one point, credited to the last capper when they are on that side.
+func _on_cp_swept(team: int) -> void:
+	if layout != CP or not game.is_authority:
+		return
+	GSLog.info(CHANNEL, "control points swept", {"team": team, "by": _cp_last_by})
+	game.ctf_announced.emit("%s holds every point" % _side_name(team))
+	game.cp_seen.emit(&"swept", &"", team)
+	var by := _cp_last_by if _cp_last_by.is_valid_int() and game.team_of(int(_cp_last_by)) == team else ""
+	if by != "":
+		_score(&"cp_sweeps", team, by, 1, 1)
+	elif game.match_node != null:
+		game.match_node.scoreboard.add_team_score(team, 1)
+
+
+## Every point back to its starting owner when a match goes live (the first one and each after an intermission).
+func _on_cp_match_state(_from: GSMatch.State, to: GSMatch.State) -> void:
+	if layout != CP or manager == null or not game.is_authority or to != GSMatch.State.LIVE:
+		return
+	manager.reset_round()
+	_cp_last_by = ""
+	_cp_owners = _cp_owners_now()
+	_last_wire = ""
+
+
+static func _side_name(team: int) -> String:
+	match team:
+		RED:
+			return "Red"
+		BLUE:
+			return "Blue"
+	return "Team %d" % team
+
+
+## The points' state for clients, through the CTF event (the two layouts never run together).
+func _cp_wire_text(tick: int, force: bool) -> String:
+	if manager == null or not game.is_authority:
+		return ""
+	if not force and tick - _wire_tick < maxi(game.tick_rate / 8, 1):
+		return ""
+	var text := JSON.stringify({"cp": manager.to_wire()})
+	if not force and text == _last_wire and tick - _wire_tick < game.tick_rate * 2:
+		return ""
+	_last_wire = text
+	_wire_tick = tick
+	return text
+
+
+func _apply_cp_text(text: String) -> void:
+	if manager == null or game.is_authority:
+		return
+	var parsed: Variant = JSON.parse_string(text)
+	if not (parsed is Dictionary) or not ((parsed as Dictionary).get("cp") is Dictionary):
+		return
+	manager.apply_wire((parsed as Dictionary)["cp"])
+	for obj in FcControlPoints.line_of(manager):
+		var was := int(_cp_owners.get(obj.id(), obj.owner_team))
+		if was != obj.owner_team and obj.owner_team > 0:
+			game.cp_seen.emit(&"captured", obj.id(), obj.owner_team)
+	_cp_owners = _cp_owners_now()
 
 
 ## A client has no effects layer, so the slowdown it predicts with is applied here, from the same base the effects layer uses.
@@ -398,6 +513,8 @@ static func build(
 	var floor_y := map.floor_y
 
 	match which:
+		CP:
+			return FcControlPoints.build(map, rate)
 		KOTH:
 			var hill := GSObjectiveDef.capture(
 				&"hill",
@@ -604,6 +721,9 @@ func _on_map_changed(new_map: FcMap) -> void:
 		return
 	var defs := build(layout, new_map, game.tick_rate)
 	var res := manager.setup(defs)
+	if layout == CP and res.ok:
+		_connect_cp()
+		_last_wire = ""
 	if not res.ok:
 		GSLog.warn(
 			CHANNEL, "the new map has no objective layout",

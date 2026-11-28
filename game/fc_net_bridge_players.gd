@@ -576,7 +576,7 @@ func _forget_monster(instance_id: int) -> void:
 
 ## Sends the flag state to [param peer_id] (0 for everyone) when it changed, or at once when [param force].
 func _send_ctf(peer_id: int, tick: int, force: bool = false) -> void:
-	if game == null or game.objectives == null or game.objectives.ctf == null:
+	if game == null or game.objectives == null or (game.objectives.ctf == null and game.objectives.layout != &"cp"):
 		return
 	var text: String = game.objectives.ctf_wire_text(tick, force or peer_id != 0)
 	if text != "":

@@ -320,6 +320,43 @@ static func king_of_the_hill() -> Resource:
 	return mode
 
 
+## The one place the control point mode's name is spelled.
+const CONTROL_POINT_NAME := "Control Point"
+
+
+## Control point: a line of points, each side starts owning its own end, and a side may
+## take only the point next to one it holds. Holding every point wins the round, so the
+## score is sweeps and kills are worth nothing (docs/modes.md, docs/control-points.md).
+static func control_point(limit: int = 1) -> Resource:
+	var mode := new()
+	mode.id = &"cp"
+	mode.display_name = CONTROL_POINT_NAME
+	mode.description = "Take the points in order. Hold them all to win."
+	mode.team_count = 2
+	mode.friendly_fire = false
+	mode.self_damage = true
+	mode.objective_layout = &"cp"
+	mode.preferred_map = &"dm_atrium"
+
+	var rules := GSMatchRules.team_deathmatch(limit)
+	rules.display_name = CONTROL_POINT_NAME
+	rules.respawn_delay_sec = 5.0
+	rules.spawn_protection_sec = 2.0
+	rules.warmup_sec = 10.0
+	rules.countdown_sec = 3.0
+	rules.min_players = 2
+	rules.intermission_sec = 8.0
+	rules.match_end_sec = 15.0
+	rules.suicide_points = 0
+	rules.kill_points = 0
+	rules.friendly_points = 0
+	rules.assist_points = 0
+	rules.time_limit_sec = 0.0
+	mode.rules = rules
+
+	return mode
+
+
 ## Capture the flag: theirs to yours, and yours has to be home.
 ##
 ## The respawn is long on purpose. A capture is a journey across the map and a defender

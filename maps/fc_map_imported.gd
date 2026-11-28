@@ -46,6 +46,7 @@ static func imported(map_id: StringName, light: bool = false) -> RefCounted:
 		at_index += 1
 
 	map.flag_homes = FcBspMap.flag_homes_of(manifest)
+	map.control_points = FcBspMap.control_points_of(manifest)
 	map.modes = PackedStringArray(manifest.get("modes", []))
 
 	if light:

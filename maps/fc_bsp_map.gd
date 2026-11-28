@@ -422,6 +422,44 @@ static func flag_homes_of(manifest: Dictionary) -> Dictionary:
 	return out
 
 
+## Radius of a control point whose entry gives none, in source units (about 3 m).
+const CONTROL_POINT_RADIUS_UNITS := 160.0
+
+## Capture time of a control point whose entry gives none, in seconds.
+const CONTROL_POINT_SECONDS := 8.0
+
+
+## The manifest's `control_points` (docs/control-points.md), sorted by `order`: each
+## `{id: StringName, name, at: Vector3, radius: float, order: int, owner: String, seconds: float}`, in metres.
+static func control_points_of(manifest: Dictionary) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var listed: Variant = manifest.get("control_points", [])
+	if not (listed is Array):
+		return out
+
+	for entry: Variant in listed:
+		if not (entry is Dictionary):
+			continue
+		var cp := entry as Dictionary
+		var index := int(cp.get("index", out.size() + 1))
+		var owner := str(cp.get("owner", "")).to_lower()
+		if owner != "red" and owner != "blue":
+			owner = ""
+		out.append({
+			"id": StringName(str(cp.get("id", "cp%d" % index))),
+			"name": str(cp.get("name", "Point %d" % index)).rstrip("!"),
+			"at": to_metres(cp.get("origin", [0, 0, 0])),
+			"radius": float(cp.get("radius", CONTROL_POINT_RADIUS_UNITS)) * METRES_PER_UNIT,
+			"order": int(cp.get("order", index)),
+			"owner": owner,
+			"seconds": maxf(float(cp.get("capture_seconds", CONTROL_POINT_SECONDS)), 0.5),
+		})
+
+	# Sorted by the int order, never by id: StringNames sort by interning.
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["order"]) < int(b["order"]))
+	return out
+
+
 ## Every volume that sends a player somewhere: `{box: AABB, to: Vector3, yaw: float}`.
 ##
 ## These are the map's `trigger_teleport`s, which on a combat surf map are the pits under

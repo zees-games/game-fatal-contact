@@ -47,6 +47,18 @@ Cvars: `fc_ctf_capturelimit` (3, 0 for none; this is the match's score limit, `f
 
 Teams past two have no spawn tag of their own, so they spawn from the shared pool. Bots do not play the objective: they fight as in team deathmatch.
 
+### Control point
+
+`cp` (display name `FcMode.CONTROL_POINT_NAME`, "Control Point", the one place it is written) is two sides and a line of capture points in map order (`game/fc_control_points.gd`). Red starts owning the first point, blue the last, the rest are neutral (or whatever the map's `owner` says). A side may start a point only when it holds the neighbour on its own side: red takes point i once it holds i-1, blue once it holds i+1 (gs-objective's `requires_owned`). So the line is pushed one point at a time and an end can fall only last.
+
+A point is taken by standing in its cylinder: gs-objective's capture curve, so a second capper adds half a player and a fifth a fifth (`capture_scales_with_players`), both sides inside pauses it, an abandoned capture decays, and a neutral point taken by the wrong side runs backwards. The map gives each point its capture time (8 s for one capper by default).
+
+When one side holds every point (`all_captured`) that is the round's point, credited to the last capper on that side; kills score nothing. The mode's score limit is 1, so the sweep ends the match; `fc_scorelimit` is a frag limit and does not apply here (`FcMode.control_point(limit)` sets the sweeps), and every point goes back to its starting owner each time the match goes live. Captures and sweeps are announced in chat and raise `FcGameState.cp_seen` for the presentation's sound. Clients get the points as the CTF event (the two layouts never run together): the manager's wire, at most eight times a second on a change and every two seconds otherwise.
+
+The HUD row under the score strip (`fc_hud_control_points.gd`) draws one disc per point in line order in its owner's side colour, an arc of the capturing side's colour for progress, and a slash over a point neither side may start. Bots play it: `FcControlPoints.front` is the point being captured, else the next point of the side holding more, and both sides' bots go there (to take or to defend it) through the same objective hook as king of the hill.
+
+A map hosts `cp` when its manifest lists `cp` in `modes` and has a `control_points` list ([control-points](control-points.md) has the schema). A built-in map gets three points along its longest axis. Checked by `headless_control_point`, which also has bots take all five points of `cp-orange-x3`.
+
 ## Effects
 
 `FcEffects` assigns gs-combat's `resolver.adjust`, the extension point for a mode's own arithmetic: crits and resistances meet the damage after friendly fire and falloff and before the clamp. It owns no health; gs-effects reports an amount and this applies it through `GSHealth`, so afterburn goes through the same armour, rules and kill feed as a rifle round. **`FcEffects` rebinds on `map_changed`**: `change_map` builds a new combat manager and resolver, and the hook left on the old one silently stopped scaling every hit.

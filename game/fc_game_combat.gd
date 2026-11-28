@@ -523,9 +523,9 @@ func _override_rules(rules: GSMatchRules) -> void:
 	# The final killcam plays inside the match's end, so the end is that much longer.
 	rules.match_end_sec = mode.rules.match_end_sec + rule("killcam")
 
-	# Gun game's limit is the length of its list: a kill is a level, and a limit past the
-	# last gun is kills with the knife nobody is counting ([FcMode]).
-	if score_limit > 0 and mode.gun_game.is_empty():
+	# Gun game's limit is the length of its list (a kill is a level); control point's is its
+	# sweeps, one per round, so a frag-sized limit would never end it ([FcMode]).
+	if score_limit > 0 and mode.gun_game.is_empty() and mode.objective_layout != &"cp":
 		rules.score_limit = score_limit
 
 	if time_limit_sec > 0.0:

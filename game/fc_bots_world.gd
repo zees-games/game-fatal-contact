@@ -8,6 +8,7 @@ const FcBotBrain := preload("fc_bot_brain.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
+const FcControlPoints := preload("fc_control_points.gd")
 
 
 ## The behaviour of a weapon whose shot flies (a rocket, a bolt); every other one is led as
@@ -359,7 +360,7 @@ class World:
 		var objectives: Variant = game.get("objectives") if teams else null
 		var ctf: Variant = objectives.get("ctf") if objectives is Object else null
 		if not (ctf is GSObjectiveCtf):
-			var hill := _hill_of(objectives)
+			var hill := _front_of(objectives) if objectives is Object and objectives.get("layout") == &"cp" else _hill_of(objectives)
 			if hill != null:
 				if objective == null:
 					objective = GSBotObjective.new()
@@ -385,6 +386,14 @@ class World:
 			if flag.state == GSObjectiveFlag.State.CARRIED and flag.carrier.is_valid_int():
 				carrier = flag.carrier.to_int()
 			objective.set_flag(team, flag.def.area.centre, flag.position(), carrier, int(flag.state), capture)
+
+	## The point a control point game is being fought over (FcControlPoints.front), or null.
+	func _front_of(objectives: Variant) -> GSObjective:
+		var manager: Variant = objectives.get("manager")
+		if not (manager is GSObjectiveManager):
+			return null
+		var point := FcControlPoints.front(manager as GSObjectiveManager)
+		return point if point != null and point.def != null and point.def.area != null else null
 
 	## The hill of a hill mode, or null.
 	func _hill_of(objectives: Variant) -> GSObjective:

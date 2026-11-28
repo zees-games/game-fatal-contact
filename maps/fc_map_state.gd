@@ -160,6 +160,10 @@ var local_prefix: String = ""
 ## tag, in metres. Empty means [method FcObjectives.build] puts them at the ends of the longest axis.
 var flag_homes: Dictionary = {}
 
+## The control points a map places (an imported map's `control_points`, docs/control-points.md),
+## sorted by their linear order: `{id, name, at, radius, order, owner, seconds}` in metres.
+var control_points: Array[Dictionary] = []
+
 ## The mode ids the map says it can host (an imported map's `modes`); empty leaves it to the spawns.
 var modes: PackedStringArray = PackedStringArray()
 

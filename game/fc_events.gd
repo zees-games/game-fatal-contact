@@ -114,6 +114,7 @@ enum Kind {
 	## After PANE_BROKEN, for the reason VOTE gives.
 	PROP_BROKEN,
 	## The capture-the-flag state (flags, carriers, scores, clock) as UTF-8 JSON: when it changes, every two seconds, and at signon.
+	## A control point game sends its points here instead, as `{"cp": <GSObjectiveManager.to_wire()>}` (the two never run together).
 	##
 	## After PROP_BROKEN, for the reason VOTE gives.
 	CTF,
