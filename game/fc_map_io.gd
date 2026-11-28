@@ -76,6 +76,9 @@ static func _finish(plan: Dictionary, game, use_rules: GSMapUse, made: GSResult)
 	node.transport.flush_on(node.world.io)
 	use_rules.attach(node.world)
 	node.use = use_rules
+	var root: Variant = game.map.collision_root
+	if root is Node and is_instance_valid(root):
+		var _released := FcBspMap.release_mover_hulls(root, node.world)
 	GSLog.debug(CHANNEL, "movers built", {"map": String(game.map.id), "authority": game.is_authority})
 	return node
 

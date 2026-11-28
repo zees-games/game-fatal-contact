@@ -191,6 +191,54 @@ static func _swap_glass(body: StaticBody3D, id: String, dir: String) -> void:
 	GSLog.debug("arena.maps", "glass swapped for breakable panes", {"map": id, "panes": swapped})
 
 
+## Box tolerance, in metres, for a legacy hull to be a mover's: the converter writes both from the same brush.
+const OWNED_HULL_SLACK := 0.06
+
+
+## Disables the legacy hulls in [param root] of every brush model [param world] built a body for (doors, buttons,
+## lifts, toggled brushes), so the mover world alone decides that collision. The importer bakes those brushes in
+## at their compiled pose; left on, an opened jail door still stopped the player. Matched by box, as the glass is.
+static func release_mover_hulls(root: Node, world: GSMapWorld) -> int:
+	if root == null or world == null or world.visual == null:
+		return 0
+	var cell := OWNED_HULL_SLACK * 4.0
+	var legacy := {}
+	for n in root.find_children("*", "CollisionShape3D", true, false):
+		var cs := n as CollisionShape3D
+		if cs.disabled or not cs.shape is ConvexPolygonShape3D:
+			continue
+		var box := _box_of((cs.shape as ConvexPolygonShape3D).points, Vector3.ZERO)
+		var key := Vector3i((box.position / cell).floor())
+		if not legacy.has(key):
+			legacy[key] = []
+		(legacy[key] as Array).append([cs, box])
+	var released := 0
+	for node in world.visual.get_children():
+		if not node.has_meta(&"model") or node.find_children("col_*", "PhysicsBody3D", false, false).is_empty():
+			continue
+		var model := int(node.get_meta(&"model"))
+		var origin := world.mesh.model_origin(model)
+		for h: Dictionary in world.mesh.hull_shapes(model):
+			var want := _box_of((h["shape"] as ConvexPolygonShape3D).points, origin)
+			released += _release_box(legacy, want, Vector3i((want.position / cell).floor()))
+	GSLog.debug("arena.maps", "legacy hulls of the movers released", {"hulls": released})
+	return released
+
+
+static func _release_box(legacy: Dictionary, want: AABB, at: Vector3i) -> int:
+	for x in range(-1, 2):
+		for y in range(-1, 2):
+			for z in range(-1, 2):
+				for pair: Array in legacy.get(at + Vector3i(x, y, z), []):
+					var cs := pair[0] as CollisionShape3D
+					var have := pair[1] as AABB
+					if not cs.disabled and have.position.distance_to(want.position) < OWNED_HULL_SLACK \
+							and have.size.distance_to(want.size) < OWNED_HULL_SLACK:
+						cs.disabled = true
+						return 1
+	return 0
+
+
 ## Collision bit the jail glass is on besides player_clip: a body still stops on it, and a shot sees it only when its mask asks (`GSMapGlassSight`).
 const GLASS_BIT := 1 << 20
 const GLASS_META := &"glass_sight"
