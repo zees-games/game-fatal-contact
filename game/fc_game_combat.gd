@@ -640,6 +640,8 @@ func team_def(team_id: int) -> GSTeam:
 
 
 func _tick_rest(delta: float) -> void:
+	# The column's notes gs-match's idle check could misjudge, into the records first.
+	_activity.hand_over(match_node, _tick)
 	match_node.tick(_tick)
 	# The hits the stats feed held this tick, folded into the sessions once.
 	if progress != null and progress.held_stats and progress.stats != null:

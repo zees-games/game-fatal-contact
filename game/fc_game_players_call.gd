@@ -41,6 +41,8 @@ func _tick_players_call(delta: float, hull_world: Object, shots: Array[GSShot], 
 	_demo_gated = FcHullGrid.demo_flush_gate and demo_stats != null
 	_pc_mark_due = FcPlayer.mechanics_native
 	var _motored: Variant = _ctl_batch.tick(_motor_batch, _tick, rows, _pc_pre_fn, _pc_live_fn, _pc_post_fn)
+	# The roster's activity in one call (sv_native_activity): _pc_pre marked every row that reached the note with 0.
+	_activity.note(ids, _batch_rows, _tick)
 	if _pc_mark_due:
 		# No row reached its finish: the marks still run, as between the two passes.
 		_pc_mark_due = false
@@ -56,6 +58,7 @@ func _tick_players_call(delta: float, hull_world: Object, shots: Array[GSShot], 
 func _pc_pre(i: int) -> float:
 	var id: int = _pc_ids[i]
 	var player: FcPlayer = _players[id]
+	_batch_rows[i] = -1
 	if not player.health.alive:
 		return -1.0
 	var t_fine := Time.get_ticks_usec() if _pc_fine else 0
@@ -63,6 +66,8 @@ func _pc_pre(i: int) -> float:
 	var pair := _batched_input(id, player, _batch_pairs[i], _pc_knife, _pc_surfing, t_fine)
 	if pair.is_empty():
 		return -1.0
+	# Past _batched_input's activity note (only the row's -1 / not -1 is read, by the activity lane).
+	_batch_rows[i] = 0
 	_batch_pairs[i] = pair
 	if _pc_fine:
 		FcFrameProbe.add(&"pl_pre", t_fine)
@@ -149,7 +154,7 @@ func _finish_batched_player(pair_index: int, row: int, id: int, player: FcPlayer
 		FcFrameProbe.add(&"pl_sim", t_fine)
 		t_fine = Time.get_ticks_usec()
 		t_post = t_fine
-	if surf_rides != null:
+	if _surf_after:
 		surf_rides.after(id, player, move, _tick)
 	if fine:
 		t_fine = FcFrameProbe.lap(&"po_surf", t_fine)

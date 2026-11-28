@@ -8,6 +8,7 @@ const FcBotThreads := preload("fc_bot_threads.gd")
 const FcPlayerStack := preload("fc_player_stack.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcNativeTick := preload("fc_native_tick.gd")
+const FcActivityLane := preload("fc_activity_lane.gd")
 const FcContent := preload("fc_content.gd")
 const FcBotPvs := preload("fc_bot_pvs.gd")
 const FcBotRows := preload("fc_bot_rows.gd")
@@ -140,6 +141,12 @@ func _add_motor_engine_cvars() -> void:
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
 		func(_old: String, new_value: String) -> void:
 			(GSFpsNetSync as Script).set(&"native_pack", new_value.to_float() >= 0.5))
+	# By name: a no-op against a gs-net older than API 29 or a gs-sim core without submit_peers_interest.
+	add_cvar("sv_net_submit_batch", "0" if (GSNetConfig as Script).get(&"native_submit_batch") == false else "1",
+		"1: the server hands every peer's snapshot build to gs-sim's net core in one call per snapshot (the same bytes); 0: one call per peer. Without the library it is script either way",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			(GSNetConfig as Script).set(&"native_submit_batch", new_value.to_float() >= 0.5))
 	# The controller's direct reads: FcPlayer.body_delta's state columns and, by name (gs-player-controller 44),
 	# GSFpsController.direct_getters for its collider sizing. A no-op on builds without either.
 	add_cvar("ctl_native", "1" if FcPlayer.body_cols else "0",
@@ -159,6 +166,11 @@ func _add_motor_engine_cvars() -> void:
 
 ## The players' hull grid (its fast, native and batched gathers) and the bots' PVS sight pre-cull.
 func _add_hull_and_pvs_cvars() -> void:
+	add_cvar("sv_native_activity", "1" if FcActivityLane.enabled else "0",
+		"1: the batched players' loop notes the roster's activity in one gs-sim call, handed to the score records when the idle check reads them (same idle kicks and records); 0: GSMatch.note_activity per player per tick",
+		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(
+		func(_old: String, new_value: String) -> void:
+			FcActivityLane.enabled = new_value.to_float() >= 0.5)
 	add_cvar("fc_hull_grid", "1" if FcHullGrid.enabled else "0",
 		"1: players' standing hulls are found through a grid filed once per tick (same hulls, cheaper above 12 players); 0: scan the whole roster per bot",
 		GSConVar.FLAG_ARCHIVE).with_min(0.0).with_max(1.0).changed.connect(

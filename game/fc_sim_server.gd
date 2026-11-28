@@ -264,13 +264,14 @@ func _process(delta: float) -> void:
 	if _since_check < 1.0 or _server == null:
 		return
 	if _bench_usec > 0 and now_usec - _bench_from_usec >= _bench_usec:
-		print("SIM_HOST_NATIVE ", FcNativePhases.status_line(_module.console), " | end")  # check-logging: allow print (the SIM_HOST lines are the bench output perf_bench and soak read)
+		FcNativePhases.print_bench_end(_module.console)
 		get_tree().quit(0)
 		return
 	_alone_sec = 0.0 if _remote_players() > 0 else _alone_sec + _since_check
 	_since_check = 0.0
 	_joined = _joined or _alone_sec == 0.0
 	if _alone_sec >= (GONE_SEC if _joined else NEVER_SEC):
+		FcNativePhases.print_calls_once()
 		get_tree().quit(0)
 
 

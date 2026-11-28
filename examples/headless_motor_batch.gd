@@ -9,6 +9,8 @@ const FcModTools := preload("../game/fc_mod_tools.gd")
 const FcNativeTick := preload("../game/fc_native_tick.gd")
 const FcFrameProbe := preload("../game/fc_frame_probe.gd")
 const FcDemoSource := preload("../game/fc_demo_source.gd")
+const FcNativePhases := preload("../game/fc_native_phases.gd")
+const FcActivityLane := preload("../game/fc_activity_lane.gd")
 
 ## `fc_motor_batch`: the players' motors ticked in runs of one gs-sim call play exactly the
 ## match the loop one player after another plays. A recorded bot match is replayed through both
@@ -26,8 +28,10 @@ const MEDDLE_EVERY := 5
 const MEDDLES: Array[StringName] = [&"slay", &"slap", &"push"]
 const PUSH := Vector3(3.0, 6.0, -2.0)
 
-const SECTIONS := 6
-const CHECKS := 43
+const SECTIONS := 7
+const CHECKS := 46
+## The idle check's threshold in the activity column's section: short enough that a dead player goes idle.
+const IDLE_SECONDS := 0.5
 
 
 ## Kills, slaps and pushes players: between two ticks as the admin tools do, or in the place of the demo's statistics,
@@ -296,6 +300,7 @@ func _run_part2(was, off, on, rows, kept: StringName, kept_streams: Array) -> vo
 		(GSFpsController as Script).set(&"direct_getters", true)
 		_check(props[0] == on[0] and sat_props == sat_on, "ctl_native 0 plays the same stepped match, %d bodies sat out (%s)" % [sat_props, _first_diff(on[0], props[0])])
 	_done()
+	await _check_activity()
 	FcHullGrid.batch = was
 	_report_sections(_entered, _completed, SECTIONS, CHECKS)
 
@@ -356,6 +361,38 @@ func _check_loop_variants(resident: PackedStringArray, streams: Array) -> void:
 	_check(probed[0] == resident, "the fine probe's one call plays it to the bit as without the probe (%s)" % _first_diff(resident, probed[0]))
 
 
+## sv_native_activity: the roster's activity notes through the gs-sim column play the same idle kicks and leave
+## every score record's last_active_tick as GSMatch.note_activity per player does, to the tick.
+func _check_activity() -> void:
+	_section("activity column: the same idle kicks and last-active records as the per-player notes")
+	if not ClassDB.class_has_method(&"GSSimServerTick", &"activity_note"):
+		for i in 3:
+			_check(true, "(skipped: the loaded gs-sim has no activity column, API 7)")
+		_done()
+		return
+	var was := FcActivityLane.enabled
+	var stream: Array = []
+	var _recorded: Array = await _play(true, &"", SMALL_BOTS, SMALL_SECONDS, stream, true, {idle = IDLE_SECONDS})
+	FcActivityLane.enabled = false
+	var native_before := FcNativePhases.native_calls[FcNativePhases.PLAYERS]
+	var off := await _play(true, &"", SMALL_BOTS, SMALL_SECONDS, stream, false, {idle = IDLE_SECONDS})
+	var native_off := FcNativePhases.native_calls[FcNativePhases.PLAYERS] - native_before
+	FcActivityLane.enabled = true
+	native_before = FcNativePhases.native_calls[FcNativePhases.PLAYERS]
+	var on := await _play(true, &"", SMALL_BOTS, SMALL_SECONDS, stream, false, {idle = IDLE_SECONDS})
+	var native_on := FcNativePhases.native_calls[FcNativePhases.PLAYERS] - native_before
+	FcActivityLane.enabled = was
+	var idles_off: PackedStringArray = off[6]
+	var idles_on: PackedStringArray = on[6]
+	print("activity: %d idle kicks (column %d), %d kills, native notes %d/%d" % [idles_off.size(), idles_on.size(), off[1], native_on, native_off])
+	_check(idles_on == idles_off and idles_off.size() > 0 and on[0] == off[0],
+			"the same match and idle kicks, tick and player (%d; %s)" % [idles_off.size(), _first_diff(idles_off, idles_on)])
+	_check(on[7] == off[7] and (off[7] as PackedStringArray).size() == SMALL_BOTS,
+			"every record's last_active_tick, a leaver's too (%s)" % _first_diff(off[7], on[7]))
+	_check(native_on > 0 and native_off == 0, "through the column with it on, not with it off (%d, %d ticks)" % [native_on, native_off])
+	_done()
+
+
 func _section(title: String) -> void:
 	_entered += 1
 	print("")
@@ -404,6 +441,8 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 		meddler.game = game
 		meddler.where = opts.meddle
 		game.demo_stats = meddler
+	var idle: float = opts.get("idle", 0.0)
+	var idles := _watch_idle(game, idle)
 	var players: Array = []
 	var minds: Array = []
 	for i in bots:
@@ -443,6 +482,8 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 		if tick_index % 8 == 0:
 			await get_tree().physics_frame
 	var out := [digests, kills[0], FcHullGrid.batch_rows, FcHullGrid.batch_faults, counts[0], meddler.done if meddler != null else (passive.done if passive != null else counts[1])]
+	if idle > 0.0:
+		out.append_array([idles, _read_records(game, bots)])
 	game.demo_stats = null
 	game.remote_feet_fn = Callable()
 	game.remote_lags_fn = Callable()
@@ -450,6 +491,27 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 	game.queue_free()
 	await get_tree().process_frame
 	return out
+
+
+## With [param idle] seconds above zero: the match's idle check on, and every idle kick it makes as "tick:key".
+func _watch_idle(game: FcGame, idle: float) -> PackedStringArray:
+	var idles := PackedStringArray()
+	if idle > 0.0:
+		game.match_node.config.idle_seconds = idle
+		game.match_node.player_idle.connect(func(key: String) -> void: idles.append("%d:%s" % [game.current_tick(), key]))
+	return idles
+
+
+## Every bot's last_active_tick as "id:tick" once the first has left (its record keeps its last note) and every
+## note the activity column holds is in the records.
+func _read_records(game: FcGame, bots: int) -> PackedStringArray:
+	game.remove_player(100)
+	game._activity.flush(game.match_node)
+	var records := PackedStringArray()
+	for i in bots:
+		var record := game.match_node.scoreboard.find(str(100 + i))
+		records.append("%d:%d" % [100 + i, record.last_active_tick if record != null else -1])
+	return records
 
 
 func _new_game(batched: bool, think: bool, map_id: StringName) -> FcGame:

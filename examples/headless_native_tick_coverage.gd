@@ -4,9 +4,9 @@ const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcSimHost := preload("../game/fc_sim_host.gd")
 const FcNativePhases := preload("../game/fc_native_phases.gd")
 
-## The native server tick's coverage (docs/native-server-tick.md): a 31-bot CTF server on cp-orange-x3 with `sv_native_tick 1` must run
-## every expected phase native (the always-native ones plus every phase registered, not "absent"); a second run with
-## `sv_native_tick 0` must put every phase on the fallback.
+## Native server tick coverage (docs/native-server-tick.md): a dedicated server plays 31-bot CTF with
+## `sv_native_tick 1`; every expected phase (main's native ones plus every registered one) must run native,
+## FC_NATIVE_TICK_CALLS must show no script call. A short `sv_native_tick 0` run must be all fallback.
 
 const MAP := &"cp-orange-x3"
 const FALLBACK_MAP := &"dm_box"
@@ -44,6 +44,15 @@ func _run() -> void:
 		print("  %-10s %s" % [id, got])
 		if expected.has(id):
 			_check(got == "native", "%s ran native" % id, got)
+	var on_calls: Dictionary = on.get("calls", {})
+	_check(not on_calls.is_empty(), "the server printed its FC_NATIVE_TICK_CALLS line", String(on.get("error", "")))
+	for row: Dictionary in FcNativePhases.PHASES:
+		var id: String = row["id"]
+		var counts: PackedInt64Array = on_calls.get(id, PackedInt64Array([0, 0]))
+		_check(counts[1] == 0, "%s made no GDScript fallback call (%d native, %d script)" % [id, counts[0], counts[1]])
+		if expected.has(id):
+			_check(counts[0] > 0, "%s counted native calls (%d)" % [id, counts[0]],
+				"no tally site for this phase, or it never dispatched")
 
 	print("-- sv_native_tick 0: every phase runs the GDScript fallback")
 	var off := await _serve(map, OFF_SEC, "0")
@@ -52,6 +61,11 @@ func _run() -> void:
 	for id: String in off_rows:
 		var got: String = off_rows[id]
 		_check(not got.begins_with("native"), "%s is off with the master off" % id, got)
+	var off_calls: Dictionary = off.get("calls", {})
+	_check(not off_calls.is_empty(), "the master-off server printed its FC_NATIVE_TICK_CALLS line", String(off.get("error", "")))
+	for id: String in off_calls:
+		var counts: PackedInt64Array = off_calls[id]
+		_check(counts[0] == 0, "%s made no native call with the master off (%d native, %d script)" % [id, counts[0], counts[1]])
 	_report()
 
 
@@ -91,6 +105,7 @@ func _serve(map: StringName, seconds: float, master: String) -> Dictionary:
 	var text := FileAccess.get_file_as_string(log_path)
 	var ticks := 0
 	var native_line := ""
+	var calls_line := ""
 	for line: String in text.split("\n"):
 		if line.begins_with("SIM_HOST ready"):
 			out["ready"] = line
@@ -98,6 +113,8 @@ func _serve(map: StringName, seconds: float, master: String) -> Dictionary:
 			ticks += 1
 		elif line.begins_with("SIM_HOST_NATIVE "):
 			native_line = line
+		elif line.begins_with("FC_NATIVE_TICK_CALLS "):
+			calls_line = line
 	out["ticks"] = ticks
 	if out.has("ready") and not String(out["ready"]).contains("map=%s" % map):
 		out["error"] = "the server loaded another map: " + String(out["ready"])
@@ -107,6 +124,20 @@ func _serve(map: StringName, seconds: float, master: String) -> Dictionary:
 		out["phases"] = parse_native_line(native_line)
 	elif not out.has("error"):
 		out["error"] = "no SIM_HOST_NATIVE line in " + log_path
+	if calls_line != "":
+		print("  " + calls_line)
+		out["calls"] = parse_calls_line(calls_line)
+	return out
+
+
+## `FC_NATIVE_TICK_CALLS players=0/0 motor=750/0 ...` to {players: [0, 0], motor: [750, 0], ...}
+## ([native, script] as PackedInt64Array).
+static func parse_calls_line(line: String) -> Dictionary:
+	var out := {}
+	for part: String in line.trim_prefix("FC_NATIVE_TICK_CALLS ").split(" ", false):
+		var id := part.get_slice("=", 0)
+		var pair := part.get_slice("=", 1)
+		out[id] = PackedInt64Array([pair.get_slice("/", 0).to_int(), pair.get_slice("/", 1).to_int()])
 	return out
 
 

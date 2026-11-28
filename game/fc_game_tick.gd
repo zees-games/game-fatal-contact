@@ -1,6 +1,8 @@
 @tool
 extends "fc_game_players_call.gd"
 
+const FcNativePhases := preload("fc_native_phases.gd")
+
 ## Deals an imported map's hurt volumes (`trigger_hurt`) to everybody standing in one, as
 ## world damage through gs-combat.
 ##
@@ -208,9 +210,12 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 	# The surf rides follow the map once a tick, not once per player (~4 us a player a tick of lookups that change nothing).
 	var lean := FcPlayer.lean_tick
 	var surfing := lean and surf_rides != null and surf_rides.begin_tick()
+	# Off a surf map the rides' after() only answers is_on() false (~3 us a player a tick of a dispatch that does nothing).
+	_surf_after = surf_rides != null and (surfing or not lean)
 	if _batch_rows.size() < n:
 		_batch_rows.resize(n)
 		_batch_pairs.resize(n)
+	_activity.begin(match_node)
 	t_tb = FcFrameProbe.lap(&"tb_setup", t_tb)
 	var rows: GSFpsTickEvents = _tick_events if FcHullGrid.events else null
 	if rows != null and FcNativeTick.players and _players_call_ready():
@@ -254,6 +259,9 @@ func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Objec
 		if fine:
 			FcFrameProbe.add(&"pl_sim", t_fine)
 	t_tb = FcFrameProbe.lap(&"tb_pass1", t_tb)
+	# Every row that is not -1 went through the activity note (dead, or a null command, is -1).
+	_activity.note(ids, _batch_rows, _tick)
+	t_tb = FcFrameProbe.lap(&"tb_note", t_tb)
 	if FcPlayer.mechanics_native:
 		_volume_pre.mark(_tick, ids, _players, _batch_rows)
 	t_tb = FcFrameProbe.lap(&"tb_mark", t_tb)
@@ -381,9 +389,12 @@ func tick(commands: Dictionary = {}) -> void:
 		_tick_players_batched(commands, delta, hull_world, shots)
 		if _native_tick_on:
 			_native_tick.step(_roster, _roster_ids, hull_world, delta)
+		FcNativePhases.tally(FcNativePhases.MOTOR, true)
 	else:
 		t_tp = FcFrameProbe.lap(&"tp_start", t_tp)
 		_tick_players(commands, delta, use_grid, hull_world, shots)
+		if not _roster.is_empty():
+			FcNativePhases.tally(FcNativePhases.MOTOR, GSFpsPhysicsBody.native_enabled)
 	t_tp = FcFrameProbe.lap(&"tp_loop", t_tp)
 
 	_hull_grid.live = false

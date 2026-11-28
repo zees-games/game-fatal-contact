@@ -6,6 +6,7 @@ const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcHullGrid := preload("fc_hull_grid.gd")
 const FcNativeTick := preload("fc_native_tick.gd")
 const FcShotStats := preload("fc_shot_stats.gd")
+const FcActivityLane := preload("fc_activity_lane.gd")
 const HULL_NEAR_SQ := 144.0
 
 ## Beyond this a hull cannot touch one tick's sweep (top speed times a tick, plus both radii, with room to spare).
@@ -76,6 +77,8 @@ var shown_mode: FcMode = null
 
 var _roster: Array[FcPlayer] = []
 var _roster_ids := PackedInt64Array()
+## The players' last-active column (cvar sv_native_activity): the batched loop's activity notes in one gs-sim call.
+var _activity := FcActivityLane.new()
 var _roster_dirty := true
 ## Roster index by player id, rebuilt with [member _roster].
 var _roster_at: Dictionary[int, int] = {}
@@ -135,6 +138,9 @@ var _idle_entries: Array = []
 var _idle_owners: Array[FcPlayer] = []
 var _idle_outs: Array[GSWeaponOutcome] = []
 var _demo_gated := false
+## Whether this batched tick's players hand their move to the surf rides' [code]after[/code]: the tick's
+## [code]begin_tick[/code] answered true, or the lean tick is off and each player syncs on its own.
+var _surf_after := false
 
 
 ## Rebuilds [member _roster] (the players in join order, and their ids) after a join or a leave.

@@ -20,7 +20,9 @@ func _batched_input(id: int, player: FcPlayer, pair: Array, knife_charge: bool, 
 	t_lap = FcFrameProbe.lap(&"pp_knife", t_lap)
 	if move == null or fire == null:
 		return []
-	match_node.note_activity(player.score_key if player.player_id == id else str(id), _tick)
+	# With the column on, the whole roster is noted in one call after the loop's first pass.
+	if not _activity.active:
+		match_node.note_activity(player.score_key if player.player_id == id else str(id), _tick)
 	t_lap = FcFrameProbe.lap(&"pp_note", t_lap)
 	if surfing:
 		surf_rides.before_synced(id, player)

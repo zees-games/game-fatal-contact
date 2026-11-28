@@ -3,6 +3,7 @@ extends GSNetBehaviour
 const FcContent := preload("fc_content.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 const FcNetCarry := preload("fc_net_carry.gd")
+const FcNativePhases := preload("fc_native_phases.gd")
 const FcNetPullNative := preload("fc_net_pull_native.gd")
 const FcNetPullWeapons := preload("fc_net_pull_weapons.gd")
 const FcNetCommand := preload("fc_net_command.gd")
@@ -451,7 +452,9 @@ func pull() -> void:
 	var held_velocity := net_velocity
 	var held_yaw := net_yaw
 	var held_pitch := net_pitch
-	if not (FcNetPullNative.enabled and _native_pull.pull(self, hold_subquantum, held_velocity, held_yaw, held_pitch)):
+	var native := FcNetPullNative.enabled and _native_pull.pull(self, hold_subquantum, held_velocity, held_yaw, held_pitch)
+	FcNativePhases.tally(FcNativePhases.SNAPSHOTS, native)
+	if not native:
 		GSFpsNetSync.pull(player.controller.state, self)
 		if hold_subquantum:
 			_hold_subquantum(held_velocity, held_yaw, held_pitch)

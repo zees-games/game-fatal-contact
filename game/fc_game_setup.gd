@@ -443,6 +443,7 @@ func apply_jail_state(told: Dictionary) -> void:
 	jail.opened_at = int(told["opened_at"])
 
 func start(tick: int = 0) -> void:
+	_activity.flush(match_node)
 	_tick = tick
 	match_node.start(tick)
 
@@ -700,6 +701,7 @@ func remove_player(id: int) -> void:
 		player_stack.drop_player(id)
 
 	player.leave_combat()
+	_activity.leave(match_node, id)
 	match_node.remove_player(str(id))
 
 	_players.erase(id)

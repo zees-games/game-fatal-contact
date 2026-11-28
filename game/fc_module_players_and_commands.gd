@@ -1,6 +1,7 @@
 extends "fc_module_cvars.gd"
 
 const FcBoards := preload("fc_boards.gd")
+const FcNativePhases := preload("fc_native_phases.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
 
 
@@ -228,6 +229,8 @@ func _start_workbench() -> void:
 
 
 func _module_unload() -> void:
+	# The per-phase native/script counts, once per run (a bench's end printed them already).
+	FcNativePhases.print_calls_once()
 	if game != null:
 		game.tick_gate.disarm()
 		var scene := game.get_parent() if is_instance_valid(game) else null
