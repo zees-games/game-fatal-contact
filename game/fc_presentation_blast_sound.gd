@@ -222,41 +222,7 @@ static func sound_catalogue() -> GSAudioCatalogue:
 
 ## Hit, kill, medal, flag, vote, beacon and body-state cues: flat on the interface bus unless noted.
 static func _add_interface_sounds(c: GSAudioCatalogue) -> void:
-	# Flat, not positional: a hit marker is about your own shot and must not fade with distance.
-	var hit := GSAudioDef.new()
-	hit.id = &"hit_marker"
-	hit.bus = &"UI"
-	hit.cooldown_ms = 60
-	hit.max_concurrent = 2
-	hit.priority = 95
-	c.add(recorded(hit))
-
-	# Headshot and armour hits: the same flat marker with its own low sound.
-	for id in [&"hit_head", &"hit_armor"]:
-		var variant := GSAudioDef.new()
-		variant.id = id
-		variant.bus = &"UI"
-		variant.cooldown_ms = 60
-		variant.max_concurrent = 2
-		variant.priority = 95
-		c.add(recorded(variant))
-
-	# The announcer's spoken lines: one at a time (FcAnnouncer queues), on the interface bus.
-	for line: StringName in FcAnnouncer.LINES:
-		var said := GSAudioDef.new()
-		said.id = FcAnnouncer.sound_id(line)
-		said.bus = &"UI"
-		said.max_concurrent = 1
-		said.priority = 97
-		c.add(recorded(said))
-
-	# A hit that killed: the same flat information, longer than the tick.
-	var killed := GSAudioDef.new()
-	killed.id = KILL_CONFIRMED
-	killed.bus = &"UI"
-	killed.max_concurrent = 1
-	killed.priority = 96
-	c.add(recorded(killed))
+	_add_hit_sounds(c)
 
 	# The medals: flat, on the interface bus, one at a time each. Information about your
 	# own kill, like the hit marker; louder than the world so a medal is never lost in it.
@@ -303,6 +269,45 @@ static func _add_interface_sounds(c: GSAudioCatalogue) -> void:
 	spawn.priority = 60
 	c.add(recorded(spawn))
 	_add_vote_sounds(c)
+
+
+## The hit marker, its headshot and armour variants, the kill tick and the announcer's lines.
+static func _add_hit_sounds(c: GSAudioCatalogue) -> void:
+	# Flat, not positional: a hit marker is about your own shot and must not fade with distance.
+	var hit := GSAudioDef.new()
+	hit.id = &"hit_marker"
+	hit.bus = &"UI"
+	hit.cooldown_ms = 60
+	hit.max_concurrent = 2
+	hit.priority = 95
+	c.add(recorded(hit))
+
+	# Headshot and armour hits: the same flat marker with its own low sound.
+	for id in [&"hit_head", &"hit_armor"]:
+		var variant := GSAudioDef.new()
+		variant.id = id
+		variant.bus = &"UI"
+		variant.cooldown_ms = 60
+		variant.max_concurrent = 2
+		variant.priority = 95
+		c.add(recorded(variant))
+
+	# The announcer's spoken lines: one at a time (FcAnnouncer queues), on the interface bus.
+	for line: StringName in FcAnnouncer.LINES:
+		var said := GSAudioDef.new()
+		said.id = FcAnnouncer.sound_id(line)
+		said.bus = &"UI"
+		said.max_concurrent = 1
+		said.priority = 97
+		c.add(recorded(said))
+
+	# A hit that killed: the same flat information, longer than the tick.
+	var killed := GSAudioDef.new()
+	killed.id = KILL_CONFIRMED
+	killed.bus = &"UI"
+	killed.max_concurrent = 1
+	killed.priority = 96
+	c.add(recorded(killed))
 
 
 ## The map vote's cues and the administrator's beacon ping.
