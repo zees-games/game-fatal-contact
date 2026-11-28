@@ -181,7 +181,10 @@ func _test_criticals_and_the_body() -> void:
 
 	player.health.health = player.health.max_health * 0.1
 	hud.present_body()
-	_check(hud.hurt_overlay.modulate.a > 0.5, "badly hurt, the screen's edge goes red (%.2f)" % hud.hurt_overlay.modulate.a)
+	_check(hud.hurt_overlay.modulate.a > 0.3, "hurt to a tenth, a visible rim (%.2f)" % hud.hurt_overlay.modulate.a)
+	player.health.health = player.health.max_health * 0.02
+	hud.present_body()
+	_check(hud.hurt_overlay.modulate.a > 0.7, "badly hurt, the screen's edge goes red (%.2f)" % hud.hurt_overlay.modulate.a)
 	player.health.health = player.health.max_health
 	hud.present_body()
 	_check(hud.hurt_overlay.modulate.a == 0.0, "and healthy, it does not")

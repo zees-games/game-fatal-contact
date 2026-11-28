@@ -35,7 +35,7 @@ const FcVote := preload("../game/fc_vote.gd")
 ## Exits non-zero on any failure.
 
 const SECTIONS := 38
-const CHECKS := 465
+const CHECKS := 466
 
 var _entered := 0
 var _completed := 0
