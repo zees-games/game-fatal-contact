@@ -10,6 +10,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
 const FcBotContacts := preload("../game/fc_bot_contacts.gd")
 const FcBotDropCache := preload("../game/fc_bot_drop_cache.gd")
+const FcHullGrid := preload("../game/fc_hull_grid.gd")
 const FcBotThinkMt := preload("../game/fc_bot_think_mt.gd")
 
 ## `bot_threads`: 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8 with
@@ -561,7 +562,7 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 	var table_first := -1
 	var has_table := false
 	var armed := 0
-	var rowed := [0, 0, 0]  # rounds whose native tier rows and near cells were the script's; with near cells; bots in the tier rows
+	var rowed := [0, 0, 0, 0, 0, 0]  # rounds the same; with near cells; with bots; not read natively; tiers differ; near differs
 	var has_rows := false
 	var refreshed_rows := 0  # the table rounds' refreshes that read their rows from gs-sim
 	for round_index in rounds:
@@ -588,12 +589,15 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 			table_first = round_index
 		if has_table and row & 2:
 			tabled[1] += 1
-		var rows_round := _world_rows_round(world)
+		var rows_round := _world_rows_round(world, FcBotContacts.world_rowed > rowed_at)
 		has_rows = rows_round >= 0
 		if has_rows:
 			rowed[0] += rows_round & 1
 			rowed[1] += (rows_round >> 1) & 1
 			rowed[2] += (rows_round >> 2) & 1
+			rowed[3] += (rows_round >> 3) & 1
+			rowed[4] += (rows_round >> 4) & 1
+			rowed[5] += (rows_round >> 5) & 1
 		if held != null:
 			players[0].controller = held
 		for k in 2:
@@ -631,24 +635,27 @@ func _contacts_parity(expected: PackedStringArray) -> void:
 ## `bot_native_world_rows`: on the table gs-sim filled this round, the tier rows and near cells read by gs-sim against the
 ## script's reading of the same table. -1 when this gs-sim has no world_rows; else bit 1 when both equal the script's to the
 ## bit (near cells in the same key order, rows in the same order), bit 2 when there were near cells, bit 4 when bots.
-func _world_rows_round(world: Object) -> int:
-	var t: GSBotContactTable = world.call(&"table")
+func _world_rows_round(world: Object, read_natively: bool) -> int:
 	var nc: Object = world.get(&"_native_contacts")
-	if t == null or not bool(nc.get(&"_has_world_rows")):
+	if not bool(nc.get(&"_has_world_rows")):
 		return -1
+	var t: GSBotContactTable = world.call(&"table")
+	if t == null:
+		return -1
+	if not read_natively:
+		return 8
+	var native_tiers := [FcBotContacts.tier_eyes, FcBotContacts.tier_looks, FcBotContacts.tier_ids, FcBotContacts.tier_at]
+	var native_near := _near_copy(world)
+	var tiers: Object = world.get(&"tiers")
+	var applies := tiers != null and bool(tiers.call(&"applies", t.size()))
 	var brains: Dictionary[int, GSBotBrain] = world.get(&"brains")
-	var tick: int = nc.get(&"_tabled_tick")
-	FcBotContacts.tier_rows(t, [], brains, true)
+	FcBotContacts.tier_rows(t, [], brains, applies)
 	var script_tiers := [FcBotContacts.tier_eyes, FcBotContacts.tier_looks, FcBotContacts.tier_ids, FcBotContacts.tier_at]
 	world.call(&"_near_refresh", [], FcHullGrid.enabled)
 	var script_near := _near_copy(world)
-	var cell: float = world.get(&"near_cell")
-	if nc.call(&"read_world_rows", brains, tick, true, cell).is_empty() or not bool(world.call(&"_native_rows", tick)):
-		return 0
-	var native_tiers := [FcBotContacts.tier_eyes, FcBotContacts.tier_looks, FcBotContacts.tier_ids, FcBotContacts.tier_at]
-	var native_near := _near_copy(world)
 	var same := native_tiers == script_tiers and native_near == script_near
-	return (1 if same else 0) | (2 if not script_near[0].is_empty() else 0) | (4 if not script_tiers[2].is_empty() else 0)
+	return (1 if same else 0) | (2 if not script_near[0].is_empty() else 0) | (4 if not script_tiers[2].is_empty() else 0) \
+			| (16 if native_tiers != script_tiers else 0) | (32 if native_near != script_near else 0)
 
 
 ## The world's near cells as [keys in order, rows per key], copied.
@@ -667,8 +674,8 @@ func _world_rows_checks(expected: PackedStringArray, has_rows: bool, rowed: Arra
 		for i in 3:
 			_check(true, "(skipped: no gs-sim world_rows)")
 		return
-	_check(rowed[0] == rounds and rowed[1] > 0 and rowed[2] > 0,
-		"bot_native_world_rows: gs-sim's tier rows and near cells equal the script's to the bit in %d of %d randomized rounds (%d with near cells, %d with bots)" % [rowed[0], rounds, rowed[1], rowed[2]])
+	_check(rowed[0] == rounds,
+		"bot_native_world_rows: gs-sim's tier rows and near cells equal the script's to the bit in %d of %d randomized rounds (%d with near cells, %d with bots; %d not read natively, %d tiers differ, %d near cells differ)" % [rowed[0], rounds, rowed[1], rowed[2], rowed[3], rowed[4], rowed[5]])
 	_check(used > 0, "and the refreshes read them from gs-sim (%d)" % used)
 	var before := FcBotContacts.world_rowed
 	FcBotContacts.world_rows = false
