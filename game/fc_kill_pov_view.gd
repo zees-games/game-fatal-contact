@@ -223,6 +223,8 @@ func _new_hands() -> AwViewModel:
 	var model := AwViewModel.new()
 	model.show_arms = not _shares_arms(model)
 	model.hands_depth_comp = FcViewArms.hold_depth_comp
+	# cl_equip_reuse: a parked rig keeps one put-away build; the rest go to the shared store, not one cache of six per rig (ten rigs).
+	model.equip_cache_limit = preload("fc_hitch_cvars.gd").killview_rig_keeps()
 	return model
 
 

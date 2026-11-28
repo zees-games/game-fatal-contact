@@ -41,6 +41,11 @@ var _model_hidden: bool = false
 var _age: float = 0.0
 var _parent_layers: int = 1
 
+const _Cvars := preload("fc_hitch_cvars.gd")
+## cl_trail_share: the streak material and glint quad every knife draws, made once (a knife's first flight compiled them: Streak and Glint, 113 ms).
+static var _shared_streak: StandardMaterial3D = null
+static var _shared_glints: Dictionary = {}
+
 
 func _ready() -> void:
 	top_level = true
@@ -56,13 +61,24 @@ func _build() -> void:
 	_drawn.mesh = _mesh
 	_drawn.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_drawn.extra_cull_margin = 16384.0
-	_material = StandardMaterial3D.new()
-	_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_material = _streak_material()
+	add_child(_drawn)
+	if glint_size > 0.0:
+		_glint = _make_glint()
+		add_child(_glint)
+
+
+## The streak's material: shared with cl_trail_share on, a new one per knife off.
+static func _streak_material() -> StandardMaterial3D:
+	if _Cvars.trail_share and _shared_streak != null:
+		return _shared_streak
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	# Mixed, not added: an added streak vanishes over the pale floors and skies most maps have.
-	_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_material.vertex_color_use_as_albedo = true
-	_material.no_depth_test = false
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.vertex_color_use_as_albedo = true
+	material.no_depth_test = false
 	# A bright core with a dark rim, so it reads over pale floors and dark walls alike.
 	var across := Gradient.new()
 	across.offsets = PackedFloat32Array([0.0, 0.18, 0.38, 0.5, 0.62, 0.82, 1.0])
@@ -72,17 +88,19 @@ func _build() -> void:
 	soft.gradient = across
 	soft.width = 64
 	soft.height = 1
-	_material.albedo_texture = soft
-	add_child(_drawn)
-	if glint_size > 0.0:
-		_glint = _make_glint()
-		add_child(_glint)
+	material.albedo_texture = soft
+	if _Cvars.trail_share:
+		_shared_streak = material
+	return material
 
 
-## A round soft spot, billboarded at a fixed screen size, so the knife is a point of light however far away it is.
-func _make_glint() -> MeshInstance3D:
+## The glint's quad (its material on it) for [param size] and [param tint]: shared per size and tint with cl_trail_share on.
+static func _glint_mesh(size: float, tint: Color) -> QuadMesh:
+	var key := "%s|%s" % [size, tint]
+	if _Cvars.trail_share and _shared_glints.has(key):
+		return _shared_glints[key]
 	var quad := QuadMesh.new()
-	quad.size = Vector2(glint_size, glint_size)
+	quad.size = Vector2(size, size)
 	var spot := Gradient.new()
 	spot.offsets = PackedFloat32Array([0.0, 0.25, 0.55, 1.0])
 	spot.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 0.9), Color(1, 1, 1, 0.3), Color(1, 1, 1, 0)])
@@ -99,8 +117,32 @@ func _make_glint() -> MeshInstance3D:
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.fixed_size = true
 	mat.albedo_texture = tex
-	mat.albedo_color = glint_color
+	mat.albedo_color = tint
 	quad.material = mat
+	if _Cvars.trail_share:
+		_shared_glints[key] = quad
+	return quad
+
+
+## What a flying knife draws, for a load cover's [GSRenderWarmup] (cl_trail_share; empty off): a short streak strip in the streak's own
+## vertex format (colour and UV) and the default glint's quad.
+static func warm_items() -> Array:
+	if not _Cvars.trail_share:
+		return []
+	var material := _streak_material()
+	var strip := ImmediateMesh.new()
+	strip.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP, material)
+	for i in 4:
+		strip.surface_set_color(Color(1, 1, 1, 0.5))
+		strip.surface_set_uv(Vector2(float(i % 2), 0.0))
+		strip.surface_add_vertex(Vector3(float(i % 2) * 0.1, float(i >> 1) * 0.1, 0.0))
+	strip.surface_end()
+	return [strip, material, _glint_mesh(0.06, Color(1.0, 0.97, 0.85, 1.0))]
+
+
+## A round soft spot, billboarded at a fixed screen size, so the knife is a point of light however far away it is.
+func _make_glint() -> MeshInstance3D:
+	var quad := _glint_mesh(glint_size, glint_color)
 	var glint := MeshInstance3D.new()
 	glint.name = "Glint"
 	glint.mesh = quad
