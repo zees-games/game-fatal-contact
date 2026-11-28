@@ -68,6 +68,9 @@ func _present_bodies(delta: float) -> void:
 	# The camera the viewer sees through (a spectator's or the death view's too), so that no
 	# body is thinned out in front of it. None: everything is drawn in full.
 	var view_cam := get_viewport().get_camera_3d()
+	# Sub-spans of `bodies` outside the per-body presents (b_*), only in a recording (FcFrameProbe.fine), so the
+	# crowd passes around the r_* laps are named too.
+	var lap := FcFrameProbe.lap_start()
 	var frustum: Array = view_cam.get_frustum() if view_cam != null and FcPlayer.present_lod_enabled and FcPlayer.lod_frustum else []
 	# The sides' own bodies (fc_team_bodies.gd): followed here, worn by whoever changed side.
 	FcTeamBodies.follow(game)
@@ -76,15 +79,20 @@ func _present_bodies(delta: float) -> void:
 	# Read once, with the frustum above, not per body: every body is judged from the same eye this frame.
 	var view_eye := view_cam.global_position if view_cam != null else Vector3.ZERO
 	var view_forward := -view_cam.global_transform.basis.z if view_cam != null else Vector3.FORWARD
+	lap = FcFrameProbe.lap(&"b_setup", lap)
 	var codes := FcPlayer.classify_crowd(bodies, view_eye, view_forward, frustum) if view_cam != null else PackedInt32Array()
+	lap = FcFrameProbe.lap(&"b_classify", lap)
 	var coded := codes.size() == bodies.size()
 	# Every figure stepped below is stepped at the close, all in one batch (cl_figure_batch).
 	FcPlayer.open_figure_batch()
 	if coded:
 		for body in bodies:
 			body.follow_team_body()
+		lap = FcFrameProbe.lap(&"b_team", lap)
 		if FcPlayer.present_crowd(bodies, delta, view_eye):
+			lap = FcFrameProbe.lap_start()
 			FcPlayer.close_figure_batch()
+			FcFrameProbe.lap(&"b_figures", lap)
 			FcFrameProbe.add(&"bodies", t)
 			return
 	else:

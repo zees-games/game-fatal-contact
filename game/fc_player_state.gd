@@ -616,6 +616,7 @@ static func present_crowd(bodies: Array, delta: float, eye: Vector3) -> bool:
 	if not _crowd_scheduled:
 		_crowd_lod.reset()
 		_crowd_scheduled = true
+	var lap := FcFrameProbe.lap_start()
 	_crowd_hidden.clear()
 	for i: int in _crowd_lod.occlusion_candidates():
 		if _crowd_ids[i] != 0 and bodies[i]._behind_world(eye):
@@ -623,11 +624,13 @@ static func present_crowd(bodies: Array, delta: float, eye: Vector3) -> bool:
 	var rows: PackedFloat64Array = _crowd_lod.schedule(_crowd_ids, _crowd_hidden, delta, PackedFloat64Array([
 		lod_off_every, LOD_OFF_DT, LOD_FARTHEST_DT, LOD_FAR_DT, ANIM_GATE_OFF_DT, ANIM_GATE_FAR_DT, ANIM_GATE_DT,
 		1.0 if anim_gate_enabled else 0.0]))
+	lap = FcFrameProbe.lap(&"b_schedule", lap)
 	for bit: int in _crowd_lod.beyond_changes():
 		var b = bodies[bit >> 1]
 		b._set_beyond_figure(b.figure != null and (bit & 1) != 0)
 	for bit: int in _crowd_lod.held_changes():
 		bodies[bit >> 1]._set_held_lod((bit & 1) != 0)
+	FcFrameProbe.lap(&"b_changes", lap)
 	var r := 0
 	while r < rows.size():
 		var b = bodies[int(rows[r])]
