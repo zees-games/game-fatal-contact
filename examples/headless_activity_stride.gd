@@ -3,6 +3,7 @@ extends GSGameCheckSuite
 const FcBots := preload("../game/fc_bots.gd")
 const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
+const FcPlayer := preload("../game/fc_player.gd")
 
 ## `sv_activity_every`: noting a player's activity every few ticks (offset by id) instead of every tick plays the same
 ## match, keeps every active player's note within the stride, and the idle check names the same silent player on the
