@@ -360,11 +360,20 @@ class World:
 		c.team = p.team if teams else 0
 		if p.controller != null:
 			var state := p.controller.state
-			c.position = state.position
-			c.velocity = state.velocity
-			c.view_yaw = state.yaw
+			if FcPlayer.body_cols:
+				# One read of the state's columns (GSFpsStateColumns, gs-player-controller 36, by name so older builds
+				# parse) instead of a getter per field, each rebuilding its Vector3: the contact loop is per player per tick.
+				var f: PackedFloat64Array = state.get(&"_f")
+				c.position = Vector3(f[0], f[1], f[2])
+				c.velocity = Vector3(f[3], f[4], f[5])
+				c.view_yaw = f[12]
+				_motion_cols(c, f)
+			else:
+				c.position = state.position
+				c.velocity = state.velocity
+				c.view_yaw = state.yaw
+				_motion_of(c, state)
 			c.view_pitch = state.pitch
-			_motion_of(c, state)
 		else:
 			c.position = p.global_position
 			c.velocity = Vector3.ZERO
@@ -512,6 +521,15 @@ class World:
 			_tunables = _body_tunables()
 		var tunables := _tunables
 		c.air_jump_ready = tunables.launch_enabled and state.launch_cooldown_left <= 0.0
+
+	## [method _motion_of] from the state's columns [param f]: mode 9, slide time 17, launch cooldown 19, wall run time 22.
+	func _motion_cols(c: GSBotContact, f: PackedFloat64Array) -> void:
+		c.grounded = int(f[9]) == GSFpsState.Mode.GROUND
+		c.sliding = f[17] >= 0.0
+		c.wall_running = f[22] >= 0.0
+		if _tunables == null:
+			_tunables = _body_tunables()
+		c.air_jump_ready = _tunables.launch_enabled and f[19] <= 0.0
 
 	## The nearest map surface along a direction, for the walls a bot could run beside.
 	## Gets the world ready for brains on other threads; false when the game's trace is one this cannot ask from them.
