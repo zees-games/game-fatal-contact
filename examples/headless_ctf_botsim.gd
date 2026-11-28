@@ -5,21 +5,25 @@ extends "headless_ctf.gd"
 
 const FcBots := preload("../game/fc_bots.gd")
 
-const SECTIONS_SIM := 1
-const CHECKS_SIM := 3
+const SECTIONS_SIM := 2
+const CHECKS_SIM := 6
 const SIM_SECONDS := 240
 
 
 func _run() -> void:
 	print("game-fatal-contact headless ctf bot sim")
 	print("")
-	await _test_bots_capture()
+	await _test_bots_capture("4v4", [910, 911, 912, 913, 914, 915, 916, 917])
+	var crowd: Array = []
+	for i in 64:
+		crowd.append(1000 + i)
+	await _test_bots_capture("32v32", crowd)
 	_report_sections(_entered, _completed, SECTIONS_SIM, CHECKS_SIM)
 
 
-func _test_bots_capture() -> void:
-	_section("ctf bot sim: thinking bots capture on their own")
-	var game := _ctf_game(Callable(), null, [910, 911, 912, 913, 914, 915, 916, 917])
+func _test_bots_capture(label: String, ids: Array) -> void:
+	_section("ctf bot sim %s: thinking bots capture on their own" % label)
+	var game := _ctf_game(Callable(), null, ids)
 	if game == null:
 		return
 	var ctf := game.objectives.ctf

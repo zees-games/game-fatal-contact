@@ -323,6 +323,9 @@ static func _servers_page(menu: GSMenu, browser: FcBrowser) -> GSMenuPage:
 class Board extends RefCounted:
 	var board: GSMenuScoreboard = null
 	var _records: GSScoreboard = null
+	## When each record was first listed, in msec: bots and offline players have no server-side
+	## connect time (the roster says -1), so their Time column counts from the first row instead of staying empty.
+	var _first_listed: Dictionary = {}
 	var _teams: GSTeamManager = null
 	var _me: String = ""
 	var _game: Object = null
@@ -358,18 +361,13 @@ class Board extends RefCounted:
 			# rows from the match current while the board is held.
 			board.source = func() -> Dictionary: return {}
 
-	## When each record was first listed, in msec: bots and offline players have no server-side
-	## connect time (the roster says -1), so their Time column counts from the first row instead of staying empty.
-	var _first_listed: Dictionary = {}
-
-
 	func _seconds_on_board(key: String, from_roster: int) -> int:
 		if from_roster >= 0:
 			return from_roster
 		var now := Time.get_ticks_msec()
 		if not _first_listed.has(key):
 			_first_listed[key] = now
-		return (now - int(_first_listed[key])) / 1000
+		return int(float(now - int(_first_listed[key])) / 1000.0)
 
 
 	## Which record is this client's. The roster says so online; offline nobody else will.
