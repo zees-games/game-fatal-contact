@@ -36,6 +36,16 @@ static func build(game) -> void:
 const POOL_DEPTH := 8
 
 
+## Bodies parked for a weapon no one starts with: one picked up and dropped again by a second carrier while the first
+## still lies built the next inside the tick (Drop108, a battle rifle, 70 ms with 9 shader compiles in the owner's
+## profile). 1 with cl_drop_pool 0.
+const PICK_DEPTH := 3
+
+
+static func pick_depth() -> int:
+	return PICK_DEPTH if preload("fc_hitch_cvars.gd").drop_pool else 1
+
+
 ## Weapons worth parking a drop body for: every one with art, the same set the first-person warm-up walks.
 static func prewarm_ids() -> Array:
 	return AwWeaponArtTable.table().keys()
@@ -45,7 +55,7 @@ static func prewarm_ids() -> Array:
 static func prewarm_step(game, ids: Array, from: int, until_msec: int) -> int:
 	var next := from
 	while next < ids.size() and Time.get_ticks_msec() < until_msec and game.weapon_drops != null:
-		game.weapon_drops.prewarm(ids[next], POOL_DEPTH if ids[next] in FcContent.default_loadout() else 1)
+		game.weapon_drops.prewarm(ids[next], POOL_DEPTH if ids[next] in FcContent.default_loadout() else pick_depth())
 		next += 1
 	if next >= ids.size() and game.weapon_drops != null:
 		game.weapon_drops.set_meta(POOLED, true)

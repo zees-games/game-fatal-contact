@@ -15,6 +15,7 @@ extends Node3D
 ## game-fatal-contact's docs/modes.md.
 
 const FcContent := preload("fc_content.gd")
+const FcHitchCvars := preload("fc_hitch_cvars.gd")
 
 enum Kind { POINT, HEALTH, AMMO }
 
@@ -87,6 +88,16 @@ var _known: Dictionary = {}
 
 ## Where a player is, for a point flying to its taker. Set by the game: id -> Vector3 or null.
 var position_of: Callable = Callable()
+
+## Drawn models parked hidden for the next drop (cl_drop_pool): kind -> Array of Node3D. A kill drew six new
+## meshes and six new materials on every client; a pooled one is shown again and shares one template's.
+var _spares: Dictionary = {}
+## kind -> the Node3D a pooled model is duplicated from (resources shared, never drawn itself).
+var _templates: Dictionary = {}
+## Models parked per kind under the load cover: one kill's points and its health pack, twice over.
+const SPARES_WARM := 12
+## Models kept parked per kind at most; a model given back past this is freed.
+const SPARES_KEEP := 48
 
 
 func setup(tick_rate: int) -> void:
@@ -308,11 +319,12 @@ func mirror_drop(id: int, kind: int, at: Vector3, from: Vector3, value: int) -> 
 	if not draws or _drawn.has(id):
 		return
 
-	var node := _model(kind)
+	var node := _take_model(kind)
 	# A map's pack is bigger than a kill's drop: it is something to walk to across a room.
 	if id >= PACK_ID_BASE:
 		node.scale = Vector3.ONE * 2.2
-	add_child(node)
+	if node.get_parent() == null:
+		add_child(node)
 	node.global_position = from + Vector3(0.0, 1.0, 0.0)
 	_drawn[id] = {"node": node, "kind": kind, "value": value, "from": from, "at": at, "age": 0.0, "taker": 0}
 
@@ -332,7 +344,7 @@ func mirror_taken(id: int, taker: int) -> void:
 		return
 
 	if taker == 0:
-		(entry["node"] as Node3D).queue_free()
+		_give_back(entry["node"] as Node3D, int(entry["kind"]))
 		_drawn.erase(id)
 		return
 
@@ -351,7 +363,7 @@ func _process(delta: float) -> void:
 		if int(entry["taker"]) != 0:
 			var target: Variant = position_of.call(int(entry["taker"])) if position_of.is_valid() else null
 			if target == null or age > 0.3:
-				node.queue_free()
+				_give_back(node, int(entry["kind"]))
 				_drawn.erase(id)
 				continue
 			node.global_position = node.global_position.lerp((target as Vector3) + Vector3(0.0, 1.0, 0.0), clampf(age / 0.3, 0.0, 1.0))
@@ -365,6 +377,73 @@ func _process(delta: float) -> void:
 		var arc := 1.0 + 1.6 * sin(burst * PI) * (1.0 - burst * 0.5)
 		node.global_position = ground + Vector3(0.0, (arc if burst < 1.0 else 0.45 + 0.08 * sin(age * 4.0)), 0.0)
 		node.rotation.y = age * 4.0
+
+
+## A model for a drop of [param kind]: a parked one shown again (already a child), or with cl_drop_pool 0 a new one.
+func _take_model(kind: int) -> Node3D:
+	if not FcHitchCvars.drop_pool:
+		return _model(kind)
+	var list: Array = _spares.get(kind, [])
+	while not list.is_empty():
+		var spare: Variant = list.pop_back()
+		if is_instance_valid(spare):
+			var node := spare as Node3D
+			node.scale = Vector3.ONE
+			node.rotation = Vector3.ZERO
+			node.visible = true
+			return node
+	return _pooled_model(kind)
+
+
+## A new model sharing [param kind]'s template meshes and materials.
+func _pooled_model(kind: int) -> Node3D:
+	var template: Node3D = _templates.get(kind)
+	if template == null:
+		template = _model(kind)
+		_templates[kind] = template
+	return template.duplicate() as Node3D
+
+
+## [param node] is done with: parked hidden for the next drop, or freed (cl_drop_pool 0, or the pool full).
+func _give_back(node: Node3D, kind: int) -> void:
+	if not is_instance_valid(node):
+		return
+	var list: Array = _spares.get(kind, [])
+	if not FcHitchCvars.drop_pool or list.size() >= SPARES_KEEP or node.get_parent() != self:
+		node.queue_free()
+		return
+	node.visible = false
+	list.append(node)
+	_spares[kind] = list
+
+
+## Parks [constant SPARES_WARM] models of each kind and appends their materials to [param into], for the load
+## cover to draw once. Nothing on an end that does not draw, or with cl_drop_pool 0.
+func warm_spares(into: Array) -> void:
+	if not draws or not FcHitchCvars.drop_pool:
+		return
+	for kind: int in [Kind.POINT, Kind.HEALTH, Kind.AMMO]:
+		var list: Array = _spares.get(kind, [])
+		while list.size() < SPARES_WARM:
+			var node := _pooled_model(kind)
+			node.visible = false
+			add_child(node)
+			list.append(node)
+		_spares[kind] = list
+		GSRenderWarmup.collect(list[0] as Node, into)
+
+
+## Parked models of [param kind] (tests).
+func spare_count(kind: int) -> int:
+	return (_spares.get(kind, []) as Array).size()
+
+
+func _exit_tree() -> void:
+	for kind: int in _templates:
+		var template: Node3D = _templates[kind]
+		if is_instance_valid(template):
+			template.free()
+	_templates.clear()
 
 
 ## A point is a gold disc on its edge; a health pack a green cross. Drawn, no art.

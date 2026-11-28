@@ -5,6 +5,7 @@ const FcBrowser := preload("fc_browser.gd")
 const FcEvents := preload("fc_events.gd")
 const FcModes := preload("fc_modes.gd")
 const FcTeamBodies := preload("fc_team_bodies.gd")
+const FcHitchCvars := preload("fc_hitch_cvars.gd")
 
 ## The Escape menu and the Tab board: gs-menu's, with this game's pages on it.
 ##
@@ -375,6 +376,9 @@ class Board extends RefCounted:
 		_me = key
 
 	func _rows_from_match(snap: Dictionary) -> void:
+		# cl_scoreboard_reuse, read each draw so the console flips it live; a gs-menu before 24 has no reuse_rows.
+		if "reuse_rows" in board:
+			board.set(&"reuse_rows", FcHitchCvars.scoreboard_reuse)
 		# Looked up every time, for the reasons at `_init`.
 		if _game != null and is_instance_valid(_game):
 			var match_node: GSMatch = _game.get(&"match_node")

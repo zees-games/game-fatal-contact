@@ -682,3 +682,20 @@ func _check_drop_wire() -> void:
 		and int(wire["value"]) == 25 and (wire["at"] as Vector3).is_equal_approx(Vector3(4, 0, 6)),
 		"DROP round-trips")
 
+
+	# cl_drop_pool: a drawn point given back is parked hidden and shown again for the next drop, not rebuilt.
+	var drawer: Node3D = preload("../game/fc_drops.gd").new()
+	drawer.draws = true
+	drawer.is_authority = false
+	add_child(drawer)
+	var looks: Array = []
+	drawer.warm_spares(looks)
+	var parked: int = drawer.spare_count(0)
+	drawer.mirror_drop(41, 0, Vector3.ZERO, Vector3.ZERO, 1)
+	var shown: Node3D = drawer._drawn[41]["node"]
+	drawer.mirror_taken(41, 0)
+	drawer.mirror_drop(42, 0, Vector3.ZERO, Vector3.ZERO, 1)
+	_check(parked == drawer.SPARES_WARM and not looks.is_empty() and drawer._drawn[42]["node"] == shown and shown.visible
+		and drawer.spare_count(0) == parked - 1,
+		"a drawn drop is shown again from the parked models rather than built")
+	drawer.free()

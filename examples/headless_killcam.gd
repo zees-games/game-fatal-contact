@@ -6,7 +6,7 @@ const Bodies := preload("../game/fc_killcam_bodies.gd")
 const KillcamShots := preload("../game/fc_killcam_shots.gd")
 const KillPovView := preload("../game/fc_kill_pov_view.gd")
 
-const EXPECTED_CHECKS := 72
+const EXPECTED_CHECKS := 73
 
 ## The standalone game, as a player lives it: a bot kills the local player (the kill view of the
 ## killer plays), then a bot's kill ends the match (the final killcam plays its time, a skip key
@@ -429,20 +429,27 @@ func _check_rig_pool(view: KillPovView, cam: Camera3D, aux: PackedFloat32Array) 
 	_check(view.hands == null and held != &"" and used.has(held), "the ended replay parks its view model, weapon in hand", str(used))
 	var ids: Array = AwWeaponArtTable.table().keys()
 	var _made: Array = view.warm(ids)
-	_check(view.parked().size() == KillPovView.RIGS, "warming parks a view model per weapon up to the pool's size", str(view.parked()))
+	_check(view.parked().size() == mini(KillPovView.rig_cap(), ids.size()), "warming parks a view model per weapon up to the pool's size", str(view.parked()))
 	var children := view.get_child_count()
 	_check(view.warm_meshes(ids, 0, 0) == 1, "holding every weapon once goes a slice at a time")
 	var at := 1
 	while at < ids.size():
 		at = view.warm_meshes(ids, at, Time.get_ticks_msec() + 50)
 	await get_tree().process_frame
-	_check(view.get_child_count() == children and view.parked().size() == KillPovView.RIGS, "and leaves no view model behind", "%d of %d" % [view.get_child_count(), children])
+	_check(view.get_child_count() == children and view.parked().size() == mini(KillPovView.rig_cap(), ids.size()), "and leaves no view model behind", "%d of %d" % [view.get_child_count(), children])
 	var parked_rig: Variant = null
 	for child in view.get_children():
 		if child is AwViewModel and (child as AwViewModel).equipped() == held:
 			parked_rig = child
 	view.present({"camera": cam, "aux": aux, "fov": 75.0, "behind": false})
 	_check(view.hands != null and view.hands == parked_rig, "the next kill by that weapon takes the parked view model")
+	var other: StringName = &""
+	for id: Variant in view.parked():
+		if id != held and id != &"":
+			other = id
+	var swapped: bool = other != &"" and view._swap_rig(other)
+	_check(swapped and view.hands.equipped() == other and view.hands.get_parent() == cam and view.parked().has(held),
+		"a gun change mid-replay swaps to the parked view model holding it (cl_killview_cache)", "%s %s" % [other, view.parked()])
 	view.present({})
 
 
