@@ -69,6 +69,7 @@ func _run() -> void:
 	await _settle_and_check_origin()
 	_check_one_local_player()
 	_check_weapon()
+	await _check_kill_before_snapshot()
 	_print_server_loadout_lines()
 	await _watch("idle", func(_t: float) -> void: pass)
 	# Delayed, bunched snapshots: the main thread stalls at random (the datagrams queue and arrive together), the
@@ -159,6 +160,40 @@ func _check_weapon() -> void:
 	_check(def != null, "the local player holds a weapon", detail)
 	var vm: Node3D = _client.get("view_model")
 	_check(vm != null and vm.is_visible_in_tree(), "the view model is shown")
+
+
+## The kill is a reliable event sent the moment the shot lands; the health that says so rides the next snapshot, up
+## to a snapshot interval later. In that gap the client starts the death camera for a player it still draws alive:
+## the view must stay on the living body's own camera, not jump to the death cam (0.8 m up and about 100 degrees
+## round, about one run in two before the fix). Deterministic: the kill event is fed while the player is alive.
+func _check_kill_before_snapshot() -> void:
+	var p: Object = _client.get("player")
+	var spectate: Object = _client.get("game").get("spectate")
+	var cam: Camera3D = p.get("camera")
+	var key := str(p.get("player_id"))
+	await get_tree().process_frame
+	var before := cam.global_transform
+	spectate.call("on_kill_event", {"victim_id": int(p.get("player_id")), "killer_id": 0})
+	var spectating := bool(spectate.call("is_spectating", key))
+	var worst_jump := 0.0
+	var worst_turn := 0.0
+	var foreign := 0
+	for i in 6:
+		await get_tree().process_frame
+		if not bool(p.call("is_alive")):
+			break
+		var now := cam.global_transform
+		worst_jump = maxf(worst_jump, before.origin.distance_to(now.origin))
+		worst_turn = maxf(worst_turn, rad_to_deg((-before.basis.z).angle_to(-now.basis.z)))
+		if get_viewport().get_camera_3d() != cam:
+			foreign += 1
+		before = now
+	spectate.call("spawned", key)
+	_check(spectating, "kill before snapshot: the death camera is started", str(spectating))
+	_check(foreign == 0, "kill before snapshot: the living player's own camera stays current", str(foreign))
+	_check(worst_jump <= MAX_JUMP_M and worst_turn <= MAX_TURN_DEG,
+		"kill before snapshot: the living player's view does not move to the death camera",
+		"%.2f m, %.2f deg" % [worst_jump, worst_turn])
 
 
 func _watch(phase: String, drive: Callable) -> void:
