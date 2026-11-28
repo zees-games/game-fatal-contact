@@ -51,8 +51,8 @@ const RED := Color(0.9, 0.24, 0.32)
 class Ink:
 	extends RefCounted
 
-	static var _fonts: Dictionary = {}
-	static var _textures: Dictionary = {}
+	static var _fonts: Dictionary[bool, Font] = {}
+	static var _textures: Dictionary[String, Texture2D] = {}
 
 	## The fallback font, emboldened, slanted when [param italic].
 	static func font(italic: bool = false) -> Font:

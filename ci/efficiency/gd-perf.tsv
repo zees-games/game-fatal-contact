@@ -267,7 +267,6 @@ game/fc_game_unlag.gd::player_ids::alloc	1
 game/fc_game_unlag.gd::team_of::string_build	1
 game/fc_game_vars.gd::<members>::untyped_array	1
 game/fc_hud.gd::<members>::untyped_array	1
-game/fc_hud.gd::_button::alloc	1
 game/fc_hud.gd::_button::string_build	1
 game/fc_hud.gd::_button::untyped_array	1
 game/fc_hud.gd::_present_hints::alloc	4
@@ -280,7 +279,6 @@ game/fc_hud.gd::cause_label::string_build	2
 game/fc_hud.gd::footprints::alloc	2
 game/fc_hud.gd::footprints::dynamic_call	1
 game/fc_hud.gd::footprints::untyped_array	1
-game/fc_hud.gd::present_abilities::alloc	1
 game/fc_hud.gd::present_gear::dynamic_call	1
 game/fc_hud.gd::present_portraits::alloc	5
 game/fc_hud.gd::present_portraits::string_build	1
@@ -300,7 +298,7 @@ game/fc_hud_base.gd::note_kill::untyped_array	1
 game/fc_hud_base.gd::points_text::string_build	1
 game/fc_hud_damage_dirs.gd::_draw::alloc	1
 game/fc_hud_damage_dirs.gd::note_hit::alloc	1
-game/fc_hud_glance.gd::<members>::untyped_array	3
+game/fc_hud_glance.gd::<members>::untyped_array	1
 game/fc_hud_glance.gd::_draw::string_build	4
 game/fc_hud_glance.gd::_draw::untyped_array	2
 game/fc_hud_glance.gd::_inner::string_build	3
@@ -344,7 +342,6 @@ game/fc_hud_portrait_cache.gd::portrait::string_build	1
 game/fc_hud_portrait_cache.gd::portrait::untyped_array	1
 game/fc_jail_view.gd::_process::dynamic_call	1
 game/fc_kill_pov_view.gd::<members>::untyped_array	3
-game/fc_kill_pov_view.gd::_hud::string_build	1
 game/fc_kill_pov_view.gd::_killer_look::alloc	1
 game/fc_kill_pov_view.gd::_killer_look::dynamic_call	1
 game/fc_kill_pov_view.gd::_killer_look::untyped_array	1
@@ -479,7 +476,7 @@ game/fc_surf.gd::route_detail::untyped_array	1
 game/fc_surf.gd::steer::untyped_array	2
 game/fc_surf.gd::unsupported_test::alloc	2
 game/fc_surf.gd::unsupported_test::singleton_lookup	1
-game/fc_surf_rides.gd::<members>::untyped_array	8
+game/fc_surf_rides.gd::<members>::untyped_array	3
 game/fc_surf_rides.gd::_extend::alloc	2
 game/fc_surf_rides.gd::_extend::string_build	1
 game/fc_surf_rides.gd::_start_job::dynamic_call	1

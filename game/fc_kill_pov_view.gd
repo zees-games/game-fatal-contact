@@ -93,7 +93,11 @@ func present(view: Dictionary) -> void:
 func _clear_lens(cam: Camera3D) -> void:
 	if world_mask == 0 or not cam.is_inside_tree():
 		return
-	var want := KillPov.clear_eye(cam.get_world_3d().direct_space_state, cam.global_position, -cam.global_basis.z, world_mask)
+	# The space is looked up once per replay camera, not a frame.
+	if cam != _space_cam or _space == null:
+		_space_cam = cam
+		_space = cam.get_world_3d().direct_space_state  # perf-lint: allow singleton_lookup once per replay camera
+	var want := KillPov.clear_eye(_space, cam.global_position, -cam.global_basis.z, world_mask)
 	var step := want - cam.global_position
 	# Out of a solid at once, back toward the recorded eye gradually.
 	_push = step if step.length() >= _push.length() else _push.move_toward(step, EASE_SPEED * get_process_delta_time())
@@ -140,6 +144,8 @@ func _start(cam: Camera3D, weapon: StringName = &"") -> void:
 	label = _spare_label if _live(_spare_label) else _new_label()
 	_spare_label = null
 	label.text = ""
+	_label_for = null
+	_space_cam = null
 	label.visible = true
 	# A frame or so on, not this one: the next kill finds it built.
 	get_tree().create_timer(0.5).timeout.connect(_prepare_spare)
@@ -545,7 +551,26 @@ func _hud(aux: PackedFloat32Array, fov: float) -> void:
 	if _hits >= 0.0 and aux[7] != _hits:
 		crosshair.flash_hit()
 	_hits = aux[7]
-	label.text = "%d / %d" % [int(aux[4]), int(aux[5])] if aux[4] > 0.0 or aux[5] > 0.0 else ""
+	# The ammunition text is built only when a count changes, not a string a frame.
+	var mag := int(aux[4])
+	var reserve := int(aux[5])
+	var any := aux[4] > 0.0 or aux[5] > 0.0
+	if label != _label_for or mag != _label_mag or reserve != _label_reserve or any != _label_any:
+		_label_for = label
+		_label_mag = mag
+		_label_reserve = reserve
+		_label_any = any
+		label.text = "%d / %d" % [mag, reserve] if any else ""  # perf-lint: allow all only when a count changes
+
+
+## What [method _hud] last wrote, and into which label (a parked label comes back with its old text).
+var _label_for: Label = null
+var _label_mag := 0
+var _label_reserve := 0
+var _label_any := false
+## The replay camera's physics space ([method _clear_lens]).
+var _space_cam: Camera3D = null
+var _space: PhysicsDirectSpaceState3D = null
 
 
 ## Ends the killer's screen. Its nodes are parked for the next kill, not freed: the next one then makes nothing.
