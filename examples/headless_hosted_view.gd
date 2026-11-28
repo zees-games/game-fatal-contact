@@ -236,7 +236,7 @@ func _watch(phase: String, drive: Callable) -> void:
 
 ## The loadout lines of the hosted server's own log: the server arms the player, the client only hears of it.
 func _print_server_loadout_lines() -> void:
-	var text := FileAccess.get_file_as_string(ProjectSettings.globalize_path(FcSimHost.SERVER_LOG))
+	var text := FileAccess.get_file_as_string(ProjectSettings.globalize_path(FcSimHost.server_log))
 	var shown := 0
 	for line in text.split("\n"):
 		if shown < 40 and (line.contains("loadout") or line.contains("arsenal") or line.contains("give")):

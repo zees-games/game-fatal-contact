@@ -36,6 +36,8 @@ var _confirmed: Dictionary = {}
 var _confirmed_shots: Dictionary = {}
 ## HITs that named no shot tick, and HITs naming a tick no tap was drawn on.
 var _untagged := 0
+## Every HIT's shot tick by victim, in arrival order, so an "other-tap" row can say which tick the server named.
+var _hit_ticks: Dictionary = {}
 
 
 func _ready() -> void:
@@ -82,6 +84,8 @@ static func torso(p: FcPlayer) -> Vector3:
 
 func _run() -> void:
 	print("game-fatal-contact: hosted solo, %d bots, scoped taps at a drawn bot %.0f-%.0f m out; server cvars %s" % [BOTS, NEAR_M, FAR_M, _server_cvars()])
+	# Its own server log: two suites sharing a box's user dir read each other's server from the shared default.
+	FcSimHost.server_log = "user://logs/sim_server_%s.log" % _suite()
 	FcSimHost.ask_cvars = _server_cvars() + PackedStringArray(["sv_shot_debug=1"])
 	FcSimHost.ask_map = "dm_atrium"
 	FcSimHost.ask_mode = "snipers"
@@ -117,6 +121,7 @@ func _run() -> void:
 		var shot_tick := int(info.get("shot_tick", -1))
 		if shot_tick < 0:
 			_untagged += 1
+		(_hit_ticks.get_or_add(v, []) as Array).append(shot_tick)
 		_confirmed_shots["%d:%d" % [v, shot_tick]] = true)
 	print("  tick rate %d, players %d" % [int(g.get("tick_rate")), (g.call("players") as Array).size()])
 	await _taps(g)
@@ -175,6 +180,7 @@ func _taps(g: Object) -> void:
 		_shot = null
 		var victim := int(target.get("player_id"))
 		var before := int(_confirmed.get(victim, 0))
+		var hits_before := (_hit_ticks.get(victim, []) as Array).size()
 		var at := torso(target)
 		var feet := target.global_position
 		var range_m := me.camera.global_position.distance_to(at)
@@ -220,6 +226,8 @@ func _taps(g: Object) -> void:
 		rows.append("    tap %2d %-9s %5.1f m  bot %d drawn %.1f m/s  ray %.3f m off the torso  crosshair %.3f deg %.2f m off the shot  client %-4s server %s  tick %d feet %s dir %s" % [
 			taps, def.id, range_m, victim, speed, miss_m, cam_deg, eye_gap, "HIT" if said_hit else "miss", "HIT" if waited else ("other-tap" if other else "nothing"),
 			_shot.tick, feet.snappedf(0.001), _shot.direction.normalized().snappedf(0.00001)])
+		if other:
+			rows[-1] += "  (server named tick %s)" % str((_hit_ticks.get(victim, []) as Array).slice(hits_before))
 		print(rows.back())
 		Input.action_release(FcBindings.AIM)
 		for _f in 6:
@@ -311,7 +319,7 @@ static func _ray_gap(origin: Vector3, direction: Vector3, at: Vector3) -> float:
 
 
 func _print_server_lines() -> void:
-	var text := FileAccess.get_file_as_string(ProjectSettings.globalize_path(FcSimHost.SERVER_LOG))
+	var text := FileAccess.get_file_as_string(ProjectSettings.globalize_path(FcSimHost.server_log))
 	var shown := 0
 	for line in text.split("\n"):
 		if line.contains("shot debug"):

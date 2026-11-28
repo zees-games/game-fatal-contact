@@ -323,7 +323,9 @@ func shot_crouch(other_id: int, shooter_id: int, view_tick: float) -> float:
 ## With [param count], the answer goes into [member FcGame.shot_rewind_counts] ([method FcGame._unlag_rewind] counts the ring).
 func _shot_source(other_id: int, shooter_id: int, view_tick: float, count: bool) -> Array:
 	var shooter: FcPlayerNet = _behaviours.get(shooter_id)
+	shot_ring_why = ""
 	if shooter == null or game == null or shooter.last_view_tick < 0:
+		shot_ring_why = "no view"
 		return []
 	var max_span := game.shot_bracket_max_span
 	if not shooter.last_view_targets.is_empty():
@@ -333,10 +335,13 @@ func _shot_source(other_id: int, shooter_id: int, view_tick: float, count: bool)
 			_count_shot(&"held", count)
 		elif named != null:
 			var own := _target_source(named[0], view_tick, max_span, count)
-			if not own.is_empty():
+			if own.is_empty():
+				shot_ring_why = "own pair %s refused at view %s" % [str(named[0]), str(view_tick)]
+			else:
 				own.append(_judged_ease(named[1], count))
 			return own
 	if shooter.last_view_back < 0:
+		shot_ring_why = "no pair sent"
 		return []
 	var span := shooter.last_view_span
 	var older := shooter.last_view_tick - shooter.last_view_back
@@ -345,6 +350,8 @@ func _shot_source(other_id: int, shooter_id: int, view_tick: float, count: bool)
 		return []
 	# The view lag goes up in quarter ticks: a drawn tick on a bracket's end rounds up to an eighth past it.
 	if view_tick < float(older) - SHOT_BRACKET_SLACK or view_tick > float(older + span) + SHOT_BRACKET_SLACK:
+		shot_ring_why = "view %s outside %d..%d (command %d, applied %d)" % [str(view_tick), older, older + span,
+			shooter.last_view_targets_tick, shooter.last_view_tick]
 		return []
 	_count_shot(&"bracket", count)
 	return [&"bracket", older, older + span, clampf(view_tick, float(older), float(older + span))]

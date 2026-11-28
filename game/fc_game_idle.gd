@@ -103,6 +103,10 @@ func _debug_fire(id: int, player: FcPlayer, outcome: GSWeaponOutcome) -> void:
 	_debug_fire_held[id] = held
 	if not held or was or not outcome.shots.is_empty():
 		return
-	var def: GSWeaponDef = player.arsenal.current_def() if player.arsenal != null else null
+	var arsenal := player.arsenal
+	var def: GSWeaponDef = arsenal.current_def() if arsenal != null else null
+	# next_use is gs-weapon 60's; an older link logs -1 rather than failing the line.
+	var next_use: int = arsenal.call(&"next_use_tick") if arsenal != null and arsenal.has_method(&"next_use_tick") else -1
 	GSLog.warn(CHANNEL, "shot debug fire refused", {"by": id, "tick": _tick, "why": outcome.refusal,
-		"weapon": def.id if def != null else &"", "ready": player.arsenal.is_ready() if player.arsenal != null else false})
+		"weapon": def.id if def != null else &"", "ready": arsenal.is_ready() if arsenal != null else false,
+		"next_use": next_use})

@@ -13,6 +13,9 @@ const SERVER_SCENE := "res://scenes/fc_sim_server.tscn"
 const SERVER_FLAG := "--sim_server"
 ## The child's own log, so a boot failure can say why; its default log is the parent's file.
 const SERVER_LOG := "user://logs/sim_server.log"
+## The log the next [method start] writes and the readers read ([constant SERVER_LOG] unless set): a suite names its own, so
+## two suites sharing a box's user dir do not read each other's server.
+static var server_log := SERVER_LOG
 const ANCHOR := "ArenaSimServer"
 ## The shell's solo session, duck-typed: one with `sim_child_args()` can start this game again in a second process.
 const SOLO_SERVICE := &"gs_solo"
@@ -92,7 +95,7 @@ func start(bots: int) -> GSResult:
 	_ready_path = ProjectSettings.globalize_path("user://sim_host_%d.ready" % port)
 	if FileAccess.file_exists(_ready_path):
 		var _gone := DirAccess.remove_absolute(_ready_path)
-	var log_path := ProjectSettings.globalize_path(SERVER_LOG)
+	var log_path := ProjectSettings.globalize_path(server_log)
 	var args := PackedStringArray(["--headless", "--log-file", log_path])
 	# An editor binary runs whatever project it is pointed at; an export carries its own and refuses `--path`.
 	var project := ProjectSettings.globalize_path("res://")

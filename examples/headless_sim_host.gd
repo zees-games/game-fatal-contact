@@ -443,9 +443,9 @@ func _host_state() -> String:
 		parts.append("up %s, pid %d, ready file %s, link %s" % [
 			str(host.get("up")), int(host.get("_pid")), str(FileAccess.file_exists(str(host.get("_ready_path")))),
 			"none" if link == null else ("playing" if bool(link.call("is_playing")) else "not playing")])
-	var text := FileAccess.get_file_as_string(FcSimHost.SERVER_LOG)
+	var text := FileAccess.get_file_as_string(FcSimHost.server_log)
 	var lines := text.strip_edges().split("\n", false)
-	parts.append("server log %s, %d lines, last: %s" % [ProjectSettings.globalize_path(FcSimHost.SERVER_LOG), lines.size(),
+	parts.append("server log %s, %d lines, last: %s" % [ProjectSettings.globalize_path(FcSimHost.server_log), lines.size(),
 		" | ".join(lines.slice(maxi(lines.size() - 8, 0)))])
 	return "; ".join(parts)
 

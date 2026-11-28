@@ -162,12 +162,16 @@ func _unlag_rewind(view_tick: float) -> void:
 		var crouch := -1.0
 		if then != null and shot_crouch_fn.is_valid():
 			crouch = shot_crouch_fn.call(id, _unlag_shooter, view_tick)
+		var why := ""
 		if then == null:
+			# shot_debug: why the bridge gave this target the ring rather than a pair the shooter drew.
+			if shot_debug and _unlag_shot and shot_feet_fn.is_valid():
+				why = str(shot_feet_fn.get_object().get(&"shot_ring_why"))
 			then = ring_feet(id, view_tick)
 		if then == null:
 			continue
 		if shot_debug and _unlag_ray != null:
-			_note_nearest(id, then, player.global_position)
+			_note_nearest(id, then, player.global_position, why)
 		_unlag_moved[id] = player.global_position
 		player.global_position = then
 		if crouch < 0.0:
@@ -178,7 +182,7 @@ func _unlag_rewind(view_tick: float) -> void:
 
 
 ## [member shot_debug]: keeps the rewound target whose torso (feet + 0.98 m) the traced ray passes nearest.
-func _note_nearest(id: int, feet: Vector3, now: Vector3) -> void:
+func _note_nearest(id: int, feet: Vector3, now: Vector3, why: String = "") -> void:
 	var torso := feet + Vector3(0.0, 0.98 * preload("fc_player_tunables.gd").body_scale(), 0.0)
 	var along := (torso - _unlag_ray.origin).dot(_unlag_ray.direction)
 	if along <= 0.0:
@@ -188,6 +192,8 @@ func _note_nearest(id: int, feet: Vector3, now: Vector3) -> void:
 		return
 	_unlag_nearest = {"id": id, "gap": snappedf(gap, 0.001), "dist": snappedf(along, 0.01), "how": String(_last_rewind_key),
 		"feet": feet.snappedf(0.001), "now": now.snappedf(0.001)}
+	if why != "":
+		_unlag_nearest["why"] = why
 
 
 ## And back, after the trace.

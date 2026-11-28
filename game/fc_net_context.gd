@@ -43,7 +43,7 @@ static func describe(bridge: Object) -> Dictionary:
 
 ## The newest per-second line the hosted server wrote to its log ("" without one).
 static func last_server_line() -> String:
-	var text := FileAccess.get_file_as_string(FcSimHost.SERVER_LOG)
+	var text := FileAccess.get_file_as_string(FcSimHost.server_log)
 	var cut := text.rfind("\n" + SERVER_LINE)
 	if cut < 0:
 		return ""

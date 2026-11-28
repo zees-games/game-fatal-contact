@@ -408,7 +408,20 @@ func receive_input(peer_id: int, payload: PackedByteArray) -> GSResult:
 	# first here was in a lost packet, and measuring it made the client's clock jump under loss.
 	var buffer := net.input_buffer_for(peer_id)
 	_note_late_fires(peer_id, buffer, batch)
-	return buffer.push_batch(batch)
+	var overflow_before := _input_overflow(buffer)
+	var pushed := buffer.push_batch(batch)
+	# sv_shot_debug: a command dropped unconsumed past the buffer's capacity is a tick, trigger included, the server
+	# never simulated; a tap the client drew can vanish there without a "fire refused" line.
+	var overflow := _input_overflow(buffer)
+	if overflow > overflow_before and game != null and game.shot_debug:
+		GSLog.warn(game.CHANNEL, "shot debug input overflow", {"peer": peer_id, "dropped": overflow - overflow_before,
+			"total": overflow, "capacity": buffer.capacity, "consumed": buffer.last_consumed_tick()})
+	return pushed
+
+
+## The inputs gs-net dropped unconsumed from [param buffer] past its capacity (gs-net 27), or 0 on an older link.
+static func _input_overflow(buffer: GSNetInput.Buffer) -> int:
+	return int(buffer.get(&"overflow_count")) if &"overflow_count" in buffer else 0
 
 
 ## Shots whose command reached the server after its tick was simulated, per peer, oldest first:

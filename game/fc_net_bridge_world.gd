@@ -121,6 +121,9 @@ func _target_source(pair: Vector2i, view_tick: float, max_span: int, count: bool
 	_count_shot(&"target_ahead", count)
 	return [&"target_ahead", pair.x, pair.y, view_tick]
 
+## Why the last [method _shot_source] gave the ring (empty when it did not), for [member FcGame.shot_debug]'s line.
+var shot_ring_why := ""
+
 func _count_shot(key: StringName, count: bool) -> void:
 	if count:
 		game.count_shot_rewind(key)
