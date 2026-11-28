@@ -14,7 +14,7 @@ const FcBspMap := preload("../maps/fc_bsp_map.gd")
 ## [/codeblock]
 
 const TICK_RATE := 64
-const EXPECTED_CHECKS := 18
+const EXPECTED_CHECKS := 30
 ## map, door entity, how it opens, how it shuts. An input name is sent to the door; "button:N" presses entity N.
 const CASES := [
 	[&"surf_10x_final", 143, "Open", "Close", "a sliding door (func_door)"],
@@ -60,6 +60,7 @@ func _case(id: StringName, door_index: int, open: String, shut: String, what: St
 	game.headless = true
 	game.register_service = false
 	game.mode = FcMode.team_deathmatch()
+	game.mode.player_props = true
 	add_child(game)
 	var ready := game.setup(FcMap.imported(id))
 	game.start(0)
@@ -83,6 +84,9 @@ func _case(id: StringName, door_index: int, open: String, shut: String, what: St
 	_check(released == 0, "its baked-in hull was released when the map set up", str(released))
 	var probe := _probe(shut_box)
 	_check(_blocked(game, probe), "shut, it stops a player in the doorway")
+	_check(game.props != null and _blocked(game, probe, &"prop"), "shut, it stops a prop in the doorway")
+	_check(game.props != null and game.props.get("_collision") == null, "props share the game's solid, no second copy")
+	_nav_check(game, shut_box)
 	if open.begins_with("button:"):
 		var button: GSMapEntity = world.io.entity_of(int(open.trim_prefix("button:")))
 		var eye: Vector3 = button.origin(world.io) + Vector3(0.0, 1.0, 0.0)
@@ -91,8 +95,10 @@ func _case(id: StringName, door_index: int, open: String, shut: String, what: St
 	else:
 		var _s := world.io.send(door.key("targetname"), open)
 	_check(await _until(game, probe, false), "opened, the doorway lets a player through")
+	_check(not _blocked(game, probe, &"prop"), "opened, the doorway lets a prop through")
 	var _c := world.io.send(door.key("targetname"), shut)
 	_check(await _until(game, probe, true), "shut again, it stops the player again")
+	_check(_blocked(game, probe, &"prop"), "shut again, it stops a prop again")
 	game.queue_free()
 	await get_tree().physics_frame
 
@@ -103,14 +109,34 @@ func _probe(box: AABB) -> AABB:
 	return AABB(box.get_center() - size * 0.5, size)
 
 
-func _blocked(game: FcGame, probe: AABB) -> bool:
+## The bots' nav source leaves out the hulls the movers released.
+func _nav_check(game: FcGame, shut_box: AABB) -> void:
+	var root := game.map.collision_root as Node3D
+	var enabled := 0
+	var disabled := 0
+	for n in root.find_children("*", "CollisionShape3D", true, false):
+		if (n as CollisionShape3D).disabled:
+			disabled += 1
+		else:
+			enabled += 1
+	var holder: Node3D = game.map.nav_source()
+	var copied := 0
+	if holder != null:
+		copied = holder.find_children("*", "CollisionShape3D", true, false).size()
+		holder.get_parent().remove_child(holder)
+		holder.free()
+	_check(disabled > 0 and holder != null and copied < enabled + disabled and copied <= enabled,
+		"the bot nav source skips the released hulls", "enabled %d, released %d, copied %d" % [enabled, disabled, copied])
+
+
+func _blocked(game: FcGame, probe: AABB, layer: StringName = &"player") -> bool:
 	var space := (game.map.collision_root as Node3D).get_world_3d().direct_space_state
 	var shape := BoxShape3D.new()
 	shape.size = probe.size
 	var q := PhysicsShapeQueryParameters3D.new()
 	q.shape = shape
 	q.transform = Transform3D(Basis.IDENTITY, probe.get_center())
-	q.collision_mask = GSPhysicsLayout.shooter_3d().collision_mask(&"player")
+	q.collision_mask = GSPhysicsLayout.shooter_3d().collision_mask(layer)
 	return not space.intersect_shape(q, 4).is_empty()
 
 

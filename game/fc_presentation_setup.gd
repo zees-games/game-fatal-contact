@@ -211,6 +211,10 @@ static func _add_chat_and_comfort(s: GSSettingsSchema) -> void:
 	# LOCAL ONLY: the player's own Source game (TF2) folder, read for the stock textures a dropped `<map>_orig` pack lacks
 	# (FcSourceInstall caches them in the user folder; they never ship). Empty: the usual Steam folders. A setting is its
 	# own console command, so `source_game_path <folder>` sets it too; General > Local maps has a field.
+	# A pick in Solo fetches only that map's pack; this fetches every published map's pack up front (FcClientView.predownload_maps).
+	s.add(GSSettingsDef.boolean(&"predownload_maps", false, &"gameplay")
+		.with_description("Download every published map's pack now, instead of each one when you pick it in solo."))
+
 	s.add(GSSettingsDef.text(&"source_game_path", "", &"gameplay")
 		.with_description("Your own Source game (TF2) install folder, for the stock textures of a dropped _orig map. Empty: look in Steam's usual folders."))
 

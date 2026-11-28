@@ -162,6 +162,13 @@ func _rebuild_collision() -> void:
 		# in the physics space. See the note above.
 		return
 
+	# An imported map's solid is already in the tree: the game built it as `map.collision_root` for the player
+	# and the shots, and its movers release their baked hulls from it (`FcBspMap.release_mover_hulls`). A second
+	# copy here kept a door's hull after the door opened, and was two sets of colliders in one space.
+	var shared: Variant = game.map.collision_root
+	if game.map.is_imported() and shared is Node3D and is_instance_valid(shared) and (shared as Node3D).is_inside_tree():
+		return
+
 	_collision = game.map.to_collision()
 	add_child(_collision)
 	_classify_level(_collision)

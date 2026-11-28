@@ -271,6 +271,10 @@ func nav_source() -> Node3D:
 
 	for child in collision_root.get_children():
 		var shape_node := child as CollisionShape3D
+		# A hull a mover released (an opened door's baked pose) is not ground to bake.
+		if shape_node != null and shape_node.disabled:
+			skipped += 1
+			continue
 		var hull := shape_node.shape as ConvexPolygonShape3D if shape_node != null else null
 
 		if hull != null and not hull.points.is_empty():

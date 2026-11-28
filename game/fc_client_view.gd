@@ -107,6 +107,45 @@ func _adopt_catalogue(built: GSMapCatalogue) -> void:
 	_menu_catalogue = built
 	if _offline or _sim_host != null:
 		var _adopted := FcMaps.adopt_delivered(_menu_catalogue, FcMaps.standalone_keys(_menu_catalogue))
+		if predownload_wanted():
+			predownload_maps.call_deferred()
+
+
+## The `predownload_maps` setting (or [member predownload_override], for a suite): fetch every published map's pack, not
+## only the picked one's.
+var predownload_override := false
+
+
+func predownload_wanted() -> bool:
+	if predownload_override:
+		return true
+	return presentation != null and presentation.settings != null and presentation.settings.get_bool(&"predownload_maps")
+
+
+var _predownloading := false
+
+
+## Fetches every delivered map's pack that is not here yet, saying the progress and every failure on screen.
+func predownload_maps() -> Dictionary:
+	if _predownloading:
+		return {}
+	_predownloading = true
+	var cat := _catalogue()
+	var total := cat.maps.size()
+	var said := func(id: StringName, done: int) -> void:
+		var _t := _drop_say("Downloading map packs: %s (%d of %d)" % [id, done + 1, total])
+	var out: Dictionary = await FcMaps.predownload(cat, GSMapLoader.new(), true, said)
+	_predownloading = false
+	var failed: Dictionary = out["failed"]
+	if failed.is_empty():
+		var _ok := _drop_say("Map packs downloaded: %d." % (out["fetched"] as Array).size())
+	else:
+		var lines := PackedStringArray()
+		for id in failed:
+			lines.append("%s: %s" % [id, failed[id]])
+		GSLog.warn(CHANNEL, "map packs could not be downloaded", {"failed": failed})
+		var _bad := _drop_say("Could not download %d map pack(s):\n%s" % [failed.size(), "\n".join(lines)])
+	return out
 
 
 ## Solo: a converted map folder or `.zip` dragged onto the window (`GSMapLocalMaps.watch_drops`) is copied into
@@ -118,6 +157,9 @@ func watch_map_drops() -> void:
 	if presentation != null and presentation.settings != null \
 			and not presentation.settings.changed.is_connected(_on_source_game_path):
 		presentation.settings.changed.connect(_on_source_game_path)
+	if presentation != null and presentation.settings != null \
+			and not presentation.settings.changed.is_connected(_on_predownload_setting):
+		presentation.settings.changed.connect(_on_predownload_setting)
 	if not is_inside_tree() or get_window().files_dropped.is_connected(_on_files_dropped):
 		return
 	get_window().files_dropped.connect(_on_files_dropped)
@@ -183,6 +225,11 @@ func source_install() -> String:
 	if configured == "" and presentation != null and presentation.settings != null:
 		configured = presentation.settings.get_string(FcSourceInstall.SETTING)
 	return FcSourceInstall.find_install(configured)
+
+
+func _on_predownload_setting(key: StringName, value: Variant, _why: StringName) -> void:
+	if key == &"predownload_maps" and bool(value) and (_offline or _sim_host != null):
+		var _got := await predownload_maps()
 
 
 ## A new `source_game_path` (menu or console) fills every local `_orig` pack from it at once, and says what it found.

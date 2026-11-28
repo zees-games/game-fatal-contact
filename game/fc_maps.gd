@@ -274,6 +274,35 @@ static func mount_delivered(
 	return GSResult.success(null)
 
 
+## The settings override of the lazy fetch: fetches every delivered map of [param catalogue] (one already mounted is a no-op), one
+## after another (a pick fetches only its own pack, [method mount_delivered]). Returns {"fetched": [ids], "failed": {id: why}};
+## a pack that cannot be fetched is named, left out of [param catalogue] by [method mount_delivered], and never replaced by
+## another map. [param on_each] (optional) is called with the id and the map's position before each fetch.
+static func predownload(catalogue: GSMapCatalogue, loader: GSMapLoader, allow_latest := true, on_each: Callable = Callable()) -> Dictionary:
+	var fetched: Array[StringName] = []
+	var failed := {}
+	var todo: Array[GSMapDef] = []
+
+	for each in catalogue.maps:
+		var def: GSMapDef = each
+
+		if is_delivered(def):
+			todo.append(def)
+
+	for def in todo:
+		if on_each.is_valid():
+			on_each.call(def.id, fetched.size() + failed.size())
+
+		var got: GSResult = await mount_delivered(def, loader, catalogue, allow_latest)
+
+		if got.ok:
+			fetched.append(def.id)
+		else:
+			failed[def.id] = got.error.message
+
+	return {"fetched": fetched, "failed": failed}
+
+
 ## Fills a mounted delivered map's listing from its manifest, as `_imported_def_for` does for a linked one: the key alone
 ## cannot say which modes the map lists or whether it lays an objective, so until then only the modes about the players are offered (team deathmatch among them: every map hosts it).
 static func refresh_delivered_meta(def: GSMapDef) -> void:
