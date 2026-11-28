@@ -4,7 +4,6 @@ extends "fc_module_build.gd"
 const FcTeamMenu := preload("fc_team_menu.gd")
 const _Content := preload("fc_content.gd")
 const FcRenamedNames := preload("fc_renamed_names.gd")
-const FcNativePhases := preload("fc_native_phases.gd")
 ## fc-weapons' `AwWeaponGroups` (API 14), loaded by path: a build on an older fc-weapons has no such class, and naming it would not parse.
 const WEAPON_GROUPS_SCRIPT := "res://addons/fc_weapons/aw_weapon_groups.gd"
 
