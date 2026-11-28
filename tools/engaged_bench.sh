@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Engaged firefight bench: the server tick while every bot is fighting (dm_box, all spawned and respawned), so a
+# Engaged firefight bench: the server tick while every bot is fighting (box, all spawned and respawned), so a
 # combat cost shows instead of bots wandering a big map unseen. Runs tools/scale128.tscn --engaged 1, RUNS times per
 # bot count, one run after another on one box (PH by default, through hv), and prints each run's SERVER_TICK line
 # and the spread (min / median / max) per bot count.

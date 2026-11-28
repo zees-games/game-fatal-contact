@@ -8,7 +8,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "res://screenshots/knife_throw"
 
 var client: Node = null
-var _map := "dm_atrium"
+var _map := "atrium"
 var _cam: Camera3D = null
 var _keeper: CameraKeeper = null
 

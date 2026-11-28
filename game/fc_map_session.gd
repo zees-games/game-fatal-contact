@@ -32,7 +32,7 @@ const FcModes := preload("fc_modes.gd")
 ## session.game = arena_game
 ## session.catalogue = FcMaps.catalogue()
 ## add_child(session)
-## await session.change_to(&"dm_atrium")
+## await session.change_to(&"atrium")
 ## [/codeblock]
 
 ## Log channel. Deliberately not named CHANNEL: [GSMapSession] already declares one

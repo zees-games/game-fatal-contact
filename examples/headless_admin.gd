@@ -114,7 +114,7 @@ func _ada() -> FcPlayer:
 
 ## On open floor six metres short of the south wall — a spawn point, so nothing is in it.
 ##
-## Not the origin: `dm_box` has its two-tier platform there, and a body teleported inside
+## Not the origin: `box` has its two-tier platform there, and a body teleported inside
 ## a box is pushed out of it over the next few ticks by the motor's depenetration, which
 ## reads exactly like a frozen player drifting. That is how this suite first failed.
 func _put_ada_on_the_floor() -> void:
@@ -461,7 +461,7 @@ func _test_return_after_a_map_change() -> void:
 	# it never completes. What is under test is the module's answer to a change,
 	# which is exactly what the signal reaches. The swap itself is headless_match's.
 	var def := GSMapDef.new()
-	def.id = &"dm_atrium"
+	def.id = &"atrium"
 	_module.maps.map_changed.emit(def)
 
 	var answer := await _say(_admin, "!return Ada")

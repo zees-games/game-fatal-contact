@@ -49,7 +49,7 @@ func _process(_delta: float) -> bool:
 		root.add_child(_presentation)
 		var _set_up := _presentation.setup()
 		_menu = FcMenus.build(root, _presentation, null)
-		var rows := FcMaps.menu_rows(catalogue, &"dm_box", null, FcModes.all())
+		var rows := FcMaps.menu_rows(catalogue, &"box", null, FcModes.all())
 		var _maps := _menu.use_maps(func() -> Array: return rows, func(_id: StringName) -> GSResult: return GSResult.success(null))
 		return false
 	if not _opened:

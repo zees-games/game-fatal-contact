@@ -297,7 +297,7 @@ static func _truth_at(track: Dictionary, tick: float) -> Variant:
 ## [b]Everything a wall move reads next tick rides in `net_flags`[/b], and under real loss
 ## a client replays more ticks than anywhere else: a run predicted on A and not on the
 ## server, or a second jump off one wall allowed on one end, is a correction metres long
-## and a player yanked off the wall. So A runs dm_box's north wall and jumps off it, from
+## and a player yanked off the wall. So A runs box's north wall and jumps off it, from
 ## commands read off the tick alone, and the two ends have to agree: both run, both jump,
 ## A's prediction stays within the windows' 5 cm, and the predictor corrects almost
 ## nothing. A also has to hear each move exactly once (the signals the sounds hang on are

@@ -35,7 +35,7 @@ const FcVote := preload("../game/fc_vote.gd")
 ## Exits non-zero on any failure.
 
 const SECTIONS := 38
-const CHECKS := 465
+const CHECKS := 468
 
 var _entered := 0
 var _completed := 0
@@ -441,7 +441,7 @@ func _test_own_body() -> void:
 	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(FcMap.dm_box())
+	var _set := g.setup(FcMap.box())
 	var added: GSResult = g.add_player(9, "Nine")
 	var me: FcPlayer = added.value if added.ok else null
 	if not _check(me != null, "a player to look down from"):

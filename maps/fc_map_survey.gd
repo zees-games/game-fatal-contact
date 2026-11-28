@@ -6,7 +6,7 @@ const FcMap := preload("fc_map.gd")
 ##
 ## [b]Can a player pass every gap that looks like a way through, and is there floor a
 ## player cannot reach at all?[/b] Both are `[gate-sweep-1]`, and both have been asked
-## of this game's maps one gap at a time — dm_pit's shelf is flush with the ring
+## of this game's maps one gap at a time — pit's shelf is flush with the ring
 ## because somebody thought about that one slot. This asks it of every pair of boxes
 ## and every square metre of every map, so the next slot nobody thought about is found
 ## by the rule rather than by a person.
@@ -26,7 +26,7 @@ const FcMap := preload("fc_map.gd")
 # No `CHANNEL`: this measures and returns, and says nothing to an operator. The suite
 # that asserts on it is the one with something to say.
 
-## Metres. The width this family sizes gaps against: `headless_match`'s spawn column, and the "0.8 m a player is" dm_pit's shelf comment is written in. The motor's own hull is narrower —
+## Metres. The width this family sizes gaps against: `headless_match`'s spawn column, and the "0.8 m a player is" pit's shelf comment is written in. The motor's own hull is narrower —
 ## `GSFpsTunables.radius` 0.35, a 0.7 m box — so a slot between the two numbers is one the motor passes and a player cannot see is passable; the survey calls those slots too, which is the conservative
 ## side to be wrong on.
 const PLAYER_WIDTH := 0.8
@@ -65,7 +65,7 @@ const _EPS := 0.001
 ## boxes meeting at a corner are not a corridor. Both must stand at least a step above
 ## the floor between them and reach down to within a crouch of it — a gantry passing
 ## three metres over a pillar's shoulder is not a slot anybody walks. And the space
-## between must be empty — dm_pit's shelf is flush with the ring precisely so that it
+## between must be empty — pit's shelf is flush with the ring precisely so that it
 ## is, and a box filling the gap is the fix rather than the fault.
 static func slots(map: FcMap) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []

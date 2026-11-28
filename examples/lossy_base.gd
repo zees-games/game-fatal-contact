@@ -239,7 +239,7 @@ func _boot() -> bool:
 	_game.register_service = true
 	_server_side.add_child(_game)
 
-	var ready := _game.setup(FcMap.dm_box())
+	var ready := _game.setup(FcMap.box())
 	if not _check(ready.ok, "Fatal Contact sets up", str(ready.error)):
 		_done()
 		return false
@@ -299,7 +299,7 @@ func _client_netcode(record: Dictionary, side: Node, link: GSClientLink, label: 
 	game.headless = true
 	game.register_service = false
 	side.add_child(game)
-	game.setup(FcMap.dm_box())
+	game.setup(FcMap.box())
 	# What `FcClient._build_netcode` does: the server's replicated cvars, through the link.
 	var _following := game.follow_server_cvars(link)
 

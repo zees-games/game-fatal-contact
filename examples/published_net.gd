@@ -43,7 +43,7 @@ func _build_client_net(side: Node, link: GSClientLink) -> Array:
 	game.headless = true
 	game.register_service = false
 	side.add_child(game)
-	game.setup(FcMap.dm_box())
+	game.setup(FcMap.box())
 	var _following := game.follow_server_cvars(link)
 	var net := GSNetManager.new()
 	net.name = "Net"

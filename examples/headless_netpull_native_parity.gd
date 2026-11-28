@@ -43,7 +43,7 @@ func _run() -> void:
 	game.register_service = false
 	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	_check(game.setup(FcMap.dm_atrium()).ok, "a game sets up")
+	_check(game.setup(FcMap.atrium()).ok, "a game sets up")
 	game.start(0)
 	var _a := game.add_player(31, "A")
 	game.tick({})

@@ -44,14 +44,14 @@ var _jitter := 0.0
 var _seconds := 15.0
 var _burn_ms := 0.0
 var _port := PORT
-var _map := "dm_box"
+var _map := "box"
 var _startup_s := 6.0
 var _mode := "ffa"
 const WALL_DRIVER := preload("res://examples/wall_route_driver.gd")
 
 var _play := false
-## `--wallrun` (needs a map with wall routes, dm_atrium): the server puts the client's player at the start of the first wall route every few seconds and the client's pilot drives the route
-## (the run, the slide, the jump onto the wall) instead of wandering, so the mismatch check covers a predicted wall run. An earlier "0 mismatches" ran on dm_box, which has none.
+## `--wallrun` (needs a map with wall routes, atrium): the server puts the client's player at the start of the first wall route every few seconds and the client's pilot drives the route
+## (the run, the slide, the jump onto the wall) instead of wandering, so the mismatch check covers a predicted wall run. An earlier "0 mismatches" ran on box, which has none.
 var _wallrun := false
 ## The server game's tick rate. 60 is gs-server's default `sv_tickrate`; 64 is FcGame's.
 var _tick := FcContent.TICK_RATE
@@ -111,7 +111,7 @@ func _serve() -> void:
 	game.register_service = true
 	add_child(game)
 	var map: FcMap = FcMap.by_id(StringName(_map))
-	var _set := game.setup(map if map != null else FcMap.dm_box())
+	var _set := game.setup(map if map != null else FcMap.box())
 
 	var config := LoopbackServer.config("client bench", _port, data, "error", 256)
 	var server := await LoopbackServer.boot(self, config, "client_bench server")
@@ -137,7 +137,7 @@ func _serve() -> void:
 ## wall route, facing along it.
 func _feed_wall_routes(game: FcGame, module: Object) -> void:
 	if game.map.wall_routes.is_empty():
-		printerr("client_bench: --wallrun needs a map with wall routes (dm_atrium)")
+		printerr("client_bench: --wallrun needs a map with wall routes (atrium)")
 		return
 	var driver = WALL_DRIVER.new(game.map.wall_routes[0], &"walls")
 	while true:
@@ -422,7 +422,7 @@ func _start_pilot() -> bool:
 	if _wallrun:
 		var wall_map: FcMap = FcMap.by_id(StringName(_map))
 		if wall_map == null or wall_map.wall_routes.is_empty():
-			_fail("--wallrun needs a map with wall routes, e.g. --map dm_atrium")
+			_fail("--wallrun needs a map with wall routes, e.g. --map atrium")
 			return false
 		var wall_pilot := WallPilot.new(_client, wall_map.wall_routes[0])
 		wall_pilot.process_priority = -999

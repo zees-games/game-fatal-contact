@@ -186,7 +186,7 @@ func _test_carry_wire() -> void:
 	client.is_authority = false
 	client.mode = FcMode.capture_the_flag(3)
 	add_child(client)
-	var ready := client.setup(FcMap.dm_atrium())
+	var ready := client.setup(FcMap.atrium())
 	if not _check(ready.ok, "a client game sets up", str(ready.error)):
 		await _free(server)
 		return

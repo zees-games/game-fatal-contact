@@ -13,7 +13,7 @@ var _game: FcGame = null
 
 func _configure() -> void:
 	FcNetBridge.solid_trace = OS.get_environment("NC_SOLID_TRACE") == "1"
-	map_id = "dm_box"
+	map_id = "box"
 
 
 func _prepare(label: String) -> Variant:
@@ -31,7 +31,7 @@ func _boot_world() -> void:
 	_game.register_service = true
 	add_child(_game)
 	var map: FcMap = FcMap.by_id(StringName(map_id))
-	var _set := _game.setup(map if map != null else FcMap.dm_box())
+	var _set := _game.setup(map if map != null else FcMap.box())
 	if not (await boot_server()).ok:
 		return
 	var loaded: GSResult = await server.modules.load_module("res://game/fc_module.gd")

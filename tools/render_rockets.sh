@@ -2,7 +2,7 @@
 # The single-missile RPG, a bouncing grenade and a Rocketjump, first person and outside (see render_rockets.gd).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-map="${1:-dm_atrium}"
+map="${1:-atrium}"
 shift || true
 exec timeout 300 xvfb-run -a godot --path . --resolution "${RESOLUTION:-1280x720}" \
   --script tools/render_rockets.gd -- --map "$map" "$@"

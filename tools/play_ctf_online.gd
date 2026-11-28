@@ -58,7 +58,7 @@ func _serve() -> void:
 	game.mode = FcMode.capture_the_flag(3)
 	add_child(game)
 	var map: FcMap = FcMap.by_id(StringName(_map))
-	var set := game.setup(map if map != null else FcMap.dm_box())
+	var set := game.setup(map if map != null else FcMap.box())
 	if not set.ok:
 		printerr("play_ctf server setup: ", set.error)
 	var config := LoopbackServer.config("play ctf", PORT, data, "warn")

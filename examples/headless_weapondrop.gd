@@ -82,7 +82,7 @@ func _run() -> void:
 	game.register_service = false
 	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	var ready := game.setup(FcTestToys.give(FcMap.dm_atrium()))
+	var ready := game.setup(FcTestToys.give(FcMap.atrium()))
 	_check(ready.ok, "a game sets up", str(ready.error))
 	game.start(0)
 	var _a := game.add_player(21, "A")

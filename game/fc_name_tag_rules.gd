@@ -160,6 +160,14 @@ static func bar_tone(friend: bool, other_team: int) -> Color:
 	return FRIEND_COLOUR if friend else ENEMY_COLOUR
 
 
+## The ink of the name over an enemy on [param other_team]: red (their side's colour with more than two sides), lightened so it reads
+## on the dark outline, at [param opacity]. A free-for-all has no sides, so everybody else is an enemy and red.
+static func enemy_name_ink(other_team: int, opacity: float) -> Color:
+	var ink := bar_tone(false, other_team).lerp(Color.WHITE, 0.15)
+	ink.a = opacity
+	return ink
+
+
 ## Whether either mask needs the cursor test at all (it costs a ray).
 static func needs_hover(a: int, b: int) -> bool:
 	return ((a | b) & HOVER) != 0 and ((a & b) & ALL) == 0

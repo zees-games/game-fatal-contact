@@ -9,7 +9,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "res://screenshots/wallbang"
 
 var client: Node = null
-var _map := "dm_atrium"
+var _map := "atrium"
 ## Frame sequence after each close-up still (GS_SHOT_FRAMES); see GSShotSeq.
 var _seq := GSShotSeq.new()
 

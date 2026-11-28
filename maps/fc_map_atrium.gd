@@ -2,7 +2,7 @@ extends "fc_map_routes_and_dm_box.gd"
 
 ## The second arena: an open-roofed building in a yard, and three ways onto its roof.
 ##
-## [b]Deliberately not a variation on `dm_box`, and `dm_box` was deliberately not
+## [b]Deliberately not a variation on `box`, and `box` was deliberately not
 ## extended.[/b] That map is symmetric on purpose — every spawn scores identically for
 ## the spawn selector, which is the tie its name-based tie-break exists for — so growing
 ## a wing onto it would take away the one property it is there to hold. This is the
@@ -39,10 +39,10 @@ extends "fc_map_routes_and_dm_box.gd"
 ## it, all the ground the ring cannot see was in the south, which is blue's. A roofed
 ## room with a doorway at each end and a firing slit to the west, and a roof at 5.5 --
 ## over the ring -- reached by one jump west off the ring's north arm.
-static func dm_atrium() -> RefCounted:
+static func atrium() -> RefCounted:
 	var map: RefCounted = _blank_map()
-	map.id = &"dm_atrium"
-	map.display_name = "dm_atrium"
+	map.id = &"atrium"
+	map.display_name = "atrium"
 	map.extent = 30.0
 	map.wall_height = 12.0
 
@@ -155,16 +155,16 @@ static func dm_atrium() -> RefCounted:
 
 	map.add_box(landing)
 
-	map.add_climb("dm_atrium: the yard onto the first crate", _floor_at(0.0), crates[0])
+	map.add_climb("atrium: the yard onto the first crate", _floor_at(0.0), crates[0])
 
 	for step in range(1, 4):
 		map.add_climb(
-			"dm_atrium: crate %d onto crate %d" % [step, step + 1],
+			"atrium: crate %d onto crate %d" % [step, step + 1],
 			crates[step - 1],
 			crates[step]
 		)
 
-	map.add_climb("dm_atrium: the top crate onto the landing", crates[3], landing)
+	map.add_climb("atrium: the top crate onto the landing", crates[3], landing)
 
 	# --- North-east perch --------------------------------------------------
 	#
@@ -184,17 +184,17 @@ static func dm_atrium() -> RefCounted:
 	# the sweep in `headless_match` has to cover the routes that LOOK fine as well as
 	# the ones somebody is suspicious of.
 	map.add_climb(
-		"dm_atrium: the ring onto the first perch step",
+		"atrium: the ring onto the first perch step",
 		AABB(Vector3(6.0, WALL_H, -6.0), Vector3(4.0, 0.6, 12.0)),
 		perch_boxes[0]
 	)
-	map.add_climb("dm_atrium: the perch's second step", perch_boxes[0], perch_boxes[1])
-	map.add_climb("dm_atrium: the perch itself", perch_boxes[1], perch_boxes[2])
+	map.add_climb("atrium: the perch's second step", perch_boxes[0], perch_boxes[1])
+	map.add_climb("atrium: the perch itself", perch_boxes[1], perch_boxes[2])
 
 	# The top of the crates onto the roof ring's south-east corner. 0.1 m, which is
 	# under `step_height` and is therefore walked — a route that ends in a jump you
 	# might miss is a route that ends at the bottom of it.
-	map.add_climb("dm_atrium: the landing onto the roof ring", landing, ring_south)
+	map.add_climb("atrium: the landing onto the roof ring", landing, ring_south)
 
 	# --- South-west bunker -------------------------------------------------
 	#
@@ -254,8 +254,8 @@ static func dm_atrium() -> RefCounted:
 	# says so twice. Before the crates were rebuilt this join went down 0.6 onto a
 	# crate at 3.0 and could not be climbed back, which made the arcade a one-way
 	# street that the map's own notes described as a connection.
-	map.add_climb("dm_atrium: the arcade roof onto the crates", arcade_roof, crates[3])
-	map.add_climb("dm_atrium: the crates onto the arcade roof", crates[3], arcade_roof)
+	map.add_climb("atrium: the arcade roof onto the crates", arcade_roof, crates[3])
+	map.add_climb("atrium: the crates onto the arcade roof", crates[3], arcade_roof)
 
 	# Five piers on each long edge. 4 m of daylight between them, which is wider than
 	# the building's doorways -- the arcade is meant to be shot into, and a colonnade
@@ -387,7 +387,7 @@ static func dm_atrium() -> RefCounted:
 	# The ring's north arm onto the roof: 0.9 up, 2 m across, west. Read off the boxes;
 	# the arm here is the same AABB the roof ring was built with above.
 	map.add_climb(
-		"dm_atrium: the ring's north arm onto the keep",
+		"atrium: the ring's north arm onto the keep",
 		AABB(Vector3(-10.0, WALL_H, -10.0), Vector3(20.0, 0.6, 4.0)),
 		keep_roof
 	)
@@ -399,7 +399,7 @@ static func dm_atrium() -> RefCounted:
 	# the landing -- spawn (26, -4) stands in it -- had the north-west stair 40 m away
 	# or the crates' five jumps round the corner. Twelve treads of 0.36 now climb SOUTH
 	# from the yard floor at z = -4 to the landing's north face at z = 6, 3 m wide at x
-	# 13..16: walked, not jumped, the number dm_box's and dm_pit's stairs use.
+	# 13..16: walked, not jumped, the number box's and pit's stairs use.
 	#
 	# [b]Ending flush against the landing is the load-bearing decision.[/b] The top
 	# tread is 4.32, 0.18 under the landing, so a player holding forward walks off the
@@ -409,7 +409,7 @@ static func dm_atrium() -> RefCounted:
 	# [b]The trade is the perch.[/b] The perch's top is 2.4 m over the top tread and 2 m
 	# north-east of the foot, so whoever holds it looks down the whole stair -- the walked
 	# way up from the east yard is the most watched one, like the nest stairs on
-	# dm_box. And it stands 3 m off the building's east wall, so the east doorway opens
+	# box. And it stands 3 m off the building's east wall, so the east doorway opens
 	# onto a 3 m corridor rather than closing; 2 m clear of the perch's first steps, so
 	# the foot is a pocket a player fits in rather than a slot.
 	#
@@ -474,7 +474,7 @@ static func dm_atrium() -> RefCounted:
 			Vector3(RAMPART_PIER, rampart.position.y, RAMPART_PIER)
 		))
 
-	map.add_climb("dm_atrium: the rampart onto the perch", rampart, perch_boxes[2])
+	map.add_climb("atrium: the rampart onto the perch", rampart, perch_boxes[2])
 
 	# --- The north gallery (1.7.0) -------------------------------------------
 	#
@@ -535,9 +535,9 @@ static func dm_atrium() -> RefCounted:
 	map.add_box(chimney_east)
 
 	var north_wall := AABB(Vector3(-32.0, 0.0, -32.0), Vector3(64.0, map.wall_height, 2.0))
-	map.add_wall_route("dm_atrium: along the north wall over the gallery gap",
+	map.add_wall_route("atrium: along the north wall over the gallery gap",
 		&"run", gallery_high, gallery_low, [north_wall])
-	map.add_wall_route("dm_atrium: up the chimney onto the gallery",
+	map.add_wall_route("atrium: up the chimney onto the gallery",
 		&"jump", _floor_at(0.0), gallery_high, [chimney_west, chimney_east])
 
 	map.paint_zones.append({
@@ -550,7 +550,7 @@ static func dm_atrium() -> RefCounted:
 
 	# --- Spawns ------------------------------------------------------------
 	#
-	# Ten, and deliberately NOT on a circle. `dm_box` puts eight on one, which makes
+	# Ten, and deliberately NOT on a circle. `box` puts eight on one, which makes
 	# every spawn score the same and is the point of that map; here they are scattered
 	# around the yard at real distances from each other so the furthest-from-danger rule
 	# has something to actually pick. Two are on the roof ring, because a map with three

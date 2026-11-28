@@ -65,7 +65,7 @@ func _change_into_team_mode(canyon: FcMap, tdm: FcMode) -> void:
 	game.register_service = false
 	game.mode = FcMode.free_for_all()
 	add_child(game)
-	_ok(game.setup(FcMap.dm_box()).ok, "a free-for-all game sets up")
+	_ok(game.setup(FcMap.box()).ok, "a free-for-all game sets up")
 	var changed := game.change_map(canyon, tdm)
 	_ok(changed.ok, "and changes onto gg-canyon in Team Deathmatch", changed.error.message if not changed.ok else "")
 	_ok(Array(canyon.spawn_tags).has("red") and Array(canyon.spawn_tags).has("blue"), "with a spawn for each side")

@@ -142,7 +142,7 @@ func _test_view() -> void:
 func _player(id: int) -> FcPlayer:
 	var p := FcPlayer.new()
 	p.name = "P%d" % id
-	p.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), id, "P%d" % id)
+	p.setup(FcPlayer.Mode.HEADLESS, FcMap.box(), id, "P%d" % id)
 	add_child(p)
 	p.spawn(Transform3D(Basis(), Vector3(-16.0, 0.05, 6.0)), 0)
 	p.give_default_loadout()

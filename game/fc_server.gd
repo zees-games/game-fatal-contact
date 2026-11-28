@@ -74,7 +74,7 @@ func _ready() -> void:
 	add_child(game)
 	_start_workbench(binder)
 
-	var built := game.setup(FcMap.dm_box() if deferred_map != &"" else startup_map())
+	var built := game.setup(FcMap.box() if deferred_map != &"" else startup_map())
 
 	GSLog.result(CHANNEL, "Fatal Contact was built", built)
 
@@ -92,7 +92,7 @@ func _ready() -> void:
 ## honest interface is the one that is read before anything is built.
 ##
 ## An unknown id is refused rather than silently falling back: an operator who typed
-## `dm_atruim` and got `dm_box` has no way to tell that from a map that failed to build.
+## `dm_atruim` and got `box` has no way to tell that from a map that failed to build.
 ## The rate a server game declares: the host's (sv_tickrate), never the export. The module
 ## runs one tick per physics frame, so a declared 64 on a 60 Hz host put every client's
 ## clock 4 ticks a second ahead of the snapshots.
@@ -117,7 +117,7 @@ static func startup_map() -> FcMap:
 	var asked := asked_map()
 
 	if asked == "":
-		return FcMap.dm_box()
+		return FcMap.box()
 
 	var id := StringName(asked)
 	var map: FcMap = FcMap.by_id(id)
@@ -127,7 +127,7 @@ static func startup_map() -> FcMap:
 			"asked": String(id),
 			"known": FcMap.ids() + FcMap.imported_ids(),
 		})
-		return FcMap.dm_box()
+		return FcMap.box()
 
 	return map
 

@@ -10,7 +10,7 @@ func _weapon_mode_game(mode: FcMode, ids: Array) -> FcGame:
 	game.register_service = false
 	game.mode = mode
 	add_child(game)
-	var ready := game.setup(FcMap.dm_box())
+	var ready := game.setup(FcMap.box())
 	if not ready.ok:
 		return null
 	game.start(0)

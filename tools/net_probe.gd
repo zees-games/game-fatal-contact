@@ -37,8 +37,8 @@ var _aoi: PackedStringArray = PackedStringArray()
 ## --fake N: N extra synthetic peers (unreliable sends dropped, acks 2 snapshots late) on the server, to measure per-peer snapshot cost without N full clients.
 ## Each sees from an "eye" riding on a player (see [method _install_fakes]), so relevance applies to it as to a player there.
 var _fake := 0
-## --map <id>: the map the server plays (FcMap.by_id: dm_box, dm_atrium, dm_pit or an imported one). Relevance needs room to matter.
-var _map_id := "dm_box"
+## --map <id>: the map the server plays (FcMap.by_id: box, atrium, pit or an imported one). Relevance needs room to matter.
+var _map_id := "box"
 ## The fake peers' eyes and the player each rides on.
 var _eyes: Array[Node3D] = []
 var _eye_on: Array[Node3D] = []

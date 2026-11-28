@@ -3,9 +3,9 @@ extends "headless_match_horde_and_siege.gd"
 ## [b]The second map, walked rather than asserted.[/b]  A map is a rendered, playable thing and this
 ## family has shipped a 0 x 0 Control twice and a black screen once.
 func _test_atrium() -> void:
-	_section("dm_atrium")
+	_section("atrium")
 
-	var map: FcMap = FcMap.dm_atrium()
+	var map: FcMap = FcMap.atrium()
 
 	_check(map.boxes.size() > 30, "the map has geometry", str(map.boxes.size()))
 	_check(map.spawns.size() == 10, "and ten spawns", str(map.spawns.size()))
@@ -23,7 +23,7 @@ func _test_atrium() -> void:
 	_check(FcMap.by_id(&"dm_nosuchmap") == null, "and an unknown one does not")
 
 	# One description, three representations — the same invariant `_test_map` checks
-	# for dm_box, re-checked here because a second map is a second chance to write the
+	# for box, re-checked here because a second map is a second chance to write the
 	# geometry twice.
 	_check(
 		map.to_fps_body().boxes.size() == map.boxes.size()
@@ -135,7 +135,7 @@ func _test_atrium() -> void:
 	# [b]All three moved on 2026-09-22, which is the first time that has happened and does not
 	# weaken the check.[/b] They moved for one cause — every climb on every map was above the jump
 	# apex — but they are still three separate changes to three separate maps.
-	var expected := {&"dm_atrium": "1.7.1", &"dm_pit": "1.5.0", &"dm_box": "1.4.0"}
+	var expected := {&"atrium": "1.7.1", &"pit": "1.5.0", &"box": "1.4.0"}
 	var wrong := PackedStringArray()
 
 	for id: StringName in expected:
@@ -153,9 +153,9 @@ func _test_atrium() -> void:
 	)
 	# [b]Was "two maps that moved by different amounts do not share a version", which is not a rule
 	# versions keep.[/b] Two minor bumps on two maps land on the same string whenever they happen to
-	# — dm_box went 1.1.0 -> 1.2.0 on 2026-09-24, where dm_atrium had been two days.
+	# — box went 1.1.0 -> 1.2.0 on 2026-09-24, where atrium had been two days.
 	_check(
-		versions.get_map(&"dm_box").version != FcMaps.MAP_VERSION,
+		versions.get_map(&"box").version != FcMaps.MAP_VERSION,
 		"and a map that moved is not at the catalogue-wide default"
 	)
 
@@ -617,7 +617,7 @@ func _test_instant_loadout() -> void:
 	game.register_service = false
 	game.mode = FcMode.team_deathmatch(50)
 	add_child(game)
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	if not _check(ready.ok, "an instant-loadout game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)

@@ -72,7 +72,7 @@ func _test_wall_rules() -> void:
 		if name.begins_with("wall_"):
 			before.set(name, stock.get(name))
 
-	var map: FcMap = FcMap.dm_atrium()
+	var map: FcMap = FcMap.atrium()
 	var off_hash := _wall_trace(map, ruled_off)
 	var before_hash := _wall_trace(map, before)
 	var on_hash := _wall_trace(map, FcPlayer.fc_tunables())

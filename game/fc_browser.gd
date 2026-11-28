@@ -73,7 +73,7 @@ func setup() -> GSResult:
 	# [b]The game section is the reason `FcModule` has a query provider at all.[/b]
 	# `info.map` is gs-server's, and gs-server means by it "the content id of the
 	# game that is loaded" — which on a server that never `changegame`s is empty. What
-	# a player wants to see is `dm_atrium`, and that is the game's own fact, which is
+	# a player wants to see is `atrium`, and that is the game's own fact, which is
 	# why it arrives under `rules["game"]` rather than overwriting `info.map`.
 	# gs-browser nests it deliberately: flattening would collide the first time a
 	# game put a field called `map` in it, which is the first time.

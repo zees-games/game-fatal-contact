@@ -3,7 +3,7 @@
 # and captures, saving frames (screenshots/ctf/*.png) and failing on any defect.
 #
 #   tools/render_ctf.sh                       # cp-orange-x3
-#   tools/render_ctf.sh dm_atrium             # a stock map
+#   tools/render_ctf.sh atrium             # a stock map
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # A short frame sequence beside each still (GSShotSeq), so Nightly -> Review can play it.

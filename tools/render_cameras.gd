@@ -3,8 +3,8 @@ extends GSCameraTool
 ## Fatal Contact's cameras against its real maps: the third-person view, and the spectator's
 ## chase camera (the one the play test found inside a wall). See gs-core's GSCameraTool.
 ##
-##   tools/render_cameras.sh [map]        # dm_box by default; frames in screenshots/cameras/
-##   godot --headless --path . --script tools/render_cameras.gd -- --no-render --map dm_atrium
+##   tools/render_cameras.sh [map]        # box by default; frames in screenshots/cameras/
+##   godot --headless --path . --script tools/render_cameras.gd -- --no-render --map atrium
 
 const FcMap := preload("../maps/fc_map.gd")
 const FcMapLighting := preload("../maps/fc_map_lighting.gd")
@@ -19,7 +19,7 @@ func _map_now() -> FcMap:
 	if _map == null:
 		var args := OS.get_cmdline_user_args()
 		var at := args.find("--map")
-		_map = FcMap.by_id(StringName(args[at + 1]) if at >= 0 and at + 1 < args.size() else &"dm_box")
+		_map = FcMap.by_id(StringName(args[at + 1]) if at >= 0 and at + 1 < args.size() else &"box")
 		_name = "arena_%s" % String(_map.id)
 	return _map
 

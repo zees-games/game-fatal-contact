@@ -7,7 +7,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 
 ## The bots, in the real game: one bot per difficulty preset against one reference player on
-## dm_box, with Fatal Contact's own weapons, movement, trace and match.
+## box, with Fatal Contact's own weapons, movement, trace and match.
 ##
 ## [codeblock]
 ## godot --headless --path . res://examples/headless_bots.tscn
@@ -254,7 +254,7 @@ func _new_game(preset: String) -> FcGame:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	_check(game.setup(FcMap.dm_box()).ok, "the game sets up")
+	_check(game.setup(FcMap.box()).ok, "the game sets up")
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0

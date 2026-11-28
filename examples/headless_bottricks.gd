@@ -17,7 +17,7 @@ const TICK_RATE := 64
 const SECONDS := 240.0
 const BOT := 1
 const OTHER := 2
-const MAPS: Array[StringName] = [&"dm_atrium", &"dm_pit"]
+const MAPS: Array[StringName] = [&"atrium", &"pit"]
 ## Two seed pairs per map and preset: wall runs hang on a few lucky wall contacts, so a single seeded run sits near the
 ## threshold and flips with tiny float differences between motors. More runs make the count a measure of ability.
 const SEEDS: Array[Vector2i] = [Vector2i(7, 19), Vector2i(31, 43)]

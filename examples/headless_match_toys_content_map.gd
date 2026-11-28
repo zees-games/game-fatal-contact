@@ -8,9 +8,9 @@ func _test_toys() -> void:
 	_section("the maps' toys")
 	var bad: Array = []
 	var game: FcGame = null
-	# dm_box last, and kept: each game's level and toys share this one physics space, so the
+	# box last, and kept: each game's level and toys share this one physics space, so the
 	# others are freed before the next is built.
-	for id: StringName in [&"dm_atrium", &"dm_pit", &"dm_box"]:
+	for id: StringName in [&"atrium", &"pit", &"box"]:
 		var map: FcMap = FcTestToys.give(FcMap.by_id(id))
 		var g := FcGame.new()
 		g.name = "ToyGame_%s" % id
@@ -18,7 +18,7 @@ func _test_toys() -> void:
 		g.headless = true
 		g.register_service = false
 		# A world of its own: every other game this suite has built is in the default one,
-		# on dm_box, and its level would be under these toys too.
+		# on box, and its level would be under these toys too.
 		var view := SubViewport.new()
 		view.own_world_3d = true
 		view.render_target_update_mode = SubViewport.UPDATE_DISABLED
@@ -47,7 +47,7 @@ func _test_toys() -> void:
 		for toy in g.toys.toys:
 			if toy.body.global_position.distance_to(toy.rest.origin) > 0.5:
 				bad.append("%s: %s %d strayed to %s" % [id, toy.def["id"], toy.index, toy.body.global_position.snapped(Vector3.ONE * 0.1)])
-		if id == &"dm_box":
+		if id == &"box":
 			game = g
 		else:
 			g.get_parent().remove_child(g)
@@ -234,7 +234,7 @@ func _test_content() -> void:
 func _test_map() -> void:
 	_section("map")
 
-	var map: FcMap = FcMap.dm_box()
+	var map: FcMap = FcMap.box()
 
 	_check(map.boxes.size() > 8, "the map has geometry", str(map.boxes.size()))
 	_check(map.spawns.size() >= 4, "and spawn points", str(map.spawns.size()))
@@ -335,7 +335,7 @@ func _test_map_look() -> void:
 			(sample.surface_get_arrays(0)[Mesh.ARRAY_TEX_UV2] as PackedVector2Array).size() == 36 and sample.lightmap_size_hint != Vector2i.ZERO,
 			"a lightmapped box carries a second UV set and a size hint"
 		)
-		_check(FcMap.dm_box().light_fingerprint() == FcMap.dm_box().light_fingerprint(), "a map's bake fingerprint is the same on every build")
+		_check(FcMap.box().light_fingerprint() == FcMap.box().light_fingerprint(), "a map's bake fingerprint is the same on every build")
 	_check(materials.size() < painted / 4, "boxes of one colour share one material", "%d materials for %d boxes" % [materials.size(), painted])
 	_check(
 		roles.has(FcMapPaint.Role.WALL) and roles.has(FcMapPaint.Role.TREAD) and roles.has(FcMapPaint.Role.COVER),
@@ -350,10 +350,10 @@ func _test_map_look() -> void:
 		sides[FcMapPaint.zone_colour(at, [] as Array[Dictionary], 24.0).to_html()] = true
 	_check(sides.size() == 4, "the four sides are four colours", str(sides.size()))
 
-	var atrium: FcMap = FcMap.dm_atrium()
+	var atrium: FcMap = FcMap.atrium()
 	_check(
 		FcMapPaint.zone_colour(Vector3(-15.0, 2.0, -12.0), atrium.paint_zones, atrium.extent) == FcMapPaint.LAVENDER,
-		"dm_atrium's keep is its own named zone"
+		"atrium's keep is its own named zone"
 	)
 	_check(
 		FcMapPaint.zone_colour(Vector3(-20.0, 1.0, -27.0), atrium.paint_zones, atrium.extent) == FcMapPaint.AQUA,
@@ -394,7 +394,7 @@ func _test_map_look() -> void:
 	lit.free()
 	_done()
 
-## `dm_pit`'s shelf stair, the pit floor to the third tier, walked.
+## `pit`'s shelf stair, the pit floor to the third tier, walked.
 func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
 	var tunables := FcPlayer.fc_tunables()
 	var shelf_top: float = shelf.position.y + shelf.size.y
@@ -411,7 +411,7 @@ func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
 
 	treads.sort_custom(func(a: AABB, b: AABB) -> bool: return a.size.y < b.size.y)
 
-	if not _check(treads.size() == 11, "dm_pit: the shelf stair has eleven boxes, the landing under the bridge one of them", str(treads.size())):
+	if not _check(treads.size() == 11, "pit: the shelf stair has eleven boxes, the landing under the bridge one of them", str(treads.size())):
 		return
 
 	var steep := PackedStringArray()
@@ -552,7 +552,7 @@ func _test_pit_shelf_stair(map: FcMap, shelf: AABB, perch: AABB) -> void:
 	var route_time := float(top - left_arm) * delta if top > left_arm and left_arm >= 0 else 0.0
 	var arrived: Vector3 = walker.controller.state.position
 
-	print("  ..    dm_pit shelf stair: east arm to shelf %.1f m in %.2f s, down to %.2f; "
+	print("  ..    pit shelf stair: east arm to shelf %.1f m in %.2f s, down to %.2f; "
 		% [11.0 - top_x, route_time, lowest]
 		+ "stair %.1f m in %.2f s, %.2f m/s against max_speed %.2f"
 		% [2.0 - top_x, climb_time, pace, tunables.max_speed])

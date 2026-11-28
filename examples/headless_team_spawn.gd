@@ -19,7 +19,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact team spawn")
-	var ids: Array[StringName] = [&"dm_box", &"dm_atrium", &"dm_pit"]
+	var ids: Array[StringName] = [&"box", &"atrium", &"pit"]
 	var extra: Array[StringName] = []
 	for a in OS.get_cmdline_user_args():
 		extra.append(StringName(a))
@@ -95,9 +95,9 @@ func _one(id: StringName) -> void:
 	game.queue_free()
 
 
-## FFA ignores teams: players land on both ends of dm_atrium.
+## FFA ignores teams: players land on both ends of atrium.
 func _ffa_is_random() -> void:
-	var map: FcMap = FcMap.dm_atrium()
+	var map: FcMap = FcMap.atrium()
 	var game := _game(map, FcMode.free_for_all())
 	var seen := {}
 	for b in PLAYERS:
@@ -110,14 +110,14 @@ func _ffa_is_random() -> void:
 			var at: Vector3 = game.player_for(b + 1).controller.state.position
 			seen["red" if at.z < 0.0 else "blue"] = true
 		game.tick({})
-	_check(seen.size() == 2, "free-for-all uses both ends of dm_atrium", str(seen.keys()))
+	_check(seen.size() == 2, "free-for-all uses both ends of atrium", str(seen.keys()))
 	game.queue_free()
 
 
 ## The fallback itself: a map with no sides is cut in two halves by position, both the same size, the
 ## red half holding one anchor; a map that tags both sides is left alone; `fc_team_spawn_split` 0 keeps one pool.
 func _split_is_documented() -> void:
-	var map: FcMap = FcMap.dm_box()
+	var map: FcMap = FcMap.box()
 	for index in range(map.spawns.size()):
 		map.spawn_tags[index] = ""
 	var n := map.split_spawns_for_teams()
@@ -134,10 +134,10 @@ func _split_is_documented() -> void:
 			centre_blue += map.spawns[i].origin / float(blue)
 	_check(centre_red.distance_to(centre_blue) > 5.0, "and the halves sit apart", "%.1f m" % centre_red.distance_to(centre_blue))
 	_check(map.split_spawns_for_teams() == map.spawns.size() or map.split_spawns_for_teams() == 0, "and running it again does no harm")
-	var tagged: FcMap = FcMap.dm_atrium()
+	var tagged: FcMap = FcMap.atrium()
 	var before := tagged.spawn_tags.duplicate()
 	_check(tagged.split_spawns_for_teams() == 0 and tagged.spawn_tags == before, "a map that tags both sides keeps its tags")
-	var off := _game(FcMap.dm_pit(), FcMode.team_deathmatch(), false)
+	var off := _game(FcMap.pit(), FcMode.team_deathmatch(), false)
 	_check(off != null and Array(off.map.spawn_tags).count("") == off.map.spawns.size(), "with the split off both teams share one pool", str(off.map.spawn_tags) if off != null else "no game")
 	if off != null:
 		off.queue_free()
@@ -146,7 +146,7 @@ func _split_is_documented() -> void:
 ## Spawn protection: lasts the mode's seconds for the spawned player and no longer, the victim is the one protected
 ## and not the attacker, a shot or a move ends it when `spawn_protection_break` says so, and 0 seconds is none.
 func _protection() -> void:
-	var game := _game(FcMap.dm_atrium(), FcMode.team_deathmatch())
+	var game := _game(FcMap.atrium(), FcMode.team_deathmatch())
 	game.match_node.rules.spawn_protection_sec = 1.0
 	game.player_stack.refresh_spawn_rules()
 	for b in 4:

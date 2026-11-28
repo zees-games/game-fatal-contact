@@ -7,7 +7,7 @@ const FcGame := preload("../game/fc_game.gd")
 const FcMap := preload("../maps/fc_map.gd")
 const FcSimServer := preload("../game/fc_sim_server.gd")
 
-## `bot_threads`: 24 bots on dm_box play a deathmatch at threads 0, 0 again, 1, 4 and 8 with
+## `bot_threads`: 24 bots on box play a deathmatch at threads 0, 0 again, 1, 4 and 8 with
 ## bot_native_think's reused command pair off; every bot's position, view, health and commands,
 ## hashed every few ticks, are identical in all of them.
 
@@ -19,7 +19,7 @@ const THREADS := [0, 0, 1, 4, 8]
 const SECTIONS := 5
 const CHECKS := 23
 
-## An imported map, whose sight is the physics space's (dm_box's is analytic) and whose routes come from a baked mesh.
+## An imported map, whose sight is the physics space's (box's is analytic) and whose routes come from a baked mesh.
 const IMPORTED_MAP := &"dm-morpheus"
 const IMPORTED_BOTS := 16
 const IMPORTED_SECONDS := 10.0
@@ -152,7 +152,7 @@ func _play(count: int, map_id: StringName = &"") -> Array:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var _setup := game.setup(FcMap.dm_box() if map_id == &"" else FcMap.by_id(map_id))
+	var _setup := game.setup(FcMap.box() if map_id == &"" else FcMap.by_id(map_id))
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0

@@ -55,7 +55,7 @@ func _run() -> void:
 	_check_offline()
 
 	FcSimHost.forced = 1
-	FcSimHost.ask_map = "dm_box"
+	FcSimHost.ask_map = "box"
 	FcSimHost.ask_mode = "ctf"
 	# As long as a slow machine builds after joining; headless builds in the same frame and hid the spam.
 	FcSimHost.hold_joined_sec = 3.0

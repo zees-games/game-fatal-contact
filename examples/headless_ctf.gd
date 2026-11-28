@@ -39,7 +39,7 @@ func _ctf_game(rules_edit: Callable = Callable(), map: FcMap = null, ids: Array 
 		rules_edit.call(game.ctf_rules)
 	game.mode = FcMode.capture_the_flag(3)
 	add_child(game)
-	var ready := game.setup(map if map != null else FcMap.dm_atrium())
+	var ready := game.setup(map if map != null else FcMap.atrium())
 	if not _check(ready.ok, "a capture-the-flag game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -220,7 +220,7 @@ func _test_bases() -> void:
 	_check(not hit.ok or (hit.value as GSSpawnChoice).site.id != &"auth_flag", "nobody respawns on a flag stand")
 	await _free(game)
 
-	var box := _ctf_game(Callable(), FcMap.dm_box())
+	var box := _ctf_game(Callable(), FcMap.box())
 	if box == null:
 		return
 	var fb := box.objectives.ctf_bases()
@@ -242,7 +242,7 @@ func _test_replication() -> void:
 	client.is_authority = false
 	client.mode = FcMode.capture_the_flag(3)
 	add_child(client)
-	var ready := client.setup(FcMap.dm_atrium())
+	var ready := client.setup(FcMap.atrium())
 	if not _check(ready.ok, "a client game sets up", str(ready.error)):
 		await _free(server)
 		return
@@ -276,7 +276,7 @@ func _test_replication() -> void:
 	real.register_service = false
 	real.is_authority = false
 	add_child(real)
-	var real_ready := real.setup(FcMap.dm_atrium())
+	var real_ready := real.setup(FcMap.atrium())
 	_check(real_ready.ok and real.objectives == null, "a client left on the default mode has no flag layer")
 	real.set_movement_rules({"mode_index": FcModes.ids().find(&"ctf")})
 	_check(real.objectives != null and real.objectives.ctf != null, "and builds it the moment the server says capture the flag")
@@ -372,7 +372,7 @@ func _test_indicator() -> void:
 	client.is_authority = false
 	client.mode = FcMode.capture_the_flag(3)
 	add_child(client)
-	var _r := client.setup(FcMap.dm_atrium())
+	var _r := client.setup(FcMap.atrium())
 	_check(client.ctf_view.indicator and client.ctf_view.see_through, "a client starts with both on")
 	client.objectives.apply_ctf_text(wire)
 	_check(not client.ctf_view.indicator and not client.ctf_view.see_through, "and takes the server's settings with the flag state")

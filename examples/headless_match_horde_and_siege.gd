@@ -39,7 +39,7 @@ func _test_horde() -> void:
 		"and it matches the geometry it was built from"
 	)
 
-	var other: FcMap = FcMap.by_id(&"dm_atrium" if _game.map.id == &"dm_box" else &"dm_box")
+	var other: FcMap = FcMap.by_id(&"atrium" if _game.map.id == &"box" else &"box")
 	_check(
 		not nav.matches(FcNpcs.digest_of(other)),
 		"and does not match a different map's"
@@ -172,7 +172,7 @@ func _test_horde() -> void:
 		var inward := Vector3(-body.x, 0.0, -body.z)
 		inward = inward.normalized() if inward.length() > 0.1 else Vector3.RIGHT
 		# Toward the middle first, then round the player until nothing is in between: where the
-		# match left the player is wherever the bots' fight ended, and on dm_box "four metres toward
+		# match left the player is wherever the bots' fight ended, and on box "four metres toward
 		# the middle" is sometimes the far side of a box.
 		var placed := inward
 		for turn in range(12):
@@ -394,7 +394,7 @@ func _test_siege() -> void:
 
 	var game := _new_siege_game()
 
-	var ready := game.setup(FcMap.dm_box())
+	var ready := game.setup(FcMap.box())
 
 	if not _check(ready.ok, "a siege game sets up", str(ready.error)):
 		game.queue_free()

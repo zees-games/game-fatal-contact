@@ -22,7 +22,7 @@ func _command_a(tick: int) -> GSFpsCommand:
 	return move
 
 
-## A's wall script on dm_box's north wall, by ticks into it: run east along the wall, jump, dash in the air (15 m/s along the wall, past `wall_run_min_speed`) and run the wall,
+## A's wall script on box's north wall, by ticks into it: run east along the wall, jump, dash in the air (15 m/s along the wall, past `wall_run_min_speed`) and run the wall,
 ## jump off it 35 ticks later, then hold still once down. Read off the tick alone, so the server runs exactly the commands A predicted with. Before it starts (negative), stand.
 func _wall_command(k: int) -> GSFpsCommand:
 	var move := GSFpsCommand.new()
@@ -37,7 +37,7 @@ func _wall_command(k: int) -> GSFpsCommand:
 	return move
 
 
-## A holds forward into dm_box's east wall and hops, jump held and let go in uneven stretches.
+## A holds forward into box's east wall and hops, jump held and let go in uneven stretches.
 ## Read off the tick alone, so the server runs the commands A predicted with.
 func _hop_command(k: int) -> GSFpsCommand:
 	var move := GSFpsCommand.new()

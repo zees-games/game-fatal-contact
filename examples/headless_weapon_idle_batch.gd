@@ -6,7 +6,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcPlayerIdle := preload("../game/fc_player_idle.gd")
 
 ## `fc_weapon_idle_batch`: the idle weapons' native calls joined into one gs-sim call per tick (`GSSimWeaponIdleBatch`) play exactly the
-## match one call per weapon plays: 16 bots on dm_box hash identically with the batch off, off again, on, and with `fc_weapon_idle_lean` 0.
+## match one call per weapon plays: 16 bots on box hash identically with the batch off, off again, on, and with `fc_weapon_idle_lean` 0.
 ## Without the library only the script lane runs, and the suite says so.
 
 const TICK_RATE := 33
@@ -67,7 +67,7 @@ func _play() -> Array:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var _setup := game.setup(FcMap.dm_box())
+	var _setup := game.setup(FcMap.box())
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0

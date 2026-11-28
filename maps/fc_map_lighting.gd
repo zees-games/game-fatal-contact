@@ -95,7 +95,7 @@ static func _cloud_sky(root: Node3D, sun: DirectionalLight3D) -> void:
 ## occlusion. Its light numbers are per renderer: the client shell draws Compatibility
 ## everywhere, which clips before it tone maps. This game's own grade and its hand-set
 ## Compatibility numbers (reference 700, ambient 0.45) were the first try at the same thing
-## and moved into gs-lighting so every painted game gets it; measured on dm_box from a
+## and moved into gs-lighting so every painted game gets it; measured on box from a
 ## player's eye, the sunlit floor went 0.88 -> 0.70 luminance with the darker `GROUND`.
 ##
 ## [b]A browser gets the sun's shadows put back.[/b] `web()` drops them because on a large

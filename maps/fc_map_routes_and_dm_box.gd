@@ -26,7 +26,7 @@ static func _movement() -> GSFpsTunables:
 ## [b]This is the number three maps in this game were built without.[/b] `jump_height`
 ## reads like the height of a thing you can get onto and it is the apex of the arc, so
 ## a crate at 1.5 with `jump_height` 1.25 looks like a 0.25 m stretch and is in fact a
-## wall. `dm_atrium`'s south-east crates were 1.5, 3.0 and 4.6 from the day the map was
+## wall. `atrium`'s south-east crates were 1.5, 3.0 and 4.6 from the day the map was
 ## written: a route the map's own documentation called "the fast way up" that nothing
 ## has ever climbed, because nothing had ever been asked to.
 static func climb_limit() -> float:
@@ -94,10 +94,10 @@ static func _floor_at(y: float) -> AABB:
 ## Symmetric on purpose. A symmetric map makes every spawn point score identically for
 ## the spawn selector, which is exactly the tie its name-based tie-break exists for —
 ## so the map that ships is also the map that exercises it.
-static func dm_box() -> RefCounted:
+static func box() -> RefCounted:
 	var map: RefCounted = _blank_map()
-	map.id = &"dm_box"
-	map.display_name = "dm_box"
+	map.id = &"box"
+	map.display_name = "box"
 	map.extent = 24.0
 	map.wall_height = 8.0
 
@@ -137,7 +137,7 @@ static func dm_box() -> RefCounted:
 	# reachable from anywhere.[/b] The pillars are 5 m tall against a 1.25 m jump
 	# APEX, so nothing has ever stood on one; the ledges are at 3.6 with the raised
 	# middle at 1.0 as the next highest thing on the map. Both ledges have been
-	# geometry a player can be shot from and cannot get to since the day dm_box was
+	# geometry a player can be shot from and cannot get to since the day box was
 	# written, and every check over this map passed the whole time, because a box
 	# count cannot tell a platform from a ceiling. See [method jump_reach].
 	#
@@ -157,8 +157,8 @@ static func dm_box() -> RefCounted:
 	#
 	# [b]Mirrored, and that is not decoration.[/b] This map is symmetric so that every
 	# spawn scores identically for the spawn selector, which is the tie its name-based
-	# tie-break exists to break — it is the property dm_box ships FOR, and the reason
-	# the arcade went on dm_atrium instead. A route added to one wall and not the
+	# tie-break exists to break — it is the property box ships FOR, and the reason
+	# the arcade went on atrium instead. A route added to one wall and not the
 	# other would take that away for the sake of a shortcut.
 	for side in [-1.0, 1.0]:
 		var previous := AABB()
@@ -180,14 +180,14 @@ static func dm_box() -> RefCounted:
 			map.add_box(crate)
 
 			if step == 0:
-				map.add_climb("dm_box: the floor onto the first crate", _floor_at(0.0), crate)
+				map.add_climb("box: the floor onto the first crate", _floor_at(0.0), crate)
 			else:
-				map.add_climb("dm_box: crate %d onto crate %d" % [step, step + 1], previous, crate)
+				map.add_climb("box: crate %d onto crate %d" % [step, step + 1], previous, crate)
 
 			previous = crate
 
 		map.add_climb(
-			"dm_box: the top crate onto the %s ledge" % ["west" if side < 0.0 else "east"],
+			"box: the top crate onto the %s ledge" % ["west" if side < 0.0 else "east"],
 			previous,
 			west_ledge if side < 0.0 else east_ledge
 		)
@@ -213,7 +213,7 @@ static func dm_box() -> RefCounted:
 	# [b]Point-symmetric, like everything else on this map.[/b] The north gantry and
 	# its nest are the south gantry and its nest turned half a circle about the
 	# origin, so every spawn still scores identically for the spawn selector — the
-	# property dm_box exists for. `headless_match` asserts the whole box list is its
+	# property box exists for. `headless_match` asserts the whole box list is its
 	# own half-turn rather than trusting this paragraph.
 	#
 	# The gantry is 2.5 m wide and flush with the pillar's face, so the step can sit on
@@ -248,12 +248,12 @@ static func dm_box() -> RefCounted:
 
 		var which := "south" if side > 0.0 else "north"
 
-		map.add_climb("dm_box: the west ledge onto the %s gantry" % which, west_ledge, gantry)
-		map.add_climb("dm_box: the %s gantry onto the east ledge" % which, gantry, east_ledge)
-		map.add_climb("dm_box: the east ledge onto the %s gantry" % which, east_ledge, gantry)
-		map.add_climb("dm_box: the %s gantry onto the west ledge" % which, gantry, west_ledge)
-		map.add_climb("dm_box: the %s gantry onto its nest step" % which, gantry, step)
-		map.add_climb("dm_box: the %s nest step onto the pillar" % which, step, pillar)
+		map.add_climb("box: the west ledge onto the %s gantry" % which, west_ledge, gantry)
+		map.add_climb("box: the %s gantry onto the east ledge" % which, gantry, east_ledge)
+		map.add_climb("box: the east ledge onto the %s gantry" % which, east_ledge, gantry)
+		map.add_climb("box: the %s gantry onto the west ledge" % which, gantry, west_ledge)
+		map.add_climb("box: the %s gantry onto its nest step" % which, gantry, step)
+		map.add_climb("box: the %s nest step onto the pillar" % which, step, pillar)
 
 	# --- The two nest stairs (2026-09-29) ----------------------------------
 	#
@@ -264,7 +264,7 @@ static func dm_box() -> RefCounted:
 	# from the top, open to anybody, and in the open.
 	#
 	# Ten treads of 0.36 — under `GSFpsTunables.step_height` (0.4), so held forward
-	# climbs it; the number and the reason are dm_atrium's and dm_pit's — each 0.9 deep,
+	# climbs it; the number and the reason are atrium's and pit's — each 0.9 deep,
 	# running along the gantry's outer face and climbing TOWARD the nest pillar. The last
 	# tread is at 3.6, flush with the gantry beside it, and its far face is flush with the
 	# pillar's west face at x 2.5.
@@ -323,7 +323,7 @@ static func dm_box() -> RefCounted:
 	#
 	# The trade: the stair runs along the wall in the open end of the room, and the north
 	# nest looks down every tread of it. Half-turned for the south-east corner, so the
-	# property dm_box ships for holds by construction; the other two corners keep their
+	# property box ships for holds by construction; the other two corners keep their
 	# stubs, which is what a half-turn rather than a mirror gives.
 	const CORNER_TREADS := 10
 	const CORNER_RISE := 0.36

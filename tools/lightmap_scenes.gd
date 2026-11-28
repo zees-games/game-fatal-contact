@@ -7,7 +7,7 @@ const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 ## client builds it (every box with its UV2), the map's sun and sky, a LightmapGI added and the
 ## map's fingerprint recorded. tools/bake_lightmaps.sh runs this and then the bake.
 ##
-##   xvfb-run -a godot --path . res://tools/lightmap_scenes.tscn -- --out=res://lightbake_work [--maps=dm_box,dm_pit]
+##   xvfb-run -a godot --path . res://tools/lightmap_scenes.tscn -- --out=res://lightbake_work [--maps=box,pit]
 ##
 ## Under a display, not --headless: a headless process keeps no mesh data to save.
 ##

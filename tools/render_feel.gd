@@ -19,7 +19,7 @@ const FcPlayer := preload("../game/fc_player.gd")
 ## - `bot`: standing still, a bot running across the view eight metres away, every frame for a
 ##   quarter of a second. Each frame's step across the screen should be the same.
 ## - `run`: running and turning on open floor, the view model's bob and sway, every third frame.
-## - `stairs`: up dm_box's stair at a run, every third frame; the eye should climb, not hop.
+## - `stairs`: up box's stair at a run, every third frame; the eye should climb, not hop.
 ## - `landing`: a drop from 5 m onto open floor, every frame from just before the landing; the
 ##   eye should go on down a little and come back, not stop dead or jump.
 ## - `strafe`: strafing right, then left, every third frame; the horizon should lean into it
@@ -59,7 +59,7 @@ func _initialize() -> void:
 	Engine.physics_ticks_per_second = TICK_RATE
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 
-	_map = FcMap.dm_box()
+	_map = FcMap.box()
 	root.add_child(_map.to_scene())
 	root.add_child(FcMapLighting.build(_map))
 

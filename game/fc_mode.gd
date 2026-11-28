@@ -118,7 +118,7 @@ extends Resource
 ##
 ## [b]An id rather than a list of definitions, and that is deliberate.[/b] The layout is
 ## derived from the MAP's own extent — see [method FcObjectives.build] — so a mode
-## carrying the definitions would carry `dm_atrium`'s flag positions into every map it
+## carrying the definitions would carry `atrium`'s flag positions into every map it
 ## was ever played on. `ffa`, `tdm` and `siege` leave it empty and are scored on kills,
 ## which is what [GSMatch] alone has always been enough for.
 @export var objective_layout: StringName = &""
@@ -194,7 +194,7 @@ static func free_for_all(limit: int = 25) -> Resource:
 	mode.team_count = 0
 	mode.friendly_fire = false
 	mode.self_damage = true
-	mode.preferred_map = &"dm_atrium"
+	mode.preferred_map = &"atrium"
 
 	var rules := GSMatchRules.deathmatch(limit)
 	rules.display_name = "Free-For-All"
@@ -220,7 +220,7 @@ static func free_for_all(limit: int = 25) -> Resource:
 ##
 ## It is also a real game rather than a test fixture. Monsters make the middle of the
 ## map expensive to hold, and movable cover is the only answer to that a player can
-## build themselves — which is the trade the raised centre of `dm_box` has always
+## build themselves — which is the trade the raised centre of `box` has always
 ## wanted and never had.
 static func siege(limit: int = 20) -> Resource:
 	var mode := new()
@@ -233,7 +233,7 @@ static func siege(limit: int = 20) -> Resource:
 	mode.horde = true
 	mode.player_props = true
 	mode.scatter_props = 8
-	mode.preferred_map = &"dm_box"
+	mode.preferred_map = &"box"
 
 	var rules := GSMatchRules.deathmatch(limit)
 	rules.display_name = "Siege"
@@ -264,7 +264,7 @@ static func team_deathmatch(limit: int = 75) -> Resource:
 	# on is a server's choice, not a mode's default.
 	mode.friendly_fire = false
 	mode.self_damage = true
-	mode.preferred_map = &"dm_atrium"
+	mode.preferred_map = &"atrium"
 
 	var rules := GSMatchRules.team_deathmatch(limit)
 	rules.display_name = "Team Deathmatch"
@@ -300,7 +300,7 @@ static func king_of_the_hill() -> Resource:
 	mode.friendly_fire = false
 	mode.self_damage = true
 	mode.objective_layout = &"koth"
-	mode.preferred_map = &"dm_atrium"
+	mode.preferred_map = &"atrium"
 
 	# One point wins it. The objective IS the score, so a kill limit on top would be a
 	# second way to end a round that nobody is playing for.
@@ -334,7 +334,7 @@ static func capture_the_flag(limit: int = 3) -> Resource:
 	mode.friendly_fire = false
 	mode.self_damage = true
 	mode.objective_layout = &"ctf"
-	mode.preferred_map = &"dm_atrium"
+	mode.preferred_map = &"atrium"
 
 	var rules := GSMatchRules.team_deathmatch(limit)
 	rules.display_name = "Capture the Flag"

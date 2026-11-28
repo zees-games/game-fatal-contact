@@ -127,7 +127,7 @@ func _run() -> void:
 	_section("a map change applies the held state first")
 	bridge.seen.clear()
 	link._net_snapshot(_snap(50))
-	link._net_map({"map": "dm_atrium"})
+	link._net_map({"map": "atrium"})
 	_check(_is(bridge.seen, ["snap 50:0", "map"]), "the held snapshot is applied before the map message", str(bridge.seen))
 	await get_tree().process_frame
 	_check(bridge.seen.size() == 2 and link.map_received == 1, "and not again at the end of the poll", str(bridge.seen))

@@ -275,7 +275,7 @@ func setup_begin(p_map: FcMap = null) -> GSResult:
 	)
 
 	if map == null:
-		map = FcMap.dm_box()
+		map = FcMap.box()
 	if map == null:
 		# A map script that is missing from the pack mount (0.1.69: an un-rebased res://maps path) is a SCRIPT
 		# ERROR above and a null here; every step after it would fail on the null instead of saying so.

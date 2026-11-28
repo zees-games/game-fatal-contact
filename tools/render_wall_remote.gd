@@ -4,7 +4,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 
-## A third-person remote body (the world model in its hand) against dm_box's south wall at three distances, seen from
+## A third-person remote body (the world model in its hand) against box's south wall at three distances, seen from
 ## the side and from behind. Writes `screenshots/wall_remote/<distance>_<side|back>.png`. Needs xvfb-run.
 ## Usage: `xvfb-run -a godot --path . --resolution 640x360 --script res://tools/render_wall_remote.gd`
 
@@ -23,7 +23,7 @@ var _tick := 1
 func _initialize() -> void:
 	Engine.physics_ticks_per_second = 64
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
-	var map: FcMap = FcMap.dm_box()
+	var map: FcMap = FcMap.box()
 	root.add_child(map.to_scene())
 	root.add_child(FcMapLighting.build(map))
 	_player = FcPlayer.new()

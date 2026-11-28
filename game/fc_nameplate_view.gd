@@ -86,7 +86,7 @@ func _present_health_tag(delta: float) -> void:
 		_tag_told and frac == _tag_frac and bar == _tag_bar and named == _tag_named and friend == _tag_friend
 		and tag_scale == _tag_scale and opacity == _tag_opacity and tone == _tag_tone and display_name == _tag_name
 		and _health_tag.shown_fraction == clampf(frac, 0.0, 1.0) and _health_tag.trail_fraction == _health_tag.shown_fraction
-		and _health_tag.visible
+		and _health_tag.visible and _name_ink_is_set(friend, opacity)
 	)
 	if settled:
 		return
@@ -94,6 +94,7 @@ func _present_health_tag(delta: float) -> void:
 	if _health_tag.has_method(&"configure"):
 		_health_tag.configure(TagRules.team_bar_width, TagRules.team_bar_height, TagRules.team_bar_style == 1)
 	_health_tag.update(frac, bar, named, display_name, friend, delta, tone, _tag_draw_scale, opacity)
+	_ink_enemy_name(friend, named, opacity)
 	_tag_told = true
 	_tag_frac = frac
 	_tag_bar = bar
@@ -103,6 +104,25 @@ func _present_health_tag(delta: float) -> void:
 	_tag_scale = tag_scale
 	_tag_opacity = opacity
 	_tag_name = display_name
+
+
+## The name label inside the health tag (GSHealthTag builds it as "Name"), or null.
+func _name_label() -> Label3D:
+	return _health_tag.get_node_or_null("Name") as Label3D if _health_tag != null else null
+
+
+## An enemy's name is drawn red (their side's colour with more than two sides) so friend and enemy are told apart at a glance.
+func _ink_enemy_name(friend: bool, named: bool, opacity: float) -> void:
+	var label := _name_label()
+	if friend or not named or label == null:
+		return
+	label.modulate = TagRules.enemy_name_ink(team, opacity)
+
+
+## False when an enemy's name is not yet in its red ink, so the settled shortcut does not skip the repaint.
+func _name_ink_is_set(friend: bool, opacity: float) -> bool:
+	var label := _name_label()
+	return friend or label == null or not label.visible or label.modulate == TagRules.enemy_name_ink(team, opacity)
 
 
 ## The tag at [param at], turned to [param camera_now] as [method GSHealthTag.face] turns it, in one transform write: a position

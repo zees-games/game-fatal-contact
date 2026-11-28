@@ -33,7 +33,7 @@ func _build() -> bool:
 	_game.register_service = true
 	add_child(_game)
 
-	var ready := _game.setup(FcMap.dm_box())
+	var ready := _game.setup(FcMap.box())
 
 	if not _check(ready.ok, "Fatal Contact sets up", str(ready.error)):
 		return false
@@ -387,8 +387,8 @@ func _test_map_rotation_file() -> void:
 	var built := GSMapRotationFile.from_trees([{"defaults": {
 		"rotation": "two",
 		"rotations": {
-			"two": {"mode": "cycle", "cooldown": 0, "maps": ["dm_box", "dm_atrium"]},
-			"pit": {"maps": ["dm_pit"]},
+			"two": {"mode": "cycle", "cooldown": 0, "maps": ["box", "atrium"]},
+			"pit": {"maps": ["pit"]},
 		},
 		"commands": {"names": {"rtv": "rockthevote"}},
 	}}], "game-fatal-contact")
@@ -399,11 +399,11 @@ func _test_map_rotation_file() -> void:
 	maps.rotation_file = built.value
 	maps.apply_rotation()
 
-	var box := catalogue.get_map(&"dm_box")
-	var pit := catalogue.get_map(&"dm_pit")
-	_check(box.in_rotation and not pit.in_rotation, "the active rotation puts dm_pit out and dm_box in")
-	_check(catalogue.get_map(&"dm_pit") != null and FcMap.ids().has(&"dm_pit"),
-		"and dm_pit stays installed and loadable")
+	var box := catalogue.get_map(&"box")
+	var pit := catalogue.get_map(&"pit")
+	_check(box.in_rotation and not pit.in_rotation, "the active rotation puts pit out and box in")
+	_check(catalogue.get_map(&"pit") != null and FcMap.ids().has(&"pit"),
+		"and pit stays installed and loadable")
 	_check(not catalogue.available().has(pit) and catalogue.available().has(box),
 		"available() leaves it out")
 
@@ -411,11 +411,11 @@ func _test_map_rotation_file() -> void:
 
 	# the ballot and nominations
 	var ids := module.vote.source.choices().map(func(c: GSVoteChoice) -> StringName: return c.id)
-	_check(not ids.has(&"map:dm_pit"), "a map outside the rotation is not on the ballot")
-	_check(ids.has(&"map:dm_box") or ids.has(&"map:dm_atrium"), "the maps inside it are")
-	var nominated := module.vote.nominate(&"77", &"dm_pit")
+	_check(not ids.has(&"map:pit"), "a map outside the rotation is not on the ballot")
+	_check(ids.has(&"map:box") or ids.has(&"map:atrium"), "the maps inside it are")
+	var nominated := module.vote.nominate(&"77", &"pit")
 	_check(not nominated.ok, "nominate refuses a map outside the rotation")
-	_check(not module.vote.director.nominated_ids().has(&"map:dm_pit"), "and nothing was recorded")
+	_check(not module.vote.director.nominated_ids().has(&"map:pit"), "and nothing was recorded")
 
 	# a switch
 	var switched := maps.rotation_file.switch(maps.session.rotation, "pit")
@@ -424,11 +424,11 @@ func _test_map_rotation_file() -> void:
 	var drew_box := false
 	for i in 50:
 		var chosen := maps.session.rotation.choose(0)
-		if chosen != null and chosen.id != &"dm_pit":
+		if chosen != null and chosen.id != &"pit":
 			drew_box = true
 	_check(not drew_box, "and the next map is drawn from the new one")
 	ids = module.vote.source.choices().map(func(c: GSVoteChoice) -> StringName: return c.id)
-	_check(not ids.has(&"map:dm_box"), "and the ballot follows it")
+	_check(not ids.has(&"map:box"), "and the ballot follows it")
 	_check(not maps.rotation_file.switch(maps.session.rotation, "nope").ok, "an unknown rotation is refused")
 
 	_check_renamed_rtv(module)
@@ -470,14 +470,14 @@ func _check_rotation_draws(maps: FcMapDirector) -> void:
 	var drew_pit := false
 	for i in 100:
 		var chosen := maps.session.rotation.choose(0)
-		if chosen != null and chosen.id == &"dm_pit":
+		if chosen != null and chosen.id == &"pit":
 			drew_pit = true
 	_check(not drew_pit, "100 draws of the next map never choose a map outside the rotation")
 	maps.restrict_rotation()
-	_check(not maps.session.rotation.order.has(&"dm_pit"),
+	_check(not maps.session.rotation.order.has(&"pit"),
 		"restrict_rotation does not widen the file's list again")
-	_check(not maps.set_next(&"dm_pit"), "and it cannot be forced as the next map")
-	_check(maps.set_next(&"dm_box"), "while one in the rotation can")
+	_check(not maps.set_next(&"pit"), "and it cannot be forced as the next map")
+	_check(maps.set_next(&"box"), "while one in the rotation can")
 	maps.session.rotation.clear_next()
 
 

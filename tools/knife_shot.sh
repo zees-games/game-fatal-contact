@@ -2,7 +2,7 @@
 # A knife thrown into a bot and one thrown at the floor: frames (see knife_shot.gd).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-map="${1:-dm_atrium}"
+map="${1:-atrium}"
 shift || true
 exec timeout "${SHOT_TIMEOUT:-1800}" xvfb-run -a godot --path . --resolution "${RESOLUTION:-1280x720}" \
   --script tools/knife_shot.gd -- --map "$map" "$@"

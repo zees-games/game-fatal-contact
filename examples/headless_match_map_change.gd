@@ -66,7 +66,7 @@ func _test_map_change() -> void:
 
 	var before_id := _game.map.id
 	var before_players := _game.players().size()
-	var target: StringName = &"dm_atrium" if before_id == &"dm_box" else &"dm_box"
+	var target: StringName = &"atrium" if before_id == &"box" else &"box"
 
 	var kills_before := 0.0
 
@@ -349,7 +349,7 @@ func _test_map_change() -> void:
 
 	# --- The mode gate, over a live rotation -------------------------------  [b]Last, because it
 	# moves the game into a team mode and back.[/b] Nothing below depends on the state this leaves,
-	# and nothing above should have to care. What is being checked is the hole `dm_pit` opened.
+	# and nothing above should have to care. What is being checked is the hole `pit` opened.
 	var team := _first_team_mode()
 
 	await _test_map_change_rest(director, team)

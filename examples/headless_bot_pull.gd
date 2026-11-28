@@ -7,7 +7,7 @@ const FcNetBridge := preload("../game/fc_net_bridge.gd")
 const FcPlayerNet := preload("../game/fc_player_net.gd")
 const FcKillViewServer := preload("../game/fc_killview_server.gd")
 
-## A bot's replicated copy is pulled only on the ticks a snapshot is written (`FcPlayerNet.skip_idle_pull`). The same bots on dm_box play the same match through the server's bridge with it off and on: every bot's
+## A bot's replicated copy is pulled only on the ticks a snapshot is written (`FcPlayerNet.skip_idle_pull`). The same bots on box play the same match through the server's bridge with it off and on: every bot's
 ## position, view, health and commands every tick, and every replicated property of every bot on every snapshot tick as it goes out on the wire, are identical. Only what is sent is read from those properties, so that is the whole claim.
 ## The kill view asks for an eye only on the ticks its ring keeps one (`FcKillViewServer.ask_due_only`): with it off and on, every bot's kill view clip, read every second, is identical too.
 
@@ -162,7 +162,7 @@ func _play() -> Array:
 	return [sims, snaps, stale, clips, clip_count, raws]
 
 
-## A headless authority game on dm_box with no warm-up, named after the pull mode.
+## A headless authority game on box with no warm-up, named after the pull mode.
 func _make_game() -> FcGame:
 	var game := FcGame.new()
 	game.name = "Arena_%s" % ("skip" if FcPlayerNet.skip_idle_pull else "every")
@@ -173,7 +173,7 @@ func _make_game() -> FcGame:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var _setup := game.setup(FcMap.dm_box())
+	var _setup := game.setup(FcMap.box())
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0

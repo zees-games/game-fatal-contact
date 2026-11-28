@@ -5,6 +5,7 @@ const FcPaths := preload("fc_paths.gd")
 
 const FcMap := preload("../maps/fc_map.gd")
 const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
+const FcMapAliases := preload("../maps/fc_map_aliases.gd")
 const FcMapDoc := preload("../maps/fc_map_doc.gd")
 const FcMode := preload("fc_mode.gd")
 const FcFrameProbe := preload("fc_frame_probe.gd")
@@ -28,20 +29,20 @@ const MAP_VERSION := "1.0.0"
 
 
 ## Per-map versions, for the maps that have moved on from [constant MAP_VERSION]. [b]Per map, not one constant for the catalogue[/b]: a record and a rotation cooldown are both about a map AT a version, so geometry that moved under one id is a different map wearing the same name.
-## A single shared constant could only say it about all maps at once (bumping it for `dm_atrium`'s arcade would also invalidate `dm_box` and `dm_pit` records).
+## A single shared constant could only say it about all maps at once (bumping it for `atrium`'s arcade would also invalidate `box` and `pit` records).
 ## A map absent from here is at [constant MAP_VERSION], the common case, which is why this is a lookup rather than a column every map fills in.
 const MAP_VERSIONS := {
 	# 1.1.0: the south arcade, the stair onto its roof, and the doorway cut in the bunker's east wall. 1.2.0: the south-east crates rebuilt from three steps of 1.5 m to five of 0.9 (a jump peaks at 1.25).
 	# 1.3.0: the north-west stair moved 0.75 m east and the arcade's last piers 0.5 m east, closing slots narrower than a player. 1.4.0: the north-west keep, a roofed room in red's half, reached by a 2 m jump off the ring's north arm.
 	# 1.5.0: the east stair. 1.6.0: the rampart, a walkway from the keep's roof to the perch's north face. 1.7.0: the north gallery, two ledges with a 12 m gap only a wall run crosses. 1.7.1: the gap is 9 m (the low ledge starts at x -9).
-	&"dm_atrium": "1.7.1",
-	# 1.1.0: the east-west bridge, the south-west shelf and the perch. [b]Backdated[/b]: that change moved the geometry and not the version, so records set on the one-bridge dm_pit are recorded against the two-bridge one;
+	&"atrium": "1.7.1",
+	# 1.1.0: the east-west bridge, the south-west shelf and the perch. [b]Backdated[/b]: that change moved the geometry and not the version, so records set on the one-bridge pit are recorded against the two-bridge one;
 	# this entry makes the runs from here separable from both. 1.2.0: the north-east crates rebuilt from two steps of 1.4 and 1.2 to three of 0.9. 1.3.0: the three pillars moved from ±6 to ±5.75, closing two 0.75 m pinches against the stairs.
 	# 1.4.0: the lookout on the east arm, facing the perch. 1.5.0: the shelf stair, twelve treads from the pit floor up the shelf's east face to the south-east stair; one spawn moved off its lane.
-	&"dm_pit": "1.5.0",
+	&"pit": "1.5.0",
 	# 1.1.0: three crates to each of the two ledges, which had been standable geometry with no way up. 1.2.0: two gantries joining the ledges into a loop, and a nest on the pillars at (4, -12) and (-4, 12), one 0.9 m step off each gantry.
 	# 1.3.0: two nest stairs, ten walked treads up the outside of each gantry. 1.4.0: two corner stairs, ten walked treads along the north and south walls up to a landing that carries each ledge on into its corner.
-	&"dm_box": "1.4.0",
+	&"box": "1.4.0",
 }
 
 
@@ -237,6 +238,8 @@ static func workshop_map_id(def: GSMapDef) -> StringName:
 
 ## Whether two map ids are the same map written `-` or `_`.
 static func same_map_id(a: String, b: String) -> bool:
+	a = FcMapAliases.resolve_text(a)
+	b = FcMapAliases.resolve_text(b)
 	return a == b or a.replace("_", "-") == b.replace("_", "-")
 
 

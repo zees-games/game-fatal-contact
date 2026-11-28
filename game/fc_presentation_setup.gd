@@ -448,7 +448,7 @@ static func shot_queue() -> Array:
 	return out
 
 
-## Registering every shot class was one 372 ms step of the presentation's setup frame on dm_box: in a client that
+## Registering every shot class was one 372 ms step of the presentation's setup frame on box: in a client that
 ## draws, the classes register a slice a frame under the cover instead, which holds until they and the heard stand-ins
 ## are in. `cl_slice_shots 0` (launch argument or URL query) registers them all in setup, as before.
 func slices_shots() -> bool:

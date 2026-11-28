@@ -7,7 +7,7 @@
 set -u
 cd "$(dirname "$0")/.."
 GODOT="${GODOT:-godot}"
-seeds=3; minutes=1; maps=dm_box,dm_atrium,dm_pit; out=""; first=1; post=0; repro=""; rmap=""; rseed=""
+seeds=3; minutes=1; maps=box,atrium,pit; out=""; first=1; post=0; repro=""; rmap=""; rseed=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --seeds) seeds=$2; shift 2 ;;
@@ -26,7 +26,7 @@ if [ -n "$repro" ]; then
 fi
 out=${out:-.godot/fuzz/$(date +%Y%m%d-%H%M%S)}
 mkdir -p "$out"
-[ "$maps" = all ] && maps=dm_box,dm_atrium,dm_pit,$(ls maps/imported 2>/dev/null | paste -sd,)
+[ "$maps" = all ] && maps=box,atrium,pit,$(ls maps/imported 2>/dev/null | paste -sd,)
 # No --report: heavy may run the pair on a GPU box where this path does not exist; the SOAK line in the log is the result.
 # Simulated minutes run slower than real time under load; leave room, then kill.
 limit=$(python3 -c "print(int($minutes*60*6+300))")

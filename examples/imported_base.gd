@@ -148,7 +148,7 @@ func _test_server_named() -> void:
 		"on the surf profile, with the mapper's spawns (%d)" % (_game.map.spawns.size() if _game.map != null else 0))
 
 	# Back to a built-in, then the owner drops it from the list.
-	var _back: GSResult = await director.change_to(&"dm_box")
+	var _back: GSResult = await director.change_to(&"box")
 	server.games.maps = PackedStringArray()
 	var adopted := director.adopt_server_maps()
 	_check(not catalogue.has(DELIVERED_ID) and int(adopted.get("removed", 0)) == 1

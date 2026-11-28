@@ -233,7 +233,7 @@ func _test_lighting() -> void:
 		"a map whose packed sky faces are gone (stripped pack) keeps the fallback sky instead of a hole"
 	)
 
-	var builtin := FcMapLighting.build(FcMap.by_id(&"dm_box"))
+	var builtin := FcMapLighting.build(FcMap.by_id(&"box"))
 	var builtin_top: Array = FcMap.DAYLIGHT["sky_top"]
 	_check(
 		_sky_top(builtin).is_equal_approx(Color(float(builtin_top[0]), float(builtin_top[1]), float(builtin_top[2]))),
@@ -688,7 +688,7 @@ func _test_packs() -> void:
 	game.register_service = false
 	game.mode = FcMode.free_for_all(SCORE_LIMIT)
 	add_child(game)
-	var res := game.setup(FcMap.by_id(&"dm_box"))
+	var res := game.setup(FcMap.by_id(&"box"))
 	_check(res.ok, "a map with packs loads")
 	var _added := game.add_player(1, "a")
 	var player := game.player_for(1)

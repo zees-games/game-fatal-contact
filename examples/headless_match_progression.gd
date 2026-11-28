@@ -234,23 +234,23 @@ func _test_map_change_rest(director: FcMapDirector, team: FcMode) -> void:
 			director.restrict_rotation()
 
 			_check(
-				director.session.rotation.order.has(&"dm_pit"),
-				"every map hosts a team mode, so the rotation still offers dm_pit",
+				director.session.rotation.order.has(&"pit"),
+				"every map hosts a team mode, so the rotation still offers pit",
 				str(director.session.rotation.order)
 			)
 			_check(
-				director.session.rotation.order.has(&"dm_box")
-					and director.session.rotation.order.has(&"dm_atrium"),
+				director.session.rotation.order.has(&"box")
+					and director.session.rotation.order.has(&"atrium"),
 				"and the two with tagged spawns"
 			)
 
 			# Asked for by name, which is what an admin typing changelevel does.
-			var moved: GSResult = await director.change_to(&"dm_pit")
+			var moved: GSResult = await director.change_to(&"pit")
 
 			_check(moved.ok, "and changing to it by name is accepted", str(moved.error))
 			_check(
-				_game.map.id == &"dm_pit",
-				"with the game now on dm_pit",
+				_game.map.id == &"pit",
+				"with the game now on pit",
 				String(_game.map.id)
 			)
 
@@ -262,8 +262,8 @@ func _test_map_change_rest(director: FcMapDirector, team: FcMode) -> void:
 				director.restrict_rotation()
 
 				_check(
-					director.session.rotation.order.has(&"dm_pit"),
-					"and dm_pit is offered again",
+					director.session.rotation.order.has(&"pit"),
+					"and pit is offered again",
 					str(director.session.rotation.order)
 				)
 

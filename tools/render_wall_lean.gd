@@ -4,7 +4,7 @@ const FcMap := preload("../maps/fc_map.gd")
 const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 
-## The view model against a wall, to look at: dm_box's south wall at three distances (deep, middle, a graze) from five
+## The view model against a wall, to look at: box's south wall at three distances (deep, middle, a graze) from five
 ## views (level, looking down, looking up, turned to each side). Writes `screenshots/wall_lean/<distance>_<view>.png`.
 ## Usage: `tools/render_wall_lean.sh [weapon-slot-less]`; needs xvfb-run (headless frames are empty).
 
@@ -26,7 +26,7 @@ var _clipped := false
 func _initialize() -> void:
 	Engine.physics_ticks_per_second = TICK_RATE
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
-	var map: FcMap = FcMap.dm_box()
+	var map: FcMap = FcMap.box()
 	root.add_child(map.to_scene())
 	root.add_child(FcMapLighting.build(map))
 	_player = FcPlayer.new()

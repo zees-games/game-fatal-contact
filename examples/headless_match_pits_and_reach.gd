@@ -1,10 +1,10 @@
 extends "headless_match_toys_content_map.gd"
 
-## `dm_pit`: the geometry, the bot that has to get out of the pit, and the mode gate.
+## `pit`: the geometry, the bot that has to get out of the pit, and the mode gate.
 func _test_pit() -> void:
-	_section("dm_pit")
+	_section("pit")
 
-	var map: FcMap = FcMap.dm_pit()
+	var map: FcMap = FcMap.pit()
 
 	_check(map.boxes.size() > 24, "the map has geometry", str(map.boxes.size()))
 	_check(map.spawns.size() == 9, "and nine spawns", str(map.spawns.size()))
@@ -92,7 +92,7 @@ func _test_pit() -> void:
 	)
 
 	var catalogue := FcMaps.catalogue()
-	var def := catalogue.get_map(&"dm_pit")
+	var def := catalogue.get_map(&"pit")
 
 	if not _check(def != null, "and it is in the catalogue"):
 		return
@@ -116,13 +116,13 @@ func _test_pit() -> void:
 
 		# The other two maps say yes as well.
 		_check(
-			FcMaps.supports_mode(catalogue.get_map(&"dm_box"), team)
-				and FcMaps.supports_mode(catalogue.get_map(&"dm_atrium"), team),
+			FcMaps.supports_mode(catalogue.get_map(&"box"), team)
+				and FcMaps.supports_mode(catalogue.get_map(&"atrium"), team),
 			"while the other two maps still can"
 		)
 
 	# A bot has to be able to get out of the pit, which an assertion about boxes cannot tell. The north-west stair is ten
-	# treads of 0.36 that the movement should WALK; a too-tall tread stops the bot dead (measured on `dm_atrium` at 0.6).
+	# treads of 0.36 that the movement should WALK; a too-tall tread stops the bot dead (measured on `atrium` at 0.6).
 	var holder := Node3D.new()
 	holder.name = "PitBot"
 	add_child(holder)
@@ -281,7 +281,7 @@ func _test_pit() -> void:
 	_done()
 
 ## The highest horizontal speed [param bot] reaches in two seconds of holding forward, driven east
-## over 30 m of flat south of `dm_atrium`'s yard (the first half second is discarded).
+## over 30 m of flat south of `atrium`'s yard (the first half second is discarded).
 func _top_speed(
 	bot: GSFpsController, jumping: bool, delta: float, tick_base: int
 ) -> float:
@@ -309,7 +309,7 @@ func _top_speed(
 func _test_bot_ground_speed() -> void:
 	_section("what a bot actually travels at")
 
-	var map: FcMap = FcMap.dm_atrium()
+	var map: FcMap = FcMap.atrium()
 	var tunables := FcPlayer.fc_tunables()
 
 	var holder := Node3D.new()
@@ -392,7 +392,7 @@ func _test_reach() -> void:
 			total += 1
 
 			# A rise at or under `step_height` is walked and has no airborne phase to spend on a gap, so it is legal only when the
-			# boxes touch. dm_atrium's ring is a 0.1 m step with no gap; `jump_reach(0.1)` would call a stair a jump.
+			# boxes touch. atrium's ring is a 0.1 m step with no gap; `jump_reach(0.1)` would call a stair a jump.
 			var walked: bool = climb.rise <= FcMap.STEP_HEIGHT and climb.gap <= 0.001
 
 			if walked:
@@ -503,7 +503,7 @@ func _test_survey() -> void:
 			"%d of %d" % [surveyed["spawns_reached"], map.spawns.size()]
 		)
 		# A spawn whose eye looks at a wall from under 2.5 m is a player who respawns with
-		# their nose against it (dm_box's two axis spawns did, a metre from a 2.7 m crate).
+		# their nose against it (box's two axis spawns did, a metre from a 2.7 m crate).
 		var nosed := PackedStringArray()
 		for at in map.spawns:
 			var eye := at.origin + Vector3.UP * 1.6
@@ -530,7 +530,7 @@ func _test_survey() -> void:
 	bad.id = &"survey_fixture"
 	bad.extent = 8.0
 	bad.wall_height = 6.0
-	# Two walls 0.5 m apart, the slot dm_pit's shelf would have made.
+	# Two walls 0.5 m apart, the slot pit's shelf would have made.
 	bad.add_box(AABB(Vector3(-7.0, 0.0, 4.0), Vector3(4.0, 2.0, 1.0)))
 	bad.add_box(AABB(Vector3(-7.0, 0.0, 5.5), Vector3(4.0, 2.0, 1.0)))
 	# A tower 4 m high with nothing to climb it by — 2 m over the courtyard's wall tops too, which a

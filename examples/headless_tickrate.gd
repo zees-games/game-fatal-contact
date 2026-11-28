@@ -60,9 +60,9 @@ func _test_snapshot_rate() -> void:
 	for rate: int in [15, 22, 30, 33, 44, 60, 66, 100, 128]:
 		_check(FcGame.snapshot_rate_for(rate) <= rate and FcGame.snapshot_rate_for(rate) >= 1, "%d Hz sends at most one snapshot a tick" % rate)
 
-	var hello := FcEvents.read_hello(GSNetReader.new(FcEvents.write_hello(22, 1, 2, 3, "dm_box", 25, 600.0, 11)))
+	var hello := FcEvents.read_hello(GSNetReader.new(FcEvents.write_hello(22, 1, 2, 3, "box", 25, 600.0, 11)))
 	_check(bool(hello["ok"]) and int(hello["tick_rate"]) == 22 and int(hello["snapshot_rate"]) == 11, "HELLO carries the snapshot rate beside the tick rate")
-	var plain := FcEvents.read_hello(GSNetReader.new(FcEvents.write_hello(22, 1, 2, 3, "dm_box", 25, 600.0)))
+	var plain := FcEvents.read_hello(GSNetReader.new(FcEvents.write_hello(22, 1, 2, 3, "box", 25, 600.0)))
 	_check(bool(plain["ok"]) and int(plain["snapshot_rate"]) == 0, "and 0 means derive it")
 	_done()
 

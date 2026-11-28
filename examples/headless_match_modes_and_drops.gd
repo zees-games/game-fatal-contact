@@ -80,7 +80,7 @@ func _test_team_deathmatch() -> void:
 	game.mode = FcMode.team_deathmatch()
 	add_child(game)
 
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	_check(ready.ok, "a team game sets up", str(ready.error))
 
 	if not ready.ok:
@@ -193,7 +193,7 @@ func _test_effects() -> void:
 	game.mode = FcMode.free_for_all(50)
 	add_child(game)
 
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	if not _check(ready.ok, "an effects game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -291,7 +291,7 @@ func _test_effects() -> void:
 	)
 
 	# And the seam a changelevel breaks.
-	var changed := game.change_map(FcMap.dm_box())
+	var changed := game.change_map(FcMap.box())
 	_check(changed.ok, "the map changes", str(changed.error))
 	_check(
 		game.combat.resolver.adjust.is_valid(),
@@ -357,7 +357,7 @@ func _test_pack_weapons() -> void:
 	game.mode = FcMode.free_for_all(50)
 	add_child(game)
 
-	var ready := game.setup(FcMap.dm_box())
+	var ready := game.setup(FcMap.box())
 	if not _check(ready.ok, "a weapons game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -593,7 +593,7 @@ func _test_drops() -> void:
 	add_child(game)
 
 	game.drop_rules["health"] = 25.0  # the pack is off by default; this check is about it
-	var ready := game.setup(FcMap.dm_box())
+	var ready := game.setup(FcMap.box())
 	if not _check(ready.ok, "a drops game sets up", str(ready.error)):
 		remove_child(game)
 		game.queue_free()

@@ -10,7 +10,7 @@ const FcMap := preload("../maps/fc_map.gd")
 ## snipers take cover and peek. Run: [code]./game.sh test headless_bot_styles[/code].
 
 const TICK_RATE := 64
-const MAP := &"dm_atrium"
+const MAP := &"atrium"
 const BOTS := 8
 const FIGHT_SECONDS := 90.0
 ## Of the sniper phases, those that are cover, a peek or a move to another angle.

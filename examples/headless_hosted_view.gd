@@ -49,7 +49,7 @@ func _until(condition: Callable, seconds: float) -> bool:
 func _run() -> void:
 	print("game-fatal-contact: the hosted solo view holds still without input")
 	FcSimHost.forced = 1
-	FcSimHost.ask_map = "dm_box"
+	FcSimHost.ask_map = "box"
 	FcSimHost.hold_joined_sec = 1.0
 	_client = (load("res://game/fc.tscn") as PackedScene).instantiate()
 	_client.set("force_offline", true)

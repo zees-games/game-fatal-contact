@@ -127,7 +127,7 @@ func _run() -> void:
 	game.register_service = false
 	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	_check(ready.ok, "a team game sets up", str(ready.error))
 	game.start(0)
 	# The charged throws hold the key for a second each, so the match clock runs past the warmup into a round's

@@ -92,7 +92,7 @@ func _index(session: StringName) -> GSContentIndex:
 		"provides": {"schema": 1, "title": "Fixture Pack", "kinds": ["map"], "entries": [
 			{"kind": "map", "id": String(MAP), "name": "Fixture Hill", "scene": "hill.json", "map_kind": "arena"},
 			{"kind": "map", "id": String(OTHER_KIND), "name": "Fixture Run", "scene": "run.json", "map_kind": "surf"},
-			{"kind": "map", "id": "dm_box", "name": "Not The Box", "scene": "box.json", "map_kind": "arena"},
+			{"kind": "map", "id": "box", "name": "Not The Box", "scene": "box.json", "map_kind": "arena"},
 			{"kind": "map", "id": String(BAD_DOC), "name": "Broken", "scene": "bad.json", "map_kind": "arena"},
 			{"kind": "map", "id": String(BAD_ID), "name": "Wrong Id", "scene": "wrong.json", "map_kind": "arena"},
 			{"kind": "map", "id": String(NO_SPAWN), "name": "No Spawn", "scene": "nospawn.json", "map_kind": "arena"},
@@ -146,7 +146,7 @@ func _test_solo() -> void:
 	_check(def != null, "the accepted map is in the catalogue")
 	_check(def != null and def.label() == "Fixture Hill [Fixture Pack]", "its label names the pack")
 	_check(catalogue.get_map(OTHER_KIND) == null, "a map kind the game does not accept is filtered out")
-	var rows := FcMaps.menu_rows(catalogue, &"dm_box", null, FcModes.all())
+	var rows := FcMaps.menu_rows(catalogue, &"box", null, FcModes.all())
 	_check(_names(rows).has("Fixture Hill [Fixture Pack]"), "the solo map menu shows it as Name [Pack]")
 	_check(not _names(rows).has("Fixture Run [Fixture Pack]"), "and not the other kind")
 	_check(_ballot_labels(catalogue).has("Fixture Hill [Fixture Pack]"), "the vote lists it as Name [Pack]")
@@ -166,7 +166,7 @@ func _test_online() -> void:
 	_check(catalogue.get_map(MAP) != null, "listed while the index is solo")
 	index.set_session(GSContentIndex.SESSION_ONLINE)
 	_check(catalogue.get_map(MAP) == null, "gone from the same catalogue when the session turns online")
-	_check(not _names(FcMaps.menu_rows(catalogue, &"dm_box", null, FcModes.all())).has("Fixture Hill [Fixture Pack]"),
+	_check(not _names(FcMaps.menu_rows(catalogue, &"box", null, FcModes.all())).has("Fixture Hill [Fixture Pack]"),
 		"gone from the map menu")
 	_check(not _ballot_labels(catalogue).has("Fixture Hill [Fixture Pack]"), "gone from the ballot")
 	# Built while the index is already online, from a pack that was only ever mounted solo.
@@ -181,9 +181,9 @@ func _test_ids() -> void:
 	print("")
 	print("the game's own ids")
 	var catalogue := FcMaps.catalogue(_index(GSContentIndex.SESSION_SOLO))
-	var box := catalogue.get_map(&"dm_box")
+	var box := catalogue.get_map(&"box")
 	_check(box != null and box.pack_title == "" and box.name_or_id() != "Not The Box",
-		"a pack map claiming dm_box does not replace the built-in")
+		"a pack map claiming box does not replace the built-in")
 	_completed += 1
 
 
@@ -207,7 +207,7 @@ func _test_play() -> void:
 	game.register_service = false
 	game.mode = FcModes.by_id(&"ffa")
 	add_child(game)
-	_check(game.setup(FcMap.dm_box()).ok, "a game is set up on a built-in map")
+	_check(game.setup(FcMap.box()).ok, "a game is set up on a built-in map")
 	game.start(0)
 	var changed := game.change_map(FcMaps.build_workshop(def).value)
 	_check(changed.ok, "and changes to the pack map", str(changed.error) if not changed.ok else "")
@@ -232,7 +232,7 @@ func _test_bad() -> void:
 	var catalogue := FcMaps.catalogue(_index(GSContentIndex.SESSION_SOLO))
 	for id: StringName in [BAD_DOC, BAD_ID, NO_SPAWN]:
 		_check(catalogue.get_map(id) == null, "%s is refused and not in the catalogue" % id)
-	var names := _names(FcMaps.menu_rows(catalogue, &"dm_box", null, FcModes.all()))
+	var names := _names(FcMaps.menu_rows(catalogue, &"box", null, FcModes.all()))
 	for label in ["Broken [Fixture Pack]", "Wrong Id [Fixture Pack]", "No Spawn [Fixture Pack]"]:
 		_check(not names.has(label), "%s is not on the map menu" % label)
 	_check(names.has("Fixture Hill [Fixture Pack]"), "while the good map beside them is")
@@ -244,7 +244,7 @@ func _test_bad() -> void:
 	var bad_def := live.get_map(BAD_DOC)
 	_check(bad_def == null or not FcMaps.supports_mode(bad_def, FcModes.by_id(&"ffa")),
 		"and stays refused after the catalogue refreshes")
-	_check(not _names(FcMaps.menu_rows(live, &"dm_box", null, FcModes.all())).has("Broken [Fixture Pack]"),
+	_check(not _names(FcMaps.menu_rows(live, &"box", null, FcModes.all())).has("Broken [Fixture Pack]"),
 		"and off the menu")
 	var gone := FcMaps.build_workshop(null)
 	_check(not gone.ok, "a null def is a refusal, not a crash")
@@ -294,7 +294,7 @@ func _test_imported() -> void:
 	_check(FcImportedMaps.is_mounted(IMPORTED_DOC), "mounted through FcImportedMaps")
 	var again := FcMaps.build_workshop(def)
 	_check(again.ok and again.value != map, "built again is a fresh map")
-	var rows := FcMaps.menu_rows(catalogue, &"dm_box", null, FcModes.all())
+	var rows := FcMaps.menu_rows(catalogue, &"box", null, FcModes.all())
 	_check(_names(rows).has("Fixture Morpheus [Fixture Pack]"), "listed on the solo map menu")
 	var here := FcMaps.menu_rows(catalogue, IMPORTED_DOC, null, FcModes.all())
 	var current := here.filter(func(r: Dictionary) -> bool: return r.get("current", false) and r.get("mode") == "Map")
@@ -304,5 +304,8 @@ func _test_imported() -> void:
 	_check(FcMaps.supports_mode(def, ffa), "hosts free-for-all")
 	var viewed := FcMaps.same_map_id("dm_morpheus", "dm-morpheus") and not FcMaps.same_map_id("dm_morpheus", "dm-pit")
 	_check(viewed, "ids differing only in - against _ are the same map")
+	_check(FcMaps.same_map_id("dm_box", "box") and FcMaps.same_map_id("dm-atrium", "atrium"), "an old prefixed built-in id is the same map as its new id")
+	var old_box: Object = FcMap.by_id(&"dm_box")
+	_check(old_box != null and old_box.id == &"box", "the old id dm_box still builds the box map, under its new id")
 	FcImportedMaps.remove_mounted(IMPORTED_DOC)
 	_completed += 1

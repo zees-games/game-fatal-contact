@@ -33,7 +33,7 @@ const WINDOWS := [
 ]
 
 
-## Where the local runner's circle is centred: dm_box's open floor south of the stair and the
+## Where the local runner's circle is centred: box's open floor south of the stair and the
 ## pillar, nothing overhead and no wall within 5 m. `_check_open_floor` says if a runner did
 ## not stay clear.
 const RUN_CENTRE := Vector3(11.75, 0.05, -17.25)
@@ -237,7 +237,7 @@ func _boot() -> bool:
 	_game.headless = true
 	_game.register_service = true
 	_server_side.add_child(_game)
-	var ready := _game.setup(FcMap.dm_box())
+	var ready := _game.setup(FcMap.box())
 	if not _check(ready.ok, "Fatal Contact sets up", str(ready.error)):
 		_done()
 		return false
@@ -321,7 +321,7 @@ func _connect() -> bool:
 	_client_side.add_child(_client)
 
 	# The cover lifts on the server's map, never on the placeholder the client boots on: a joiner
-	# on another map saw and walked the wrong level for 140 ms. The server here is on dm_box, so
+	# on another map saw and walked the wrong level for 140 ms. The server here is on box, so
 	# this asks the order: was the server's map in when the gate first opened?
 	var map_in := [false]
 	var opened_on := [""]

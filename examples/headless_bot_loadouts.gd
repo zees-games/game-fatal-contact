@@ -12,7 +12,7 @@ const FcPlayer := preload("../game/fc_player.gd")
 ## ./game.sh test headless_bot_loadouts [/codeblock]
 
 const TICK_RATE := 64
-const MAP := &"dm_atrium"
+const MAP := &"atrium"
 const DRAWS := 6000
 const SHARE_SLACK := 0.025
 const SPAWNED := 12

@@ -261,7 +261,7 @@ func _test_map_sync_wire() -> void:
 
 	host.add_peer(2)
 
-	var target: StringName = &"dm_atrium" if _server_game.map.id == &"dm_box" else &"dm_box"
+	var target: StringName = &"atrium" if _server_game.map.id == &"box" else &"box"
 	var changed: GSResult = await host.change_to(target)
 
 	_check(changed.ok, "the server changes map with a peer following", str(changed.error))

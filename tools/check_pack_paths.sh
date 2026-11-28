@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Every res:// path a shipped script loads at run time must go through FcPaths.rebase. A delivered pack
 # mounts at res://gs_cloud/<id>/<version>/, so "res://maps/fc_map.gd" names a file of the host project,
-# which on a panel server is nothing: 0.1.69 died there in FcMap.dm_box ("Attempt to open script
+# which on a panel server is nothing: 0.1.69 died there in FcMap.box ("Attempt to open script
 # 'res://maps/fc_map.gd' ... File not found"), setup() handed back null and no match started. A dev
 # checkout has the file at both paths, so no suite sees it; this reads the source instead.
 #   tools/check_pack_paths.sh        exit 0 = clean; 1 = an un-rebased path (each printed as file:line)

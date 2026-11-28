@@ -50,7 +50,7 @@ func _initialize() -> void:
 		return
 	_clip = clips[args[0]]
 	Engine.physics_ticks_per_second = TICK_RATE
-	var map: FcMap = FcMap.dm_box()
+	var map: FcMap = FcMap.box()
 	root.add_child(map.to_scene())
 	root.add_child(FcMapLighting.build(map))
 

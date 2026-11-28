@@ -16,7 +16,7 @@ const FcModes := preload("fc_modes.gd")
 ## So a choice id carries what kind of change it is, in a prefix:
 ##
 ## [codeblock]
-## map:dm_atrium     change the map, keep the mode
+## map:atrium     change the map, keep the mode
 ## mode:tdm          change the mode, keep the map
 ## [/codeblock]
 ##
@@ -128,7 +128,7 @@ func current_id() -> StringName:
 ## or empty when it is offered or this source cannot say.
 ##
 ## [b]The case that needs it is a list opened before a change.[/b] M lists the team modes on
-## a map with team spawns; after a change to a free-for-all map (dm_pit) the same rows are
+## a map with team spawns; after a change to a free-for-all map (pit) the same rows are
 ## no longer offered, and the menu's generic refusal read "There is no map called
 ## 'mode:tdm'", which sent a reader looking for a missing map.
 func unavailable_reason(id: StringName) -> String:

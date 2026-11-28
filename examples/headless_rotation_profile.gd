@@ -19,9 +19,9 @@ func _ready() -> void:
 	_run.call_deferred()
 
 
-# Every map hosts a team mode now, so the refusal this file exercises is simulated: dm_pit's listing says it cannot (the filter reads that one property).
+# Every map hosts a team mode now, so the refusal this file exercises is simulated: pit's listing says it cannot (the filter reads that one property).
 func _pit_cannot_host_teams(catalogue: GSMapCatalogue) -> GSMapCatalogue:
-	catalogue.get_map(&"dm_pit").meta["teams"] = false
+	catalogue.get_map(&"pit").meta["teams"] = false
 	return catalogue
 
 
@@ -36,10 +36,10 @@ func _run() -> void:
 		var def := catalogue.get_map(id)
 		if def != null and team_map == &"" and FcMaps.supports_mode(def, tdm):
 			team_map = id
-		elif def != null and other_map == &"" and id != &"dm_pit":
+		elif def != null and other_map == &"" and id != &"pit":
 			other_map = id
-	if not _check(team_map != &"" and other_map != &"" and not FcMaps.supports_mode(catalogue.get_map(&"dm_pit"), tdm),
-			"a built-in map hosts tdm, another does not need to and dm_pit cannot", "%s %s" % [team_map, other_map]):
+	if not _check(team_map != &"" and other_map != &"" and not FcMaps.supports_mode(catalogue.get_map(&"pit"), tdm),
+			"a built-in map hosts tdm, another does not need to and pit cannot", "%s %s" % [team_map, other_map]):
 		_report(CHECKS)
 		return
 
@@ -73,9 +73,9 @@ func _run() -> void:
 	_check(changed.ok and game.mode.id == &"ffa", "the next map without a profile has the server's mode back", String(game.mode.id))
 
 	# A profile naming a mode the map cannot host: the map still plays, in the current mode.
-	defs.get_map(&"dm_pit").profile = {"value": "tdm", "mode": "tdm", "cfg_path": "", "values": {}}
-	changed = await director.change_to(&"dm_pit")
-	_check(changed.ok and game.map.id == &"dm_pit", "a map whose profile mode it cannot host still plays", str(changed.error))
+	defs.get_map(&"pit").profile = {"value": "tdm", "mode": "tdm", "cfg_path": "", "values": {}}
+	changed = await director.change_to(&"pit")
+	_check(changed.ok and game.map.id == &"pit", "a map whose profile mode it cannot host still plays", str(changed.error))
 	_check(game.mode.id == &"ffa", "and the current mode stays", String(game.mode.id))
 
 	# A mode id nothing knows: the same.
@@ -91,16 +91,16 @@ func _run() -> void:
 	_check(changed.ok and after != null and after.id == &"tdm", "after an operator's mode the next plain map keeps it",
 		String(after.id) if after != null else "null")
 
-	# The rotation filter, with a team mode running: dm_pit is kept only for its ffa profile.
+	# The rotation filter, with a team mode running: pit is kept only for its ffa profile.
 	game.change_map(FcMap.by_id(team_map), tdm)
 	director.session.forget_profile_mode()
-	defs.get_map(&"dm_pit").profile = {}
+	defs.get_map(&"pit").profile = {}
 	director.restrict_rotation()
-	_check(not director.session.rotation.order.has(&"dm_pit"), "a team mode drops a map that cannot host it from the rotation")
-	defs.get_map(&"dm_pit").profile = {"value": "ffa", "mode": "ffa", "cfg_path": "", "values": {}}
+	_check(not director.session.rotation.order.has(&"pit"), "a team mode drops a map that cannot host it from the rotation")
+	defs.get_map(&"pit").profile = {"value": "ffa", "mode": "ffa", "cfg_path": "", "values": {}}
 	director.restrict_rotation()
-	_check(director.session.rotation.order.has(&"dm_pit"), "but keeps it when its profile names a mode it hosts")
-	_check(director.session.mode_after(defs.get_map(&"dm_pit")).id == &"ffa", "mode_after answers the profile's mode")
+	_check(director.session.rotation.order.has(&"pit"), "but keeps it when its profile names a mode it hosts")
+	_check(director.session.mode_after(defs.get_map(&"pit")).id == &"ffa", "mode_after answers the profile's mode")
 
 	_check_profile_cvars()
 

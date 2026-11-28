@@ -154,7 +154,7 @@ func _make_game(authority: bool) -> FcGame:
 	add_child(game)
 
 	FcTestToys.install()
-	var ready := game.setup(FcTestToys.give(FcMap.dm_box()))
+	var ready := game.setup(FcTestToys.give(FcMap.box()))
 	_check(ready.ok, "%s game sets up" % ("server" if authority else "client"), str(ready.error))
 
 	game.match_node.rules.warmup_sec = 0.0

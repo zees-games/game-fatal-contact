@@ -7,7 +7,7 @@ extends SceneTree
 ## screenshots/deathcam/. The look no assertion gives: is the camera held against the wall, and
 ## is the body in frame.
 ##
-##     tools/render_deathcam.sh [map]          # dm_atrium by default
+##     tools/render_deathcam.sh [map]          # atrium by default
 ##
 ## The wall is found with rays from each spawn: the first spot with a wall 0.6 to 1.6 m away in
 ## some direction and 5 m of clear floor on the opposite side, where the killer is put.
@@ -17,7 +17,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "res://screenshots/deathcam"
 
 var client: Node = null
-var _map := "dm_atrium"
+var _map := "atrium"
 
 
 func _initialize() -> void:

@@ -469,7 +469,7 @@ func map_menu_rows() -> Array:
 	return FcMaps.menu_rows(_catalogue(), here, game.displayed_mode(), FcModes.all())
 
 
-## The map an offline client starts on: `-- --map <id>`, else `dm_box`.
+## The map an offline client starts on: `-- --map <id>`, else `box`.
 ##
 ## An unknown id is said out loud and the default played, because a person who typed a
 ## map name and got a different room has nothing else to tell the two apart by.
@@ -480,16 +480,16 @@ static func _startup_map() -> FcMap:
 	if index < 0 or index + 1 >= args.size():
 		var solo := _solo_start_map()
 		var start: FcMap = FcMap.by_id(StringName(solo)) if solo != "" else null
-		return start if start != null else FcMap.dm_box()
+		return start if start != null else FcMap.box()
 
 	var map: FcMap = FcMap.by_id(StringName(args[index + 1]))
 
 	if map == null:
-		GSLog.warn(CHANNEL, "no such map, playing dm_box", {
+		GSLog.warn(CHANNEL, "no such map, playing box", {
 			"asked": args[index + 1],
 			"known": FcMap.ids() + FcMap.imported_ids(),
 		})
-		return FcMap.dm_box()
+		return FcMap.box()
 
 	return map
 

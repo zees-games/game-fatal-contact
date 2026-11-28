@@ -15,7 +15,7 @@ const INTO_LANE := 7.0
 func _setup() -> void:
 	_out_dir = "res://screenshots/rockets"
 	_scratch_name = "render_rockets"
-	_map_id = "dm_atrium"
+	_map_id = "atrium"
 
 
 func _ray(from: Vector3, to: Vector3) -> Dictionary:

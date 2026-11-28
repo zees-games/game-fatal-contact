@@ -7,7 +7,7 @@ const FcMode := preload("../game/fc_mode.gd")
 const FcImportedMaps := preload("../maps/fc_imported_maps.gd")
 const FcTickBudget := preload("../game/fc_tick_budget.gd")
 
-## 16v16 sanity on cp-orange-x3 (dm_box when unlinked): 31 bots and a still human, driven from _physics_process like the client (FcTickBudget caps the catch-up), check that time keeps up, the bots hit the human at a plausible rate and CTF has two flags.
+## 16v16 sanity on cp-orange-x3 (box when unlinked): 31 bots and a still human, driven from _physics_process like the client (FcTickBudget caps the catch-up), check that time keeps up, the bots hit the human at a plausible rate and CTF has two flags.
 ## Run: [code]./game.sh test headless_fc16 [-- SECONDS][/code]
 
 const MAP := &"cp-orange-x3"
@@ -30,8 +30,8 @@ func _ready() -> void:
 func _map() -> FcMap:
 	if FcImportedMaps.has(MAP):
 		return FcMap.by_id(MAP)
-	print("  %s is not linked: using dm_box" % MAP)
-	return FcMap.dm_box()
+	print("  %s is not linked: using box" % MAP)
+	return FcMap.box()
 
 
 func _new_game(mode: FcMode) -> FcGame:
@@ -53,7 +53,7 @@ func _new_game(mode: FcMode) -> FcGame:
 
 
 func _run() -> void:
-	print("FC: 16v16 sanity (%s)" % ("cp-orange-x3" if FcImportedMaps.has(MAP) else "dm_box"))
+	print("FC: 16v16 sanity (%s)" % ("cp-orange-x3" if FcImportedMaps.has(MAP) else "box"))
 	print("")
 	if not await _team_match():
 		_report_sections(1, 0, 2, -1)

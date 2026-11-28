@@ -1,12 +1,16 @@
 # Maps
 
-The built-in maps are `dm_box`, `dm_atrium` and `dm_pit`, each a list of boxes in `maps/fc_map.gd` ([architecture](architecture.md#one-description-three-representations)). The combat surf maps are in [imported-maps.md](imported-maps.md).
+The built-in maps are `box`, `atrium` and `pit`, each a list of boxes in `maps/fc_map.gd` ([architecture](architecture.md#one-description-three-representations)). The combat surf maps are in [imported-maps.md](imported-maps.md).
 
 ## Maps are content, and these maps are code
 
 `FcMaps.catalogue()` builds a `GSMapCatalogue` from `FcMap.ids()` (and the imported ids), never from a second list. `GSMapDef.scene_path` names `fc_map.gd`, the script that produces the map, and `meta.builder` says so. Everything gs-map does with a def (rotation, cooldowns, nominations, ballots, sync) works on the id and the version and never opens the scene; only `GSMapLoader` reads `scene_path`, and `FcMapSession` overrides the load for a built-in map and falls through to `super` for a delivered one. The path is a real file so a validator can check it.
 
 **Versions are per map.** `FcMaps.MAP_VERSIONS` overrides `MAP_VERSION` for the maps that moved on. A record and a rotation cooldown are about a map at a version, so one shared constant would declare every map new whenever one changed. **Bump a map's version when its geometry changes.**
+
+## Old map ids
+
+The built-in maps lost their `dm_` prefix: `box`, `atrium`, `pit`. `maps/fc_map_aliases.gd` maps the old ids to the new and logs each one the first time it is seen; `FcMap.by_id`, `FcMaps.same_map_id` and the `--map` argument go through it. Delivered maps (`dm-morpheus`, `gg-canyon`, `cp-orange-x3`...) keep their published ids until their packs are republished under unprefixed ones; add each to `IDS` then. `surf_` stays.
 
 ## Changing the map
 
@@ -36,13 +40,13 @@ defaults:
       mode: cycle
       cfg: tdm               # every entry below plays tdm unless it says otherwise
       maps:
-        - map: dm_box
+        - map: box
           mode: ctf          # cfg/server/addon/gs_map/cfg/ctf.yml when present, its cvars for this map
-        - dm_atrium:
+        - atrium:
             cfg: night/fast.yml
         - owner/coll/*:
             mode: ffa        # every map of the collection
-        - dm_pit             # plain: the rotation's tdm, which dm_pit cannot host (see below)
+        - pit             # plain: the rotation's tdm, which pit cannot host (see below)
 ```
 
 A value with no `/` and no `.yml` is a mode id; a relative path is under `cfg/server/addon/gs_map/cfg/` (the same `--config` rules as maps.yml); an absolute path is used as is. A missing file is one WARN and the map still plays. Flow mappings (`- {map: x, mode: ctf}`) are not read yet: the family YAML reader refuses inline mappings, so write them as blocks.
@@ -67,11 +71,11 @@ On the client:
 
 `map <id>` changes the map under the players (`fc_map <id>` is the same command); `fc_maps` lists what can be loaded and `fc_nextmap` says what plays next. The map commands are console-only, never chat: a map change ends every round in progress.
 
-**Every map change takes this one path**: `map`, `fc_map`, the vote, the rotation, and a host's startup map. gs-server-deploy's `map:` in server.yml (or `--map`) reaches the game through `tmc_host._apply_initial_map`, which searches `server.games` for a node with `change_to` + `change_to_map` and one with `ensure_map_content`. The director lives under the module host, not there, so until 2026-11-16 the host found nothing and only warned "this game has no maps". `FcServer` (the game scene, under `server.games`) now answers both and forwards to the director, which `FcModule` hands it (`attach_maps`) once built. A `--map` naming a delivered pack no longer fails `check_map` at boot: the scene boots on `dm_box`, changes to the pack as soon as the director is attached, and the host's own `change_to` for the same id is that change, not a second one. The map list's `mode:` / `cfg:` and a pending `fc_mode` apply on every one of these, since they are all `map_changed`. `headless_map_path` covers each way in.
+**Every map change takes this one path**: `map`, `fc_map`, the vote, the rotation, and a host's startup map. gs-server-deploy's `map:` in server.yml (or `--map`) reaches the game through `tmc_host._apply_initial_map`, which searches `server.games` for a node with `change_to` + `change_to_map` and one with `ensure_map_content`. The director lives under the module host, not there, so until 2026-11-16 the host found nothing and only warned "this game has no maps". `FcServer` (the game scene, under `server.games`) now answers both and forwards to the director, which `FcModule` hands it (`attach_maps`) once built. A `--map` naming a delivered pack no longer fails `check_map` at boot: the scene boots on `box`, changes to the pack as soon as the director is attached, and the host's own `change_to` for the same id is that change, not a second one. The map list's `mode:` / `cfg:` and a pending `fc_mode` apply on every one of these, since they are all `map_changed`. `headless_map_path` covers each way in.
 
 ## Modes a map can host
 
-`FcMaps.supports_mode` answers whether a map can host a mode: a team mode needs tagged spawns, and siege, objectives and the props modes need a built world (`needs_built_world`). `dm_pit`'s spawns are untagged on purpose, which makes it the map that says no to a team mode; keep it so.
+`FcMaps.supports_mode` answers whether a map can host a mode: a team mode needs tagged spawns, and siege, objectives and the props modes need a built world (`needs_built_world`). `pit`'s spawns are untagged on purpose, which makes it the map that says no to a team mode; keep it so.
 
 - `FcMapSession` refuses on `_mode_after(map)`: the map's own mode if its def names one, otherwise the one already playing.
 - `FcMapDirector.restrict_rotation` narrows `GSMapRotation.order` to what the current mode can host before every ask, because the mode changes under a running server. It never empties the order: a mode no map can host is a configuration mistake, and "the map did not change" says so.
@@ -86,7 +90,7 @@ A map can also list the modes it hosts. An imported map's manifest `modes` (writ
 - `reach(map)`: a 0.25 m grid of every surface a crouching player fits on, walked under `STEP_HEIGHT`, fallen off anywhere, jumped under `climb_limit()` within `jump_reach(rise)` along an arc that passes through no box, flood-filled from the spawns forward and backward. `unexplained()` is unreached and not declared `out_of_reach` (`FcMap.add_out_of_reach`); `trapped` is reached with no way back.
 - `FcMap.climb_limit()` and `jump_reach(rise)` keep no arithmetic of their own: they ask `GSFpsTunables` of the static `fc_tunables()` (1.125 m climb, 6.07 m reach flat, 4.64 m onto a 0.9 m rise).
 - Gaps between 0.8 and 1.05 m are printed as tight, not failed.
-- **Wall routes** (`FcMap.add_wall_route`: a run along one wall, or a jump off each of two) are one-way edges in the fill, taken on trust there and proved in `headless_match`'s *the wall routes, run and climbed*, which drives each through the motor (`examples/wall_route_driver.gd`): the intended way makes it, the same inputs with the wall moves off do not, and for a run nothing else crosses (a run-jump, a slide-jump, a dash either side of the jump). dm_atrium's two are also on foot by their stairs, so its fill does not need them.
+- **Wall routes** (`FcMap.add_wall_route`: a run along one wall, or a jump off each of two) are one-way edges in the fill, taken on trust there and proved in `headless_match`'s *the wall routes, run and climbed*, which drives each through the motor (`examples/wall_route_driver.gd`): the intended way makes it, the same inputs with the wall moves off do not, and for a run nothing else crosses (a run-jump, a slide-jump, a dash either side of the jump). atrium's two are also on foot by their stairs, so its fill does not need them.
 
 **A bot that has to cover ground does not hold jump.** With `auto_hop` on and jump held, a player leaves the ground the tick it lands, gets no grounded acceleration, and bleeds to `max_air_wish_speed`: 9.00 m/s holding forward, 1.20 m/s holding forward and jump. That is the movement working, not a bug. A check that "the bot hopped" passes for a bot crawling at a metre a second, so every map check drives a walking bot and asserts its pace within 1.5 of `max_speed`; `headless_match` prints the two speeds under *what a bot actually travels at*. A bot turning in mid-hop keeps its old speed (air control only adds along the wish direction), so a climb test stands still on the top crate before turning.
 
@@ -96,7 +100,7 @@ A map can also list the modes it hosts. An imported map's manifest `modes` (writ
 
 The look is a sunny afternoon over saturated pastel prototype blocks: a mid cool-grey floor, one colour per zone so a position can be called out ("pink stairs", "the lavender keep"), cover in an orange accent, a blue sky, a warm sun with soft shadows, a cool fill a clear step darker in the shade, a little extra contrast and saturation, ambient occlusion on Forward+, mild glow and a filmic tone map. The first play test's frames were near white everywhere (pale paint, a white floor, a fill as bright as the sun side), with nothing to read a player against; the palette, the ground (`GROUND`, a mid grey whose sunlit floor renders at about 0.70 luminance), `WALL_PALE` 0.12, `SLAB_PALE` 0.3 and gs-lighting's `painted()` profile are that answer, rendered in both renderers.
 
-**Paint is derived, never stored.** `FcMapPaint.colour_of(map, index)` works a box's colour out from the box itself: its **role** from its shape (`role_of`: a perimeter wall, a stair tread one step deep, a walkway slab under 1 m thick, a slim column over head height, a crate at chest-to-head height, or a structure) and its **zone** from where it stands (`zone_colour`: the first of the map's `paint_zones` that holds its centre, else its compass side, north being -Z, with a butter-yellow centre). Walls and slabs take the zone pastel paled toward white, so the surfaces a player runs on stay light; cover is `ACCENT` (or `ACCENT_ALT` inside a yellow zone) and never a zone colour, so a crate reads as a crate against any wall. The box list stays geometry: the survey, the movement body, the trace and `MAP_VERSIONS` see exactly what they saw before, which `headless_match`'s *map paint and lighting* asserts. A colour stored in the list would make a repaint look like a new map to anything comparing lists. `paint_zones` is for a structure the compass would split or misname: dm_atrium's keep (lavender, where the compass says the west's pink, which is the stair beside it) and its north gallery (`AQUA`, a pastel that stays one in shade).
+**Paint is derived, never stored.** `FcMapPaint.colour_of(map, index)` works a box's colour out from the box itself: its **role** from its shape (`role_of`: a perimeter wall, a stair tread one step deep, a walkway slab under 1 m thick, a slim column over head height, a crate at chest-to-head height, or a structure) and its **zone** from where it stands (`zone_colour`: the first of the map's `paint_zones` that holds its centre, else its compass side, north being -Z, with a butter-yellow centre). Walls and slabs take the zone pastel paled toward white, so the surfaces a player runs on stay light; cover is `ACCENT` (or `ACCENT_ALT` inside a yellow zone) and never a zone colour, so a crate reads as a crate against any wall. The box list stays geometry: the survey, the movement body, the trace and `MAP_VERSIONS` see exactly what they saw before, which `headless_match`'s *map paint and lighting* asserts. A colour stored in the list would make a repaint look like a new map to anything comparing lists. `paint_zones` is for a structure the compass would split or misname: atrium's keep (lavender, where the compass says the west's pink, which is the stair beside it) and its north gallery (`AQUA`, a pastel that stays one in shade).
 
 **The texture** is Kenney's Prototype Textures (CC0), the light grid (`assets/prototype/grid.png`) and the light tiles for the ground (`tiles.png`), tinted per material and mapped triplanar at 4 m a tile, so a major line is 2 m and a faint one 0.5 m, the unit crate gaps and treads are measured in. One material per colour, shared, because the Compatibility renderer pays per material change. A checkout that has not been imported yet falls back to a generated grid rather than failing.
 
@@ -111,7 +115,7 @@ The look is a sunny afternoon over saturated pastel prototype blocks: a mid cool
 
 - **A sky with clouds** (`maps/fc_sky.gdshader`, 2026-11-07): `FcMapLighting._cloud_sky` swaps the rig's gradient sky for a sky shader on the same horizon and zenith colours (so the horizon still meets the fog), with a sun glow and a layer of cumulus that thins out toward the horizon. Static, so the radiance map is still built once.
 
-No SDFGI, no volumetric fog, no baked light: the fog is depth fog at 0.12, for the far side of dm_atrium's yard. An imported map is lit from its own manifest instead ([imported-maps](imported-maps.md#lit-from-the-manifest)).
+No SDFGI, no volumetric fog, no baked light: the fog is depth fog at 0.12, for the far side of atrium's yard. An imported map is lit from its own manifest instead ([imported-maps](imported-maps.md#lit-from-the-manifest)).
 
 ### Baked light
 
@@ -127,19 +131,19 @@ These are what the shipped geometry was measured against. A change that breaks o
 - **Every way onto a high point is watched from a higher one.** The trade for a new route up is that whoever holds the top sees all of it; checks trace a chest on every tread from that point.
 - **Headroom**: anything a player stands on with any part of the hull under a 3.0 m bridge can be no higher than 1.2 (`stand_height` over every tread is checked).
 - **A wall-run gap drops 0.7 m or so to its far side**, and is wider than a dash-jump (11 m on the flat at Fatal Contact's numbers); a wall-jump climb is one jump off each wall it has. Measure both with the motor, never by arithmetic.
-- **Spawns are balanced and adding cover is not a reason to add one.** `dm_atrium`'s spawns are tagged by the sign of z, five and five; `dm_box` is its own half-turn about the origin (asserted over the whole box list; its stairs are computed as each other's half-turn); `dm_pit`'s nine are all untagged.
+- **Spawns are balanced and adding cover is not a reason to add one.** `atrium`'s spawns are tagged by the sign of z, five and five; `box` is its own half-turn about the origin (asserted over the whole box list; its stairs are computed as each other's half-turn); `pit`'s nine are all untagged.
 
-### dm_box
+### box
 
-A room with a raised middle, two ledges at the x walls and an upper loop: ledge, gantry, ledge, gantry. Each gantry has one 0.9 m step against the pillar it passes, so the pillars at (4, -12) and (-4, 12) are a third tier (the nests). The two pillars beside the crate stacks are out of reach on purpose and declared so. The ledges are 6.5 m deep because the x-axis spawns stand at ±18 under the lip. Nest stairs run along each gantry's outer face and end flush against the nest pillar (which is why a run stops at a wall with the gantry one sidestep away); corner stairs along the north and south walls climb to a landing that carries the ledge into the corner. The NE and SW corners keep their stubs, which is what a half-turn rather than a mirror gives. dm_box has a platform at the origin, so a body teleported there is pushed out: start position checks on a spawn point.
+A room with a raised middle, two ledges at the x walls and an upper loop: ledge, gantry, ledge, gantry. Each gantry has one 0.9 m step against the pillar it passes, so the pillars at (4, -12) and (-4, 12) are a third tier (the nests). The two pillars beside the crate stacks are out of reach on purpose and declared so. The ledges are 6.5 m deep because the x-axis spawns stand at ±18 under the lip. Nest stairs run along each gantry's outer face and end flush against the nest pillar (which is why a run stops at a wall with the gantry one sidestep away); corner stairs along the north and south walls climb to a landing that carries the ledge into the corner. The NE and SW corners keep their stubs, which is what a half-turn rather than a mirror gives. box has a platform at the origin, so a body teleported there is pushed out: start position checks on a spawn point.
 
-### dm_atrium
+### atrium
 
 A 60 m yard round a building with a ring at 4.6, a perch at 6.7, a south arcade and a north keep. The arcade is a colonnade, not a tunnel (opaque from above, open from the sides), with its roof (top 3.6) under the ring's underside at 4.0, so the ring still holds the map and the roof is a firing position under it. No spawn was added for it: every spawn it could carry would be on one side. The keep is a roofed room with a door at each end and a roof 0.9 over the ring; the 2 m alley and lane round it are load-bearing (walkable below, one jump up from the ring's north arm), and its west wall's firing slit has a 1.2 sill (over the climb limit) and 0.8 of opening (under a crouching player), because at 1.0 the sill becomes a reachable shelf. The east stair climbs from the east yard to the landing. The rampart joins the keep roof to the perch at 5.86, on piers 8 m apart, reachable only at its two ends (1.26 up from the ring, over the climb limit), so it is a route and not a second ring.
 
 **The north gallery is the walls' place** (1.7.1): two 4 m ledges against the north wall, the high one (2.52, x -30..-18) and the low one (1.80, x -9..6), a 9 m gap (12 m before the run slowed to 5.74) between them, a walked stair onto each, and a chimney of two arms 2.4 m apart out from the high ledge. The gap is crossed by running the north wall and nothing else: measured with the motor, a run-jump lands 3 m short, a slide-jump 5 m, a dash-jump 1 m, and a slide-jump onto the wall lands 2 m onto the low ledge. **The 0.72 m drop is what makes it work**: a run levels off and sinks slowly, so between two ledges of one height it arrives under the far top and hits its face. It is one-way east; back is the stairs. The chimney is two wall jumps (one off each arm, `wall_jump_max_per_wall` 1) to about 2.9, over the 2.52 top; its arms are the ledge's height, so nothing new is standable. The rampart sees every 3 m of both ledges and the keep roof the chimney's top. Aqua by its own paint zone, because the gallery lies in the north wall's shade, where the warm pastels tried went brown.
 
-### dm_pit
+### pit
 
 28 m, a sunken floor with a catwalk ring at 3.6, two bridges crossing (one high point is a throne; the crossing makes the middle a junction), a shelf and perch at 5.4 in the south-west, and a lookout at 4.5 on the east arm so the perch has something to duel. The shelf is flush with the west and south arms' inner edges (x = -11, z = 11); half a metre clear leaves a 0.5 m slot that looks like a corridor from above. The lookout stands against the wall so the arm keeps 1.5 m of walkway; the ring is a loop and must not become two dead ends. The shelf stair runs from the floor up the shelf's east face under the north-south bridge, and its landing runs 0.8 m past the bridge's west edge because the step up happens with the hull still under the bridge. Each bridge is driven by a bot separately: they meet different arms.
 

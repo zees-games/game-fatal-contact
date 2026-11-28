@@ -15,11 +15,11 @@ func _ready() -> void:
 
 func _run() -> void:
 	print("game-fatal-contact: +name value launch commands")
-	var none := FcLaunchCommands.parse(PackedStringArray(["--offline", "--bots", "4", "--map", "dm_atrium"]))
+	var none := FcLaunchCommands.parse(PackedStringArray(["--offline", "--bots", "4", "--map", "atrium"]))
 	_check(none.is_empty(), "plain -- options are not commands (%s)" % [none])
 
 	var lines := FcLaunchCommands.parse(PackedStringArray([
-		"--offline", "+bot_quota", "8", "+profiler_overlay", "1", "--map", "dm_atrium",
+		"--offline", "+bot_quota", "8", "+profiler_overlay", "1", "--map", "atrium",
 		"+profiler_record_seconds", "60", "+bot_quota", "12", "+say", "hello", "there", "+sens", "-5"]))
 	_check(lines.size() == 5, "five names, the repeated one once (%s)" % [lines])
 	_check(lines.size() == 5 and lines[0] == "bot_quota 12", "the later value of a repeated name wins, in its first place")

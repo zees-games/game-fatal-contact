@@ -23,7 +23,7 @@ var _seconds := 70.0
 var _every := 4.0
 var _score := 4
 var _vote_at := 30.0
-var _map := "dm_box"
+var _map := "box"
 var _profile := false
 var _server_pid := -1
 var _client: Node = null
@@ -62,7 +62,7 @@ func _serve() -> void:
 	game.register_service = true
 	add_child(game)
 	var map: FcMap = FcMap.by_id(StringName(_map))
-	var _set := game.setup(map if map != null else FcMap.dm_box())
+	var _set := game.setup(map if map != null else FcMap.box())
 	var config := LoopbackServer.config("play online", PORT, data, "warn")
 	var server := await LoopbackServer.boot(self, config, "play_online server")
 	if server == null:

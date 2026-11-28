@@ -119,7 +119,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - The catalogue is built from `FcMap.ids()`, never a second list; bump `MAP_VERSIONS` when a map's geometry changes. [maps](docs/maps.md#maps-are-content-and-these-maps-are-code)
 - `setup` is not re-entrant; `change_map` is, and respawns everybody. Rebind, never rebuild, what survives. [maps](docs/maps.md#changing-the-map)
 - A client builds the def it is handed, never `game.map`. [maps](docs/maps.md#reaching-the-players)
-- `dm_pit`'s spawns stay untagged; `restrict_rotation` never empties the order. [maps](docs/maps.md#modes-a-map-can-host)
+- `pit`'s spawns stay untagged; `restrict_rotation` never empties the order. [maps](docs/maps.md#modes-a-map-can-host)
 - Built-in maps place no physics props (toys); the path stays for map data and tests (`FcTestToys`); a client registers every toy mirror before its map is built. [maps](docs/maps.md#toys), [netcode](docs/netcode.md#the-maps-toys)
 - Every map passes the survey: no slot under 0.8 m and nothing unreached unless declared; a bot that covers ground does not hold jump. [maps](docs/maps.md#every-map-is-surveyed)
 - Stairs are 0.36 treads ending flush; crate gaps 0.5; a new way up is watched from above. [maps](docs/maps.md#design-rules-every-map-follows)

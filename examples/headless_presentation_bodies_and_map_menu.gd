@@ -8,7 +8,7 @@ func _test_bodies_fall() -> void:
 	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(FcMap.dm_box())
+	var _set := g.setup(FcMap.box())
 	var dmg := GSDamage.new()
 	dmg.attacker = 3
 	dmg.weapon_id = AwWeaponIds.SNIPER
@@ -50,7 +50,7 @@ func _test_bodies_fall() -> void:
 	add_child(yard)
 
 	var player := FcPlayer.new()
-	player.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), 6, "Faller")
+	player.setup(FcPlayer.Mode.HEADLESS, FcMap.box(), 6, "Faller")
 	add_child(player)
 	# Away from the origin: the game above keeps a collision copy of the level there.
 	player.spawn(Transform3D(Basis(), Vector3(20.0, 0.0, 20.0)), 0)
@@ -272,7 +272,7 @@ func _test_feedback_from_the_wire() -> void:
 	g.headless = true
 	g.register_service = false
 	add_child(g)
-	var _set := g.setup(FcMap.dm_box())
+	var _set := g.setup(FcMap.box())
 	var me: FcPlayer = g.add_player(6, "Broken").value
 	var them: FcPlayer = g.add_player(7, "Victim").value
 
@@ -358,7 +358,7 @@ func _test_blind_and_beacon() -> void:
 		"and it plays where the beacon is")
 
 	var player := FcPlayer.new()
-	player.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), 5, "Marked")
+	player.setup(FcPlayer.Mode.HEADLESS, FcMap.box(), 5, "Marked")
 	add_child(player)
 	player.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 18.0)), 0)
 

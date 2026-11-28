@@ -34,7 +34,7 @@ static var use_worlds: bool = true
 ## returns RefCounted, on purpose: fc_map.gd extends this chain, so naming it from here (or a
 ## script naming itself) closes a preload cycle, and GDScript never frees the parser trees of
 ## scripts in a cycle (CI perf-smoke mem_mb). Callers that want the type:
-## `var map: FcMap = FcMap.dm_box()`.
+## `var map: FcMap = FcMap.box()`.
 const MAP_SCRIPT := "res://maps/fc_map.gd"
 
 
@@ -68,9 +68,9 @@ var spawns: Array[Transform3D] = []
 var spawn_tags: PackedStringArray = PackedStringArray()
 
 ## What [method by_id] answers to, and what a [GSMapDef] is keyed on.
-var id: StringName = &"dm_box"
+var id: StringName = &"box"
 
-var display_name: String = "dm_box"
+var display_name: String = "box"
 
 ## Every climb this map asks a player to make, derived from the boxes themselves. [b]Always append
 ## through [method add_climb], and never write this by hand.[/b] See [method jump_reach] for why
@@ -112,7 +112,7 @@ var lighting: Dictionary = DAYLIGHT.duplicate(true)
 ## energy of about 1.4. The ambient colour is the light in the shade: a pale cool grey, not
 ## a sky blue, because at the ambient's strength a saturated blue turns every shaded face
 ## navy and a yellow crate olive. The fog is what the horizon is drawn in and hazes only
-## the far side of dm_atrium's yard; its distances are source units (metres / 0.01905).
+## the far side of atrium's yard; its distances are source units (metres / 0.01905).
 ##
 ## `sky_top` is this game's, not gs-lighting's (the document ignores keys it does not
 ## know): gs-lighting draws the zenith in the ambient colour, which is right for a world

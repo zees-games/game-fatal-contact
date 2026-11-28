@@ -78,7 +78,7 @@ func _run() -> void:
 	game.register_service = false
 	game.mode = FcMode.free_for_all(4)
 	add_child(game)
-	_check(game.setup(FcMap.by_id(&"dm_box")).ok, "the game starts on a built-in map")
+	_check(game.setup(FcMap.by_id(&"box")).ok, "the game starts on a built-in map")
 
 	var server := StandInServer.new()
 	server.games.maps = PackedStringArray(["%s/%s@%s" % [OWNER, PACK, VERSION]])

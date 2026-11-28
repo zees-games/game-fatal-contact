@@ -191,13 +191,13 @@ func _release_movement() -> void:
 
 # --- The moves, through the one place the camera is written ------------------------
 
-## A player of its own on dm_box, drawn through `FcPlayer.present` at the display rate:
+## A player of its own on box, drawn through `FcPlayer.present` at the display rate:
 ## up the stair at a run, a slide, a jump and its landing. What each frame's eye did.
 func _test_moves() -> void:
-	_section("moves at %d Hz: up dm_box's stair at a run, a slide, a jump and a landing" % OFFLINE_FPS)
+	_section("moves at %d Hz: up box's stair at a run, a slide, a jump and a landing" % OFFLINE_FPS)
 	Engine.physics_ticks_per_second = TICK_RATE
 	Engine.max_fps = OFFLINE_FPS
-	var map: FcMap = FcMap.dm_box()
+	var map: FcMap = FcMap.box()
 	_mover = FcPlayer.new()
 	_mover.name = "Mover"
 	_mover.setup(FcPlayer.Mode.HEADLESS, map, 7, "Mover")

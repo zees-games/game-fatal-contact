@@ -62,8 +62,8 @@ func _test_vote_wiring(module: FcModule, options: Array) -> void:
 	)
 
 	_check(
-		module.vote.director.source.has(StringName("map:dm_atrium")),
-		"dm_atrium is on the ballot"
+		module.vote.director.source.has(StringName("map:atrium")),
+		"atrium is on the ballot"
 	)
 
 	# Two maps ship, so "not in the last five" would leave nothing to offer.
@@ -247,11 +247,11 @@ func _test_maps_and_vote() -> void:
 	# whatever was chosen since.
 	_check(not module.maps.current.meta.has("mode"),
 		"a mode change leaves no mode behind in the map's def", str(module.maps.current.meta.get("mode", "")))
-	# A row from a list opened on a map with team spawns, chosen after a change to dm_pit
+	# A row from a list opened on a map with team spawns, chosen after a change to pit
 	# (none): refused, saying why. The director's current map is swapped for the check
 	# only; nothing awaits in between, and the refusal changes nothing.
 	var director_here: GSMapDef = module.maps.current
-	module.maps.current = module.maps.session.catalogue.get_map(&"dm_pit")
+	module.maps.current = module.maps.session.catalogue.get_map(&"pit")
 	var pit_def: GSMapDef = module.maps.current
 	module.maps.current = director_here
 	_check(FcMaps.supports_mode(pit_def, FcModes.by_id(&"tdm")),
@@ -259,25 +259,25 @@ func _test_maps_and_vote() -> void:
 	for peer in sync_peers:
 		module.maps.sync.add_peer(int(peer))
 
-	# A player's `!nominate dm_atrium`, as chat hands it to the console, from the session
-	# the client-spawn section adopted. The ballot's id is `map:dm_atrium`; a command that
+	# A player's `!nominate atrium`, as chat hands it to the console, from the session
+	# the client-spawn section adopted. The ballot's id is `map:atrium`; a command that
 	# took the text as it came would nominate an id nothing has.
 	var session := _server.session_by_userid(77)
 
 	if _check(session != null, "the adopted player is still here"):
 		var replies := PackedStringArray()
 		var ctx := session.make_context(
-			"nominate", PackedStringArray(["dm_atrium"]), GSCmdContext.Source.CHAT,
+			"nominate", PackedStringArray(["atrium"]), GSCmdContext.Source.CHAT,
 			func(line: String) -> void: replies.append(line)
 		)
-		_server.console.execute("nominate dm_atrium", ctx)
+		_server.console.execute("nominate atrium", ctx)
 		_check(
-			module.vote.director.nominated_ids().has(&"map:dm_atrium"),
+			module.vote.director.nominated_ids().has(&"map:atrium"),
 			"a player's bare map name is nominated under the ballot's own id",
 			"%s / %s" % [str(module.vote.director.nominated_ids()), " ".join(replies)]
 		)
 		_check(
-			module.vote.director.nominations.by_voter(&"77").has(&"map:dm_atrium"),
+			module.vote.director.nominations.by_voter(&"77").has(&"map:atrium"),
 			"and counted against the voter the rest of the game knows them as (77, not u77)"
 		)
 
@@ -616,7 +616,7 @@ func _test_client_spawn() -> void:
 	)
 
 	# **The map sync admits a peer at its READY, and that admission names the map.** `add_peer`
-	# only enrolls for the NEXT change, leaving a joiner on dm_box (4773e55). This is the
+	# only enrolls for the NEXT change, leaving a joiner on box (4773e55). This is the
 	# module's own path, seat then READY, read off the link.
 	var sync: GSMapSyncHost = module.maps.sync if module.maps != null else null
 	var announced: Array = []
@@ -759,7 +759,7 @@ func _test_match_cvars() -> void:
 	)
 
 	# A map change builds a new match from the mode; the server's numbers go with it.
-	var changed := _game.change_map(FcMap.dm_box())
+	var changed := _game.change_map(FcMap.box())
 	var after := _game.match_node.rules
 	_check(
 		changed.ok and after != rules and after.score_limit == 7

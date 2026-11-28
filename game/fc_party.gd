@@ -50,7 +50,7 @@ func setup() -> GSResult:
 
 func _config() -> GSP2PConfig:
 	var c := GSP2PConfig.new()
-	# Twelve, which is what dm_atrium is laid out for. A domestic uplink carries a
+	# Twelve, which is what atrium is laid out for. A domestic uplink carries a
 	# deathmatch of that size; sixty-four is a dedicated server's problem.
 	c.max_peers = 12
 	c.trust = GSP2PConfig.Trust.SANDBOXED

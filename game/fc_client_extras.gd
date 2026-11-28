@@ -96,7 +96,7 @@ func attach(p_bridge: FcNetBridge, p_game: FcGame) -> GSResult:
 
 
 ## Chat and the map layer built before the bridge exists, [param between] awaited after each, so a client that draws
-## spends one frame on each rather than both in the netcode's (302 + 259 ms in one dm_box frame). [method attach]
+## spends one frame on each rather than both in the netcode's (302 + 259 ms in one box frame). [method attach]
 ## then only hooks them up. `cl_slice_extras 0` keeps the old single frame.
 func prepare(p_game: FcGame, between: Callable) -> void:
 	game = p_game

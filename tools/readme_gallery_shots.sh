@@ -10,5 +10,5 @@ tools/render_loadout.sh || true
 tools/render_maps.sh || true
 tools/attach_menu_shot.sh "${GALLERY_GUNS:-marksman}" || true
 RENDER_ONLY="${GALLERY_GUNS:-marksman}" tools/render_weapons.sh || true
-tools/screenshot.sh dm_pit || true
-tools/screenshot.sh dm_box --glance tdm || true
+tools/screenshot.sh pit || true
+tools/screenshot.sh box --glance tdm || true

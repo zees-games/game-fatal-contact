@@ -45,7 +45,7 @@ func _boot_server(hostname: String, port: int, dir: String, tick_rate: int) -> b
 	_game.register_service = true
 	add_child(_game)
 
-	if not _game.setup(FcMap.dm_box()).ok:
+	if not _game.setup(FcMap.box()).ok:
 		print("  Fatal Contact would not set up")
 		return false
 

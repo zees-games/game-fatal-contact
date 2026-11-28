@@ -7,7 +7,7 @@ const ClientBench := preload("client_bench.gd")
 const FcKillcamBodies := preload("../game/fc_killcam_bodies.gd")
 
 ## What the CLIENT costs per remote player in one offline process: the frame, engine process time, each client section in ms per frame and per remote player, and a node census.
-## `godot --headless --path . res://tools/client_cost.tscn -- --bots 16 --seconds 15 [--map dm_atrium] [--variants default,full]`; variants `before`, `default`, `nogate` (default without the game-time animation gate), `off8`, `full`, `no_anim`/`no_held`/`no_held_proc`/`no_rest`/`bare` (`full` less that part, `FcPlayer.present_ablate`), `still` (remotes not presented).
+## `godot --headless --path . res://tools/client_cost.tscn -- --bots 16 --seconds 15 [--map atrium] [--variants default,full]`; variants `before`, `default`, `nogate` (default without the game-time animation gate), `off8`, `full`, `no_anim`/`no_held`/`no_held_proc`/`no_rest`/`bare` (`full` less that part, `FcPlayer.present_ablate`), `still` (remotes not presented).
 ## Headless draws nothing: this is script and scene-tree cost; render cost needs a windowed GPU profile.
 
 var _bots := 16

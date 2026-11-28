@@ -2,14 +2,14 @@ extends "render_base.gd"
 
 ## Carrying a flag through the real offline client: a bot carrier from the front and side, the carrier's own view, and a flag
 ## thrown with the drop key, in flight and at rest. Frames in screenshots/ctf_carry/; exit 1 on a failed check. Run:
-##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_ctf_carry.gd -- --map dm_atrium
+##   xvfb-run -a godot --path . --resolution 1280x720 --script tools/render_ctf_carry.gd -- --map atrium
 
 const FcFlagCarry := preload("../game/fc_flag_carry.gd")
 
 
 
 func _setup() -> void:
-	_map_id = "dm_atrium"
+	_map_id = "atrium"
 	_out_dir = "res://screenshots/ctf_carry"
 	_scratch_name = "render_ctf_carry"
 

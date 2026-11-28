@@ -204,7 +204,7 @@ func _test_the_final_killcam() -> void:
 	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(FcMap.dm_box())
+	var _set := g.setup(FcMap.box())
 	var killer: FcPlayer = g.add_player(41, "Killer").value
 	var victim: FcPlayer = g.add_player(42, "Victim").value
 	_check(is_equal_approx(g.match_node.rules.match_end_sec, g.mode.rules.match_end_sec + 7.0),

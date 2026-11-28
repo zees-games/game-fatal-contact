@@ -95,7 +95,7 @@ func _boot() -> bool:
 	_game.headless = true
 	_game.register_service = true
 	_server_side.add_child(_game)
-	if not _check(_game.setup(FcMap.dm_box()).ok, "Fatal Contact sets up"):
+	if not _check(_game.setup(FcMap.box()).ok, "Fatal Contact sets up"):
 		_done()
 		return false
 
@@ -181,7 +181,7 @@ func _test_client_hears_the_server() -> void:
 	game.headless = true
 	game.register_service = false
 	side.add_child(game)
-	game.setup(FcMap.dm_box())
+	game.setup(FcMap.box())
 	var net := GSNetManager.new()
 	net.name = "Net"
 	net.is_server = false

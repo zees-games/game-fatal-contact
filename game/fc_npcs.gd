@@ -190,7 +190,7 @@ static func _stalker() -> GSNpcDef:
 ## punched out of it is exactly the walkable set.
 ##
 ## [b]Built on the calling thread, on purpose.[/b] The built-in maps take 2 to 9 ms
-## (dm_pit 113 points, dm_box 436, dm_atrium 680; measured), under a frame, so the
+## (pit 113 points, box 436, atrium 680; measured), under a frame, so the
 ## resumable build ([method GSNpcNavBuilder.begin] / [method GSNpcNavBuilder.step], worker
 ## tasks) that zombie-zone uses for a minute-long graph (`zz_nav_threads`, `zz_nav_budget_ms`)
 ## would only add a window in which the horde has no ground. Imported maps route through

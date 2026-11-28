@@ -98,11 +98,11 @@ func _test_names() -> void:
 func _test_console_changes() -> void:
 	_section("map and fc_map change through the director")
 	var here := _game.map.id
-	var a := &"dm_atrium" if here != &"dm_atrium" else &"dm_box"
+	var a := &"atrium" if here != &"atrium" else &"box"
 	var res := await _console_change("map %s" % a)
 	_check(res.ok and _changed.size() > 0 and _changed.back() == a and _game.map.id == a,
 		"`map %s` changes the game and fires map_changed" % a, "%s %s game %s" % [str(res.error), _changed, _game.map.id])
-	var b := &"dm_box"
+	var b := &"box"
 	res = await _console_change("fc_map %s" % b)
 	_check(res.ok and _changed.back() == b and _game.map.id == b,
 		"`fc_map %s` takes the same path" % b, "%s %s game %s" % [str(res.error), _changed, _game.map.id])
@@ -133,31 +133,31 @@ func _test_host_startup() -> void:
 	var scene: Node = FcServer.new()
 	scene.name = "ArenaServer"
 	games.add_child(scene)
-	var nothing: GSResult = await scene.change_to(&"dm_atrium")
+	var nothing: GSResult = await scene.change_to(&"atrium")
 	_check(not nothing.ok, "before the module attaches its director, the scene refuses a change")
 	scene.attach_maps(_module.maps)
 	var found := _host_find(games, [&"change_to", &"change_to_map"])
 	_check(found == scene, "the host's search under server.games finds the game scene")
 	var fetch := _host_find(games, [&"ensure_map_content"])
-	var fetched: GSResult = await fetch.call(&"ensure_map_content", &"dm_atrium") if fetch != null else null
+	var fetched: GSResult = await fetch.call(&"ensure_map_content", &"atrium") if fetch != null else null
 	var refused: GSResult = await fetch.call(&"ensure_map_content", &"no_such_map") if fetch != null else null
 	_check(fetched != null and fetched.ok and refused != null and not refused.ok,
 		"its fetch step knows the catalogue's maps and refuses others")
 	var before := _changed.size()
-	var res := await _pump(func() -> GSResult: return await found.call(&"change_to", &"dm_atrium"))
-	_check(res.ok and _changed.size() == before + 1 and _game.map.id == &"dm_atrium",
+	var res := await _pump(func() -> GSResult: return await found.call(&"change_to", &"atrium"))
+	_check(res.ok and _changed.size() == before + 1 and _game.map.id == &"atrium",
 		"change_to through it fires map_changed once", "%s %s" % [str(res.error), _changed])
 
 	# `--map` naming a delivered pack: booted on the default, the director changes once, and the host asking again is that change.
 	scene.attach_maps(null)
-	scene.deferred_map = &"dm_box"
+	scene.deferred_map = &"box"
 	before = _changed.size()
 	scene.attach_maps(_module.maps)
-	var again := await _pump(func() -> GSResult: return await found.call(&"change_to", &"dm_box"))
+	var again := await _pump(func() -> GSResult: return await found.call(&"change_to", &"box"))
 	for _i in 30:
 		_game.tick_gate.open()
 		await get_tree().process_frame
-	_check(again.ok and _changed.size() == before + 1 and _game.map.id == &"dm_box",
+	_check(again.ok and _changed.size() == before + 1 and _game.map.id == &"box",
 		"a deferred --map changes once, and the host's change_to for it is the same change", "%s %s" % [str(again.error), _changed])
 	scene.attach_maps(null)
 	games.free()
@@ -180,8 +180,8 @@ func _test_fc_mode() -> void:
 	_check(not typed.ok and console.get_string("fc_mode", "") == was, "typed at the console too")
 
 	var ctf_map := _hosts(&"ctf")
-	var no_ctf := &"dm_pit" if not FcMaps.supports_mode(_module.maps.session.catalogue.get_map(&"dm_pit"), FcModes.by_id(&"ctf")) else &""
-	if not _check(ctf_map != &"" and no_ctf != &"", "a built-in map hosts ctf and dm_pit does not", "%s %s" % [ctf_map, no_ctf]):
+	var no_ctf := &"pit" if not FcMaps.supports_mode(_module.maps.session.catalogue.get_map(&"pit"), FcModes.by_id(&"ctf")) else &""
+	if not _check(ctf_map != &"" and no_ctf != &"", "a built-in map hosts ctf and pit does not", "%s %s" % [ctf_map, no_ctf]):
 		_done()
 		return
 	var res := await _console_change("map %s" % no_ctf)
@@ -208,7 +208,7 @@ func _test_fc_mode() -> void:
 func _test_map_list_profile() -> void:
 	_section("the map list's per-map mode: and cfg: on map, fc_map and the rotation")
 	var ctf_map := _hosts(&"ctf")
-	var other := &"dm_box" if ctf_map != &"dm_box" else &"dm_atrium"
+	var other := &"box" if ctf_map != &"box" else &"atrium"
 	var profile := SERVER_DIR + "/fast.yml"
 	var pf := FileAccess.open(profile, FileAccess.WRITE)
 	pf.store_string("mode: ffa\ncvars:\n  fc_scorelimit: 7\n")

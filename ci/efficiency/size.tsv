@@ -42,9 +42,9 @@ game/fc_awards.gd::catalogue	109
 game/fc_client.gd::_unhandled_input	86
 game/fc_client_session_events.gd::_build_netcode	100
 game/fc_game_setup.gd::change_map	98
-maps/fc_map_atrium.gd::dm_atrium	570
-maps/fc_map_imported.gd::dm_pit	270
-maps/fc_map_routes_and_dm_box.gd::dm_box	288
+maps/fc_map_atrium.gd::atrium	570
+maps/fc_map_imported.gd::pit	270
+maps/fc_map_routes_and_dm_box.gd::box	288
 tools/screenshot.gd::_initialize	103
 tools/screenshot_glance.gd::_play_glance	108
 tools/screenshot_glance.gd::_play_imported	135

@@ -36,7 +36,7 @@ func _initialize() -> void:
 	var _scratch := FcPresentation.use_scratch_settings("screenshot")
 	var args := OS.get_cmdline_user_args()
 	var map_index := args.find("--map")
-	var id := StringName(args[map_index + 1]) if map_index >= 0 and map_index + 1 < args.size() else &"dm_box"
+	var id := StringName(args[map_index + 1]) if map_index >= 0 and map_index + 1 < args.size() else &"box"
 	_mount_delivered(args, id)
 	var map: FcMap = FcMap.by_id(id)
 	var tier_suffix := _apply_tier(args)

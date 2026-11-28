@@ -11,7 +11,7 @@ const OUT_ROOT := "res://screenshots/"
 const SHOTS := [1.6, 4.6, 8.3, 12.8, 13.6, 14.6, 16.0, 18.0, 22.0]
 
 var client: Node = null
-var _map := "dm_atrium"
+var _map := "atrium"
 var _calm := false
 var _death := false
 var _fx := false

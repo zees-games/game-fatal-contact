@@ -111,20 +111,20 @@ func _run() -> void:
 
 ## The site's "Play map" (`?map=`): the shell names a start map on `gs_solo`; a built-in one is
 ## the first map, a delivered pack is fetched before the first map is read (`_fetch_solo_start_map`), and
-## until it is mounted the first map is dm_box.
+## until it is mounted the first map is box.
 func _test_solo_start_map() -> void:
 	_section("a solo session's start map is the first map")
 	var solo := StandInSolo.new()
 	add_child(solo)
 	GSRegistry.register(&"gs_solo", solo)
-	solo.start_map = &"dm_pit"
-	_check(FcClientView._startup_map().id == &"dm_pit", "a built-in start map is the first map")
-	_check(FcSimHost.asked_map_id() == "dm_pit", "a sim host starts its server child on the start map",
+	solo.start_map = &"pit"
+	_check(FcClientView._startup_map().id == &"pit", "a built-in start map is the first map")
+	_check(FcSimHost.asked_map_id() == "pit", "a sim host starts its server child on the start map",
 		FcSimHost.asked_map_id())
 	solo.start_map = &"surf_not_built_in"
-	_check(FcClientView._solo_start_map() == "surf_not_built_in" and FcClientView._startup_map().id == &"dm_box",
-		"a delivered one not yet mounted starts on dm_box")
-	solo.start_map = &"../dm_pit"
+	_check(FcClientView._solo_start_map() == "surf_not_built_in" and FcClientView._startup_map().id == &"box",
+		"a delivered one not yet mounted starts on box")
+	solo.start_map = &"../pit"
 	_check(FcClientView._solo_start_map() == "", "a start map that is not a map id is ignored")
 	GSRegistry.unregister(&"gs_solo")
 	solo.queue_free()
@@ -231,13 +231,13 @@ func _test_map_groups() -> void:
 	cloud.manifest_url_template = "{base}/{id}/manifest.json"
 	add_child(cloud)
 	var prefix := GSCloudClient.mount_prefix_for(StringName(publisher.content_id), VERSION).trim_suffix("/")
-	var first: GSResult = await cloud.ensure(StringName(publisher.content_id), VERSION, FcContentGroups.groups_for(&"dm_box"))
-	_check(first.ok and FileAccess.file_exists(prefix.path_join("game/fc_game.gd")), "a join on dm_box mounts the pack's code%s" % ("" if first.ok else ": " + str(first.error)))
-	_check(FileAccess.file_exists(prefix.path_join("lightmaps/dm_box.res")), "and dm_box's bake")
-	_check(not FileAccess.file_exists(prefix.path_join("lightmaps/dm_pit.res")) and not FileAccess.file_exists(prefix.path_join("maps/surf/surf_ski_2.surf.json")), "and no other map's files")
-	var topped: GSResult = await cloud.call(&"ensure_groups_at", prefix.path_join("game"), FcContentGroups.groups_for(&"dm_pit"))
-	_check(topped.ok and str(topped.value) == prefix and FileAccess.file_exists(prefix.path_join("lightmaps/dm_pit.res")), "a change to dm_pit tops up its bake%s" % ("" if topped.ok else ": " + str(topped.error)))
-	_check(not FileAccess.file_exists(prefix.path_join("lightmaps/dm_atrium.res")), "and still not the maps nobody played")
+	var first: GSResult = await cloud.ensure(StringName(publisher.content_id), VERSION, FcContentGroups.groups_for(&"box"))
+	_check(first.ok and FileAccess.file_exists(prefix.path_join("game/fc_game.gd")), "a join on box mounts the pack's code%s" % ("" if first.ok else ": " + str(first.error)))
+	_check(FileAccess.file_exists(prefix.path_join("lightmaps/box.res")), "and box's bake")
+	_check(not FileAccess.file_exists(prefix.path_join("lightmaps/pit.res")) and not FileAccess.file_exists(prefix.path_join("maps/surf/surf_ski_2.surf.json")), "and no other map's files")
+	var topped: GSResult = await cloud.call(&"ensure_groups_at", prefix.path_join("game"), FcContentGroups.groups_for(&"pit"))
+	_check(topped.ok and str(topped.value) == prefix and FileAccess.file_exists(prefix.path_join("lightmaps/pit.res")), "a change to pit tops up its bake%s" % ("" if topped.ok else ": " + str(topped.error)))
+	_check(not FileAccess.file_exists(prefix.path_join("lightmaps/atrium.res")), "and still not the maps nobody played")
 	cloud.queue_free()
 	await get_tree().process_frame
 	GSPaths.remove_tree(GROUPS_ROOT)
@@ -354,7 +354,7 @@ func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 	game.register_service = false
 	game.mode = FcMode.free_for_all(4)
 	add_child(game)
-	_check(game.setup(FcMap.by_id(&"dm_box")).ok, "the game starts on a built-in map")
+	_check(game.setup(FcMap.by_id(&"box")).ok, "the game starts on a built-in map")
 
 	var key := "%s/%s@%s" % [OWNER, MAP, VERSION]
 	var server := StandInServer.new()
@@ -382,13 +382,13 @@ func _test_fetch_and_build(keys: Dictionary) -> FcGame:
 		"with its brushes in the tree (%d)" % (solid.get_child_count() if solid != null else -1))
 	_check(map != null and map.movement_profile == &"surf" and map.spawns.size() > 0, "on the surf profile, with spawns")
 	# What `_fetch_solo_start_map` relies on: once the pack is mounted, the solo start map is the first map,
-	# so a `?map=` game is built on it once rather than on dm_box first.
+	# so a `?map=` game is built on it once rather than on box first.
 	var solo := StandInSolo.new()
 	add_child(solo)
 	GSRegistry.register(&"gs_solo", solo)
 	solo.start_map = MAP
 	var first := FcClientView._startup_map()
-	_check(first != null and first.id == MAP, "a mounted solo start map is the first map, with no dm_box before it",
+	_check(first != null and first.id == MAP, "a mounted solo start map is the first map, with no box before it",
 		str(first.id) if first != null else "none")
 	GSRegistry.unregister(&"gs_solo")
 	solo.queue_free()
@@ -466,7 +466,7 @@ func _shot(scene: Node, map: FcMap, path: String) -> void:
 
 func _test_leaves() -> void:
 	_section("a pack the server stops naming leaves the catalogue")
-	var _away: GSResult = await _director.change_to(&"dm_box")
+	var _away: GSResult = await _director.change_to(&"box")
 	_server.games.maps = PackedStringArray()
 	var adopted := _director.adopt_server_maps()
 	var back := _director.session.catalogue.get_map(MAP)

@@ -5,7 +5,7 @@
 # (taskset list, e.g. 0-3); --hog N starts N busy threads on the same cores. Run it as `heavy -- ...` / hv local.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
-bots=16 sec=30 coarse=0 cores="" hog=0 map=dm_box pace=1 extra=""
+bots=16 sec=30 coarse=0 cores="" hog=0 map=box pace=1 extra=""
 while [[ $# -gt 0 ]]; do case $1 in
 	--bots) bots=$2; shift 2 ;; --sec) sec=$2; shift 2 ;; --coarse) coarse=$2; shift 2 ;;
 	--cores) cores=$2; shift 2 ;; --hog) hog=$2; shift 2 ;; --map) map=$2; shift 2 ;; --pace) pace=$2; shift 2 ;; --extra) extra=$2; shift 2 ;;

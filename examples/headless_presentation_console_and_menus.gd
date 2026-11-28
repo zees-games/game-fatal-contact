@@ -223,7 +223,7 @@ func _test_the_escape_menu() -> void:
 	solo.is_authority = true
 	solo.register_service = false
 	add_child(solo)
-	var _built := solo.setup(FcMap.dm_box())
+	var _built := solo.setup(FcMap.box())
 	var bot_client := FcClient.new()
 	bot_client.game = solo
 	bot_client.presentation = p
@@ -378,7 +378,7 @@ func _test_look_and_crosshair() -> void:
 func _test_look_and_crosshair_part2(p, crosshair: GSCrosshair) -> void:
 	# The camera motion: binding pushes the saved scales, each slider moves its own cue, 0 is off.
 	var player := FcPlayer.new()
-	player.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), 31, "Mover")
+	player.setup(FcPlayer.Mode.HEADLESS, FcMap.box(), 31, "Mover")
 	add_child(player)
 	var _camera := player.attach_camera(100.0)
 	var picks := FcPlayer.camera_motion_picks()
@@ -587,7 +587,7 @@ func _test_a_respawn_faces_its_spawn() -> void:
 	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(FcMap.dm_box())
+	var _set := g.setup(FcMap.box())
 	var added: GSResult = g.add_player(7, "Seven")
 	var p: FcPlayer = added.value if added.ok else null
 
@@ -642,7 +642,7 @@ func _test_the_view_turns_every_frame() -> void:
 	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(FcMap.dm_box())
+	var _set := g.setup(FcMap.box())
 	var added: GSResult = g.add_player(7, "Seven")
 	var p: FcPlayer = added.value if added.ok else null
 	if p == null:
@@ -700,7 +700,7 @@ func _test_remote_beams_follow_the_light() -> void:
 	var g := FcGame.new()
 	g.is_authority = true
 	add_child(g)
-	var _set := g.setup(FcMap.dm_box())
+	var _set := g.setup(FcMap.box())
 	var players: Array[FcPlayer] = []
 	for id: int in [7, 8, 9]:
 		var added: GSResult = g.add_player(id, "P%d" % id)

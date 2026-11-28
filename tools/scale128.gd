@@ -24,7 +24,7 @@ var _tick := 66
 var _seconds := 30.0
 var _settle := 4.0
 var _port := 27230
-var _map := "dm_box"
+var _map := "box"
 var _mode := "ffa"
 ## --botstyles: the bot_styles value (gs-bot weapon styles); empty leaves the default.
 var _botstyles := ""
@@ -232,10 +232,10 @@ func _ready() -> void:
 				_cellab = int(args[i + 1])
 				_ab_gate = _cellab > 0
 			"--idlegate": GSWeaponBehaviour.idle_gate = int(args[i + 1])
-			# --engaged 1: the firefight preset (dm_box, everyone spawned and respawned), so the bots meet within seconds.
+			# --engaged 1: the firefight preset (box, everyone spawned and respawned), so the bots meet within seconds.
 			"--engaged":
 				if args[i + 1] != "0":
-					_map = "dm_box"
+					_map = "box"
 					_spawn = true
 			"--settle": _settle = float(args[i + 1])
 			# --spikes 1: keeps the worst ticks with the sections each one spent (a dictionary snapshot per tick: opt-in).
@@ -551,12 +551,12 @@ func _serve() -> void:
 	if _botstyles != "":
 		var _st := GSBotSettings.of(game).set_value("styles", _botstyles)
 	var map: FcMap = FcMap.by_id(StringName(_map))
-	if map == null and _map != "dm_box":
-		# Loud: an unknown id (cp_orange_x3 for cp-orange-x3) profiled dm_box under the asked name.
+	if map == null and _map != "box":
+		# Loud: an unknown id (cp_orange_x3 for cp-orange-x3) profiled box under the asked name.
 		push_error("scale128: no map '%s' (converted maps use dashes, e.g. cp-orange-x3)" % _map)
 		get_tree().quit(2)
 		return
-	var _set := game.setup(map if map != null else FcMap.dm_box())
+	var _set := game.setup(map if map != null else FcMap.box())
 	var config := LoopbackServer.config("scale128", _port, data, "error", 256)
 	config.tickrate = _tick
 	var server := await LoopbackServer.boot(self, config, "scale128")

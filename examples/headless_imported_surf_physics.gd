@@ -22,11 +22,11 @@ func _test_surf_movement() -> void:
 			player.controller.tunables.max_air_wish_speed, player.controller.tunables.gravity
 		])
 
-	var to_box := _game.change_map(FcMap.dm_box())
+	var to_box := _game.change_map(FcMap.box())
 	_check(to_box.ok and is_equal_approx(player.controller.tunables.air_accelerate, arena.air_accelerate)
 		and is_equal_approx(player.controller.tunables.max_air_wish_speed, arena.max_air_wish_speed)
 		and is_equal_approx(player.controller.tunables.gravity, arena.gravity),
-		"on dm_box: back to Fatal Contact's own (%.0f, %.2f, %.0f)" % [
+		"on box: back to Fatal Contact's own (%.0f, %.2f, %.0f)" % [
 			player.controller.tunables.air_accelerate,
 			player.controller.tunables.max_air_wish_speed, player.controller.tunables.gravity
 		])

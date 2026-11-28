@@ -339,14 +339,14 @@ func _test_event_wire() -> void:
 	# reporter whose file format was not its wire format. Nothing checks that a pair are
 	# inverses except a test that runs both.
 	var hello := FcEvents.read_hello(GSNetReader.new(
-		FcEvents.write_hello(128, 4242, 7, 90210, "dm_box", 25, 600.0)
+		FcEvents.write_hello(128, 4242, 7, 90210, "box", 25, 600.0)
 	))
 	_check(bool(hello["ok"]), "a HELLO round-trips")
 	_check(int(hello["tick_rate"]) == 128, "with the tick rate", str(hello["tick_rate"]))
 	_check(int(hello["session_id"]) == 4242, "the session id it names")
 	_check(int(hello["peer_id"]) == 7, "the peer id")
 	_check(int(hello["server_tick"]) == 90210, "the server's tick")
-	_check(String(hello["map_name"]) == "dm_box", "and the map")
+	_check(String(hello["map_name"]) == "box", "and the map")
 	_check(int(hello["score_limit"]) == 25, "and the rules")
 
 	var kill := FcEvents.read_kill(GSNetReader.new(
@@ -526,7 +526,7 @@ func _test_event_wire_part4() -> void:
 	# sticky, so a decoder that skipped the check gets a plausible value for the field
 	# AFTER the overrun.
 	var truncated := FcEvents.read_hello(GSNetReader.new(
-		FcEvents.write_hello(128, 1, 1, 1, "dm_box", 25, 600.0).slice(0, 3)
+		FcEvents.write_hello(128, 1, 1, 1, "box", 25, 600.0).slice(0, 3)
 	))
 	_check(not bool(truncated["ok"]), "and a truncated HELLO is refused, not guessed")
 

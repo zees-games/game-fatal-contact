@@ -690,7 +690,7 @@ func _wrap_suppressed(fx: AwShotFx) -> void:
 
 
 ## Offline, before the first map is read: a solo start map that is a delivered pack not yet mounted is fetched and mounted under the boot cover, with its progress, so [method _startup_map] finds it and the game is built on
-## it directly, with no dm_box built first only to be replaced. A failed fetch is logged and leaves dm_box to [method _start_on_solo_map], which says the failure on the cover the way M would.
+## it directly, with no box built first only to be replaced. A failed fetch is logged and leaves box to [method _start_on_solo_map], which says the failure on the cover the way M would.
 func _fetch_solo_start_map() -> void:
 	var start := StringName(_solo_start_map())
 	if not _offline or start == &"" or FcMap.by_id(start) != null:

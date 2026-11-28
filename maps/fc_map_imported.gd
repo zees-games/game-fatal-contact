@@ -1,5 +1,7 @@
 extends "fc_map_atrium.gd"
 
+const FcMapAliases := preload("fc_map_aliases.gd")
+
 ## An imported map by id, built from its manifest, or null.
 ##
 ## [b]A fresh object every call, like the built-ins.[/b] What it holds per instance —
@@ -95,6 +97,7 @@ static func local(map_id: StringName, light: bool = false) -> RefCounted:
 ## running.[/b] `ids()` is the cheap half — a menu, a `fc_maps` listing and a
 ## validity check all want the names and none of them want the geometry.
 static func by_id(id: StringName) -> RefCounted:
+	id = FcMapAliases.resolve(id)
 	var found: RefCounted = _by_id_bare(id)
 	# Tests only: a map set up by id (a map change) gets the placements a test registered,
 	# since no deathmatch map carries toys of its own.
@@ -107,18 +110,19 @@ static var test_toys: Dictionary = {}
 
 static func _by_id_bare(id: StringName) -> RefCounted:
 	match id:
-		&"dm_box":
-			return dm_box()
-		&"dm_atrium":
-			return dm_atrium()
-		&"dm_pit":
-			return dm_pit()
+		&"box":
+			return box()
+		&"atrium":
+			return atrium()
+		&"pit":
+			return pit()
 
 	# Not one of ours: an imported map, if one by that id was found, else nothing.
 	return imported(id)
 
 ## [method by_id] for a listing: an imported map comes without its pits, jail and mechanics (see [method imported]). Not for playing.
 static func listing_by_id(id: StringName) -> RefCounted:
+	id = FcMapAliases.resolve(id)
 	if id in ids():
 		return by_id(id)
 	return imported(id, true)
@@ -129,7 +133,7 @@ static func listing_by_id(id: StringName) -> RefCounted:
 ## having: a map added to one and not the other is a map that either cannot be listed or
 ## cannot be loaded, and `headless_match` checks the two agree.
 static func ids() -> Array[StringName]:
-	return [&"dm_box", &"dm_atrium", &"dm_pit"]
+	return [&"box", &"atrium", &"pit"]
 
 ## The imported maps [method by_id] also answers to: every combat surf map found under the
 ## link, discovered rather than listed (see `FcImportedMaps`). Empty without the link.
@@ -488,13 +492,13 @@ static func lightmap_box(size: Vector3, hide_bottom: bool) -> ArrayMesh:
 ##
 ## [b]Free-for-all only, and that is the point rather than an omission.[/b] Every spawn
 ## here is untagged, so [method FcMaps.supports_mode] answers no for a team mode and
-## this is the first map in the game that ever does. `dm_box` and `dm_atrium` both tag
+## this is the first map in the game that ever does. `box` and `atrium` both tag
 ## their spawns, which means the three places that ask the question -- the ballot, the
 ## mode half of the ballot, and the refusal in [FcMapSession] -- had never once been
 ## told no by a real map. A filter with nothing to filter is a filter nobody has run.
 ##
-## It is also the small map this game did not have. `dm_box` is 48 m across and
-## `dm_atrium` 60; this is 28, and a map you can cross in four seconds is a different
+## It is also the small map this game did not have. `box` is 48 m across and
+## `atrium` 60; this is 28, and a map you can cross in four seconds is a different
 ## game rather than a smaller one -- which is the reason a shooter ships one.
 ##
 ## [b]The shape.[/b] The floor is the pit. A 3 m catwalk runs around all four walls at
@@ -519,10 +523,10 @@ static func lightmap_box(size: Vector3, hide_bottom: bool) -> ArrayMesh:
 ## crossing rather than a chord, and a shelf in the south-west corner carries a perch
 ## at 5.4 — the map's third tier, two 0.9 m hops up from the ring. Nine spawns now,
 ## and still none of them tagged.
-static func dm_pit() -> RefCounted:
+static func pit() -> RefCounted:
 	var map: RefCounted = _blank_map()
-	map.id = &"dm_pit"
-	map.display_name = "dm_pit"
+	map.id = &"pit"
+	map.display_name = "pit"
 	map.extent = 14.0
 	map.wall_height = 7.0
 
@@ -555,7 +559,7 @@ static func dm_pit() -> RefCounted:
 	# --- The two stairs ----------------------------------------------------
 	#
 	# Ten treads of 0.36, which is under `GSFpsTunables.step_height` (0.4) and so is
-	# walked rather than jumped. The number is `dm_atrium`'s, and it is 0.36 there
+	# walked rather than jumped. The number is `atrium`'s, and it is 0.36 there
 	# because 0.6 was measured and a bot holding forward stopped dead against the
 	# first tread.
 	#
@@ -579,7 +583,7 @@ static func dm_pit() -> RefCounted:
 
 	# --- The north-east crates ---------------------------------------------
 	#
-	# [b]Rebuilt 2026-09-22 alongside dm_atrium's, and for the same reason.[/b] It was
+	# [b]Rebuilt 2026-09-22 alongside atrium's, and for the same reason.[/b] It was
 	# 1.4 then 2.6 then the ring at 3.6, described in this file as "none of them over
 	# 1.2 m" — which was true of the second and third step and not of the first, and
 	# 1.2 would not have been climbable either. A jump's APEX here is 1.25, so the
@@ -599,11 +603,11 @@ static func dm_pit() -> RefCounted:
 	for box in pit_crates:
 		map.add_box(box)
 
-	map.add_climb("dm_pit: the pit floor onto the first crate", _floor_at(0.0), pit_crates[0])
-	map.add_climb("dm_pit: crate 1 onto crate 2", pit_crates[0], pit_crates[1])
-	map.add_climb("dm_pit: crate 2 onto crate 3", pit_crates[1], pit_crates[2])
+	map.add_climb("pit: the pit floor onto the first crate", _floor_at(0.0), pit_crates[0])
+	map.add_climb("pit: crate 1 onto crate 2", pit_crates[0], pit_crates[1])
+	map.add_climb("pit: crate 2 onto crate 3", pit_crates[1], pit_crates[2])
 	map.add_climb(
-		"dm_pit: the top crate onto the north arm",
+		"pit: the top crate onto the north arm",
 		pit_crates[2],
 		AABB(Vector3(-14.0, RING_Y, -14.0), Vector3(28.0, RING_T, 3.0))
 	)
@@ -653,11 +657,11 @@ static func dm_pit() -> RefCounted:
 	map.add_box(perch)
 
 	map.add_climb(
-		"dm_pit: the west arm onto the shelf",
+		"pit: the west arm onto the shelf",
 		AABB(Vector3(-14.0, RING_Y, -RING_IN), Vector3(3.0, RING_T, 22.0)),
 		shelf
 	)
-	map.add_climb("dm_pit: the shelf onto the perch", shelf, perch)
+	map.add_climb("pit: the shelf onto the perch", shelf, perch)
 
 	# --- The shelf stair ---------------------------------------------------
 	#
@@ -691,7 +695,7 @@ static func dm_pit() -> RefCounted:
 	# runs a hull's width and a bit (0.9; the 0.4064 hull needs 0.82) past the bridge's west
 	# edge, and nine treads from 1.44 to 4.32 against the shelf. Every rise, the shelf's 0.18 lip
 	# included, is the 0.36 a bot walks; the nine are 0.57 deep, which is all the
-	# room there is. The trade is the one the nest stairs make on dm_box: it climbs
+	# room there is. The trade is the one the nest stairs make on box: it climbs
 	# straight at the perch, so whoever holds the perch looks down every tread of it
 	# (`headless_match` traces all eleven boxes).
 	const SHELF_STAIR_RISE := 0.36
@@ -742,7 +746,7 @@ static func dm_pit() -> RefCounted:
 
 	map.add_box(lookout)
 	map.add_climb(
-		"dm_pit: the east arm onto the lookout",
+		"pit: the east arm onto the lookout",
 		AABB(Vector3(RING_IN, RING_Y, -RING_IN), Vector3(3.0, RING_T, 22.0)),
 		lookout
 	)

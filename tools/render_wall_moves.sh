@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Renders dm_atrium's wall routes from first person as frame sequences, then reads the
+# Renders atrium's wall routes from first person as frame sequences, then reads the
 # per-frame log for a camera that steps, reverses or snaps. See tools/render_wall_moves.gd.
 #
 #   tools/render_wall_moves.sh                    # run, runjump and chimney

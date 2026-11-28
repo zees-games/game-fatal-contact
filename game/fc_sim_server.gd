@@ -78,7 +78,7 @@ func _ready() -> void:
 	add_child(game)
 	_game = game
 	var map: FcMap = FcMap.by_id(StringName(_arg("--map", "")))
-	var built := game.setup(map if map != null else FcMap.dm_box())
+	var built := game.setup(map if map != null else FcMap.box())
 	if not built.ok:
 		_die("Fatal Contact could not be built: %s" % built.error.message)
 		return

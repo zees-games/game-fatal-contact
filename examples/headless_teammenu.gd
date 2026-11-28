@@ -52,7 +52,7 @@ func _game(mode: FcMode) -> FcGame:
 	game.register_service = false
 	game.mode = mode
 	add_child(game)
-	var _s := game.setup(FcMap.dm_atrium())
+	var _s := game.setup(FcMap.atrium())
 	game.start(0)
 	return game
 

@@ -62,7 +62,7 @@ func _run() -> void:
 	_check(FcConfig.new().surf_values()["volume"] == 0.6 and surf.mute_steps, "surf defaults match gs-audio's")
 	game.config.horde_spawn_max_distance = 5.0
 	_check(not game.config.validate().ok, "validate refuses max <= min distance")
-	_check(not binder.check_map("dm_nowhere", ["dm_box"]).ok, "strict: an unknown map is refused")
+	_check(not binder.check_map("dm_nowhere", ["box"]).ok, "strict: an unknown map is refused")
 	_check(binder.schema()[0]["description"].begins_with("Horde monsters per player"), "doc comments reach the schema")
 	# The rest of the audit's tunables reach the game they tune.
 	game.config.horde_spawn_max_distance = 34.0
@@ -75,7 +75,7 @@ func _run() -> void:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	game.setup(FcMap.dm_box())
+	game.setup(FcMap.box())
 	game.add_player(1, "A")
 	_check(game.player_for(1).health.max_health == 150.0, "a new player has the configured health")
 	_falls(game)

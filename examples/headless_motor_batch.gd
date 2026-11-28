@@ -142,8 +142,8 @@ func _run() -> void:
 
 	_section("a pit: players die and respawn in their own turn")
 	streams = []
-	off = await _play(false, &"dm_pit", SMALL_BOTS, SECONDS, streams, true)
-	on = await _play(true, &"dm_pit", SMALL_BOTS, SECONDS, streams, false)
+	off = await _play(false, &"pit", SMALL_BOTS, SECONDS, streams, true)
+	on = await _play(true, &"pit", SMALL_BOTS, SECONDS, streams, false)
 	_check(on[0] == off[0] and off[0].size() > 10, "the batched loop plays the pit's match to the bit (%s; %d kills)" % [_first_diff(off[0], on[0]), off[1]])
 	_check(on[3] == 0, "no player was changed by another's turn (%d faults)" % on[3])
 	_done()
@@ -342,7 +342,7 @@ func _play(batched: bool, map_id: StringName, bots: int, seconds: float, streams
 	# The map's collision reaches the physics space in a physics frame; every run starts after it.
 	for _i in 3:
 		await get_tree().physics_frame
-	if think and map_id != &"" and map_id != &"dm_pit":
+	if think and map_id != &"" and map_id != &"pit":
 		await _warm_routes(game)
 	var digests := PackedStringArray()
 	var window := PackedByteArray()
@@ -386,7 +386,7 @@ func _new_game(batched: bool, think: bool, map_id: StringName) -> FcGame:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var _setup := game.setup(FcMap.dm_box() if map_id == &"" else FcMap.by_id(map_id))
+	var _setup := game.setup(FcMap.box() if map_id == &"" else FcMap.by_id(map_id))
 	game.match_node.rules.warmup_sec = 0.0
 	game.match_node.rules.countdown_sec = 0.0
 	game.match_node.rules.respawn_delay_sec = 1.0

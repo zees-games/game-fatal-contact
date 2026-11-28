@@ -643,7 +643,7 @@ static var defer_models_on_web := true
 static var defer_models_everywhere := false
 var _previews_wait := false
 ## Whether the loadout pictures wait for the threaded model reads under the cover: a picture's plain load of a file still in a read
-## waits for it, one 0.3-1.25 s frame on staging (dm_box). `cl_previews_after_reads 0` (launch argument) starts them with the views.
+## waits for it, one 0.3-1.25 s frame on staging (box). `cl_previews_after_reads 0` (launch argument) starts them with the views.
 func _previews_after_reads() -> bool:
 	return _model_reads_threaded() and FcFrameProbe.launch_value("cl_previews_after_reads") != "0"
 

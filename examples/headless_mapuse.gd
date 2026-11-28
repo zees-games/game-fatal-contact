@@ -154,7 +154,7 @@ func _test_bodies_and_plain(mio: Object, world: GSMapWorld, player: Object) -> v
 	plain.register_service = false
 	plain.mode = FcMode.team_deathmatch()
 	add_child(plain)
-	var _s := plain.setup(FcMap.dm_atrium())
+	var _s := plain.setup(FcMap.atrium())
 	_check(plain.map_io == null, "a map with no movers builds no mover world and costs nothing")
 
 

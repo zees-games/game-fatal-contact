@@ -13,7 +13,7 @@ func _test_spectating() -> void:
 	game.mode = FcMode.team_deathmatch(50)
 	add_child(game)
 
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	if not _check(ready.ok, "a spectating game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -289,7 +289,7 @@ func _test_ffa_spawn_sides() -> void:
 	game.mode = FcMode.free_for_all(50)
 	add_child(game)
 
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	if not _check(ready.ok, "a free-for-all game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -307,8 +307,8 @@ func _test_ffa_spawn_sides() -> void:
 	# [b]The case the queue item was written about.[/b] A team mode's sides stay in the roster
 	# across a change into a free-for-all.
 	var team := _first_team_mode()
-	var to_team := game.change_map(FcMap.dm_atrium(), team)
-	var to_ffa := game.change_map(FcMap.dm_atrium(), FcMode.free_for_all(50))
+	var to_team := game.change_map(FcMap.atrium(), team)
+	var to_ffa := game.change_map(FcMap.atrium(), FcMode.free_for_all(50))
 	_check(
 		to_team.ok and to_ffa.ok,
 		"the game goes into a team mode and back into a free-for-all",
@@ -335,7 +335,7 @@ func _test_king_of_the_hill() -> void:
 	game.mode = FcMode.king_of_the_hill()
 	add_child(game)
 
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	if not _check(ready.ok, "a king-of-the-hill game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -420,7 +420,7 @@ func _test_king_of_the_hill() -> void:
 
 	# **A mode change has to build and unbuild the layers the mode asks for.** Without it `changegame` from a deathmatch to koth
 	# left a mode claiming objectives with `objectives` null, and nothing errored because a null layer is legitimate.
-	var to_ffa := game.change_map(FcMap.dm_box(), FcMode.free_for_all())
+	var to_ffa := game.change_map(FcMap.box(), FcMode.free_for_all())
 	_check(to_ffa.ok, "the mode changes to one with no objectives", str(to_ffa.error))
 	_check(
 		game.objectives == null,
@@ -428,7 +428,7 @@ func _test_king_of_the_hill() -> void:
 		+ "can capture"
 	)
 
-	var to_ctf := game.change_map(FcMap.dm_atrium(), FcMode.capture_the_flag())
+	var to_ctf := game.change_map(FcMap.atrium(), FcMode.capture_the_flag())
 	_check(to_ctf.ok, "and to one that has them", str(to_ctf.error))
 	_check(
 		game.objectives != null and game.objectives.layout == &"ctf",
@@ -456,7 +456,7 @@ func _test_capture_the_flag() -> void:
 	game.mode = FcMode.capture_the_flag(3)
 	add_child(game)
 
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	if not _check(ready.ok, "a capture-the-flag game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)
@@ -538,7 +538,7 @@ func _test_free_roam() -> void:
 	game.mode = FcMode.team_deathmatch(50)
 	add_child(game)
 
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	if not _check(ready.ok, "a roaming game sets up", str(ready.error)):
 		game.queue_free()
 		remove_child(game)

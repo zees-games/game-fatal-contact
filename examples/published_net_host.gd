@@ -109,7 +109,7 @@ func _run() -> void:
 	game.headless = true
 	game.register_service = true
 	side.add_child(game)
-	var ready := game.setup(FcMap.dm_box())
+	var ready := game.setup(FcMap.box())
 	if not ready.ok:
 		_write({"ok": false, "error": "setup: %s" % ready.error})
 		return

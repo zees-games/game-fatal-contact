@@ -25,7 +25,7 @@ func _run() -> void:
 	for a in OS.get_cmdline_user_args():
 		maps.append(StringName(a))
 	if maps.is_empty():
-		maps = [&"crackhouse", &"dm-overwatch", &"dm_box"]
+		maps = [&"crackhouse", &"dm-overwatch", &"box"]
 	var ran := 0
 	for id in maps:
 		if FcMap.by_id(id) == null:

@@ -1,23 +1,23 @@
 #!/usr/bin/env bash
 # Renders a map to screenshots/<map>_{overview,eye,roof}.png so a person can look at it.
 #
-#   tools/screenshot.sh dm_atrium
+#   tools/screenshot.sh atrium
 #   tools/screenshot.sh --weapon-drops [out.png]   # dropped weapons settled on floor, step; any sunk one shows
 #   tools/screenshot.sh --profiler-menu [out.png]   # the real client, menu on Advanced, Performance card
 #   tools/screenshot.sh --map-menu [dir]   # the solo map picker (M), every page
 #   tools/screenshot.sh --map-drop [dir] [convert folder] [map id]   # a map dropped on the solo window: toasts, M, then the map
 #   tools/screenshot.sh --team-menu-key [--unwired] [out.png]   # the period key in the real client (or a bare menu: Play, Spectate)
 #   tools/screenshot.sh --team-menu   # the team menu: two teams, four renamed, free-for-all
-#   tools/screenshot.sh dm_box --admin   # a beacon, a beacon behind a wall, a blind
-#   tools/screenshot.sh dm_box --feel --muzzle --weapons=smg:3,knife:1   # first-person frames of chosen weapons (id:slot)
-#   tools/screenshot.sh dm_box --action emote dance   # a figure playing an avatar action (pose sit, gesture wave)
-#   RENDERER=gl_compatibility tools/screenshot.sh dm_box   # what the client shell draws
-#   tools/screenshot.sh dm_atrium --glance [tdm]   # the whole HUD over a real match
-#   tools/screenshot.sh dm_atrium --glance --dead   # the local player dead: no crosshair, no hands
-#   tools/screenshot.sh dm_atrium --glance --killcam   # the dead player watching the kill view of the bot that killed them
-#   tools/screenshot.sh dm_box --glance --map-ballot   # under the 7-row map ballot (--ballot: the 6-row game vote)
-#   RESOLUTION=1280x960 SHOT_SUFFIX=_1280x960 tools/screenshot.sh dm_box --glance   # 4:3
-#   RESOLUTION=854x480 tools/screenshot.sh dm_box --glance --chat   # a full chat log beside the scaled HUD
+#   tools/screenshot.sh box --admin   # a beacon, a beacon behind a wall, a blind
+#   tools/screenshot.sh box --feel --muzzle --weapons=smg:3,knife:1   # first-person frames of chosen weapons (id:slot)
+#   tools/screenshot.sh box --action emote dance   # a figure playing an avatar action (pose sit, gesture wave)
+#   RENDERER=gl_compatibility tools/screenshot.sh box   # what the client shell draws
+#   tools/screenshot.sh atrium --glance [tdm]   # the whole HUD over a real match
+#   tools/screenshot.sh atrium --glance --dead   # the local player dead: no crosshair, no hands
+#   tools/screenshot.sh atrium --glance --killcam   # the dead player watching the kill view of the bot that killed them
+#   tools/screenshot.sh box --glance --map-ballot   # under the 7-row map ballot (--ballot: the 6-row game vote)
+#   RESOLUTION=1280x960 SHOT_SUFFIX=_1280x960 tools/screenshot.sh box --glance   # 4:3
+#   RESOLUTION=854x480 tools/screenshot.sh box --glance --chat   # a full chat log beside the scaled HUD
 #
 # Uses xvfb-run because this needs a rendering context and the machines this runs on
 # have no display. Nothing here is headless-safe: `--headless` gives a null renderer and
@@ -62,7 +62,7 @@ fi
 if [ "${1:-}" = "--team-menu" ]; then
   exec xvfb-run -a godot --path . --resolution "${RESOLUTION:-1280x720}" "${R[@]}" --script tools/team_menu_shot.gd
 fi
-map="${1:-dm_box}"
+map="${1:-box}"
 shift || true
 exec xvfb-run -a godot --path . --resolution "${RESOLUTION:-1600x900}" "${R[@]}" \
   --script tools/screenshot.gd -- --map "$map" "$@"

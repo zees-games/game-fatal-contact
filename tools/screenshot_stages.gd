@@ -35,7 +35,7 @@ var _toy_placements: Array = []
 
 ## Players in the map, and the frames that show an administrator's beacon and blind.
 ##
-## Written against `dm_box`'s layout — open floor at the south end, a five-metre pillar
+## Written against `box`'s layout — open floor at the south end, a five-metre pillar
 ## at (-12, -4) — and still renders on another map, where the pillar frame may simply not
 ## have a pillar in it.
 func _stage_admin(map: FcMap, id: StringName) -> void:

@@ -3,7 +3,7 @@
 # lays over the map it builds (FcMap._attach_bake; gs-lighting's GSLightBake).
 #
 #   tools/bake_lightmaps.sh                    # every built-in map
-#   tools/bake_lightmaps.sh dm_box dm_pit   # these
+#   tools/bake_lightmaps.sh box pit   # these
 #   BAKE_LOCAL=1 tools/bake_lightmaps.sh       # on this machine, not the GPU box
 #
 # Two steps: tools/lightmap_scenes.tscn writes a bake scene per map into lightbake_work/

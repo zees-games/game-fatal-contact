@@ -51,7 +51,7 @@ func _boot() -> void:
 	_game.is_authority = true
 	_game.register_service = false
 	add_child(_game)
-	var ready := _game.setup(FcMap.dm_box())
+	var ready := _game.setup(FcMap.box())
 	_check(ready.ok, "Fatal Contact sets up", str(ready.error))
 	_game.match_node.rules.warmup_sec = 0.0
 	_game.match_node.rules.countdown_sec = 0.0

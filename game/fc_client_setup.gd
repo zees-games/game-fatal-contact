@@ -42,7 +42,7 @@ func _ready() -> void:
 	await _setup_frame()
 
 	# A solo start map from a pack (the web's `?map=`) is fetched before the first map is read, under the boot
-	# cover, so the game is built on it once instead of on dm_box and then again on it.
+	# cover, so the game is built on it once instead of on box and then again on it.
 	await _fetch_solo_start_map()
 	# Reading the map is a frame's work of its own on a big import (169 ms for cp-orange-x3 on staging02),
 	# and it needs no game: read before the game exists, so no frame has a game without a map.
@@ -67,7 +67,7 @@ func _ready() -> void:
 	# The world, which the server does not need and a player cannot do without. Held, because a map
 	# change has to take it away again — see `_on_map_changed`. A client of a remote server does not know the
 	# map yet: it draws the level when the announcement comes (the "map" hold waits for it either way), rather
-	# than drawing the dm_box placeholder only to throw it away.
+	# than drawing the box placeholder only to throw it away.
 	# Drawn after the frame setup ended, and waited for in a client that draws: its first slice and the rest
 	# of setup shared frames of 514 and 736 ms on staging02. Headless builds alongside, as before.
 	if (_offline or _sim_host != null) and _builds_in_frames():
@@ -217,7 +217,7 @@ func _setup_interface_and_net() -> void:
 	await _setup_frame()
 
 ## Chat and the map layer a frame each before the netcode, in a client that draws (they were 302 + 259 ms of
-## the netcode's one frame on dm_box). `cl_slice_extras 0` (launch argument or URL query) builds them inside it, as before.
+## the netcode's one frame on box). `cl_slice_extras 0` (launch argument or URL query) builds them inside it, as before.
 func _prepare_extras() -> void:
 	if not _builds_in_frames() or FcFrameProbe.launch_value("cl_slice_extras") == "0":
 		return
@@ -232,7 +232,7 @@ func _setup_finish(timeline: FcLoadTimeline) -> void:
 	var platform_up: GSResult = await _setup_platform()
 	GSLog.result(CHANNEL, "the platform", platform_up)
 	# The quality piece, the menu's quality settings and the first processed frame each in a frame of their own:
-	# together with the bodies they were one 1.15 s frame on staging (dm_box). `cl_platform_split 0` runs them in one.
+	# together with the bodies they were one 1.15 s frame on staging (box). `cl_platform_split 0` runs them in one.
 	var split := _builds_in_frames() and FcFrameProbe.launch_value("cl_platform_split") != "0"
 	if split:
 		await _setup_frame()
@@ -344,14 +344,14 @@ func _mark_platform_piece(piece: StringName) -> void:
 	FcLoadTimeline.mark("platform: %s, %d ms" % [piece, int(usec.get(piece, 0)) / 1000])
 
 ## The map the game is first built on: offline the command line's, under a sim host the one its server was
-## started on (so the announcement finds the level already built), and otherwise the dm_box placeholder,
+## started on (so the announcement finds the level already built), and otherwise the box placeholder,
 ## whose level is not drawn (the announcement draws the real one).
 func _first_map() -> FcMap:
 	if _offline:
 		return _startup_map()
 	var asked := FcSimHost.asked_map_id() if _sim_host != null else ""
 	var map: FcMap = FcMap.by_id(StringName(asked)) if asked != "" else null
-	return map if map != null else FcMap.dm_box()
+	return map if map != null else FcMap.box()
 
 ## What the game tells the client: a player joined, a flag event, the mode's banner.
 func _connect_game_signals() -> void:

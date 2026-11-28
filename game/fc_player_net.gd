@@ -37,7 +37,7 @@ static var skip_idle_pull := true
 ## Whether [method pull] keeps the last view and velocity when the new ones would go out on the wire as the same
 ## codes (`sv_net_hold_subquantum`, default on). gs-net marks a property dirty on any change of its raw value, so a
 ## yaw that moved a twentieth of a 12-bit step was written again, bits identical to what every receiver already
-## had: on dm_atrium at 64 players, 61% of pitch writes, 8% of yaw and 7% of velocity (tools/net_probe.gd
+## had: on atrium at 64 players, 61% of pitch writes, 8% of yaw and 7% of velocity (tools/net_probe.gd
 ## --fields). Holding the old value keeps what each receiver decodes exactly as it was, just without
 ## the repeat. Only the observer's copy is held: the owner rewinds from [member net_exact], and the lag-comp
 ## history records the node, not these properties. Position is never held: the server reads it back.
@@ -75,9 +75,9 @@ var net_timers2: int = 0
 ## and `net_velocity` 5 cm/s steps, and the motor is not smooth in either near a wall, a step
 ## or the floor's skin: half a centimetre is the difference between touching a wall and not,
 ## standing on a tread and walking into its face, grounded and falling for a tick. Replaying
-## from the quantised state diverged on 594 of 994 rewinds round dm_atrium in a headless probe
+## from the quantised state diverged on 594 of 994 rewinds round atrium in a headless probe
 ## (1 of 994 from the exact one), so nearly every snapshot was replayed and corrected and the
-## next replay started from a quantised state again. dm_box hid it: running flat in the open
+## next replay started from a quantised state again. box hid it: running flat in the open
 ## touches nothing. Finer quantisation only shrinks it (20 of 994 at a quarter of a millimetre),
 ## because the slack the match is judged with shrinks with it.
 ##

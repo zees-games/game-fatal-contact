@@ -10,7 +10,7 @@ const FcPresentation := preload("../game/fc_presentation.gd")
 const OUT_DIR := "res://screenshots/death_gun"
 
 var client: Node = null
-var _map := "dm_atrium"
+var _map := "atrium"
 
 
 func _initialize() -> void:

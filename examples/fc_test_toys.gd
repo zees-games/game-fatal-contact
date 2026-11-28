@@ -7,14 +7,14 @@ const FcMap := preload("../maps/fc_map.gd")
 ## sim stay covered by giving a test map these placements explicitly.
 
 const BY_MAP := {
-	&"dm_box": [
+	&"box": [
 		{"toy": "beach_ball", "at": [12.0, 0.0, -8.0]},
 		{"toy": "beach_ball", "at": [-12.0, 0.0, 8.0]},
 		{"toy": "football", "at": [-20.0, 0.0, -10.0]},
 		{"toy": "barrel", "at": [20.0, 0.0, 10.0], "yaw": 25.0},
 		{"toy": "tyre", "at": [-20.0, 0.0, 20.0], "yaw": 60.0},
 	],
-	&"dm_atrium": [
+	&"atrium": [
 		{"toy": "beach_ball", "at": [10.0, 0.0, -18.0]},
 		{"toy": "beach_ball", "at": [-22.0, 0.0, 12.0]},
 		{"toy": "football", "at": [4.0, 0.0, -2.0]},
@@ -23,7 +23,7 @@ const BY_MAP := {
 		{"toy": "tyre", "at": [-24.0, 0.0, -12.0], "yaw": 30.0},
 		{"toy": "tyre", "at": [8.0, 0.0, 28.0], "yaw": 80.0},
 	],
-	&"dm_pit": [
+	&"pit": [
 		{"toy": "beach_ball", "at": [0.0, 0.0, 12.0]},
 		{"toy": "football", "at": [10.0, 0.0, -12.0]},
 	],

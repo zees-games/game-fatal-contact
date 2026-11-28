@@ -17,7 +17,7 @@ const FcMode := preload("fc_mode.gd")
 ##
 ## [codeblock]
 ## GSMapCatalogue   what can be played, with versions. FcMaps builds it.
-## GSMapRotation    what plays next, with a cooldown, so dm_box does not come
+## GSMapRotation    what plays next, with a cooldown, so box does not come
 ##                   round twice in three maps on a two-map server.
 ## GSMapTimeLimit   how long a map lasts, with warnings, rtv and extends.
 ## GSMapSyncHost    announce -> wait for every peer -> swap -> tell them to load.
@@ -329,8 +329,8 @@ func change_to_next(players: int = 0) -> GSResult:
 ## tagged. So the filtering has to happen on this side, and this is the only place that
 ## sees both the catalogue and [member FcGame.mode].
 ##
-## It did not exist until `dm_pit`, and nothing was wrong before that: `dm_box` and
-## `dm_atrium` both tag their spawns, so every map answered yes and an unfiltered
+## It did not exist until `pit`, and nothing was wrong before that: `box` and
+## `atrium` both tag their spawns, so every map answered yes and an unfiltered
 ## rotation was indistinguishable from a filtered one. The first map that answers no
 ## is the first map the rotation could have dropped a team game into.
 ##

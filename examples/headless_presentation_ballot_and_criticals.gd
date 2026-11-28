@@ -144,7 +144,7 @@ func _test_criticals_and_the_body() -> void:
 	_section("A critical breaks a body, a respawn mends it, the HUD shows the rest")
 
 	var player := FcPlayer.new()
-	player.setup(FcPlayer.Mode.HEADLESS, FcMap.dm_box(), 6, "Broken")
+	player.setup(FcPlayer.Mode.HEADLESS, FcMap.box(), 6, "Broken")
 	add_child(player)
 	player.spawn(Transform3D(Basis(), Vector3(0.0, 0.05, 18.0)), 0)
 	player.attach_body_mesh(Color.WHITE, FcAvatars.stock_avatar(&"broken"))
@@ -264,7 +264,7 @@ func _test_criticals_and_the_body() -> void:
 	summary_game.headless = true
 	summary_game.register_service = false
 	add_child(summary_game)
-	var _set := summary_game.setup(FcMap.dm_box())
+	var _set := summary_game.setup(FcMap.box())
 	var best := summary_game.match_node.scoreboard.join("6", "Broken")
 	best.kills = 3
 	best.score = 3
@@ -298,6 +298,13 @@ func _check_health_tag(player: FcPlayer) -> void:
 		player.present(0.016)
 	_check(tag != null and absf(tag.shown_fraction - 0.4) < 0.01 and absf(tag.trail_fraction - 0.4) < 0.01,
 		"filled to what is left, the trail caught up")
+	var saved_name_mode: int = Rules.enemy_name_mode
+	Rules.enemy_name_mode = 2
+	player.present(0.016)
+	var ink: Color = tag.get_node("Name").modulate
+	_check(tag.get_node("Name").visible and ink.r > 0.9 and ink.g < 0.5 and ink.b < 0.5,
+		"an enemy's name is red", str(ink))
+	Rules.enemy_name_mode = saved_name_mode
 	Rules.enemy_bar_mode = saved_mode
 	player.present(FcPlayer.HEALTH_TAG_SEC + 0.1)
 	_check(not player._health_tag.visible, "and with the server's default (no enemy bar) it is gone")
@@ -462,6 +469,10 @@ func _check_tag_colours(Rules) -> void:
 	Rules.team_count = 3
 	_check(Rules.bar_tone(false, 3) == Color.PURPLE and Rules.bar_tone(true, 1) == Color.BLUE,
 		"more than two sides: the side's own colour")
+	var ink: Color = Rules.enemy_name_ink(0, 0.5)
+	_check(ink.r > 0.9 and ink.g < 0.5 and is_equal_approx(ink.a, 0.5), "free-for-all: everybody else's name is red")
+	Rules.team_count = 3
+	_check(Rules.enemy_name_ink(3, 1.0).b > Rules.enemy_name_ink(3, 1.0).g, "more than two sides: the name wears the side's colour")
 	Rules.team_count = saved_count
 	Rules.team_colours = saved_cols
 	_check(Rules.tag_scale < 1.0 and Rules.tag_height < 2.25, "the tag is smaller and lower than before")

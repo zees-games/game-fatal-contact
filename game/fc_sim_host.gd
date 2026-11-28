@@ -1,6 +1,7 @@
 extends Node
 
 const FcPaths := preload("fc_paths.gd")
+const FcMapAliases := preload("../maps/fc_map_aliases.gd")
 
 ## Solo play with the simulation off the render thread (on for the launched game; `-- --sim_host 0` turns it off): starts the solo game as a loopback server process ([code]fc_sim_server.gd[/code]) and joins it,
 ## so this process only predicts its own player, interpolates the rest from snapshots and draws. See docs/sim-thread.md. A failure at any step leaves [member up] false and the client plays the stock in-process solo game.
@@ -267,9 +268,9 @@ static func _free_port() -> int:
 ## ([method solo_start_map]: the site's "Play map", which the in-process game switches to itself); "" leaves it to the server.
 static func asked_map_id() -> String:
 	if ask_map != "":
-		return ask_map
+		return FcMapAliases.resolve_text(ask_map)
 	var flag := _arg("--map")
-	return flag if flag != "" else solo_start_map()
+	return FcMapAliases.resolve_text(flag if flag != "" else solo_start_map())
 
 
 ## The shell's solo start map (`?map=`, `--solo-map`, read duck-typed off [constant SOLO_SERVICE]), or "" outside

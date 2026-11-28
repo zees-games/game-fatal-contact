@@ -45,7 +45,7 @@ func _run() -> void:
 	game.register_service = false
 	game.mode = FcMode.team_deathmatch()
 	add_child(game)
-	var ready := game.setup(FcMap.dm_atrium())
+	var ready := game.setup(FcMap.atrium())
 	_check(ready.ok, "a team game sets up", str(ready.error))
 	# No warmup or countdown: the countdown holds everybody still and unhurtable.
 	game.match_node.rules.warmup_sec = 0.0

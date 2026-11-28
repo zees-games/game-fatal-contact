@@ -450,7 +450,7 @@ func _test_blood() -> void:
 	p.on_body_hit(npc, chest, eye)
 	_check(p.blood.decals.blood_count() == 1, "gore on: a hit body splatters the wall behind it (%d)" % p.blood.decals.blood_count())
 	p.present(0.016, eye, Vector3.FORWARD)
-	p.on_map_changed(&"dm_box")
+	p.on_map_changed(&"box")
 	_check(p.blood.decals.blood_count() == 0, "a map change clears the blood")
 
 	p.settings.set_value(&"gore", false)

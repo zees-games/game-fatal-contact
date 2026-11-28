@@ -5,7 +5,7 @@ const FcMapLighting := preload("../maps/fc_map_lighting.gd")
 const FcPlayer := preload("../game/fc_player.gd")
 const WallRouteDriver := preload("../examples/wall_route_driver.gd")
 
-## dm_atrium's wall routes from first person, as a frame sequence and a per-frame log.
+## atrium's wall routes from first person, as a frame sequence and a per-frame log.
 ##
 ## [codeblock]
 ## tools/render_wall_moves.sh                  # all three: run, runjump, chimney
@@ -67,7 +67,7 @@ func _initialize() -> void:
 	Engine.physics_ticks_per_second = TICK_RATE
 	DirAccess.make_dir_recursive_absolute(OUT_DIR)
 
-	_map = FcMap.dm_atrium()
+	_map = FcMap.atrium()
 	root.add_child(_map.to_scene())
 	root.add_child(FcMapLighting.build(_map))
 

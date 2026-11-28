@@ -31,7 +31,7 @@ func _shot(name: String, mode: FcMode, names: String, colours: String, extra: in
 	game.register_service = false
 	game.mode = mode
 	root.add_child(game)
-	var _s := game.setup(FcMap.dm_atrium())
+	var _s := game.setup(FcMap.atrium())
 	game.start(0)
 	for i in extra:
 		var _p := game.add_player(60 + i, "Bot%d" % i)

@@ -3,10 +3,10 @@
 # frame inside the level, and draws the worst case before and after the probe, plus a body
 # between the camera and the player and one walking into the first-person camera.
 #
-#   tools/render_cameras.sh            # dm_box
-#   tools/render_cameras.sh dm_atrium
+#   tools/render_cameras.sh            # box
+#   tools/render_cameras.sh atrium
 set -euo pipefail
 cd "$(dirname "$0")/.."
-map="${1:-dm_box}"
+map="${1:-box}"
 exec timeout 300 xvfb-run -a godot --path . --resolution "${RESOLUTION:-1280x720}" \
   --script tools/render_cameras.gd -- --map "$map"

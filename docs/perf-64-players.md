@@ -49,7 +49,7 @@ At 64 players the server uses three quarters of a 33 Hz tick and could not hold 
 
 ### Engaged firefight bench (bc-bots-tick-cost-1)
 
-`tools/engaged_bench.sh` runs `scale128 --engaged 1` (dm_box, all bots spawned and respawning, about 3500 shots/min at 16 bots and 7300 at 31) n times per bot count, prints SERVER_TICK p50/p95/p99, ticks/s and ticks over the 15.15 ms budget, and gives the spread (min/median/max). `--spikes 1` keeps the 8 worst ticks with their sections; `--nodeprobe` (with `--spikes 1`) adds a stamp after every physics node, so a spike outside the sections names its node; `--pin 2-5` taskset-pins the run.
+`tools/engaged_bench.sh` runs `scale128 --engaged 1` (box, all bots spawned and respawning, about 3500 shots/min at 16 bots and 7300 at 31) n times per bot count, prints SERVER_TICK p50/p95/p99, ticks/s and ticks over the 15.15 ms budget, and gives the spread (min/median/max). `--spikes 1` keeps the 8 worst ticks with their sections; `--nodeprobe` (with `--spikes 1`) adds a stamp after every physics node, so a spike outside the sections names its node; `--pin 2-5` taskset-pins the run.
 
 The "falls behind" spikes came from gs-weapon's drops: a resting drop with no floor within 40 m was re-grounded every 0.5 s check_support pass, and each pass swept 40 m down in 5 cm legs, giving 300-340 ms ticks (`@WeaponDrops` in the nodeprobe). These ticks are intermittent because they need a drop resting over the void. When one hits, a run drops to 46-54 ticks/s with p99 290-460 ms. gs-weapon 8cba7a1 marks such a drop floorless.
 
@@ -78,48 +78,48 @@ The rows above use fakes with no entity of their own, so interest never applied 
 
 | Map | sv_net_far_every / tiers / far m | eyed B | control B | real client B/s |
 | --- | --- | --- | --- | --- |
-| dm_atrium | rings off (aoi_players 9999) | 637 | 637 | 8152 |
-| dm_atrium | 1 / - / - | 616-620 | 616-619 | 8317-8634 |
-| dm_atrium | 2 / 2 / 40 (old default) | 801-812 | 617-636 | 12772-13893 |
-| dm_atrium | 2 / 1 / 40 | 831 | 619 | 12526 |
-| dm_atrium | 2 / 2 / 40, staggered | 829 | 620 | 12305 |
-| dm_atrium | 3 / 1 / 40 | 509 | 620 | 6799 |
-| dm_atrium | 4 / 1 / 40 | 664 | 620 | 8670 |
+| atrium | rings off (aoi_players 9999) | 637 | 637 | 8152 |
+| atrium | 1 / - / - | 616-620 | 616-619 | 8317-8634 |
+| atrium | 2 / 2 / 40 (old default) | 801-812 | 617-636 | 12772-13893 |
+| atrium | 2 / 1 / 40 | 831 | 619 | 12526 |
+| atrium | 2 / 2 / 40, staggered | 829 | 620 | 12305 |
+| atrium | 3 / 1 / 40 | 509 | 620 | 6799 |
+| atrium | 4 / 1 / 40 | 664 | 620 | 8670 |
 | cp-orange-x3 | rings off | 309 | 547 | 5230 |
 | cp-orange-x3 | 1 / - / - | 309 | 547 | 5193 |
 | cp-orange-x3 | 2 / 2 / 40 (old default) | 307-308 | 547-556 | 4818-5690 |
-| dm_atrium | 1 / - / - (thinned-ack sync) | 635 | 635 | - |
-| dm_atrium | 2 / 2 / 40 (thinned-ack sync) | 560 | 635 | - |
+| atrium | 1 / - / - (thinned-ack sync) | 635 | 635 | - |
+| atrium | 2 / 2 / 40 (thinned-ack sync) | 560 | 635 | - |
 | cp-orange-x3 | 1 / - / - (thinned-ack sync) | 307 | 555 | - |
 | cp-orange-x3 | 2 / 2 / 40 (thinned-ack sync) | 283 | 523 | - |
-| dm_atrium | 2 / 2 / 40, before fc-dmatrium-bytes-1 (rerun) | 541-549 | 616 | - |
-| dm_atrium | 2 / 2 / 20 | 404 | - | - |
-| dm_atrium | 2 / 3 / 15 | 343 | - | - |
-| dm_atrium | 3 / 2 / 25 | 389 | - | - |
-| dm_atrium | 2 / 2 / 40 + sub-quantum hold | 498 | 563 | - |
-| dm_atrium | 2 / 1 / 20 + sub-quantum hold (old default) | 406-411 | 559-562 | - |
-| dm_atrium | 2 / 1 / 15 + sub-quantum hold | 382 | - | - |
-| dm_atrium | 2 / 1 / 10 + sub-quantum hold | 371 | 540 | - |
-| dm_atrium | 2 / 2 / 20 + sub-quantum hold (fails headless_hitreg_scope) | 341-347 | 528-547 | - |
-| dm_atrium | 2 / 2 / 15 + sub-quantum hold (fails headless_hitreg_scope) | 302 | 562 | - |
-| dm_atrium | 2 / 2 / 20 + hold, aim cone 0 (rerun, fc-dmatrium-bytes-2) | 354 | - | - |
-| dm_atrium | 2 / 2 / 20 + hold, aim cone 8 | 356 | - | - |
-| dm_atrium | 2 / 2 / 15 + hold, aim cone 0 | 323 | 546 | - |
-| dm_atrium | 2 / 2 / 15 + hold, aim cone 8 (default) | 326 | 545 | - |
-| dm_atrium | 2 / 2 / 12 + hold, aim cone 8 | 298 | 644 | - |
-| dm_atrium | 2 / 2 / 10 + hold, aim cone 10 | 278 | 544 | - |
+| atrium | 2 / 2 / 40, before fc-dmatrium-bytes-1 (rerun) | 541-549 | 616 | - |
+| atrium | 2 / 2 / 20 | 404 | - | - |
+| atrium | 2 / 3 / 15 | 343 | - | - |
+| atrium | 3 / 2 / 25 | 389 | - | - |
+| atrium | 2 / 2 / 40 + sub-quantum hold | 498 | 563 | - |
+| atrium | 2 / 1 / 20 + sub-quantum hold (old default) | 406-411 | 559-562 | - |
+| atrium | 2 / 1 / 15 + sub-quantum hold | 382 | - | - |
+| atrium | 2 / 1 / 10 + sub-quantum hold | 371 | 540 | - |
+| atrium | 2 / 2 / 20 + sub-quantum hold (fails headless_hitreg_scope) | 341-347 | 528-547 | - |
+| atrium | 2 / 2 / 15 + sub-quantum hold (fails headless_hitreg_scope) | 302 | 562 | - |
+| atrium | 2 / 2 / 20 + hold, aim cone 0 (rerun, fc-dmatrium-bytes-2) | 354 | - | - |
+| atrium | 2 / 2 / 20 + hold, aim cone 8 | 356 | - | - |
+| atrium | 2 / 2 / 15 + hold, aim cone 0 | 323 | 546 | - |
+| atrium | 2 / 2 / 15 + hold, aim cone 8 (default) | 326 | 545 | - |
+| atrium | 2 / 2 / 12 + hold, aim cone 8 | 298 | 644 | - |
+| atrium | 2 / 2 / 10 + hold, aim cone 10 | 278 | 544 | - |
 | cp-orange-x3 | 2 / 2 / 40 + sub-quantum hold | 271 | 485 | - |
 | cp-orange-x3 | 2 / 1 / 20 + sub-quantum hold (old default) | 260 | 483 | - |
 | cp-orange-x3 | 2 / 2 / 15 + hold, aim cone 8 (default) | 217 | 463 | - |
 | cp-orange-x3 | 2 / 2 / 20 + sub-quantum hold | 258 | 518 | - |
 
-Before dotnet-thin-ack-sync, far-ring thinning cost bytes: at far_every 2 a peer got about 30% more than with no thinning. The cause was in gs-net: a per-peer view was synced to the peer's acks only while its entity was in the snapshot, so with wired (strict) acks a thinned entity's pending fields were older than `last_ack` when it came back, counted as lost (`relost`) and went out again. gs-net now keeps a per-peer ring of acked ticks and promotes any send whose own snapshot was acked (no wire change). With that, the rings save bytes (rows marked "thinned-ack sync", same probe, 2026-11-16): dm_atrium 560 B against 635 unthinned, cp-orange-x3 283 against 307. `sv_net_far_every` defaults to 2 again (tiers 2, 40 m). On cp-orange-x3, the map 64 players are for, a peer is at 283 B against 523 unfiltered, under the 350 B goal; small DM maps stay near 560 B because most players there are within 40 m and in view.
+Before dotnet-thin-ack-sync, far-ring thinning cost bytes: at far_every 2 a peer got about 30% more than with no thinning. The cause was in gs-net: a per-peer view was synced to the peer's acks only while its entity was in the snapshot, so with wired (strict) acks a thinned entity's pending fields were older than `last_ack` when it came back, counted as lost (`relost`) and went out again. gs-net now keeps a per-peer ring of acked ticks and promotes any send whose own snapshot was acked (no wire change). With that, the rings save bytes (rows marked "thinned-ack sync", same probe, 2026-11-16): atrium 560 B against 635 unthinned, cp-orange-x3 283 against 307. `sv_net_far_every` defaults to 2 again (tiers 2, 40 m). On cp-orange-x3, the map 64 players are for, a peer is at 283 B against 523 unfiltered, under the 350 B goal; small DM maps stay near 560 B because most players there are within 40 m and in view.
 
-**dm_atrium bytes (fc-dmatrium-bytes-1, 2026-11-16).** `net_probe --fields` counts what each changed field costs before interest, and how much of it a receiver could tell apart (`FIELDS wire ...`, only changes whose quantised code moved). On dm_atrium every peer is a player (65 entities, about 33 changed a snapshot): position 153 B, the 36-bit entity headers 158, velocity 108, yaw 78, pitch 64, flags 40. 61% of pitch writes, 8% of yaw and 7% of velocity carried the same codes as the last send: gs-net marks a field dirty on any raw change. `FcPlayerNet.hold_subquantum` (`sv_net_hold_subquantum`, default 1) keeps the previous value when the new one quantises the same, so receivers decode exactly what they did and the repeat is not sent; position is not held (the server reads it back), and neither lag-comp history nor the owner's rewind (`net_exact`) reads these fields. That alone took the unfiltered control from 616 B to 528-563, and dm_atrium at the old rings from 541-549 to 498.
+**atrium bytes (fc-dmatrium-bytes-1, 2026-11-16).** `net_probe --fields` counts what each changed field costs before interest, and how much of it a receiver could tell apart (`FIELDS wire ...`, only changes whose quantised code moved). On atrium every peer is a player (65 entities, about 33 changed a snapshot): position 153 B, the 36-bit entity headers 158, velocity 108, yaw 78, pitch 64, flags 40. 61% of pitch writes, 8% of yaw and 7% of velocity carried the same codes as the last send: gs-net marks a field dirty on any raw change. `FcPlayerNet.hold_subquantum` (`sv_net_hold_subquantum`, default 1) keeps the previous value when the new one quantises the same, so receivers decode exactly what they did and the repeat is not sent; position is not held (the server reads it back), and neither lag-comp history nor the owner's rewind (`net_exact`) reads these fields. That alone took the unfiltered control from 616 B to 528-563, and atrium at the old rings from 541-549 to 498.
 
-The rest is distance: 70% of player pairs on dm_atrium are 10-50 m apart (`FIELDS pair distances`), so a 40 m band thinned almost nobody. A quarter-rate band is what reaches 350 B (20 m with two tiers: 341-347), but a scoped shot at 60 m drawn from every fourth snapshot misses the rewind tolerance (`headless_hitreg_scope`: marksman and sniper worst 0.10-0.20 m against 0.025). The default is therefore one band, `sv_net_far_distance` 20 and `sv_net_far_tiers` 1: full rate to 20 m, every second snapshot to 120 m (the half rate the scope suite already held at 40-80 m). dm_atrium is at 406-411 B against 541-549, cp-orange-x3 at 260 against 283. The last ~60 B to 350 on small DM maps needs either a quarter rate that leaves scoped targets alone (an observer-aware tier in gs-net interest) or cheaper observer velocity; both are on the nightly board.
+The rest is distance: 70% of player pairs on atrium are 10-50 m apart (`FIELDS pair distances`), so a 40 m band thinned almost nobody. A quarter-rate band is what reaches 350 B (20 m with two tiers: 341-347), but a scoped shot at 60 m drawn from every fourth snapshot misses the rewind tolerance (`headless_hitreg_scope`: marksman and sniper worst 0.10-0.20 m against 0.025). The default is therefore one band, `sv_net_far_distance` 20 and `sv_net_far_tiers` 1: full rate to 20 m, every second snapshot to 120 m (the half rate the scope suite already held at 40-80 m). atrium is at 406-411 B against 541-549, cp-orange-x3 at 260 against 283. The last ~60 B to 350 on small DM maps needs either a quarter rate that leaves scoped targets alone (an observer-aware tier in gs-net interest) or cheaper observer velocity; both are on the nightly board.
 
-**Aim cone (fc-dmatrium-bytes-2, 2026-11-16).** gs-net interest (API 22) takes an observer aim, `GSNetIdentity.interest_aim`, and `GSNetInterest.aim_cone_deg`: a far entity inside that cone of the observer's aim is sent at most every `far_every`-th snapshot (the first band's rate), never the quarter rate; native core and GDScript agree (netcode_demo parity). FC's authority sets `interest_aim` from `FcPlayer.aim_direction()` each pull, and `sv_net_aim_cone` (default 8 degrees, 0 = off, outside 0-180 refused) sets the cone. What you aim at, scoped or not, stays at half rate, so the quarter band no longer reaches a scoped shot: the default is now two bands from 15 m (`sv_net_far_distance` 15, `sv_net_far_tiers` 2), and `headless_hitreg_scope` passes with the rings on at 30 m and 60 m. dm_atrium is at 326 B against 406-411 (the cone itself costs about 3 B), cp-orange-x3 at 217 against 260.
+**Aim cone (fc-dmatrium-bytes-2, 2026-11-16).** gs-net interest (API 22) takes an observer aim, `GSNetIdentity.interest_aim`, and `GSNetInterest.aim_cone_deg`: a far entity inside that cone of the observer's aim is sent at most every `far_every`-th snapshot (the first band's rate), never the quarter rate; native core and GDScript agree (netcode_demo parity). FC's authority sets `interest_aim` from `FcPlayer.aim_direction()` each pull, and `sv_net_aim_cone` (default 8 degrees, 0 = off, outside 0-180 refused) sets the cone. What you aim at, scoped or not, stays at half rate, so the quarter band no longer reaches a scoped shot: the default is now two bands from 15 m (`sv_net_far_distance` 15, `sv_net_far_tiers` 2), and `headless_hitreg_scope` passes with the rings on at 30 m and 60 m. atrium is at 326 B against 406-411 (the cone itself costs about 3 B), cp-orange-x3 at 217 against 260.
 
 ## Release, 1080p, ablations and combat (fc-64p-8)
 
@@ -163,7 +163,7 @@ Runs from nohud on shared the box with another agent's eight suites. They are co
 
 The remaining main-thread cost with nothing drawn is scripts (present, bodies, interpolate, snapshot apply) at about 6 ms. Render settings (shadows, environment effects, resolution) are not where 64 players spend their time on desktop. The levers are the per-remote-player script cost and the server tick.
 
-### Combat (dm_atrium DM, 64 players, release, n=2)
+### Combat (atrium DM, 64 players, release, n=2)
 
 | Run | p50 ms | p95 | p99 | worst | Server ms/tick | draws | primitives | render_gpu |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -201,14 +201,14 @@ Growth per minute in the recorded 30 s:
 
 - **cp-orange-x3:** nodes +900 to +2300 and objects +1600 to +3800 while figures, ragdolls and fx pools are
   still filling (first 6025, max 6707 in one run). Orphan nodes stay at 0. Video memory grows 30-50 MB/min.
-- **dm_atrium:** with everyone already fighting, nodes are flat (+2 and -210 per minute). Objects grow
+- **atrium:** with everyone already fighting, nodes are flat (+2 and -210 per minute). Objects grow
   +540 to +640 per minute, with a net of about 300.
 
 Static memory reads 0 in release exports (not tracked), so use the editor build for it. A soak longer than one minute is needed to tell pool warm-up from a slow leak (`./game.sh soak`).
 
 ## Ranking (64 players)
 
-1. Server tick (22-24 ms of 30.3 at 33 Hz on cp-orange-x3, 28.3 in dm_atrium combat): bot scheduling and bot threads, snapshot begin/join, tick tiers.
+1. Server tick (22-24 ms of 30.3 at 33 Hz on cp-orange-x3, 28.3 in atrium combat): bot scheduling and bot threads, snapshot begin/join, tick tiers.
 2. Remote player present + bodies + interpolate (about 4 ms of a 7-9 ms release frame): anim and body LOD, instancing.
 3. Engine physics outside game is down to 0.35-0.45 ms (goal met); phase.physics 0.7-1.1 ms.
 4. Snapshot apply on the client (1.15 ms in the first editor pass, 0.20 ms release and 0.51 editor now): native apply hooks.
@@ -219,7 +219,7 @@ Not measured as separate rows: audio (0.03 ms, negligible) and decals/gibs. Comb
 
 ## Status
 
-The first pass measured only. Since then, fc-64p-8 added the release, 1080p, ablation and combat rows above, and the node census in `tools/perf_bench.gd`. The client meets the 9 ms goal in release on cp-orange-x3, but not in dm_atrium combat (9.4-10.5).
+The first pass measured only. Since then, fc-64p-8 added the release, 1080p, ablation and combat rows above, and the node census in `tools/perf_bench.gd`. The client meets the 9 ms goal in release on cp-orange-x3, but not in atrium combat (9.4-10.5).
 
 The server tick (22-28 ms against the 11 ms goal) is now the main gap.
 

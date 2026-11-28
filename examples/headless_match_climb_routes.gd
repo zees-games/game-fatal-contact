@@ -1,13 +1,13 @@
 extends "headless_match_pits_and_reach.gd"
 
-## `dm_box`'s upper level, climbed and walked by a bot rather than believed: from the floor up the
+## `box`'s upper level, climbed and walked by a bot rather than believed: from the floor up the
 ## west crates onto the ledge, one across each gantry, one up the north nest.
 func _test_box_upper() -> void:
-	_section("dm_box: the upper level, climbed")
+	_section("box: the upper level, climbed")
 
-	var map: FcMap = FcMap.dm_box()
+	var map: FcMap = FcMap.box()
 
-	# [b]The property dm_box exists for, asked of the whole list.[/b] Every box has a twin turned
+	# [b]The property box exists for, asked of the whole list.[/b] Every box has a twin turned
 	# half a circle about the origin, so every spawn scores identically.
 	var unpaired := PackedStringArray()
 
@@ -27,7 +27,7 @@ func _test_box_upper() -> void:
 
 	_check(
 		unpaired.is_empty(),
-		"every box on dm_box has its twin turned half a circle about the middle",
+		"every box on box has its twin turned half a circle about the middle",
 		", ".join(unpaired)
 	)
 
@@ -294,7 +294,7 @@ func _test_box_upper() -> void:
 
 	_check(
 		corner_treads.size() == 10 and corner_steep.is_empty(),
-		"dm_box's north-west corner stair is ten treads, every rise under step_height",
+		"box's north-west corner stair is ten treads, every rise under step_height",
 		"%d treads; %s" % [corner_treads.size(), ", ".join(corner_steep)]
 	)
 	_check(
@@ -517,8 +517,8 @@ func _test_wall_routes() -> void:
 
 	_check(routes >= 2, "the maps declare wall routes (%d)" % routes)
 
-	# The trade every way up on dm_atrium makes: the gallery is watched from higher.
-	var atrium: FcMap = FcMap.dm_atrium()
+	# The trade every way up on atrium makes: the gallery is watched from higher.
+	var atrium: FcMap = FcMap.atrium()
 	var trace := atrium.shot_trace()
 	var hidden := PackedStringArray()
 	var rampart_eye := Vector3(-4.0, 5.86 + 1.6, -13.5)
@@ -547,14 +547,14 @@ func _test_wall_routes() -> void:
 			var hit := trace.ray(keep_eye, line.normalized(), line.length() - 0.05)
 			if hit.ok() and hit.blocked:
 				hidden.append("the chimney's top")
-	_check(hidden.is_empty(), "dm_atrium: the rampart sees all of the gallery, and the keep roof the chimney's top",
+	_check(hidden.is_empty(), "atrium: the rampart sees all of the gallery, and the keep roof the chimney's top",
 		", ".join(hidden))
 	_done()
 
 func _test_crate_climb() -> void:
-	_section("dm_atrium: the crates, climbed")
+	_section("atrium: the crates, climbed")
 
-	var map: FcMap = FcMap.dm_atrium()
+	var map: FcMap = FcMap.atrium()
 
 	var climber := FcPlayer.new()
 	climber.name = "Climber"
@@ -651,7 +651,7 @@ func _build() -> void:
 	_game.register_service = false
 	add_child(_game)
 
-	var ready := _game.setup(FcMap.dm_box())
+	var ready := _game.setup(FcMap.box())
 	_check(ready.ok, "the game sets up", str(ready.error))
 
 	# Warmup and countdown out of the way: this test is about the match, and waiting

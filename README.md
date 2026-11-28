@@ -18,12 +18,12 @@ Fatal Contact is one of Zee's Games, a collection of open source multiplayer gam
 | Server browser | Loadout menu with point costs | Gunsmith: attachments on the marksman rifle |
 | ![Marksman rifle from the hip](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/screenshots/hip_view.jpg) | ![Aiming down the marksman rifle scope](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/screenshots/ads_scope.jpg) | ![Team deathmatch firefight: headshot, killfeed, killstreak](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/screenshots/firefight.jpg) |
 | Marksman rifle from the hip | Aiming down the marksman rifle scope | Team deathmatch firefight: headshot, killfeed, killstreak |
-| ![Map overview of dm_pit](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/screenshots/map_overview.jpg) | ![In-game map and mode picker](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/screenshots/map_picker.jpg) | ![HUD: health, ammo, weapon slots](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/screenshots/hud.jpg) |
-| Map overview of dm_pit | In-game map and mode picker | HUD: health, ammo, weapon slots |
+| ![Map overview of pit](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/screenshots/map_overview.jpg) | ![In-game map and mode picker](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/screenshots/map_picker.jpg) | ![HUD: health, ammo, weapon slots](https://raw.githubusercontent.com/zees-games/game-fatal-contact/main/docs/screenshots/hud.jpg) |
+| Map overview of pit | In-game map and mode picker | HUD: health, ammo, weapon slots |
 
 ## How it plays
 
-You fight on three built-in dev-textured maps (`dm_atrium`, `dm_pit`, `dm_box`), plus optional map packs:
+You fight on three built-in dev-textured maps (`atrium`, `pit`, `box`), plus optional map packs:
 
 - **Combat surf maps** from [fc-surf-dm-maps](https://github.com/zees-games/fc-surf-dm-maps), imported through [game-airdrift](https://github.com/zees-games/game-airdrift)'s map format.
 - **Deathmatch and gun game maps** from [fc-dm-maps](https://github.com/zees-games/fc-dm-maps).

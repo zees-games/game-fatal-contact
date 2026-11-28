@@ -487,7 +487,7 @@ func install_commands(host: Object) -> GSResult:
 	commands.director = director
 	commands.names = COMMAND_NAMES
 	commands.spec_fn = commands_spec_fn
-	# A player types `dm_atrium`; the ballot's id is `map:dm_atrium`.
+	# A player types `atrium`; the ballot's id is `map:atrium`.
 	commands.resolve_fn = func(text: String) -> StringName:
 		return _qualify(StringName(text))
 	# This game's voters are the bare session id — `str(userid)`, which is what
@@ -575,7 +575,7 @@ func forget_voter(voter: StringName) -> void:
 
 ## Accepts a bare map or mode name and returns the prefixed choice id.
 ##
-## [b]A player types `dm_atrium`, not `map:dm_atrium`.[/b] The prefix exists so a
+## [b]A player types `atrium`, not `map:atrium`.[/b] The prefix exists so a
 ## choice id can never be ambiguous once it is inside the system; it would be a poor
 ## thing to make somebody type. So this is the one place bare names are resolved, it
 ## resolves against the ballot's own options rather than guessing, and an id that is

@@ -21,7 +21,7 @@ func _run() -> void:
 	game.is_authority = true
 	game.register_service = false
 	add_child(game)
-	var ok := game.setup(FcMap.dm_box()).ok
+	var ok := game.setup(FcMap.box()).ok
 	_check(ok, "sets up")
 	if ok:
 		var m := game.match_node

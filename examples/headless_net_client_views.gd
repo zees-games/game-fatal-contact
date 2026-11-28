@@ -670,8 +670,8 @@ func _test_wall_moves_predicted() -> void:
 	var net: GSNetManager = entry["net"]
 
 	_check(
-		_server_game.map.id == &"dm_atrium" and client_game.map.id == &"dm_atrium",
-		"both ends are on dm_atrium, where the gallery is",
+		_server_game.map.id == &"atrium" and client_game.map.id == &"atrium",
+		"both ends are on atrium, where the gallery is",
 		"%s / %s" % [_server_game.map.id, client_game.map.id]
 	)
 

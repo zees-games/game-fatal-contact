@@ -30,7 +30,7 @@ func _initialize() -> void:
 	if not args.is_empty():
 		_mode = args[0]
 	_rng.seed = 7
-	var map: FcMap = FcMap.dm_box()
+	var map: FcMap = FcMap.box()
 	root.add_child(map.to_scene())
 	root.add_child(FcMapLighting.build(map))
 	var id := &"arena-player-00000007"
