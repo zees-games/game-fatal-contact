@@ -31,6 +31,11 @@ var _failed := 0
 var _client: Node = null
 var _shot: GSShot = null
 var _confirmed: Dictionary = {}
+## The server's HITs by "victim:shot tick": a tap is confirmed only by a HIT naming its own tick, never by the next one
+## that lands on the same bot.
+var _confirmed_shots: Dictionary = {}
+## HITs that named no shot tick, and HITs naming a tick no tap was drawn on.
+var _untagged := 0
 
 
 func _ready() -> void:
@@ -108,7 +113,11 @@ func _run() -> void:
 		return
 	bridge.connect(&"hit_received", func(info: Dictionary) -> void:
 		var v := int(info.get("victim_id", 0))
-		_confirmed[v] = int(_confirmed.get(v, 0)) + 1)
+		_confirmed[v] = int(_confirmed.get(v, 0)) + 1
+		var shot_tick := int(info.get("shot_tick", -1))
+		if shot_tick < 0:
+			_untagged += 1
+		_confirmed_shots["%d:%d" % [v, shot_tick]] = true)
 	print("  tick rate %d, players %d" % [int(g.get("tick_rate")), (g.call("players") as Array).size()])
 	await _taps(g)
 	_print_server_lines()
@@ -189,7 +198,14 @@ func _taps(g: Object) -> void:
 					feet = target.global_position
 					drawn_hit = _drawn_on(me, _shot, target)
 		Input.action_release(FcBindings.FIRE)
-		var waited := await _until(func() -> bool: return int(_confirmed.get(victim, 0)) > before, CONFIRM_SEC)
+		# The window is CONFIRM_SEC of game time from the shot's own tick, not wall time: a slow box runs the
+		# sim slower than the clock, and a wall window credited the previous tap's late HIT to the next tap.
+		var deadline := (_shot.tick if _shot != null else int(g.call("current_tick"))) + ceili(CONFIRM_SEC * Engine.physics_ticks_per_second)
+		await _until(func() -> bool:
+			return (_shot != null and _confirmed_shots.has("%d:%d" % [victim, _shot.tick])) or int(g.call("current_tick")) >= deadline, CONFIRM_SEC * 20.0)
+		var waited := _shot != null and _confirmed_shots.has("%d:%d" % [victim, _shot.tick])
+		# A HIT on this bot that named another tap: the confirmation a "latest tap" match would have credited here.
+		var other := not waited and int(_confirmed.get(victim, 0)) > before
 		if _shot == null:
 			continue
 		taps += 1
@@ -202,7 +218,7 @@ func _taps(g: Object) -> void:
 		aimed_predicted += int(is_aimed and said_hit)
 		aimed_confirmed += int(is_aimed and waited)
 		rows.append("    tap %2d %-9s %5.1f m  bot %d drawn %.1f m/s  ray %.3f m off the torso  crosshair %.3f deg %.2f m off the shot  client %-4s server %s  tick %d feet %s dir %s" % [
-			taps, def.id, range_m, victim, speed, miss_m, cam_deg, eye_gap, "HIT" if said_hit else "miss", "HIT" if waited else "nothing",
+			taps, def.id, range_m, victim, speed, miss_m, cam_deg, eye_gap, "HIT" if said_hit else "miss", "HIT" if waited else ("other-tap" if other else "nothing"),
 			_shot.tick, feet.snappedf(0.001), _shot.direction.normalized().snappedf(0.00001)])
 		print(rows.back())
 		Input.action_release(FcBindings.AIM)
@@ -211,16 +227,22 @@ func _taps(g: Object) -> void:
 	Input.action_release(FcBindings.AIM)
 	print("  taps %d; aimed at the drawn torso %d; client predicted a hit %d (%d aimed); server confirmed %d of the predicted, %d of the aimed" % [
 		taps, aimed, predicted, aimed_predicted, predicted_confirmed, aimed_confirmed])
+	_check(_untagged == 0, "every HIT of a scoped hitscan tap names the tick it was fired on", "%d without" % _untagged)
 	_check(taps >= TAPS / 2, "the local player tapped at far drawn bots", "%d taps" % taps)
 	_check(predicted_confirmed == predicted, "every tap the client drew hitting the bot comes back a HIT", "%d of %d" % [predicted_confirmed, predicted])
 	_check(aimed_predicted == aimed, "every tap aimed at the drawn torso is predicted to hit it", "%d of %d" % [aimed_predicted, aimed])
 	_check(aimed_confirmed == aimed, "every tap aimed at the drawn torso is a HIT on the server", "%d of %d" % [aimed_confirmed, aimed])
 
 
-## The live bot nearest the middle of the band with a clear line from the eye to its drawn torso, or null.
+## The live bot nearest the middle of the band whose drawn hitboxes are the first thing the combat trace
+## meets on the line from the eye to its drawn torso, or null.
 func _pick(g: Object, me: FcPlayer) -> FcPlayer:
 	var eye := me.camera.global_position
-	var space := me.get_world_3d().direct_space_state
+	var combat: GSCombatManager = g.get("combat")
+	if combat == null or combat.trace == null:
+		return null
+	combat.trace.exclude = [me.hitboxes] if me.hitboxes != null else []
+	var sets := combat.hitbox_sets()
 	var best: FcPlayer = null
 	var best_d := INF
 	for p: FcPlayer in g.call("players"):
@@ -229,8 +251,11 @@ func _pick(g: Object, me: FcPlayer) -> FcPlayer:
 		var d := eye.distance_to(torso(p))
 		if d < NEAR_M or d > FAR_M:
 			continue
-		var q := PhysicsRayQueryParameters3D.create(eye, torso(p), 1)
-		if not space.intersect_ray(q).is_empty():
+		# Clear only when the first thing on the line, world or body, is this bot's own hitboxes:
+		# a wall or another bot in front is the shooter's miss, not a lost shot.
+		var to := torso(p)
+		var hit := combat.trace.ray(eye, (to - eye).normalized(), d + 1.0, sets)
+		if not hit.ok() or hit.hitbox == null or p.hitboxes == null or not p.hitboxes.is_ancestor_of(hit.hitbox):
 			continue
 		var score := absf(d - 0.5 * (NEAR_M + FAR_M))
 		if score < best_d:
@@ -249,7 +274,7 @@ static func _sparked_on(shot: GSShot, feet: Vector3) -> bool:
 
 
 ## Whether the client's own shot picture lands on [param target]: AwShotFx's ray (from the shot's eye, its mask, its
-## carrier excluded) striking the target's body, which it draws as a flesh impact.
+## carrier excluded; from fc-weapons 49 refined to the hit zones) striking the target's body, drawn as a flesh impact.
 static func _drawn_on(me: FcPlayer, shot: GSShot, target: FcPlayer) -> bool:
 	if not is_instance_valid(target) or me.weapons == null or not me.weapons.has_method(&"shot_fx"):
 		return false
@@ -257,8 +282,13 @@ static func _drawn_on(me: FcPlayer, shot: GSShot, target: FcPlayer) -> bool:
 	if fx == null or fx.get_world_3d() == null:
 		return false
 	var dir := shot.direction.normalized()
-	var query := PhysicsRayQueryParameters3D.create(shot.origin, shot.origin + dir * 400.0, fx.collision_mask, fx.exclude)
-	var found := fx.get_world_3d().direct_space_state.intersect_ray(query)
+	var found: Dictionary
+	if fx.has_method(&"trace_ray"):
+		# fc-weapons 49: the ray the spark is really drawn from, which asks the body's hit zones past its capsule.
+		found = fx.call(&"trace_ray", shot.origin, dir, 400.0)
+	else:
+		var query := PhysicsRayQueryParameters3D.create(shot.origin, shot.origin + dir * 400.0, fx.collision_mask, fx.exclude)
+		found = fx.get_world_3d().direct_space_state.intersect_ray(query)
 	var node := found.get("collider") as Node
 	return node != null and (node == target or target.is_ancestor_of(node))
 

@@ -453,12 +453,27 @@ func _count_late_fire(honoured: bool) -> void:
 func _note_late_fires(peer_id: int, buffer: GSNetInput.Buffer, batch: Array) -> void:
 	var seen: Dictionary = _seen_ticks.get_or_add(peer_id, {})
 	var consumed := buffer.last_consumed_tick()
+	# Whether each tick in the packet holds the trigger, so a late tick is judged against the one before it.
+	var held_here: Dictionary = {}
+	for item in batch:
+		var each := item as FcNetCommand
+		if each != null:
+			held_here[each.tick] = each.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK)
 	for i in batch.size():
 		var command := batch[i] as FcNetCommand
 		if command == null or seen.has(command.tick):
 			continue
-		seen[command.tick] = true
-		if consumed < 0 or command.tick > consumed or not command.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
+		var held := command.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK)
+		seen[command.tick] = held
+		if consumed < 0 or command.tick > consumed or not held:
+			continue
+		# Only the tick the trigger went down on is the tap. A tap held for three ticks that all came late queued three
+		# shots, the second and third fired one after another on the commands after it, and their cooldown refused the
+		# shooter's next tap: the client drew one shot per tap and the server fired some taps twice and the next never.
+		if bool(held_here.get(command.tick - 1, seen.get(command.tick - 1, false))):
+			continue
+		# Its next tick reached the server earlier, still held, and was simulated: that tick took the tap's edge and fired it.
+		if command.tick + 1 <= consumed and bool(seen.get(command.tick + 1, false)):
 			continue
 		var age := consumed - command.tick
 		if age >= late_fire_max_ticks():
@@ -476,7 +491,7 @@ func _note_late_fires(peer_id: int, buffer: GSNetInput.Buffer, batch: Array) -> 
 
 
 ## Puts the oldest late shot of [param peer_id] on [param command] (for [param tick]) when that command is not firing itself, with the view lag the shooter drew it at moved to this tick. Returns
-## [fire, lag, back, span, yaw, pitch, targets] for the player to use, or an empty array. A late shot that waits too long behind firing commands is dropped and counted.
+## [fire, lag, back, span, yaw, pitch, targets, the shot's own tick] for the player to use, or an empty array. A late shot that waits too long behind firing commands is dropped and counted.
 func take_late_fire(peer_id: int, tick: int, command: FcNetCommand) -> Array:
 	var queue: Array = late_fires.get(peer_id, [])
 	if queue.is_empty():
@@ -485,8 +500,13 @@ func take_late_fire(peer_id: int, tick: int, command: FcNetCommand) -> Array:
 	while not queue.is_empty() and tick - int((queue[0] as Array)[0]) >= window:
 		queue.pop_front()
 		_count_late_fire(false)
-	if queue.is_empty() or command.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK):
+	if queue.is_empty():
 		return []
+	if command.fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK) and not _held_since(peer_id, int((queue[0] as Array)[0]), command.tick):
+		# A new tap of its own on this command: it fires now, and the late one waits for a command that does not.
+		return []
+	# Not firing, or the late tap still held (its first ticks came late, this one on time): the late tap fires here, once,
+	# aimed and rewound as the shooter drew it, rather than the held tick firing it as if it had been pressed now.
 	var late: Array = queue.pop_front()
 	_count_late_fire(true)
 	var fire := command.fire.duplicate_command()
@@ -495,7 +515,17 @@ func take_late_fire(peer_id: int, tick: int, command: FcNetCommand) -> Array:
 	var view: float = late[1]
 	var back: int = int(late[2])
 	return [fire, float(tick) - view if view >= 0.0 else command.view_lag_ticks(),
-		back + behind if back >= 0 else command.view_back, int(late[3]) if back >= 0 else command.view_span, float(late[4]), float(late[5]), late[6]]
+		back + behind if back >= 0 else command.view_back, int(late[3]) if back >= 0 else command.view_span, float(late[4]), float(late[5]), late[6], int(late[0])]
+
+
+## Whether [param peer_id] held the trigger on every tick from [param from_tick] up to (not including) [param to_tick], as far as
+## the commands that reached the server tell: the on-time command at [param to_tick] is then the same tap as the late one.
+func _held_since(peer_id: int, from_tick: int, to_tick: int) -> bool:
+	var seen: Dictionary = _seen_ticks.get(peer_id, {})
+	for t in range(from_tick, to_tick):
+		if not bool(seen.get(t, false)):
+			return false
+	return true
 
 
 # --- Events and requests ---------------------------------------------------

@@ -49,6 +49,8 @@ func _idle_batch_ticks(out: PackedFloat64Array, count: int) -> Array:
 ## What a player's weapon tick did, in roster order: its shots, its protection and the horde's and rockets' share.
 func _post_outcome(id: int, player: FcPlayer, move: GSFpsCommand, outcome: GSWeaponOutcome, shots: Array[GSShot]) -> void:
 	shots.append_array(outcome.shots)
+	if shot_debug:
+		_debug_fire(id, player, outcome)
 	_note_protected_action(id, player, move, not outcome.shots.is_empty())
 	if horde != null and (not outcome.shots.is_empty() or not outcome.spawns.is_empty()):
 		horde.note_fire(id, player.controller.state.position)
@@ -85,3 +87,22 @@ func _flush_idle_batch(out: PackedFloat64Array, count: int, shots: Array[GSShot]
 	for k in range(count):
 		_post_outcome(_post_ids[k], _post_players[k], _post_moves[k], outs[k], shots)
 	outs.fill(null)
+
+
+## [member shot_debug]'s "fire refused" line: a human's trigger went down on a simulated command and no shot came out,
+## with why the weapon said no. The server-side half of a tap the client drew and the server never traced.
+func _debug_fire(id: int, player: FcPlayer, outcome: GSWeaponOutcome) -> void:
+	if not is_authority:
+		return
+	var pair: Array = _debug_commands.get(id, [])
+	if pair.size() < 3 or float(pair[2]) < 0.0:
+		return
+	var fire: GSWeaponCommand = pair[1]
+	var held := fire != null and fire.is_pressed(GSWeaponCommand.BUTTON_ATTACK)
+	var was := bool(_debug_fire_held.get(id, false))
+	_debug_fire_held[id] = held
+	if not held or was or not outcome.shots.is_empty():
+		return
+	var def: GSWeaponDef = player.arsenal.current_def() if player.arsenal != null else null
+	GSLog.warn(CHANNEL, "shot debug fire refused", {"by": id, "tick": _tick, "why": outcome.refusal,
+		"weapon": def.id if def != null else &"", "ready": player.arsenal.is_ready() if player.arsenal != null else false})

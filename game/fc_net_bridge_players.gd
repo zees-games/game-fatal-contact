@@ -64,7 +64,7 @@ var _killview_recorded_at := -1.0e9
 
 
 ## This tick's confirmed hits, summed: attacker -> victim -> [amount, point, headshot,
-## lethal]. Server side; sent and cleared after the tick ([method _flush_hits]).
+## lethal, shot tick or -1]. Server side; sent and cleared after the tick ([method _flush_hits]).
 var _pending_hits: Dictionary = {}
 
 
@@ -683,7 +683,7 @@ func _flush_hits() -> void:
 		for victim in mine:
 			var hit: Array = mine[victim]
 			send_event(peer, FcEvents.Kind.HIT, FcEvents.write_hit(
-				int(victim), float(hit[0]), hit[1], bool(hit[2]), bool(hit[3])
+				int(victim), float(hit[0]), hit[1], bool(hit[2]), bool(hit[3]), int(hit[4])
 			))
 	_pending_hits.clear()
 

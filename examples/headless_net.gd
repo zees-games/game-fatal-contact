@@ -486,6 +486,25 @@ func _test_event_wire_part3(older: Dictionary) -> void:
 			and bool(hit["headshot"]) and not bool(hit["lethal"]),
 		"a HIT round-trips: victim, whole hit points, where, head, not lethal", str(hit)
 	)
+	var tagged := FcEvents.read_hit(GSNetReader.new(
+		FcEvents.write_hit(12, 40.0, Vector3(1, 1, 1), false, false, 70123)
+	))
+	_check(
+		bool(tagged["ok"]) and int(tagged["shot_tick"]) == 70123 and int(hit["shot_tick"]) == -1,
+		"a HIT carries the tick of the shot it confirms (-1 for none), so the client matches its own tap by it", str(tagged)
+	)
+	# An older server's HIT ends after the lethal flag: it must still read, untagged.
+	var old_writer := GSNetWriter.new()
+	old_writer.write_varint(12)
+	old_writer.write_uint(40, 12)
+	old_writer.write_vector3_range(Vector3(1, 1, 1), -FcEvents.NPC_EXTENT, FcEvents.NPC_EXTENT, 20)
+	old_writer.write_bool(false)
+	old_writer.write_bool(true)
+	var old_hit := FcEvents.read_hit(GSNetReader.new(old_writer.to_bytes()))
+	_check(
+		bool(old_hit["ok"]) and int(old_hit["shot_tick"]) == -1 and bool(old_hit["lethal"]),
+		"an older server's HIT, without the shot tick, still reads (untagged)", str(old_hit)
+	)
 	var award := FcEvents.read_award(GSNetReader.new(
 		FcEvents.write_award(11, 12, 225, 6, [0, 1, 10])
 	))

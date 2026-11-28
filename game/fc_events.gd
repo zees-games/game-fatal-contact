@@ -703,8 +703,12 @@ const HIT_MAX := 4095
 ##
 ## The point is quantised like a monster's, coarser: it places a number that rises off a
 ## body, and a centimetre is more than that needs.
+##
+## [param shot_tick] is the command tick the shot was fired on (the client's own tick for it, a late shot's
+## too), or -1 for damage that is no one shot (a blast, a projectile). Appended last and read only when present,
+## so an older peer's HIT still reads; a client matches a confirmation to its tap by it, never by "the latest tap".
 static func write_hit(
-	victim_id: int, amount: float, point: Vector3, headshot: bool, lethal: bool
+	victim_id: int, amount: float, point: Vector3, headshot: bool, lethal: bool, shot_tick: int = -1
 ) -> PackedByteArray:
 	var writer := _w()
 	writer.write_varint(maxi(0, victim_id))
@@ -712,6 +716,7 @@ static func write_hit(
 	writer.write_vector3_range(point, -NPC_EXTENT, NPC_EXTENT, 20)
 	writer.write_bool(headshot)
 	writer.write_bool(lethal)
+	writer.write_varint(maxi(0, shot_tick + 1))
 	return writer.to_bytes()
 
 
@@ -723,6 +728,7 @@ static func read_hit(reader: GSNetReader) -> Dictionary:
 		"headshot": reader.read_bool(),
 		"lethal": reader.read_bool(),
 	}
+	out["shot_tick"] = reader.read_varint() - 1 if reader.ok() and not reader.at_end() else -1
 	out["ok"] = reader.ok()
 	return out
 

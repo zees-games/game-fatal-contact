@@ -626,6 +626,17 @@ var shot_crouch_fn: Callable = Callable()
 ## Set while a hitscan shot of this tick is traced, so [member shot_feet_fn] is asked; a bullet's
 ## or a projectile's rewind is not the click's.
 var _unlag_shot := false
+## The hitscan shot being traced right now (inside [method FcGame.tick]'s shot loop), or null: the one a HIT
+## dealt meanwhile belongs to, so the bridge can tell the shooter which of their taps it was ([method resolving_shot]).
+var _resolving_shot: GSShot = null
+
+
+## The hitscan shot [param attacker] is having traced at this moment, or null (no shot of theirs, or damage
+## dealt outside the shot loop: a blast, a projectile, the map).
+func resolving_shot(attacker: int) -> GSShot:
+	if _resolving_shot != null and _resolving_shot.attacker == attacker:
+		return _resolving_shot
+	return null
 
 ## `sv_shot_bracket_max_span`: the widest pair of snapshot ticks, shared or one target's own, a hitscan shot is blended across (or run ahead from); a wider one is refused, counted and logged, and the shot rewinds to the ring. 0: no limit.
 ## 32 ticks holds a far target's quarter-rate samples (8 ticks) with two snapshots lost in a row; the ring keeps 128.
@@ -645,6 +656,10 @@ var shot_rewind_counts: Dictionary = {}
 ## `sv_shot_debug`: logs one line per human hitscan shot (tick, view tick, ray, the nearest rewound target with how it was
 ## stood and the ray's gap to its torso, and who was hit); off by default, for chasing a spark the server did not count.
 var shot_debug: bool = false
+## This tick's commands, for [member shot_debug]'s "fire refused" line (set at the top of the player loop while it is on).
+var _debug_commands: Dictionary = {}
+## Player id -> whether that player's last simulated command held the trigger, for [member shot_debug].
+var _debug_fire_held: Dictionary = {}
 ## The key [method count_shot_rewind] counted last, so [member shot_debug] can say how a target was stood.
 var _last_rewind_key: StringName = &""
 ## The hitscan shot being traced, for [member shot_debug]; null between shots.

@@ -177,6 +177,20 @@ var last_view_tick: int = -1
 ## ([method FcNetCommand.view_target_pairs]), and the tick they were measured for: a command repeated over a lost packet keeps the pairs, which no longer name what was drawn.
 var last_view_targets: Dictionary = {}
 var last_view_targets_tick: int = -1
+## A late shot taken on [member late_fire_on_tick] was the shooter's tap on [member late_fire_tick] (server side, -1: none):
+## its HIT names that tick, the one the shooter's client drew the shot on ([method shot_tick_of]).
+var late_fire_tick: int = -1
+var late_fire_on_tick: int = -1
+
+
+## The tick the shooter fired [param shot] on as their client knows it: the server tick it was traced on, or for a late
+## shot the command tick it was pressed on.
+func shot_tick_of(shot: GSShot) -> int:
+	if shot == null:
+		return -1
+	if late_fire_on_tick >= 0 and shot.tick == late_fire_on_tick:
+		return late_fire_tick
+	return shot.tick
 
 ## Newest tick whose state this behaviour has adopted. Client side, for reconciliation.
 var last_state_tick: int = -1
@@ -316,6 +330,8 @@ func _net_apply_input(input: GSNetInput, _tick: int) -> void:
 			player.late_fire_aim = Vector2(late[4], late[5])
 			last_view_targets = late[6]
 			last_view_targets_tick = _tick
+			late_fire_tick = int(late[7])
+			late_fire_on_tick = _tick
 
 
 # --- Simulation ------------------------------------------------------------

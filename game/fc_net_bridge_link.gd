@@ -581,10 +581,17 @@ func _on_hit_confirmed(
 	if net == null or not net.is_server:
 		return
 	var mine: Dictionary = _pending_hits.get(attacker, {})
-	var was: Array = mine.get(victim, [0.0, point, false, false])
+	var was: Array = mine.get(victim, [0.0, point, false, false, -1])
 	# The headshot's point when there is one: that is where the number should rise from.
 	var at: Vector3 = point if headshot or not bool(was[2]) else was[1]
-	mine[victim] = [float(was[0]) + amount, at, bool(was[2]) or headshot, bool(was[3]) or lethal]
+	# The tap this was, as the shooter's client numbered it: a hitscan shot being traced now (a late one
+	# by its own command tick). Damage from anything else names no tap.
+	var shot_tick := int(was[4])
+	var shot := game.resolving_shot(attacker) if game != null else null
+	if shot != null:
+		var behaviour: FcPlayerNet = _behaviours.get(attacker)
+		shot_tick = maxi(shot_tick, behaviour.shot_tick_of(shot) if behaviour != null else shot.tick)
+	mine[victim] = [float(was[0]) + amount, at, bool(was[2]) or headshot, bool(was[3]) or lethal, shot_tick]
 	_pending_hits[attacker] = mine
 
 

@@ -162,6 +162,8 @@ func _start_motor_batch(delta: float) -> bool:
 
 ## The players' loop, one whole tick after another.
 func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_world: Object, shots: Array[GSShot]) -> void:
+	if shot_debug:
+		_debug_commands = commands
 	# Once a tick, not per player: the level check stats the addon's folder on disk (~90 us a player a tick at 64 players).
 	var knife_charge := knives != null and GSAddonApi.build_level("gs_weapon") >= 41
 	# `FcFrameProbe.fine` (bench `--fine 1`) splits this loop's own work from the player's tick.
@@ -206,6 +208,8 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 			if demo_stats != null:
 				demo_stats.call(&"after", id, player, move, fire, _tick)
 			shots.append_array(outcome.shots)
+			if shot_debug:
+				_debug_fire(id, player, outcome)
 			_note_protected_action(id, player, move, not outcome.shots.is_empty())
 
 			# Before the horde ticks, so the monsters hear it this tick.
@@ -223,6 +227,8 @@ func _tick_players(commands: Dictionary, delta: float, use_grid: bool, hull_worl
 ## of that player's tick. A player whose tick ends elsewhere than its motor left it (a pit, a death) has the later rows
 ## run again, so the states are the one-by-one loop's as long as no turn changes another player ([member FcHullGrid.batch_faults]).
 func _tick_players_batched(commands: Dictionary, delta: float, hull_world: Object, shots: Array[GSShot]) -> void:
+	if shot_debug:
+		_debug_commands = commands
 	# Once a tick, not per player: the level check stats the addon's folder on disk (~90 us a player a tick at 64 players).
 	var knife_charge := knives != null and GSAddonApi.build_level("gs_weapon") >= 41
 	var fine := FcFrameProbe.fine
@@ -469,7 +475,9 @@ func tick(commands: Dictionary = {}) -> void:
 			if shot_debug and lag >= 0.0:
 				_unlag_ray = shot
 				_unlag_nearest = {}
+			_resolving_shot = shot
 			_resolve_shot(shot, float(_tick) - lag if lag >= 0.0 else -1.0)
+			_resolving_shot = null
 			_unlag_shot = false
 			if _unlag_ray != null:
 				_log_shot_debug(shot, lag)
@@ -485,10 +493,13 @@ func tick(commands: Dictionary = {}) -> void:
 ## [member shot_debug]'s line for one human hitscan shot, after it was traced and the targets put back.
 func _log_shot_debug(shot: GSShot, lag: float) -> void:
 	var victims: Array = []
+	var landed: Array = []
 	for damage in shot.damages:
 		victims.append(damage.victim)
+		# What the hit did: health and armour taken, or why it was refused (a protected spawn, a dead body).
+		landed.append(damage.refusal if damage.refusal != "" else str(snappedf(damage.health_lost + damage.armour_absorbed, 0.1)))
 	GSLog.warn(CHANNEL, "shot debug", {"by": shot.attacker, "tick": _tick, "view": snappedf(float(_tick) - lag, 0.001),
-		"origin": shot.origin.snappedf(0.001), "dir": shot.direction.snappedf(0.00001), "hit": victims,
+		"origin": shot.origin.snappedf(0.001), "dir": shot.direction.snappedf(0.00001), "hit": victims, "landed": landed,
 		"impacts": shot.impacts.slice(0, 3), "nearest": _unlag_nearest})
 	_unlag_ray = null
 

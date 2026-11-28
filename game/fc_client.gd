@@ -121,6 +121,27 @@ func _report_position(delta: float) -> void:
 			"predicted": _is_predicted(),
 		})
 
+var _shot_body_trace: Callable
+
+## Where a drawn shot from [param eye] along [param dir] meets a player within [param reach]: the nearest other live
+## player's hit zones (FcPlayer.shot_fx_trace), as {position, normal, collider}, or empty. The spark ray's body judge.
+func shot_body_trace(eye: Vector3, dir: Vector3, reach: float) -> Dictionary:
+	var best := {}
+	var best_d := reach
+	if game == null:
+		return best
+	for p: FcPlayer in game.players():
+		if p == player or not is_instance_valid(p) or not p.is_alive():
+			continue
+		var at: Dictionary = p.shot_fx_trace(eye, dir, best_d)
+		if not at.has("position"):
+			continue
+		var d := eye.distance_to(at["position"])
+		if d <= best_d:
+			best_d = d
+			best = {"position": at["position"], "normal": at["normal"], "collider": p}
+	return best
+
 ## The roof the world's physics layout names, for the name tags, the roof sounds and the shot effects.
 func _present_roof(delta: float, eye: Vector3) -> void:
 	var stack_now := game.player_stack
@@ -136,6 +157,20 @@ func _present_roof(delta: float, eye: Vector3) -> void:
 			var shot_fx: Object = shot_rig.call(&"shot_fx")
 			if shot_fx != null:
 				shot_fx.set(&"roof", presentation.shot_roof)
+	_judge_shot_bodies()
+
+
+## fc-weapons 49: the shot effects' sparks land on the server's hit zones, not a capsule (a remote player has none here).
+func _judge_shot_bodies() -> void:
+	var shot_rig: Object = player.weapons if player != null else null
+	if shot_rig == null or not is_instance_valid(shot_rig) or not shot_rig.has_method(&"shot_fx"):
+		return
+	var shot_fx: Object = shot_rig.call(&"shot_fx")
+	if shot_fx == null:
+		return
+	if not _shot_body_trace.is_valid():
+		_shot_body_trace = shot_body_trace
+	shot_fx.set(&"body_trace", _shot_body_trace)
 
 
 func _process(delta: float) -> void:

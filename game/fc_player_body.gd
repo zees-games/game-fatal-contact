@@ -522,6 +522,17 @@ func fit_hitboxes_to_stance() -> void:
 	if controller != null:
 		fit_hitboxes_to_crouch(controller.state.crouch_fraction)
 
+## Where a drawn shot meets this player, for fc-weapons' spark ray (AwShotFx.body_trace, fc-weapons API 49, through FcClient.shot_body_trace): the server's
+## hit zones, never the movement capsule (0.305 m against a 0.229 m torso), so a spark on the body means the server's
+## shot can hit it. Empty when the ray passes between the zones or there are no zones to ask.
+func shot_fx_trace(from: Vector3, dir: Vector3, reach: float) -> Dictionary:
+	if hitboxes == null or not hitboxes.enabled:
+		return {}
+	var hit := hitboxes.intersect_ray(from, dir.normalized(), reach)
+	if not hit.ok():
+		return {}
+	return {"position": hit.point, "normal": hit.normal}
+
 ## The zones fitted to [param crouch] (0 standing, 1 crouched): the present stance, or the one a rewound shot was drawn at.
 func fit_hitboxes_to_crouch(crouch: float) -> void:
 	if hitboxes == null or controller == null or controller.tunables == null:
